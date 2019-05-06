@@ -1,0 +1,36 @@
+figure.facecolor: w
+
+axes.labelsize: 18
+axes.titlesize: 18
+xtick.labelsize: 18
+ytick.labelsize: 18
+legend.fontsize: 18
+font.size: 18
+
+grid.linewidth: 0.8
+lines.linewidth: 1.0
+patch.linewidth: 0.24
+lines.markersize: 3.6
+lines.markeredgewidth: 0
+
+xtick.major.size: 3.0
+ytick.major.size: 3.0
+xtick.minor.size: 1.5
+#xtick.minor.visible: False
+ytick.minor.size: 1.5
+#ytick.minor.visible: False
+
+xtick.major.pad: 2.5
+ytick.major.pad: 2.5
+
+pdf.compression: 9
+savefig.format: pdf
+savefig.dpi: 300
+
+font.family: serif
+font.serif: Computer Modern
+text.usetex: True
+axes.formatter.use_mathtext: True
+axes.formatter.useoffset: False
+axes.formatter.limits : -3, 3
+#axes.prop_cycle: cycler('color', ['k', 'k', 'k']) + cycler('linestyle', ['-', '--', ':'])

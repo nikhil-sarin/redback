@@ -1,0 +1,6 @@
+A_1 = LogUniform(1e-20, 1e20, 'A_1', latex_label = r'$A_{1}$')
+alpha_1 = Uniform(-10, -0.5, 'alpha_1', latex_label = r'$\alpha_{1}$')
+L0 = LogUniform(1e-10, 1e-5, 'L0', latex_label = r'$L_{0}$')
+tau = LogUniform(10, 1e6, 'tau', latex_label = r'$\tau$')
+nn = Uniform(1.1, 7, 'nn', latex_label= '$n$')
+tcol = LogUniform(10, 1e8, 'tcol', latex_label= '$t_\mathrm{col}$')
