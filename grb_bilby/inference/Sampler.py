@@ -23,7 +23,7 @@ class GRB_GaussianLikelihood(bilby.Likelihood):
         self.y = y
         self.sigma = sigma
         self.function = function
-        parameters = inspect.getargspec(function).args
+        parameters = inspect.getfullargspec(function).args
         parameters.pop(0)
         self.parameters = dict.fromkeys(parameters)
 
@@ -51,6 +51,8 @@ def fit_model(name, path, model, sampler = 'dynesty', nlive = 3000, prior = Fals
 
     if prior == False:
         priors = bilby.prior.PriorDict(filename = 'Priors/'+model+'.prior')
+    else:
+        priors = prior
 
     if model == 'collapsing_magnetar':
         function = mm.collapsing_mag
@@ -63,6 +65,9 @@ def fit_model(name, path, model, sampler = 'dynesty', nlive = 3000, prior = Fals
 
     if model == 'radiative_losses_full':
         function = mm.radiative_losses_full
+
+    if model == 'two_component_fireball':
+        function = mm.two_component_fireball_model
 
     outdir = path+'/GRB' + name +'/'+model
     if not os.path.exists(outdir):
