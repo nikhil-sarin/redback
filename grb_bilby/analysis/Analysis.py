@@ -102,8 +102,6 @@ def plot_models(parameters, model, axes = None, colour='r', alpha=1.0, ls='-', l
         lightcurve = mm.radiative_losses_full(time, **parameters)
         magnetar = mm.magnetar(time, **parameters)
         ax.plot(time, magnetar, color=colour, ls=ls, lw=lw, alpha=alpha, zorder=-32, linestyle = '--')
-    else:
-        lightcurve = None
     ax.plot(time, lightcurve, color=colour, ls=ls, lw=lw, alpha=alpha, zorder=-32)
 
 
@@ -138,7 +136,7 @@ def plot_lightcurve(GRB, model,path = '.',
         params = dict(result.posterior.iloc[np.random.randint(len(result.posterior))])
         plot_models(parameters = params, axes = axes, alpha=0.05, lw=1, colour='r', model = model)
 
-    plot_data(data, axes = axes)
+    plot_data(GRB=GRB, axes = axes, path = path, truncate = truncate)
 
     if plot_save:
         plt.savefig(plots_base_directory + model + '_lightcurve.png')
