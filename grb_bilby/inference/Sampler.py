@@ -57,6 +57,9 @@ def fit_model(name, path, model, sampler = 'dynesty', nlive = 3000, prior = Fals
     if model == 'collapsing_magnetar':
         function = mm.collapsing_mag
 
+    if model == 'full_magnetar':
+        function = mm.full_magnetar
+
     if model == 'collapsing_losses':
         function = mm.collapsing_losses
 

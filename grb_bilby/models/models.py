@@ -129,7 +129,7 @@ def general_magnetar(time, amplitude_one, time_exponent_one,
     return total
 
 def two_component_fireball_model(time, amplitude_one, time_exponent_one,
-                                 delta_time_one, time_exponent_two):
+                                 delta_time_one, time_exponent_two, **kwargs):
     """
     Two component fireball model
     :param time: time array for power law

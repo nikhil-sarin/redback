@@ -14,7 +14,7 @@ def find_path(path):
     if path == 'default':
         data_dir = os.path.join(dirname, '../data/GRBData')
     else:
-        data_dir = 'GRBData'
+        data_dir = path
     return data_dir
 
 def load_data(GRB, path = 'GRBData', truncate = True):
@@ -37,7 +37,7 @@ def read_result(model, GRB, path = '.', truncate = True):
     :param truncate:
     :return: bilby result object and data object
     """
-    result_path = 'GRBData'+'/GRB' + GRB +'/'+model + '/'
+    result_path = path+'/GRB' + GRB +'/'+model + '/'
     if not os.path.exists(result_path):
         os.makedirs(result_path)
     result = bilby.result.read_in_result(filename = result_path + 'result_result.json')
@@ -92,8 +92,12 @@ def plot_models(parameters, model, axes = None, colour='r', alpha=1.0, ls='-', l
 
     if model == 'collapsing_magnetar':
         lightcurve = mm.collapsing_mag(time, **parameters)
+    if model == 'full_magnetar':
+        lightcurve = mm.full_magnetar(time, **parameters)
     if model == 'collapsing_losses':
         lightcurve = mm.collapsing_losses(time, **parameters)
+    if model == 'two_component_fireball':
+        lightcurve = mm.two_component_fireball_model(time, **parameters)
     if model == 'radiative_losses':
         lightcurve = mm.radiative_losses(time, **parameters)
         magnetar = mm.magnetar(time, **parameters)
@@ -145,9 +149,9 @@ def plot_lightcurve(GRB, model,path = '.',
         plt.show()
 
 def calculate_BF(model1, model2, GRB, path = '.'):
-    model1, path = read_result(model = model1, GRB = GRB, path = path)
-    model2, path = read_result(model = model2, GRB = GRB, path = path)
+    model1, data = read_result(model = model1, GRB = GRB, path = path)
+    model2, data = read_result(model = model2, GRB = GRB, path = path)
     str = GRB
     logBF = model1.log_evidence - model2.log_evidence
 
-    return [str, logBF];
+    return logBF
