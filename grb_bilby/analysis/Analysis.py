@@ -1,8 +1,9 @@
-import bilby
-import numpy as np
 import os
+
+import bilby
 import matplotlib.pyplot as plt
-import grb_bilby.processing.GRB as tools
+import numpy as np
+from grb_bilby.processing import GRB as tools
 from grb_bilby.models import models as mm
 dirname = os.path.dirname(__file__)
 filename = os.path.join(dirname, 'paper.mplstyle')
@@ -29,7 +30,7 @@ def load_data(GRB, path = 'GRBData', truncate = True):
     data.load_and_truncate_data(truncate=truncate)
     return data
 
-def read_result(model, GRB, path = '.', truncate = True):
+def read_result(model, GRB, path = '.', truncate = True, use_photon_index_prior = False):
     """
     :param model: model to analyse
     :param GRB: telephone number of GRB
@@ -40,10 +41,11 @@ def read_result(model, GRB, path = '.', truncate = True):
     result_path = path+'/GRB' + GRB +'/'+model + '/'
     if not os.path.exists(result_path):
         os.makedirs(result_path)
-    result = bilby.result.read_in_result(filename = result_path + 'result_result.json')
-    data_dir = find_path(path)
-    data = tools.SGRB(name=GRB, path = data_dir)
-    data.load_and_truncate_data(truncate=truncate)
+    if use_photon_index_prior == True:
+        result = bilby.result.read_in_result(filename=result_path + 'photon_index_result.json')
+    else:
+        result = bilby.result.read_in_result(filename = result_path + 'result_result.json')
+    data = load_data(GRB=GRB,truncate=truncate,path=path)
 
     return result, data
 
@@ -90,29 +92,59 @@ def plot_models(parameters, model, axes = None, colour='r', alpha=1.0, ls='-', l
     time = np.logspace(-4, 7, 100)
     ax = axes or plt.gca()
 
-    if model == 'collapsing_magnetar':
-        lightcurve = mm.collapsing_mag(time, **parameters)
+    if model == 'magnetar_only':
+        lightcurve = mm.magnetar_only(time, **parameters)
+
     if model == 'full_magnetar':
         lightcurve = mm.full_magnetar(time, **parameters)
-    if model == 'collapsing_losses':
-        lightcurve = mm.collapsing_losses(time, **parameters)
+
+    if model == 'general_magnetar':
+        lightcurve = mm.general_magnetar(time, **parameters)
+
+    if model == 'collapsing_magnetar':
+        lightcurve = mm.collapsing_magnetar(time, **parameters)
+
+    if model == 'one_component_fireball':
+        lightcurve = mm.one_component_fireball_model(time, **parameters)
+
     if model == 'two_component_fireball':
         lightcurve = mm.two_component_fireball_model(time, **parameters)
+
+    if model == 'three_component_fireball':
+        lightcurve = mm.three_component_fireball_model(time, **parameters)
+
+    if model == 'four_component_fireball':
+        lightcurve = mm.four_component_fireball_model(time, **parameters)
+
+    if model == 'five_component_fireball':
+        lightcurve = mm.five_component_fireball_model(time, **parameters)
+
+    if model == 'six_component_fireball':
+        lightcurve = mm.six_component_fireball_model(time, **parameters)
+
+    if model == 'piecewise_radiative_losses':
+        lightcurve = mm.piecewise_radiative_losses(time, **parameters)
+        magnetar = mm.magnetar_only(time, **parameters)
+        ax.plot(time, magnetar, color=colour, ls=ls, lw=lw, alpha=alpha, zorder=-32, linestyle = '--')
+
     if model == 'radiative_losses':
         lightcurve = mm.radiative_losses(time, **parameters)
-        magnetar = mm.magnetar(time, **parameters)
+        magnetar = mm.magnetar_only(time, **parameters)
         ax.plot(time, magnetar, color=colour, ls=ls, lw=lw, alpha=alpha, zorder=-32, linestyle = '--')
-    if model == 'radiative_losses_full':
-        lightcurve = mm.radiative_losses_full(time, **parameters)
-        magnetar = mm.magnetar(time, **parameters)
-        ax.plot(time, magnetar, color=colour, ls=ls, lw=lw, alpha=alpha, zorder=-32, linestyle = '--')
+
+    if model == 'radiative_losses_mdr':
+        lightcurve = mm.radiative_losses_mdr(time, **parameters)
+
+    if model == 'collapsing_radiative_losses':
+        lightcurve = mm.collapsing_radiative_losses(time, **parameters)
+
     ax.plot(time, lightcurve, color=colour, ls=ls, lw=lw, alpha=alpha, zorder=-32)
 
 
-def plot_lightcurve(GRB, model,path = '.',
+def plot_lightcurve(GRB, model,path = 'GRBData',
                     axes = None,
                     plot_save=True,
-                    plot_show=True, random_models = 1000, truncate = True):
+                    plot_show=True, random_models = 1000, truncate = True,use_photon_index_prior = False):
     '''
     plots the lightcurve
     GRB is the telephone number of the GRB
@@ -122,7 +154,7 @@ def plot_lightcurve(GRB, model,path = '.',
     ax = axes or plt.gca()
 
     #read result
-    result, data = read_result(model = model, GRB = GRB, path = path, truncate = truncate)
+    result, data = read_result(model=model, GRB=GRB, path=path, truncate=truncate, use_photon_index_prior=use_photon_index_prior)
 
     #set up plotting directory structure
     dir = data.path+'/GRB'+data.name
@@ -148,10 +180,9 @@ def plot_lightcurve(GRB, model,path = '.',
     if plot_show:
         plt.show()
 
-def calculate_BF(model1, model2, GRB, path = '.'):
-    model1, data = read_result(model = model1, GRB = GRB, path = path)
-    model2, data = read_result(model = model2, GRB = GRB, path = path)
-    str = GRB
+def calculate_BF(model1, model2, GRB, path = '.',use_photon_index_prior = False):
+    model1, data = read_result(model = model1, GRB = GRB, path = path, use_photon_index_prior=use_photon_index_prior)
+    model2, data = read_result(model = model2, GRB = GRB, path = path, use_photon_index_prior=use_photon_index_prior)
     logBF = model1.log_evidence - model2.log_evidence
 
     return logBF

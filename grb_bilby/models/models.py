@@ -43,7 +43,7 @@ def collapsing_magnetar(time, A_1, alpha_1, L0, tau, nn, tcol, **kwargs):
     :param kwargs:
     :return:
     """
-    pl = powerlaw(time, A_1, alpha_1)
+    pl = one_component_fireball_model(time, A_1, alpha_1)
     mag = np.heaviside(tcol - time, 1e-50) * magnetar_only(time, L0, tau, nn)
 
     return pl + mag

@@ -7,5 +7,6 @@ setup(name='grb_bilby',
       author='Nikhil Sarin',
       author_email='nikhil.sarin@monash.edu',
       license='MIT',
-      packages=['grb_bilby'],
+      packages=['grb_bilby','grb_bilby.processing','grb_bilby.analysis',
+                'grb_bilby.inference','grb_bilby.models'],
       zip_safe=False)

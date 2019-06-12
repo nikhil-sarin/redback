@@ -1,6 +1,5 @@
 import pandas as pd
 from grb_bilby.processing import getdata
-import os
 
 """
 Default save location is the data folder, but you can specify to be any folder you want

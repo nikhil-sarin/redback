@@ -1,5 +1,6 @@
 import numpy as np
-import grb_bilby.processing.GRB as tools
+from grb_bilby.processing import GRB as tools
+from grb_bilby.models import models as mm
 import bilby
 import inspect
 import os
@@ -7,7 +8,6 @@ import sys
 import pandas as pd
 from grb_bilby.analysis.Analysis import find_path
 dirname = os.path.dirname(__file__)
-from grb_bilby.models import models as mm
 
 class GRB_GaussianLikelihood(bilby.Likelihood):
     def __init__(self, x, y, sigma, function):
@@ -109,8 +109,7 @@ def fit_model(name, path, model, sampler = 'dynesty', nlive = 3000, prior = Fals
     if model == 'collapsing_radiative_losses':
         function = mm.collapsing_radiative_losses
 
-
-
+    outdir = path + '/GRB' + name + '/' + model
 
     if path == 'default':
         path = find_path(path)
@@ -124,7 +123,7 @@ def fit_model(name, path, model, sampler = 'dynesty', nlive = 3000, prior = Fals
                            'time_err_positive': data.time_err[1, :]})
         df.to_csv(outdir + "/data.txt", sep=',', index_label=False, index=False)
 
-    outdir = path+'/GRB' + name +'/'+model
+
     if not os.path.exists(outdir):
         os.makedirs(outdir)
     if use_photon_index_prior == True:
