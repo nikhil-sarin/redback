@@ -63,6 +63,10 @@ class SGRB:
                            error_bad_lines=False, delimiter='\t', dtype='str')
         frames = [lgrb, sgrb]
         data = pd.concat(frames, ignore_index=True)
+        data['BAT Photon Index (15-150 keV) (PL = simple power-law, CPL = cutoff power-law)'] = data['BAT Photon Index (15-150 keV) (PL = simple power-law, CPL = cutoff power-law)'].fillna(0)
         photon_index = data.query('GRB == @self.name')['BAT Photon Index (15-150 keV) (PL = simple power-law, CPL = cutoff power-law)']
         photon_index = photon_index.values[0]
-        return float(photon_index.replace("PL","").replace("CPL","").replace(",","").replace("C",""))
+        if photon_index == 0.:
+            return 0.
+        else:
+            return float(photon_index.replace("PL","").replace("CPL","").replace(",","").replace("C","").replace("~",""))

@@ -54,15 +54,16 @@ def fit_model(name, path, model, sampler = 'dynesty', nlive = 3000, prior = Fals
 
     if prior == False:
         priors = bilby.prior.PriorDict(filename = dirname+'/Priors/'+model+'.prior')
-        if use_photon_index_prior == True:
-            if data.photon_index < 0.:
-                print('photon index for GRB', data.name, 'is negative. Using default prior on alpha_1')
-                priors['alpha_1'] = bilby.prior.Uniform(-10, -0.5, 'alpha_1', latex_label = r'$\alpha_{1}$')
-            else:
-                priors['alpha_1'] = bilby.prior.Gaussian(mu=-(data.photon_index + 1),sigma=0.1,latex_label=r'$\alpha_{1}$')
-
     else:
         priors = prior
+
+    if use_photon_index_prior == True:
+        if data.photon_index < 0.:
+            print('photon index for GRB', data.name, 'is negative. Using default prior on alpha_1')
+            priors['alpha_1'] = bilby.prior.Uniform(-10, -0.5, 'alpha_1', latex_label=r'$\alpha_{1}$')
+        else:
+            priors['alpha_1'] = bilby.prior.Gaussian(mu=-(data.photon_index + 1), sigma=0.1,
+                                                     latex_label=r'$\alpha_{1}$')
 
     if model == 'magnetar_only':
         function = mm.magnetar_only

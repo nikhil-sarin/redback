@@ -76,7 +76,7 @@ def plot_data(GRB, path, truncate, axes = None, colour='k'):
                  horizontalalignment='right')
 
     ax.set_xlabel(r'time since burst [s]')
-    ax.set_ylabel(r'Flux erg cm$^{-2}$ s$^{-1}$')
+    ax.set_ylabel(r'Flux [erg cm$^{-2}$ s$^{-1}$]')
     ax.tick_params(axis='x', pad=10)
 
     #plt.tight_layout()

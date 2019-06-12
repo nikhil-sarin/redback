@@ -26,8 +26,8 @@ def full_magnetar(time, A_1, alpha_1, L0, tau, nn, **kwargs):
     :param kwargs:
     :return:
     """
-    pl = powerlaw(time=time, A_1=A_1, alpha_1=alpha_1)
-    mag = magnetar(time=time, L0=L0, tau=tau, nn=nn)
+    pl = one_component_fireball_model(time=time, A_1=A_1, alpha_1=alpha_1)
+    mag = magnetar_only(time=time, L0=L0, tau=tau, nn=nn)
     return pl + mag
 
 
