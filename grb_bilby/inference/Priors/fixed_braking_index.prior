@@ -1,0 +1,5 @@
+amplitude_one = LogUniform(1e-1, 1e5, 'amplitude_one', latex_label = r'$A_{1}$')
+time_exponent_one = Uniform(-10, 0, 'time_exponent_one', latex_label = r'$\alpha_{1}$')
+delta_time_one = LogUniform(1e-10, 1e6, 'delta_time_one', latex_label = r'$\Delta t_{1}$')
+time_exponent_two = -2.0
+delta_time_two = LogUniform(10, 1e6, 'delta_time_two', latex_label = r'$\Delta t_{2}$')

@@ -3,6 +3,10 @@ Nikhil Sarin
 Contains GRB class, with method to load and truncate data for SGRB and in future LGRB
 """
 import numpy as np
+import os
+import pandas as pd
+from grb_bilby.analysis.Analysis import find_path
+dirname = os.path.dirname(__file__)
 
 class SGRB:
     """Class for SGRB"""
@@ -16,12 +20,15 @@ class SGRB:
         :param Lum50_err: error in luminsoty data
         """
         self.name = name
-        self.path = path
+        if path == 'default':
+            self.path = find_path(path)
+        else:
+            self.path = path
         self.time = []
         self.time_err = []
         self.Lum50 = []
         self.Lum50_err = []
-
+        self.photon_index = self._get_photon_index()
 
     def load_and_truncate_data(self, truncate = True):
         """
@@ -32,9 +39,8 @@ class SGRB:
         """
         data_file = self.path+'/GRB' + self.name + '/GRB' + self.name + '.dat'
         data = np.loadtxt(data_file)
-
-        self.time      = data[:, 0]      ## time (secs)
-        self.time_err  = np.abs(data[:, 1:3].T) ## \Delta time (secs)
+        self.time = data[:, 0]      ## time (secs)
+        self.time_err = np.abs(data[:, 1:3].T) ## \Delta time (secs)
         self.Lum50 = data[:, 3]        ## Lum (1e50 erg/s)
         self.Lum50_err = np.abs(data[:, 4:].T)
 
@@ -47,3 +53,16 @@ class SGRB:
             self.Lum50_err = self.Lum50_err[:, to_del:]
 
         return None
+
+    def _get_photon_index(self):
+        short_table = os.path.join(dirname, 'SGRB_table.txt')
+        sgrb = pd.read_csv(short_table, header=0,
+                           error_bad_lines=False, delimiter='\t', dtype='str')
+        long_table = os.path.join(dirname, 'LGRB_table.txt')
+        lgrb = pd.read_csv(long_table, header=0,
+                           error_bad_lines=False, delimiter='\t', dtype='str')
+        frames = [lgrb, sgrb]
+        data = pd.concat(frames, ignore_index=True)
+        photon_index = data.query('GRB == @self.name')['BAT Photon Index (15-150 keV) (PL = simple power-law, CPL = cutoff power-law)']
+        photon_index = photon_index.values[0]
+        return float(photon_index.replace("PL","").replace("CPL","").replace(",","").replace("C",""))

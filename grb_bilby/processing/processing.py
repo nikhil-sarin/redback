@@ -11,7 +11,7 @@ def process_long_grbs(GRBdir):
                        error_bad_lines=False, delimiter='\t', dtype='str')
 
     for GRB in data['GRB'].values:
-        getdata.RetrieveAndProcessData(GRB)
+        getdata.RetrieveAndProcessData(GRB,GRBdir)
 
     return print('Flux data for all long GRBs added')
 
@@ -20,7 +20,7 @@ def process_short_grbs(GRBdir):
                        error_bad_lines=False, delimiter='\t', dtype='str')
 
     for GRB in data['GRB'].values:
-        getdata.RetrieveAndProcessData(GRB)
+        getdata.RetrieveAndProcessData(GRB,GRBdir)
 
     return print('Flux data for all short GRBs added')
 
@@ -29,7 +29,7 @@ def process_grbs_w_redshift(GRBdir):
                        error_bad_lines=False, delimiter='\t', dtype='str')
 
     for GRB in data['GRB'].values:
-        getdata.RetrieveAndProcessData(GRB)
+        getdata.RetrieveAndProcessData(GRB,GRBdir)
 
     return print('Flux data for all GRBs with redshift added')
 

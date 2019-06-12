@@ -1,6 +1,6 @@
-'''
+"""
 Code for reading GRB data from Swift website
-'''
+"""
 import os
 import sys
 import time

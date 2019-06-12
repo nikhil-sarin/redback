@@ -4,6 +4,9 @@ import bilby
 import inspect
 import os
 import sys
+import pandas as pd
+from grb_bilby.analysis.Analysis import find_path
+dirname = os.path.dirname(__file__)
 from grb_bilby.models import models as mm
 
 class GRB_GaussianLikelihood(bilby.Likelihood):
@@ -32,7 +35,7 @@ class GRB_GaussianLikelihood(bilby.Likelihood):
         return -0.5 * (np.sum((res / self.sigma)**2
                        + np.log(2*np.pi*self.sigma**2)))
 
-def fit_model(name, path, model, sampler = 'dynesty', nlive = 3000, prior = False, walks = 1000, truncate = True, **kwargs):
+def fit_model(name, path, model, sampler = 'dynesty', nlive = 3000, prior = False, walks = 1000, truncate = True, use_photon_index_prior = False, **kwargs):
     """
 
     Parameters
@@ -50,32 +53,84 @@ def fit_model(name, path, model, sampler = 'dynesty', nlive = 3000, prior = Fals
     data.load_and_truncate_data(truncate = truncate)
 
     if prior == False:
-        priors = bilby.prior.PriorDict(filename = 'Priors/'+model+'.prior')
+        priors = bilby.prior.PriorDict(filename = dirname+'/Priors/'+model+'.prior')
+        if use_photon_index_prior == True:
+            if data.photon_index < 0.:
+                print('photon index for GRB', data.name, 'is negative. Using default prior on alpha_1')
+                priors['alpha_1'] = bilby.prior.Uniform(-10, -0.5, 'alpha_1', latex_label = r'$\alpha_{1}$')
+            else:
+                priors['alpha_1'] = bilby.prior.Gaussian(mu=-(data.photon_index + 1),sigma=0.1,latex_label=r'$\alpha_{1}$')
+
     else:
         priors = prior
 
-    if model == 'collapsing_magnetar':
-        function = mm.collapsing_mag
+    if model == 'magnetar_only':
+        function = mm.magnetar_only
 
     if model == 'full_magnetar':
         function = mm.full_magnetar
 
-    if model == 'collapsing_losses':
-        function = mm.collapsing_losses
+    if model == 'magnetic_dipole_magnetar':
+        function = mm.full_magnetar
 
-    if model == 'radiative_losses':
-        function = mm.radiative_losses
+    if model == 'collapsing_magnetar':
+        function = mm.collapsing_magnetar
 
-    if model == 'radiative_losses_full':
-        function = mm.radiative_losses_full
+    if model == 'general_magnetar':
+        function = mm.general_magnetar
+
+    if model == 'one_component_fireball':
+        function = mm.one_component_fireball_model
 
     if model == 'two_component_fireball':
         function = mm.two_component_fireball_model
 
+    if model == 'three_component_fireball':
+        function = mm.three_component_fireball_model
+
+    if model == 'four_component_fireball':
+        function = mm.four_component_fireball_model
+
+    if model == 'five_component_fireball':
+        function = mm.five_component_fireball_model
+
+    if model == 'six_component_fireball':
+        function = mm.six_component_fireball_model
+
+    if model == 'piecewise_radiative_losses':
+        function = mm.piecewise_radiative_losses
+
+    if model == 'radiative_losses':
+        function = mm.radiative_losses
+
+    if model == 'radiative_losses_mdr':
+        function = mm.radiative_losses_mdr
+
+    if model == 'collapsing_radiative_losses':
+        function = mm.collapsing_radiative_losses
+
+
+
+
+    if path == 'default':
+        path = find_path(path)
+    else:
+        path = path
+        df = pd.DataFrame({'time': data.time,
+                           'Lum50': data.Lum50,
+                           'Lum50_err_positive': data.Lum50_err[1, :],
+                           'Lum50_err_negative': data.Lum50_err[0, :],
+                           'time_err_negative': data.time_err[0, :],
+                           'time_err_positive': data.time_err[1, :]})
+        df.to_csv(outdir + "/data.txt", sep=',', index_label=False, index=False)
+
     outdir = path+'/GRB' + name +'/'+model
     if not os.path.exists(outdir):
         os.makedirs(outdir)
-    label = 'result'
+    if use_photon_index_prior == True:
+        label = 'photon_index'
+    else:
+        label = 'result'
 
     likelihood = GRB_GaussianLikelihood(x = data.time, y = data.Lum50, sigma = data.Lum50_err, function = function)
 
