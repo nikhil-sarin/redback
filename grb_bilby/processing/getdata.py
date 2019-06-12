@@ -59,7 +59,7 @@ def GetGRBFile(GRB, GRBdir):
         if check == 'n':
             print('Exiting from getGRBFile function')
         """
-        return
+        return None
 
     # open the webdriver
     driver = webdriver.PhantomJS('/Users/nsarin/Documents/PhD/phantomjs-2.1.1-macosx/bin/phantomjs')
@@ -115,7 +115,7 @@ def SortData(GRB, GRBdir):
 
     if os.path.isfile(GRBoutfile):
         print('Processed data file already exists')
-        return
+        return None
 
     xrtpcflag = 0
     xrtpc = []

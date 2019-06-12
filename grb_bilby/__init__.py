@@ -6,4 +6,5 @@ It also does data processing for swift data products, k-correction, automated da
 from . import inference, processing, analysis, models
 from .inference.Sampler import fit_model
 from .processing.GRB import SGRB
+from .processing.process_data import process_grb_list
 
