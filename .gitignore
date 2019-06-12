@@ -13,3 +13,5 @@
 ghostdriver.log
 
 *.*~
+#ignore model output in the default data folder
+grb_bilby/data/GRBData/*/*/
