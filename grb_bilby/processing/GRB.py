@@ -46,8 +46,8 @@ class SGRB:
 
         if truncate:
             if truncate_method == 'prompt_time_error':
-                mask1 = time_err[0, :] > 0.045
-                mask2 = time < 10.  # dont truncate if data point is after 10 seconds
+                mask1 = self.time_err[0, :] > 0.0025
+                mask2 = self.time < 0.2  # dont truncate if data point is after 0.2 seconds
                 mask = np.logical_and(mask1, mask2)
                 self.time = self.time[~mask]
                 self.time_err = self.time_err[:, ~mask]
