@@ -7,7 +7,10 @@ import os
 import sys
 import pandas as pd
 from grb_bilby.analysis.Analysis import find_path
+
 dirname = os.path.dirname(__file__)
+logger = bilby.core.utils.logger
+
 
 class GRB_GaussianLikelihood(bilby.Likelihood):
     def __init__(self, x, y, sigma, function):
@@ -32,10 +35,12 @@ class GRB_GaussianLikelihood(bilby.Likelihood):
 
     def log_likelihood(self):
         res = self.y - self.function(self.x, **self.parameters)
-        return -0.5 * (np.sum((res / self.sigma)**2
-                       + np.log(2*np.pi*self.sigma**2)))
+        return -0.5 * (np.sum((res / self.sigma) ** 2
+                              + np.log(2 * np.pi * self.sigma ** 2)))
 
-def fit_model(name, path, model, sampler = 'dynesty', nlive = 3000, prior = False, walks = 1000, truncate = True, use_photon_index_prior = False, **kwargs):
+
+def fit_model(name, path, model, sampler='dynesty', nlive=3000, prior=False, walks=1000, truncate=True,
+              use_photon_index_prior=False, truncate_method='prompt_time_error', **kwargs):
     """
 
     Parameters
@@ -47,19 +52,25 @@ def fit_model(name, path, model, sampler = 'dynesty', nlive = 3000, prior = Fals
     and nested samplers are encouraged to allow evidence calculation
     :param nlive: number of live points
     :param priors: if Prior is true user needs to pass a dictionary with priors defined the bilby way
+    :param walks: number of walkers
+    :param truncate: flag to confirm whether to truncate the prompt emission data
+    :param use_photon_index_prior: flag to turn off/on photon index prior and fits according to the curvature effect
+    :param truncate_method: method of truncation
+    :param kwargs: additional parameters that will be passed to the sampler
+    :return: bilby result object, GRB data object
     """
 
     data = tools.SGRB(name, path)
-    data.load_and_truncate_data(truncate = truncate)
+    data.load_and_truncate_data(truncate=truncate, truncate_method=truncate_method)
 
     if prior == False:
-        priors = bilby.prior.PriorDict(filename = dirname+'/Priors/'+model+'.prior')
+        priors = bilby.prior.PriorDict(filename=dirname + '/Priors/' + model + '.prior')
     else:
         priors = prior
 
     if use_photon_index_prior == True:
         if data.photon_index < 0.:
-            print('photon index for GRB', data.name, 'is negative. Using default prior on alpha_1')
+            logger.info('photon index for GRB', data.name, 'is negative. Using default prior on alpha_1')
             priors['alpha_1'] = bilby.prior.Uniform(-10, -0.5, 'alpha_1', latex_label=r'$\alpha_{1}$')
         else:
             priors['alpha_1'] = bilby.prior.Gaussian(mu=-(data.photon_index + 1), sigma=0.1,
@@ -124,7 +135,6 @@ def fit_model(name, path, model, sampler = 'dynesty', nlive = 3000, prior = Fals
                            'time_err_positive': data.time_err[1, :]})
         df.to_csv(outdir + "/data.txt", sep=',', index_label=False, index=False)
 
-
     if not os.path.exists(outdir):
         os.makedirs(outdir)
     if use_photon_index_prior == True:
@@ -132,12 +142,16 @@ def fit_model(name, path, model, sampler = 'dynesty', nlive = 3000, prior = Fals
     else:
         label = 'result'
 
-    likelihood = GRB_GaussianLikelihood(x = data.time, y = data.Lum50, sigma = data.Lum50_err, function = function)
+    logger.info('running inference for model',model,'using inbuilt function')
+    likelihood = GRB_GaussianLikelihood(x=data.time, y=data.Lum50, sigma=data.Lum50_err, function=function)
 
     result = bilby.run_sampler(likelihood, priors=priors, label=label, sampler=sampler, nlive=nlive,
-                                   outdir=outdir, plot=True, use_ratio=False, walks = walks, resume = False, maxmcmc = walks, nthreads = 4, save_bounds=False,**kwargs)
+                               outdir=outdir, plot=True, use_ratio=False, walks=walks, resume=False, maxmcmc=walks,
+                               nthreads=4, save_bounds=False, **kwargs)
 
     return result, data
 
-if __name__=="__main__":
-    result, data = fit_model(name = sys.argv[1], path = 'GRBData', model = sys.argv[2], sampler = 'pymultinest', nlive = 1000, prior = False, walks = 100)
+
+if __name__ == "__main__":
+    result, data = fit_model(name=sys.argv[1], path='GRBData', model=sys.argv[2], sampler='pymultinest', nlive=1000,
+                             prior=False, walks=100)

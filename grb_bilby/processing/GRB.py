@@ -30,7 +30,7 @@ class SGRB:
         self.Lum50_err = []
         self.photon_index = self._get_photon_index()
 
-    def load_and_truncate_data(self, truncate = True):
+    def load_and_truncate_data(self, truncate = True, truncate_method = 'prompt_time_error'):
         """
         Read data of SGRB from given path and GRB telephone number.
         Truncate the data to get rid of all but the last prompt emission point
@@ -45,12 +45,21 @@ class SGRB:
         self.Lum50_err = np.abs(data[:, 4:].T)
 
         if truncate:
-            truncate = self.time_err[0, :] > 0.1
-            to_del = len(self.time) - (len(self.time[truncate]) + 2)
-            self.time = self.time[to_del:]
-            self.time_err = self.time_err[:, to_del:]
-            self.Lum50 = self.Lum50[to_del:]
-            self.Lum50_err = self.Lum50_err[:, to_del:]
+            if truncate_method == 'prompt_time_error':
+                mask1 = time_err[0, :] > 0.045
+                mask2 = time < 10.  # dont truncate if data point is after 10 seconds
+                mask = np.logical_and(mask1, mask2)
+                self.time = self.time[~mask]
+                self.time_err = self.time_err[:, ~mask]
+                self.Lum50 = self.Lum50[~mask]
+                self.Lum50_err = self.Lum50_err[:, ~mask]
+            else:
+                truncate = self.time_err[0, :] > 0.1
+                to_del = len(self.time) - (len(self.time[truncate]) + 2)
+                self.time = self.time[to_del:]
+                self.time_err = self.time_err[:, to_del:]
+                self.Lum50 = self.Lum50[to_del:]
+                self.Lum50_err = self.Lum50_err[:, to_del:]
 
         return None
 
