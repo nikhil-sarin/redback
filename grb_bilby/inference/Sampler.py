@@ -122,6 +122,8 @@ def fit_model(name, path, model, sampler='dynesty', nlive=3000, prior=False, wal
         function = mm.collapsing_radiative_losses
 
     outdir = path + '/GRB' + name + '/' + model
+    if not os.path.exists(outdir):
+        os.makedirs(outdir)
 
     if path == 'default':
         path = find_path(path)
@@ -135,14 +137,12 @@ def fit_model(name, path, model, sampler='dynesty', nlive=3000, prior=False, wal
                            'time_err_positive': data.time_err[1, :]})
         df.to_csv(outdir + "/data.txt", sep=',', index_label=False, index=False)
 
-    if not os.path.exists(outdir):
-        os.makedirs(outdir)
+
     if use_photon_index_prior == True:
         label = 'photon_index'
     else:
         label = 'result'
 
-    logger.info('running inference for model',model,'using inbuilt function')
     likelihood = GRB_GaussianLikelihood(x=data.time, y=data.Lum50, sigma=data.Lum50_err, function=function)
 
     result = bilby.run_sampler(likelihood, priors=priors, label=label, sampler=sampler, nlive=nlive,
