@@ -175,7 +175,7 @@ def plot_lightcurve(GRB, model, path='GRBData',
         os.makedirs(plots_base_directory)
 
     # dictionary of max likelihood parameters
-    maxL = dict(result.posterior.iloc[-1])
+    maxL = dict(result.posterior.sort_values(by=['log_likelihood']).iloc[-1])
 
     # plot max likelihood
     plot_models(parameters=maxL, axes=axes, alpha=0.65, lw=2, colour='b', model=model)
