@@ -177,14 +177,14 @@ def plot_lightcurve(GRB, model, path='GRBData',
     # dictionary of max likelihood parameters
     maxL = dict(result.posterior.sort_values(by=['log_likelihood']).iloc[-1])
 
-    # plot max likelihood
-    plot_models(parameters=maxL, axes=axes, alpha=0.65, lw=2, colour='b', model=model)
-
     for j in range(int(random_models)):
         params = dict(result.posterior.iloc[np.random.randint(len(result.posterior))])
-        plot_models(parameters=params, axes=axes, alpha=0.05, lw=1, colour='r', model=model)
+        plot_models(parameters=params, axes=axes, alpha=0.05, lw=2, colour='r', model=model)
 
-    plot_data(GRB=GRB, axes=axes, path=path, truncate=truncate)
+        # plot max likelihood
+    plot_models(parameters=maxL, axes=axes, alpha=0.65, lw=2, colour='b', model=model)
+    
+    plot_data(GRB=GRB, axes=axes, path=path, truncate=truncate, truncate_method=truncate_method)
 
     if plot_save:
         plt.savefig(plots_base_directory + model + '_lightcurve.png')

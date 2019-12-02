@@ -348,7 +348,7 @@ def piecewise_radiative_losses(time, A_1, alpha_1, L0, tau, nn, kappa, T0, **kwa
     pl_time = np.where(time <= T0)
     magnetar_time = np.where(time > T0)
     E0 = (A_1 * T0 ** alpha_1 * T0) / kappa
-    pl = powerlaw(time[pl_time], A_1, alpha_1)
+    pl = one_component_fireball_model(time[pl_time], A_1, alpha_1)
 
     loss_term = E0 * (T0 / time[magnetar_time]) ** (kappa)
     integ = integral_general(time[magnetar_time], T0, kappa, tau, nn)
@@ -376,7 +376,7 @@ def radiative_losses(time, A_1, alpha_1, L0, tau, nn, kappa, T0, E0, **kwargs):
     :param kwargs:
     :return:
     """
-    pl = powerlaw(time, A_1, alpha_1)
+    pl = one_component_fireball_model(time, A_1, alpha_1)
     loss_term = E0 * (T0 / time) ** (kappa)
     integ = integral_general(time, T0, kappa, tau, nn)
     Energy_loss_total = ((L0 / (time ** kappa)) * integ) + loss_term
@@ -427,7 +427,7 @@ def collapsing_radiative_losses(time, A_1, alpha_1, L0, tau, nn, tcol, kappa, T0
     :param kwargs:
     :return:
     """
-    pl = powerlaw(time, A_1, alpha_1)
+    pl = one_component_fireball_model(time, A_1, alpha_1)
     loss_term = E0 * (T0 / time) ** (kappa)
     integ = integral_general_collapsing(time, T0, kappa, tau, nn, tcol)
     Energy_loss_total = ((L0 / (time ** kappa)) * integ) + loss_term

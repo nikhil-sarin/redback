@@ -147,7 +147,7 @@ def fit_model(name, path, model, sampler='dynesty', nlive=3000, prior=False, wal
 
     result = bilby.run_sampler(likelihood, priors=priors, label=label, sampler=sampler, nlive=nlive,
                                outdir=outdir, plot=True, use_ratio=False, walks=walks, resume=False, maxmcmc=walks,
-                               nthreads=4, save_bounds=False, **kwargs)
+                               nthreads=4, save_bounds=False, **kwargs,nsteps=nlive,nwalkers=walks)
 
     return result, data
 
