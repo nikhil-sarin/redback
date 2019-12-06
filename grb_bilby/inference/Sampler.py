@@ -32,6 +32,7 @@ class GRB_GaussianLikelihood(bilby.Likelihood):
         parameters = inspect.getfullargspec(function).args
         parameters.pop(0)
         self.parameters = dict.fromkeys(parameters)
+        super(GRB_GaussianLikelihood, self).__init__(parameters=dict())
 
     def log_likelihood(self):
         res = self.y - self.function(self.x, **self.parameters)
