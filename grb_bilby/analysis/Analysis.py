@@ -20,7 +20,7 @@ def find_path(path):
     return data_dir
 
 
-def load_data(GRB, path='GRBData', truncate=True, truncate_method='prompt_time_error'):
+def load_data(GRB, path='GRBData', truncate=True, truncate_method='prompt_time_error', luminosity_data=False):
     """
     :param GRB: telephone number
     :param path: default for package data, or path to GRBData folder
@@ -29,11 +29,12 @@ def load_data(GRB, path='GRBData', truncate=True, truncate_method='prompt_time_e
     """
     data_dir = find_path(path)
     data = tools.SGRB(name=GRB, path=data_dir)
-    data.load_and_truncate_data(truncate=truncate, truncate_method=truncate_method)
+    data.load_and_truncate_data(truncate=truncate, truncate_method=truncate_method,luminosity_data=luminosity_data)
     return data
 
 
-def read_result(model, GRB, path='.', truncate=True, use_photon_index_prior=False, truncate_method='prompt_time_error'):
+def read_result(model, GRB, path='.', truncate=True, use_photon_index_prior=False, truncate_method='prompt_time_error',
+                luminosity_data = False):
     """
     :param model: model to analyse
     :param GRB: telephone number of GRB
@@ -46,14 +47,16 @@ def read_result(model, GRB, path='.', truncate=True, use_photon_index_prior=Fals
         os.makedirs(result_path)
     if use_photon_index_prior == True:
         result = bilby.result.read_in_result(filename=result_path + 'photon_index_result.json')
+    if luminosity_data == True:
+        result = bilby.result.read_in_result(filename=result_path + 'luminosity_result.json')
     else:
         result = bilby.result.read_in_result(filename=result_path + 'result_result.json')
-    data = load_data(GRB=GRB, truncate=truncate, path=path, truncate_method=truncate_method)
+    data = load_data(GRB=GRB, truncate=truncate, path=path, truncate_method=truncate_method, luminosity_data=luminosity_data)
 
     return result, data
 
 
-def plot_data(GRB, path, truncate, truncate_method='prompt_time_error', axes=None, colour='k'):
+def plot_data(GRB, path, truncate, truncate_method='prompt_time_error', axes=None, colour='k',luminosity_data=False):
     """
     plots the data
     GRB is the telephone number of the GRB
@@ -64,7 +67,7 @@ def plot_data(GRB, path, truncate, truncate_method='prompt_time_error', axes=Non
     :param colour:
     """
     ax = axes or plt.gca()
-    data = load_data(GRB=GRB, path=path, truncate=truncate, truncate_method=truncate_method)
+    data = load_data(GRB=GRB, path=path, truncate=truncate, truncate_method=truncate_method,luminosity_data=luminosity_data)
     tt = data.time
     tt_err = data.time_err
     Lum50 = data.Lum50
@@ -85,11 +88,15 @@ def plot_data(GRB, path, truncate, truncate_method='prompt_time_error', axes=Non
                 horizontalalignment='right')
 
     ax.set_xlabel(r'time since burst [s]')
-    ax.set_ylabel(r'Flux [erg cm$^{-2}$ s$^{-1}$]')
+    if data.luminosity_data == True:
+        ax.set_ylabel(r'Luminosity [$10^{50}$ erg s$^{-1}$]')
+    else:
+        ax.set_ylabel(r'Flux [erg cm$^{-2}$ s$^{-1}$]')
     ax.tick_params(axis='x', pad=10)
 
     if axes == None:
         plt.tight_layout()
+    plt.grid(b=None)
 
 
 def plot_models(parameters, model, axes=None, colour='r', alpha=1.0, ls='-', lw=4):
@@ -155,7 +162,8 @@ def plot_lightcurve(GRB, model, path='GRBData',
                     plot_save=True,
                     plot_show=True, random_models=1000,
                     truncate=True, use_photon_index_prior=False,
-                    truncate_method='prompt_time_error'):
+                    truncate_method='prompt_time_error',
+                    luminosity_data=False):
     """
     plots the lightcurve
     GRB is the telephone number of the GRB
@@ -166,7 +174,7 @@ def plot_lightcurve(GRB, model, path='GRBData',
 
     # read result
     result, data = read_result(model=model, GRB=GRB, path=path, truncate=truncate,
-                               use_photon_index_prior=use_photon_index_prior, truncate_method=truncate_method)
+                               use_photon_index_prior=use_photon_index_prior, truncate_method=truncate_method,luminosity_data=luminosity_data)
 
     # set up plotting directory structure
     dir = data.path + '/GRB' + data.name
@@ -184,7 +192,7 @@ def plot_lightcurve(GRB, model, path='GRBData',
         # plot max likelihood
     plot_models(parameters=maxL, axes=axes, alpha=0.65, lw=2, colour='b', model=model)
     
-    plot_data(GRB=GRB, axes=axes, path=path, truncate=truncate, truncate_method=truncate_method)
+    plot_data(GRB=GRB, axes=axes, path=path, truncate=truncate, truncate_method=truncate_method, luminosity_data=luminosity_data)
 
     if plot_save:
         plt.savefig(plots_base_directory + model + '_lightcurve.png')
@@ -193,8 +201,8 @@ def plot_lightcurve(GRB, model, path='GRBData',
         plt.show()
 
 
-def calculate_BF(model1, model2, GRB, path='.', use_photon_index_prior=False):
-    model1, data = read_result(model=model1, GRB=GRB, path=path, use_photon_index_prior=use_photon_index_prior)
-    model2, data = read_result(model=model2, GRB=GRB, path=path, use_photon_index_prior=use_photon_index_prior)
+def calculate_BF(model1, model2, GRB, path='.', use_photon_index_prior=False, luminosity_data=False):
+    model1, data = read_result(model=model1, GRB=GRB, path=path, use_photon_index_prior=use_photon_index_prior,luminosity_data=luminosity_data)
+    model2, data = read_result(model=model2, GRB=GRB, path=path, use_photon_index_prior=use_photon_index_prior,luminosity_data=luminosity_data)
     logBF = model1.log_evidence - model2.log_evidence
     return logBF

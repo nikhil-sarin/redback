@@ -41,7 +41,7 @@ class GRB_GaussianLikelihood(bilby.Likelihood):
 
 
 def fit_model(name, path, model, sampler='dynesty', nlive=3000, prior=False, walks=1000, truncate=True,
-              use_photon_index_prior=False, truncate_method='prompt_time_error', **kwargs):
+              use_photon_index_prior=False, truncate_method='prompt_time_error',luminosity_data=False, **kwargs):
     """
 
     Parameters
@@ -62,7 +62,7 @@ def fit_model(name, path, model, sampler='dynesty', nlive=3000, prior=False, wal
     """
 
     data = tools.SGRB(name, path)
-    data.load_and_truncate_data(truncate=truncate, truncate_method=truncate_method)
+    data.load_and_truncate_data(truncate=truncate, truncate_method=truncate_method, luminosity_data=luminosity_data)
 
     if prior == False:
         priors = bilby.prior.PriorDict(filename=dirname + '/Priors/' + model + '.prior')
@@ -143,6 +143,8 @@ def fit_model(name, path, model, sampler='dynesty', nlive=3000, prior=False, wal
         label = 'photon_index'
     else:
         label = 'result'
+    if data.luminosity_data == True:
+        label = 'luminosity'
 
     likelihood = GRB_GaussianLikelihood(x=data.time, y=data.Lum50, sigma=data.Lum50_err, function=function)
 

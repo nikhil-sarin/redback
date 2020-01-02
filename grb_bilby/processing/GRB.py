@@ -29,20 +29,27 @@ class SGRB:
         self.Lum50 = []
         self.Lum50_err = []
         self.photon_index = self._get_photon_index()
+        self.luminosity_data = []
 
-    def load_and_truncate_data(self, truncate = True, truncate_method = 'prompt_time_error'):
+    def load_and_truncate_data(self, truncate = True, truncate_method = 'prompt_time_error', luminosity_data=False):
         """
         Read data of SGRB from given path and GRB telephone number.
         Truncate the data to get rid of all but the last prompt emission point
         make a cut based on the size of the temporal error; ie if t_error < 1s, the data point is
         part of the prompt emission
         """
-        data_file = self.path+'/GRB' + self.name + '/GRB' + self.name + '.dat'
+        if luminosity_data:
+            data_file = self.path + '/GRB' + self.name + '/GRB' + self.name + '_luminosity.dat'
+            self.luminosity_data=True
+        else:
+            data_file = self.path+'/GRB' + self.name + '/GRB' + self.name + '.dat'
+            self.luminosity_data=False
         data = np.loadtxt(data_file)
         self.time = data[:, 0]      ## time (secs)
         self.time_err = np.abs(data[:, 1:3].T) ## \Delta time (secs)
         self.Lum50 = data[:, 3]        ## Lum (1e50 erg/s)
         self.Lum50_err = np.abs(data[:, 4:].T)
+
 
         if truncate:
             if truncate_method == 'prompt_time_error':
