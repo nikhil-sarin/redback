@@ -45,12 +45,19 @@ def read_result(model, GRB, path='.', truncate=True, use_photon_index_prior=Fals
     result_path = path + '/GRB' + GRB + '/' + model + '/'
     if not os.path.exists(result_path):
         os.makedirs(result_path)
-    if use_photon_index_prior == True:
-        result = bilby.result.read_in_result(filename=result_path + 'photon_index_result.json')
-    if luminosity_data == True:
-        result = bilby.result.read_in_result(filename=result_path + 'luminosity_result.json')
-    else:
-        result = bilby.result.read_in_result(filename=result_path + 'result_result.json')
+
+    if luminosity_data:
+        if use_photon_index_prior:
+            result = bilby.result.read_in_result(filename=result_path + 'luminosity_photon_index_result.json')
+        else:
+            result = bilby.result.read_in_result(filename=result_path + 'luminosity_result.json')
+
+    if luminosity_data == False:
+        if use_photon_index_prior == True:
+            result = bilby.result.read_in_result(filename=result_path + 'flux_photon_index_result.json')
+        else:
+            result = bilby.result.read_in_result(filename=result_path + 'flux_result.json')
+
     data = load_data(GRB=GRB, truncate=truncate, path=path, truncate_method=truncate_method, luminosity_data=luminosity_data)
 
     return result, data

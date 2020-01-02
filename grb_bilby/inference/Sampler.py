@@ -139,12 +139,16 @@ def fit_model(name, path, model, sampler='dynesty', nlive=3000, prior=False, wal
         df.to_csv(outdir + "/data.txt", sep=',', index_label=False, index=False)
 
 
-    if use_photon_index_prior == True:
-        label = 'photon_index'
-    else:
-        label = 'result'
     if data.luminosity_data == True:
-        label = 'luminosity'
+        if use_photon_index_prior == True:
+            label = 'luminosity_photon_index'
+        else:
+            label = 'luminosity'
+    if data.luminosity_data == False:
+        if use_photon_index_prior == True:
+            label = 'flux_photon_index'
+        else:
+            label = 'flux'
 
     likelihood = GRB_GaussianLikelihood(x=data.time, y=data.Lum50, sigma=data.Lum50_err, function=function)
 
