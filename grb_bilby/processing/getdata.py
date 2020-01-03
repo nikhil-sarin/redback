@@ -102,7 +102,7 @@ def GetGRBFile(GRB, use_default_directory):
         # scrape the data
         urllib.request.urlretrieve(GRBurl, GRBdatfile)
     except:
-        print('cannot load the website')
+        print('cannot load the website for GRB', GRB)
 
 
 def SortData(GRB, use_default_directory):
@@ -116,7 +116,10 @@ def SortData(GRB, use_default_directory):
     GRBoutfile = GRBdir + 'GRB' + GRB + '.dat'
 
     if os.path.isfile(GRBoutfile):
-        print('Processed data file already exists')
+        print('Processed data file already exists for GRB', GRB)
+        return None
+    if os.path.isfile(rawGRBdatfile) == False:
+        print('There is no raw data for GRB', GRB)
         return None
 
     xrtpcflag = 0
@@ -192,7 +195,7 @@ def SortData(GRB, use_default_directory):
     print('congratulations, you now have a nice data file: ' + GRBoutfile)
 
 
-def RetrieveAndProcessData(GRB, use_default_directory = False):
+def RetrieveAndProcessData(GRB, use_default_directory=False):
     if use_default_directory:
         GRBdir = os.path.join(dirname, '../data/GRBData/GRB' + GRB + '/')
     else:
@@ -202,7 +205,8 @@ def RetrieveAndProcessData(GRB, use_default_directory = False):
     GRBdatfile = GRBdir + 'GRB' + GRB + '.dat'
 
     if os.path.isfile(GRBdatfile):
-        print('The data file already exists')
+        print('The data file already exists for GRB',GRB)
+        return None
     else:
-        GetGRBFile(GRB=GRB,use_default_directory=use_default_directory)
-        SortData(GRB=GRB,use_default_directory=use_default_directory)
+        GetGRBFile(GRB=GRB, use_default_directory=use_default_directory)
+        SortData(GRB=GRB, use_default_directory=use_default_directory)
