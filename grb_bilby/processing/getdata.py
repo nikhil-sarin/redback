@@ -10,12 +10,14 @@ import urllib.request
 import pandas as pd
 from selenium import webdriver
 from selenium.common.exceptions import NoSuchElementException
+
 dirname = os.path.dirname(__file__)
+
 
 def GetTriggerNumber(GRB):
     short_table = os.path.join(dirname, 'SGRB_table.txt')
-    sgrb = pd.read_csv(short_table, header = 0,
-                           error_bad_lines=False,  delimiter='\t', dtype = 'str' )
+    sgrb = pd.read_csv(short_table, header=0,
+                       error_bad_lines=False, delimiter='\t', dtype='str')
     long_table = os.path.join(dirname, 'LGRB_table.txt')
     lgrb = pd.read_csv(long_table, header=0,
                        error_bad_lines=False, delimiter='\t', dtype='str')
@@ -38,37 +40,36 @@ def CheckElement(driver, id):
         pass
     return True
 
-def GetGRBFile(GRB, GRBdir):
+
+def GetGRBFile(GRB, use_default_directory):
     '''
     Go to Swift website and get the data for a given GRB
     '''
 
-    if GRBdir == 'default':
-        GRBdir =  os.path.join(dirname, '../data/GRBData/GRB' + GRB + '/')
+    if use_default_directory:
+        GRBdir = os.path.join(dirname, '../data/GRBData/GRB' + GRB + '/')
     else:
         GRBdir = 'GRBData/GRB' + GRB + '/'
 
-    #check if data file exists for this GRB:
+    # check if data file exists for this GRB:
     GRBdatfile = GRBdir + 'GRB' + GRB + '_rawSwiftData.dat'
     if not os.path.exists(GRBdir):
         os.makedirs(GRBdir)
     if os.path.isfile(GRBdatfile):
         print('The raw data file already exists')
-        """
-        check = input('Do you still want to download fresh data? (y/[n])') or 'n'
-        if check == 'n':
-            print('Exiting from getGRBFile function')
-        """
+        # check = input('Do you still want to download fresh data? (y/[n])') or 'n'
+        # if check == 'n':
+        #     print('Exiting from getGRBFile function')
         return None
 
     # open the webdriver
     driver = webdriver.PhantomJS('/Users/nsarin/Documents/PhD/phantomjs-2.1.1-macosx/bin/phantomjs')
 
     # get the trigger number
-    #print('Getting trigger number')
+    # print('Getting trigger number')
     trigger = GetTriggerNumber(GRB)
     GRBWebsite = 'http://www.swift.ac.uk/burst_analyser/00' + trigger + '/'
-    #print('opening Swift website for GRB' + GRB)
+    # print('opening Swift website for GRB' + GRB)
     driver.get(GRBWebsite)
 
     ## celect option for BAT binning
@@ -98,14 +99,15 @@ def GetGRBFile(GRB, GRBdir):
         # Close the driver and all opened windows
         driver.quit()
 
-        #scrape the data
+        # scrape the data
         urllib.request.urlretrieve(GRBurl, GRBdatfile)
     except:
         print('cannot load the website')
 
-def SortData(GRB, GRBdir):
-    if GRBdir == 'default':
-        GRBdir =  os.path.join(dirname, '../data/GRBData/GRB' + GRB + '/')
+
+def SortData(GRB, use_default_directory):
+    if use_default_directory:
+        GRBdir = os.path.join(dirname, '../data/GRBData/GRB' + GRB + '/')
     else:
         GRBdir = 'GRBData/GRB' + GRB + '/'
 
@@ -190,6 +192,17 @@ def SortData(GRB, GRBdir):
     print('congratulations, you now have a nice data file: ' + GRBoutfile)
 
 
-def RetrieveAndProcessData(GRB, GRBdir):
-    GetGRBFile(GRB=GRB, GRBdir=GRBdir)
-    SortData(GRB=GRB, GRBdir=GRBdir)
+def RetrieveAndProcessData(GRB, use_default_directory = False):
+    if use_default_directory:
+        GRBdir = os.path.join(dirname, '../data/GRBData/GRB' + GRB + '/')
+    else:
+        GRBdir = 'GRBData/GRB' + GRB + '/'
+
+    # check if data file exists for this GRB:
+    GRBdatfile = GRBdir + 'GRB' + GRB + '.dat'
+
+    if os.path.isfile(GRBdatfile):
+        print('The data file already exists')
+    else:
+        GetGRBFile(GRB=GRB,use_default_directory=use_default_directory)
+        SortData(GRB=GRB,use_default_directory=use_default_directory)
