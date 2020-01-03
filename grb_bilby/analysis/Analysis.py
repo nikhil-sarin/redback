@@ -49,13 +49,13 @@ def read_result(model, GRB, path='.', truncate=True, use_photon_index_prior=Fals
     if luminosity_data:
         if use_photon_index_prior:
             result = bilby.result.read_in_result(filename=result_path + 'luminosity_photon_index_result.json')
-        else:
+        if use_photon_index_prior == False:
             result = bilby.result.read_in_result(filename=result_path + 'luminosity_result.json')
 
     if luminosity_data == False:
         if use_photon_index_prior == True:
             result = bilby.result.read_in_result(filename=result_path + 'flux_photon_index_result.json')
-        else:
+        if use_photon_index_prior == False:
             result = bilby.result.read_in_result(filename=result_path + 'flux_result.json')
 
     data = load_data(GRB=GRB, truncate=truncate, path=path, truncate_method=truncate_method, luminosity_data=luminosity_data)
@@ -202,11 +202,15 @@ def plot_lightcurve(GRB, model, path='GRBData',
     plot_data(GRB=GRB, axes=axes, path=path, truncate=truncate, truncate_method=truncate_method, luminosity_data=luminosity_data)
 
     if plot_save:
-        plt.savefig(plots_base_directory + model + '_lightcurve.png')
+        if use_photon_index_prior == True:
+            plt.savefig(plots_base_directory + model + '_photon_index_lightcurve.png')
+        else:
+            plt.savefig(plots_base_directory + model + '_lightcurve.png')
 
     if plot_show:
         plt.show()
 
+    plt.close()
 
 def calculate_BF(model1, model2, GRB, path='.', use_photon_index_prior=False, luminosity_data=False):
     model1, data = read_result(model=model1, GRB=GRB, path=path, use_photon_index_prior=use_photon_index_prior,luminosity_data=luminosity_data)
