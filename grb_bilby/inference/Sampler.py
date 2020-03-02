@@ -116,6 +116,9 @@ def fit_model(name, path, model, sampler='dynesty', nlive=3000, prior=False, wal
     if model == 'radiative_losses':
         function = mm.radiative_losses
 
+    if model == 'radiative_losses_smoothness':
+        function = mm.radiative_losses_smoothness
+
     if model == 'radiative_losses_mdr':
         function = mm.radiative_losses_mdr
 

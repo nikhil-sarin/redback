@@ -92,7 +92,7 @@ def plot_data(GRB, path, truncate, truncate_method='prompt_time_error', axes=Non
     ax.set_ylim(0.5 * min(Lum50), 2. * np.max(Lum50))
 
     ax.annotate('GRB' + data.name, xy=(0.95, 0.9), xycoords='axes fraction',
-                horizontalalignment='right')
+                horizontalalignment='right',size=20)
 
     ax.set_xlabel(r'time since burst [s]')
     if data.luminosity_data == True:
@@ -158,6 +158,11 @@ def plot_models(parameters, model, axes=None, colour='r', alpha=1.0, ls='-', lw=
     if model == 'radiative_losses_mdr':
         lightcurve = mm.radiative_losses_mdr(time, **parameters)
 
+    if model == 'radiative_losses_smoothness':
+        lightcurve = mm.radiative_losses_smoothness(time, **parameters)
+        magnetar = mm.magnetar_only(time, **parameters)
+        ax.plot(time, magnetar, color=colour, ls=ls, lw=lw, alpha=alpha, zorder=-32, linestyle='--')
+
     if model == 'collapsing_radiative_losses':
         lightcurve = mm.collapsing_radiative_losses(time, **parameters)
 
@@ -210,7 +215,7 @@ def plot_lightcurve(GRB, model, path='GRBData',
     if plot_show:
         plt.show()
 
-    plt.close()
+    # plt.close()
 
 def calculate_BF(model1, model2, GRB, path='.', use_photon_index_prior=False, luminosity_data=False):
     model1, data = read_result(model=model1, GRB=GRB, path=path, use_photon_index_prior=use_photon_index_prior,luminosity_data=luminosity_data)

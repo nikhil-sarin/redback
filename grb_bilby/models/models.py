@@ -334,6 +334,7 @@ def integral_mdr(time, T0, kappa, a, **kwargs):
 
 def piecewise_radiative_losses(time, A_1, alpha_1, L0, tau, nn, kappa, T0, **kwargs):
     """
+    assumes smoothness and continuity between the prompt and magnetar term by fixing E0 variable
     :param time:
     :param A_1:
     :param alpha_1:
@@ -363,7 +364,7 @@ def piecewise_radiative_losses(time, A_1, alpha_1, L0, tau, nn, kappa, T0, **kwa
 
 def radiative_losses(time, A_1, alpha_1, L0, tau, nn, kappa, T0, E0, **kwargs):
     """
-    radiative losses model with a step function
+    radiative losses model with a step function, indicating the magnetar term turns on at T0
     :param time:
     :param A_1:
     :param alpha_1:
@@ -385,6 +386,32 @@ def radiative_losses(time, A_1, alpha_1, L0, tau, nn, kappa, T0, E0, **kwargs):
 
     return total
 
+def radiative_losses_smoothness(time, A_1, alpha_1, L0, tau, nn, kappa, T0, E0, **kwargs):
+    """
+    radiative losses model with a step function, indicating the magnetar term turns on at T0
+    :param time:
+    :param A_1:
+    :param alpha_1:
+    :param L0:
+    :param tau:
+    :param nn:
+    :param kappa:
+    :param T0:
+    :param E0:
+    :param kwargs:
+    :return:
+    """
+    pl = one_component_fireball_model(time, A_1, alpha_1)
+    E0_def = (A_1 * T0 ** alpha_1 * T0) / kappa
+    E0_use = np.min([E0, E0_def])
+    loss_term = E0_use * (T0 / time) ** (kappa)
+    integ = integral_general(time, T0, kappa, tau, nn)
+
+    Energy_loss_total = ((L0 / (time ** kappa)) * integ) + loss_term
+    lum = (kappa * Energy_loss_total / time)
+    total = pl + np.heaviside(time - T0, 1) * lum
+
+    return total
 
 def radiative_losses_mdr(time, A_1, alpha_1, L0, tau, kappa, E0, T0, **kwargs):
     """
@@ -408,7 +435,7 @@ def radiative_losses_mdr(time, A_1, alpha_1, L0, tau, kappa, E0, T0, **kwargs):
 
     lightcurve = (kappa * Energy_loss_total / time)
 
-    return lightcurve + pl
+    return np.heaviside(time - T0, 1) *lightcurve + pl
 
 
 def collapsing_radiative_losses(time, A_1, alpha_1, L0, tau, nn, tcol, kappa, T0, E0, **kwargs):
