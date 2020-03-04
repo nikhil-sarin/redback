@@ -34,7 +34,7 @@ def load_data(GRB, path='GRBData', truncate=True, truncate_method='prompt_time_e
 
 
 def read_result(model, GRB, path='.', truncate=True, use_photon_index_prior=False, truncate_method='prompt_time_error',
-                luminosity_data = False):
+                luminosity_data = False, save_format='json'):
     """
     :param model: model to analyse
     :param GRB: telephone number of GRB
@@ -46,17 +46,22 @@ def read_result(model, GRB, path='.', truncate=True, use_photon_index_prior=Fals
     if not os.path.exists(result_path):
         os.makedirs(result_path)
 
+    if save_format == 'hdf5':
+        file_format = '.hdf5'
+    else:
+        file_format = '.json'
+
     if luminosity_data:
         if use_photon_index_prior:
-            result = bilby.result.read_in_result(filename=result_path + 'luminosity_photon_index_result.json')
+            result = bilby.result.read_in_result(filename=result_path + 'luminosity_photon_index_result'+file_format)
         if use_photon_index_prior == False:
-            result = bilby.result.read_in_result(filename=result_path + 'luminosity_result.json')
+            result = bilby.result.read_in_result(filename=result_path + 'luminosity_result'+file_format)
 
     if luminosity_data == False:
         if use_photon_index_prior == True:
-            result = bilby.result.read_in_result(filename=result_path + 'flux_photon_index_result.json')
+            result = bilby.result.read_in_result(filename=result_path + 'flux_photon_index_result'+file_format)
         if use_photon_index_prior == False:
-            result = bilby.result.read_in_result(filename=result_path + 'flux_result.json')
+            result = bilby.result.read_in_result(filename=result_path + 'flux_result'+file_format)
 
     data = load_data(GRB=GRB, truncate=truncate, path=path, truncate_method=truncate_method, luminosity_data=luminosity_data)
 
@@ -175,7 +180,7 @@ def plot_lightcurve(GRB, model, path='GRBData',
                     plot_show=True, random_models=1000,
                     truncate=True, use_photon_index_prior=False,
                     truncate_method='prompt_time_error',
-                    luminosity_data=False):
+                    luminosity_data=False,save_format='json'):
     """
     plots the lightcurve
     GRB is the telephone number of the GRB
@@ -186,7 +191,8 @@ def plot_lightcurve(GRB, model, path='GRBData',
 
     # read result
     result, data = read_result(model=model, GRB=GRB, path=path, truncate=truncate,
-                               use_photon_index_prior=use_photon_index_prior, truncate_method=truncate_method,luminosity_data=luminosity_data)
+                               use_photon_index_prior=use_photon_index_prior, truncate_method=truncate_method,luminosity_data=luminosity_data,
+                               save_format=save_format)
 
     # set up plotting directory structure
     dir = data.path + '/GRB' + data.name
@@ -217,8 +223,8 @@ def plot_lightcurve(GRB, model, path='GRBData',
 
     # plt.close()
 
-def calculate_BF(model1, model2, GRB, path='.', use_photon_index_prior=False, luminosity_data=False):
-    model1, data = read_result(model=model1, GRB=GRB, path=path, use_photon_index_prior=use_photon_index_prior,luminosity_data=luminosity_data)
-    model2, data = read_result(model=model2, GRB=GRB, path=path, use_photon_index_prior=use_photon_index_prior,luminosity_data=luminosity_data)
+def calculate_BF(model1, model2, GRB, path='.', use_photon_index_prior=False, luminosity_data=False,save_format='json'):
+    model1, data = read_result(model=model1, GRB=GRB, path=path, use_photon_index_prior=use_photon_index_prior,luminosity_data=luminosity_data,save_format=save_format)
+    model2, data = read_result(model=model2, GRB=GRB, path=path, use_photon_index_prior=use_photon_index_prior,luminosity_data=luminosity_data,save_format=save_format)
     logBF = model1.log_evidence - model2.log_evidence
     return logBF

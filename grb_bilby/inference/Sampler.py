@@ -41,7 +41,7 @@ class GRB_GaussianLikelihood(bilby.Likelihood):
 
 
 def fit_model(name, path, model, sampler='dynesty', nlive=3000, prior=False, walks=1000, truncate=True,
-              use_photon_index_prior=False, truncate_method='prompt_time_error',luminosity_data=False, resume=True, **kwargs):
+              use_photon_index_prior=False, truncate_method='prompt_time_error',luminosity_data=False, resume=True,save_format='json', **kwargs):
     """
 
     Parameters
@@ -156,8 +156,8 @@ def fit_model(name, path, model, sampler='dynesty', nlive=3000, prior=False, wal
     likelihood = GRB_GaussianLikelihood(x=data.time, y=data.Lum50, sigma=data.Lum50_err, function=function)
 
     result = bilby.run_sampler(likelihood, priors=priors, label=label, sampler=sampler, nlive=nlive,
-                               outdir=outdir, plot=True, use_ratio=False, walks=walks, resume=resume, maxmcmc=walks,
-                               nthreads=4, save_bounds=False, **kwargs,nsteps=nlive,nwalkers=walks)
+                               outdir=outdir, plot=True, use_ratio=False, walks=walks, resume=resume, maxmcmc=10*walks,
+                               nthreads=4, save_bounds=False,nsteps=nlive,nwalkers=walks, save=save_format, **kwargs)
 
     return result, data
 
