@@ -362,7 +362,7 @@ def piecewise_radiative_losses(time, A_1, alpha_1, L0, tau, nn, kappa, T0, **kwa
     return total
 
 
-def radiative_losses(time, A_1, alpha_1, L0, tau, nn, kappa, T0, E0, **kwargs):
+def radiative_losses(time, A_1, alpha_1, L0, tau, nn, kappa, T0, logE0, **kwargs):
     """
     radiative losses model with a step function, indicating the magnetar term turns on at T0
     :param time:
@@ -377,12 +377,35 @@ def radiative_losses(time, A_1, alpha_1, L0, tau, nn, kappa, T0, E0, **kwargs):
     :param kwargs:
     :return:
     """
+    E0 = 10**logE0
     pl = one_component_fireball_model(time, A_1, alpha_1)
     loss_term = E0 * (T0 / time) ** (kappa)
     integ = integral_general(time, T0, kappa, tau, nn)
     Energy_loss_total = ((L0 / (time ** kappa)) * integ) + loss_term
     lum = (kappa * Energy_loss_total / time)
     total = pl + np.heaviside(time - T0, 1) * lum
+
+    return total
+
+def radiative_only(time, L0, tau, nn, kappa, T0, logE0, **kwargs):
+    """
+    radiative losses model only
+    :param time:
+    :param L0:
+    :param tau:
+    :param nn:
+    :param kappa:
+    :param T0:
+    :param E0:
+    :param kwargs:
+    :return:
+    """
+    E0 = 10**logE0
+    loss_term = E0 * (T0 / time) ** (kappa)
+    integ = integral_general(time, T0, kappa, tau, nn)
+    Energy_loss_total = ((L0 / (time ** kappa)) * integ) + loss_term
+    lum = (kappa * Energy_loss_total / time)
+    total = np.heaviside(time - T0, 1) * lum
 
     return total
 

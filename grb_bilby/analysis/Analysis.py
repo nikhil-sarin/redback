@@ -158,6 +158,7 @@ def plot_models(parameters, model, axes=None, colour='r', alpha=1.0, ls='-', lw=
     if model == 'radiative_losses':
         lightcurve = mm.radiative_losses(time, **parameters)
         magnetar = mm.magnetar_only(time, **parameters)
+        #magnetar = mm.magnetar_only(time[time > parameters['T0']], **parameters)
         ax.plot(time, magnetar, color=colour, ls=ls, lw=lw, alpha=alpha, zorder=-32, linestyle='--')
 
     if model == 'radiative_losses_mdr':
@@ -168,11 +169,28 @@ def plot_models(parameters, model, axes=None, colour='r', alpha=1.0, ls='-', lw=
         magnetar = mm.magnetar_only(time, **parameters)
         ax.plot(time, magnetar, color=colour, ls=ls, lw=lw, alpha=alpha, zorder=-32, linestyle='--')
 
+    if model == 'radiative_only':
+        lightcurve = mm.radiative_only(time, **parameters)
+        magnetar = mm.magnetar_only(time, **parameters)
+        ax.plot(time, magnetar, color=colour, ls=ls, lw=lw, alpha=alpha, zorder=-32, linestyle='--')
+
     if model == 'collapsing_radiative_losses':
         lightcurve = mm.collapsing_radiative_losses(time, **parameters)
 
     ax.plot(time, lightcurve, color=colour, ls=ls, lw=lw, alpha=alpha, zorder=-32)
 
+def plot_directory_structure(data, model):
+    """
+    :param data: instantiated GRB class
+    :param model: model name
+    :return: plot_base_directory
+    """
+    # set up plotting directory structure
+    dir = data.path + '/GRB' + data.name
+    plots_base_directory = dir + '/' + model + '/plots/'
+    if not os.path.exists(plots_base_directory):
+        os.makedirs(plots_base_directory)
+    return plots_base_directory
 
 def plot_lightcurve(GRB, model, path='GRBData',
                     axes=None,
@@ -195,10 +213,7 @@ def plot_lightcurve(GRB, model, path='GRBData',
                                save_format=save_format)
 
     # set up plotting directory structure
-    dir = data.path + '/GRB' + data.name
-    plots_base_directory = dir + '/' + model + '/plots/'
-    if not os.path.exists(plots_base_directory):
-        os.makedirs(plots_base_directory)
+    plots_base_directory = plot_directory_structure(data=data, model=model)
 
     # dictionary of max likelihood parameters
     maxL = dict(result.posterior.sort_values(by=['log_likelihood']).iloc[-1])
@@ -228,3 +243,23 @@ def calculate_BF(model1, model2, GRB, path='.', use_photon_index_prior=False, lu
     model2, data = read_result(model=model2, GRB=GRB, path=path, use_photon_index_prior=use_photon_index_prior,luminosity_data=luminosity_data,save_format=save_format)
     logBF = model1.log_evidence - model2.log_evidence
     return logBF
+
+def plot_corner(GRB, model, path='GRBData',
+                    plot_show=True,truncate=True, use_photon_index_prior=False,
+                    truncate_method='prompt_time_error',
+                    luminosity_data=False,save_format='json'):
+    result, data = read_result(model=model, GRB=GRB, path=path, truncate=truncate,
+                               use_photon_index_prior=use_photon_index_prior, truncate_method=truncate_method,
+                               luminosity_data=luminosity_data,
+                               save_format=save_format)
+    plots_base_directory = plot_directory_structure(data=data, model=model)
+
+    if use_photon_index_prior == True:
+        filename = plots_base_directory + model + '_photon_index_corner.png'
+    else:
+        filename = plots_base_directory + model + '_corner.png'
+
+    result.plot_corner(filename=filename)
+    if plot_show:
+        plt.show()
+    return None
