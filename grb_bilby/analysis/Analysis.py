@@ -111,7 +111,7 @@ def plot_data(GRB, path, truncate, truncate_method='prompt_time_error', axes=Non
     plt.grid(b=None)
 
 
-def plot_models(parameters, model, axes=None, colour='r', alpha=1.0, ls='-', lw=4):
+def plot_models(parameters, model, , plot_magnetar=plot_magnetar, axes=None, colour='r', alpha=1.0, ls='-', lw=4):
     '''
     plot the models
     parameters: dictionary of parameters - 1 set of Parameters
@@ -151,28 +151,34 @@ def plot_models(parameters, model, axes=None, colour='r', alpha=1.0, ls='-', lw=
         lightcurve = mm.six_component_fireball_model(time, **parameters)
 
     if model == 'piecewise_radiative_losses':
+        if plot_magnetar:
+            magnetar = mm.magnetar_only(time, **parameters)
+            ax.plot(time, magnetar, color=colour, ls=ls, lw=lw, alpha=alpha, zorder=-32, linestyle='--')
         lightcurve = mm.piecewise_radiative_losses(time, **parameters)
-        magnetar = mm.magnetar_only(time, **parameters)
-        ax.plot(time, magnetar, color=colour, ls=ls, lw=lw, alpha=alpha, zorder=-32, linestyle='--')
 
     if model == 'radiative_losses':
         lightcurve = mm.radiative_losses(time, **parameters)
-        magnetar = mm.magnetar_only(time, **parameters)
-        #magnetar = mm.magnetar_only(time[time > parameters['T0']], **parameters)
-        ax.plot(time, magnetar, color=colour, ls=ls, lw=lw, alpha=alpha, zorder=-32, linestyle='--')
+        if plot_magnetar:
+            magnetar = mm.magnetar_only(time, **parameters)
+            ax.plot(time, magnetar, color=colour, ls=ls, lw=lw, alpha=alpha, zorder=-32, linestyle='--')
 
     if model == 'radiative_losses_mdr':
         lightcurve = mm.radiative_losses_mdr(time, **parameters)
+        if plot_magnetar:
+            magnetar = mm.magnetar_only(time, **parameters, nn=3.)
+            ax.plot(time, magnetar, color=colour, ls=ls, lw=lw, alpha=alpha, zorder=-32, linestyle='--')
 
     if model == 'radiative_losses_smoothness':
         lightcurve = mm.radiative_losses_smoothness(time, **parameters)
-        magnetar = mm.magnetar_only(time, **parameters)
-        ax.plot(time, magnetar, color=colour, ls=ls, lw=lw, alpha=alpha, zorder=-32, linestyle='--')
+        if plot_magnetar:
+            magnetar = mm.magnetar_only(time, **parameters)
+            ax.plot(time, magnetar, color=colour, ls=ls, lw=lw, alpha=alpha, zorder=-32, linestyle='--')
 
     if model == 'radiative_only':
         lightcurve = mm.radiative_only(time, **parameters)
-        magnetar = mm.magnetar_only(time, **parameters)
-        ax.plot(time, magnetar, color=colour, ls=ls, lw=lw, alpha=alpha, zorder=-32, linestyle='--')
+        if plot_magnetar:
+            magnetar = mm.magnetar_only(time, **parameters)
+            ax.plot(time, magnetar, color=colour, ls=ls, lw=lw, alpha=alpha, zorder=-32, linestyle='--')
 
     if model == 'collapsing_radiative_losses':
         lightcurve = mm.collapsing_radiative_losses(time, **parameters)
@@ -198,7 +204,8 @@ def plot_lightcurve(GRB, model, path='GRBData',
                     plot_show=True, random_models=1000,
                     truncate=True, use_photon_index_prior=False,
                     truncate_method='prompt_time_error',
-                    luminosity_data=False,save_format='json'):
+                    luminosity_data=False,save_format='json',
+                    plot_magnetar = False):
     """
     plots the lightcurve
     GRB is the telephone number of the GRB
@@ -220,7 +227,7 @@ def plot_lightcurve(GRB, model, path='GRBData',
 
     for j in range(int(random_models)):
         params = dict(result.posterior.iloc[np.random.randint(len(result.posterior))])
-        plot_models(parameters=params, axes=axes, alpha=0.05, lw=2, colour='r', model=model)
+        plot_models(parameters=params, axes=axes, alpha=0.05, lw=2, colour='r', model=model, plot_magnetar=plot_magnetar)
 
         # plot max likelihood
     plot_models(parameters=maxL, axes=axes, alpha=0.65, lw=2, colour='b', model=model)
