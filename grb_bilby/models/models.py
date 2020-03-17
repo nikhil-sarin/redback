@@ -409,7 +409,7 @@ def radiative_only(time, L0, tau, nn, kappa, T0, logE0, **kwargs):
 
     return total
 
-def radiative_losses_smoothness(time, A_1, alpha_1, L0, tau, nn, kappa, T0, E0, **kwargs):
+def radiative_losses_smoothness(time, A_1, alpha_1, L0, tau, nn, kappa, T0, logE0, **kwargs):
     """
     radiative losses model with a step function, indicating the magnetar term turns on at T0
     :param time:
@@ -425,6 +425,7 @@ def radiative_losses_smoothness(time, A_1, alpha_1, L0, tau, nn, kappa, T0, E0, 
     :return:
     """
     pl = one_component_fireball_model(time, A_1, alpha_1)
+    E0 = 10 ** logE0
     E0_def = (A_1 * T0 ** alpha_1 * T0) / kappa
     E0_use = np.min([E0, E0_def])
     loss_term = E0_use * (T0 / time) ** (kappa)
@@ -436,7 +437,7 @@ def radiative_losses_smoothness(time, A_1, alpha_1, L0, tau, nn, kappa, T0, E0, 
 
     return total
 
-def radiative_losses_mdr(time, A_1, alpha_1, L0, tau, kappa, E0, T0, **kwargs):
+def radiative_losses_mdr(time, A_1, alpha_1, L0, tau, kappa, logE0, T0, **kwargs):
     """
     radiative losses model for vaccum dipole radiation
     :param time:
@@ -451,6 +452,7 @@ def radiative_losses_mdr(time, A_1, alpha_1, L0, tau, kappa, E0, T0, **kwargs):
     :return:
     """
     a = 1. / tau
+    E0 = 10 ** logE0
     pl = one_component_fireball_model(time, A_1, alpha_1)
     loss_term = E0 * (T0 / time) ** (kappa)
     integ = integral_mdr(time, T0, kappa, a)
@@ -461,7 +463,7 @@ def radiative_losses_mdr(time, A_1, alpha_1, L0, tau, kappa, E0, T0, **kwargs):
     return np.heaviside(time - T0, 1) *lightcurve + pl
 
 
-def collapsing_radiative_losses(time, A_1, alpha_1, L0, tau, nn, tcol, kappa, T0, E0, **kwargs):
+def collapsing_radiative_losses(time, A_1, alpha_1, L0, tau, nn, tcol, kappa, T0, logE0, **kwargs):
     """
     radiative losses model with collapse time
     :param time:
@@ -477,6 +479,7 @@ def collapsing_radiative_losses(time, A_1, alpha_1, L0, tau, nn, tcol, kappa, T0
     :param kwargs:
     :return:
     """
+    E0 = 10 ** logE0
     pl = one_component_fireball_model(time, A_1, alpha_1)
     loss_term = E0 * (T0 / time) ** (kappa)
     integ = integral_general_collapsing(time, T0, kappa, tau, nn, tcol)
