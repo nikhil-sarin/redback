@@ -111,7 +111,7 @@ def plot_data(GRB, path, truncate, truncate_method='prompt_time_error', axes=Non
     plt.grid(b=None)
 
 
-def plot_models(parameters, model, , plot_magnetar=plot_magnetar, axes=None, colour='r', alpha=1.0, ls='-', lw=4):
+def plot_models(parameters, model,plot_magnetar, axes=None, colour='r', alpha=1.0, ls='-', lw=4):
     '''
     plot the models
     parameters: dictionary of parameters - 1 set of Parameters
@@ -230,7 +230,7 @@ def plot_lightcurve(GRB, model, path='GRBData',
         plot_models(parameters=params, axes=axes, alpha=0.05, lw=2, colour='r', model=model, plot_magnetar=plot_magnetar)
 
         # plot max likelihood
-    plot_models(parameters=maxL, axes=axes, alpha=0.65, lw=2, colour='b', model=model)
+    plot_models(parameters=maxL, axes=axes, alpha=0.65, lw=2, colour='b', model=model, plot_magnetar=plot_magnetar)
     
     plot_data(GRB=GRB, axes=axes, path=path, truncate=truncate, truncate_method=truncate_method, luminosity_data=luminosity_data)
 

@@ -30,6 +30,7 @@ class SGRB:
         self.Lum50_err = []
         self.photon_index = self._get_photon_index()
         self.luminosity_data = []
+        self.T90 = self._get_T90()
 
     def load_and_truncate_data(self, truncate = True, truncate_method = 'prompt_time_error', luminosity_data=False):
         """
@@ -86,3 +87,20 @@ class SGRB:
             return 0.
         else:
             return float(photon_index.replace("PL","").replace("CPL","").replace(",","").replace("C","").replace("~",""))
+
+    def _get_T90(self):
+        short_table = os.path.join(dirname, 'SGRB_table.txt')
+        sgrb = pd.read_csv(short_table, header=0,
+                           error_bad_lines=False, delimiter='\t', dtype='str')
+        long_table = os.path.join(dirname, 'LGRB_table.txt')
+        lgrb = pd.read_csv(long_table, header=0,
+                           error_bad_lines=False, delimiter='\t', dtype='str')
+        frames = [lgrb, sgrb]
+        data = pd.concat(frames, ignore_index=True)
+        #data['BAT Photon Index (15-150 keV) (PL = simple power-law, CPL = cutoff power-law)'] = data['BAT Photon Index (15-150 keV) (PL = simple power-law, CPL = cutoff power-law)'].fillna(0)
+        T90 = data.query('GRB == @self.name')['BAT T90 [sec]']
+        T90 = T90.values[0]
+        if T90 == 0.:
+            return np.nan
+        else:
+            return float(T90.replace("PL","").replace("CPL","").replace(",","").replace("C","").replace("~",""))
