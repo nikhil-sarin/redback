@@ -99,7 +99,7 @@ def plot_data(GRB, path, truncate, truncate_method='prompt_time_error', axes=Non
     ax.annotate('GRB' + data.name, xy=(0.95, 0.9), xycoords='axes fraction',
                 horizontalalignment='right',size=20)
 
-    ax.set_xlabel(r'time since burst [s]')
+    ax.set_xlabel(r'Time since burst [s]')
     if data.luminosity_data == True:
         ax.set_ylabel(r'Luminosity [$10^{50}$ erg s$^{-1}$]')
     else:
@@ -122,6 +122,8 @@ def plot_models(parameters, model,plot_magnetar, axes=None, colour='r', alpha=1.
 
     if model == 'magnetar_only':
         lightcurve = mm.magnetar_only(time, **parameters)
+    if model == 'gw_magnetar':
+        lightcurve = mm.gw_magnetar(time, **parameters)
 
     if model == 'full_magnetar':
         lightcurve = mm.full_magnetar(time, **parameters)

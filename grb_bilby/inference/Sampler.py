@@ -80,6 +80,9 @@ def fit_model(name, path, model, sampler='dynesty', nlive=3000, prior=False, wal
     if model == 'magnetar_only':
         function = mm.magnetar_only
 
+    if model == 'gw_magnetar':
+        function = mm.gw_magnetar
+
     if model == 'full_magnetar':
         function = mm.full_magnetar
 

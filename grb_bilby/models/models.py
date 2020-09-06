@@ -14,6 +14,30 @@ def magnetar_only(time, L0, tau, nn, **kwargs):
     lum = L0 * (1. + time / tau) ** ((1. + nn) / (1. - nn))
     return lum
 
+def gw_magnetar(time, A_1, alpha_1, fgw0, tau, nn, II, **kwargs):
+    """
+    Model from Sarin+2018
+    :param time:
+    :param A_1:
+    :param alpha_1:
+    :param fgw_0: initial gravitational-wave frequency
+    :param tau:
+    :param nn:
+    :param II: moment of inertia
+    :param eta: fixed to 0.1, its a fudge factor for the efficiency
+    :param kwargs:
+    :return: luminosity
+    """
+    eta = 0.1
+    omega_0 = fgw0*np.pi #spin frequency
+
+    L0 = ((omega_0**2)*eta*II)/(2*tau)
+    L0_50 = L0/1e50
+
+    magnetar = magnetar_only(time=time, L0=L0_50, tau=tau, nn=nn)
+    pl = one_component_fireball_model(time=time, A_1=A_1, alpha_1=alpha_1)
+
+    return pl + magnetar
 
 def full_magnetar(time, A_1, alpha_1, L0, tau, nn, **kwargs):
     """
@@ -54,7 +78,7 @@ def general_magnetar(time, A_1, alpha_1,
     """
     Reparameterized millisecond magnetar model from Sarin et al. (2018b) (piecewise)
     :param time: time array for power law
-    :param : power law decay amplitude
+    :param A_1: power law decay amplitude
     :param alpha_1: power law decay exponent
     :param delta_time_one: time between start and end of prompt emission
     :param alpha_2: Reparameterized braking index n
