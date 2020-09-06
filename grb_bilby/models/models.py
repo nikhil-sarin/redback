@@ -14,7 +14,7 @@ def magnetar_only(time, L0, tau, nn, **kwargs):
     lum = L0 * (1. + time / tau) ** ((1. + nn) / (1. - nn))
     return lum
 
-def gw_magnetar(time, A_1, alpha_1, fgw0, tau, nn, II, **kwargs):
+def gw_magnetar(time, A_1, alpha_1, fgw0, tau, nn, logII, **kwargs):
     """
     Model from Sarin+2018
     :param time:
@@ -23,14 +23,14 @@ def gw_magnetar(time, A_1, alpha_1, fgw0, tau, nn, II, **kwargs):
     :param fgw_0: initial gravitational-wave frequency
     :param tau:
     :param nn:
-    :param II: moment of inertia
+    :param logII: log10 moment of inertia
     :param eta: fixed to 0.1, its a fudge factor for the efficiency
     :param kwargs:
     :return: luminosity
     """
     eta = 0.1
     omega_0 = fgw0*np.pi #spin frequency
-
+    II = 10**logII
     L0 = ((omega_0**2)*eta*II)/(2*tau)
     L0_50 = L0/1e50
 
