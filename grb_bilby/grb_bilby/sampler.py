@@ -6,7 +6,7 @@ import sys
 import bilby
 import pandas as pd
 
-from . import GRB as tools
+from . import grb as tools
 from . import models as mm
 from .analysis import find_path
 

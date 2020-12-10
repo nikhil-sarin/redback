@@ -4,7 +4,7 @@ import numpy as np
 
 import bilby
 
-from . import GRB as tools
+from . import grb as tools
 from . import models as mm
 
 dirname = os.path.dirname(__file__)
