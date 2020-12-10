@@ -6,7 +6,7 @@ import numpy as np
 import os
 import pandas as pd
 
-from .analysis import find_path
+from .utils import find_path
 
 dirname = os.path.dirname(__file__)
 

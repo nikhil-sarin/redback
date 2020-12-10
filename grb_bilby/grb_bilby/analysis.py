@@ -7,20 +7,10 @@ import bilby
 
 from . import grb as tools
 from . import models as mm
+from .utils import find_path
 
-dirname = os.path.dirname(__file__)
-filename = os.path.join(dirname, 'paper.mplstyle')
-plt.style.use(filename)
 
 warnings.simplefilter(action='ignore')
-
-
-def find_path(path):
-    if path == 'default':
-        data_dir = os.path.join(dirname, '../data/GRBData')
-    else:
-        data_dir = path
-    return data_dir
 
 
 def load_data(grb, path='GRBData', truncate=True, truncate_method='prompt_time_error', luminosity_data=False):
@@ -132,6 +122,8 @@ def plot_models(parameters, model, plot_magnetar, axes=None, colour='r', alpha=1
     """
     time = np.logspace(-4, 7, 100)
     ax = axes or plt.gca()
+
+    lightcurve = None
 
     if model == 'magnetar_only':
         lightcurve = mm.magnetar_only(time, **parameters)

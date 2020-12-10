@@ -8,7 +8,7 @@ import pandas as pd
 
 from . import grb as tools
 from . import models as mm
-from .analysis import find_path
+from .utils import find_path
 
 dirname = os.path.dirname(__file__)
 logger = bilby.core.utils.logger
@@ -174,7 +174,7 @@ def fit_model(name, path, model, sampler='dynesty', nlive=3000, prior=False, wal
 
     return result, data
 
-
-if __name__ == "__main__":
-    result, data = fit_model(name=sys.argv[1], path='GRBData', model=sys.argv[2], sampler='pymultinest', nlive=1000,
-                             prior=False, walks=100)
+#
+# if __name__ == "__main__":
+#     result, data = fit_model(name=sys.argv[1], path='GRBData', model=sys.argv[2], sampler='pymultinest', nlive=1000,
+#                              prior=False, walks=100)
