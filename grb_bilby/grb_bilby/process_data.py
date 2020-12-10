@@ -14,7 +14,7 @@ def process_long_grbs(use_default_directory = False):
                        error_bad_lines=False, delimiter='\t', dtype='str')
 
     for GRB in data['GRB'].values:
-        getdata.RetrieveAndProcessData(GRB,use_default_directory=use_default_directory)
+        getdata.retrieve_and_process_data(GRB, use_default_directory=use_default_directory)
 
     return print('Flux data for all long GRBs added')
 
@@ -23,7 +23,7 @@ def process_short_grbs(use_default_directory = False):
                        error_bad_lines=False, delimiter='\t', dtype='str')
 
     for GRB in data['GRB'].values:
-        getdata.RetrieveAndProcessData(GRB,use_default_directory=use_default_directory)
+        getdata.retrieve_and_process_data(GRB, use_default_directory=use_default_directory)
 
     return print('Flux data for all short GRBs added')
 
@@ -32,7 +32,7 @@ def process_grbs_w_redshift(use_default_directory = False):
                        error_bad_lines=False, delimiter='\t', dtype='str')
 
     for GRB in data['GRB'].values:
-        getdata.RetrieveAndProcessData(GRB, use_default_directory=use_default_directory)
+        getdata.retrieve_and_process_data(GRB, use_default_directory=use_default_directory)
 
     return print('Flux data for all GRBs with redshift added')
 
@@ -46,6 +46,6 @@ def process_grb_list(data, use_default_directory = False):
     """
 
     for GRB in data:
-        getdata.RetrieveAndProcessData(GRB, use_default_directory=use_default_directory)
+        getdata.retrieve_and_process_data(GRB, use_default_directory=use_default_directory)
 
     return print('Flux data for all GRBs in list added')
