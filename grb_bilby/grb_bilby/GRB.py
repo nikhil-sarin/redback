@@ -5,8 +5,11 @@ Contains GRB class, with method to load and truncate data for SGRB and in future
 import numpy as np
 import os
 import pandas as pd
-from grb_bilby.analysis.Analysis import find_path
+
+from .analysis import find_path
+
 dirname = os.path.dirname(__file__)
+
 
 class SGRB:
     """Class for SGRB"""
@@ -72,10 +75,10 @@ class SGRB:
         return None
 
     def _get_photon_index(self):
-        short_table = os.path.join(dirname, 'SGRB_table.txt')
+        short_table = os.path.join(dirname, 'tables/SGRB_table.txt')
         sgrb = pd.read_csv(short_table, header=0,
                            error_bad_lines=False, delimiter='\t', dtype='str')
-        long_table = os.path.join(dirname, 'LGRB_table.txt')
+        long_table = os.path.join(dirname, 'tables/LGRB_table.txt')
         lgrb = pd.read_csv(long_table, header=0,
                            error_bad_lines=False, delimiter='\t', dtype='str')
         frames = [lgrb, sgrb]
@@ -89,10 +92,10 @@ class SGRB:
             return float(photon_index.replace("PL","").replace("CPL","").replace(",","").replace("C","").replace("~",""))
 
     def _get_T90(self):
-        short_table = os.path.join(dirname, 'SGRB_table.txt')
+        short_table = os.path.join(dirname, 'tables/SGRB_table.txt')
         sgrb = pd.read_csv(short_table, header=0,
                            error_bad_lines=False, delimiter='\t', dtype='str')
-        long_table = os.path.join(dirname, 'LGRB_table.txt')
+        long_table = os.path.join(dirname, 'tables/LGRB_table.txt')
         lgrb = pd.read_csv(long_table, header=0,
                            error_bad_lines=False, delimiter='\t', dtype='str')
         frames = [lgrb, sgrb]

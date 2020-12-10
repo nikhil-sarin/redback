@@ -15,10 +15,10 @@ dirname = os.path.dirname(__file__)
 
 
 def GetTriggerNumber(GRB):
-    short_table = os.path.join(dirname, 'SGRB_table.txt')
+    short_table = os.path.join(dirname, 'tables/SGRB_table.txt')
     sgrb = pd.read_csv(short_table, header=0,
                        error_bad_lines=False, delimiter='\t', dtype='str')
-    long_table = os.path.join(dirname, 'LGRB_table.txt')
+    long_table = os.path.join(dirname, 'tables/LGRB_table.txt')
     lgrb = pd.read_csv(long_table, header=0,
                        error_bad_lines=False, delimiter='\t', dtype='str')
     frames = [lgrb, sgrb]

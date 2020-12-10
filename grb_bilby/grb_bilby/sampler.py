@@ -1,12 +1,14 @@
-import numpy as np
-from grb_bilby.processing import GRB as tools
-from grb_bilby.models import models as mm
-import bilby
 import inspect
+import numpy as np
 import os
 import sys
+
+import bilby
 import pandas as pd
-from grb_bilby.analysis.Analysis import find_path
+
+from . import GRB as tools
+from . import models as mm
+from .analysis import find_path
 
 dirname = os.path.dirname(__file__)
 logger = bilby.core.utils.logger

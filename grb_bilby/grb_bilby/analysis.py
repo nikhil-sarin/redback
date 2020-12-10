@@ -1,9 +1,11 @@
 import os
-import bilby
 import matplotlib.pyplot as plt
 import numpy as np
-from grb_bilby.processing import GRB as tools
-from grb_bilby.models import models as mm
+
+import bilby
+
+from . import GRB as tools
+from . import models as mm
 
 dirname = os.path.dirname(__file__)
 filename = os.path.join(dirname, 'paper.mplstyle')
