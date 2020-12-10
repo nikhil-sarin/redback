@@ -1,7 +1,10 @@
 # script to create restframe BAT-XRT lightcurves
 import numpy as np
 
-from sherpa.astro import ui as sherpa
+try:
+    from sherpa.astro import ui as sherpa
+except Exception as e:
+    print(e)
 
 bol_elow =  1. # bolometric restframe low frequency in keV
 bol_ehigh =  10000. # bolometric restframe high frequency in keV
