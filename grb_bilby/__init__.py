@@ -1,1 +1,1 @@
-from . import grb_bilby
+from .grb_bilby import *
