@@ -15,6 +15,13 @@ dirname = os.path.dirname(__file__)
 
 
 def get_trigger_number(grb):
+    data = get_grb_table()
+    trigger = data.query('GRB == @GRB')['Trigger Number']
+    trigger = trigger.values[0]
+    return trigger
+
+
+def get_grb_table():
     short_table = os.path.join(dirname, 'tables/SGRB_table.txt')
     sgrb = pd.read_csv(short_table, header=0,
                        error_bad_lines=False, delimiter='\t', dtype='str')
@@ -23,9 +30,7 @@ def get_trigger_number(grb):
                        error_bad_lines=False, delimiter='\t', dtype='str')
     frames = [lgrb, sgrb]
     data = pd.concat(frames, ignore_index=True)
-    trigger = data.query('GRB == @GRB')['Trigger Number']
-    trigger = trigger.values[0]
-    return trigger
+    return data
 
 
 def check_element(driver, id_number):
@@ -36,8 +41,6 @@ def check_element(driver, id_number):
         driver.find_element_by_id(id_number)
     except NoSuchElementException:
         return False
-    finally:
-        pass
     return True
 
 

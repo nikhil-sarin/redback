@@ -52,17 +52,14 @@ def read_result(model, grb, path='.', truncate=True, use_photon_index_prior=Fals
         file_format = '.json'
 
     if luminosity_data:
-        if use_photon_index_prior:
-            result = bilby.result.read_in_result(filename=result_path + 'luminosity_photon_index_result' + file_format)
-        else:
-            result = bilby.result.read_in_result(filename=result_path + 'luminosity_result' + file_format)
-
+        label = 'luminosity'
     else:
-        if use_photon_index_prior:
-            result = bilby.result.read_in_result(filename=result_path + 'flux_photon_index_result' + file_format)
-        else:
-            result = bilby.result.read_in_result(filename=result_path + 'flux_result' + file_format)
+        label = 'flux'
 
+    if use_photon_index_prior:
+        label += '_photon_index'
+
+    result = bilby.result.read_in_result(filename=f"{result_path}{label}_result{file_format}")
     data = load_data(grb=grb, truncate=truncate, path=path, truncate_method=truncate_method,
                      luminosity_data=luminosity_data)
 
@@ -159,10 +156,25 @@ def plot_lightcurve(grb, model, path='GRBData',
                     luminosity_data=False, save_format='json',
                     plot_magnetar=False):
     """
+    :param grb:
+    :param model:
+    :param path:
+    :param axes:
+    :param plot_save:
+    :param plot_show:
+    :param random_models:
+    :param truncate:
+    :param use_photon_index_prior:
+    :param truncate_method:
+    :param luminosity_data:
+    :param save_format:
+    :param plot_magnetar:
+
     plots the lightcurve
     GRB is the telephone number of the GRB
     model = model to plot
     path = path to GRB folder
+
     """
     result, data = read_result(model=model, grb=grb, path=path, truncate=truncate,
                                use_photon_index_prior=use_photon_index_prior, truncate_method=truncate_method,
@@ -184,16 +196,15 @@ def plot_lightcurve(grb, model, path='GRBData',
     plot_data(grb=grb, axes=axes, path=path, truncate=truncate, truncate_method=truncate_method,
               luminosity_data=luminosity_data)
 
+    label = 'lightcurve'
+    if use_photon_index_prior:
+        label = f"_photon_index_{label}"
+
     if plot_save:
-        if use_photon_index_prior:
-            plt.savefig(plots_base_directory + model + '_photon_index_lightcurve.png')
-        else:
-            plt.savefig(plots_base_directory + model + '_lightcurve.png')
+        plt.savefig(f"{plots_base_directory}{model}{label}.png")
 
     if plot_show:
         plt.show()
-
-    # plt.close()
 
 
 def calculate_bf(model1, model2, grb, path='.', use_photon_index_prior=False, luminosity_data=False,
