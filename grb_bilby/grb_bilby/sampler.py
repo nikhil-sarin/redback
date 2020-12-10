@@ -83,6 +83,7 @@ def fit_model(name, path, model, sampler='dynesty', nlive=3000, prior=False, wal
             priors['alpha_1'] = bilby.prior.Gaussian(mu=-(data.photon_index + 1), sigma=0.1,
                                                      latex_label=r'$\alpha_{1}$')
 
+    function = None
     if model == 'magnetar_only':
         function = mm.magnetar_only
 
@@ -153,13 +154,13 @@ def fit_model(name, path, model, sampler='dynesty', nlive=3000, prior=False, wal
                            'time_err_positive': data.time_err[1, :]})
         df.to_csv(outdir + "/data.txt", sep=',', index_label=False, index=False)
 
-    if data.luminosity_data == True:
-        if use_photon_index_prior == True:
+    if data.luminosity_data:
+        if use_photon_index_prior:
             label = 'luminosity_photon_index'
         else:
             label = 'luminosity'
-    if data.luminosity_data == False:
-        if use_photon_index_prior == True:
+    else:
+        if use_photon_index_prior:
             label = 'flux_photon_index'
         else:
             label = 'flux'
