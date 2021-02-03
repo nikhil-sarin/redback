@@ -1,3 +1,3 @@
-L0 = LogUniform(1e-20, 1e5, 'L0', latex_label = r'$L_{0}$')
+l0 = LogUniform(1e-20, 1e5, 'l0', latex_label = r'$L_{0}$')
 tau = LogUniform(1e2, 1e6, 'tau', latex_label = r'$\tau$')
 nn = Uniform(1.1, 7, 'nn', latex_label = r'$n$')

@@ -14,11 +14,11 @@ from selenium.common.exceptions import NoSuchElementException
 dirname = os.path.dirname(__file__)
 
 
-def GetTriggerNumber(GRB):
-    short_table = os.path.join(dirname, 'SGRB_table.txt')
+def get_trigger_number(grb):
+    short_table = os.path.join(dirname, 'tables/SGRB_table.txt')
     sgrb = pd.read_csv(short_table, header=0,
                        error_bad_lines=False, delimiter='\t', dtype='str')
-    long_table = os.path.join(dirname, 'LGRB_table.txt')
+    long_table = os.path.join(dirname, 'tables/LGRB_table.txt')
     lgrb = pd.read_csv(long_table, header=0,
                        error_bad_lines=False, delimiter='\t', dtype='str')
     frames = [lgrb, sgrb]
@@ -28,12 +28,12 @@ def GetTriggerNumber(GRB):
     return trigger
 
 
-def CheckElement(driver, id):
-    '''
+def check_element(driver, id_number):
+    """
     checks that an element exists on a website, and provides an exception
-    '''
+    """
     try:
-        driver.find_element_by_id(id)
+        driver.find_element_by_id(id_number)
     except NoSuchElementException:
         return False
     finally:
@@ -41,21 +41,21 @@ def CheckElement(driver, id):
     return True
 
 
-def GetGRBFile(GRB, use_default_directory):
-    '''
+def get_grb_file(grb, use_default_directory):
+    """
     Go to Swift website and get the data for a given GRB
-    '''
+    """
 
     if use_default_directory:
-        GRBdir = os.path.join(dirname, '../data/GRBData/GRB' + GRB + '/')
+        grb_dir = os.path.join(dirname, '../data/GRBData/GRB' + grb + '/')
     else:
-        GRBdir = 'GRBData/GRB' + GRB + '/'
+        grb_dir = 'GRBData/GRB' + grb + '/'
 
     # check if data file exists for this GRB:
-    GRBdatfile = GRBdir + 'GRB' + GRB + '_rawSwiftData.dat'
-    if not os.path.exists(GRBdir):
-        os.makedirs(GRBdir)
-    if os.path.isfile(GRBdatfile):
+    grb_datfile = grb_dir + 'GRB' + grb + '_rawSwiftData.dat'
+    if not os.path.exists(grb_dir):
+        os.makedirs(grb_dir)
+    if os.path.isfile(grb_datfile):
         print('The raw data file already exists')
         # check = input('Do you still want to download fresh data? (y/[n])') or 'n'
         # if check == 'n':
@@ -67,25 +67,25 @@ def GetGRBFile(GRB, use_default_directory):
 
     # get the trigger number
     # print('Getting trigger number')
-    trigger = GetTriggerNumber(GRB)
-    GRBWebsite = 'http://www.swift.ac.uk/burst_analyser/00' + trigger + '/'
+    trigger = get_trigger_number(grb)
+    grb_website = 'http://www.swift.ac.uk/burst_analyser/00' + trigger + '/'
     # print('opening Swift website for GRB' + GRB)
-    driver.get(GRBWebsite)
+    driver.get(grb_website)
 
-    ## celect option for BAT binning
-    BAT_binning = 'batxrtbin'
-    if CheckElement(driver, BAT_binning):
+    # celect option for BAT binning
+    bat_binning = 'batxrtbin'
+    if check_element(driver, bat_binning):
         driver.find_element_by_xpath("//select[@name='batxrtbin']/option[text()='SNR 4']").click()
 
-    ## select option for subplot
+    # select option for subplot
     subplot = "batxrtsub"
-    if CheckElement(driver, subplot):
+    if check_element(driver, subplot):
         driver.find_element_by_xpath("//select[@name='batxrtsub']/option[text()='no']").click()
 
     # Select option for flux density
     flux_density1 = "batxrtband1"
     flux_density0 = "batxrtband0"
-    if (CheckElement(driver, flux_density1)) and (CheckElement(driver, flux_density0)):
+    if (check_element(driver, flux_density1)) and (check_element(driver, flux_density0)):
         driver.find_element_by_xpath(".//*[@id='batxrtband1']").click()
         driver.find_element_by_xpath(".//*[@id='batxrtband0']").click()
 
@@ -94,32 +94,32 @@ def GetGRBFile(GRB, use_default_directory):
         driver.find_element_by_xpath(".//*[@id='batxrt_XRTBAND_makeDownload']").click()
         time.sleep(20)
 
-        GRBurl = driver.current_url
+        grb_url = driver.current_url
 
         # Close the driver and all opened windows
         driver.quit()
 
         # scrape the data
-        urllib.request.urlretrieve(GRBurl, GRBdatfile)
-    except:
-        print('cannot load the website for GRB', GRB)
+        urllib.request.urlretrieve(grb_url, grb_datfile)
+    except Exception:
+        print('cannot load the website for GRB', grb)
 
 
-def SortData(GRB, use_default_directory):
+def sort_data(grb, use_default_directory):
     if use_default_directory:
-        GRBdir = os.path.join(dirname, '../data/GRBData/GRB' + GRB + '/')
+        grb_dir = os.path.join(dirname, '../data/GRBData/GRB' + grb + '/')
     else:
-        GRBdir = 'GRBData/GRB' + GRB + '/'
+        grb_dir = 'GRBData/GRB' + grb + '/'
 
-    rawGRBdatfile = GRBdir + 'GRB' + GRB + '_rawSwiftData.dat'
+    raw_grb_datfile = grb_dir + 'GRB' + grb + '_rawSwiftData.dat'
 
-    GRBoutfile = GRBdir + 'GRB' + GRB + '.dat'
+    grb_outfile = grb_dir + 'GRB' + grb + '.dat'
 
-    if os.path.isfile(GRBoutfile):
-        print('Processed data file already exists for GRB', GRB)
+    if os.path.isfile(grb_outfile):
+        print('Processed data file already exists for GRB', grb)
         return None
-    if os.path.isfile(rawGRBdatfile) == False:
-        print('There is no raw data for GRB', GRB)
+    if not os.path.isfile(raw_grb_datfile):
+        print('There is no raw data for GRB', grb)
         return None
 
     xrtpcflag = 0
@@ -132,7 +132,7 @@ def SortData(GRB, use_default_directory):
     xrtwt = []
 
     try:
-        with open(rawGRBdatfile) as data:
+        with open(raw_grb_datfile) as data:
             for num, line in enumerate(data):
                 if line[0] == '!':
                     if line[2:13] == 'batSNR4flux':
@@ -159,7 +159,7 @@ def SortData(GRB, use_default_directory):
                 if xrtwtflag == 1:
                     xrtwt.append(line)
 
-        with open(GRBoutfile, 'w') as out:
+        with open(grb_outfile, 'w') as out:
             out.write('## BAT - batSNR4flux\n')
             for ii in range(len(bat)):
                 try:
@@ -192,21 +192,21 @@ def SortData(GRB, use_default_directory):
             sys.exit()
         except SystemExit:
             pass
-    print('congratulations, you now have a nice data file: ' + GRBoutfile)
+    print('congratulations, you now have a nice data file: ' + grb_outfile)
 
 
-def RetrieveAndProcessData(GRB, use_default_directory=False):
+def retrieve_and_process_data(grb, use_default_directory=False):
     if use_default_directory:
-        GRBdir = os.path.join(dirname, '../data/GRBData/GRB' + GRB + '/')
+        grb_dir = os.path.join(dirname, '../data/GRBData/GRB' + grb + '/')
     else:
-        GRBdir = 'GRBData/GRB' + GRB + '/'
+        grb_dir = 'GRBData/GRB' + grb + '/'
 
     # check if data file exists for this GRB:
-    GRBdatfile = GRBdir + 'GRB' + GRB + '.dat'
+    grb_datfile = grb_dir + 'GRB' + grb + '.dat'
 
-    if os.path.isfile(GRBdatfile):
-        print('The data file already exists for GRB',GRB)
+    if os.path.isfile(grb_datfile):
+        print('The data file already exists for GRB', grb)
         return None
     else:
-        GetGRBFile(GRB=GRB, use_default_directory=use_default_directory)
-        SortData(GRB=GRB, use_default_directory=use_default_directory)
+        get_grb_file(grb=grb, use_default_directory=use_default_directory)
+        sort_data(grb=grb, use_default_directory=use_default_directory)

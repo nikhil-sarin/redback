@@ -1,0 +1,7 @@
+setuptools
+numpy
+pandas
+scipy
+selenium
+bilby
+matplotlib
