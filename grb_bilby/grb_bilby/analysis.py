@@ -122,8 +122,8 @@ def plot_models(parameters, model, plot_magnetar, axes=None, colour='r', alpha=1
     ax = axes or plt.gca()
 
     lightcurve = model_dict[model]
-    magnetar_models = ['piecewise_radiative_losses', 'radiative_losses', 'radiative_losses_mdr',
-                       'radiative_losses_smoothness', 'radiative_only']
+    magnetar_models = ['evolving_magnetar', 'evolving_magnetar_only', 'piecewise_radiative_losses',
+                       'radiative_losses', 'radiative_losses_mdr', 'radiative_losses_smoothness', 'radiative_only']
     if model in magnetar_models and plot_magnetar:
         if model == 'radiative_losses_mdr':
             magnetar = mm.magnetar_only(time, nn=3., **parameters)
