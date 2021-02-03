@@ -11,7 +11,7 @@ from .analysis import find_path
 dirname = os.path.dirname(__file__)
 
 
-class SGRB(object):
+class GRB(object):
     """Class for SGRB"""
 
     def __init__(self, name, path):
@@ -109,3 +109,11 @@ class SGRB(object):
             return np.nan
         else:
             return float(t90.replace("PL", "").replace("CPL", "").replace(",", "").replace("C", "").replace("~", ""))
+
+
+class SGRB(GRB):
+    pass
+
+
+class LGRB(GRB):
+    pass
