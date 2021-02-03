@@ -39,42 +39,40 @@ class GRB(object):
         make a cut based on the size of the temporal error; ie if t_error < 1s, the data point is
         part of the prompt emission
         """
-        if luminosity_data:
-            data_file = self.path + '/GRB' + self.name + '/GRB' + self.name + '_luminosity.dat'
-            self.luminosity_data = True
-        else:
-            data_file = self.path + '/GRB' + self.name + '/GRB' + self.name + '.dat'
-            self.luminosity_data = False
+        self.load_data(luminosity_data=luminosity_data)
+        if truncate:
+            self.truncate(truncate_method=truncate_method)
+
+    def load_data(self, luminosity_data=False):
+        self.luminosity_data = luminosity_data
+
+        label = ''
+        if self.luminosity_data:
+            label = '_luminosity'
+
+        data_file = f"{self.path}/GRB{self.name}/GRB{self.name}{label}.dat"
         data = np.loadtxt(data_file)
         self.time = data[:, 0]  # time (secs)
         self.time_err = np.abs(data[:, 1:3].T)  # \Delta time (secs)
         self.Lum50 = data[:, 3]  # Lum (1e50 erg/s)
         self.Lum50_err = np.abs(data[:, 4:].T)
 
-        if truncate:
-            if truncate_method == 'prompt_time_error':
-                mask1 = self.time_err[0, :] > 0.0025
-                mask2 = self.time < 0.2  # dont truncate if data point is after 0.2 seconds
-                mask = np.logical_and(mask1, mask2)
-                self.time = self.time[~mask]
-                self.time_err = self.time_err[:, ~mask]
-                self.Lum50 = self.Lum50[~mask]
-                self.Lum50_err = self.Lum50_err[:, ~mask]
-            else:
-                truncate = self.time_err[0, :] > 0.1
-                to_del = len(self.time) - (len(self.time[truncate]) + 2)
-                self.time = self.time[to_del:]
-                self.time_err = self.time_err[:, to_del:]
-                self.Lum50 = self.Lum50[to_del:]
-                self.Lum50_err = self.Lum50_err[:, to_del:]
-
-        return None
-
-    def load_data(self, luminosity_data=False):
-
     def truncate(self, truncate_method='prompt_time_error'):
-        pass
-
+        if truncate_method == 'prompt_time_error':
+            mask1 = self.time_err[0, :] > 0.0025
+            mask2 = self.time < 0.2  # dont truncate if data point is after 0.2 seconds
+            mask = np.logical_and(mask1, mask2)
+            self.time = self.time[~mask]
+            self.time_err = self.time_err[:, ~mask]
+            self.Lum50 = self.Lum50[~mask]
+            self.Lum50_err = self.Lum50_err[:, ~mask]
+        else:
+            truncate = self.time_err[0, :] > 0.1
+            to_del = len(self.time) - (len(self.time[truncate]) + 2)
+            self.time = self.time[to_del:]
+            self.time_err = self.time_err[:, to_del:]
+            self.Lum50 = self.Lum50[to_del:]
+            self.Lum50_err = self.Lum50_err[:, to_del:]
 
     @staticmethod
     def _get_photon_index():
