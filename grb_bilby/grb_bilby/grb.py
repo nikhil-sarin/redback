@@ -75,14 +75,8 @@ class GRB(object):
             self.Lum50_err = self.Lum50_err[:, to_del:]
 
     def _get_photon_index(self):
-        short_table = os.path.join(dirname, 'tables/SGRB_table.txt')
-        sgrb = pd.read_csv(short_table, header=0,
+        data = pd.read_csv(self.event_table, header=0,
                            error_bad_lines=False, delimiter='\t', dtype='str')
-        long_table = os.path.join(dirname, 'tables/LGRB_table.txt')
-        lgrb = pd.read_csv(long_table, header=0,
-                           error_bad_lines=False, delimiter='\t', dtype='str')
-        frames = [lgrb, sgrb]
-        data = pd.concat(frames, ignore_index=True)
         data['BAT Photon Index (15-150 keV) (PL = simple power-law, CPL = cutoff power-law)'] = data[
             'BAT Photon Index (15-150 keV) (PL = simple power-law, CPL = cutoff power-law)'].fillna(0)
         photon_index = data.query('GRB == @self.name')[
@@ -95,14 +89,8 @@ class GRB(object):
                 photon_index.replace("PL", "").replace("CPL", "").replace(",", "").replace("C", "").replace("~", ""))
 
     def _get_t90(self):
-        short_table = os.path.join(dirname, 'tables/SGRB_table.txt')
-        sgrb = pd.read_csv(short_table, header=0,
+        data = pd.read_csv(self.event_table, header=0,
                            error_bad_lines=False, delimiter='\t', dtype='str')
-        long_table = os.path.join(dirname, 'tables/LGRB_table.txt')
-        lgrb = pd.read_csv(long_table, header=0,
-                           error_bad_lines=False, delimiter='\t', dtype='str')
-        frames = [lgrb, sgrb]
-        data = pd.concat(frames, ignore_index=True)
         # data['BAT Photon Index (15-150 keV) (PL = simple power-law, CPL = cutoff power-law)'] = data['BAT Photon
         # Index (15-150 keV) (PL = simple power-law, CPL = cutoff power-law)'].fillna(0)
         t90 = data.query('GRB == @self.name')['BAT T90 [sec]']
@@ -111,6 +99,10 @@ class GRB(object):
             return np.nan
         else:
             return float(t90.replace("PL", "").replace("CPL", "").replace(",", "").replace("C", "").replace("~", ""))
+
+    @property
+    def event_table(self):
+        return os.path.join(dirname, f'tables/{self.__class__.__name__}_table.txt')
 
 
 class SGRB(GRB):
