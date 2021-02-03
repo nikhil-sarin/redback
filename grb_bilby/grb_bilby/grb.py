@@ -74,8 +74,7 @@ class GRB(object):
             self.Lum50 = self.Lum50[to_del:]
             self.Lum50_err = self.Lum50_err[:, to_del:]
 
-    @staticmethod
-    def _get_photon_index():
+    def _get_photon_index(self):
         short_table = os.path.join(dirname, 'tables/SGRB_table.txt')
         sgrb = pd.read_csv(short_table, header=0,
                            error_bad_lines=False, delimiter='\t', dtype='str')
@@ -95,8 +94,7 @@ class GRB(object):
             return float(
                 photon_index.replace("PL", "").replace("CPL", "").replace(",", "").replace("C", "").replace("~", ""))
 
-    @staticmethod
-    def _get_t90():
+    def _get_t90(self):
         short_table = os.path.join(dirname, 'tables/SGRB_table.txt')
         sgrb = pd.read_csv(short_table, header=0,
                            error_bad_lines=False, delimiter='\t', dtype='str')
