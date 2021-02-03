@@ -70,6 +70,12 @@ class GRB(object):
 
         return None
 
+    def load_data(self, luminosity_data=False):
+
+    def truncate(self, truncate_method='prompt_time_error'):
+        pass
+
+
     @staticmethod
     def _get_photon_index():
         short_table = os.path.join(dirname, 'tables/SGRB_table.txt')
