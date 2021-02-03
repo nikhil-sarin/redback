@@ -6,7 +6,8 @@ import numpy as np
 import os
 import pandas as pd
 
-from .analysis import find_path
+from .getdata import get_grb_table
+from .utils import find_path
 
 dirname = os.path.dirname(__file__)
 
@@ -72,14 +73,7 @@ class SGRB(object):
 
     @staticmethod
     def _get_photon_index():
-        short_table = os.path.join(dirname, 'tables/SGRB_table.txt')
-        sgrb = pd.read_csv(short_table, header=0,
-                           error_bad_lines=False, delimiter='\t', dtype='str')
-        long_table = os.path.join(dirname, 'tables/LGRB_table.txt')
-        lgrb = pd.read_csv(long_table, header=0,
-                           error_bad_lines=False, delimiter='\t', dtype='str')
-        frames = [lgrb, sgrb]
-        data = pd.concat(frames, ignore_index=True)
+        data = get_grb_table()
         data['BAT Photon Index (15-150 keV) (PL = simple power-law, CPL = cutoff power-law)'] = data[
             'BAT Photon Index (15-150 keV) (PL = simple power-law, CPL = cutoff power-law)'].fillna(0)
         photon_index = data.query('GRB == @self.name')[
@@ -93,14 +87,7 @@ class SGRB(object):
 
     @staticmethod
     def _get_t90():
-        short_table = os.path.join(dirname, 'tables/SGRB_table.txt')
-        sgrb = pd.read_csv(short_table, header=0,
-                           error_bad_lines=False, delimiter='\t', dtype='str')
-        long_table = os.path.join(dirname, 'tables/LGRB_table.txt')
-        lgrb = pd.read_csv(long_table, header=0,
-                           error_bad_lines=False, delimiter='\t', dtype='str')
-        frames = [lgrb, sgrb]
-        data = pd.concat(frames, ignore_index=True)
+        data = get_grb_table()
         # data['BAT Photon Index (15-150 keV) (PL = simple power-law, CPL = cutoff power-law)'] = data['BAT Photon
         # Index (15-150 keV) (PL = simple power-law, CPL = cutoff power-law)'].fillna(0)
         t90 = data.query('GRB == @self.name')['BAT T90 [sec]']

@@ -138,32 +138,32 @@ def collapsing_magnetar(time, a_1, alpha_1, l0, tau, nn, tcol, **kwargs):
     return pl + mag
 
 
-def general_magnetar(time, a_1, alpha_1,
-                     delta_time_one, alpha_2, delta_time_two, **kwargs):
-    """
-    Reparameterized millisecond magnetar model from Sarin et al. (2018b) (piecewise)
-    :param time: time array for power law
-    :param a_1: power law decay amplitude
-    :param alpha_1: power law decay exponent
-    :param delta_time_one: time between start and end of prompt emission
-    :param alpha_2: Reparameterized braking index n
-    :param delta_time_two: time between end of prompt emission and end of magnetar model plateau phase, (tau)
-    """
-
-    time_one = delta_time_one
-    tau = delta_time_one + delta_time_two
-    nn = (alpha_2 - 1.) / (alpha_2 + 1.)
-    gamma = (1. + nn) / (1. - nn)
-    num = (a_1 * time_one ** alpha_1)
-    denom = ((1. + (time_one / tau)) ** gamma)
-    a_1 = num / denom
-
-    w = np.where(time < time_one)
-    x = np.where(time > time_one)
-
-    f1 = a_1 * time[w] ** alpha_1
+# def general_magnetar(time, a_1, alpha_1,
+#                      delta_time_one, alpha_2, delta_time_two, **kwargs):
+#     """
+#     Reparameterized millisecond magnetar model from Sarin et al. (2018b) (piecewise)
+#     :param time: time array for power law
+#     :param a_1: power law decay amplitude
+#     :param alpha_1: power law decay exponent
+#     :param delta_time_one: time between start and end of prompt emission
+#     :param alpha_2: Reparameterized braking index n
+#     :param delta_time_two: time between end of prompt emission and end of magnetar model plateau phase, (tau)
+#     """
+#
+#     time_one = delta_time_one
+#     tau = delta_time_one + delta_time_two
+#     nn = (alpha_2 - 1.) / (alpha_2 + 1.)
+#     gamma = (1. + nn) / (1. - nn)
+#     num = (a_1 * time_one ** alpha_1)
+#     denom = ((1. + (time_one / tau)) ** gamma)
+#     a_1 = num / denom
+#
+#     w = np.where(time < time_one)
+#     x = np.where(time > time_one)
+#
+#     f1 = a_1 * time[w] ** alpha_1
     # f2 = amplitude_two * (1. + (time[x] / tau)) ** (gamma)
-    # 
+    #
     # total = np.concatenate((f1, f2))
 
     # return total

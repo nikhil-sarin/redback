@@ -7,20 +7,11 @@ import bilby
 
 from . import grb as tools
 from . import models as mm
+from . import model_dict
+from .utils import find_path
 
-dirname = os.path.dirname(__file__)
-filename = os.path.join(dirname, 'paper.mplstyle')
-plt.style.use(filename)
 
 warnings.simplefilter(action='ignore')
-
-
-def find_path(path):
-    if path == 'default':
-        data_dir = os.path.join(dirname, '../data/GRBData')
-    else:
-        data_dir = path
-    return data_dir
 
 
 def load_data(grb, path='GRBData', truncate=True, truncate_method='prompt_time_error', luminosity_data=False):
@@ -61,17 +52,14 @@ def read_result(model, grb, path='.', truncate=True, use_photon_index_prior=Fals
         file_format = '.json'
 
     if luminosity_data:
-        if use_photon_index_prior:
-            result = bilby.result.read_in_result(filename=result_path + 'luminosity_photon_index_result' + file_format)
-        else:
-            result = bilby.result.read_in_result(filename=result_path + 'luminosity_result' + file_format)
-
+        label = 'luminosity'
     else:
-        if use_photon_index_prior:
-            result = bilby.result.read_in_result(filename=result_path + 'flux_photon_index_result' + file_format)
-        else:
-            result = bilby.result.read_in_result(filename=result_path + 'flux_result' + file_format)
+        label = 'flux'
 
+    if use_photon_index_prior:
+        label += '_photon_index'
+
+    result = bilby.result.read_in_result(filename=f"{result_path}{label}_result{file_format}")
     data = load_data(grb=grb, truncate=truncate, path=path, truncate_method=truncate_method,
                      luminosity_data=luminosity_data)
 
@@ -133,77 +121,15 @@ def plot_models(parameters, model, plot_magnetar, axes=None, colour='r', alpha=1
     time = np.logspace(-4, 7, 100)
     ax = axes or plt.gca()
 
-    if model == 'evolving_magnetar':
-        lightcurve = mm.evolving_magnetar(time, **parameters)
-
-    if model == 'evolving_magnetar_only':
-        lightcurve = mm.evolving_magnetar_only(time, **parameters)
-
-    if model == 'magnetar_only':
-        lightcurve = mm.magnetar_only(time, **parameters)
-    if model == 'gw_magnetar':
-        lightcurve = mm.gw_magnetar(time, **parameters)
-
-    if model == 'full_magnetar':
-        lightcurve = mm.full_magnetar(time, **parameters)
-
-    if model == 'general_magnetar':
-        lightcurve = mm.general_magnetar(time, **parameters)
-
-    if model == 'collapsing_magnetar':
-        lightcurve = mm.collapsing_magnetar(time, **parameters)
-
-    if model == 'one_component_fireball':
-        lightcurve = mm.one_component_fireball_model(time, **parameters)
-
-    if model == 'two_component_fireball':
-        lightcurve = mm.two_component_fireball_model(time, **parameters)
-
-    if model == 'three_component_fireball':
-        lightcurve = mm.three_component_fireball_model(time, **parameters)
-
-    if model == 'four_component_fireball':
-        lightcurve = mm.four_component_fireball_model(time, **parameters)
-
-    if model == 'five_component_fireball':
-        lightcurve = mm.five_component_fireball_model(time, **parameters)
-
-    if model == 'six_component_fireball':
-        lightcurve = mm.six_component_fireball_model(time, **parameters)
-
-    if model == 'piecewise_radiative_losses':
-        if plot_magnetar:
+    lightcurve = model_dict[model]
+    magnetar_models = ['evolving_magnetar', 'evolving_magnetar_only', 'piecewise_radiative_losses',
+                       'radiative_losses', 'radiative_losses_mdr', 'radiative_losses_smoothness', 'radiative_only']
+    if model in magnetar_models and plot_magnetar:
+        if model == 'radiative_losses_mdr':
+            magnetar = mm.magnetar_only(time, nn=3., **parameters)
+        else:
             magnetar = mm.magnetar_only(time, **parameters)
-            ax.plot(time, magnetar, color=colour, ls=ls, lw=lw, alpha=alpha, zorder=-32, linestyle='--')
-        lightcurve = mm.piecewise_radiative_losses(time, **parameters)
-
-    if model == 'radiative_losses':
-        lightcurve = mm.radiative_losses(time, **parameters)
-        if plot_magnetar:
-            magnetar = mm.magnetar_only(time, **parameters)
-            ax.plot(time, magnetar, color=colour, ls=ls, lw=lw, alpha=alpha, zorder=-32, linestyle='--')
-
-    if model == 'radiative_losses_mdr':
-        lightcurve = mm.radiative_losses_mdr(time, **parameters)
-        if plot_magnetar:
-            magnetar = mm.magnetar_only(time, **parameters, nn=3.)
-            ax.plot(time, magnetar, color=colour, ls=ls, lw=lw, alpha=alpha, zorder=-32, linestyle='--')
-
-    if model == 'radiative_losses_smoothness':
-        lightcurve = mm.radiative_losses_smoothness(time, **parameters)
-        if plot_magnetar:
-            magnetar = mm.magnetar_only(time, **parameters)
-            ax.plot(time, magnetar, color=colour, ls=ls, lw=lw, alpha=alpha, zorder=-32, linestyle='--')
-
-    if model == 'radiative_only':
-        lightcurve = mm.radiative_only(time, **parameters)
-        if plot_magnetar:
-            magnetar = mm.magnetar_only(time, **parameters)
-            ax.plot(time, magnetar, color=colour, ls=ls, lw=lw, alpha=alpha, zorder=-32, linestyle='--')
-
-    if model == 'collapsing_radiative_losses':
-        lightcurve = mm.collapsing_radiative_losses(time, **parameters)
-
+        ax.plot(time, magnetar, color=colour, ls=ls, lw=lw, alpha=alpha, zorder=-32, linestyle='--')
     ax.plot(time, lightcurve, color=colour, ls=ls, lw=lw, alpha=alpha, zorder=-32)
 
 
@@ -230,23 +156,33 @@ def plot_lightcurve(grb, model, path='GRBData',
                     luminosity_data=False, save_format='json',
                     plot_magnetar=False):
     """
+    :param grb:
+    :param model:
+    :param path:
+    :param axes:
+    :param plot_save:
+    :param plot_show:
+    :param random_models:
+    :param truncate:
+    :param use_photon_index_prior:
+    :param truncate_method:
+    :param luminosity_data:
+    :param save_format:
+    :param plot_magnetar:
+
     plots the lightcurve
     GRB is the telephone number of the GRB
     model = model to plot
     path = path to GRB folder
-    """
-    ax = axes or plt.gca()
 
-    # read result
+    """
     result, data = read_result(model=model, grb=grb, path=path, truncate=truncate,
                                use_photon_index_prior=use_photon_index_prior, truncate_method=truncate_method,
                                luminosity_data=luminosity_data,
                                save_format=save_format)
 
-    # set up plotting directory structure
     plots_base_directory = plot_directory_structure(data=data, model=model)
 
-    # dictionary of max likelihood parameters
     max_l = dict(result.posterior.sort_values(by=['log_likelihood']).iloc[-1])
 
     for j in range(int(random_models)):
@@ -254,22 +190,21 @@ def plot_lightcurve(grb, model, path='GRBData',
         plot_models(parameters=params, axes=axes, alpha=0.05, lw=2, colour='r', model=model,
                     plot_magnetar=plot_magnetar)
 
-        # plot max likelihood
+    # plot max likelihood
     plot_models(parameters=max_l, axes=axes, alpha=0.65, lw=2, colour='b', model=model, plot_magnetar=plot_magnetar)
 
     plot_data(grb=grb, axes=axes, path=path, truncate=truncate, truncate_method=truncate_method,
               luminosity_data=luminosity_data)
 
+    label = 'lightcurve'
+    if use_photon_index_prior:
+        label = f"_photon_index_{label}"
+
     if plot_save:
-        if use_photon_index_prior:
-            plt.savefig(plots_base_directory + model + '_photon_index_lightcurve.png')
-        else:
-            plt.savefig(plots_base_directory + model + '_lightcurve.png')
+        plt.savefig(f"{plots_base_directory}{model}{label}.png")
 
     if plot_show:
         plt.show()
-
-    # plt.close()
 
 
 def calculate_bf(model1, model2, grb, path='.', use_photon_index_prior=False, luminosity_data=False,
