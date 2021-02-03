@@ -1,18 +1,20 @@
-import numpy as np
-from grb_bilby.processing import GRB as tools
-from grb_bilby.models import models as mm
-import bilby
 import inspect
+import numpy as np
 import os
 import sys
+
+import bilby
 import pandas as pd
-from grb_bilby.analysis.Analysis import find_path
+
+from . import grb as tools
+from . import models as mm
+from .analysis import find_path
 
 dirname = os.path.dirname(__file__)
 logger = bilby.core.utils.logger
 
 
-class GRB_GaussianLikelihood(bilby.Likelihood):
+class GRBGaussianLikelihood(bilby.Likelihood):
     def __init__(self, x, y, sigma, function):
         """
 
@@ -32,7 +34,7 @@ class GRB_GaussianLikelihood(bilby.Likelihood):
         parameters = inspect.getfullargspec(function).args
         parameters.pop(0)
         self.parameters = dict.fromkeys(parameters)
-        super(GRB_GaussianLikelihood, self).__init__(parameters=dict())
+        super(GRBGaussianLikelihood, self).__init__(parameters=dict())
 
     def log_likelihood(self):
         res = self.y - self.function(self.x, **self.parameters)
@@ -41,7 +43,8 @@ class GRB_GaussianLikelihood(bilby.Likelihood):
 
 
 def fit_model(name, path, model, sampler='dynesty', nlive=3000, prior=False, walks=1000, truncate=True,
-              use_photon_index_prior=False, truncate_method='prompt_time_error',luminosity_data=False, resume=True,save_format='json', **kwargs):
+              use_photon_index_prior=False, truncate_method='prompt_time_error', luminosity_data=False, resume=True,
+              save_format='json', **kwargs):
     """
 
     Parameters
@@ -52,11 +55,14 @@ def fit_model(name, path, model, sampler='dynesty', nlive=3000, prior=False, wal
     :param sampler: String to indicate which sampler to use, default is dynesty
     and nested samplers are encouraged to allow evidence calculation
     :param nlive: number of live points
-    :param priors: if Prior is true user needs to pass a dictionary with priors defined the bilby way
+    :param prior: if Prior is true user needs to pass a dictionary with priors defined the bilby way
     :param walks: number of walkers
     :param truncate: flag to confirm whether to truncate the prompt emission data
     :param use_photon_index_prior: flag to turn off/on photon index prior and fits according to the curvature effect
     :param truncate_method: method of truncation
+    :param luminosity_data:
+    :param resume:
+    :param save_format:
     :param kwargs: additional parameters that will be passed to the sampler
     :return: bilby result object, GRB data object
     """
@@ -64,12 +70,12 @@ def fit_model(name, path, model, sampler='dynesty', nlive=3000, prior=False, wal
     data = tools.SGRB(name, path)
     data.load_and_truncate_data(truncate=truncate, truncate_method=truncate_method, luminosity_data=luminosity_data)
 
-    if prior == False:
+    if not prior:
         priors = bilby.prior.PriorDict(filename=dirname + '/Priors/' + model + '.prior')
     else:
         priors = prior
 
-    if use_photon_index_prior == True:
+    if use_photon_index_prior:
         if data.photon_index < 0.:
             logger.info('photon index for GRB', data.name, 'is negative. Using default prior on alpha_1')
             priors['alpha_1'] = bilby.prior.Uniform(-10, -0.5, 'alpha_1', latex_label=r'$\alpha_{1}$')
@@ -77,6 +83,7 @@ def fit_model(name, path, model, sampler='dynesty', nlive=3000, prior=False, wal
             priors['alpha_1'] = bilby.prior.Gaussian(mu=-(data.photon_index + 1), sigma=0.1,
                                                      latex_label=r'$\alpha_{1}$')
 
+    function = None
     if model == 'magnetar_only':
         function = mm.magnetar_only
 
@@ -147,23 +154,23 @@ def fit_model(name, path, model, sampler='dynesty', nlive=3000, prior=False, wal
                            'time_err_positive': data.time_err[1, :]})
         df.to_csv(outdir + "/data.txt", sep=',', index_label=False, index=False)
 
-
-    if data.luminosity_data == True:
-        if use_photon_index_prior == True:
+    if data.luminosity_data:
+        if use_photon_index_prior:
             label = 'luminosity_photon_index'
         else:
             label = 'luminosity'
-    if data.luminosity_data == False:
-        if use_photon_index_prior == True:
+    else:
+        if use_photon_index_prior:
             label = 'flux_photon_index'
         else:
             label = 'flux'
 
-    likelihood = GRB_GaussianLikelihood(x=data.time, y=data.Lum50, sigma=data.Lum50_err, function=function)
+    likelihood = GRBGaussianLikelihood(x=data.time, y=data.Lum50, sigma=data.Lum50_err, function=function)
 
     result = bilby.run_sampler(likelihood, priors=priors, label=label, sampler=sampler, nlive=nlive,
-                               outdir=outdir, plot=True, use_ratio=False, walks=walks, resume=resume, maxmcmc=10*walks,
-                               nthreads=4, save_bounds=False,nsteps=nlive,nwalkers=walks, save=save_format, **kwargs)
+                               outdir=outdir, plot=True, use_ratio=False, walks=walks, resume=resume,
+                               maxmcmc=10 * walks,
+                               nthreads=4, save_bounds=False, nsteps=nlive, nwalkers=walks, save=save_format, **kwargs)
 
     return result, data
 
