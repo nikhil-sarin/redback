@@ -120,6 +120,12 @@ def plot_models(parameters, model,plot_magnetar, axes=None, colour='r', alpha=1.
     time = np.logspace(-4, 7, 100)
     ax = axes or plt.gca()
 
+    if model == 'evolving_magnetar':
+        lightcurve = mm.evolving_magnetar(time, **parameters)
+
+    if model == 'evolving_magnetar_only':
+        lightcurve = mm.evolving_magnetar_only(time, **parameters)
+
     if model == 'magnetar_only':
         lightcurve = mm.magnetar_only(time, **parameters)
     if model == 'gw_magnetar':

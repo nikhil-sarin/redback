@@ -1,5 +1,68 @@
 import numpy as np
 import scipy.special as ss
+import astropy.constants as cc
+from scipy.integrate import quad
+speed_of_light = cc.c.cgs.value
+
+import afterglowpy as afterglows
+
+# class afterglow_models:
+#     def __init__(self, model_name, flux_required):
+
+# def integrated_flux():
+#
+# def tophat_jet():
+
+
+def mu_function(time, mu0, muinf, tm):
+    mu = muinf + (mu0 - muinf)*np.exp(-time/tm)
+    return mu
+
+def integrand(time, mu0, muinf, tm):
+    mu = muinf + (mu0 - muinf)*np.exp(-time/tm)
+    return mu**2
+
+def evolving_magnetar_only(time, mu0, muinf, p0, sinalpha0, tm, II, **kwargs):
+    """
+    Model from Mus+2019
+    :param time: time
+    :param kwargs: key word argument for handling plotting
+    :return: luminosity (depending on scaling) as a function of time.
+    """
+    mu0 = mu0 * 1e33 # G cm^3
+    muinf = muinf * 1e33 # G cm^3
+    tm = tm * 86400 #days
+    eta = 0.1
+    tau = np.zeros(len(time))
+    for ii in range(len(time)):
+        tau[ii], _ = quad(integrand, 0, time[ii], args=(mu0, muinf, tm))
+    mu = mu_function(time, mu0, muinf, tm)
+    omega0 = (2 * np.pi) / p0
+    tau = (omega0 ** 2) / (II * speed_of_light ** 3) * tau
+    y0 = sinalpha0
+    common_frac = (np.log(1 + 2 * tau) - 4 * tau) / (1 + 2 * tau)
+    ftau = 2 * (1 - y0 ** 2) ** 2 * tau
+    + y0 ** 2 * np.log(1 + 2 * tau)
+    + y0 ** 4 * common_frac
+    - y0 ** 8 * (np.log(1 + 2 * tau) + common_frac)
+    ytau = y0 / ((1 + ftau) ** 0.5)
+    omegatau = omega0 * (1 - y0 ** 2) * ((1 + ftau) ** 0.5) / (1 - y0 ** 2 + ftau)
+    luminosity = eta * (mu ** 2 * omegatau ** 4) / (speed_of_light ** 3) * (1 + ytau ** 2)
+    return luminosity/1e50
+
+def evolving_magnetar(time, A_1, alpha_1, mu0, muinf, p0, sinalpha0, tm, II, **kwargs):
+    """
+    :param time: time
+    :param L0: luminosity parameter
+    :param tau: spin-down damping timescale
+    :param nn: braking index
+    :param kwargs: key word argument for handling plotting
+    :return: luminosity or flux (depending on scaling) as a function of time.
+    """
+    pl = one_component_fireball_model(time=time, A_1=A_1, alpha_1=alpha_1)
+    magnetar = evolving_magnetar_only(time=time, mu0=mu0, muinf=muinf,
+                                      p0=p0, sinalpha0=sinalpha0, tm=tm, II=II)
+    return pl + magnetar
 
 
 def magnetar_only(time, L0, tau, nn, **kwargs):

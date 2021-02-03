@@ -77,6 +77,12 @@ def fit_model(name, path, model, sampler='dynesty', nlive=3000, prior=False, wal
             priors['alpha_1'] = bilby.prior.Gaussian(mu=-(data.photon_index + 1), sigma=0.1,
                                                      latex_label=r'$\alpha_{1}$')
 
+    if model == 'evolving_magnetar':
+        function = mm.evolving_magnetar
+
+    if model == 'evolving_magnetar_only':
+        function = mm.evolving_magnetar_only
+
     if model == 'magnetar_only':
         function = mm.magnetar_only
 
