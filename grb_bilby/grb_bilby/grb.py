@@ -28,8 +28,9 @@ class GRB(object):
         self.time_err = []
         self.Lum50 = []
         self.Lum50_err = []
-        self.photon_index = self._get_photon_index()
         self.luminosity_data = []
+        self.data = self._get_data()
+        self.photon_index = self._get_photon_index()
         self.T90 = self._get_t90()
 
     def load_and_truncate_data(self, truncate=True, truncate_method='prompt_time_error', luminosity_data=False):
@@ -74,35 +75,51 @@ class GRB(object):
             self.Lum50 = self.Lum50[to_del:]
             self.Lum50_err = self.Lum50_err[:, to_del:]
 
-    def _get_photon_index(self):
-        data = pd.read_csv(self.event_table, header=0,
-                           error_bad_lines=False, delimiter='\t', dtype='str')
-        data['BAT Photon Index (15-150 keV) (PL = simple power-law, CPL = cutoff power-law)'] = data[
-            'BAT Photon Index (15-150 keV) (PL = simple power-law, CPL = cutoff power-law)'].fillna(0)
-        photon_index = data.query('GRB == @self.name')[
-            'BAT Photon Index (15-150 keV) (PL = simple power-law, CPL = cutoff power-law)']
-        photon_index = photon_index.values[0]
-        if photon_index == 0.:
-            return 0.
-        else:
-            return float(
-                photon_index.replace("PL", "").replace("CPL", "").replace(",", "").replace("C", "").replace("~", ""))
-
-    def _get_t90(self):
-        data = pd.read_csv(self.event_table, header=0,
-                           error_bad_lines=False, delimiter='\t', dtype='str')
-        # data['BAT Photon Index (15-150 keV) (PL = simple power-law, CPL = cutoff power-law)'] = data['BAT Photon
-        # Index (15-150 keV) (PL = simple power-law, CPL = cutoff power-law)'].fillna(0)
-        t90 = data.query('GRB == @self.name')['BAT T90 [sec]']
-        t90 = t90.values[0]
-        if t90 == 0.:
-            return np.nan
-        else:
-            return float(t90.replace("PL", "").replace("CPL", "").replace(",", "").replace("C", "").replace("~", ""))
 
     @property
     def event_table(self):
         return os.path.join(dirname, f'tables/{self.__class__.__name__}_table.txt')
+
+    def get_flux_density(self):
+        pass
+
+    def get_integrated_flux(self):
+        pass
+
+    def flux_to_luminosity(self):
+        pass
+
+    def get_prompt(self):
+        pass
+
+    def get_optical(self):
+        pass
+
+    def _get_data(self):
+        data = pd.read_csv(self.event_table, header=0, error_bad_lines=False, delimiter='\t', dtype='str')
+        data['BAT Photon Index (15-150 keV) (PL = simple power-law, CPL = cutoff power-law)'] = data[
+            'BAT Photon Index (15-150 keV) (PL = simple power-law, CPL = cutoff power-law)'].fillna(0)
+        return self.data
+
+    def _process_data(self):
+        pass
+
+    def _get_photon_index(self):
+        photon_index = self.data.query('GRB == @self.name')[
+            'BAT Photon Index (15-150 keV) (PL = simple power-law, CPL = cutoff power-law)']
+        photon_index = photon_index.values[0]
+        if photon_index == 0.:
+            return 0.
+        return float(
+            photon_index.replace("PL", "").replace("CPL", "").replace(",", "").replace("C", "").replace("~", ""))
+
+    def _get_t90(self):
+        # data['BAT Photon Index (15-150 keV) (PL = simple power-law, CPL = cutoff power-law)'] = data['BAT Photon
+        # Index (15-150 keV) (PL = simple power-law, CPL = cutoff power-law)'].fillna(0)
+        t90 = self.data.query('GRB == @self.name')['BAT T90 [sec]'].values[0]
+        if t90 == 0.:
+            return np.nan
+        return float(t90.replace("PL", "").replace("CPL", "").replace(",", "").replace("C", "").replace("~", ""))
 
 
 class SGRB(GRB):
