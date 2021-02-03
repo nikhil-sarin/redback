@@ -7,6 +7,7 @@ import os
 import pandas as pd
 
 from .analysis import find_path
+from .getdata import retrieve_and_process_data
 
 dirname = os.path.dirname(__file__)
 
@@ -125,6 +126,34 @@ class GRB(object):
         for r in self.__removeables:
             string.replace(r, "")
         return float(string)
+
+    def process_grbs(self, use_default_directory=False):
+        for GRB in self.data['GRB'].values:
+            retrieve_and_process_data(GRB, use_default_directory=use_default_directory)
+
+        return print(f'Flux data for all {self.__class__.__name__}s added')
+
+    @staticmethod
+    def process_grbs_w_redshift(use_default_directory=False):
+        data = pd.read_csv(dirname + '/tables/GRBs_w_redshift.txt', header=0,
+                           error_bad_lines=False, delimiter='\t', dtype='str')
+        for GRB in data['GRB'].values:
+            retrieve_and_process_data(GRB, use_default_directory=use_default_directory)
+
+        return print('Flux data for all GRBs with redshift added')
+
+    @staticmethod
+    def process_grb_list(data, use_default_directory=False):
+        """
+        :param data: a list containing telephone number of GRB needing to process
+        :param use_default_directory:
+        :return: saves the flux file in the location specified
+        """
+
+        for GRB in data:
+            retrieve_and_process_data(GRB, use_default_directory=use_default_directory)
+
+        return print('Flux data for all GRBs in list added')
 
 
 class SGRB(GRB):
