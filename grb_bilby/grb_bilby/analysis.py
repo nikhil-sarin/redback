@@ -66,52 +66,6 @@ def read_result(model, grb, path='.', truncate=True, use_photon_index_prior=Fals
     return result, data
 
 
-def plot_data(grb, path, truncate, truncate_method='prompt_time_error', axes=None, colour='k', luminosity_data=False):
-    """
-    plots the data
-    GRB is the telephone number of the GRB
-    :param luminosity_data:
-    :param truncate_method:
-    :param grb:
-    :param path:
-    :param truncate:
-    :param axes:
-    :param colour:
-    """
-    ax = axes or plt.gca()
-    data = load_data(grb=grb, path=path, truncate=truncate, truncate_method=truncate_method,
-                     luminosity_data=luminosity_data)
-    tt = data.time
-    tt_err = data.time_err
-    lum50 = data.Lum50
-    lum50_err = data.Lum50_err
-
-    ax.errorbar(tt, lum50,
-                xerr=[tt_err[1, :], tt_err[0, :]],
-                yerr=[lum50_err[1, :], lum50_err[0, :]],
-                fmt='x', c=colour, ms=1, elinewidth=2, capsize=0.)
-
-    ax.set_xscale('log')
-    ax.set_yscale('log')
-
-    ax.set_xlim(0.5 * tt[0], 2 * (tt[-1] + tt_err[0, -1]))
-    ax.set_ylim(0.5 * min(lum50), 2. * np.max(lum50))
-
-    ax.annotate('GRB' + data.name, xy=(0.95, 0.9), xycoords='axes fraction',
-                horizontalalignment='right', size=20)
-
-    ax.set_xlabel(r'Time since burst [s]')
-    if data.luminosity_data:
-        ax.set_ylabel(r'Luminosity [$10^{50}$ erg s$^{-1}$]')
-    else:
-        ax.set_ylabel(r'Flux [erg cm$^{-2}$ s$^{-1}$]')
-    ax.tick_params(axis='x', pad=10)
-
-    if axes is None:
-        plt.tight_layout()
-    plt.grid(b=None)
-
-
 def plot_models(parameters, model, plot_magnetar, axes=None, colour='r', alpha=1.0, ls='-', lw=4):
     """
     plot the models
