@@ -15,19 +15,6 @@ from .utils import find_path
 warnings.simplefilter(action='ignore')
 
 
-def load_data(grb, path='GRBData', truncate=True, truncate_method='prompt_time_error', luminosity_data=False):
-    """
-    :param grb: telephone number
-    :param path: default for package data, or path to GRBData folder
-    :param truncate: method of truncation/True/False
-    :param truncate_method:
-    :param luminosity_data:
-    :return: data class
-    """
-    return tools.SGRB.from_path_and_grb_with_truncation(path=path, grb=grb, truncate=truncate,
-                                                        truncate_method=truncate_method, luminosity_data=luminosity_data)
-
-
 def read_result(model, grb, path='.', truncate=True, use_photon_index_prior=False, truncate_method='prompt_time_error',
                 luminosity_data=False, save_format='json'):
     """
@@ -44,11 +31,6 @@ def read_result(model, grb, path='.', truncate=True, use_photon_index_prior=Fals
     result_path = f"{path}/GRB{grb}/{model}/"
     Path(result_path).mkdir(parents=True, exist_ok=True)
 
-    if save_format == 'hdf5':
-        file_format = '.hdf5'
-    else:
-        file_format = '.json'
-
     if luminosity_data:
         label = 'luminosity'
     else:
@@ -57,7 +39,7 @@ def read_result(model, grb, path='.', truncate=True, use_photon_index_prior=Fals
     if use_photon_index_prior:
         label += '_photon_index'
 
-    result = bilby.result.read_in_result(filename=f"{result_path}{label}_result{file_format}")
+    result = bilby.result.read_in_result(filename=f"{result_path}{label}_result.{save_format}")
     data = tools.GRB.from_path_and_grb_with_truncation(
         grb=grb, truncate=truncate, path=path, truncate_method=truncate_method,
         luminosity_data=luminosity_data)
