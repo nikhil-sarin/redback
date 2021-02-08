@@ -114,6 +114,15 @@ def fit_model(name, path, model, sampler='dynesty', nlive=3000, prior=None, walk
                                maxmcmc=10 * walks, result_class=GRBResult,
                                nthreads=4, save_bounds=False, nsteps=nlive, nwalkers=walks, save=save_format, **kwargs)
 
+    result.model = model
+    result.grb = data
+    result.path = path
+    result.use_photon_index_prior = use_photon_index_prior
+    result.truncate = truncate
+    result.truncate_method = truncate_method
+    result.luminosity_data = luminosity_data
+    result.save_format = save_format
+
     return result, data
 
 
