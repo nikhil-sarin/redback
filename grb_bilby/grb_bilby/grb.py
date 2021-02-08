@@ -39,6 +39,18 @@ class GRB(object):
         self._set_photon_index()
         self._set_t90()
 
+    @classmethod
+    def from_path_and_grb(cls, path, grb):
+        data_dir = find_path(path)
+        return cls(name=grb, path=data_dir)
+
+    @classmethod
+    def from_path_and_grb_with_truncation(
+            cls, path, grb, truncate=True, truncate_method='prompt_time_error', luminosity_data=False):
+        grb = cls.from_path_and_grb(path=path, grb=grb)
+        grb.load_and_truncate_data(truncate=truncate, truncate_method=truncate_method, luminosity_data=luminosity_data)
+        return grb
+
     def load_and_truncate_data(self, truncate=True, truncate_method='prompt_time_error', luminosity_data=False):
         """
         Read data of SGRB from given path and GRB telephone number.
