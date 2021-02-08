@@ -2,6 +2,7 @@ import os
 import matplotlib.pyplot as plt
 import numpy as np
 import warnings
+from pathlib import Path
 
 import bilby
 
@@ -23,10 +24,8 @@ def load_data(grb, path='GRBData', truncate=True, truncate_method='prompt_time_e
     :param luminosity_data:
     :return: data class
     """
-    data_dir = find_path(path)
-    data = tools.SGRB(name=grb, path=data_dir)
-    data.load_and_truncate_data(truncate=truncate, truncate_method=truncate_method, luminosity_data=luminosity_data)
-    return data
+    return tools.SGRB.from_path_and_grb_with_truncation(path=path, grb=grb, truncate=truncate,
+                                                        truncate_method=truncate_method, luminosity_data=luminosity_data)
 
 
 def read_result(model, grb, path='.', truncate=True, use_photon_index_prior=False, truncate_method='prompt_time_error',
@@ -42,9 +41,8 @@ def read_result(model, grb, path='.', truncate=True, use_photon_index_prior=Fals
     :param save_format:
     :return: bilby result object and data object
     """
-    result_path = path + '/GRB' + grb + '/' + model + '/'
-    if not os.path.exists(result_path):
-        os.makedirs(result_path)
+    result_path = f"{path}/GRB{grb}/{model}/"
+    Path(result_path).mkdir(parents=True, exist_ok=True)
 
     if save_format == 'hdf5':
         file_format = '.hdf5'
@@ -60,56 +58,10 @@ def read_result(model, grb, path='.', truncate=True, use_photon_index_prior=Fals
         label += '_photon_index'
 
     result = bilby.result.read_in_result(filename=f"{result_path}{label}_result{file_format}")
-    data = load_data(grb=grb, truncate=truncate, path=path, truncate_method=truncate_method,
-                     luminosity_data=luminosity_data)
-
+    data = tools.GRB.from_path_and_grb_with_truncation(
+        grb=grb, truncate=truncate, path=path, truncate_method=truncate_method,
+        luminosity_data=luminosity_data)
     return result, data
-
-
-def plot_data(grb, path, truncate, truncate_method='prompt_time_error', axes=None, colour='k', luminosity_data=False):
-    """
-    plots the data
-    GRB is the telephone number of the GRB
-    :param luminosity_data:
-    :param truncate_method:
-    :param grb:
-    :param path:
-    :param truncate:
-    :param axes:
-    :param colour:
-    """
-    ax = axes or plt.gca()
-    data = load_data(grb=grb, path=path, truncate=truncate, truncate_method=truncate_method,
-                     luminosity_data=luminosity_data)
-    tt = data.time
-    tt_err = data.time_err
-    lum50 = data.Lum50
-    lum50_err = data.Lum50_err
-
-    ax.errorbar(tt, lum50,
-                xerr=[tt_err[1, :], tt_err[0, :]],
-                yerr=[lum50_err[1, :], lum50_err[0, :]],
-                fmt='x', c=colour, ms=1, elinewidth=2, capsize=0.)
-
-    ax.set_xscale('log')
-    ax.set_yscale('log')
-
-    ax.set_xlim(0.5 * tt[0], 2 * (tt[-1] + tt_err[0, -1]))
-    ax.set_ylim(0.5 * min(lum50), 2. * np.max(lum50))
-
-    ax.annotate('GRB' + data.name, xy=(0.95, 0.9), xycoords='axes fraction',
-                horizontalalignment='right', size=20)
-
-    ax.set_xlabel(r'Time since burst [s]')
-    if data.luminosity_data:
-        ax.set_ylabel(r'Luminosity [$10^{50}$ erg s$^{-1}$]')
-    else:
-        ax.set_ylabel(r'Flux [erg cm$^{-2}$ s$^{-1}$]')
-    ax.tick_params(axis='x', pad=10)
-
-    if axes is None:
-        plt.tight_layout()
-    plt.grid(b=None)
 
 
 def plot_models(parameters, model, plot_magnetar, axes=None, colour='r', alpha=1.0, ls='-', lw=4):
@@ -140,10 +92,9 @@ def plot_directory_structure(data, model):
     :return: plot_base_directory
     """
     # set up plotting directory structure
-    directory = data.path + '/GRB' + data.name
-    plots_base_directory = directory + '/' + model + '/plots/'
-    if not os.path.exists(plots_base_directory):
-        os.makedirs(plots_base_directory)
+    directory = f"{data.path}/GRB{data.name}"
+    plots_base_directory = f"{directory}/{model}/plots/"
+    Path(plots_base_directory).mkdir(parents=True, exist_ok=True)
     return plots_base_directory
 
 
@@ -193,8 +144,7 @@ def plot_lightcurve(grb, model, path='GRBData',
     # plot max likelihood
     plot_models(parameters=max_l, axes=axes, alpha=0.65, lw=2, colour='b', model=model, plot_magnetar=plot_magnetar)
 
-    plot_data(grb=grb, axes=axes, path=path, truncate=truncate, truncate_method=truncate_method,
-              luminosity_data=luminosity_data)
+    data.plot_data(axes=axes)
 
     label = 'lightcurve'
     if use_photon_index_prior:

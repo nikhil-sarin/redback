@@ -5,6 +5,7 @@ Contains GRB class, with method to load and truncate data for SGRB and in future
 import numpy as np
 import os
 import pandas as pd
+import matplotlib.pyplot as plt
 
 from .analysis import find_path
 from .getdata import retrieve_and_process_data
@@ -37,6 +38,18 @@ class GRB(object):
         self._set_data()
         self._set_photon_index()
         self._set_t90()
+
+    @classmethod
+    def from_path_and_grb(cls, path, grb):
+        data_dir = find_path(path)
+        return cls(name=grb, path=data_dir)
+
+    @classmethod
+    def from_path_and_grb_with_truncation(
+            cls, path, grb, truncate=True, truncate_method='prompt_time_error', luminosity_data=False):
+        grb = cls.from_path_and_grb(path=path, grb=grb)
+        grb.load_and_truncate_data(truncate=truncate, truncate_method=truncate_method, luminosity_data=luminosity_data)
+        return grb
 
     def load_and_truncate_data(self, truncate=True, truncate_method='prompt_time_error', luminosity_data=False):
         """
@@ -155,6 +168,39 @@ class GRB(object):
             retrieve_and_process_data(GRB, use_default_directory=use_default_directory)
 
         return print('Flux data for all GRBs in list added')
+
+    def plot_data(self, axes=None, colour='k'):
+        """
+        plots the data
+        GRB is the telephone number of the GRB
+        :param axes:
+        :param colour:
+        """
+        ax = axes or plt.gca()
+        ax.errorbar(self.time, self.Lum50,
+                    xerr=[self.time_err[1, :], self.time_err[0, :]],
+                    yerr=[self.Lum50_err[1, :], self.Lum50_err[0, :]],
+                    fmt='x', c=colour, ms=1, elinewidth=2, capsize=0.)
+
+        ax.set_xscale('log')
+        ax.set_yscale('log')
+
+        ax.set_xlim(0.5 * self.time[0], 2 * (self.time[-1] + self.time_err[0, -1]))
+        ax.set_ylim(0.5 * min(self.Lum50), 2. * np.max(self.Lum50))
+
+        ax.annotate(f'GRB{self.name}', xy=(0.95, 0.9), xycoords='axes fraction',
+                    horizontalalignment='right', size=20)
+
+        ax.set_xlabel(r'Time since burst [s]')
+        if self.luminosity_data:
+            ax.set_ylabel(r'Luminosity [$10^{50}$ erg s$^{-1}$]')
+        else:
+            ax.set_ylabel(r'Flux [erg cm$^{-2}$ s$^{-1}$]')
+        ax.tick_params(axis='x', pad=10)
+
+        if axes is None:
+            plt.tight_layout()
+        plt.grid(b=None)
 
 
 class SGRB(GRB):
