@@ -6,6 +6,7 @@ from . import sampler
 from . import fluxtolum
 from . import getdata
 from . import grb
+from . import result
 
 
 _functions_list = [o for o in getmembers(models) if isfunction(o[1])]
