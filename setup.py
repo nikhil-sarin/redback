@@ -9,5 +9,5 @@ setup(name='grb_bilby',
       license='MIT',
       packages=['grb_bilby'],
       package_dir={'grb_bilby': 'grb_bilby'},
-      package_data={'grb_bilby': ['priors/*', 'tables/*']},
+      package_data={'grb_bilby': ['priors/*', 'tables/*'], 'grb_bilby.fluxtolum': ['data/*']},
       zip_safe=False)

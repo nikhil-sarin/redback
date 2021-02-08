@@ -8,6 +8,8 @@ import pandas as pd
 
 from .analysis import find_path
 from .getdata import retrieve_and_process_data
+from .getdata import get_grb_table
+from .utils import find_path
 
 dirname = os.path.dirname(__file__)
 
