@@ -34,9 +34,9 @@ class GRB(object):
         self.luminosity_data = []
 
         self.__removeables = ["PL", "CPL", ",", "C", "~"]
-        self.data = self._get_data()
-        self.photon_index = self._get_photon_index()
-        self.T90 = self._get_t90()
+        self._set_data()
+        self._set_photon_index()
+        self._set_t90()
 
     def load_and_truncate_data(self, truncate=True, truncate_method='prompt_time_error', luminosity_data=False):
         """
@@ -80,7 +80,6 @@ class GRB(object):
             self.Lum50 = self.Lum50[to_del:]
             self.Lum50_err = self.Lum50_err[:, to_del:]
 
-
     @property
     def event_table(self):
         return os.path.join(dirname, f'tables/{self.__class__.__name__}_table.txt')
@@ -100,29 +99,29 @@ class GRB(object):
     def get_optical(self):
         pass
 
-    def _get_data(self):
+    def _set_data(self):
         data = pd.read_csv(self.event_table, header=0, error_bad_lines=False, delimiter='\t', dtype='str')
         data['BAT Photon Index (15-150 keV) (PL = simple power-law, CPL = cutoff power-law)'] = data[
             'BAT Photon Index (15-150 keV) (PL = simple power-law, CPL = cutoff power-law)'].fillna(0)
-        return self.data
+        self.data = data
 
     def _process_data(self):
         pass
 
-    def _get_photon_index(self):
+    def _set_photon_index(self):
         photon_index = self.data.query('GRB == @self.name')[
             'BAT Photon Index (15-150 keV) (PL = simple power-law, CPL = cutoff power-law)'].values[0]
         if photon_index == 0.:
             return 0.
-        return self.__clean_string(photon_index)
+        self.photon_index = self.__clean_string(photon_index)
 
-    def _get_t90(self):
+    def _set_t90(self):
         # data['BAT Photon Index (15-150 keV) (PL = simple power-law, CPL = cutoff power-law)'] = data['BAT Photon
         # Index (15-150 keV) (PL = simple power-law, CPL = cutoff power-law)'].fillna(0)
         t90 = self.data.query('GRB == @self.name')['BAT T90 [sec]'].values[0]
         if t90 == 0.:
             return np.nan
-        return self.__clean_string(t90)
+        self.t90 = self.__clean_string(t90)
 
     def __clean_string(self, string):
         for r in self.__removeables:
