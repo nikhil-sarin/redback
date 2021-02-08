@@ -10,6 +10,7 @@ import pandas as pd
 from . import grb as tools
 from . import model_dict
 from .utils import find_path
+from .result import GRBResult
 
 dirname = os.path.dirname(__file__)
 logger = bilby.core.utils.logger
@@ -110,7 +111,7 @@ def fit_model(name, path, model, sampler='dynesty', nlive=3000, prior=None, walk
 
     result = bilby.run_sampler(likelihood, priors=prior, label=label, sampler=sampler, nlive=nlive,
                                outdir=outdir, plot=True, use_ratio=False, walks=walks, resume=resume,
-                               maxmcmc=10 * walks,
+                               maxmcmc=10 * walks, result_class=GRBResult,
                                nthreads=4, save_bounds=False, nsteps=nlive, nwalkers=walks, save=save_format, **kwargs)
 
     return result, data
