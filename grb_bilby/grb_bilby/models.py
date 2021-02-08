@@ -168,6 +168,25 @@ def collapsing_magnetar(time, a_1, alpha_1, l0, tau, nn, tcol, **kwargs):
 
     # return total
 
+def n_component_fireball_model(time, a_1, alphas, delta_times):
+    ts = np.cumsum(delta_times)
+
+    amplitudes = [a_1]
+    for i in range(1, len(alphas)):
+        amplitudes.append(_get_nth_amplitude(amplitudes[i - 1], time, alphas[i - 1], alphas[i]))
+
+    ranges = [np.where(time < ts[0])]
+    for i in range(1, len(ts)):
+        ranges.append(np.where((ts[i - 1] < time) & (time < ts[i])))
+    ranges.append(np.where(ts[-1] < time))
+
+    fs = [a * time[r] ** alpha for a, r, alpha in zip(amplitudes, ranges, alphas)]
+    return np.concatenate(tuple(fs))
+
+
+def _get_nth_amplitude(prev_amplitude, time, prev_alpha, current_alpha):
+    return prev_amplitude * time ** prev_alpha / (time ** current_alpha)
+
 
 def one_component_fireball_model(time, a_1, alpha_1, **kwargs):
     """
@@ -190,17 +209,9 @@ def two_component_fireball_model(time, a_1, alpha_1,
     :param delta_time_one: time between start and end of prompt emission
     :param alpha_2: power law decay exponent for the second power law
     """
-    time_one = delta_time_one
-    amplitude_two = a_1 * time_one ** alpha_1 / (time_one ** alpha_2)
-    w = np.where(time < time_one)
-    x = np.where(time > time_one)
-
-    f1 = a_1 * time[w] ** alpha_1
-    f2 = amplitude_two * time[x] ** alpha_2
-
-    total = np.concatenate((f1, f2))
-
-    return total
+    alphas = [alpha_1, alpha_2]
+    delta_times = [delta_time_one]
+    return n_component_fireball_model(time=time, a_1=a_1, alphas=alphas, delta_times=delta_times)
 
 
 def three_component_fireball_model(time, a_1, alpha_1,
@@ -216,20 +227,9 @@ def three_component_fireball_model(time, a_1, alpha_1,
     :param delta_time_two: time between first and second power laws
     :param alpha_3: power law decay exponent for third power law
     """
-    time_one = delta_time_one
-    time_two = time_one + delta_time_two
-    amplitude_two = a_1 * time_one ** alpha_1 / (time_one ** alpha_2)
-    amplitude_three = amplitude_two * time_two ** alpha_2 / (time_two ** alpha_3)
-
-    w = np.where(time < time_one)
-    x = np.where((time_one < time) & (time < time_two))
-    y = np.where(time > time_two)
-    f1 = a_1 * time[w] ** alpha_1
-    f2 = amplitude_two * time[x] ** alpha_2
-    f3 = amplitude_three * time[y] ** alpha_3
-
-    total = np.concatenate((f1, f2, f3))
-    return total
+    alphas = [alpha_1, alpha_2, alpha_3]
+    delta_times = [delta_time_one, delta_time_two]
+    return n_component_fireball_model(time=time, a_1=a_1, alphas=alphas, delta_times=delta_times)
 
 
 def four_component_fireball_model(time, a_1, alpha_1, delta_time_one,
@@ -248,26 +248,9 @@ def four_component_fireball_model(time, a_1, alpha_1, delta_time_one,
     :param delta_time_three: time between second and third power laws
     :param alpha_4: power law decay exponent for fourth power law
     """
-
-    time_one = delta_time_one
-    time_two = time_one + delta_time_two
-    time_three = time_two + delta_time_three
-    amplitude_two = a_1 * time_one ** alpha_1 / (time_one ** alpha_2)
-    amplitude_three = amplitude_two * time_two ** alpha_2 / (time_two ** alpha_3)
-    amplitude_four = amplitude_three * time_three ** alpha_3 / (time_three ** alpha_4)
-
-    w = np.where(time < time_one)
-    x = np.where((time_one < time) & (time < time_two))
-    y = np.where((time_two < time) & (time < time_three))
-    z = np.where(time > time_three)
-    f1 = a_1 * time[w] ** alpha_1
-    f2 = amplitude_two * time[x] ** alpha_2
-    f3 = amplitude_three * time[y] ** alpha_3
-    f4 = amplitude_four * time[z] ** alpha_4
-
-    total = np.concatenate((f1, f2, f3, f4))
-
-    return total
+    alphas = [alpha_1, alpha_2, alpha_3, alpha_4]
+    delta_times = [delta_time_one, delta_time_two, delta_time_three]
+    return n_component_fireball_model(time=time, a_1=a_1, alphas=alphas, delta_times=delta_times)
 
 
 def five_component_fireball_model(time, a_1, alpha_1,
@@ -289,32 +272,9 @@ def five_component_fireball_model(time, a_1, alpha_1,
     :param delta_time_four: time between third and fourth power laws
     :param alpha_5: power law decay exponent for fifth power law
     """
-
-    time_one = delta_time_one
-    time_two = time_one + delta_time_two
-    time_three = time_two + delta_time_three
-    time_four = time_three + delta_time_four
-
-    amplitude_two = a_1 * time_one ** alpha_1 / (time_one ** alpha_2)
-    amplitude_three = amplitude_two * time_two ** alpha_2 / (time_two ** alpha_3)
-    amplitude_four = amplitude_three * time_three ** alpha_3 / (time_three ** alpha_4)
-    amplitude_five = amplitude_four * time_four ** alpha_4 / (time_four ** alpha_5)
-
-    u = np.where(time < time_one)
-    v = np.where((time_one < time) & (time < time_two))
-    w = np.where((time_two < time) & (time < time_three))
-    x = np.where((time_three < time) & (time < time_four))
-    y = np.where(time > time_four)
-
-    f1 = a_1 * time[u] ** alpha_1
-    f2 = amplitude_two * time[v] ** alpha_2
-    f3 = amplitude_three * time[w] ** alpha_3
-    f4 = amplitude_four * time[x] ** alpha_4
-    f5 = amplitude_five * time[y] ** alpha_5
-
-    total = np.concatenate((f1, f2, f3, f4, f5))
-
-    return total
+    alphas = [alpha_1, alpha_2, alpha_3, alpha_4, alpha_5]
+    delta_times = [delta_time_one, delta_time_two, delta_time_three, delta_time_four]
+    return n_component_fireball_model(time=time, a_1=a_1, alphas=alphas, delta_times=delta_times)
 
 
 def six_component_fireball_model(time, a_1, alpha_1,
@@ -339,35 +299,9 @@ def six_component_fireball_model(time, a_1, alpha_1,
     :param delta_time_five: time between fourth and fifth power laws
     :param alpha_6: power law decay exponent for sixth power law
     """
-    time_one = delta_time_one
-    time_two = time_one + delta_time_two
-    time_three = time_two + delta_time_three
-    time_four = time_three + delta_time_four
-    time_five = time_four + delta_time_five
-
-    amplitude_two = a_1 * time_one ** alpha_1 / (time_one ** alpha_2)
-    amplitude_three = amplitude_two * time_two ** alpha_2 / (time_two ** alpha_3)
-    amplitude_four = amplitude_three * time_three ** alpha_3 / (time_three ** alpha_4)
-    amplitude_five = amplitude_four * time_four ** alpha_4 / (time_four ** alpha_5)
-    amplitude_six = amplitude_five * time_five ** alpha_5 / (time_five ** alpha_6)
-
-    u = np.where(time < time_one)
-    v = np.where((time_one < time) & (time < time_two))
-    w = np.where((time_two < time) & (time < time_three))
-    x = np.where((time_three < time) & (time < time_four))
-    y = np.where((time_four < time) & (time < time_five))
-    z = np.where(time > time_five)
-
-    f1 = a_1 * time[u] ** alpha_1
-    f2 = amplitude_two * time[v] ** alpha_2
-    f3 = amplitude_three * time[w] ** alpha_3
-    f4 = amplitude_four * time[x] ** alpha_4
-    f5 = amplitude_five * time[y] ** alpha_5
-    f6 = amplitude_six * time[z] ** alpha_6
-
-    total = np.concatenate((f1, f2, f3, f4, f5, f6))
-
-    return total
+    alphas = [alpha_1, alpha_2, alpha_3, alpha_4, alpha_5, alpha_6]
+    delta_times = [delta_time_one, delta_time_two, delta_time_three, delta_time_four, delta_time_five]
+    return n_component_fireball_model(time=time, a_1=a_1, alphas=alphas, delta_times=delta_times)
 
 
 def integral_general(time, t0, kappa, tau, nn, **kwargs):
