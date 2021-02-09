@@ -136,7 +136,7 @@ class GRB(object):
 
     def __clean_string(self, string):
         for r in self.__removeables:
-            string.replace(r, "")
+            string = string.replace(r, "")
         return float(string)
 
     def process_grbs(self, use_default_directory=False):
