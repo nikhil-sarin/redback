@@ -9,6 +9,7 @@ import pandas as pd
 
 from .getdata import retrieve_and_process_data
 from .utils import find_path
+from astropy.cosmology import Planck15 as cosmo
 
 dirname = os.path.dirname(__file__)
 
@@ -30,12 +31,19 @@ class GRB(object):
         self.time_err = []
         self.Lum50 = []
         self.Lum50_err = []
+        self.flux_density = []
+        self.flux_density_err = []
+        self.flux = []
+        self.flux_err = []
         self.luminosity_data = []
+        self.flux_data = []
+        self.fluxdensity_data = []
 
         self.__removeables = ["PL", "CPL", ",", "C", "~", " "]
         self._set_data()
         self._set_photon_index()
         self._set_t90()
+        # self._get_redshift()
 
     @classmethod
     def from_path_and_grb(cls, path, grb):
@@ -60,19 +68,30 @@ class GRB(object):
         if truncate:
             self.truncate(truncate_method=truncate_method)
 
-    def load_data(self, luminosity_data=False):
+    def load_data(self, luminosity_data=False, flux_data=False, fluxdensity_data=False):
+        self.fluxdensity_data = fluxdensity_data
         self.luminosity_data = luminosity_data
-
+        self.flux_data = flux_data
         label = ''
         if self.luminosity_data:
             label = '_luminosity'
+        if self.fluxdensity_data:
+            label = '_fluxdensity'
 
         data_file = f"{self.path}/GRB{self.name}/GRB{self.name}{label}.dat"
         data = np.loadtxt(data_file)
         self.time = data[:, 0]  # time (secs)
         self.time_err = np.abs(data[:, 1:3].T)  # \Delta time (secs)
-        self.Lum50 = data[:, 3]  # Lum (1e50 erg/s)
-        self.Lum50_err = np.abs(data[:, 4:].T)
+
+        if self.luminosity_data:
+            self.Lum50 = data[:, 3]  # Lum (1e50 erg/s)
+            self.Lum50_err = np.abs(data[:, 4:].T)
+        if self.fluxdensity_data:
+            self.flux_density = data[:, 3]  #depending on detector its at a specific mJy
+            self.flux_density_err = np.abs(data[:, 4:].T)
+        if self.flux_data:
+            self.flux = data[:, 3]  #depending on detector its over a specific frequency range
+            self.flux_err = np.abs(data[:, 4:].T)
 
     def truncate(self, truncate_method='prompt_time_error'):
         if truncate_method == 'prompt_time_error':
@@ -101,8 +120,16 @@ class GRB(object):
     def get_integrated_flux(self):
         pass
 
-    def flux_to_luminosity(self):
-        pass
+    def analytical_flux_to_luminosity(self):
+        if self.redshift == np.nan:
+            print('This GRB has no measured redshift')
+            return None
+        dl = cosmo.luminosity_distance(self.redshift).cgs.value
+        k_corr = (1 + self.redshift) ** (self.photon_index - 2)
+        lum = 4*np.pi * dl**2 * self.flux * k_corr
+        rest_time = self.time/(1. + self.redshift)
+        self.Lum50 = lum
+        self.time = rest_time
 
     def get_prompt(self):
         pass
@@ -125,6 +152,15 @@ class GRB(object):
         if photon_index == 0.:
             return 0.
         self.photon_index = self.__clean_string(photon_index)
+
+    def _get_redshift(self):
+        #some GRBs dont have measurements
+        redshift = self.data.query('GRB == @self.name')['Redshift'].values[0]
+        print(redshift)
+        if redshift == np.nan:
+            return None
+        else:
+            self.redshift = self.__clean_string(redshift)
 
     def _set_t90(self):
         # data['BAT Photon Index (15-150 keV) (PL = simple power-law, CPL = cutoff power-law)'] = data['BAT Photon
