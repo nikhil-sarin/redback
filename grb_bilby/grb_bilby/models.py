@@ -13,6 +13,45 @@ jettype_dict = {'tophat':afterglow.jet.TopHat, 'gaussian':afterglow.jet.Gaussian
                 'cocoon':afterglow.Spherical,'smooth_power_law':afterglow.jet.PowerLaw, 'cone':afterglow.jet.Cone}
 spectype_dict = {'no_inverse_compton':0, 'inverse_compton':1}
 
+def cocoon(time, redshift, umax,umin, logEi,k,mej,logn0,p,logepse,logepsb,ksin,g0,**supplementary_data):
+    dl = cosmo.luminosity_distance(redshift).cgs.value
+    spread = False #supplementary_data['spread']
+    latres = supplementary_data['latres']
+    tres = supplementary_data['tres']
+    jettype = jettype_dict['cocoon']
+    spectype = supplementary_data['spectype']
+    frequency = supplementary_data['frequency']
+    e0 = 10**logEi
+    n0 = 10**logn0
+    epse = 10**logepse
+    epsb = 10**logepsb
+    Z = {'jetType': jettype, 'specType': spectype, 'umax': umax, 'E0': e0,
+         'umin': umin, 'k':k, 'mej':mej,'n0': n0, 'p': p, 'epsilon_e': epse, 'epsilon_B': epsb,
+         'xi_N': ksin, 'd_L': dl, 'z': redshift, 'L0': 0, 'q': 0, 'ts': 0, 'g0': g0,
+         'spread': spread, 'latRes': latres, 'tRes': tres}
+    fluxdensity = afterglow.fluxDensity(time, frequency, **Z)
+    return fluxdensity
+
+def cone_afterglow(time, redshift, thv, loge0, thw, thc, logn0, p, logepse, logepsb, ksin, g0, **supplementary_data):
+    dl = cosmo.luminosity_distance(redshift).cgs.value
+    spread = False#supplementary_data['spread']
+    latres = supplementary_data['latres']
+    tres = supplementary_data['tres']
+    jettype = jettype_dict['cone']
+    spectype = supplementary_data['spectype']
+    frequency = supplementary_data['frequency']
+    thw = thw * thc
+    e0 = 10 ** loge0
+    n0 = 10 ** logn0
+    epse = 10 ** logepse
+    epsb = 10 ** logepsb
+    Z = {'jetType': jettype, 'specType': spectype,'thetaObs': thv, 'E0': e0,
+         'thetaCore': thc, 'n0': n0,'p': p,'epsilon_e': epse,'epsilon_B': epsb,
+         'xi_N': ksin,'d_L': dl, 'z': redshift, 'L0':0,'q':0,'ts':0, 'g0':g0,
+         'spread':spread, 'latRes':latres, 'tRes':tres, 'thetaWing':thw}
+    fluxdensity = afterglow.fluxDensity(time, frequency, **Z)
+    return fluxdensity
+
 def gaussiancore(time, redshift, thv, loge0, thw, thc, logn0, p, logepse, logepsb, ksin, g0, **supplementary_data):
     dl = cosmo.luminosity_distance(redshift).cgs.value
     spread = False#supplementary_data['spread']
