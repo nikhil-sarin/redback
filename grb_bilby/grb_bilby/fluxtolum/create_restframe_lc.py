@@ -1,6 +1,7 @@
 # script to create restframe BAT-XRT lightcurves
-import numpy as np
 import os
+
+import numpy as np
 
 try:
     from sherpa.astro import ui as sherpa

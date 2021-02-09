@@ -1,18 +1,19 @@
+import warnings
+from pathlib import Path
+
 import bilby
-from bilby.core.result import Result
 import matplotlib.pyplot as plt
 import numpy as np
-import warnings
+from bilby.core.result import Result
 
-from . import model_dict
-from . import models as mm
-from pathlib import Path
 from . import grb as tools
+from . import models as mm
+from .model_library import model_dict
+
 warnings.simplefilter(action='ignore')
 
 
 class GRBResult(Result):
-
     def __init__(self, label='no_label', outdir='.', sampler=None, search_parameter_keys=None,
                  fixed_parameter_keys=None, constraint_parameter_keys=None, priors=None, sampler_kwargs=None,
                  injection_parameters=None, meta_data=None, posterior=None, samples=None, nested_samples=None,

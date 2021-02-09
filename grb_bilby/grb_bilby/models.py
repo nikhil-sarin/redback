@@ -1,18 +1,50 @@
+import astropy.constants as cc
 import numpy as np
 import scipy.special as ss
-import astropy.constants as cc
 from scipy.integrate import quad
-speed_of_light = cc.c.cgs.value
+from . constants import *
+from astropy.cosmology import Planck15 as cosmo
+from scipy.integrate import simps
+import afterglowpy as afterglow
 
-import afterglowpy as afterglows
+jettype = {'tophat':afterglow.jet.TopHat, 'gaussian':afterglow.jet.Gaussian,
+                'powerlaw_w_core':afterglow.jet.PowerLawCore, 'gaussian_w_core':afterglow.jet.GaussianCore,
+                'cocoon':afterglow.Spherical,'smooth_power_law':afterglow.jet.PowerLaw, 'cone':afterglow.jet.Cone}
+spectype = {'no_inverse_compton':0, 'inverse_compton':1}
 
-# class afterglow_models:
-#     def __init__(self, model_name, flux_required):
+class afterglow_models:
+    def __init__(self, jet_type, flux_density=True, integrated_flux=False, spread=True, spectype=0):
 
-# def integrated_flux():
-#
-# def tophat_jet():
+    def flux_density(self, jet_type):
 
+    def integrated_flux(self):
+
+    def tophat(time, redshift, thV,logE0,thC,thW,beta,logn0,p,logepse,logepsb,ksin,g0,**kwargs):
+        dL = cosmo.luminosity_distance(redshift).cgs.value
+        spread = False
+        latRes = 2
+        jetType =
+        specType = specType_true
+        E0 = 10 ** logE0
+        n0 = 10 ** logn0
+        epse = 10 ** logepse
+        epsb = 10 ** logepsb
+        thW = thW * thC
+        L0 = 0
+        b = beta
+        q = 0
+        ts = 0
+        Y = np.array([thV, E0, thC, thW, b, L0, q, ts, n0, p, epse, epsb, ksin, dL, g0])
+        nu_1d = np.linspace(7.254e16, 1.693e18, 3)
+        t, nu = np.meshgrid(time, nu_1d)  # meshgrid makes 2D t and n
+        t = t.flatten()
+        nu = nu.flatten()
+        lightcurve_at_nu = grb.fluxDensity(t, nu, jetType, specType, *Y, spread=spread, latRes=latRes, z=redshift, tRes=100)
+        lightcurve_at_nu = lightcurve_at_nu.reshape(len(nu_1d), len(time))
+        prefactor = 1e-26
+        lightcurve_at_nu = prefactor * lightcurve_at_nu
+        lightcurve = simps(lightcurve_at_nu, axis=0, x=nu_1d)
+        return lightcurve
 
 def mu_function(time, mu0, muinf, tm):
     mu = muinf + (mu0 - muinf)*np.exp(-time/tm)
@@ -59,7 +91,7 @@ def evolving_magnetar(time, A_1, alpha_1, mu0, muinf, p0, sinalpha0, tm, II, **k
     :param kwargs: key word argument for handling plotting
     :return: luminosity or flux (depending on scaling) as a function of time.
     """
-    pl = one_component_fireball_model(time=time, A_1=A_1, alpha_1=alpha_1)
+    pl = one_component_fireball_model(time=time, a_1=A_1, alpha_1=alpha_1)
     magnetar = evolving_magnetar_only(time=time, mu0=mu0, muinf=muinf,
                                       p0=p0, sinalpha0=sinalpha0, tm=tm, II=II)
     return pl + magnetar
@@ -88,7 +120,7 @@ def gw_magnetar(time, a_1, alpha_1, fgw0, tau, nn, log_ii, **kwargs):
     :param tau:
     :param nn:
     :param log_ii: log10 moment of inertia
-#    :param eta: fixed to 0.1, its a fudge factor for the efficiency
+    :param eta: fixed to 0.1, its a fudge factor for the efficiency
     :param kwargs:
     :return: luminosity
     """
@@ -138,35 +170,35 @@ def collapsing_magnetar(time, a_1, alpha_1, l0, tau, nn, tcol, **kwargs):
     return pl + mag
 
 
-# def general_magnetar(time, a_1, alpha_1,
-#                      delta_time_one, alpha_2, delta_time_two, **kwargs):
-#     """
-#     Reparameterized millisecond magnetar model from Sarin et al. (2018b) (piecewise)
-#     :param time: time array for power law
-#     :param a_1: power law decay amplitude
-#     :param alpha_1: power law decay exponent
-#     :param delta_time_one: time between start and end of prompt emission
-#     :param alpha_2: Reparameterized braking index n
-#     :param delta_time_two: time between end of prompt emission and end of magnetar model plateau phase, (tau)
-#     """
-#
-#     time_one = delta_time_one
-#     tau = delta_time_one + delta_time_two
-#     nn = (alpha_2 - 1.) / (alpha_2 + 1.)
-#     gamma = (1. + nn) / (1. - nn)
-#     num = (a_1 * time_one ** alpha_1)
-#     denom = ((1. + (time_one / tau)) ** gamma)
-#     a_1 = num / denom
-#
-#     w = np.where(time < time_one)
-#     x = np.where(time > time_one)
-#
-#     f1 = a_1 * time[w] ** alpha_1
-    # f2 = amplitude_two * (1. + (time[x] / tau)) ** (gamma)
-    #
-    # total = np.concatenate((f1, f2))
+def general_magnetar(time, a_1, alpha_1,
+                     delta_time_one, alpha_2, delta_time_two, **kwargs):
+    """
+    Reparameterized millisecond magnetar model from Sarin et al. (2018b) (piecewise)
+    :param time: time array for power law
+    :param a_1: power law decay amplitude
+    :param alpha_1: power law decay exponent
+    :param delta_time_one: time between start and end of prompt emission
+    :param alpha_2: Reparameterized braking index n
+    :param delta_time_two: time between end of prompt emission and end of magnetar model plateau phase, (tau)
+    """
 
-    # return total
+    time_one = delta_time_one
+    tau = delta_time_one + delta_time_two
+    nn = (alpha_2 - 1.) / (alpha_2 + 1.)
+    gamma = (1. + nn) / (1. - nn)
+    num = (a_1 * time_one ** alpha_1)
+    denom = ((1. + (time_one / tau)) ** gamma)
+    a_2 = num / denom
+
+    w = np.where(time < time_one)
+    x = np.where(time > time_one)
+
+    f1 = a_1 * time[w] ** alpha_1
+    f2 = a_2 * (1. + (time[x] / tau)) ** (gamma)
+
+    total = np.concatenate((f1, f2))
+
+    return total
 
 
 def one_component_fireball_model(time, a_1, alpha_1, **kwargs):

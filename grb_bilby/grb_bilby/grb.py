@@ -1,15 +1,13 @@
 """
-Nikhil Sarin
 Contains GRB class, with method to load and truncate data for SGRB and in future LGRB
 """
-import numpy as np
 import os
-import pandas as pd
-import matplotlib.pyplot as plt
 
-from .analysis import find_path
+import matplotlib.pyplot as plt
+import numpy as np
+import pandas as pd
+
 from .getdata import retrieve_and_process_data
-from .getdata import get_grb_table
 from .utils import find_path
 
 dirname = os.path.dirname(__file__)
@@ -34,7 +32,7 @@ class GRB(object):
         self.Lum50_err = []
         self.luminosity_data = []
 
-        self.__removeables = ["PL", "CPL", ",", "C", "~"]
+        self.__removeables = ["PL", "CPL", ",", "C", "~", " "]
         self._set_data()
         self._set_photon_index()
         self._set_t90()
