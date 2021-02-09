@@ -7,44 +7,141 @@ from astropy.cosmology import Planck15 as cosmo
 from scipy.integrate import simps
 import afterglowpy as afterglow
 
-jettype = {'tophat':afterglow.jet.TopHat, 'gaussian':afterglow.jet.Gaussian,
+#keep so you can eventually generalise
+jettype_dict = {'tophat':afterglow.jet.TopHat, 'gaussian':afterglow.jet.Gaussian,
                 'powerlaw_w_core':afterglow.jet.PowerLawCore, 'gaussian_w_core':afterglow.jet.GaussianCore,
                 'cocoon':afterglow.Spherical,'smooth_power_law':afterglow.jet.PowerLaw, 'cone':afterglow.jet.Cone}
-spectype = {'no_inverse_compton':0, 'inverse_compton':1}
+spectype_dict = {'no_inverse_compton':0, 'inverse_compton':1}
 
-class afterglow_models:
-    def __init__(self, jet_type, flux_density=True, integrated_flux=False, spread=True, spectype=0):
+def gaussiancore(time, redshift, thv, loge0, thw, thc, logn0, p, logepse, logepsb, ksin, g0, **supplementary_data):
+    dl = cosmo.luminosity_distance(redshift).cgs.value
+    spread = False#supplementary_data['spread']
+    latres = supplementary_data['latres']
+    tres = supplementary_data['tres']
+    jettype = jettype_dict['gaussian_w_core']
+    spectype = supplementary_data['spectype']
+    frequency = supplementary_data['frequency']
+    thw = thw * thc
+    e0 = 10 ** loge0
+    n0 = 10 ** logn0
+    epse = 10 ** logepse
+    epsb = 10 ** logepsb
+    Z = {'jetType': jettype, 'specType': spectype,'thetaObs': thv, 'E0': e0,
+         'thetaCore': thc, 'n0': n0,'p': p,'epsilon_e': epse,'epsilon_B': epsb,
+         'xi_N': ksin,'d_L': dl, 'z': redshift, 'L0':0,'q':0,'ts':0, 'g0':g0,
+         'spread':spread, 'latRes':latres, 'tRes':tres, 'thetaWing':thw}
+    fluxdensity = afterglow.fluxDensity(time, frequency, **Z)
+    return fluxdensity
 
-    def flux_density(self, jet_type):
+def gaussian(time, redshift, thv, loge0, thw, thc, logn0, p, logepse, logepsb, ksin, g0, **supplementary_data):
+    dl = cosmo.luminosity_distance(redshift).cgs.value
+    spread = False#supplementary_data['spread']
+    latres = supplementary_data['latres']
+    tres = supplementary_data['tres']
+    jettype = jettype_dict['gaussian']
+    spectype = supplementary_data['spectype']
+    frequency = supplementary_data['frequency']
+    thw = thw * thc
+    e0 = 10 ** loge0
+    n0 = 10 ** logn0
+    epse = 10 ** logepse
+    epsb = 10 ** logepsb
+    Z = {'jetType': jettype, 'specType': spectype,'thetaObs': thv, 'E0': e0,
+         'thetaCore': thc, 'n0': n0,'p': p,'epsilon_e': epse,'epsilon_B': epsb,
+         'xi_N': ksin,'d_L': dl, 'z': redshift, 'L0':0,'q':0,'ts':0, 'g0':g0,
+         'spread':spread, 'latRes':latres, 'tRes':tres, 'thetaWing':thw}
+    fluxdensity = afterglow.fluxDensity(time, frequency, **Z)
+    return fluxdensity
 
-    def integrated_flux(self):
+def smoothpowerlaw(time, redshift, thv, loge0, thw, thc, beta, logn0, p, logepse, logepsb, ksin, g0, **supplementary_data):
+    dl = cosmo.luminosity_distance(redshift).cgs.value
+    spread = False#supplementary_data['spread']
+    latres = supplementary_data['latres']
+    tres = supplementary_data['tres']
+    jettype = jettype_dict['smooth_power_law']
+    spectype = supplementary_data['spectype']
+    frequency = supplementary_data['frequency']
+    thw = thw * thc
+    e0 = 10 ** loge0
+    n0 = 10 ** logn0
+    epse = 10 ** logepse
+    epsb = 10 ** logepsb
+    Z = {'jetType': jettype, 'specType': spectype,'thetaObs': thv, 'E0': e0,
+         'thetaCore': thc, 'n0': n0,'p': p,'epsilon_e': epse,'epsilon_B': epsb,
+         'xi_N': ksin,'d_L': dl, 'z': redshift, 'L0':0,'q':0,'ts':0, 'g0':g0,
+         'spread':spread, 'latRes':latres, 'tRes':tres, 'thetaWing':thw, 'b':beta}
+    fluxdensity = afterglow.fluxDensity(time, frequency, **Z)
+    return fluxdensity
 
-    def tophat(time, redshift, thV,logE0,thC,thW,beta,logn0,p,logepse,logepsb,ksin,g0,**kwargs):
-        dL = cosmo.luminosity_distance(redshift).cgs.value
-        spread = False
-        latRes = 2
-        jetType =
-        specType = specType_true
-        E0 = 10 ** logE0
-        n0 = 10 ** logn0
-        epse = 10 ** logepse
-        epsb = 10 ** logepsb
-        thW = thW * thC
-        L0 = 0
-        b = beta
-        q = 0
-        ts = 0
-        Y = np.array([thV, E0, thC, thW, b, L0, q, ts, n0, p, epse, epsb, ksin, dL, g0])
-        nu_1d = np.linspace(7.254e16, 1.693e18, 3)
-        t, nu = np.meshgrid(time, nu_1d)  # meshgrid makes 2D t and n
-        t = t.flatten()
-        nu = nu.flatten()
-        lightcurve_at_nu = grb.fluxDensity(t, nu, jetType, specType, *Y, spread=spread, latRes=latRes, z=redshift, tRes=100)
-        lightcurve_at_nu = lightcurve_at_nu.reshape(len(nu_1d), len(time))
-        prefactor = 1e-26
-        lightcurve_at_nu = prefactor * lightcurve_at_nu
-        lightcurve = simps(lightcurve_at_nu, axis=0, x=nu_1d)
-        return lightcurve
+def powerlawcore(time, redshift, thv, loge0, thw, thc, beta, logn0, p, logepse, logepsb, ksin, g0, **supplementary_data):
+    dl = cosmo.luminosity_distance(redshift).cgs.value
+    spread = False#supplementary_data['spread']
+    latres = supplementary_data['latres']
+    tres = supplementary_data['tres']
+    jettype = jettype_dict['powerlaw_w_core']
+    spectype = supplementary_data['spectype']
+    frequency = supplementary_data['frequency']
+    thw = thw * thc
+    e0 = 10 ** loge0
+    n0 = 10 ** logn0
+    epse = 10 ** logepse
+    epsb = 10 ** logepsb
+    Z = {'jetType': jettype, 'specType': spectype,'thetaObs': thv, 'E0': e0,
+         'thetaCore': thc, 'n0': n0,'p': p,'epsilon_e': epse,'epsilon_B': epsb,
+         'xi_N': ksin,'d_L': dl, 'z': redshift, 'L0':0,'q':0,'ts':0, 'g0':g0,
+         'spread':spread, 'latRes':latres, 'tRes':tres, 'thetaWing':thw, 'b':beta}
+    fluxdensity = afterglow.fluxDensity(time, frequency, **Z)
+    return fluxdensity
+
+def tophat(time, redshift, thv, loge0, thc, logn0, p, logepse, logepsb, ksin, g0, **supplementary_data):
+    dl = cosmo.luminosity_distance(redshift).cgs.value
+    spread = False#supplementary_data['spread']
+    latres = supplementary_data['latres']
+    tres = supplementary_data['tres']
+    jettype  = jettype_dict['tophat']
+    spectype = supplementary_data['spectype']
+    frequency = supplementary_data['frequency']
+    e0 = 10 ** loge0
+    n0 = 10 ** logn0
+    epse = 10 ** logepse
+    epsb = 10 ** logepsb
+    Z = {'jetType': jettype, 'specType': spectype,'thetaObs': thv, 'E0': e0,
+         'thetaCore': thc, 'n0': n0,'p': p,'epsilon_e': epse,'epsilon_B': epsb,
+         'xi_N': ksin,'d_L': dl, 'z': redshift, 'L0':0,'q':0,'ts':0, 'g0':g0,
+         'spread':spread, 'latRes':latres, 'tRes':tres}
+    fluxdensity = afterglow.fluxDensity(time, frequency, **Z)
+    return fluxdensity
+
+def tophat_integrated(time, redshift, thv, loge0, thc, logn0, p, logepse, logepsb, ksin, g0, **supplementary_data):
+    dl = cosmo.luminosity_distance(redshift).cgs.value
+    spread = False#supplementary_data['spread']
+    latres = supplementary_data['latres']
+    tres = supplementary_data['tres']
+    jettype = supplementary_data['jettype']
+    spectype = supplementary_data['spectype']
+
+    #eventually need this to be smart enough to figure the bounds based on data used
+    frequency_bounds = supplementary_data['frequency'] #should be 2 numbers that serve as start and end point
+    e0 = 10 ** loge0
+    n0 = 10 ** logn0
+    epse = 10 ** logepse
+    epsb = 10 ** logepsb
+    Z = {'jetType': jettype, 'specType': spectype,'thetaObs': thv, 'E0': e0,
+         'thetaCore': thc, 'n0': n0,'p': p,'epsilon_e': epse,'epsilon_B': epsb,
+         'xi_N': ksin,'d_L': dl, 'z': redshift, 'L0':0,'q':0,'ts':0, 'g0':g0,
+         'spread':spread, 'latRes':latres, 'tRes':tres}
+
+    #nu_1d = np.linspace(7.254e16, 1.693e18, 3)
+    nu_1d = np.linspace(frequency_bounds[0], frequency_bounds[1], 3)
+    t, nu = np.meshgrid(time, nu_1d)  # meshgrid makes 2D t and n
+    t = t.flatten()
+    nu = nu.flatten()
+    fluxdensity = afterglow.fluxDensity(t, nu, **Z)
+    lightcurve_at_nu = fluxdensity.reshape(len(nu_1d), len(time))
+    prefactor = 1e-26
+    lightcurve_at_nu = prefactor * lightcurve_at_nu
+    lightcurve = simps(lightcurve_at_nu, axis=0, x=nu_1d)
+    return lightcurve
 
 def mu_function(time, mu0, muinf, tm):
     mu = muinf + (mu0 - muinf)*np.exp(-time/tm)
