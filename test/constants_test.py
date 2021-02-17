@@ -1,8 +1,9 @@
 import unittest
 
-from grb_bilby import utils
+from grb_bilby import constants
 
-class TestFindPath(unittest.TestCase):
+
+class TestConstants(unittest.TestCase):
 
     def setUp(self) -> None:
         pass
