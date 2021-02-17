@@ -5,3 +5,6 @@ scipy
 selenium
 bilby
 matplotlib
+astropy
+afterglowpy
+gwemlightcurves

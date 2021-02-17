@@ -1,16 +1,17 @@
-import inspect
 import os
-from pathlib import Path
 import sys
+from pathlib import Path
+from inspect import getfullargspec
 
 import bilby
 import numpy as np
 import pandas as pd
 
 from . import grb as tools
-from . import model_dict
-from .utils import find_path
+
 from .result import GRBResult
+from .utils import find_path
+from .model_library import model_dict
 
 dirname = os.path.dirname(__file__)
 logger = bilby.core.utils.logger
@@ -33,7 +34,7 @@ class GRBGaussianLikelihood(bilby.Likelihood):
         self.y = y
         self.sigma = sigma
         self.function = function
-        parameters = inspect.getfullargspec(function).args
+        parameters = getfullargspec(function).args
         parameters.pop(0)
         self.parameters = dict.fromkeys(parameters)
         super(GRBGaussianLikelihood, self).__init__(parameters=dict())
@@ -81,7 +82,7 @@ def fit_model(name, path, model, sampler='dynesty', nlive=3000, prior=None, walk
             prior['alpha_1'] = bilby.prior.Uniform(-10, -0.5, 'alpha_1', latex_label=r'$\alpha_{1}$')
         else:
             prior['alpha_1'] = bilby.prior.Gaussian(mu=-(data.photon_index + 1), sigma=0.1,
-                                                     latex_label=r'$\alpha_{1}$')
+                                                    latex_label=r'$\alpha_{1}$')
 
     if isinstance(model, str):
         function = model_dict[model]

@@ -1,20 +1,189 @@
+import astropy.constants as cc
 import numpy as np
 import scipy.special as ss
-import astropy.constants as cc
 from scipy.integrate import quad
-speed_of_light = cc.c.cgs.value
-
+from . constants import *
+from astropy.cosmology import Planck15 as cosmo
+from scipy.integrate import simps
 try:
     import afterglowpy as afterglows
 except ModuleNotFoundError as e:
     print(e)
-# class afterglow_models:
-#     def __init__(self, model_name, flux_required):
 
-# def integrated_flux():
-#
-# def tophat_jet():
+#keep so you can eventually generalise
+jettype_dict = {'tophat':afterglow.jet.TopHat, 'gaussian':afterglow.jet.Gaussian,
+                'powerlaw_w_core':afterglow.jet.PowerLawCore, 'gaussian_w_core':afterglow.jet.GaussianCore,
+                'cocoon':afterglow.Spherical,'smooth_power_law':afterglow.jet.PowerLaw, 'cone':afterglow.jet.Cone}
+spectype_dict = {'no_inverse_compton':0, 'inverse_compton':1}
 
+def cocoon(time, redshift, umax,umin, logEi,k,mej,logn0,p,logepse,logepsb,ksin,g0,**supplementary_data):
+    dl = cosmo.luminosity_distance(redshift).cgs.value
+    spread = False #supplementary_data['spread']
+    latres = supplementary_data['latres']
+    tres = supplementary_data['tres']
+    jettype = jettype_dict['cocoon']
+    spectype = supplementary_data['spectype']
+    frequency = supplementary_data['frequency']
+    e0 = 10**logEi
+    n0 = 10**logn0
+    epse = 10**logepse
+    epsb = 10**logepsb
+    Z = {'jetType': jettype, 'specType': spectype, 'umax': umax, 'E0': e0,
+         'umin': umin, 'k':k, 'mej':mej,'n0': n0, 'p': p, 'epsilon_e': epse, 'epsilon_B': epsb,
+         'xi_N': ksin, 'd_L': dl, 'z': redshift, 'L0': 0, 'q': 0, 'ts': 0, 'g0': g0,
+         'spread': spread, 'latRes': latres, 'tRes': tres}
+    fluxdensity = afterglow.fluxDensity(time, frequency, **Z)
+    return fluxdensity
+
+def cone_afterglow(time, redshift, thv, loge0, thw, thc, logn0, p, logepse, logepsb, ksin, g0, **supplementary_data):
+    dl = cosmo.luminosity_distance(redshift).cgs.value
+    spread = False#supplementary_data['spread']
+    latres = supplementary_data['latres']
+    tres = supplementary_data['tres']
+    jettype = jettype_dict['cone']
+    spectype = supplementary_data['spectype']
+    frequency = supplementary_data['frequency']
+    thw = thw * thc
+    e0 = 10 ** loge0
+    n0 = 10 ** logn0
+    epse = 10 ** logepse
+    epsb = 10 ** logepsb
+    Z = {'jetType': jettype, 'specType': spectype,'thetaObs': thv, 'E0': e0,
+         'thetaCore': thc, 'n0': n0,'p': p,'epsilon_e': epse,'epsilon_B': epsb,
+         'xi_N': ksin,'d_L': dl, 'z': redshift, 'L0':0,'q':0,'ts':0, 'g0':g0,
+         'spread':spread, 'latRes':latres, 'tRes':tres, 'thetaWing':thw}
+    fluxdensity = afterglow.fluxDensity(time, frequency, **Z)
+    return fluxdensity
+
+def gaussiancore(time, redshift, thv, loge0, thw, thc, logn0, p, logepse, logepsb, ksin, g0, **supplementary_data):
+    dl = cosmo.luminosity_distance(redshift).cgs.value
+    spread = False#supplementary_data['spread']
+    latres = supplementary_data['latres']
+    tres = supplementary_data['tres']
+    jettype = jettype_dict['gaussian_w_core']
+    spectype = supplementary_data['spectype']
+    frequency = supplementary_data['frequency']
+    thw = thw * thc
+    e0 = 10 ** loge0
+    n0 = 10 ** logn0
+    epse = 10 ** logepse
+    epsb = 10 ** logepsb
+    Z = {'jetType': jettype, 'specType': spectype,'thetaObs': thv, 'E0': e0,
+         'thetaCore': thc, 'n0': n0,'p': p,'epsilon_e': epse,'epsilon_B': epsb,
+         'xi_N': ksin,'d_L': dl, 'z': redshift, 'L0':0,'q':0,'ts':0, 'g0':g0,
+         'spread':spread, 'latRes':latres, 'tRes':tres, 'thetaWing':thw}
+    fluxdensity = afterglow.fluxDensity(time, frequency, **Z)
+    return fluxdensity
+
+def gaussian(time, redshift, thv, loge0, thw, thc, logn0, p, logepse, logepsb, ksin, g0, **supplementary_data):
+    dl = cosmo.luminosity_distance(redshift).cgs.value
+    spread = False#supplementary_data['spread']
+    latres = supplementary_data['latres']
+    tres = supplementary_data['tres']
+    jettype = jettype_dict['gaussian']
+    spectype = supplementary_data['spectype']
+    frequency = supplementary_data['frequency']
+    thw = thw * thc
+    e0 = 10 ** loge0
+    n0 = 10 ** logn0
+    epse = 10 ** logepse
+    epsb = 10 ** logepsb
+    Z = {'jetType': jettype, 'specType': spectype,'thetaObs': thv, 'E0': e0,
+         'thetaCore': thc, 'n0': n0,'p': p,'epsilon_e': epse,'epsilon_B': epsb,
+         'xi_N': ksin,'d_L': dl, 'z': redshift, 'L0':0,'q':0,'ts':0, 'g0':g0,
+         'spread':spread, 'latRes':latres, 'tRes':tres, 'thetaWing':thw}
+    fluxdensity = afterglow.fluxDensity(time, frequency, **Z)
+    return fluxdensity
+
+def smoothpowerlaw(time, redshift, thv, loge0, thw, thc, beta, logn0, p, logepse, logepsb, ksin, g0, **supplementary_data):
+    dl = cosmo.luminosity_distance(redshift).cgs.value
+    spread = False#supplementary_data['spread']
+    latres = supplementary_data['latres']
+    tres = supplementary_data['tres']
+    jettype = jettype_dict['smooth_power_law']
+    spectype = supplementary_data['spectype']
+    frequency = supplementary_data['frequency']
+    thw = thw * thc
+    e0 = 10 ** loge0
+    n0 = 10 ** logn0
+    epse = 10 ** logepse
+    epsb = 10 ** logepsb
+    Z = {'jetType': jettype, 'specType': spectype,'thetaObs': thv, 'E0': e0,
+         'thetaCore': thc, 'n0': n0,'p': p,'epsilon_e': epse,'epsilon_B': epsb,
+         'xi_N': ksin,'d_L': dl, 'z': redshift, 'L0':0,'q':0,'ts':0, 'g0':g0,
+         'spread':spread, 'latRes':latres, 'tRes':tres, 'thetaWing':thw, 'b':beta}
+    fluxdensity = afterglow.fluxDensity(time, frequency, **Z)
+    return fluxdensity
+
+def powerlawcore(time, redshift, thv, loge0, thw, thc, beta, logn0, p, logepse, logepsb, ksin, g0, **supplementary_data):
+    dl = cosmo.luminosity_distance(redshift).cgs.value
+    spread = False#supplementary_data['spread']
+    latres = supplementary_data['latres']
+    tres = supplementary_data['tres']
+    jettype = jettype_dict['powerlaw_w_core']
+    spectype = supplementary_data['spectype']
+    frequency = supplementary_data['frequency']
+    thw = thw * thc
+    e0 = 10 ** loge0
+    n0 = 10 ** logn0
+    epse = 10 ** logepse
+    epsb = 10 ** logepsb
+    Z = {'jetType': jettype, 'specType': spectype,'thetaObs': thv, 'E0': e0,
+         'thetaCore': thc, 'n0': n0,'p': p,'epsilon_e': epse,'epsilon_B': epsb,
+         'xi_N': ksin,'d_L': dl, 'z': redshift, 'L0':0,'q':0,'ts':0, 'g0':g0,
+         'spread':spread, 'latRes':latres, 'tRes':tres, 'thetaWing':thw, 'b':beta}
+    fluxdensity = afterglow.fluxDensity(time, frequency, **Z)
+    return fluxdensity
+
+def tophat(time, redshift, thv, loge0, thc, logn0, p, logepse, logepsb, ksin, g0, **supplementary_data):
+    dl = cosmo.luminosity_distance(redshift).cgs.value
+    spread = False#supplementary_data['spread']
+    latres = supplementary_data['latres']
+    tres = supplementary_data['tres']
+    jettype  = jettype_dict['tophat']
+    spectype = supplementary_data['spectype']
+    frequency = supplementary_data['frequency']
+    e0 = 10 ** loge0
+    n0 = 10 ** logn0
+    epse = 10 ** logepse
+    epsb = 10 ** logepsb
+    Z = {'jetType': jettype, 'specType': spectype,'thetaObs': thv, 'E0': e0,
+         'thetaCore': thc, 'n0': n0,'p': p,'epsilon_e': epse,'epsilon_B': epsb,
+         'xi_N': ksin,'d_L': dl, 'z': redshift, 'L0':0,'q':0,'ts':0, 'g0':g0,
+         'spread':spread, 'latRes':latres, 'tRes':tres}
+    fluxdensity = afterglow.fluxDensity(time, frequency, **Z)
+    return fluxdensity
+
+def tophat_integrated(time, redshift, thv, loge0, thc, logn0, p, logepse, logepsb, ksin, g0, **supplementary_data):
+    dl = cosmo.luminosity_distance(redshift).cgs.value
+    spread = False#supplementary_data['spread']
+    latres = supplementary_data['latres']
+    tres = supplementary_data['tres']
+    jettype = supplementary_data['jettype']
+    spectype = supplementary_data['spectype']
+
+    #eventually need this to be smart enough to figure the bounds based on data used
+    frequency_bounds = supplementary_data['frequency'] #should be 2 numbers that serve as start and end point
+    e0 = 10 ** loge0
+    n0 = 10 ** logn0
+    epse = 10 ** logepse
+    epsb = 10 ** logepsb
+    Z = {'jetType': jettype, 'specType': spectype,'thetaObs': thv, 'E0': e0,
+         'thetaCore': thc, 'n0': n0,'p': p,'epsilon_e': epse,'epsilon_B': epsb,
+         'xi_N': ksin,'d_L': dl, 'z': redshift, 'L0':0,'q':0,'ts':0, 'g0':g0,
+         'spread':spread, 'latRes':latres, 'tRes':tres}
+
+    #nu_1d = np.linspace(7.254e16, 1.693e18, 3)
+    nu_1d = np.linspace(frequency_bounds[0], frequency_bounds[1], 3)
+    t, nu = np.meshgrid(time, nu_1d)  # meshgrid makes 2D t and n
+    t = t.flatten()
+    nu = nu.flatten()
+    fluxdensity = afterglow.fluxDensity(t, nu, **Z)
+    lightcurve_at_nu = fluxdensity.reshape(len(nu_1d), len(time))
+    prefactor = 1e-26
+    lightcurve_at_nu = prefactor * lightcurve_at_nu
+    lightcurve = simps(lightcurve_at_nu, axis=0, x=nu_1d)
+    return lightcurve
 
 def mu_function(time, mu0, muinf, tm):
     mu = muinf + (mu0 - muinf)*np.exp(-time/tm)
@@ -61,7 +230,7 @@ def evolving_magnetar(time, A_1, alpha_1, mu0, muinf, p0, sinalpha0, tm, II, **k
     :param kwargs: key word argument for handling plotting
     :return: luminosity or flux (depending on scaling) as a function of time.
     """
-    pl = one_component_fireball_model(time=time, A_1=A_1, alpha_1=alpha_1)
+    pl = one_component_fireball_model(time=time, a_1=A_1, alpha_1=alpha_1)
     magnetar = evolving_magnetar_only(time=time, mu0=mu0, muinf=muinf,
                                       p0=p0, sinalpha0=sinalpha0, tm=tm, II=II)
     return pl + magnetar
@@ -90,7 +259,7 @@ def gw_magnetar(time, a_1, alpha_1, fgw0, tau, nn, log_ii, **kwargs):
     :param tau:
     :param nn:
     :param log_ii: log10 moment of inertia
-#    :param eta: fixed to 0.1, its a fudge factor for the efficiency
+    :param eta: fixed to 0.1, its a fudge factor for the efficiency
     :param kwargs:
     :return: luminosity
     """
@@ -140,35 +309,35 @@ def collapsing_magnetar(time, a_1, alpha_1, l0, tau, nn, tcol, **kwargs):
     return pl + mag
 
 
-# def general_magnetar(time, a_1, alpha_1,
-#                      delta_time_one, alpha_2, delta_time_two, **kwargs):
-#     """
-#     Reparameterized millisecond magnetar model from Sarin et al. (2018b) (piecewise)
-#     :param time: time array for power law
-#     :param a_1: power law decay amplitude
-#     :param alpha_1: power law decay exponent
-#     :param delta_time_one: time between start and end of prompt emission
-#     :param alpha_2: Reparameterized braking index n
-#     :param delta_time_two: time between end of prompt emission and end of magnetar model plateau phase, (tau)
-#     """
-#
-#     time_one = delta_time_one
-#     tau = delta_time_one + delta_time_two
-#     nn = (alpha_2 - 1.) / (alpha_2 + 1.)
-#     gamma = (1. + nn) / (1. - nn)
-#     num = (a_1 * time_one ** alpha_1)
-#     denom = ((1. + (time_one / tau)) ** gamma)
-#     a_1 = num / denom
-#
-#     w = np.where(time < time_one)
-#     x = np.where(time > time_one)
-#
-#     f1 = a_1 * time[w] ** alpha_1
-    # f2 = amplitude_two * (1. + (time[x] / tau)) ** (gamma)
-    #
-    # total = np.concatenate((f1, f2))
+def general_magnetar(time, a_1, alpha_1,
+                     delta_time_one, alpha_2, delta_time_two, **kwargs):
+    """
+    Reparameterized millisecond magnetar model from Sarin et al. (2018b) (piecewise)
+    :param time: time array for power law
+    :param a_1: power law decay amplitude
+    :param alpha_1: power law decay exponent
+    :param delta_time_one: time between start and end of prompt emission
+    :param alpha_2: Reparameterized braking index n
+    :param delta_time_two: time between end of prompt emission and end of magnetar model plateau phase, (tau)
+    """
 
-    # return total
+    time_one = delta_time_one
+    tau = delta_time_one + delta_time_two
+    nn = (alpha_2 - 1.) / (alpha_2 + 1.)
+    gamma = (1. + nn) / (1. - nn)
+    num = (a_1 * time_one ** alpha_1)
+    denom = ((1. + (time_one / tau)) ** gamma)
+    a_2 = num / denom
+
+    w = np.where(time < time_one)
+    x = np.where(time > time_one)
+
+    f1 = a_1 * time[w] ** alpha_1
+    f2 = a_2 * (1. + (time[x] / tau)) ** (gamma)
+
+    total = np.concatenate((f1, f2))
+
+    return total
 
 
 def one_component_fireball_model(time, a_1, alpha_1, **kwargs):
