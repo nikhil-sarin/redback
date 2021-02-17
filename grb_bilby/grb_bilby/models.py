@@ -4,8 +4,10 @@ import astropy.constants as cc
 from scipy.integrate import quad
 speed_of_light = cc.c.cgs.value
 
-import afterglowpy as afterglows
-
+try:
+    import afterglowpy as afterglows
+except ModuleNotFoundError as e:
+    print(e)
 # class afterglow_models:
 #     def __init__(self, model_name, flux_required):
 
