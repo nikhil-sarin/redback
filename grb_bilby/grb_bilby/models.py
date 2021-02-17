@@ -3,18 +3,22 @@ import numpy as np
 import scipy.special as ss
 from scipy.integrate import quad
 from . constants import *
+
 from astropy.cosmology import Planck15 as cosmo
 from scipy.integrate import simps
 try:
     import afterglowpy as afterglows
+
+    # keep so you can eventually generalise
+    jettype_dict = {'tophat': afterglow.jet.TopHat, 'gaussian': afterglow.jet.Gaussian,
+                    'powerlaw_w_core': afterglow.jet.PowerLawCore, 'gaussian_w_core': afterglow.jet.GaussianCore,
+                    'cocoon': afterglow.Spherical, 'smooth_power_law': afterglow.jet.PowerLaw,
+                    'cone': afterglow.jet.Cone}
+    spectype_dict = {'no_inverse_compton': 0, 'inverse_compton': 1}
+
 except ModuleNotFoundError as e:
     print(e)
 
-#keep so you can eventually generalise
-jettype_dict = {'tophat':afterglow.jet.TopHat, 'gaussian':afterglow.jet.Gaussian,
-                'powerlaw_w_core':afterglow.jet.PowerLawCore, 'gaussian_w_core':afterglow.jet.GaussianCore,
-                'cocoon':afterglow.Spherical,'smooth_power_law':afterglow.jet.PowerLaw, 'cone':afterglow.jet.Cone}
-spectype_dict = {'no_inverse_compton':0, 'inverse_compton':1}
 
 def cocoon(time, redshift, umax,umin, logEi,k,mej,logn0,p,logepse,logepsb,ksin,g0,**supplementary_data):
     dl = cosmo.luminosity_distance(redshift).cgs.value
