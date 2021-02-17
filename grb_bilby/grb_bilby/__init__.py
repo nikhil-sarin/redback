@@ -1,6 +1,5 @@
 from inspect import getmembers, isfunction
 
-from . import analysis
 from . import models
 from . import sampler
 from . import fluxtolum
