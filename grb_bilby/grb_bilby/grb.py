@@ -13,6 +13,8 @@ from astropy.cosmology import Planck15 as cosmo
 
 dirname = os.path.dirname(__file__)
 
+DATA_MODES = ['luminosity', 'flux', 'flux_density']
+
 
 class GRB(object):
     """Class for SGRB"""
@@ -29,21 +31,34 @@ class GRB(object):
             self.path = path
         self.time = []
         self.time_err = []
+
+        self.data_mode = None
+
         self.Lum50 = []
-        self.Lum50_err = []
         self.flux_density = []
-        self.flux_density_err = []
         self.flux = []
+
+        self.flux_density_err = []
         self.flux_err = []
-        self.luminosity_data = []
-        self.flux_data = []
-        self.fluxdensity_data = []
+        self.Lum50_err = []
 
         self.__removeables = ["PL", "CPL", ",", "C", "~", " "]
         self._set_data()
         self._set_photon_index()
         self._set_t90()
         # self._get_redshift()
+
+    @property
+    def luminosity_data(self):
+        return self.data_mode == DATA_MODES[0]
+
+    @property
+    def flux_data(self):
+        return self.data_mode == DATA_MODES[1]
+
+    @property
+    def fluxdensity_data(self):
+        return self.data_mode == DATA_MODES[2]
 
     @classmethod
     def from_path_and_grb(cls, path, grb):
@@ -52,31 +67,25 @@ class GRB(object):
 
     @classmethod
     def from_path_and_grb_with_truncation(
-            cls, path, grb, truncate=True, truncate_method='prompt_time_error', luminosity_data=False):
+            cls, path, grb, truncate=True, truncate_method='prompt_time_error', data_mode='flux'):
         grb = cls.from_path_and_grb(path=path, grb=grb)
-        grb.load_and_truncate_data(truncate=truncate, truncate_method=truncate_method, luminosity_data=luminosity_data)
+        grb.load_and_truncate_data(truncate=truncate, truncate_method=truncate_method, data_mode=data_mode)
         return grb
 
-    def load_and_truncate_data(self, truncate=True, truncate_method='prompt_time_error', luminosity_data=False):
+    def load_and_truncate_data(self, truncate=True, truncate_method='prompt_time_error', data_mode='flux'):
         """
         Read data of SGRB from given path and GRB telephone number.
         Truncate the data to get rid of all but the last prompt emission point
         make a cut based on the size of the temporal error; ie if t_error < 1s, the data point is
         part of the prompt emission
         """
-        self.load_data(luminosity_data=luminosity_data)
+        self.load_data(data_mode=data_mode)
         if truncate:
             self.truncate(truncate_method=truncate_method)
 
-    def load_data(self, luminosity_data=False, flux_data=False, fluxdensity_data=False):
-        self.fluxdensity_data = fluxdensity_data
-        self.luminosity_data = luminosity_data
-        self.flux_data = flux_data
-        label = ''
-        if self.luminosity_data:
-            label = '_luminosity'
-        if self.fluxdensity_data:
-            label = '_fluxdensity'
+    def load_data(self, data_mode='luminosity'):
+        self.data_mode = data_mode
+        label = f'_{data_mode}'
 
         data_file = f"{self.path}/GRB{self.name}/GRB{self.name}{label}.dat"
         data = np.loadtxt(data_file)
@@ -84,14 +93,15 @@ class GRB(object):
         self.time_err = np.abs(data[:, 1:3].T)  # \Delta time (secs)
 
         if self.luminosity_data:
-            self.Lum50 = data[:, 3]  # Lum (1e50 erg/s)
-            self.Lum50_err = np.abs(data[:, 4:].T)
-        if self.fluxdensity_data:
-            self.flux_density = data[:, 3]  #depending on detector its at a specific mJy
-            self.flux_density_err = np.abs(data[:, 4:].T)
-        if self.flux_data:
-            self.flux = data[:, 3]  #depending on detector its over a specific frequency range
-            self.flux_err = np.abs(data[:, 4:].T)
+            self.Lum50, self.Lum50_err = self._load(data)  # Lum (1e50 erg/s)
+        elif self.fluxdensity_data:
+            self.flux_density, self.flux_density_err = self._load(data)  #depending on detector its at a specific mJy
+        elif self.flux_data:
+            self.flux, self.flux_err = self._load(data) #depending on detector its over a specific frequency range
+
+    @staticmethod
+    def _load(data):
+        return data[:, 3], np.abs(data[:, 4:].T)
 
     def truncate(self, truncate_method='prompt_time_error'):
         if truncate_method == 'prompt_time_error':
@@ -100,15 +110,29 @@ class GRB(object):
             mask = np.logical_and(mask1, mask2)
             self.time = self.time[~mask]
             self.time_err = self.time_err[:, ~mask]
-            self.Lum50 = self.Lum50[~mask]
-            self.Lum50_err = self.Lum50_err[:, ~mask]
+            if self.luminosity_data:
+                self.Lum50 = self.Lum50[~mask]
+                self.Lum50_err = self.Lum50_err[:, ~mask]
+            elif self.flux_data:
+                self.flux = self.flux[~mask]
+                self.flux_err = self.flux_err[:, ~mask]
+            elif self.fluxdensity_data:
+                self.flux_density = self.flux_density[~mask]
+                self.flux_density_err = self.flux_density_err[:, ~mask]
         else:
             truncate = self.time_err[0, :] > 0.1
             to_del = len(self.time) - (len(self.time[truncate]) + 2)
             self.time = self.time[to_del:]
             self.time_err = self.time_err[:, to_del:]
-            self.Lum50 = self.Lum50[to_del:]
-            self.Lum50_err = self.Lum50_err[:, to_del:]
+            if self.luminosity_data:
+                self.Lum50 = self.Lum50[to_del:]
+                self.Lum50_err = self.Lum50_err[:, to_del:]
+            elif self.flux_data:
+                self.flux = self.flux[to_del:]
+                self.flux_err = self.flux_err[:, to_del:]
+            elif self.fluxdensity_data:
+                self.flux_density = self.flux_density[to_del:]
+                self.flux_density_err = self.flux_density_err[:, to_del:]
 
     @property
     def event_table(self):

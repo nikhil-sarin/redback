@@ -46,8 +46,8 @@ class GRBGaussianLikelihood(bilby.Likelihood):
 
 
 def fit_model(name, path, model, sampler='dynesty', nlive=3000, prior=None, walks=1000, truncate=True,
-              use_photon_index_prior=False, truncate_method='prompt_time_error', luminosity_data=False, resume=True,
-              save_format='json', **kwargs):
+              use_photon_index_prior=False, truncate_method='prompt_time_error', luminosity_data=False,
+              flux_data=False, flux_density_data=False, resume=True, save_format='json', **kwargs):
     """
 
     Parameters
@@ -71,7 +71,8 @@ def fit_model(name, path, model, sampler='dynesty', nlive=3000, prior=None, walk
     """
 
     data = tools.SGRB(name, path)
-    data.load_and_truncate_data(truncate=truncate, truncate_method=truncate_method, luminosity_data=luminosity_data)
+    data.load_and_truncate_data(truncate=truncate, truncate_method=truncate_method, luminosity_data=luminosity_data,
+                                flux_data=flux_data, fluxdensity_data=flux_density_data)
 
     if prior is None:
         prior = bilby.prior.PriorDict(filename=f"{dirname}/Priors/{model}.prior")
@@ -91,24 +92,31 @@ def fit_model(name, path, model, sampler='dynesty', nlive=3000, prior=None, walk
 
     outdir = f"{find_path(path)}/GRB{name}/{model}"
     Path(outdir).mkdir(parents=True, exist_ok=True)
-
-    df = pd.DataFrame({'time': data.time,
-                       'Lum50': data.Lum50,
-                       'Lum50_err_positive': data.Lum50_err[1, :],
-                       'Lum50_err_negative': data.Lum50_err[0, :],
-                       'time_err_negative': data.time_err[0, :],
-                       'time_err_positive': data.time_err[1, :]})
-    df.to_csv(outdir + "/data.txt", sep=',', index_label=False, index=False)
-
+    label = ''
     if data.luminosity_data:
-        label = 'luminosity'
-    else:
-        label = 'flux'
+        df = pd.DataFrame({'time': data.time,
+                           'Lum50': data.Lum50,
+                           'Lum50_err_positive': data.Lum50_err[1, :],
+                           'Lum50_err_negative': data.Lum50_err[0, :],
+                           'time_err_negative': data.time_err[0, :],
+                           'time_err_positive': data.time_err[1, :]})
+        df.to_csv(outdir + "/data.txt", sep=',', index_label=False, index=False)
+        label += 'luminosity'
+        likelihood = GRBGaussianLikelihood(x=data.time, y=data.Lum50, sigma=data.Lum50_err, function=function)
+    elif data.flux_data:
+        df = pd.DataFrame({'time': data.time,
+                           'flux': data.flux,
+                           'flux_positive': data.flux_err[1, :],
+                           'flux_negative': data.flux_err[0, :],
+                           'time_err_negative': data.time_err[0, :],
+                           'time_err_positive': data.time_err[1, :]})
+        df.to_csv(outdir + "/data.txt", sep=',', index_label=False, index=False)
+        label += 'flux'
+        likelihood = GRBGaussianLikelihood(x=data.time, y=data.flux, sigma=data.flux_err, function=function)
 
     if use_photon_index_prior:
         label += '_photon_index'
 
-    likelihood = GRBGaussianLikelihood(x=data.time, y=data.Lum50, sigma=data.Lum50_err, function=function)
 
     result = bilby.run_sampler(likelihood, priors=prior, label=label, sampler=sampler, nlive=nlive,
                                outdir=outdir, plot=True, use_ratio=False, walks=walks, resume=resume,
