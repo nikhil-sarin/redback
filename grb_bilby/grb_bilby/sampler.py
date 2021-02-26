@@ -46,8 +46,8 @@ class GRBGaussianLikelihood(bilby.Likelihood):
 
 
 def fit_model(name, path, model, sampler='dynesty', nlive=3000, prior=None, walks=1000, truncate=True,
-              use_photon_index_prior=False, truncate_method='prompt_time_error', luminosity_data=False,
-              flux_data=False, flux_density_data=False, resume=True, save_format='json', **kwargs):
+              use_photon_index_prior=False, truncate_method='prompt_time_error', data_mode='flux',
+              resume=True, save_format='json', **kwargs):
     """
 
     Parameters
@@ -63,7 +63,7 @@ def fit_model(name, path, model, sampler='dynesty', nlive=3000, prior=None, walk
     :param truncate: flag to confirm whether to truncate the prompt emission data
     :param use_photon_index_prior: flag to turn off/on photon index prior and fits according to the curvature effect
     :param truncate_method: method of truncation
-    :param luminosity_data:
+    :param data_mode: 'luminosity', 'flux', 'flux_density', depending on which kind of data will be accessed
     :param resume:
     :param save_format:
     :param kwargs: additional parameters that will be passed to the sampler
@@ -71,8 +71,7 @@ def fit_model(name, path, model, sampler='dynesty', nlive=3000, prior=None, walk
     """
 
     data = tools.SGRB(name, path)
-    data.load_and_truncate_data(truncate=truncate, truncate_method=truncate_method, luminosity_data=luminosity_data,
-                                flux_data=flux_data, fluxdensity_data=flux_density_data)
+    data.load_and_truncate_data(truncate=truncate, truncate_method=truncate_method, data_mode=data_mode)
 
     if prior is None:
         prior = bilby.prior.PriorDict(filename=f"{dirname}/Priors/{model}.prior")
@@ -113,10 +112,21 @@ def fit_model(name, path, model, sampler='dynesty', nlive=3000, prior=None, walk
         df.to_csv(outdir + "/data.txt", sep=',', index_label=False, index=False)
         label += 'flux'
         likelihood = GRBGaussianLikelihood(x=data.time, y=data.flux, sigma=data.flux_err, function=function)
+    elif data.fluxdensity_data:
+        df = pd.DataFrame({'time': data.time,
+                           'flux_density': data.flux_density,
+                           'flux_density_positive': data.flux_density_err[1, :],
+                           'flux_density_negative': data.flux_density_err[0, :],
+                           'time_err_negative': data.time_err[0, :],
+                           'time_err_positive': data.time_err[1, :]})
+        df.to_csv(outdir + "/data.txt", sep=',', index_label=False, index=False)
+        label += 'flux_density'
+        likelihood = GRBGaussianLikelihood(x=data.time, y=data.flux_density, sigma=data.flux_density_err,
+                                           function=function)
+
 
     if use_photon_index_prior:
         label += '_photon_index'
-
 
     result = bilby.run_sampler(likelihood, priors=prior, label=label, sampler=sampler, nlive=nlive,
                                outdir=outdir, plot=True, use_ratio=False, walks=walks, resume=resume,
@@ -129,9 +139,7 @@ def fit_model(name, path, model, sampler='dynesty', nlive=3000, prior=None, walk
     result.use_photon_index_prior = use_photon_index_prior
     result.truncate = truncate
     result.truncate_method = truncate_method
-    result.luminosity_data = luminosity_data
     result.save_format = save_format
-
     return result, data
 
 

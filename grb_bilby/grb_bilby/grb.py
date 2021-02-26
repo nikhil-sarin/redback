@@ -85,7 +85,10 @@ class GRB(object):
 
     def load_data(self, data_mode='luminosity'):
         self.data_mode = data_mode
-        label = f'_{data_mode}'
+        if self.flux_data:
+            label = ''
+        else:
+            label = f'_{data_mode}'
 
         data_file = f"{self.path}/GRB{self.name}/GRB{self.name}{label}.dat"
         data = np.loadtxt(data_file)
@@ -95,9 +98,9 @@ class GRB(object):
         if self.luminosity_data:
             self.Lum50, self.Lum50_err = self._load(data)  # Lum (1e50 erg/s)
         elif self.fluxdensity_data:
-            self.flux_density, self.flux_density_err = self._load(data)  #depending on detector its at a specific mJy
+            self.flux_density, self.flux_density_err = self._load(data)  # depending on detector its at a specific mJy
         elif self.flux_data:
-            self.flux, self.flux_err = self._load(data) #depending on detector its over a specific frequency range
+            self.flux, self.flux_err = self._load(data)  # depending on detector its over a specific frequency range
 
     @staticmethod
     def _load(data):
@@ -178,7 +181,7 @@ class GRB(object):
         self.photon_index = self.__clean_string(photon_index)
 
     def _get_redshift(self):
-        #some GRBs dont have measurements
+        # some GRBs dont have measurements
         redshift = self.data.query('GRB == @self.name')['Redshift'].values[0]
         print(redshift)
         if redshift == np.nan:
