@@ -35,12 +35,11 @@ class GRB(object):
         self.data_mode = None
 
         self.Lum50 = []
-        self.flux_density = []
-        self.flux = []
-
-        self.flux_density_err = []
-        self.flux_err = []
         self.Lum50_err = []
+        self.flux_density = []
+        self.flux_density_err = []
+        self.flux = []
+        self.flux_err = []
 
         self.__removeables = ["PL", "CPL", ",", "C", "~", " "]
         self._set_data()
@@ -181,7 +180,7 @@ class GRB(object):
         self.photon_index = self.__clean_string(photon_index)
 
     def _get_redshift(self):
-        # some GRBs dont have measurements
+        #some GRBs dont have measurements
         redshift = self.data.query('GRB == @self.name')['Redshift'].values[0]
         print(redshift)
         if redshift == np.nan:

@@ -100,7 +100,6 @@ def fit_model(name, path, model, sampler='dynesty', nlive=3000, prior=None, walk
                            'time_err_negative': data.time_err[0, :],
                            'time_err_positive': data.time_err[1, :]})
         df.to_csv(outdir + "/data.txt", sep=',', index_label=False, index=False)
-        label += 'luminosity'
         likelihood = GRBGaussianLikelihood(x=data.time, y=data.Lum50, sigma=data.Lum50_err, function=function)
     elif data.flux_data:
         df = pd.DataFrame({'time': data.time,
@@ -110,7 +109,6 @@ def fit_model(name, path, model, sampler='dynesty', nlive=3000, prior=None, walk
                            'time_err_negative': data.time_err[0, :],
                            'time_err_positive': data.time_err[1, :]})
         df.to_csv(outdir + "/data.txt", sep=',', index_label=False, index=False)
-        label += 'flux'
         likelihood = GRBGaussianLikelihood(x=data.time, y=data.flux, sigma=data.flux_err, function=function)
     elif data.fluxdensity_data:
         df = pd.DataFrame({'time': data.time,
@@ -120,10 +118,9 @@ def fit_model(name, path, model, sampler='dynesty', nlive=3000, prior=None, walk
                            'time_err_negative': data.time_err[0, :],
                            'time_err_positive': data.time_err[1, :]})
         df.to_csv(outdir + "/data.txt", sep=',', index_label=False, index=False)
-        label += 'flux_density'
         likelihood = GRBGaussianLikelihood(x=data.time, y=data.flux_density, sigma=data.flux_density_err,
                                            function=function)
-
+    label += data_mode
 
     if use_photon_index_prior:
         label += '_photon_index'
