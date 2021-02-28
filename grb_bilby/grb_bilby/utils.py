@@ -34,10 +34,7 @@ def setup_logger(outdir='.', label=None, log_level='INFO'):
     """
 
     if type(log_level) is str:
-        try:
-            level = getattr(logging, log_level.upper())
-        except AttributeError:
-            raise ValueError('log_level {} not understood'.format(log_level))
+        level = getattr(logging, log_level.upper())
     else:
         level = int(log_level)
 
@@ -55,7 +52,7 @@ def setup_logger(outdir='.', label=None, log_level='INFO'):
     if not any([type(h) == logging.FileHandler for h in logger.handlers]):
         if label is not None:
             Path(outdir).mkdir(parents=True, exist_ok=True)
-            log_file = '{}/{}.log'.format(outdir, label)
+            log_file = f'{outdir}/{label}.log'
             file_handler = logging.FileHandler(log_file)
             file_handler.setFormatter(logging.Formatter(
                 '%(asctime)s %(levelname)-8s: %(message)s', datefmt='%H:%M'))
@@ -67,6 +64,3 @@ def setup_logger(outdir='.', label=None, log_level='INFO'):
         handler.setLevel(level)
 
     logger.info(f'Running grb_bilby version: {grb_bilby.__version__}')
-
-
-setup_logger(label='test')
