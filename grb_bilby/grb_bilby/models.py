@@ -6,6 +6,9 @@ from . constants import *
 
 from astropy.cosmology import Planck15 as cosmo
 from scipy.integrate import simps
+
+from .utils import logger
+
 try:
     import afterglowpy as afterglows
 
@@ -17,7 +20,7 @@ try:
     spectype_dict = {'no_inverse_compton': 0, 'inverse_compton': 1}
 
 except ModuleNotFoundError as e:
-    print(e)
+    logger.warning(e)
 
 
 def cocoon(time, redshift, umax,umin, logEi,k,mej,logn0,p,logepse,logepsb,ksin,g0,**supplementary_data):

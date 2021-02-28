@@ -10,11 +10,10 @@ import pandas as pd
 from . import grb as tools
 
 from .result import GRBResult
-from .utils import find_path
+from .utils import find_path, logger
 from .model_library import model_dict
 
 dirname = os.path.dirname(__file__)
-logger = bilby.core.utils.logger
 
 
 class GRBGaussianLikelihood(bilby.Likelihood):
