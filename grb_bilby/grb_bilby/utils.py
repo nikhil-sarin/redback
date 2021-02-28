@@ -1,3 +1,4 @@
+import bilby
 import logging
 import os
 from pathlib import Path
@@ -32,13 +33,12 @@ def setup_logger(outdir='.', label=None, log_level='INFO'):
         Either a string from the list above, or an integer as specified
         in https://docs.python.org/2/library/logging.html#logging-levels
     """
-
+    bilby.core.utils.setup_logger(outdir=outdir, label=label, log_level=log_level, print_version=True)
     if type(log_level) is str:
         level = getattr(logging, log_level.upper())
     else:
         level = int(log_level)
 
-    logger = logging.getLogger('grb_bilby')
     logger.propagate = False
     logger.setLevel(level)
 
