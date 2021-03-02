@@ -7,7 +7,7 @@ from . constants import *
 from astropy.cosmology import Planck15 as cosmo
 from scipy.integrate import simps
 try:
-    import afterglowpy as afterglows
+    import afterglowpy as afterglow
 
     # keep so you can eventually generalise
     jettype_dict = {'tophat': afterglow.jet.TopHat, 'gaussian': afterglow.jet.Gaussian,
