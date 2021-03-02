@@ -16,7 +16,7 @@ dirname = os.path.dirname(__file__)
 
 def get_trigger_number(grb):
     data = get_grb_table()
-    trigger = data.query('GRB == @GRB')['Trigger Number']
+    trigger = data.query('GRB == @grb')['Trigger Number']
     trigger = trigger.values[0]
     return trigger
 
