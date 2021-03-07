@@ -13,7 +13,7 @@ from .model_library import model_dict
 warnings.simplefilter(action='ignore')
 
 
-class GRBResult(Result):
+class RedbackResult(Result):
     def __init__(self, label='no_label', outdir='.', sampler=None, search_parameter_keys=None,
                  fixed_parameter_keys=None, constraint_parameter_keys=None, priors=None, sampler_kwargs=None,
                  injection_parameters=None, meta_data=None, posterior=None, samples=None, nested_samples=None,
