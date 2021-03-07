@@ -10,7 +10,7 @@ from astropy.cosmology import Planck15 as cosmo
 
 from ..getdata import retrieve_and_process_data
 from ..utils import find_path
-from . import Transient
+from .transient import Transient
 
 dirname = os.path.dirname(__file__)
 
