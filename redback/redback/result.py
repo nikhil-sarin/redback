@@ -9,11 +9,22 @@ from bilby.core.result import Result
 from . import grb as tools
 from . import models as mm
 from .model_library import model_dict
+from .utils import MetaDataAccessor
 
 warnings.simplefilter(action='ignore')
 
 
 class RedbackResult(Result):
+
+    model = MetaDataAccessor('model')
+    grb = MetaDataAccessor('grb')
+    path = MetaDataAccessor('path')
+    use_photon_index_prior = MetaDataAccessor('use_photon_index_prior')
+    truncate = MetaDataAccessor('truncate')
+    truncate_method = MetaDataAccessor('truncate_method')
+    luminosity_data = MetaDataAccessor('luminosity_data')
+    save_format = MetaDataAccessor('save_format')
+
     def __init__(self, label='no_label', outdir='.', sampler=None, search_parameter_keys=None,
                  fixed_parameter_keys=None, constraint_parameter_keys=None, priors=None, sampler_kwargs=None,
                  injection_parameters=None, meta_data=None, posterior=None, samples=None, nested_samples=None,
@@ -27,15 +38,6 @@ class RedbackResult(Result):
                          log_likelihood_evaluations, log_prior_evaluations, sampling_time, nburn,
                          num_likelihood_evaluations, walkers, max_autocorrelation_time, use_ratio, parameter_labels,
                          parameter_labels_with_unit, gzip, version)
-
-        self.model = None
-        self.grb = None
-        self.path = None
-        self.use_photon_index_prior = None
-        self.truncate = None
-        self.truncate_method = None
-        self.luminosity_data = None
-        self.save_format = None
 
     @property
     def plot_directory_structure(self):

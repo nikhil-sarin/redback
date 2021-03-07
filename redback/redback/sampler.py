@@ -119,23 +119,21 @@ def fit_model(name, path, model, sampler='dynesty', nlive=3000, prior=None, walk
         df.to_csv(outdir + "/data.txt", sep=',', index_label=False, index=False)
         likelihood = GRBGaussianLikelihood(x=data.time, y=data.flux_density, sigma=data.flux_density_err,
                                            function=function)
+    else:
+        raise ValueError("Not a valid data switch")
     label += data_mode
 
     if use_photon_index_prior:
         label += '_photon_index'
 
-    result = bilby.run_sampler(likelihood, priors=prior, label=label, sampler=sampler, nlive=nlive,
+    meta_data = dict(model=model, grb=data, path=path, use_photon_index_prior=use_photon_index_prior,
+                     truncate=truncate, truncate_method=truncate_method, save_format=save_format)
+
+    result = bilby.run_sampler(likelihood=likelihood, priors=prior, label=label, sampler=sampler, nlive=nlive,
                                outdir=outdir, plot=True, use_ratio=False, walks=walks, resume=resume,
-                               maxmcmc=10 * walks, result_class=RedbackResult,
+                               maxmcmc=10 * walks, result_class=RedbackResult, meta_data=meta_data,
                                nthreads=4, save_bounds=False, nsteps=nlive, nwalkers=walks, save=save_format, **kwargs)
 
-    result.model = model
-    result.grb = data
-    result.path = path
-    result.use_photon_index_prior = use_photon_index_prior
-    result.truncate = truncate
-    result.truncate_method = truncate_method
-    result.save_format = save_format
     return result, data
 
 
