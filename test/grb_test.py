@@ -1,5 +1,5 @@
 import unittest
-from grb_bilby import grb
+from redback import grb
 
 
 class TestGRB(unittest.TestCase):

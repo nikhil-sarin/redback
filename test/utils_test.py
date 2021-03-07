@@ -1,6 +1,6 @@
 import unittest
 
-from grb_bilby import utils
+from redback import utils
 
 class TestFindPath(unittest.TestCase):
 

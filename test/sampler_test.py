@@ -1,6 +1,6 @@
 import unittest
 
-from grb_bilby import sampler
+from redback import sampler
 
 
 class TestGRBGaussianLikelihood(unittest.TestCase):

@@ -1,5 +1,5 @@
 import unittest
-from grb_bilby import getdata
+from redback import getdata
 
 
 class TestGetTriggerNumber(unittest.TestCase):
