@@ -15,7 +15,7 @@ warnings.simplefilter(action='ignore')
 class RedbackResult(Result):
 
     model = MetaDataAccessor('model')
-    grb = MetaDataAccessor('grb')
+    transient = MetaDataAccessor('transient')
     path = MetaDataAccessor('path')
     use_photon_index_prior = MetaDataAccessor('use_photon_index_prior')
     truncate = MetaDataAccessor('truncate')
@@ -67,42 +67,23 @@ class RedbackResult(Result):
             plt.show()
 
     def plot_lightcurve(self, model, axes=None, plot_save=True,
-                        plot_show=True, random_models=1000, plot_magnetar=False):
+                        plot_show=True, random_models=1000, outdir=None, **kwargs):
         """
         :param model:
         :param axes:
         :param plot_save:
         :param plot_show:
         :param random_models:
-        :param plot_magnetar:
 
         plots the lightcurve
-        GRB is the telephone number of the GRB
         model = model to plot
         path = path to GRB folder
 
         """
-        max_l = dict(self.posterior.sort_values(by=['log_likelihood']).iloc[-1])
-
-        for j in range(int(random_models)):
-            params = dict(self.posterior.iloc[np.random.randint(len(self.posterior))])
-            plot_models(parameters=params, axes=axes, alpha=0.05, lw=2, colour='r', model=model,
-                        plot_magnetar=plot_magnetar)
-
-        # plot max likelihood
-        plot_models(parameters=max_l, axes=axes, alpha=0.65, lw=2, colour='b', model=model, plot_magnetar=plot_magnetar)
-
-        self.grb.plot_data(axes=axes)
-
-        label = 'lightcurve'
-        if self.use_photon_index_prior:
-            label = f"_photon_index_{label}"
-
-        if plot_save:
-            plt.savefig(f"{self.plot_directory_structure}{model}{label}.png")
-
-        if plot_show:
-            plt.show()
+        outdir = self.plot_directory_structure if outdir is None else outdir
+        self.transient.plot_lightcurve(model=model, axes=axes, plot_save=plot_save, plot_show=plot_show,
+                                       random_models=random_models, posterior=self.posterior,
+                                       outdir=outdir, use_photon_index_prior=self.use_photon_index_prior, **kwargs)
 
 
 def read_in_grb_result(model, grb, path='.', truncate=True, use_photon_index_prior=False,

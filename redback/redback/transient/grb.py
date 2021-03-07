@@ -8,6 +8,9 @@ import pandas as pd
 
 from astropy.cosmology import Planck15 as cosmo
 
+
+from .. import models as mm
+from ..model_library import model_dict
 from ..getdata import retrieve_and_process_data
 from ..utils import find_path
 from .transient import Transient
@@ -25,6 +28,8 @@ class GRB(Transient):
         :param name: Telephone number of SGRB, e.g., GRB 140903A
         :param path: Path to the GRB data
         """
+        if not name.startswith('GRB'):
+            name = 'GRB' + name
         super().__init__(time=[], time_err=[], y=[], y_err=[], data_mode=None, name=name)
         self.path = find_path(path)
 
@@ -255,6 +260,30 @@ class GRB(Transient):
             plt.tight_layout()
         plt.grid(b=None)
 
+    def plot_lightcurve(self, model, axes=None, plot_save=True, plot_show=True, random_models=1000,
+                        posterior=None, use_photon_index_prior=False, outdir='./', plot_magnetar=False):
+        max_l = dict(posterior.sort_values(by=['log_likelihood']).iloc[-1])
+
+        for j in range(int(random_models)):
+            params = dict(posterior.iloc[np.random.randint(len(posterior))])
+            plot_models(parameters=params, axes=axes, alpha=0.05, lw=2, colour='r', model=model,
+                        plot_magnetar=plot_magnetar)
+
+        # plot max likelihood
+        plot_models(parameters=max_l, axes=axes, alpha=0.65, lw=2, colour='b', model=model, plot_magnetar=plot_magnetar)
+
+        self.plot_data(axes=axes)
+
+        label = 'lightcurve'
+        if use_photon_index_prior:
+            label = f"_photon_index_{label}"
+
+        if plot_save:
+            plt.savefig(f"{outdir}{model}{label}.png")
+
+        if plot_show:
+            plt.show()
+
 
 class SGRB(GRB):
     pass
@@ -262,3 +291,25 @@ class SGRB(GRB):
 
 class LGRB(GRB):
     pass
+
+
+def plot_models(parameters, model, plot_magnetar, axes=None, colour='r', alpha=1.0, ls='-', lw=4):
+    """
+    plot the models
+    parameters: dictionary of parameters - 1 set of Parameters
+    model: model name
+    """
+    time = np.logspace(-4, 7, 100)
+    ax = axes or plt.gca()
+
+    lightcurve = model_dict[model]
+    magnetar_models = ['evolving_magnetar', 'evolving_magnetar_only', 'piecewise_radiative_losses',
+                       'radiative_losses', 'radiative_losses_mdr', 'radiative_losses_smoothness', 'radiative_only']
+    if model in magnetar_models and plot_magnetar:
+        if model == 'radiative_losses_mdr':
+            magnetar = mm.magnetar_only(time, nn=3., **parameters)
+        else:
+            magnetar = mm.magnetar_only(time, **parameters)
+        ax.plot(time, magnetar, color=colour, ls=ls, lw=lw, alpha=alpha, zorder=-32, linestyle='--')
+    ax.plot(time, lightcurve, color=colour, ls=ls, lw=lw, alpha=alpha, zorder=-32)
+
