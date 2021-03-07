@@ -126,7 +126,7 @@ def fit_model(name, path, model, sampler='dynesty', nlive=3000, prior=None, walk
     if use_photon_index_prior:
         label += '_photon_index'
 
-    meta_data = dict(model=model, grb=data, path=path, use_photon_index_prior=use_photon_index_prior,
+    meta_data = dict(model=model, transient=data, path=path, use_photon_index_prior=use_photon_index_prior,
                      truncate=truncate, truncate_method=truncate_method, save_format=save_format)
 
     result = bilby.run_sampler(likelihood=likelihood, priors=prior, label=label, sampler=sampler, nlive=nlive,
