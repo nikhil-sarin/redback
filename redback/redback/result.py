@@ -7,8 +7,6 @@ import numpy as np
 from bilby.core.result import Result
 
 from . import grb as tools
-from . import models as mm
-from .model_library import model_dict
 from .utils import MetaDataAccessor
 
 warnings.simplefilter(action='ignore')
@@ -47,7 +45,7 @@ class RedbackResult(Result):
         :return: plot_base_directory
         """
         # set up plotting directory structure
-        directory = f"{self.grb.path}/GRB{self.grb.name}"
+        directory = f"{self.transient.path}/{self.transient.name}"
         plots_base_directory = f"{directory}/{self.model}/plots/"
         Path(plots_base_directory).mkdir(parents=True, exist_ok=True)
         return plots_base_directory
@@ -109,7 +107,7 @@ class RedbackResult(Result):
 
 def read_in_grb_result(model, grb, path='.', truncate=True, use_photon_index_prior=False,
                        truncate_method='prompt_time_error',
-                       luminosity_data=False, save_format='json'):
+                       data_mode='flux', save_format='json'):
     """
     :param model: model to analyse
     :param grb: telephone number of GRB
@@ -117,54 +115,29 @@ def read_in_grb_result(model, grb, path='.', truncate=True, use_photon_index_pri
     :param truncate: flag to truncate or not
     :param use_photon_index_prior:
     :param truncate_method:
-    :param luminosity_data:
+    :param data_mode:
     :param save_format:
     :return: bilby result object and data object
     """
     result_path = f"{path}/GRB{grb}/{model}/"
     Path(result_path).mkdir(parents=True, exist_ok=True)
 
-    if luminosity_data:
-        label = 'luminosity'
-    else:
-        label = 'flux'
-
+    label = data_mode
     if use_photon_index_prior:
         label += '_photon_index'
 
     result = bilby.result.read_in_result(filename=f"{result_path}{label}_result.{save_format}")
     data = tools.GRB.from_path_and_grb_with_truncation(
         grb=grb, truncate=truncate, path=path, truncate_method=truncate_method,
-        luminosity_data=luminosity_data)
+        data_mode=data_mode)
     return result, data
 
 
-def plot_models(parameters, model, plot_magnetar, axes=None, colour='r', alpha=1.0, ls='-', lw=4):
-    """
-    plot the models
-    parameters: dictionary of parameters - 1 set of Parameters
-    model: model name
-    """
-    time = np.logspace(-4, 7, 100)
-    ax = axes or plt.gca()
-
-    lightcurve = model_dict[model]
-    magnetar_models = ['evolving_magnetar', 'evolving_magnetar_only', 'piecewise_radiative_losses',
-                       'radiative_losses', 'radiative_losses_mdr', 'radiative_losses_smoothness', 'radiative_only']
-    if model in magnetar_models and plot_magnetar:
-        if model == 'radiative_losses_mdr':
-            magnetar = mm.magnetar_only(time, nn=3., **parameters)
-        else:
-            magnetar = mm.magnetar_only(time, **parameters)
-        ax.plot(time, magnetar, color=colour, ls=ls, lw=lw, alpha=alpha, zorder=-32, linestyle='--')
-    ax.plot(time, lightcurve, color=colour, ls=ls, lw=lw, alpha=alpha, zorder=-32)
-
-
-def calculate_bf(model1, model2, grb, path='.', use_photon_index_prior=False, luminosity_data=False,
+def calculate_bf(model1, model2, grb, path='.', use_photon_index_prior=False, data_mode='flux',
                  save_format='json'):
     model1, data = read_in_grb_result(model=model1, grb=grb, path=path, use_photon_index_prior=use_photon_index_prior,
-                                      luminosity_data=luminosity_data, save_format=save_format)
+                                      data_mode=data_mode, save_format=save_format)
     model2, data = read_in_grb_result(model=model2, grb=grb, path=path, use_photon_index_prior=use_photon_index_prior,
-                                      luminosity_data=luminosity_data, save_format=save_format)
+                                      data_mode=data_mode, save_format=save_format)
     log_bf = model1.log_evidence - model2.log_evidence
     return log_bf
