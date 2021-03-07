@@ -6,13 +6,13 @@ from pathlib import Path
 
 import bilby
 
-import grb_bilby
+import redback
 
 dirname = os.path.dirname(__file__)
 filename = os.path.join(dirname, 'paper.mplstyle')
 plt.style.use(filename)
 
-logger = logging.getLogger('grb_bilby')
+logger = logging.getLogger('redback')
 _bilby_logger = logging.getLogger('bilby')
 
 
@@ -63,7 +63,7 @@ def setup_logger(outdir='.', label=None, log_level='INFO'):
     for handler in logger.handlers:
         handler.setLevel(level)
 
-    logger.info(f'Running grb_bilby version: {grb_bilby.__version__}')
+    logger.info(f'Running grb_bilby version: {redback.__version__}')
 
 
 class MetaDataAccessor(object):
