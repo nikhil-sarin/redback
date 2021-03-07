@@ -46,6 +46,10 @@ class GRB(Transient):
         # self._get_redshift()
 
     @property
+    def _stripped_name(self):
+        return self.name.lstrip('GRB')
+
+    @property
     def luminosity_data(self):
         return self.data_mode == DATA_MODES[0]
 
@@ -87,7 +91,7 @@ class GRB(Transient):
         else:
             label = f'_{data_mode}'
 
-        data_file = f"{self.path}/GRB{self.name}/GRB{self.name}{label}.dat"
+        data_file = f"{self.path}/{self.name}/{self.name}{label}.dat"
         data = np.loadtxt(data_file)
         self.time = data[:, 0]  # time (secs)
         self.time_err = np.abs(data[:, 1:3].T)  # \Delta time (secs)
@@ -136,7 +140,7 @@ class GRB(Transient):
 
     @property
     def event_table(self):
-        return os.path.join(dirname, f'tables/{self.__class__.__name__}_table.txt')
+        return os.path.join(dirname, f'../tables/{self.__class__.__name__}_table.txt')
 
     def get_flux_density(self):
         pass
@@ -171,15 +175,15 @@ class GRB(Transient):
         pass
 
     def _set_photon_index(self):
-        photon_index = self.data.query('GRB == @self.name')[
+        photon_index = self.data.query('GRB == @self._stripped_name')[
             'BAT Photon Index (15-150 keV) (PL = simple power-law, CPL = cutoff power-law)'].values[0]
         if photon_index == 0.:
             return 0.
         self.photon_index = self.__clean_string(photon_index)
 
     def _get_redshift(self):
-        #some GRBs dont have measurements
-        redshift = self.data.query('GRB == @self.name')['Redshift'].values[0]
+        # some GRBs dont have measurements
+        redshift = self.data.query('GRB == @self._stripped_name')['Redshift'].values[0]
         print(redshift)
         if redshift == np.nan:
             return None
@@ -189,7 +193,7 @@ class GRB(Transient):
     def _set_t90(self):
         # data['BAT Photon Index (15-150 keV) (PL = simple power-law, CPL = cutoff power-law)'] = data['BAT Photon
         # Index (15-150 keV) (PL = simple power-law, CPL = cutoff power-law)'].fillna(0)
-        t90 = self.data.query('GRB == @self.name')['BAT T90 [sec]'].values[0]
+        t90 = self.data.query('GRB == @self._stripped_name')['BAT T90 [sec]'].values[0]
         if t90 == 0.:
             return np.nan
         self.t90 = self.__clean_string(t90)
