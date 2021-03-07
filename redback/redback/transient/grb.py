@@ -1,22 +1,23 @@
 """
 Contains GRB class, with method to load and truncate data for SGRB and in future LGRB
 """
-import os
-
 import matplotlib.pyplot as plt
 import numpy as np
+import os
 import pandas as pd
 
-from .getdata import retrieve_and_process_data
-from .utils import find_path
 from astropy.cosmology import Planck15 as cosmo
+
+from ..getdata import retrieve_and_process_data
+from ..utils import find_path
+from . import Transient
 
 dirname = os.path.dirname(__file__)
 
 DATA_MODES = ['luminosity', 'flux', 'flux_density']
 
 
-class GRB(object):
+class GRB(Transient):
     """Class for SGRB"""
 
     def __init__(self, name, path):
@@ -24,15 +25,8 @@ class GRB(object):
         :param name: Telephone number of SGRB, e.g., GRB 140903A
         :param path: Path to the GRB data
         """
-        self.name = name
-        if path == 'default':
-            self.path = find_path(path)
-        else:
-            self.path = path
-        self.time = []
-        self.time_err = []
-
-        self.data_mode = None
+        super().__init__(time=[], time_err=[], y=[], y_err=[], data_mode=None, name=name)
+        self.path = find_path(path)
 
         self.Lum50 = []
         self.Lum50_err = []
@@ -41,7 +35,6 @@ class GRB(object):
         self.flux = []
         self.flux_err = []
 
-        self.__removeables = ["PL", "CPL", ",", "C", "~", " "]
         self._set_data()
         self._set_photon_index()
         self._set_t90()
@@ -197,7 +190,7 @@ class GRB(object):
         self.t90 = self.__clean_string(t90)
 
     def __clean_string(self, string):
-        for r in self.__removeables:
+        for r in ["PL", "CPL", ",", "C", "~", " "]:
             string = string.replace(r, "")
         return float(string)
 
