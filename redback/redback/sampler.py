@@ -70,27 +70,32 @@ def fit_model(source_type, name, path, model, sampler='dynesty', nlive=3000, pri
     :return: bilby result object, GRB data object
     """
     if source_type.upper() in ['GRB', 'SGRB', 'LGRB']:
-        return _fit_grb(name, path, model, sampler='dynesty', nlive=3000, prior=None, walks=1000, truncate=True,
-                        use_photon_index_prior=False, truncate_method='prompt_time_error', data_mode='flux',
-                        resume=True, save_format='json', **kwargs)
+        return _fit_grb(name=name, path=path, model=model, sampler=sampler, nlive=nlive, prior=prior, walks=walks,
+                        truncate=truncate, use_photon_index_prior=use_photon_index_prior,
+                        truncate_method=truncate_method, data_mode=data_mode, resume=resume,
+                        save_format=save_format, **kwargs)
     elif source_type.upper() in ['KILONOVA']:
-        return _fit_kilonova(name=name, path=path, model=model, sampler='dynesty', nlive=3000, prior=None, walks=1000,
-                             truncate=True, use_photon_index_prior=False, truncate_method='prompt_time_error',
-                             data_mode='flux', resume=True, save_format='json', **kwargs)
+        return _fit_kilonova(name=name, path=path, model=model, sampler=sampler, nlive=nlive, prior=prior, walks=walks,
+                             truncate=truncate, use_photon_index_prior=use_photon_index_prior,
+                             truncate_method=truncate_method, data_mode=data_mode, resume=resume,
+                             save_format=save_format, **kwargs)
     elif source_type.upper() in ['PROMPT']:
-        return _fit_prompt(name=name, path=path, model=model, sampler='dynesty', nlive=3000, prior=None, walks=1000,
-                           truncate=True, use_photon_index_prior=False, truncate_method='prompt_time_error',
-                           data_mode='flux',
-                           resume=True, save_format='json', **kwargs)
+        return _fit_prompt(name=name, path=path, model=model, sampler=sampler, nlive=nlive, prior=prior, walks=walks,
+                           truncate=truncate, use_photon_index_prior=use_photon_index_prior,
+                           truncate_method=truncate_method, data_mode=data_mode, resume=resume,
+                           save_format=save_format, **kwargs)
     elif source_type.upper() in ['SUPERNOVA']:
-        return _fit_supernova(name=name, path=path, model=model, sampler='dynesty', nlive=3000, prior=None, walks=1000,
-                              truncate=True, use_photon_index_prior=False, truncate_method='prompt_time_error',
-                              data_mode='flux', resume=True, save_format='json', **kwargs)
+        return _fit_supernova(name=name, path=path, model=model, sampler=sampler, nlive=nlive, prior=prior,
+                              walks=walks, truncate=truncate, use_photon_index_prior=use_photon_index_prior,
+                              truncate_method=truncate_method, data_mode=data_mode,
+                              resume=resume, save_format=save_format, **kwargs)
     elif source_type.upper() in ['TDE']:
-        return _fit_tde(name=name, path=path, model=model, sampler='dynesty', nlive=3000, prior=None, walks=1000,
-                        truncate=True, use_photon_index_prior=False, truncate_method='prompt_time_error',
-                        data_mode='flux',
-                        resume=True, save_format='json', **kwargs)
+        return _fit_tde(name=name, path=path, model=model, sampler=sampler, nlive=nlive, prior=prior, walks=walks,
+                        truncate=truncate, use_photon_index_prior=use_photon_index_prior,
+                        truncate_method=truncate_method, data_mode=data_mode,
+                        resume=resume, save_format=save_format, **kwargs)
+    else:
+        raise ValueError(f'Source type {source_type} not known')
 
 
 def _fit_grb(name, path, model, sampler='dynesty', nlive=3000, prior=None, walks=1000, truncate=True,
