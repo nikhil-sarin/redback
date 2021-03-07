@@ -44,8 +44,8 @@ class GRBGaussianLikelihood(bilby.Likelihood):
                               + np.log(2 * np.pi * self.sigma ** 2)))
 
 
-def fit_model(source_type, name, path, model, sampler='dynesty', nlive=3000, prior=None, walks=1000, truncate=True,
-              use_photon_index_prior=False, truncate_method='prompt_time_error', data_mode='flux',
+def fit_model(name, path, model, source_type='GRB', sampler='dynesty', nlive=3000, prior=None, walks=1000,
+              truncate=True, use_photon_index_prior=False, truncate_method='prompt_time_error', data_mode='flux',
               resume=True, save_format='json', **kwargs):
     """
 
