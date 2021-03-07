@@ -1,5 +1,5 @@
 import unittest
-from grb_bilby import models
+from redback import models
 
 
 class TestCocoon(unittest.TestCase):

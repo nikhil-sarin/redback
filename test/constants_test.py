@@ -1,6 +1,6 @@
 import unittest
 
-from grb_bilby import constants
+from redback import constants
 
 
 class TestConstants(unittest.TestCase):
