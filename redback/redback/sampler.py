@@ -44,13 +44,14 @@ class GRBGaussianLikelihood(bilby.Likelihood):
                               + np.log(2 * np.pi * self.sigma ** 2)))
 
 
-def fit_model(name, path, model, sampler='dynesty', nlive=3000, prior=None, walks=1000, truncate=True,
+def fit_model(source_type, name, path, model, sampler='dynesty', nlive=3000, prior=None, walks=1000, truncate=True,
               use_photon_index_prior=False, truncate_method='prompt_time_error', data_mode='flux',
               resume=True, save_format='json', **kwargs):
     """
 
     Parameters
     ----------
+    :param source_type: 'GRB', 'Supernova', 'TDE', 'Prompt', 'Kilonova'
     :param name: Telephone number of SGRB, e.g., GRB 140903A
     :param path: Path to the GRB folder which contains GRB data files, if using inbuilt data files then 'GRBData'
     :param model: String to indicate which model to fit to data
@@ -68,7 +69,33 @@ def fit_model(name, path, model, sampler='dynesty', nlive=3000, prior=None, walk
     :param kwargs: additional parameters that will be passed to the sampler
     :return: bilby result object, GRB data object
     """
+    if source_type.upper() in ['GRB', 'SGRB', 'LGRB']:
+        return _fit_grb(name, path, model, sampler='dynesty', nlive=3000, prior=None, walks=1000, truncate=True,
+                        use_photon_index_prior=False, truncate_method='prompt_time_error', data_mode='flux',
+                        resume=True, save_format='json', **kwargs)
+    elif source_type.upper() in ['KILONOVA']:
+        return _fit_kilonova(name=name, path=path, model=model, sampler='dynesty', nlive=3000, prior=None, walks=1000,
+                             truncate=True, use_photon_index_prior=False, truncate_method='prompt_time_error',
+                             data_mode='flux', resume=True, save_format='json', **kwargs)
+    elif source_type.upper() in ['PROMPT']:
+        return _fit_prompt(name=name, path=path, model=model, sampler='dynesty', nlive=3000, prior=None, walks=1000,
+                           truncate=True, use_photon_index_prior=False, truncate_method='prompt_time_error',
+                           data_mode='flux',
+                           resume=True, save_format='json', **kwargs)
+    elif source_type.upper() in ['SUPERNOVA']:
+        return _fit_supernova(name=name, path=path, model=model, sampler='dynesty', nlive=3000, prior=None, walks=1000,
+                              truncate=True, use_photon_index_prior=False, truncate_method='prompt_time_error',
+                              data_mode='flux', resume=True, save_format='json', **kwargs)
+    elif source_type.upper() in ['TDE']:
+        return _fit_tde(name=name, path=path, model=model, sampler='dynesty', nlive=3000, prior=None, walks=1000,
+                        truncate=True, use_photon_index_prior=False, truncate_method='prompt_time_error',
+                        data_mode='flux',
+                        resume=True, save_format='json', **kwargs)
 
+
+def _fit_grb(name, path, model, sampler='dynesty', nlive=3000, prior=None, walks=1000, truncate=True,
+             use_photon_index_prior=False, truncate_method='prompt_time_error', data_mode='flux',
+             resume=True, save_format='json', **kwargs):
     data = tools.SGRB(name, path)
     data.load_and_truncate_data(truncate=truncate, truncate_method=truncate_method, data_mode=data_mode)
 
@@ -135,6 +162,22 @@ def fit_model(name, path, model, sampler='dynesty', nlive=3000, prior=None, walk
                                nthreads=4, save_bounds=False, nsteps=nlive, nwalkers=walks, save=save_format, **kwargs)
 
     return result, data
+
+
+def _fit_kilonova(**kwargs):
+    pass
+
+
+def _fit_prompt(**kwargs):
+    pass
+
+
+def _fit_supernova(**kwargs):
+    pass
+
+
+def _fit_tde(**kwargs):
+    pass
 
 
 if __name__ == "__main__":
