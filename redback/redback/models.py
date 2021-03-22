@@ -42,7 +42,7 @@ def cocoon(time, redshift, umax,umin, logEi,k,mej,logn0,p,logepse,logepsb,ksin,g
     fluxdensity = afterglow.fluxDensity(time, frequency, **Z)
     return fluxdensity
 
-def kn_afterglow(time, redshift, umax,umin, logEi,k,mej,logn0,p,logepse,logepsb,ksin,g0,**supplementary_data):
+def kn_afterglow(time, redshift, umax,umin, logEi, k, mej,logn0,p,logepse,logepsb,ksin,g0,**supplementary_data):
     dl = cosmo.luminosity_distance(redshift).cgs.value
     spread = False #supplementary_data['spread']
     latres = supplementary_data['latres']
