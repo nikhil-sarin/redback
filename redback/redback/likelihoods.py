@@ -5,7 +5,7 @@ import bilby
 from scipy.special import gammaln
 
 class GaussianLikelihood(bilby.Likelihood):
-    def __init__(self, time, flux, sigma, frequencies, function):
+    def __init__(self, time, flux, sigma, function):
         """
         A general Gaussian likelihood - the parameters are inferred from the
         arguments of function
@@ -50,7 +50,7 @@ class GaussianLikelihood(bilby.Likelihood):
 
 
 class GRBGaussianLikelihood(bilby.Likelihood):
-    def __init__(self, time, flux, sigma, frequencies, function):
+    def __init__(self, time, flux, sigma, function):
         """
         A general Gaussian likelihood - the parameters are inferred from the
         arguments of function
