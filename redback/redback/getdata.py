@@ -15,6 +15,24 @@ from .utils import logger
 
 dirname = os.path.dirname(__file__)
 
+def get_afterglow_data_from_swift(grb):
+    return None
+
+def get_prompt_data_from_swift(grb):
+    return None
+
+def get_prompt_data_from_fermi(grb):
+    return None
+
+def get_prompt_data_from_konus(grb):
+    return None
+
+def get_prompt_data_from_batse(grb):
+    return None
+
+def get_open_transient_catalog_data(transient_object):
+    return None
+
 
 def get_trigger_number(grb):
     data = get_grb_table()
