@@ -1,6 +1,7 @@
 # from . import fluxtolum
 from . import getdata
-from . import grb
+from .transient import grb
+from . import transient
 from . import models
 from . import result
 from . import sampler

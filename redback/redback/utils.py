@@ -6,13 +6,13 @@ from pathlib import Path
 
 import bilby
 
-import grb_bilby
+import redback
 
 dirname = os.path.dirname(__file__)
 filename = os.path.join(dirname, 'paper.mplstyle')
 plt.style.use(filename)
 
-logger = logging.getLogger('grb_bilby')
+logger = logging.getLogger('redback')
 _bilby_logger = logging.getLogger('bilby')
 
 
@@ -63,4 +63,26 @@ def setup_logger(outdir='.', label=None, log_level='INFO'):
     for handler in logger.handlers:
         handler.setLevel(level)
 
-    logger.info(f'Running grb_bilby version: {grb_bilby.__version__}')
+    logger.info(f'Running grb_bilby version: {redback.__version__}')
+
+
+class MetaDataAccessor(object):
+
+    """
+    Generic descriptor class that allows handy access of properties without long
+    boilerplate code. Allows easy access to meta_data dict entries
+    """
+
+    def __init__(self, property_name, default=None):
+        self.property_name = property_name
+        self.container_instance_name = 'meta_data'
+        self.default = default
+
+    def __get__(self, instance, owner):
+        try:
+            return getattr(instance, self.container_instance_name)[self.property_name]
+        except KeyError:
+            return self.default
+
+    def __set__(self, instance, value):
+        getattr(instance, self.container_instance_name)[self.property_name] = value

@@ -1,22 +1,26 @@
 """
 Contains GRB class, with method to load and truncate data for SGRB and in future LGRB
 """
-import os
-
 import matplotlib.pyplot as plt
 import numpy as np
+import os
 import pandas as pd
 
-from .getdata import retrieve_and_process_data
-from .utils import find_path
 from astropy.cosmology import Planck15 as cosmo
+
+
+from .. import models as mm
+from ..model_library import model_dict
+from ..getdata import retrieve_and_process_data
+from ..utils import find_path
+from .transient import Transient
 
 dirname = os.path.dirname(__file__)
 
 DATA_MODES = ['luminosity', 'flux', 'flux_density']
 
 
-class GRB(object):
+class GRB(Transient):
     """Class for SGRB"""
 
     def __init__(self, name, path):
@@ -24,15 +28,10 @@ class GRB(object):
         :param name: Telephone number of SGRB, e.g., GRB 140903A
         :param path: Path to the GRB data
         """
-        self.name = name
-        if path == 'default':
-            self.path = find_path(path)
-        else:
-            self.path = path
-        self.time = []
-        self.time_err = []
-
-        self.data_mode = None
+        if not name.startswith('GRB'):
+            name = 'GRB' + name
+        super().__init__(time=[], time_err=[], y=[], y_err=[], data_mode=None, name=name)
+        self.path = find_path(path)
 
         self.Lum50 = []
         self.Lum50_err = []
@@ -41,11 +40,14 @@ class GRB(object):
         self.flux = []
         self.flux_err = []
 
-        self.__removeables = ["PL", "CPL", ",", "C", "~", " "]
         self._set_data()
         self._set_photon_index()
         self._set_t90()
         # self._get_redshift()
+
+    @property
+    def _stripped_name(self):
+        return self.name.lstrip('GRB')
 
     @property
     def luminosity_data(self):
@@ -89,7 +91,7 @@ class GRB(object):
         else:
             label = f'_{data_mode}'
 
-        data_file = f"{self.path}/GRB{self.name}/GRB{self.name}{label}.dat"
+        data_file = f"{self.path}/{self.name}/{self.name}{label}.dat"
         data = np.loadtxt(data_file)
         self.time = data[:, 0]  # time (secs)
         self.time_err = np.abs(data[:, 1:3].T)  # \Delta time (secs)
@@ -138,7 +140,7 @@ class GRB(object):
 
     @property
     def event_table(self):
-        return os.path.join(dirname, f'tables/{self.__class__.__name__}_table.txt')
+        return os.path.join(dirname, f'../tables/{self.__class__.__name__}_table.txt')
 
     def get_flux_density(self):
         pass
@@ -173,15 +175,15 @@ class GRB(object):
         pass
 
     def _set_photon_index(self):
-        photon_index = self.data.query('GRB == @self.name')[
+        photon_index = self.data.query('GRB == @self._stripped_name')[
             'BAT Photon Index (15-150 keV) (PL = simple power-law, CPL = cutoff power-law)'].values[0]
         if photon_index == 0.:
             return 0.
         self.photon_index = self.__clean_string(photon_index)
 
     def _get_redshift(self):
-        #some GRBs dont have measurements
-        redshift = self.data.query('GRB == @self.name')['Redshift'].values[0]
+        # some GRBs dont have measurements
+        redshift = self.data.query('GRB == @self._stripped_name')['Redshift'].values[0]
         print(redshift)
         if redshift == np.nan:
             return None
@@ -191,13 +193,13 @@ class GRB(object):
     def _set_t90(self):
         # data['BAT Photon Index (15-150 keV) (PL = simple power-law, CPL = cutoff power-law)'] = data['BAT Photon
         # Index (15-150 keV) (PL = simple power-law, CPL = cutoff power-law)'].fillna(0)
-        t90 = self.data.query('GRB == @self.name')['BAT T90 [sec]'].values[0]
+        t90 = self.data.query('GRB == @self._stripped_name')['BAT T90 [sec]'].values[0]
         if t90 == 0.:
             return np.nan
         self.t90 = self.__clean_string(t90)
 
     def __clean_string(self, string):
-        for r in self.__removeables:
+        for r in ["PL", "CPL", ",", "C", "~", " "]:
             string = string.replace(r, "")
         return float(string)
 
@@ -262,6 +264,30 @@ class GRB(object):
             plt.tight_layout()
         plt.grid(b=None)
 
+    def plot_lightcurve(self, model, axes=None, plot_save=True, plot_show=True, random_models=1000,
+                        posterior=None, use_photon_index_prior=False, outdir='./', plot_magnetar=False):
+        max_l = dict(posterior.sort_values(by=['log_likelihood']).iloc[-1])
+
+        for j in range(int(random_models)):
+            params = dict(posterior.iloc[np.random.randint(len(posterior))])
+            plot_models(parameters=params, axes=axes, alpha=0.05, lw=2, colour='r', model=model,
+                        plot_magnetar=plot_magnetar)
+
+        # plot max likelihood
+        plot_models(parameters=max_l, axes=axes, alpha=0.65, lw=2, colour='b', model=model, plot_magnetar=plot_magnetar)
+
+        self.plot_data(axes=axes)
+
+        label = 'lightcurve'
+        if use_photon_index_prior:
+            label = f"_photon_index_{label}"
+
+        if plot_save:
+            plt.savefig(f"{outdir}{model}{label}.png")
+
+        if plot_show:
+            plt.show()
+
 
 class SGRB(GRB):
     pass
@@ -269,3 +295,25 @@ class SGRB(GRB):
 
 class LGRB(GRB):
     pass
+
+
+def plot_models(parameters, model, plot_magnetar, axes=None, colour='r', alpha=1.0, ls='-', lw=4):
+    """
+    plot the models
+    parameters: dictionary of parameters - 1 set of Parameters
+    model: model name
+    """
+    time = np.logspace(-4, 7, 100)
+    ax = axes or plt.gca()
+
+    lightcurve = model_dict[model]
+    magnetar_models = ['evolving_magnetar', 'evolving_magnetar_only', 'piecewise_radiative_losses',
+                       'radiative_losses', 'radiative_losses_mdr', 'radiative_losses_smoothness', 'radiative_only']
+    if model in magnetar_models and plot_magnetar:
+        if model == 'radiative_losses_mdr':
+            magnetar = mm.magnetar_only(time, nn=3., **parameters)
+        else:
+            magnetar = mm.magnetar_only(time, **parameters)
+        ax.plot(time, magnetar, color=colour, ls=ls, lw=lw, alpha=alpha, zorder=-32, linestyle='--')
+    ax.plot(time, lightcurve, color=colour, ls=ls, lw=lw, alpha=alpha, zorder=-32)
+
