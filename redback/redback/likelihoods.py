@@ -25,7 +25,6 @@ class GaussianLikelihood(bilby.Likelihood):
         self.x = time
         self.y = flux
         self.sigma = sigma
-        self.nu = frequencies
         self.N = len(self.x)
         self.function = function
 
@@ -71,7 +70,6 @@ class GRBGaussianLikelihood(bilby.Likelihood):
         self.x = time
         self.y = flux
         self.sigma = sigma
-        self.nu = frequencies
         self.N = len(self.x)
         self.function = function
 
