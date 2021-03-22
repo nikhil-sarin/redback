@@ -3,6 +3,8 @@ import logging
 import os
 import matplotlib.pyplot as plt
 from pathlib import Path
+import numpy as np
+from scipy.stats import gaussian_kde
 
 import bilby
 
@@ -15,6 +17,23 @@ plt.style.use(filename)
 logger = logging.getLogger('redback')
 _bilby_logger = logging.getLogger('bilby')
 
+def calc_confidence_intervals(samples):
+    lower_bound = np.quantile(samples, 0.05, axis = 0)
+    upper_bound = np.quantile(samples, 0.95, axis = 0)
+    median = np.quantile(samples, 0.5, axis = 0)
+    return lower_bound, upper_bound, median
+
+def kde_scipy(x, bandwidth=0.05, **kwargs):
+    """Kernel Density Estimation with Scipy"""
+    # Note that scipy weights its bandwidth by the covariance of the
+    # input data.  To make the results comparable to the other methods,
+    # we divide the bandwidth by the sample standard deviation here.
+    kde = gaussian_kde(x, bw_method=bandwidth / x.std(ddof=1), **kwargs)
+    return kde
+
+def cdf(x, plot=True, *args, **kwargs):
+    x, y = sorted(x), np.arange(len(x)) / len(x)
+    return plt.plot(x, y, *args, **kwargs) if plot else (x, y)
 
 def find_path(path):
     if path == 'default':
