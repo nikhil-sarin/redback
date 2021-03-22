@@ -1,10 +1,9 @@
 import os
 import sys
 from pathlib import Path
-from inspect import getfullargspec
 
 import bilby
-import numpy as np
+
 import pandas as pd
 
 from . import grb as tools
@@ -12,39 +11,13 @@ from . import grb as tools
 from .result import RedbackResult
 from .utils import find_path, logger
 from .model_library import model_dict
+from .likelihoods import GRBGaussianLikelihood, GaussianLikelihood, PoissonLikelihood
 
 dirname = os.path.dirname(__file__)
 
 
-class GRBGaussianLikelihood(bilby.Likelihood):
-    def __init__(self, x, y, sigma, function):
-        """
 
-        Parameters
-        ----------
-        x, y: array_like
-            The data to analyse
-        sigma: array_like
-            The standard deviation of the noise
-        function:
-            The python function to fit to the data
-        """
-        self.x = x
-        self.y = y
-        self.sigma = sigma
-        self.function = function
-        parameters = getfullargspec(function).args
-        parameters.pop(0)
-        self.parameters = dict.fromkeys(parameters)
-        super(GRBGaussianLikelihood, self).__init__(parameters=dict())
-
-    def log_likelihood(self):
-        res = self.y - self.function(self.x, **self.parameters)
-        return -0.5 * (np.sum((res / self.sigma) ** 2
-                              + np.log(2 * np.pi * self.sigma ** 2)))
-
-
-def fit_model(name, path, model, source_type='GRB', sampler='dynesty', nlive=3000, prior=None, walks=1000,
+def fit_model(name, path, model, source_type='GRB', sampler='dynesty', nlive=2000, prior=None, walks=200,
               truncate=True, use_photon_index_prior=False, truncate_method='prompt_time_error', data_mode='flux',
               resume=True, save_format='json', **kwargs):
     """
@@ -52,8 +25,8 @@ def fit_model(name, path, model, source_type='GRB', sampler='dynesty', nlive=300
     Parameters
     ----------
     :param source_type: 'GRB', 'Supernova', 'TDE', 'Prompt', 'Kilonova'
-    :param name: Telephone number of SGRB, e.g., GRB 140903A
-    :param path: Path to the GRB folder which contains GRB data files, if using inbuilt data files then 'GRBData'
+    :param name: Telephone number of transient, e.g., GRB 140903A
+    :param path: Path to the data folder which contains transient data files, if using inbuilt data files then 'GRBData'
     :param model: String to indicate which model to fit to data
     :param sampler: String to indicate which sampler to use, default is dynesty
     and nested samplers are encouraged to allow evidence calculation
@@ -67,7 +40,7 @@ def fit_model(name, path, model, source_type='GRB', sampler='dynesty', nlive=300
     :param resume:
     :param save_format:
     :param kwargs: additional parameters that will be passed to the sampler
-    :return: bilby result object, GRB data object
+    :return: bilby result object, transient specific data object
     """
     if source_type.upper() in ['GRB', 'SGRB', 'LGRB']:
         return _fit_grb(name=name, path=path, model=model, sampler=sampler, nlive=nlive, prior=prior, walks=walks,

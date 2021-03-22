@@ -54,15 +54,16 @@ class RedbackResult(Result):
                      extension='json', gzip=False):
         pass
 
-    def plot_corner(self, parameters=None, priors=None, titles=True, save=True, dpi=300, **kwargs):
+    def plot_corner(self, parameters=None, priors=None, titles=True, save=True, dpi=300, fontsize=22, **kwargs):
         filename = self.plot_directory_structure + self.model
         if self.use_photon_index_prior:
             filename += '_photon_index_corner.png'
         else:
             filename += '_corner.png'
 
+
         super().plot_corner(parameters=parameters, priors=priors, filename=filename, titles=titles,
-                            save=save, dpi=dpi, **kwargs)
+                            save=save, label_kwargs = dict(fontsize = fontsize), dpi=dpi, **kwargs)
         if kwargs.get('plot_show', False):
             plt.show()
 
