@@ -1,6 +1,6 @@
 import unittest
 
-from grb_bilby import result
+from redback import result
 
 
 class TestGRBResult(unittest.TestCase):

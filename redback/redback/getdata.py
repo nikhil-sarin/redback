@@ -11,6 +11,8 @@ import pandas as pd
 from selenium import webdriver
 from selenium.common.exceptions import NoSuchElementException
 
+from .utils import logger
+
 dirname = os.path.dirname(__file__)
 
 
@@ -59,20 +61,20 @@ def get_grb_file(grb, use_default_directory):
     if not os.path.exists(grb_dir):
         os.makedirs(grb_dir)
     if os.path.isfile(grb_datfile):
-        print('The raw data file already exists')
+        logger.info('The raw data file already exists')
         # check = input('Do you still want to download fresh data? (y/[n])') or 'n'
         # if check == 'n':
-        #     print('Exiting from getGRBFile function')
+        #     logger.info('Exiting from getGRBFile function')
         return None
 
     # open the webdriver
     driver = webdriver.PhantomJS('/Users/nsarin/Documents/PhD/phantomjs-2.1.1-macosx/bin/phantomjs')
 
     # get the trigger number
-    # print('Getting trigger number')
+    logger.info('Getting trigger number')
     trigger = get_trigger_number(grb)
     grb_website = 'http://www.swift.ac.uk/burst_analyser/00' + trigger + '/'
-    # print('opening Swift website for GRB' + GRB)
+    logger.info(f'opening Swift website for GRB {grb}')
     driver.get(grb_website)
 
     # celect option for BAT binning
@@ -105,7 +107,7 @@ def get_grb_file(grb, use_default_directory):
         # scrape the data
         urllib.request.urlretrieve(grb_url, grb_datfile)
     except Exception:
-        print('cannot load the website for GRB', grb)
+        logger.warning(f'cannot load the website for GRB {grb}')
 
 
 def sort_data(grb, use_default_directory):
@@ -119,10 +121,10 @@ def sort_data(grb, use_default_directory):
     grb_outfile = grb_dir + 'GRB' + grb + '.dat'
 
     if os.path.isfile(grb_outfile):
-        print('Processed data file already exists for GRB', grb)
+        logger.info(f'Processed data file already exists for GRB {grb}')
         return None
     if not os.path.isfile(raw_grb_datfile):
-        print('There is no raw data for GRB', grb)
+        logger.info(f'There is no raw data for GRB {grb}')
         return None
 
     xrtpcflag = 0
@@ -191,11 +193,11 @@ def sort_data(grb, use_default_directory):
                     pass
     except IOError:
         try:
-            print('There was an error opening the file')
+            logger.warning('There was an error opening the file')
             sys.exit()
         except SystemExit:
             pass
-    print('congratulations, you now have a nice data file: ' + grb_outfile)
+    logger.info(f'congratulations, you now have a nice data file: {grb_outfile}')
 
 
 def retrieve_and_process_data(grb, use_default_directory=False):
@@ -208,7 +210,7 @@ def retrieve_and_process_data(grb, use_default_directory=False):
     grb_datfile = grb_dir + 'GRB' + grb + '.dat'
 
     if os.path.isfile(grb_datfile):
-        print('The data file already exists for GRB', grb)
+        logger.info(f'The data file already exists for GRB {grb}')
         return None
     else:
         get_grb_file(grb=grb, use_default_directory=use_default_directory)
