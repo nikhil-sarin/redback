@@ -49,6 +49,7 @@ class GaussianLikelihood(bilby.Likelihood):
                        + self.N*np.log(2*np.pi*self.sigma**2))
         return log_l
 
+
 class GRBGaussianLikelihood(bilby.Likelihood):
     def __init__(self, time, flux, sigma, frequencies, function):
         """
