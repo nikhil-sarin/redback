@@ -5,6 +5,7 @@ import matplotlib.pyplot as plt
 from pathlib import Path
 import numpy as np
 from scipy.stats import gaussian_kde
+from selenium import webdriver
 
 import bilby
 
@@ -16,6 +17,11 @@ plt.style.use(filename)
 
 logger = logging.getLogger('redback')
 _bilby_logger = logging.getLogger('bilby')
+
+def fetch_driver():
+    # open the webdriver
+    driver = webdriver.PhantomJS('/Users/nsarin/Documents/PhD/phantomjs-2.1.1-macosx/bin/phantomjs')
+    return driver
 
 def calc_confidence_intervals(samples):
     lower_bound = np.quantile(samples, 0.05, axis = 0)
