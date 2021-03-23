@@ -82,7 +82,7 @@ def setup_logger(outdir='.', label=None, log_level='INFO'):
     for handler in logger.handlers:
         handler.setLevel(level)
 
-    logger.info(f'Running grb_bilby version: {redback.__version__}')
+    logger.info(f'Running redback version: {redback.__version__}')
 
 
 class MetaDataAccessor(object):

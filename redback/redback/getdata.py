@@ -11,7 +11,8 @@ import pandas as pd
 from selenium import webdriver
 from selenium.common.exceptions import NoSuchElementException
 
-from .utils import logger
+from .utils import logger, check_if_file_exists
+from bilby.core.utils import check_directory_exists_and_if_not_mkdir
 
 dirname = os.path.dirname(__file__)
 
@@ -30,9 +31,44 @@ def get_prompt_data_from_konus(grb):
 def get_prompt_data_from_batse(grb):
     return None
 
-def get_open_transient_catalog_data(transient_object):
+def get_open_transient_catalog_data(transient, use_default_directory, transient_type):
     return None
 
+def transient_directory_structure(transient, use_default_directory, transient_type):
+    if use_default_directory:
+        open_transient_dir = os.path.join(dirname, '../data/' + transient_type + 'Data/' + transient + '/')
+    else:
+        open_transient_dir = transient_type + '/' + transient + '/'
+    raw_filename = open_transient_dir + transient + '_rawdata.csv'
+    full_filename = open_transient_dir + transient + '_data.csv'
+    return open_transient_dir, raw_filename, full_filename
+
+def process_open_catalog_data(transient, use_default_directory, transient_type):
+    transient_dict = ['kilonova', 'supernova', 'tidal_disruption_event']
+
+    if transient_type not in transient_dict:
+        logger.info('Transient type does not have open access data')
+        return None
+    else:
+        url = 'https://api.astrocats.space/' + transient + '/photometry/time+magnitude+e_magnitude+band?e_magnitude&band&time&format=csv&complete'
+
+        open_transient_dir, raw_filename, full_filename = transient_directory_structure(transient, use_default_directory, transient_type)
+
+        check_directory_exists_and_if_not_mkdir(open_transient_dir)
+
+        if os.path.isfile(raw_filename):
+            logger.info('The raw data file already exists')
+            return None
+        else:
+            urllib.request.urlretrieve(url, raw_filename)
+            logger.info('Retrieved data for {}'.format(transient))
+
+def sort_open_access_data(transient, use_default_directory, transient_type):
+    directory, rawfilename, fullfilename  = transient_directory_structure(transient, use_default_directory, transient_type)
+    rawdata = pd.read_csv(rawfilename)
+    data = rawdata
+    data.to_csv()
+    logger.info('Congratulations, you now have a nice datafile')
 
 def get_trigger_number(grb):
     data = get_grb_table()
@@ -128,7 +164,7 @@ def get_grb_file(grb, use_default_directory):
         logger.warning(f'cannot load the website for GRB {grb}')
 
 
-def sort_data(grb, use_default_directory):
+def sort_grb_data(grb, use_default_directory):
     if use_default_directory:
         grb_dir = os.path.join(dirname, '../data/GRBData/GRB' + grb + '/')
     else:
@@ -215,7 +251,7 @@ def sort_data(grb, use_default_directory):
             sys.exit()
         except SystemExit:
             pass
-    logger.info(f'congratulations, you now have a nice data file: {grb_outfile}')
+    logger.info(f'Congratulations, you now have a nice data file: {grb_outfile}')
 
 
 def retrieve_and_process_data(grb, use_default_directory=False):
@@ -232,4 +268,4 @@ def retrieve_and_process_data(grb, use_default_directory=False):
         return None
     else:
         get_grb_file(grb=grb, use_default_directory=use_default_directory)
-        sort_data(grb=grb, use_default_directory=use_default_directory)
+        sort_grb_data(grb=grb, use_default_directory=use_default_directory)
