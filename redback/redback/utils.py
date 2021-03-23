@@ -6,6 +6,7 @@ from pathlib import Path
 import numpy as np
 from scipy.stats import gaussian_kde
 from selenium import webdriver
+from selenium.common.exceptions import NoSuchElementException
 
 import bilby
 
@@ -17,6 +18,16 @@ plt.style.use(filename)
 
 logger = logging.getLogger('redback')
 _bilby_logger = logging.getLogger('bilby')
+
+def check_element(driver, id_number):
+    """
+    checks that an element exists on a website, and provides an exception
+    """
+    try:
+        driver.find_element_by_id(id_number)
+    except NoSuchElementException:
+        return False
+    return True
 
 def fetch_driver():
     # open the webdriver
