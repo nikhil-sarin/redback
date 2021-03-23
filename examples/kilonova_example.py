@@ -8,7 +8,7 @@ model = 'kilonova_nicholl21'
 kne = ['at2017gfo']
 path = 'KNDir'
 #gets the photometry data for AT2017gfo, the KN associated with GW170817
-redback.getdata.get_open_transient_catalog_data(kne, data_mode = 'photometry', path = path)
+data = redback.getdata.get_open_transient_catalog_data(transient=kne, transient_type='kilonova')
 #creates a GRBDir with GRB
 
 #use default priors

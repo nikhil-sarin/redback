@@ -8,7 +8,7 @@ model = 'evolving_magnetar'
 GRB = ['070809']
 path = 'GRBData'
 #Flux density, flux data
-redback.getdata.get_GRB_swift_data(GRB, data_mode = 'flux', path = path)
+redback.getdata.get_afterglow_data_from_swift(GRB, data_mode = 'flux', path = path)
 #creates a GRBDir with GRB
 
 #create Luminosity data
