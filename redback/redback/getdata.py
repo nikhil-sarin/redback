@@ -6,12 +6,13 @@ import sys
 import time
 import urllib
 import urllib.request
+import requests
 
 import pandas as pd
 from selenium import webdriver
 from selenium.common.exceptions import NoSuchElementException
 
-from .utils import logger, check_if_file_exists
+from .utils import logger
 from bilby.core.utils import check_directory_exists_and_if_not_mkdir
 
 dirname = os.path.dirname(__file__)
@@ -31,8 +32,10 @@ def get_prompt_data_from_konus(grb):
 def get_prompt_data_from_batse(grb):
     return None
 
-def get_open_transient_catalog_data(transient, use_default_directory, transient_type):
-    return None
+def get_open_transient_catalog_data(transient, transient_type, use_default_directory=False):
+    process_open_catalog_data(transient, use_default_directory, transient_type)
+    data = sort_open_access_data(transient, use_default_directory, transient_type)
+    return data
 
 def transient_directory_structure(transient, use_default_directory, transient_type):
     if use_default_directory:
@@ -45,13 +48,17 @@ def transient_directory_structure(transient, use_default_directory, transient_ty
 
 def process_open_catalog_data(transient, use_default_directory, transient_type):
     transient_dict = ['kilonova', 'supernova', 'tidal_disruption_event']
+    url = 'https://api.astrocats.space/' + transient + '/photometry/time+magnitude+e_magnitude+band?e_magnitude&band&time&format=csv&complete'
+    response = requests.get(url)
 
     if transient_type not in transient_dict:
         logger.info('Transient type does not have open access data')
         return None
-    else:
-        url = 'https://api.astrocats.space/' + transient + '/photometry/time+magnitude+e_magnitude+band?e_magnitude&band&time&format=csv&complete'
 
+    if 'not found' in response.text:
+        logger.info('Transient {} does not exist in the catalog. Are you sure you are using the right name?'.format(transient))
+        return None
+    else:
         open_transient_dir, raw_filename, full_filename = transient_directory_structure(transient, use_default_directory, transient_type)
 
         check_directory_exists_and_if_not_mkdir(open_transient_dir)
@@ -64,11 +71,12 @@ def process_open_catalog_data(transient, use_default_directory, transient_type):
             logger.info('Retrieved data for {}'.format(transient))
 
 def sort_open_access_data(transient, use_default_directory, transient_type):
-    directory, rawfilename, fullfilename  = transient_directory_structure(transient, use_default_directory, transient_type)
+    directory, rawfilename, fullfilename = transient_directory_structure(transient, use_default_directory, transient_type)
     rawdata = pd.read_csv(rawfilename)
     data = rawdata
-    data.to_csv()
-    logger.info('Congratulations, you now have a nice datafile')
+    data.to_csv(fullfilename, sep=' ')
+    logger.info(f'Congratulations, you now have a nice data file: {fullfilename}')
+    return data
 
 def get_trigger_number(grb):
     data = get_grb_table()
