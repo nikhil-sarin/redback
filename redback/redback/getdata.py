@@ -66,6 +66,9 @@ def process_open_catalog_data(transient, use_default_directory, transient_type):
         if os.path.isfile(raw_filename):
             logger.info('The raw data file already exists')
             return None
+        if os.path.isfile(full_filename):
+            logger.info('The processed data file already exists')
+            return None
         else:
             urllib.request.urlretrieve(url, raw_filename)
             logger.info('Retrieved data for {}'.format(transient))
@@ -73,6 +76,9 @@ def process_open_catalog_data(transient, use_default_directory, transient_type):
 def sort_open_access_data(transient, use_default_directory, transient_type):
     directory, rawfilename, fullfilename = transient_directory_structure(transient, use_default_directory, transient_type)
     rawdata = pd.read_csv(rawfilename)
+    if not os.path.isfile(rawfilename):
+        logger.info('The raw data does not exist. Is this a real transient?')
+        return None
     data = rawdata
     data.to_csv(fullfilename, sep=' ')
     logger.info(f'Congratulations, you now have a nice data file: {fullfilename}')
