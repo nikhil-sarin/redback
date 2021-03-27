@@ -9,7 +9,7 @@ import urllib.request
 import requests
 
 import pandas as pd
-
+import numpy as np
 
 from .utils import logger, fetch_driver, check_element
 from .redback_errors import DataExists, WebsiteExist
@@ -18,7 +18,7 @@ from bilby.core.utils import check_directory_exists_and_if_not_mkdir
 
 dirname = os.path.dirname(__file__)
 
-def afterglow_directory_structure(grb, use_default_directory, data_mode):
+def afterglow_directory_structure(grb, use_default_directory, data_mode, instrument='BAT+XRT'):
     if use_default_directory:
         grb_dir = os.path.join(dirname, '../data/GRBData/GRB' + grb + '/')
     else:
@@ -27,9 +27,18 @@ def afterglow_directory_structure(grb, use_default_directory, data_mode):
     grb_dir = grb_dir + data_mode + '/'
     check_directory_exists_and_if_not_mkdir(grb_dir)
 
-    rawfile_path = grb_dir + 'GRB' + grb + '_rawSwiftData.csv'
-    fullfile_path = grb_dir + 'GRB' + grb + '.csv'
-    return grb_dir, rawfile_path, fullfile_path
+    rawfile_path = grb_dir + 'GRB' + grb
+
+    if instrument == 'xrt':
+        rawfile = rawfile_path + '_xrt_rawSwiftData.csv'
+        fullfile = rawfile_path + '_xrt_csv'
+        logger.warning('You are only downloading XRT data, you may not capture the tail of the prompt emission.')
+    else:
+        logger.warning('You are downloading BAT and XRT data, you will need to truncate the data for some models.')
+        rawfile = rawfile_path + '_rawSwiftData.csv'
+        fullfile = rawfile_path + '.csv'
+
+    return grb_dir, rawfile, fullfile
 
 def process_fluxdensity_data(grb, rawfile):
     logger.info('Getting trigger number')
@@ -95,7 +104,6 @@ def process_integrated_flux_data(grb, rawfile):
     # scrape the data
     urllib.request.urlretrieve(grb_url, rawfile)
     logger.info('Congratulations, you now have raw data for GRB {}'.format(grb))
-
 
 def sort_integrated_flux_data(rawfile, fullfile):
     xrtpcflag = 0
@@ -182,7 +190,7 @@ def collect_swift_data(grb, use_default_directory, data_mode):
 
     if os.path.isfile(rawfile):
         logger.warning('The raw data file already exists')
-        return None
+        return grbdir, rawfile, fullfile
 
     logger.info('Getting trigger number')
     trigger = get_trigger_number(grb)
@@ -198,14 +206,12 @@ def collect_swift_data(grb, use_default_directory, data_mode):
         if data_mode == 'flux_density':
             process_fluxdensity_data(grb, rawfile)
 
-    return None
+    return rawfile, fullfile
 
-def sort_swift_data(grb, use_default_directory, data_mode):
-    grbdir, rawfile, fullfile = afterglow_directory_structure(grb, use_default_directory, data_mode)
-
+def sort_swift_data(rawfile, fullfile, data_mode):
     if os.path.isfile(fullfile):
         logger.warning('The processed data file already exists')
-        return pd.read_csv(fullfile, sep='\t')
+        return None
 
     if not os.path.isfile(rawfile):
         logger.warning('The raw data does not exist.')
@@ -215,12 +221,43 @@ def sort_swift_data(grb, use_default_directory, data_mode):
         sort_integrated_flux_data(rawfile, fullfile)
     if data_mode == 'flux_density':
         sort_fluxdensity_data(rawfile, fullfile)
-    return pd.read_csv(fullfile, sep='\t')
+    return None
 
 def get_afterglow_data_from_swift(grb, data_mode = 'flux',use_default_directory=False):
-    collect_swift_data(grb, use_default_directory, data_mode)
-    data = sort_swift_data(grb, use_default_directory, data_mode)
-    return data
+    rawfile, fullfile = collect_swift_data(grb, use_default_directory, data_mode)
+    sort_swift_data(rawfile, fullfile, data_mode)
+    return None
+
+def get_xrt_data_from_swift(grb, data_mode = 'flux',use_default_directory=False):
+    grbdir, rawfile, fullfile = afterglow_directory_structure(grb, use_default_directory, data_mode, instrument='xrt')
+    logger.info('Getting trigger number')
+    trigger = get_trigger_number(grb)
+    grb_website = 'https://www.swift.ac.uk/xrt_curves/00'+trigger+'/flux.qdp'
+    response = requests.get(grb_website)
+    if not response.ok:
+        logger.warning('Problem loading the website for GRB {}. Are you sure GRB {} has Swift data?'.format(grb, grb))
+        raise WebsiteExist('Problem loading the website for GRB {}'.format(grb))
+
+    urllib.request.urlretrieve(grb_website, rawfile)
+    logger.info('Congratulations, you now have raw XRT data for GRB {}'.format(grb))
+    data = process_xrt_data(rawfile)
+    data.to_csv(fullfile, sep=',', index=False)
+    logger.info('Congratulations, you now have processed XRT data for GRB {}'.format(grb))
+    return None
+
+def process_xrt_data(rawfile):
+    data = np.loadtxt(rawfile, comments=['!', 'READ', 'NO'])
+    time = data[:, 0]
+    timepos = data[:, 1]
+    timeneg = data[:, 2]
+    flux = data[:, 3]
+    fluxpos = data[:, 4]
+    fluxneg = data[:, 5]
+    data = {'time': time, 'timepos': timepos, 'timeneg': timeneg,
+            'flux': flux, 'fluxpos': fluxpos, 'fluxneg': fluxneg}
+    data = pd.DataFrame(data)
+    processedfile = data[data['fluxpos'] != 0.]
+    return processedfile
 
 def get_prompt_data_from_swift(grb):
     return None
@@ -260,12 +297,12 @@ def collect_open_catalog_data(transient, use_default_directory, transient_type):
         logger.warning('The raw data file already exists')
         return None
 
-    url = 'https://api.astrocats.space/' + transient + '/photometry/time+magnitude+e_magnitude+band?e_magnitude&band&time&format=csv&complete'
-    response = requests.get(url)
-
     if transient_type not in transient_dict:
         logger.warning('Transient type does not have open access data')
         raise WebsiteExist()
+
+    url = 'https://api.astrocats.space/' + transient + '/photometry/time+magnitude+e_magnitude+band?e_magnitude&band&time&format=csv&complete'
+    response = requests.get(url)
 
     if 'not found' in response.text:
         logger.warning('Transient {} does not exist in the catalog. Are you sure you are using the right alias?'.format(transient))
@@ -283,15 +320,15 @@ def sort_open_access_data(transient, use_default_directory, transient_type):
 
     if os.path.isfile(fullfilename):
         logger.warning('processed data already exists')
-        return pd.read_csv(fullfilename)
+        return pd.read_csv(fullfilename, sep=',')
 
     if not os.path.isfile(rawfilename):
         logger.warning('The raw data does not exist.')
         raise DataExists('Raw data is missing.')
     else:
-        rawdata = pd.read_csv(rawfilename)
+        rawdata = pd.read_csv(rawfilename, sep = ',')
         data = rawdata
-        data.to_csv(fullfilename, sep=' ')
+        data.to_csv(fullfilename, sep=',', index = False)
         logger.info(f'Congratulations, you now have a nice data file: {fullfilename}')
 
     return data

@@ -5,7 +5,7 @@ import bilby
 from scipy.special import gammaln
 
 class GaussianLikelihood(bilby.Likelihood):
-    def __init__(self, time, flux, sigma, function):
+    def __init__(self, time, flux, sigma, function, supplementary_data):
         """
         A general Gaussian likelihood - the parameters are inferred from the
         arguments of function
@@ -27,6 +27,7 @@ class GaussianLikelihood(bilby.Likelihood):
         self.sigma = sigma
         self.N = len(self.x)
         self.function = function
+        self.supplementary_data = supplementary_data
 
         # These lines of code infer the parameters from the provided function
         parameters = inspect.getfullargspec(function).args
@@ -42,14 +43,14 @@ class GaussianLikelihood(bilby.Likelihood):
         return self._noise_log_likelihood
 
     def log_likelihood(self):
-        model = self.function(self.x, **self.parameters)
+        model = self.function(self.x, self.supplementary_data, **self.parameters)
         res = self.y - model
         log_l = -0.5 * (np.sum((res / self.sigma)**2)
                        + self.N*np.log(2*np.pi*self.sigma**2))
         return log_l
 
 class GRBGaussianLikelihood(bilby.Likelihood):
-    def __init__(self, time, flux, sigma, function):
+    def __init__(self, time, flux, sigma, function, supplementary_data):
         """
         A general Gaussian likelihood - the parameters are inferred from the
         arguments of function
@@ -71,6 +72,7 @@ class GRBGaussianLikelihood(bilby.Likelihood):
         self.sigma = sigma
         self.N = len(self.x)
         self.function = function
+        self.supplementary_data = supplementary_data
 
         # These lines of code infer the parameters from the provided function
         parameters = inspect.getfullargspec(function).args
@@ -86,7 +88,7 @@ class GRBGaussianLikelihood(bilby.Likelihood):
         return self._noise_log_likelihood
 
     def log_likelihood(self):
-        model = self.function(self.x, **self.parameters)
+        model = self.function(self.x, self.supplementary_data, **self.parameters)
         res = self.y - model
         log_l = np.sum(- (res / self.sigma) ** 2 / 2 -
                        np.log(2 * np.pi * self.sigma ** 2) / 2)
@@ -94,7 +96,7 @@ class GRBGaussianLikelihood(bilby.Likelihood):
 
 
 class PoissonLikelihood(bilby.Likelihood):
-    def __init__(self, time, counts, factor, dt, background_rate, function):
+    def __init__(self, time, counts, factor, dt, background_rate, function, supplementary_data):
         """
         Parameters
         ----------
@@ -111,6 +113,7 @@ class PoissonLikelihood(bilby.Likelihood):
         self.function = function
         self.dt = dt
         self.background_rate = background_rate
+        self.supplementary_data = supplementary_data
         parameters = inspect.getfullargspec(function).args
         parameters.pop(0)
         self.parameters = dict.fromkeys(parameters)
@@ -124,7 +127,7 @@ class PoissonLikelihood(bilby.Likelihood):
         return self._noise_log_likelihood
 
     def log_likelihood(self):
-        flux = self.function(self.time, **self.parameters)
+        flux = self.function(self.x, self.supplementary_data, **self.parameters)
         background_rate = self.background_rate * self.dt
         N = self.factor * flux
         rate = N * self.dt + background_rate
