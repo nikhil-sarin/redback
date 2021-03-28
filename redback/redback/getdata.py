@@ -6,93 +6,64 @@ import sys
 import time
 import urllib
 import urllib.request
+import requests
 
 import pandas as pd
-from selenium import webdriver
-from selenium.common.exceptions import NoSuchElementException
 
-from .utils import logger
+
+from .utils import logger, fetch_driver, check_element
+from .redback_errors import DataExists, WebsiteExist
+
+from bilby.core.utils import check_directory_exists_and_if_not_mkdir
 
 dirname = os.path.dirname(__file__)
 
-def get_afterglow_data_from_swift(grb):
-    return None
-
-def get_prompt_data_from_swift(grb):
-    return None
-
-def get_prompt_data_from_fermi(grb):
-    return None
-
-def get_prompt_data_from_konus(grb):
-    return None
-
-def get_prompt_data_from_batse(grb):
-    return None
-
-def get_open_transient_catalog_data(transient_object):
-    return None
-
-
-def get_trigger_number(grb):
-    data = get_grb_table()
-    trigger = data.query('GRB == @grb')['Trigger Number']
-    trigger = trigger.values[0]
-    return trigger
-
-
-def get_grb_table():
-    short_table = os.path.join(dirname, 'tables/SGRB_table.txt')
-    sgrb = pd.read_csv(short_table, header=0,
-                       error_bad_lines=False, delimiter='\t', dtype='str')
-    long_table = os.path.join(dirname, 'tables/LGRB_table.txt')
-    lgrb = pd.read_csv(long_table, header=0,
-                       error_bad_lines=False, delimiter='\t', dtype='str')
-    frames = [lgrb, sgrb]
-    data = pd.concat(frames, ignore_index=True)
-    return data
-
-
-def check_element(driver, id_number):
-    """
-    checks that an element exists on a website, and provides an exception
-    """
-    try:
-        driver.find_element_by_id(id_number)
-    except NoSuchElementException:
-        return False
-    return True
-
-
-def get_grb_file(grb, use_default_directory):
-    """
-    Go to Swift website and get the data for a given GRB
-    """
-
+def afterglow_directory_structure(grb, use_default_directory, data_mode):
     if use_default_directory:
         grb_dir = os.path.join(dirname, '../data/GRBData/GRB' + grb + '/')
     else:
         grb_dir = 'GRBData/GRB' + grb + '/'
 
-    # check if data file exists for this GRB:
-    grb_datfile = grb_dir + 'GRB' + grb + '_rawSwiftData.dat'
-    if not os.path.exists(grb_dir):
-        os.makedirs(grb_dir)
-    if os.path.isfile(grb_datfile):
-        logger.info('The raw data file already exists')
-        # check = input('Do you still want to download fresh data? (y/[n])') or 'n'
-        # if check == 'n':
-        #     logger.info('Exiting from getGRBFile function')
-        return None
+    grb_dir = grb_dir + data_mode + '/'
+    check_directory_exists_and_if_not_mkdir(grb_dir)
 
-    # open the webdriver
-    driver = webdriver.PhantomJS('/Users/nsarin/Documents/PhD/phantomjs-2.1.1-macosx/bin/phantomjs')
+    rawfile_path = grb_dir + 'GRB' + grb + '_rawSwiftData.csv'
+    fullfile_path = grb_dir + 'GRB' + grb + '.csv'
+    return grb_dir, rawfile_path, fullfile_path
 
-    # get the trigger number
+def process_fluxdensity_data(grb, rawfile):
     logger.info('Getting trigger number')
     trigger = get_trigger_number(grb)
     grb_website = 'http://www.swift.ac.uk/burst_analyser/00' + trigger + '/'
-    logger.info(f'opening Swift website for GRB {grb}')
+    logger.info('opening Swift website for GRB {}'.format(grb))
+
+    # open the webdriver
+    driver = fetch_driver()
+
+    try:
+        driver.find_element_by_xpath(".//*[@id='batxrt_XRTBAND_makeDownload']").click()
+        time.sleep(20)
+
+        grb_url = driver.current_url
+
+        # Close the driver and all opened windows
+        driver.quit()
+
+        # scrape the data
+        urllib.request.urlretrieve(grb_url, rawfile)
+        logger.info('Congratulations, you now have raw data for GRB {}'.grb)
+    except Exception:
+        logger.warning('cannot load the website for GRB {}'.format(grb))
+
+def process_integrated_flux_data(grb, rawfile):
+    logger.info('Getting trigger number')
+    trigger = get_trigger_number(grb)
+    grb_website = 'http://www.swift.ac.uk/burst_analyser/00' + trigger + '/'
+    logger.info('opening Swift website for GRB {}'.format(grb))
+
+    # open the webdriver
+    driver = fetch_driver()
+
     driver.get(grb_website)
 
     # celect option for BAT binning
@@ -113,38 +84,20 @@ def get_grb_file(grb, use_default_directory):
         driver.find_element_by_xpath(".//*[@id='batxrtband0']").click()
 
     # Generate data file
-    try:
-        driver.find_element_by_xpath(".//*[@id='batxrt_XRTBAND_makeDownload']").click()
-        time.sleep(20)
+    driver.find_element_by_xpath(".//*[@id='batxrt_XRTBAND_makeDownload']").click()
+    time.sleep(20)
 
-        grb_url = driver.current_url
+    grb_url = driver.current_url
 
-        # Close the driver and all opened windows
-        driver.quit()
+    # Close the driver and all opened windows
+    driver.quit()
 
-        # scrape the data
-        urllib.request.urlretrieve(grb_url, grb_datfile)
-    except Exception:
-        logger.warning(f'cannot load the website for GRB {grb}')
+    # scrape the data
+    urllib.request.urlretrieve(grb_url, rawfile)
+    logger.info('Congratulations, you now have raw data for GRB {}'.format(grb))
 
 
-def sort_data(grb, use_default_directory):
-    if use_default_directory:
-        grb_dir = os.path.join(dirname, '../data/GRBData/GRB' + grb + '/')
-    else:
-        grb_dir = 'GRBData/GRB' + grb + '/'
-
-    raw_grb_datfile = grb_dir + 'GRB' + grb + '_rawSwiftData.dat'
-
-    grb_outfile = grb_dir + 'GRB' + grb + '.dat'
-
-    if os.path.isfile(grb_outfile):
-        logger.info(f'Processed data file already exists for GRB {grb}')
-        return None
-    if not os.path.isfile(raw_grb_datfile):
-        logger.info(f'There is no raw data for GRB {grb}')
-        return None
-
+def sort_integrated_flux_data(rawfile, fullfile):
     xrtpcflag = 0
     xrtpc = []
 
@@ -155,7 +108,7 @@ def sort_data(grb, use_default_directory):
     xrtwt = []
 
     try:
-        with open(raw_grb_datfile) as data:
+        with open(rawfile) as data:
             for num, line in enumerate(data):
                 if line[0] == '!':
                     if line[2:13] == 'batSNR4flux':
@@ -182,7 +135,7 @@ def sort_data(grb, use_default_directory):
                 if xrtwtflag == 1:
                     xrtwt.append(line)
 
-        with open(grb_outfile, 'w') as out:
+        with open(fullfile, 'w') as out:
             out.write('## BAT - batSNR4flux\n')
             for ii in range(len(bat)):
                 try:
@@ -215,21 +168,152 @@ def sort_data(grb, use_default_directory):
             sys.exit()
         except SystemExit:
             pass
-    logger.info(f'congratulations, you now have a nice data file: {grb_outfile}')
+    logger.info('Congratulations, you now have a nice data file: {}'.format(fullfile))
 
+def sort_fluxdensity_data(rawfile, fullfile):
+    logger.info('Congratulations, you now have a nice data file: {}'.format(fullfile))
 
-def retrieve_and_process_data(grb, use_default_directory=False):
-    if use_default_directory:
-        grb_dir = os.path.join(dirname, '../data/GRBData/GRB' + grb + '/')
-    else:
-        grb_dir = 'GRBData/GRB' + grb + '/'
+def collect_swift_data(grb, use_default_directory, data_mode):
+    valid_data_modes = ['flux', 'flux_density']
+    if data_mode not in valid_data_modes:
+        raise ValueError("Swift does not have {} data".format(data_mode))
 
-    # check if data file exists for this GRB:
-    grb_datfile = grb_dir + 'GRB' + grb + '.dat'
+    grbdir, rawfile, fullfile = afterglow_directory_structure(grb, use_default_directory, data_mode)
 
-    if os.path.isfile(grb_datfile):
-        logger.info(f'The data file already exists for GRB {grb}')
+    if os.path.isfile(rawfile):
+        logger.warning('The raw data file already exists')
         return None
+
+    logger.info('Getting trigger number')
+    trigger = get_trigger_number(grb)
+    grb_website = 'http://www.swift.ac.uk/burst_analyser/00' + trigger + '/'
+    logger.info('opening Swift website for GRB {}'.format(grb))
+    response = requests.get(grb_website)
+    if not response.ok:
+        logger.warning('Problem loading the website for GRB {}. Are you sure GRB {} has Swift data?'.format(grb, grb))
+        raise WebsiteExist('Problem loading the website for GRB {}'.format(grb))
     else:
-        get_grb_file(grb=grb, use_default_directory=use_default_directory)
-        sort_data(grb=grb, use_default_directory=use_default_directory)
+        if data_mode == 'flux':
+            process_integrated_flux_data(grb, rawfile)
+        if data_mode == 'flux_density':
+            process_fluxdensity_data(grb, rawfile)
+
+    return None
+
+def sort_swift_data(grb, use_default_directory, data_mode):
+    grbdir, rawfile, fullfile = afterglow_directory_structure(grb, use_default_directory, data_mode)
+
+    if os.path.isfile(fullfile):
+        logger.warning('The processed data file already exists')
+        return pd.read_csv(fullfile, sep='\t')
+
+    if not os.path.isfile(rawfile):
+        logger.warning('The raw data does not exist.')
+        raise DataExists('Raw data is missing.')
+
+    if data_mode == 'flux':
+        sort_integrated_flux_data(rawfile, fullfile)
+    if data_mode == 'flux_density':
+        sort_fluxdensity_data(rawfile, fullfile)
+    return pd.read_csv(fullfile, sep='\t')
+
+def get_afterglow_data_from_swift(grb, data_mode = 'flux',use_default_directory=False):
+    collect_swift_data(grb, use_default_directory, data_mode)
+    data = sort_swift_data(grb, use_default_directory, data_mode)
+    return data
+
+def get_prompt_data_from_swift(grb):
+    return None
+
+def get_prompt_data_from_fermi(grb):
+    return None
+
+def get_prompt_data_from_konus(grb):
+    return None
+
+def get_prompt_data_from_batse(grb):
+    return None
+
+def get_open_transient_catalog_data(transient, transient_type, use_default_directory=False):
+    collect_open_catalog_data(transient, use_default_directory, transient_type)
+    data = sort_open_access_data(transient, use_default_directory, transient_type)
+    return data
+
+def transient_directory_structure(transient, use_default_directory, transient_type):
+    if use_default_directory:
+        open_transient_dir = os.path.join(dirname, '../data/' + transient_type + 'Data/' + transient + '/')
+    else:
+        open_transient_dir = transient_type + '/' + transient + '/'
+    rawfile_path = open_transient_dir + transient + '_rawdata.csv'
+    fullfile_path = open_transient_dir + transient + '_data.csv'
+    return open_transient_dir, rawfile_path, fullfile_path
+
+def collect_open_catalog_data(transient, use_default_directory, transient_type):
+    transient_dict = ['kilonova', 'supernova', 'tidal_disruption_event']
+
+    open_transient_dir, raw_filename, full_filename = transient_directory_structure(transient, use_default_directory,
+                                                                                    transient_type)
+
+    check_directory_exists_and_if_not_mkdir(open_transient_dir)
+
+    if os.path.isfile(raw_filename):
+        logger.warning('The raw data file already exists')
+        return None
+
+    url = 'https://api.astrocats.space/' + transient + '/photometry/time+magnitude+e_magnitude+band?e_magnitude&band&time&format=csv&complete'
+    response = requests.get(url)
+
+    if transient_type not in transient_dict:
+        logger.warning('Transient type does not have open access data')
+        raise WebsiteExist()
+
+    if 'not found' in response.text:
+        logger.warning('Transient {} does not exist in the catalog. Are you sure you are using the right alias?'.format(transient))
+        raise WebsiteExist('Webpage does not exist')
+    else:
+        if os.path.isfile(full_filename):
+            logger.warning('The processed data file already exists')
+            return None
+        else:
+            urllib.request.urlretrieve(url, raw_filename)
+            logger.info('Retrieved data for {}'.format(transient))
+
+def sort_open_access_data(transient, use_default_directory, transient_type):
+    directory, rawfilename, fullfilename = transient_directory_structure(transient, use_default_directory, transient_type)
+
+    if os.path.isfile(fullfilename):
+        logger.warning('processed data already exists')
+        return pd.read_csv(fullfilename)
+
+    if not os.path.isfile(rawfilename):
+        logger.warning('The raw data does not exist.')
+        raise DataExists('Raw data is missing.')
+    else:
+        rawdata = pd.read_csv(rawfilename)
+        data = rawdata
+        data.to_csv(fullfilename, sep=' ')
+        logger.info(f'Congratulations, you now have a nice data file: {fullfilename}')
+
+    return data
+
+def get_trigger_number(grb):
+    data = get_grb_table()
+    trigger = data.query('GRB == @grb')['Trigger Number']
+    trigger = trigger.values[0]
+    return trigger
+
+
+def get_grb_table():
+    short_table = os.path.join(dirname, 'tables/SGRB_table.txt')
+    sgrb = pd.read_csv(short_table, header=0,
+                       error_bad_lines=False, delimiter='\t', dtype='str')
+    long_table = os.path.join(dirname, 'tables/LGRB_table.txt')
+    lgrb = pd.read_csv(long_table, header=0,
+                       error_bad_lines=False, delimiter='\t', dtype='str')
+    frames = [lgrb, sgrb]
+    data = pd.concat(frames, ignore_index=True)
+    return data
+
+
+
+

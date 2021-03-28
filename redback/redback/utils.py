@@ -5,6 +5,8 @@ import matplotlib.pyplot as plt
 from pathlib import Path
 import numpy as np
 from scipy.stats import gaussian_kde
+from selenium import webdriver
+from selenium.common.exceptions import NoSuchElementException
 
 import bilby
 
@@ -16,6 +18,21 @@ plt.style.use(filename)
 
 logger = logging.getLogger('redback')
 _bilby_logger = logging.getLogger('bilby')
+
+def check_element(driver, id_number):
+    """
+    checks that an element exists on a website, and provides an exception
+    """
+    try:
+        driver.find_element_by_id(id_number)
+    except NoSuchElementException:
+        return False
+    return True
+
+def fetch_driver():
+    # open the webdriver
+    driver = webdriver.PhantomJS('/Users/nsarin/Documents/PhD/phantomjs-2.1.1-macosx/bin/phantomjs')
+    return driver
 
 def calc_confidence_intervals(samples):
     lower_bound = np.quantile(samples, 0.05, axis = 0)
@@ -82,7 +99,7 @@ def setup_logger(outdir='.', label=None, log_level='INFO'):
     for handler in logger.handlers:
         handler.setLevel(level)
 
-    logger.info(f'Running grb_bilby version: {redback.__version__}')
+    logger.info(f'Running redback version: {redback.__version__}')
 
 
 class MetaDataAccessor(object):
