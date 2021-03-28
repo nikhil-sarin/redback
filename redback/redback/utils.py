@@ -31,7 +31,8 @@ def check_element(driver, id_number):
 
 def fetch_driver():
     # open the webdriver
-    driver = webdriver.PhantomJS('/Users/nsarin/Documents/PhD/phantomjs-2.1.1-macosx/bin/phantomjs')
+    # driver = webdriver.PhantomJS('/Users/nsarin/Documents/PhD/phantomjs-2.1.1-macosx/bin/phantomjs')
+    driver = webdriver.PhantomJS()
     return driver
 
 def calc_confidence_intervals(samples):

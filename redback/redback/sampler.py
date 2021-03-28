@@ -16,7 +16,6 @@ from .likelihoods import GRBGaussianLikelihood, GaussianLikelihood, PoissonLikel
 dirname = os.path.dirname(__file__)
 
 
-
 def fit_model(name, path, model, source_type='GRB', sampler='dynesty', nlive=2000, prior=None, walks=200,
               truncate=True, use_photon_index_prior=False, truncate_method='prompt_time_error', data_mode='flux',
               resume=True, save_format='json', **kwargs):
@@ -72,10 +71,11 @@ def fit_model(name, path, model, source_type='GRB', sampler='dynesty', nlive=200
 
 
 def _fit_grb(name, path, model, sampler='dynesty', nlive=3000, prior=None, walks=1000, truncate=True,
-             use_photon_index_prior=False, truncate_method='prompt_time_error', data_mode='flux',
+             use_photon_index_prior=False, truncate_method='prompt_time_error', data_mode='flux', data=None,
              resume=True, save_format='json', **kwargs):
-    data = tools.SGRB(name, path)
-    data.load_and_truncate_data(truncate=truncate, truncate_method=truncate_method, data_mode=data_mode)
+    if data is None:
+        data = tools.SGRB(name, path)
+        data.load_and_truncate_data(truncate=truncate, truncate_method=truncate_method, data_mode=data_mode)
 
     if prior is None:
         prior = bilby.prior.PriorDict(filename=f"{dirname}/Priors/{model}.prior")
