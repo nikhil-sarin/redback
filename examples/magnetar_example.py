@@ -1,5 +1,7 @@
 import redback
+import matplotlib.pyplot as plt
 import bilby
+
 sampler = 'pymultinest'
 #lots of different models implemented, including
 #afterglow/magnetar varieties/n_dimensional_fireball/shapelets/band function/kilonova/SNe/TDE
@@ -40,4 +42,4 @@ result.plot_lightcurve(random_models = 1000)
 fig, ax = plt.subplot(2,2)
 for x in range(len(GRBs)):
     ax = ax.ravel()
-    ax[x] = analysis.plot_lightcurve_wrapper(GRBs, path)
+    ax[x] = redback.analysis.plot_lightcurve_wrapper(GRBs, path)
