@@ -13,7 +13,7 @@ data = redback.getdata.get_open_transient_catalog_data(transient=kne, transient_
 # creates a GRBDir with GRB
 
 # use default priors
-priors = redback.priors(model=model, data_mode='photometry')
+priors = redback.priors.get_priors(model=model, data_mode='photometry')
 
 result = redback.fit_model(data_type='kilonova', name=kne, model=model, sampler=sampler,
                            path=path, prior=priors, data_mode='photometry', likelihood='gaussian')
