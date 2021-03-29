@@ -7,6 +7,7 @@ import numpy as np
 from scipy.stats import gaussian_kde
 from selenium import webdriver
 from selenium.common.exceptions import NoSuchElementException
+import astropy.units as uu
 
 import bilby
 
@@ -19,6 +20,8 @@ plt.style.use(filename)
 logger = logging.getLogger('redback')
 _bilby_logger = logging.getLogger('bilby')
 
+def calc_fluxdensity_from_ABmag(magnitudes):
+    return (magnitudes * uu.ABmag).to(uu.mJy)
 
 def check_element(driver, id_number):
     """
@@ -30,6 +33,19 @@ def check_element(driver, id_number):
         return False
     return True
 
+def calc_flux_density_error(magnitude, magnitude_error, reference_flux, magnitude_system = 'AB'):
+    if magnitude_system == 'AB':
+        reference_flux = 3631
+    prefactor = np.log(10)/(-2.5)
+    dfdm = 1000 * prefactor * reference_flux * np.exp(prefactor * magnitude)
+    flux_err = ((dfdm * magnitude_error)**2)**0.5
+    return flux_err
+
+def calc_flux_from_mag(magnitude, reference_flux, magnitude_system = 'AB'):
+    if magnitude_system == 'AB':
+        reference_flux = 3631
+    flux = 10 ** (magnitude/-2.5) * reference_flux #Jansky
+    return 1000*flux #return in mJy
 
 def fetch_driver():
     # open the webdriver
