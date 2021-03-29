@@ -1,4 +1,6 @@
+import os
+
 from .redback import *
 from redback.redback.sampler import fit_model
 
-__version__ = "0.1"
+__version__ = "0.2"
