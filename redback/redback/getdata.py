@@ -206,6 +206,19 @@ def sort_integrated_flux_data(rawfile, fullfile):
 
 
 def sort_fluxdensity_data(rawfile, fullfile):
+    try:
+        data = np.loadtxt(rawfile, skiprows=2, delimiter='\t')
+        df = pd.DataFrame(data=data, columns=['Time [s]', 'Time err plus [s]', 'Time err minus [s]',
+                                              'Flux [mJy]', 'Flux err plus [mJy]', 'Flux err minus [mJy]'])
+        df.to_csv(fullfile, index=False, sep=',')
+    except IOError:
+        try:
+            logger.warning('There was an error opening the file')
+            sys.exit()
+        except SystemExit:
+            pass
+    logger.info('Congratulations, you now have a nice data file: {}'.format(fullfile))
+
     logger.info('Congratulations, you now have a nice data file: {}'.format(fullfile))
 
 
@@ -218,7 +231,7 @@ def collect_swift_data(grb, use_default_directory, data_mode):
 
     if os.path.isfile(rawfile):
         logger.warning('The raw data file already exists')
-        return grbdir, rawfile, fullfile
+        return rawfile, fullfile
 
     logger.info('Getting trigger number')
     trigger = get_trigger_number(grb)
