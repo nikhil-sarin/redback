@@ -38,7 +38,6 @@ def calc_flux_density_error(magnitude, magnitude_error, reference_flux, magnitud
         reference_flux = 3631
     prefactor = np.log(10)/(-2.5)
     dfdm = 1000 * prefactor * reference_flux * np.exp(prefactor * magnitude)
-    print(dfdm)
     flux_err = ((dfdm * magnitude_error)**2)**0.5
     return flux_err
 
