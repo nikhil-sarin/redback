@@ -21,11 +21,14 @@ from astropy.time import Time
 
 dirname = os.path.dirname(__file__)
 
+SWIFT_PROMPT_BIN_SIZES = ['1s', '2ms', '8ms', '16ms', '64ms', '256ms']
+
+
 def afterglow_directory_structure(grb, use_default_directory, data_mode, instrument='BAT+XRT'):
     if use_default_directory:
-        grb_dir = os.path.join(dirname, '../data/GRBData/GRB' + grb + '/')
+        grb_dir = os.path.join(dirname, '../data/GRBData/GRB' + grb + '/afterglow/')
     else:
-        grb_dir = 'GRBData/GRB' + grb + '/'
+        grb_dir = 'GRBData/GRB' + grb + '/afterglow/'
 
     grb_dir = grb_dir + data_mode + '/'
     check_directory_exists_and_if_not_mkdir(grb_dir)
@@ -43,6 +46,24 @@ def afterglow_directory_structure(grb, use_default_directory, data_mode, instrum
 
     return grb_dir, rawfile, fullfile
 
+
+def prompt_directory_structure(grb, use_default_directory, bin_size='2ms'):
+    if bin_size not in SWIFT_PROMPT_BIN_SIZES:
+        raise ValueError(f'Bin size {bin_size} not in allowed bin sizes.\n'
+                         f'Use one of the following: {SWIFT_PROMPT_BIN_SIZES}')
+    if use_default_directory:
+        grb_dir = os.path.join(dirname, '../data/GRBData/GRB' + grb + '/')
+    else:
+        grb_dir = 'GRBData/GRB' + grb + '/'
+
+    grb_dir = grb_dir + 'prompt/'
+    check_directory_exists_and_if_not_mkdir(grb_dir)
+
+    rawfile_path = grb_dir + f'{bin_size}_lc_ascii.dat'
+    processed_file_path = grb_dir + f'{bin_size}_lc.csv'
+    return grb_dir, rawfile_path, processed_file_path
+
+
 def process_fluxdensity_data(grb, rawfile):
     logger.info('Getting trigger number')
     trigger = get_trigger_number(grb)
@@ -52,6 +73,7 @@ def process_fluxdensity_data(grb, rawfile):
     # open the webdriver
     driver = fetch_driver()
 
+    driver.get(grb_website)
     try:
         driver.find_element_by_xpath(".//*[@id='batxrt_XRTBAND_makeDownload']").click()
         time.sleep(20)
@@ -67,6 +89,7 @@ def process_fluxdensity_data(grb, rawfile):
     except Exception:
         logger.warning('cannot load the website for GRB {}'.format(grb))
 
+
 def process_integrated_flux_data(grb, rawfile):
     logger.info('Getting trigger number')
     trigger = get_trigger_number(grb)
@@ -78,7 +101,7 @@ def process_integrated_flux_data(grb, rawfile):
 
     driver.get(grb_website)
 
-    # celect option for BAT binning
+    # celect option for BAT bin_size
     bat_binning = 'batxrtbin'
     if check_element(driver, bat_binning):
         driver.find_element_by_xpath("//select[@name='batxrtbin']/option[text()='SNR 4']").click()
@@ -181,8 +204,10 @@ def sort_integrated_flux_data(rawfile, fullfile):
             pass
     logger.info('Congratulations, you now have a nice data file: {}'.format(fullfile))
 
+
 def sort_fluxdensity_data(rawfile, fullfile):
     logger.info('Congratulations, you now have a nice data file: {}'.format(fullfile))
+
 
 def collect_swift_data(grb, use_default_directory, data_mode):
     valid_data_modes = ['flux', 'flux_density']
@@ -262,22 +287,85 @@ def process_xrt_data(rawfile):
     processedfile = data[data['fluxpos'] != 0.]
     return processedfile
 
-def get_prompt_data_from_swift(grb):
-    return None
+
+def collect_swift_prompt_data(grb, use_default_directory=False, bin_size='2ms'):
+    grbdir, rawfile, processed_file = prompt_directory_structure(
+        grb=grb, use_default_directory=use_default_directory, bin_size=bin_size)
+    if os.path.isfile(rawfile):
+        logger.warning('The raw data file already exists')
+        return None
+
+    if not grb.startswith('GRB'):
+        grb = 'GRB' + grb
+
+    grb_website = f"https://swift.gsfc.nasa.gov/results/batgrbcat/{grb}/data_product/"
+    logger.info('opening Swift website for GRB {}'.format(grb))
+    data_file = f"{bin_size}_lc_ascii.dat"
+
+    # open the webdriver
+    driver = fetch_driver()
+
+    driver.get(grb_website)
+    try:
+        driver.find_element_by_partial_link_text("results").click()
+        time.sleep(20)
+        driver.find_element_by_link_text("lc/").click()
+        time.sleep(20)
+        grb_url = driver.current_url + data_file
+        urllib.request.urlretrieve(grb_url, rawfile)
+
+        # Close the driver and all opened windows
+        driver.quit()
+
+        logger.info(f'Congratulations, you now have raw data for GRB {grb}')
+    except Exception:
+        logger.warning(f'Cannot load the website for GRB {grb}')
+
+
+def sort_swift_prompt_data(grb, use_default_directory):
+    grbdir, rawfile_path, processed_file_path = prompt_directory_structure(grb, use_default_directory)
+
+    if os.path.isfile(processed_file_path):
+        logger.warning('The processed data file already exists')
+        return pd.read_csv(processed_file_path, sep='\t')
+
+    if not os.path.isfile(rawfile_path):
+        logger.warning('The raw data does not exist.')
+        raise DataExists('Raw data is missing.')
+
+    data = np.loadtxt(rawfile_path)
+    df = pd.DataFrame(data=data, columns=[
+        "Time [s]", "flux_15_25 [counts/s/det]", "flux_15_25_err [counts/s/det]", "flux_25_50 [counts/s/det]",
+        "flux_25_50_err [counts/s/det]", "flux_50_100 [counts/s/det]", "flux_50_100_err [counts/s/det]",
+        "flux_100_350 [counts/s/det]", "flux_100_350_err [counts/s/det]", "flux_15_350 [counts/s/det]",
+        "flux_15_350_err [counts/s/det]"])
+    df.to_csv(processed_file_path, index=False)
+    return df
+
+
+def get_prompt_data_from_swift(grb, bin_size='2ms', use_default_directory=False):
+    collect_swift_prompt_data(grb=grb, use_default_directory=use_default_directory, bin_size=bin_size)
+    data = sort_swift_prompt_data(grb=grb, use_default_directory=use_default_directory)
+    return data
+
 
 def get_prompt_data_from_fermi(grb):
     return None
 
+
 def get_prompt_data_from_konus(grb):
     return None
 
+
 def get_prompt_data_from_batse(grb):
     return None
+
 
 def get_open_transient_catalog_data(transient, transient_type, use_default_directory=False):
     collect_open_catalog_data(transient, use_default_directory, transient_type)
     data = sort_open_access_data(transient, use_default_directory, transient_type)
     return data
+
 
 def transient_directory_structure(transient, use_default_directory, transient_type):
     if use_default_directory:
@@ -287,6 +375,7 @@ def transient_directory_structure(transient, use_default_directory, transient_ty
     rawfile_path = open_transient_dir + transient + '_rawdata.csv'
     fullfile_path = open_transient_dir + transient + '_data.csv'
     return open_transient_dir, rawfile_path, fullfile_path
+
 
 def collect_open_catalog_data(transient, use_default_directory, transient_type):
     transient_dict = ['kilonova', 'supernova', 'tidal_disruption_event']
@@ -307,7 +396,8 @@ def collect_open_catalog_data(transient, use_default_directory, transient_type):
     response = requests.get(url)
 
     if 'not found' in response.text:
-        logger.warning('Transient {} does not exist in the catalog. Are you sure you are using the right alias?'.format(transient))
+        logger.warning(
+            'Transient {} does not exist in the catalog. Are you sure you are using the right alias?'.format(transient))
         raise WebsiteExist('Webpage does not exist')
     else:
         if os.path.isfile(full_filename):
@@ -347,6 +437,7 @@ def fix_t0_of_transient(timeofevent, transient, transient_type, use_default_dire
     data.to_csv(fullfilename, sep=',', index=False)
     logger.info(f'Change input time : {fullfilename}')
     return None
+
 
 def sort_open_access_data(transient, use_default_directory, transient_type):
     directory, rawfilename, fullfilename = transient_directory_structure(transient, use_default_directory, transient_type)
@@ -392,6 +483,7 @@ def sort_open_access_data(transient, use_default_directory, transient_type):
         logger.info(f'Congratulations, you now have a nice data file: {fullfilename}')
     return data
 
+
 def get_trigger_number(grb):
     data = get_grb_table()
     trigger = data.query('GRB == @grb')['Trigger Number']
@@ -412,7 +504,3 @@ def get_grb_table():
     frames = [lgrb, sgrb]
     data = pd.concat(frames, ignore_index=True)
     return data
-
-
-
-
