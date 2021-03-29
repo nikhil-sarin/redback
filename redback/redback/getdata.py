@@ -7,9 +7,9 @@ import time
 import urllib
 import urllib.request
 import requests
+import numpy as np
 
 import pandas as pd
-
 
 from .utils import logger, fetch_driver, check_element
 from .redback_errors import DataExists, WebsiteExist
@@ -17,6 +17,7 @@ from .redback_errors import DataExists, WebsiteExist
 from bilby.core.utils import check_directory_exists_and_if_not_mkdir
 
 dirname = os.path.dirname(__file__)
+
 
 def afterglow_directory_structure(grb, use_default_directory, data_mode):
     if use_default_directory:
@@ -31,6 +32,21 @@ def afterglow_directory_structure(grb, use_default_directory, data_mode):
     fullfile_path = grb_dir + 'GRB' + grb + '.csv'
     return grb_dir, rawfile_path, fullfile_path
 
+
+def prompt_directory_structure(grb, use_default_directory, binning='2ms'):
+    if use_default_directory:
+        grb_dir = os.path.join(dirname, '../data/GRBData/GRB' + grb + '/')
+    else:
+        grb_dir = 'GRBData/GRB' + grb + '/'
+
+    grb_dir = grb_dir + 'prompt/'
+    check_directory_exists_and_if_not_mkdir(grb_dir)
+
+    rawfile_path = grb_dir + f'{binning}_lc_ascii.dat'
+    processed_file_path = grb_dir + f'{binning}_lc.csv'
+    return grb_dir, rawfile_path, processed_file_path
+
+
 def process_fluxdensity_data(grb, rawfile):
     logger.info('Getting trigger number')
     trigger = get_trigger_number(grb)
@@ -40,6 +56,7 @@ def process_fluxdensity_data(grb, rawfile):
     # open the webdriver
     driver = fetch_driver()
 
+    driver.get(grb_website)
     try:
         driver.find_element_by_xpath(".//*[@id='batxrt_XRTBAND_makeDownload']").click()
         time.sleep(20)
@@ -54,6 +71,7 @@ def process_fluxdensity_data(grb, rawfile):
         logger.info('Congratulations, you now have raw data for GRB {}'.grb)
     except Exception:
         logger.warning('cannot load the website for GRB {}'.format(grb))
+
 
 def process_integrated_flux_data(grb, rawfile):
     logger.info('Getting trigger number')
@@ -170,8 +188,10 @@ def sort_integrated_flux_data(rawfile, fullfile):
             pass
     logger.info('Congratulations, you now have a nice data file: {}'.format(fullfile))
 
+
 def sort_fluxdensity_data(rawfile, fullfile):
     logger.info('Congratulations, you now have a nice data file: {}'.format(fullfile))
+
 
 def collect_swift_data(grb, use_default_directory, data_mode):
     valid_data_modes = ['flux', 'flux_density']
@@ -200,6 +220,7 @@ def collect_swift_data(grb, use_default_directory, data_mode):
 
     return None
 
+
 def sort_swift_data(grb, use_default_directory, data_mode):
     grbdir, rawfile, fullfile = afterglow_directory_structure(grb, use_default_directory, data_mode)
 
@@ -217,27 +238,98 @@ def sort_swift_data(grb, use_default_directory, data_mode):
         sort_fluxdensity_data(rawfile, fullfile)
     return pd.read_csv(fullfile, sep='\t')
 
-def get_afterglow_data_from_swift(grb, data_mode = 'flux',use_default_directory=False):
+
+def get_afterglow_data_from_swift(grb, data_mode='flux', use_default_directory=False):
     collect_swift_data(grb, use_default_directory, data_mode)
     data = sort_swift_data(grb, use_default_directory, data_mode)
     return data
 
-def get_prompt_data_from_swift(grb):
-    return None
+
+def collect_swift_prompt_data(grb, use_default_directory, binning='2ms'):
+    grbdir, rawfile, processed_file = prompt_directory_structure(grb, use_default_directory)
+    if os.path.isfile(rawfile):
+        logger.warning('The raw data file already exists')
+        return None
+
+    if not grb.startswith('GRB'):
+        grb = 'GRB' + grb
+
+    grb_website = f"https://swift.gsfc.nasa.gov/results/batgrbcat/{grb}/data_product/"
+    logger.info('opening Swift website for GRB {}'.format(grb))
+    data_file = f"{binning}_lc_ascii.dat"
+
+    # open the webdriver
+    driver = fetch_driver()
+
+    driver.get(grb_website)
+    try:
+        driver.find_element_by_partial_link_text("results").click()
+        time.sleep(20)
+        driver.find_element_by_link_text("lc/").click()
+        time.sleep(20)
+        grb_url = driver.current_url + data_file
+        urllib.request.urlretrieve(grb_url, rawfile)
+
+        # Close the driver and all opened windows
+        driver.quit()
+
+        logger.info(f'Congratulations, you now have raw data for GRB {grb}')
+    except Exception:
+        logger.warning(f'Cannot load the website for GRB {grb}')
+
+
+def sort_swift_prompt_data(grb, use_default_directory):
+    grbdir, rawfile_path, processed_file_path = prompt_directory_structure(grb, use_default_directory)
+
+    if os.path.isfile(processed_file_path):
+        logger.warning('The processed data file already exists')
+        return pd.read_csv(processed_file_path, sep='\t')
+
+    if not os.path.isfile(rawfile_path):
+        logger.warning('The raw data does not exist.')
+        raise DataExists('Raw data is missing.')
+
+    data = np.loadtxt(rawfile_path)
+    times = data[, :0]
+    flux_15_25 = data[, :1]
+    flux_15_25_err = data[, :2]
+    flux_25_50 = data[, :3]
+    flux_25_50_err = data[, :4]
+    flux_50_100 = data[, :5]
+    flux_50_100_err = data[, :6]
+    flux_100_350 = data[, :7]
+    flux_100_350_err = data[, :8]
+    flux_15_350 = data[, :9]
+    flux_15_350_err = data[, :10]
+    df = pd.DataFrame(data=data, columns=[
+        "Time [s]", "flux_15_25", "flux_15_25_err", "flux_25_50", "flux_25_50_err",
+        "flux_50_100", "flux_50_100_err", "flux_100_350", "flux_100_350_err", "flux_15_350", "flux_15_350_err"])
+    df.to_csv(processed_file_path, sep)
+    return df
+
+
+
+def get_prompt_data_from_swift(grb, binning='2ms', use_default_directory=True):
+    collect_swift_prompt_data(grb=grb, use_default_directory=use_default_directory, binning=binning)
+
 
 def get_prompt_data_from_fermi(grb):
     return None
 
+
 def get_prompt_data_from_konus(grb):
     return None
 
+
 def get_prompt_data_from_batse(grb):
     return None
+
 
 def get_open_transient_catalog_data(transient, transient_type, use_default_directory=False):
     collect_open_catalog_data(transient, use_default_directory, transient_type)
     data = sort_open_access_data(transient, use_default_directory, transient_type)
     return data
+
 
 def transient_directory_structure(transient, use_default_directory, transient_type):
     if use_default_directory:
@@ -247,6 +339,7 @@ def transient_directory_structure(transient, use_default_directory, transient_ty
     rawfile_path = open_transient_dir + transient + '_rawdata.csv'
     fullfile_path = open_transient_dir + transient + '_data.csv'
     return open_transient_dir, rawfile_path, fullfile_path
+
 
 def collect_open_catalog_data(transient, use_default_directory, transient_type):
     transient_dict = ['kilonova', 'supernova', 'tidal_disruption_event']
@@ -268,7 +361,8 @@ def collect_open_catalog_data(transient, use_default_directory, transient_type):
         raise WebsiteExist()
 
     if 'not found' in response.text:
-        logger.warning('Transient {} does not exist in the catalog. Are you sure you are using the right alias?'.format(transient))
+        logger.warning(
+            'Transient {} does not exist in the catalog. Are you sure you are using the right alias?'.format(transient))
         raise WebsiteExist('Webpage does not exist')
     else:
         if os.path.isfile(full_filename):
@@ -278,8 +372,10 @@ def collect_open_catalog_data(transient, use_default_directory, transient_type):
             urllib.request.urlretrieve(url, raw_filename)
             logger.info('Retrieved data for {}'.format(transient))
 
+
 def sort_open_access_data(transient, use_default_directory, transient_type):
-    directory, rawfilename, fullfilename = transient_directory_structure(transient, use_default_directory, transient_type)
+    directory, rawfilename, fullfilename = transient_directory_structure(transient, use_default_directory,
+                                                                         transient_type)
 
     if os.path.isfile(fullfilename):
         logger.warning('processed data already exists')
@@ -295,6 +391,7 @@ def sort_open_access_data(transient, use_default_directory, transient_type):
         logger.info(f'Congratulations, you now have a nice data file: {fullfilename}')
 
     return data
+
 
 def get_trigger_number(grb):
     data = get_grb_table()
@@ -313,7 +410,3 @@ def get_grb_table():
     frames = [lgrb, sgrb]
     data = pd.concat(frames, ignore_index=True)
     return data
-
-
-
-
