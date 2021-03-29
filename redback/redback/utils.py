@@ -19,6 +19,7 @@ plt.style.use(filename)
 logger = logging.getLogger('redback')
 _bilby_logger = logging.getLogger('bilby')
 
+
 def check_element(driver, id_number):
     """
     checks that an element exists on a website, and provides an exception
@@ -29,16 +30,18 @@ def check_element(driver, id_number):
         return False
     return True
 
+
 def fetch_driver():
     # open the webdriver
-    driver = webdriver.PhantomJS('/Users/nsarin/Documents/PhD/phantomjs-2.1.1-macosx/bin/phantomjs')
-    return driver
+    return webdriver.PhantomJS()
+
 
 def calc_confidence_intervals(samples):
-    lower_bound = np.quantile(samples, 0.05, axis = 0)
-    upper_bound = np.quantile(samples, 0.95, axis = 0)
-    median = np.quantile(samples, 0.5, axis = 0)
+    lower_bound = np.quantile(samples, 0.05, axis=0)
+    upper_bound = np.quantile(samples, 0.95, axis=0)
+    median = np.quantile(samples, 0.5, axis=0)
     return lower_bound, upper_bound, median
+
 
 def kde_scipy(x, bandwidth=0.05, **kwargs):
     """Kernel Density Estimation with Scipy"""
@@ -48,9 +51,11 @@ def kde_scipy(x, bandwidth=0.05, **kwargs):
     kde = gaussian_kde(x, bw_method=bandwidth / x.std(ddof=1), **kwargs)
     return kde
 
+
 def cdf(x, plot=True, *args, **kwargs):
     x, y = sorted(x), np.arange(len(x)) / len(x)
     return plt.plot(x, y, *args, **kwargs) if plot else (x, y)
+
 
 def find_path(path):
     if path == 'default':
@@ -103,7 +108,6 @@ def setup_logger(outdir='.', label=None, log_level='INFO'):
 
 
 class MetaDataAccessor(object):
-
     """
     Generic descriptor class that allows handy access of properties without long
     boilerplate code. Allows easy access to meta_data dict entries
