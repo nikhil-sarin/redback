@@ -7,6 +7,7 @@ import time
 import urllib
 import urllib.request
 import requests
+import sqlite3
 
 import pandas as pd
 import numpy as np
@@ -321,6 +322,9 @@ def collect_open_catalog_data(transient, use_default_directory, transient_type):
             logger.info('Metdata for transient {} added'.format(transient))
 
 def get_t0_from_grb(transient):
+    catalog = sqlite3.connect('tables/GRBcatalog.sqlite')
+    summary_table = pd.read_sql_query("SELECT * from Summary", catalog)
+    timeofevent = summary_table[summary_table['GRB_name'] == transient]['mjd'].iloc[0]
     if np.isnan(timeofevent):
         logger.warning('Not found an associated GRB. Temporarily using the first data point as a start time')
         logger.warning('Please run function fix_t0_of_transient before any further analysis')
