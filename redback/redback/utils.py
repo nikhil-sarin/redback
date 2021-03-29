@@ -20,6 +20,9 @@ plt.style.use(filename)
 logger = logging.getLogger('redback')
 _bilby_logger = logging.getLogger('bilby')
 
+def get_filter_frequencies():
+    pass
+
 def calc_fluxdensity_from_ABmag(magnitudes):
     return (magnitudes * uu.ABmag).to(uu.mJy)
 

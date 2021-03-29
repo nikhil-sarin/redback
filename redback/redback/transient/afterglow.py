@@ -43,7 +43,7 @@ class afterglow(Transient):
         self._get_redshift()
 
     @classmethod
-    def from_file(cls, filename,data_mode = 'flux'):
+    def from_file(cls, filename, data_mode = 'flux'):
         """
         Instantiate the object from a private datafile.
         You do not need all the attributes just some.
@@ -274,31 +274,6 @@ class afterglow(Transient):
 
         if axes is None:
             plt.tight_layout()
-        plt.grid(b=None)
-
-    def plot_lightcurve(self, model, axes=None, plot_save=True, plot_show=True, random_models=1000,
-                        posterior=None, use_photon_index_prior=False, outdir='./', plot_magnetar=False):
-        max_l = dict(posterior.sort_values(by=['log_likelihood']).iloc[-1])
-
-        for j in range(int(random_models)):
-            params = dict(posterior.iloc[np.random.randint(len(posterior))])
-            plot_models(parameters=params, axes=axes, alpha=0.05, lw=2, colour='r', model=model,
-                        plot_magnetar=plot_magnetar)
-
-        # plot max likelihood
-        plot_models(parameters=max_l, axes=axes, alpha=0.65, lw=2, colour='b', model=model, plot_magnetar=plot_magnetar)
-
-        self.plot_data(axes=axes)
-
-        label = 'lightcurve'
-        if use_photon_index_prior:
-            label = f"_photon_index_{label}"
-
-        if plot_save:
-            plt.savefig(f"{outdir}{model}{label}.png")
-
-        if plot_show:
-            plt.show()
 
 
 class SGRB(afterglow):
@@ -329,3 +304,26 @@ def plot_models(parameters, model, plot_magnetar, axes=None, colour='r', alpha=1
         ax.plot(time, magnetar, color=colour, ls=ls, lw=lw, alpha=alpha, zorder=-32, linestyle='--')
     ax.plot(time, lightcurve, color=colour, ls=ls, lw=lw, alpha=alpha, zorder=-32)
 
+def plot_lightcurve(self, model, axes=None, plot_save=True, plot_show=True, random_models=1000,
+                    posterior=None, use_photon_index_prior=False, outdir='./', plot_magnetar=False):
+    max_l = dict(posterior.sort_values(by=['log_likelihood']).iloc[-1])
+
+    for j in range(int(random_models)):
+        params = dict(posterior.iloc[np.random.randint(len(posterior))])
+        plot_models(parameters=params, axes=axes, alpha=0.05, lw=2, colour='r', model=model,
+                    plot_magnetar=plot_magnetar)
+
+    # plot max likelihood
+    plot_models(parameters=max_l, axes=axes, alpha=0.65, lw=2, colour='b', model=model, plot_magnetar=plot_magnetar)
+
+    self.plot_data(axes=axes)
+
+    label = 'lightcurve'
+    if use_photon_index_prior:
+        label = f"_photon_index_{label}"
+
+    if plot_save:
+        plt.savefig(f"{outdir}{model}{label}.png")
+
+    if plot_show:
+        plt.show()
