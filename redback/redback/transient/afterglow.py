@@ -21,10 +21,9 @@ DATA_MODES = ['luminosity', 'flux', 'flux_density']
 
 class afterglow(Transient):
     """Class for afterglows"""
-    def __init__(self, name, path):
+    def __init__(self, name):
         """
         :param name: Telephone number of SGRB, e.g., GRB 140903A
-        :param path: Path to the GRB data
         """
         if not name.startswith('GRB'):
             name = 'GRB' + name
@@ -43,6 +42,18 @@ class afterglow(Transient):
         self._set_t90()
         self._get_redshift()
 
+    @classmethod
+    def from_file(cls, filename,data_mode = 'flux'):
+        """
+        Instantiate the object from a private datafile.
+        You do not need all the attributes just some.
+        If a user has their own data for a type of transient, they can input the
+        :param data_mode: flux, flux_density, luminosity
+        :return: afterglow object with corresponding data loaded into an object
+        """
+        return afterglow_object
+
+
     @property
     def _stripped_name(self):
         return self.name.lstrip('GRB')
@@ -52,6 +63,7 @@ class afterglow(Transient):
         return self.data_mode == DATA_MODES[0]
 
     def _get_redshift(self):
+        return self.redshift
 
     @property
     def flux_data(self):
@@ -289,11 +301,11 @@ class afterglow(Transient):
             plt.show()
 
 
-class SGRB(GRB):
+class SGRB(afterglow):
     pass
 
 
-class LGRB(GRB):
+class LGRB(afterglow):
     pass
 
 
