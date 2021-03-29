@@ -18,12 +18,14 @@ from bilby.core.utils import check_directory_exists_and_if_not_mkdir
 
 dirname = os.path.dirname(__file__)
 
+SWIFT_PROMPT_BIN_SIZES = ['1s', '2ms', '8ms', '16ms', '64ms', '256ms']
+
 
 def afterglow_directory_structure(grb, use_default_directory, data_mode):
     if use_default_directory:
-        grb_dir = os.path.join(dirname, '../data/GRBData/GRB' + grb + '/')
+        grb_dir = os.path.join(dirname, '../data/GRBData/GRB' + grb + '/afterglow/')
     else:
-        grb_dir = 'GRBData/GRB' + grb + '/'
+        grb_dir = 'GRBData/GRB' + grb + '/afterglow/'
 
     grb_dir = grb_dir + data_mode + '/'
     check_directory_exists_and_if_not_mkdir(grb_dir)
@@ -245,7 +247,7 @@ def get_afterglow_data_from_swift(grb, data_mode='flux', use_default_directory=F
     return data
 
 
-def collect_swift_prompt_data(grb, use_default_directory, binning='2ms'):
+def collect_swift_prompt_data(grb, use_default_directory=False, binning='2ms'):
     grbdir, rawfile, processed_file = prompt_directory_structure(grb, use_default_directory)
     if os.path.isfile(rawfile):
         logger.warning('The raw data file already exists')
@@ -290,27 +292,19 @@ def sort_swift_prompt_data(grb, use_default_directory):
         raise DataExists('Raw data is missing.')
 
     data = np.loadtxt(rawfile_path)
-    times = data[, :0]
-    flux_15_25 = data[, :1]
-    flux_15_25_err = data[, :2]
-    flux_25_50 = data[, :3]
-    flux_25_50_err = data[, :4]
-    flux_50_100 = data[, :5]
-    flux_50_100_err = data[, :6]
-    flux_100_350 = data[, :7]
-    flux_100_350_err = data[, :8]
-    flux_15_350 = data[, :9]
-    flux_15_350_err = data[, :10]
     df = pd.DataFrame(data=data, columns=[
-        "Time [s]", "flux_15_25", "flux_15_25_err", "flux_25_50", "flux_25_50_err",
-        "flux_50_100", "flux_50_100_err", "flux_100_350", "flux_100_350_err", "flux_15_350", "flux_15_350_err"])
-    df.to_csv(processed_file_path, sep)
+        "Time [s]", "flux_15_25 [counts/s/det]", "flux_15_25_err [counts/s/det]", "flux_25_50 [counts/s/det]",
+        "flux_25_50_err [counts/s/det]", "flux_50_100 [counts/s/det]", "flux_50_100_err [counts/s/det]",
+        "flux_100_350 [counts/s/det]", "flux_100_350_err [counts/s/det]", "flux_15_350 [counts/s/det]",
+        "flux_15_350_err [counts/s/det]"])
+    df.to_csv(processed_file_path, index=False)
     return df
 
 
-
-def get_prompt_data_from_swift(grb, binning='2ms', use_default_directory=True):
+def get_prompt_data_from_swift(grb, binning='2ms', use_default_directory=False):
     collect_swift_prompt_data(grb=grb, use_default_directory=use_default_directory, binning=binning)
+    data = sort_swift_prompt_data(grb=grb, use_default_directory=use_default_directory)
+    return data
 
 
 def get_prompt_data_from_fermi(grb):
