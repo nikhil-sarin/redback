@@ -7,4 +7,5 @@ bilby
 matplotlib
 astropy
 afterglowpy
+sherpa
 gwemlightcurves

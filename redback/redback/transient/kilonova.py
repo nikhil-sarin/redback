@@ -11,9 +11,15 @@ class Kilonova(Transient):
         self.name = name
 
         self._set_data()
-        self._set_photon_index()
-        self._set_t90()
+        # self._set_photon_index()
+        # self._set_t90()
         self._get_redshift()
 
     def _set_data(self):
+        pass
+
+    def plot_data(self):
+        pass
+
+    def plot_multiband(self):
         pass

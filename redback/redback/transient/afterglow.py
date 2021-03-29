@@ -5,6 +5,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import os
 import pandas as pd
+from redback.redback.utils import logger
 
 from astropy.cosmology import Planck15 as cosmo
 
@@ -21,14 +22,13 @@ DATA_MODES = ['luminosity', 'flux', 'flux_density']
 
 class afterglow(Transient):
     """Class for afterglows"""
-    def __init__(self, name):
+    def __init__(self, name, data_mode='flux'):
         """
         :param name: Telephone number of SGRB, e.g., GRB 140903A
         """
         if not name.startswith('GRB'):
             name = 'GRB' + name
         super().__init__(time=[], time_err=[], y=[], y_err=[], data_mode=None, name=name)
-        self.path = find_path(path)
 
         self.Lum50 = []
         self.Lum50_err = []
@@ -43,16 +43,27 @@ class afterglow(Transient):
         self._get_redshift()
 
     @classmethod
-    def from_file(cls, filename, data_mode = 'flux'):
-        """
-        Instantiate the object from a private datafile.
-        You do not need all the attributes just some.
-        If a user has their own data for a type of transient, they can input the
-        :param data_mode: flux, flux_density, luminosity
-        :return: afterglow object with corresponding data loaded into an object
-        """
-        return afterglow_object
+    def from_name(cls):
+        obj = cls(...)
+        obj._set_data()
+        obj._set_photon_index()
+        obj._set_t90()
+        obj._get_redshift()
 
+    def plot_data(self):
+        pass
+
+    def plot_multiband(self):
+        if self.data_mode != 'flux_density':
+            logger.warning('why are you doing this')
+        pass
+
+    def get_luminosity_attributes(self):
+        #do sql stuff.
+        pass
+
+    def numerical_luminosity_from_flux(self):
+        pass
 
     @property
     def _stripped_name(self):
@@ -84,6 +95,10 @@ class afterglow(Transient):
         grb = cls.from_path_and_grb(path=path, grb=grb)
         grb.load_and_truncate_data(truncate=truncate, truncate_method=truncate_method, data_mode=data_mode)
         return grb
+
+    def left_of_max_truncate_method(self):
+        #get rid of data points left of maximum.
+        pass
 
     def load_and_truncate_data(self, truncate=True, truncate_method='prompt_time_error', data_mode='flux'):
         """
@@ -163,7 +178,7 @@ class afterglow(Transient):
     def analytical_flux_to_luminosity(self):
         if self.redshift == np.nan:
             print('This GRB has no measured redshift')
-            return None
+            raise ValueError('There is no redshift, cannot compute a luminosity. Please fit in flux or flux density')
         dl = cosmo.luminosity_distance(self.redshift).cgs.value
         k_corr = (1 + self.redshift) ** (self.photon_index - 2)
         lum = 4*np.pi * dl**2 * self.flux * k_corr
