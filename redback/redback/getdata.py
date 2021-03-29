@@ -74,9 +74,10 @@ def process_fluxdensity_data(grb, rawfile):
 
     driver.get(grb_website)
     try:
-        driver.find_element_by_xpath(".//*[@id='batxrt_XRTBAND_makeDownload']").click()
+        driver.find_element_by_xpath("//select[@name='xrtsub']/option[text()='no']").click()
         time.sleep(20)
-
+        driver.find_element_by_id("xrt_DENSITY_makeDownload").click()
+        time.sleep(20)
         grb_url = driver.current_url
 
         # Close the driver and all opened windows
@@ -84,7 +85,7 @@ def process_fluxdensity_data(grb, rawfile):
 
         # scrape the data
         urllib.request.urlretrieve(grb_url, rawfile)
-        logger.info('Congratulations, you now have raw data for GRB {}'.grb)
+        logger.info(f'Congratulations, you now have raw data for GRB {grb}')
     except Exception:
         logger.warning('cannot load the website for GRB {}'.format(grb))
 
@@ -483,7 +484,7 @@ def sort_open_access_data(transient, use_default_directory, transient_type):
 def get_trigger_number(grb):
     data = get_grb_table()
     trigger = data.query('GRB == @grb')['Trigger Number']
-    if trigger == len(0):
+    if len(trigger) == 0:
         trigger = '0'
     else:
         trigger = trigger.values[0]
