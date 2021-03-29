@@ -7,7 +7,6 @@ import time
 import urllib
 import urllib.request
 import requests
-import numpy as np
 
 import pandas as pd
 import numpy as np
@@ -47,7 +46,10 @@ def afterglow_directory_structure(grb, use_default_directory, data_mode, instrum
     return grb_dir, rawfile, fullfile
 
 
-def prompt_directory_structure(grb, use_default_directory, binning='2ms'):
+def prompt_directory_structure(grb, use_default_directory, bin_size='2ms'):
+    if bin_size not in SWIFT_PROMPT_BIN_SIZES:
+        raise ValueError(f'Bin size {bin_size} not in allowed bin sizes.\n'
+                         f'Use one of the following: {SWIFT_PROMPT_BIN_SIZES}')
     if use_default_directory:
         grb_dir = os.path.join(dirname, '../data/GRBData/GRB' + grb + '/')
     else:
@@ -56,8 +58,8 @@ def prompt_directory_structure(grb, use_default_directory, binning='2ms'):
     grb_dir = grb_dir + 'prompt/'
     check_directory_exists_and_if_not_mkdir(grb_dir)
 
-    rawfile_path = grb_dir + f'{binning}_lc_ascii.dat'
-    processed_file_path = grb_dir + f'{binning}_lc.csv'
+    rawfile_path = grb_dir + f'{bin_size}_lc_ascii.dat'
+    processed_file_path = grb_dir + f'{bin_size}_lc.csv'
     return grb_dir, rawfile_path, processed_file_path
 
 
@@ -98,7 +100,7 @@ def process_integrated_flux_data(grb, rawfile):
 
     driver.get(grb_website)
 
-    # celect option for BAT binning
+    # celect option for BAT bin_size
     bat_binning = 'batxrtbin'
     if check_element(driver, bat_binning):
         driver.find_element_by_xpath("//select[@name='batxrtbin']/option[text()='SNR 4']").click()
@@ -285,8 +287,9 @@ def process_xrt_data(rawfile):
     return processedfile
 
 
-def collect_swift_prompt_data(grb, use_default_directory=False, binning='2ms'):
-    grbdir, rawfile, processed_file = prompt_directory_structure(grb, use_default_directory)
+def collect_swift_prompt_data(grb, use_default_directory=False, bin_size='2ms'):
+    grbdir, rawfile, processed_file = prompt_directory_structure(
+        grb=grb, use_default_directory=use_default_directory, bin_size=bin_size)
     if os.path.isfile(rawfile):
         logger.warning('The raw data file already exists')
         return None
@@ -296,7 +299,7 @@ def collect_swift_prompt_data(grb, use_default_directory=False, binning='2ms'):
 
     grb_website = f"https://swift.gsfc.nasa.gov/results/batgrbcat/{grb}/data_product/"
     logger.info('opening Swift website for GRB {}'.format(grb))
-    data_file = f"{binning}_lc_ascii.dat"
+    data_file = f"{bin_size}_lc_ascii.dat"
 
     # open the webdriver
     driver = fetch_driver()
@@ -339,8 +342,8 @@ def sort_swift_prompt_data(grb, use_default_directory):
     return df
 
 
-def get_prompt_data_from_swift(grb, binning='2ms', use_default_directory=False):
-    collect_swift_prompt_data(grb=grb, use_default_directory=use_default_directory, binning=binning)
+def get_prompt_data_from_swift(grb, bin_size='2ms', use_default_directory=False):
+    collect_swift_prompt_data(grb=grb, use_default_directory=use_default_directory, bin_size=bin_size)
     data = sort_swift_prompt_data(grb=grb, use_default_directory=use_default_directory)
     return data
 
