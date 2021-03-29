@@ -75,9 +75,10 @@ def process_fluxdensity_data(grb, rawfile):
 
     driver.get(grb_website)
     try:
-        driver.find_element_by_xpath(".//*[@id='batxrt_XRTBAND_makeDownload']").click()
+        driver.find_element_by_xpath("//select[@name='xrtsub']/option[text()='no']").click()
         time.sleep(20)
-
+        driver.find_element_by_id("xrt_DENSITY_makeDownload").click()
+        time.sleep(20)
         grb_url = driver.current_url
 
         # Close the driver and all opened windows
@@ -85,7 +86,7 @@ def process_fluxdensity_data(grb, rawfile):
 
         # scrape the data
         urllib.request.urlretrieve(grb_url, rawfile)
-        logger.info('Congratulations, you now have raw data for GRB {}'.grb)
+        logger.info(f'Congratulations, you now have raw data for GRB {grb}')
     except Exception:
         logger.warning('cannot load the website for GRB {}'.format(grb))
 
@@ -206,6 +207,19 @@ def sort_integrated_flux_data(rawfile, fullfile):
 
 
 def sort_fluxdensity_data(rawfile, fullfile):
+    try:
+        data = np.loadtxt(rawfile, skiprows=2, delimiter='\t')
+        df = pd.DataFrame(data=data, columns=['Time [s]', 'Time err plus [s]', 'Time err minus [s]',
+                                              'Flux [mJy]', 'Flux err plus [mJy]', 'Flux err minus [mJy]'])
+        df.to_csv(fullfile, index=False, sep=',')
+    except IOError:
+        try:
+            logger.warning('There was an error opening the file')
+            sys.exit()
+        except SystemExit:
+            pass
+    logger.info('Congratulations, you now have a nice data file: {}'.format(fullfile))
+
     logger.info('Congratulations, you now have a nice data file: {}'.format(fullfile))
 
 
@@ -218,7 +232,7 @@ def collect_swift_data(grb, use_default_directory, data_mode):
 
     if os.path.isfile(rawfile):
         logger.warning('The raw data file already exists')
-        return grbdir, rawfile, fullfile
+        return rawfile, fullfile
 
     logger.info('Getting trigger number')
     trigger = get_trigger_number(grb)
