@@ -10,11 +10,13 @@ import requests
 
 import pandas as pd
 import numpy as np
+import astropy.units as uu
 
-from .utils import logger, fetch_driver, check_element
+from .utils import logger, fetch_driver, check_element, calc_fluxdensity_from_ABmag, calc_flux_density_error
 from .redback_errors import DataExists, WebsiteExist
 
 from bilby.core.utils import check_directory_exists_and_if_not_mkdir
+from astropy.time import Time
 
 dirname = os.path.dirname(__file__)
 
@@ -197,7 +199,7 @@ def collect_swift_data(grb, use_default_directory, data_mode):
     grb_website = 'http://www.swift.ac.uk/burst_analyser/00' + trigger + '/'
     logger.info('opening Swift website for GRB {}'.format(grb))
     response = requests.get(grb_website)
-    if not response.ok:
+    if 'No Light curve available' in response.text:
         logger.warning('Problem loading the website for GRB {}. Are you sure GRB {} has Swift data?'.format(grb, grb))
         raise WebsiteExist('Problem loading the website for GRB {}'.format(grb))
     else:
@@ -234,7 +236,7 @@ def get_xrt_data_from_swift(grb, data_mode = 'flux',use_default_directory=False)
     trigger = get_trigger_number(grb)
     grb_website = 'https://www.swift.ac.uk/xrt_curves/00'+trigger+'/flux.qdp'
     response = requests.get(grb_website)
-    if not response.ok:
+    if 'No Light curve available' in response.text:
         logger.warning('Problem loading the website for GRB {}. Are you sure GRB {} has Swift data?'.format(grb, grb))
         raise WebsiteExist('Problem loading the website for GRB {}'.format(grb))
 
@@ -300,8 +302,7 @@ def collect_open_catalog_data(transient, use_default_directory, transient_type):
     if transient_type not in transient_dict:
         logger.warning('Transient type does not have open access data')
         raise WebsiteExist()
-
-    url = 'https://api.astrocats.space/' + transient + '/photometry/time+magnitude+e_magnitude+band?e_magnitude&band&time&format=csv&complete'
+    url = 'https://api.astrocats.space/' + transient + '/photometry/time+magnitude+e_magnitude+band+system?e_magnitude&band&time&format=csv&complete'
     response = requests.get(url)
 
     if 'not found' in response.text:
@@ -312,12 +313,39 @@ def collect_open_catalog_data(transient, use_default_directory, transient_type):
             logger.warning('The processed data file already exists')
             return None
         else:
+            metadata = open_transient_dir + 'metadata.csv'
             urllib.request.urlretrieve(url, raw_filename)
             logger.info('Retrieved data for {}'.format(transient))
+            metadataurl = 'https://api.astrocats.space/'+ transient + '/timeofmerger+discoverdate+redshift+ra+dec+host?format=CSV'
+            urllib.request.urlretrieve(metadataurl, metadata)
+            logger.info('Metdata for transient {} added'.format(transient))
+
+def get_t0_from_grb(transient):
+    if np.isnan(timeofevent):
+        logger.warning('Not found an associated GRB. Temporarily using the first data point as a start time')
+        logger.warning('Please run function fix_t0_of_transient before any further analysis')
+    return timeofevent
+
+def fix_t0_of_transient(timeofevent, transient, transient_type, use_default_directory=False):
+    """
+    :param timeofevent: T0 of event in mjd
+    :param transient: transient name
+    :param use_default_directory:
+    :param transient_type:
+    :return: None, but fixes the processed data file
+    """
+    directory, rawfilename, fullfilename = transient_directory_structure(transient, use_default_directory,
+                                                                         transient_type)
+    data = pd.read_csv(fullfilename, sep=',')
+    timeofevent = Time(timeofevent, format='mjd')
+    tt = Time(np.asarray(data['time'], dtype=float), format='mjd')
+    data['time (days)'] = (tt - timeofevent).to(uu.day)
+    data.to_csv(fullfilename, sep=',', index=False)
+    logger.info(f'Change input time : {fullfilename}')
+    return None
 
 def sort_open_access_data(transient, use_default_directory, transient_type):
     directory, rawfilename, fullfilename = transient_directory_structure(transient, use_default_directory, transient_type)
-
     if os.path.isfile(fullfilename):
         logger.warning('processed data already exists')
         return pd.read_csv(fullfilename, sep=',')
@@ -327,16 +355,46 @@ def sort_open_access_data(transient, use_default_directory, transient_type):
         raise DataExists('Raw data is missing.')
     else:
         rawdata = pd.read_csv(rawfilename, sep = ',')
+        logger.info('Processing data for transient {}.'.format(transient))
         data = rawdata
+        data = data[data['band'] != 'C']
+        data = data[data['band'] != 'W']
+        data = data[data['system'] == 'AB']
+        logger.info('Keeping only AB magnitude data')
+
+        data['flux(mjy)'] = calc_fluxdensity_from_ABmag(data['magnitude'].values)
+        data['flux_error'] = calc_flux_density_error(magnitude=data['magnitude'].values,
+                                                     magnitude_error=data['e_magnitude'].values, reference_flux=3631, magnitude_system='AB')
+
+        metadata = directory + 'metadata.csv'
+        metadata = pd.read_csv(metadata)
+        metadata.replace(r'^\s+$', np.nan, regex=True)
+        timeofevent = metadata['timeofmerger'].iloc[0]
+
+        if np.isnan(timeofevent) and transient_type == 'kilonova':
+            logger.warning('No timeofevent in metadata. Looking through associated GRBs')
+            timeofevent = get_t0_from_grb(transient)
+
+        if np.isnan(timeofevent) and transient_type != 'kilonova':
+            logger.warning('No time of event in metadata.')
+            logger.warning('Temporarily using the first data point as a start time')
+            logger.warning('Please run function fix_t0_of_transient before any further analysis')
+            timeofevent = data['time'].iloc[0]
+
+        timeofevent = Time(timeofevent, format='mjd')
+        tt = Time(np.asarray(data['time'], dtype=float), format='mjd')
+        data['time (days)'] = (tt - timeofevent).to(uu.day)
         data.to_csv(fullfilename, sep=',', index = False)
         logger.info(f'Congratulations, you now have a nice data file: {fullfilename}')
-
     return data
 
 def get_trigger_number(grb):
     data = get_grb_table()
     trigger = data.query('GRB == @grb')['Trigger Number']
-    trigger = trigger.values[0]
+    if trigger == len(0):
+        trigger = '0'
+    else:
+        trigger = trigger.values[0]
     return trigger
 
 
