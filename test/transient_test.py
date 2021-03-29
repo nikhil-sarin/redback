@@ -1,5 +1,5 @@
 import unittest
-from redback import grb
+from redback import afterglow
 
 
 class TestGRB(unittest.TestCase):

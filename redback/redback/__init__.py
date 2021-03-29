@@ -1,6 +1,6 @@
 # from . import fluxtolum
 from . import getdata
-from .transient import grb
+from .transient import afterglow
 from . import transient
 from . import models
 from . import result

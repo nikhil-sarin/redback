@@ -1,4 +1,4 @@
 import numpy as np
 import os
 
-from . import grb, kilonova, prompt, supernova, tde
+from . import afterglow, kilonova, prompt, supernova, tde

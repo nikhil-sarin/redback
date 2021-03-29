@@ -12,7 +12,7 @@ redback.getdata.get_afterglow_data_from_swift(GRB, data_mode = 'flux', path = pa
 #creates a GRBDir with GRB
 
 #create Luminosity data
-redback.grb.SGRB(GRB, path = path, data_mode = 'luminosity', method = 'analytical')
+redback.afterglow.SGRB(GRB, path = path, data_mode ='luminosity', method ='analytical')
 #uses an analytical k-correction expression to create luminosity data if not already there.
 #Can also use a numerical k-correction through CIAO
 

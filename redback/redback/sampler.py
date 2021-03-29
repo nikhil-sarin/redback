@@ -6,7 +6,7 @@ import bilby
 
 import pandas as pd
 
-from . import grb as tools
+from . import afterglow as tools
 
 from .result import RedbackResult
 from .utils import find_path, logger

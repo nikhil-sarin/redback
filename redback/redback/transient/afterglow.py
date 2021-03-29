@@ -19,9 +19,8 @@ dirname = os.path.dirname(__file__)
 DATA_MODES = ['luminosity', 'flux', 'flux_density']
 
 
-class GRB(Transient):
-    """Class for SGRB"""
-
+class afterglow(Transient):
+    """Class for afterglows"""
     def __init__(self, name, path):
         """
         :param name: Telephone number of SGRB, e.g., GRB 140903A
@@ -42,7 +41,7 @@ class GRB(Transient):
         self._set_data()
         self._set_photon_index()
         self._set_t90()
-        # self._get_redshift()
+        self._get_redshift()
 
     @property
     def _stripped_name(self):
@@ -51,6 +50,8 @@ class GRB(Transient):
     @property
     def luminosity_data(self):
         return self.data_mode == DATA_MODES[0]
+
+    def _get_redshift(self):
 
     @property
     def flux_data(self):

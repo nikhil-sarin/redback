@@ -487,7 +487,7 @@ def sort_open_access_data(transient, use_default_directory, transient_type):
 def get_trigger_number(grb):
     data = get_grb_table()
     trigger = data.query('GRB == @grb')['Trigger Number']
-    if trigger == len(0):
+    if len(trigger) == 0:
         trigger = '0'
     else:
         trigger = trigger.values[0]

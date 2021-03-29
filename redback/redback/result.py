@@ -6,7 +6,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 from bilby.core.result import Result
 
-from . import grb as tools
+from . import afterglow as tools
 from .utils import MetaDataAccessor
 
 warnings.simplefilter(action='ignore')
