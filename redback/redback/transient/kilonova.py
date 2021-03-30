@@ -1,5 +1,6 @@
 from .transient import Transient
 
+data_mode = ['flux_density', 'photometry']
 
 class Kilonova(Transient):
     def __init__(self, name):

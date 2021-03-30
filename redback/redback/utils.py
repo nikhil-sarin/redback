@@ -23,6 +23,9 @@ _bilby_logger = logging.getLogger('bilby')
 def get_filter_frequencies():
     pass
 
+def calc_ABmag_from_fluxdensity(fluxdensity):
+    return (fluxdensity * uu.mJy).to(uu.ABmag)
+
 def calc_fluxdensity_from_ABmag(magnitudes):
     return (magnitudes * uu.ABmag).to(uu.mJy)
 

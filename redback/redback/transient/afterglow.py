@@ -17,7 +17,7 @@ from .transient import Transient
 
 dirname = os.path.dirname(__file__)
 
-DATA_MODES = ['luminosity', 'flux', 'flux_density']
+DATA_MODES = ['luminosity', 'flux', 'flux_density','photometry']
 
 
 class afterglow(Transient):

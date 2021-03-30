@@ -1,13 +1,21 @@
-import astropy.constants as cc
 import numpy as np
 import scipy.special as ss
+import extinction
+
 from scipy.integrate import quad
 from . constants import *
 
 from astropy.cosmology import Planck15 as cosmo
 from scipy.integrate import simps
+from .model_library import model_dict
 
-from .utils import logger
+from .utils import logger, calc_ABmag_from_fluxdensity
+
+extinction_base_models = ['tophat', 'cocoon', 'gaussian',
+                          'kn_afterglow', 'cone_afterglow',
+                          'gaussiancore', 'gaussian',
+                          'smoothpowerlaw', 'powerlawcore',
+                          'tophat']
 
 try:
     import afterglowpy as afterglow
@@ -22,15 +30,34 @@ try:
 except ModuleNotFoundError as e:
     logger.warning(e)
 
+def extinction_models(time, lognh, factor, base_model, **kwargs):
+    if base_model not in extinction_base_models:
+        logger.warning('{} is not implemented as a base model'.format(base_model))
+        raise ValueError('Please choose a different base model')
 
-def cocoon(time, redshift, umax,umin, logEi,k,mej,logn0,p,logepse,logepsb,ksin,g0,**supplementary_data):
+    # if isinstance(base_model, str):
+    #     function = model_dict[base_model]
+
+    #from Guver and Ozel 2006
+    factor = factor * 1e21
+    nh = 10**lognh
+    av = nh/factor
+    frequency = kwargs['frequency']
+    mag_extinction = extinction.fitzpatrick99(frequency, av, r_v = 3.1)
+    #read the base_model dict
+    flux = gaussiancore(time, **kwargs)
+    intrinsic_mag = calc_ABmag_from_fluxdensity(flux).value
+    output_magnitude = intrinsic_mag - mag_extinction
+    return output_magnitude
+
+def cocoon(time, redshift, umax, umin, logEi, k, mej, logn0, p, logepse, logepsb, ksin, g0, **kwargs):
     dl = cosmo.luminosity_distance(redshift).cgs.value
-    spread = False #supplementary_data['spread']
-    latres = supplementary_data['latres']
-    tres = supplementary_data['tres']
+    spread = kwargs['spread']
+    latres = kwargs['latres']
+    tres = kwargs['tres']
     jettype = jettype_dict['cocoon']
-    spectype = supplementary_data['spectype']
-    frequency = supplementary_data['frequency']
+    spectype = kwargs['spectype']
+    frequency = kwargs['frequency']
     e0 = 10**logEi
     n0 = 10**logn0
     epse = 10**logepse
@@ -42,14 +69,14 @@ def cocoon(time, redshift, umax,umin, logEi,k,mej,logn0,p,logepse,logepsb,ksin,g
     fluxdensity = afterglow.fluxDensity(time, frequency, **Z)
     return fluxdensity
 
-def kn_afterglow(time, redshift, umax,umin, logEi, k, mej,logn0,p,logepse,logepsb,ksin,g0,**supplementary_data):
+def kn_afterglow(time, redshift, umax, umin, logEi, k, mej, logn0, p, logepse, logepsb, ksin, g0, **kwargs):
     dl = cosmo.luminosity_distance(redshift).cgs.value
-    spread = False #supplementary_data['spread']
-    latres = supplementary_data['latres']
-    tres = supplementary_data['tres']
+    spread = kwargs['spread']
+    latres = kwargs['latres']
+    tres = kwargs['tres']
     jettype = jettype_dict['cocoon']
-    spectype =supplementary_data['spectype']
-    frequency = supplementary_data['frequency']
+    spectype =kwargs['spectype']
+    frequency = kwargs['frequency']
     e0 = 10**logEi
     n0 = 10**logn0
     epse = 10**logepse
@@ -61,14 +88,14 @@ def kn_afterglow(time, redshift, umax,umin, logEi, k, mej,logn0,p,logepse,logeps
     fluxdensity = afterglow.fluxDensity(time, frequency, **Z)
     return fluxdensity
 
-def cone_afterglow(time, redshift, thv, loge0, thw, thc, logn0, p, logepse, logepsb, ksin, g0, **supplementary_data):
+def cone_afterglow(time, redshift, thv, loge0, thw, thc, logn0, p, logepse, logepsb, ksin, g0, **kwargs):
     dl = cosmo.luminosity_distance(redshift).cgs.value
-    spread = False#supplementary_data['spread']
-    latres = supplementary_data['latres']
-    tres = supplementary_data['tres']
+    spread = kwargs['spread']
+    latres = kwargs['latres']
+    tres = kwargs['tres']
     jettype = jettype_dict['cone']
-    spectype = supplementary_data['spectype']
-    frequency = supplementary_data['frequency']
+    spectype = kwargs['spectype']
+    frequency = kwargs['frequency']
     thw = thw * thc
     e0 = 10 ** loge0
     n0 = 10 ** logn0
@@ -81,14 +108,15 @@ def cone_afterglow(time, redshift, thv, loge0, thw, thc, logn0, p, logepse, loge
     fluxdensity = afterglow.fluxDensity(time, frequency, **Z)
     return fluxdensity
 
-def gaussiancore(time, redshift, thv, loge0, thw, thc, logn0, p, logepse, logepsb, ksin, g0, **supplementary_data):
+def gaussiancore(time, redshift, thv,loge0,thc,thw,logn0,p,logepse,logepsb,ksin,g0,**kwargs):
     dl = cosmo.luminosity_distance(redshift).cgs.value
-    spread = False#supplementary_data['spread']
-    latres = supplementary_data['latres']
-    tres = supplementary_data['tres']
+    spread = kwargs['spread']
+    latres = kwargs['latres']
+    tres = kwargs['tres']
     jettype = jettype_dict['gaussian_w_core']
-    spectype = supplementary_data['spectype']
-    frequency = supplementary_data['frequency']
+    spectype = kwargs['spectype']
+    frequency = kwargs['frequency']
+
     thw = thw * thc
     e0 = 10 ** loge0
     n0 = 10 ** logn0
@@ -101,14 +129,14 @@ def gaussiancore(time, redshift, thv, loge0, thw, thc, logn0, p, logepse, logeps
     fluxdensity = afterglow.fluxDensity(time, frequency, **Z)
     return fluxdensity
 
-def gaussian(time, redshift, thv, loge0, thw, thc, logn0, p, logepse, logepsb, ksin, g0, **supplementary_data):
+def gaussian(time, redshift, thv, loge0, thw, thc, logn0, p, logepse, logepsb, ksin, g0, **kwargs):
     dl = cosmo.luminosity_distance(redshift).cgs.value
-    spread = False#supplementary_data['spread']
-    latres = supplementary_data['latres']
-    tres = supplementary_data['tres']
+    spread = kwargs['spread']
+    latres = kwargs['latres']
+    tres = kwargs['tres']
     jettype = jettype_dict['gaussian']
-    spectype = supplementary_data['spectype']
-    frequency = supplementary_data['frequency']
+    spectype = kwargs['spectype']
+    frequency = kwargs['frequency']
     thw = thw * thc
     e0 = 10 ** loge0
     n0 = 10 ** logn0
@@ -121,14 +149,14 @@ def gaussian(time, redshift, thv, loge0, thw, thc, logn0, p, logepse, logepsb, k
     fluxdensity = afterglow.fluxDensity(time, frequency, **Z)
     return fluxdensity
 
-def smoothpowerlaw(time, redshift, thv, loge0, thw, thc, beta, logn0, p, logepse, logepsb, ksin, g0, **supplementary_data):
+def smoothpowerlaw(time, redshift, thv, loge0, thw, thc, beta, logn0, p, logepse, logepsb, ksin, g0, **kwargs):
     dl = cosmo.luminosity_distance(redshift).cgs.value
-    spread = False#supplementary_data['spread']
-    latres = supplementary_data['latres']
-    tres = supplementary_data['tres']
+    spread = kwargs['spread']
+    latres = kwargs['latres']
+    tres = kwargs['tres']
     jettype = jettype_dict['smooth_power_law']
-    spectype = supplementary_data['spectype']
-    frequency = supplementary_data['frequency']
+    spectype = kwargs['spectype']
+    frequency = kwargs['frequency']
     thw = thw * thc
     e0 = 10 ** loge0
     n0 = 10 ** logn0
@@ -141,14 +169,14 @@ def smoothpowerlaw(time, redshift, thv, loge0, thw, thc, beta, logn0, p, logepse
     fluxdensity = afterglow.fluxDensity(time, frequency, **Z)
     return fluxdensity
 
-def powerlawcore(time, redshift, thv, loge0, thw, thc, beta, logn0, p, logepse, logepsb, ksin, g0, **supplementary_data):
+def powerlawcore(time, redshift, thv, loge0, thw, thc, beta, logn0, p, logepse, logepsb, ksin, g0, **kwargs):
     dl = cosmo.luminosity_distance(redshift).cgs.value
-    spread = False#supplementary_data['spread']
-    latres = supplementary_data['latres']
-    tres = supplementary_data['tres']
+    spread = kwargs['spread']
+    latres = kwargs['latres']
+    tres = kwargs['tres']
     jettype = jettype_dict['powerlaw_w_core']
-    spectype = supplementary_data['spectype']
-    frequency = supplementary_data['frequency']
+    spectype = kwargs['spectype']
+    frequency = kwargs['frequency']
     thw = thw * thc
     e0 = 10 ** loge0
     n0 = 10 ** logn0
@@ -161,35 +189,37 @@ def powerlawcore(time, redshift, thv, loge0, thw, thc, beta, logn0, p, logepse, 
     fluxdensity = afterglow.fluxDensity(time, frequency, **Z)
     return fluxdensity
 
-def tophat(time, redshift, thv, loge0, thc, logn0, p, logepse, logepsb, ksin, g0, **supplementary_data):
+def tophat(time, redshift, thv, loge0, thc, logn0, p, logepse, logepsb, ksin, g0, **kwargs):
     dl = cosmo.luminosity_distance(redshift).cgs.value
-    spread = False#supplementary_data['spread']
-    latres = supplementary_data['latres']
-    tres = supplementary_data['tres']
-    jettype  = jettype_dict['tophat']
-    spectype = supplementary_data['spectype']
-    frequency = supplementary_data['frequency']
+    spread = kwargs['spread']
+    latres = kwargs['latres']
+    tres = kwargs['tres']
+    jettype = jettype_dict['tophat']
+    spectype = kwargs['spectype']
+    frequency = kwargs['frequency']
+
     e0 = 10 ** loge0
     n0 = 10 ** logn0
     epse = 10 ** logepse
     epsb = 10 ** logepsb
-    Z = {'jetType': jettype, 'specType': spectype,'thetaObs': thv, 'E0': e0,
-         'thetaCore': thc, 'n0': n0,'p': p,'epsilon_e': epse,'epsilon_B': epsb,
-         'xi_N': ksin,'d_L': dl, 'z': redshift, 'L0':0,'q':0,'ts':0, 'g0':g0,
-         'spread':spread, 'latRes':latres, 'tRes':tres}
+    Z = {'jetType': jettype, 'specType': spectype, 'thetaObs': thv, 'E0': e0,
+         'thetaCore': thc, 'n0': n0, 'p': p, 'epsilon_e': epse, 'epsilon_B': epsb,
+         'xi_N': ksin, 'd_L': dl, 'z': redshift, 'L0': 0, 'q': 0, 'ts': 0, 'g0': g0,
+         'spread': spread, 'latRes': latres, 'tRes': tres}
     fluxdensity = afterglow.fluxDensity(time, frequency, **Z)
     return fluxdensity
 
-def tophat_integrated(time, redshift, thv, loge0, thc, logn0, p, logepse, logepsb, ksin, g0, **supplementary_data):
+
+def tophat_integrated(time, redshift, thv, loge0, thc, logn0, p, logepse, logepsb, ksin, g0, **kwargs):
     dl = cosmo.luminosity_distance(redshift).cgs.value
-    spread = False#supplementary_data['spread']
-    latres = supplementary_data['latres']
-    tres = supplementary_data['tres']
-    jettype = supplementary_data['jettype']
-    spectype = supplementary_data['spectype']
+    spread = kwargs['spread']
+    latres = kwargs['latres']
+    tres = kwargs['tres']
+    jettype = jettype_dict['tophat']
+    spectype = kwargs['spectype']
 
     #eventually need this to be smart enough to figure the bounds based on data used
-    frequency_bounds = supplementary_data['frequency'] #should be 2 numbers that serve as start and end point
+    frequency_bounds = kwargs['frequency'] #should be 2 numbers that serve as start and end point
     e0 = 10 ** loge0
     n0 = 10 ** logn0
     epse = 10 ** logepse
@@ -199,7 +229,6 @@ def tophat_integrated(time, redshift, thv, loge0, thc, logn0, p, logepse, logeps
          'xi_N': ksin,'d_L': dl, 'z': redshift, 'L0':0,'q':0,'ts':0, 'g0':g0,
          'spread':spread, 'latRes':latres, 'tRes':tres}
 
-    #nu_1d = np.linspace(7.254e16, 1.693e18, 3)
     nu_1d = np.linspace(frequency_bounds[0], frequency_bounds[1], 3)
     t, nu = np.meshgrid(time, nu_1d)  # meshgrid makes 2D t and n
     t = t.flatten()
