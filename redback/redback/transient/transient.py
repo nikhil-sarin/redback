@@ -16,6 +16,11 @@ class Transient(object):
         self.name = name
         self.path = path
 
+
+    @classmethod
+    def simulate_transient_object(cls):
+        return transient_object
+        
     def get_flux_density(self):
         pass
 
