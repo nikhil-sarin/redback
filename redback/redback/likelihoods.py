@@ -5,7 +5,7 @@ import bilby
 from scipy.special import gammaln
 
 class GaussianLikelihood(bilby.Likelihood):
-    def __init__(self, time, flux, sigma, function, supplementary_data):
+    def __init__(self, x, y, sigma, function, kwargs):
         """
         A general Gaussian likelihood - the parameters are inferred from the
         arguments of function
@@ -22,12 +22,12 @@ class GaussianLikelihood(bilby.Likelihood):
             will require a prior and will be sampled over (unless a fixed
             value is given).
         """
-        self.x = time
-        self.y = flux
+        self.x = x
+        self.y = y
         self.sigma = sigma
         self.N = len(self.x)
         self.function = function
-        self.supplementary_data = supplementary_data
+        self.kwargs = kwargs
 
         # These lines of code infer the parameters from the provided function
         parameters = inspect.getfullargspec(function).args
@@ -43,15 +43,19 @@ class GaussianLikelihood(bilby.Likelihood):
         return self._noise_log_likelihood
 
     def log_likelihood(self):
-        model = self.function(self.x, self.supplementary_data, **self.parameters)
+        if self.kwargs != None:
+            model = self.function(self.x, **self.parameters, **self.kwargs)
+        else:
+            model = self.function(self.x, **self.parameters)
+
         res = self.y - model
-        log_l = -0.5 * (np.sum((res / self.sigma)**2)
-                       + self.N*np.log(2*np.pi*self.sigma**2))
+        log_l = np.sum(- (res / self.sigma) ** 2 / 2 -
+                       np.log(2 * np.pi * self.sigma ** 2) / 2)
         return log_l
 
 
 class GRBGaussianLikelihood(bilby.Likelihood):
-    def __init__(self, time, flux, sigma, function, supplementary_data):
+    def __init__(self, x, y, sigma, function, kwargs):
         """
         A general Gaussian likelihood - the parameters are inferred from the
         arguments of function
@@ -68,12 +72,12 @@ class GRBGaussianLikelihood(bilby.Likelihood):
             will require a prior and will be sampled over (unless a fixed
             value is given).
         """
-        self.x = time
-        self.y = flux
+        self.x = x
+        self.y = y
         self.sigma = sigma
         self.N = len(self.x)
         self.function = function
-        self.supplementary_data = supplementary_data
+        self.kwargs = kwargs
 
         # These lines of code infer the parameters from the provided function
         parameters = inspect.getfullargspec(function).args
@@ -89,15 +93,18 @@ class GRBGaussianLikelihood(bilby.Likelihood):
         return self._noise_log_likelihood
 
     def log_likelihood(self):
-        model = self.function(self.x, self.supplementary_data, **self.parameters)
+        if self.kwargs != None:
+            model = self.function(self.x, **self.parameters, **self.kwargs)
+        else:
+            model = self.function(self.x, **self.parameters)
         res = self.y - model
         log_l = np.sum(- (res / self.sigma) ** 2 / 2 -
                        np.log(2 * np.pi * self.sigma ** 2) / 2)
         return log_l
 
 
-class PoissonLikelihood(bilby.Likelihood):
-    def __init__(self, time, counts, factor, dt, background_rate, function, supplementary_data):
+class PoissonLikelihood_afterglow(bilby.Likelihood):
+    def __init__(self, time, counts, factor, dt, background_rate, function, kwargs):
         """
         Parameters
         ----------
@@ -114,11 +121,11 @@ class PoissonLikelihood(bilby.Likelihood):
         self.function = function
         self.dt = dt
         self.background_rate = background_rate
-        self.supplementary_data = supplementary_data
+        self.kwargs = kwargs
         parameters = inspect.getfullargspec(function).args
         parameters.pop(0)
         self.parameters = dict.fromkeys(parameters)
-        super(PoissonLikelihood, self).__init__(parameters=dict())
+        super(PoissonLikelihood_afterglow, self).__init__(parameters=dict())
 
     def noise_log_likelihood(self):
         background_rate = self.background_rate * self.dt
@@ -128,7 +135,11 @@ class PoissonLikelihood(bilby.Likelihood):
         return self._noise_log_likelihood
 
     def log_likelihood(self):
-        flux = self.function(self.x, self.supplementary_data, **self.parameters)
+        if self.kwargs != None:
+            flux = self.function(self.x, **self.parameters, **self.kwargs)
+        else:
+            flux = self.function(self.x, **self.parameters)
+
         background_rate = self.background_rate * self.dt
         N = self.factor * flux
         rate = N * self.dt + background_rate
