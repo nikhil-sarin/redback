@@ -465,7 +465,7 @@ def sort_open_access_data(transient, use_default_directory, transient_type):
     else:
         rawdata = pd.read_csv(rawfilename, sep = ',')
         logger.info('Processing data for transient {}.'.format(transient))
-        data = rawdata
+        data = rawdata.copy()
         data = data[data['band'] != 'C']
         data = data[data['band'] != 'W']
         data = data[data['system'] == 'AB']
