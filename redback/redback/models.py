@@ -30,7 +30,8 @@ try:
 except ModuleNotFoundError as e:
     logger.warning(e)
 
-def extinction_models(time, lognh, factor, base_model, **kwargs):
+def extinction_models(time, lognh, factor, **kwargs):
+    base_model = kwargs['base_model']
     if base_model not in extinction_base_models:
         logger.warning('{} is not implemented as a base model'.format(base_model))
         raise ValueError('Please choose a different base model')
@@ -208,7 +209,6 @@ def tophat(time, redshift, thv, loge0, thc, logn0, p, logepse, logepsb, ksin, g0
          'spread': spread, 'latRes': latres, 'tRes': tres}
     fluxdensity = afterglow.fluxDensity(time, frequency, **Z)
     return fluxdensity
-
 
 def tophat_integrated(time, redshift, thv, loge0, thc, logn0, p, logepse, logepsb, ksin, g0, **kwargs):
     dl = cosmo.luminosity_distance(redshift).cgs.value
