@@ -1,6 +1,10 @@
 # from . import fluxtolum
 from . import getdata
 from .transient import afterglow
+from .transient import supernova
+from .transient import prompt
+from .transient import kilonova
+from .transient import tde
 from . import transient
 from . import models
 from . import result

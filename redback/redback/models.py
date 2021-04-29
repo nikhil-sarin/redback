@@ -7,8 +7,9 @@ from . constants import *
 
 from astropy.cosmology import Planck15 as cosmo
 from scipy.integrate import simps
-from .model_library import model_dict
-
+# from .model_library import model_dict
+# print('hahahah')
+# print(model_dict)
 from .utils import logger, calc_ABmag_from_fluxdensity
 
 extinction_base_models = ['tophat', 'cocoon', 'gaussian',
@@ -48,7 +49,7 @@ def extinction_models(time, lognh, factor, **kwargs):
     #read the base_model dict
     flux = gaussiancore(time, **kwargs)
     intrinsic_mag = calc_ABmag_from_fluxdensity(flux).value
-    output_magnitude = intrinsic_mag - mag_extinction
+    output_magnitude = intrinsic_mag + mag_extinction
     return output_magnitude
 
 def cocoon(time, redshift, umax, umin, logEi, k, mej, logn0, p, logepse, logepsb, ksin, g0, **kwargs):

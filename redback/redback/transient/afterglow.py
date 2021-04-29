@@ -11,7 +11,7 @@ from astropy.cosmology import Planck15 as cosmo
 
 
 from .. import models as mm
-from ..model_library import model_dict
+# from ..model_library import model_dict
 from ..utils import find_path
 from .transient import Transient
 

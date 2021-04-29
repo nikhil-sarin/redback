@@ -8,6 +8,7 @@ import urllib
 import urllib.request
 import requests
 import sqlite3
+import re
 
 import pandas as pd
 import numpy as np
@@ -390,6 +391,21 @@ def transient_directory_structure(transient, use_default_directory, transient_ty
     fullfile_path = open_transient_dir + transient + '_data.csv'
     return open_transient_dir, rawfile_path, fullfile_path
 
+def get_oac_metadata():
+    url = 'https://api.astrocats.space/catalog?format=CSV'
+    urllib.request.urlretrieve(url, 'metadata.csv')
+    logger.info('Downloaded metadata for open access catalog transients')
+    return None
+
+def get_grb_alias(transient):
+    metadata = pd.read_csv('tables/OAC_metadata.csv')
+    transient = metadata[metadata['event'] == transient]
+    alias = transient['alias'].iloc[0]
+    try:
+        grb_alias = re.search('GRB (.+?),', alias).group(1)
+    except AttributeError:
+        pass
+    return grb_alias
 
 def collect_open_catalog_data(transient, use_default_directory, transient_type):
     transient_dict = ['kilonova', 'supernova', 'tidal_disruption_event']
@@ -406,7 +422,7 @@ def collect_open_catalog_data(transient, use_default_directory, transient_type):
     if transient_type not in transient_dict:
         logger.warning('Transient type does not have open access data')
         raise WebsiteExist()
-    url = 'https://api.astrocats.space/' + transient + '/photometry/time+magnitude+e_magnitude+band+system?e_magnitude&band&time&format=csv&complete'
+    url = 'https://api.astrocats.space/' + transient + '/photometry/time+magnitude+e_magnitude+band+system?e_magnitude&band&time&format=csv'
     response = requests.get(url)
 
     if 'not found' in response.text:
@@ -421,17 +437,18 @@ def collect_open_catalog_data(transient, use_default_directory, transient_type):
             metadata = open_transient_dir + 'metadata.csv'
             urllib.request.urlretrieve(url, raw_filename)
             logger.info('Retrieved data for {}'.format(transient))
-            metadataurl = 'https://api.astrocats.space/'+ transient + '/timeofmerger+discoverdate+redshift+ra+dec+host?format=CSV'
+            metadataurl = 'https://api.astrocats.space/'+ transient + '/timeofmerger+discoverdate+redshift+ra+dec+host+alias?format=CSV'
             urllib.request.urlretrieve(metadataurl, metadata)
             logger.info('Metdata for transient {} added'.format(transient))
 
 def get_t0_from_grb(transient):
+    grb_alias = get_grb_alias(transient)
     catalog = sqlite3.connect('tables/GRBcatalog.sqlite')
     summary_table = pd.read_sql_query("SELECT * from Summary", catalog)
-    timeofevent = summary_table[summary_table['GRB_name'] == transient]['mjd'].iloc[0]
+    timeofevent = summary_table[summary_table['GRB_name'] == grb_alias]['mjd'].iloc[0]
     if np.isnan(timeofevent):
         logger.warning('Not found an associated GRB. Temporarily using the first data point as a start time')
-        logger.warning('Please run function fix_t0_of_transient before any further analysis')
+        logger.warning('Please run function fix_t0_of_transient before any further analysis. Or use models which sample with T0.' )
     return timeofevent
 
 def fix_t0_of_transient(timeofevent, transient, transient_type, use_default_directory=False):
@@ -464,6 +481,9 @@ def sort_open_access_data(transient, use_default_directory, transient_type):
         raise DataExists('Raw data is missing.')
     else:
         rawdata = pd.read_csv(rawfilename, sep = ',')
+        if pd.isna(rawdata['system']).any():
+            logger.warning("Some data points do not have system information. Assuming AB magnitude")
+            rawdata['system'].fillna('AB', inplace=True)
         logger.info('Processing data for transient {}.'.format(transient))
         data = rawdata.copy()
         data = data[data['band'] != 'C']
@@ -487,7 +507,8 @@ def sort_open_access_data(transient, use_default_directory, transient_type):
         if np.isnan(timeofevent) and transient_type != 'kilonova':
             logger.warning('No time of event in metadata.')
             logger.warning('Temporarily using the first data point as a start time')
-            logger.warning('Please run function fix_t0_of_transient before any further analysis')
+            logger.warning('Please run function fix_t0_of_transient before any further analysis. Or use models which sample with T0.')
+            print(data['time'])
             timeofevent = data['time'].iloc[0]
 
         timeofevent = Time(timeofevent, format='mjd')
