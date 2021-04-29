@@ -10,7 +10,7 @@ from . import afterglow as tools
 
 from .result import RedbackResult
 from .utils import find_path, logger
-from .model_library import model_dict
+from .model_library import all_models_dict
 from .likelihoods import GRBGaussianLikelihood, GaussianLikelihood, PoissonLikelihood_afterglow
 
 dirname = os.path.dirname(__file__)
@@ -89,7 +89,7 @@ def _fit_grb(name, path, model, sampler='dynesty', nlive=3000, prior=None, walks
                                                     latex_label=r'$\alpha_{1}$')
 
     if isinstance(model, str):
-        function = model_dict[model]
+        function = all_models_dict[model]
     else:
         function = model
 

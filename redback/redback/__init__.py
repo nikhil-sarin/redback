@@ -6,6 +6,7 @@ from .transient import prompt
 from .transient import kilonova
 from .transient import tde
 from . import transient
+from . import transient_models
 from . import models
 from . import result
 from . import priors
