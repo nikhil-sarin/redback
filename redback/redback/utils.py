@@ -1,6 +1,8 @@
 import contextlib
 import logging
 import os
+from inspect import getmembers, isfunction
+
 import matplotlib.pyplot as plt
 from pathlib import Path
 import numpy as np
@@ -148,3 +150,13 @@ class MetaDataAccessor(object):
 
     def __set__(self, instance, value):
         getattr(instance, self.container_instance_name)[self.property_name] = value
+
+all_models_dict = []
+modules_dict = {}
+def get_functions_dict(module):
+    _functions_list = [o for o in getmembers(module) if isfunction(o[1])]
+    _functions_dict = {f[0]: f[1] for f in _functions_list}
+    all_models_dict.append(_functions_dict)
+    modules_dict[module.__name__.split('.')[-1]] = _functions_dict
+    return all_models_dict, modules_dict
+
