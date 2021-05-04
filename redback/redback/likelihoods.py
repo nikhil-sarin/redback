@@ -104,31 +104,33 @@ class GRBGaussianLikelihood(bilby.Likelihood):
 
 
 class PoissonLikelihood_afterglow(bilby.Likelihood):
-    def __init__(self, time, counts, factor, dt, background_rate, function, kwargs):
+    def __init__(self, time, counts, function, kwargs):
         """
         Parameters
         ----------
         x, y: array_like
             The data to analyse
-        sigma: array_like
-            The standard deviation of the noise
+        background_rate: array_like
+            The background rate
         function:
             The python function to fit to the data
         """
         self.time = time
         self.counts = counts
-        self.factor = factor
         self.function = function
-        self.dt = dt
-        self.background_rate = background_rate
         self.kwargs = kwargs
+        self.dt = kwargs['dt']
         parameters = inspect.getfullargspec(function).args
         parameters.pop(0)
         self.parameters = dict.fromkeys(parameters)
+        self.parameters.update(kwargs['background_rate'])
         super(PoissonLikelihood_afterglow, self).__init__(parameters=dict())
 
     def noise_log_likelihood(self):
-        background_rate = self.background_rate * self.dt
+        background_rate = self.parameters['background_rate'] * self.dt
+        print(background_rate)
+        print('###')
+        print(self.dt)
         rate = 0 + background_rate
         log_l = np.sum(-rate + self.counts * np.log(rate) - gammaln(self.counts + 1))
         self._noise_log_likelihood = log_l
@@ -136,12 +138,9 @@ class PoissonLikelihood_afterglow(bilby.Likelihood):
 
     def log_likelihood(self):
         if self.kwargs != None:
-            flux = self.function(self.x, **self.parameters, **self.kwargs)
+            rate = self.function(self.x, **self.parameters, **self.kwargs)
         else:
-            flux = self.function(self.x, **self.parameters)
+            rate = self.function(self.x, **self.parameters)
 
-        background_rate = self.background_rate * self.dt
-        N = self.factor * flux
-        rate = N * self.dt + background_rate
         logl = np.sum(-rate + self.counts * np.log(rate) - gammaln(self.counts + 1))
         return logl

@@ -1,11 +1,5 @@
-import numpy as np
-
-from .. import model_library
-from .. constants import *
-
 from astropy.cosmology import Planck15 as cosmo
-from scipy.integrate import simps
-from .. utils import logger, calc_ABmag_from_fluxdensity
+from .. utils import logger
 
 try:
     import afterglowpy as afterglow
@@ -178,33 +172,3 @@ def tophat(time, redshift, thv, loge0, thc, logn0, p, logepse, logepsb, ksin, g0
          'spread': spread, 'latRes': latres, 'tRes': tres}
     fluxdensity = afterglow.fluxDensity(time, frequency, **Z)
     return fluxdensity
-
-def tophat_integrated(time, redshift, thv, loge0, thc, logn0, p, logepse, logepsb, ksin, g0, **kwargs):
-    dl = cosmo.luminosity_distance(redshift).cgs.value
-    spread = kwargs['spread']
-    latres = kwargs['latres']
-    tres = kwargs['tres']
-    jettype = jettype_dict['tophat']
-    spectype = kwargs['spectype']
-
-    #eventually need this to be smart enough to figure the bounds based on data used
-    frequency_bounds = kwargs['frequency'] #should be 2 numbers that serve as start and end point
-    e0 = 10 ** loge0
-    n0 = 10 ** logn0
-    epse = 10 ** logepse
-    epsb = 10 ** logepsb
-    Z = {'jetType': jettype, 'specType': spectype,'thetaObs': thv, 'E0': e0,
-         'thetaCore': thc, 'n0': n0,'p': p,'epsilon_e': epse,'epsilon_B': epsb,
-         'xi_N': ksin,'d_L': dl, 'z': redshift, 'L0':0,'q':0,'ts':0, 'g0':g0,
-         'spread':spread, 'latRes':latres, 'tRes':tres}
-
-    nu_1d = np.linspace(frequency_bounds[0], frequency_bounds[1], 3)
-    t, nu = np.meshgrid(time, nu_1d)  # meshgrid makes 2D t and n
-    t = t.flatten()
-    nu = nu.flatten()
-    fluxdensity = afterglow.fluxDensity(t, nu, **Z)
-    lightcurve_at_nu = fluxdensity.reshape(len(nu_1d), len(time))
-    prefactor = 1e-26
-    lightcurve_at_nu = prefactor * lightcurve_at_nu
-    lightcurve = simps(lightcurve_at_nu, axis=0, x=nu_1d)
-    return lightcurve
