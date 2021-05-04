@@ -11,7 +11,7 @@ from . import afterglow as tools
 from .result import RedbackResult
 from .utils import find_path, logger
 from .model_library import all_models_dict
-from .likelihoods import GRBGaussianLikelihood, GaussianLikelihood, PoissonLikelihood_afterglow
+from .likelihoods import GRBGaussianLikelihood, GaussianLikelihood, PoissonLikelihood
 
 dirname = os.path.dirname(__file__)
 

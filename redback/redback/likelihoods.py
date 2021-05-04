@@ -103,7 +103,7 @@ class GRBGaussianLikelihood(bilby.Likelihood):
         return log_l
 
 
-class PoissonLikelihood_afterglow(bilby.Likelihood):
+class PoissonLikelihood(bilby.Likelihood):
     def __init__(self, time, counts, function, kwargs):
         """
         Parameters
@@ -123,14 +123,10 @@ class PoissonLikelihood_afterglow(bilby.Likelihood):
         parameters = inspect.getfullargspec(function).args
         parameters.pop(0)
         self.parameters = dict.fromkeys(parameters)
-        self.parameters.update(kwargs['background_rate'])
-        super(PoissonLikelihood_afterglow, self).__init__(parameters=dict())
+        super(PoissonLikelihood, self).__init__(parameters=dict())
 
     def noise_log_likelihood(self):
-        background_rate = self.parameters['background_rate'] * self.dt
-        print(background_rate)
-        print('###')
-        print(self.dt)
+        background_rate = self.parameters['bkg_rate'] * self.dt
         rate = 0 + background_rate
         log_l = np.sum(-rate + self.counts * np.log(rate) - gammaln(self.counts + 1))
         self._noise_log_likelihood = log_l
@@ -138,9 +134,9 @@ class PoissonLikelihood_afterglow(bilby.Likelihood):
 
     def log_likelihood(self):
         if self.kwargs != None:
-            rate = self.function(self.x, **self.parameters, **self.kwargs)
+            rate = self.function(self.time, **self.parameters, **self.kwargs)
         else:
-            rate = self.function(self.x, **self.parameters)
+            rate = self.function(self.time, **self.parameters)
 
         logl = np.sum(-rate + self.counts * np.log(rate) - gammaln(self.counts + 1))
         return logl

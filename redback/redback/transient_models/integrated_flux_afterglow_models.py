@@ -35,8 +35,15 @@ def integrated_flux_afterglowpy_base_model(time, **kwargs):
     return integrated_flux
 
 def integrated_flux_rate_model(time, **kwargs):
+    """
+    :param time:
+    :param kwargs:
+    :return: rate
+    """
     prefactor = kwargs['prefactor']
     dt = kwargs['dt']
+    background_rate = kwargs['bkg_rate']
+    burst_start = kwargs['burst_start']
     integrated_flux = integrated_flux_afterglowpy_base_model(time, **kwargs)
-    rate = prefactor * integrated_flux * dt
+    rate = (prefactor * integrated_flux * dt) + (background_rate * dt)
     return rate

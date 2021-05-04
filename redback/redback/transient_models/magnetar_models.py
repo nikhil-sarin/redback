@@ -1,5 +1,8 @@
 import numpy as np
-from ..utils import logger, calc_ABmag_from_fluxdensity
+import scipy.special as ss
+from ..constants import *
+from scipy.integrate import quad
+from .fireball_models import one_component_fireball_model
 
 def mu_function(time, mu0, muinf, tm):
     mu = muinf + (mu0 - muinf)*np.exp(-time/tm)
