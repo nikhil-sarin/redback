@@ -39,7 +39,5 @@ def t0_afterglowpy_flux_model(time, burst_start, **kwargs):
     :return: integrated flux
     """
     grb_time = time[time >= burst_start] - burst_start
-    flux = np.zeros(len(time))
-    flux[time < burst_start] = 1e-50
-    flux[time >= burst_start] = infam.integrated_flux_afterglowpy_base_model(grb_time, **kwargs)
+    flux = infam.integrated_flux_afterglowpy_base_model(grb_time, **kwargs)
     return flux, grb_time
