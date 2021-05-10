@@ -10,6 +10,7 @@ from scipy.stats import gaussian_kde
 from selenium import webdriver
 from selenium.common.exceptions import NoSuchElementException
 import astropy.units as uu
+from .constants import *
 
 import bilby
 
@@ -24,6 +25,15 @@ _bilby_logger = logging.getLogger('bilby')
 
 def get_filter_frequencies():
     pass
+
+def deceleration_timescale(**kwargs):
+    e0 = 10**kwargs['loge0']
+    gamma0 = kwargs['g0']
+    nism = 10**kwargs['logn0']
+    denom = 32 * np.pi * gamma0**8 * nism * proton_mass * speed_of_light**5
+    num = 3 * e0
+    t_peak = (num/denom)**(1./3.)
+    return t_peak
 
 def calc_ABmag_from_fluxdensity(fluxdensity):
     return (fluxdensity * uu.mJy).to(uu.ABmag)
@@ -74,7 +84,6 @@ def kde_scipy(x, bandwidth=0.05, **kwargs):
     # we divide the bandwidth by the sample standard deviation here.
     kde = gaussian_kde(x, bw_method=bandwidth / x.std(ddof=1), **kwargs)
     return kde
-
 
 def cdf(x, plot=True, *args, **kwargs):
     x, y = sorted(x), np.arange(len(x)) / len(x)

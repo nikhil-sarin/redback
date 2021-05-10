@@ -14,7 +14,7 @@ try:
 except ModuleNotFoundError as e:
     logger.warning(e)
 
-def cocoon(time, redshift, umax, umin, logEi, k, mej, logn0, p, logepse, logepsb, ksin, g0, **kwargs):
+def cocoon(time, redshift, umax, umin, loge0, k, mej, logn0, p, logepse, logepsb, ksin, g0, **kwargs):
     dl = cosmo.luminosity_distance(redshift).cgs.value
     spread = kwargs['spread']
     latres = kwargs['latres']
@@ -22,7 +22,7 @@ def cocoon(time, redshift, umax, umin, logEi, k, mej, logn0, p, logepse, logepsb
     jettype = jettype_dict['cocoon']
     spectype = kwargs['spectype']
     frequency = kwargs['frequency']
-    e0 = 10**logEi
+    e0 = 10**loge0
     n0 = 10**logn0
     epse = 10**logepse
     epsb = 10**logepsb
@@ -33,7 +33,7 @@ def cocoon(time, redshift, umax, umin, logEi, k, mej, logn0, p, logepse, logepsb
     fluxdensity = afterglow.fluxDensity(time, frequency, **Z)
     return fluxdensity
 
-def kn_afterglow(time, redshift, umax, umin, logEi, k, mej, logn0, p, logepse, logepsb, ksin, g0, **kwargs):
+def kn_afterglow(time, redshift, umax, umin, loge0, k, mej, logn0, p, logepse, logepsb, ksin, g0, **kwargs):
     dl = cosmo.luminosity_distance(redshift).cgs.value
     spread = kwargs['spread']
     latres = kwargs['latres']
@@ -41,7 +41,7 @@ def kn_afterglow(time, redshift, umax, umin, logEi, k, mej, logn0, p, logepse, l
     jettype = jettype_dict['cocoon']
     spectype =kwargs['spectype']
     frequency = kwargs['frequency']
-    e0 = 10**logEi
+    e0 = 10**loge0
     n0 = 10**logn0
     epse = 10**logepse
     epsb = 10**logepsb

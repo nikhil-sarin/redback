@@ -6,7 +6,7 @@ def trapped_magnetar_lum(time, **kwargs):
     omegat = omega0 * (1. + time/tau)**(alpha)
     lsd = eta * bp**2 * radius**6 * omegat**4
     doppler = 1/(gamma * (1 - beta*np.cos(theta)))
-    lnu_x_bb = (8*np.pi**2*doppler**2 *radius**2)/(planck**3*speed_of_light**2) *
+    lnu_x_bb = (8*np.pi**2*doppler**2 *radius**2)/(planck**3*speed_of_light**2)
     tau = kappa * (mej/vprime) * (radius/lorentz_factor)
     lum = e**(-tau) * lsd + (lnu_x_bb)
     return lum
