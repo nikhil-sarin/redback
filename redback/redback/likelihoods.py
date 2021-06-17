@@ -2,7 +2,7 @@ import numpy as np
 import inspect
 
 import bilby
-from scipy.special import gammaln
+from scipy.special import gammaln, logsumexp
 
 class GaussianLikelihood(bilby.Likelihood):
     def __init__(self, x, y, sigma, function, kwargs):
@@ -115,6 +115,79 @@ class GaussianLikelihood_quadrature_noise(bilby.Likelihood):
         res = self.y - model
         log_l = np.sum(- (res / sigma) ** 2 / 2 -
                        np.log(2 * np.pi * sigma ** 2) / 2)
+        return log_l
+
+class GaussianLikelihood_quadrature_noise_non_detections(bilby.Likelihood):
+    def __init__(self, x, y, sigma_i, function, kwargs, upperlimit_kwargs):
+        """
+        A general Gaussian likelihood - the parameters are inferred from the
+        arguments of function. Takes into account non-detections with a Uniform likelihood for those points
+
+        Parameters
+        ----------
+        x, y: array_like
+            The data to analyse
+        sigma_i: float
+            The standard deviation of the noise. This is part of the full noise.
+            The sigma used in the likelihood is sigma = sqrt(sigma_i^2 + sigma^2)
+        function:
+            The python function to fit to the data. Note, this must take the
+            dependent variable as its first argument. The other arguments are
+            will require a prior and will be sampled over (unless a fixed
+            value is given).
+        """
+        self.x = x
+        self.y = y
+        self.sigma_i = sigma_i
+        self.N = len(self.x)
+        self.function = function
+        self.kwargs = kwargs
+        self.upperlimit_kwargs = upperlimit_kwargs
+
+        # These lines of code infer the parameters from the provided function
+        parameters = inspect.getfullargspec(function).args
+        parameters.pop(0)
+        super().__init__(parameters=dict.fromkeys(parameters))
+
+        self.function_keys = self.parameters.keys()
+        self.parameters['sigma'] = None
+
+    def noise_log_likelihood(self):
+        sigma_s = self.parameters['sigma']
+        sigma = np.sqrt(self.sigma_i**2. + sigma_s**2.)
+        res = self.y - 0.
+        log_l = np.sum(- (res / sigma) ** 2 / 2 -
+                       np.log(2 * np.pi * sigma ** 2) / 2)
+        self._noise_log_likelihood = log_l
+        return self._noise_log_likelihood
+
+    def log_likelihood_a(self):
+        if self.kwargs != None:
+            model = self.function(self.x, **self.parameters, **self.kwargs)
+        else:
+            model = self.function(self.x, **self.parameters)
+
+        sigma_s = self.parameters['sigma']
+        sigma = np.sqrt(self.sigma_i**2. + sigma_s**2.)
+
+        res = self.y - model
+        log_l = np.sum(- (res / sigma) ** 2 / 2 -
+                       np.log(2 * np.pi * sigma ** 2) / 2)
+        return log_l
+
+    def log_likelihood_b(self):
+        flux = self.function(**self.parameters, **self.upperlimit_kwargs)
+        upperlimits = self.upperlimit_kwargs['flux']
+        log_l = np.ones(len(flux))
+        mask = flux >= upperlimits
+        log_l[~mask] = -np.log(upperlimits[~mask])
+        log_l[mask] = np.nan_to_num(-np.inf)
+        return log_l
+
+    def log_likelihood(self):
+        log_a = self.log_likelihood_a()
+        log_b = self.log_likelihood_b()
+        log_l = logsumexp(log_a + log_b)
         return log_l
 
 
