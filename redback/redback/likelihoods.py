@@ -187,7 +187,7 @@ class GaussianLikelihood_quadrature_noise_non_detections(bilby.Likelihood):
     def log_likelihood(self):
         log_a = self.log_likelihood_a()
         log_b = self.log_likelihood_b()
-        log_l = logsumexp(log_a + log_b)
+        log_l = sum([log_a, log_b])
         return log_l
 
 
