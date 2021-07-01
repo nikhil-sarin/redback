@@ -59,6 +59,73 @@ class GaussianLikelihood(bilby.Likelihood):
                        np.log(2 * np.pi * sigma ** 2) / 2)
         return log_l
 
+class GaussianLikelihood_with_uniform_x_errors(bilby.Likelihood):
+    def __init__(self, x, y, sigma, bin_size, function, kwargs):
+        """
+        A general Gaussian likelihood with uniform errors in x- the parameters are inferred from the
+        arguments of function. Takes into account the X errors with a Uniform likelihood between the
+        bin high and bin low values. Note that the prior for the true x values must be uniform in this range!
+
+        Parameters
+        ----------
+        x, y: array_like
+            The data to analyse
+        sigma: float
+            The standard deviation of the noise.
+        function:
+            The python function to fit to the data. Note, this must take the
+            dependent variable as its first argument. The other arguments are
+            will require a prior and will be sampled over (unless a fixed
+            value is given).
+        """
+        self.x = x
+        self.y = y
+        self.sigma = sigma
+        self.xerr = bin_size
+        self.N = len(self.x)
+        self.function = function
+        self.kwargs = kwargs
+
+        # These lines of code infer the parameters from the provided function
+        parameters = inspect.getfullargspec(function).args
+        parameters.pop(0)
+        super().__init__(parameters=dict.fromkeys(parameters))
+
+        self.function_keys = self.parameters.keys()
+        self.parameters['sigma'] = None
+
+    def noise_log_likelihood(self):
+        sigma = self.parameters.get('sigma', self.sigma)
+        res = self.y - 0.
+        log_a = np.sum(- (res / sigma) ** 2 / 2 -
+                       np.log(2 * np.pi * sigma ** 2) / 2)
+        log_b = np.sum(-np.log(self.xerr))
+        log_l = log_a + log_b
+        self._noise_log_likelihood = log_l
+        return self._noise_log_likelihood
+
+    def log_likelihood_a(self):
+        if self.kwargs != None:
+            model = self.function(self.x, **self.parameters, **self.kwargs)
+        else:
+            model = self.function(self.x, **self.parameters)
+
+        sigma = self.parameters.get('sigma', self.sigma)
+
+        res = self.y - model
+        log_l = np.sum(- (res / sigma) ** 2 / 2 -
+                       np.log(2 * np.pi * sigma ** 2) / 2)
+        return log_l
+
+    def log_likelihood_b(self):
+        log_b = -np.log(self.xerr)
+        return np.nan_to_num(np.sum(log_b))
+
+    def log_likelihood(self):
+        log_a = self.log_likelihood_a()
+        log_b = self.log_likelihood_b()
+        log_l = log_a + log_b
+        return log_l
 
 class GaussianLikelihood_quadrature_noise(bilby.Likelihood):
     def __init__(self, x, y, sigma_i, function, kwargs):
@@ -182,14 +249,13 @@ class GaussianLikelihood_quadrature_noise_non_detections(bilby.Likelihood):
         mask = flux >= upperlimits
         log_l[~mask] = -np.log(upperlimits[~mask])
         log_l[mask] = np.nan_to_num(-np.inf)
-        return log_l
+        return np.nan_to_num(np.sum(log_l))
 
     def log_likelihood(self):
         log_a = self.log_likelihood_a()
         log_b = self.log_likelihood_b()
-        log_l = sum([log_a, log_b])
+        log_l = log_a + log_b
         return log_l
-
 
 class GRBGaussianLikelihood(bilby.Likelihood):
     def __init__(self, x, y, sigma, function, kwargs):

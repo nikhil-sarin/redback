@@ -1,5 +1,5 @@
 import extinction
-from ..utils import logger, calc_ABmag_from_fluxdensity, get_functions_dict
+from ..utils import logger, calc_ABmag_from_fluxdensity, get_functions_dict, calc_fluxdensity_from_ABmag
 from . import afterglow_models
 
 _, modules_dict = get_functions_dict(afterglow_models)

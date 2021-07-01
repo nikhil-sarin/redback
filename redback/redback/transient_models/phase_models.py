@@ -31,33 +31,57 @@ def t0_extinction_models(time, lognh, factor, **kwargs):
     elif kwargs['output_format'] == 'magnitude':
         return magnitude
 
-def t0_exinction_models_with_sampled_t_peak(time, t0, t_peak, **kwargs):
+def t0_thin_shell_predeceleration(time, **kwargs):
+    """
+    Assume pre-deceleration behaviour is in thin-shell regime and follows Sari and Piran 1997
+    :param time:
+    :param kwargs:
+    :return: flux or magnitude
+    """
+    if kwargs['output_format'] is not 'flux_density' or not 'magnitude':
+        raise ValueError('Output format {} not understood. Please use magnitude or flux_density'.format(kwargs['output_format']))
+
+    if kwargs['output_format'] == 'flux_density':
+        return calc_fluxdensity_from_ABmag(magnitude).value
+    elif kwargs['output_format'] == 'magnitude':
+        return magnitude
+
+def t0_exinction_models_with_sampled_t_peak(time, t0, tp, **kwargs):
+    """
+    Sample in peak time and smoothly connect with afterglowpy output
+    :param time: in MJD, times should be after T0.
+    :param t0: in MJD
+    :param tp: in MJD
+    :param kwargs:
+    :return: flux or magnitude depending on kwargs.
+    """
     base_model = kwargs['base_model']
 
     if isinstance(base_model, str):
         function = modules_dict['afterglow_models'][base_model]
 
-    gradient = kwargs['mm']
-    t0_d = t0
+    if kwargs['output_format'] is not 'flux_density' or not 'magnitude':
+        raise ValueError('Output format {} not understood. Please use magnitude or flux_density'.format(kwargs['output_format']))
 
-    t_peak_kwargs = dict.copy(kwargs)
-    t_peak_kwargs['frequency'] = kwargs['tpeak_frequency']
-    f_at_t_peak = function(t_peak, **t_peak_kwargs)
+    gradient = kwargs['m']
+    t0_mjd = Time(t0, format='mjd')
+    tp_mjd = Time(tp, format='mjd')
+    t_predec = time[time < tp]
+    t_afterdec = time[time >= tp]
+    t_afterdec_mjd = Time(t_afterdec, format='mjd')
 
-    a_1 = f_at_t_peak / ((t_peak - t0) ** gradient) #in day units
+    # turn t_afterdec times into seconds for afterglowpy
+    t_afterdec_s = (t_afterdec_mjd - t0_mjd).to(uu.second).value
 
-    time_d = (time - t0_d)
-    time_s = time_d * 86400
-
-    predeceleration_time = np.where(time_s < t_peak)
-    afterglow_time = np.where(time_s >= t_peak_d)
-    f1 = a_1 * (time_d[predeceleration_time])**gradient
-    # f1 = predeceleration(time=time_d[predeceleration_time], a_1=a_1, mm=gradient, t0=t0_d)
-    print('f1 is {}'.format(f1))
-    f2 = function(time[afterglow_time], **kwargs)
+    # calculate lightcurves
+    t_peak_s = (tp_mjd - t0_mjd).to(uu.second).value
+    f_at_t_peak = function(t_peak_s, **kwargs)
+    aa = f_at_t_peak / (tp - t0) ** gradient
+    f1 = aa * (t_predec - t0) ** gradient
+    f2 = function(t_afterdec_s, **kwargs)
     flux = np.concatenate((f1, f2))
-    print(flux)
-    print('end')
+    
+    # calculate extinction
     factor = kwargs['factor']
     lognh = kwargs['lognh']
     factor = factor * 1e21
@@ -67,11 +91,11 @@ def t0_exinction_models_with_sampled_t_peak(time, t0, t_peak, **kwargs):
     frequency = np.array([frequency])
     # logger.info('Using the fitzpatrick99 extinction law')
     mag_extinction = extinction.fitzpatrick99(frequency, av, r_v=3.1)
-    # read the base_model dict
-    # logger.info('Using {} as the base model for extinction'.format(base_model))
     flux = extinction.apply(mag_extinction, flux)
-    magnitude = calc_ABmag_from_fluxdensity(flux).value
-    return magnitude
+    if kwargs['output_format'] == 'flux_density':
+        return flux
+    elif kwargs['output_format'] == 'magnitude':
+        return calc_ABmag_from_fluxdensity(flux).value
 
 def t0_flux_models_with_predeceleration(time, **kwargs):
     base_model = kwargs['base_model']
