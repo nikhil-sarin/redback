@@ -80,7 +80,7 @@ def t0_exinction_models_with_sampled_t_peak(time, t0, tp, **kwargs):
     f1 = aa * (t_predec - t0) ** gradient
     f2 = function(t_afterdec_s, **kwargs)
     flux = np.concatenate((f1, f2))
-    
+
     # calculate extinction
     factor = kwargs['factor']
     lognh = kwargs['lognh']
@@ -96,48 +96,6 @@ def t0_exinction_models_with_sampled_t_peak(time, t0, tp, **kwargs):
         return flux
     elif kwargs['output_format'] == 'magnitude':
         return calc_ABmag_from_fluxdensity(flux).value
-
-def t0_flux_models_with_predeceleration(time, **kwargs):
-    base_model = kwargs['base_model']
-
-    if isinstance(base_model, str):
-        function = modules_dict['afterglow_models'][base_model]
-
-    gradient = kwargs['mm']
-    t0_d = kwargs['t0']
-
-    t_peak_kwargs = dict.copy(kwargs)
-    t_peak_kwargs['frequency'] = kwargs['tpeak_frequency']
-    t_peak = deceleration_timescale(**t_peak_kwargs) #in secs
-    f_at_t_peak = function(t_peak, **t_peak_kwargs)
-
-    t_peak_ref = (t_peak / 86400) + t0_d
-    reference_time_s = (t_peak_ref - t0_d) * 86400
-    a_1 = f_at_t_peak / ((reference_time_s) ** gradient)
-
-    predeceleration_time = np.where(time < t_peak_ref)
-    afterglow_time = np.where(time >= t_peak_ref)
-    f1 = predeceleration(time=time[predeceleration_time], a_1=a_1, mm=gradient, t0=t0_d)
-    time_afterglow = (time - t0_d) * 86400
-
-    f2 = function(time_afterglow[afterglow_time], **kwargs)
-
-    flux = np.concatenate((f1, f2))
-    return flux
-
-def t0_exinction_models_with_predeceleration(time, **kwargs):
-    flux = t0_flux_models_with_predeceleration(time, **kwargs)
-    frequency = kwargs['frequency']
-    factor = kwargs['factor']
-    lognh = kwargs['lognh']
-    factor = factor * 1e21
-    nh = 10 ** lognh
-    av = nh / factor
-
-    mag_extinction = extinction.fitzpatrick99(frequency, av, r_v=3.1)
-    flux = extinction.apply(mag_extinction, flux)
-    magnitude = calc_ABmag_from_fluxdensity(flux).value
-    return magnitude
 
 def t0_afterglowpy_rate_model(time, **kwargs):
     """
