@@ -41,25 +41,39 @@ def t0_thin_shell_predeceleration(time, **kwargs):
     if kwargs['output_format'] is not 'flux_density' or not 'magnitude':
         raise ValueError('Output format {} not understood. Please use magnitude or flux_density'.format(kwargs['output_format']))
 
-    if kwargs['output_format'] == 'flux_density':
-        return calc_fluxdensity_from_ABmag(magnitude).value
-    elif kwargs['output_format'] == 'magnitude':
-        return magnitude
+    e0 = 10 ** kwargs['loge0']
+    nism = 10 ** kwargs['logn0']
+    g0 = kwargs['g0']
+    frac1 = 3 * e0
+    frac2 = 32 * np.pi * g0**8 * nism * proton_mass * speed_of_light**5
+    tp = (frac1/frac2)**(1./3.)
+    gradient = kwargs['m']
+    tt_predec = time[time < tp]
+    tt_postdec = time[time >= tp]
+    predec_kwargs = kwargs.copy()
+    afterglow_kwargs = kwargs.copy()
+    f2 = t0_extinction_models(tt_postdec, **afterglow_kwargs)
+    f_at_tp = t0_extinction_models(tp, **afterglow_kwargs)
+    aa = f_at_tp / (kwargs['tp'] - kwargs['t0']) ** gradient
+    predec_kwargs['aa'] = aa
+    predec_kwargs['mm'] = gradient
 
-def t0_exinction_models_with_sampled_t_peak(time, t0, tp, **kwargs):
+    f1 = extinction_models.extinction_with_predeceleration(tt_predec, **predec_kwargs)
+    flux = np.concatenate((f1, f2))
+
+    if kwargs['output_format'] == 'flux_density':
+        return flux
+    elif kwargs['output_format'] == 'magnitude':
+        return calc_ABmag_from_fluxdensity(flux).value
+
+def t0_exinction_models_with_sampled_t_peak(time, tp, **kwargs):
     """
     Sample in peak time and smoothly connect with afterglowpy output
     :param time: in MJD, times should be after T0.
-    :param t0: in MJD
     :param tp: in MJD
     :param kwargs:
     :return: flux or magnitude depending on kwargs.
     """
-    base_model = kwargs['base_model']
-
-    if isinstance(base_model, str):
-        function = modules_dict['afterglow_models'][base_model]
-
     if kwargs['output_format'] is not 'flux_density' or not 'magnitude':
         raise ValueError('Output format {} not understood. Please use magnitude or flux_density'.format(kwargs['output_format']))
 
@@ -73,7 +87,6 @@ def t0_exinction_models_with_sampled_t_peak(time, t0, tp, **kwargs):
     aa = f_at_tp / (kwargs['tp'] - kwargs['t0']) ** gradient
     predec_kwargs['aa'] = aa
     predec_kwargs['mm'] = gradient
-
     f1 = extinction_models.extinction_with_predeceleration(tt_predec, **predec_kwargs)
     flux = np.concatenate((f1, f2))
     if kwargs['output_format'] == 'flux_density':

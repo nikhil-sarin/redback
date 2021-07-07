@@ -37,6 +37,13 @@ def extinction_with_afterglow_base_model(time, lognh, factor, **kwargs):
     return output_magnitude
 
 def extinction_with_predeceleration(time, lognh, factor, **kwargs):
+    """
+    :param time: time in some unit.
+    :param lognh: host galaxy column density
+    :param factor: extinction factor
+    :param kwargs: all params
+    :return: flux or magnitude with extinction applied depending on kwargs
+    """
     lc = predeceleration(time, **kwargs)
     lc = np.nan_to_num(lc)
     factor = factor * 1e21
@@ -45,5 +52,7 @@ def extinction_with_predeceleration(time, lognh, factor, **kwargs):
     frequency = kwargs['frequency']
     mag_extinction = extinction.fitzpatrick99(frequency, av, r_v=3.1)
     lc = extinction.apply(mag_extinction, lc, inplace=True)
-    output_magnitude = calc_ABmag_from_fluxdensity(lc).value
-    return output_magnitude
+    if kwargs['output_format'] == 'flux_density':
+        return lc
+    elif kwargs['output_format'] == 'magnitude':
+        return calc_ABmag_from_fluxdensity(lc).value
