@@ -1,6 +1,8 @@
 import extinction
+from .fireball_models import predeceleration
 from ..utils import logger, calc_ABmag_from_fluxdensity, get_functions_dict, calc_fluxdensity_from_ABmag
 from . import afterglow_models
+import numpy as np
 
 _, modules_dict = get_functions_dict(afterglow_models)
 
@@ -32,4 +34,16 @@ def extinction_with_afterglow_base_model(time, lognh, factor, **kwargs):
     flux = function(time, **kwargs)
     flux = extinction.apply(mag_extinction, flux)
     output_magnitude = calc_ABmag_from_fluxdensity(flux).value
+    return output_magnitude
+
+def extinction_with_predeceleration(time, lognh, factor, **kwargs):
+    lc = predeceleration(time, **kwargs)
+    lc = np.nan_to_num(lc)
+    factor = factor * 1e21
+    nh = 10 ** lognh
+    av = nh/factor
+    frequency = kwargs['frequency']
+    mag_extinction = extinction.fitzpatrick99(frequency, av, r_v=3.1)
+    lc = extinction.apply(mag_extinction, lc, inplace=True)
+    output_magnitude = calc_ABmag_from_fluxdensity(lc).value
     return output_magnitude

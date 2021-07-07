@@ -64,34 +64,18 @@ def t0_exinction_models_with_sampled_t_peak(time, t0, tp, **kwargs):
         raise ValueError('Output format {} not understood. Please use magnitude or flux_density'.format(kwargs['output_format']))
 
     gradient = kwargs['m']
-    t0_mjd = Time(t0, format='mjd')
-    tp_mjd = Time(tp, format='mjd')
-    t_predec = time[time < tp]
-    t_afterdec = time[time >= tp]
-    t_afterdec_mjd = Time(t_afterdec, format='mjd')
+    tt_predec = time[time < tp]
+    tt_postdec = time[time >= tp]
+    predec_kwargs = kwargs.copy()
+    afterglow_kwargs = kwargs.copy()
+    f2 = t0_extinction_models(tt_postdec, **afterglow_kwargs)
+    f_at_tp = t0_extinction_models(tp, **afterglow_kwargs)
+    aa = f_at_tp / (kwargs['tp'] - kwargs['t0']) ** gradient
+    predec_kwargs['aa'] = aa
+    predec_kwargs['mm'] = gradient
 
-    # turn t_afterdec times into seconds for afterglowpy
-    t_afterdec_s = (t_afterdec_mjd - t0_mjd).to(uu.second).value
-
-    # calculate lightcurves
-    t_peak_s = (tp_mjd - t0_mjd).to(uu.second).value
-    f_at_t_peak = function(t_peak_s, **kwargs)
-    aa = f_at_t_peak / (tp - t0) ** gradient
-    f1 = aa * (t_predec - t0) ** gradient
-    f2 = function(t_afterdec_s, **kwargs)
+    f1 = extinction_models.extinction_with_predeceleration(tt_predec, **predec_kwargs)
     flux = np.concatenate((f1, f2))
-
-    # calculate extinction
-    factor = kwargs['factor']
-    lognh = kwargs['lognh']
-    factor = factor * 1e21
-    nh = 10 ** lognh
-    av = nh / factor
-    frequency = kwargs['frequency']
-    frequency = np.array([frequency])
-    # logger.info('Using the fitzpatrick99 extinction law')
-    mag_extinction = extinction.fitzpatrick99(frequency, av, r_v=3.1)
-    flux = extinction.apply(mag_extinction, flux)
     if kwargs['output_format'] == 'flux_density':
         return flux
     elif kwargs['output_format'] == 'magnitude':

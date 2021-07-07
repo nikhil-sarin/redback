@@ -1,16 +1,16 @@
 import numpy as np
 from ..utils import logger, calc_ABmag_from_fluxdensity
 
-def predeceleration(time, a_1, mm, t0, **kwargs):
+def predeceleration(time, aa, mm, t0, **kwargs):
     """
     :param time:
-    :param a_1:
+    :param aa:
     :param mm: deceleration powerlaw gradient; typically 3 but depends on physics
     :param t0: time GRB went off.
     :param kwargs:
     :return: deceleration powerlaw; units are arbitrary and dependent on a_1.
     """
-    return a_1 * (time - t0)**mm
+    return aa * (time - t0)**mm
 
 def one_component_fireball_model(time, a_1, alpha_1, **kwargs):
     """
