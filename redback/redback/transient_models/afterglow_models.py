@@ -1,10 +1,8 @@
-from astropy.cosmology import Planck15 as cosmo
+from astropy.cosmology import Planck18 as cosmo
 from .. utils import logger
 
 try:
     import afterglowpy as afterglow
-
-    # keep so you can eventually generalise
     jettype_dict = {'tophat': afterglow.jet.TopHat, 'gaussian': afterglow.jet.Gaussian,
                     'powerlaw_w_core': afterglow.jet.PowerLawCore, 'gaussian_w_core': afterglow.jet.GaussianCore,
                     'cocoon': afterglow.Spherical, 'smooth_power_law': afterglow.jet.PowerLaw,

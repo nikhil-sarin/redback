@@ -12,6 +12,7 @@ from selenium import webdriver
 from selenium.common.exceptions import NoSuchElementException
 import astropy.units as uu
 from .constants import *
+from collections import namedtuple
 from astropy.utils.data import download_file
 from lxml import etree
 
@@ -123,6 +124,15 @@ def deceleration_timescale(**kwargs):
 def calc_ABmag_from_fluxdensity(fluxdensity):
     return (fluxdensity * uu.mJy).to(uu.ABmag)
 
+def convert_absolute_mag_to_apparent(magnitude, distance):
+    """
+    Convert absolute magnitude to apparent
+    :param magnitude: AB absolute magnitude
+    :param distance: Distance in parsecs
+    """
+    app_mag = magnitude + 5*(np.log10(distance) - 1)
+    return app_mag
+
 def calc_fluxdensity_from_ABmag(magnitudes):
     return (magnitudes * uu.ABmag).to(uu.mJy)
 
@@ -160,6 +170,24 @@ def calc_confidence_intervals(samples):
     upper_bound = np.quantile(samples, 0.95, axis=0)
     median = np.quantile(samples, 0.5, axis=0)
     return lower_bound, upper_bound, median
+
+def calc_one_dimensional_median_and_error_bar(samples, quantiles=(0.16,0.84), fmt='.2f'):
+    summary = namedtuple('summary', ['median', 'lower', 'upper', 'string'])
+
+    if len(quantiles) != 2:
+        raise ValueError("quantiles must be of length 2")
+
+    quants_to_compute = np.array([quantiles[0], 0.5, quantiles[1]])
+    quants = np.percentile(samples, quants_to_compute * 100)
+    summary.median = quants[1]
+    summary.plus = quants[2] - summary.median
+    summary.minus = summary.median - quants[0]
+
+    fmt = "{{0:{0}}}".format(fmt).format
+    string_template = r"${{{0}}}_{{-{1}}}^{{+{2}}}$"
+    summary.string = string_template.format(
+        fmt(summary.median), fmt(summary.minus), fmt(summary.plus))
+    return summary
 
 
 def kde_scipy(x, bandwidth=0.05, **kwargs):
@@ -253,4 +281,3 @@ def get_functions_dict(module):
     all_models_dict.append(_functions_dict)
     modules_dict[module.__name__.split('.')[-1]] = _functions_dict
     return all_models_dict, modules_dict
-

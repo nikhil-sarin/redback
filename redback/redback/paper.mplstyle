@@ -2,6 +2,7 @@ figure.facecolor: w
 
 axes.labelsize: 18
 axes.titlesize: 18
+axes.grid:False
 xtick.labelsize: 18
 ytick.labelsize: 18
 legend.fontsize: 18
