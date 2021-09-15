@@ -7,7 +7,7 @@ import os
 import pandas as pd
 from redback.redback.utils import logger
 
-from astropy.cosmology import Planck15 as cosmo
+from astropy.cosmology import Planck18 as cosmo
 
 
 from .. import models as mm
@@ -132,7 +132,7 @@ class afterglow(Transient):
 
     @staticmethod
     def _load(data):
-        return data[:, 3], np.abs(data[:, 4:].T)
+        return np.array(data[:, 3]), np.array(np.abs(data[:, 4:].T))
 
     def truncate(self, truncate_method='prompt_time_error'):
         if truncate_method == 'prompt_time_error':
@@ -177,14 +177,20 @@ class afterglow(Transient):
 
     def analytical_flux_to_luminosity(self):
         if self.redshift == np.nan:
-            print('This GRB has no measured redshift')
-            raise ValueError('There is no redshift, cannot compute a luminosity. Please fit in flux or flux density')
+            logger.warning('This GRB has no measured redshift')
+            raise ValueError('There is no redshift, cannot compute a luminosity. Please fit in flux or flux density or input a redshift')
         dl = cosmo.luminosity_distance(self.redshift).cgs.value
         k_corr = (1 + self.redshift) ** (self.photon_index - 2)
         lum = 4*np.pi * dl**2 * self.flux * k_corr
         rest_time = self.time/(1. + self.redshift)
         self.Lum50 = lum
         self.time = rest_time
+
+    def numerical_flux_to_luminosity(self):
+        if self.redshift == np.nan:
+            logger.warning('This GRB has no measured redshift')
+            raise ValueError('There is no redshift, cannot compute a luminosity. Please fit in flux or flux density or input a redshift')
+        pass
 
     def get_prompt(self):
         pass
@@ -211,7 +217,6 @@ class afterglow(Transient):
     def _get_redshift(self):
         # some GRBs dont have measurements
         redshift = self.data.query('GRB == @self._stripped_name')['Redshift'].values[0]
-        print(redshift)
         if redshift == np.nan:
             return None
         else:
@@ -226,7 +231,7 @@ class afterglow(Transient):
         self.t90 = self.__clean_string(t90)
 
     def __clean_string(self, string):
-        for r in ["PL", "CPL", ",", "C", "~", " "]:
+        for r in ["PL", "CPL", ",", "C", "~", " ", 'Gemini:emission', '()']:
             string = string.replace(r, "")
         return float(string)
 

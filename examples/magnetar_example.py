@@ -1,18 +1,19 @@
 import redback
 import bilby
+import matplotlib.pyplot as plt
 sampler = 'pymultinest'
 #lots of different models implemented, including
 #afterglow/magnetar varieties/n_dimensional_fireball/shapelets/band function/kilonova/SNe/TDE
 model = 'evolving_magnetar'
 
-GRB = ['070809']
+GRB = '070809'
 path = 'GRBData'
 #Flux density, flux data
-redback.getdata.get_afterglow_data_from_swift(GRB, data_mode = 'flux', path = path)
+redback.getdata.get_afterglow_data_from_swift(GRB, data_mode = 'flux')
 #creates a GRBDir with GRB
 
 #create Luminosity data
-redback.afterglow.SGRB(GRB, path = path, data_mode ='luminosity', method ='analytical')
+afterglow = redback.afterglow.SGRB(GRB, data_mode ='luminosity', method ='analytical')
 #uses an analytical k-correction expression to create luminosity data if not already there.
 #Can also use a numerical k-correction through CIAO
 
