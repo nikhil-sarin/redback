@@ -9,10 +9,12 @@ import urllib.request
 import requests
 import sqlite3
 import re
+from pathlib import Path
 
 import pandas as pd
 import numpy as np
 import astropy.units as uu
+from astropy.io import ascii, fits
 
 from .utils import logger, fetch_driver, check_element, calc_fluxdensity_from_ABmag, calc_flux_density_error
 from .redback_errors import DataExists, WebsiteExist
@@ -372,8 +374,75 @@ def get_prompt_data_from_konus(grb):
     return None
 
 
-def get_prompt_data_from_batse(grb):
-    return None
+def get_prompt_data_from_batse(grb, use_default_directory):
+    trigger = get_batse_trigger_from_grb(grb=grb)
+    trigger_filled = str(trigger).zfill(5)
+    s = trigger - trigger % 200 + 1
+    start = str(s).zfill(5)
+    stop = str(s + 199).zfill(5)
+
+    filename = f'tte_bfits_{trigger}.fits.gz'
+
+    if use_default_directory:
+        grb_dir = os.path.join(dirname, '../data/GRBData/GRB' + grb + '/')
+    else:
+        grb_dir = 'GRBData/GRB' + grb + '/'
+    grb_dir = grb_dir + 'prompt/'
+    Path(grb_dir).mkdir(exist_ok=True, parents=True)
+
+    url = f"https://heasarc.gsfc.nasa.gov/FTP/compton/data/batse/trigger/{start}_{stop}/{trigger_filled}_burst/{filename}"
+    file_path = f"{grb_dir}/{filename}"
+    urllib.request.urlretrieve(url, file_path)
+
+    with fits.open(file_path) as fits_data:
+        data = fits_data[-1].data
+        bin_left = np.array(data['TIMES'][:, 0])
+        # bin_right = np.array(data['TIMES'][:, 1])
+        rates = np.array(data['RATES'][:, :])
+        errors = np.array(data['ERRORS'][:, :])
+        # counts = np.array([np.multiply(rates[:, i],
+        #                                bin_right - bin_left) for i in range(4)]).T
+        # count_err = np.sqrt(counts)
+        # t90_st, end = bin_left[0], bin_right[-1]
+
+    data = np.array([bin_left, rates[:, 0], errors[:, 0], rates[:, 1], errors[:, 1],
+                     rates[:, 2], errors[:, 2], rates[:, 3], errors[:, 3]]).T
+
+    df = pd.DataFrame(data=data, columns=[
+        "Time [s]",
+        "flux_20_50 [counts/s]",
+        "flux_20_50_err [counts/s]",
+        "flux_50_100 [counts/s]",
+        "flux_50_100_err [counts/s]",
+        "flux_100_300 [counts/s]",
+        "flux_100_300_err [counts/s]",
+        "flux_greater_300 [counts/s]",
+        "flux_greater_300_err [counts/s]"])
+
+    processed_file_path = f'{grb_dir}/BATSE_lc.csv'
+    df.to_csv(processed_file_path, index=False)
+
+
+def get_batse_trigger_from_grb(grb):
+    ALPHABET = "ABCDEFGHIJKLMNOP"
+    dat = ascii.read(f"{dirname}/tables/BATSE_trigger_table.txt")
+    batse_triggers = list(dat['col1'])
+    object_labels = list(dat['col2'])
+
+    label_locations = dict()
+    for i, label in enumerate(object_labels):
+        if label in label_locations:
+            label_locations[label].append(i)
+        else:
+            label_locations[label] = [i]
+
+    for label, location in label_locations.items():
+        if len(location) != 1:
+            for i, loc in enumerate(location):
+                object_labels[loc] = object_labels[loc] + ALPHABET[i]
+
+    index = object_labels.index(grb)
+    return int(batse_triggers[index])
 
 
 def get_open_transient_catalog_data(transient, transient_type, use_default_directory=False):
