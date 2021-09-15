@@ -315,29 +315,25 @@ def collect_swift_prompt_data(grb, use_default_directory=False, bin_size='2ms'):
     if not grb.startswith('GRB'):
         grb = 'GRB' + grb
 
-    grb_website = f"https://swift.gsfc.nasa.gov/results/batgrbcat/{grb}/data_product/"
-    logger.info('opening Swift website for GRB {}'.format(grb))
+    trigger = get_swift_trigger_from_grb(grb)
     data_file = f"{bin_size}_lc_ascii.dat"
-
-    # open the webdriver
-    driver = fetch_driver()
-
-    driver.get(grb_website)
+    grb_url = f"https://swift.gsfc.nasa.gov/results/batgrbcat/{grb}/data_product/{trigger}-results/lc/{data_file}"
     try:
-        driver.find_element_by_partial_link_text("results").click()
-        time.sleep(20)
-        driver.find_element_by_link_text("lc/").click()
-        time.sleep(20)
-        grb_url = driver.current_url + data_file
         urllib.request.urlretrieve(grb_url, rawfile)
-
-        # Close the driver and all opened windows
-        driver.quit()
-
         logger.info(f'Congratulations, you now have raw data for GRB {grb}')
     except Exception:
         logger.warning(f'Cannot load the website for GRB {grb}')
 
+
+def get_swift_trigger_from_grb(grb):
+    data = ascii.read(f'{dirname}/tables/summary_general_swift_bat.txt')
+    triggers = list(data['col2'])
+    event_names = list(data['col1'])
+    trigger = triggers[event_names.index(grb)]
+    if len(trigger) == 6:
+        trigger += "000"
+        trigger = trigger.zfill(11)
+    return trigger
 
 def sort_swift_prompt_data(grb, use_default_directory):
     grbdir, rawfile_path, processed_file_path = prompt_directory_structure(grb, use_default_directory)
