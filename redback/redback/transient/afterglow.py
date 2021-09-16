@@ -74,9 +74,6 @@ class Afterglow(Transient):
     def luminosity_data(self):
         return self.data_mode == DATA_MODES[0]
 
-    def _get_redshift(self):
-        return self.redshift
-
     @property
     def flux_data(self):
         return self.data_mode == DATA_MODES[1]
