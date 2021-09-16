@@ -11,16 +11,16 @@ from astropy.cosmology import Planck18 as cosmo
 
 
 from .. import models as mm
-# from ..model_library import model_dict
+from ..model_library import all_models_dict
 from ..utils import find_path
 from .transient import Transient
 
 dirname = os.path.dirname(__file__)
 
-DATA_MODES = ['luminosity', 'flux', 'flux_density','photometry']
+DATA_MODES = ['luminosity', 'flux', 'flux_density', 'photometry']
 
 
-class afterglow(Transient):
+class Afterglow(Transient):
     """Class for afterglows"""
     def __init__(self, name, data_mode='flux'):
         """
@@ -28,7 +28,7 @@ class afterglow(Transient):
         """
         if not name.startswith('GRB'):
             name = 'GRB' + name
-        super().__init__(time=[], time_err=[], y=[], y_err=[], data_mode=None, name=name)
+        super().__init__(time=[], time_err=[], y=[], y_err=[], data_mode=data_mode, name=name)
 
         self.Lum50 = []
         self.Lum50_err = []
@@ -36,19 +36,20 @@ class afterglow(Transient):
         self.flux_density_err = []
         self.flux = []
         self.flux_err = []
+        self.data_mode = data_mode
 
         self._set_data()
         self._set_photon_index()
         self._set_t90()
         self._get_redshift()
 
-    @classmethod
-    def from_name(cls):
-        obj = cls(...)
-        obj._set_data()
-        obj._set_photon_index()
-        obj._set_t90()
-        obj._get_redshift()
+    # @classmethod
+    # def from_name(cls):
+    #     obj = cls(...)
+    #     obj._set_data()
+    #     obj._set_photon_index()
+    #     obj._set_t90()
+    #     obj._get_redshift()
 
     def plot_data(self):
         pass
@@ -84,17 +85,17 @@ class afterglow(Transient):
     def fluxdensity_data(self):
         return self.data_mode == DATA_MODES[2]
 
-    @classmethod
-    def from_path_and_grb(cls, path, grb):
-        data_dir = find_path(path)
-        return cls(name=grb, path=data_dir)
+    # @classmethod
+    # def from_path_and_grb(cls, path, grb):
+    #     data_dir = find_path(path)
+    #     return cls(name=grb, path=data_dir)
 
-    @classmethod
-    def from_path_and_grb_with_truncation(
-            cls, path, grb, truncate=True, truncate_method='prompt_time_error', data_mode='flux'):
-        grb = cls.from_path_and_grb(path=path, grb=grb)
-        grb.load_and_truncate_data(truncate=truncate, truncate_method=truncate_method, data_mode=data_mode)
-        return grb
+    # @classmethod
+    # def from_path_and_grb_with_truncation(
+    #         cls, path, grb, truncate=True, truncate_method='prompt_time_error', data_mode='flux'):
+    #     grb = cls.from_path_and_grb(path=path, grb=grb)
+    #     grb.load_and_truncate_data(truncate=truncate, truncate_method=truncate_method, data_mode=data_mode)
+    #     return grb
 
     def left_of_max_truncate_method(self):
         #get rid of data points left of maximum.
@@ -296,54 +297,55 @@ class afterglow(Transient):
             plt.tight_layout()
 
 
-class SGRB(afterglow):
+class SGRB(Afterglow):
     pass
 
 
-class LGRB(afterglow):
+class LGRB(Afterglow):
     pass
 
 
-def plot_models(parameters, model, plot_magnetar, axes=None, colour='r', alpha=1.0, ls='-', lw=4):
-    """
-    plot the models
-    parameters: dictionary of parameters - 1 set of Parameters
-    model: model name
-    """
-    time = np.logspace(-4, 7, 100)
-    ax = axes or plt.gca()
+# def plot_models(parameters, model, plot_magnetar, axes=None, colour='r', alpha=1.0, ls='-', lw=4):
+#     """
+#     plot the models
+#     parameters: dictionary of parameters - 1 set of Parameters
+#     model: model name
+#     """
+#     time = np.logspace(-4, 7, 100)
+#     ax = axes or plt.gca()
+#
+#     lightcurve = all_models_dict[model]
+#     magnetar_models = ['evolving_magnetar', 'evolving_magnetar_only', 'piecewise_radiative_losses',
+#                        'radiative_losses', 'radiative_losses_mdr', 'radiative_losses_smoothness', 'radiative_only']
+#     if model in magnetar_models and plot_magnetar:
+#         if model == 'radiative_losses_mdr':
+#             magnetar = mm.magnetar_only(time, nn=3., **parameters)
+#         else:
+#             magnetar = mm.magnetar_only(time, **parameters)
+#         ax.plot(time, magnetar, color=colour, ls=ls, lw=lw, alpha=alpha, zorder=-32, linestyle='--')
+#     ax.plot(time, lightcurve, color=colour, ls=ls, lw=lw, alpha=alpha, zorder=-32)
 
-    lightcurve = model_dict[model]
-    magnetar_models = ['evolving_magnetar', 'evolving_magnetar_only', 'piecewise_radiative_losses',
-                       'radiative_losses', 'radiative_losses_mdr', 'radiative_losses_smoothness', 'radiative_only']
-    if model in magnetar_models and plot_magnetar:
-        if model == 'radiative_losses_mdr':
-            magnetar = mm.magnetar_only(time, nn=3., **parameters)
-        else:
-            magnetar = mm.magnetar_only(time, **parameters)
-        ax.plot(time, magnetar, color=colour, ls=ls, lw=lw, alpha=alpha, zorder=-32, linestyle='--')
-    ax.plot(time, lightcurve, color=colour, ls=ls, lw=lw, alpha=alpha, zorder=-32)
 
-def plot_lightcurve(self, model, axes=None, plot_save=True, plot_show=True, random_models=1000,
-                    posterior=None, use_photon_index_prior=False, outdir='./', plot_magnetar=False):
-    max_l = dict(posterior.sort_values(by=['log_likelihood']).iloc[-1])
-
-    for j in range(int(random_models)):
-        params = dict(posterior.iloc[np.random.randint(len(posterior))])
-        plot_models(parameters=params, axes=axes, alpha=0.05, lw=2, colour='r', model=model,
-                    plot_magnetar=plot_magnetar)
-
-    # plot max likelihood
-    plot_models(parameters=max_l, axes=axes, alpha=0.65, lw=2, colour='b', model=model, plot_magnetar=plot_magnetar)
-
-    self.plot_data(axes=axes)
-
-    label = 'lightcurve'
-    if use_photon_index_prior:
-        label = f"_photon_index_{label}"
-
-    if plot_save:
-        plt.savefig(f"{outdir}{model}{label}.png")
-
-    if plot_show:
-        plt.show()
+# def plot_lightcurve(self, model, axes=None, plot_save=True, plot_show=True, random_models=1000,
+#                     posterior=None, use_photon_index_prior=False, outdir='./', plot_magnetar=False):
+#     max_l = dict(posterior.sort_values(by=['log_likelihood']).iloc[-1])
+#
+#     for j in range(int(random_models)):
+#         params = dict(posterior.iloc[np.random.randint(len(posterior))])
+#         plot_models(parameters=params, axes=axes, alpha=0.05, lw=2, colour='r', model=model,
+#                     plot_magnetar=plot_magnetar)
+#
+#     # plot max likelihood
+#     plot_models(parameters=max_l, axes=axes, alpha=0.65, lw=2, colour='b', model=model, plot_magnetar=plot_magnetar)
+#
+#     self.plot_data(axes=axes)
+#
+#     label = 'lightcurve'
+#     if use_photon_index_prior:
+#         label = f"_photon_index_{label}"
+#
+#     if plot_save:
+#         plt.savefig(f"{outdir}{model}{label}.png")
+#
+#     if plot_show:
+#         plt.show()
