@@ -8,7 +8,8 @@ import pandas as pd
 from redback.redback.utils import logger
 
 from astropy.cosmology import Planck18 as cosmo
-
+from ..getdata import afterglow_directory_structure
+from os.path import join
 
 from .. import models as mm
 from ..model_library import all_models_dict
@@ -30,12 +31,18 @@ class Afterglow(Transient):
             name = 'GRB' + name
         super().__init__(time=[], time_err=[], y=[], y_err=[], data_mode=data_mode, name=name)
 
-        self.Lum50 = []
-        self.Lum50_err = []
-        self.flux_density = []
-        self.flux_density_err = []
-        self.flux = []
-        self.flux_err = []
+
+        self.time = np.array([])
+        self.time_rest_frame = np.array([])
+        self.time_err = np.array([])
+        self.time_rest_frame_err = np.array([])
+        self.Lum50 = np.array([])
+        self.Lum50_err = np.array([])
+        self.flux_density = np.array([])
+        self.flux_density_err = np.array([])
+        self.flux = np.array([])
+        self.flux_err = np.array([])
+
         self.data_mode = data_mode
 
         self._set_data()
@@ -43,28 +50,15 @@ class Afterglow(Transient):
         self._set_t90()
         self._get_redshift()
 
-    # @classmethod
-    # def from_name(cls):
-    #     obj = cls(...)
-    #     obj._set_data()
-    #     obj._set_photon_index()
-    #     obj._set_t90()
-    #     obj._get_redshift()
+        self.load_data(data_mode=self.data_mode)
 
-    def plot_data(self):
-        pass
 
-    def plot_multiband(self):
-        if self.data_mode != 'flux_density':
-            logger.warning('why are you doing this')
-        pass
-
-    def get_luminosity_attributes(self):
-        #do sql stuff.
-        pass
-
-    def numerical_luminosity_from_flux(self):
-        pass
+    # def get_luminosity_attributes(self):
+    #     #do sql stuff.
+    #     pass
+    #
+    # def numerical_luminosity_from_flux(self):
+    #     pass
 
     @property
     def _stripped_name(self):
@@ -82,21 +76,21 @@ class Afterglow(Transient):
     def fluxdensity_data(self):
         return self.data_mode == DATA_MODES[2]
 
-    # @classmethod
-    # def from_path_and_grb(cls, path, grb):
-    #     data_dir = find_path(path)
-    #     return cls(name=grb, path=data_dir)
+    @property
+    def photometry_data(self):
+        return self.data_mode == DATA_MODES[3]
 
-    # @classmethod
-    # def from_path_and_grb_with_truncation(
-    #         cls, path, grb, truncate=True, truncate_method='prompt_time_error', data_mode='flux'):
-    #     grb = cls.from_path_and_grb(path=path, grb=grb)
-    #     grb.load_and_truncate_data(truncate=truncate, truncate_method=truncate_method, data_mode=data_mode)
-    #     return grb
+    @classmethod
+    def from_path_and_grb(cls, path, grb):
+        data_dir = find_path(path)
+        return cls(name=grb, path=data_dir)
 
-    def left_of_max_truncate_method(self):
-        #get rid of data points left of maximum.
-        pass
+    @classmethod
+    def from_path_and_grb_with_truncation(
+            cls, path, grb, truncate=True, truncate_method='prompt_time_error', data_mode='flux'):
+        grb = cls.from_path_and_grb(path=path, grb=grb)
+        grb.load_and_truncate_data(truncate=truncate, truncate_method=truncate_method, data_mode=data_mode)
+        return grb
 
     def load_and_truncate_data(self, truncate=True, truncate_method='prompt_time_error', data_mode='flux'):
         """
@@ -109,23 +103,27 @@ class Afterglow(Transient):
         if truncate:
             self.truncate(truncate_method=truncate_method)
 
-    def load_data(self, data_mode='luminosity'):
-        self.data_mode = data_mode
+    def load_data(self, data_mode=None):
+        if data_mode is not None:
+            self.data_mode = data_mode
         if self.flux_data:
             label = ''
         else:
-            label = f'_{data_mode}'
+            label = f'_{self.data_mode}'
 
         data_file = f"{self.path}/{self.name}/{self.name}{label}.dat"
         data = np.loadtxt(data_file)
-        self.time = data[:, 0]  # time (secs)
-        self.time_err = np.abs(data[:, 1:3].T)  # \Delta time (secs)
-
         if self.luminosity_data:
+            self.time_rest_frame = data[:, 0]  # time (secs)
+            self.time_rest_frame_err = np.abs(data[:, 1:3].T)  # \Delta time (secs)
             self.Lum50, self.Lum50_err = self._load(data)  # Lum (1e50 erg/s)
         elif self.fluxdensity_data:
+            self.time = data[:, 0]  # time (secs)
+            self.time_err = np.abs(data[:, 1:3].T)  # \Delta time (secs)
             self.flux_density, self.flux_density_err = self._load(data)  # depending on detector its at a specific mJy
         elif self.flux_data:
+            self.time = data[:, 0]  # time (secs)
+            self.time_err = np.abs(data[:, 1:3].T)  # \Delta time (secs)
             self.flux, self.flux_err = self._load(data)  # depending on detector its over a specific frequency range
 
     @staticmethod
@@ -134,67 +132,168 @@ class Afterglow(Transient):
 
     def truncate(self, truncate_method='prompt_time_error'):
         if truncate_method == 'prompt_time_error':
-            mask1 = self.time_err[0, :] > 0.0025
-            mask2 = self.time < 0.2  # dont truncate if data point is after 0.2 seconds
-            mask = np.logical_and(mask1, mask2)
-            self.time = self.time[~mask]
-            self.time_err = self.time_err[:, ~mask]
-            if self.luminosity_data:
-                self.Lum50 = self.Lum50[~mask]
-                self.Lum50_err = self.Lum50_err[:, ~mask]
-            elif self.flux_data:
-                self.flux = self.flux[~mask]
-                self.flux_err = self.flux_err[:, ~mask]
-            elif self.fluxdensity_data:
-                self.flux_density = self.flux_density[~mask]
-                self.flux_density_err = self.flux_density_err[:, ~mask]
+            self._truncate_prompt_time_error()
+        elif truncate_method == 'left_of_max':
+            self._truncate_left_of_max()
         else:
-            truncate = self.time_err[0, :] > 0.1
-            to_del = len(self.time) - (len(self.time[truncate]) + 2)
-            self.time = self.time[to_del:]
-            self.time_err = self.time_err[:, to_del:]
-            if self.luminosity_data:
-                self.Lum50 = self.Lum50[to_del:]
-                self.Lum50_err = self.Lum50_err[:, to_del:]
-            elif self.flux_data:
-                self.flux = self.flux[to_del:]
-                self.flux_err = self.flux_err[:, to_del:]
-            elif self.fluxdensity_data:
-                self.flux_density = self.flux_density[to_del:]
-                self.flux_density_err = self.flux_density_err[:, to_del:]
+            self._truncate_default()
+
+    def _truncate_prompt_time_error(self):
+        mask1 = self.time_err[0, :] > 0.0025
+        mask2 = self.time < 2.0  # dont truncate if data point is after 2.0 seconds
+        mask = np.logical_and(mask1, mask2)
+        if self.luminosity_data:
+            self.time_rest_frame = self.time_rest_frame[~mask]
+            self.time_rest_frame_err = self.time_rest_frame_err[:, ~mask]
+            self.Lum50 = self.Lum50[~mask]
+            self.Lum50_err = self.Lum50_err[:, ~mask]
+        elif self.flux_data:
+            self.flux = self.flux[~mask]
+            self.flux_err = self.flux_err[:, ~mask]
+        elif self.fluxdensity_data:
+            self.flux_density = self.flux_density[~mask]
+            self.flux_density_err = self.flux_density_err[:, ~mask]
+
+    def _truncate_left_of_max(self):
+        if self.luminosity_data:
+            max_index = np.argmax(self.Lum50)
+            self.time_rest_frame = self.time_rest_frame[max_index:]
+            self.time_rest_frame_err = self.time_rest_frame_err[:, max_index:]
+            self.Lum50 = self.Lum50[max_index:]
+            self.Lum50_err = self.Lum50_err[:, max_index:]
+        elif self.flux_data:
+            max_index = np.argmax(self.flux)
+            self.flux = self.flux[max_index:]
+            self.flux_err = self.flux_err[:, max_index:]
+        elif self.fluxdensity_data:
+            max_index = np.argmax(self.flux_density)
+            self.flux_density = self.flux_density[max_index:]
+            self.flux_density_err = self.flux_density_err[:, max_index:]
+        else:
+            raise ValueError
+        self.time = self.time[max_index:]
+        self.time_err = self.time_err[:, max_index:]
+
+    def _truncate_default(self):
+        truncate = self.time_err[0, :] > 0.1
+        to_del = len(self.time) - (len(self.time[truncate]) + 2)
+        self.time = self.time[to_del:]
+        self.time_err = self.time_err[:, to_del:]
+        if self.luminosity_data:
+            self.time_rest_frame = self.time_rest_frame[to_del:]
+            self.time_rest_frame_err = self.time_rest_frame_err[:, to_del:]
+            self.Lum50 = self.Lum50[to_del:]
+            self.Lum50_err = self.Lum50_err[:, to_del:]
+        elif self.flux_data:
+            self.flux = self.flux[to_del:]
+            self.flux_err = self.flux_err[:, to_del:]
+        elif self.fluxdensity_data:
+            self.flux_density = self.flux_density[to_del:]
+            self.flux_density_err = self.flux_density_err[:, to_del:]
 
     @property
     def event_table(self):
         return os.path.join(dirname, f'../tables/{self.__class__.__name__}_table.txt')
 
-    def get_flux_density(self):
-        pass
-
-    def get_integrated_flux(self):
-        pass
+    # def get_flux_density(self):
+    #     pass
+    #
+    # def get_integrated_flux(self):
+    #     pass
 
     def analytical_flux_to_luminosity(self):
-        if self.redshift == np.nan:
-            logger.warning('This GRB has no measured redshift')
-            raise ValueError('There is no redshift, cannot compute a luminosity. Please fit in flux or flux density or input a redshift')
-        dl = cosmo.luminosity_distance(self.redshift).cgs.value
-        k_corr = (1 + self.redshift) ** (self.photon_index - 2)
-        lum = 4*np.pi * dl**2 * self.flux * k_corr
-        rest_time = self.time/(1. + self.redshift)
-        self.Lum50 = lum
-        self.time = rest_time
+        redshift = self._get_redshift_for_luminosity_calculation()
+        if redshift is None:
+            return
 
-    def numerical_flux_to_luminosity(self):
-        if self.redshift == np.nan:
-            logger.warning('This GRB has no measured redshift')
-            raise ValueError('There is no redshift, cannot compute a luminosity. Please fit in flux or flux density or input a redshift')
-        pass
+        luminosity_distance = cosmo.luminosity_distance(redshift).cgs.value
+        k_corr = (1 + redshift) ** (self.photon_index - 2)
+        isotropic_bolometric_flux = (luminosity_distance ** 2.) * 4. * np.pi * k_corr
+        counts_to_flux_fraction = 1
 
-    def get_prompt(self):
-        pass
+        self._calculate_rest_frame_time_and_luminosity(
+            counts_to_flux_fraction=counts_to_flux_fraction,
+            isotropic_bolometric_flux=isotropic_bolometric_flux,
+            redshift=redshift)
+        self.data_mode = 'luminosity'
+        self._save_luminosity_data()
 
-    def get_optical(self):
-        pass
+    def numerical_flux_to_luminosity(self, counts_to_flux_absorbed, counts_to_flux_unabsorbed):
+        try:
+            from sherpa.astro import ui as sherpa
+        except ImportError as e:
+            logger.warning(e)
+            logger.warning("Can't perform numerical flux to luminosity calculation")
+
+        redshift = self._get_redshift_for_luminosity_calculation()
+        if redshift is None:
+            return
+
+        Ecut = 1000
+        obs_elow = 0.3
+        obs_ehigh = 10
+
+        bol_elow = 1.  # bolometric restframe low frequency in keV
+        bol_ehigh = 10000.  # bolometric restframe high frequency in keV
+
+        alpha = self.photon_index
+        beta = self.photon_index
+
+        sherpa.dataspace1d(obs_elow, bol_ehigh, 0.01)
+        sherpa.set_source(sherpa.bpl1d.band)
+        band.gamma1 = alpha  # noqa
+        band.gamma2 = beta  # noqa
+        band.eb = Ecut  # noqa
+
+        luminosity_distance = cosmo.luminosity_distance(redshift).cgs.value
+        k_corr = sherpa.calc_kcorr(redshift, obs_elow, obs_ehigh, bol_elow, bol_ehigh, id=1)
+        isotropic_bolometric_flux = (luminosity_distance ** 2.) * 4. * np.pi * k_corr
+        counts_to_flux_fraction = counts_to_flux_unabsorbed / counts_to_flux_absorbed
+
+        self._calculate_rest_frame_time_and_luminosity(
+            counts_to_flux_fraction=counts_to_flux_fraction,
+            isotropic_bolometric_flux=isotropic_bolometric_flux,
+            redshift=redshift)
+        self.data_mode = 'luminosity'
+        self._save_luminosity_data()
+
+    def _get_redshift_for_luminosity_calculation(self):
+        if np.isnan(self.redshift):
+            logger.warning('This GRB has no measured redshift, using default z = 0.75')
+            return 0.75
+        elif self.data_mode == 'luminosity':
+            logger.warning('The data is already in luminosity mode, returning.')
+            return None
+        elif self.data_mode == 'flux_density':
+            logger.warning(f'The data needs to be in flux mode, but is in {self.data_mode}.')
+            return None
+        else:
+            return self.redshift
+
+    def _calculate_rest_frame_time_and_luminosity(self, counts_to_flux_fraction, isotropic_bolometric_flux, redshift):
+        self.Lum50 = self.flux * counts_to_flux_fraction * isotropic_bolometric_flux * 1e-50
+        self.Lum50_err = self.flux_err * isotropic_bolometric_flux * 1e-50
+        self.time_rest_frame = self.time / (1 + redshift)
+        self.time_rest_frame_err = self.time_err / (1 + redshift)
+
+    def _save_luminosity_data(self):
+        grb_dir, _, _ = afterglow_directory_structure(grb=self._stripped_name, use_default_directory=False,
+                                                      data_mode=self.data_mode)
+        filename = f"{self.name}_lum.csv"
+        data = {"Time in restframe [s]": self.time_rest_frame,
+                "Pos. time err in restframe [s]": self.time_rest_frame_err[0, :],
+                "Neg. time err in restframe [s]": self.time_rest_frame_err[1, :],
+                "Luminosity [10^50 erg s^{-1}]": self.Lum50,
+                "Pos. luminosity err [10^50 erg s^{-1}]": self.Lum50_err[0, :],
+                "Neg. luminosity err [10^50 erg s^{-1}]": self.Lum50_err[1, :]}
+        df = pd.DataFrame(data=data)
+        df.to_csv(join(grb_dir, filename))
+
+    # def get_prompt(self):
+    #     pass
+    #
+    # def get_optical(self):
+    #     pass
 
     def _set_data(self):
         data = pd.read_csv(self.event_table, header=0, error_bad_lines=False, delimiter='\t', dtype='str')
@@ -215,10 +314,12 @@ class Afterglow(Transient):
     def _get_redshift(self):
         # some GRBs dont have measurements
         redshift = self.data.query('GRB == @self._stripped_name')['Redshift'].values[0]
-        if redshift == np.nan:
+        if np.isnan(redshift):
             return None
-        else:
+        elif isinstance(self.redshift, str):
             self.redshift = self.__clean_string(redshift)
+        else:
+            self.redshift = redshift
 
     def _set_t90(self):
         # data['BAT Photon Index (15-150 keV) (PL = simple power-law, CPL = cutoff power-law)'] = data['BAT Photon
@@ -228,38 +329,39 @@ class Afterglow(Transient):
             return np.nan
         self.t90 = self.__clean_string(t90)
 
-    def __clean_string(self, string):
+    @staticmethod
+    def __clean_string(string):
         for r in ["PL", "CPL", ",", "C", "~", " ", 'Gemini:emission', '()']:
             string = string.replace(r, "")
         return float(string)
 
-    def process_grbs(self, use_default_directory=False):
-        for GRB in self.data['GRB'].values:
-            retrieve_and_process_data(GRB, use_default_directory=use_default_directory)
-
-        return print(f'Flux data for all {self.__class__.__name__}s added')
-
-    @staticmethod
-    def process_grbs_w_redshift(use_default_directory=False):
-        data = pd.read_csv(dirname + '/tables/GRBs_w_redshift.txt', header=0,
-                           error_bad_lines=False, delimiter='\t', dtype='str')
-        for GRB in data['GRB'].values:
-            retrieve_and_process_data(GRB, use_default_directory=use_default_directory)
-
-        return print('Flux data for all GRBs with redshift added')
-
-    @staticmethod
-    def process_grb_list(data, use_default_directory=False):
-        """
-        :param data: a list containing telephone number of GRB needing to process
-        :param use_default_directory:
-        :return: saves the flux file in the location specified
-        """
-
-        for GRB in data:
-            retrieve_and_process_data(GRB, use_default_directory=use_default_directory)
-
-        return print('Flux data for all GRBs in list added')
+    # def process_grbs(self, use_default_directory=False):
+    #     for GRB in self.data['GRB'].values:
+    #         retrieve_and_process_data(GRB, use_default_directory=use_default_directory)
+    #
+    #     return print(f'Flux data for all {self.__class__.__name__}s added')
+    #
+    # @staticmethod
+    # def process_grbs_w_redshift(use_default_directory=False):
+    #     data = pd.read_csv(dirname + '/tables/GRBs_w_redshift.txt', header=0,
+    #                        error_bad_lines=False, delimiter='\t', dtype='str')
+    #     for GRB in data['GRB'].values:
+    #         retrieve_and_process_data(GRB, use_default_directory=use_default_directory)
+    #
+    #     return print('Flux data for all GRBs with redshift added')
+    #
+    # @staticmethod
+    # def process_grb_list(data, use_default_directory=False):
+    #     """
+    #     :param data: a list containing telephone number of GRB needing to process
+    #     :param use_default_directory:
+    #     :return: saves the flux file in the location specified
+    #     """
+    #
+    #     for GRB in data:
+    #         retrieve_and_process_data(GRB, use_default_directory=use_default_directory)
+    #
+    #     return print('Flux data for all GRBs in list added')
 
     def plot_data(self, axes=None, colour='k'):
         """
@@ -268,30 +370,61 @@ class Afterglow(Transient):
         :param axes:
         :param colour:
         """
+        x, x_err, y, y_err, ylabel = self._get_plot_data_and_labels()
+
         ax = axes or plt.gca()
-        ax.errorbar(self.time, self.Lum50,
-                    xerr=[self.time_err[1, :], self.time_err[0, :]],
-                    yerr=[self.Lum50_err[1, :], self.Lum50_err[0, :]],
+        ax.errorbar(x, y, xerr=x_err, yerr=y_err,
                     fmt='x', c=colour, ms=1, elinewidth=2, capsize=0.)
 
         ax.set_xscale('log')
         ax.set_yscale('log')
 
-        ax.set_xlim(0.5 * self.time[0], 2 * (self.time[-1] + self.time_err[0, -1]))
-        ax.set_ylim(0.5 * min(self.Lum50), 2. * np.max(self.Lum50))
+        ax.set_xlim(0.5 * x[0], 2 * (x[-1] + x_err[1][-1]))
+        ax.set_ylim(0.5 * min(y), 2. * np.max(y))
 
         ax.annotate(f'GRB{self.name}', xy=(0.95, 0.9), xycoords='axes fraction',
                     horizontalalignment='right', size=20)
 
         ax.set_xlabel(r'Time since burst [s]')
-        if self.luminosity_data:
-            ax.set_ylabel(r'Luminosity [$10^{50}$ erg s$^{-1}$]')
-        else:
-            ax.set_ylabel(r'Flux [erg cm$^{-2}$ s$^{-1}$]')
+        ax.set_ylabel(ylabel)
         ax.tick_params(axis='x', pad=10)
 
         if axes is None:
             plt.tight_layout()
+
+        grb_dir, _, _ = afterglow_directory_structure(grb=self._stripped_name, use_default_directory=False,
+                                                      data_mode=self.data_mode)
+        filename = f"{self.name}_lc.png"
+        plt.savefig(join(grb_dir, filename))
+        plt.clf()
+
+    def _get_plot_data_and_labels(self):
+        if self.luminosity_data:
+            x = self.time_rest_frame
+            x_err = [self.time_rest_frame_err[1, :], self.time_rest_frame_err[0, :]]
+            y = self.Lum50
+            y_err = [self.Lum50_err[1, :], self.Lum50_err[0, :]]
+            ylabel = r'Luminosity [$10^{50}$ erg s$^{-1}$]'
+        elif self.flux_data:
+            x = self.time
+            x_err = [self.time_err[1, :], self.time_err[0, :]]
+            y = self.flux
+            y_err = [self.flux_err[1, :], self.flux_err[0, :]]
+            ylabel = r'Flux [erg cm$^{-2}$ s$^{-1}$]'
+        elif self.fluxdensity_data:
+            x = self.time
+            x_err = [self.time_err[1, :], self.time_err[0, :]]
+            y = self.flux_density
+            y_err = [self.flux_density_err[1, :], self.flux_density_err[0, :]]
+            ylabel = r'Flux density [mJy]'
+        else:
+            raise ValueError
+        return x, x_err, y, y_err, ylabel
+
+    def plot_multiband(self):
+        if self.data_mode != 'flux_density':
+            logger.warning('why are you doing this')
+        pass
 
 
 class SGRB(Afterglow):
