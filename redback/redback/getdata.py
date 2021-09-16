@@ -148,7 +148,6 @@ def sort_integrated_flux_data(rawfile, fullfile):
                 continue
             elif 'batSNR4flux' in line:
                 instrument = 'batSNR4flux'
-                print(instrument)
             elif 'xrtpcflux' in line:
                 instrument = 'xrtpcflux'
                 print(instrument)
