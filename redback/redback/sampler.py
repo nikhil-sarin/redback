@@ -6,7 +6,7 @@ import bilby
 
 import pandas as pd
 
-from . import afterglow as tools
+from . import afterglow
 
 from .result import RedbackResult
 from .utils import find_path, logger
@@ -74,7 +74,7 @@ def _fit_grb(name, path, model, sampler='dynesty', nlive=3000, prior=None, walks
              use_photon_index_prior=False, truncate_method='prompt_time_error', data_mode='flux', data=None,
              resume=True, save_format='json', **kwargs):
     if data is None:
-        data = tools.SGRB(name, path)
+        data = afterglow.SGRB(name, data_mode=data_mode)
         data.load_and_truncate_data(truncate=truncate, truncate_method=truncate_method, data_mode=data_mode)
 
     if prior is None:
@@ -97,14 +97,15 @@ def _fit_grb(name, path, model, sampler='dynesty', nlive=3000, prior=None, walks
     Path(outdir).mkdir(parents=True, exist_ok=True)
     label = ''
     if data.luminosity_data:
-        df = pd.DataFrame({'time': data.time,
+        df = pd.DataFrame({'time': data.time_rest_frame,
                            'Lum50': data.Lum50,
                            'Lum50_err_positive': data.Lum50_err[1, :],
                            'Lum50_err_negative': data.Lum50_err[0, :],
-                           'time_err_negative': data.time_err[0, :],
-                           'time_err_positive': data.time_err[1, :]})
+                           'time_err_negative': data.time_rest_frame_err[0, :],
+                           'time_err_positive': data.time_rest_frame_err[1, :]})
         df.to_csv(outdir + "/data.txt", sep=',', index_label=False, index=False)
-        likelihood = GRBGaussianLikelihood(x=data.time, y=data.Lum50, sigma=data.Lum50_err, function=function)
+        likelihood = GRBGaussianLikelihood(x=data.time_rest_frame, y=data.Lum50, sigma=data.Lum50_err,
+                                           function=function)
     elif data.flux_data:
         df = pd.DataFrame({'time': data.time,
                            'flux': data.flux,
