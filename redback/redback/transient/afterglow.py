@@ -320,7 +320,7 @@ class Afterglow(Transient):
         redshift = self.data.query('GRB == @self._stripped_name')['Redshift'].values[0]
         if isinstance(self.redshift, str):
             self.redshift = self.__clean_string(redshift)
-        elif np.isnan(redshift)
+        elif np.isnan(redshift):
             return None
         else:
             self.redshift = redshift
