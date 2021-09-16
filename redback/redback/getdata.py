@@ -133,94 +133,44 @@ def process_integrated_flux_data(grb, rawfile):
     urllib.request.urlretrieve(grb_url, rawfile)
     logger.info('Congratulations, you now have raw data for GRB {}'.format(grb))
 
+
 def sort_integrated_flux_data(rawfile, fullfile):
-    xrtpcflag = 0
-    xrtpc = []
+    keys = ["Time [s]", "Pos. time err [s]", "Neg. time err [s]", "Flux [erg cm^{-2} s^{-1}]",
+            "Pos. flux err [erg cm^{-2} s^{-1}]", "Neg. flux err [erg cm^{-2} s^{-1}]", "Instrument"]
 
-    batflag = 0
-    bat = []
+    data = {key: [] for key in keys}
+    with open(rawfile) as f:
+        instrument = None
+        for num, line in enumerate(f.readlines()):
+            if line == "!\n":
+                continue
+            elif "READ TERR 1 2" in line or "NO NO NO NO NO NO" in line:
+                continue
+            elif 'batSNR4flux' in line:
+                instrument = 'batSNR4flux'
+                print(instrument)
+            elif 'xrtpcflux' in line:
+                instrument = 'xrtpcflux'
+                print(instrument)
+            elif 'xrtwtflux' in line:
+                instrument = 'xrtwtflux'
+                print(instrument)
+            else:
+                line_items = line.split('\t')
+                line_items.append(instrument)
+                for key, item in zip(keys, line_items):
+                    data[key].append(item.replace('\n', ''))
 
-    xrtwtflag = 0
-    xrtwt = []
-
-    try:
-        with open(rawfile) as data:
-            for num, line in enumerate(data):
-                if line[0] == '!':
-                    if line[2:13] == 'batSNR4flux':
-                        xrtpcflag = 0
-                        batflag = 1
-                        xrtwtflag = 0
-                    elif line[2:11] == 'xrtpcflux':
-                        xrtpcflag = 1
-                        batflag = 0
-                        xrtwtflag = 0
-                    elif line[2:11] == 'xrtwtflux':
-                        xrtpcflag = 0
-                        batflag = 0
-                        xrtwtflag = 1
-                    else:
-                        xrtpcflag = 0
-                        batflag = 0
-                        xrtwtflag = 0
-
-                if xrtpcflag == 1:
-                    xrtpc.append(line)
-                if batflag == 1:
-                    bat.append(line)
-                if xrtwtflag == 1:
-                    xrtwt.append(line)
-
-        with open(fullfile, 'w') as out:
-            out.write('## BAT - batSNR4flux\n')
-            for ii in range(len(bat)):
-                try:
-                    int(bat[ii][0])
-                    out.write(bat[ii])
-                except ValueError:
-                    pass
-
-            out.write('\n')
-            out.write('## XRT - xrtwtflux\n')
-            for ii in range(len(xrtwt)):
-                try:
-                    int(xrtwt[ii][0])
-                    out.write(xrtwt[ii])
-                except ValueError:
-                    pass
-
-            out.write('\n')
-            out.write('## XRT - xrtpcflux\n')
-
-            for ii in range(len(xrtpc)):
-                try:
-                    int(xrtpc[ii][0])
-                    out.write(xrtpc[ii])
-                except ValueError:
-                    pass
-    except IOError:
-        try:
-            logger.warning('There was an error opening the file')
-            sys.exit()
-        except SystemExit:
-            pass
+    df = pd.DataFrame(data=data)
+    df.to_csv(fullfile, index=False)
     logger.info('Congratulations, you now have a nice data file: {}'.format(fullfile))
 
 
 def sort_fluxdensity_data(rawfile, fullfile):
-    try:
-        data = np.loadtxt(rawfile, skiprows=2, delimiter='\t')
-        df = pd.DataFrame(data=data, columns=['Time [s]', 'Time err plus [s]', 'Time err minus [s]',
-                                              'Flux [mJy]', 'Flux err plus [mJy]', 'Flux err minus [mJy]'])
-        df.to_csv(fullfile, index=False, sep=',')
-    except IOError:
-        try:
-            logger.warning('There was an error opening the file')
-            sys.exit()
-        except SystemExit:
-            pass
-    logger.info('Congratulations, you now have a nice data file: {}'.format(fullfile))
-
+    data = np.loadtxt(rawfile, skiprows=2, delimiter='\t')
+    df = pd.DataFrame(data=data, columns=['Time [s]', 'Time err plus [s]', 'Time err minus [s]',
+                                          'Flux [mJy]', 'Flux err plus [mJy]', 'Flux err minus [mJy]'])
+    df.to_csv(fullfile, index=False, sep=',')
     logger.info('Congratulations, you now have a nice data file: {}'.format(fullfile))
 
 
@@ -251,6 +201,7 @@ def collect_swift_data(grb, use_default_directory, data_mode):
 
     return rawfile, fullfile
 
+
 def sort_swift_data(rawfile, fullfile, data_mode):
     if os.path.isfile(fullfile):
         logger.warning('The processed data file already exists')
@@ -264,18 +215,18 @@ def sort_swift_data(rawfile, fullfile, data_mode):
         sort_integrated_flux_data(rawfile, fullfile)
     if data_mode == 'flux_density':
         sort_fluxdensity_data(rawfile, fullfile)
-    return None
 
-def get_afterglow_data_from_swift(grb, data_mode = 'flux',use_default_directory=False):
+
+def get_afterglow_data_from_swift(grb, data_mode='flux', use_default_directory=False):
     rawfile, fullfile = collect_swift_data(grb, use_default_directory, data_mode)
     sort_swift_data(rawfile, fullfile, data_mode)
-    return None
 
-def get_xrt_data_from_swift(grb, data_mode = 'flux',use_default_directory=False):
+
+def get_xrt_data_from_swift(grb, data_mode='flux', use_default_directory=False):
     grbdir, rawfile, fullfile = afterglow_directory_structure(grb, use_default_directory, data_mode, instrument='xrt')
     logger.info('Getting trigger number')
     trigger = get_trigger_number(grb)
-    grb_website = 'https://www.swift.ac.uk/xrt_curves/00'+trigger+'/flux.qdp'
+    grb_website = 'https://www.swift.ac.uk/xrt_curves/00' + trigger + '/flux.qdp'
     response = requests.get(grb_website)
     if 'No Light curve available' in response.text:
         logger.warning('Problem loading the website for GRB {}. Are you sure GRB {} has Swift data?'.format(grb, grb))
@@ -286,7 +237,7 @@ def get_xrt_data_from_swift(grb, data_mode = 'flux',use_default_directory=False)
     data = process_xrt_data(rawfile)
     data.to_csv(fullfile, sep=',', index=False)
     logger.info('Congratulations, you now have processed XRT data for GRB {}'.format(grb))
-    return None
+
 
 def process_xrt_data(rawfile):
     data = np.loadtxt(rawfile, comments=['!', 'READ', 'NO'])
@@ -391,11 +342,13 @@ def transient_directory_structure(transient, use_default_directory, transient_ty
     fullfile_path = open_transient_dir + transient + '_data.csv'
     return open_transient_dir, rawfile_path, fullfile_path
 
+
 def get_oac_metadata():
     url = 'https://api.astrocats.space/catalog?format=CSV'
     urllib.request.urlretrieve(url, 'metadata.csv')
     logger.info('Downloaded metadata for open access catalog transients')
     return None
+
 
 def get_grb_alias(transient):
     metadata = pd.read_csv('tables/OAC_metadata.csv')
@@ -406,6 +359,7 @@ def get_grb_alias(transient):
     except AttributeError:
         pass
     return grb_alias
+
 
 def collect_open_catalog_data(transient, use_default_directory, transient_type):
     transient_dict = ['kilonova', 'supernova', 'tidal_disruption_event']
@@ -437,9 +391,10 @@ def collect_open_catalog_data(transient, use_default_directory, transient_type):
             metadata = open_transient_dir + 'metadata.csv'
             urllib.request.urlretrieve(url, raw_filename)
             logger.info('Retrieved data for {}'.format(transient))
-            metadataurl = 'https://api.astrocats.space/'+ transient + '/timeofmerger+discoverdate+redshift+ra+dec+host+alias?format=CSV'
+            metadataurl = 'https://api.astrocats.space/' + transient + '/timeofmerger+discoverdate+redshift+ra+dec+host+alias?format=CSV'
             urllib.request.urlretrieve(metadataurl, metadata)
             logger.info('Metdata for transient {} added'.format(transient))
+
 
 def get_t0_from_grb(transient):
     grb_alias = get_grb_alias(transient)
@@ -448,8 +403,10 @@ def get_t0_from_grb(transient):
     timeofevent = summary_table[summary_table['GRB_name'] == grb_alias]['mjd'].iloc[0]
     if np.isnan(timeofevent):
         logger.warning('Not found an associated GRB. Temporarily using the first data point as a start time')
-        logger.warning('Please run function fix_t0_of_transient before any further analysis. Or use models which sample with T0.' )
+        logger.warning(
+            'Please run function fix_t0_of_transient before any further analysis. Or use models which sample with T0.')
     return timeofevent
+
 
 def fix_t0_of_transient(timeofevent, transient, transient_type, use_default_directory=False):
     """
@@ -471,7 +428,8 @@ def fix_t0_of_transient(timeofevent, transient, transient_type, use_default_dire
 
 
 def sort_open_access_data(transient, use_default_directory, transient_type):
-    directory, rawfilename, fullfilename = transient_directory_structure(transient, use_default_directory, transient_type)
+    directory, rawfilename, fullfilename = transient_directory_structure(transient, use_default_directory,
+                                                                         transient_type)
     if os.path.isfile(fullfilename):
         logger.warning('processed data already exists')
         return pd.read_csv(fullfilename, sep=',')
@@ -480,7 +438,7 @@ def sort_open_access_data(transient, use_default_directory, transient_type):
         logger.warning('The raw data does not exist.')
         raise DataExists('Raw data is missing.')
     else:
-        rawdata = pd.read_csv(rawfilename, sep = ',')
+        rawdata = pd.read_csv(rawfilename, sep=',')
         if pd.isna(rawdata['system']).any():
             logger.warning("Some data points do not have system information. Assuming AB magnitude")
             rawdata['system'].fillna('AB', inplace=True)
@@ -493,7 +451,8 @@ def sort_open_access_data(transient, use_default_directory, transient_type):
 
         data['flux(mjy)'] = calc_fluxdensity_from_ABmag(data['magnitude'].values)
         data['flux_error'] = calc_flux_density_error(magnitude=data['magnitude'].values,
-                                                     magnitude_error=data['e_magnitude'].values, reference_flux=3631, magnitude_system='AB')
+                                                     magnitude_error=data['e_magnitude'].values, reference_flux=3631,
+                                                     magnitude_system='AB')
 
         metadata = directory + 'metadata.csv'
         metadata = pd.read_csv(metadata)
@@ -507,14 +466,15 @@ def sort_open_access_data(transient, use_default_directory, transient_type):
         if np.isnan(timeofevent) and transient_type != 'kilonova':
             logger.warning('No time of event in metadata.')
             logger.warning('Temporarily using the first data point as a start time')
-            logger.warning('Please run function fix_t0_of_transient before any further analysis. Or use models which sample with T0.')
+            logger.warning(
+                'Please run function fix_t0_of_transient before any further analysis. Or use models which sample with T0.')
             print(data['time'])
             timeofevent = data['time'].iloc[0]
 
         timeofevent = Time(timeofevent, format='mjd')
         tt = Time(np.asarray(data['time'], dtype=float), format='mjd')
         data['time (days)'] = (tt - timeofevent).to(uu.day)
-        data.to_csv(fullfilename, sep=',', index = False)
+        data.to_csv(fullfilename, sep=',', index=False)
         logger.info(f'Congratulations, you now have a nice data file: {fullfilename}')
     return data
 
