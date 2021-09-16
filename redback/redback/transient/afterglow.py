@@ -318,10 +318,10 @@ class Afterglow(Transient):
     def _get_redshift(self):
         # some GRBs dont have measurements
         redshift = self.data.query('GRB == @self._stripped_name')['Redshift'].values[0]
-        if np.isnan(redshift):
-            return None
-        elif isinstance(self.redshift, str):
+        if isinstance(self.redshift, str):
             self.redshift = self.__clean_string(redshift)
+        elif np.isnan(redshift)
+            return None
         else:
             self.redshift = redshift
 
