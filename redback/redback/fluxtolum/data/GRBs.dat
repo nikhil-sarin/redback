@@ -1,6 +1,0 @@
-#Get these data from https://www.swift.ac.uk/xrt_spectra/00611599/
-GRB z alpha beta Ecut obs_elow obs_ehigh cts2flx_abs cts2flx_unabs
-GRB050319 3.24 1.96 1.96 1000 0.3 10 3.23e-11 3.36e-11
-GRB060729 0.54 1.93 1.93 1000 0.3 10 3.4e-11 4.01e-11
-GRB061121 1.314 1.83 1.83 1000 0.3 10 3.73e-11 4.62e-11
-GRB080430 0.767 1.95 1.95 1000 0.3 10 3.49e-11 4.47e-11
