@@ -104,7 +104,7 @@ def _fit_grb(name, path, model, sampler='dynesty', nlive=3000, prior=None, walks
                            'time_err_negative': data.time_err[0, :],
                            'time_err_positive': data.time_err[1, :]})
         df.to_csv(outdir + "/data.txt", sep=',', index_label=False, index=False)
-        likelihood = GRBGaussianLikelihood(time=data.time, flux=data.Lum50, sigma=data.Lum50_err, function=function)
+        likelihood = GRBGaussianLikelihood(x=data.time, y=data.Lum50, sigma=data.Lum50_err, function=function)
     elif data.flux_data:
         df = pd.DataFrame({'time': data.time,
                            'flux': data.flux,
@@ -113,7 +113,7 @@ def _fit_grb(name, path, model, sampler='dynesty', nlive=3000, prior=None, walks
                            'time_err_negative': data.time_err[0, :],
                            'time_err_positive': data.time_err[1, :]})
         df.to_csv(outdir + "/data.txt", sep=',', index_label=False, index=False)
-        likelihood = GRBGaussianLikelihood(time=data.time, flux=data.flux, sigma=data.flux_err, function=function)
+        likelihood = GRBGaussianLikelihood(x=data.time, y=data.flux, sigma=data.flux_err, function=function)
     elif data.fluxdensity_data:
         df = pd.DataFrame({'time': data.time,
                            'flux_density': data.flux_density,
@@ -122,7 +122,7 @@ def _fit_grb(name, path, model, sampler='dynesty', nlive=3000, prior=None, walks
                            'time_err_negative': data.time_err[0, :],
                            'time_err_positive': data.time_err[1, :]})
         df.to_csv(outdir + "/data.txt", sep=',', index_label=False, index=False)
-        likelihood = GRBGaussianLikelihood(time=data.time, flux=data.flux_density, sigma=data.flux_density_err,
+        likelihood = GRBGaussianLikelihood(x=data.time, y=data.flux_density, sigma=data.flux_density_err,
                                            function=function)
     else:
         raise ValueError("Not a valid data switch")
