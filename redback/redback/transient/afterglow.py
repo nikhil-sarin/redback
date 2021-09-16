@@ -31,7 +31,6 @@ class Afterglow(Transient):
             name = 'GRB' + name
         super().__init__(time=[], time_err=[], y=[], y_err=[], data_mode=data_mode, name=name)
 
-
         self.time = np.array([])
         self.time_rest_frame = np.array([])
         self.time_err = np.array([])
@@ -106,13 +105,13 @@ class Afterglow(Transient):
     def load_data(self, data_mode=None):
         if data_mode is not None:
             self.data_mode = data_mode
-        if self.flux_data:
-            label = ''
-        else:
-            label = f'_{self.data_mode}'
 
-        data_file = f"{self.path}/{self.name}/{self.name}{label}.dat"
-        data = np.loadtxt(data_file)
+        grb_dir, _, _ = afterglow_directory_structure(grb=self._stripped_name, use_default_directory=False,
+                                                      data_mode=self.data_mode)
+        filename = f"{self.name}.csv"
+
+        data_file = join(grb_dir, filename)
+        data = np.genfromtxt(data_file, delimiter=",")[1:]
         if self.luminosity_data:
             self.time_rest_frame = data[:, 0]  # time (secs)
             self.time_rest_frame_err = np.abs(data[:, 1:3].T)  # \Delta time (secs)
@@ -139,8 +138,13 @@ class Afterglow(Transient):
             self._truncate_default()
 
     def _truncate_prompt_time_error(self):
-        mask1 = self.time_err[0, :] > 0.0025
-        mask2 = self.time < 2.0  # dont truncate if data point is after 2.0 seconds
+        if self.luminosity_data:
+            mask1 = self.time_rest_frame_err[0, :] > 0.0025
+            mask2 = self.time_rest_frame < 2.0  # dont truncate if data point is after 2.0 seconds
+        else:
+            mask1 = self.time_err[0, :] > 0.0025
+            mask2 = self.time < 2.0  # dont truncate if data point is after 2.0 seconds
+
         mask = np.logical_and(mask1, mask2)
         if self.luminosity_data:
             self.time_rest_frame = self.time_rest_frame[~mask]
@@ -279,7 +283,7 @@ class Afterglow(Transient):
     def _save_luminosity_data(self):
         grb_dir, _, _ = afterglow_directory_structure(grb=self._stripped_name, use_default_directory=False,
                                                       data_mode=self.data_mode)
-        filename = f"{self.name}_lum.csv"
+        filename = f"{self.name}.csv"
         data = {"Time in restframe [s]": self.time_rest_frame,
                 "Pos. time err in restframe [s]": self.time_rest_frame_err[0, :],
                 "Neg. time err in restframe [s]": self.time_rest_frame_err[1, :],
@@ -287,7 +291,7 @@ class Afterglow(Transient):
                 "Pos. luminosity err [10^50 erg s^{-1}]": self.Lum50_err[0, :],
                 "Neg. luminosity err [10^50 erg s^{-1}]": self.Lum50_err[1, :]}
         df = pd.DataFrame(data=data)
-        df.to_csv(join(grb_dir, filename))
+        df.to_csv(join(grb_dir, filename), index=False)
 
     # def get_prompt(self):
     #     pass
