@@ -51,6 +51,82 @@ class Afterglow(Transient):
 
         self.load_data(data_mode=self.data_mode)
 
+    @property
+    def x(self):
+        if self.luminosity_data:
+            return self.time_rest_frame
+        elif self.fluxdensity_data or self.flux_data:
+            return self.time
+        else:
+            raise ValueError
+
+    @x.setter
+    def x(self, x):
+        if self.luminosity_data:
+            self.time_rest_frame = x
+        elif self.fluxdensity_data or self.flux_data:
+            self.time = x
+
+    @property
+    def x_err(self):
+        if self.luminosity_data:
+            return self.time_rest_frame_err
+        elif self.fluxdensity_data or self.flux_data:
+            return self.time_err
+        else:
+            raise ValueError
+
+    @x_err.setter
+    def x_err(self, x_err):
+        if self.luminosity_data:
+            self.time_rest_frame_err = x_err
+        elif self.fluxdensity_data or self.flux_data:
+            self.time_err = x_err
+
+    @property
+    def y(self):
+        if self.luminosity_data:
+            return self.Lum50
+        elif self.flux_data:
+            return self.flux
+        elif self.fluxdensity_data:
+            return self.flux_density
+        else:
+            raise ValueError
+
+    @y.setter
+    def y(self, y):
+        if self.luminosity_data:
+            self.Lum50 = y
+        elif self.flux_data:
+            self.flux = y
+        elif self.fluxdensity_data:
+            self.flux_density = y
+        else:
+            raise ValueError
+
+    @property
+    def y_err(self):
+        if self.luminosity_data:
+            return self.Lum50_err
+        elif self.flux_data:
+            return self.flux_err
+        elif self.fluxdensity_data:
+            return self.flux_density_err
+        else:
+            raise ValueError
+
+    @y_err.setter
+    def y_err(self, y_err):
+        if self.luminosity_data:
+            self.Lum50_err = y_err
+        elif self.flux_data:
+            self.flux_err = y_err
+        elif self.fluxdensity_data:
+            self.flux_density_err = y_err
+        else:
+            raise ValueError
+
 
     # def get_luminosity_attributes(self):
     #     #do sql stuff.
@@ -79,17 +155,17 @@ class Afterglow(Transient):
     def photometry_data(self):
         return self.data_mode == DATA_MODES[3]
 
-    @classmethod
-    def from_path_and_grb(cls, path, grb):
-        data_dir = find_path(path)
-        return cls(name=grb, path=data_dir)
+    # @classmethod
+    # def from_path_and_grb(cls, path, grb):
+    #     data_dir = find_path(path)
+    #     return cls(name=grb, path=data_dir)
 
-    @classmethod
-    def from_path_and_grb_with_truncation(
-            cls, path, grb, truncate=True, truncate_method='prompt_time_error', data_mode='flux'):
-        grb = cls.from_path_and_grb(path=path, grb=grb)
-        grb.load_and_truncate_data(truncate=truncate, truncate_method=truncate_method, data_mode=data_mode)
-        return grb
+    # @classmethod
+    # def from_path_and_grb_with_truncation(
+    #         cls, path, grb, truncate=True, truncate_method='prompt_time_error', data_mode='flux'):
+    #     grb = cls.from_path_and_grb(path=path, grb=grb)
+    #     grb.load_and_truncate_data(truncate=truncate, truncate_method=truncate_method, data_mode=data_mode)
+    #     return grb
 
     def load_and_truncate_data(self, truncate=True, truncate_method='prompt_time_error', data_mode='flux'):
         """
@@ -112,18 +188,10 @@ class Afterglow(Transient):
 
         data_file = join(grb_dir, filename)
         data = np.genfromtxt(data_file, delimiter=",")[1:]
-        if self.luminosity_data:
-            self.time_rest_frame = data[:, 0]  # time (secs)
-            self.time_rest_frame_err = np.abs(data[:, 1:3].T)  # \Delta time (secs)
-            self.Lum50, self.Lum50_err = self._load(data)  # Lum (1e50 erg/s)
-        elif self.fluxdensity_data:
-            self.time = data[:, 0]  # time (secs)
-            self.time_err = np.abs(data[:, 1:3].T)  # \Delta time (secs)
-            self.flux_density, self.flux_density_err = self._load(data)  # depending on detector its at a specific mJy
-        elif self.flux_data:
-            self.time = data[:, 0]  # time (secs)
-            self.time_err = np.abs(data[:, 1:3].T)  # \Delta time (secs)
-            self.flux, self.flux_err = self._load(data)  # depending on detector its over a specific frequency range
+        self.x = data[:, 0]
+        self.x_err = data[:, 1:3].T
+        self.y, self.y_err = self._load(data)
+
 
     @staticmethod
     def _load(data):
@@ -138,62 +206,28 @@ class Afterglow(Transient):
             self._truncate_default()
 
     def _truncate_prompt_time_error(self):
-        if self.luminosity_data:
-            mask1 = self.time_rest_frame_err[0, :] > 0.0025
-            mask2 = self.time_rest_frame < 2.0  # dont truncate if data point is after 2.0 seconds
-        else:
-            mask1 = self.time_err[0, :] > 0.0025
-            mask2 = self.time < 2.0  # dont truncate if data point is after 2.0 seconds
-
+        mask1 = self.x_err[0, :] > 0.0025
+        mask2 = self.x < 2.0  # dont truncate if data point is after 2.0 seconds
         mask = np.logical_and(mask1, mask2)
-        if self.luminosity_data:
-            self.time_rest_frame = self.time_rest_frame[~mask]
-            self.time_rest_frame_err = self.time_rest_frame_err[:, ~mask]
-            self.Lum50 = self.Lum50[~mask]
-            self.Lum50_err = self.Lum50_err[:, ~mask]
-        elif self.flux_data:
-            self.flux = self.flux[~mask]
-            self.flux_err = self.flux_err[:, ~mask]
-        elif self.fluxdensity_data:
-            self.flux_density = self.flux_density[~mask]
-            self.flux_density_err = self.flux_density_err[:, ~mask]
+        self.x = self.x[~mask]
+        self.x_err = self.x_err[:, ~mask]
+        self.y = self.y[~mask]
+        self.y_err = self.y_err[:, ~mask]
 
     def _truncate_left_of_max(self):
-        if self.luminosity_data:
-            max_index = np.argmax(self.Lum50)
-            self.time_rest_frame = self.time_rest_frame[max_index:]
-            self.time_rest_frame_err = self.time_rest_frame_err[:, max_index:]
-            self.Lum50 = self.Lum50[max_index:]
-            self.Lum50_err = self.Lum50_err[:, max_index:]
-        elif self.flux_data:
-            max_index = np.argmax(self.flux)
-            self.flux = self.flux[max_index:]
-            self.flux_err = self.flux_err[:, max_index:]
-        elif self.fluxdensity_data:
-            max_index = np.argmax(self.flux_density)
-            self.flux_density = self.flux_density[max_index:]
-            self.flux_density_err = self.flux_density_err[:, max_index:]
-        else:
-            raise ValueError
-        self.time = self.time[max_index:]
-        self.time_err = self.time_err[:, max_index:]
+        max_index = np.argmax(self.y)
+        self.x = self.x[max_index:]
+        self.x_err = self.x_err[:, max_index:]
+        self.y = self.y[max_index:]
+        self.y_err = self.y_err[:, max_index:]
 
     def _truncate_default(self):
         truncate = self.time_err[0, :] > 0.1
         to_del = len(self.time) - (len(self.time[truncate]) + 2)
-        self.time = self.time[to_del:]
-        self.time_err = self.time_err[:, to_del:]
-        if self.luminosity_data:
-            self.time_rest_frame = self.time_rest_frame[to_del:]
-            self.time_rest_frame_err = self.time_rest_frame_err[:, to_del:]
-            self.Lum50 = self.Lum50[to_del:]
-            self.Lum50_err = self.Lum50_err[:, to_del:]
-        elif self.flux_data:
-            self.flux = self.flux[to_del:]
-            self.flux_err = self.flux_err[:, to_del:]
-        elif self.fluxdensity_data:
-            self.flux_density = self.flux_density[to_del:]
-            self.flux_density_err = self.flux_density_err[:, to_del:]
+        self.x = self.x[to_del:]
+        self.x_err = self.x_err[:, to_del:]
+        self.y = self.y[to_del:]
+        self.y_err = self.y_err[:, to_del:]
 
     @property
     def event_table(self):
@@ -318,7 +352,7 @@ class Afterglow(Transient):
     def _get_redshift(self):
         # some GRBs dont have measurements
         redshift = self.data.query('GRB == @self._stripped_name')['Redshift'].values[0]
-        if isinstance(self.redshift, str):
+        if isinstance(redshift, str):
             self.redshift = self.__clean_string(redshift)
         elif np.isnan(redshift):
             return None
@@ -374,17 +408,20 @@ class Afterglow(Transient):
         :param axes:
         :param colour:
         """
-        x, x_err, y, y_err, ylabel = self._get_plot_data_and_labels()
+        ylabel = self._get_labels()
+
+        x_err = [self.x_err[1, :], self.x_err[0, :]]
+        y_err = [self.y_err[1, :], self.y_err[0, :]]
 
         ax = axes or plt.gca()
-        ax.errorbar(x, y, xerr=x_err, yerr=y_err,
+        ax.errorbar(self.x, self.y, xerr=x_err, yerr=y_err,
                     fmt='x', c=colour, ms=1, elinewidth=2, capsize=0.)
 
         ax.set_xscale('log')
         ax.set_yscale('log')
 
-        ax.set_xlim(0.5 * x[0], 2 * (x[-1] + x_err[1][-1]))
-        ax.set_ylim(0.5 * min(y), 2. * np.max(y))
+        ax.set_xlim(0.5 * self.x[0], 2 * (self.x[-1] + x_err[1][-1]))
+        ax.set_ylim(0.5 * min(self.y), 2. * np.max(self.y))
 
         ax.annotate(f'GRB{self.name}', xy=(0.95, 0.9), xycoords='axes fraction',
                     horizontalalignment='right', size=20)
@@ -402,28 +439,15 @@ class Afterglow(Transient):
         plt.savefig(join(grb_dir, filename))
         plt.clf()
 
-    def _get_plot_data_and_labels(self):
+    def _get_labels(self):
         if self.luminosity_data:
-            x = self.time_rest_frame
-            x_err = [self.time_rest_frame_err[1, :], self.time_rest_frame_err[0, :]]
-            y = self.Lum50
-            y_err = [self.Lum50_err[1, :], self.Lum50_err[0, :]]
-            ylabel = r'Luminosity [$10^{50}$ erg s$^{-1}$]'
+            return r'Luminosity [$10^{50}$ erg s$^{-1}$]'
         elif self.flux_data:
-            x = self.time
-            x_err = [self.time_err[1, :], self.time_err[0, :]]
-            y = self.flux
-            y_err = [self.flux_err[1, :], self.flux_err[0, :]]
-            ylabel = r'Flux [erg cm$^{-2}$ s$^{-1}$]'
+            return r'Flux [erg cm$^{-2}$ s$^{-1}$]'
         elif self.fluxdensity_data:
-            x = self.time
-            x_err = [self.time_err[1, :], self.time_err[0, :]]
-            y = self.flux_density
-            y_err = [self.flux_density_err[1, :], self.flux_density_err[0, :]]
-            ylabel = r'Flux density [mJy]'
+            return r'Flux density [mJy]'
         else:
             raise ValueError
-        return x, x_err, y, y_err, ylabel
 
     def plot_multiband(self):
         if self.data_mode != 'flux_density':
