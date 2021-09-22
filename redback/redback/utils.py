@@ -273,11 +273,10 @@ class MetaDataAccessor(object):
     def __set__(self, instance, value):
         getattr(instance, self.container_instance_name)[self.property_name] = value
 
-all_models_dict = []
-modules_dict = {}
+
 def get_functions_dict(module):
+    models_dict = {}
     _functions_list = [o for o in getmembers(module) if isfunction(o[1])]
     _functions_dict = {f[0]: f[1] for f in _functions_list}
-    all_models_dict.append(_functions_dict)
-    modules_dict[module.__name__.split('.')[-1]] = _functions_dict
-    return all_models_dict, modules_dict
+    models_dict[module.__name__.split('.')[-1]] = _functions_dict
+    return models_dict

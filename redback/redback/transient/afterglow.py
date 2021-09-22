@@ -11,8 +11,6 @@ from astropy.cosmology import Planck18 as cosmo
 from ..getdata import afterglow_directory_structure
 from os.path import join
 
-from ..model_library import all_models_dict
-from ..utils import find_path
 from .transient import Transient
 
 dirname = os.path.dirname(__file__)

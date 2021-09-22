@@ -1,10 +1,9 @@
 import extinction
 from .fireball_models import predeceleration
-from ..utils import logger, calc_ABmag_from_fluxdensity, get_functions_dict, calc_fluxdensity_from_ABmag
-from . import afterglow_models
+from ..utils import logger, calc_ABmag_from_fluxdensity
+from ..model_library import models_dict
 import numpy as np
 
-_, modules_dict = get_functions_dict(afterglow_models)
 
 extinction_base_models = ['tophat', 'cocoon', 'gaussian',
                           'kn_afterglow', 'cone_afterglow',
@@ -20,7 +19,7 @@ def extinction_with_afterglow_base_model(time, lognh, factor, **kwargs):
         raise ValueError('Please choose a different base model')
 
     if isinstance(base_model, str):
-        function = modules_dict['afterglow_models'][base_model]
+        function = models_dict['afterglow_models'][base_model]
 
     # logger.info('Using the extinction factor from Guver and Ozel 2009')
     factor = factor * 1e21
