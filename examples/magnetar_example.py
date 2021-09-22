@@ -8,7 +8,6 @@ sampler = 'dynesty'
 model = 'evolving_magnetar'
 
 GRB = '070809'
-path = 'GRBData'
 # Flux density, flux data
 redback.getdata.get_afterglow_data_from_swift(GRB, data_mode='flux')
 # creates a GRBDir with GRB
@@ -38,8 +37,8 @@ priors = redback.redback.priors.get_priors(model=model, data_mode='luminosity')
 # priors['II'] = bilby.core.prior.LogUniform(1e45, 1e46, 'II', latex_label = r'$I$')
 
 
-result, data = redback.fit_model(name=GRB, model=model, sampler=sampler, nlive=500,
-                                 path=path, prior=priors, data_mode='luminosity')
+result, data = redback.fit_model(name=GRB, model=model, sampler=sampler, nlive=500, transient=afterglow,
+                                 prior=priors, data_mode='luminosity', outdir="GRB_results")
 
 
 # returns a GRB result object
