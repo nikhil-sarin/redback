@@ -258,7 +258,7 @@ class GaussianLikelihood_quadrature_noise_non_detections(bilby.Likelihood):
         return log_l
 
 class GRBGaussianLikelihood(bilby.Likelihood):
-    def __init__(self, x, y, sigma, function, kwargs):
+    def __init__(self, x, y, sigma, function, **kwargs):
         """
         A general Gaussian likelihood - the parameters are inferred from the
         arguments of function
@@ -300,11 +300,7 @@ class GRBGaussianLikelihood(bilby.Likelihood):
         return self._noise_log_likelihood
 
     def log_likelihood(self):
-        if self.kwargs != None:
-            model = self.function(self.x, **self.parameters, **self.kwargs)
-        else:
-            model = self.function(self.x, **self.parameters)
-
+        model = self.function(self.x, **self.parameters, **self.kwargs)
         sigma = self.parameters.get('sigma', self.sigma)
 
         res = self.y - model

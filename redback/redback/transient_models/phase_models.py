@@ -1,5 +1,4 @@
 import numpy as np
-import extinction
 from . import extinction_models
 from . import integrated_flux_afterglow_models as infam
 from . import afterglow_models
@@ -9,7 +8,6 @@ from ..constants import *
 from astropy.time import Time
 import astropy.units as uu
 
-_, modules_dict = get_functions_dict(afterglow_models)
 
 def t0_extinction_models(time, lognh, factor, **kwargs):
     """
@@ -131,6 +129,7 @@ def t0_afterglowpy_fluxdensity_model(time, burst_start, **kwargs):
     :return: flux density for time > T0 parameter
 
     """
+    from ..model_library import modules_dict
     base_model = kwargs['base_model']
     if isinstance(base_model, str):
         function = modules_dict['afterglow_models'][base_model]

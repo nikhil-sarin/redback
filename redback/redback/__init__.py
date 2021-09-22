@@ -1,4 +1,3 @@
-# from . import fluxtolum
 from . import getdata
 from .transient import afterglow
 from .transient import supernova

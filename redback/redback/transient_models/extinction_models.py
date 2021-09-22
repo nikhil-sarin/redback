@@ -1,10 +1,7 @@
-import extinction
 from .fireball_models import predeceleration
-from ..utils import logger, calc_ABmag_from_fluxdensity, get_functions_dict, calc_fluxdensity_from_ABmag
-from . import afterglow_models
+from ..utils import logger, calc_ABmag_from_fluxdensity
 import numpy as np
 
-_, modules_dict = get_functions_dict(afterglow_models)
 
 extinction_base_models = ['tophat', 'cocoon', 'gaussian',
                           'kn_afterglow', 'cone_afterglow',
@@ -14,6 +11,8 @@ extinction_base_models = ['tophat', 'cocoon', 'gaussian',
 
 
 def extinction_with_afterglow_base_model(time, lognh, factor, **kwargs):
+    import extinction
+    from ..model_library import modules_dict
     base_model = kwargs['base_model']
     if base_model not in extinction_base_models:
         logger.warning('{} is not implemented as a base model'.format(base_model))
@@ -44,6 +43,7 @@ def extinction_with_predeceleration(time, lognh, factor, **kwargs):
     :param kwargs: all params
     :return: flux or magnitude with extinction applied depending on kwargs
     """
+    import extinction
     lc = predeceleration(time, **kwargs)
     lc = np.nan_to_num(lc)
     factor = factor * 1e21

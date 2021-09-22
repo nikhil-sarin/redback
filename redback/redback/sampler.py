@@ -6,7 +6,7 @@ import bilby
 
 import pandas as pd
 
-from . import afterglow as tools
+from . import afterglow
 
 from .result import RedbackResult
 from .utils import find_path, logger
@@ -74,7 +74,7 @@ def _fit_grb(name, path, model, sampler='dynesty', nlive=3000, prior=None, walks
              use_photon_index_prior=False, truncate_method='prompt_time_error', data_mode='flux', data=None,
              resume=True, save_format='json', **kwargs):
     if data is None:
-        data = tools.SGRB(name, path)
+        data = afterglow.SGRB(name, data_mode=data_mode)
         data.load_and_truncate_data(truncate=truncate, truncate_method=truncate_method, data_mode=data_mode)
 
     if prior is None:
@@ -95,41 +95,11 @@ def _fit_grb(name, path, model, sampler='dynesty', nlive=3000, prior=None, walks
 
     outdir = f"{find_path(path)}/GRB{name}/{model}"
     Path(outdir).mkdir(parents=True, exist_ok=True)
-    label = ''
-    if data.luminosity_data:
-        df = pd.DataFrame({'time': data.time,
-                           'Lum50': data.Lum50,
-                           'Lum50_err_positive': data.Lum50_err[1, :],
-                           'Lum50_err_negative': data.Lum50_err[0, :],
-                           'time_err_negative': data.time_err[0, :],
-                           'time_err_positive': data.time_err[1, :]})
-        df.to_csv(outdir + "/data.txt", sep=',', index_label=False, index=False)
-        likelihood = GRBGaussianLikelihood(time=data.time, flux=data.Lum50, sigma=data.Lum50_err, function=function)
-    elif data.flux_data:
-        df = pd.DataFrame({'time': data.time,
-                           'flux': data.flux,
-                           'flux_positive': data.flux_err[1, :],
-                           'flux_negative': data.flux_err[0, :],
-                           'time_err_negative': data.time_err[0, :],
-                           'time_err_positive': data.time_err[1, :]})
-        df.to_csv(outdir + "/data.txt", sep=',', index_label=False, index=False)
-        likelihood = GRBGaussianLikelihood(time=data.time, flux=data.flux, sigma=data.flux_err, function=function)
-    elif data.fluxdensity_data:
-        df = pd.DataFrame({'time': data.time,
-                           'flux_density': data.flux_density,
-                           'flux_density_positive': data.flux_density_err[1, :],
-                           'flux_density_negative': data.flux_density_err[0, :],
-                           'time_err_negative': data.time_err[0, :],
-                           'time_err_positive': data.time_err[1, :]})
-        df.to_csv(outdir + "/data.txt", sep=',', index_label=False, index=False)
-        likelihood = GRBGaussianLikelihood(time=data.time, flux=data.flux_density, sigma=data.flux_density_err,
-                                           function=function)
-    else:
-        raise ValueError("Not a valid data switch")
-    label += data_mode
 
+    label = data_mode
     if use_photon_index_prior:
         label += '_photon_index'
+    likelihood = GRBGaussianLikelihood(x=data.x, y=data.y, sigma=data.y_err, function=function)
 
     meta_data = dict(model=model, transient=data, path=path, use_photon_index_prior=use_photon_index_prior,
                      truncate=truncate, truncate_method=truncate_method, save_format=save_format)
