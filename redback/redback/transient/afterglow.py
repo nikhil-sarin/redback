@@ -11,7 +11,6 @@ from astropy.cosmology import Planck18 as cosmo
 from ..getdata import afterglow_directory_structure
 from os.path import join
 
-from .. import models as mm
 from ..model_library import all_models_dict
 from ..utils import find_path
 from .transient import Transient
