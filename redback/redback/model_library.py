@@ -13,4 +13,5 @@ modules_dict = dict()
 for module in modules:
     models_dict = get_functions_dict(module)
     modules_dict.update(models_dict)
-    all_models_dict.update(models_dict)
+    for k, v in models_dict[module.__name__.split('.')[-1]].items():
+        all_models_dict[k] = v

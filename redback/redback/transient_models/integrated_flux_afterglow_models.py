@@ -1,7 +1,6 @@
 import numpy as np
 from ..utils import logger
 from scipy.integrate import simps
-from ..model_library import modules_dict
 
 integratedflux_base_models = ['tophat', 'cocoon', 'gaussian',
                           'kn_afterglow', 'cone_afterglow',
@@ -11,6 +10,7 @@ integratedflux_base_models = ['tophat', 'cocoon', 'gaussian',
 
 
 def integrated_flux_afterglowpy_base_model(time, **kwargs):
+    from ..model_library import modules_dict
     base_model = kwargs['base_model']
     if base_model not in integratedflux_base_models:
         logger.warning('{} is not implemented as a base model'.format(base_model))

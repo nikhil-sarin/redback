@@ -3,7 +3,6 @@ from transient_models import afterglow_models
 import matplotlib.pyplot as plt
 import numpy as np
 
-_, modules_dict = get_functions_dict(afterglow_models)
 
 def plot_multiple_multiband_lightcurves():
     pass
@@ -20,6 +19,7 @@ def plot_afterglowpy_lightcurves(time, plot = False, **kwargs):
     :param kwargs:
     :return: either the time and flux arrays or plot.
     """
+    from model_library import modules_dict
     base_model = kwargs['base_model']
     if isinstance(base_model, str):
         function = modules_dict['afterglow_models'][base_model]
