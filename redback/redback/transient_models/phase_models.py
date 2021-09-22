@@ -9,7 +9,7 @@ from ..constants import *
 from astropy.time import Time
 import astropy.units as uu
 
-_, modules_dict = get_functions_dict(afterglow_models)
+modules_dict = get_functions_dict(afterglow_models)
 
 def t0_extinction_models(time, lognh, factor, **kwargs):
     """

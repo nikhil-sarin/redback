@@ -1,7 +1,7 @@
 import numpy as np
 from ..utils import logger
 from scipy.integrate import simps
-from ..model_library import models_dict
+from ..model_library import modules_dict
 
 integratedflux_base_models = ['tophat', 'cocoon', 'gaussian',
                           'kn_afterglow', 'cone_afterglow',
@@ -17,7 +17,7 @@ def integrated_flux_afterglowpy_base_model(time, **kwargs):
         raise ValueError('Please choose a different base model')
 
     if isinstance(base_model, str):
-        function = models_dict['afterglow_models'][base_model]
+        function = modules_dict['afterglow_models'][base_model]
 
     frequency_bounds = kwargs['frequency'] # should be 2 numbers that serve as start and end point
     nu_1d = np.linspace(frequency_bounds[0], frequency_bounds[1], 3)
