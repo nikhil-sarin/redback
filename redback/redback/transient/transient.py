@@ -5,6 +5,8 @@ from astropy.cosmology import Planck18 as cosmo
 
 class Transient(object):
 
+    DATA_MODES = []
+
     def __init__(self, time, time_err, y, y_err=None, redshift=np.nan, data_mode=None, name='', path='.'):
         """
         Base class for all transients
@@ -142,6 +144,17 @@ class Transient(object):
     @property
     def _counts_err(self):
         return np.sqrt(self.counts)
+
+    @property
+    def data_mode(self):
+        return self._data_mode
+
+    @data_mode.setter
+    def data_mode(self, data_mode):
+        if data_mode in self.DATA_MODES:
+            self._data_mode = data_mode
+        else:
+            raise ValueError("Unknown data mode.")
 
     # @classmethod
     # def simulate_transient_object(cls):

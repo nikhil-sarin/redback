@@ -14,10 +14,11 @@ from .transient import Transient
 
 dirname = os.path.dirname(__file__)
 
-DATA_MODES = ['luminosity', 'flux', 'flux_density', 'photometry']
-
 
 class Afterglow(Transient):
+
+    DATA_MODES = ['luminosity', 'flux', 'flux_density', 'photometry']
+
     """Class for afterglows"""
     def __init__(self, name, data_mode='flux'):
         """
