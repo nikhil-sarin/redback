@@ -310,7 +310,7 @@ class GRBGaussianLikelihood(bilby.Likelihood):
 
 
 class PoissonLikelihood(bilby.Likelihood):
-    def __init__(self, time, counts, function, kwargs):
+    def __init__(self, time, counts, function, dt=None, **kwargs):
         """
         Parameters
         ----------
@@ -325,24 +325,22 @@ class PoissonLikelihood(bilby.Likelihood):
         self.counts = counts
         self.function = function
         self.kwargs = kwargs
-        self.dt = kwargs['dt']
+        if dt is None:
+            self.dt = self.time[1] - self.time[0]
+        else:
+            self.dt = dt
         parameters = inspect.getfullargspec(function).args
         parameters.pop(0)
         self.parameters = dict.fromkeys(parameters)
+        self._noise_log_likelihood = np.nan
         super(PoissonLikelihood, self).__init__(parameters=dict())
 
     def noise_log_likelihood(self):
-        background_rate = self.parameters['bkg_rate'] * self.dt
-        rate = 0 + background_rate
-        log_l = np.sum(-rate + self.counts * np.log(rate) - gammaln(self.counts + 1))
+        background_rate = self.parameters['background_rate'] * self.dt
+        log_l = np.sum(-background_rate + self.counts * np.log(background_rate) - gammaln(self.counts + 1))
         self._noise_log_likelihood = log_l
         return self._noise_log_likelihood
 
     def log_likelihood(self):
-        if self.kwargs != None:
-            rate = self.function(self.time, **self.parameters, **self.kwargs)
-        else:
-            rate = self.function(self.time, **self.parameters)
-
-        logl = np.sum(-rate + self.counts * np.log(rate) - gammaln(self.counts + 1))
-        return logl
+        rate = self.function(self.time, **self.parameters, **self.kwargs)
+        return np.sum(-rate + self.counts * np.log(rate) - gammaln(self.counts + 1))
