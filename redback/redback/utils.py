@@ -203,6 +203,12 @@ def cdf(x, plot=True, *args, **kwargs):
     return plt.plot(x, y, *args, **kwargs) if plot else (x, y)
 
 
+def bin_ttes(ttes, bin_size):
+    counts, bin_edges = np.histogram(ttes, np.arange(ttes[0], ttes[-1], bin_size))
+    times = np.array([bin_edges[i] + (bin_edges[i + 1] - bin_edges[i]) / 2 for i in range(len(bin_edges) - 1)])
+    return times, counts
+
+
 def find_path(path):
     if path == 'default':
         return os.path.join(dirname, '../data/GRBData')
