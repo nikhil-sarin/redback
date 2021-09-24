@@ -387,6 +387,8 @@ def get_batse_trigger_from_grb(grb):
             for i, loc in enumerate(location):
                 object_labels[loc] = object_labels[loc] + ALPHABET[i]
 
+    if grb[0].isnumeric():
+        grb = 'GRB' + grb
     index = object_labels.index(grb)
     return int(batse_triggers[index])
 
