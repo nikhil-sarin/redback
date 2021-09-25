@@ -65,7 +65,7 @@ class Transient(object):
     def x(self):
         if self.luminosity_data:
             return self.time_rest_frame
-        elif self.fluxdensity_data or self.flux_data:
+        elif self.fluxdensity_data or self.flux_data or self.counts_data:
             return self.time
         else:
             raise ValueError
@@ -74,14 +74,14 @@ class Transient(object):
     def x(self, x):
         if self.luminosity_data:
             self.time_rest_frame = x
-        elif self.fluxdensity_data or self.flux_data:
+        elif self.fluxdensity_data or self.flux_data or self.counts_data:
             self.time = x
 
     @property
     def x_err(self):
         if self.luminosity_data:
             return self.time_rest_frame_err
-        elif self.fluxdensity_data or self.flux_data:
+        elif self.fluxdensity_data or self.flux_data or self.counts_data:
             return self.time_err
         else:
             raise ValueError
@@ -90,7 +90,7 @@ class Transient(object):
     def x_err(self, x_err):
         if self.luminosity_data:
             self.time_rest_frame_err = x_err
-        elif self.fluxdensity_data or self.flux_data:
+        elif self.fluxdensity_data or self.flux_data or self.counts_data:
             self.time_err = x_err
 
     @property
@@ -101,6 +101,8 @@ class Transient(object):
             return self.flux
         elif self.fluxdensity_data:
             return self.flux_density
+        elif self.counts_data:
+            return self.counts
         else:
             raise ValueError
 
