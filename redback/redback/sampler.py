@@ -16,7 +16,7 @@ from .likelihoods import GRBGaussianLikelihood, GaussianLikelihood, PoissonLikel
 dirname = os.path.dirname(__file__)
 
 
-def fit_model(name, transient, model, outdir=",", source_type='GRB', sampler='dynesty', nlive=2000, prior=None, walks=200,
+def fit_model(name, transient, model, outdir=".", source_type='GRB', sampler='dynesty', nlive=2000, prior=None, walks=200,
               truncate=True, use_photon_index_prior=False, truncate_method='prompt_time_error', data_mode='flux',
               resume=True, save_format='json', **kwargs):
     """
