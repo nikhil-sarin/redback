@@ -332,15 +332,16 @@ class PoissonLikelihood(bilby.Likelihood):
         parameters = inspect.getfullargspec(function).args
         parameters.pop(0)
         self.parameters = dict.fromkeys(parameters)
-        self._noise_log_likelihood = np.nan
         super(PoissonLikelihood, self).__init__(parameters=dict())
 
     def noise_log_likelihood(self):
         background_rate = self.parameters['background_rate'] * self.dt
-        log_l = np.sum(-background_rate + self.counts * np.log(background_rate) - gammaln(self.counts + 1))
-        self._noise_log_likelihood = log_l
-        return self._noise_log_likelihood
+        return self._log_likelihood(rate=background_rate)
 
     def log_likelihood(self):
-        rate = self.function(self.time, **self.parameters, **self.kwargs)
+        rate = (self.function(self.time, **self.parameters, **self.kwargs)
+                + self.parameters['background_rate']) * self.dt
+        return self._log_likelihood(rate=rate)
+
+    def _log_likelihood(self, rate):
         return np.sum(-rate + self.counts * np.log(rate) - gammaln(self.counts + 1))
