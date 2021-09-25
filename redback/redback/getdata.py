@@ -343,7 +343,7 @@ def get_prompt_data_from_batse(grb, use_default_directory):
     with fits.open(file_path) as fits_data:
         data = fits_data[-1].data
         bin_left = np.array(data['TIMES'][:, 0])
-        # bin_right = np.array(data['TIMES'][:, 1])
+        bin_right = np.array(data['TIMES'][:, 1])
         rates = np.array(data['RATES'][:, :])
         errors = np.array(data['ERRORS'][:, :])
         # counts = np.array([np.multiply(rates[:, i],
@@ -351,11 +351,12 @@ def get_prompt_data_from_batse(grb, use_default_directory):
         # count_err = np.sqrt(counts)
         # t90_st, end = bin_left[0], bin_right[-1]
 
-    data = np.array([bin_left, rates[:, 0], errors[:, 0], rates[:, 1], errors[:, 1],
+    data = np.array([bin_left, bin_right, rates[:, 0], errors[:, 0], rates[:, 1], errors[:, 1],
                      rates[:, 2], errors[:, 2], rates[:, 3], errors[:, 3]]).T
 
     df = pd.DataFrame(data=data, columns=[
-        "Time [s]",
+        "Time bin left [s]",
+        "Time bin right [s]",
         "flux_20_50 [counts/s]",
         "flux_20_50_err [counts/s]",
         "flux_50_100 [counts/s]",
