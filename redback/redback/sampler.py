@@ -41,29 +41,32 @@ def fit_model(name, transient, model, outdir=".", source_type='GRB', sampler='dy
     :param kwargs: additional parameters that will be passed to the sampler
     :return: bilby result object, transient specific data object
     """
+    if prior is None:
+        prior = bilby.prior.PriorDict(filename=f"{dirname}/Priors/{model}.prior")
+
     if source_type.upper() in ['GRB', 'SGRB', 'LGRB']:
-        return _fit_grb(name=name, transient=transient, model=model, outdir=outdir, sampler=sampler, nlive=nlive, prior=prior, walks=walks,
-                        truncate=truncate, use_photon_index_prior=use_photon_index_prior,
+        return _fit_grb(name=name, transient=transient, model=model, outdir=outdir, sampler=sampler, nlive=nlive,
+                        prior=prior, walks=walks, truncate=truncate, use_photon_index_prior=use_photon_index_prior,
                         truncate_method=truncate_method, data_mode=data_mode, resume=resume,
                         save_format=save_format, **kwargs)
     elif source_type.upper() in ['KILONOVA']:
-        return _fit_kilonova(name=name, transient=transient, model=model, outdir=outdir, sampler=sampler, nlive=nlive, prior=prior, walks=walks,
-                             truncate=truncate, use_photon_index_prior=use_photon_index_prior,
+        return _fit_kilonova(name=name, transient=transient, model=model, outdir=outdir, sampler=sampler, nlive=nlive,
+                             prior=prior, walks=walks, truncate=truncate, use_photon_index_prior=use_photon_index_prior,
                              truncate_method=truncate_method, data_mode=data_mode, resume=resume,
                              save_format=save_format, **kwargs)
     elif source_type.upper() in ['PROMPT']:
-        return _fit_prompt(name=name, transient=transient, model=model, outdir=outdir, sampler=sampler, nlive=nlive, prior=prior, walks=walks,
-                           truncate=truncate, use_photon_index_prior=use_photon_index_prior,
+        return _fit_prompt(name=name, transient=transient, model=model, outdir=outdir, sampler=sampler, nlive=nlive,
+                           prior=prior, walks=walks, truncate=truncate, use_photon_index_prior=use_photon_index_prior,
                            truncate_method=truncate_method, data_mode=data_mode, resume=resume,
                            save_format=save_format, **kwargs)
     elif source_type.upper() in ['SUPERNOVA']:
-        return _fit_supernova(name=name, transient=transient, model=model, outdir=outdir, sampler=sampler, nlive=nlive, prior=prior,
-                              walks=walks, truncate=truncate, use_photon_index_prior=use_photon_index_prior,
-                              truncate_method=truncate_method, data_mode=data_mode,
-                              resume=resume, save_format=save_format, **kwargs)
+        return _fit_supernova(name=name, transient=transient, model=model, outdir=outdir, sampler=sampler, nlive=nlive,
+                              prior=prior, walks=walks, truncate=truncate,
+                              use_photon_index_prior=use_photon_index_prior, truncate_method=truncate_method,
+                              data_mode=data_mode, resume=resume, save_format=save_format, **kwargs)
     elif source_type.upper() in ['TDE']:
-        return _fit_tde(name=name, transient=transient, model=model, outdir=outdir, sampler=sampler, nlive=nlive, prior=prior, walks=walks,
-                        truncate=truncate, use_photon_index_prior=use_photon_index_prior,
+        return _fit_tde(name=name, transient=transient, model=model, outdir=outdir, sampler=sampler, nlive=nlive,
+                        prior=prior, walks=walks, truncate=truncate, use_photon_index_prior=use_photon_index_prior,
                         truncate_method=truncate_method, data_mode=data_mode,
                         resume=resume, save_format=save_format, **kwargs)
     else:
@@ -73,9 +76,6 @@ def fit_model(name, transient, model, outdir=".", source_type='GRB', sampler='dy
 def _fit_grb(name, transient, model, outdir, sampler='dynesty', nlive=3000, prior=None, walks=1000, truncate=True,
              use_photon_index_prior=False, truncate_method='prompt_time_error', data_mode='flux',
              resume=True, save_format='json', **kwargs):
-
-    if prior is None:
-        prior = bilby.prior.PriorDict(filename=f"{dirname}/Priors/{model}.prior")
 
     if use_photon_index_prior:
         if transient.photon_index < 0.:
@@ -113,9 +113,35 @@ def _fit_kilonova(**kwargs):
     pass
 
 
-def _fit_prompt(**kwargs):
-    pass
+def _fit_prompt(name, transient, model, outdir, sampler='dynesty', nlive=3000, prior=None, walks=1000, truncate=True,
+                use_photon_index_prior=False, truncate_method='prompt_time_error', data_mode='flux',
+                resume=True, save_format='json', **kwargs):
 
+
+    if isinstance(model, str):
+        function = all_models_dict[model]
+    else:
+        function = model
+
+    outdir = f"{outdir}/GRB{name}/{model}"
+    Path(outdir).mkdir(parents=True, exist_ok=True)
+
+    label = data_mode
+    if use_photon_index_prior:
+        label += '_photon_index'
+
+    likelihood = PoissonLikelihood(time=transient.x, counts=transient.y,
+                                   dt=transient.bin_size, function=function)
+
+    meta_data = dict(model=model, transient=transient, use_photon_index_prior=use_photon_index_prior,
+                     truncate=truncate, truncate_method=truncate_method, save_format=save_format)
+
+    result = bilby.run_sampler(likelihood=likelihood, priors=prior, label=label, sampler=sampler, nlive=nlive,
+                               outdir=outdir, plot=True, use_ratio=False, walks=walks, resume=resume,
+                               maxmcmc=10 * walks, result_class=RedbackResult, meta_data=meta_data,
+                               nthreads=4, save_bounds=False, nsteps=nlive, nwalkers=walks, save=save_format, **kwargs)
+
+    return result
 
 def _fit_supernova(**kwargs):
     pass
