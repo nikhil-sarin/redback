@@ -124,6 +124,31 @@ class TestTransient(unittest.TestCase):
         self.assertEqual(3, len(self.transient.time_rest_frame_err))
         self.assertEqual("luminosity", self.transient.data_mode)
 
+    def test_numerical_flux_to_luminosity_illegal_data_mode(self):
+        self.transient.flux_density = self.y
+        self.transient.flux_density_err = self.y_err
+
+        self.transient.numerical_flux_to_luminosity(counts_to_flux_absorbed=1, counts_to_flux_unabsorbed=1)
+        self.assertTrue(np.array_equal(self.time, self.transient.x))
+        self.assertTrue(np.array_equal(self.y, self.transient.y))
+        self.assertTrue(np.array_equal(self.y_err, self.transient.y_err))
+        self.assertEqual(self.data_mode, self.transient.data_mode)
+
+    def test_numerical_flux_to_luminosity(self):
+        self.transient.data_mode = "flux"
+        self.transient.flux = self.y
+        self.transient.flux_err = self.y_err
+
+        self.transient.numerical_flux_to_luminosity(counts_to_flux_absorbed=1, counts_to_flux_unabsorbed=1)
+        self.assertFalse(np.array_equal(self.time, self.transient.x))
+        self.assertFalse(np.array_equal(self.y, self.transient.y))
+        self.assertFalse(np.array_equal(self.y_err, self.transient.y_err))
+        self.assertEqual(3, len(self.transient.Lum50))
+        self.assertEqual(3, len(self.transient.Lum50_err))
+        self.assertEqual(3, len(self.transient.time_rest_frame))
+        self.assertEqual(3, len(self.transient.time_rest_frame_err))
+        self.assertEqual("luminosity", self.transient.data_mode)
+
     def test_get_flux_density(self):
         self.transient.get_flux_density()
 
