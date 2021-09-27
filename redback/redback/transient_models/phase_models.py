@@ -96,18 +96,18 @@ def t0_afterglowpy_rate_model(time, **kwargs):
     """
     :param time: time in seconds
     :param burst_start: burst start time in seconds
-    :param bkg_rate: background rate. This background rate could be zero.
+    :param background_rate: background rate. This background rate could be zero.
     :param kwargs: all other keyword arguments needed for the base model
     :return: rate, including the background rate
     """
-    dt = kwargs['dt']
-    burst_start = kwargs['burst_start']
-    bkg_rate = kwargs['bkg_rate']
+    dt = kwargs.get('dt', 1)
+    burst_start = kwargs.get('burst_start', 0)
+    background_rate = kwargs.get('background_rate', 0)
     kwargs['prefactor'] = kwargs['prefactor'][time >= burst_start]
     grb_time = time[time >= burst_start] - burst_start
     rate = np.zeros(len(time))
     rate[time >= burst_start] = infam.integrated_flux_rate_model(grb_time, **kwargs)
-    rate[time < burst_start] = (bkg_rate * dt)
+    rate[time < burst_start] = (background_rate * dt)
     return rate
 
 def t0_afterglowpy_flux_model(time, burst_start, **kwargs):
