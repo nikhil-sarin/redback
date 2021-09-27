@@ -294,6 +294,8 @@ class DataModeSwitch(object):
     def __set__(self, instance, value):
         if value:
             instance.data_mode = self.data_mode
+        else:
+            instance.data_mode = None
 
 
 def get_functions_dict(module):

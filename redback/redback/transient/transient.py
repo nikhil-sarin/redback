@@ -103,7 +103,7 @@ class Transient(object):
 
     @data_mode.setter
     def data_mode(self, data_mode):
-        if data_mode in self.DATA_MODES:
+        if data_mode in self.DATA_MODES or data_mode is None:
             self._data_mode = data_mode
         else:
             raise ValueError("Unknown data mode.")
