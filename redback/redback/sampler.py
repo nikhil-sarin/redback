@@ -113,9 +113,9 @@ def _fit_kilonova(**kwargs):
     pass
 
 
-def _fit_prompt(name, transient, model, outdir, sampler='dynesty', nlive=3000, prior=None, walks=1000, truncate=True,
-                use_photon_index_prior=False, truncate_method='prompt_time_error', data_mode='flux',
-                resume=True, save_format='json', **kwargs):
+def _fit_prompt(name, transient, model, outdir, integrated_rate_function=True, sampler='dynesty', nlive=3000,
+                prior=None, walks=1000, truncate=True, use_photon_index_prior=False,
+                truncate_method='prompt_time_error', data_mode='flux', resume=True, save_format='json', **kwargs):
 
 
     if isinstance(model, str):
@@ -131,7 +131,8 @@ def _fit_prompt(name, transient, model, outdir, sampler='dynesty', nlive=3000, p
         label += '_photon_index'
 
     likelihood = PoissonLikelihood(time=transient.x, counts=transient.y,
-                                   dt=transient.bin_size, function=function)
+                                   dt=transient.bin_size, function=function,
+                                   integrated_rate_function=integrated_rate_function, **kwargs)
 
     meta_data = dict(model=model, transient=transient, use_photon_index_prior=use_photon_index_prior,
                      truncate=truncate, truncate_method=truncate_method, save_format=save_format)
