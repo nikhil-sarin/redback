@@ -10,15 +10,12 @@ matplotlib.use("Qt5Agg")
 
 sampler = 'dynesty'
 model = 'gaussian'
-
 name = '910505'
 
 
 redback.getdata.get_prompt_data_from_batse(name, use_default_directory=False)
-
 prompt = redback.transient.prompt.PromptTimeSeries.from_batse_grb_name(name=name, trigger_number="148")
 
-plt.clf()
 plt.step(prompt.time, prompt.counts/prompt.bin_size)
 plt.show()
 plt.clf()
@@ -36,7 +33,7 @@ priors["t_0"] = bilby.prior.Uniform(prompt.time[0], prompt.time[-1], name="t_0")
 priors["log_sigma"] = bilby.prior.Uniform(np.log(dt), np.log(100*duration), name="log_sigma")
 
 result = redback.fit_model(source_type='prompt', name=name, model=model, transient=prompt, nlive=500,
-                           sampler=sampler, prior=priors, data_mode='counts', outdir="GRB_results")
+                           sampler=sampler, prior=priors, data_mode='counts', outdir="GRB_results", clean=True)
 # returns a GRB prompt result object
 # result.plot_lightcurve(random_models=1000)
 print(result.outdir)

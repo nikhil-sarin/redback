@@ -117,7 +117,6 @@ def _fit_prompt(name, transient, model, outdir, integrated_rate_function=True, s
                 prior=None, walks=1000, truncate=True, use_photon_index_prior=False,
                 truncate_method='prompt_time_error', data_mode='flux', resume=True, save_format='json', **kwargs):
 
-
     if isinstance(model, str):
         function = all_models_dict[model]
     else:
