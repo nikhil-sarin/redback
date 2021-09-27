@@ -1,13 +1,23 @@
 import numpy as np
 from redback.redback.utils import logger
+from redback.redback.utils import DataModeSwitch
 from astropy.cosmology import Planck18 as cosmo
 
 
 class Transient(object):
 
-    DATA_MODES = []
+    DATA_MODES = ['luminosity', 'flux', 'flux_density', 'photometry', 'counts', 'tte']
+    _ATTRIBUTE_NAME_DICT = dict(luminosity="Lum50", flux="flux", flux_density="flux_density", counts="counts")
 
-    def __init__(self, time, time_err, y, y_err=None, redshift=np.nan, data_mode=None, name='', path='.'):
+    luminosity_data = DataModeSwitch('luminosity')
+    flux_data = DataModeSwitch('flux')
+    flux_density_data = DataModeSwitch('flux_density')
+    photometry_data = DataModeSwitch('photometry')
+    counts_data = DataModeSwitch('counts')
+    tte_data = DataModeSwitch('tte')
+
+    def __init__(self, time, time_err, y, y_err=None, redshift=np.nan, data_mode=None, name='', path='.',
+                 photon_index=np.nan):
         """
         Base class for all transients
         """
@@ -35,117 +45,57 @@ class Transient(object):
         self.y = y
         self.y_err = y_err
 
-        self.photon_index = None
+        self.photon_index = photon_index
 
     @property
-    def luminosity_data(self):
-        return self.data_mode == 'luminosity'
+    def _time_attribute_name(self):
+        if self.luminosity_data:
+            return "time_rest_frame"
+        return "time"
 
     @property
-    def flux_data(self):
-        return self.data_mode == 'flux'
+    def _time_err_attribute_name(self):
+        return self._time_attribute_name + "_err"
 
     @property
-    def fluxdensity_data(self):
-        return self.data_mode == 'flux_density'
+    def _y_attribute_name(self):
+        return self._ATTRIBUTE_NAME_DICT[self.data_mode]
 
     @property
-    def photometry_data(self):
-        return self.data_mode == 'photometry'
-
-    @property
-    def tte_data(self):
-        return self.data_mode == 'tte_data'
-
-    @property
-    def counts_data(self):
-        return self.data_mode == 'counts'
+    def _y_err_attribute_name(self):
+        return self._ATTRIBUTE_NAME_DICT[self.data_mode] + "_err"
 
     @property
     def x(self):
-        if self.luminosity_data:
-            return self.time_rest_frame
-        elif self.fluxdensity_data or self.flux_data or self.counts_data:
-            return self.time
-        else:
-            raise ValueError
+        return getattr(self, self._time_attribute_name)
 
     @x.setter
     def x(self, x):
-        if self.luminosity_data:
-            self.time_rest_frame = x
-        elif self.fluxdensity_data or self.flux_data or self.counts_data:
-            self.time = x
+        setattr(self, self._time_attribute_name, x)
 
     @property
     def x_err(self):
-        if self.luminosity_data:
-            return self.time_rest_frame_err
-        elif self.fluxdensity_data or self.flux_data or self.counts_data:
-            return self.time_err
-        else:
-            raise ValueError
+        return getattr(self, self._time_err_attribute_name)
 
     @x_err.setter
     def x_err(self, x_err):
-        if self.luminosity_data:
-            self.time_rest_frame_err = x_err
-        elif self.fluxdensity_data or self.flux_data or self.counts_data:
-            self.time_err = x_err
+        setattr(self, self._time_err_attribute_name, x_err)
 
     @property
     def y(self):
-        if self.luminosity_data:
-            return self.Lum50
-        elif self.flux_data:
-            return self.flux
-        elif self.fluxdensity_data:
-            return self.flux_density
-        elif self.counts_data:
-            return self.counts
-        else:
-            raise ValueError
+        return getattr(self, self._y_attribute_name)
 
     @y.setter
     def y(self, y):
-        if self.luminosity_data:
-            self.Lum50 = y
-        elif self.flux_data:
-            self.flux = y
-        elif self.fluxdensity_data:
-            self.flux_density = y
-        elif self.counts_data:
-            self.counts = y
-        else:
-            raise ValueError
+        setattr(self, self._y_attribute_name, y)
 
     @property
     def y_err(self):
-        if self.luminosity_data:
-            return self.Lum50_err
-        elif self.flux_data:
-            return self.flux_err
-        elif self.fluxdensity_data:
-            return self.flux_density_err
-        else:
-            raise ValueError
+        return getattr(self, self._y_err_attribute_name)
 
     @y_err.setter
     def y_err(self, y_err):
-        if self.luminosity_data:
-            self.Lum50_err = y_err
-        elif self.flux_data:
-            self.flux_err = y_err
-        elif self.fluxdensity_data:
-            self.flux_density_err = y_err
-        elif self.counts_data:
-            self.counts_err = y_err
-        else:
-            raise ValueError
-
-    @property
-    def _counts_err(self):
-        return np.sqrt(self.counts)
+        setattr(self, self._y_err_attribute_name, y_err)
 
     @property
     def data_mode(self):
@@ -157,10 +107,6 @@ class Transient(object):
             self._data_mode = data_mode
         else:
             raise ValueError("Unknown data mode.")
-
-    # @classmethod
-    # def simulate_transient_object(cls):
-    #     return transient_object
         
     def get_flux_density(self):
         pass
@@ -228,14 +174,12 @@ class Transient(object):
         if np.isnan(self.redshift):
             logger.warning('This GRB has no measured redshift, using default z = 0.75')
             return 0.75
-        elif self.data_mode == 'luminosity':
+        elif self.luminosity_data:
             logger.warning('The data is already in luminosity mode, returning.')
-            return None
-        elif self.data_mode == 'flux_density':
-            logger.warning(f'The data needs to be in flux mode, but is in {self.data_mode}.')
-            return None
-        else:
+        elif self.flux_data:
             return self.redshift
+        else:
+            logger.warning(f'The data needs to be in flux mode, but is in {self.data_mode}.')
 
     def _calculate_rest_frame_time_and_luminosity(self, counts_to_flux_fraction, isotropic_bolometric_flux, redshift):
         self.Lum50 = self.flux * counts_to_flux_fraction * isotropic_bolometric_flux * 1e-50

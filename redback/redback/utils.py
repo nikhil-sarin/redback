@@ -280,6 +280,22 @@ class MetaDataAccessor(object):
         getattr(instance, self.container_instance_name)[self.property_name] = value
 
 
+class DataModeSwitch(object):
+    """
+    Descriptor class to access boolean data_mode switches.
+    """
+
+    def __init__(self, data_mode):
+        self.data_mode = data_mode
+
+    def __get__(self, instance, owner):
+        return instance.data_mode == self.data_mode
+
+    def __set__(self, instance, value):
+        if value:
+            instance.data_mode = self.data_mode
+
+
 def get_functions_dict(module):
     models_dict = {}
     _functions_list = [o for o in getmembers(module) if isfunction(o[1])]
