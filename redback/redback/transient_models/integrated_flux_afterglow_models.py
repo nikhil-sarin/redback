@@ -25,8 +25,8 @@ def integrated_flux_afterglowpy_base_model(time, **kwargs):
     tt = tt.flatten()
     nu = nu.flatten()
     kwargs['frequency'] = nu
-    fluxdensity = function(tt, **kwargs)
-    lightcurve_at_nu = fluxdensity.reshape(len(nu_1d), len(time))
+    flux_density = function(tt, **kwargs)
+    lightcurve_at_nu = flux_density.reshape(len(nu_1d), len(time))
     prefactor = 1e-26
     lightcurve_at_nu = prefactor * lightcurve_at_nu
     integrated_flux = simps(lightcurve_at_nu, axis=0, x=nu_1d)

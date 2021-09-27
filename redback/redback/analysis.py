@@ -1,4 +1,4 @@
-from .utils import logger, calc_ABmag_from_fluxdensity, get_functions_dict
+from .utils import logger, calc_ABmag_from_flux_density, get_functions_dict
 from transient_models import afterglow_models
 import matplotlib.pyplot as plt
 import numpy as np

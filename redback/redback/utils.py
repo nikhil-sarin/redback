@@ -121,7 +121,7 @@ def deceleration_timescale(**kwargs):
     t_peak = (num/denom)**(1./3.)
     return t_peak
 
-def calc_ABmag_from_fluxdensity(fluxdensity):
+def calc_ABmag_from_flux_density(fluxdensity):
     return (fluxdensity * uu.mJy).to(uu.ABmag)
 
 def convert_absolute_mag_to_apparent(magnitude, distance):
@@ -133,7 +133,7 @@ def convert_absolute_mag_to_apparent(magnitude, distance):
     app_mag = magnitude + 5*(np.log10(distance) - 1)
     return app_mag
 
-def calc_fluxdensity_from_ABmag(magnitudes):
+def calc_flux_density_from_ABmag(magnitudes):
     return (magnitudes * uu.ABmag).to(uu.mJy)
 
 def check_element(driver, id_number):

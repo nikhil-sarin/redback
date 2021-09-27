@@ -1,7 +1,7 @@
 # import gwemlightcurves.sampler.model as gwem
 # import kilonovalightcurves
 # import numpy as np
-from ..utils import get_functions_dict, calc_ABmag_from_fluxdensity, calc_fluxdensity_from_ABmag, logger
+from ..utils import get_functions_dict, calc_ABmag_from_flux_density, calc_flux_density_from_ABmag, logger
 
 
 

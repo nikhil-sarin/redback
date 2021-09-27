@@ -28,8 +28,8 @@ def cocoon(time, redshift, umax, umin, loge0, k, mej, logn0, p, logepse, logepsb
          'uMin': umin, 'k': k, 'MFast_solar': mej, 'n0': n0, 'p': p, 'epsilon_e': epse, 'epsilon_B': epsb,
          'xi_N': ksin, 'd_L': dl, 'z': redshift, 'L0': 0, 'q': 0, 'ts': 0, 'g0': g0,
          'spread': spread, 'latRes': latres, 'tRes': tres}
-    fluxdensity = afterglow.fluxDensity(time, frequency, **Z)
-    return fluxdensity
+    flux_density = afterglow.fluxDensity(time, frequency, **Z)
+    return flux_density
 
 def kn_afterglow(time, redshift, umax, umin, loge0, k, mej, logn0, p, logepse, logepsb, ksin, g0, **kwargs):
     dl = cosmo.luminosity_distance(redshift).cgs.value
@@ -47,8 +47,8 @@ def kn_afterglow(time, redshift, umax, umin, loge0, k, mej, logn0, p, logepse, l
          'uMin': umin, 'k':k, 'MFast_solar':mej,'n0': n0, 'p': p, 'epsilon_e': epse, 'epsilon_B': epsb,
          'xi_N': ksin, 'd_L': dl, 'z': redshift, 'L0': 0, 'q': 0, 'ts': 0, 'g0': g0,
          'spread': spread, 'latRes': latres, 'tRes': tres}
-    fluxdensity = afterglow.fluxDensity(time, frequency, **Z)
-    return fluxdensity
+    flux_density = afterglow.fluxDensity(time, frequency, **Z)
+    return flux_density
 
 def cone_afterglow(time, redshift, thv, loge0, thw, thc, logn0, p, logepse, logepsb, ksin, g0, **kwargs):
     dl = cosmo.luminosity_distance(redshift).cgs.value
@@ -67,8 +67,8 @@ def cone_afterglow(time, redshift, thv, loge0, thw, thc, logn0, p, logepse, loge
          'thetaCore': thc, 'n0': n0,'p': p,'epsilon_e': epse,'epsilon_B': epsb,
          'xi_N': ksin,'d_L': dl, 'z': redshift, 'L0':0,'q':0,'ts':0, 'g0':g0,
          'spread':spread, 'latRes':latres, 'tRes':tres, 'thetaWing':thw}
-    fluxdensity = afterglow.fluxDensity(time, frequency, **Z)
-    return fluxdensity
+    flux_density = afterglow.fluxDensity(time, frequency, **Z)
+    return flux_density
 
 def gaussiancore(time, redshift, thv,loge0,thc,thw,logn0,p,logepse,logepsb,ksin,g0,**kwargs):
     dl = cosmo.luminosity_distance(redshift).cgs.value
@@ -88,8 +88,8 @@ def gaussiancore(time, redshift, thv,loge0,thc,thw,logn0,p,logepse,logepsb,ksin,
          'thetaCore': thc, 'n0': n0,'p': p,'epsilon_e': epse,'epsilon_B': epsb,
          'xi_N': ksin,'d_L': dl, 'z': redshift, 'L0':0,'q':0,'ts':0, 'g0':g0,
          'spread':spread, 'latRes':latres, 'tRes':tres, 'thetaWing':thw}
-    fluxdensity = afterglow.fluxDensity(time, frequency, **Z)
-    return fluxdensity
+    flux_density = afterglow.fluxDensity(time, frequency, **Z)
+    return flux_density
 
 def gaussian(time, redshift, thv, loge0, thw, thc, logn0, p, logepse, logepsb, ksin, g0, **kwargs):
     dl = cosmo.luminosity_distance(redshift).cgs.value
@@ -108,8 +108,8 @@ def gaussian(time, redshift, thv, loge0, thw, thc, logn0, p, logepse, logepsb, k
          'thetaCore': thc, 'n0': n0,'p': p,'epsilon_e': epse,'epsilon_B': epsb,
          'xi_N': ksin,'d_L': dl, 'z': redshift, 'L0':0,'q':0,'ts':0, 'g0':g0,
          'spread':spread, 'latRes':latres, 'tRes':tres, 'thetaWing':thw}
-    fluxdensity = afterglow.fluxDensity(time, frequency, **Z)
-    return fluxdensity
+    flux_density = afterglow.fluxDensity(time, frequency, **Z)
+    return flux_density
 
 def smoothpowerlaw(time, redshift, thv, loge0, thw, thc, beta, logn0, p, logepse, logepsb, ksin, g0, **kwargs):
     dl = cosmo.luminosity_distance(redshift).cgs.value
@@ -128,8 +128,8 @@ def smoothpowerlaw(time, redshift, thv, loge0, thw, thc, beta, logn0, p, logepse
          'thetaCore': thc, 'n0': n0,'p': p,'epsilon_e': epse,'epsilon_B': epsb,
          'xi_N': ksin,'d_L': dl, 'z': redshift, 'L0':0,'q':0,'ts':0, 'g0':g0,
          'spread':spread, 'latRes':latres, 'tRes':tres, 'thetaWing':thw, 'b':beta}
-    fluxdensity = afterglow.fluxDensity(time, frequency, **Z)
-    return fluxdensity
+    flux_density = afterglow.fluxDensity(time, frequency, **Z)
+    return flux_density
 
 def powerlawcore(time, redshift, thv, loge0, thw, thc, beta, logn0, p, logepse, logepsb, ksin, g0, **kwargs):
     dl = cosmo.luminosity_distance(redshift).cgs.value
@@ -148,8 +148,8 @@ def powerlawcore(time, redshift, thv, loge0, thw, thc, beta, logn0, p, logepse, 
          'thetaCore': thc, 'n0': n0,'p': p,'epsilon_e': epse,'epsilon_B': epsb,
          'xi_N': ksin,'d_L': dl, 'z': redshift, 'L0':0,'q':0,'ts':0, 'g0':g0,
          'spread':spread, 'latRes':latres, 'tRes':tres, 'thetaWing':thw, 'b':beta}
-    fluxdensity = afterglow.fluxDensity(time, frequency, **Z)
-    return fluxdensity
+    flux_density = afterglow.fluxDensity(time, frequency, **Z)
+    return flux_density
 
 def tophat(time, redshift, thv, loge0, thc, logn0, p, logepse, logepsb, ksin, g0, **kwargs):
     dl = cosmo.luminosity_distance(redshift).cgs.value
@@ -168,5 +168,5 @@ def tophat(time, redshift, thv, loge0, thc, logn0, p, logepse, logepsb, ksin, g0
          'thetaCore': thc, 'n0': n0, 'p': p, 'epsilon_e': epse, 'epsilon_B': epsb,
          'xi_N': ksin, 'd_L': dl, 'z': redshift, 'L0': 0, 'q': 0, 'ts': 0, 'g0': g0,
          'spread': spread, 'latRes': latres, 'tRes': tres}
-    fluxdensity = afterglow.fluxDensity(time, frequency, **Z)
-    return fluxdensity
+    flux_density = afterglow.fluxDensity(time, frequency, **Z)
+    return flux_density

@@ -260,7 +260,7 @@ class Afterglow(Transient):
             return r'Luminosity [$10^{50}$ erg s$^{-1}$]'
         elif self.flux_data:
             return r'Flux [erg cm$^{-2}$ s$^{-1}$]'
-        elif self.fluxdensity_data:
+        elif self.flux_density_data:
             return r'Flux density [mJy]'
         else:
             raise ValueError
