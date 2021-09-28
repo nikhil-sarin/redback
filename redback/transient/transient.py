@@ -1,6 +1,6 @@
 import numpy as np
-from redback.redback.utils import logger
-from redback.redback.utils import DataModeSwitch
+from redback.utils import logger
+from redback.utils import DataModeSwitch
 
 
 class Transient(object):
