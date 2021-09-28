@@ -7,6 +7,7 @@ import os
 import pandas as pd
 from redback.redback.utils import logger
 
+from astropy.cosmology import Planck18 as cosmo
 from ..getdata import afterglow_directory_structure
 from os.path import join
 
@@ -188,6 +189,79 @@ class Afterglow(Transient):
         for r in ["PL", "CPL", ",", "C", "~", " ", 'Gemini:emission', '()']:
             string = string.replace(r, "")
         return float(string)
+
+    def analytical_flux_to_luminosity(self):
+        redshift = self._get_redshift_for_luminosity_calculation()
+        if redshift is None:
+            return
+
+        luminosity_distance = cosmo.luminosity_distance(redshift).cgs.value
+        k_corr = (1 + redshift) ** (self.photon_index - 2)
+        isotropic_bolometric_flux = (luminosity_distance ** 2.) * 4. * np.pi * k_corr
+        counts_to_flux_fraction = 1
+
+        self._calculate_rest_frame_time_and_luminosity(
+            counts_to_flux_fraction=counts_to_flux_fraction,
+            isotropic_bolometric_flux=isotropic_bolometric_flux,
+            redshift=redshift)
+        self.data_mode = 'luminosity'
+        self._save_luminosity_data()
+
+    def numerical_flux_to_luminosity(self, counts_to_flux_absorbed, counts_to_flux_unabsorbed):
+        try:
+            from sherpa.astro import ui as sherpa
+        except ImportError as e:
+            logger.warning(e)
+            logger.warning("Can't perform numerical flux to luminosity calculation")
+
+        redshift = self._get_redshift_for_luminosity_calculation()
+        if redshift is None:
+            return
+
+        Ecut = 1000
+        obs_elow = 0.3
+        obs_ehigh = 10
+
+        bol_elow = 1.  # bolometric restframe low frequency in keV
+        bol_ehigh = 10000.  # bolometric restframe high frequency in keV
+
+        alpha = self.photon_index
+        beta = self.photon_index
+
+        sherpa.dataspace1d(obs_elow, bol_ehigh, 0.01)
+        sherpa.set_source(sherpa.bpl1d.band)
+        band.gamma1 = alpha  # noqa
+        band.gamma2 = beta  # noqa
+        band.eb = Ecut  # noqa
+
+        luminosity_distance = cosmo.luminosity_distance(redshift).cgs.value
+        k_corr = sherpa.calc_kcorr(redshift, obs_elow, obs_ehigh, bol_elow, bol_ehigh, id=1)
+        isotropic_bolometric_flux = (luminosity_distance ** 2.) * 4. * np.pi * k_corr
+        counts_to_flux_fraction = counts_to_flux_unabsorbed / counts_to_flux_absorbed
+
+        self._calculate_rest_frame_time_and_luminosity(
+            counts_to_flux_fraction=counts_to_flux_fraction,
+            isotropic_bolometric_flux=isotropic_bolometric_flux,
+            redshift=redshift)
+        self.data_mode = 'luminosity'
+        self._save_luminosity_data()
+
+    def _get_redshift_for_luminosity_calculation(self):
+        if np.isnan(self.redshift):
+            logger.warning('This GRB has no measured redshift, using default z = 0.75')
+            return 0.75
+        elif self.luminosity_data:
+            logger.warning('The data is already in luminosity mode, returning.')
+        elif self.flux_data:
+            return self.redshift
+        else:
+            logger.warning(f'The data needs to be in flux mode, but is in {self.data_mode}.')
+
+    def _calculate_rest_frame_time_and_luminosity(self, counts_to_flux_fraction, isotropic_bolometric_flux, redshift):
+        self.Lum50 = self.flux * counts_to_flux_fraction * isotropic_bolometric_flux * 1e-50
+        self.Lum50_err = self.flux_err * isotropic_bolometric_flux * 1e-50
+        self.time_rest_frame = self.time / (1 + redshift)
+        self.time_rest_frame_err = self.time_err / (1 + redshift)
 
     # def process_grbs(self, use_default_directory=False):
     #     for GRB in self.data['GRB'].values:
