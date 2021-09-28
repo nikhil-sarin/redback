@@ -26,6 +26,24 @@ dirname = os.path.dirname(__file__)
 
 SWIFT_PROMPT_BIN_SIZES = ['1s', '2ms', '8ms', '16ms', '64ms', '256ms']
 
+instruments = ["swift", "fermi", "konus", "batse"]
+transient_types = ["afterglow", "prompt", "xrt"]
+
+
+def get_data(transient_type, instrument, event_label, use_default_directory, data_mode=None, **kwargs):
+    kwargs["bin_size"] = kwargs.get("bin_size", "2ms")
+    func_dict = _get_data_functions_dict()
+    func_dict[(transient_type.lower(), instrument.lower())](
+        grb=event_label, data_mode=data_mode, use_default_directory=use_default_directory, **kwargs)
+
+
+def _get_data_functions_dict():
+    return {("afterglow", "swift"): get_afterglow_data_from_swift,
+            ("xrt", "swift"): get_xrt_data_from_swift,
+            ("prompt", "swift"): get_prompt_data_from_swift,
+            ("prompt", "fermi"): get_prompt_data_from_fermi,
+            ("prompt", "konus"): get_prompt_data_from_konus,
+            ("prompt", "batse"): get_prompt_data_from_batse}
 
 def afterglow_directory_structure(grb, use_default_directory, data_mode, instrument='BAT+XRT'):
     if use_default_directory:
@@ -218,12 +236,12 @@ def sort_swift_data(rawfile, fullfile, data_mode):
         sort_flux_density_data(rawfile, fullfile)
 
 
-def get_afterglow_data_from_swift(grb, data_mode='flux', use_default_directory=False):
+def get_afterglow_data_from_swift(grb, data_mode='flux', use_default_directory=False, **kwargs):
     rawfile, fullfile = collect_swift_data(grb, use_default_directory, data_mode)
     sort_swift_data(rawfile, fullfile, data_mode)
 
 
-def get_xrt_data_from_swift(grb, data_mode='flux', use_default_directory=False):
+def get_xrt_data_from_swift(grb, data_mode='flux', use_default_directory=False, **kwargs):
     grbdir, rawfile, fullfile = afterglow_directory_structure(grb, use_default_directory, data_mode, instrument='xrt')
     logger.info('Getting trigger number')
     trigger = get_trigger_number(grb)
@@ -285,6 +303,7 @@ def get_swift_trigger_from_grb(grb):
         trigger = trigger.zfill(11)
     return trigger
 
+
 def sort_swift_prompt_data(grb, use_default_directory):
     grbdir, rawfile_path, processed_file_path = prompt_directory_structure(grb, use_default_directory)
 
@@ -306,21 +325,21 @@ def sort_swift_prompt_data(grb, use_default_directory):
     return df
 
 
-def get_prompt_data_from_swift(grb, bin_size='2ms', use_default_directory=False):
+def get_prompt_data_from_swift(grb, bin_size='2ms', use_default_directory=False, **kwargs):
     collect_swift_prompt_data(grb=grb, use_default_directory=use_default_directory, bin_size=bin_size)
     data = sort_swift_prompt_data(grb=grb, use_default_directory=use_default_directory)
     return data
 
 
-def get_prompt_data_from_fermi(grb):
+def get_prompt_data_from_fermi(grb, **kwargs):
     return None
 
 
-def get_prompt_data_from_konus(grb):
+def get_prompt_data_from_konus(grb, **kwargs):
     return None
 
 
-def get_prompt_data_from_batse(grb, use_default_directory):
+def get_prompt_data_from_batse(grb, use_default_directory, **kwargs):
     trigger = get_batse_trigger_from_grb(grb=grb)
     trigger_filled = str(trigger).zfill(5)
     s = trigger - trigger % 200 + 1
