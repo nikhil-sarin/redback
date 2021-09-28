@@ -33,8 +33,12 @@ transient_types = ["afterglow", "prompt", "xrt"]
 def get_data(transient_type, instrument, event_label, use_default_directory, data_mode=None, **kwargs):
     kwargs["bin_size"] = kwargs.get("bin_size", "2ms")
     func_dict = _get_data_functions_dict()
-    func_dict[(transient_type.lower(), instrument.lower())](
-        grb=event_label, data_mode=data_mode, use_default_directory=use_default_directory, **kwargs)
+    try:
+        func_dict[(transient_type.lower(), instrument.lower())](
+            grb=event_label, data_mode=data_mode, use_default_directory=use_default_directory, **kwargs)
+    except KeyError:
+        raise ValueError(f"Combination of {transient_type} from {instrument} instrument not implemented or "
+                         f"not available.")
 
 
 def _get_data_functions_dict():
