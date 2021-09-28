@@ -26,7 +26,6 @@ class PromptTimeSeries(Transient):
         self.instrument = instrument
 
         self._set_data()
-        self._get_redshift()
 
     @classmethod
     def from_batse_grb_name(cls, name, trigger_number=None, channels="all"):
@@ -92,18 +91,3 @@ class PromptTimeSeries(Transient):
     @property
     def t90_end(self):
         return self.t90_start + self.t90
-
-
-class PromptSpectra(Transient):
-    def __init__(self, name, binning, datamode='tte'):
-        self.counts = []
-        self.name = name
-
-        self._set_data()
-        self._get_redshift()
-
-    def _set_data(self):
-        pass
-
-    def plot_data(self):
-        pass

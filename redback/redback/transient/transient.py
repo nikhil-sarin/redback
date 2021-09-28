@@ -106,30 +106,6 @@ class Transient(object):
             self._data_mode = data_mode
         else:
             raise ValueError("Unknown data mode.")
-        
-    # def get_flux_density(self):
-    #     pass
-    #
-    # def get_integrated_flux(self):
-    #     pass
-    #
-    # def _save_luminosity_data(self):
-    #     pass
-
-    # def get_optical(self):
-    #     pass
-
-    # def _process_data(self):
-    #     pass
-    #
-    # def _set_photon_index(self):
-    #     pass
-    #
-    # def _get_redshift(self):
-    #     pass
-    #
-    # def _set_t90(self):
-    #     pass
 
     def plot_data(self, axes=None, colour='k'):
         pass

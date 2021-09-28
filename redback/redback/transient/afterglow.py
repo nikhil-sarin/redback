@@ -37,28 +37,9 @@ class Afterglow(Transient):
 
         self.load_data(data_mode=self.data_mode)
 
-    # def get_luminosity_attributes(self):
-    #     #do sql stuff.
-    #     pass
-    #
-    # def numerical_luminosity_from_flux(self):
-    #     pass
-
     @property
     def _stripped_name(self):
         return self.name.lstrip('GRB')
-
-    # @classmethod
-    # def from_path_and_grb(cls, path, grb):
-    #     data_dir = find_path(path)
-    #     return cls(name=grb, path=data_dir)
-
-    # @classmethod
-    # def from_path_and_grb_with_truncation(
-    #         cls, path, grb, truncate=True, truncate_method='prompt_time_error', data_mode='flux'):
-    #     grb = cls.from_path_and_grb(path=path, grb=grb)
-    #     grb.load_and_truncate_data(truncate=truncate, truncate_method=truncate_method, data_mode=data_mode)
-    #     return grb
 
     def load_and_truncate_data(self, truncate=True, truncate_method='prompt_time_error', data_mode='flux'):
         """
@@ -125,12 +106,6 @@ class Afterglow(Transient):
     def event_table(self):
         return os.path.join(dirname, f'../tables/{self.__class__.__name__}_table.txt')
 
-    # def get_flux_density(self):
-    #     pass
-    #
-    # def get_integrated_flux(self):
-    #     pass
-
     def _save_luminosity_data(self):
         grb_dir, _, _ = afterglow_directory_structure(grb=self._stripped_name, use_default_directory=False,
                                                       data_mode=self.data_mode)
@@ -144,20 +119,11 @@ class Afterglow(Transient):
         df = pd.DataFrame(data=data)
         df.to_csv(join(grb_dir, filename), index=False)
 
-    # def get_prompt(self):
-    #     pass
-    #
-    # def get_optical(self):
-    #     pass
-
     def _set_data(self):
         data = pd.read_csv(self.event_table, header=0, error_bad_lines=False, delimiter='\t', dtype='str')
         data['BAT Photon Index (15-150 keV) (PL = simple power-law, CPL = cutoff power-law)'] = data[
             'BAT Photon Index (15-150 keV) (PL = simple power-law, CPL = cutoff power-law)'].fillna(0)
         self.data = data
-
-    def _process_data(self):
-        pass
 
     def _set_photon_index(self):
         photon_index = self.data.query('GRB == @self._stripped_name')[
@@ -247,12 +213,12 @@ class Afterglow(Transient):
         self._save_luminosity_data()
 
     def _get_redshift_for_luminosity_calculation(self):
-        if np.isnan(self.redshift):
-            logger.warning('This GRB has no measured redshift, using default z = 0.75')
-            return 0.75
-        elif self.luminosity_data:
+        if self.luminosity_data:
             logger.warning('The data is already in luminosity mode, returning.')
         elif self.flux_data:
+            if np.isnan(self.redshift):
+                logger.warning('This GRB has no measured redshift, using default z = 0.75')
+                return 0.75
             return self.redshift
         else:
             logger.warning(f'The data needs to be in flux mode, but is in {self.data_mode}.')
@@ -262,34 +228,6 @@ class Afterglow(Transient):
         self.Lum50_err = self.flux_err * isotropic_bolometric_flux * 1e-50
         self.time_rest_frame = self.time / (1 + redshift)
         self.time_rest_frame_err = self.time_err / (1 + redshift)
-
-    # def process_grbs(self, use_default_directory=False):
-    #     for GRB in self.data['GRB'].values:
-    #         retrieve_and_process_data(GRB, use_default_directory=use_default_directory)
-    #
-    #     return print(f'Flux data for all {self.__class__.__name__}s added')
-    #
-    # @staticmethod
-    # def process_grbs_w_redshift(use_default_directory=False):
-    #     data = pd.read_csv(dirname + '/tables/GRBs_w_redshift.txt', header=0,
-    #                        error_bad_lines=False, delimiter='\t', dtype='str')
-    #     for GRB in data['GRB'].values:
-    #         retrieve_and_process_data(GRB, use_default_directory=use_default_directory)
-    #
-    #     return print('Flux data for all GRBs with redshift added')
-    #
-    # @staticmethod
-    # def process_grb_list(data, use_default_directory=False):
-    #     """
-    #     :param data: a list containing telephone number of GRB needing to process
-    #     :param use_default_directory:
-    #     :return: saves the flux file in the location specified
-    #     """
-    #
-    #     for GRB in data:
-    #         retrieve_and_process_data(GRB, use_default_directory=use_default_directory)
-    #
-    #     return print('Flux data for all GRBs in list added')
 
     def plot_data(self, axes=None, colour='k'):
         """

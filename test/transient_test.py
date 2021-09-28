@@ -1,7 +1,11 @@
 import unittest
 import numpy as np
-from redback.redback.transient.transient import Transient
+import shutil
 
+from redback.redback.transient.transient import Transient
+from redback.redback.transient.afterglow import Afterglow, SGRB, LGRB
+from redback.redback.transient.prompt import PromptTimeSeries
+from redback.redback.getdata import get_afterglow_data_from_swift
 
 class TestTransient(unittest.TestCase):
 
@@ -99,64 +103,55 @@ class TestTransient(unittest.TestCase):
     def test_path(self):
         self.assertEqual(self.path, self.transient.path)
 
-    def test_analytical_flux_to_luminosity_illegal_data_mode(self):
-        self.transient.flux_density = self.y
-        self.transient.flux_density_err = self.y_err
-
-        self.transient.analytical_flux_to_luminosity()
-        self.assertTrue(np.array_equal(self.time, self.transient.x))
-        self.assertTrue(np.array_equal(self.y, self.transient.y))
-        self.assertTrue(np.array_equal(self.y_err, self.transient.y_err))
-        self.assertEqual(self.data_mode, self.transient.data_mode)
-
-    def test_analytical_flux_to_luminosity(self):
-        self.transient.data_mode = "flux"
-        self.transient.flux = self.y
-        self.transient.flux_err = self.y_err
-
-        self.transient.analytical_flux_to_luminosity()
-        self.assertFalse(np.array_equal(self.time, self.transient.x))
-        self.assertFalse(np.array_equal(self.y, self.transient.y))
-        self.assertFalse(np.array_equal(self.y_err, self.transient.y_err))
-        self.assertEqual(3, len(self.transient.Lum50))
-        self.assertEqual(3, len(self.transient.Lum50_err))
-        self.assertEqual(3, len(self.transient.time_rest_frame))
-        self.assertEqual(3, len(self.transient.time_rest_frame_err))
-        self.assertEqual("luminosity", self.transient.data_mode)
-
-    def test_numerical_flux_to_luminosity_illegal_data_mode(self):
-        self.transient.flux_density = self.y
-        self.transient.flux_density_err = self.y_err
-
-        self.transient.numerical_flux_to_luminosity(counts_to_flux_absorbed=1, counts_to_flux_unabsorbed=1)
-        self.assertTrue(np.array_equal(self.time, self.transient.x))
-        self.assertTrue(np.array_equal(self.y, self.transient.y))
-        self.assertTrue(np.array_equal(self.y_err, self.transient.y_err))
-        self.assertEqual(self.data_mode, self.transient.data_mode)
-
-    def test_numerical_flux_to_luminosity(self):
-        self.transient.data_mode = "flux"
-        self.transient.flux = self.y
-        self.transient.flux_err = self.y_err
-
-        self.transient.numerical_flux_to_luminosity(counts_to_flux_absorbed=1, counts_to_flux_unabsorbed=1)
-        self.assertFalse(np.array_equal(self.time, self.transient.x))
-        self.assertFalse(np.array_equal(self.y, self.transient.y))
-        self.assertFalse(np.array_equal(self.y_err, self.transient.y_err))
-        self.assertEqual(3, len(self.transient.Lum50))
-        self.assertEqual(3, len(self.transient.Lum50_err))
-        self.assertEqual(3, len(self.transient.time_rest_frame))
-        self.assertEqual(3, len(self.transient.time_rest_frame_err))
-        self.assertEqual("luminosity", self.transient.data_mode)
-
-    def test_get_flux_density(self):
-        self.transient.get_flux_density()
-
-    def test_get_integrated_flux(self):
-        self.transient.get_integrated_flux()
-
-    def test_get_optical(self):
-        self.transient.get_optical()
-
     def test_plot_lightcurve(self):
         self.transient.plot_lightcurve(model=None)
+
+
+class TestAfterglow(unittest.TestCase):
+
+    def setUp(self) -> None:
+        self.redshift = 0.75
+        self.data_mode = 'flux'
+        self.name = "170728A"
+        get_afterglow_data_from_swift(self.name, data_mode='flux')
+        self.transient = SGRB(name=self.name, data_mode=self.data_mode)
+
+    def tearDown(self) -> None:
+        del self.redshift
+        del self.data_mode
+        del self.name
+        del self.transient
+
+    def test_analytical_flux_to_luminosity_illegal_data_mode(self):
+        self.transient.data_mode = "flux_density"
+        self.transient.analytical_flux_to_luminosity()
+        self.assertEqual("flux_density", self.transient.data_mode)
+        self.assertTrue(len(self.transient.time_rest_frame) == 0)
+        self.assertTrue(len(self.transient.time_rest_frame_err) == 0)
+        self.assertTrue(len(self.transient.Lum50) == 0)
+        self.assertTrue(len(self.transient.Lum50_err) == 0)
+
+    def test_analytical_flux_to_luminosity(self):
+        self.transient.analytical_flux_to_luminosity()
+        self.assertEqual("luminosity", self.transient.data_mode)
+        self.assertFalse(len(self.transient.time_rest_frame) == 0)
+        self.assertFalse(len(self.transient.time_rest_frame_err) == 0)
+        self.assertFalse(len(self.transient.Lum50) == 0)
+        self.assertFalse(len(self.transient.Lum50_err) == 0)
+
+    def test_numerical_flux_to_luminosity_illegal_data_mode(self):
+        self.transient.data_mode = "flux_density"
+        self.transient.numerical_flux_to_luminosity(counts_to_flux_absorbed=1, counts_to_flux_unabsorbed=1)
+        self.assertEqual("flux_density", self.transient.data_mode)
+        self.assertTrue(len(self.transient.time_rest_frame) == 0)
+        self.assertTrue(len(self.transient.time_rest_frame_err) == 0)
+        self.assertTrue(len(self.transient.Lum50) == 0)
+        self.assertTrue(len(self.transient.Lum50_err) == 0)
+
+    def test_numerical_flux_to_luminosity(self):
+        self.transient.numerical_flux_to_luminosity(counts_to_flux_absorbed=1, counts_to_flux_unabsorbed=1)
+        self.assertEqual("luminosity", self.transient.data_mode)
+        self.assertFalse(len(self.transient.time_rest_frame) == 0)
+        self.assertFalse(len(self.transient.time_rest_frame_err) == 0)
+        self.assertFalse(len(self.transient.Lum50) == 0)
+        self.assertFalse(len(self.transient.Lum50_err) == 0)
