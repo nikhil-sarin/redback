@@ -2,10 +2,11 @@ import unittest
 import numpy as np
 import shutil
 
-from redback.redback.transient.transient import Transient
-from redback.redback.transient.afterglow import Afterglow, SGRB, LGRB
-from redback.redback.transient.prompt import PromptTimeSeries
-from redback.redback.getdata import get_afterglow_data_from_swift
+from redback.transient.transient import Transient
+from redback.transient.afterglow import Afterglow, SGRB, LGRB
+from redback.transient.prompt import PromptTimeSeries
+from redback.getdata import get_afterglow_data_from_swift
+
 
 class TestTransient(unittest.TestCase):
 
