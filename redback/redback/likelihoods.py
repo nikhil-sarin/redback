@@ -310,7 +310,7 @@ class GRBGaussianLikelihood(bilby.Likelihood):
 
 
 class PoissonLikelihood(bilby.Likelihood):
-    def __init__(self, time, counts, function, kwargs):
+    def __init__(self, time, counts, function, integrated_rate_function=True, dt=None, **kwargs):
         """
         Parameters
         ----------
@@ -320,29 +320,44 @@ class PoissonLikelihood(bilby.Likelihood):
             The background rate
         function:
             The python function to fit to the data
+        integrated_rate_function: bool
+            Whether the function returns an integrated rate over the `dt` in the bins.
+            This should be true if you multiply the rate with `dt` in the function and false if the function
+            returns a rate per unit time.
+        dt: (array_like, float, None)
+            Array of each bin size or single value if all bins are of the same size. If None, assume that
+            `dt` is constant and calculate it from the first two elements of `time`.
         """
         self.time = time
         self.counts = counts
         self.function = function
         self.kwargs = kwargs
-        self.dt = kwargs['dt']
-        parameters = inspect.getfullargspec(function).args
-        parameters.pop(0)
+        self.integrated_rate_function = integrated_rate_function
+        self.dt = dt
+        parameters = bilby.core.utils.introspection.infer_parameters_from_function(func=function)
         self.parameters = dict.fromkeys(parameters)
         super(PoissonLikelihood, self).__init__(parameters=dict())
 
+    @property
+    def dt(self):
+        return self.kwargs['dt']
+
+    @dt.setter
+    def dt(self, dt):
+        if dt is None:
+            dt = self.time[1] - self.time[0]
+        self.kwargs['dt'] = dt
+
     def noise_log_likelihood(self):
-        background_rate = self.parameters['bkg_rate'] * self.dt
-        rate = 0 + background_rate
-        log_l = np.sum(-rate + self.counts * np.log(rate) - gammaln(self.counts + 1))
-        self._noise_log_likelihood = log_l
-        return self._noise_log_likelihood
+        background_rate = self.parameters['background_rate'] * self.dt
+        return self._poisson_log_likelihood(rate=background_rate)
 
     def log_likelihood(self):
-        if self.kwargs != None:
-            rate = self.function(self.time, **self.parameters, **self.kwargs)
-        else:
-            rate = self.function(self.time, **self.parameters)
+        rate = self.function(self.time, **self.parameters, **self.kwargs) + \
+               self.parameters['background_rate']
+        if not self.integrated_rate_function:
+            rate *= self.dt
+        return self._poisson_log_likelihood(rate=rate)
 
-        logl = np.sum(-rate + self.counts * np.log(rate) - gammaln(self.counts + 1))
-        return logl
+    def _poisson_log_likelihood(self, rate):
+        return np.sum(-rate + self.counts * np.log(rate) - gammaln(self.counts + 1))

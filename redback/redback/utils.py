@@ -121,7 +121,7 @@ def deceleration_timescale(**kwargs):
     t_peak = (num/denom)**(1./3.)
     return t_peak
 
-def calc_ABmag_from_fluxdensity(fluxdensity):
+def calc_ABmag_from_flux_density(fluxdensity):
     return (fluxdensity * uu.mJy).to(uu.ABmag)
 
 def convert_absolute_mag_to_apparent(magnitude, distance):
@@ -133,7 +133,7 @@ def convert_absolute_mag_to_apparent(magnitude, distance):
     app_mag = magnitude + 5*(np.log10(distance) - 1)
     return app_mag
 
-def calc_fluxdensity_from_ABmag(magnitudes):
+def calc_flux_density_from_ABmag(magnitudes):
     return (magnitudes * uu.ABmag).to(uu.mJy)
 
 def check_element(driver, id_number):
@@ -201,6 +201,12 @@ def kde_scipy(x, bandwidth=0.05, **kwargs):
 def cdf(x, plot=True, *args, **kwargs):
     x, y = sorted(x), np.arange(len(x)) / len(x)
     return plt.plot(x, y, *args, **kwargs) if plot else (x, y)
+
+
+def bin_ttes(ttes, bin_size):
+    counts, bin_edges = np.histogram(ttes, np.arange(ttes[0], ttes[-1], bin_size))
+    times = np.array([bin_edges[i] + (bin_edges[i + 1] - bin_edges[i]) / 2 for i in range(len(bin_edges) - 1)])
+    return times, counts
 
 
 def find_path(path):
@@ -272,6 +278,24 @@ class MetaDataAccessor(object):
 
     def __set__(self, instance, value):
         getattr(instance, self.container_instance_name)[self.property_name] = value
+
+
+class DataModeSwitch(object):
+    """
+    Descriptor class to access boolean data_mode switches.
+    """
+
+    def __init__(self, data_mode):
+        self.data_mode = data_mode
+
+    def __get__(self, instance, owner):
+        return instance.data_mode == self.data_mode
+
+    def __set__(self, instance, value):
+        if value:
+            instance.data_mode = self.data_mode
+        else:
+            instance.data_mode = None
 
 
 def get_functions_dict(module):

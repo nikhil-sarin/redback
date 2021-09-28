@@ -15,10 +15,11 @@ from .transient import Transient
 
 dirname = os.path.dirname(__file__)
 
-DATA_MODES = ['luminosity', 'flux', 'flux_density', 'photometry']
-
 
 class Afterglow(Transient):
+
+    DATA_MODES = ['luminosity', 'flux', 'flux_density', 'photometry']
+
     """Class for afterglows"""
     def __init__(self, name, data_mode='flux'):
         """
@@ -26,20 +27,8 @@ class Afterglow(Transient):
         """
         if not name.startswith('GRB'):
             name = 'GRB' + name
-        super().__init__(time=[], time_err=[], y=[], y_err=[], data_mode=data_mode, name=name)
-
-        self.time = np.array([])
-        self.time_rest_frame = np.array([])
-        self.time_err = np.array([])
-        self.time_rest_frame_err = np.array([])
-        self.Lum50 = np.array([])
-        self.Lum50_err = np.array([])
-        self.flux_density = np.array([])
-        self.flux_density_err = np.array([])
-        self.flux = np.array([])
-        self.flux_err = np.array([])
-
-        self.data_mode = data_mode
+        super().__init__(time=np.array([]), time_err=np.array([]), y=np.array([]), y_err=np.array([]),
+                         data_mode=data_mode, name=name)
 
         self._set_data()
         self._set_photon_index()
@@ -49,120 +38,8 @@ class Afterglow(Transient):
         self.load_data(data_mode=self.data_mode)
 
     @property
-    def x(self):
-        if self.luminosity_data:
-            return self.time_rest_frame
-        elif self.fluxdensity_data or self.flux_data:
-            return self.time
-        else:
-            raise ValueError
-
-    @x.setter
-    def x(self, x):
-        if self.luminosity_data:
-            self.time_rest_frame = x
-        elif self.fluxdensity_data or self.flux_data:
-            self.time = x
-
-    @property
-    def x_err(self):
-        if self.luminosity_data:
-            return self.time_rest_frame_err
-        elif self.fluxdensity_data or self.flux_data:
-            return self.time_err
-        else:
-            raise ValueError
-
-    @x_err.setter
-    def x_err(self, x_err):
-        if self.luminosity_data:
-            self.time_rest_frame_err = x_err
-        elif self.fluxdensity_data or self.flux_data:
-            self.time_err = x_err
-
-    @property
-    def y(self):
-        if self.luminosity_data:
-            return self.Lum50
-        elif self.flux_data:
-            return self.flux
-        elif self.fluxdensity_data:
-            return self.flux_density
-        else:
-            raise ValueError
-
-    @y.setter
-    def y(self, y):
-        if self.luminosity_data:
-            self.Lum50 = y
-        elif self.flux_data:
-            self.flux = y
-        elif self.fluxdensity_data:
-            self.flux_density = y
-        else:
-            raise ValueError
-
-    @property
-    def y_err(self):
-        if self.luminosity_data:
-            return self.Lum50_err
-        elif self.flux_data:
-            return self.flux_err
-        elif self.fluxdensity_data:
-            return self.flux_density_err
-        else:
-            raise ValueError
-
-    @y_err.setter
-    def y_err(self, y_err):
-        if self.luminosity_data:
-            self.Lum50_err = y_err
-        elif self.flux_data:
-            self.flux_err = y_err
-        elif self.fluxdensity_data:
-            self.flux_density_err = y_err
-        else:
-            raise ValueError
-
-
-    # def get_luminosity_attributes(self):
-    #     #do sql stuff.
-    #     pass
-    #
-    # def numerical_luminosity_from_flux(self):
-    #     pass
-
-    @property
     def _stripped_name(self):
         return self.name.lstrip('GRB')
-
-    @property
-    def luminosity_data(self):
-        return self.data_mode == DATA_MODES[0]
-
-    @property
-    def flux_data(self):
-        return self.data_mode == DATA_MODES[1]
-
-    @property
-    def fluxdensity_data(self):
-        return self.data_mode == DATA_MODES[2]
-
-    @property
-    def photometry_data(self):
-        return self.data_mode == DATA_MODES[3]
-
-    # @classmethod
-    # def from_path_and_grb(cls, path, grb):
-    #     data_dir = find_path(path)
-    #     return cls(name=grb, path=data_dir)
-
-    # @classmethod
-    # def from_path_and_grb_with_truncation(
-    #         cls, path, grb, truncate=True, truncate_method='prompt_time_error', data_mode='flux'):
-    #     grb = cls.from_path_and_grb(path=path, grb=grb)
-    #     grb.load_and_truncate_data(truncate=truncate, truncate_method=truncate_method, data_mode=data_mode)
-    #     return grb
 
     def load_and_truncate_data(self, truncate=True, truncate_method='prompt_time_error', data_mode='flux'):
         """
@@ -188,7 +65,6 @@ class Afterglow(Transient):
         self.x = data[:, 0]
         self.x_err = data[:, 1:3].T
         self.y, self.y_err = self._load(data)
-
 
     @staticmethod
     def _load(data):
@@ -230,11 +106,55 @@ class Afterglow(Transient):
     def event_table(self):
         return os.path.join(dirname, f'../tables/{self.__class__.__name__}_table.txt')
 
-    # def get_flux_density(self):
-    #     pass
-    #
-    # def get_integrated_flux(self):
-    #     pass
+    def _save_luminosity_data(self):
+        grb_dir, _, _ = afterglow_directory_structure(grb=self._stripped_name, use_default_directory=False,
+                                                      data_mode=self.data_mode)
+        filename = f"{self.name}.csv"
+        data = {"Time in restframe [s]": self.time_rest_frame,
+                "Pos. time err in restframe [s]": self.time_rest_frame_err[0, :],
+                "Neg. time err in restframe [s]": self.time_rest_frame_err[1, :],
+                "Luminosity [10^50 erg s^{-1}]": self.Lum50,
+                "Pos. luminosity err [10^50 erg s^{-1}]": self.Lum50_err[0, :],
+                "Neg. luminosity err [10^50 erg s^{-1}]": self.Lum50_err[1, :]}
+        df = pd.DataFrame(data=data)
+        df.to_csv(join(grb_dir, filename), index=False)
+
+    def _set_data(self):
+        data = pd.read_csv(self.event_table, header=0, error_bad_lines=False, delimiter='\t', dtype='str')
+        data['BAT Photon Index (15-150 keV) (PL = simple power-law, CPL = cutoff power-law)'] = data[
+            'BAT Photon Index (15-150 keV) (PL = simple power-law, CPL = cutoff power-law)'].fillna(0)
+        self.data = data
+
+    def _set_photon_index(self):
+        photon_index = self.data.query('GRB == @self._stripped_name')[
+            'BAT Photon Index (15-150 keV) (PL = simple power-law, CPL = cutoff power-law)'].values[0]
+        if photon_index == 0.:
+            return 0.
+        self.photon_index = self.__clean_string(photon_index)
+
+    def _get_redshift(self):
+        # some GRBs dont have measurements
+        redshift = self.data.query('GRB == @self._stripped_name')['Redshift'].values[0]
+        if isinstance(redshift, str):
+            self.redshift = self.__clean_string(redshift)
+        elif np.isnan(redshift):
+            return None
+        else:
+            self.redshift = redshift
+
+    def _set_t90(self):
+        # data['BAT Photon Index (15-150 keV) (PL = simple power-law, CPL = cutoff power-law)'] = data['BAT Photon
+        # Index (15-150 keV) (PL = simple power-law, CPL = cutoff power-law)'].fillna(0)
+        t90 = self.data.query('GRB == @self._stripped_name')['BAT T90 [sec]'].values[0]
+        if t90 == 0.:
+            return np.nan
+        self.t90 = self.__clean_string(t90)
+
+    @staticmethod
+    def __clean_string(string):
+        for r in ["PL", "CPL", ",", "C", "~", " ", 'Gemini:emission', '()']:
+            string = string.replace(r, "")
+        return float(string)
 
     def analytical_flux_to_luminosity(self):
         redshift = self._get_redshift_for_luminosity_calculation()
@@ -293,110 +213,21 @@ class Afterglow(Transient):
         self._save_luminosity_data()
 
     def _get_redshift_for_luminosity_calculation(self):
-        if np.isnan(self.redshift):
-            logger.warning('This GRB has no measured redshift, using default z = 0.75')
-            return 0.75
-        elif self.data_mode == 'luminosity':
+        if self.luminosity_data:
             logger.warning('The data is already in luminosity mode, returning.')
-            return None
-        elif self.data_mode == 'flux_density':
-            logger.warning(f'The data needs to be in flux mode, but is in {self.data_mode}.')
-            return None
-        else:
+        elif self.flux_data:
+            if np.isnan(self.redshift):
+                logger.warning('This GRB has no measured redshift, using default z = 0.75')
+                return 0.75
             return self.redshift
+        else:
+            logger.warning(f'The data needs to be in flux mode, but is in {self.data_mode}.')
 
     def _calculate_rest_frame_time_and_luminosity(self, counts_to_flux_fraction, isotropic_bolometric_flux, redshift):
         self.Lum50 = self.flux * counts_to_flux_fraction * isotropic_bolometric_flux * 1e-50
         self.Lum50_err = self.flux_err * isotropic_bolometric_flux * 1e-50
         self.time_rest_frame = self.time / (1 + redshift)
         self.time_rest_frame_err = self.time_err / (1 + redshift)
-
-    def _save_luminosity_data(self):
-        grb_dir, _, _ = afterglow_directory_structure(grb=self._stripped_name, use_default_directory=False,
-                                                      data_mode=self.data_mode)
-        filename = f"{self.name}.csv"
-        data = {"Time in restframe [s]": self.time_rest_frame,
-                "Pos. time err in restframe [s]": self.time_rest_frame_err[0, :],
-                "Neg. time err in restframe [s]": self.time_rest_frame_err[1, :],
-                "Luminosity [10^50 erg s^{-1}]": self.Lum50,
-                "Pos. luminosity err [10^50 erg s^{-1}]": self.Lum50_err[0, :],
-                "Neg. luminosity err [10^50 erg s^{-1}]": self.Lum50_err[1, :]}
-        df = pd.DataFrame(data=data)
-        df.to_csv(join(grb_dir, filename), index=False)
-
-    # def get_prompt(self):
-    #     pass
-    #
-    # def get_optical(self):
-    #     pass
-
-    def _set_data(self):
-        data = pd.read_csv(self.event_table, header=0, error_bad_lines=False, delimiter='\t', dtype='str')
-        data['BAT Photon Index (15-150 keV) (PL = simple power-law, CPL = cutoff power-law)'] = data[
-            'BAT Photon Index (15-150 keV) (PL = simple power-law, CPL = cutoff power-law)'].fillna(0)
-        self.data = data
-
-    def _process_data(self):
-        pass
-
-    def _set_photon_index(self):
-        photon_index = self.data.query('GRB == @self._stripped_name')[
-            'BAT Photon Index (15-150 keV) (PL = simple power-law, CPL = cutoff power-law)'].values[0]
-        if photon_index == 0.:
-            return 0.
-        self.photon_index = self.__clean_string(photon_index)
-
-    def _get_redshift(self):
-        # some GRBs dont have measurements
-        redshift = self.data.query('GRB == @self._stripped_name')['Redshift'].values[0]
-        if isinstance(redshift, str):
-            self.redshift = self.__clean_string(redshift)
-        elif np.isnan(redshift):
-            return None
-        else:
-            self.redshift = redshift
-
-    def _set_t90(self):
-        # data['BAT Photon Index (15-150 keV) (PL = simple power-law, CPL = cutoff power-law)'] = data['BAT Photon
-        # Index (15-150 keV) (PL = simple power-law, CPL = cutoff power-law)'].fillna(0)
-        t90 = self.data.query('GRB == @self._stripped_name')['BAT T90 [sec]'].values[0]
-        if t90 == 0.:
-            return np.nan
-        self.t90 = self.__clean_string(t90)
-
-    @staticmethod
-    def __clean_string(string):
-        for r in ["PL", "CPL", ",", "C", "~", " ", 'Gemini:emission', '()']:
-            string = string.replace(r, "")
-        return float(string)
-
-    # def process_grbs(self, use_default_directory=False):
-    #     for GRB in self.data['GRB'].values:
-    #         retrieve_and_process_data(GRB, use_default_directory=use_default_directory)
-    #
-    #     return print(f'Flux data for all {self.__class__.__name__}s added')
-    #
-    # @staticmethod
-    # def process_grbs_w_redshift(use_default_directory=False):
-    #     data = pd.read_csv(dirname + '/tables/GRBs_w_redshift.txt', header=0,
-    #                        error_bad_lines=False, delimiter='\t', dtype='str')
-    #     for GRB in data['GRB'].values:
-    #         retrieve_and_process_data(GRB, use_default_directory=use_default_directory)
-    #
-    #     return print('Flux data for all GRBs with redshift added')
-    #
-    # @staticmethod
-    # def process_grb_list(data, use_default_directory=False):
-    #     """
-    #     :param data: a list containing telephone number of GRB needing to process
-    #     :param use_default_directory:
-    #     :return: saves the flux file in the location specified
-    #     """
-    #
-    #     for GRB in data:
-    #         retrieve_and_process_data(GRB, use_default_directory=use_default_directory)
-    #
-    #     return print('Flux data for all GRBs in list added')
 
     def plot_data(self, axes=None, colour='k'):
         """
@@ -441,7 +272,7 @@ class Afterglow(Transient):
             return r'Luminosity [$10^{50}$ erg s$^{-1}$]'
         elif self.flux_data:
             return r'Flux [erg cm$^{-2}$ s$^{-1}$]'
-        elif self.fluxdensity_data:
+        elif self.flux_density_data:
             return r'Flux density [mJy]'
         else:
             raise ValueError

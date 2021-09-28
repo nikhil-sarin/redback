@@ -1,5 +1,5 @@
 from .fireball_models import predeceleration
-from ..utils import logger, calc_ABmag_from_fluxdensity
+from ..utils import logger, calc_ABmag_from_flux_density
 import numpy as np
 
 
@@ -32,7 +32,7 @@ def extinction_with_afterglow_base_model(time, lognh, factor, **kwargs):
     # logger.info('Using {} as the base model for extinction'.format(base_model))
     flux = function(time, **kwargs)
     flux = extinction.apply(mag_extinction, flux)
-    output_magnitude = calc_ABmag_from_fluxdensity(flux).value
+    output_magnitude = calc_ABmag_from_flux_density(flux).value
     return output_magnitude
 
 def extinction_with_predeceleration(time, lognh, factor, **kwargs):
@@ -55,4 +55,4 @@ def extinction_with_predeceleration(time, lognh, factor, **kwargs):
     if kwargs['output_format'] == 'flux_density':
         return lc
     elif kwargs['output_format'] == 'magnitude':
-        return calc_ABmag_from_fluxdensity(lc).value
+        return calc_ABmag_from_flux_density(lc).value

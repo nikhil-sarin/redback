@@ -16,7 +16,7 @@ import numpy as np
 import astropy.units as uu
 from astropy.io import ascii, fits
 
-from .utils import logger, fetch_driver, check_element, calc_fluxdensity_from_ABmag, calc_flux_density_error
+from .utils import logger, fetch_driver, check_element, calc_flux_density_from_ABmag, calc_flux_density_error
 from .redback_errors import DataExists, WebsiteExist
 
 from bilby.core.utils import check_directory_exists_and_if_not_mkdir
@@ -67,7 +67,7 @@ def prompt_directory_structure(grb, use_default_directory, bin_size='2ms'):
     return grb_dir, rawfile_path, processed_file_path
 
 
-def process_fluxdensity_data(grb, rawfile):
+def process_flux_density_data(grb, rawfile):
     logger.info('Getting trigger number')
     trigger = get_trigger_number(grb)
     grb_website = 'http://www.swift.ac.uk/burst_analyser/00' + trigger + '/'
@@ -167,7 +167,7 @@ def sort_integrated_flux_data(rawfile, fullfile):
     logger.info('Congratulations, you now have a nice data file: {}'.format(fullfile))
 
 
-def sort_fluxdensity_data(rawfile, fullfile):
+def sort_flux_density_data(rawfile, fullfile):
     data = np.loadtxt(rawfile, skiprows=2, delimiter='\t')
     df = pd.DataFrame(data=data, columns=['Time [s]', 'Time err plus [s]', 'Time err minus [s]',
                                           'Flux [mJy]', 'Flux err plus [mJy]', 'Flux err minus [mJy]'])
@@ -198,7 +198,7 @@ def collect_swift_data(grb, use_default_directory, data_mode):
         if data_mode == 'flux':
             process_integrated_flux_data(grb, rawfile)
         if data_mode == 'flux_density':
-            process_fluxdensity_data(grb, rawfile)
+            process_flux_density_data(grb, rawfile)
 
     return rawfile, fullfile
 
@@ -215,7 +215,7 @@ def sort_swift_data(rawfile, fullfile, data_mode):
     if data_mode == 'flux':
         sort_integrated_flux_data(rawfile, fullfile)
     if data_mode == 'flux_density':
-        sort_fluxdensity_data(rawfile, fullfile)
+        sort_flux_density_data(rawfile, fullfile)
 
 
 def get_afterglow_data_from_swift(grb, data_mode='flux', use_default_directory=False):
@@ -343,7 +343,7 @@ def get_prompt_data_from_batse(grb, use_default_directory):
     with fits.open(file_path) as fits_data:
         data = fits_data[-1].data
         bin_left = np.array(data['TIMES'][:, 0])
-        # bin_right = np.array(data['TIMES'][:, 1])
+        bin_right = np.array(data['TIMES'][:, 1])
         rates = np.array(data['RATES'][:, :])
         errors = np.array(data['ERRORS'][:, :])
         # counts = np.array([np.multiply(rates[:, i],
@@ -351,11 +351,12 @@ def get_prompt_data_from_batse(grb, use_default_directory):
         # count_err = np.sqrt(counts)
         # t90_st, end = bin_left[0], bin_right[-1]
 
-    data = np.array([bin_left, rates[:, 0], errors[:, 0], rates[:, 1], errors[:, 1],
+    data = np.array([bin_left, bin_right, rates[:, 0], errors[:, 0], rates[:, 1], errors[:, 1],
                      rates[:, 2], errors[:, 2], rates[:, 3], errors[:, 3]]).T
 
     df = pd.DataFrame(data=data, columns=[
-        "Time [s]",
+        "Time bin left [s]",
+        "Time bin right [s]",
         "flux_20_50 [counts/s]",
         "flux_20_50_err [counts/s]",
         "flux_50_100 [counts/s]",
@@ -387,6 +388,8 @@ def get_batse_trigger_from_grb(grb):
             for i, loc in enumerate(location):
                 object_labels[loc] = object_labels[loc] + ALPHABET[i]
 
+    if grb[0].isnumeric():
+        grb = 'GRB' + grb
     index = object_labels.index(grb)
     return int(batse_triggers[index])
 
@@ -513,7 +516,7 @@ def sort_open_access_data(transient, use_default_directory, transient_type):
         data = data[data['system'] == 'AB']
         logger.info('Keeping only AB magnitude data')
 
-        data['flux(mjy)'] = calc_fluxdensity_from_ABmag(data['magnitude'].values)
+        data['flux(mjy)'] = calc_flux_density_from_ABmag(data['magnitude'].values)
         data['flux_error'] = calc_flux_density_error(magnitude=data['magnitude'].values,
                                                      magnitude_error=data['e_magnitude'].values, reference_flux=3631,
                                                      magnitude_system='AB')

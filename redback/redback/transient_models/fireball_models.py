@@ -1,5 +1,5 @@
 import numpy as np
-from ..utils import logger, calc_ABmag_from_fluxdensity
+from ..utils import logger, calc_ABmag_from_flux_density
 
 def predeceleration(time, aa, mm, t0, **kwargs):
     """

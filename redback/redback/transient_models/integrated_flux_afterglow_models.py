@@ -25,8 +25,8 @@ def integrated_flux_afterglowpy_base_model(time, **kwargs):
     tt = tt.flatten()
     nu = nu.flatten()
     kwargs['frequency'] = nu
-    fluxdensity = function(tt, **kwargs)
-    lightcurve_at_nu = fluxdensity.reshape(len(nu_1d), len(time))
+    flux_density = function(tt, **kwargs)
+    lightcurve_at_nu = flux_density.reshape(len(nu_1d), len(time))
     prefactor = 1e-26
     lightcurve_at_nu = prefactor * lightcurve_at_nu
     integrated_flux = simps(lightcurve_at_nu, axis=0, x=nu_1d)
@@ -38,9 +38,9 @@ def integrated_flux_rate_model(time, **kwargs):
     :param kwargs:
     :return: rate
     """
-    prefactor = kwargs['prefactor']
-    dt = kwargs['dt']
-    background_rate = kwargs['bkg_rate']
+    prefactor = kwargs.get('prefactor', 0)
+    dt = kwargs.get('dt', 1)
+    background_rate = kwargs.get('background_rate', 0)
     integrated_flux = integrated_flux_afterglowpy_base_model(time, **kwargs)
-    rate = (prefactor * integrated_flux * dt) + (background_rate * dt)
+    rate = (prefactor * integrated_flux + background_rate) * dt
     return rate
