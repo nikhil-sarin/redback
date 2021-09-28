@@ -5,7 +5,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import os
 import pandas as pd
-from redback.redback.utils import logger
+from redback.utils import logger
 
 from astropy.cosmology import Planck18 as cosmo
 from ..getdata import afterglow_directory_structure
