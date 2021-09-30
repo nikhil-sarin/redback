@@ -516,8 +516,8 @@ def sort_open_access_data(transient, use_default_directory, transient_type):
         data = data[data['system'] == 'AB']
         logger.info('Keeping only AB magnitude data')
 
-        data['flux(mjy)'] = calc_flux_density_from_ABmag(data['magnitude'].values)
-        data['flux_error'] = calc_flux_density_error(magnitude=data['magnitude'].values,
+        data['flux_density(mjy)'] = calc_flux_density_from_ABmag(data['magnitude'].values)
+        data['flux_density_error'] = calc_flux_density_error(magnitude=data['magnitude'].values,
                                                      magnitude_error=data['e_magnitude'].values, reference_flux=3631,
                                                      magnitude_system='AB')
 
