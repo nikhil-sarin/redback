@@ -79,7 +79,7 @@ class Afterglow(Transient):
         x = data[:, 0]
         x_err = data[:, 1:3].T
         y = np.array(data[:, 3])
-        y_err = np.array(np.abs(data[:, 4:].T))
+        y_err = np.array(np.abs(data[:, 4:6].T))
         return x, x_err, y, y_err
 
     def truncate(self, truncate_method='prompt_time_error'):
