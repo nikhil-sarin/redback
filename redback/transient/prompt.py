@@ -68,12 +68,12 @@ class PromptTimeSeries(Transient):
 
     @property
     def event_table(self):
-        return os.path.join(dirname, f'../tables/BATSE_4B_catalogue.xls')
+        return os.path.join(dirname, f'../tables/BATSE_4B_catalogue.csv')
 
     def _set_data(self):
         dtypes = dict(trigger_num=np.int32, t90=np.float64, t90_error=np.float64, t90_start=np.float64)
         columns = list(dtypes.keys())
-        self.data = pd.read_excel(self.event_table, sheet_name='batsegrb', header=0, usecols=columns, dtype=dtypes)
+        self.data = pd.read_csv(self.event_table, header=0, usecols=columns, dtype=dtypes)
         self._data_index = self.data.index[self.data['trigger_num'] == int(self.trigger_number)].tolist()[0]
 
     @property
