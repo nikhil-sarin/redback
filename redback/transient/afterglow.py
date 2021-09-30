@@ -37,6 +37,20 @@ class Afterglow(Transient):
 
         self.load_data(data_mode=self.data_mode)
 
+    @classmethod
+    def from_swift_grb(cls, name, data_mode='flux', truncate=True, truncate_method='prompt_time_error'):
+        if not name.startswith('GRB'):
+            name = 'GRB' + name
+        afterglow = cls(name=name, data_mode=data_mode)
+
+        afterglow._set_data()
+        afterglow._set_photon_index()
+        afterglow._set_t90()
+        afterglow._get_redshift()
+
+        afterglow.load_and_truncate_data(truncate=truncate, truncate_method=truncate_method, data_mode=data_mode)
+        return afterglow
+
     @property
     def _stripped_name(self):
         return self.name.lstrip('GRB')
