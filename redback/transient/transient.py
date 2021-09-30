@@ -6,7 +6,8 @@ from redback.utils import DataModeSwitch
 class Transient(object):
 
     DATA_MODES = ['luminosity', 'flux', 'flux_density', 'photometry', 'counts', 'tte']
-    _ATTRIBUTE_NAME_DICT = dict(luminosity="Lum50", flux="flux", flux_density="flux_density", counts="counts")
+    _ATTRIBUTE_NAME_DICT = dict(luminosity="Lum50", flux="flux", flux_density="flux_density",
+                                counts="counts", photometry="magnitude")
 
     luminosity_data = DataModeSwitch('luminosity')
     flux_data = DataModeSwitch('flux')
