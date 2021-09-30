@@ -13,8 +13,8 @@ redback.getdata.get_afterglow_data_from_swift(GRB, data_mode='flux')
 # creates a GRBDir with GRB
 
 # create Luminosity data
-afterglow = redback.afterglow.SGRB(GRB, data_mode='flux')
-afterglow.load_and_truncate_data()
+afterglow = redback.afterglow.SGRB.from_swift_grb(name=GRB, data_mode='flux',
+                                                  truncate=True, truncate_method="prompt_time_error")
 afterglow.analytical_flux_to_luminosity()
 
 # assert False
@@ -23,7 +23,7 @@ afterglow.analytical_flux_to_luminosity()
 # Can also use a numerical k-correction through CIAO
 
 # use default priors
-priors = redback.redback.priors.get_priors(model=model, data_mode='luminosity')
+priors = redback.priors.get_priors(model=model, data_mode='luminosity')
 
 # alternatively can pass in some priors
 # priors = {}
@@ -37,8 +37,8 @@ priors = redback.redback.priors.get_priors(model=model, data_mode='luminosity')
 # priors['II'] = bilby.core.prior.LogUniform(1e45, 1e46, 'II', latex_label = r'$I$')
 
 
-result, data = redback.fit_model(name=GRB, model=model, sampler=sampler, nlive=500, transient=afterglow,
-                                 prior=priors, data_mode='luminosity', outdir="GRB_results")
+result, data = redback.sampler.fit_model(name=GRB, model=model, sampler=sampler, nlive=500, transient=afterglow,
+                                         prior=priors, data_mode='luminosity', outdir="GRB_results")
 
 
 # returns a GRB result object
