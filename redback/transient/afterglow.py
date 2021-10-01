@@ -31,8 +31,9 @@ class Afterglow(Transient):
         if not name.startswith('GRB'):
             name = 'GRB' + name
 
-        super().__init__(name=name, data_mode=data_mode, time=time, time_err=time_err, Lum50=Lum50, Lum50_err=Lum50_err,
-                         flux=flux, flux_err=flux_err, flux_density=flux_density, flux_density_err=flux_density_err,
+        super().__init__(name=name, data_mode=data_mode, time=time, time_err=time_err, time_rest_frame=None,
+                         time_rest_frame_err=None, Lum50=Lum50, Lum50_err=Lum50_err, flux=flux, flux_err=flux_err,
+                         flux_density=flux_density, flux_density_err=flux_density_err,
                          magnitude=magnitude, magnitude_err=magnitude_err)
 
         self._set_data()

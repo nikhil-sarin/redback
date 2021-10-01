@@ -13,9 +13,11 @@ dirname = os.path.dirname(__file__)
 class PromptTimeSeries(Transient):
     DATA_MODES = ['counts', 'ttes']
 
-    def __init__(self, name, bin_size=1, ttes=None, time=None, counts=None,
-                 channel_tags=None, data_mode='ttes', trigger_number=None, channels="all", instrument="batse"):
-        super().__init__(time=time, time_err=None, counts=counts, ttes=ttes, bin_size=bin_size,
+    def __init__(self, name, bin_size=1, ttes=None, time=None, time_rest_frame=None, time_rest_frame_err=None,
+                 counts=None, channel_tags=None, data_mode='ttes', trigger_number=None,
+                 channels="all", instrument="batse"):
+        super().__init__(time=time, time_err=None, time_rest_frame=time_rest_frame,
+                         time_rest_frame_err=time_rest_frame_err, counts=counts, ttes=ttes, bin_size=bin_size,
                          name=name, data_mode=data_mode)
         self.channel_tags = channel_tags
         self.trigger_number = str(trigger_number)

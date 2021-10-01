@@ -15,12 +15,14 @@ data_mode = ['flux_density', 'photometry', 'luminosity']
 
 
 class Kilonova(Transient):
-    def __init__(self, name, data_mode='photometry', time=None, time_err=None, Lum50=None, Lum50_err=None,
-                 flux_density=None, flux_density_err=None, magnitude=None, magnitude_err=None, bands=None, system=None):
+    def __init__(self, name, data_mode='photometry', time=None, time_err=None, time_rest_frame=None,
+                 time_rest_frame_err=None, Lum50=None, Lum50_err=None, flux_density=None, flux_density_err=None,
+                 magnitude=None, magnitude_err=None, bands=None, system=None):
 
-        super().__init__(time=time, time_err=time_err, Lum50=Lum50, Lum50_err=Lum50_err, flux_density=flux_density,
-                         flux_density_err=flux_density_err, magnitude=magnitude, magnitude_err=magnitude_err,
-                         data_mode=data_mode, name=name)
+        super().__init__(time=time, time_err=time_err, time_rest_frame=time_rest_frame,
+                         time_rest_frame_err=time_rest_frame_err, Lum50=Lum50, Lum50_err=Lum50_err,
+                         flux_density=flux_density, flux_density_err=flux_density_err, magnitude=magnitude,
+                         magnitude_err=magnitude_err, data_mode=data_mode, name=name)
         self.name = name
         self.bands = bands
         self.system = system

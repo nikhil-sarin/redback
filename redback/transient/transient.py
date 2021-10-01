@@ -17,9 +17,9 @@ class Transient(object):
     counts_data = DataModeSwitch('counts')
     tte_data = DataModeSwitch('ttes')
 
-    def __init__(self, time, time_err, Lum50=None, Lum50_err=None, flux=None, flux_err=None,
-                 flux_density=None, flux_density_err=None, magnitude=None, magnitude_err=None, counts=None,
-                 ttes=None, bin_size=None, redshift=np.nan, data_mode=None, name='', path='.',
+    def __init__(self, time, time_err=None, time_rest_frame=None, time_rest_frame_err=None, Lum50=None, Lum50_err=None,
+                 flux=None, flux_err=None, flux_density=None, flux_density_err=None, magnitude=None, magnitude_err=None,
+                 counts=None, ttes=None, bin_size=None, redshift=np.nan, data_mode=None, name='', path='.',
                  photon_index=np.nan):
         """
         Base class for all transients
@@ -30,8 +30,8 @@ class Transient(object):
 
         self.time = time
         self.time_err = time_err
-        self.time_rest_frame = np.array([])
-        self.time_rest_frame_err = np.array([])
+        self.time_rest_frame = time_rest_frame
+        self.time_rest_frame_err = time_rest_frame_err
 
         self.Lum50 = Lum50
         self.Lum50_err = Lum50_err
@@ -42,7 +42,7 @@ class Transient(object):
         self.magnitude = magnitude
         self.magnitude_err = magnitude_err
         self.counts = counts
-        self.counts_err = np.sqrt(counts)
+        self.counts_err = np.sqrt(counts) if counts is not None else None
         self.ttes = ttes
 
         self.data_mode = data_mode
