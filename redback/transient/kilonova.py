@@ -9,6 +9,7 @@ import matplotlib.pyplot as plt
 from matplotlib import cm
 
 from redback.getdata import transient_directory_structure
+from redback.utils import logger
 
 data_mode = ['flux_density', 'photometry', 'luminosity']
 
@@ -60,34 +61,24 @@ class Kilonova(Transient):
     def _set_data(self):
         pass
 
-    def plot_data(self, axes=None, filters=None, plot_others=True):
+    def plot_data(self, axes=None, filters=None, plot_others=True, **plot_kwargs):
         """
         plots the data
         :param axes:
         :param colour:
         """
-
-        unique_bands = np.unique(self.bands)
-
-        list_of_indices = []
+        errorbar_fmt = plot_kwargs.get("errorbar_fmt", "x")
+        colors = plot_kwargs.get("colors", self.get_colors(filters))
+        xlabel = plot_kwargs.get("xlabel", r'Time since burst [days]')
+        ylabel = plot_kwargs.get("ylabel", self.ylabel)
+        plot_label = plot_kwargs.get("plot_label", "lc")
 
         if filters is None:
-            filters = ["g", "r", "i", "z", "y", "J", "H", "K"]
-
-        colors = cm.rainbow(np.linspace(0, 1, len(filters)))
-
-        for b in unique_bands:
-            list_of_indices.append(np.where(self.bands == b)[0])
-
-        ylabel = self._get_labels()
-
+            filters = self.default_filters
 
         ax = axes or plt.gca()
-        for idxs, band in zip(list_of_indices, unique_bands):
-            if self.x_err is not None:
-                x_err = self.x_err[idxs]
-            else:
-                x_err = self.x_err
+        for idxs, band in zip(self.list_of_band_indices, self.unique_bands):
+            x_err = self.x_err[idxs] if self is not None else self.x_err
             if band in filters:
                 color = colors[filters.index(band)]
                 label = band
@@ -97,8 +88,7 @@ class Kilonova(Transient):
             else:
                 continue
             ax.errorbar(self.x[idxs], self.y[idxs], xerr=x_err, yerr=self.y_err[idxs],
-                        fmt='x', ms=1, color=color, elinewidth=2, capsize=0., label=label)
-
+                        fmt=errorbar_fmt, ms=1, color=color, elinewidth=2, capsize=0., label=label)
 
         ax.set_xlim(0.5 * self.x[0], 1.2 * self.x[-1])
         if self.photometry_data:
@@ -106,7 +96,7 @@ class Kilonova(Transient):
             ax.invert_yaxis()
         else:
             ax.set_ylim(0.5 * min(self.y), 2. * np.max(self.y))
-        ax.set_xlabel(r'Time since burst [days]')
+        ax.set_xlabel(xlabel)
         ax.set_ylabel(ylabel)
         ax.tick_params(axis='x', pad=10)
         ax.legend(ncol=2)
@@ -114,7 +104,7 @@ class Kilonova(Transient):
         if axes is None:
             plt.tight_layout()
 
-        filename = f"{self.name}_{self.data_mode}_lc.png"
+        filename = f"{self.name}_{self.data_mode}_{plot_label}.png"
         plt.savefig(join(self.transient_dir, filename))
         plt.clf()
 
@@ -129,45 +119,42 @@ class Kilonova(Transient):
             transient_type="kilonova")
         return transient_dir
 
-    def _get_labels(self):
-        if self.luminosity_data:
-            return r'Luminosity [$10^{50}$ erg s$^{-1}$]'
-        elif self.photometry_data:
-            return r'Magnitude'
-        elif self.flux_density_data:
-            return r'Flux density [mJy]'
-        else:
-            raise ValueError
+    def plot_multiband(self, figure=None, axes=None, ncols=2, nrows=None, figsize=None, filters=None, **plot_kwargs):
+        wspace = plot_kwargs.get("wspace", 0.15)
+        hspace = plot_kwargs.get("hspace", 0.04)
+        fontsize = plot_kwargs.get("fontsize", 30)
+        errorbar_fmt = plot_kwargs.get("errorbar_fmt", "x")
+        colors = plot_kwargs.get("colors", self.get_colors(filters))
+        xlabel = plot_kwargs.get("xlabel", "Time [days]")
+        ylabel = plot_kwargs.get("ylabel", self.ylabel)
+        plot_label = plot_kwargs.get("plot_label", "multiband_lc")
 
-    def plot_multiband(self, figure, axes, filters=None):
+        if figure is None or axes is None:
+            if nrows is None:
+                nrows = int(np.ceil(len(filters)/2))
+            npanels = ncols * nrows
+            if npanels < len(filters):
+                raise ValueError(f"Insufficient number of panels. {npanels} panels were given "
+                                 f"but {len(filters)} panels are needed.")
+            if figsize is None:
+                figsize = (4*ncols, 4*nrows)
+            figure, axes = plt.subplots(ncols=ncols, nrows=nrows, sharex=True, sharey=True, figsize=figsize)
+
         axes = axes.ravel()
-        unique_bands = np.unique(self.bands)
-
-        list_of_indices = []
 
         if filters is None:
-            filters = ["g", "r", "i", "z", "y", "J", "H", "K"]
+            filters = self.default_filters
 
-        colors = cm.rainbow(np.linspace(0, 1, len(filters)))
-
-        for b in unique_bands:
-            list_of_indices.append(np.where(self.bands == b)[0])
-
-        ylabel = self._get_labels()
-
-        for i, (idxs, band) in enumerate(zip(list_of_indices, filters)):
-            if self.x_err is not None:
-                x_err = self.x_err[idxs]
-            else:
-                x_err = self.x_err
-            if band in filters:
-                color = colors[filters.index(band)]
-                label = band
-            else:
+        i = 0
+        for idxs, band in zip(self.list_of_band_indices, self.unique_bands):
+            if band not in filters:
                 continue
 
+            x_err = self.x_err[idxs] if self is not None else self.x_err
+
+            color = colors[filters.index(band)]
             axes[i].errorbar(self.x[idxs], self.y[idxs], xerr=x_err, yerr=self.y_err[idxs],
-                             fmt='x', ms=1, color=color, elinewidth=2, capsize=0., label=label)
+                             fmt=errorbar_fmt, ms=1, color=color, elinewidth=2, capsize=0., label=band)
 
             axes[i].set_xlim(0.5 * self.x[idxs][0], 1.2 * self.x[idxs][-1])
             if self.photometry_data:
@@ -178,9 +165,26 @@ class Kilonova(Transient):
                 axes[i].set_yscale("log")
             axes[i].legend(ncol=2)
             axes[i].tick_params(axis='both', which='major', pad=8)
-        figure.supxlabel("Time [days]", fontsize=30)
-        figure.supylabel(ylabel, fontsize=30)
-        filename = f"{self.name}_{self.data_mode}_multiband_lc.png"
-        plt.subplots_adjust(wspace=0.15, hspace=0.04)
+            i += 1
+
+        figure.supxlabel(xlabel, fontsize=fontsize)
+        figure.supylabel(ylabel, fontsize=fontsize)
+        filename = f"{self.name}_{self.data_mode}_{plot_label}.png"
+        plt.subplots_adjust(wspace=wspace, hspace=hspace)
         plt.savefig(join(self.transient_dir, filename), bbox_inches="tight")
         plt.clf()
+
+    @property
+    def unique_bands(self):
+        return np.unique(self.bands)
+
+    @property
+    def list_of_band_indices(self):
+        return [np.where(self.bands == b)[0] for b in self.unique_bands]
+
+    @property
+    def default_filters(self):
+        return ["g", "r", "i", "z", "y", "J", "H", "K"]
+
+    def get_colors(self, filters):
+        return cm.rainbow(np.linspace(0, 1, len(filters)))
