@@ -85,36 +85,9 @@ class Afterglow(Transient):
         return x, x_err, y, y_err
 
     def truncate(self, truncate_method='prompt_time_error'):
-        if truncate_method == 'prompt_time_error':
-            self._truncate_prompt_time_error()
-        elif truncate_method == 'left_of_max':
-            self._truncate_left_of_max()
-        else:
-            self._truncate_default()
-
-    def _truncate_prompt_time_error(self):
-        mask1 = self.x_err[0, :] > 0.0025
-        mask2 = self.x < 2.0  # dont truncate if data point is after 2.0 seconds
-        mask = np.logical_and(mask1, mask2)
-        self.x = self.x[~mask]
-        self.x_err = self.x_err[:, ~mask]
-        self.y = self.y[~mask]
-        self.y_err = self.y_err[:, ~mask]
-
-    def _truncate_left_of_max(self):
-        max_index = np.argmax(self.y)
-        self.x = self.x[max_index:]
-        self.x_err = self.x_err[:, max_index:]
-        self.y = self.y[max_index:]
-        self.y_err = self.y_err[:, max_index:]
-
-    def _truncate_default(self):
-        truncate = self.time_err[0, :] > 0.1
-        to_del = len(self.time) - (len(self.time[truncate]) + 2)
-        self.x = self.x[to_del:]
-        self.x_err = self.x_err[:, to_del:]
-        self.y = self.y[to_del:]
-        self.y_err = self.y_err[:, to_del:]
+        truncator = Truncator(x=self.x, x_err=self.x_err, y=self.y, y_err=self.y_err, time=self.time,
+                              time_err=self.time_err, truncate_method=truncate_method)
+        self.x, self.x_err, self.y, self.y_err = truncator.truncate()
 
     @property
     def event_table(self):
@@ -293,6 +266,54 @@ class SGRB(Afterglow):
 class LGRB(Afterglow):
     pass
 
+
+class Truncator(object):
+
+    TRUNCATE_METHODS = ['prompt_time_error', 'left_of_max', 'default']
+
+    def __init__(self, x, x_err, y, y_err, time, time_err, truncate_method='prompt_time_error'):
+        self.x = x
+        self.x_err = x_err
+        self.y = y
+        self.y_err = y_err
+        self.time = time
+        self.time_err = time_err
+        self.truncate_method = truncate_method
+
+    def truncate(self):
+        if self.truncate_method == 'prompt_time_error':
+            return self.truncate_prompt_time_error()
+        elif self.truncate_method == 'left_of_max':
+            return self.truncate_left_of_max()
+        else:
+            return self.truncate_default()
+
+    def truncate_prompt_time_error(self):
+        mask1 = self.x_err[0, :] > 0.0025
+        mask2 = self.x < 2.0  # dont truncate if data point is after 2.0 seconds
+        mask = np.logical_and(mask1, mask2)
+        self.x = self.x[~mask]
+        self.x_err = self.x_err[:, ~mask]
+        self.y = self.y[~mask]
+        self.y_err = self.y_err[:, ~mask]
+        return self.x, self.x_err, self.y, self.y_err
+
+    def truncate_left_of_max(self):
+        max_index = np.argmax(self.y)
+        self.x = self.x[max_index:]
+        self.x_err = self.x_err[:, max_index:]
+        self.y = self.y[max_index:]
+        self.y_err = self.y_err[:, max_index:]
+        return self.x, self.x_err, self.y, self.y_err
+
+    def truncate_default(self):
+        truncate = self.time_err[0, :] > 0.1
+        to_del = len(self.time) - (len(self.time[truncate]) + 2)
+        self.x = self.x[to_del:]
+        self.x_err = self.x_err[:, to_del:]
+        self.y = self.y[to_del:]
+        self.y_err = self.y_err[:, to_del:]
+        return self.x, self.x_err, self.y, self.y_err
 
 # def plot_models(parameters, model, plot_magnetar, axes=None, colour='r', alpha=1.0, ls='-', lw=4):
 #     """
