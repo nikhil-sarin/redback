@@ -248,7 +248,6 @@ class Afterglow(Transient):
         :param axes:
         :param colour:
         """
-        ylabel = self._get_labels()
 
         x_err = [self.x_err[1, :], self.x_err[0, :]]
         y_err = [self.y_err[1, :], self.y_err[0, :]]
@@ -267,7 +266,7 @@ class Afterglow(Transient):
                     horizontalalignment='right', size=20)
 
         ax.set_xlabel(r'Time since burst [s]')
-        ax.set_ylabel(ylabel)
+        ax.set_ylabel(self.ylabel)
         ax.tick_params(axis='x', pad=10)
 
         if axes is None:
@@ -278,16 +277,6 @@ class Afterglow(Transient):
         filename = f"{self.name}_lc.png"
         plt.savefig(join(grb_dir, filename))
         plt.clf()
-
-    def _get_labels(self):
-        if self.luminosity_data:
-            return r'Luminosity [$10^{50}$ erg s$^{-1}$]'
-        elif self.flux_data:
-            return r'Flux [erg cm$^{-2}$ s$^{-1}$]'
-        elif self.flux_density_data:
-            return r'Flux density [mJy]'
-        else:
-            raise ValueError
 
     def plot_multiband(self):
         if self.data_mode != 'flux_density':
