@@ -2,6 +2,7 @@ import unittest
 import numpy as np
 import shutil
 
+import redback.transient.afterglow
 from redback.transient.transient import Transient
 from redback.transient.afterglow import Afterglow, SGRB, LGRB
 from redback.transient.prompt import PromptTimeSeries
@@ -156,3 +157,59 @@ class TestAfterglow(unittest.TestCase):
         self.assertFalse(len(self.transient.time_rest_frame_err) == 0)
         self.assertFalse(len(self.transient.Lum50) == 0)
         self.assertFalse(len(self.transient.Lum50_err) == 0)
+
+
+class TestTrunctator(unittest.TestCase):
+
+    def setUp(self):
+        self.x = np.array([-1, 0., 0.2, 0.5, 0.8, 1.2, 1.5, 2.0, 2.5])
+        self.x_err = np.array([[0.1, 0.1], [0.2, 0.2], [0.3, 0.3], [0.4, 0.4],
+                               [0.5, 0.5], [0.6, 0.6], [0.7, 0.7], [0.8, 0.8], [0.9, 0.9]]).T
+        self.y = np.array([0, 1, 2, 3, 4, 3, 2, 1, 0])
+        self.y_err = np.array([[0.1, 0.1], [0.2, 0.2], [0.3, 0.3], [0.4, 0.4],
+                               [0.5, 0.5], [0.6, 0.6], [0.7, 0.7], [0.8, 0.8], [0.9, 0.9]]).T
+        self.truncate_method = 'default'
+        self.truncator = redback.transient.afterglow.Truncator(
+            x=self.x, x_err=self.x_err, y=self.y, y_err=self.y_err,
+            time=self.x, time_err=self.x_err, truncate_method=self.truncate_method)
+
+    def tearDown(self):
+        del self.x
+        del self.x_err
+        del self.y
+        del self.y_err
+        del self.truncate_method
+        del self.truncator
+
+    def test_truncate_left_of_max(self):
+        x, x_err, y, y_err = self.truncator.truncate_left_of_max()
+        expected_x = np.array([0.8, 1.2, 1.5, 2.0, 2.5])
+        expected_x_err = np.array([[0.5, 0.5], [0.6, 0.6], [0.7, 0.7], [0.8, 0.8], [0.9, 0.9]]).T
+        expected_y = np.array([4, 3, 2, 1, 0])
+        expected_y_err = np.array([[0.5, 0.5], [0.6, 0.6], [0.7, 0.7], [0.8, 0.8], [0.9, 0.9]]).T
+        self.assertTrue(np.array_equal(expected_x, x))
+        self.assertTrue(np.array_equal(expected_x_err, x_err))
+        self.assertTrue(np.array_equal(expected_y, y))
+        self.assertTrue(np.array_equal(expected_y_err, y_err))
+
+    def test_truncate_default(self):
+        x, x_err, y, y_err = self.truncator.truncate_default()
+        expected_x = np.array([2.5])
+        expected_x_err = np.array([[0.9, 0.9]]).T
+        expected_y = np.array([0])
+        expected_y_err = np.array([[0.9, 0.9]]).T
+        self.assertTrue(np.array_equal(expected_x, x))
+        self.assertTrue(np.array_equal(expected_x_err, x_err))
+        self.assertTrue(np.array_equal(expected_y, y))
+        self.assertTrue(np.array_equal(expected_y_err, y_err))
+
+    def test_truncate_prompt_time_error(self):
+        x, x_err, y, y_err = self.truncator.truncate_prompt_time_error()
+        expected_x = np.array([2.0, 2.5])
+        expected_x_err = np.array([[0.8, 0.8], [0.9, 0.9]]).T
+        expected_y = np.array([1, 0])
+        expected_y_err = np.array([[0.8, 0.8], [0.9, 0.9]]).T
+        self.assertTrue(np.array_equal(expected_x, x))
+        self.assertTrue(np.array_equal(expected_x_err, x_err))
+        self.assertTrue(np.array_equal(expected_y, y))
+        self.assertTrue(np.array_equal(expected_y_err, y_err))
