@@ -1,7 +1,11 @@
 import numpy as np
 import os
 
-from . import afterglow, kilonova, prompt, supernova, tde
+from . import afterglow, kilonova, prompt, supernova, tde, transient
+
+TRANSIENT_DICT = dict(afterglow=afterglow.Afterglow, lgrb=afterglow.LGRB, sgrb=afterglow.SGRB,
+                      kilonova=kilonova.Kilonova, prompt=prompt.PromptTimeSeries, supernova=supernova.Supernova,
+                      tde=tde.TDE, transient=transient.Transient)
 
 
 def from_file(filename, transient_type, name, data_mode='flux'):
