@@ -130,6 +130,12 @@ class Afterglow(Transient):
         else:
             self.redshift = redshift
 
+    def _get_redshift_for_luminosity_calculation(self):
+        if np.isnan(self.redshift):
+            logger.warning('This GRB has no measured redshift, using default z = 0.75')
+            return 0.75
+        return self.redshift
+
     def _set_t90(self):
         # data['BAT Photon Index (15-150 keV) (PL = simple power-law, CPL = cutoff power-law)'] = data['BAT Photon
         # Index (15-150 keV) (PL = simple power-law, CPL = cutoff power-law)'].fillna(0)
@@ -145,71 +151,30 @@ class Afterglow(Transient):
         return float(string)
 
     def analytical_flux_to_luminosity(self):
-        redshift = self._get_redshift_for_luminosity_calculation()
-        if redshift is None:
-            return
-
-        luminosity_distance = cosmo.luminosity_distance(redshift).cgs.value
-        k_corr = (1 + redshift) ** (self.photon_index - 2)
-        isotropic_bolometric_flux = (luminosity_distance ** 2.) * 4. * np.pi * k_corr
-        counts_to_flux_fraction = 1
-
-        self._calculate_rest_frame_time_and_luminosity(
-            counts_to_flux_fraction=counts_to_flux_fraction,
-            isotropic_bolometric_flux=isotropic_bolometric_flux,
-            redshift=redshift)
-        self.data_mode = 'luminosity'
-        self._save_luminosity_data()
+        self._convert_flux_to_luminosity(conversion_method="analytical")
 
     def numerical_flux_to_luminosity(self, counts_to_flux_absorbed, counts_to_flux_unabsorbed):
-        try:
-            from sherpa.astro import ui as sherpa
-        except ImportError as e:
-            logger.warning(e)
-            logger.warning("Can't perform numerical flux to luminosity calculation")
+        self._convert_flux_to_luminosity(
+            counts_to_flux_absorbed=counts_to_flux_absorbed, counts_to_flux_unabsorbed=counts_to_flux_unabsorbed,
+            conversion_method="numerical")
 
+    def _convert_flux_to_luminosity(self, conversion_method="analytical",
+                                    counts_to_flux_absorbed=1, counts_to_flux_unabsorbed=1):
+        if self.luminosity_data:
+            logger.warning('The data is already in luminosity mode, returning.')
+        elif not self.flux_data:
+            logger.warning(f'The data needs to be in flux mode, but is in {self.data_mode}.')
+            return
         redshift = self._get_redshift_for_luminosity_calculation()
         if redshift is None:
             return
-
-        Ecut = 1000
-        obs_elow = 0.3
-        obs_ehigh = 10
-
-        bol_elow = 1.  # bolometric restframe low frequency in keV
-        bol_ehigh = 10000.  # bolometric restframe high frequency in keV
-
-        alpha = self.photon_index
-        beta = self.photon_index
-
-        sherpa.dataspace1d(obs_elow, bol_ehigh, 0.01)
-        sherpa.set_source(sherpa.bpl1d.band)
-        band.gamma1 = alpha  # noqa
-        band.gamma2 = beta  # noqa
-        band.eb = Ecut  # noqa
-
-        luminosity_distance = cosmo.luminosity_distance(redshift).cgs.value
-        k_corr = sherpa.calc_kcorr(redshift, obs_elow, obs_ehigh, bol_elow, bol_ehigh, id=1)
-        isotropic_bolometric_flux = (luminosity_distance ** 2.) * 4. * np.pi * k_corr
-        counts_to_flux_fraction = counts_to_flux_unabsorbed / counts_to_flux_absorbed
-
-        self._calculate_rest_frame_time_and_luminosity(
-            counts_to_flux_fraction=counts_to_flux_fraction,
-            isotropic_bolometric_flux=isotropic_bolometric_flux,
-            redshift=redshift)
-        self.data_mode = 'luminosity'
+        converter = FluxToLuminosityConverter(
+            redshift=redshift, photon_index=self.photon_index, time=self.time, time_err=self.time_err,
+            flux=self.flux, flux_err=self.flux_err, counts_to_flux_absorbed=counts_to_flux_absorbed,
+            counts_to_flux_unabsorbed=counts_to_flux_unabsorbed, conversion_method=conversion_method)
+        self.data_mode = "luminosity"
+        self.x, self.x_err, self.y, self.y_err = converter.convert_flux_to_luminosity()
         self._save_luminosity_data()
-
-    def _get_redshift_for_luminosity_calculation(self):
-        if self.luminosity_data:
-            logger.warning('The data is already in luminosity mode, returning.')
-        elif self.flux_data:
-            if np.isnan(self.redshift):
-                logger.warning('This GRB has no measured redshift, using default z = 0.75')
-                return 0.75
-            return self.redshift
-        else:
-            logger.warning(f'The data needs to be in flux mode, but is in {self.data_mode}.')
 
     def _calculate_rest_frame_time_and_luminosity(self, counts_to_flux_fraction, isotropic_bolometric_flux, redshift):
         self.Lum50 = self.flux * counts_to_flux_fraction * isotropic_bolometric_flux * 1e-50
@@ -315,6 +280,72 @@ class Truncator(object):
         self.y = self.y[to_del:]
         self.y_err = self.y_err[:, to_del:]
         return self.x, self.x_err, self.y, self.y_err
+
+
+class FluxToLuminosityConverter(object):
+
+    CONVERSION_METHODS = ["analytical", "numerical"]
+
+    def __init__(self, redshift, photon_index, time, time_err, flux, flux_err,
+                 counts_to_flux_absorbed=1, counts_to_flux_unabsorbed=1, conversion_method="analytical"):
+        self.redshift = redshift
+        self.photon_index = photon_index
+        self.time = time
+        self.time_err = time_err
+        self.flux = flux
+        self.flux_err = flux_err
+        self.counts_to_flux_absorbed = counts_to_flux_absorbed
+        self.counts_to_flux_unabsorbed = counts_to_flux_unabsorbed
+        self.conversion_method = conversion_method
+
+    @property
+    def counts_to_flux_fraction(self):
+        return self.counts_to_flux_unabsorbed/self.counts_to_flux_absorbed
+
+    @property
+    def luminosity_distance(self):
+        return cosmo.luminosity_distance(self.redshift).cgs.value
+
+    def get_isotropic_bolometric_flux(self, k_corr):
+        return (self.luminosity_distance ** 2.) * 4. * np.pi * k_corr
+
+    def get_k_correction(self):
+        if self.conversion_method == "analytical":
+            return (1 + self.redshift) ** (self.photon_index - 2)
+        elif self.conversion_method == "numerical":
+            try:
+                from sherpa.astro import ui as sherpa
+            except ImportError as e:
+                logger.warning(e)
+                logger.warning("Can't perform numerical flux to luminosity calculation")
+            Ecut = 1000
+            obs_elow = 0.3
+            obs_ehigh = 10
+
+            bol_elow = 1.  # bolometric restframe low frequency in keV
+            bol_ehigh = 10000.  # bolometric restframe high frequency in keV
+
+            sherpa.dataspace1d(obs_elow, bol_ehigh, 0.01)
+            sherpa.set_source(sherpa.bpl1d.band)
+            band.gamma1 = self.photon_index  # noqa
+            band.gamma2 = self.photon_index  # noqa
+            band.eb = Ecut  # noqa
+            return sherpa.calc_kcorr(self.redshift, obs_elow, obs_ehigh, bol_elow, bol_ehigh, id=1)
+
+    def convert_flux_to_luminosity(self):
+        k_corr = self.get_k_correction()
+        self._calculate_rest_frame_time_and_luminosity(
+            counts_to_flux_fraction=1,
+            isotropic_bolometric_flux=self.get_isotropic_bolometric_flux(k_corr=k_corr),
+            redshift=self.redshift)
+        return self.time_rest_frame, self.time_rest_frame_err, self.Lum50, self.Lum50_err
+
+    def _calculate_rest_frame_time_and_luminosity(self, counts_to_flux_fraction, isotropic_bolometric_flux, redshift):
+        self.Lum50 = self.flux * counts_to_flux_fraction * isotropic_bolometric_flux * 1e-50
+        self.Lum50_err = self.flux_err * isotropic_bolometric_flux * 1e-50
+        self.time_rest_frame = self.time / (1 + redshift)
+        self.time_rest_frame_err = self.time_err / (1 + redshift)
+
 
 # def plot_models(parameters, model, plot_magnetar, axes=None, colour='r', alpha=1.0, ls='-', lw=4):
 #     """
