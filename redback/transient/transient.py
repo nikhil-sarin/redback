@@ -20,7 +20,7 @@ class Transient(object):
     def __init__(self, time, time_err=None, time_rest_frame=None, time_rest_frame_err=None, Lum50=None, Lum50_err=None,
                  flux=None, flux_err=None, flux_density=None, flux_density_err=None, magnitude=None, magnitude_err=None,
                  counts=None, ttes=None, bin_size=None, redshift=np.nan, data_mode=None, name='', path='.',
-                 photon_index=np.nan):
+                 photon_index=np.nan, **kwargs):
         """
         Base class for all transients
         """
