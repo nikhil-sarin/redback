@@ -4,27 +4,23 @@ from pathlib import Path
 import pandas as pd
 
 from .transient import Transient
-from ..utils import bin_ttes
+
 from ..getdata import prompt_directory_structure, get_prompt_data_from_batse
 
 dirname = os.path.dirname(__file__)
 
 
 class PromptTimeSeries(Transient):
-    DATA_MODES = ['counts', 'tte']
+    DATA_MODES = ['counts', 'ttes']
 
-    def __init__(self, name, bin_size, time_tagged_events=None, time=None, counts=None,
-                 channel_tags=None, data_mode='tte', trigger_number=None, channels="all", instrument="batse"):
-        if data_mode == 'tte':
-            time, counts = bin_ttes(time_tagged_events, bin_size)
-        super().__init__(time=time, time_err=None, y=counts, y_err=np.sqrt(counts), name=name, data_mode=data_mode)
-        self.time_tagged_events = time_tagged_events
+    def __init__(self, name, bin_size=None, ttes=None, time=None, counts=None,
+                 channel_tags=None, data_mode='ttes', trigger_number=None, channels="all", instrument="batse"):
+        super().__init__(time=time, time_err=None, counts=counts, ttes=ttes, bin_size=bin_size,
+                         name=name, data_mode=data_mode)
         self.channel_tags = channel_tags
-        self.bin_size = bin_size
         self.trigger_number = str(trigger_number)
         self.channels = channels
         self.instrument = instrument
-
         self._set_data()
 
     @classmethod

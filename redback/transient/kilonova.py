@@ -15,9 +15,12 @@ data_mode = ['flux_density', 'photometry', 'luminosity']
 
 
 class Kilonova(Transient):
-    def __init__(self, name, data_mode='photometry', time=None, time_err=None, y=None, y_err=None, bands=None, system=None):
+    def __init__(self, name, data_mode='photometry', time=None, time_err=None, Lum50=None, Lum50_err=None,
+                 flux_density=None, flux_density_err=None, magnitude=None, magnitude_err=None, bands=None, system=None):
 
-        super().__init__(time=time, time_err=time_err, y=y, y_err=y_err, data_mode=data_mode, name=name)
+        super().__init__(time=time, time_err=time_err, Lum50=Lum50, Lum50_err=Lum50_err, flux_density=flux_density,
+                         flux_density_err=flux_density_err, magnitude=magnitude, magnitude_err=magnitude_err,
+                         data_mode=data_mode, name=name)
         self.name = name
         self.bands = bands
         self.system = system
@@ -46,17 +49,11 @@ class Kilonova(Transient):
 
     @classmethod
     def from_open_access_catalogue(cls, transient, data_mode="photometry"):
-        kilonova = cls(name=transient, data_mode=data_mode)
         transient_dir = cls._get_transient_dir(name=transient)
         time_days, time_mjd, flux_density, flux_density_err, magnitude, magnitude_err, bands, system = cls.load_data(name=transient, transient_dir=transient_dir, data_mode="all")
-        kilonova.time = time_days
-        kilonova.flux_density = flux_density
-        kilonova.flux_density_err = flux_density_err
-        kilonova.magnitude = magnitude
-        kilonova.magnitude_err = magnitude_err
-        kilonova.bands = bands
-        kilonova.system = system
-        return kilonova
+        return cls(name=transient, data_mode=data_mode, time=time_days, time_err=None, flux_density=flux_density,
+                   flux_density_err=flux_density_err, magnitude=magnitude, magnitude_err=magnitude_err, bands=bands,
+                   system=system)
 
     def _set_data(self):
         pass
