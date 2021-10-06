@@ -8,7 +8,9 @@ from . import transient
 from . import transient_models
 from . import result
 from . import sampler
+from .sampler import fit_model
 from . import model_library
+from . import priors
 from . import constants
 from . import utils
 from . import redback_errors

@@ -21,13 +21,16 @@ class Afterglow(Transient):
     DATA_MODES = ['luminosity', 'flux', 'flux_density', 'photometry']
 
     """Class for afterglows"""
-    def __init__(self, name, data_mode='flux'):
+    def __init__(self, name, data_mode='flux', time=None, time_err=None, y=None, y_err=None):
+
         """
         :param name: Telephone number of SGRB, e.g., GRB 140903A
         """
         if not name.startswith('GRB'):
             name = 'GRB' + name
-        super().__init__(time=np.array([]), time_err=np.array([]), y=np.array([]), y_err=np.array([]),
+        self.name = name
+
+        super().__init__(time=time, time_err=time_err, y=y, y_err=y_err,
                          data_mode=data_mode, name=name)
 
         self._set_data()
@@ -35,7 +38,19 @@ class Afterglow(Transient):
         self._set_t90()
         self._get_redshift()
 
-        self.load_data(data_mode=self.data_mode)
+    @classmethod
+    def from_swift_grb(cls, name, data_mode='flux', truncate=True, truncate_method='prompt_time_error'):
+        if not name.startswith('GRB'):
+            name = 'GRB' + name
+        afterglow = cls(name=name, data_mode=data_mode)
+
+        afterglow._set_data()
+        afterglow._set_photon_index()
+        afterglow._set_t90()
+        afterglow._get_redshift()
+
+        afterglow.load_and_truncate_data(truncate=truncate, truncate_method=truncate_method, data_mode=data_mode)
+        return afterglow
 
     @property
     def _stripped_name(self):
@@ -48,27 +63,24 @@ class Afterglow(Transient):
         make a cut based on the size of the temporal error; ie if t_error < 1s, the data point is
         part of the prompt emission
         """
-        self.load_data(data_mode=data_mode)
+        self.data_mode = data_mode
+        self.x, self.x_err, self.y, self.y_err = self.load_data(name=self.name, data_mode=self.data_mode)
         if truncate:
             self.truncate(truncate_method=truncate_method)
 
-    def load_data(self, data_mode=None):
-        if data_mode is not None:
-            self.data_mode = data_mode
-
-        grb_dir, _, _ = afterglow_directory_structure(grb=self._stripped_name, use_default_directory=False,
-                                                      data_mode=self.data_mode)
-        filename = f"{self.name}.csv"
+    @staticmethod
+    def load_data(name, data_mode=None):
+        grb_dir, _, _ = afterglow_directory_structure(grb=name.lstrip('GRB'), use_default_directory=False,
+                                                      data_mode=data_mode)
+        filename = f"{name}.csv"
 
         data_file = join(grb_dir, filename)
         data = np.genfromtxt(data_file, delimiter=",")[1:]
-        self.x = data[:, 0]
-        self.x_err = data[:, 1:3].T
-        self.y, self.y_err = self._load(data)
-
-    @staticmethod
-    def _load(data):
-        return np.array(data[:, 3]), np.array(np.abs(data[:, 4:].T))
+        x = data[:, 0]
+        x_err = data[:, 1:3].T
+        y = np.array(data[:, 3])
+        y_err = np.array(np.abs(data[:, 4:6].T))
+        return x, x_err, y, y_err
 
     def truncate(self, truncate_method='prompt_time_error'):
         if truncate_method == 'prompt_time_error':

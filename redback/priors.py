@@ -2,7 +2,7 @@ import os
 
 from bilby.core.prior import PriorDict
 
-from redback.redback.utils import logger
+from redback.utils import logger
 
 
 def get_priors(model, data_mode):
