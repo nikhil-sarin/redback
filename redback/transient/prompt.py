@@ -1,30 +1,28 @@
-import numpy as np
 import os
-from pathlib import Path
+
+import matplotlib.pyplot as plt
+import numpy as np
 import pandas as pd
 
 from .transient import Transient
-from ..utils import bin_ttes
-from ..getdata import prompt_directory_structure, get_prompt_data_from_batse
+from ..getdata import prompt_directory_structure, get_batse_trigger_from_grb
 
 dirname = os.path.dirname(__file__)
 
 
 class PromptTimeSeries(Transient):
-    DATA_MODES = ['counts', 'tte']
+    DATA_MODES = ['counts', 'ttes']
 
-    def __init__(self, name, bin_size, time_tagged_events=None, time=None, counts=None,
-                 channel_tags=None, data_mode='tte', trigger_number=None, channels="all", instrument="batse"):
-        if data_mode == 'tte':
-            time, counts = bin_ttes(time_tagged_events, bin_size)
-        super().__init__(time=time, time_err=None, y=counts, y_err=np.sqrt(counts), name=name, data_mode=data_mode)
-        self.time_tagged_events = time_tagged_events
+    def __init__(self, name, bin_size=1, ttes=None, time=None, time_err=None, time_rest_frame=None,
+                 time_rest_frame_err=None, counts=None, channel_tags=None, data_mode='ttes', trigger_number=None,
+                 channels="all", instrument="batse", **kwargs):
+        super().__init__(time=time, time_err=time_err, time_rest_frame=time_rest_frame,
+                         time_rest_frame_err=time_rest_frame_err, counts=counts, ttes=ttes, bin_size=bin_size,
+                         name=name, data_mode=data_mode, **kwargs)
         self.channel_tags = channel_tags
-        self.bin_size = bin_size
-        self.trigger_number = str(trigger_number)
+        self.trigger_number = trigger_number
         self.channels = channels
         self.instrument = instrument
-
         self._set_data()
 
     @classmethod
@@ -55,13 +53,33 @@ class PromptTimeSeries(Transient):
 
         return time, dt, counts
 
-
     @property
     def _stripped_name(self):
         return self.name.lstrip('GRB')
 
-    def plot_data(self):
-        pass
+    @property
+    def trigger_number(self):
+        return self._trigger_number
+
+    @trigger_number.setter
+    def trigger_number(self, trigger_number):
+        if trigger_number is None:
+            self._trigger_number = get_batse_trigger_from_grb(self.name)
+        else:
+            self._trigger_number = str(trigger_number)
+
+    def plot_data(self, **kwargs):
+        plt.step(self.time, self.counts / self.bin_size)
+        plt.show()
+        plt.clf()
+
+    def plot_lightcurve(self, model, axes=None, plot_save=True, plot_show=True, random_models=1000,
+                        posterior=None, outdir=None, **kwargs):
+        plt.clf()
+        plt.step(self.time, self.counts / self.bin_size)
+        plt.plot(self.time, model(self.time, **dict(posterior.iloc[-1])))
+        plt.show()
+        plt.clf()
 
     def plot_different_channels(self):
         pass

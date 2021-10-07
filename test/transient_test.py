@@ -1,7 +1,10 @@
 import unittest
+import mock
+from unittest.mock import MagicMock
 import numpy as np
 import shutil
 
+import redback.transient.afterglow
 from redback.transient.transient import Transient
 from redback.transient.afterglow import Afterglow, SGRB, LGRB
 from redback.transient.prompt import PromptTimeSeries
@@ -20,7 +23,7 @@ class TestTransient(unittest.TestCase):
         self.name = "GRB123456"
         self.path = '.'
         self.photon_index = 2
-        self.transient = Transient(time=self.time, time_err=self.time_err, y=self.y, y_err=self.y_err,
+        self.transient = Transient(time=self.time, time_err=self.time_err, counts=self.y,
                                    redshift=self.redshift, data_mode=self.data_mode, name=self.name, path=self.path,
                                    photon_index=self.photon_index)
 
@@ -115,7 +118,7 @@ class TestAfterglow(unittest.TestCase):
         self.data_mode = 'flux'
         self.name = "170728A"
         get_afterglow_data_from_swift(self.name, data_mode='flux')
-        self.transient = SGRB(name=self.name, data_mode=self.data_mode)
+        self.transient = SGRB.from_swift_grb(name=self.name, data_mode=self.data_mode)
 
     def tearDown(self) -> None:
         del self.redshift
@@ -127,10 +130,10 @@ class TestAfterglow(unittest.TestCase):
         self.transient.data_mode = "flux_density"
         self.transient.analytical_flux_to_luminosity()
         self.assertEqual("flux_density", self.transient.data_mode)
-        self.assertTrue(len(self.transient.time_rest_frame) == 0)
-        self.assertTrue(len(self.transient.time_rest_frame_err) == 0)
-        self.assertTrue(len(self.transient.Lum50) == 0)
-        self.assertTrue(len(self.transient.Lum50_err) == 0)
+        self.assertIsNone(self.transient.time_rest_frame)
+        self.assertIsNone(self.transient.time_rest_frame_err)
+        self.assertIsNone(self.transient.Lum50)
+        self.assertIsNone(self.transient.Lum50_err)
 
     def test_analytical_flux_to_luminosity(self):
         self.transient.analytical_flux_to_luminosity()
@@ -144,15 +147,138 @@ class TestAfterglow(unittest.TestCase):
         self.transient.data_mode = "flux_density"
         self.transient.numerical_flux_to_luminosity(counts_to_flux_absorbed=1, counts_to_flux_unabsorbed=1)
         self.assertEqual("flux_density", self.transient.data_mode)
-        self.assertTrue(len(self.transient.time_rest_frame) == 0)
-        self.assertTrue(len(self.transient.time_rest_frame_err) == 0)
-        self.assertTrue(len(self.transient.Lum50) == 0)
-        self.assertTrue(len(self.transient.Lum50_err) == 0)
+        self.assertIsNone(self.transient.time_rest_frame)
+        self.assertIsNone(self.transient.time_rest_frame_err)
+        self.assertIsNone(self.transient.Lum50)
+        self.assertIsNone(self.transient.Lum50_err)
 
-    def test_numerical_flux_to_luminosity(self):
-        self.transient.numerical_flux_to_luminosity(counts_to_flux_absorbed=1, counts_to_flux_unabsorbed=1)
-        self.assertEqual("luminosity", self.transient.data_mode)
-        self.assertFalse(len(self.transient.time_rest_frame) == 0)
-        self.assertFalse(len(self.transient.time_rest_frame_err) == 0)
-        self.assertFalse(len(self.transient.Lum50) == 0)
-        self.assertFalse(len(self.transient.Lum50_err) == 0)
+    # def test_numerical_flux_to_luminosity(self):
+    #     self.transient.numerical_flux_to_luminosity(counts_to_flux_absorbed=1, counts_to_flux_unabsorbed=1)
+    #     self.assertEqual("luminosity", self.transient.data_mode)
+    #     self.assertFalse(len(self.transient.time_rest_frame) == 0)
+    #     self.assertFalse(len(self.transient.time_rest_frame_err) == 0)
+    #     self.assertFalse(len(self.transient.Lum50) == 0)
+    #     self.assertFalse(len(self.transient.Lum50_err) == 0)
+
+
+class TestTrunctator(unittest.TestCase):
+
+    def setUp(self):
+        self.x = np.array([-1, 0., 0.2, 0.5, 0.8, 1.2, 1.5, 2.0, 2.5])
+        self.x_err = np.array([[0.1, 0.1], [0.2, 0.2], [0.3, 0.3], [0.4, 0.4],
+                               [0.5, 0.5], [0.6, 0.6], [0.7, 0.7], [0.8, 0.8], [0.9, 0.9]]).T
+        self.y = np.array([0, 1, 2, 3, 4, 3, 2, 1, 0])
+        self.y_err = np.array([[0.1, 0.1], [0.2, 0.2], [0.3, 0.3], [0.4, 0.4],
+                               [0.5, 0.5], [0.6, 0.6], [0.7, 0.7], [0.8, 0.8], [0.9, 0.9]]).T
+        self.truncate_method = 'default'
+        self.truncator = redback.transient.afterglow.Truncator(
+            x=self.x, x_err=self.x_err, y=self.y, y_err=self.y_err,
+            time=self.x, time_err=self.x_err, truncate_method=self.truncate_method)
+
+    def tearDown(self):
+        del self.x
+        del self.x_err
+        del self.y
+        del self.y_err
+        del self.truncate_method
+        del self.truncator
+
+    def test_truncate_left_of_max(self):
+        x, x_err, y, y_err = self.truncator.truncate_left_of_max()
+        expected_x = np.array([0.8, 1.2, 1.5, 2.0, 2.5])
+        expected_x_err = np.array([[0.5, 0.5], [0.6, 0.6], [0.7, 0.7], [0.8, 0.8], [0.9, 0.9]]).T
+        expected_y = np.array([4, 3, 2, 1, 0])
+        expected_y_err = np.array([[0.5, 0.5], [0.6, 0.6], [0.7, 0.7], [0.8, 0.8], [0.9, 0.9]]).T
+        self.assertTrue(np.array_equal(expected_x, x))
+        self.assertTrue(np.array_equal(expected_x_err, x_err))
+        self.assertTrue(np.array_equal(expected_y, y))
+        self.assertTrue(np.array_equal(expected_y_err, y_err))
+
+    def test_truncate_default(self):
+        x, x_err, y, y_err = self.truncator.truncate_default()
+        expected_x = np.array([2.5])
+        expected_x_err = np.array([[0.9, 0.9]]).T
+        expected_y = np.array([0])
+        expected_y_err = np.array([[0.9, 0.9]]).T
+        self.assertTrue(np.array_equal(expected_x, x))
+        self.assertTrue(np.array_equal(expected_x_err, x_err))
+        self.assertTrue(np.array_equal(expected_y, y))
+        self.assertTrue(np.array_equal(expected_y_err, y_err))
+
+    def test_truncate_prompt_time_error(self):
+        x, x_err, y, y_err = self.truncator.truncate_prompt_time_error()
+        expected_x = np.array([2.0, 2.5])
+        expected_x_err = np.array([[0.8, 0.8], [0.9, 0.9]]).T
+        expected_y = np.array([1, 0])
+        expected_y_err = np.array([[0.8, 0.8], [0.9, 0.9]]).T
+        self.assertTrue(np.array_equal(expected_x, x))
+        self.assertTrue(np.array_equal(expected_x_err, x_err))
+        self.assertTrue(np.array_equal(expected_y, y))
+        self.assertTrue(np.array_equal(expected_y_err, y_err))
+
+
+class TestFluxToLuminosityConversion(unittest.TestCase):
+
+    def setUp(self):
+        self.redshift = 0.5
+        self.photon_index = 2
+        self.time = np.array([1, 2, 3])
+        self.time_err = np.array([[0.1, 0.1], [0.2, 0.2], [0.1, 0.1]]).T
+        self.flux = np.array([3.3, 4.4, 5.5])
+        self.flux_err = np.array([0.33, 0.44, 0.55])
+        self.counts_to_flux_absorbed = 2
+        self.counts_to_flux_unabsorbed = 0.5
+        self.conversion_method = "analytical"
+        self.converter = redback.transient.afterglow.FluxToLuminosityConverter(
+            redshift=self.redshift, photon_index=self.photon_index, time=self.time, time_err=self.time_err,
+            flux=self.flux, flux_err=self.flux_err, counts_to_flux_absorbed=self.counts_to_flux_absorbed,
+            counts_to_flux_unabsorbed=self.counts_to_flux_unabsorbed, conversion_method=self.conversion_method)
+
+    def tearDown(self):
+        del self.redshift
+        del self.photon_index
+        del self.time
+        del self.time_err
+        del self.flux
+        del self.flux_err
+        del self.counts_to_flux_absorbed
+        del self.counts_to_flux_unabsorbed
+        del self.conversion_method
+        del self.converter
+
+    def test_counts_to_flux_fraction(self):
+        expected = 0.25
+        self.assertEqual(expected, self.converter.counts_to_flux_fraction)
+
+    def test_luminosity_distance(self):
+        with mock.patch('astropy.cosmology.Planck18.luminosity_distance') as m:
+            luminosity_distance_return_object = MagicMock()
+            luminosity_distance_return_object.cgs = MagicMock()
+            luminosity_distance_return_object.cgs.value = 3.1415
+            m.return_value = luminosity_distance_return_object
+            self.assertEqual(3.1415, self.converter.luminosity_distance)
+
+    def test_get_isotropic_bolometric_flux(self):
+        with mock.patch('astropy.cosmology.Planck18.luminosity_distance') as m:
+            luminosity_distance_return_object = MagicMock()
+            luminosity_distance_return_object.cgs = MagicMock()
+            luminosity_distance_return_object.cgs.value = 1
+            m.return_value = luminosity_distance_return_object
+            isotropic_bolometric_flux = self.converter.get_isotropic_bolometric_flux(k_corr=1)
+            self.assertEqual(4*np.pi, isotropic_bolometric_flux)
+
+    def test_get_analytical_k_correction(self):
+        expected = (1 + self.redshift) ** (self.photon_index - 2)
+        actual = self.converter.get_k_correction()
+        self.assertEqual(expected, actual)
+
+    def test_convert_flux_to_luminosity(self):
+        x, x_err, y, y_err = self.converter.convert_flux_to_luminosity()
+        self.assertEqual(len(self.time), len(x))
+        self.assertEqual(len(self.time_err), len(x_err))
+        self.assertEqual(len(self.flux), len(y))
+        self.assertEqual(len(self.flux_err), len(y_err))
+        self.assertTrue(np.array_equal(self.converter.time_rest_frame, x))
+        self.assertTrue(np.array_equal(self.converter.time_rest_frame_err, x_err))
+        self.assertTrue(np.array_equal(self.converter.Lum50, y))
+        self.assertTrue(np.array_equal(self.converter.Lum50_err, y_err))

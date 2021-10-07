@@ -14,7 +14,7 @@ path = 'KNDir'
 data = redback.getdata.get_open_transient_catalog_data(transient=kne, transient_type='kilonova',
                                                        use_default_directory=False)
 # creates a GRBDir with GRB
-kilonova = redback.kilonova.Kilonova.from_open_access_catalogue(transient=kne, data_mode="photometry")
+kilonova = redback.kilonova.Kilonova.from_open_access_catalogue(name=kne, data_mode="photometry")
 fig, axes = plt.subplots(3, 2, sharex=True, sharey=True, figsize=(12, 8))
 kilonova.flux_density_data = True
 kilonova.plot_multiband(figure=fig, axes=axes, filters=["g", "r", "i", "z", "y", "J"])

@@ -1,11 +1,12 @@
 import numpy as np
 from redback.utils import logger
 from redback.utils import DataModeSwitch
+from ..utils import bin_ttes
 
 
 class Transient(object):
 
-    DATA_MODES = ['luminosity', 'flux', 'flux_density', 'photometry', 'counts', 'tte']
+    DATA_MODES = ['luminosity', 'flux', 'flux_density', 'photometry', 'counts', 'ttes']
     _ATTRIBUTE_NAME_DICT = dict(luminosity="Lum50", flux="flux", flux_density="flux_density",
                                 counts="counts", photometry="magnitude")
 
@@ -14,36 +15,40 @@ class Transient(object):
     flux_density_data = DataModeSwitch('flux_density')
     photometry_data = DataModeSwitch('photometry')
     counts_data = DataModeSwitch('counts')
-    tte_data = DataModeSwitch('tte')
+    tte_data = DataModeSwitch('ttes')
 
-    def __init__(self, time, time_err, y, y_err=None, redshift=np.nan, data_mode=None, name='', path='.',
-                 photon_index=np.nan):
+    def __init__(self, time, time_err=None, time_rest_frame=None, time_rest_frame_err=None, Lum50=None, Lum50_err=None,
+                 flux=None, flux_err=None, flux_density=None, flux_density_err=None, magnitude=None, magnitude_err=None,
+                 counts=None, ttes=None, bin_size=None, redshift=np.nan, data_mode=None, name='', path='.',
+                 photon_index=np.nan, **kwargs):
         """
         Base class for all transients
         """
+        self.bin_size = bin_size
+        if data_mode == 'ttes':
+            time, counts = bin_ttes(ttes, self.bin_size)
 
         self.time = time
         self.time_err = time_err
-        self.time_rest_frame = np.array([])
-        self.time_rest_frame_err = np.array([])
-        self.tte = np.array([])
+        self.time_rest_frame = time_rest_frame
+        self.time_rest_frame_err = time_rest_frame_err
 
-        self.Lum50 = np.array([])
-        self.Lum50_err = np.array([])
-        self.flux_density = np.array([])
-        self.flux_density_err = np.array([])
-        self.flux = np.array([])
-        self.flux_err = np.array([])
-        self.counts = np.array([])
-        self.counts_err = np.array([])
+        self.Lum50 = Lum50
+        self.Lum50_err = Lum50_err
+        self.flux = flux
+        self.flux_err = flux_err
+        self.flux_density = flux_density
+        self.flux_density_err = flux_density_err
+        self.magnitude = magnitude
+        self.magnitude_err = magnitude_err
+        self.counts = counts
+        self.counts_err = np.sqrt(counts) if counts is not None else None
+        self.ttes = ttes
 
         self.data_mode = data_mode
         self.redshift = redshift
         self.name = name
         self.path = path
-
-        self.y = y
-        self.y_err = y_err
 
         self.photon_index = photon_index
 
@@ -107,6 +112,21 @@ class Transient(object):
             self._data_mode = data_mode
         else:
             raise ValueError("Unknown data mode.")
+
+    @property
+    def ylabel(self):
+        if self.luminosity_data:
+            return r'Luminosity [$10^{50}$ erg s$^{-1}$]'
+        elif self.photometry_data:
+            return r'Magnitude'
+        elif self.flux_data:
+            return r'Flux [erg cm$^{-2}$ s$^{-1}$]'
+        elif self.flux_density_data:
+            return r'Flux density [mJy]'
+        elif self.counts_data:
+            return r'Counts'
+        else:
+            raise ValueError
 
     def plot_data(self, axes=None, colour='k'):
         pass

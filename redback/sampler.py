@@ -98,8 +98,9 @@ def _fit_grb(name, transient, model, outdir, sampler='dynesty', nlive=3000, prio
         label += '_photon_index'
     likelihood = GRBGaussianLikelihood(x=transient.x, y=transient.y, sigma=transient.y_err, function=function)
 
-    meta_data = dict(model=model, transient=transient, use_photon_index_prior=use_photon_index_prior,
-                     truncate=truncate, truncate_method=truncate_method, save_format=save_format)
+    meta_data = dict(model=model, transient_type=transient.__class__.__name__.lower())
+    transient_kwargs = {k.lstrip("_"): v for k, v in transient.__dict__.items()}
+    meta_data.update(transient_kwargs)
 
     result = bilby.run_sampler(likelihood=likelihood, priors=prior, label=label, sampler=sampler, nlive=nlive,
                                outdir=outdir, plot=True, use_ratio=False, walks=walks, resume=resume,
@@ -133,8 +134,9 @@ def _fit_prompt(name, transient, model, outdir, integrated_rate_function=True, s
                                    dt=transient.bin_size, function=function,
                                    integrated_rate_function=integrated_rate_function, **kwargs)
 
-    meta_data = dict(model=model, transient=transient, use_photon_index_prior=use_photon_index_prior,
-                     truncate=truncate, truncate_method=truncate_method, save_format=save_format)
+    meta_data = dict(model=model, transient_type="prompt")
+    transient_kwargs = {k.lstrip("_"): v for k, v in transient.__dict__.items()}
+    meta_data.update(transient_kwargs)
 
     result = bilby.run_sampler(likelihood=likelihood, priors=prior, label=label, sampler=sampler, nlive=nlive,
                                outdir=outdir, plot=True, use_ratio=False, walks=walks, resume=resume,
