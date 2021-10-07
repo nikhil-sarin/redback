@@ -12,8 +12,7 @@ sampler = 'dynesty'
 model = 'gaussian'
 name = '910505'
 
-
-redback.getdata.get_prompt_data_from_batse(name, use_default_directory=False)
+redback.getdata.get_data(transient_type="prompt", data_source="batse", event_label=name, use_default_directory=True)
 prompt = redback.transient.prompt.PromptTimeSeries.from_batse_grb_name(name=name, trigger_number="148")
 
 plt.step(prompt.time, prompt.counts/prompt.bin_size)
