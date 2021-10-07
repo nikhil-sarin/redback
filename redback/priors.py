@@ -15,12 +15,15 @@ def get_priors(model, data_mode, times=None, y=None, yerr=None, **kwargs):
 
     if model in redback.model_library.modules_dict['prompt_models']:
         if times is None:
-            times = np.array([0, 1])
+            times = np.array([0, 100])
         if y is None:
             y = np.array([1, 1e6])
         if yerr is None:
             yerr = np.array([1, 1e3])
-        return prompt_prior_functions[model](times=times, y=y, yerr=yerr)
+        priors = prompt_prior_functions[model](times=times, y=y, yerr=yerr)
+        priors['background_rate'] = bilby.core.prior.LogUniform(minimum=np.min(y), maximum=np.max(y),
+                                                                name='background_rate')
+        return priors
 
     priors = PriorDict()
     try:

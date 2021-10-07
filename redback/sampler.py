@@ -102,7 +102,6 @@ def _fit_grb(name, transient, model, outdir, sampler='dynesty', nlive=3000, prio
     transient_kwargs = {k.lstrip("_"): v for k, v in transient.__dict__.items()}
     meta_data.update(transient_kwargs)
 
-
     result = bilby.run_sampler(likelihood=likelihood, priors=prior, label=label, sampler=sampler, nlive=nlive,
                                outdir=outdir, plot=True, use_ratio=False, walks=walks, resume=resume,
                                maxmcmc=10 * walks, result_class=RedbackResult, meta_data=meta_data,

@@ -20,7 +20,8 @@ plt.show()
 plt.clf()
 
 # use default priors
-priors = redback.priors.get_priors(model=model, data_mode='counts')
+priors = redback.priors.get_priors(model=model, data_mode='counts', times=prompt.time,
+                                   y=prompt.counts, yerr=prompt.counts_err)
 max_counts = np.max(prompt.counts)
 dt = prompt.time[1] - prompt.time[0]
 duration = prompt.time[-1] - prompt.time[0]
