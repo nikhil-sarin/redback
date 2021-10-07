@@ -98,7 +98,7 @@ def _fit_grb(name, transient, model, outdir, sampler='dynesty', nlive=3000, prio
         label += '_photon_index'
     likelihood = GRBGaussianLikelihood(x=transient.x, y=transient.y, sigma=transient.y_err, function=function)
 
-    meta_data = dict(model=model, transient_type="afterglow")
+    meta_data = dict(model=model, transient_type=transient.__class__.__name__.lower())
     transient_kwargs = {k.lstrip("_"): v for k, v in transient.__dict__.items()}
     meta_data.update(transient_kwargs)
 

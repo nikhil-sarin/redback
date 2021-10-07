@@ -15,19 +15,12 @@ name = '910505'
 redback.getdata.get_prompt_data_from_batse(name, use_default_directory=False)
 prompt = redback.transient.prompt.PromptTimeSeries.from_batse_grb_name(name=name)
 
-plt.step(prompt.time, prompt.counts/prompt.bin_size)
-plt.show()
-plt.clf()
-
 # use default priors
 priors = redback.priors.get_priors(model=model, data_mode='counts', times=prompt.time,
-                                   y=prompt.counts, yerr=prompt.counts_err)
-max_counts = np.max(prompt.counts)
-dt = prompt.time[1] - prompt.time[0]
-duration = prompt.time[-1] - prompt.time[0]
+                                   y=prompt.counts, yerr=prompt.counts_err, dt=prompt.bin_size)
 
 result = redback.fit_model(source_type='prompt', name=name, model=model, transient=prompt, nlive=500,
-                           sampler=sampler, prior=priors, data_mode='counts', outdir="GRB_results", clean=True)
+                           sampler=sampler, prior=priors, data_mode='counts', outdir="GRB_results", sample='rslice')
 # returns a GRB prompt result object
 result.plot_lightcurve(random_models=1000)
 result.plot_corner()

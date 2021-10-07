@@ -21,9 +21,9 @@ class Afterglow(Transient):
     DATA_MODES = ['luminosity', 'flux', 'flux_density', 'photometry']
 
     """Class for afterglows"""
-    def __init__(self, name, data_mode='flux', time=None, time_err=None, Lum50=None, Lum50_err=None,
-                 flux=None, flux_err=None, flux_density=None, flux_density_err=None, magnitude=None,
-                 magnitude_err=None, **kwargs):
+    def __init__(self, name, data_mode='flux', time=None, time_err=None, time_rest_frame=None, time_rest_frame_err=None,
+                 Lum50=None, Lum50_err=None, flux=None, flux_err=None, flux_density=None, flux_density_err=None,
+                 magnitude=None, magnitude_err=None, **kwargs):
 
         """
         :param name: Telephone number of SGRB, e.g., GRB 140903A
@@ -31,9 +31,9 @@ class Afterglow(Transient):
         if not name.startswith('GRB'):
             name = 'GRB' + name
 
-        super().__init__(name=name, data_mode=data_mode, time=time, time_err=time_err, time_rest_frame=None,
-                         time_rest_frame_err=None, Lum50=Lum50, Lum50_err=Lum50_err, flux=flux, flux_err=flux_err,
-                         flux_density=flux_density, flux_density_err=flux_density_err,
+        super().__init__(name=name, data_mode=data_mode, time=time, time_err=time_err, time_rest_frame=time_rest_frame,
+                         time_rest_frame_err=time_rest_frame_err, Lum50=Lum50, Lum50_err=Lum50_err, flux=flux,
+                         flux_err=flux_err, flux_density=flux_density, flux_density_err=flux_density_err,
                          magnitude=magnitude, magnitude_err=magnitude_err, **kwargs)
 
         self._set_data()

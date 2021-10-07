@@ -8,7 +8,7 @@ import redback.model_library
 from redback.utils import logger
 
 
-def get_priors(model, data_mode, times=None, y=None, yerr=None, **kwargs):
+def get_priors(model, data_mode, times=None, y=None, yerr=None, dt=None, **kwargs):
     prompt_prior_functions = dict(gaussian=get_gaussian_priors, skew_gaussian=get_skew_gaussian_priors,
                                   skew_exponential=get_skew_exponential_priors, fred=get_fred_priors,
                                   fred_extended=get_fred_extended_priors)
@@ -20,8 +20,11 @@ def get_priors(model, data_mode, times=None, y=None, yerr=None, **kwargs):
             y = np.array([1, 1e6])
         if yerr is None:
             yerr = np.array([1, 1e3])
-        priors = prompt_prior_functions[model](times=times, y=y, yerr=yerr)
-        priors['background_rate'] = bilby.core.prior.LogUniform(minimum=np.min(y), maximum=np.max(y),
+        if dt is None:
+            dt = np.ones(len(times))
+        rate = y * dt
+        priors = prompt_prior_functions[model](times=times, y=rate, yerr=yerr)
+        priors['background_rate'] = bilby.core.prior.LogUniform(minimum=np.min(rate), maximum=np.max(rate),
                                                                 name='background_rate')
         return priors
 

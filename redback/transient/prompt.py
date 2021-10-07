@@ -75,8 +75,9 @@ class PromptTimeSeries(Transient):
 
     def plot_lightcurve(self, model, axes=None, plot_save=True, plot_show=True, random_models=1000,
                         posterior=None, outdir=None, **kwargs):
+        plt.clf()
         plt.step(self.time, self.counts / self.bin_size)
-        plt.plot(self.time, model(self.time, **kwargs))
+        plt.plot(self.time, model(self.time, **dict(posterior.iloc[-1])))
         plt.show()
         plt.clf()
 
