@@ -1,11 +1,11 @@
-import numpy as np
 import os
-from pathlib import Path
+
+import matplotlib.pyplot as plt
+import numpy as np
 import pandas as pd
 
 from .transient import Transient
-
-from ..getdata import prompt_directory_structure, get_prompt_data_from_batse
+from ..getdata import prompt_directory_structure, get_batse_trigger_from_grb
 
 dirname = os.path.dirname(__file__)
 
@@ -20,7 +20,7 @@ class PromptTimeSeries(Transient):
                          time_rest_frame_err=time_rest_frame_err, counts=counts, ttes=ttes, bin_size=bin_size,
                          name=name, data_mode=data_mode, **kwargs)
         self.channel_tags = channel_tags
-        self.trigger_number = str(trigger_number)
+        self.trigger_number = trigger_number
         self.channels = channels
         self.instrument = instrument
         self._set_data()
@@ -53,13 +53,32 @@ class PromptTimeSeries(Transient):
 
         return time, dt, counts
 
-
     @property
     def _stripped_name(self):
         return self.name.lstrip('GRB')
 
-    def plot_data(self):
-        pass
+    @property
+    def trigger_number(self):
+        return self._trigger_number
+
+    @trigger_number.setter
+    def trigger_number(self, trigger_number):
+        if trigger_number is None:
+            self._trigger_number = get_batse_trigger_from_grb(self.name)
+        else:
+            self._trigger_number = str(trigger_number)
+
+    def plot_data(self, **kwargs):
+        plt.step(self.time, self.counts / self.bin_size)
+        plt.show()
+        plt.clf()
+
+    def plot_lightcurve(self, model, axes=None, plot_save=True, plot_show=True, random_models=1000,
+                        posterior=None, outdir=None, **kwargs):
+        plt.step(self.time, self.counts / self.bin_size)
+        plt.plot(self.time, model(self.time, **kwargs))
+        plt.show()
+        plt.clf()
 
     def plot_different_channels(self):
         pass
