@@ -50,10 +50,11 @@ class Kilonova(Transient):
             return time_days, time_mjd, flux_density, flux_density_err, magnitude, magnitude_err, bands, system
 
     @classmethod
-    def from_open_access_catalogue(cls, transient, data_mode="photometry"):
-        transient_dir = cls._get_transient_dir(name=transient)
-        time_days, time_mjd, flux_density, flux_density_err, magnitude, magnitude_err, bands, system = cls.load_data(name=transient, transient_dir=transient_dir, data_mode="all")
-        return cls(name=transient, data_mode=data_mode, time=time_days, time_err=None, flux_density=flux_density,
+    def from_open_access_catalogue(cls, name, data_mode="photometry"):
+        transient_dir = cls._get_transient_dir(name=name)
+        time_days, time_mjd, flux_density, flux_density_err, magnitude, magnitude_err, bands, system = \
+            cls.load_data(name=name, transient_dir=transient_dir, data_mode="all")
+        return cls(name=name, data_mode=data_mode, time=time_days, time_err=None, flux_density=flux_density,
                    flux_density_err=flux_density_err, magnitude=magnitude, magnitude_err=magnitude_err, bands=bands,
                    system=system)
 
