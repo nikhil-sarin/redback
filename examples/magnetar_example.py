@@ -37,8 +37,8 @@ priors = redback.priors.get_priors(model=model, data_mode='luminosity')
 # priors['II'] = bilby.core.prior.LogUniform(1e45, 1e46, 'II', latex_label = r'$I$')
 
 
-result, data = redback.sampler.fit_model(name=GRB, model=model, sampler=sampler, nlive=500, transient=afterglow,
-                                         prior=priors, data_mode='luminosity', outdir="GRB_results")
+result, data = redback.fit_model(name=GRB, model=model, sampler=sampler, nlive=500, transient=afterglow,
+                                 prior=priors, data_mode='luminosity', outdir="GRB_results")
 
 
 # returns a GRB result object
