@@ -9,5 +9,5 @@ setup(name='redback',
       license='MIT',
       packages=['redback'],
       package_dir={'redback': 'redback'},
-      package_data={'redback': ['priors/*', 'tables/*'], 'redback.fluxtolum': ['data/*']},
+      package_data={'redback': ['priors/*', 'tables/*', 'plot_styles/*']},
       zip_safe=False)
