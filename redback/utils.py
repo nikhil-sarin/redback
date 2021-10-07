@@ -21,7 +21,7 @@ import bilby
 import redback
 
 dirname = os.path.dirname(__file__)
-filename = os.path.join(dirname, 'paper.mplstyle')
+filename = os.path.join(dirname, 'plot_styles/paper.mplstyle')
 plt.style.use(filename)
 
 logger = logging.getLogger('redback')
