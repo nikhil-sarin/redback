@@ -26,28 +26,33 @@ dirname = os.path.dirname(__file__)
 
 SWIFT_PROMPT_BIN_SIZES = ['1s', '2ms', '8ms', '16ms', '64ms', '256ms']
 
-instruments = ["swift", "fermi", "konus", "batse"]
+data_source = ["swift", "swift_xrt", "fermi", "konus", "batse", "open_data"]
 transient_types = ["afterglow", "prompt", "xrt"]
 
 
-def get_data(transient_type, instrument, event_label, use_default_directory, data_mode=None, **kwargs):
+def get_data(transient_type, data_source, event_label, use_default_directory, data_mode=None, **kwargs):
     kwargs["bin_size"] = kwargs.get("bin_size", "2ms")
     func_dict = _get_data_functions_dict()
     try:
-        func_dict[(transient_type.lower(), instrument.lower())](
+        func_dict[(transient_type.lower(), data_source.lower())](
             grb=event_label, data_mode=data_mode, use_default_directory=use_default_directory, **kwargs)
     except KeyError:
-        raise ValueError(f"Combination of {transient_type} from {instrument} instrument not implemented or "
+        raise ValueError(f"Combination of {transient_type} from {data_source} instrument not implemented or "
                          f"not available.")
 
 
 def _get_data_functions_dict():
     return {("afterglow", "swift"): get_afterglow_data_from_swift,
-            ("xrt", "swift"): get_xrt_data_from_swift,
+            ("afterglow", "swift_xrt"): get_xrt_data_from_swift,
             ("prompt", "swift"): get_prompt_data_from_swift,
             ("prompt", "fermi"): get_prompt_data_from_fermi,
             ("prompt", "konus"): get_prompt_data_from_konus,
-            ("prompt", "batse"): get_prompt_data_from_batse}
+            ("prompt", "batse"): get_prompt_data_from_batse,
+            ("kilonova", "open_data"): get_kilonova_data_from_open_transient_catalog_data,
+            ("supernova", "open_data"): get_supernova_data_from_open_transient_catalog_data,
+            ("tidal_disruption_event", "open_data"): get_tidal_disruption_event_data_from_open_transient_catalog_data}
+
+
 
 def afterglow_directory_structure(grb, use_default_directory, data_mode, instrument='BAT+XRT'):
     if use_default_directory:
@@ -421,6 +426,19 @@ def get_open_transient_catalog_data(transient, transient_type, use_default_direc
     collect_open_catalog_data(transient, use_default_directory, transient_type)
     data = sort_open_access_data(transient, use_default_directory, transient_type)
     return data
+
+
+def get_kilonova_data_from_open_transient_catalog_data(transient, use_default_directory=False):
+    return get_open_transient_catalog_data(transient, transient_type="kilonova",
+                                           use_default_directory=use_default_directory)
+
+def get_supernova_data_from_open_transient_catalog_data(transient, use_default_directory=False):
+    return get_open_transient_catalog_data(transient, transient_type="supernova",
+                                           use_default_directory=use_default_directory)
+
+def get_tidal_disruption_event_data_from_open_transient_catalog_data(transient, use_default_directory=False):
+    return get_open_transient_catalog_data(transient, transient_type="tidal_disruption_event",
+                                           use_default_directory=use_default_directory)
 
 
 def transient_directory_structure(transient, use_default_directory, transient_type):
