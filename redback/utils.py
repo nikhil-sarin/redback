@@ -3,6 +3,7 @@ import logging
 import os
 from inspect import getmembers, isfunction
 import math
+import pandas as pd
 
 import matplotlib.pyplot as plt
 from pathlib import Path
@@ -159,6 +160,13 @@ def calc_flux_from_mag(magnitude, reference_flux, magnitude_system = 'AB'):
         reference_flux = 3631
     flux = 10 ** (magnitude/-2.5) * reference_flux #Jansky
     return 1000*flux #return in mJy
+
+
+def bands_to_frequencies(bands):
+    df = pd.read_csv("tables/filters.csv")
+    bands_to_freqs = {df['bands'].iloc[i]: df['wavelength[Hz]'].iloc[i] for i in range(len(df))}
+    return [bands_to_freqs[band] for band in bands]
+
 
 def fetch_driver():
     # open the webdriver

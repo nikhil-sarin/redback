@@ -96,7 +96,14 @@ def _fit_grb(name, transient, model, outdir, sampler='dynesty', nlive=3000, prio
     label = data_mode
     if use_photon_index_prior:
         label += '_photon_index'
-    likelihood = GRBGaussianLikelihood(x=transient.x, y=transient.y, sigma=transient.y_err, function=function)
+
+
+    if transient.flux_density_data or transient.photometry_data:
+        x, x_err, y, y_err = transient.get_filtered_data()
+    else:
+        x, x_err, y, y_err = transient.x, transient.x_err, transient.y, transient.y_err
+
+    likelihood = GRBGaussianLikelihood(x=x, y=y, sigma=y_err, function=function)
 
     meta_data = dict(model=model, transient_type=transient.__class__.__name__.lower())
     transient_kwargs = {k.lstrip("_"): v for k, v in transient.__dict__.items()}

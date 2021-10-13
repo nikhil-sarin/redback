@@ -5,7 +5,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import os
 import pandas as pd
-from redback.utils import logger
+from redback.utils import logger, bands_to_frequencies
 
 from astropy.cosmology import Planck18 as cosmo
 from ..getdata import afterglow_directory_structure
@@ -21,9 +21,10 @@ class Afterglow(Transient):
     DATA_MODES = ['luminosity', 'flux', 'flux_density', 'photometry']
 
     """Class for afterglows"""
-    def __init__(self, name, data_mode='flux', time=None, time_err=None, time_rest_frame=None, time_rest_frame_err=None,
-                 Lum50=None, Lum50_err=None, flux=None, flux_err=None, flux_density=None, flux_density_err=None,
-                 magnitude=None, magnitude_err=None, **kwargs):
+    def __init__(self, name, data_mode='flux', time=None, time_err=None, time_mjd=None, time_mjd_err=None,
+                 time_rest_frame=None, time_rest_frame_err=None, Lum50=None, Lum50_err=None, flux=None, flux_err=None,
+                 flux_density=None, flux_density_err=None, magnitude=None, magnitude_err=None, frequency=None,
+                 bands=None, system=None, active_bands='all', use_phase_model=False, **kwargs):
 
         """
         :param name: Telephone number of SGRB, e.g., GRB 140903A
@@ -31,11 +32,18 @@ class Afterglow(Transient):
         if not name.startswith('GRB'):
             name = 'GRB' + name
 
-        super().__init__(name=name, data_mode=data_mode, time=time, time_err=time_err, time_rest_frame=time_rest_frame,
-                         time_rest_frame_err=time_rest_frame_err, Lum50=Lum50, Lum50_err=Lum50_err, flux=flux,
-                         flux_err=flux_err, flux_density=flux_density, flux_density_err=flux_density_err,
+        super().__init__(name=name, data_mode=data_mode, time=time, time_mjd=time_mjd, time_mjd_err=time_mjd_err,
+                         time_err=time_err, time_rest_frame=time_rest_frame, time_rest_frame_err=time_rest_frame_err,
+                         Lum50=Lum50, Lum50_err=Lum50_err, flux=flux, flux_err=flux_err, flux_density=flux_density,
+                         flux_density_err=flux_density_err, use_phase_model=use_phase_model, bands=bands, system=system,
                          magnitude=magnitude, magnitude_err=magnitude_err, **kwargs)
-
+        self.bands = bands
+        self.system = system
+        if frequency is None:
+            self.frequency = bands_to_frequencies(self.bands)
+        else:
+            self.frequency = frequency
+        self.active_bands = active_bands
         self._set_data()
         self._set_photon_index()
         self._set_t90()
@@ -91,6 +99,29 @@ class Afterglow(Transient):
         self.x, self.x_err, self.y, self.y_err = truncator.truncate()
 
     @property
+    def active_bands(self):
+        return self._active_bands
+
+    @active_bands.setter
+    def active_bands(self, active_bands):
+        if active_bands == 'all':
+            self._active_bands = np.unique(self.bands)
+        else:
+            self._active_bands = active_bands
+
+    def get_filtered_data(self):
+        if self.flux_density_data or self.photometry_data:
+            idxs = [b in self.active_bands for b in self.bands]
+            filtered_x = self.x[idxs]
+            try:
+                filtered_x_err = self.x_err[idxs]
+            except Exception:
+                filtered_x_err = None
+            filtered_y = self.y[idxs]
+            filtered_y_err = self.y_err[idxs]
+            return filtered_x, filtered_x_err, filtered_y, filtered_y_err
+
+    @property
     def event_table(self):
         return os.path.join(dirname, f'../tables/{self.__class__.__name__}_table.txt')
 
@@ -111,10 +142,10 @@ class Afterglow(Transient):
         data = pd.read_csv(self.event_table, header=0, error_bad_lines=False, delimiter='\t', dtype='str')
         data['BAT Photon Index (15-150 keV) (PL = simple power-law, CPL = cutoff power-law)'] = data[
             'BAT Photon Index (15-150 keV) (PL = simple power-law, CPL = cutoff power-law)'].fillna(0)
-        self.data = data
+        self.meta_data = data
 
     def _set_photon_index(self):
-        photon_index = self.data.query('GRB == @self._stripped_name')[
+        photon_index = self.meta_data.query('GRB == @self._stripped_name')[
             'BAT Photon Index (15-150 keV) (PL = simple power-law, CPL = cutoff power-law)'].values[0]
         if photon_index == 0.:
             return 0.
@@ -122,7 +153,7 @@ class Afterglow(Transient):
 
     def _get_redshift(self):
         # some GRBs dont have measurements
-        redshift = self.data.query('GRB == @self._stripped_name')['Redshift'].values[0]
+        redshift = self.meta_data.query('GRB == @self._stripped_name')['Redshift'].values[0]
         if isinstance(redshift, str):
             self.redshift = self.__clean_string(redshift)
         elif np.isnan(redshift):
@@ -139,7 +170,7 @@ class Afterglow(Transient):
     def _set_t90(self):
         # data['BAT Photon Index (15-150 keV) (PL = simple power-law, CPL = cutoff power-law)'] = data['BAT Photon
         # Index (15-150 keV) (PL = simple power-law, CPL = cutoff power-law)'].fillna(0)
-        t90 = self.data.query('GRB == @self._stripped_name')['BAT T90 [sec]'].values[0]
+        t90 = self.meta_data.query('GRB == @self._stripped_name')['BAT T90 [sec]'].values[0]
         if t90 == 0.:
             return np.nan
         self.t90 = self.__clean_string(t90)
