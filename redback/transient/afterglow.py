@@ -109,6 +109,18 @@ class Afterglow(Transient):
         else:
             self._active_bands = active_bands
 
+    def get_filtered_data(self):
+        if self.flux_density_data or self.photometry_data:
+            idxs = [b in self.active_bands for b in self.bands]
+            filtered_x = self.x[idxs]
+            try:
+                filtered_x_err = self.x_err[idxs]
+            except Exception:
+                filtered_x_err = None
+            filtered_y = self.y[idxs]
+            filtered_y_err = self.y_err[idxs]
+            return filtered_x, filtered_x_err, filtered_y, filtered_y_err
+
     @property
     def event_table(self):
         return os.path.join(dirname, f'../tables/{self.__class__.__name__}_table.txt')
