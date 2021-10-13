@@ -15,12 +15,12 @@ class Kilonova(Transient):
 
     def __init__(self, name, data_mode='photometry', time=None, time_err=None, time_mjd=None, time_mjd_err=None, time_rest_frame=None,
                  time_rest_frame_err=None, Lum50=None, Lum50_err=None, flux_density=None, flux_density_err=None,
-                 magnitude=None, magnitude_err=None, bands=None, system=None, **kwargs):
+                 magnitude=None, magnitude_err=None, bands=None, system=None, use_phase_model=False, **kwargs):
 
-        super().__init__(time=time, time_err=time_err, time_rest_frame=time_rest_frame,
+        super().__init__(time=time, time_err=time_err, time_rest_frame=time_rest_frame, time_mjd=time_mjd, time_mjd_err=time_mjd_err,
                          time_rest_frame_err=time_rest_frame_err, Lum50=Lum50, Lum50_err=Lum50_err,
                          flux_density=flux_density, flux_density_err=flux_density_err, magnitude=magnitude,
-                         magnitude_err=magnitude_err, data_mode=data_mode, name=name, **kwargs)
+                         magnitude_err=magnitude_err, data_mode=data_mode, name=name, use_phase_model=use_phase_model, **kwargs)
         self.name = name
         self.bands = bands
         self.system = system
@@ -48,13 +48,13 @@ class Kilonova(Transient):
             return time_days, time_mjd, flux_density, flux_density_err, magnitude, magnitude_err, bands, system
 
     @classmethod
-    def from_open_access_catalogue(cls, name, data_mode="photometry"):
+    def from_open_access_catalogue(cls, name, data_mode="photometry", use_phase_model=False):
         transient_dir = cls._get_transient_dir(name=name)
         time_days, time_mjd, flux_density, flux_density_err, magnitude, magnitude_err, bands, system = \
             cls.load_data(name=name, transient_dir=transient_dir, data_mode="all")
         return cls(name=name, data_mode=data_mode, time=time_days, time_err=None, flux_density=flux_density,
                    flux_density_err=flux_density_err, magnitude=magnitude, magnitude_err=magnitude_err, bands=bands,
-                   system=system)
+                   system=system, use_phase_model=use_phase_model)
 
     def _set_data(self):
         pass

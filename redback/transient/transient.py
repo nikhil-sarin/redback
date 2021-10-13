@@ -17,10 +17,11 @@ class Transient(object):
     counts_data = DataModeSwitch('counts')
     tte_data = DataModeSwitch('ttes')
 
-    def __init__(self, time, time_err=None, time_rest_frame=None, time_rest_frame_err=None, Lum50=None, Lum50_err=None,
-                 flux=None, flux_err=None, flux_density=None, flux_density_err=None, magnitude=None, magnitude_err=None,
-                 counts=None, ttes=None, bin_size=None, redshift=np.nan, data_mode=None, name='', path='.',
-                 photon_index=np.nan, **kwargs):
+    def __init__(self, time, time_err=None, time_mjd=None, time_mjd_err=None, time_rest_frame=None,
+                 time_rest_frame_err=None, Lum50=None, Lum50_err=None, flux=None, flux_err=None, flux_density=None,
+                 flux_density_err=None, magnitude=None, magnitude_err=None, counts=None, ttes=None, bin_size=None,
+                 redshift=np.nan, data_mode=None, name='', path='.', photon_index=np.nan, use_phase_model=False,
+                 **kwargs):
         """
         Base class for all transients
         """
@@ -30,6 +31,8 @@ class Transient(object):
 
         self.time = time
         self.time_err = time_err
+        self.time_mjd = time_mjd
+        self.time_mjd_err = time_mjd_err
         self.time_rest_frame = time_rest_frame
         self.time_rest_frame_err = time_rest_frame_err
 
@@ -49,6 +52,7 @@ class Transient(object):
         self.redshift = redshift
         self.name = name
         self.path = path
+        self.use_phase_model = use_phase_model
 
         self.photon_index = photon_index
 
@@ -56,6 +60,8 @@ class Transient(object):
     def _time_attribute_name(self):
         if self.luminosity_data:
             return "time_rest_frame"
+        elif self.use_phase_model:
+            return "time_mjd"
         return "time"
 
     @property
