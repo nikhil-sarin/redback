@@ -1,15 +1,12 @@
-import matplotlib.pyplot
-
-from .transient import Transient
-
 from os.path import join
+
+import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-import matplotlib.pyplot as plt
 from matplotlib import cm
 
 from redback.getdata import transient_directory_structure
-from redback.utils import logger
+from .transient import Transient
 
 data_mode = ['flux_density', 'photometry', 'luminosity']
 
