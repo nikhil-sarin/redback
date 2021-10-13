@@ -8,11 +8,12 @@ from matplotlib import cm
 from redback.getdata import transient_directory_structure
 from .transient import Transient
 
-data_mode = ['flux_density', 'photometry', 'luminosity']
-
 
 class Kilonova(Transient):
-    def __init__(self, name, data_mode='photometry', time=None, time_err=None, time_rest_frame=None,
+
+    DATA_MODES = ['flux_density', 'photometry', 'luminosity']
+
+    def __init__(self, name, data_mode='photometry', time=None, time_err=None, time_mjd=None, time_mjd_err=None, time_rest_frame=None,
                  time_rest_frame_err=None, Lum50=None, Lum50_err=None, flux_density=None, flux_density_err=None,
                  magnitude=None, magnitude_err=None, bands=None, system=None, **kwargs):
 
