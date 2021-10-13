@@ -161,9 +161,10 @@ class OpticalTransient(Transient):
     DATA_MODES = ['flux', 'flux_density', 'photometry', 'luminosity']
 
     def __init__(self, name, data_mode='photometry', time=None, time_err=None, time_mjd=None, time_mjd_err=None,
-                 time_rest_frame=None,
-                 time_rest_frame_err=None, Lum50=None, Lum50_err=None, flux_density=None, flux_density_err=None,
-                 magnitude=None, magnitude_err=None, frequency=None, bands=None, system=None, use_phase_model=False, **kwargs):
+                 time_rest_frame=None, time_rest_frame_err=None, Lum50=None, Lum50_err=None, flux_density=None,
+                 flux_density_err=None, magnitude=None, magnitude_err=None, frequency=None, bands=None, system=None,
+                 active_bands='all',
+                 use_phase_model=False, **kwargs):
 
         super().__init__(time=time, time_err=time_err, time_rest_frame=time_rest_frame, time_mjd=time_mjd,
                          time_mjd_err=time_mjd_err,
@@ -175,6 +176,7 @@ class OpticalTransient(Transient):
             self.frequency = bands_to_frequencies(self.bands)
         else:
             self.frequency = frequency
+        self.active_bands = active_bands
         self.bands = bands
         self.system = system
         self._set_data()
@@ -208,6 +210,17 @@ class OpticalTransient(Transient):
         return cls(name=name, data_mode=data_mode, time=time_days, time_err=None, flux_density=flux_density,
                    flux_density_err=flux_density_err, magnitude=magnitude, magnitude_err=magnitude_err, bands=bands,
                    system=system, use_phase_model=use_phase_model)
+
+    @property
+    def active_bands(self):
+        return self._active_bands
+
+    @active_bands.setter
+    def active_bands(self, active_bands):
+        if active_bands == 'all':
+            self._active_bands = np.unique(self.bands)
+        else:
+            self._active_bands = active_bands
 
     @property
     def event_table(self):
@@ -280,6 +293,12 @@ class OpticalTransient(Transient):
         if self.luminosity_data or self.flux_data:
             logger.warning(f"Can't plot multiband for {self.data_mode} data.")
             return
+
+        if filters is None:
+            filters = self.active_bands
+        elif filters == 'default':
+            filters = self.default_filters
+
         wspace = plot_kwargs.get("wspace", 0.15)
         hspace = plot_kwargs.get("hspace", 0.04)
         fontsize = plot_kwargs.get("fontsize", 30)
@@ -301,9 +320,6 @@ class OpticalTransient(Transient):
             figure, axes = plt.subplots(ncols=ncols, nrows=nrows, sharex=True, sharey=True, figsize=figsize)
 
         axes = axes.ravel()
-
-        if filters is None:
-            filters = self.default_filters
 
         i = 0
         for idxs, band in zip(self.list_of_band_indices, self.unique_bands):

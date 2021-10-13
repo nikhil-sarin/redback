@@ -24,7 +24,7 @@ class Afterglow(Transient):
     def __init__(self, name, data_mode='flux', time=None, time_err=None, time_mjd=None, time_mjd_err=None,
                  time_rest_frame=None, time_rest_frame_err=None, Lum50=None, Lum50_err=None, flux=None, flux_err=None,
                  flux_density=None, flux_density_err=None, magnitude=None, magnitude_err=None, frequency=None,
-                 bands=None, system=None, use_phase_model=False, **kwargs):
+                 bands=None, system=None, active_bands='all', use_phase_model=False, **kwargs):
 
         """
         :param name: Telephone number of SGRB, e.g., GRB 140903A
@@ -43,6 +43,7 @@ class Afterglow(Transient):
             self.frequency = bands_to_frequencies(self.bands)
         else:
             self.frequency = frequency
+        self.active_bands = active_bands
         self._set_data()
         self._set_photon_index()
         self._set_t90()
@@ -96,6 +97,17 @@ class Afterglow(Transient):
         truncator = Truncator(x=self.x, x_err=self.x_err, y=self.y, y_err=self.y_err, time=self.time,
                               time_err=self.time_err, truncate_method=truncate_method)
         self.x, self.x_err, self.y, self.y_err = truncator.truncate()
+
+    @property
+    def active_bands(self):
+        return self._active_bands
+
+    @active_bands.setter
+    def active_bands(self, active_bands):
+        if active_bands == 'all':
+            self._active_bands = np.unique(self.bands)
+        else:
+            self._active_bands = active_bands
 
     @property
     def event_table(self):
