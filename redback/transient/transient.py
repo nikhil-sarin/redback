@@ -6,7 +6,7 @@ import numpy as np
 from redback.utils import logger
 from redback.utils import DataModeSwitch
 from redback.getdata import transient_directory_structure
-from ..utils import bin_ttes
+from ..utils import bin_ttes, bands_to_frequencies
 
 
 class Transient(object):
@@ -163,7 +163,7 @@ class OpticalTransient(Transient):
     def __init__(self, name, data_mode='photometry', time=None, time_err=None, time_mjd=None, time_mjd_err=None,
                  time_rest_frame=None,
                  time_rest_frame_err=None, Lum50=None, Lum50_err=None, flux_density=None, flux_density_err=None,
-                 magnitude=None, magnitude_err=None, bands=None, system=None, use_phase_model=False, **kwargs):
+                 magnitude=None, magnitude_err=None, frequency=None, bands=None, system=None, use_phase_model=False, **kwargs):
 
         super().__init__(time=time, time_err=time_err, time_rest_frame=time_rest_frame, time_mjd=time_mjd,
                          time_mjd_err=time_mjd_err,
@@ -171,6 +171,10 @@ class OpticalTransient(Transient):
                          flux_density=flux_density, flux_density_err=flux_density_err, magnitude=magnitude,
                          magnitude_err=magnitude_err, data_mode=data_mode, name=name,
                          use_phase_model=use_phase_model, **kwargs)
+        if frequency is None:
+            self.frequency = bands_to_frequencies(self.bands)
+        else:
+            self.frequency = frequency
         self.bands = bands
         self.system = system
         self._set_data()
@@ -281,7 +285,7 @@ class OpticalTransient(Transient):
         fontsize = plot_kwargs.get("fontsize", 30)
         errorbar_fmt = plot_kwargs.get("errorbar_fmt", "x")
         colors = plot_kwargs.get("colors", self.get_colors(filters))
-        xlabel = plot_kwargs.get("xlabel", "Time [days]")
+        xlabel = plot_kwargs.get("xlabel", self.xlabel)
         ylabel = plot_kwargs.get("ylabel", self.ylabel)
         plot_label = plot_kwargs.get("plot_label", "multiband_lc")
 
@@ -309,8 +313,14 @@ class OpticalTransient(Transient):
             x_err = self.x_err[idxs] if self is not None else self.x_err
 
             color = colors[filters.index(band)]
+
+            freq = bands_to_frequencies([band])
+            if 1e10 < freq < 1e15:
+                label = band
+            else:
+                label = freq
             axes[i].errorbar(self.x[idxs], self.y[idxs], xerr=x_err, yerr=self.y_err[idxs],
-                             fmt=errorbar_fmt, ms=1, color=color, elinewidth=2, capsize=0., label=band)
+                             fmt=errorbar_fmt, ms=1, color=color, elinewidth=2, capsize=0., label=label)
 
             axes[i].set_xlim(0.5 * self.x[idxs][0], 1.2 * self.x[idxs][-1])
             if self.photometry_data:

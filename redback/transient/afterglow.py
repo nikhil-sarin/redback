@@ -5,7 +5,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import os
 import pandas as pd
-from redback.utils import logger
+from redback.utils import logger, bands_to_frequencies
 
 from astropy.cosmology import Planck18 as cosmo
 from ..getdata import afterglow_directory_structure
@@ -23,9 +23,8 @@ class Afterglow(Transient):
     """Class for afterglows"""
     def __init__(self, name, data_mode='flux', time=None, time_err=None, time_mjd=None, time_mjd_err=None,
                  time_rest_frame=None, time_rest_frame_err=None, Lum50=None, Lum50_err=None, flux=None, flux_err=None,
-                 flux_density=None, flux_density_err=None, magnitude=None, magnitude_err=None, bands=None, system=None,
-                 use_phase_model=False,
-                 **kwargs):
+                 flux_density=None, flux_density_err=None, magnitude=None, magnitude_err=None, frequency=None,
+                 bands=None, system=None, use_phase_model=False, **kwargs):
 
         """
         :param name: Telephone number of SGRB, e.g., GRB 140903A
@@ -38,7 +37,12 @@ class Afterglow(Transient):
                          Lum50=Lum50, Lum50_err=Lum50_err, flux=flux, flux_err=flux_err, flux_density=flux_density,
                          flux_density_err=flux_density_err, use_phase_model=use_phase_model, bands=bands, system=system,
                          magnitude=magnitude, magnitude_err=magnitude_err, **kwargs)
-
+        self.bands = bands
+        self.system = system
+        if frequency is None:
+            self.frequency = bands_to_frequencies(self.bands)
+        else:
+            self.frequency = frequency
         self._set_data()
         self._set_photon_index()
         self._set_t90()
