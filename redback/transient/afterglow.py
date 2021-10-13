@@ -23,7 +23,8 @@ class Afterglow(Transient):
     """Class for afterglows"""
     def __init__(self, name, data_mode='flux', time=None, time_err=None, time_mjd=None, time_mjd_err=None,
                  time_rest_frame=None, time_rest_frame_err=None, Lum50=None, Lum50_err=None, flux=None, flux_err=None,
-                 flux_density=None, flux_density_err=None, magnitude=None, magnitude_err=None, use_phase_model=False,
+                 flux_density=None, flux_density_err=None, magnitude=None, magnitude_err=None, bands=None, system=None,
+                 use_phase_model=False,
                  **kwargs):
 
         """
@@ -35,7 +36,7 @@ class Afterglow(Transient):
         super().__init__(name=name, data_mode=data_mode, time=time, time_mjd=time_mjd, time_mjd_err=time_mjd_err,
                          time_err=time_err, time_rest_frame=time_rest_frame, time_rest_frame_err=time_rest_frame_err,
                          Lum50=Lum50, Lum50_err=Lum50_err, flux=flux, flux_err=flux_err, flux_density=flux_density,
-                         flux_density_err=flux_density_err, use_phase_model=use_phase_model,
+                         flux_density_err=flux_density_err, use_phase_model=use_phase_model, bands=bands, system=system,
                          magnitude=magnitude, magnitude_err=magnitude_err, **kwargs)
 
         self._set_data()
@@ -113,10 +114,10 @@ class Afterglow(Transient):
         data = pd.read_csv(self.event_table, header=0, error_bad_lines=False, delimiter='\t', dtype='str')
         data['BAT Photon Index (15-150 keV) (PL = simple power-law, CPL = cutoff power-law)'] = data[
             'BAT Photon Index (15-150 keV) (PL = simple power-law, CPL = cutoff power-law)'].fillna(0)
-        self.data = data
+        self.meta_data = data
 
     def _set_photon_index(self):
-        photon_index = self.data.query('GRB == @self._stripped_name')[
+        photon_index = self.meta_data.query('GRB == @self._stripped_name')[
             'BAT Photon Index (15-150 keV) (PL = simple power-law, CPL = cutoff power-law)'].values[0]
         if photon_index == 0.:
             return 0.
@@ -124,7 +125,7 @@ class Afterglow(Transient):
 
     def _get_redshift(self):
         # some GRBs dont have measurements
-        redshift = self.data.query('GRB == @self._stripped_name')['Redshift'].values[0]
+        redshift = self.meta_data.query('GRB == @self._stripped_name')['Redshift'].values[0]
         if isinstance(redshift, str):
             self.redshift = self.__clean_string(redshift)
         elif np.isnan(redshift):
@@ -141,7 +142,7 @@ class Afterglow(Transient):
     def _set_t90(self):
         # data['BAT Photon Index (15-150 keV) (PL = simple power-law, CPL = cutoff power-law)'] = data['BAT Photon
         # Index (15-150 keV) (PL = simple power-law, CPL = cutoff power-law)'].fillna(0)
-        t90 = self.data.query('GRB == @self._stripped_name')['BAT T90 [sec]'].values[0]
+        t90 = self.meta_data.query('GRB == @self._stripped_name')['BAT T90 [sec]'].values[0]
         if t90 == 0.:
             return np.nan
         self.t90 = self.__clean_string(t90)
