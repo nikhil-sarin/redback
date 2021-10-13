@@ -5,7 +5,7 @@ import bilby
 from scipy.special import gammaln, logsumexp
 
 class GaussianLikelihood(bilby.Likelihood):
-    def __init__(self, x, y, sigma, function, kwargs):
+    def __init__(self, x, y, sigma, function, kwargs=None):
         """
         A general Gaussian likelihood - the parameters are inferred from the
         arguments of function
@@ -60,7 +60,7 @@ class GaussianLikelihood(bilby.Likelihood):
         return log_l
 
 class GaussianLikelihood_with_uniform_x_errors(bilby.Likelihood):
-    def __init__(self, x, y, sigma, bin_size, function, kwargs):
+    def __init__(self, x, y, sigma, bin_size, function, kwargs=None):
         """
         A general Gaussian likelihood with uniform errors in x- the parameters are inferred from the
         arguments of function. Takes into account the X errors with a Uniform likelihood between the
@@ -128,7 +128,7 @@ class GaussianLikelihood_with_uniform_x_errors(bilby.Likelihood):
         return log_l
 
 class GaussianLikelihood_quadrature_noise(bilby.Likelihood):
-    def __init__(self, x, y, sigma_i, function, kwargs):
+    def __init__(self, x, y, sigma_i, function, kwargs=None):
         """
         A general Gaussian likelihood - the parameters are inferred from the
         arguments of function
@@ -185,7 +185,7 @@ class GaussianLikelihood_quadrature_noise(bilby.Likelihood):
         return log_l
 
 class GaussianLikelihood_quadrature_noise_non_detections(bilby.Likelihood):
-    def __init__(self, x, y, sigma_i, function, kwargs, upperlimit_kwargs):
+    def __init__(self, x, y, sigma_i, function, kwargs=None, upperlimit_kwargs=None):
         """
         A general Gaussian likelihood - the parameters are inferred from the
         arguments of function. Takes into account non-detections with a Uniform likelihood for those points
@@ -258,7 +258,7 @@ class GaussianLikelihood_quadrature_noise_non_detections(bilby.Likelihood):
         return log_l
 
 class GRBGaussianLikelihood(bilby.Likelihood):
-    def __init__(self, x, y, sigma, function, **kwargs):
+    def __init__(self, x, y, sigma, function, kwargs=None):
         """
         A general Gaussian likelihood - the parameters are inferred from the
         arguments of function
