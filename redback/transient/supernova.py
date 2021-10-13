@@ -1,25 +1,17 @@
-from .transient import Transient
+from .transient import OpticalTransient
 
-data_mode = ['flux_density', 'photometry']
 
-class Supernova(Transient):
-    def __init__(self, name):
-        self.flux_density = []
-        self.flux_density_err = []
-        self.magnitude = []
-        self.magnitude_error = []
-        self.name = name
+class Supernova(OpticalTransient):
+    DATA_MODES = ['flux', 'flux_density', 'photometry', 'luminosity']
 
+    def __init__(self, name, data_mode='photometry', time=None, time_err=None, time_mjd=None, time_mjd_err=None,
+                 time_rest_frame=None, time_rest_frame_err=None, Lum50=None, Lum50_err=None, flux_density=None,
+                 flux_density_err=None, magnitude=None, magnitude_err=None, bands=None, system=None,
+                 use_phase_model=False, **kwargs):
+
+        super().__init__(time=time, time_err=time_err, time_rest_frame=time_rest_frame, time_mjd=time_mjd,
+                         time_mjd_err=time_mjd_err, time_rest_frame_err=time_rest_frame_err, Lum50=Lum50,
+                         Lum50_err=Lum50_err, flux_density=flux_density, flux_density_err=flux_density_err,
+                         magnitude=magnitude, magnitude_err=magnitude_err, data_mode=data_mode, name=name,
+                         use_phase_model=use_phase_model, bands=bands, system=system, **kwargs)
         self._set_data()
-        # self._set_photon_index()
-        # self._set_t90()
-        self._get_redshift()
-
-    def _set_data(self):
-        pass
-
-    def plot_data(self):
-        pass
-
-    def plot_multiband(self):
-        pass
