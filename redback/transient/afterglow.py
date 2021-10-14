@@ -11,6 +11,7 @@ from astropy.cosmology import Planck18 as cosmo
 from ..getdata import afterglow_directory_structure
 from os.path import join
 
+import redback
 from .transient import Transient
 
 dirname = os.path.dirname(__file__)
@@ -39,10 +40,7 @@ class Afterglow(Transient):
                          magnitude=magnitude, magnitude_err=magnitude_err, **kwargs)
         self.bands = bands
         self.system = system
-        if frequency is None:
-            self.frequency = bands_to_frequencies(self.bands)
-        else:
-            self.frequency = frequency
+        self.frequency = frequency
         self.active_bands = active_bands
         self._set_data()
         self._set_photon_index()
@@ -109,6 +107,17 @@ class Afterglow(Transient):
         else:
             self._active_bands = active_bands
 
+    @property
+    def frequency(self):
+        return self._frequency
+
+    @frequency.setter
+    def frequency(self, frequency):
+        if frequency is None:
+            self._frequency = redback.utils.bands_to_frequencies(self.bands)
+        else:
+            self._frequency = frequency
+
     def get_filtered_data(self):
         if self.flux_density_data or self.photometry_data:
             idxs = [b in self.active_bands for b in self.bands]
@@ -120,6 +129,9 @@ class Afterglow(Transient):
             filtered_y = self.y[idxs]
             filtered_y_err = self.y_err[idxs]
             return filtered_x, filtered_x_err, filtered_y, filtered_y_err
+        else:
+            raise ValueError(f"Transient needs to be in flux density or photometry data mode, "
+                             f"but is in {self.data_mode} instead.")
 
     @property
     def event_table(self):
@@ -139,41 +151,46 @@ class Afterglow(Transient):
         df.to_csv(join(grb_dir, filename), index=False)
 
     def _set_data(self):
-        data = pd.read_csv(self.event_table, header=0, error_bad_lines=False, delimiter='\t', dtype='str')
-        data['BAT Photon Index (15-150 keV) (PL = simple power-law, CPL = cutoff power-law)'] = data[
-            'BAT Photon Index (15-150 keV) (PL = simple power-law, CPL = cutoff power-law)'].fillna(0)
-        self.meta_data = data
+        meta_data = pd.read_csv(self.event_table, header=0, error_bad_lines=False, delimiter='\t', dtype='str')
+        meta_data['BAT Photon Index (15-150 keV) (PL = simple power-law, CPL = cutoff power-law)'] = meta_data[
+                  'BAT Photon Index (15-150 keV) (PL = simple power-law, CPL = cutoff power-law)'].fillna(0)
+        self.meta_data = meta_data
 
     def _set_photon_index(self):
-        photon_index = self.meta_data.query('GRB == @self._stripped_name')[
-            'BAT Photon Index (15-150 keV) (PL = simple power-law, CPL = cutoff power-law)'].values[0]
-        if photon_index == 0.:
-            return 0.
-        self.photon_index = self.__clean_string(photon_index)
+        try:
+            photon_index = self.meta_data.query('GRB == @self._stripped_name')[
+                'BAT Photon Index (15-150 keV) (PL = simple power-law, CPL = cutoff power-law)'].values[0]
+            self.photon_index = self.__clean_string(photon_index)
+        except IndexError:
+            self.photon_index = np.nan
 
     def _get_redshift(self):
         # some GRBs dont have measurements
-        redshift = self.meta_data.query('GRB == @self._stripped_name')['Redshift'].values[0]
-        if isinstance(redshift, str):
-            self.redshift = self.__clean_string(redshift)
-        elif np.isnan(redshift):
-            return None
-        else:
-            self.redshift = redshift
+        try:
+            redshift = self.meta_data.query('GRB == @self._stripped_name')['Redshift'].values[0]
+            if isinstance(redshift, str):
+                self.redshift = self.__clean_string(redshift)
+            else:
+                self.redshift = redshift
+        except IndexError:
+            self.redshift = np.nan
 
     def _get_redshift_for_luminosity_calculation(self):
+        if self.redshift is None:
+            return self.redshift
         if np.isnan(self.redshift):
             logger.warning('This GRB has no measured redshift, using default z = 0.75')
             return 0.75
         return self.redshift
 
     def _set_t90(self):
-        # data['BAT Photon Index (15-150 keV) (PL = simple power-law, CPL = cutoff power-law)'] = data['BAT Photon
-        # Index (15-150 keV) (PL = simple power-law, CPL = cutoff power-law)'].fillna(0)
-        t90 = self.meta_data.query('GRB == @self._stripped_name')['BAT T90 [sec]'].values[0]
-        if t90 == 0.:
-            return np.nan
-        self.t90 = self.__clean_string(t90)
+        try:
+            t90 = self.meta_data.query('GRB == @self._stripped_name')['BAT T90 [sec]'].values[0]
+            if t90 == 0.:
+                return np.nan
+            self.t90 = self.__clean_string(t90)
+        except IndexError:
+            self.t90 = np.nan
 
     @staticmethod
     def __clean_string(string):
@@ -193,6 +210,7 @@ class Afterglow(Transient):
                                     counts_to_flux_absorbed=1, counts_to_flux_unabsorbed=1):
         if self.luminosity_data:
             logger.warning('The data is already in luminosity mode, returning.')
+            return
         elif not self.flux_data:
             logger.warning(f'The data needs to be in flux mode, but is in {self.data_mode}.')
             return
@@ -206,12 +224,6 @@ class Afterglow(Transient):
         self.data_mode = "luminosity"
         self.x, self.x_err, self.y, self.y_err = converter.convert_flux_to_luminosity()
         self._save_luminosity_data()
-
-    def _calculate_rest_frame_time_and_luminosity(self, counts_to_flux_fraction, isotropic_bolometric_flux, redshift):
-        self.Lum50 = self.flux * counts_to_flux_fraction * isotropic_bolometric_flux * 1e-50
-        self.Lum50_err = self.flux_err * isotropic_bolometric_flux * 1e-50
-        self.time_rest_frame = self.time / (1 + redshift)
-        self.time_rest_frame_err = self.time_err / (1 + redshift)
 
     def plot_data(self, axes=None, colour='k'):
         """

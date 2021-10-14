@@ -1,12 +1,12 @@
 import matplotlib.pyplot as plt
-from matplotlib import cm
+import matplotlib
 import pandas as pd
 from os.path import join
 import numpy as np
 from redback.utils import logger
 from redback.utils import DataModeSwitch
 from redback.getdata import transient_directory_structure
-from ..utils import bin_ttes, bands_to_frequencies
+import redback
 
 
 class Transient(object):
@@ -15,6 +15,12 @@ class Transient(object):
     _ATTRIBUTE_NAME_DICT = dict(luminosity="Lum50", flux="flux", flux_density="flux_density",
                                 counts="counts", photometry="magnitude")
 
+    ylabel_dict = dict(luminosity=r'Luminosity [$10^{50}$ erg s$^{-1}$]',
+                       photometry=r'Magnitude',
+                       flux=r'Flux [erg cm$^{-2}$ s$^{-1}$]',
+                       flux_density=r'Flux density [mJy]',
+                       counts=r'Counts')
+
     luminosity_data = DataModeSwitch('luminosity')
     flux_data = DataModeSwitch('flux')
     flux_density_data = DataModeSwitch('flux_density')
@@ -22,7 +28,7 @@ class Transient(object):
     counts_data = DataModeSwitch('counts')
     tte_data = DataModeSwitch('ttes')
 
-    def __init__(self, time, time_err=None, time_mjd=None, time_mjd_err=None, time_rest_frame=None,
+    def __init__(self, time=None, time_err=None, time_mjd=None, time_mjd_err=None, time_rest_frame=None,
                  time_rest_frame_err=None, Lum50=None, Lum50_err=None, flux=None, flux_err=None, flux_density=None,
                  flux_density_err=None, magnitude=None, magnitude_err=None, counts=None, ttes=None, bin_size=None,
                  redshift=np.nan, data_mode=None, name='', path='.', photon_index=np.nan, use_phase_model=False,
@@ -32,7 +38,7 @@ class Transient(object):
         """
         self.bin_size = bin_size
         if data_mode == 'ttes':
-            time, counts = bin_ttes(ttes, self.bin_size)
+            time, counts = redback.utils.bin_ttes(ttes, self.bin_size)
 
         self.time = time
         self.time_err = time_err
@@ -135,18 +141,10 @@ class Transient(object):
 
     @property
     def ylabel(self):
-        if self.luminosity_data:
-            return r'Luminosity [$10^{50}$ erg s$^{-1}$]'
-        elif self.photometry_data:
-            return r'Magnitude'
-        elif self.flux_data:
-            return r'Flux [erg cm$^{-2}$ s$^{-1}$]'
-        elif self.flux_density_data:
-            return r'Flux density [mJy]'
-        elif self.counts_data:
-            return r'Counts'
-        else:
-            raise ValueError
+        try:
+            return self.ylabel_dict[self.data_mode]
+        except KeyError:
+            raise ValueError("No data mode specified")
 
     def plot_data(self, axes=None, colour='k'):
         pass
@@ -172,13 +170,10 @@ class OpticalTransient(Transient):
                          flux_density=flux_density, flux_density_err=flux_density_err, magnitude=magnitude,
                          magnitude_err=magnitude_err, data_mode=data_mode, name=name,
                          use_phase_model=use_phase_model, **kwargs)
-        if frequency is None:
-            self.frequency = bands_to_frequencies(self.bands)
-        else:
-            self.frequency = frequency
-        self.active_bands = active_bands
-        self.bands = bands
         self.system = system
+        self.bands = bands
+        self.active_bands = active_bands
+        self.frequency = frequency
         self._set_data()
 
     @staticmethod
@@ -207,9 +202,10 @@ class OpticalTransient(Transient):
         transient_dir = cls._get_transient_dir(name=name)
         time_days, time_mjd, flux_density, flux_density_err, magnitude, magnitude_err, bands, system = \
             cls.load_data(name=name, transient_dir=transient_dir, data_mode="all")
-        return cls(name=name, data_mode=data_mode, time=time_days, time_err=None, flux_density=flux_density,
-                   flux_density_err=flux_density_err, magnitude=magnitude, magnitude_err=magnitude_err, bands=bands,
-                   system=system, active_bands=active_bands, use_phase_model=use_phase_model)
+        return cls(name=name, data_mode=data_mode, time=time_days, time_err=None, time_mjd=time_mjd,
+                   flux_density=flux_density, flux_density_err=flux_density_err, magnitude=magnitude,
+                   magnitude_err=magnitude_err, bands=bands, system=system, active_bands=active_bands,
+                   use_phase_model=use_phase_model)
 
     @property
     def active_bands(self):
@@ -222,6 +218,17 @@ class OpticalTransient(Transient):
         else:
             self._active_bands = active_bands
 
+    @property
+    def frequency(self):
+        return self._frequency
+
+    @frequency.setter
+    def frequency(self, frequency):
+        if frequency is None:
+            self._frequency = redback.utils.bands_to_frequencies(self.bands)
+        else:
+            self._frequency = frequency
+
     def get_filtered_data(self):
         if self.flux_density_data or self.photometry_data:
             idxs = [b in self.active_bands for b in self.bands]
@@ -233,14 +240,48 @@ class OpticalTransient(Transient):
             filtered_y = self.y[idxs]
             filtered_y_err = self.y_err[idxs]
             return filtered_x, filtered_x_err, filtered_y, filtered_y_err
+        else:
+            raise ValueError(f"Transient needs to be in flux density or photometry data mode, "
+                             f"but is in {self.data_mode} instead.")
 
     @property
     def event_table(self):
         return f'{self.__class__.__name__.lower()}/{self.name}/metadata.csv'
 
     def _set_data(self):
-        data = pd.read_csv(self.event_table, error_bad_lines=False, delimiter=',', dtype='str')
-        self.meta_data = data
+        try:
+            meta_data = pd.read_csv(self.event_table, error_bad_lines=False, delimiter=',', dtype='str')
+        except FileNotFoundError as e:
+            logger.warning(e)
+            logger.warning("Setting metadata to None")
+            meta_data = None
+        self.meta_data = meta_data
+
+    @property
+    def transient_dir(self):
+        return self._get_transient_dir(name=self.name)
+
+    @classmethod
+    def _get_transient_dir(cls, name):
+        transient_dir, _, _ = redback.getdata.transient_directory_structure(
+            transient=name, use_default_directory=False,
+            transient_type=cls.__name__.lower())
+        return transient_dir
+
+    @property
+    def unique_bands(self):
+        return np.unique(self.bands)
+
+    @property
+    def list_of_band_indices(self):
+        return [np.where(self.bands == np.array(b))[0] for b in self.unique_bands]
+
+    @property
+    def default_filters(self):
+        return ["g", "r", "i", "z", "y", "J", "H", "K"]
+
+    def get_colors(self, filters):
+        return matplotlib.cm.rainbow(np.linspace(0, 1, len(filters)))
 
     def plot_data(self, axes=None, filters=None, plot_others=True, **plot_kwargs):
         """
@@ -289,16 +330,6 @@ class OpticalTransient(Transient):
         plt.savefig(join(self.transient_dir, filename))
         plt.clf()
 
-    @property
-    def transient_dir(self):
-        return self._get_transient_dir(self.name)
-
-    @staticmethod
-    def _get_transient_dir(name):
-        transient_dir, _, _ = transient_directory_structure(
-            transient=name, use_default_directory=False,
-            transient_type="kilonova")
-        return transient_dir
 
     def plot_multiband(self, figure=None, axes=None, ncols=2, nrows=None, figsize=None, filters=None,
                        **plot_kwargs):
@@ -342,7 +373,7 @@ class OpticalTransient(Transient):
 
             color = colors[filters.index(band)]
 
-            freq = bands_to_frequencies([band])
+            freq = redback.utils.bands_to_frequencies([band])
             if 1e10 < freq < 1e15:
                 label = band
             else:
@@ -368,17 +399,3 @@ class OpticalTransient(Transient):
         plt.savefig(join(self.transient_dir, filename), bbox_inches="tight")
         plt.clf()
 
-    @property
-    def unique_bands(self):
-        return np.unique(self.bands)
-
-    @property
-    def list_of_band_indices(self):
-        return [np.where(self.bands == b)[0] for b in self.unique_bands]
-
-    @property
-    def default_filters(self):
-        return ["g", "r", "i", "z", "y", "J", "H", "K"]
-
-    def get_colors(self, filters):
-        return cm.rainbow(np.linspace(0, 1, len(filters)))

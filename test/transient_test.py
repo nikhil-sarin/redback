@@ -3,13 +3,19 @@ import mock
 from unittest.mock import MagicMock
 import numpy as np
 import shutil
+import pandas as pd
+import os
+
+import pandas
 
 import redback.transient.afterglow
 from redback.transient.transient import Transient
 from redback.transient.afterglow import Afterglow, SGRB, LGRB
 from redback.transient.prompt import PromptTimeSeries
 from redback.getdata import get_afterglow_data_from_swift
+import redback
 
+dirname = os.path.dirname(__file__)
 
 class TestTransient(unittest.TestCase):
 
@@ -23,9 +29,10 @@ class TestTransient(unittest.TestCase):
         self.name = "GRB123456"
         self.path = '.'
         self.photon_index = 2
-        self.transient = Transient(time=self.time, time_err=self.time_err, counts=self.y,
+        self.use_phase_model = False
+        self.transient = redback.transient.transient.Transient(time=self.time, time_err=self.time_err, counts=self.y,
                                    redshift=self.redshift, data_mode=self.data_mode, name=self.name, path=self.path,
-                                   photon_index=self.photon_index)
+                                   photon_index=self.photon_index, use_phase_model=self.use_phase_model)
 
     def tearDown(self) -> None:
         del self.time
@@ -37,7 +44,20 @@ class TestTransient(unittest.TestCase):
         del self.name
         del self.path
         del self.photon_index
+        del self.use_phase_model
         del self.transient
+
+    def test_ttes_data_mode_setting(self):
+        ttes = np.arange(0, 1, 1000)
+        self.data_mode = 'ttes'
+        self.bin_size = 0.1
+        with mock.patch('redback.utils.bin_ttes') as m:
+            m.assert_not_called()
+            m.return_value = self.time, self.y
+            self.transient = redback.transient.transient.Transient(
+                ttes=ttes, redshift=self.redshift, data_mode=self.data_mode, name=self.name,
+                path=self.path, photon_index=self.photon_index)
+            m.assert_called_once()
 
     def test_data_mode_switches(self):
         self.assertTrue(self.transient.counts_data)
@@ -71,6 +91,36 @@ class TestTransient(unittest.TestCase):
     def test_xerr_same_as_time_err(self):
         self.assertTrue(np.array_equal(self.transient.x_err, self.transient.time_err))
 
+    def test_set_use_phase_model(self):
+        self.assertFalse(self.transient.use_phase_model)
+
+    def test_xlabel(self):
+        self.assertEqual(r"Time since burst [days]", self.transient.xlabel)
+        self.transient.use_phase_model = True
+        self.assertEqual(r"Time [MJD]", self.transient.xlabel)
+
+    def test_ylabel(self):
+        self.assertEqual(r'Counts', self.transient.ylabel)
+        self.transient.luminosity_data = True
+        self.assertEqual(r'Luminosity [$10^{50}$ erg s$^{-1}$]', self.transient.ylabel)
+        self.transient.photometry_data = True
+        self.assertEqual(r'Magnitude', self.transient.ylabel)
+        self.transient.flux_data = True
+        self.assertEqual(r'Flux [erg cm$^{-2}$ s$^{-1}$]', self.transient.ylabel)
+        self.transient.flux_density_data = True
+        self.assertEqual(r'Flux density [mJy]', self.transient.ylabel)
+        self.transient.flux_density_data = False
+        with self.assertRaises(ValueError):
+            _ = self.transient.ylabel
+
+    def test_use_phase_model_time_attribute(self):
+        self.transient = redback.transient.transient.Transient(
+            time_mjd=self.time, time_mjd_err=self.time_err, counts=self.y, redshift=self.redshift,
+            data_mode=self.data_mode, name=self.name, path=self.path, photon_index=self.photon_index,
+            use_phase_model=True)
+        self.assertTrue(np.array_equal(self.transient.time_mjd, self.transient.x))
+        self.assertTrue(np.array_equal(self.transient.time_mjd_err, self.transient.x_err))
+
     def test_set_x(self):
         new_x = np.array([2, 3, 4])
         self.transient.x = new_x
@@ -82,6 +132,18 @@ class TestTransient(unittest.TestCase):
         self.transient.x_err = new_x_err
         self.assertTrue(np.array_equal(new_x_err, self.transient.x_err))
         self.assertTrue(np.array_equal(new_x_err, self.transient.time_err))
+
+    def test_set_y(self):
+        new_y = np.array([7, 8, 9])
+        self.transient.y = new_y
+        self.assertTrue(np.array_equal(new_y, self.transient.y))
+        self.assertTrue(np.array_equal(new_y, self.transient.counts))
+
+    def test_set_y_err(self):
+        new_y_err = np.array([7, 8, 9])
+        self.transient.y_err = new_y_err
+        self.assertTrue(np.array_equal(new_y_err, self.transient.y_err))
+        self.assertTrue(np.array_equal(new_y_err, self.transient.counts_err))
 
     def test_y_same_as_counts(self):
         self.assertTrue(np.array_equal(self.transient.y, self.transient.counts))
@@ -110,55 +172,451 @@ class TestTransient(unittest.TestCase):
     def test_plot_lightcurve(self):
         self.transient.plot_lightcurve(model=None)
 
+    def test_plot_data(self):
+        self.transient.plot_data()
+
+
+class TestOpticalTransient(unittest.TestCase):
+
+    def setUp(self) -> None:
+        self.time = np.array([1, 2, 3])
+        self.time_err = np.array([0.2, 0.3, 0.4])
+        self.y = np.array([3, 4, 2])
+        self.y_err = np.sqrt(self.y)
+        self.redshift = 0.75
+        self.data_mode = 'flux_density'
+        self.name = "SN2000A"
+        self.path = '.'
+        self.photon_index = 2
+        self.use_phase_model = False
+        self.bands = ['a', 'b', 'b']
+        self.active_bands = ['b']
+        self.transient = redback.transient.transient.OpticalTransient(
+            time=self.time, time_err=self.time_err, flux_density=self.y, flux_density_err=self.y_err,
+            redshift=self.redshift, data_mode=self.data_mode, name=self.name, path=self.path,
+            photon_index=self.photon_index, use_phase_model=self.use_phase_model, bands=self.bands,
+            active_bands=self.active_bands)
+
+    def tearDown(self) -> None:
+        del self.time
+        del self.time_err
+        del self.y
+        del self.y_err
+        del self.redshift
+        del self.data_mode
+        del self.name
+        del self.path
+        del self.photon_index
+        del self.use_phase_model
+        del self.bands
+        del self.active_bands
+        del self.transient
+
+    def test_load_data_photometry(self):
+        name = "optical_transient_test"
+        transient_dir = f"{dirname}/data"
+        data_mode = "photometry"
+        time_days, time_mjd, magnitude, magnitude_err, bands, system = \
+            self.transient.load_data(name=name, data_mode=data_mode, transient_dir=transient_dir)
+        expected_time_days = np.array([0.4813999999969383, 0.49020000000018626])
+        expected_time_mjd = np.array([57982.9814, 57982.9902])
+        expected_magnitude = np.array([17.48, 18.26])
+        expected_magnitude_err = np.array([0.02, 0.15])
+        expected_bands = np.array(["i", "H"])
+        expected_system = np.array(["AB", "AB"])
+        self.assertTrue(np.allclose(expected_time_days, time_days))
+        self.assertTrue(np.allclose(expected_time_mjd, time_mjd))
+        self.assertTrue(np.allclose(expected_magnitude, magnitude))
+        self.assertTrue(np.allclose(expected_magnitude_err, magnitude_err))
+        self.assertTrue(np.array_equal(expected_bands, bands))
+        self.assertTrue(np.array_equal(expected_system, system))
+
+    def test_load_data_flux_density(self):
+        name = "optical_transient_test"
+        transient_dir = f"{dirname}/data"
+        data_mode = "flux_density"
+        time_days, time_mjd, flux_density, flux_density_err, bands, system = \
+            self.transient.load_data(name=name, data_mode=data_mode, transient_dir=transient_dir)
+        expected_time_days = np.array([0.4813999999969383, 0.49020000000018626])
+        expected_time_mjd = np.array([57982.9814, 57982.9902])
+        expected_flux_density = np.array([0.36982817978026444, 0.1803017740859559])
+        expected_flux_density_err = np.array([0.006812898591418732, 0.024911116226263914])
+        expected_bands = np.array(["i", "H"])
+        expected_system = np.array(["AB", "AB"])
+        self.assertTrue(np.allclose(expected_time_days, time_days))
+        self.assertTrue(np.allclose(expected_time_mjd, time_mjd))
+        self.assertTrue(np.allclose(expected_flux_density, flux_density))
+        self.assertTrue(np.allclose(expected_flux_density_err, flux_density_err))
+        self.assertTrue(np.array_equal(expected_bands, bands))
+        self.assertTrue(np.array_equal(expected_system, system))
+
+    def test_load_data_all(self):
+        name = "optical_transient_test"
+        transient_dir = f"{dirname}/data"
+        data_mode = "all"
+        time_days, time_mjd, flux_density, flux_density_err, magnitude, magnitude_err, bands, system = \
+            self.transient.load_data(name=name, data_mode=data_mode, transient_dir=transient_dir)
+        expected_time_days = np.array([0.4813999999969383, 0.49020000000018626])
+        expected_time_mjd = np.array([57982.9814, 57982.9902])
+        expected_flux_density = np.array([0.36982817978026444, 0.1803017740859559])
+        expected_flux_density_err = np.array([0.006812898591418732, 0.024911116226263914])
+        expected_magnitude = np.array([17.48, 18.26])
+        expected_magnitude_err = np.array([0.02, 0.15])
+        expected_bands = np.array(["i", "H"])
+        expected_system = np.array(["AB", "AB"])
+        self.assertTrue(np.allclose(expected_time_days, time_days))
+        self.assertTrue(np.allclose(expected_time_mjd, time_mjd))
+        self.assertTrue(np.allclose(expected_flux_density, flux_density))
+        self.assertTrue(np.allclose(expected_flux_density_err, flux_density_err))
+        self.assertTrue(np.allclose(expected_magnitude, magnitude))
+        self.assertTrue(np.allclose(expected_magnitude_err, magnitude_err))
+        self.assertTrue(np.array_equal(expected_bands, bands))
+        self.assertTrue(np.array_equal(expected_system, system))
+
+    def test_get_from_open_access_catalogue(self):
+        with mock.patch("redback.transient.transient.OpticalTransient.load_data") as m:
+            expected_time_days = np.array([0.4813999999969383, 0.49020000000018626])
+            expected_time_mjd = np.array([57982.9814, 57982.9902])
+            expected_flux_density = np.array([0.36982817978026444, 0.1803017740859559])
+            expected_flux_density_err = np.array([0.006812898591418732, 0.024911116226263914])
+            expected_magnitude = np.array([17.48, 18.26])
+            expected_magnitude_err = np.array([0.02, 0.15])
+            expected_bands = np.array(["i", "H"])
+            expected_system = np.array(["AB", "AB"])
+            m.return_value = expected_time_days, expected_time_mjd, expected_flux_density, expected_flux_density_err, \
+                             expected_magnitude, expected_magnitude_err, expected_bands, expected_system
+            name = "test"
+            transient = redback.transient.transient.OpticalTransient.from_open_access_catalogue(name=name)
+            self.assertTrue(transient.photometry_data)
+            self.assertEqual(name, transient.name)
+            self.assertTrue(np.allclose(expected_time_days, transient.time))
+            self.assertTrue(np.allclose(expected_time_mjd, transient.time_mjd))
+            self.assertTrue(np.allclose(expected_flux_density, transient.flux_density))
+            self.assertTrue(np.allclose(expected_flux_density_err, transient.flux_density_err))
+            self.assertTrue(np.allclose(expected_magnitude, transient.magnitude))
+            self.assertTrue(np.allclose(expected_magnitude_err, transient.magnitude_err))
+            self.assertTrue(np.array_equal(expected_bands, transient.bands))
+            self.assertTrue(np.array_equal(expected_system, transient.system))
+
+    def test_set_active_bands(self):
+        self.assertTrue(np.array_equal(np.array(self.active_bands), self.transient.active_bands))
+
+    def test_set_active_bands_all(self):
+        self.transient = redback.transient.transient.OpticalTransient(
+            time=self.time, time_err=self.time_err, flux_density=self.y, flux_density_err=self.y_err,
+            redshift=self.redshift, data_mode=self.data_mode, name=self.name, path=self.path,
+            photon_index=self.photon_index, use_phase_model=self.use_phase_model, bands=self.bands,
+            active_bands='all')
+        self.assertTrue(np.array_equal(np.array(['a', 'b']), self.transient.active_bands))
+
+    def test_set_frequencies_from_bands(self):
+        with mock.patch('redback.utils.bands_to_frequencies') as m:
+            expected = np.array([1, 2, 2])
+            m.return_value = expected
+            self.transient = redback.transient.transient.OpticalTransient(
+                time=self.time, time_err=self.time_err, flux_density=self.y, flux_density_err=self.y_err,
+                redshift=self.redshift, data_mode=self.data_mode, name=self.name, path=self.path,
+                photon_index=self.photon_index, use_phase_model=self.use_phase_model, bands=self.bands,
+                active_bands=self.active_bands)
+            self.assertTrue(np.array_equal(expected, self.transient.frequency))
+
+    def test_set_frequencies_default(self):
+        frequency = np.array([1, 2, 2])
+        self.transient = redback.transient.transient.OpticalTransient(
+            time=self.time, time_err=self.time_err, flux_density=self.y, flux_density_err=self.y_err,
+            redshift=self.redshift, data_mode=self.data_mode, name=self.name, path=self.path,
+            photon_index=self.photon_index, use_phase_model=self.use_phase_model, bands=self.bands,
+            frequency=frequency, active_bands=self.active_bands)
+        self.assertTrue(np.array_equal(frequency, self.transient.frequency))
+
+    def test_get_filtered_data(self):
+        filtered_x, filtered_x_err, filtered_y, filtered_y_err = self.transient.get_filtered_data()
+        expected_x = self.time[1:]
+        expected_x_err = self.time_err[1:]
+        expected_y = self.y[1:]
+        expected_y_err = self.y_err[1:]
+        self.assertTrue(np.array_equal(expected_x, filtered_x))
+        self.assertTrue(np.array_equal(expected_x_err, filtered_x_err))
+        self.assertTrue(np.array_equal(expected_y, filtered_y))
+        self.assertTrue(np.array_equal(expected_y_err, filtered_y_err))
+
+    def test_get_filtered_data_no_x_err(self):
+        self.transient.x_err = None
+        _, filtered_x_err, _, _ = self.transient.get_filtered_data()
+        self.assertIsNone(filtered_x_err)
+
+    def test_get_filtered_data_illegal_data_mode(self):
+        with self.assertRaises(ValueError):
+            self.transient.luminosity_data = True
+            self.transient.get_filtered_data()
+
+    def test_meta_data_not_available(self):
+        self.assertIsNone(self.transient.meta_data)
+
+    def test_meta_data_from_csv(self):
+        with mock.patch("pandas.read_csv") as m:
+            expected = dict(a=1)
+            m.return_value = expected
+            self.transient._set_data()
+            self.assertDictEqual(expected, self.transient.meta_data)
+
+    def test_transient_dir(self):
+        with mock.patch('redback.getdata.transient_directory_structure') as m:
+            expected = 'expected'
+            m.return_value = expected, '_', '_'
+            self.assertEqual(expected, self.transient.transient_dir)
+
+    def test_unique_bands(self):
+        expected = np.array(['a', 'b'])
+        self.assertTrue(np.array_equal(expected, self.transient.unique_bands))
+
+    def test_list_of_band_indices(self):
+        expected = [np.array([0]), np.array([1, 2])]
+        self.assertTrue(np.array_equal(expected[0], self.transient.list_of_band_indices[0]))
+        self.assertTrue(np.array_equal(expected[1], self.transient.list_of_band_indices[1]))
+
+    def test_default_colors(self):
+        expected = ["g", "r", "i", "z", "y", "J", "H", "K"]
+        self.assertListEqual(expected, self.transient.default_filters)
+
+    def test_get_colors(self):
+        with mock.patch('matplotlib.cm.rainbow') as m:
+            expected = 'rainbow'
+            m.return_value = expected
+            self.assertEqual(expected, self.transient.get_colors(filters=['a', 'b']))
+
 
 class TestAfterglow(unittest.TestCase):
 
     def setUp(self) -> None:
+        self.time = np.array([1, 2, 3])
+        self.time_err = np.array([0.2, 0.3, 0.4])
+        self.y = np.array([3, 4, 2])
+        self.y_err = np.sqrt(self.y)
         self.redshift = 0.75
         self.data_mode = 'flux'
-        self.name = "170728A"
-        get_afterglow_data_from_swift(self.name, data_mode='flux')
-        self.transient = SGRB.from_swift_grb(name=self.name, data_mode=self.data_mode)
+        self.name = "GRB070809"
+        self.path = '.'
+        self.photon_index = 2
+        self.use_phase_model = False
+        self.bands = ['a', 'b', 'b']
+        self.active_bands = ['b']
+        self.sgrb = redback.transient.afterglow.SGRB(
+            time=self.time, time_err=self.time_err, flux_density=self.y, flux_density_err=self.y_err,
+            redshift=self.redshift, data_mode=self.data_mode, name=self.name, path=self.path,
+            photon_index=self.photon_index, use_phase_model=self.use_phase_model, bands=self.bands,
+            active_bands=self.active_bands)
+        self.sgrb_luminosity = redback.transient.afterglow.SGRB(
+            time=self.time, time_err=self.time_err, flux_density=self.y, flux_density_err=self.y_err,
+            redshift=self.redshift, data_mode="luminosity", name=self.name, path=self.path,
+            photon_index=self.photon_index, use_phase_model=self.use_phase_model, bands=self.bands,
+            active_bands=self.active_bands)
+        self.sgrb_flux_density = redback.transient.afterglow.SGRB(
+            time=self.time, time_err=self.time_err, flux_density=self.y, flux_density_err=self.y_err,
+            redshift=self.redshift, data_mode="flux_density", name=self.name, path=self.path,
+            photon_index=self.photon_index, use_phase_model=self.use_phase_model, bands=self.bands,
+            active_bands=self.active_bands)
+        self.sgrb_not_existing = redback.transient.afterglow.SGRB(
+            time=self.time, time_err=self.time_err, flux_density=self.y, flux_density_err=self.y_err,
+            redshift=self.redshift, data_mode=self.data_mode, name="123456", path=self.path,
+            photon_index=self.photon_index, use_phase_model=self.use_phase_model, bands=self.bands,
+            active_bands=self.active_bands)
+        self.sgrb_photometry = redback.transient.afterglow.SGRB(
+            time=self.time, time_err=self.time_err, magnitude=self.y, magnitude_err=self.y_err,
+            redshift=self.redshift, data_mode="photometry", name=self.name, path=self.path,
+            photon_index=self.photon_index, use_phase_model=self.use_phase_model, bands=self.bands,
+            active_bands=self.active_bands)
+        self.sgrb_all_active_bands = redback.transient.afterglow.SGRB(
+            time=self.time, time_err=self.time_err, flux_density=self.y, flux_density_err=self.y_err,
+            redshift=self.redshift, data_mode=self.data_mode, name=self.name, path=self.path,
+            photon_index=self.photon_index, use_phase_model=self.use_phase_model, bands=self.bands,
+            active_bands='all')
 
     def tearDown(self) -> None:
+        del self.time
+        del self.time_err
+        del self.y
+        del self.y_err
         del self.redshift
         del self.data_mode
         del self.name
-        del self.transient
+        del self.path
+        del self.photon_index
+        del self.use_phase_model
+        del self.bands
+        del self.active_bands
+        del self.sgrb
+        del self.sgrb_not_existing
+        del self.sgrb_photometry
+        del self.sgrb_all_active_bands
 
-    def test_analytical_flux_to_luminosity_illegal_data_mode(self):
-        self.transient.data_mode = "flux_density"
-        self.transient.analytical_flux_to_luminosity()
-        self.assertEqual("flux_density", self.transient.data_mode)
-        self.assertIsNone(self.transient.time_rest_frame)
-        self.assertIsNone(self.transient.time_rest_frame_err)
-        self.assertIsNone(self.transient.Lum50)
-        self.assertIsNone(self.transient.Lum50_err)
+    def test_stripped_name(self):
+        expected = "070809"
+        self.assertEqual(expected, self.sgrb._stripped_name)
+
+    def test_truncate(self):
+        expected_x = 0
+        expected_x_err = 1
+        expected_y = 2
+        expected_yerr = 3
+        return_value = expected_x, expected_x_err, expected_y, expected_yerr
+        with mock.patch.object(redback.transient.afterglow.Truncator, 'truncate', return_value=return_value):
+            self.sgrb.truncate()
+            self.assertListEqual(
+                [expected_x, expected_x_err, expected_y, expected_yerr],
+                [self.sgrb.x, self.sgrb.x_err, self.sgrb.y, self.sgrb.y_err])
+
+    def test_set_active_bands(self):
+        self.assertTrue(np.array_equal(np.array(self.active_bands), self.sgrb.active_bands))
+
+    def test_set_active_bands_all(self):
+        self.assertTrue(np.array_equal(np.array(['a', 'b']), self.sgrb_all_active_bands.active_bands))
+
+    def test_set_frequencies_from_bands(self):
+        with mock.patch('redback.utils.bands_to_frequencies') as m:
+            expected = np.array([1, 2, 2])
+            m.return_value = expected
+            self.sgrb = redback.transient.afterglow.SGRB(
+                time=self.time, time_err=self.time_err, flux_density=self.y, flux_density_err=self.y_err,
+                redshift=self.redshift, data_mode=self.data_mode, name=self.name, path=self.path,
+                photon_index=self.photon_index, use_phase_model=self.use_phase_model, bands=self.bands,
+                active_bands=self.active_bands)
+            self.assertTrue(np.array_equal(expected, self.sgrb.frequency))
+
+    def test_set_frequencies_default(self):
+        frequency = np.array([1, 2, 2])
+        self.sgrb = redback.transient.afterglow.SGRB(
+            time=self.time, time_err=self.time_err, flux_density=self.y, flux_density_err=self.y_err,
+            redshift=self.redshift, data_mode=self.data_mode, name=self.name, path=self.path,
+            photon_index=self.photon_index, use_phase_model=self.use_phase_model, bands=self.bands,
+            frequency=frequency, active_bands=self.active_bands)
+        self.assertTrue(np.array_equal(frequency, self.sgrb.frequency))
+
+    def test_get_filtered_data(self):
+        filtered_x, filtered_x_err, filtered_y, filtered_y_err = self.sgrb_photometry.get_filtered_data()
+        expected_x = self.time[1:]
+        expected_x_err = self.time_err[1:]
+        expected_y = self.y[1:]
+        expected_y_err = self.y_err[1:]
+        self.assertTrue(np.array_equal(expected_x, filtered_x))
+        self.assertTrue(np.array_equal(expected_x_err, filtered_x_err))
+        self.assertTrue(np.array_equal(expected_y, filtered_y))
+        self.assertTrue(np.array_equal(expected_y_err, filtered_y_err))
+
+    def test_get_filtered_data_no_x_err(self):
+        self.sgrb_photometry.x_err = None
+        _, filtered_x_err, _, _ = self.sgrb_photometry.get_filtered_data()
+        self.assertIsNone(filtered_x_err)
+
+    def test_get_filtered_data_illegal_data_mode(self):
+        with self.assertRaises(ValueError):
+            self.sgrb.get_filtered_data()
+
+    def test_event_table(self):
+        expected = "/tables/SGRB_table.txt"
+        self.assertIn(expected, self.sgrb.event_table)
+
+    def test_meta_data_from_csv(self):
+        with mock.patch("pandas.read_csv") as m:
+            field_name = 'BAT Photon Index (15-150 keV) (PL = simple power-law, CPL = cutoff power-law)'
+            data_frame = pd.DataFrame.from_dict({field_name: [0, 1, np.nan]})
+            m.return_value = data_frame
+            expected = np.array([0, 1, 0])
+            self.sgrb._set_data()
+            self.assertTrue(np.array_equal(expected, np.array(self.sgrb.meta_data[field_name])))
+
+    def test_photon_index(self):
+        self.assertEqual(1.69, self.sgrb.photon_index)
+
+    def test_photon_index_missing(self):
+        self.assertTrue(np.isnan(self.sgrb_not_existing.photon_index))
+
+    def test_redshift(self):
+        self.assertTrue(np.isnan(self.sgrb.redshift))
+
+    def test_redshift_missing(self):
+        self.assertTrue(np.isnan(self.sgrb_not_existing.redshift))
+
+    def test_t90(self):
+        lgrb = redback.transient.afterglow.LGRB(
+            time=self.time, time_err=self.time_err, flux_density=self.y, flux_density_err=self.y_err,
+            redshift=self.redshift, data_mode=self.data_mode, name="210318B", path=self.path,
+            photon_index=self.photon_index, use_phase_model=self.use_phase_model, bands=self.bands,
+            active_bands=self.active_bands)
+        self.assertEqual(14.95, lgrb.t90)
+
+    def test_t90_missing(self):
+        self.assertTrue(np.isnan(self.sgrb_not_existing.t90))
+
+    def test_flux_to_luminosity_luminosity(self):
+        with mock.patch.object(redback.transient.afterglow.FluxToLuminosityConverter,
+                               "convert_flux_to_luminosity") as m:
+            self.sgrb_luminosity.analytical_flux_to_luminosity()
+            m.assert_not_called()
+
+    def test_flux_to_luminosity_flux_density(self):
+        with mock.patch.object(redback.transient.afterglow.FluxToLuminosityConverter,
+                               "convert_flux_to_luminosity") as m:
+            self.sgrb_flux_density.analytical_flux_to_luminosity()
+            m.assert_not_called()
+            self.assertTrue(self.sgrb_flux_density.flux_density_data)
+
+    def test_flux_to_luminosity_nan_redshift(self):
+        return_value = np.array([0, 1, 2, 3]), np.array([[1, 2, 3, 4], [1, 2, 3, 4]]), \
+                       np.array([2, 3, 4, 5]), np.array([[3, 4, 5, 6], [3, 4, 5, 6]])
+        with mock.patch.object(redback.transient.afterglow.FluxToLuminosityConverter,
+                               "convert_flux_to_luminosity", return_value=return_value) as m:
+            self.sgrb.redshift = np.nan
+            self.sgrb.analytical_flux_to_luminosity()
+            m.assert_called_once()
+            self.assertTrue(self.sgrb.luminosity_data)
+            self.assertTrue(np.array_equal(return_value[0], self.sgrb.x))
+            self.assertTrue(np.array_equal(return_value[1], self.sgrb.x_err))
+            self.assertTrue(np.array_equal(return_value[2], self.sgrb.y))
+            self.assertTrue(np.array_equal(return_value[3], self.sgrb.y_err))
+
+    def test_flux_to_luminosity_none_redshift(self):
+        return_value = np.array([0, 1, 2, 3]), np.array([[1, 2, 3, 4], [1, 2, 3, 4]]), \
+                       np.array([2, 3, 4, 5]), np.array([[3, 4, 5, 6], [3, 4, 5, 6]])
+        with mock.patch.object(redback.transient.afterglow.FluxToLuminosityConverter,
+                               "convert_flux_to_luminosity", return_value=return_value) as m:
+            self.sgrb.redshift = None
+            self.sgrb.analytical_flux_to_luminosity()
+            m.assert_not_called()
+
+    def test_flux_to_luminosity_real_redshift(self):
+        return_value = np.array([0, 1, 2, 3]), np.array([[1, 2, 3, 4], [1, 2, 3, 4]]), \
+                       np.array([2, 3, 4, 5]), np.array([[3, 4, 5, 6], [3, 4, 5, 6]])
+        with mock.patch.object(redback.transient.afterglow.FluxToLuminosityConverter,
+                               "convert_flux_to_luminosity", return_value=return_value) as m:
+            self.sgrb.redshift = 0.5
+            self.sgrb.analytical_flux_to_luminosity()
+            m.assert_called_once()
+            self.assertTrue(self.sgrb.luminosity_data)
+            self.assertTrue(np.array_equal(return_value[0], self.sgrb.x))
+            self.assertTrue(np.array_equal(return_value[1], self.sgrb.x_err))
+            self.assertTrue(np.array_equal(return_value[2], self.sgrb.y))
+            self.assertTrue(np.array_equal(return_value[3], self.sgrb.y_err))
+            self.assertEqual(0.5, self.sgrb.redshift)
+
+    def test_numerical_flux_to_luminosity(self):
+        return_value = np.array([0, 1, 2, 3]), np.array([[1, 2, 3, 4], [1, 2, 3, 4]]), \
+                       np.array([2, 3, 4, 5]), np.array([[3, 4, 5, 6], [3, 4, 5, 6]])
+        with mock.patch.object(redback.transient.afterglow.FluxToLuminosityConverter,
+                               "convert_flux_to_luminosity", return_value=return_value) as m:
+            self.sgrb.redshift = 0.5
+            self.sgrb.numerical_flux_to_luminosity(counts_to_flux_absorbed=1, counts_to_flux_unabsorbed=1)
+            m.assert_called_once()
+            self.assertTrue(self.sgrb.luminosity_data)
+            self.assertTrue(np.array_equal(return_value[0], self.sgrb.x))
+            self.assertTrue(np.array_equal(return_value[1], self.sgrb.x_err))
+            self.assertTrue(np.array_equal(return_value[2], self.sgrb.y))
+            self.assertTrue(np.array_equal(return_value[3], self.sgrb.y_err))
+            self.assertEqual(0.5, self.sgrb.redshift)
+
 
     def test_analytical_flux_to_luminosity(self):
-        self.transient.analytical_flux_to_luminosity()
-        self.assertEqual("luminosity", self.transient.data_mode)
-        self.assertFalse(len(self.transient.time_rest_frame) == 0)
-        self.assertFalse(len(self.transient.time_rest_frame_err) == 0)
-        self.assertFalse(len(self.transient.Lum50) == 0)
-        self.assertFalse(len(self.transient.Lum50_err) == 0)
-
-    def test_numerical_flux_to_luminosity_illegal_data_mode(self):
-        self.transient.data_mode = "flux_density"
-        self.transient.numerical_flux_to_luminosity(counts_to_flux_absorbed=1, counts_to_flux_unabsorbed=1)
-        self.assertEqual("flux_density", self.transient.data_mode)
-        self.assertIsNone(self.transient.time_rest_frame)
-        self.assertIsNone(self.transient.time_rest_frame_err)
-        self.assertIsNone(self.transient.Lum50)
-        self.assertIsNone(self.transient.Lum50_err)
-
-    # def test_numerical_flux_to_luminosity(self):
-    #     self.transient.numerical_flux_to_luminosity(counts_to_flux_absorbed=1, counts_to_flux_unabsorbed=1)
-    #     self.assertEqual("luminosity", self.transient.data_mode)
-    #     self.assertFalse(len(self.transient.time_rest_frame) == 0)
-    #     self.assertFalse(len(self.transient.time_rest_frame_err) == 0)
-    #     self.assertFalse(len(self.transient.Lum50) == 0)
-    #     self.assertFalse(len(self.transient.Lum50_err) == 0)
+        pass
 
 
 class TestTrunctator(unittest.TestCase):
@@ -215,6 +673,30 @@ class TestTrunctator(unittest.TestCase):
         self.assertTrue(np.array_equal(expected_x_err, x_err))
         self.assertTrue(np.array_equal(expected_y, y))
         self.assertTrue(np.array_equal(expected_y_err, y_err))
+
+    def test_truncate_with_prompt_time_error(self):
+        with mock.patch.object(redback.transient.afterglow.Truncator, 'truncate_prompt_time_error') as m:
+            self.truncator.truncate_method = 'prompt_time_error'
+            self.truncator.truncate()
+            m.assert_called_once()
+
+    def test_truncate_with_left_of_max(self):
+        with mock.patch.object(redback.transient.afterglow.Truncator, 'truncate_left_of_max') as m:
+            self.truncator.truncate_method = 'left_of_max'
+            self.truncator.truncate()
+            m.assert_called_once()
+
+    def test_truncate_with_default(self):
+        with mock.patch.object(redback.transient.afterglow.Truncator, 'truncate_default') as m:
+            self.truncator.truncate_method = 'default'
+            self.truncator.truncate()
+            m.assert_called_once()
+
+    def test_truncate_with_default_with_other_string(self):
+        with mock.patch.object(redback.transient.afterglow.Truncator, 'truncate_default') as m:
+            self.truncator.truncate_method = 'other_string'
+            self.truncator.truncate()
+            m.assert_called_once()
 
 
 class TestFluxToLuminosityConversion(unittest.TestCase):
