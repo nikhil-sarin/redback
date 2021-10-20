@@ -434,7 +434,7 @@ class OpticalTransient(Transient):
             if band not in filters:
                 continue
 
-            x_err = self.x_err[idxs] if self is not None else self.x_err
+            x_err = self.x_err[idxs] if self.x_err is not None else self.x_err
 
             color = colors[filters.index(band)]
 
