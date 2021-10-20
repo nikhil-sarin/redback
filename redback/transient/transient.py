@@ -207,11 +207,67 @@ class Transient(object):
         return matplotlib.cm.rainbow(np.linspace(0, 1, len(filters)))
 
     def plot_data(self, axes=None, colour='k'):
-        pass
+        fig, axes = plt.subplots()
+        return axes
 
-    def plot_lightcurve(self, model, axes=None, plot_save=True, plot_show=True, random_models=1000,
-                        posterior=None, outdir=None, **kwargs):
-        pass
+    def plot_multiband(self, axes=None, colour='k'):
+        fig, axes = plt.subplots()
+        return axes
+
+    def plot_lightcurve(self, model, filename=None, axes=None, plot_save=True, plot_show=True, random_models=100,
+                        posterior=None, outdir='.', model_kwargs=None, **kwargs):
+        if filename is None:
+            filename = f"{self.name}_lightcurve.png"
+        axes = axes or plt.gca()
+        axes = self.plot_data(axes=axes)
+
+        if axes.get_yscale == 'linear':
+            times = np.linspace(self.x[0], self.x[-1], 200)
+        else:
+            times = np.exp(np.linspace(np.log(self.x[0]), np.log(self.x[-1]), 200))
+
+        posterior.sort_values(by='log_likelihood')
+        max_like_params = posterior.iloc[-1]
+        ys = model(times, **max_like_params, **model_kwargs)
+        axes.plot(times, ys, color='blue', alpha=0.65, lw=2)
+
+        for _ in range(random_models):
+            params = posterior.iloc[np.random.randint(len(posterior))]
+            ys = model(times, **params, **model_kwargs)
+            axes.plot(times, ys, color='red', alpha=0.05, lw=2, zorder=-1)
+        plt.savefig(join(outdir, filename), dpi=300, bbox_inches="tight")
+        plt.clf()
+
+    def plot_multiband_lightcurve(self, model, filename=None, axes=None, plot_save=True, plot_show=True,
+                                  random_models=100, posterior=None, outdir='.', model_kwargs=None, **kwargs):
+        if self.luminosity_data or self.flux_data:
+            logger.warning(f"Plotting multiband lightcurve not possible for {self.data_mode}. Returning.")
+            return
+
+        if filename is None:
+            filename = f"{self.name}_multiband_lightcurve.png"
+        axes = axes or plt.gca()
+        axes = self.plot_multiband(axes=axes)
+
+        if axes.get_yscale == 'linear':
+            times = np.linspace(self.x[0], self.x[-1], 200)
+        else:
+            times = np.exp(np.linspace(np.log(self.x[0]), np.log(self.x[-1]), 200))
+
+        times_mesh, frequency_mesh = np.meshgrid(times, self.unique_frequencies)
+        model_kwargs['frequency'] = frequency_mesh
+        posterior.sort_values(by='log_likelihood')
+        max_like_params = posterior.iloc[-1]
+        ys = model(times_mesh, **max_like_params, **model_kwargs)
+
+        for i in range(len(self.unique_frequencies)):
+            axes[i].plot(times_mesh[i], ys[i], color='blue', alpha=0.65, lw=2)
+            params = posterior.iloc[np.random.randint(len(posterior))]
+            ys = model(times_mesh, **params, **model_kwargs)
+            for _ in range(random_models):
+                axes.plot(times, ys[i], color='red', alpha=0.05, lw=2, zorder=-1)
+        plt.savefig(join(outdir, filename), dpi=300, bbox_inches="tight")
+        plt.clf()
 
 
 class OpticalTransient(Transient):
@@ -406,5 +462,6 @@ class OpticalTransient(Transient):
         filename = f"{self.name}_{self.data_mode}_{plot_label}.png"
         plt.subplots_adjust(wspace=wspace, hspace=hspace)
         plt.savefig(join(self.transient_dir, filename), bbox_inches="tight")
-        plt.clf()
+        return axes
+        # plt.clf()
 

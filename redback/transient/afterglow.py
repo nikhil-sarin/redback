@@ -220,7 +220,9 @@ class Afterglow(Transient):
                                                       data_mode=self.data_mode)
         filename = f"{self.name}_lc.png"
         plt.savefig(join(grb_dir, filename))
-        plt.clf()
+        if axes is None:
+            plt.clf()
+        return ax
 
     def plot_multiband(self):
         if self.data_mode != 'flux_density':
