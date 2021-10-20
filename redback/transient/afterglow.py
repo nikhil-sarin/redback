@@ -193,8 +193,8 @@ class Afterglow(Transient):
         :param colour:
         """
 
-        x_err = [self.x_err[1, :], self.x_err[0, :]]
-        y_err = [self.y_err[1, :], self.y_err[0, :]]
+        x_err = [np.abs(self.x_err[1, :]), self.x_err[0, :]]
+        y_err = [np.abs(self.y_err[1, :]), self.y_err[0, :]]
 
         ax = axes or plt.gca()
         ax.errorbar(self.x, self.y, xerr=x_err, yerr=y_err,
@@ -206,7 +206,7 @@ class Afterglow(Transient):
         ax.set_xlim(0.5 * self.x[0], 2 * (self.x[-1] + x_err[1][-1]))
         ax.set_ylim(0.5 * min(self.y), 2. * np.max(self.y))
 
-        ax.annotate(f'GRB{self.name}', xy=(0.95, 0.9), xycoords='axes fraction',
+        ax.annotate(self.name, xy=(0.95, 0.9), xycoords='axes fraction',
                     horizontalalignment='right', size=20)
 
         ax.set_xlabel(r'Time since burst [s]')
