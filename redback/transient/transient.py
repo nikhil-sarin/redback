@@ -59,9 +59,9 @@ class Transient(object):
         self.counts_err = np.sqrt(counts) if counts is not None else None
         self.ttes = ttes
 
-        self.frequency = frequency
         self.system = system
         self.bands = bands
+        self.frequency = frequency
         self.active_bands = active_bands
         self.data_mode = data_mode
         self.redshift = redshift
