@@ -3,8 +3,8 @@ import numpy as np
 import os
 import pandas as pd
 
-from ..getdata import prompt_directory_structure, get_batse_trigger_from_grb
-from .transient import Transient
+from redback.getdata import prompt_directory_structure, get_batse_trigger_from_grb
+from redback.transient.transient import Transient
 
 dirname = os.path.dirname(__file__)
 

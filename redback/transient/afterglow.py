@@ -9,9 +9,9 @@ import pandas as pd
 
 from astropy.cosmology import Planck18 as cosmo
 
-from ..utils import logger
-from ..getdata import afterglow_directory_structure
-from .transient import Transient
+from redback.utils import logger
+from redback.getdata import afterglow_directory_structure
+from redback.transient.transient import Transient
 
 dirname = os.path.dirname(__file__)
 

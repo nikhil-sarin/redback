@@ -3,10 +3,10 @@ from pathlib import Path
 
 import bilby
 
-from .likelihoods import GRBGaussianLikelihood, PoissonLikelihood
-from .model_library import all_models_dict
-from .result import RedbackResult
-from .utils import logger
+from redback.likelihoods import GRBGaussianLikelihood, PoissonLikelihood
+from redback.model_library import all_models_dict
+from redback.result import RedbackResult
+from redback.utils import logger
 
 dirname = os.path.dirname(__file__)
 

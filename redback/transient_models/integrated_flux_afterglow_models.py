@@ -2,7 +2,7 @@ import numpy as np
 
 from scipy.integrate import simps
 
-from ..utils import logger
+from redback.utils import logger
 
 integratedflux_base_models = ['tophat', 'cocoon', 'gaussian',
                               'kn_afterglow', 'cone_afterglow',

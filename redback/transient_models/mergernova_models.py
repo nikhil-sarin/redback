@@ -1,4 +1,4 @@
-from ..constants import *
+from redback.constants import *
 
 
 def trapped_magnetar_lum(time, **kwargs):

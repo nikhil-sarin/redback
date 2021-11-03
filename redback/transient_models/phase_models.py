@@ -1,10 +1,10 @@
 from astropy.time import Time
 import astropy.units as uu
 
-from . import extinction_models
-from . import integrated_flux_afterglow_models as infam
-from ..utils import calc_ABmag_from_flux_density, calc_flux_density_from_ABmag
-from ..constants import *
+from redback.constants import *
+from redback.transient_models import extinction_models
+from redback.transient_models import integrated_flux_afterglow_models as infam
+from redback.utils import calc_ABmag_from_flux_density, calc_flux_density_from_ABmag
 
 
 def t0_extinction_models(time, lognh, factor, **kwargs):

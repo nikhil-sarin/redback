@@ -5,9 +5,9 @@ import warnings
 from bilby.core.result import Result
 from bilby.core.result import _determine_file_name # noqa
 
-from . import model_library
-from .transient import TRANSIENT_DICT
-from .utils import MetaDataAccessor
+from redback import model_library
+from redback.transient import TRANSIENT_DICT
+from redback.utils import MetaDataAccessor
 
 warnings.simplefilter(action='ignore')
 

@@ -16,7 +16,8 @@ from selenium import webdriver
 from selenium.common.exceptions import NoSuchElementException
 
 import redback
-from .constants import *
+from redback.constants import *
+
 
 dirname = os.path.dirname(__file__)
 filename = os.path.join(dirname, 'plot_styles/paper.mplstyle')

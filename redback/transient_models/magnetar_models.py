@@ -1,8 +1,10 @@
+import numpy as np
+
 import scipy.special as ss
 from scipy.integrate import quad
 
-from ..constants import *
-from .fireball_models import one_component_fireball_model
+from redback.constants import *
+from redback.transient_models.fireball_models import one_component_fireball_model
 
 
 def mu_function(time, mu0, muinf, tm):

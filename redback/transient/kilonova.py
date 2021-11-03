@@ -1,5 +1,5 @@
 import os
-from .transient import OpticalTransient
+from redback.transient.transient import OpticalTransient
 
 dirname = os.path.dirname(__file__)
 

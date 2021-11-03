@@ -14,8 +14,8 @@ from astropy.io import ascii, fits
 from astropy.time import Time
 from bilby.core.utils import check_directory_exists_and_if_not_mkdir
 
-from .utils import logger, fetch_driver, check_element, calc_flux_density_from_ABmag, calc_flux_density_error
-from .redback_errors import DataExists, WebsiteExist
+from redback.utils import logger, fetch_driver, check_element, calc_flux_density_from_ABmag, calc_flux_density_error
+from redback.redback_errors import DataExists, WebsiteExist
 
 dirname = os.path.dirname(__file__)
 

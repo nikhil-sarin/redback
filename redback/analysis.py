@@ -1,7 +1,7 @@
 import matplotlib.pyplot as plt
 import numpy as np
 
-from .utils import logger
+from redback.utils import logger
 
 
 def plot_multiple_multiband_lightcurves():

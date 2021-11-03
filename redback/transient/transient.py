@@ -4,9 +4,8 @@ import numpy as np
 from os.path import join
 import pandas as pd
 
-from ..getdata import transient_directory_structure
-from ..utils import bin_ttes, logger
-from ..utils import DataModeSwitch, bands_to_frequencies
+from redback.getdata import transient_directory_structure
+from redback.utils import bands_to_frequencies, bin_ttes, DataModeSwitch, logger
 
 
 class Transient(object):

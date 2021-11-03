@@ -1,7 +1,7 @@
 import numpy as np
 
-from .fireball_models import predeceleration
-from ..utils import logger, calc_ABmag_from_flux_density
+from redback.transient_models.fireball_models import predeceleration
+from redback.utils import logger, calc_ABmag_from_flux_density
 
 
 extinction_base_models = ['tophat', 'cocoon', 'gaussian',

@@ -1,6 +1,6 @@
 from astropy.cosmology import Planck18 as cosmo
 
-from .. utils import logger
+from redback.utils import logger
 
 try:
     import afterglowpy as afterglow
