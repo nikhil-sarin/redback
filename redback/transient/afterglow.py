@@ -7,7 +7,7 @@ import os
 from os.path import join
 import pandas as pd
 
-from astropy.cosmology import Planck18 as cosmo
+from astropy.cosmology import Planck18 as cosmo  # noqa
 
 from redback.utils import logger
 from redback.getdata import afterglow_directory_structure
@@ -75,8 +75,7 @@ class Afterglow(Transient):
 
     @staticmethod
     def load_data(name, data_mode=None):
-        grb_dir, _, _ = afterglow_directory_structure(grb=name.lstrip('GRB'), use_default_directory=False,
-                                                      data_mode=data_mode)
+        grb_dir, _, _ = afterglow_directory_structure(grb=name.lstrip('GRB'), data_mode=data_mode)
         filename = f"{name}.csv"
 
         data_file = join(grb_dir, filename)
@@ -97,8 +96,7 @@ class Afterglow(Transient):
         return os.path.join(dirname, f'../tables/{self.__class__.__name__}_table.txt')
 
     def _save_luminosity_data(self):
-        grb_dir, _, _ = afterglow_directory_structure(grb=self._stripped_name, use_default_directory=False,
-                                                      data_mode=self.data_mode)
+        grb_dir, _, _ = afterglow_directory_structure(grb=self._stripped_name, data_mode=self.data_mode)
         filename = f"{self.name}.csv"
         data = {"Time in restframe [s]": self.time_rest_frame,
                 "Pos. time err in restframe [s]": self.time_rest_frame_err[0, :],
@@ -215,15 +213,14 @@ class Afterglow(Transient):
         if axes is None:
             plt.tight_layout()
 
-        grb_dir, _, _ = afterglow_directory_structure(grb=self._stripped_name, use_default_directory=False,
-                                                      data_mode=self.data_mode)
+        grb_dir, _, _ = afterglow_directory_structure(grb=self._stripped_name, data_mode=self.data_mode)
         filename = f"{self.name}_lc.png"
         plt.savefig(join(grb_dir, filename))
         if axes is None:
             plt.clf()
         return ax
 
-    def plot_multiband(self):
+    def plot_multiband(self, axes=None, colour='k'):
         if self.data_mode != 'flux_density':
             logger.warning('why are you doing this')
         pass
@@ -269,20 +266,18 @@ class Truncator(object):
         return self.x, self.x_err, self.y, self.y_err
 
     def truncate_left_of_max(self):
-        max_index = np.argmax(self.y)
-        self.x = self.x[max_index:]
-        self.x_err = self.x_err[:, max_index:]
-        self.y = self.y[max_index:]
-        self.y_err = self.y_err[:, max_index:]
-        return self.x, self.x_err, self.y, self.y_err
+        return self._truncate_by_index(index=np.argmax(self.y))
 
     def truncate_default(self):
         truncate = self.time_err[0, :] > 0.1
-        to_del = len(self.time) - (len(self.time[truncate]) + 2)
-        self.x = self.x[to_del:]
-        self.x_err = self.x_err[:, to_del:]
-        self.y = self.y[to_del:]
-        self.y_err = self.y_err[:, to_del:]
+        index = len(self.time) - (len(self.time[truncate]) + 2)
+        return self._truncate_by_index(index=index)
+
+    def _truncate_by_index(self, index):
+        self.x = self.x[index:]
+        self.x_err = self.x_err[:, index:]
+        self.y = self.y[index:]
+        self.y_err = self.y_err[:, index:]
         return self.x, self.x_err, self.y, self.y_err
 
 
@@ -322,6 +317,7 @@ class FluxToLuminosityConverter(object):
             except ImportError as e:
                 logger.warning(e)
                 logger.warning("Can't perform numerical flux to luminosity calculation")
+                return
             Ecut = 1000
             obs_elow = 0.3
             obs_ehigh = 10

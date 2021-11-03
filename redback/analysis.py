@@ -1,7 +1,8 @@
 import matplotlib.pyplot as plt
 import numpy as np
 
-from redback.utils import logger
+from redback.transient_models.phase_models import t0_extinction_models
+from redback.utils import calc_confidence_intervals, logger
 
 
 def plot_multiple_multiband_lightcurves():
@@ -46,7 +47,7 @@ def evaluate_extinction(time, **s):
     t = t.flatten()
     nu = nu.flatten()
     s['frequency'] = nu
-    magnitudes = mm.t0_extinction_models(t, **s)
+    magnitudes = t0_extinction_models(t, **s)
     magnitudes = magnitudes.reshape(len(nu_1d), len(t_1d))
     return magnitudes, nus
 
@@ -81,6 +82,6 @@ def confidence_interval_lightcurve(result, base_model):
     upper_bound = {}
     median = {}
     for x in range(3):
-        lower_bound[x], upper_bound[x], median[x] = redback.utils.calc_confidence_intervals(lcs[x])
+        lower_bound[x], upper_bound[x], median[x] = calc_confidence_intervals(lcs[x])
 
     return lower_bound, upper_bound, median

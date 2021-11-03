@@ -32,7 +32,7 @@ class PromptTimeSeries(Transient):
 
     @staticmethod
     def load_batse_data(name, channels):
-        grb_dir, _, _ = prompt_directory_structure(grb=name.lstrip("GRB"), use_default_directory=False)
+        grb_dir, _, _ = prompt_directory_structure(grb=name.lstrip("GRB"))
         filename = f"BATSE_lc.csv"
         data_file = os.path.join(grb_dir, filename)
         _time_series_data = np.genfromtxt(data_file, delimiter=",")[1:]

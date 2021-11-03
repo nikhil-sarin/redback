@@ -30,7 +30,7 @@ def evolving_magnetar_only(time, mu0, muinf, p0, sinalpha0, tm, II, **kwargs):
     eta = 0.1
     tau = np.zeros(len(time))
     for ii in range(len(time)):
-        tau[ii], _ = quad(integrand, 0, time[ii], args=(mu0, muinf, tm))
+        tau[ii], _ = quad(integrand, 0, time[ii], args=(mu0, muinf, tm)) # noqa
     mu = mu_function(time, mu0, muinf, tm)
     omega0 = (2 * np.pi) / p0
     tau = (omega0 ** 2) / (II * speed_of_light ** 3) * tau
@@ -158,11 +158,8 @@ def general_magnetar(time, a_1, alpha_1,
     x = np.where(time > time_one)
 
     f1 = a_1 * time[w] ** alpha_1
-    f2 = a_2 * (1. + (time[x] / tau)) ** (gamma)
-
-    total = np.concatenate((f1, f2))
-
-    return total
+    f2 = a_2 * (1. + (time[x] / tau)) ** gamma
+    return np.concatenate((f1, f2))
 
 
 def integral_general(time, t0, kappa, tau, nn, **kwargs):
@@ -176,13 +173,8 @@ def integral_general(time, t0, kappa, tau, nn, **kwargs):
     :param kwargs:
     :return:
     """
-    alpha = ((1 + nn) / (-1 + nn))
-    pft = ss.hyp2f1(1 + kappa, alpha, 2 + kappa, -time / tau)
-    pst = ss.hyp2f1(1 + kappa, alpha, 2 + kappa, -t0 / tau)
-    first_term = (time ** (1 + kappa) * pft) / (1 + kappa)
-    second_term = (t0 ** (1 + kappa) * pst) / (1 + kappa)
-    integral = (first_term - second_term)
-    return integral
+    first_term, second_term = _get_integral_terms(time=time, t0=t0, kappa=kappa, tau=tau, nn=nn)
+    return first_term - second_term
 
 
 def integral_general_collapsing(time, t0, kappa, tau, nn, tcol, **kwargs):
@@ -197,13 +189,17 @@ def integral_general_collapsing(time, t0, kappa, tau, nn, tcol, **kwargs):
     :param kwargs:
     :return:
     """
-    alpha = ((1 + nn) / (-1 + nn))
+    first_term, second_term = _get_integral_terms(time=time, t0=t0, kappa=kappa, tau=tau, nn=nn)
+    return np.heaviside(tcol - time, 1e-50) * (first_term - second_term)
+
+
+def _get_integral_terms(time, t0, kappa, tau, nn):
+    alpha = (1 + nn) / (-1 + nn)
     pft = ss.hyp2f1(1 + kappa, alpha, 2 + kappa, -time / tau)
     pst = ss.hyp2f1(1 + kappa, alpha, 2 + kappa, -t0 / tau)
     first_term = (time ** (1 + kappa) * pft) / (1 + kappa)
     second_term = (t0 ** (1 + kappa) * pst) / (1 + kappa)
-    integral = np.heaviside(tcol - time, 1e-50) * (first_term - second_term)
-    return integral
+    return first_term, second_term
 
 
 def integral_mdr(time, t0, kappa, a, **kwargs):
@@ -241,9 +237,7 @@ def piecewise_radiative_losses(time, a_1, alpha_1, l0, tau, nn, kappa, t0, **kwa
 
     lum = (kappa * energy_loss_total / time[magnetar_time])
 
-    total = np.concatenate((pl, lum))
-
-    return total
+    return np.concatenate((pl, lum))
 
 
 def radiative_losses(time, a_1, alpha_1, l0, tau, nn, kappa, t0, log_e0, **kwargs):

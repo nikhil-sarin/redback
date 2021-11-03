@@ -25,6 +25,5 @@ class TDE(OpticalTransient):
     @property
     def transient_dir(self):
         transient_dir, _, _ = transient_directory_structure(
-            transient=self.name, use_default_directory=False,
-            transient_type='tidal_disruption_event')
+            transient=self.name, transient_type='tidal_disruption_event')
         return transient_dir

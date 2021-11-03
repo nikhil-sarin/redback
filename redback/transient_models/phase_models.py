@@ -1,3 +1,6 @@
+from inspect import isfunction
+import numpy as np
+
 from astropy.time import Time
 import astropy.units as uu
 
@@ -137,8 +140,13 @@ def t0_afterglowpy_flux_density_model(time, burst_start, **kwargs):
     """
     from ..model_library import modules_dict
     base_model = kwargs['base_model']
-    if isinstance(base_model, str):
+
+    if isfunction(base_model):
+        function = base_model
+    elif isinstance(base_model, str):
         function = modules_dict['afterglow_models'][base_model]
+    else:
+        raise ValueError("Not a valid base model.")
 
     grb_time = time[time >= burst_start] - burst_start
     flux = function(grb_time, **kwargs)

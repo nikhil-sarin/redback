@@ -12,7 +12,7 @@ def skew_gaussian(times, amplitude, t_0, sigma_rise, sigma_fall, **kwargs):
     after_burst_indices = np.where(times > t_0)
     envelope = np.zeros(len(times))
     envelope[before_burst_indices] = gaussian(
-        times=times[before_burst_indices], amplitude=amplitude,t_0=t_0, sigma=sigma_rise)
+        times=times[before_burst_indices], amplitude=amplitude, t_0=t_0, sigma=sigma_rise)
     envelope[after_burst_indices] = gaussian(
         times=times[after_burst_indices], amplitude=amplitude, t_0=t_0, sigma=sigma_fall)
     return envelope * dt

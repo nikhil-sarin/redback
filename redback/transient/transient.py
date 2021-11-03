@@ -9,7 +9,6 @@ from redback.utils import bands_to_frequencies, bin_ttes, DataModeSwitch, logger
 
 
 class Transient(object):
-
     DATA_MODES = ['luminosity', 'flux', 'flux_density', 'photometry', 'counts', 'ttes']
     _ATTRIBUTE_NAME_DICT = dict(luminosity="Lum50", flux="flux", flux_density="flux_density",
                                 counts="counts", photometry="magnitude")
@@ -177,7 +176,7 @@ class Transient(object):
             filtered_x = self.x[idxs]
             try:
                 filtered_x_err = self.x_err[idxs]
-            except Exception:
+            except IndexError:
                 filtered_x_err = None
             filtered_y = self.y[idxs]
             filtered_y_err = self.y_err[idxs]
@@ -202,7 +201,8 @@ class Transient(object):
     def default_filters(self):
         return ["g", "r", "i", "z", "y", "J", "H", "K"]
 
-    def get_colors(self, filters):
+    @staticmethod
+    def get_colors(filters):
         return matplotlib.cm.rainbow(np.linspace(0, 1, len(filters)))
 
     def plot_data(self, axes=None, colour='k'):
@@ -220,10 +220,7 @@ class Transient(object):
         axes = axes or plt.gca()
         axes = self.plot_data(axes=axes)
 
-        if axes.get_yscale == 'linear':
-            times = np.linspace(self.x[0], self.x[-1], 200)
-        else:
-            times = np.exp(np.linspace(np.log(self.x[0]), np.log(self.x[-1]), 200))
+        times = self._get_times(axes)
 
         posterior.sort_values(by='log_likelihood')
         max_like_params = posterior.iloc[-1]
@@ -248,10 +245,7 @@ class Transient(object):
         axes = axes or plt.gca()
         axes = self.plot_multiband(axes=axes)
 
-        if axes.get_yscale == 'linear':
-            times = np.linspace(self.x[0], self.x[-1], 200)
-        else:
-            times = np.exp(np.linspace(np.log(self.x[0]), np.log(self.x[-1]), 200))
+        times = self._get_times(axes)
 
         times_mesh, frequency_mesh = np.meshgrid(times, self.unique_frequencies)
         model_kwargs['frequency'] = frequency_mesh
@@ -265,12 +259,21 @@ class Transient(object):
             ys = model(times_mesh, **params, **model_kwargs)
             for _ in range(random_models):
                 axes.plot(times, ys[i], color='red', alpha=0.05, lw=2, zorder=-1)
-        plt.savefig(join(outdir, filename), dpi=300, bbox_inches="tight")
+        if plot_save:
+            plt.savefig(join(outdir, filename), dpi=300, bbox_inches="tight")
+        if plot_show:
+            plt.show()
         plt.clf()
+
+    def _get_times(self, axes):
+        if axes.get_yscale == 'linear':
+            times = np.linspace(self.x[0], self.x[-1], 200)
+        else:
+            times = np.exp(np.linspace(np.log(self.x[0]), np.log(self.x[-1]), 200))
+        return times
 
 
 class OpticalTransient(Transient):
-
     DATA_MODES = ['flux', 'flux_density', 'photometry', 'luminosity']
 
     def __init__(self, name, data_mode='photometry', time=None, time_err=None, time_mjd=None, time_mjd_err=None,
@@ -319,8 +322,6 @@ class OpticalTransient(Transient):
                    magnitude_err=magnitude_err, bands=bands, system=system, active_bands=active_bands,
                    use_phase_model=use_phase_model)
 
-
-
     @property
     def event_table(self):
         return f'{self.__class__.__name__.lower()}/{self.name}/metadata.csv'
@@ -341,17 +342,15 @@ class OpticalTransient(Transient):
     @classmethod
     def _get_transient_dir(cls, name):
         transient_dir, _, _ = transient_directory_structure(
-            transient=name, use_default_directory=False,
-            transient_type=cls.__name__.lower())
+            transient=name, transient_type=cls.__name__.lower())
         return transient_dir
-
-
 
     def plot_data(self, axes=None, filters=None, plot_others=True, **plot_kwargs):
         """
         plots the data
         :param axes:
-        :param colour:
+        :param filters:
+        :param plot_others:
         """
         errorbar_fmt = plot_kwargs.get("errorbar_fmt", "x")
         colors = plot_kwargs.get("colors", self.get_colors(filters))
@@ -394,7 +393,6 @@ class OpticalTransient(Transient):
         plt.savefig(join(self.transient_dir, filename))
         plt.clf()
 
-
     def plot_multiband(self, figure=None, axes=None, ncols=2, nrows=None, figsize=None, filters=None,
                        **plot_kwargs):
         if self.luminosity_data or self.flux_data:
@@ -424,7 +422,7 @@ class OpticalTransient(Transient):
                                  f"but {len(filters)} panels are needed.")
             if figsize is None:
                 figsize = (4 * ncols, 4 * nrows)
-            figure, axes = plt.subplots(ncols=ncols, nrows=nrows, sharex=True, sharey=True, figsize=figsize)
+            figure, axes = plt.subplots(ncols=ncols, nrows=nrows, sharex='all', sharey='all', figsize=figsize)
 
         axes = axes.ravel()
 

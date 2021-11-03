@@ -42,7 +42,7 @@ class TestGetGRBFile(unittest.TestCase):
         pass
 
     def test_get_grb_file(self):
-        grb_file = getdata.get_grb_file(grb="GRB041223", use_default_directory=True)
+        grb_file = getdata.get_grb_file(grb="GRB041223")
         self.assertIsNotNone(grb_file)
 
 
