@@ -4,14 +4,13 @@ Contains GRB class, with method to load and truncate data for SGRB and in future
 import matplotlib.pyplot as plt
 import numpy as np
 import os
+from os.path import join
 import pandas as pd
-from redback.utils import logger
 
 from astropy.cosmology import Planck18 as cosmo
-from ..getdata import afterglow_directory_structure
-from os.path import join
 
-import redback
+from ..utils import logger
+from ..getdata import afterglow_directory_structure
 from .transient import Transient
 
 dirname = os.path.dirname(__file__)
@@ -350,49 +349,3 @@ class FluxToLuminosityConverter(object):
         self.Lum50_err = self.flux_err * isotropic_bolometric_flux * 1e-50
         self.time_rest_frame = self.time / (1 + redshift)
         self.time_rest_frame_err = self.time_err / (1 + redshift)
-
-
-# def plot_models(parameters, model, plot_magnetar, axes=None, colour='r', alpha=1.0, ls='-', lw=4):
-#     """
-#     plot the models
-#     parameters: dictionary of parameters - 1 set of Parameters
-#     model: model name
-#     """
-#     time = np.logspace(-4, 7, 100)
-#     ax = axes or plt.gca()
-#
-#     lightcurve = all_models_dict[model]
-#     magnetar_models = ['evolving_magnetar', 'evolving_magnetar_only', 'piecewise_radiative_losses',
-#                        'radiative_losses', 'radiative_losses_mdr', 'radiative_losses_smoothness', 'radiative_only']
-#     if model in magnetar_models and plot_magnetar:
-#         if model == 'radiative_losses_mdr':
-#             magnetar = mm.magnetar_only(time, nn=3., **parameters)
-#         else:
-#             magnetar = mm.magnetar_only(time, **parameters)
-#         ax.plot(time, magnetar, color=colour, ls=ls, lw=lw, alpha=alpha, zorder=-32, linestyle='--')
-#     ax.plot(time, lightcurve, color=colour, ls=ls, lw=lw, alpha=alpha, zorder=-32)
-
-
-# def plot_lightcurve(self, model, axes=None, plot_save=True, plot_show=True, random_models=1000,
-#                     posterior=None, use_photon_index_prior=False, outdir='./', plot_magnetar=False):
-#     max_l = dict(posterior.sort_values(by=['log_likelihood']).iloc[-1])
-#
-#     for j in range(int(random_models)):
-#         params = dict(posterior.iloc[np.random.randint(len(posterior))])
-#         plot_models(parameters=params, axes=axes, alpha=0.05, lw=2, colour='r', model=model,
-#                     plot_magnetar=plot_magnetar)
-#
-#     # plot max likelihood
-#     plot_models(parameters=max_l, axes=axes, alpha=0.65, lw=2, colour='b', model=model, plot_magnetar=plot_magnetar)
-#
-#     self.plot_data(axes=axes)
-#
-#     label = 'lightcurve'
-#     if use_photon_index_prior:
-#         label = f"_photon_index_{label}"
-#
-#     if plot_save:
-#         plt.savefig(f"{outdir}{model}{label}.png")
-#
-#     if plot_show:
-#         plt.show()

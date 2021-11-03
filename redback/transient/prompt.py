@@ -1,11 +1,10 @@
-import os
-
 import matplotlib.pyplot as plt
 import numpy as np
+import os
 import pandas as pd
 
-from .transient import Transient
 from ..getdata import prompt_directory_structure, get_batse_trigger_from_grb
+from .transient import Transient
 
 dirname = os.path.dirname(__file__)
 

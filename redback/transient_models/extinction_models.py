@@ -1,6 +1,7 @@
+import numpy as np
+
 from .fireball_models import predeceleration
 from ..utils import logger, calc_ABmag_from_flux_density
-import numpy as np
 
 
 extinction_base_models = ['tophat', 'cocoon', 'gaussian',

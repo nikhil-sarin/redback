@@ -1,26 +1,21 @@
-"""
-Code for reading GRB data from Swift website
-"""
+import numpy as np
 import os
-import sys
+import pandas as pd
+from pathlib import Path
+import re
+import requests
+import sqlite3
 import time
 import urllib
 import urllib.request
-import requests
-import sqlite3
-import re
-from pathlib import Path
 
-import pandas as pd
-import numpy as np
 import astropy.units as uu
 from astropy.io import ascii, fits
+from astropy.time import Time
+from bilby.core.utils import check_directory_exists_and_if_not_mkdir
 
 from .utils import logger, fetch_driver, check_element, calc_flux_density_from_ABmag, calc_flux_density_error
 from .redback_errors import DataExists, WebsiteExist
-
-from bilby.core.utils import check_directory_exists_and_if_not_mkdir
-from astropy.time import Time
 
 dirname = os.path.dirname(__file__)
 
@@ -57,7 +52,6 @@ def _get_data_functions_dict():
             ("kilonova", "open_data"): get_kilonova_data_from_open_transient_catalog_data,
             ("supernova", "open_data"): get_supernova_data_from_open_transient_catalog_data,
             ("tidal_disruption_event", "open_data"): get_tidal_disruption_event_data_from_open_transient_catalog_data}
-
 
 
 def afterglow_directory_structure(grb, use_default_directory, data_mode, instrument='BAT+XRT'):
@@ -438,9 +432,11 @@ def get_kilonova_data_from_open_transient_catalog_data(transient, use_default_di
     return get_open_transient_catalog_data(transient, transient_type="kilonova",
                                            use_default_directory=use_default_directory)
 
+
 def get_supernova_data_from_open_transient_catalog_data(transient, use_default_directory=False):
     return get_open_transient_catalog_data(transient, transient_type="supernova",
                                            use_default_directory=use_default_directory)
+
 
 def get_tidal_disruption_event_data_from_open_transient_catalog_data(transient, use_default_directory=False):
     return get_open_transient_catalog_data(transient, transient_type="tidal_disruption_event",
@@ -565,8 +561,9 @@ def sort_open_access_data(transient, use_default_directory, transient_type):
 
         data['flux_density(mjy)'] = calc_flux_density_from_ABmag(data['magnitude'].values)
         data['flux_density_error'] = calc_flux_density_error(magnitude=data['magnitude'].values,
-                                                     magnitude_error=data['e_magnitude'].values, reference_flux=3631,
-                                                     magnitude_system='AB')
+                                                             magnitude_error=data['e_magnitude'].values,
+                                                             reference_flux=3631,
+                                                             magnitude_system='AB')
 
         metadata = directory + 'metadata.csv'
         metadata = pd.read_csv(metadata)

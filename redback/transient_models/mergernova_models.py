@@ -1,5 +1,5 @@
-import numpy as np
 from ..constants import *
+
 
 def trapped_magnetar_lum(time, **kwargs):
     alpha = (1 + nn)/(1 - nn)
@@ -10,6 +10,7 @@ def trapped_magnetar_lum(time, **kwargs):
     tau = kappa * (mej/vprime) * (radius/lorentz_factor)
     lum = e**(-tau) * lsd + (lnu_x_bb)
     return lum
+
 
 def trapped_magnetar_flux(time, **kwargs):
     lum = trapped_magnetar_lum(time, **kwargs)

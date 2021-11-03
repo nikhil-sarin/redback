@@ -1,12 +1,14 @@
 import numpy as np
-from ..utils import logger
+
 from scipy.integrate import simps
 
+from ..utils import logger
+
 integratedflux_base_models = ['tophat', 'cocoon', 'gaussian',
-                          'kn_afterglow', 'cone_afterglow',
-                          'gaussiancore', 'gaussian',
-                          'smoothpowerlaw', 'powerlawcore',
-                          'tophat']
+                              'kn_afterglow', 'cone_afterglow',
+                              'gaussiancore', 'gaussian',
+                              'smoothpowerlaw', 'powerlawcore',
+                              'tophat']
 
 
 def integrated_flux_afterglowpy_base_model(time, **kwargs):

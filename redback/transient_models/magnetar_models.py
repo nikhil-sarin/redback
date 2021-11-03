@@ -1,16 +1,19 @@
-import numpy as np
 import scipy.special as ss
-from ..constants import *
 from scipy.integrate import quad
+
+from ..constants import *
 from .fireball_models import one_component_fireball_model
 
+
 def mu_function(time, mu0, muinf, tm):
-    mu = muinf + (mu0 - muinf)*np.exp(-time/tm)
+    mu = muinf + (mu0 - muinf) * np.exp(-time / tm)
     return mu
 
+
 def integrand(time, mu0, muinf, tm):
-    mu = muinf + (mu0 - muinf)*np.exp(-time/tm)
-    return mu**2
+    mu = muinf + (mu0 - muinf) * np.exp(-time / tm)
+    return mu ** 2
+
 
 def evolving_magnetar_only(time, mu0, muinf, p0, sinalpha0, tm, II, **kwargs):
     """
@@ -19,9 +22,9 @@ def evolving_magnetar_only(time, mu0, muinf, p0, sinalpha0, tm, II, **kwargs):
     :param kwargs: key word argument for handling plotting
     :return: luminosity (depending on scaling) as a function of time.
     """
-    mu0 = mu0 * 1e33 # G cm^3
-    muinf = muinf * 1e33 # G cm^3
-    tm = tm * 86400 #days
+    mu0 = mu0 * 1e33  # G cm^3
+    muinf = muinf * 1e33  # G cm^3
+    tm = tm * 86400  # days
     eta = 0.1
     tau = np.zeros(len(time))
     for ii in range(len(time)):
@@ -38,7 +41,8 @@ def evolving_magnetar_only(time, mu0, muinf, p0, sinalpha0, tm, II, **kwargs):
     ytau = y0 / ((1 + ftau) ** 0.5)
     omegatau = omega0 * (1 - y0 ** 2) * ((1 + ftau) ** 0.5) / (1 - y0 ** 2 + ftau)
     luminosity = eta * (mu ** 2 * omegatau ** 4) / (speed_of_light ** 3) * (1 + ytau ** 2)
-    return luminosity/1e50
+    return luminosity / 1e50
+
 
 def evolving_magnetar(time, A_1, alpha_1, mu0, muinf, p0, sinalpha0, tm, II, **kwargs):
     """
@@ -157,6 +161,7 @@ def general_magnetar(time, a_1, alpha_1,
     total = np.concatenate((f1, f2))
 
     return total
+
 
 def integral_general(time, t0, kappa, tau, nn, **kwargs):
     """

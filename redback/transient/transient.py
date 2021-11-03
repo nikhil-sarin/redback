@@ -1,12 +1,12 @@
 import matplotlib.pyplot as plt
 import matplotlib
-import pandas as pd
-from os.path import join
 import numpy as np
-from redback.utils import logger
-from redback.utils import DataModeSwitch, bands_to_frequencies
-from redback.getdata import transient_directory_structure
-import redback
+from os.path import join
+import pandas as pd
+
+from ..getdata import transient_directory_structure
+from ..utils import bin_ttes, logger
+from ..utils import DataModeSwitch, bands_to_frequencies
 
 
 class Transient(object):
@@ -38,7 +38,7 @@ class Transient(object):
         """
         self.bin_size = bin_size
         if data_mode == 'ttes':
-            time, counts = redback.utils.bin_ttes(ttes, self.bin_size)
+            time, counts = bin_ttes(ttes, self.bin_size)
 
         self.time = time
         self.time_err = time_err
@@ -157,7 +157,7 @@ class Transient(object):
     @frequency.setter
     def frequency(self, frequency):
         if frequency is None:
-            self._frequency = redback.utils.bands_to_frequencies(self.bands)
+            self._frequency = bands_to_frequencies(self.bands)
         else:
             self._frequency = frequency
 
@@ -341,7 +341,7 @@ class OpticalTransient(Transient):
 
     @classmethod
     def _get_transient_dir(cls, name):
-        transient_dir, _, _ = redback.getdata.transient_directory_structure(
+        transient_dir, _, _ = transient_directory_structure(
             transient=name, use_default_directory=False,
             transient_type=cls.__name__.lower())
         return transient_dir
@@ -438,7 +438,7 @@ class OpticalTransient(Transient):
 
             color = colors[filters.index(band)]
 
-            freq = redback.utils.bands_to_frequencies([band])
+            freq = bands_to_frequencies([band])
             if 1e10 < freq < 1e15:
                 label = band
             else:
@@ -463,5 +463,3 @@ class OpticalTransient(Transient):
         plt.subplots_adjust(wspace=wspace, hspace=hspace)
         plt.savefig(join(self.transient_dir, filename), bbox_inches="tight")
         return axes
-        # plt.clf()
-

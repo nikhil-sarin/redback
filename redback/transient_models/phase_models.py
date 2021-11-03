@@ -1,12 +1,10 @@
-import numpy as np
-from . import extinction_models
-from . import integrated_flux_afterglow_models as infam
-from . import afterglow_models
-from .fireball_models import predeceleration
-from ..utils import get_functions_dict, calc_ABmag_from_flux_density, deceleration_timescale, calc_flux_density_from_ABmag
-from ..constants import *
 from astropy.time import Time
 import astropy.units as uu
+
+from . import extinction_models
+from . import integrated_flux_afterglow_models as infam
+from ..utils import calc_ABmag_from_flux_density, calc_flux_density_from_ABmag
+from ..constants import *
 
 
 def t0_extinction_models(time, lognh, factor, **kwargs):
@@ -18,7 +16,8 @@ def t0_extinction_models(time, lognh, factor, **kwargs):
     :return: magnitude or flux_density depending on kwarg 'output_format'
     """
     if kwargs['output_format'] is not 'flux_density' or not 'magnitude':
-        raise ValueError('Output format {} not understood. Please use magnitude or flux_density'.format(kwargs['output_format']))
+        raise ValueError(
+            'Output format {} not understood. Please use magnitude or flux_density'.format(kwargs['output_format']))
     t0 = kwargs['t0']
     t0 = Time(t0, format='mjd')
     time = Time(np.asarray(time, dtype=float), format='mjd')
@@ -29,6 +28,7 @@ def t0_extinction_models(time, lognh, factor, **kwargs):
     elif kwargs['output_format'] == 'magnitude':
         return magnitude
 
+
 def t0_thin_shell_predeceleration(time, **kwargs):
     """
     Assume pre-deceleration behaviour is in thin-shell regime and follows Sari and Piran 1997
@@ -37,14 +37,15 @@ def t0_thin_shell_predeceleration(time, **kwargs):
     :return: flux or magnitude
     """
     if kwargs['output_format'] is not 'flux_density' or not 'magnitude':
-        raise ValueError('Output format {} not understood. Please use magnitude or flux_density'.format(kwargs['output_format']))
+        raise ValueError(
+            'Output format {} not understood. Please use magnitude or flux_density'.format(kwargs['output_format']))
 
     e0 = 10 ** kwargs['loge0']
     nism = 10 ** kwargs['logn0']
     g0 = kwargs['g0']
     frac1 = 3 * e0
-    frac2 = 32 * np.pi * g0**8 * nism * proton_mass * speed_of_light**5
-    tp = (frac1/frac2)**(1./3.)
+    frac2 = 32 * np.pi * g0 ** 8 * nism * proton_mass * speed_of_light ** 5
+    tp = (frac1 / frac2) ** (1. / 3.)
     gradient = kwargs['m']
     tt_predec = time[time < tp]
     tt_postdec = time[time >= tp]
@@ -63,6 +64,7 @@ def t0_thin_shell_predeceleration(time, **kwargs):
         return flux
     elif kwargs['output_format'] == 'magnitude':
         return calc_ABmag_from_flux_density(flux).value
+
 
 def t0_exinction_models_with_sampled_t_peak(time, tp, **kwargs):
     """
@@ -73,7 +75,8 @@ def t0_exinction_models_with_sampled_t_peak(time, tp, **kwargs):
     :return: flux or magnitude depending on kwargs.
     """
     if kwargs['output_format'] is not 'flux_density' or not 'magnitude':
-        raise ValueError('Output format {} not understood. Please use magnitude or flux_density'.format(kwargs['output_format']))
+        raise ValueError(
+            'Output format {} not understood. Please use magnitude or flux_density'.format(kwargs['output_format']))
 
     gradient = kwargs['m']
     tt_predec = time[time < tp]
@@ -91,6 +94,7 @@ def t0_exinction_models_with_sampled_t_peak(time, tp, **kwargs):
         return flux
     elif kwargs['output_format'] == 'magnitude':
         return calc_ABmag_from_flux_density(flux).value
+
 
 def t0_afterglowpy_rate_model(time, **kwargs):
     """
@@ -110,6 +114,7 @@ def t0_afterglowpy_rate_model(time, **kwargs):
     rate[time < burst_start] = (background_rate * dt)
     return rate
 
+
 def t0_afterglowpy_flux_model(time, burst_start, **kwargs):
     """
     Afterglowpy based integrated flux models with burst_start as a parameter.
@@ -120,6 +125,7 @@ def t0_afterglowpy_flux_model(time, burst_start, **kwargs):
     grb_time = time[time >= burst_start] - burst_start
     flux = infam.integrated_flux_afterglowpy_base_model(grb_time, **kwargs)
     return flux, grb_time
+
 
 def t0_afterglowpy_flux_density_model(time, burst_start, **kwargs):
     """

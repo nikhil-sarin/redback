@@ -2,7 +2,8 @@ import numpy as np
 import inspect
 
 import bilby
-from scipy.special import gammaln, logsumexp
+from scipy.special import gammaln
+
 
 class GaussianLikelihood(bilby.Likelihood):
     def __init__(self, x, y, sigma, function, kwargs=None):
@@ -58,6 +59,7 @@ class GaussianLikelihood(bilby.Likelihood):
         log_l = np.sum(- (res / sigma) ** 2 / 2 -
                        np.log(2 * np.pi * sigma ** 2) / 2)
         return log_l
+
 
 class GaussianLikelihood_with_uniform_x_errors(bilby.Likelihood):
     def __init__(self, x, y, sigma, bin_size, function, kwargs=None):
@@ -127,6 +129,7 @@ class GaussianLikelihood_with_uniform_x_errors(bilby.Likelihood):
         log_l = log_a + log_b
         return log_l
 
+
 class GaussianLikelihood_quadrature_noise(bilby.Likelihood):
     def __init__(self, x, y, sigma_i, function, kwargs=None):
         """
@@ -163,7 +166,7 @@ class GaussianLikelihood_quadrature_noise(bilby.Likelihood):
 
     def noise_log_likelihood(self):
         sigma_s = self.parameters['sigma']
-        sigma = np.sqrt(self.sigma_i**2. + sigma_s**2.)
+        sigma = np.sqrt(self.sigma_i ** 2. + sigma_s ** 2.)
         res = self.y - 0.
         log_l = np.sum(- (res / sigma) ** 2 / 2 -
                        np.log(2 * np.pi * sigma ** 2) / 2)
@@ -177,12 +180,13 @@ class GaussianLikelihood_quadrature_noise(bilby.Likelihood):
             model = self.function(self.x, **self.parameters)
 
         sigma_s = self.parameters['sigma']
-        sigma = np.sqrt(self.sigma_i**2. + sigma_s**2.)
+        sigma = np.sqrt(self.sigma_i ** 2. + sigma_s ** 2.)
 
         res = self.y - model
         log_l = np.sum(- (res / sigma) ** 2 / 2 -
                        np.log(2 * np.pi * sigma ** 2) / 2)
         return log_l
+
 
 class GaussianLikelihood_quadrature_noise_non_detections(bilby.Likelihood):
     def __init__(self, x, y, sigma_i, function, kwargs=None, upperlimit_kwargs=None):
@@ -221,7 +225,7 @@ class GaussianLikelihood_quadrature_noise_non_detections(bilby.Likelihood):
 
     def noise_log_likelihood(self):
         sigma_s = self.parameters['sigma']
-        sigma = np.sqrt(self.sigma_i**2. + sigma_s**2.)
+        sigma = np.sqrt(self.sigma_i ** 2. + sigma_s ** 2.)
         res = self.y - 0.
         log_l = np.sum(- (res / sigma) ** 2 / 2 -
                        np.log(2 * np.pi * sigma ** 2) / 2)
@@ -235,7 +239,7 @@ class GaussianLikelihood_quadrature_noise_non_detections(bilby.Likelihood):
             model = self.function(self.x, **self.parameters)
 
         sigma_s = self.parameters['sigma']
-        sigma = np.sqrt(self.sigma_i**2. + sigma_s**2.)
+        sigma = np.sqrt(self.sigma_i ** 2. + sigma_s ** 2.)
 
         res = self.y - model
         log_l = np.sum(- (res / sigma) ** 2 / 2 -
@@ -256,6 +260,7 @@ class GaussianLikelihood_quadrature_noise_non_detections(bilby.Likelihood):
         log_b = self.log_likelihood_b()
         log_l = log_a + log_b
         return log_l
+
 
 class GRBGaussianLikelihood(bilby.Likelihood):
     def __init__(self, x, y, sigma, function, kwargs=None):

@@ -1,22 +1,18 @@
 import os
-import sys
 from pathlib import Path
 
 import bilby
 
-import pandas as pd
-
-from . import afterglow
-
-from .result import RedbackResult
-from .utils import find_path, logger
+from .likelihoods import GRBGaussianLikelihood, PoissonLikelihood
 from .model_library import all_models_dict
-from .likelihoods import GRBGaussianLikelihood, GaussianLikelihood, PoissonLikelihood
+from .result import RedbackResult
+from .utils import logger
 
 dirname = os.path.dirname(__file__)
 
 
-def fit_model(name, transient, model, outdir=".", source_type='GRB', sampler='dynesty', nlive=2000, prior=None, walks=200,
+def fit_model(name, transient, model, outdir=".", source_type='GRB', sampler='dynesty', nlive=2000, prior=None,
+              walks=200,
               truncate=True, use_photon_index_prior=False, truncate_method='prompt_time_error', data_mode='flux',
               resume=True, save_format='json', model_kwargs=None, **kwargs):
     """
@@ -77,7 +73,6 @@ def fit_model(name, transient, model, outdir=".", source_type='GRB', sampler='dy
 def _fit_grb(name, transient, model, outdir, sampler='dynesty', nlive=3000, prior=None, walks=1000, truncate=True,
              use_photon_index_prior=False, truncate_method='prompt_time_error', data_mode='flux',
              resume=True, save_format='json', model_kwargs=None, **kwargs):
-
     if use_photon_index_prior:
         if transient.photon_index < 0.:
             logger.info('photon index for GRB', transient.name, 'is negative. Using default prior on alpha_1')
@@ -97,7 +92,6 @@ def _fit_grb(name, transient, model, outdir, sampler='dynesty', nlive=3000, prio
     label = data_mode
     if use_photon_index_prior:
         label += '_photon_index'
-
 
     if transient.flux_density_data or transient.photometry_data:
         x, x_err, y, y_err = transient.get_filtered_data()
@@ -127,7 +121,6 @@ def _fit_prompt(name, transient, model, outdir, integrated_rate_function=True, s
                 prior=None, walks=1000, truncate=True, use_photon_index_prior=False,
                 truncate_method='prompt_time_error', data_mode='flux', resume=True, save_format='json',
                 model_kwargs=None, **kwargs):
-
     if isinstance(model, str):
         function = all_models_dict[model]
     else:
@@ -155,6 +148,7 @@ def _fit_prompt(name, transient, model, outdir, integrated_rate_function=True, s
                                nthreads=4, save_bounds=False, nsteps=nlive, nwalkers=walks, save=save_format, **kwargs)
 
     return result
+
 
 def _fit_supernova(**kwargs):
     pass

@@ -1,19 +1,22 @@
-from .utils import logger, calc_ABmag_from_flux_density, get_functions_dict
-from transient_models import afterglow_models
 import matplotlib.pyplot as plt
 import numpy as np
+
+from .utils import logger
 
 
 def plot_multiple_multiband_lightcurves():
     pass
 
+
 def plot_evolution_parameters():
     pass
+
 
 def plot_multiple_lightcurves():
     pass
 
-def plot_afterglowpy_lightcurves(time, plot = False, **kwargs):
+
+def plot_afterglowpy_lightcurves(time, plot=False, **kwargs):
     """
     :param time: Time for the axis
     :param kwargs:
@@ -29,7 +32,7 @@ def plot_afterglowpy_lightcurves(time, plot = False, **kwargs):
     flux = function(time, **kwargs)
 
     if plot:
-        plt.loglog(time, flux, lw = 0.1, c='red', alpha = 0.1, zorder = -1)
+        plt.loglog(time, flux, lw=0.1, c='red', alpha=0.1, zorder=-1)
         return None
     else:
         return time, flux

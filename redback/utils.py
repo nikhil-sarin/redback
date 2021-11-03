@@ -1,25 +1,22 @@
 import contextlib
 import logging
-import os
-from inspect import getmembers, isfunction
 import math
-import pandas as pd
-
-import matplotlib.pyplot as plt
+import os
+from collections import namedtuple
+from inspect import getmembers, isfunction
 from pathlib import Path
+
+import astropy.units as uu
+import bilby
+import matplotlib.pyplot as plt
 import numpy as np
+import pandas as pd
 from scipy.stats import gaussian_kde
 from selenium import webdriver
 from selenium.common.exceptions import NoSuchElementException
-import astropy.units as uu
-from .constants import *
-from collections import namedtuple
-from astropy.utils.data import download_file
-from lxml import etree
-
-import bilby
 
 import redback
+from .constants import *
 
 dirname = os.path.dirname(__file__)
 filename = os.path.join(dirname, 'plot_styles/paper.mplstyle')
@@ -72,6 +69,7 @@ def jd_to_date(jd):
 
     return year, month, day
 
+
 def date_to_jd(year, month, day):
     if month == 1 or month == 2:
         year_p = year - 1
@@ -85,7 +83,7 @@ def date_to_jd(year, month, day):
     if ((year < 1582) or
             (year == 1582 and month < 10) or
             (year == 1582 and month == 10 and day < 15)):
-    # before start of Gregorian calendar
+        # before start of Gregorian calendar
         B = 0
     else:
         # after start of Gregorian calendar
@@ -100,30 +98,36 @@ def date_to_jd(year, month, day):
     jd = B + C + D + day + 1720994.5
     return jd
 
+
 def mjd_to_date(mjd):
     jd = mjd_to_jd(mjd)
     year, month, day = jd_to_date(jd)
     return year, month, day
+
 
 def date_to_mjd(year, month, day):
     jd = date_to_jd(year=year, month=month, day=day)
     mjd = jd_to_mjd(jd)
     return mjd
 
+
 def get_filter_frequencies(filter):
     pass
 
+
 def deceleration_timescale(**kwargs):
-    e0 = 10**kwargs['loge0']
+    e0 = 10 ** kwargs['loge0']
     gamma0 = kwargs['g0']
-    nism = 10**kwargs['logn0']
-    denom = 32 * np.pi * gamma0**8 * nism * proton_mass * speed_of_light**5
+    nism = 10 ** kwargs['logn0']
+    denom = 32 * np.pi * gamma0 ** 8 * nism * proton_mass * speed_of_light ** 5
     num = 3 * e0
-    t_peak = (num/denom)**(1./3.)
+    t_peak = (num / denom) ** (1. / 3.)
     return t_peak
+
 
 def calc_ABmag_from_flux_density(fluxdensity):
     return (fluxdensity * uu.mJy).to(uu.ABmag)
+
 
 def convert_absolute_mag_to_apparent(magnitude, distance):
     """
@@ -131,11 +135,13 @@ def convert_absolute_mag_to_apparent(magnitude, distance):
     :param magnitude: AB absolute magnitude
     :param distance: Distance in parsecs
     """
-    app_mag = magnitude + 5*(np.log10(distance) - 1)
+    app_mag = magnitude + 5 * (np.log10(distance) - 1)
     return app_mag
+
 
 def calc_flux_density_from_ABmag(magnitudes):
     return (magnitudes * uu.ABmag).to(uu.mJy)
+
 
 def check_element(driver, id_number):
     """
@@ -147,19 +153,21 @@ def check_element(driver, id_number):
         return False
     return True
 
-def calc_flux_density_error(magnitude, magnitude_error, reference_flux, magnitude_system = 'AB'):
+
+def calc_flux_density_error(magnitude, magnitude_error, reference_flux, magnitude_system='AB'):
     if magnitude_system == 'AB':
         reference_flux = 3631
-    prefactor = np.log(10)/(-2.5)
+    prefactor = np.log(10) / (-2.5)
     dfdm = 1000 * prefactor * reference_flux * np.exp(prefactor * magnitude)
-    flux_err = ((dfdm * magnitude_error)**2)**0.5
+    flux_err = ((dfdm * magnitude_error) ** 2) ** 0.5
     return flux_err
 
-def calc_flux_from_mag(magnitude, reference_flux, magnitude_system = 'AB'):
+
+def calc_flux_from_mag(magnitude, reference_flux, magnitude_system='AB'):
     if magnitude_system == 'AB':
         reference_flux = 3631
-    flux = 10 ** (magnitude/-2.5) * reference_flux #Jansky
-    return 1000*flux #return in mJy
+    flux = 10 ** (magnitude / -2.5) * reference_flux  # Jansky
+    return 1000 * flux  # return in mJy
 
 
 def bands_to_frequencies(bands):
@@ -181,7 +189,8 @@ def calc_confidence_intervals(samples):
     median = np.quantile(samples, 0.5, axis=0)
     return lower_bound, upper_bound, median
 
-def calc_one_dimensional_median_and_error_bar(samples, quantiles=(0.16,0.84), fmt='.2f'):
+
+def calc_one_dimensional_median_and_error_bar(samples, quantiles=(0.16, 0.84), fmt='.2f'):
     summary = namedtuple('summary', ['median', 'lower', 'upper', 'string'])
 
     if len(quantiles) != 2:
@@ -207,6 +216,7 @@ def kde_scipy(x, bandwidth=0.05, **kwargs):
     # we divide the bandwidth by the sample standard deviation here.
     kde = gaussian_kde(x, bw_method=bandwidth / x.std(ddof=1), **kwargs)
     return kde
+
 
 def cdf(x, plot=True, *args, **kwargs):
     x, y = sorted(x), np.arange(len(x)) / len(x)

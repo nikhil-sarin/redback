@@ -1,4 +1,5 @@
 from astropy.cosmology import Planck18 as cosmo
+
 from .. utils import logger
 
 try:
