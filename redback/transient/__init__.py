@@ -1,6 +1,3 @@
-import numpy as np
-import os
-
 from . import afterglow, kilonova, prompt, supernova, tde, transient
 
 TRANSIENT_DICT = dict(afterglow=afterglow.Afterglow, lgrb=afterglow.LGRB, sgrb=afterglow.SGRB,
