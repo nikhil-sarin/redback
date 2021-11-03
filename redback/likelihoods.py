@@ -285,7 +285,10 @@ class GRBGaussianLikelihood(bilby.Likelihood):
         self.sigma = sigma
         self.N = len(self.x)
         self.function = function
-        self.kwargs = kwargs
+        if kwargs is None:
+            self.kwargs = dict()
+        else:
+            self.kwargs = kwargs
 
         # These lines of code infer the parameters from the provided function
         parameters = inspect.getfullargspec(function).args
