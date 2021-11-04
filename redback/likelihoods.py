@@ -1,5 +1,7 @@
 import numpy as np
+from functools import lru_cache
 import inspect
+
 
 import bilby
 from scipy.special import gammaln
@@ -15,7 +17,7 @@ class GaussianLikelihood(bilby.Likelihood):
         ----------
         x, y: array_like
             The data to analyse
-        sigma: float
+        sigma: float, None
             The standard deviation of the noise
         function:
             The python function to fit to the data. Note, this must take the
@@ -23,35 +25,63 @@ class GaussianLikelihood(bilby.Likelihood):
             will require a prior and will be sampled over (unless a fixed
             value is given).
         """
-        self.x = x
-        self.y = y
-        self.sigma = sigma
+        self._x = x
+        self._y = y
+
         self.N = len(self.x)
         self.function = function
-        if self.kwargs is None:
-            self.kwargs = dict()
-        else:
-            self.kwargs = kwargs
-        self._noise_log_likelihood = 0
+        self.kwargs = kwargs
+        self._noise_log_likelihood = None
 
         # These lines of code infer the parameters from the provided function
         parameters = inspect.getfullargspec(function).args
         parameters.pop(0)
         super().__init__(parameters=dict.fromkeys(parameters))
+        self.sigma = sigma
 
-        self.function_keys = self.parameters.keys()
-        if self.sigma is None:
+    @property
+    def kwargs(self):
+        return self._kwargs
+
+    @kwargs.setter
+    def kwargs(self, kwargs):
+        if kwargs is None:
+            self._kwargs = dict()
+        else:
+            self._kwargs = kwargs
+
+    @property
+    def x(self):
+        return self._x
+
+    @property
+    def y(self):
+        return self._y
+
+    @property
+    def sigma(self):
+        return self.parameters.get('sigma', self._sigma)
+
+    @sigma.setter
+    def sigma(self, sigma):
+        self._sigma = sigma
+        if sigma is None:
             self.parameters['sigma'] = None
 
+    @property
+    def residual(self):
+        return self.y - self.function(self.x, **self.parameters, **self.kwargs)
+
     def noise_log_likelihood(self):
-        sigma = self.parameters.get('sigma', self.sigma)
-        res = self.y - 0.
-        self._noise_log_likelihood = np.sum(- (res / sigma) ** 2 / 2 - np.log(2 * np.pi * sigma ** 2) / 2)
+        if self._noise_log_likelihood is None:
+            self._noise_log_likelihood = self._log_l(res=self.y, sigma=self.sigma)
         return self._noise_log_likelihood
 
     def log_likelihood(self):
-        sigma = self.parameters.get('sigma', self.sigma)
-        res = self.y - self.function(self.x, **self.parameters, **self.kwargs)
+        return self._log_l(res=self.residual, sigma=self.sigma)
+
+    @staticmethod
+    def _log_l(res, sigma):
         return np.sum(- (res / sigma) ** 2 / 2 - np.log(2 * np.pi * sigma ** 2) / 2)
 
 
@@ -81,7 +111,7 @@ class GaussianLikelihoodUniformXErrors(bilby.Likelihood):
         self.N = len(self.x)
         self.function = function
         self._noise_log_likelihood = 0
-        if self.kwargs is None:
+        if kwargs is None:
             self.kwargs = dict()
         else:
             self.kwargs = kwargs
@@ -142,7 +172,7 @@ class GaussianLikelihoodQuadratureNoise(bilby.Likelihood):
         self.N = len(self.x)
         self.function = function
         self._noise_log_likelihood = 0
-        if self.kwargs is None:
+        if kwargs is None:
             self.kwargs = dict()
         else:
             self.kwargs = kwargs
@@ -194,7 +224,7 @@ class GaussianLikelihoodQuadratureNoiseNonDetections(bilby.Likelihood):
         self.N = len(self.x)
         self.function = function
         self._noise_log_likelihood = 0
-        if self.kwargs is None:
+        if kwargs is None:
             self.kwargs = dict()
         else:
             self.kwargs = kwargs
@@ -309,7 +339,7 @@ class PoissonLikelihood(bilby.Likelihood):
         self.counts = counts
         self.function = function
         self._noise_log_likelihood = 0
-        if self.kwargs is None:
+        if kwargs is None:
             self.kwargs = dict()
         else:
             self.kwargs = kwargs
