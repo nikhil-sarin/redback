@@ -55,7 +55,7 @@ class GaussianLikelihood(bilby.Likelihood):
         return np.sum(- (res / sigma) ** 2 / 2 - np.log(2 * np.pi * sigma ** 2) / 2)
 
 
-class GaussianLikelihood_with_uniform_x_errors(bilby.Likelihood):
+class GaussianLikelihoodUniformXErrors(bilby.Likelihood):
     def __init__(self, x, y, sigma, bin_size, function, kwargs=None):
         """
         A general Gaussian likelihood with uniform errors in x- the parameters are inferred from the
@@ -117,7 +117,7 @@ class GaussianLikelihood_with_uniform_x_errors(bilby.Likelihood):
         return log_a + log_b
 
 
-class GaussianLikelihood_quadrature_noise(bilby.Likelihood):
+class GaussianLikelihoodQuadratureNoise(bilby.Likelihood):
     def __init__(self, x, y, sigma_i, function, kwargs=None):
         """
         A general Gaussian likelihood - the parameters are inferred from the
@@ -169,7 +169,7 @@ class GaussianLikelihood_quadrature_noise(bilby.Likelihood):
         return np.sum(- (res / sigma) ** 2 / 2 - np.log(2 * np.pi * sigma ** 2) / 2)
 
 
-class GaussianLikelihood_quadrature_noise_non_detections(bilby.Likelihood):
+class GaussianLikelihoodQuadratureNoiseNonDetections(bilby.Likelihood):
     def __init__(self, x, y, sigma_i, function, kwargs=None, upperlimit_kwargs=None):
         """
         A general Gaussian likelihood - the parameters are inferred from the
