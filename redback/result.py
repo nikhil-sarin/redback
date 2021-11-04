@@ -15,6 +15,7 @@ warnings.simplefilter(action='ignore')
 class RedbackResult(Result):
     model = MetaDataAccessor('model')
     transient_type = MetaDataAccessor('transient_type')
+    model_kwargs = MetaDataAccessor('model_kwargs')
     name = MetaDataAccessor('name')
     path = MetaDataAccessor('path')
 
@@ -48,7 +49,8 @@ class RedbackResult(Result):
 
     def plot_lightcurve(self, **kwargs):
         model = redback.model_library.all_models_dict[self.model]
-        self.transient.plot_lightcurve(model=model, posterior=self.posterior, **kwargs)
+        self.transient.plot_lightcurve(model=model, posterior=self.posterior, outdir=self.outdir,
+                                       model_kwargs=self.model_kwargs, **kwargs)
 
     def plot_data(self, **kwargs):
         self.transient.plot_data(**kwargs)

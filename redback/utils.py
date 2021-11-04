@@ -163,6 +163,8 @@ def calc_flux_from_mag(magnitude, reference_flux, magnitude_system = 'AB'):
 
 
 def bands_to_frequencies(bands):
+    if bands is None:
+        bands = []
     df = pd.read_csv(f"{dirname}/tables/filters.csv")
     bands_to_freqs = {band: wavelength for band, wavelength in zip(df['bands'], df['wavelength [Hz]'])}
     return np.array([bands_to_freqs.get(band, np.nan) for band in bands])

@@ -5,7 +5,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import os
 import pandas as pd
-from redback.utils import logger, bands_to_frequencies
+from redback.utils import logger
 
 from astropy.cosmology import Planck18 as cosmo
 from ..getdata import afterglow_directory_structure
@@ -36,12 +36,9 @@ class Afterglow(Transient):
         super().__init__(name=name, data_mode=data_mode, time=time, time_mjd=time_mjd, time_mjd_err=time_mjd_err,
                          time_err=time_err, time_rest_frame=time_rest_frame, time_rest_frame_err=time_rest_frame_err,
                          Lum50=Lum50, Lum50_err=Lum50_err, flux=flux, flux_err=flux_err, flux_density=flux_density,
-                         flux_density_err=flux_density_err, use_phase_model=use_phase_model, bands=bands, system=system,
-                         magnitude=magnitude, magnitude_err=magnitude_err, **kwargs)
-        self.bands = bands
-        self.system = system
-        self.frequency = frequency
-        self.active_bands = active_bands
+                         flux_density_err=flux_density_err, use_phase_model=use_phase_model, magnitude=magnitude,
+                         magnitude_err=magnitude_err, frequency=frequency,
+                         system=system, bands=bands, active_bands=active_bands, **kwargs)
         self._set_data()
         self._set_photon_index()
         self._set_t90()
@@ -95,43 +92,6 @@ class Afterglow(Transient):
         truncator = Truncator(x=self.x, x_err=self.x_err, y=self.y, y_err=self.y_err, time=self.time,
                               time_err=self.time_err, truncate_method=truncate_method)
         self.x, self.x_err, self.y, self.y_err = truncator.truncate()
-
-    @property
-    def active_bands(self):
-        return self._active_bands
-
-    @active_bands.setter
-    def active_bands(self, active_bands):
-        if active_bands == 'all':
-            self._active_bands = np.unique(self.bands)
-        else:
-            self._active_bands = active_bands
-
-    @property
-    def frequency(self):
-        return self._frequency
-
-    @frequency.setter
-    def frequency(self, frequency):
-        if frequency is None:
-            self._frequency = redback.utils.bands_to_frequencies(self.bands)
-        else:
-            self._frequency = frequency
-
-    def get_filtered_data(self):
-        if self.flux_density_data or self.photometry_data:
-            idxs = [b in self.active_bands for b in self.bands]
-            filtered_x = self.x[idxs]
-            try:
-                filtered_x_err = self.x_err[idxs]
-            except Exception:
-                filtered_x_err = None
-            filtered_y = self.y[idxs]
-            filtered_y_err = self.y_err[idxs]
-            return filtered_x, filtered_x_err, filtered_y, filtered_y_err
-        else:
-            raise ValueError(f"Transient needs to be in flux density or photometry data mode, "
-                             f"but is in {self.data_mode} instead.")
 
     @property
     def event_table(self):
@@ -233,8 +193,8 @@ class Afterglow(Transient):
         :param colour:
         """
 
-        x_err = [self.x_err[1, :], self.x_err[0, :]]
-        y_err = [self.y_err[1, :], self.y_err[0, :]]
+        x_err = [np.abs(self.x_err[1, :]), self.x_err[0, :]]
+        y_err = [np.abs(self.y_err[1, :]), self.y_err[0, :]]
 
         ax = axes or plt.gca()
         ax.errorbar(self.x, self.y, xerr=x_err, yerr=y_err,
@@ -246,7 +206,7 @@ class Afterglow(Transient):
         ax.set_xlim(0.5 * self.x[0], 2 * (self.x[-1] + x_err[1][-1]))
         ax.set_ylim(0.5 * min(self.y), 2. * np.max(self.y))
 
-        ax.annotate(f'GRB{self.name}', xy=(0.95, 0.9), xycoords='axes fraction',
+        ax.annotate(self.name, xy=(0.95, 0.9), xycoords='axes fraction',
                     horizontalalignment='right', size=20)
 
         ax.set_xlabel(r'Time since burst [s]')
@@ -260,7 +220,9 @@ class Afterglow(Transient):
                                                       data_mode=self.data_mode)
         filename = f"{self.name}_lc.png"
         plt.savefig(join(grb_dir, filename))
-        plt.clf()
+        if axes is None:
+            plt.clf()
+        return ax
 
     def plot_multiband(self):
         if self.data_mode != 'flux_density':

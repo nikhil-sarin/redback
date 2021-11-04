@@ -310,7 +310,7 @@ class GRBGaussianLikelihood(bilby.Likelihood):
 
 
 class PoissonLikelihood(bilby.Likelihood):
-    def __init__(self, time, counts, function, integrated_rate_function=True, dt=None, **kwargs):
+    def __init__(self, time, counts, function, integrated_rate_function=True, dt=None, kwargs=None):
         """
         Parameters
         ----------

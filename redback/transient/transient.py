@@ -4,7 +4,7 @@ import pandas as pd
 from os.path import join
 import numpy as np
 from redback.utils import logger
-from redback.utils import DataModeSwitch
+from redback.utils import DataModeSwitch, bands_to_frequencies
 from redback.getdata import transient_directory_structure
 import redback
 
@@ -32,7 +32,7 @@ class Transient(object):
                  time_rest_frame_err=None, Lum50=None, Lum50_err=None, flux=None, flux_err=None, flux_density=None,
                  flux_density_err=None, magnitude=None, magnitude_err=None, counts=None, ttes=None, bin_size=None,
                  redshift=np.nan, data_mode=None, name='', path='.', photon_index=np.nan, use_phase_model=False,
-                 **kwargs):
+                 frequency=None, system=None, bands=None, active_bands=None, **kwargs):
         """
         Base class for all transients
         """
@@ -59,6 +59,10 @@ class Transient(object):
         self.counts_err = np.sqrt(counts) if counts is not None else None
         self.ttes = ttes
 
+        self.system = system
+        self.bands = bands
+        self.frequency = frequency
+        self.active_bands = active_bands
         self.data_mode = data_mode
         self.redshift = redshift
         self.name = name
@@ -146,12 +150,124 @@ class Transient(object):
         except KeyError:
             raise ValueError("No data mode specified")
 
-    def plot_data(self, axes=None, colour='k'):
-        pass
+    @property
+    def frequency(self):
+        return self._frequency
 
-    def plot_lightcurve(self, model, axes=None, plot_save=True, plot_show=True, random_models=1000,
-                        posterior=None, outdir=None, **kwargs):
-        pass
+    @frequency.setter
+    def frequency(self, frequency):
+        if frequency is None:
+            self._frequency = redback.utils.bands_to_frequencies(self.bands)
+        else:
+            self._frequency = frequency
+
+    @property
+    def active_bands(self):
+        return self._active_bands
+
+    @active_bands.setter
+    def active_bands(self, active_bands):
+        if active_bands == 'all':
+            self._active_bands = np.unique(self.bands)
+        else:
+            self._active_bands = active_bands
+
+    def get_filtered_data(self):
+        if self.flux_density_data or self.photometry_data:
+            idxs = [b in self.active_bands for b in self.bands]
+            filtered_x = self.x[idxs]
+            try:
+                filtered_x_err = self.x_err[idxs]
+            except Exception:
+                filtered_x_err = None
+            filtered_y = self.y[idxs]
+            filtered_y_err = self.y_err[idxs]
+            return filtered_x, filtered_x_err, filtered_y, filtered_y_err
+        else:
+            raise ValueError(f"Transient needs to be in flux density or photometry data mode, "
+                             f"but is in {self.data_mode} instead.")
+
+    @property
+    def unique_bands(self):
+        return np.unique(self.bands)
+
+    @property
+    def unique_frequencies(self):
+        return bands_to_frequencies(self.unique_bands)
+
+    @property
+    def list_of_band_indices(self):
+        return [np.where(self.bands == np.array(b))[0] for b in self.unique_bands]
+
+    @property
+    def default_filters(self):
+        return ["g", "r", "i", "z", "y", "J", "H", "K"]
+
+    def get_colors(self, filters):
+        return matplotlib.cm.rainbow(np.linspace(0, 1, len(filters)))
+
+    def plot_data(self, axes=None, colour='k'):
+        fig, axes = plt.subplots()
+        return axes
+
+    def plot_multiband(self, axes=None, colour='k'):
+        fig, axes = plt.subplots()
+        return axes
+
+    def plot_lightcurve(self, model, filename=None, axes=None, plot_save=True, plot_show=True, random_models=100,
+                        posterior=None, outdir='.', model_kwargs=None, **kwargs):
+        if filename is None:
+            filename = f"{self.name}_lightcurve.png"
+        axes = axes or plt.gca()
+        axes = self.plot_data(axes=axes)
+
+        if axes.get_yscale == 'linear':
+            times = np.linspace(self.x[0], self.x[-1], 200)
+        else:
+            times = np.exp(np.linspace(np.log(self.x[0]), np.log(self.x[-1]), 200))
+
+        posterior.sort_values(by='log_likelihood')
+        max_like_params = posterior.iloc[-1]
+        ys = model(times, **max_like_params, **model_kwargs)
+        axes.plot(times, ys, color='blue', alpha=0.65, lw=2)
+
+        for _ in range(random_models):
+            params = posterior.iloc[np.random.randint(len(posterior))]
+            ys = model(times, **params, **model_kwargs)
+            axes.plot(times, ys, color='red', alpha=0.05, lw=2, zorder=-1)
+        plt.savefig(join(outdir, filename), dpi=300, bbox_inches="tight")
+        plt.clf()
+
+    def plot_multiband_lightcurve(self, model, filename=None, axes=None, plot_save=True, plot_show=True,
+                                  random_models=100, posterior=None, outdir='.', model_kwargs=None, **kwargs):
+        if self.luminosity_data or self.flux_data:
+            logger.warning(f"Plotting multiband lightcurve not possible for {self.data_mode}. Returning.")
+            return
+
+        if filename is None:
+            filename = f"{self.name}_multiband_lightcurve.png"
+        axes = axes or plt.gca()
+        axes = self.plot_multiband(axes=axes)
+
+        if axes.get_yscale == 'linear':
+            times = np.linspace(self.x[0], self.x[-1], 200)
+        else:
+            times = np.exp(np.linspace(np.log(self.x[0]), np.log(self.x[-1]), 200))
+
+        times_mesh, frequency_mesh = np.meshgrid(times, self.unique_frequencies)
+        model_kwargs['frequency'] = frequency_mesh
+        posterior.sort_values(by='log_likelihood')
+        max_like_params = posterior.iloc[-1]
+        ys = model(times_mesh, **max_like_params, **model_kwargs)
+
+        for i in range(len(self.unique_frequencies)):
+            axes[i].plot(times_mesh[i], ys[i], color='blue', alpha=0.65, lw=2)
+            params = posterior.iloc[np.random.randint(len(posterior))]
+            ys = model(times_mesh, **params, **model_kwargs)
+            for _ in range(random_models):
+                axes.plot(times, ys[i], color='red', alpha=0.05, lw=2, zorder=-1)
+        plt.savefig(join(outdir, filename), dpi=300, bbox_inches="tight")
+        plt.clf()
 
 
 class OpticalTransient(Transient):
@@ -165,15 +281,12 @@ class OpticalTransient(Transient):
                  use_phase_model=False, **kwargs):
 
         super().__init__(time=time, time_err=time_err, time_rest_frame=time_rest_frame, time_mjd=time_mjd,
-                         time_mjd_err=time_mjd_err,
+                         time_mjd_err=time_mjd_err, frequency=frequency,
                          time_rest_frame_err=time_rest_frame_err, Lum50=Lum50, Lum50_err=Lum50_err,
                          flux_density=flux_density, flux_density_err=flux_density_err, magnitude=magnitude,
                          magnitude_err=magnitude_err, data_mode=data_mode, name=name,
-                         use_phase_model=use_phase_model, **kwargs)
-        self.system = system
-        self.bands = bands
-        self.active_bands = active_bands
-        self.frequency = frequency
+                         use_phase_model=use_phase_model, system=system, bands=bands, active_bands=active_bands,
+                         **kwargs)
         self._set_data()
 
     @staticmethod
@@ -207,42 +320,7 @@ class OpticalTransient(Transient):
                    magnitude_err=magnitude_err, bands=bands, system=system, active_bands=active_bands,
                    use_phase_model=use_phase_model)
 
-    @property
-    def active_bands(self):
-        return self._active_bands
 
-    @active_bands.setter
-    def active_bands(self, active_bands):
-        if active_bands == 'all':
-            self._active_bands = np.unique(self.bands)
-        else:
-            self._active_bands = active_bands
-
-    @property
-    def frequency(self):
-        return self._frequency
-
-    @frequency.setter
-    def frequency(self, frequency):
-        if frequency is None:
-            self._frequency = redback.utils.bands_to_frequencies(self.bands)
-        else:
-            self._frequency = frequency
-
-    def get_filtered_data(self):
-        if self.flux_density_data or self.photometry_data:
-            idxs = [b in self.active_bands for b in self.bands]
-            filtered_x = self.x[idxs]
-            try:
-                filtered_x_err = self.x_err[idxs]
-            except Exception:
-                filtered_x_err = None
-            filtered_y = self.y[idxs]
-            filtered_y_err = self.y_err[idxs]
-            return filtered_x, filtered_x_err, filtered_y, filtered_y_err
-        else:
-            raise ValueError(f"Transient needs to be in flux density or photometry data mode, "
-                             f"but is in {self.data_mode} instead.")
 
     @property
     def event_table(self):
@@ -268,20 +346,7 @@ class OpticalTransient(Transient):
             transient_type=cls.__name__.lower())
         return transient_dir
 
-    @property
-    def unique_bands(self):
-        return np.unique(self.bands)
 
-    @property
-    def list_of_band_indices(self):
-        return [np.where(self.bands == np.array(b))[0] for b in self.unique_bands]
-
-    @property
-    def default_filters(self):
-        return ["g", "r", "i", "z", "y", "J", "H", "K"]
-
-    def get_colors(self, filters):
-        return matplotlib.cm.rainbow(np.linspace(0, 1, len(filters)))
 
     def plot_data(self, axes=None, filters=None, plot_others=True, **plot_kwargs):
         """
@@ -369,7 +434,7 @@ class OpticalTransient(Transient):
             if band not in filters:
                 continue
 
-            x_err = self.x_err[idxs] if self is not None else self.x_err
+            x_err = self.x_err[idxs] if self.x_err is not None else self.x_err
 
             color = colors[filters.index(band)]
 
@@ -397,5 +462,6 @@ class OpticalTransient(Transient):
         filename = f"{self.name}_{self.data_mode}_{plot_label}.png"
         plt.subplots_adjust(wspace=wspace, hspace=hspace)
         plt.savefig(join(self.transient_dir, filename), bbox_inches="tight")
-        plt.clf()
+        return axes
+        # plt.clf()
 
