@@ -1,43 +1,20 @@
 import numpy as np
-from functools import lru_cache
-import inspect
 
 
 import bilby
 from scipy.special import gammaln
 
 
-class GaussianLikelihood(bilby.Likelihood):
-    def __init__(self, x, y, sigma, function, kwargs=None):
-        """
-        A general Gaussian likelihood - the parameters are inferred from the
-        arguments of function
+class _RedbackLikelihood(bilby.Likelihood):
 
-        Parameters
-        ----------
-        x, y: array_like
-            The data to analyse
-        sigma: float, None
-            The standard deviation of the noise
-        function:
-            The python function to fit to the data. Note, this must take the
-            dependent variable as its first argument. The other arguments are
-            will require a prior and will be sampled over (unless a fixed
-            value is given).
-        """
+    def __init__(self, x, y, function, kwargs=None):
         self._x = x
         self._y = y
-
-        self.N = len(self.x)
         self.function = function
         self.kwargs = kwargs
-        self._noise_log_likelihood = None
 
-        # These lines of code infer the parameters from the provided function
-        parameters = inspect.getfullargspec(function).args
-        parameters.pop(0)
+        parameters = bilby.core.utils.introspection.infer_parameters_from_function(func=function)
         super().__init__(parameters=dict.fromkeys(parameters))
-        self.sigma = sigma
 
     @property
     def kwargs(self):
@@ -59,6 +36,34 @@ class GaussianLikelihood(bilby.Likelihood):
         return self._y
 
     @property
+    def N(self):
+        return len(self.x)
+
+
+class GaussianLikelihood(_RedbackLikelihood):
+    def __init__(self, x, y, sigma, function, kwargs=None):
+        """
+        A general Gaussian likelihood - the parameters are inferred from the
+        arguments of function
+
+        Parameters
+        ----------
+        x, y: array_like
+            The data to analyse
+        sigma: float, None
+            The standard deviation of the noise
+        function:
+            The python function to fit to the data. Note, this must take the
+            dependent variable as its first argument. The other arguments are
+            will require a prior and will be sampled over (unless a fixed
+            value is given).
+        """
+
+        self._noise_log_likelihood = None
+        super().__init__(x=x, y=y, function=function, kwargs=kwargs)
+        self.sigma = sigma
+
+    @property
     def sigma(self):
         return self.parameters.get('sigma', self._sigma)
 
@@ -74,14 +79,14 @@ class GaussianLikelihood(bilby.Likelihood):
 
     def noise_log_likelihood(self):
         if self._noise_log_likelihood is None:
-            self._noise_log_likelihood = self._log_l(res=self.y, sigma=self.sigma)
+            self._noise_log_likelihood = self._gaussian_log_likelihood(res=self.y, sigma=self.sigma)
         return self._noise_log_likelihood
 
     def log_likelihood(self):
-        return self._log_l(res=self.residual, sigma=self.sigma)
+        return self._gaussian_log_likelihood(res=self.residual, sigma=self.sigma)
 
     @staticmethod
-    def _log_l(res, sigma):
+    def _gaussian_log_likelihood(res, sigma):
         return np.sum(- (res / sigma) ** 2 / 2 - np.log(2 * np.pi * sigma ** 2) / 2)
 
 
@@ -110,7 +115,7 @@ class GaussianLikelihoodUniformXErrors(GaussianLikelihood):
     def noise_log_likelihood(self):
         if self._noise_log_likelihood is None:
             log_x = self.log_likelihood_x()
-            log_y = self._log_l(res=self.y, sigma=self.sigma)
+            log_y = self._gaussian_log_likelihood(res=self.y, sigma=self.sigma)
             self._noise_log_likelihood = log_x + log_y
         return self._noise_log_likelihood
 
@@ -118,7 +123,7 @@ class GaussianLikelihoodUniformXErrors(GaussianLikelihood):
         return -np.nan_to_num(np.sum(np.log(self.xerr)))
 
     def log_likelihood_y(self):
-        return self._log_l(res=self.residual, sigma=self.sigma)
+        return self._gaussian_log_likelihood(res=self.residual, sigma=self.sigma)
 
     def log_likelihood(self):
         return self.log_likelihood_x() + self.log_likelihood_y()
@@ -153,11 +158,11 @@ class GaussianLikelihoodQuadratureNoise(GaussianLikelihood):
 
     def noise_log_likelihood(self):
         if self._noise_log_likelihood is None:
-            self._noise_log_likelihood = self._log_l(res=self.y, sigma=self.full_sigma)
+            self._noise_log_likelihood = self._gaussian_log_likelihood(res=self.y, sigma=self.full_sigma)
         return self._noise_log_likelihood
 
     def log_likelihood(self):
-        return self._log_l(res=self.residual, sigma=self.full_sigma)
+        return self._gaussian_log_likelihood(res=self.residual, sigma=self.full_sigma)
 
 
 class GaussianLikelihoodQuadratureNoiseNonDetections(GaussianLikelihoodQuadratureNoise):
@@ -187,7 +192,7 @@ class GaussianLikelihoodQuadratureNoiseNonDetections(GaussianLikelihoodQuadratur
         return self.upperlimit_kwargs['flux']
 
     def log_likelihood_y(self):
-        return self._log_l(res=self.residual, sigma=self.full_sigma)
+        return self._gaussian_log_likelihood(res=self.residual, sigma=self.full_sigma)
 
     def log_likelihood_upper_limit(self):
         flux = self.function(self.x, **self.parameters, **self.upperlimit_kwargs)
@@ -199,7 +204,8 @@ class GaussianLikelihoodQuadratureNoiseNonDetections(GaussianLikelihoodQuadratur
         return self.log_likelihood_y() + self.log_likelihood_upper_limit()
 
 
-class GRBGaussianLikelihood(bilby.Likelihood):
+class GRBGaussianLikelihood(GaussianLikelihood):
+
     def __init__(self, x, y, sigma, function, kwargs=None):
         """
         A general Gaussian likelihood - the parameters are inferred from the
@@ -217,38 +223,10 @@ class GRBGaussianLikelihood(bilby.Likelihood):
             will require a prior and will be sampled over (unless a fixed
             value is given).
         """
-        self.x = x
-        self.y = y
-        self.sigma = sigma
-        self.N = len(self.x)
-        self.function = function
-        self._noise_log_likelihood = 0
-        if kwargs is None:
-            self.kwargs = dict()
-        else:
-            self.kwargs = kwargs
-
-        # These lines of code infer the parameters from the provided function
-        parameters = inspect.getfullargspec(function).args
-        parameters.pop(0)
-        super().__init__(parameters=dict.fromkeys(parameters))
-
-        if self.sigma is None:
-            self.parameters['sigma'] = None
-
-    def noise_log_likelihood(self):
-        sigma = self.parameters.get('sigma', self.sigma)
-        res = self.y - 0.
-        self._noise_log_likelihood = np.sum(- (res / sigma) ** 2 / 2 - np.log(2 * np.pi * sigma ** 2) / 2)
-        return self._noise_log_likelihood
-
-    def log_likelihood(self):
-        sigma = self.parameters.get('sigma', self.sigma)
-        res = self.y - self.function(self.x, **self.parameters, **self.kwargs)
-        return np.sum(- (res / sigma) ** 2 / 2 - np.log(2 * np.pi * sigma ** 2) / 2)
+        super().__init__(x=x, y=y, sigma=sigma, function=function, kwargs=kwargs)
 
 
-class PoissonLikelihood(bilby.Likelihood):
+class PoissonLikelihood(_RedbackLikelihood):
     def __init__(self, time, counts, function, integrated_rate_function=True, dt=None, kwargs=None):
         """
         Parameters
@@ -263,23 +241,22 @@ class PoissonLikelihood(bilby.Likelihood):
             Whether the function returns an integrated rate over the `dt` in the bins.
             This should be true if you multiply the rate with `dt` in the function and false if the function
             returns a rate per unit time.
-        dt: (array_like, float, None)
+        dt: array_like, float, None
             Array of each bin size or single value if all bins are of the same size. If None, assume that
             `dt` is constant and calculate it from the first two elements of `time`.
         """
-        self.time = time
-        self.counts = counts
-        self.function = function
-        self._noise_log_likelihood = 0
-        if kwargs is None:
-            self.kwargs = dict()
-        else:
-            self.kwargs = kwargs
+        super(PoissonLikelihood, self).__init__(x=time, y=counts, function=function, kwargs=kwargs)
         self.integrated_rate_function = integrated_rate_function
         self.dt = dt
-        parameters = bilby.core.utils.introspection.infer_parameters_from_function(func=function)
-        self.parameters = dict.fromkeys(parameters)
-        super(PoissonLikelihood, self).__init__(parameters=dict())
+        self.parameters['background_rate'] = 0
+
+    @property
+    def time(self):
+        return self.x
+
+    @property
+    def counts(self):
+        return self.y
 
     @property
     def dt(self):
@@ -291,13 +268,15 @@ class PoissonLikelihood(bilby.Likelihood):
             dt = self.time[1] - self.time[0]
         self.kwargs['dt'] = dt
 
+    @property
+    def background_rate(self):
+        return self.parameters['background_rate']
+
     def noise_log_likelihood(self):
-        background_rate = self.parameters['background_rate'] * self.dt
-        return self._poisson_log_likelihood(rate=background_rate)
+        return self._poisson_log_likelihood(rate=self.background_rate * self.dt)
 
     def log_likelihood(self):
-        rate = self.function(self.time, **self.parameters, **self.kwargs) + \
-               self.parameters['background_rate']
+        rate = self.function(self.time, **self.parameters, **self.kwargs) + self.background_rate
         if not self.integrated_rate_function:
             rate *= self.dt
         return self._poisson_log_likelihood(rate=rate)

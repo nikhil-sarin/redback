@@ -26,6 +26,7 @@ class GaussianLikelihoodTest(unittest.TestCase):
         del self.sigma
         del self.function
         del self.kwargs
+        del self.likelihood
 
     def test_set_x(self):
         self.assertTrue(np.array_equal(self.x, self.likelihood.x))
@@ -94,6 +95,7 @@ class GaussianLikelihoodUniformXErrorsTest(unittest.TestCase):
         del self.bin_size
         del self.function
         del self.kwargs
+        del self.likelihood
 
     def test_xerr(self):
         expected = np.array([1, 1, 1])
@@ -108,7 +110,7 @@ class GaussianLikelihoodUniformXErrorsTest(unittest.TestCase):
         self.assertEqual(expected_y, self.likelihood.log_likelihood_y())
 
     def test_noise_log_l_value(self):
-        with mock.patch("redback.likelihoods.GaussianLikelihood._log_l") as m:
+        with mock.patch("redback.likelihoods.GaussianLikelihood._gaussian_log_likelihood") as m:
             m.return_value = 0
             self.assertEqual(0, self.likelihood.noise_log_likelihood())
 
@@ -137,6 +139,7 @@ class GaussianLikelihoodQuadratureNoiseTest(unittest.TestCase):
         del self.bin_size
         del self.function
         del self.kwargs
+        del self.likelihood
 
     def test_sigma_i(self):
         self.assertEqual(self.sigma_i, self.likelihood.sigma_i)
@@ -149,7 +152,7 @@ class GaussianLikelihoodQuadratureNoiseTest(unittest.TestCase):
         self.assertEqual(expected, self.likelihood.log_likelihood())
 
     def test_noise_log_l_value(self):
-        with mock.patch("redback.likelihoods.GaussianLikelihood._log_l") as m:
+        with mock.patch("redback.likelihoods.GaussianLikelihood._gaussian_log_likelihood") as m:
             m.return_value = 0
             self.assertEqual(0, self.likelihood.noise_log_likelihood())
 
@@ -180,6 +183,7 @@ class GaussianLikelihoodQuadratureNoiseNonDetectionsTest(unittest.TestCase):
         del self.bin_size
         del self.function
         del self.kwargs
+        del self.likelihood
 
     def test_upper_limit_kwargs(self):
         self.assertDictEqual(self.upperlimit_kwargs, self.likelihood.upperlimit_kwargs)
@@ -211,6 +215,7 @@ class GaussianLikelihoodQuadratureNoiseNonDetectionsTest(unittest.TestCase):
         expected = expected_y + expected_upper_limit
         self.assertEqual(expected, self.likelihood.log_likelihood())
 
+
 class GRBGaussianLikelihoodTest(unittest.TestCase):
 
     def setUp(self):
@@ -223,7 +228,7 @@ class GRBGaussianLikelihoodTest(unittest.TestCase):
 
         self.function = func
         self.kwargs = dict(kwarg_1='test_kwarg')
-        self.likelihood = likelihoods.GaussianLikelihood(
+        self.likelihood = likelihoods.GRBGaussianLikelihood(
             x=self.x, y=self.y, sigma=self.sigma, function=self.function, kwargs=self.kwargs)
 
     def tearDown(self):
@@ -232,3 +237,78 @@ class GRBGaussianLikelihoodTest(unittest.TestCase):
         del self.sigma
         del self.function
         del self.kwargs
+        del self.likelihood
+
+
+class PoissonLikelihoodTest(unittest.TestCase):
+
+    def setUp(self):
+        self.time = np.array([1, 2, 3])
+        self.counts = np.array([1, 2, 3])
+
+        def func(x, param_1, param_2, **kwargs):
+            return x
+
+        self.function = func
+        self.dt = 3
+        self.kwargs = dict(dt=self.dt)
+        self.integrated_rate_function = True
+        self.likelihood = likelihoods.PoissonLikelihood(
+            time=self.time, counts=self.counts, function=self.function,
+            integrated_rate_function=self.integrated_rate_function, dt=self.dt, kwargs=self.kwargs)
+
+    def tearDown(self):
+        del self.time
+        del self.counts
+        del self.function
+        del self.dt
+        del self.kwargs
+        del self.integrated_rate_function
+        del self.likelihood
+
+    def test_set_time(self):
+        self.assertTrue(np.array_equal(self.time, self.likelihood.time))
+
+    def test_counts(self):
+        self.assertTrue(np.array_equal(self.counts, self.likelihood.counts))
+
+    def test_dt(self):
+        self.assertEqual(self.dt, self.likelihood.dt)
+
+    def test_dt_no_dt_given(self):
+        self.likelihood.dt = None
+        expected = self.time[1] - self.time[0]
+        self.assertEqual(expected, self.likelihood.dt)
+
+    def test_background_rate(self):
+        self.assertEqual(0, self.likelihood.background_rate)
+
+    def test_noise_log_likelihood(self):
+        with mock.patch("redback.likelihoods.PoissonLikelihood._poisson_log_likelihood") as m:
+            expected = 0
+            m.return_value = expected
+            actual = self.likelihood.noise_log_likelihood()
+            self.assertEqual(expected, actual)
+            m.assert_called_with(rate=0)
+
+    def test_log_likelihood_integrated_rate_function(self):
+        with mock.patch("redback.likelihoods.PoissonLikelihood._poisson_log_likelihood") as m:
+            expected = 0
+            m.return_value = expected
+            actual = self.likelihood.log_likelihood()
+            self.assertEqual(expected, actual)
+            self.assertTrue(np.array_equal(np.array([1, 2, 3]), m.call_args.kwargs['rate']))
+
+    def test_log_likelihood_not_integrated_rate_function(self):
+        self.likelihood.integrated_rate_function = False
+        with mock.patch("redback.likelihoods.PoissonLikelihood._poisson_log_likelihood") as m:
+            expected = 0
+            m.return_value = expected
+            actual = self.likelihood.log_likelihood()
+            self.assertEqual(expected, actual)
+            self.assertTrue(np.array_equal(np.array([3, 6, 9]), m.call_args.kwargs['rate']))
+
+    def test_log_likelihood_value(self):
+        expected = -6 + np.log(9)
+        actual = self.likelihood.log_likelihood()
+        self.assertEqual(expected, actual)
