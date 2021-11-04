@@ -1,26 +1,21 @@
-"""
-Code for reading GRB data from Swift website
-"""
+import numpy as np
 import os
-import sys
+import pandas as pd
+from pathlib import Path
+import re
+import requests
+import sqlite3
 import time
 import urllib
 import urllib.request
-import requests
-import sqlite3
-import re
-from pathlib import Path
 
-import pandas as pd
-import numpy as np
 import astropy.units as uu
 from astropy.io import ascii, fits
-
-from .utils import logger, fetch_driver, check_element, calc_flux_density_from_ABmag, calc_flux_density_error
-from .redback_errors import DataExists, WebsiteExist
-
-from bilby.core.utils import check_directory_exists_and_if_not_mkdir
 from astropy.time import Time
+from bilby.core.utils import check_directory_exists_and_if_not_mkdir
+
+from redback.utils import logger, fetch_driver, check_element, calc_flux_density_from_ABmag, calc_flux_density_error
+from redback.redback_errors import DataExists, WebsiteExist
 
 dirname = os.path.dirname(__file__)
 
@@ -30,7 +25,7 @@ DATA_SOURCES = ["swift", "swift_xrt", "fermi", "konus", "batse", "open_data"]
 TRANSIENT_TYPES = ["afterglow", "prompt", "kilonova", "supernova", "tidal_disruption_event"]
 
 
-def get_data(transient_type, data_source, event_label, use_default_directory, data_mode=None, **kwargs):
+def get_data(transient_type, data_source, event_label, data_mode=None, **kwargs):
     if transient_type not in TRANSIENT_TYPES:
         raise ValueError(f"Transient type {transient_type} not allowed, "
                          f"must be one of the following: {TRANSIENT_TYPES}")
@@ -41,7 +36,7 @@ def get_data(transient_type, data_source, event_label, use_default_directory, da
     func_dict = _get_data_functions_dict()
     try:
         func_dict[(transient_type.lower(), data_source.lower())](
-            grb=event_label, data_mode=data_mode, use_default_directory=use_default_directory, **kwargs)
+            grb=event_label, data_mode=data_mode, **kwargs)
     except KeyError:
         raise ValueError(f"Combination of {transient_type} from {data_source} instrument not implemented or "
                          f"not available.")
@@ -59,13 +54,8 @@ def _get_data_functions_dict():
             ("tidal_disruption_event", "open_data"): get_tidal_disruption_event_data_from_open_transient_catalog_data}
 
 
-
-def afterglow_directory_structure(grb, use_default_directory, data_mode, instrument='BAT+XRT'):
-    if use_default_directory:
-        grb_dir = os.path.join(dirname, '../data/GRBData/GRB' + grb + '/afterglow/')
-    else:
-        grb_dir = 'GRBData/GRB' + grb + '/afterglow/'
-
+def afterglow_directory_structure(grb, data_mode, instrument='BAT+XRT'):
+    grb_dir = 'GRBData/GRB' + grb + '/afterglow/'
     grb_dir = grb_dir + data_mode + '/'
     check_directory_exists_and_if_not_mkdir(grb_dir)
 
@@ -83,15 +73,11 @@ def afterglow_directory_structure(grb, use_default_directory, data_mode, instrum
     return grb_dir, rawfile, fullfile
 
 
-def prompt_directory_structure(grb, use_default_directory, bin_size='2ms'):
+def prompt_directory_structure(grb, bin_size='2ms'):
     if bin_size not in SWIFT_PROMPT_BIN_SIZES:
         raise ValueError(f'Bin size {bin_size} not in allowed bin sizes.\n'
                          f'Use one of the following: {SWIFT_PROMPT_BIN_SIZES}')
-    if use_default_directory:
-        grb_dir = os.path.join(dirname, '../data/GRBData/GRB' + grb + '/')
-    else:
-        grb_dir = 'GRBData/GRB' + grb + '/'
-
+    grb_dir = 'GRBData/GRB' + grb + '/'
     grb_dir = grb_dir + 'prompt/'
     check_directory_exists_and_if_not_mkdir(grb_dir)
 
@@ -208,12 +194,12 @@ def sort_flux_density_data(rawfile, fullfile):
     logger.info('Congratulations, you now have a nice data file: {}'.format(fullfile))
 
 
-def collect_swift_data(grb, use_default_directory, data_mode):
+def collect_swift_data(grb, data_mode):
     valid_data_modes = ['flux', 'flux_density']
     if data_mode not in valid_data_modes:
         raise ValueError("Swift does not have {} data".format(data_mode))
 
-    grbdir, rawfile, fullfile = afterglow_directory_structure(grb, use_default_directory, data_mode)
+    grbdir, rawfile, fullfile = afterglow_directory_structure(grb, data_mode)
 
     if os.path.isfile(rawfile):
         logger.warning('The raw data file already exists')
@@ -251,13 +237,13 @@ def sort_swift_data(rawfile, fullfile, data_mode):
         sort_flux_density_data(rawfile, fullfile)
 
 
-def get_afterglow_data_from_swift(grb, data_mode='flux', use_default_directory=False, **kwargs):
-    rawfile, fullfile = collect_swift_data(grb, use_default_directory, data_mode)
+def get_afterglow_data_from_swift(grb, data_mode='flux', **kwargs):
+    rawfile, fullfile = collect_swift_data(grb, data_mode)
     sort_swift_data(rawfile, fullfile, data_mode)
 
 
-def get_xrt_data_from_swift(grb, data_mode='flux', use_default_directory=False, **kwargs):
-    grbdir, rawfile, fullfile = afterglow_directory_structure(grb, use_default_directory, data_mode, instrument='xrt')
+def get_xrt_data_from_swift(grb, data_mode='flux', **kwargs):
+    grbdir, rawfile, fullfile = afterglow_directory_structure(grb, data_mode, instrument='xrt')
     logger.info('Getting trigger number')
     trigger = get_trigger_number(grb)
     grb_website = 'https://www.swift.ac.uk/xrt_curves/00' + trigger + '/flux.qdp'
@@ -288,9 +274,9 @@ def process_xrt_data(rawfile):
     return processedfile
 
 
-def collect_swift_prompt_data(grb, use_default_directory=False, bin_size='2ms'):
+def collect_swift_prompt_data(grb, bin_size='2ms'):
     grbdir, rawfile, processed_file = prompt_directory_structure(
-        grb=grb, use_default_directory=use_default_directory, bin_size=bin_size)
+        grb=grb, bin_size=bin_size)
     if os.path.isfile(rawfile):
         logger.warning('The raw data file already exists')
         return None
@@ -319,8 +305,8 @@ def get_swift_trigger_from_grb(grb):
     return trigger
 
 
-def sort_swift_prompt_data(grb, use_default_directory):
-    grbdir, rawfile_path, processed_file_path = prompt_directory_structure(grb, use_default_directory)
+def sort_swift_prompt_data(grb):
+    grbdir, rawfile_path, processed_file_path = prompt_directory_structure(grb)
 
     if os.path.isfile(processed_file_path):
         logger.warning('The processed data file already exists')
@@ -340,9 +326,9 @@ def sort_swift_prompt_data(grb, use_default_directory):
     return df
 
 
-def get_prompt_data_from_swift(grb, bin_size='2ms', use_default_directory=False, **kwargs):
-    collect_swift_prompt_data(grb=grb, use_default_directory=use_default_directory, bin_size=bin_size)
-    data = sort_swift_prompt_data(grb=grb, use_default_directory=use_default_directory)
+def get_prompt_data_from_swift(grb, bin_size='2ms', **kwargs):
+    collect_swift_prompt_data(grb=grb, bin_size=bin_size)
+    data = sort_swift_prompt_data(grb=grb)
     return data
 
 
@@ -354,7 +340,7 @@ def get_prompt_data_from_konus(grb, **kwargs):
     return None
 
 
-def get_prompt_data_from_batse(grb, use_default_directory, **kwargs):
+def get_prompt_data_from_batse(grb, **kwargs):
     trigger = get_batse_trigger_from_grb(grb=grb)
     trigger_filled = str(trigger).zfill(5)
     s = trigger - trigger % 200 + 1
@@ -363,10 +349,7 @@ def get_prompt_data_from_batse(grb, use_default_directory, **kwargs):
 
     filename = f'tte_bfits_{trigger}.fits.gz'
 
-    if use_default_directory:
-        grb_dir = os.path.join(dirname, '../data/GRBData/GRB' + grb + '/')
-    else:
-        grb_dir = 'GRBData/GRB' + grb + '/'
+    grb_dir = 'GRBData/GRB' + grb + '/'
     grb_dir = grb_dir + 'prompt/'
     Path(grb_dir).mkdir(exist_ok=True, parents=True)
 
@@ -428,30 +411,26 @@ def get_batse_trigger_from_grb(grb):
     return int(batse_triggers[index])
 
 
-def get_open_transient_catalog_data(transient, transient_type, use_default_directory=False):
-    collect_open_catalog_data(transient, use_default_directory, transient_type)
-    data = sort_open_access_data(transient, use_default_directory, transient_type)
+def get_open_transient_catalog_data(transient, transient_type):
+    collect_open_catalog_data(transient, transient_type)
+    data = sort_open_access_data(transient, transient_type)
     return data
 
 
-def get_kilonova_data_from_open_transient_catalog_data(transient, use_default_directory=False):
-    return get_open_transient_catalog_data(transient, transient_type="kilonova",
-                                           use_default_directory=use_default_directory)
-
-def get_supernova_data_from_open_transient_catalog_data(transient, use_default_directory=False):
-    return get_open_transient_catalog_data(transient, transient_type="supernova",
-                                           use_default_directory=use_default_directory)
-
-def get_tidal_disruption_event_data_from_open_transient_catalog_data(transient, use_default_directory=False):
-    return get_open_transient_catalog_data(transient, transient_type="tidal_disruption_event",
-                                           use_default_directory=use_default_directory)
+def get_kilonova_data_from_open_transient_catalog_data(transient):
+    return get_open_transient_catalog_data(transient, transient_type="kilonova")
 
 
-def transient_directory_structure(transient, use_default_directory, transient_type):
-    if use_default_directory:
-        open_transient_dir = os.path.join(dirname, '../data/' + transient_type + 'Data/' + transient + '/')
-    else:
-        open_transient_dir = transient_type + '/' + transient + '/'
+def get_supernova_data_from_open_transient_catalog_data(transient):
+    return get_open_transient_catalog_data(transient, transient_type="supernova")
+
+
+def get_tidal_disruption_event_data_from_open_transient_catalog_data(transient):
+    return get_open_transient_catalog_data(transient, transient_type="tidal_disruption_event")
+
+
+def transient_directory_structure(transient, transient_type):
+    open_transient_dir = transient_type + '/' + transient + '/'
     rawfile_path = open_transient_dir + transient + '_rawdata.csv'
     fullfile_path = open_transient_dir + transient + '_data.csv'
     return open_transient_dir, rawfile_path, fullfile_path
@@ -470,16 +449,17 @@ def get_grb_alias(transient):
     alias = transient['alias'].iloc[0]
     try:
         grb_alias = re.search('GRB (.+?),', alias).group(1)
-    except AttributeError:
-        pass
+    except AttributeError as e:
+        logger.warning(e)
+        logger.warning("Did not find a valid alias, returning None.")
+        grb_alias = None
     return grb_alias
 
 
-def collect_open_catalog_data(transient, use_default_directory, transient_type):
+def collect_open_catalog_data(transient, transient_type):
     transient_dict = ['kilonova', 'supernova', 'tidal_disruption_event']
 
-    open_transient_dir, raw_filename, full_filename = transient_directory_structure(transient, use_default_directory,
-                                                                                    transient_type)
+    open_transient_dir, raw_filename, full_filename = transient_directory_structure(transient, transient_type)
 
     check_directory_exists_and_if_not_mkdir(open_transient_dir)
 
@@ -522,16 +502,14 @@ def get_t0_from_grb(transient):
     return timeofevent
 
 
-def fix_t0_of_transient(timeofevent, transient, transient_type, use_default_directory=False):
+def fix_t0_of_transient(timeofevent, transient, transient_type):
     """
     :param timeofevent: T0 of event in mjd
     :param transient: transient name
-    :param use_default_directory:
     :param transient_type:
     :return: None, but fixes the processed data file
     """
-    directory, rawfilename, fullfilename = transient_directory_structure(transient, use_default_directory,
-                                                                         transient_type)
+    directory, rawfilename, fullfilename = transient_directory_structure(transient, transient_type)
     data = pd.read_csv(fullfilename, sep=',')
     timeofevent = Time(timeofevent, format='mjd')
     tt = Time(np.asarray(data['time'], dtype=float), format='mjd')
@@ -541,9 +519,8 @@ def fix_t0_of_transient(timeofevent, transient, transient_type, use_default_dire
     return None
 
 
-def sort_open_access_data(transient, use_default_directory, transient_type):
-    directory, rawfilename, fullfilename = transient_directory_structure(transient, use_default_directory,
-                                                                         transient_type)
+def sort_open_access_data(transient, transient_type):
+    directory, rawfilename, fullfilename = transient_directory_structure(transient, transient_type)
     if os.path.isfile(fullfilename):
         logger.warning('processed data already exists')
         return pd.read_csv(fullfilename, sep=',')
@@ -565,8 +542,9 @@ def sort_open_access_data(transient, use_default_directory, transient_type):
 
         data['flux_density(mjy)'] = calc_flux_density_from_ABmag(data['magnitude'].values)
         data['flux_density_error'] = calc_flux_density_error(magnitude=data['magnitude'].values,
-                                                     magnitude_error=data['e_magnitude'].values, reference_flux=3631,
-                                                     magnitude_system='AB')
+                                                             magnitude_error=data['e_magnitude'].values,
+                                                             reference_flux=3631,
+                                                             magnitude_system='AB')
 
         metadata = directory + 'metadata.csv'
         metadata = pd.read_csv(metadata)

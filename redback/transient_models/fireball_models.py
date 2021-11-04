@@ -1,5 +1,5 @@
 import numpy as np
-from ..utils import logger, calc_ABmag_from_flux_density
+
 
 def predeceleration(time, aa, mm, t0, **kwargs):
     """
@@ -11,6 +11,7 @@ def predeceleration(time, aa, mm, t0, **kwargs):
     :return: deceleration powerlaw; units are arbitrary and dependent on a_1.
     """
     return aa * (time - t0)**mm
+
 
 def one_component_fireball_model(time, a_1, alpha_1, **kwargs):
     """
@@ -209,5 +210,4 @@ def six_component_fireball_model(time, a_1, alpha_1,
     f6 = amplitude_six * time[z] ** alpha_6
 
     total = np.concatenate((f1, f2, f3, f4, f5, f6))
-
     return total

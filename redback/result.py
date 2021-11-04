@@ -1,13 +1,13 @@
+import numpy as np
 import os
 import warnings
 
-import numpy as np
 from bilby.core.result import Result
 from bilby.core.result import _determine_file_name # noqa
 
-import redback.model_library
-from .transient import TRANSIENT_DICT
-from .utils import MetaDataAccessor
+from redback import model_library
+from redback.transient import TRANSIENT_DICT
+from redback.utils import MetaDataAccessor
 
 warnings.simplefilter(action='ignore')
 
@@ -48,7 +48,7 @@ class RedbackResult(Result):
         return TRANSIENT_DICT[self.transient_type](**self.meta_data)
 
     def plot_lightcurve(self, **kwargs):
-        model = redback.model_library.all_models_dict[self.model]
+        model = model_library.all_models_dict[self.model]
         self.transient.plot_lightcurve(model=model, posterior=self.posterior, outdir=self.outdir,
                                        model_kwargs=self.model_kwargs, **kwargs)
 

@@ -1,5 +1,5 @@
 import os
-from .transient import OpticalTransient
+from redback.transient.transient import OpticalTransient
 
 dirname = os.path.dirname(__file__)
 
@@ -19,4 +19,3 @@ class Kilonova(OpticalTransient):
                          magnitude=magnitude, magnitude_err=magnitude_err, data_mode=data_mode, name=name, bands=bands,
                          system=system, active_bands=active_bands, use_phase_model=use_phase_model, **kwargs)
         self._set_data()
-

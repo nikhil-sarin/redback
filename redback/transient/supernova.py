@@ -1,4 +1,4 @@
-from .transient import OpticalTransient
+from redback.transient.transient import OpticalTransient
 
 
 class Supernova(OpticalTransient):

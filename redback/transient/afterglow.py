@@ -4,15 +4,14 @@ Contains GRB class, with method to load and truncate data for SGRB and in future
 import matplotlib.pyplot as plt
 import numpy as np
 import os
-import pandas as pd
-from redback.utils import logger
-
-from astropy.cosmology import Planck18 as cosmo
-from ..getdata import afterglow_directory_structure
 from os.path import join
+import pandas as pd
 
-import redback
-from .transient import Transient
+from astropy.cosmology import Planck18 as cosmo  # noqa
+
+from redback.utils import logger
+from redback.getdata import afterglow_directory_structure
+from redback.transient.transient import Transient
 
 dirname = os.path.dirname(__file__)
 
@@ -76,8 +75,7 @@ class Afterglow(Transient):
 
     @staticmethod
     def load_data(name, data_mode=None):
-        grb_dir, _, _ = afterglow_directory_structure(grb=name.lstrip('GRB'), use_default_directory=False,
-                                                      data_mode=data_mode)
+        grb_dir, _, _ = afterglow_directory_structure(grb=name.lstrip('GRB'), data_mode=data_mode)
         filename = f"{name}.csv"
 
         data_file = join(grb_dir, filename)
@@ -98,8 +96,7 @@ class Afterglow(Transient):
         return os.path.join(dirname, f'../tables/{self.__class__.__name__}_table.txt')
 
     def _save_luminosity_data(self):
-        grb_dir, _, _ = afterglow_directory_structure(grb=self._stripped_name, use_default_directory=False,
-                                                      data_mode=self.data_mode)
+        grb_dir, _, _ = afterglow_directory_structure(grb=self._stripped_name, data_mode=self.data_mode)
         filename = f"{self.name}.csv"
         data = {"Time in restframe [s]": self.time_rest_frame,
                 "Pos. time err in restframe [s]": self.time_rest_frame_err[0, :],
@@ -216,15 +213,14 @@ class Afterglow(Transient):
         if axes is None:
             plt.tight_layout()
 
-        grb_dir, _, _ = afterglow_directory_structure(grb=self._stripped_name, use_default_directory=False,
-                                                      data_mode=self.data_mode)
+        grb_dir, _, _ = afterglow_directory_structure(grb=self._stripped_name, data_mode=self.data_mode)
         filename = f"{self.name}_lc.png"
         plt.savefig(join(grb_dir, filename))
         if axes is None:
             plt.clf()
         return ax
 
-    def plot_multiband(self):
+    def plot_multiband(self, axes=None, colour='k'):
         if self.data_mode != 'flux_density':
             logger.warning('why are you doing this')
         pass
@@ -270,20 +266,18 @@ class Truncator(object):
         return self.x, self.x_err, self.y, self.y_err
 
     def truncate_left_of_max(self):
-        max_index = np.argmax(self.y)
-        self.x = self.x[max_index:]
-        self.x_err = self.x_err[:, max_index:]
-        self.y = self.y[max_index:]
-        self.y_err = self.y_err[:, max_index:]
-        return self.x, self.x_err, self.y, self.y_err
+        return self._truncate_by_index(index=np.argmax(self.y))
 
     def truncate_default(self):
         truncate = self.time_err[0, :] > 0.1
-        to_del = len(self.time) - (len(self.time[truncate]) + 2)
-        self.x = self.x[to_del:]
-        self.x_err = self.x_err[:, to_del:]
-        self.y = self.y[to_del:]
-        self.y_err = self.y_err[:, to_del:]
+        index = len(self.time) - (len(self.time[truncate]) + 2)
+        return self._truncate_by_index(index=index)
+
+    def _truncate_by_index(self, index):
+        self.x = self.x[index:]
+        self.x_err = self.x_err[:, index:]
+        self.y = self.y[index:]
+        self.y_err = self.y_err[:, index:]
         return self.x, self.x_err, self.y, self.y_err
 
 
@@ -323,6 +317,7 @@ class FluxToLuminosityConverter(object):
             except ImportError as e:
                 logger.warning(e)
                 logger.warning("Can't perform numerical flux to luminosity calculation")
+                return
             Ecut = 1000
             obs_elow = 0.3
             obs_ehigh = 10
@@ -350,49 +345,3 @@ class FluxToLuminosityConverter(object):
         self.Lum50_err = self.flux_err * isotropic_bolometric_flux * 1e-50
         self.time_rest_frame = self.time / (1 + redshift)
         self.time_rest_frame_err = self.time_err / (1 + redshift)
-
-
-# def plot_models(parameters, model, plot_magnetar, axes=None, colour='r', alpha=1.0, ls='-', lw=4):
-#     """
-#     plot the models
-#     parameters: dictionary of parameters - 1 set of Parameters
-#     model: model name
-#     """
-#     time = np.logspace(-4, 7, 100)
-#     ax = axes or plt.gca()
-#
-#     lightcurve = all_models_dict[model]
-#     magnetar_models = ['evolving_magnetar', 'evolving_magnetar_only', 'piecewise_radiative_losses',
-#                        'radiative_losses', 'radiative_losses_mdr', 'radiative_losses_smoothness', 'radiative_only']
-#     if model in magnetar_models and plot_magnetar:
-#         if model == 'radiative_losses_mdr':
-#             magnetar = mm.magnetar_only(time, nn=3., **parameters)
-#         else:
-#             magnetar = mm.magnetar_only(time, **parameters)
-#         ax.plot(time, magnetar, color=colour, ls=ls, lw=lw, alpha=alpha, zorder=-32, linestyle='--')
-#     ax.plot(time, lightcurve, color=colour, ls=ls, lw=lw, alpha=alpha, zorder=-32)
-
-
-# def plot_lightcurve(self, model, axes=None, plot_save=True, plot_show=True, random_models=1000,
-#                     posterior=None, use_photon_index_prior=False, outdir='./', plot_magnetar=False):
-#     max_l = dict(posterior.sort_values(by=['log_likelihood']).iloc[-1])
-#
-#     for j in range(int(random_models)):
-#         params = dict(posterior.iloc[np.random.randint(len(posterior))])
-#         plot_models(parameters=params, axes=axes, alpha=0.05, lw=2, colour='r', model=model,
-#                     plot_magnetar=plot_magnetar)
-#
-#     # plot max likelihood
-#     plot_models(parameters=max_l, axes=axes, alpha=0.65, lw=2, colour='b', model=model, plot_magnetar=plot_magnetar)
-#
-#     self.plot_data(axes=axes)
-#
-#     label = 'lightcurve'
-#     if use_photon_index_prior:
-#         label = f"_photon_index_{label}"
-#
-#     if plot_save:
-#         plt.savefig(f"{outdir}{model}{label}.png")
-#
-#     if plot_show:
-#         plt.show()

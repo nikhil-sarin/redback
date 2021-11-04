@@ -1,24 +1,19 @@
 import os
-import sys
 from pathlib import Path
 
 import bilby
 
-import pandas as pd
-
-from . import afterglow
-
-from .result import RedbackResult
-from .utils import find_path, logger
-from .model_library import all_models_dict
-from .likelihoods import GRBGaussianLikelihood, GaussianLikelihood, PoissonLikelihood
+from redback.likelihoods import GRBGaussianLikelihood, PoissonLikelihood
+from redback.model_library import all_models_dict
+from redback.result import RedbackResult
+from redback.utils import logger
 
 dirname = os.path.dirname(__file__)
 
 
-def fit_model(name, transient, model, outdir=".", source_type='GRB', sampler='dynesty', nlive=2000, prior=None, walks=200,
-              truncate=True, use_photon_index_prior=False, truncate_method='prompt_time_error', data_mode='flux',
-              resume=True, save_format='json', model_kwargs=None, **kwargs):
+def fit_model(name, transient, model, outdir=".", source_type='GRB', sampler='dynesty', nlive=2000, prior=None,
+              walks=200, truncate=True, use_photon_index_prior=False, truncate_method='prompt_time_error',
+              data_mode='flux', resume=True, save_format='json', model_kwargs=None, **kwargs):
     """
 
     Parameters
@@ -56,8 +51,8 @@ def fit_model(name, transient, model, outdir=".", source_type='GRB', sampler='dy
                              save_format=save_format, model_kwargs=model_kwargs, **kwargs)
     elif source_type.upper() in ['PROMPT']:
         return _fit_prompt(name=name, transient=transient, model=model, outdir=outdir, sampler=sampler, nlive=nlive,
-                           prior=prior, walks=walks, truncate=truncate, use_photon_index_prior=use_photon_index_prior,
-                           truncate_method=truncate_method, data_mode=data_mode, resume=resume,
+                           prior=prior, walks=walks, use_photon_index_prior=use_photon_index_prior,
+                           data_mode=data_mode, resume=resume,
                            save_format=save_format, model_kwargs=model_kwargs, **kwargs)
     elif source_type.upper() in ['SUPERNOVA']:
         return _fit_supernova(name=name, transient=transient, model=model, outdir=outdir, sampler=sampler, nlive=nlive,
@@ -74,10 +69,9 @@ def fit_model(name, transient, model, outdir=".", source_type='GRB', sampler='dy
         raise ValueError(f'Source type {source_type} not known')
 
 
-def _fit_grb(name, transient, model, outdir, sampler='dynesty', nlive=3000, prior=None, walks=1000, truncate=True,
-             use_photon_index_prior=False, truncate_method='prompt_time_error', data_mode='flux',
-             resume=True, save_format='json', model_kwargs=None, **kwargs):
-
+def _fit_grb(name, transient, model, outdir, sampler='dynesty', nlive=3000, prior=None, walks=1000,
+             use_photon_index_prior=False, data_mode='flux', resume=True, save_format='json',
+             model_kwargs=None, **kwargs):
     if use_photon_index_prior:
         if transient.photon_index < 0.:
             logger.info('photon index for GRB', transient.name, 'is negative. Using default prior on alpha_1')
@@ -97,7 +91,6 @@ def _fit_grb(name, transient, model, outdir, sampler='dynesty', nlive=3000, prio
     label = data_mode
     if use_photon_index_prior:
         label += '_photon_index'
-
 
     if transient.flux_density_data or transient.photometry_data:
         x, x_err, y, y_err = transient.get_filtered_data()
@@ -124,10 +117,8 @@ def _fit_kilonova(**kwargs):
 
 
 def _fit_prompt(name, transient, model, outdir, integrated_rate_function=True, sampler='dynesty', nlive=3000,
-                prior=None, walks=1000, truncate=True, use_photon_index_prior=False,
-                truncate_method='prompt_time_error', data_mode='flux', resume=True, save_format='json',
+                prior=None, walks=1000, use_photon_index_prior=False, data_mode='flux', resume=True, save_format='json',
                 model_kwargs=None, **kwargs):
-
     if isinstance(model, str):
         function = all_models_dict[model]
     else:
@@ -155,6 +146,7 @@ def _fit_prompt(name, transient, model, outdir, integrated_rate_function=True, s
                                nthreads=4, save_bounds=False, nsteps=nlive, nwalkers=walks, save=save_format, **kwargs)
 
     return result
+
 
 def _fit_supernova(**kwargs):
     pass

@@ -1,16 +1,21 @@
 import numpy as np
+
 import scipy.special as ss
-from ..constants import *
 from scipy.integrate import quad
-from .fireball_models import one_component_fireball_model
+
+from redback.constants import *
+from redback.transient_models.fireball_models import one_component_fireball_model
+
 
 def mu_function(time, mu0, muinf, tm):
-    mu = muinf + (mu0 - muinf)*np.exp(-time/tm)
+    mu = muinf + (mu0 - muinf) * np.exp(-time / tm)
     return mu
 
+
 def integrand(time, mu0, muinf, tm):
-    mu = muinf + (mu0 - muinf)*np.exp(-time/tm)
-    return mu**2
+    mu = muinf + (mu0 - muinf) * np.exp(-time / tm)
+    return mu ** 2
+
 
 def evolving_magnetar_only(time, mu0, muinf, p0, sinalpha0, tm, II, **kwargs):
     """
@@ -19,13 +24,13 @@ def evolving_magnetar_only(time, mu0, muinf, p0, sinalpha0, tm, II, **kwargs):
     :param kwargs: key word argument for handling plotting
     :return: luminosity (depending on scaling) as a function of time.
     """
-    mu0 = mu0 * 1e33 # G cm^3
-    muinf = muinf * 1e33 # G cm^3
-    tm = tm * 86400 #days
+    mu0 = mu0 * 1e33  # G cm^3
+    muinf = muinf * 1e33  # G cm^3
+    tm = tm * 86400  # days
     eta = 0.1
     tau = np.zeros(len(time))
     for ii in range(len(time)):
-        tau[ii], _ = quad(integrand, 0, time[ii], args=(mu0, muinf, tm))
+        tau[ii], _ = quad(integrand, 0, time[ii], args=(mu0, muinf, tm)) # noqa
     mu = mu_function(time, mu0, muinf, tm)
     omega0 = (2 * np.pi) / p0
     tau = (omega0 ** 2) / (II * speed_of_light ** 3) * tau
@@ -38,7 +43,8 @@ def evolving_magnetar_only(time, mu0, muinf, p0, sinalpha0, tm, II, **kwargs):
     ytau = y0 / ((1 + ftau) ** 0.5)
     omegatau = omega0 * (1 - y0 ** 2) * ((1 + ftau) ** 0.5) / (1 - y0 ** 2 + ftau)
     luminosity = eta * (mu ** 2 * omegatau ** 4) / (speed_of_light ** 3) * (1 + ytau ** 2)
-    return luminosity/1e50
+    return luminosity / 1e50
+
 
 def evolving_magnetar(time, A_1, alpha_1, mu0, muinf, p0, sinalpha0, tm, II, **kwargs):
     """
@@ -152,11 +158,9 @@ def general_magnetar(time, a_1, alpha_1,
     x = np.where(time > time_one)
 
     f1 = a_1 * time[w] ** alpha_1
-    f2 = a_2 * (1. + (time[x] / tau)) ** (gamma)
+    f2 = a_2 * (1. + (time[x] / tau)) ** gamma
+    return np.concatenate((f1, f2))
 
-    total = np.concatenate((f1, f2))
-
-    return total
 
 def integral_general(time, t0, kappa, tau, nn, **kwargs):
     """
@@ -169,13 +173,8 @@ def integral_general(time, t0, kappa, tau, nn, **kwargs):
     :param kwargs:
     :return:
     """
-    alpha = ((1 + nn) / (-1 + nn))
-    pft = ss.hyp2f1(1 + kappa, alpha, 2 + kappa, -time / tau)
-    pst = ss.hyp2f1(1 + kappa, alpha, 2 + kappa, -t0 / tau)
-    first_term = (time ** (1 + kappa) * pft) / (1 + kappa)
-    second_term = (t0 ** (1 + kappa) * pst) / (1 + kappa)
-    integral = (first_term - second_term)
-    return integral
+    first_term, second_term = _get_integral_terms(time=time, t0=t0, kappa=kappa, tau=tau, nn=nn)
+    return first_term - second_term
 
 
 def integral_general_collapsing(time, t0, kappa, tau, nn, tcol, **kwargs):
@@ -190,13 +189,17 @@ def integral_general_collapsing(time, t0, kappa, tau, nn, tcol, **kwargs):
     :param kwargs:
     :return:
     """
-    alpha = ((1 + nn) / (-1 + nn))
+    first_term, second_term = _get_integral_terms(time=time, t0=t0, kappa=kappa, tau=tau, nn=nn)
+    return np.heaviside(tcol - time, 1e-50) * (first_term - second_term)
+
+
+def _get_integral_terms(time, t0, kappa, tau, nn):
+    alpha = (1 + nn) / (-1 + nn)
     pft = ss.hyp2f1(1 + kappa, alpha, 2 + kappa, -time / tau)
     pst = ss.hyp2f1(1 + kappa, alpha, 2 + kappa, -t0 / tau)
     first_term = (time ** (1 + kappa) * pft) / (1 + kappa)
     second_term = (t0 ** (1 + kappa) * pst) / (1 + kappa)
-    integral = np.heaviside(tcol - time, 1e-50) * (first_term - second_term)
-    return integral
+    return first_term, second_term
 
 
 def integral_mdr(time, t0, kappa, a, **kwargs):
@@ -234,9 +237,7 @@ def piecewise_radiative_losses(time, a_1, alpha_1, l0, tau, nn, kappa, t0, **kwa
 
     lum = (kappa * energy_loss_total / time[magnetar_time])
 
-    total = np.concatenate((pl, lum))
-
-    return total
+    return np.concatenate((pl, lum))
 
 
 def radiative_losses(time, a_1, alpha_1, l0, tau, nn, kappa, t0, log_e0, **kwargs):

@@ -1,19 +1,23 @@
-from .utils import logger, calc_ABmag_from_flux_density, get_functions_dict
-from transient_models import afterglow_models
 import matplotlib.pyplot as plt
 import numpy as np
+
+from redback.transient_models.phase_models import t0_extinction_models
+from redback.utils import calc_confidence_intervals, logger
 
 
 def plot_multiple_multiband_lightcurves():
     pass
 
+
 def plot_evolution_parameters():
     pass
+
 
 def plot_multiple_lightcurves():
     pass
 
-def plot_afterglowpy_lightcurves(time, plot = False, **kwargs):
+
+def plot_afterglowpy_lightcurves(time, plot=False, **kwargs):
     """
     :param time: Time for the axis
     :param kwargs:
@@ -29,7 +33,7 @@ def plot_afterglowpy_lightcurves(time, plot = False, **kwargs):
     flux = function(time, **kwargs)
 
     if plot:
-        plt.loglog(time, flux, lw = 0.1, c='red', alpha = 0.1, zorder = -1)
+        plt.loglog(time, flux, lw=0.1, c='red', alpha=0.1, zorder=-1)
         return None
     else:
         return time, flux
@@ -43,7 +47,7 @@ def evaluate_extinction(time, **s):
     t = t.flatten()
     nu = nu.flatten()
     s['frequency'] = nu
-    magnitudes = mm.t0_extinction_models(t, **s)
+    magnitudes = t0_extinction_models(t, **s)
     magnitudes = magnitudes.reshape(len(nu_1d), len(t_1d))
     return magnitudes, nus
 
@@ -78,6 +82,6 @@ def confidence_interval_lightcurve(result, base_model):
     upper_bound = {}
     median = {}
     for x in range(3):
-        lower_bound[x], upper_bound[x], median[x] = redback.utils.calc_confidence_intervals(lcs[x])
+        lower_bound[x], upper_bound[x], median[x] = calc_confidence_intervals(lcs[x])
 
     return lower_bound, upper_bound, median

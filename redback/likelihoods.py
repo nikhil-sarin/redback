@@ -2,7 +2,8 @@ import numpy as np
 import inspect
 
 import bilby
-from scipy.special import gammaln, logsumexp
+from scipy.special import gammaln
+
 
 class GaussianLikelihood(bilby.Likelihood):
     def __init__(self, x, y, sigma, function, kwargs=None):
@@ -27,7 +28,11 @@ class GaussianLikelihood(bilby.Likelihood):
         self.sigma = sigma
         self.N = len(self.x)
         self.function = function
-        self.kwargs = kwargs
+        if self.kwargs is None:
+            self.kwargs = dict()
+        else:
+            self.kwargs = kwargs
+        self._noise_log_likelihood = 0
 
         # These lines of code infer the parameters from the provided function
         parameters = inspect.getfullargspec(function).args
@@ -41,23 +46,14 @@ class GaussianLikelihood(bilby.Likelihood):
     def noise_log_likelihood(self):
         sigma = self.parameters.get('sigma', self.sigma)
         res = self.y - 0.
-        log_l = np.sum(- (res / sigma) ** 2 / 2 -
-                       np.log(2 * np.pi * sigma ** 2) / 2)
-        self._noise_log_likelihood = log_l
+        self._noise_log_likelihood = np.sum(- (res / sigma) ** 2 / 2 - np.log(2 * np.pi * sigma ** 2) / 2)
         return self._noise_log_likelihood
 
     def log_likelihood(self):
-        if self.kwargs != None:
-            model = self.function(self.x, **self.parameters, **self.kwargs)
-        else:
-            model = self.function(self.x, **self.parameters)
-
         sigma = self.parameters.get('sigma', self.sigma)
+        res = self.y - self.function(self.x, **self.parameters, **self.kwargs)
+        return np.sum(- (res / sigma) ** 2 / 2 - np.log(2 * np.pi * sigma ** 2) / 2)
 
-        res = self.y - model
-        log_l = np.sum(- (res / sigma) ** 2 / 2 -
-                       np.log(2 * np.pi * sigma ** 2) / 2)
-        return log_l
 
 class GaussianLikelihood_with_uniform_x_errors(bilby.Likelihood):
     def __init__(self, x, y, sigma, bin_size, function, kwargs=None):
@@ -84,7 +80,11 @@ class GaussianLikelihood_with_uniform_x_errors(bilby.Likelihood):
         self.xerr = bin_size
         self.N = len(self.x)
         self.function = function
-        self.kwargs = kwargs
+        self._noise_log_likelihood = 0
+        if self.kwargs is None:
+            self.kwargs = dict()
+        else:
+            self.kwargs = kwargs
 
         # These lines of code infer the parameters from the provided function
         parameters = inspect.getfullargspec(function).args
@@ -97,25 +97,15 @@ class GaussianLikelihood_with_uniform_x_errors(bilby.Likelihood):
     def noise_log_likelihood(self):
         sigma = self.parameters.get('sigma', self.sigma)
         res = self.y - 0.
-        log_a = np.sum(- (res / sigma) ** 2 / 2 -
-                       np.log(2 * np.pi * sigma ** 2) / 2)
+        log_a = np.sum(- (res / sigma) ** 2 / 2 - np.log(2 * np.pi * sigma ** 2) / 2)
         log_b = np.sum(-np.log(self.xerr))
-        log_l = log_a + log_b
-        self._noise_log_likelihood = log_l
+        self._noise_log_likelihood = log_a + log_b
         return self._noise_log_likelihood
 
     def log_likelihood_a(self):
-        if self.kwargs != None:
-            model = self.function(self.x, **self.parameters, **self.kwargs)
-        else:
-            model = self.function(self.x, **self.parameters)
-
         sigma = self.parameters.get('sigma', self.sigma)
-
-        res = self.y - model
-        log_l = np.sum(- (res / sigma) ** 2 / 2 -
-                       np.log(2 * np.pi * sigma ** 2) / 2)
-        return log_l
+        res = self.y - self.function(self.x, **self.parameters, **self.kwargs)
+        return np.sum(- (res / sigma) ** 2 / 2 - np.log(2 * np.pi * sigma ** 2) / 2)
 
     def log_likelihood_b(self):
         log_b = -np.log(self.xerr)
@@ -124,8 +114,8 @@ class GaussianLikelihood_with_uniform_x_errors(bilby.Likelihood):
     def log_likelihood(self):
         log_a = self.log_likelihood_a()
         log_b = self.log_likelihood_b()
-        log_l = log_a + log_b
-        return log_l
+        return log_a + log_b
+
 
 class GaussianLikelihood_quadrature_noise(bilby.Likelihood):
     def __init__(self, x, y, sigma_i, function, kwargs=None):
@@ -151,7 +141,11 @@ class GaussianLikelihood_quadrature_noise(bilby.Likelihood):
         self.sigma_i = sigma_i
         self.N = len(self.x)
         self.function = function
-        self.kwargs = kwargs
+        self._noise_log_likelihood = 0
+        if self.kwargs is None:
+            self.kwargs = dict()
+        else:
+            self.kwargs = kwargs
 
         # These lines of code infer the parameters from the provided function
         parameters = inspect.getfullargspec(function).args
@@ -163,26 +157,17 @@ class GaussianLikelihood_quadrature_noise(bilby.Likelihood):
 
     def noise_log_likelihood(self):
         sigma_s = self.parameters['sigma']
-        sigma = np.sqrt(self.sigma_i**2. + sigma_s**2.)
+        sigma = np.sqrt(self.sigma_i ** 2. + sigma_s ** 2.)
         res = self.y - 0.
-        log_l = np.sum(- (res / sigma) ** 2 / 2 -
-                       np.log(2 * np.pi * sigma ** 2) / 2)
-        self._noise_log_likelihood = log_l
+        self._noise_log_likelihood = np.sum(- (res / sigma) ** 2 / 2 - np.log(2 * np.pi * sigma ** 2) / 2)
         return self._noise_log_likelihood
 
     def log_likelihood(self):
-        if self.kwargs != None:
-            model = self.function(self.x, **self.parameters, **self.kwargs)
-        else:
-            model = self.function(self.x, **self.parameters)
-
         sigma_s = self.parameters['sigma']
-        sigma = np.sqrt(self.sigma_i**2. + sigma_s**2.)
+        sigma = np.sqrt(self.sigma_i ** 2. + sigma_s ** 2.)
+        res = self.y - self.function(self.x, **self.parameters, **self.kwargs)
+        return np.sum(- (res / sigma) ** 2 / 2 - np.log(2 * np.pi * sigma ** 2) / 2)
 
-        res = self.y - model
-        log_l = np.sum(- (res / sigma) ** 2 / 2 -
-                       np.log(2 * np.pi * sigma ** 2) / 2)
-        return log_l
 
 class GaussianLikelihood_quadrature_noise_non_detections(bilby.Likelihood):
     def __init__(self, x, y, sigma_i, function, kwargs=None, upperlimit_kwargs=None):
@@ -208,7 +193,11 @@ class GaussianLikelihood_quadrature_noise_non_detections(bilby.Likelihood):
         self.sigma_i = sigma_i
         self.N = len(self.x)
         self.function = function
-        self.kwargs = kwargs
+        self._noise_log_likelihood = 0
+        if self.kwargs is None:
+            self.kwargs = dict()
+        else:
+            self.kwargs = kwargs
         self.upperlimit_kwargs = upperlimit_kwargs
 
         # These lines of code infer the parameters from the provided function
@@ -221,26 +210,16 @@ class GaussianLikelihood_quadrature_noise_non_detections(bilby.Likelihood):
 
     def noise_log_likelihood(self):
         sigma_s = self.parameters['sigma']
-        sigma = np.sqrt(self.sigma_i**2. + sigma_s**2.)
+        sigma = np.sqrt(self.sigma_i ** 2. + sigma_s ** 2.)
         res = self.y - 0.
-        log_l = np.sum(- (res / sigma) ** 2 / 2 -
-                       np.log(2 * np.pi * sigma ** 2) / 2)
-        self._noise_log_likelihood = log_l
+        self._noise_log_likelihood = np.sum(- (res / sigma) ** 2 / 2 - np.log(2 * np.pi * sigma ** 2) / 2)
         return self._noise_log_likelihood
 
     def log_likelihood_a(self):
-        if self.kwargs != None:
-            model = self.function(self.x, **self.parameters, **self.kwargs)
-        else:
-            model = self.function(self.x, **self.parameters)
-
         sigma_s = self.parameters['sigma']
-        sigma = np.sqrt(self.sigma_i**2. + sigma_s**2.)
-
-        res = self.y - model
-        log_l = np.sum(- (res / sigma) ** 2 / 2 -
-                       np.log(2 * np.pi * sigma ** 2) / 2)
-        return log_l
+        sigma = np.sqrt(self.sigma_i ** 2. + sigma_s ** 2.)
+        res = self.y - self.function(self.x, **self.parameters, **self.kwargs)
+        return np.sum(- (res / sigma) ** 2 / 2 - np.log(2 * np.pi * sigma ** 2) / 2)
 
     def log_likelihood_b(self):
         flux = self.function(**self.parameters, **self.upperlimit_kwargs)
@@ -254,8 +233,8 @@ class GaussianLikelihood_quadrature_noise_non_detections(bilby.Likelihood):
     def log_likelihood(self):
         log_a = self.log_likelihood_a()
         log_b = self.log_likelihood_b()
-        log_l = log_a + log_b
-        return log_l
+        return log_a + log_b
+
 
 class GRBGaussianLikelihood(bilby.Likelihood):
     def __init__(self, x, y, sigma, function, kwargs=None):
@@ -280,7 +259,11 @@ class GRBGaussianLikelihood(bilby.Likelihood):
         self.sigma = sigma
         self.N = len(self.x)
         self.function = function
-        self.kwargs = kwargs
+        self._noise_log_likelihood = 0
+        if kwargs is None:
+            self.kwargs = dict()
+        else:
+            self.kwargs = kwargs
 
         # These lines of code infer the parameters from the provided function
         parameters = inspect.getfullargspec(function).args
@@ -294,19 +277,13 @@ class GRBGaussianLikelihood(bilby.Likelihood):
     def noise_log_likelihood(self):
         sigma = self.parameters.get('sigma', self.sigma)
         res = self.y - 0.
-        log_l = np.sum(- (res / sigma) ** 2 / 2 -
-                       np.log(2 * np.pi * sigma ** 2) / 2)
-        self._noise_log_likelihood = log_l
+        self._noise_log_likelihood = np.sum(- (res / sigma) ** 2 / 2 - np.log(2 * np.pi * sigma ** 2) / 2)
         return self._noise_log_likelihood
 
     def log_likelihood(self):
-        model = self.function(self.x, **self.parameters, **self.kwargs)
         sigma = self.parameters.get('sigma', self.sigma)
-
-        res = self.y - model
-        log_l = np.sum(- (res / sigma) ** 2 / 2 -
-                       np.log(2 * np.pi * sigma ** 2) / 2)
-        return log_l
+        res = self.y - self.function(self.x, **self.parameters, **self.kwargs)
+        return np.sum(- (res / sigma) ** 2 / 2 - np.log(2 * np.pi * sigma ** 2) / 2)
 
 
 class PoissonLikelihood(bilby.Likelihood):
@@ -331,7 +308,11 @@ class PoissonLikelihood(bilby.Likelihood):
         self.time = time
         self.counts = counts
         self.function = function
-        self.kwargs = kwargs
+        self._noise_log_likelihood = 0
+        if self.kwargs is None:
+            self.kwargs = dict()
+        else:
+            self.kwargs = kwargs
         self.integrated_rate_function = integrated_rate_function
         self.dt = dt
         parameters = bilby.core.utils.introspection.infer_parameters_from_function(func=function)
