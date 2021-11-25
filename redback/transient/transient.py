@@ -176,7 +176,7 @@ class Transient(object):
             filtered_x = self.x[idxs]
             try:
                 filtered_x_err = self.x_err[idxs]
-            except IndexError:
+            except (IndexError, TypeError):
                 filtered_x_err = None
             filtered_y = self.y[idxs]
             filtered_y_err = self.y_err[idxs]
