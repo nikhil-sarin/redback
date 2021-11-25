@@ -199,43 +199,146 @@ def get_grb_alias(transient):
     return grb_alias
 
 
-def afterglow_directory_structure(grb, data_mode, instrument='BAT+XRT'):
-    grb_dir = 'GRBData/GRB' + grb + '/afterglow/'
-    grb_dir = grb_dir + data_mode + '/'
-    check_directory_exists_and_if_not_mkdir(grb_dir)
+def sort_integrated_flux_data(rawfile, fullfile):
+    keys = ["Time [s]", "Pos. time err [s]", "Neg. time err [s]", "Flux [erg cm^{-2} s^{-1}]",
+            "Pos. flux err [erg cm^{-2} s^{-1}]", "Neg. flux err [erg cm^{-2} s^{-1}]", "Instrument"]
 
-    rawfile_path = grb_dir + 'GRB' + grb
+    data = {key: [] for key in keys}
+    with open(rawfile) as f:
+        instrument = None
+        for num, line in enumerate(f.readlines()):
+            if line == "!\n":
+                continue
+            elif "READ TERR 1 2" in line or "NO NO NO NO NO NO" in line:
+                continue
+            elif 'batSNR4flux' in line:
+                instrument = 'batSNR4flux'
+            elif 'xrtpcflux' in line:
+                instrument = 'xrtpcflux'
+                print(instrument)
+            elif 'xrtwtflux' in line:
+                instrument = 'xrtwtflux'
+                print(instrument)
+            else:
+                line_items = line.split('\t')
+                line_items.append(instrument)
+                for key, item in zip(keys, line_items):
+                    data[key].append(item.replace('\n', ''))
 
-    if instrument == 'xrt':
-        rawfile = rawfile_path + '_xrt_rawSwiftData.csv'
-        fullfile = rawfile_path + '_xrt_csv'
-        logger.warning('You are only downloading XRT data, you may not capture the tail of the prompt emission.')
+    df = pd.DataFrame(data=data)
+    df.to_csv(fullfile, index=False)
+    logger.info('Congratulations, you now have a nice data file: {}'.format(fullfile))
+
+
+def sort_flux_density_data(rawfile, fullfile):
+    data = np.loadtxt(rawfile, skiprows=2, delimiter='\t')
+    df = pd.DataFrame(data=data, columns=['Time [s]', 'Time err plus [s]', 'Time err minus [s]',
+                                          'Flux [mJy]', 'Flux err plus [mJy]', 'Flux err minus [mJy]'])
+    df.to_csv(fullfile, index=False, sep=',')
+    logger.info('Congratulations, you now have a nice data file: {}'.format(fullfile))
+
+
+def sort_swift_data(rawfile, fullfile, data_mode):
+    if os.path.isfile(fullfile):
+        logger.warning('The processed data file already exists')
+        return None
+
+    if not os.path.isfile(rawfile):
+        logger.warning('The raw data does not exist.')
+        raise DataExists('Raw data is missing.')
+
+    if data_mode == 'flux':
+        sort_integrated_flux_data(rawfile, fullfile)
+    if data_mode == 'flux_density':
+        sort_flux_density_data(rawfile, fullfile)
+
+
+def sort_swift_prompt_data(grb):
+    grbdir, rawfile_path, processed_file_path = prompt_directory_structure(grb)
+
+    if os.path.isfile(processed_file_path):
+        logger.warning('The processed data file already exists')
+        return pd.read_csv(processed_file_path, sep='\t')
+
+    if not os.path.isfile(rawfile_path):
+        logger.warning('The raw data does not exist.')
+        raise DataExists('Raw data is missing.')
+
+    data = np.loadtxt(rawfile_path)
+    df = pd.DataFrame(data=data, columns=[
+        "Time [s]", "flux_15_25 [counts/s/det]", "flux_15_25_err [counts/s/det]", "flux_25_50 [counts/s/det]",
+        "flux_25_50_err [counts/s/det]", "flux_50_100 [counts/s/det]", "flux_50_100_err [counts/s/det]",
+        "flux_100_350 [counts/s/det]", "flux_100_350_err [counts/s/det]", "flux_15_350 [counts/s/det]",
+        "flux_15_350_err [counts/s/det]"])
+    df.to_csv(processed_file_path, index=False)
+    return df
+
+
+def sort_open_access_data(transient, transient_type):
+    directory, rawfilename, fullfilename = transient_directory_structure(transient, transient_type)
+    if os.path.isfile(fullfilename):
+        logger.warning('processed data already exists')
+        return pd.read_csv(fullfilename, sep=',')
+
+    if not os.path.isfile(rawfilename):
+        logger.warning('The raw data does not exist.')
+        raise DataExists('Raw data is missing.')
     else:
-        logger.warning('You are downloading BAT and XRT data, you will need to truncate the data for some models.')
-        rawfile = rawfile_path + '_rawSwiftData.csv'
-        fullfile = rawfile_path + '.csv'
+        rawdata = pd.read_csv(rawfilename, sep=',')
+        if pd.isna(rawdata['system']).any():
+            logger.warning("Some data points do not have system information. Assuming AB magnitude")
+            rawdata['system'].fillna('AB', inplace=True)
+        logger.info('Processing data for transient {}.'.format(transient))
+        data = rawdata.copy()
+        data = data[data['band'] != 'C']
+        data = data[data['band'] != 'W']
+        data = data[data['system'] == 'AB']
+        logger.info('Keeping only AB magnitude data')
 
-    return grb_dir, rawfile, fullfile
+        data['flux_density(mjy)'] = calc_flux_density_from_ABmag(data['magnitude'].values)
+        data['flux_density_error'] = calc_flux_density_error(magnitude=data['magnitude'].values,
+                                                             magnitude_error=data['e_magnitude'].values,
+                                                             reference_flux=3631,
+                                                             magnitude_system='AB')
+
+        metadata = directory + 'metadata.csv'
+        metadata = pd.read_csv(metadata)
+        metadata.replace(r'^\s+$', np.nan, regex=True)
+        timeofevent = metadata['timeofmerger'].iloc[0]
+
+        if np.isnan(timeofevent) and transient_type == 'kilonova':
+            logger.warning('No timeofevent in metadata. Looking through associated GRBs')
+            timeofevent = get_t0_from_grb(transient)
+
+        if np.isnan(timeofevent) and transient_type != 'kilonova':
+            logger.warning('No time of event in metadata.')
+            logger.warning('Temporarily using the first data point as a start time')
+            logger.warning(
+                'Please run function fix_t0_of_transient before any further analysis. Or use models which sample with T0.')
+            print(data['time'])
+            timeofevent = data['time'].iloc[0]
+
+        timeofevent = Time(timeofevent, format='mjd')
+        tt = Time(np.asarray(data['time'], dtype=float), format='mjd')
+        data['time (days)'] = (tt - timeofevent).to(uu.day)
+        data.to_csv(fullfilename, sep=',', index=False)
+        logger.info(f'Congratulations, you now have a nice data file: {fullfilename}')
+    return data
 
 
-def prompt_directory_structure(grb, bin_size='2ms'):
-    if bin_size not in SWIFT_PROMPT_BIN_SIZES:
-        raise ValueError(f'Bin size {bin_size} not in allowed bin sizes.\n'
-                         f'Use one of the following: {SWIFT_PROMPT_BIN_SIZES}')
-    grb_dir = 'GRBData/GRB' + grb + '/'
-    grb_dir = grb_dir + 'prompt/'
-    check_directory_exists_and_if_not_mkdir(grb_dir)
-
-    rawfile_path = grb_dir + f'{bin_size}_lc_ascii.dat'
-    processed_file_path = grb_dir + f'{bin_size}_lc.csv'
-    return grb_dir, rawfile_path, processed_file_path
-
-
-def transient_directory_structure(transient, transient_type):
-    open_transient_dir = transient_type + '/' + transient + '/'
-    rawfile_path = open_transient_dir + transient + '_rawdata.csv'
-    fullfile_path = open_transient_dir + transient + '_data.csv'
-    return open_transient_dir, rawfile_path, fullfile_path
+def process_xrt_data(rawfile):
+    data = np.loadtxt(rawfile, comments=['!', 'READ', 'NO'])
+    time = data[:, 0]
+    timepos = data[:, 1]
+    timeneg = data[:, 2]
+    flux = data[:, 3]
+    fluxpos = data[:, 4]
+    fluxneg = data[:, 5]
+    data = {'time': time, 'timepos': timepos, 'timeneg': timeneg,
+            'flux': flux, 'fluxpos': fluxpos, 'fluxneg': fluxneg}
+    data = pd.DataFrame(data)
+    processedfile = data[data['fluxpos'] != 0.]
+    return processedfile
 
 
 def process_flux_density_data(grb, rawfile):
@@ -307,45 +410,6 @@ def process_integrated_flux_data(grb, rawfile):
     logger.info('Congratulations, you now have raw data for GRB {}'.format(grb))
 
 
-def sort_integrated_flux_data(rawfile, fullfile):
-    keys = ["Time [s]", "Pos. time err [s]", "Neg. time err [s]", "Flux [erg cm^{-2} s^{-1}]",
-            "Pos. flux err [erg cm^{-2} s^{-1}]", "Neg. flux err [erg cm^{-2} s^{-1}]", "Instrument"]
-
-    data = {key: [] for key in keys}
-    with open(rawfile) as f:
-        instrument = None
-        for num, line in enumerate(f.readlines()):
-            if line == "!\n":
-                continue
-            elif "READ TERR 1 2" in line or "NO NO NO NO NO NO" in line:
-                continue
-            elif 'batSNR4flux' in line:
-                instrument = 'batSNR4flux'
-            elif 'xrtpcflux' in line:
-                instrument = 'xrtpcflux'
-                print(instrument)
-            elif 'xrtwtflux' in line:
-                instrument = 'xrtwtflux'
-                print(instrument)
-            else:
-                line_items = line.split('\t')
-                line_items.append(instrument)
-                for key, item in zip(keys, line_items):
-                    data[key].append(item.replace('\n', ''))
-
-    df = pd.DataFrame(data=data)
-    df.to_csv(fullfile, index=False)
-    logger.info('Congratulations, you now have a nice data file: {}'.format(fullfile))
-
-
-def sort_flux_density_data(rawfile, fullfile):
-    data = np.loadtxt(rawfile, skiprows=2, delimiter='\t')
-    df = pd.DataFrame(data=data, columns=['Time [s]', 'Time err plus [s]', 'Time err minus [s]',
-                                          'Flux [mJy]', 'Flux err plus [mJy]', 'Flux err minus [mJy]'])
-    df.to_csv(fullfile, index=False, sep=',')
-    logger.info('Congratulations, you now have a nice data file: {}'.format(fullfile))
-
-
 def collect_swift_data(grb, data_mode):
     valid_data_modes = ['flux', 'flux_density']
     if data_mode not in valid_data_modes:
@@ -374,36 +438,6 @@ def collect_swift_data(grb, data_mode):
     return rawfile, fullfile
 
 
-def sort_swift_data(rawfile, fullfile, data_mode):
-    if os.path.isfile(fullfile):
-        logger.warning('The processed data file already exists')
-        return None
-
-    if not os.path.isfile(rawfile):
-        logger.warning('The raw data does not exist.')
-        raise DataExists('Raw data is missing.')
-
-    if data_mode == 'flux':
-        sort_integrated_flux_data(rawfile, fullfile)
-    if data_mode == 'flux_density':
-        sort_flux_density_data(rawfile, fullfile)
-
-
-def process_xrt_data(rawfile):
-    data = np.loadtxt(rawfile, comments=['!', 'READ', 'NO'])
-    time = data[:, 0]
-    timepos = data[:, 1]
-    timeneg = data[:, 2]
-    flux = data[:, 3]
-    fluxpos = data[:, 4]
-    fluxneg = data[:, 5]
-    data = {'time': time, 'timepos': timepos, 'timeneg': timeneg,
-            'flux': flux, 'fluxpos': fluxpos, 'fluxneg': fluxneg}
-    data = pd.DataFrame(data)
-    processedfile = data[data['fluxpos'] != 0.]
-    return processedfile
-
-
 def collect_swift_prompt_data(grb, bin_size='2ms'):
     grbdir, rawfile, processed_file = prompt_directory_structure(
         grb=grb, bin_size=bin_size)
@@ -422,38 +456,6 @@ def collect_swift_prompt_data(grb, bin_size='2ms'):
         logger.info(f'Congratulations, you now have raw data for GRB {grb}')
     except Exception:
         logger.warning(f'Cannot load the website for GRB {grb}')
-
-
-def get_swift_trigger_from_grb(grb):
-    data = ascii.read(f'{dirname}/tables/summary_general_swift_bat.txt')
-    triggers = list(data['col2'])
-    event_names = list(data['col1'])
-    trigger = triggers[event_names.index(grb)]
-    if len(trigger) == 6:
-        trigger += "000"
-        trigger = trigger.zfill(11)
-    return trigger
-
-
-def sort_swift_prompt_data(grb):
-    grbdir, rawfile_path, processed_file_path = prompt_directory_structure(grb)
-
-    if os.path.isfile(processed_file_path):
-        logger.warning('The processed data file already exists')
-        return pd.read_csv(processed_file_path, sep='\t')
-
-    if not os.path.isfile(rawfile_path):
-        logger.warning('The raw data does not exist.')
-        raise DataExists('Raw data is missing.')
-
-    data = np.loadtxt(rawfile_path)
-    df = pd.DataFrame(data=data, columns=[
-        "Time [s]", "flux_15_25 [counts/s/det]", "flux_15_25_err [counts/s/det]", "flux_25_50 [counts/s/det]",
-        "flux_25_50_err [counts/s/det]", "flux_50_100 [counts/s/det]", "flux_50_100_err [counts/s/det]",
-        "flux_100_350 [counts/s/det]", "flux_100_350_err [counts/s/det]", "flux_15_350 [counts/s/det]",
-        "flux_15_350_err [counts/s/det]"])
-    df.to_csv(processed_file_path, index=False)
-    return df
 
 
 def collect_open_catalog_data(transient, transient_type):
@@ -490,6 +492,17 @@ def collect_open_catalog_data(transient, transient_type):
             logger.info('Metdata for transient {} added'.format(transient))
 
 
+def get_swift_trigger_from_grb(grb):
+    data = ascii.read(f'{dirname}/tables/summary_general_swift_bat.txt')
+    triggers = list(data['col2'])
+    event_names = list(data['col1'])
+    trigger = triggers[event_names.index(grb)]
+    if len(trigger) == 6:
+        trigger += "000"
+        trigger = trigger.zfill(11)
+    return trigger
+
+
 def get_t0_from_grb(transient):
     grb_alias = get_grb_alias(transient)
     catalog = sqlite3.connect('tables/GRBcatalog.sqlite')
@@ -519,58 +532,6 @@ def fix_t0_of_transient(timeofevent, transient, transient_type):
     return None
 
 
-def sort_open_access_data(transient, transient_type):
-    directory, rawfilename, fullfilename = transient_directory_structure(transient, transient_type)
-    if os.path.isfile(fullfilename):
-        logger.warning('processed data already exists')
-        return pd.read_csv(fullfilename, sep=',')
-
-    if not os.path.isfile(rawfilename):
-        logger.warning('The raw data does not exist.')
-        raise DataExists('Raw data is missing.')
-    else:
-        rawdata = pd.read_csv(rawfilename, sep=',')
-        if pd.isna(rawdata['system']).any():
-            logger.warning("Some data points do not have system information. Assuming AB magnitude")
-            rawdata['system'].fillna('AB', inplace=True)
-        logger.info('Processing data for transient {}.'.format(transient))
-        data = rawdata.copy()
-        data = data[data['band'] != 'C']
-        data = data[data['band'] != 'W']
-        data = data[data['system'] == 'AB']
-        logger.info('Keeping only AB magnitude data')
-
-        data['flux_density(mjy)'] = calc_flux_density_from_ABmag(data['magnitude'].values)
-        data['flux_density_error'] = calc_flux_density_error(magnitude=data['magnitude'].values,
-                                                             magnitude_error=data['e_magnitude'].values,
-                                                             reference_flux=3631,
-                                                             magnitude_system='AB')
-
-        metadata = directory + 'metadata.csv'
-        metadata = pd.read_csv(metadata)
-        metadata.replace(r'^\s+$', np.nan, regex=True)
-        timeofevent = metadata['timeofmerger'].iloc[0]
-
-        if np.isnan(timeofevent) and transient_type == 'kilonova':
-            logger.warning('No timeofevent in metadata. Looking through associated GRBs')
-            timeofevent = get_t0_from_grb(transient)
-
-        if np.isnan(timeofevent) and transient_type != 'kilonova':
-            logger.warning('No time of event in metadata.')
-            logger.warning('Temporarily using the first data point as a start time')
-            logger.warning(
-                'Please run function fix_t0_of_transient before any further analysis. Or use models which sample with T0.')
-            print(data['time'])
-            timeofevent = data['time'].iloc[0]
-
-        timeofevent = Time(timeofevent, format='mjd')
-        tt = Time(np.asarray(data['time'], dtype=float), format='mjd')
-        data['time (days)'] = (tt - timeofevent).to(uu.day)
-        data.to_csv(fullfilename, sep=',', index=False)
-        logger.info(f'Congratulations, you now have a nice data file: {fullfilename}')
-    return data
-
-
 def get_trigger_number(grb):
     data = get_grb_table()
     trigger = data.query('GRB == @grb')['Trigger Number']
@@ -591,3 +552,42 @@ def get_grb_table():
     frames = [lgrb, sgrb]
     data = pd.concat(frames, ignore_index=True)
     return data
+
+
+def afterglow_directory_structure(grb, data_mode, instrument='BAT+XRT'):
+    grb_dir = 'GRBData/GRB' + grb + '/afterglow/'
+    grb_dir = grb_dir + data_mode + '/'
+    check_directory_exists_and_if_not_mkdir(grb_dir)
+
+    rawfile_path = grb_dir + 'GRB' + grb
+
+    if instrument == 'xrt':
+        rawfile = rawfile_path + '_xrt_rawSwiftData.csv'
+        fullfile = rawfile_path + '_xrt_csv'
+        logger.warning('You are only downloading XRT data, you may not capture the tail of the prompt emission.')
+    else:
+        logger.warning('You are downloading BAT and XRT data, you will need to truncate the data for some models.')
+        rawfile = rawfile_path + '_rawSwiftData.csv'
+        fullfile = rawfile_path + '.csv'
+
+    return grb_dir, rawfile, fullfile
+
+
+def prompt_directory_structure(grb, bin_size='2ms'):
+    if bin_size not in SWIFT_PROMPT_BIN_SIZES:
+        raise ValueError(f'Bin size {bin_size} not in allowed bin sizes.\n'
+                         f'Use one of the following: {SWIFT_PROMPT_BIN_SIZES}')
+    grb_dir = 'GRBData/GRB' + grb + '/'
+    grb_dir = grb_dir + 'prompt/'
+    check_directory_exists_and_if_not_mkdir(grb_dir)
+
+    rawfile_path = grb_dir + f'{bin_size}_lc_ascii.dat'
+    processed_file_path = grb_dir + f'{bin_size}_lc.csv'
+    return grb_dir, rawfile_path, processed_file_path
+
+
+def transient_directory_structure(transient, transient_type):
+    open_transient_dir = transient_type + '/' + transient + '/'
+    rawfile_path = open_transient_dir + transient + '_rawdata.csv'
+    fullfile_path = open_transient_dir + transient + '_data.csv'
+    return open_transient_dir, rawfile_path, fullfile_path
