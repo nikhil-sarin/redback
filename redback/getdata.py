@@ -341,7 +341,7 @@ def process_xrt_data(rawfile):
     return processedfile
 
 
-def process_flux_density_data(grb, rawfile):
+def process_swift_flux_density_data(grb, rawfile):
     logger.info('Getting trigger number')
     trigger = get_trigger_number(grb)
     grb_website = 'http://www.swift.ac.uk/burst_analyser/00' + trigger + '/'
@@ -368,7 +368,7 @@ def process_flux_density_data(grb, rawfile):
         logger.warning('cannot load the website for GRB {}'.format(grb))
 
 
-def process_integrated_flux_data(grb, rawfile):
+def process_swift_integrated_flux_data(grb, rawfile):
     logger.info('Getting trigger number')
     trigger = get_trigger_number(grb)
     grb_website = 'http://www.swift.ac.uk/burst_analyser/00' + trigger + '/'
@@ -431,9 +431,9 @@ def collect_swift_data(grb, data_mode):
         raise WebsiteExist('Problem loading the website for GRB {}'.format(grb))
     else:
         if data_mode == 'flux':
-            process_integrated_flux_data(grb, rawfile)
+            process_swift_integrated_flux_data(grb, rawfile)
         if data_mode == 'flux_density':
-            process_flux_density_data(grb, rawfile)
+            process_swift_flux_density_data(grb, rawfile)
 
     return rawfile, fullfile
 
