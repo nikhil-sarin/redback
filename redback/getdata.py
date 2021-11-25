@@ -54,6 +54,151 @@ def _get_data_functions_dict():
             ("tidal_disruption_event", "open_data"): get_tidal_disruption_event_data_from_open_transient_catalog_data}
 
 
+def get_afterglow_data_from_swift(grb, data_mode='flux', **kwargs):
+    rawfile, fullfile = collect_swift_data(grb, data_mode)
+    sort_swift_data(rawfile, fullfile, data_mode)
+
+
+def get_xrt_data_from_swift(grb, data_mode='flux', **kwargs):
+    grbdir, rawfile, fullfile = afterglow_directory_structure(grb, data_mode, instrument='xrt')
+    logger.info('Getting trigger number')
+    trigger = get_trigger_number(grb)
+    grb_website = 'https://www.swift.ac.uk/xrt_curves/00' + trigger + '/flux.qdp'
+    response = requests.get(grb_website)
+    if 'No Light curve available' in response.text:
+        logger.warning('Problem loading the website for GRB {}. Are you sure GRB {} has Swift data?'.format(grb, grb))
+        raise WebsiteExist('Problem loading the website for GRB {}'.format(grb))
+
+    urllib.request.urlretrieve(grb_website, rawfile)
+    logger.info('Congratulations, you now have raw XRT data for GRB {}'.format(grb))
+    data = process_xrt_data(rawfile)
+    data.to_csv(fullfile, sep=',', index=False)
+    logger.info('Congratulations, you now have processed XRT data for GRB {}'.format(grb))
+
+
+def get_prompt_data_from_swift(grb, bin_size='2ms', **kwargs):
+    collect_swift_prompt_data(grb=grb, bin_size=bin_size)
+    data = sort_swift_prompt_data(grb=grb)
+    return data
+
+
+def get_prompt_data_from_fermi(grb, **kwargs):
+    return None
+
+
+def get_prompt_data_from_konus(grb, **kwargs):
+    return None
+
+
+def get_prompt_data_from_batse(grb, **kwargs):
+    trigger = get_batse_trigger_from_grb(grb=grb)
+    trigger_filled = str(trigger).zfill(5)
+    s = trigger - trigger % 200 + 1
+    start = str(s).zfill(5)
+    stop = str(s + 199).zfill(5)
+
+    filename = f'tte_bfits_{trigger}.fits.gz'
+
+    grb_dir = 'GRBData/GRB' + grb + '/'
+    grb_dir = grb_dir + 'prompt/'
+    Path(grb_dir).mkdir(exist_ok=True, parents=True)
+
+    url = f"https://heasarc.gsfc.nasa.gov/FTP/compton/data/batse/trigger/{start}_{stop}/{trigger_filled}_burst/{filename}"
+    file_path = f"{grb_dir}/{filename}"
+    urllib.request.urlretrieve(url, file_path)
+
+    with fits.open(file_path) as fits_data:
+        data = fits_data[-1].data
+        bin_left = np.array(data['TIMES'][:, 0])
+        bin_right = np.array(data['TIMES'][:, 1])
+        rates = np.array(data['RATES'][:, :])
+        errors = np.array(data['ERRORS'][:, :])
+        # counts = np.array([np.multiply(rates[:, i],
+        #                                bin_right - bin_left) for i in range(4)]).T
+        # count_err = np.sqrt(counts)
+        # t90_st, end = bin_left[0], bin_right[-1]
+
+    data = np.array([bin_left, bin_right, rates[:, 0], errors[:, 0], rates[:, 1], errors[:, 1],
+                     rates[:, 2], errors[:, 2], rates[:, 3], errors[:, 3]]).T
+
+    df = pd.DataFrame(data=data, columns=[
+        "Time bin left [s]",
+        "Time bin right [s]",
+        "flux_20_50 [counts/s]",
+        "flux_20_50_err [counts/s]",
+        "flux_50_100 [counts/s]",
+        "flux_50_100_err [counts/s]",
+        "flux_100_300 [counts/s]",
+        "flux_100_300_err [counts/s]",
+        "flux_greater_300 [counts/s]",
+        "flux_greater_300_err [counts/s]"])
+
+    processed_file_path = f'{grb_dir}/BATSE_lc.csv'
+    df.to_csv(processed_file_path, index=False)
+
+
+def get_batse_trigger_from_grb(grb):
+    ALPHABET = "ABCDEFGHIJKLMNOP"
+    dat = ascii.read(f"{dirname}/tables/BATSE_trigger_table.txt")
+    batse_triggers = list(dat['col1'])
+    object_labels = list(dat['col2'])
+
+    label_locations = dict()
+    for i, label in enumerate(object_labels):
+        if label in label_locations:
+            label_locations[label].append(i)
+        else:
+            label_locations[label] = [i]
+
+    for label, location in label_locations.items():
+        if len(location) != 1:
+            for i, loc in enumerate(location):
+                object_labels[loc] = object_labels[loc] + ALPHABET[i]
+
+    if grb[0].isnumeric():
+        grb = 'GRB' + grb
+    index = object_labels.index(grb)
+    return int(batse_triggers[index])
+
+
+def get_open_transient_catalog_data(transient, transient_type):
+    collect_open_catalog_data(transient, transient_type)
+    data = sort_open_access_data(transient, transient_type)
+    return data
+
+
+def get_kilonova_data_from_open_transient_catalog_data(transient):
+    return get_open_transient_catalog_data(transient, transient_type="kilonova")
+
+
+def get_supernova_data_from_open_transient_catalog_data(transient):
+    return get_open_transient_catalog_data(transient, transient_type="supernova")
+
+
+def get_tidal_disruption_event_data_from_open_transient_catalog_data(transient):
+    return get_open_transient_catalog_data(transient, transient_type="tidal_disruption_event")
+
+
+def get_oac_metadata():
+    url = 'https://api.astrocats.space/catalog?format=CSV'
+    urllib.request.urlretrieve(url, 'metadata.csv')
+    logger.info('Downloaded metadata for open access catalog transients')
+    return None
+
+
+def get_grb_alias(transient):
+    metadata = pd.read_csv('tables/OAC_metadata.csv')
+    transient = metadata[metadata['event'] == transient]
+    alias = transient['alias'].iloc[0]
+    try:
+        grb_alias = re.search('GRB (.+?),', alias).group(1)
+    except AttributeError as e:
+        logger.warning(e)
+        logger.warning("Did not find a valid alias, returning None.")
+        grb_alias = None
+    return grb_alias
+
+
 def afterglow_directory_structure(grb, data_mode, instrument='BAT+XRT'):
     grb_dir = 'GRBData/GRB' + grb + '/afterglow/'
     grb_dir = grb_dir + data_mode + '/'
@@ -244,28 +389,6 @@ def sort_swift_data(rawfile, fullfile, data_mode):
         sort_flux_density_data(rawfile, fullfile)
 
 
-def get_afterglow_data_from_swift(grb, data_mode='flux', **kwargs):
-    rawfile, fullfile = collect_swift_data(grb, data_mode)
-    sort_swift_data(rawfile, fullfile, data_mode)
-
-
-def get_xrt_data_from_swift(grb, data_mode='flux', **kwargs):
-    grbdir, rawfile, fullfile = afterglow_directory_structure(grb, data_mode, instrument='xrt')
-    logger.info('Getting trigger number')
-    trigger = get_trigger_number(grb)
-    grb_website = 'https://www.swift.ac.uk/xrt_curves/00' + trigger + '/flux.qdp'
-    response = requests.get(grb_website)
-    if 'No Light curve available' in response.text:
-        logger.warning('Problem loading the website for GRB {}. Are you sure GRB {} has Swift data?'.format(grb, grb))
-        raise WebsiteExist('Problem loading the website for GRB {}'.format(grb))
-
-    urllib.request.urlretrieve(grb_website, rawfile)
-    logger.info('Congratulations, you now have raw XRT data for GRB {}'.format(grb))
-    data = process_xrt_data(rawfile)
-    data.to_csv(fullfile, sep=',', index=False)
-    logger.info('Congratulations, you now have processed XRT data for GRB {}'.format(grb))
-
-
 def process_xrt_data(rawfile):
     data = np.loadtxt(rawfile, comments=['!', 'READ', 'NO'])
     time = data[:, 0]
@@ -331,129 +454,6 @@ def sort_swift_prompt_data(grb):
         "flux_15_350_err [counts/s/det]"])
     df.to_csv(processed_file_path, index=False)
     return df
-
-
-def get_prompt_data_from_swift(grb, bin_size='2ms', **kwargs):
-    collect_swift_prompt_data(grb=grb, bin_size=bin_size)
-    data = sort_swift_prompt_data(grb=grb)
-    return data
-
-
-def get_prompt_data_from_fermi(grb, **kwargs):
-    return None
-
-
-def get_prompt_data_from_konus(grb, **kwargs):
-    return None
-
-
-def get_prompt_data_from_batse(grb, **kwargs):
-    trigger = get_batse_trigger_from_grb(grb=grb)
-    trigger_filled = str(trigger).zfill(5)
-    s = trigger - trigger % 200 + 1
-    start = str(s).zfill(5)
-    stop = str(s + 199).zfill(5)
-
-    filename = f'tte_bfits_{trigger}.fits.gz'
-
-    grb_dir = 'GRBData/GRB' + grb + '/'
-    grb_dir = grb_dir + 'prompt/'
-    Path(grb_dir).mkdir(exist_ok=True, parents=True)
-
-    url = f"https://heasarc.gsfc.nasa.gov/FTP/compton/data/batse/trigger/{start}_{stop}/{trigger_filled}_burst/{filename}"
-    file_path = f"{grb_dir}/{filename}"
-    urllib.request.urlretrieve(url, file_path)
-
-    with fits.open(file_path) as fits_data:
-        data = fits_data[-1].data
-        bin_left = np.array(data['TIMES'][:, 0])
-        bin_right = np.array(data['TIMES'][:, 1])
-        rates = np.array(data['RATES'][:, :])
-        errors = np.array(data['ERRORS'][:, :])
-        # counts = np.array([np.multiply(rates[:, i],
-        #                                bin_right - bin_left) for i in range(4)]).T
-        # count_err = np.sqrt(counts)
-        # t90_st, end = bin_left[0], bin_right[-1]
-
-    data = np.array([bin_left, bin_right, rates[:, 0], errors[:, 0], rates[:, 1], errors[:, 1],
-                     rates[:, 2], errors[:, 2], rates[:, 3], errors[:, 3]]).T
-
-    df = pd.DataFrame(data=data, columns=[
-        "Time bin left [s]",
-        "Time bin right [s]",
-        "flux_20_50 [counts/s]",
-        "flux_20_50_err [counts/s]",
-        "flux_50_100 [counts/s]",
-        "flux_50_100_err [counts/s]",
-        "flux_100_300 [counts/s]",
-        "flux_100_300_err [counts/s]",
-        "flux_greater_300 [counts/s]",
-        "flux_greater_300_err [counts/s]"])
-
-    processed_file_path = f'{grb_dir}/BATSE_lc.csv'
-    df.to_csv(processed_file_path, index=False)
-
-
-def get_batse_trigger_from_grb(grb):
-    ALPHABET = "ABCDEFGHIJKLMNOP"
-    dat = ascii.read(f"{dirname}/tables/BATSE_trigger_table.txt")
-    batse_triggers = list(dat['col1'])
-    object_labels = list(dat['col2'])
-
-    label_locations = dict()
-    for i, label in enumerate(object_labels):
-        if label in label_locations:
-            label_locations[label].append(i)
-        else:
-            label_locations[label] = [i]
-
-    for label, location in label_locations.items():
-        if len(location) != 1:
-            for i, loc in enumerate(location):
-                object_labels[loc] = object_labels[loc] + ALPHABET[i]
-
-    if grb[0].isnumeric():
-        grb = 'GRB' + grb
-    index = object_labels.index(grb)
-    return int(batse_triggers[index])
-
-
-def get_open_transient_catalog_data(transient, transient_type):
-    collect_open_catalog_data(transient, transient_type)
-    data = sort_open_access_data(transient, transient_type)
-    return data
-
-
-def get_kilonova_data_from_open_transient_catalog_data(transient):
-    return get_open_transient_catalog_data(transient, transient_type="kilonova")
-
-
-def get_supernova_data_from_open_transient_catalog_data(transient):
-    return get_open_transient_catalog_data(transient, transient_type="supernova")
-
-
-def get_tidal_disruption_event_data_from_open_transient_catalog_data(transient):
-    return get_open_transient_catalog_data(transient, transient_type="tidal_disruption_event")
-
-
-def get_oac_metadata():
-    url = 'https://api.astrocats.space/catalog?format=CSV'
-    urllib.request.urlretrieve(url, 'metadata.csv')
-    logger.info('Downloaded metadata for open access catalog transients')
-    return None
-
-
-def get_grb_alias(transient):
-    metadata = pd.read_csv('tables/OAC_metadata.csv')
-    transient = metadata[metadata['event'] == transient]
-    alias = transient['alias'].iloc[0]
-    try:
-        grb_alias = re.search('GRB (.+?),', alias).group(1)
-    except AttributeError as e:
-        logger.warning(e)
-        logger.warning("Did not find a valid alias, returning None.")
-        grb_alias = None
-    return grb_alias
 
 
 def collect_open_catalog_data(transient, transient_type):
