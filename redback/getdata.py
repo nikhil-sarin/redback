@@ -199,7 +199,7 @@ def get_grb_alias(transient):
     return grb_alias
 
 
-def sort_integrated_flux_data(rawfile, fullfile):
+def sort_swift_integrated_flux_data(rawfile, fullfile):
     keys = ["Time [s]", "Pos. time err [s]", "Neg. time err [s]", "Flux [erg cm^{-2} s^{-1}]",
             "Pos. flux err [erg cm^{-2} s^{-1}]", "Neg. flux err [erg cm^{-2} s^{-1}]", "Instrument"]
 
@@ -230,7 +230,7 @@ def sort_integrated_flux_data(rawfile, fullfile):
     logger.info('Congratulations, you now have a nice data file: {}'.format(fullfile))
 
 
-def sort_flux_density_data(rawfile, fullfile):
+def sort_swift_flux_density_data(rawfile, fullfile):
     data = np.loadtxt(rawfile, skiprows=2, delimiter='\t')
     df = pd.DataFrame(data=data, columns=['Time [s]', 'Time err plus [s]', 'Time err minus [s]',
                                           'Flux [mJy]', 'Flux err plus [mJy]', 'Flux err minus [mJy]'])
@@ -248,9 +248,9 @@ def sort_swift_data(rawfile, fullfile, data_mode):
         raise DataExists('Raw data is missing.')
 
     if data_mode == 'flux':
-        sort_integrated_flux_data(rawfile, fullfile)
+        sort_swift_integrated_flux_data(rawfile, fullfile)
     if data_mode == 'flux_density':
-        sort_flux_density_data(rawfile, fullfile)
+        sort_swift_flux_density_data(rawfile, fullfile)
 
 
 def sort_swift_prompt_data(grb):
