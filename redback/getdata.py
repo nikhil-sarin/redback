@@ -86,6 +86,13 @@ def prompt_directory_structure(grb, bin_size='2ms'):
     return grb_dir, rawfile_path, processed_file_path
 
 
+def transient_directory_structure(transient, transient_type):
+    open_transient_dir = transient_type + '/' + transient + '/'
+    rawfile_path = open_transient_dir + transient + '_rawdata.csv'
+    fullfile_path = open_transient_dir + transient + '_data.csv'
+    return open_transient_dir, rawfile_path, fullfile_path
+
+
 def process_flux_density_data(grb, rawfile):
     logger.info('Getting trigger number')
     trigger = get_trigger_number(grb)
@@ -427,13 +434,6 @@ def get_supernova_data_from_open_transient_catalog_data(transient):
 
 def get_tidal_disruption_event_data_from_open_transient_catalog_data(transient):
     return get_open_transient_catalog_data(transient, transient_type="tidal_disruption_event")
-
-
-def transient_directory_structure(transient, transient_type):
-    open_transient_dir = transient_type + '/' + transient + '/'
-    rawfile_path = open_transient_dir + transient + '_rawdata.csv'
-    fullfile_path = open_transient_dir + transient + '_data.csv'
-    return open_transient_dir, rawfile_path, fullfile_path
 
 
 def get_oac_metadata():
