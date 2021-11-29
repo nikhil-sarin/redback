@@ -3,14 +3,19 @@ import time
 import urllib
 import urllib.request
 
+from astropy.io import ascii
 import numpy as np
 import pandas as pd
 import requests
 
-from redback.getdata import get_trigger_number, afterglow_directory_structure, prompt_directory_structure
+from redback.get_data.directory import afterglow_directory_structure, prompt_directory_structure
+from redback.get_data.utils import get_trigger_number
 from redback.redback_errors import DataExists, WebsiteExist
 from redback.utils import fetch_driver, check_element
 from redback.utils import logger
+
+
+dirname = os.path.dirname(__file__)
 
 
 class SwiftDataGetter(object):
@@ -43,14 +48,32 @@ class SwiftDataGetter(object):
         logger.info('Getting trigger number')
         return get_trigger_number(self.grb)
 
+    def get_swift_id_from_grb(self):
+        data = ascii.read(f'{dirname}/tables/summary_general_swift_bat.txt')
+        triggers = list(data['col2'])
+        event_names = list(data['col1'])
+        swift_id = triggers[event_names.index(self.grb)]
+        if len(swift_id) == 6:
+            swift_id += "000"
+            swift_id = swift_id.zfill(11)
+        return swift_id
+
     @property
     def grb_website(self):
-        return f'http://www.swift.ac.uk/burst_analyser/00{self.trigger}/'
+        if self.transient_type == 'prompt':
+            return f"https://swift.gsfc.nasa.gov/results/batgrbcat/{self.grb}/data_product/" \
+                   f"{self.get_swift_id_from_grb()}-results/lc/{self.bin_size}_lc_ascii.dat"
+        if self.instrument == 'BAT+XRT':
+            return f'http://www.swift.ac.uk/burst_analyser/00{self.trigger}/'
+        elif self.instrument == 'xrt':
+            return f'https://www.swift.ac.uk/xrt_curves/00{self.trigger}/flux.qdp'
 
     def get_data(self):
         self.create_directory_structure()
+        logger.info(f'opening Swift website for GRB {self.grb}')
         self.collect_data()
         self.convert_raw_data_to_csv()
+        logger.info(f'Congratulations, you now have a nice data file: {self.fullfile}')
 
     def create_directory_structure(self):
         if self.transient_type == 'afterglow':
@@ -62,39 +85,23 @@ class SwiftDataGetter(object):
 
     def collect_data(self):
         if os.path.isfile(self.rawfile):
-            logger.warning('The raw data file already exists')
-            return
+            logger.warning('The raw data file already exists. Returning.')
 
-    def collect_afterglow_data(self):
-        logger.info(f'opening Swift website for GRB {self.grb}')
         response = requests.get(self.grb_website)
         if 'No Light curve available' in response.text:
-            logger.warning(f'Problem loading the website for GRB {self.grb}. '
-                           f'Are you sure GRB {self.grb} has Swift data?')
-            raise WebsiteExist('Problem loading the website for GRB {}'.format(self.grb))
-        else:
+            raise WebsiteExist(f'Problem loading the website for GRB {self.grb}' 
+                               f'Are you sure GRB {self.grb} has Swift data?')
+        if self.instrument == 'xrt' or self.transient_type == "prompt":
+            self.download_directly()
+        elif self.transient_type == 'afterglow':
             if self.data_mode == 'flux':
                 self.download_integrated_flux_data()
-            if self.data_mode == 'flux_density':
+            elif self.data_mode == 'flux_density':
                 self.download_flux_density_data()
-
-    def collect_prompt_data(self):
-        data_file = f"{self.bin_size}_lc_ascii.dat"
-        grb_url = f"https://swift.gsfc.nasa.gov/results/batgrbcat/{self.grb}/data_product/" \
-                  f"{self.trigger}-results/lc/{data_file}"
-        try:
-            urllib.request.urlretrieve(grb_url, self.rawfile)
-            logger.info(f'Congratulations, you now have raw data for GRB {self.grb}')
-        except Exception as e:
-            logger.warning(f'Cannot load the website for GRB {self.grb} \n'
-                           f'Failed with exception: \n'
-                           f'{e}')
-        finally:
-            urllib.request.urlcleanup()
+        elif self.transient_type == 'prompt':
+            self.download_prompt_data()
 
     def download_flux_density_data(self):
-        logger.info(f'opening Swift website for GRB {self.grb}')
-
         driver = fetch_driver()
         try:
             driver.get(self.grb_website)
@@ -113,10 +120,9 @@ class SwiftDataGetter(object):
         finally:
             # Close the driver and all opened windows
             driver.quit()
+            urllib.request.urlcleanup()
 
     def download_integrated_flux_data(self):
-        logger.info(f'opening Swift website for GRB {self.grb}')
-
         driver = fetch_driver()
         try:
             driver.get(self.grb_website)
@@ -148,44 +154,54 @@ class SwiftDataGetter(object):
         finally:
             # Close the driver and all opened windows
             driver.quit()
+            urllib.request.urlcleanup()
+
+    def download_directly(self):
+        try:
+            urllib.request.urlretrieve(self.grb_website, self.rawfile)
+            logger.info(f'Congratulations, you now have raw {self.instrument} {self.transient_type} '
+                        f'data for GRB {self.grb}')
+        except Exception as e:
+            logger.warning(f'Cannot load the website for GRB {self.grb} \n'
+                           f'Failed with exception: \n'
+                           f'{e}')
+        finally:
+            urllib.request.urlcleanup()
 
     def convert_raw_data_to_csv(self):
+        if os.path.isfile(self.fullfile):
+            logger.warning('The processed data file already exists. Returning.')
+        if self.instrument == 'xrt':
+            self.convert_xrt_data_to_csv()
         if self.transient_type == 'afterglow':
             self.convert_raw_afterglow_data_to_csv()
         elif self.transient_type == 'prompt':
             self.convert_raw_prompt_data_to_csv()
 
+    def convert_xrt_data_to_csv(self):
+        keys = ['Time [s]', "Pos. time err [s]", "Neg. time err [s]", "Flux [erg cm^{-2} s^{-1}]",
+                "Pos. flux err [erg cm^{-2} s^{-1}]", "Neg. flux err [erg cm^{-2} s^{-1}]"]
+
+        data = np.loadtxt(self.rawfile, comments=['!', 'READ', 'NO'])
+        data = {key: data[:, i] for i, key in enumerate(keys)}
+        data = pd.DataFrame(data)
+        data = data[data["Pos. flux err [erg cm^{-2} s^{-1}]"] != 0.]
+        data.to_csv(self.fullfile, index=False, sep=',')
+
     def convert_raw_afterglow_data_to_csv(self):
-        if os.path.isfile(self.fullfile):
-            logger.warning('The processed data file already exists')
-            return None
-
-        if not os.path.isfile(self.rawfile):
-            logger.warning('The raw data does not exist.')
-            raise DataExists('Raw data is missing.')
-
         if self.data_mode == 'flux':
             self.convert_integrated_flux_data_to_csv()
         if self.data_mode == 'flux_density':
             self.convert_flux_density_data_to_csv()
 
     def convert_raw_prompt_data_to_csv(self):
-        if os.path.isfile(self.fullfile):
-            logger.warning('The processed data file already exists')
-            return pd.read_csv(self.fullfile, sep='\t')
-
-        if not os.path.isfile(self.rawfile):
-            logger.warning('The raw data does not exist.')
-            raise DataExists('Raw data is missing.')
-
+        keys = ["Time [s]", "flux_15_25 [counts/s/det]", "flux_15_25_err [counts/s/det]", "flux_25_50 [counts/s/det]",
+                "flux_25_50_err [counts/s/det]", "flux_50_100 [counts/s/det]", "flux_50_100_err [counts/s/det]",
+                "flux_100_350 [counts/s/det]", "flux_100_350_err [counts/s/det]", "flux_15_350 [counts/s/det]",
+                "flux_15_350_err [counts/s/det]"]
         data = np.loadtxt(self.rawfile)
-        df = pd.DataFrame(data=data, columns=[
-            "Time [s]", "flux_15_25 [counts/s/det]", "flux_15_25_err [counts/s/det]", "flux_25_50 [counts/s/det]",
-            "flux_25_50_err [counts/s/det]", "flux_50_100 [counts/s/det]", "flux_50_100_err [counts/s/det]",
-            "flux_100_350 [counts/s/det]", "flux_100_350_err [counts/s/det]", "flux_15_350 [counts/s/det]",
-            "flux_15_350_err [counts/s/det]"])
-        df.to_csv(self.fullfile, index=False)
-        logger.info(f'Congratulations, you now have a nice data file: {self.fullfile}')
+        df = pd.DataFrame(data=data, columns=keys)
+        df.to_csv(self.fullfile, index=False, sep=',')
 
     def convert_integrated_flux_data_to_csv(self):
         keys = ["Time [s]", "Pos. time err [s]", "Neg. time err [s]", "Flux [erg cm^{-2} s^{-1}]",
@@ -212,12 +228,10 @@ class SwiftDataGetter(object):
                         data[key].append(item.replace('\n', ''))
 
         df = pd.DataFrame(data=data)
-        df.to_csv(self.fullfile, index=False)
-        logger.info(f'Congratulations, you now have a nice data file: {self.fullfile}')
+        df.to_csv(self.fullfile, index=False, sep=',')
 
     def convert_flux_density_data_to_csv(self):
         data = np.loadtxt(self.rawfile, skiprows=2, delimiter='\t')
-        df = pd.DataFrame(data=data, columns=['Time [s]', 'Time err plus [s]', 'Time err minus [s]',
-                                              'Flux [mJy]', 'Flux err plus [mJy]', 'Flux err minus [mJy]'])
+        df = pd.DataFrame(data=data, columns=['Time [s]', "Pos. time err [s]", "Neg. time err [s]",
+                                              'Flux [mJy]', 'Pos. flux err [mJy]', 'Neg. flux err [mJy]'])
         df.to_csv(self.fullfile, index=False, sep=',')
-        logger.info(f'Congratulations, you now have a nice data file: {self.fullfile}')
