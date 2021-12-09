@@ -1,5 +1,5 @@
 from redback.transient.transient import OpticalTransient
-from redback.getdata import transient_directory_structure
+from redback.get_data.directory import transient_directory_structure
 
 
 class TDE(OpticalTransient):

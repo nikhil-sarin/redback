@@ -3,14 +3,14 @@ import time
 import urllib
 import urllib.request
 
-from astropy.io import ascii
+import astropy.io.ascii
 import numpy as np
 import pandas as pd
 import requests
 
-from redback.get_data.directory import afterglow_directory_structure, prompt_directory_structure
-from redback.get_data.utils import get_trigger_number
-from redback.redback_errors import DataExists, WebsiteExist
+import redback.get_data.directory
+import redback.get_data.utils
+import redback.redback_errors
 from redback.utils import fetch_driver, check_element
 from redback.utils import logger
 
@@ -20,12 +20,13 @@ dirname = os.path.dirname(__file__)
 
 class SwiftDataGetter(object):
 
-    VALID_DATA_MODES = {'flux', 'flux_density'}
+    VALID_DATA_MODES = {'flux', 'flux_density', 'prompt'}
+    VALID_INSTRUMENTS = {'BAT+XRT', 'xrt'}
 
-    def __init__(self, grb, transient_type, data_mode, bin_size=None):
+    def __init__(self, grb, transient_type, data_mode, instrument='BAT+XRT', bin_size=None):
         self.grb = grb
         self.transient_type = transient_type
-        self.instrument = 'BAT+XRT'
+        self.instrument = instrument
         self.data_mode = data_mode
         self.bin_size = bin_size
         self.grbdir = None
@@ -39,17 +40,27 @@ class SwiftDataGetter(object):
 
     @data_mode.setter
     def data_mode(self, data_mode):
-        if self.data_mode not in self.VALID_DATA_MODES:
+        if data_mode not in self.VALID_DATA_MODES:
             raise ValueError("Swift does not have {} data".format(self.data_mode))
         self._data_mode = data_mode
 
     @property
+    def instrument(self):
+        return self._instrument
+
+    @instrument.setter
+    def instrument(self, instrument):
+        if instrument not in self.VALID_INSTRUMENTS:
+            raise ValueError("Swift does not have {} instrument mode".format(self.instrument))
+        self._instrument = instrument
+
+    @property
     def trigger(self):
         logger.info('Getting trigger number')
-        return get_trigger_number(self.grb)
+        return redback.get_data.utils.get_trigger_number(self.grb)
 
     def get_swift_id_from_grb(self):
-        data = ascii.read(f'{dirname}/tables/summary_general_swift_bat.txt')
+        data = astropy.io.ascii.read(f'{dirname}/tables/summary_general_swift_bat.txt')
         triggers = list(data['col2'])
         event_names = list(data['col1'])
         swift_id = triggers[event_names.index(self.grb)]
@@ -78,19 +89,21 @@ class SwiftDataGetter(object):
     def create_directory_structure(self):
         if self.transient_type == 'afterglow':
             self.grbdir, self.rawfile, self.fullfile = \
-                afterglow_directory_structure(grb=self.grb, data_mode=self.data_mode, instrument=self.instrument)
+                redback.get_data.directory.afterglow_directory_structure(grb=self.grb, data_mode=self.data_mode,
+                                                                         instrument=self.instrument)
         elif self.transient_type == 'prompt':
             self.grbdir, self.rawfile, self.fullfile = \
-                prompt_directory_structure(grb=self.grb, bin_size=self.bin_size)
+                redback.get_data.directory.prompt_directory_structure(grb=self.grb, bin_size=self.bin_size)
 
     def collect_data(self):
         if os.path.isfile(self.rawfile):
             logger.warning('The raw data file already exists. Returning.')
+            return
 
         response = requests.get(self.grb_website)
         if 'No Light curve available' in response.text:
-            raise WebsiteExist(f'Problem loading the website for GRB {self.grb}' 
-                               f'Are you sure GRB {self.grb} has Swift data?')
+            raise redback.redback_errors.WebsiteExist(
+                f'Problem loading the website for GRB {self.grb}. Are you sure GRB {self.grb} has Swift data?')
         if self.instrument == 'xrt' or self.transient_type == "prompt":
             self.download_directly()
         elif self.transient_type == 'afterglow':
@@ -98,8 +111,6 @@ class SwiftDataGetter(object):
                 self.download_integrated_flux_data()
             elif self.data_mode == 'flux_density':
                 self.download_flux_density_data()
-        elif self.transient_type == 'prompt':
-            self.download_prompt_data()
 
     def download_flux_density_data(self):
         driver = fetch_driver()

@@ -1,19 +1,13 @@
-import unittest
-import mock
-from unittest.mock import MagicMock
-import numpy as np
-import shutil
-import pandas as pd
 import os
+import unittest
+from unittest.mock import MagicMock
 
-import pandas
+import mock
+import numpy as np
+import pandas as pd
 
-import redback.transient.afterglow
-from redback.transient.transient import Transient
-from redback.transient.afterglow import Afterglow, SGRB, LGRB
-from redback.transient.prompt import PromptTimeSeries
-from redback.getdata import get_afterglow_data_from_swift
 import redback
+import redback.transient.afterglow
 
 dirname = os.path.dirname(__file__)
 
@@ -361,7 +355,7 @@ class TestOpticalTransient(unittest.TestCase):
             self.assertDictEqual(expected, self.transient.meta_data)
 
     def test_transient_dir(self):
-        with mock.patch('redback.getdata.transient_directory_structure') as m:
+        with mock.patch('redback.get_data.directory.transient_directory_structure') as m:
             expected = 'expected'
             m.return_value = expected, '_', '_'
             self.assertEqual(expected, self.transient.transient_dir)
