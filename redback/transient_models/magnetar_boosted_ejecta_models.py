@@ -1,5 +1,8 @@
 from redback.constants import *
+import numpy as np
 
+def metzger_magnetar_boosted_kilonova_model(time, **kwargs):
+    pass
 
 def trapped_magnetar_lum(time, **kwargs):
     alpha = (1 + nn)/(1 - nn)
