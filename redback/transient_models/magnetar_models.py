@@ -1,10 +1,16 @@
 import numpy as np
+from astropy.cosmology import Planck18 as cosmo  # noqa
 
 import scipy.special as ss
 from scipy.integrate import quad
+from inspect import isfunction
+from redback.utils import logger
 
 from redback.constants import *
 from redback.transient_models.fireball_models import one_component_fireball_model
+
+luminosity_models = ['evolving_magnetar', 'evolving_magnetar_only', 'gw_magnetar', 'radiative_losses',
+                     'radiative_losses_smoothness', 'radiative_only', 'collapsing_radiative_losses']
 
 
 def mu_function(time, mu0, muinf, tm):
@@ -369,3 +375,30 @@ def collapsing_radiative_losses(time, a_1, alpha_1, l0, tau, nn, tcol, kappa, t0
     total = pl + np.heaviside(time - t0, 1) * lum
 
     return total
+
+def luminosity_based_magnetar_models(time, photon_index, **kwargs):
+    """
+    Luminosity models that you want to fit to flux data by placing a prior on the redshift.
+    :param time: time in observers frame
+    :param photon_index: photon index
+    :param kwargs: all parameters for the model of choice.
+    :return: luminosity/1e50 erg
+    """
+    from redback.model_library import modules_dict  # import model library in function to avoid circular dependency
+    base_model = kwargs['base_model']
+    if isfunction(base_model):
+        function = base_model
+    elif base_model not in luminosity_models:
+        logger.warning('{} is not implemented as a base model'.format(base_model))
+        raise ValueError('Please choose a different base model')
+    elif isinstance(base_model, str):
+        function = modules_dict['afterglow_models'][base_model]
+    else:
+        raise ValueError("Not a valid base model.")
+    redshift = kwargs['redshift']
+    kcorr = (1 + redshift)**(photon_index - 2)
+    dl = cosmo.luminosity_distance(redshift).cgs.value
+    time = time / (1 + redshift)
+    lum = function(time, **kwargs) * 1e50
+    flux = lum / (4*np.pi*dl**2*kcorr)
+    return flux
