@@ -154,7 +154,6 @@ def check_element(driver, id_number):
         return False
     return True
 
-
 def calc_flux_density_error(magnitude, magnitude_error, reference_flux, magnitude_system='AB'):
     if magnitude_system == 'AB':
         reference_flux = 3631
