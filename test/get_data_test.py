@@ -46,8 +46,7 @@ class TestSwiftDataGetter(unittest.TestCase):
             instrument=self.instrument, bin_size=self.bin_size)
 
     def tearDown(self) -> None:
-        os.remove(self.getter.rawfile)
-        os.remove(self.getter.fullfile)
+        os.remove("GRBData")
         del self.grb
         del self.transient_type
         del self.data_mode
@@ -209,11 +208,155 @@ class TestSwiftDataGetter(unittest.TestCase):
         self.getter.download_integrated_flux_data.assert_not_called()
         self.getter.download_flux_density_data.assert_called_once()
 
-    def test_download_flux_density_data(self):
-        self.getter.data_mode = 'flux_density'
+    # @mock.patch("redback.get_data.utils.fetch_driver")
+    # @mock.patch("urllib.request.urlretrieve")
+    # @mock.patch("urllib.request.urlcleanup")
+    # def test_download_flux_density_data_mocked(self, fetch_driver, urlretrieve, urlcleanup):
+    #     mock_driver = MagicMock()
+    #     mock_driver.get = MagicMock()
+    #     mock_driver.find_element_by_xpath = MagicMock()
+    #     mock_driver.find_element_by_xpath.click = MagicMock()
+    #     mock_driver.find_element_by_id = MagicMock()
+    #     mock_driver.find_element_by_id.click = MagicMock()
+    #     mock_driver.quit = MagicMock()
+    #     mock_url = 'mock_url'
+    #     mock_driver.__setattr__('current_url', mock_url)
+    #     fetch_driver.return_value = MagicMock()
+    #
+    #     self.getter.data_mode = 'flux_density'
+    #     self.getter.transient_type = 'afterglow'
+    #     self.getter.instrument = "BAT+XRT"
+    #     self.getter.download_flux_density_data()
+    #
+    #     mock_driver.get.assert_called_once_with(self.getter.grb_website)
+    #     mock_driver.find_element_by_xpath.assert_called_once_with("//select[@name='xrtsub']/option[text()='no']")
+    #     mock_driver.find_element_by_xpath.click.assert_called_once()
+    #     mock_driver.find_element_by_id.assert_called_once_with("xrt_DENSITY_makeDownload")
+    #     mock_driver.find_element_by_id.click.assert_called_once()
+    #     urlretrieve.assert_called_once_with(url=mock_url, filename=self.getter.rawfile)
+    #     urlcleanup.assert_called_once()
+
+    def _download_afterglow(self):
         self.getter.transient_type = 'afterglow'
         self.getter.instrument = "BAT+XRT"
-        self.getter.download_flux_density_data()
+        self.getter.create_directory_structure()
+        self.getter.collect_data()
+
+    def _test_raw_afterglow(self):
+        with open(f"reference_data/afterglow/{self.getter.data_mode}/GRB{self.grb}_rawSwiftData.csv") as file:
+            reference_data = file.read()
+        with open(self.getter.rawfile) as file:
+            downloaded_data = file.read()
+        self.assertEqual(reference_data, downloaded_data)
+
+    def _test_converted_afterglow(self):
+        with open(f"reference_data/afterglow/{self.getter.data_mode}/GRB{self.grb}.csv") as file:
+            reference_data = file.read()
+        with open(self.getter.fullfile) as file:
+            downloaded_data = file.read()
+        self.assertEqual(reference_data, downloaded_data)
+
+    def test_download_flux_density_data(self):
+        self.getter.data_mode = 'flux_density'
+        self._download_afterglow()
+        self._test_raw_afterglow()
+
+    def test_download_flux_data(self):
+        self.getter.data_mode = 'flux'
+        self._download_afterglow()
+        self._test_raw_afterglow()
+
+    def test_convert_flux_density_data_to_csv(self):
+        self.getter.data_mode = 'flux_density'
+        self._download_afterglow()
+        self.getter.convert_integrated_flux_data_to_csv()
+        self._test_converted_afterglow()
+
+    def test_convert_integrated_flux_data_to_csv(self):
+        self.getter.data_mode = 'flux'
+        self._download_afterglow()
+        self.getter.convert_integrated_flux_data_to_csv()
+        self._test_converted_afterglow()
+
+    def _download_xrt(self):
+        self.getter.instrument = 'xrt'
+        self.getter.create_directory_structure()
+        self.getter.download_directly()
+
+    def test_download_xrt_data(self):
+        self._download_xrt()
+        with open(f"reference_data/afterglow/{self.getter.data_mode}/GRB{self.grb}_xrt_rawSwiftData.csv") as file:
+            reference_data = file.read()
+        with open(self.getter.rawfile) as file:
+            downloaded_data = file.read()
+        self.assertEqual(reference_data, downloaded_data)
+
+    def test_convert_xrt_data_to_csv(self):
+        self._download_xrt()
+        self.getter.convert_xrt_data_to_csv()
+        with open(f"reference_data/afterglow/{self.getter.data_mode}/GRB{self.grb}_xrt.csv") as file:
+            reference_data = file.read()
+        with open(self.getter.fullfile) as file:
+            downloaded_data = file.read()
+        self.assertEqual(reference_data, downloaded_data)
+
+    def _download_prompt(self):
+        self.data_mode = 'prompt'
+        self.getter.bin_size = '2ms'
+        self.getter.data_mode = 'counts'
+        self.getter.create_directory_structure()
+        self.getter.download_directly()
+
+    def test_download_prompt(self):
+        self._download_prompt()
+        with open(f"reference_data/prompt/{self.getter.data_mode}/GRB{self.grb}_{self.bin_size}_lc_ascii.dat") as file:
+            reference_data = file.read()
+        with open(self.getter.rawfile) as file:
+            downloaded_data = file.read()
+        self.assertEqual(reference_data, downloaded_data)
+
+    def test_convert_raw_prompt_data_to_csv(self):
+        self._download_prompt()
+        self.getter.convert_raw_prompt_data_to_csv()
+        with open(f"reference_data/prompt/{self.getter.data_mode}/GRB{self.grb}_{self.bin_size}_lc.csv") as file:
+            reference_data = file.read()
+        with open(self.getter.fullfile) as file:
+            downloaded_data = file.read()
+        self.assertEqual(reference_data, downloaded_data)
+
+    def _mock_converter_functions(self):
+        self.getter.convert_xrt_data_to_csv = MagicMock()
+        self.getter.convert_raw_afterglow_data_to_csv = MagicMock()
+        self.getter.convert_raw_prompt_data_to_csv = MagicMock()
+
+    def test_convert_raw_data_to_csv_file_exists(self):
+        self._mock_converter_functions()
+        with open(self.getter.fullfile, "w"):  # create empty file
+            pass
+        self.getter.convert_raw_data_to_csv()
+
+        self.getter.convert_xrt_data_to_csv.assert_not_called()
+        self.getter.convert_raw_afterglow_data_to_csv.assert_not_called()
+        self.getter.convert_raw_prompt_data_to_csv.assert_not_called()
+
+    def test_convert_raw_data_to_csv_instrument_xrt(self):
+        self._mock_converter_functions()
+        self.getter.convert_xrt_data_to_csv.assert_called_once()
+        self.getter.convert_raw_afterglow_data_to_csv.assert_not_called()
+        self.getter.convert_raw_prompt_data_to_csv.assert_not_called()
+
+    def test_convert_raw_data_to_csv_afterglow_data(self):
+        self._mock_converter_functions()
+        self.getter.convert_xrt_data_to_csv.assert_not_called()
+        self.getter.convert_raw_afterglow_data_to_csv.assert_called_once()
+        self.getter.convert_raw_prompt_data_to_csv.assert_not_called()
+
+    def test_convert_raw_data_to_csv_prompt_data(self):
+        self._mock_converter_functions()
+        self.getter.convert_xrt_data_to_csv.assert_not_called()
+        self.getter.convert_raw_afterglow_data_to_csv.assert_not_called()
+        self.getter.convert_raw_prompt_data_to_csv.assert_called_once()
+
 
 # class TestGetGRBTable(unittest.TestCase):
 #

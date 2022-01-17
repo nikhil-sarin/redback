@@ -14,14 +14,24 @@ import redback.redback_errors
 from redback.utils import fetch_driver, check_element
 from redback.utils import logger
 
-
 dirname = os.path.dirname(__file__)
 
 
 class SwiftDataGetter(object):
-
     VALID_DATA_MODES = {'flux', 'flux_density', 'prompt'}
     VALID_INSTRUMENTS = {'BAT+XRT', 'xrt'}
+
+    XRT_DATA_KEYS = ['Time [s]', "Pos. time err [s]", "Neg. time err [s]", "Flux [erg cm^{-2} s^{-1}]",
+                     "Pos. flux err [erg cm^{-2} s^{-1}]", "Neg. flux err [erg cm^{-2} s^{-1}]"]
+    INTEGRATED_FLUX_KEYS = ["Time [s]", "Pos. time err [s]", "Neg. time err [s]", "Flux [erg cm^{-2} s^{-1}]",
+                            "Pos. flux err [erg cm^{-2} s^{-1}]", "Neg. flux err [erg cm^{-2} s^{-1}]", "Instrument"]
+    FLUX_DENSITY_KEYS = ['Time [s]', "Pos. time err [s]", "Neg. time err [s]",
+                         'Flux [mJy]', 'Pos. flux err [mJy]', 'Neg. flux err [mJy]']
+    PROMPT_DATA_KEYS = ["Time [s]", "flux_15_25 [counts/s/det]", "flux_15_25_err [counts/s/det]",
+                        "flux_25_50 [counts/s/det]",
+                        "flux_25_50_err [counts/s/det]", "flux_50_100 [counts/s/det]", "flux_50_100_err [counts/s/det]",
+                        "flux_100_350 [counts/s/det]", "flux_100_350_err [counts/s/det]", "flux_15_350 [counts/s/det]",
+                        "flux_15_350_err [counts/s/det]"]
 
     def __init__(self, grb, transient_type, data_mode, instrument='BAT+XRT', bin_size=None):
         self.grb = grb
@@ -122,7 +132,7 @@ class SwiftDataGetter(object):
             time.sleep(20)
             grb_url = driver.current_url
             # scrape the data
-            urllib.request.urlretrieve(grb_url, self.rawfile)
+            urllib.request.urlretrieve(url=grb_url, filename=self.rawfile)
             logger.info(f'Congratulations, you now have raw data for GRB {self.grb}')
         except Exception as e:
             logger.warning(f'Cannot load the website for GRB {self.grb} \n'
@@ -137,7 +147,7 @@ class SwiftDataGetter(object):
         driver = fetch_driver()
         try:
             driver.get(self.grb_website)
-            # celect option for BAT bin_size
+            # select option for BAT bin_size
             bat_binning = 'batxrtbin'
             if check_element(driver, bat_binning):
                 driver.find_element_by_xpath("//select[@name='batxrtbin']/option[text()='SNR 4']").click()
@@ -190,11 +200,8 @@ class SwiftDataGetter(object):
             self.convert_raw_prompt_data_to_csv()
 
     def convert_xrt_data_to_csv(self):
-        keys = ['Time [s]', "Pos. time err [s]", "Neg. time err [s]", "Flux [erg cm^{-2} s^{-1}]",
-                "Pos. flux err [erg cm^{-2} s^{-1}]", "Neg. flux err [erg cm^{-2} s^{-1}]"]
-
         data = np.loadtxt(self.rawfile, comments=['!', 'READ', 'NO'])
-        data = {key: data[:, i] for i, key in enumerate(keys)}
+        data = {key: data[:, i] for i, key in enumerate(self.XRT_DATA_KEYS)}
         data = pd.DataFrame(data)
         data = data[data["Pos. flux err [erg cm^{-2} s^{-1}]"] != 0.]
         data.to_csv(self.fullfile, index=False, sep=',')
@@ -206,19 +213,12 @@ class SwiftDataGetter(object):
             self.convert_flux_density_data_to_csv()
 
     def convert_raw_prompt_data_to_csv(self):
-        keys = ["Time [s]", "flux_15_25 [counts/s/det]", "flux_15_25_err [counts/s/det]", "flux_25_50 [counts/s/det]",
-                "flux_25_50_err [counts/s/det]", "flux_50_100 [counts/s/det]", "flux_50_100_err [counts/s/det]",
-                "flux_100_350 [counts/s/det]", "flux_100_350_err [counts/s/det]", "flux_15_350 [counts/s/det]",
-                "flux_15_350_err [counts/s/det]"]
         data = np.loadtxt(self.rawfile)
-        df = pd.DataFrame(data=data, columns=keys)
+        df = pd.DataFrame(data=data, columns=self.PROMPT_DATA_KEYS)
         df.to_csv(self.fullfile, index=False, sep=',')
 
     def convert_integrated_flux_data_to_csv(self):
-        keys = ["Time [s]", "Pos. time err [s]", "Neg. time err [s]", "Flux [erg cm^{-2} s^{-1}]",
-                "Pos. flux err [erg cm^{-2} s^{-1}]", "Neg. flux err [erg cm^{-2} s^{-1}]", "Instrument"]
-
-        data = {key: [] for key in keys}
+        data = {key: [] for key in self.INTEGRATED_FLUX_KEYS}
         with open(self.rawfile) as f:
             instrument = None
             for num, line in enumerate(f.readlines()):
@@ -235,7 +235,7 @@ class SwiftDataGetter(object):
                 else:
                     line_items = line.split('\t')
                     line_items.append(instrument)
-                    for key, item in zip(keys, line_items):
+                    for key, item in zip(self.INTEGRATED_FLUX_KEYS, line_items):
                         data[key].append(item.replace('\n', ''))
 
         df = pd.DataFrame(data=data)
@@ -243,6 +243,5 @@ class SwiftDataGetter(object):
 
     def convert_flux_density_data_to_csv(self):
         data = np.loadtxt(self.rawfile, skiprows=2, delimiter='\t')
-        df = pd.DataFrame(data=data, columns=['Time [s]', "Pos. time err [s]", "Neg. time err [s]",
-                                              'Flux [mJy]', 'Pos. flux err [mJy]', 'Neg. flux err [mJy]'])
+        df = pd.DataFrame(data=data, columns=self.FLUX_DENSITY_KEYS)
         df.to_csv(self.fullfile, index=False, sep=',')

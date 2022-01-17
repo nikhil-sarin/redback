@@ -6,20 +6,19 @@ SWIFT_PROMPT_BIN_SIZES = ['1s', '2ms', '8ms', '16ms', '64ms', '256ms']
 
 
 def afterglow_directory_structure(grb, data_mode, instrument='BAT+XRT'):
-    grb_dir = 'GRBData/GRB' + grb + '/afterglow/'
-    grb_dir = grb_dir + data_mode + '/'
+    grb_dir = f'GRBData/afterglow/{data_mode}/'
     check_directory_exists_and_if_not_mkdir(grb_dir)
 
-    rawfile_path = grb_dir + 'GRB' + grb
+    path = f'{grb_dir}GRB{grb}'
 
     if instrument == 'xrt':
-        rawfile = rawfile_path + '_xrt_rawSwiftData.csv'
-        fullfile = rawfile_path + '_xrt_csv'
+        rawfile = f'{path}_xrt_rawSwiftData.csv'
+        fullfile = f'{path}_xrt.csv'
         logger.warning('You are only downloading XRT data, you may not capture the tail of the prompt emission.')
     else:
         logger.warning('You are downloading BAT and XRT data, you will need to truncate the data for some models.')
-        rawfile = rawfile_path + '_rawSwiftData.csv'
-        fullfile = rawfile_path + '.csv'
+        rawfile = f'{path}_rawSwiftData.csv'
+        fullfile = f'{path}.csv'
 
     return grb_dir, rawfile, fullfile
 
@@ -28,12 +27,11 @@ def prompt_directory_structure(grb, bin_size='2ms'):
     if bin_size not in SWIFT_PROMPT_BIN_SIZES:
         raise ValueError(f'Bin size {bin_size} not in allowed bin sizes.\n'
                          f'Use one of the following: {SWIFT_PROMPT_BIN_SIZES}')
-    grb_dir = 'GRBData/GRB' + grb + '/'
-    grb_dir = grb_dir + 'prompt/'
+    grb_dir = f'GRBData/afterglow/counts/'
     check_directory_exists_and_if_not_mkdir(grb_dir)
 
-    rawfile_path = grb_dir + f'{bin_size}_lc_ascii.dat'
-    processed_file_path = grb_dir + f'{bin_size}_lc.csv'
+    rawfile_path = f'{grb_dir}GRB{grb}_{bin_size}_lc_ascii.dat'
+    processed_file_path = f'{grb_dir}GRB{grb}_{bin_size}_lc.csv'
     return grb_dir, rawfile_path, processed_file_path
 
 
