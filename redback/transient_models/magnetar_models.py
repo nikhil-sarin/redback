@@ -392,7 +392,7 @@ def luminosity_based_magnetar_models(time, photon_index, **kwargs):
         logger.warning('{} is not implemented as a base model'.format(base_model))
         raise ValueError('Please choose a different base model')
     elif isinstance(base_model, str):
-        function = modules_dict['afterglow_models'][base_model]
+        function = modules_dict['magnetar_models'][base_model]
     else:
         raise ValueError("Not a valid base model.")
     redshift = kwargs['redshift']
