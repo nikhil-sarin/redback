@@ -3,8 +3,8 @@ from redback.transient_models.magnetar_models import magnetar_only
 import numpy as np
 from astropy.cosmology import Planck18 as cosmo  # noqa
 from scipy.interpolate import interp1d
-import astropy.units as uu #noqa
-import astropy.constants as cc #noqa
+import astropy.units as uu # noqa
+import astropy.constants as cc # noqa
 
 
 def metzger_magnetar_boosted_kilonova_model(time, **kwargs):
@@ -78,7 +78,7 @@ def ejecta_dynamics_and_interaction(time, mej, beta, ejecta_radius, kappa, n_ism
         dedt = thermalisation_efficiency * mag_lum[
             i] + doppler_factor_temp ** 2 * comoving_radiative_luminosity - doppler_factor_temp ** 2 * comoving_emitted_luminosity
         comoving_dinternal_energydt = thermal_eff * doppler_factor_temp ** (-2) * mag_lum[
-            i] + comoving_radiative_luminosity - comoving_emitted_luminosity - comoving_pressure * (comoving_dvdt)
+            i] + comoving_radiative_luminosity - comoving_emitted_luminosity - comoving_pressure * comoving_dvdt
         dcomoving_volume_dt = comoving_dvdt * doppler_factor_temp
         dinternal_energy_dt = comoving_dinternal_energydt * doppler_factor_temp
         dgamma_dt = (dedt - gamma * doppler_factor_temp * comoving_dinternal_energydt - (
@@ -92,7 +92,7 @@ def ejecta_dynamics_and_interaction(time, mej, beta, ejecta_radius, kappa, n_ism
         tau.append(tau_temp)
         doppler_factor.append(doppler_factor_temp)
 
-    return lorentz_factor, lbol_rest, comoving_temperature, radius, doppler_factor
+    return lorentz_factor, lbol_rest, comoving_temperature, radius, doppler_factor, tau
 
 
 def _comoving_blackbody_to_flux_density(dl, frequencies, radius, temperature, doppler_factor):
@@ -159,7 +159,7 @@ def mergernova(time, redshift, frequencies, mej, beta, ejecta_radius, kappa, n_i
     """
     time_temp = np.logspace(-4, 8, 1000)
     dl = cosmo.luminosity_distance(redshift).cgs.value
-    _, bolometric_luminosity, comoving_temperature, radius, doppler_factor = ejecta_dynamics_and_interaction(
+    _, bolometric_luminosity, comoving_temperature, radius, doppler_factor, _ = ejecta_dynamics_and_interaction(
         time=time_temp, mej=mej,
         beta=beta, ejecta_radius=ejecta_radius,
         kappa=kappa, n_ism=n_ism, l0=l0,
