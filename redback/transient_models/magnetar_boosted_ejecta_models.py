@@ -170,6 +170,8 @@ def mergernova(time, redshift, frequencies, mej, beta, ejecta_radius, kappa, n_i
     d_func = interp1d(time_temp, y=doppler_factor)
     # convert to source frame time
     time = time / (1 + redshift)
+    frequencies = frequencies / (1 + redshift)
+
     temp = temp_func(time)
     rad = rad_func(time)
     df = d_func(time)
@@ -241,6 +243,9 @@ def _trapped_magnetar_flux(time, redshift, mej, beta, ejecta_radius, kappa, n_is
     :param kwargs: 'photon_index' used to calculate k correction and convert from luminosity to flux
     :return: integrated flux
     """
+    time = time / (1 + redshift)
+    kwargs['frequency'] = kwargs['frequency'] / (1 + redshift)
+
     lum = _trapped_magnetar_lum(time, mej, beta, ejecta_radius, kappa, n_ism, l0, tau_sd, nn, thermalisation_efficiency,
                                 **kwargs)
     dl = cosmo.luminosity_distance(redshift).cgs.value
