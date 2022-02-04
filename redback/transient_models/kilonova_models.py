@@ -1,7 +1,6 @@
 import numpy as np
 import pandas as pd
 
-from gwemlightcurves.KNModels.table import KNTable
 from astropy.table import Table, Column
 from scipy.interpolate import interp1d
 
@@ -26,6 +25,8 @@ def _generate_single_lightcurve(model, t_ini, t_max, dt, **parameters):
     ----------
     func, func: A bolometric function and the magnitude function.
     """
+    from gwemlightcurves.KNModels.table import KNTable
+
     t = Table()
     for key in parameters.keys():
         val = parameters[key]
@@ -57,7 +58,8 @@ def _generate_single_lightcurve_at_times(model, times, **parameters):
     tini = times[0]
     tmax = times[-1]
     dt = (tmax - tini)/(len(times) - 1)
-    gwem_times, lbol, mag = _generate_single_lightcurve(model=model, t_ini=times[0], t_max=times[-1], dt=dt, **parameters)
+    gwem_times, lbol, mag = _generate_single_lightcurve(model=model, t_ini=times[0], t_max=times[-1],
+                                                        dt=dt, **parameters)
 
     lbol = interp1d(gwem_times, lbol)(times)
     new_mag = []
@@ -80,17 +82,18 @@ def _gwemlightcurve_interface_factory(model):
     ----------
     func, func: A bolometric function and the magnitude function.
     """
-    DEFAULT_FILTERS = ['u', 'g', 'r', 'i', 'z', 'y', 'J', 'H', 'K']
+
+    default_filters = ['u', 'g', 'r', 'i', 'z', 'y', 'J', 'H', 'K']
 
     def interface_bolometric(times, **parameters):
         return _generate_single_lightcurve_at_times(model=model, times=times, **parameters)[0]
 
     def interface_all_magnitudes(times, **parameters):
         magnitudes = _generate_single_lightcurve_at_times(model=model, times=times, **parameters)[1]
-        return pd.DataFrame(magnitudes.T, columns=DEFAULT_FILTERS)
+        return pd.DataFrame(magnitudes.T, columns=default_filters)
 
     def interface_filtered_magnitudes(times, **parameters):
-        filters = parameters.get('filters', DEFAULT_FILTERS)
+        filters = parameters.get('filters', default_filters)
         all_magnitudes = interface_all_magnitudes(times, **parameters)
         if len(filters) == 1:
             return all_magnitudes[filters[0]]
