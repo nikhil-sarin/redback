@@ -1,11 +1,12 @@
 import numpy as np
+import pandas as pd
 
 from gwemlightcurves.KNModels.table import KNTable
 from astropy.table import Table, Column
 from scipy.interpolate import interp1d
 
 
-def generate_single_lightcurve(model, t_ini, t_max, dt, **parameters):
+def _generate_single_lightcurve(model, t_ini, t_max, dt, **parameters):
     """
     Generates a single lightcurve for a given `gwemlightcurves` model
 
@@ -36,7 +37,7 @@ def generate_single_lightcurve(model, t_ini, t_max, dt, **parameters):
     return model_table["t"][0], model_table["lbol"][0], model_table["mag"][0]
 
 
-def generate_single_lightcurve_at_times(model, times, **parameters):
+def _generate_single_lightcurve_at_times(model, times, **parameters):
     """
     Generates a single lightcurve for a given `gwemlightcurves` model
 
@@ -56,12 +57,12 @@ def generate_single_lightcurve_at_times(model, times, **parameters):
     tini = times[0]
     tmax = times[-1]
     dt = (tmax - tini)/(len(times) - 1)
-    new_times, lbol, mag = generate_single_lightcurve(model=model, t_ini=times[0], t_max=times[-1], dt=dt, **parameters)
+    gwem_times, lbol, mag = _generate_single_lightcurve(model=model, t_ini=times[0], t_max=times[-1], dt=dt, **parameters)
 
-    lbol = interp1d(new_times, lbol)(times)
+    lbol = interp1d(gwem_times, lbol)(times)
     new_mag = []
     for m in mag:
-        new_mag.append(interp1d(new_times, m)(times))
+        new_mag.append(interp1d(gwem_times, m)(times))
     return lbol, np.array(new_mag)
 
 
@@ -79,13 +80,28 @@ def _gwemlightcurve_interface_factory(model):
     ----------
     func, func: A bolometric function and the magnitude function.
     """
+    DEFAULT_FILTERS = ['u', 'g', 'r', 'i', 'z', 'y', 'J', 'H', 'K']
+
     def interface_bolometric(times, **parameters):
-        return generate_single_lightcurve_at_times(model=model, times=times, **parameters)[0]
+        return _generate_single_lightcurve_at_times(model=model, times=times, **parameters)[0]
 
-    def interface_magnitudes(times, **parameters):
-        return generate_single_lightcurve_at_times(model=model, times=times, **parameters)[1]
+    def interface_all_magnitudes(times, **parameters):
+        magnitudes = _generate_single_lightcurve_at_times(model=model, times=times, **parameters)[1]
+        return pd.DataFrame(magnitudes.T, columns=DEFAULT_FILTERS)
 
-    return interface_bolometric, interface_magnitudes
+    def interface_filtered_magnitudes(times, **parameters):
+        filters = parameters.get('filters', DEFAULT_FILTERS)
+        all_magnitudes = interface_all_magnitudes(times, **parameters)
+        if len(filters) == 1:
+            return all_magnitudes[filters[0]]
+
+        filtered_magnitudes = np.zeros(len(times))
+        for i, f in enumerate(filters):
+            filtered_magnitudes[i] = all_magnitudes[f][i]
+
+        return filtered_magnitudes
+
+    return interface_bolometric, interface_filtered_magnitudes
 
 
 DiUj2017_bolometric, DiUj2017_magnitudes = _gwemlightcurve_interface_factory("DiUj2017")
