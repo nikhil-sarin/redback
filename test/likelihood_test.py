@@ -1,6 +1,6 @@
-import mock
 import numpy as np
 import unittest
+from unittest import mock
 
 from redback import likelihoods
 

@@ -4,8 +4,10 @@ import numpy as np
 from os.path import join
 import pandas as pd
 
-from redback.getdata import transient_directory_structure
-from redback.utils import bands_to_frequencies, bin_ttes, DataModeSwitch, logger
+import redback
+
+# from redback.getdata import transient_directory_structure
+# from redback.utils import bands_to_frequencies, bin_ttes, DataModeSwitch, logger
 
 
 class Transient(object):
@@ -19,12 +21,12 @@ class Transient(object):
                        flux_density=r'Flux density [mJy]',
                        counts=r'Counts')
 
-    luminosity_data = DataModeSwitch('luminosity')
-    flux_data = DataModeSwitch('flux')
-    flux_density_data = DataModeSwitch('flux_density')
-    photometry_data = DataModeSwitch('photometry')
-    counts_data = DataModeSwitch('counts')
-    tte_data = DataModeSwitch('ttes')
+    luminosity_data = redback.utils.DataModeSwitch('luminosity')
+    flux_data = redback.utils.DataModeSwitch('flux')
+    flux_density_data = redback.utils.DataModeSwitch('flux_density')
+    photometry_data = redback.utils.DataModeSwitch('photometry')
+    counts_data = redback.utils.DataModeSwitch('counts')
+    tte_data = redback.utils.DataModeSwitch('ttes')
 
     def __init__(self, time=None, time_err=None, time_mjd=None, time_mjd_err=None, time_rest_frame=None,
                  time_rest_frame_err=None, Lum50=None, Lum50_err=None, flux=None, flux_err=None, flux_density=None,
@@ -36,7 +38,7 @@ class Transient(object):
         """
         self.bin_size = bin_size
         if data_mode == 'ttes':
-            time, counts = bin_ttes(ttes, self.bin_size)
+            time, counts = redback.utils.bin_ttes(ttes, self.bin_size)
 
         self.time = time
         self.time_err = time_err
@@ -155,7 +157,7 @@ class Transient(object):
     @frequency.setter
     def frequency(self, frequency):
         if frequency is None:
-            self._frequency = bands_to_frequencies(self.bands)
+            self._frequency = redback.utils.bands_to_frequencies(self.bands)
         else:
             self._frequency = frequency
 
@@ -176,7 +178,7 @@ class Transient(object):
             filtered_x = self.x[idxs]
             try:
                 filtered_x_err = self.x_err[idxs]
-            except IndexError:
+            except TypeError:
                 filtered_x_err = None
             filtered_y = self.y[idxs]
             filtered_y_err = self.y_err[idxs]
@@ -191,7 +193,7 @@ class Transient(object):
 
     @property
     def unique_frequencies(self):
-        return bands_to_frequencies(self.unique_bands)
+        return redback.utils.bands_to_frequencies(self.unique_bands)
 
     @property
     def list_of_band_indices(self):
@@ -237,7 +239,7 @@ class Transient(object):
     def plot_multiband_lightcurve(self, model, filename=None, axes=None, plot_save=True, plot_show=True,
                                   random_models=100, posterior=None, outdir='.', model_kwargs=None, **kwargs):
         if self.luminosity_data or self.flux_data:
-            logger.warning(f"Plotting multiband lightcurve not possible for {self.data_mode}. Returning.")
+            redback.utils.logger.warning(f"Plotting multiband lightcurve not possible for {self.data_mode}. Returning.")
             return
 
         if filename is None:
@@ -330,8 +332,8 @@ class OpticalTransient(Transient):
         try:
             meta_data = pd.read_csv(self.event_table, error_bad_lines=False, delimiter=',', dtype='str')
         except FileNotFoundError as e:
-            logger.warning(e)
-            logger.warning("Setting metadata to None")
+            redback.utils.logger.warning(e)
+            redback.utils.logger.warning("Setting metadata to None")
             meta_data = None
         self.meta_data = meta_data
 
@@ -341,7 +343,7 @@ class OpticalTransient(Transient):
 
     @classmethod
     def _get_transient_dir(cls, name):
-        transient_dir, _, _ = transient_directory_structure(
+        transient_dir, _, _ = redback.getdata.transient_directory_structure(
             transient=name, transient_type=cls.__name__.lower())
         return transient_dir
 
@@ -396,7 +398,7 @@ class OpticalTransient(Transient):
     def plot_multiband(self, figure=None, axes=None, ncols=2, nrows=None, figsize=None, filters=None,
                        **plot_kwargs):
         if self.luminosity_data or self.flux_data:
-            logger.warning(f"Can't plot multiband for {self.data_mode} data.")
+            redback.utils.logger.warning(f"Can't plot multiband for {self.data_mode} data.")
             return
 
         if filters is None:
@@ -435,7 +437,7 @@ class OpticalTransient(Transient):
 
             color = colors[filters.index(band)]
 
-            freq = bands_to_frequencies([band])
+            freq = redback.utils.bands_to_frequencies([band])
             if 1e10 < freq < 1e15:
                 label = band
             else:
