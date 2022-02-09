@@ -41,17 +41,16 @@ class TestTransient(unittest.TestCase):
         del self.use_phase_model
         del self.transient
 
-    @mock.patch("redback.utils.bin_ttes")
-    def test_ttes_data_mode_setting(self, m):
+    def test_ttes_data_mode_setting(self):
+        bin_ttes = MagicMock(return_value=(self.time, self.y))
+        # bin_ttes.return_value = self.time, self.y
         ttes = np.arange(0, 1, 1000)
         self.data_mode = 'ttes'
         self.bin_size = 0.1
-        m.assert_not_called()
-        m.return_value = self.time, self.y
         self.transient = redback.transient.transient.Transient(
             ttes=ttes, redshift=self.redshift, data_mode=self.data_mode, name=self.name,
-            path=self.path, photon_index=self.photon_index)
-        m.assert_called_once()
+            path=self.path, photon_index=self.photon_index, bin_ttes=bin_ttes)
+        bin_ttes.assert_called_once()
 
     def test_data_mode_switches(self):
         self.assertTrue(self.transient.counts_data)
@@ -305,16 +304,15 @@ class TestOpticalTransient(unittest.TestCase):
         self.assertTrue(np.array_equal(np.array(['a', 'b']), self.transient.active_bands))
 
     def test_set_frequencies_from_bands(self):
-        with mock.patch('redback.utils.bands_to_frequencies') as m:
-            expected = np.array([1, 2, 2])
-            m.return_value = expected
-            self.transient = redback.transient.transient.OpticalTransient(
-                time=self.time, time_err=self.time_err, flux_density=self.y, flux_density_err=self.y_err,
-                redshift=self.redshift, data_mode=self.data_mode, name=self.name, path=self.path,
-                photon_index=self.photon_index, use_phase_model=self.use_phase_model, bands=self.bands,
-                active_bands=self.active_bands)
-            m.assert_called_once()
-            self.assertTrue(np.array_equal(expected, self.transient.frequency))
+        expected = [1, 2, 2]
+        bands_to_frequencies = MagicMock(return_value=expected)
+        self.transient = redback.transient.transient.OpticalTransient(
+            time=self.time, time_err=self.time_err, flux_density=self.y, flux_density_err=self.y_err,
+            redshift=self.redshift, data_mode=self.data_mode, name=self.name, path=self.path,
+            photon_index=self.photon_index, use_phase_model=self.use_phase_model, bands=self.bands,
+            active_bands=self.active_bands, bands_to_frequencies=bands_to_frequencies)
+        self.assertTrue(np.array_equal(expected, self.transient.frequency))
+        bands_to_frequencies.assert_called_once()
 
     def test_set_frequencies_default(self):
         frequency = np.array([1, 2, 2])
@@ -469,16 +467,15 @@ class TestAfterglow(unittest.TestCase):
         self.assertTrue(np.array_equal(np.array(['a', 'b']), self.sgrb_all_active_bands.active_bands))
 
     def test_set_frequencies_from_bands(self):
-        with mock.patch('redback.utils.bands_to_frequencies') as m:
-            expected = np.array([1, 2, 2])
-            m.return_value = expected
-            self.sgrb = redback.transient.afterglow.SGRB(
-                time=self.time, time_err=self.time_err, flux_density=self.y, flux_density_err=self.y_err,
-                redshift=self.redshift, data_mode=self.data_mode, name=self.name, path=self.path,
-                photon_index=self.photon_index, use_phase_model=self.use_phase_model, bands=self.bands,
-                active_bands=self.active_bands)
-            m.assert_called_once()
-            self.assertTrue(np.array_equal(expected, self.sgrb.frequency))
+        expected = [1, 2, 2]
+        bands_to_frequencies = MagicMock(return_value=expected)
+        self.sgrb = redback.transient.afterglow.SGRB(
+            time=self.time, time_err=self.time_err, flux_density=self.y, flux_density_err=self.y_err,
+            redshift=self.redshift, data_mode=self.data_mode, name=self.name, path=self.path,
+            photon_index=self.photon_index, use_phase_model=self.use_phase_model, bands=self.bands,
+            active_bands=self.active_bands, bands_to_frequencies=bands_to_frequencies)
+        self.assertTrue(np.array_equal(expected, self.sgrb.frequency))
+        bands_to_frequencies.assert_called_once()
 
     def test_set_frequencies_default(self):
         frequency = np.array([1, 2, 2])
