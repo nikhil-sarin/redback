@@ -32,8 +32,8 @@ class Afterglow(Transient):
         if not name.startswith('GRB'):
             name = 'GRB' + name
 
-        self.FluxToLuminosityConverter = kwargs.get('flux_to_luminosity_converter', FluxToLuminosityConverter)
-        self.Truncator = kwargs.get('flux_to_luminosity_converter', Truncator)
+        self.FluxToLuminosityConverter = kwargs.get('FluxToLuminosityConverter', FluxToLuminosityConverter)
+        self.Truncator = kwargs.get('Truncator', Truncator)
 
         super().__init__(name=name, data_mode=data_mode, time=time, time_mjd=time_mjd, time_mjd_err=time_mjd_err,
                          time_err=time_err, time_rest_frame=time_rest_frame, time_rest_frame_err=time_rest_frame_err,
