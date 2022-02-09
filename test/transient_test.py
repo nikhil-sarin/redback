@@ -454,11 +454,11 @@ class TestAfterglow(unittest.TestCase):
         expected_y = 2
         expected_yerr = 3
         return_value = expected_x, expected_x_err, expected_y, expected_yerr
-        with mock.patch.object(redback.transient.afterglow.Truncator, 'truncate', return_value=return_value):
-            self.sgrb.truncate()
-            self.assertListEqual(
-                [expected_x, expected_x_err, expected_y, expected_yerr],
-                [self.sgrb.x, self.sgrb.x_err, self.sgrb.y, self.sgrb.y_err])
+        self.sgrb.Truncator.truncate = MagicMock(return_value=return_value)
+        self.sgrb.truncate()
+        self.assertListEqual(
+            [expected_x, expected_x_err, expected_y, expected_yerr],
+            [self.sgrb.x, self.sgrb.x_err, self.sgrb.y, self.sgrb.y_err])
 
     def test_set_active_bands(self):
         self.assertTrue(np.array_equal(np.array(self.active_bands), self.sgrb.active_bands))
@@ -543,70 +543,64 @@ class TestAfterglow(unittest.TestCase):
         self.assertTrue(np.isnan(self.sgrb_not_existing.t90))
 
     def test_flux_to_luminosity_luminosity(self):
-        with mock.patch.object(redback.transient.afterglow.FluxToLuminosityConverter,
-                               "convert_flux_to_luminosity") as m:
-            self.sgrb_luminosity.analytical_flux_to_luminosity()
-            m.assert_not_called()
+        self.sgrb.FluxToLuminosityConverter = MagicMock()
+        self.sgrb.analytical_flux_to_luminosity()
+        self.sgrb.FluxToLuminosityConverter.assert_not_called()
 
     def test_flux_to_luminosity_flux_density(self):
-        with mock.patch.object(redback.transient.afterglow.FluxToLuminosityConverter,
-                               "convert_flux_to_luminosity") as m:
-            self.sgrb_flux_density.analytical_flux_to_luminosity()
-            m.assert_not_called()
-            self.assertTrue(self.sgrb_flux_density.flux_density_data)
+        self.sgrb.FluxToLuminosityConverter = MagicMock()
+        self.sgrb_flux_density.analytical_flux_to_luminosity()
+        self.sgrb.FluxToLuminosityConverter.assert_not_called()
+        self.assertTrue(self.sgrb_flux_density.flux_density_data)
 
     def test_flux_to_luminosity_nan_redshift(self):
         return_value = np.array([0, 1, 2, 3]), np.array([[1, 2, 3, 4], [1, 2, 3, 4]]), \
                        np.array([2, 3, 4, 5]), np.array([[3, 4, 5, 6], [3, 4, 5, 6]])
-        with mock.patch.object(redback.transient.afterglow.FluxToLuminosityConverter,
-                               "convert_flux_to_luminosity", return_value=return_value) as m:
-            self.sgrb.redshift = np.nan
-            self.sgrb.analytical_flux_to_luminosity()
-            m.assert_called_once()
-            self.assertTrue(self.sgrb.luminosity_data)
-            self.assertTrue(np.array_equal(return_value[0], self.sgrb.x))
-            self.assertTrue(np.array_equal(return_value[1], self.sgrb.x_err))
-            self.assertTrue(np.array_equal(return_value[2], self.sgrb.y))
-            self.assertTrue(np.array_equal(return_value[3], self.sgrb.y_err))
+        self.sgrb.FluxToLuminosityConverter = MagicMock(return_value=return_value)
+        self.sgrb.redshift = np.nan
+        self.sgrb.analytical_flux_to_luminosity()
+        self.sgrb.FluxToLuminosityConverter.assert_called_once()
+        self.assertTrue(self.sgrb.luminosity_data)
+        self.assertTrue(np.array_equal(return_value[0], self.sgrb.x))
+        self.assertTrue(np.array_equal(return_value[1], self.sgrb.x_err))
+        self.assertTrue(np.array_equal(return_value[2], self.sgrb.y))
+        self.assertTrue(np.array_equal(return_value[3], self.sgrb.y_err))
 
     def test_flux_to_luminosity_none_redshift(self):
         return_value = np.array([0, 1, 2, 3]), np.array([[1, 2, 3, 4], [1, 2, 3, 4]]), \
                        np.array([2, 3, 4, 5]), np.array([[3, 4, 5, 6], [3, 4, 5, 6]])
-        with mock.patch.object(redback.transient.afterglow.FluxToLuminosityConverter,
-                               "convert_flux_to_luminosity", return_value=return_value) as m:
-            self.sgrb.redshift = None
-            self.sgrb.analytical_flux_to_luminosity()
-            m.assert_not_called()
+        self.sgrb.FluxToLuminosityConverter = MagicMock(return_value=return_value)
+        self.sgrb.redshift = None
+        self.sgrb.analytical_flux_to_luminosity()
+        self.sgrb.FluxToLuminosityConverter.assert_not_called()
 
     def test_flux_to_luminosity_real_redshift(self):
         return_value = np.array([0, 1, 2, 3]), np.array([[1, 2, 3, 4], [1, 2, 3, 4]]), \
                        np.array([2, 3, 4, 5]), np.array([[3, 4, 5, 6], [3, 4, 5, 6]])
-        with mock.patch.object(redback.transient.afterglow.FluxToLuminosityConverter,
-                               "convert_flux_to_luminosity", return_value=return_value) as m:
-            self.sgrb.redshift = 0.5
-            self.sgrb.analytical_flux_to_luminosity()
-            m.assert_called_once()
-            self.assertTrue(self.sgrb.luminosity_data)
-            self.assertTrue(np.array_equal(return_value[0], self.sgrb.x))
-            self.assertTrue(np.array_equal(return_value[1], self.sgrb.x_err))
-            self.assertTrue(np.array_equal(return_value[2], self.sgrb.y))
-            self.assertTrue(np.array_equal(return_value[3], self.sgrb.y_err))
-            self.assertEqual(0.5, self.sgrb.redshift)
+        self.sgrb.FluxToLuminosityConverter = MagicMock(return_value=return_value)
+        self.sgrb.redshift = 0.5
+        self.sgrb.analytical_flux_to_luminosity()
+        self.sgrb.FluxToLuminosityConverter.assert_called_once()
+        self.assertTrue(self.sgrb.luminosity_data)
+        self.assertTrue(np.array_equal(return_value[0], self.sgrb.x))
+        self.assertTrue(np.array_equal(return_value[1], self.sgrb.x_err))
+        self.assertTrue(np.array_equal(return_value[2], self.sgrb.y))
+        self.assertTrue(np.array_equal(return_value[3], self.sgrb.y_err))
+        self.assertEqual(0.5, self.sgrb.redshift)
 
     def test_numerical_flux_to_luminosity(self):
         return_value = np.array([0, 1, 2, 3]), np.array([[1, 2, 3, 4], [1, 2, 3, 4]]), \
                        np.array([2, 3, 4, 5]), np.array([[3, 4, 5, 6], [3, 4, 5, 6]])
-        with mock.patch.object(redback.transient.afterglow.FluxToLuminosityConverter,
-                               "convert_flux_to_luminosity", return_value=return_value) as m:
-            self.sgrb.redshift = 0.5
-            self.sgrb.numerical_flux_to_luminosity(counts_to_flux_absorbed=1, counts_to_flux_unabsorbed=1)
-            m.assert_called_once()
-            self.assertTrue(self.sgrb.luminosity_data)
-            self.assertTrue(np.array_equal(return_value[0], self.sgrb.x))
-            self.assertTrue(np.array_equal(return_value[1], self.sgrb.x_err))
-            self.assertTrue(np.array_equal(return_value[2], self.sgrb.y))
-            self.assertTrue(np.array_equal(return_value[3], self.sgrb.y_err))
-            self.assertEqual(0.5, self.sgrb.redshift)
+        self.sgrb.FluxToLuminosityConverter = MagicMock(return_value=return_value)
+        self.sgrb.redshift = 0.5
+        self.sgrb.numerical_flux_to_luminosity(counts_to_flux_absorbed=1, counts_to_flux_unabsorbed=1)
+        self.sgrb.FluxToLuminosityConverter.assert_called_once()
+        self.assertTrue(self.sgrb.luminosity_data)
+        self.assertTrue(np.array_equal(return_value[0], self.sgrb.x))
+        self.assertTrue(np.array_equal(return_value[1], self.sgrb.x_err))
+        self.assertTrue(np.array_equal(return_value[2], self.sgrb.y))
+        self.assertTrue(np.array_equal(return_value[3], self.sgrb.y_err))
+        self.assertEqual(0.5, self.sgrb.redshift)
 
 
     def test_analytical_flux_to_luminosity(self):

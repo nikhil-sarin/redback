@@ -32,6 +32,9 @@ class Afterglow(Transient):
         if not name.startswith('GRB'):
             name = 'GRB' + name
 
+        self.FluxToLuminosityConverter = kwargs.get('flux_to_luminosity_converter', FluxToLuminosityConverter)
+        self.Truncator = kwargs.get('flux_to_luminosity_converter', Truncator)
+
         super().__init__(name=name, data_mode=data_mode, time=time, time_mjd=time_mjd, time_mjd_err=time_mjd_err,
                          time_err=time_err, time_rest_frame=time_rest_frame, time_rest_frame_err=time_rest_frame_err,
                          Lum50=Lum50, Lum50_err=Lum50_err, flux=flux, flux_err=flux_err, flux_density=flux_density,
@@ -87,8 +90,8 @@ class Afterglow(Transient):
         return x, x_err, y, y_err
 
     def truncate(self, truncate_method='prompt_time_error'):
-        truncator = Truncator(x=self.x, x_err=self.x_err, y=self.y, y_err=self.y_err, time=self.time,
-                              time_err=self.time_err, truncate_method=truncate_method)
+        truncator = self.Truncator(x=self.x, x_err=self.x_err, y=self.y, y_err=self.y_err, time=self.time,
+                                   time_err=self.time_err, truncate_method=truncate_method)
         self.x, self.x_err, self.y, self.y_err = truncator.truncate()
 
     @property
@@ -174,7 +177,7 @@ class Afterglow(Transient):
         redshift = self._get_redshift_for_luminosity_calculation()
         if redshift is None:
             return
-        converter = FluxToLuminosityConverter(
+        converter = self.FluxToLuminosityConverter(
             redshift=redshift, photon_index=self.photon_index, time=self.time, time_err=self.time_err,
             flux=self.flux, flux_err=self.flux_err, counts_to_flux_absorbed=counts_to_flux_absorbed,
             counts_to_flux_unabsorbed=counts_to_flux_unabsorbed, conversion_method=conversion_method)
