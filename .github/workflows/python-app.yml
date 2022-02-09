@@ -28,11 +28,7 @@ jobs:
         pip install flake8 pytest pytest-cov
     - name: Build coverage file
       run: |
-        pytest --cache-clear --cov=app test/ > pytest-coverage.txt
-    - name: pytest-coverage-commentator
-      uses: coroo/pytest-coverage-commentator@v1.0.2
-      with:
-        pytest-coverage: pytest-coverage.txt
+        pytest --cov =redback test/
 #    - name: Lint with flake8
 #      run: |
 #         stop the build if there are Python syntax errors or undefined names
