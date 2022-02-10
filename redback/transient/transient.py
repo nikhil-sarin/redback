@@ -6,9 +6,6 @@ import pandas as pd
 
 import redback
 
-# from redback.getdata import transient_directory_structure
-# from redback.utils import bands_to_frequencies, bin_ttes, DataModeSwitch, logger
-
 
 class Transient(object):
     DATA_MODES = ['luminosity', 'flux', 'flux_density', 'photometry', 'counts', 'ttes']
@@ -37,8 +34,11 @@ class Transient(object):
         Base class for all transients
         """
         self.bin_size = bin_size
+        self.bin_ttes = kwargs.get("bin_ttes", redback.utils.bin_ttes)
+        self.bands_to_frequencies = kwargs.get("bands_to_frequencies", redback.utils.bands_to_frequencies)
+
         if data_mode == 'ttes':
-            time, counts = redback.utils.bin_ttes(ttes, self.bin_size)
+            time, counts = self.bin_ttes(ttes, self.bin_size)
 
         self.time = time
         self.time_err = time_err
@@ -157,7 +157,7 @@ class Transient(object):
     @frequency.setter
     def frequency(self, frequency):
         if frequency is None:
-            self._frequency = redback.utils.bands_to_frequencies(self.bands)
+            self._frequency = self.bands_to_frequencies(self.bands)
         else:
             self._frequency = frequency
 
@@ -193,7 +193,7 @@ class Transient(object):
 
     @property
     def unique_frequencies(self):
-        return redback.utils.bands_to_frequencies(self.unique_bands)
+        return self.bands_to_frequencies(self.unique_bands)
 
     @property
     def list_of_band_indices(self):
@@ -437,7 +437,7 @@ class OpticalTransient(Transient):
 
             color = colors[filters.index(band)]
 
-            freq = redback.utils.bands_to_frequencies([band])
+            freq = self.bands_to_frequencies([band])
             if 1e10 < freq < 1e15:
                 label = band
             else:
