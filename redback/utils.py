@@ -176,7 +176,7 @@ def bands_to_frequencies(bands):
     Converts a list of bands into an array of frequencies in Hz
     ----------
     bands: list[str]
-        The `gwemlightcurve` model, e.g. 'DiUj2017'
+        List of bands.
 
     Returns
     ----------
