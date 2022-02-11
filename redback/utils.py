@@ -14,6 +14,7 @@ import pandas as pd
 from scipy.stats import gaussian_kde
 from selenium import webdriver
 from selenium.common.exceptions import NoSuchElementException
+from scipy.interpolate import RegularGridInterpolator
 
 import redback
 from redback.constants import *
@@ -26,6 +27,23 @@ plt.style.use(filename)
 logger = logging.getLogger('redback')
 _bilby_logger = logging.getLogger('bilby')
 
+def interpolated_barnes_and_kasen_thermalisation_efficiency(mej, vej):
+    v_array = np.array([0.1, 0.2, 0.3])
+    mass_array = np.array([1.0e-3, 5.0e-3, 1.0e-2, 5.0e-2])
+    a_array = np.asarray([[2.01, 4.52, 8.16], [0.81, 1.9, 3.2],
+                     [0.56, 1.31, 2.19], [.27, .55, .95]])
+    b_array = np.asarray([[0.28, 0.62, 1.19], [0.19, 0.28, 0.45],
+                     [0.17, 0.21, 0.31], [0.10, 0.13, 0.15]])
+    d_array = np.asarray([[1.12, 1.39, 1.52], [0.86, 1.21, 1.39],
+                     [0.74, 1.13, 1.32], [0.6, 0.9, 1.13]])
+    a_func = RegularGridInterpolator((mass_array, v_array), a_array, bounds_error=False, fill_value=None)
+    b_func = RegularGridInterpolator((mass_array, v_array), b_array, bounds_error=False, fill_value=None)
+    d_func = RegularGridInterpolator((mass_array, v_array), d_array, bounds_error=False, fill_value=None)
+
+    av = a_func(mej, vej)
+    bv = b_func(mej, vej)
+    dv = d_func(mej, vej)
+    return av, bv, dv
 
 def mjd_to_jd(mjd):
     return mjd + 2400000.5
