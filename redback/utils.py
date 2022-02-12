@@ -14,7 +14,7 @@ import pandas as pd
 from scipy.stats import gaussian_kde
 from selenium import webdriver
 from selenium.common.exceptions import NoSuchElementException
-from scipy.interpolate import RegularGridInterpolator
+from scipy.interpolate import RegularGridInterpolator, interp1d
 
 import redback
 from redback.constants import *
@@ -28,6 +28,13 @@ logger = logging.getLogger('redback')
 _bilby_logger = logging.getLogger('bilby')
 
 def interpolated_barnes_and_kasen_thermalisation_efficiency(mej, vej):
+    """
+    Uses Barnes+2016 and interpolation to calculate the r-process thermalisation efficiency
+    depending on the input mass and velocity
+    :param mej: ejecta mass in solar masses
+    :param vej: initial ejecta velocity as a fraction of speed of light
+    :return: av, bv, dv constants in the thermalisation efficiency equation Eq 25 in Metzger 2017
+    """
     v_array = np.array([0.1, 0.2, 0.3])
     mass_array = np.array([1.0e-3, 5.0e-3, 1.0e-2, 5.0e-2])
     a_array = np.asarray([[2.01, 4.52, 8.16], [0.81, 1.9, 3.2],
@@ -40,10 +47,24 @@ def interpolated_barnes_and_kasen_thermalisation_efficiency(mej, vej):
     b_func = RegularGridInterpolator((mass_array, v_array), b_array, bounds_error=False, fill_value=None)
     d_func = RegularGridInterpolator((mass_array, v_array), d_array, bounds_error=False, fill_value=None)
 
-    av = a_func(mej, vej)
-    bv = b_func(mej, vej)
-    dv = d_func(mej, vej)
+    av = a_func([mej, vej])[0]
+    bv = b_func([mej, vej])[0]
+    dv = d_func([mej, vej])[0]
     return av, bv, dv
+
+def electron_fraction_from_kappa(kappa):
+    """
+    Uses interpolation from Tanaka+19 to calculate
+    the electron fraction based on the temperature independent gray opacity
+    :param kappa: temperature independent gray opacity
+    :return: electron_fraction
+    """
+
+    kappa_array = np.array([1, 3, 5, 20, 30])
+    ye_array = np.array([0.4,0.35,0.25,0.2, 0.1])
+    kappa_func = interp1d(ye_array, y=kappa_array)
+    electron_fraction = kappa_func(kappa)
+    return electron_fraction
 
 def mjd_to_jd(mjd):
     return mjd + 2400000.5
