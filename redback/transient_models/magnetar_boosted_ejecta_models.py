@@ -120,12 +120,13 @@ def _metzger_magnetar_boosted_kilonova_model(time, redshift, mej, vej, beta, kap
         neutron_mass = 1e-8 * solar_mass
         neutron_mass_fraction = 1 - 2*electron_fraction * 2 * np.arctan(neutron_mass / m_array / solar_mass) / np.pi
         rprocess_mass_fraction = 1.0 - neutron_mass_fraction
-        neutron_mass_fraction_array = np.tile(neutron_mass_fraction, (time_len, 1)).T
+        initial_neutron_mass_fraction_array = np.tile(neutron_mass_fraction, (time_len, 1)).T
         rprocess_mass_fraction_array = np.tile(rprocess_mass_fraction, (time_len, 1)).T
-        edotn = 3.2e14 * np.exp(-time_array / tau_neutron)
+        neutron_mass_fraction_array = initial_neutron_mass_fraction_array*np.exp(-time_array / tau_neutron)
+        edotn = 3.2e14 * neutron_mass_fraction_array
         edotn = edotn * neutron_mass_fraction_array
         edotr = edotn + edotr
-        kappa_n = 0.4 * (1.0 - edotn - rprocess_mass_fraction_array)
+        kappa_n = 0.4 * (1.0 - neutron_mass_fraction_array - rprocess_mass_fraction_array)
         kappa_r = kappa_r * rprocess_mass_fraction_array
         kappa_r = kappa_n + kappa_r
 
