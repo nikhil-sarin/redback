@@ -5,11 +5,192 @@ from astropy.cosmology import Planck18 as cosmo  # noqa
 from scipy.interpolate import interp1d
 import astropy.units as uu # noqa
 import astropy.constants as cc # noqa
+from redback.utils import interpolated_barnes_and_kasen_thermalisation_efficiency, blackbody_to_flux_density, electron_fraction_from_kappa
 
+def metzger_magnetar_boosted_kilonova_model(time, redshift, frequencies, mej, vej, beta, kappa_r, l0, tau_sd, nn, thermalisation_efficiency, **kwargs):
+    """
+    :param time: observer frame time
+    :param redshift: redshift
+    :param mej: ejecta mass in solar masses
+    :param vej: minimum initial velocity
+    :param beta: velocity power law slope (M=v^-beta)
+    :param kappa_r: opacity
+    :param l0: initial magnetar X-ray luminosity
+    :param tau_sd: magnetar spin down damping timescale
+    :param nn: braking index
+    :param thermalisation_efficiency: magnetar thermalisation efficiency
+    :param kwargs: neutron_precursor_switch, pair_cascade_switch, ejecta_albedo, rprocess_mass_fraction, magnetar_heating
+    :return: flux_density or magnitude
+    """
+    time_temp = np.geomspace(1e-4, 1e7, 300)
+    bolometric_luminosity, temperature, r_photosphere = _metzger_magnetar_boosted_kilonova_model(time_temp, redshift, mej, vej, beta,
+                                                                                               kappa_r, l0, tau_sd, nn,
+                                                                                               thermalisation_efficiency, **kwargs)
+    #k correction/source frame
+    time = time / (1 + redshift)
+    frequencies = frequencies / (1 + redshift)
+    dl = cosmo.luminosity_distance(redshift).cgs.value
 
-def metzger_magnetar_boosted_kilonova_model(time, **kwargs):
-    pass
+    # interpolate properties onto observation times
+    temp_func = interp1d(time_temp, y=temperature)
+    rad_func = interp1d(time_temp, y=r_photosphere)
+    lbol_func = interp1d(time_temp, y=bolometric_luminosity)
+    # convert to source frame time and frequency
+    time = time / (1 + redshift)
+    frequencies = frequencies / (1 + redshift)
 
+    temp = temp_func(time)
+    photosphere = rad_func(time)
+    lbol = lbol_func(time)
+
+    flux_density = blackbody_to_flux_density(bolometric_luminosity, temperature, r_photosphere, dl)
+
+    if kwargs['output_format'] == 'flux_density':
+        return flux_density.to(uu.mJy).value
+    elif kwargs['output_format'] == 'magnitude':
+        return flux_density.to(uu.ABmag).value
+
+def _metzger_magnetar_boosted_kilonova_model(time, redshift, mej, vej, beta, kappa_r, l0, tau_sd, nn, thermalisation_efficiency, **kwargs):
+    """
+    :param time: time array to evaluate model on in source frame
+    :param redshift: redshift
+    :param mej: ejecta mass in solar masses
+    :param vej: minimum initial velocity
+    :param beta: velocity power law slope (M=v^-beta)
+    :param kappa_r: opacity 
+    :param l0: initial magnetar X-ray luminosity
+    :param tau_sd: magnetar spin down damping timescale
+    :param nn: braking index
+    :param thermalisation_efficiency: magnetar thermalisation efficiency
+    :param kwargs: neutron_precursor_switch, pair_cascade_switch, ejecta_albedo, magnetar_heating
+    :return: bolometric_luminosity, temperature, photosphere_radius
+    """
+    pair_cascade_switch = kwargs.get('pair_cascade_switch', True)
+    neutron_precursor_switch = kwargs.get('neutron_precursor_switch', True)
+    magnetar_heating = kwargs.get('magnetar_heating', 'first_layer')
+
+    if kwargs['pair_cascade_switch'] == True:
+        ejecta_albedo = kwargs.get('ejecta_albedo', 0.5)
+
+    time = time
+    tdays = time/86400
+    time_len = len(time)
+    mass_len = 250
+
+    # set up kilonova physics
+    av, bv, dv = interpolated_barnes_and_kasen_thermalisation_efficiency(mej, vej)
+    # thermalisation from Barnes+16
+    e_th = 0.36 * (np.exp(-av * tdays) + np.log1p(2.0 * bv * tdays ** dv) / (2.0 * bv * tdays ** dv))
+    electron_fraction = electron_fraction_from_kappa(kappa_r)
+    t0 = 1.3 #seconds
+    sig = 0.11  #seconds
+    tau_neutron = 900  #seconds
+
+    # convert to astrophysical units
+    m0 = mej * solar_mass
+    v0 = vej * speed_of_light
+    ek_tot_0 = 0.5 * m0 * v0 ** 2
+
+    # set up mass and velocity layers
+    m_array = np.logspace(-8, np.log10(mej), mass_len) #in solar masses
+    v_m = v0 * (m_array / (mej)) ** (-1 / beta)
+    # don't violate relativity
+    v_m[v_m > 3e10] = speed_of_light
+
+    # set up arrays
+    time_array = np.tile(time, (mass_len, 1))
+    e_th_array = np.tile(e_th, (mass_len, 1))
+    edotr = np.zeros((mass_len, time_len))
+
+    time_mask = time > t0
+    time_1 = time_array[:, time_mask]
+    time_2 = time_array[:, ~time_mask]
+    edotr[:,time_mask] = 2.1e10 * e_th_array[:, time_mask] * ((time_1/ (3600. * 24.)) ** (-1.3))
+    edotr[:, ~time_mask] = 4.0e18 * (0.5 - (1. / np.pi) * np.arctan((time_2 - t0) / sig)) ** (1.3) * e_th_array[:,~time_mask]
+    lsd = magnetar_only(time, l0=l0, tau=tau_sd, nn=nn)
+    qdot_magnetar = thermalisation_efficiency * lsd
+
+    # set up empty arrays
+    energy_v = np.zeros((mass_len, time_len))
+    lum_rad = np.zeros((mass_len, time_len))
+    qdot_rp = np.zeros((mass_len, time_len))
+    td_v = np.zeros((mass_len, time_len))
+
+    if neutron_precursor_switch == True:
+        neutron_mass = 1e-8 * solar_mass
+        neutron_mass_fraction = 1 - 2*electron_fraction * 2 * np.arctan(neutron_mass / m_array / solar_mass) / np.pi
+        rprocess_mass_fraction = 1.0 - neutron_mass_fraction
+        neutron_mass_fraction_array = np.tile(neutron_mass_fraction, (time_len, 1)).T
+        rprocess_mass_fraction_array = np.tile(rprocess_mass_fraction, (time_len, 1)).T
+        edotn = 3.2e14 * np.exp(-time_array / tau_neutron)
+        edotn = edotn * neutron_mass_fraction_array
+        edotr = edotn + edotr
+        kappa_n = 0.4 * (1.0 - edotn - rprocess_mass_fraction_array)
+        kappa_r = kappa_r * rprocess_mass_fraction_array
+        kappa_r = kappa_n + kappa_r
+
+    dt = np.diff(time)
+    dm = np.diff(m_array)
+
+    #initial conditions
+    energy_v[:, 0] = 0.5 * m_array*v_m**2
+    lum_rad[:, 0] = 0
+    qdot_rp[:, 0] = 0
+    kinetic_energy = ek_tot_0
+
+    # solve ODE using euler method for all mass shells v
+    for ii in range(time_len - 1):
+        # this works for kn only
+        # td_v[:-1, ii] = (kappa_r* m_array[:-1] * solar_mass * 3)/ (4*np.pi*v_m[:-1] * speed_of_light * time[ii] * beta)
+        # lum_rad[:-1, ii] = energy_v[:-1, ii] / (td_v[:-1, ii] + time[ii] * (v_m[:-1] / speed_of_light))
+        # energy_v[:-1, ii + 1] = (edotr[:-1, ii] - (energy_v[:-1, ii] / time[ii]) - lum_rad[:-1, ii]) * dt[ii] + energy_v[:-1, ii]
+        # lum_rad[:-1, ii] = lum_rad[:-1, ii] * dm * solar_mass
+
+        # # evolve the velocity due to pdv work of central shell of mass M and thermal energy Ev0
+        kinetic_energy = kinetic_energy + (np.sum(energy_v[:, ii]) / time[ii]) * dt[ii]
+        v0 = (2 * kinetic_energy / m0) ** 0.5
+        v_m = v0 * (m_array / (mej)) ** (-1 / beta)
+        v_m[v_m > 3e10] = speed_of_light
+
+        if magnetar_heating == 'all_layers':
+            if neutron_precursor_switch:
+                td_v[:-1, ii] = (kappa_r[:-1,ii] * m_array[:-1] * solar_mass * 3) / (
+                            4 * np.pi * v_m[:-1] * speed_of_light * time[ii] * beta)
+            else:
+                td_v[:-1, ii] = (kappa_r* m_array[:-1] * solar_mass * 3)/ (4*np.pi*v_m[:-1] * speed_of_light * time[ii] * beta)
+
+            lum_rad[:-1, ii] = energy_v[:-1, ii] / (td_v[:-1, ii] + time[ii] * (v_m[:-1] / speed_of_light))
+            energy_v[:-1, ii + 1] = (qdot_magnetar[ii] + edotr[:-1, ii] * dm * solar_mass - (energy_v[:-1, ii] / time[ii]) - lum_rad[:-1, ii]) * dt[ii] + energy_v[:-1, ii]
+
+        # first mass layer
+        # only bottom layer i.e., 0'th mass layer gets magnetar contribution
+        if magnetar_heating == 'first_layer':
+            if neutron_precursor_switch:
+                td_v[0, ii] = (kappa_r[0, ii] * m_array[0] * solar_mass * 3) / (
+                            4 * np.pi * v_m[0] * speed_of_light * time[ii] * beta)
+                td_v[1:-1, ii] = (kappa_r[1:-1, ii] * m_array[1:-1] * solar_mass * 3) / (
+                            4 * np.pi * v_m[1:-1] * speed_of_light * time[ii] * beta)
+            else:
+                td_v[0, ii] = (kappa_r* m_array[0] * solar_mass * 3)/ (4*np.pi*v_m[0] * speed_of_light * time[ii] * beta)
+                td_v[1:-1, ii] = (kappa_r * m_array[1:-1] * solar_mass * 3) / (
+                            4 * np.pi * v_m[1:-1] * speed_of_light * time[ii] * beta)
+
+            lum_rad[0, ii] = energy_v[0, ii] / (td_v[0, ii] + time[ii] * (v_m[0] / speed_of_light))
+            energy_v[0, ii + 1] = (qdot_magnetar[ii] + edotr[0, ii] * dm[0] * solar_mass - (energy_v[0, ii] / time[ii]) - lum_rad[0, ii]) * dt[ii] + energy_v[0, ii]
+            # other layers
+            lum_rad[1:-1, ii] = energy_v[1:-1, ii] / (td_v[1:-1, ii] + time[ii] * (v_m[1:-1] / speed_of_light))
+            energy_v[1:-1, ii + 1] = (edotr[1:-1, ii] * dm[1:] * solar_mass - (energy_v[1:-1, ii] / time[ii]) - lum_rad[1:-1, ii]) * dt[ii] + energy_v[1:-1, ii]
+
+    bolometric_luminosity = np.sum(lum_rad, axis=0)
+
+    if pair_cascade_switch == True:
+        tlife_t = (0.6/(1 - ejecta_albedo))*(electron_fraction/0.1)**0.5 * (bolometric_luminosity/1.0e45)**0.5 \
+                  * (v0/(0.3*speed_of_light))**(0.5) * (time/86400)**(-0.5)
+        bolometric_luminosity = bolometric_luminosity / (1.0 + tlife_t)
+
+    # temperature = (bolometric_luminosity / (4.0 * np.pi * (r_photosphere) ** (2.0) * sigSB)) ** (0.25)
+
+    return bolometric_luminosity
 
 def ejecta_dynamics_and_interaction(time, mej, beta, ejecta_radius, kappa, n_ism, l0, tau_sd, nn,
                                     thermalisation_efficiency, **kwargs):
@@ -20,7 +201,7 @@ def ejecta_dynamics_and_interaction(time, mej, beta, ejecta_radius, kappa, n_ism
     :param ejecta_radius: initial ejecta radius
     :param kappa: opacity
     :param n_ism: ism number density
-    :param l0: initial magnetar luminosity
+    :param l0: initial magnetar X-ray luminosity
     :param tau_sd: magnetar spin down damping timescale
     :param nn: braking index
     :param thermalisation_efficiency: magnetar thermalisation efficiency
@@ -104,6 +285,7 @@ def _comoving_blackbody_to_flux_density(dl, frequencies, radius, temperature, do
     :param doppler_factor: doppler_factor
     :return: flux_density
     """
+    ## adding units back in to ensure dimensions are correct
     frequencies = frequencies * uu.Hz
     radius = radius * uu.cm
     dl = dl * uu.cm
@@ -126,6 +308,7 @@ def _comoving_blackbody_to_luminosity(frequencies, radius, temperature, doppler_
     :param doppler_factor: doppler_factor
     :return: luminosity
     """
+    ## adding units back in to ensure dimensions are correct
     frequencies = frequencies * uu.Hz
     radius = radius * uu.cm
     temperature = temperature * uu.K
@@ -150,14 +333,14 @@ def mergernova(time, redshift, frequencies, mej, beta, ejecta_radius, kappa, n_i
     :param ejecta_radius: initial ejecta radius
     :param kappa: opacity
     :param n_ism: ism number density
-    :param l0: initial magnetar luminosity
+    :param l0: initial magnetar X-ray luminosity
     :param tau_sd: magnetar spin down damping timescale
     :param nn: braking index
     :param thermalisation_efficiency: magnetar thermalisation efficiency
     :param kwargs: output_format - whether to output flux density or AB magnitude
     :return: flux density or AB magnitude
     """
-    time_temp = np.logspace(-4, 8, 1000)
+    time_temp = np.geomspace(1e-4, 1e8, 1000, endpoint=True)
     dl = cosmo.luminosity_distance(redshift).cgs.value
     _, bolometric_luminosity, comoving_temperature, radius, doppler_factor, _ = ejecta_dynamics_and_interaction(
         time=time_temp, mej=mej,
@@ -168,7 +351,7 @@ def mergernova(time, redshift, frequencies, mej, beta, ejecta_radius, kappa, n_i
     temp_func = interp1d(time_temp, y=comoving_temperature)
     rad_func = interp1d(time_temp, y=radius)
     d_func = interp1d(time_temp, y=doppler_factor)
-    # convert to source frame time
+    # convert to source frame time and frequency
     time = time / (1 + redshift)
     frequencies = frequencies / (1 + redshift)
 
@@ -192,7 +375,7 @@ def _trapped_magnetar_lum(time, mej, beta, ejecta_radius, kappa, n_ism, l0, tau_
     :param ejecta_radius: initial ejecta radius
     :param kappa: opacity
     :param n_ism: ism number density
-    :param l0: initial magnetar luminosity
+    :param l0: initial magnetar X-ray luminosity
     :param tau_sd: magnetar spin down damping timescale
     :param nn: braking index
     :param thermalisation_efficiency: magnetar thermalisation efficiency
@@ -200,7 +383,7 @@ def _trapped_magnetar_lum(time, mej, beta, ejecta_radius, kappa, n_ism, l0, tau_
     :param kwargs: 'frequency' in Hertz to evaluate the mergernova emission - use a typical X-ray frequency
     :return: luminosity
     """
-    time_temp = np.logspace(-4, 8, 1000)
+    time_temp = np.geomspace(1e-4, 1e8, 1000, endpoint=True)
     _, _, comoving_temperature, radius, doppler_factor, tau = ejecta_dynamics_and_interaction(time=time_temp, mej=mej,
                                                                                               beta=beta,
                                                                                               ejecta_radius=ejecta_radius,
@@ -234,7 +417,7 @@ def _trapped_magnetar_flux(time, redshift, mej, beta, ejecta_radius, kappa, n_is
     :param ejecta_radius: initial ejecta radius
     :param kappa: opacity
     :param n_ism: ism number density
-    :param l0: initial magnetar luminosity
+    :param l0: initial magnetar X-ray luminosity
     :param tau_sd: magnetar spin down damping timescale
     :param nn: braking index
     :param thermalisation_efficiency: magnetar thermalisation efficiency
@@ -264,7 +447,7 @@ def trapped_magnetar(time, redshift, mej, beta, ejecta_radius, kappa, n_ism, l0,
     :param ejecta_radius: initial ejecta radius
     :param kappa: opacity
     :param n_ism: ism number density
-    :param l0: initial magnetar luminosity
+    :param l0: initial magnetar X-ray luminosity
     :param tau_sd: magnetar spin down damping timescale
     :param nn: braking index
     :param thermalisation_efficiency: magnetar thermalisation efficiency
