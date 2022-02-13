@@ -27,6 +27,9 @@ plt.style.use(filename)
 logger = logging.getLogger('redback')
 _bilby_logger = logging.getLogger('bilby')
 
+def blackbody_to_flux_density():
+    pass
+
 def interpolated_barnes_and_kasen_thermalisation_efficiency(mej, vej):
     """
     Uses Barnes+2016 and interpolation to calculate the r-process thermalisation efficiency
@@ -62,7 +65,7 @@ def electron_fraction_from_kappa(kappa):
 
     kappa_array = np.array([1, 3, 5, 20, 30])
     ye_array = np.array([0.4,0.35,0.25,0.2, 0.1])
-    kappa_func = interp1d(ye_array, y=kappa_array)
+    kappa_func = interp1d(kappa_array, y=ye_array)
     electron_fraction = kappa_func(kappa)
     return electron_fraction
 
