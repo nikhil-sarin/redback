@@ -34,23 +34,21 @@ def metzger_magnetar_boosted_kilonova_model(time, redshift, frequencies, mej, ve
     # interpolate properties onto observation times
     temp_func = interp1d(time_temp, y=temperature)
     rad_func = interp1d(time_temp, y=r_photosphere)
-    lbol_func = interp1d(time_temp, y=bolometric_luminosity)
     # convert to source frame time and frequency
     time = time / (1 + redshift)
     frequencies = frequencies / (1 + redshift)
 
     temp = temp_func(time)
     photosphere = rad_func(time)
-    lbol = lbol_func(time)
 
-    flux_density = blackbody_to_flux_density(bolometric_luminosity, temperature, r_photosphere, dl)
+    flux_density = blackbody_to_flux_density(temperature, r_photosphere, dl, frequencies)
 
     if kwargs['output_format'] == 'flux_density':
         return flux_density.to(uu.mJy).value
     elif kwargs['output_format'] == 'magnitude':
         return flux_density.to(uu.ABmag).value
 
-def _metzger_magnetar_boosted_kilonova_model(time, redshift, mej, vej, beta, kappa_r, l0, tau_sd, nn, thermalisation_efficiency, **kwargs):
+def _metzger_magnetar_boosted_kilonova_model(time, mej, vej, beta, kappa_r, l0, tau_sd, nn, thermalisation_efficiency, **kwargs):
     """
     :param time: time array to evaluate model on in source frame
     :param redshift: redshift
@@ -115,6 +113,9 @@ def _metzger_magnetar_boosted_kilonova_model(time, redshift, mej, vej, beta, kap
     lum_rad = np.zeros((mass_len, time_len))
     qdot_rp = np.zeros((mass_len, time_len))
     td_v = np.zeros((mass_len, time_len))
+    tau = np.zeros((mass_len, time_len))
+    v_photosphere = np.zeros(time_len)
+    r_photosphere = np.zeros(time_len)
 
     if neutron_precursor_switch == True:
         neutron_mass = 1e-8 * solar_mass
@@ -182,6 +183,16 @@ def _metzger_magnetar_boosted_kilonova_model(time, redshift, mej, vej, beta, kap
             lum_rad[1:-1, ii] = energy_v[1:-1, ii] / (td_v[1:-1, ii] + time[ii] * (v_m[1:-1] / speed_of_light))
             energy_v[1:-1, ii + 1] = (edotr[1:-1, ii] * dm[1:] * solar_mass - (energy_v[1:-1, ii] / time[ii]) - lum_rad[1:-1, ii]) * dt[ii] + energy_v[1:-1, ii]
 
+        if neutron_precursor_switch:
+            tau[:-1, ii] = (m_array[:-1] * solar_mass * kappa_r[:-1, ii] / (4 * np.pi * (time[ii] * v_m[:-1]) ** 2))
+        else:
+            tau[:-1, ii] = (m_array[:-1] * solar_mass * kappa_r / (4 * np.pi * (time[ii] * v_m[:-1]) ** 2))
+
+        tau[mass_len - 1, ii] = tau[mass_len - 2, ii]
+        photosphere_index = np.argmin(np.abs(tau[:, ii] - 1))
+        v_photosphere[ii] = v_m[photosphere_index]
+        r_photosphere[ii] = v_photosphere[ii] * time[ii]
+
     bolometric_luminosity = np.sum(lum_rad, axis=0)
 
     if pair_cascade_switch == True:
@@ -189,9 +200,9 @@ def _metzger_magnetar_boosted_kilonova_model(time, redshift, mej, vej, beta, kap
                   * (v0/(0.3*speed_of_light))**(0.5) * (time/86400)**(-0.5)
         bolometric_luminosity = bolometric_luminosity / (1.0 + tlife_t)
 
-    # temperature = (bolometric_luminosity / (4.0 * np.pi * (r_photosphere) ** (2.0) * sigSB)) ** (0.25)
+    temperature = (bolometric_luminosity / (4.0 * np.pi * (r_photosphere) ** (2.0) * sigma_sb)) ** (0.25)
 
-    return bolometric_luminosity
+    return bolometric_luminosity, temperature, r_photosphere
 
 def ejecta_dynamics_and_interaction(time, mej, beta, ejecta_radius, kappa, n_ism, l0, tau_sd, nn,
                                     thermalisation_efficiency, **kwargs):
