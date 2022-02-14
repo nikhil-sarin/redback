@@ -19,7 +19,7 @@ def one_component_kilonova_model(time, redshift, frequencies, mej, vej, kappa, *
     :param kwargs: output_format
     :return: flux_density or magnitude
     """
-    time_temp = np.geomspace(1e-4, 1e7, 100)
+    time_temp = np.geomspace(1e-4, 1e7, 300)
     bolometric_luminosity, temperature, r_photosphere = _one_component_kilonova_model(time_temp, mej,
                                                                                       vej, kappa, **kwargs)
     dl = cosmo.luminosity_distance(redshift).cgs.value
@@ -68,8 +68,10 @@ def _one_component_kilonova_model(time, mej, vej, kappa):
     tdiff = np.sqrt(2.0 * kappa * (m0) / (beta * v0 * speed_of_light))
     lum_in = 4.0e18 * (m0) * (0.5 - np.arctan((time - t0) / sig) / np.pi)**1.3
     integrand = lum_in * e_th * (time/tdiff) * np.exp(time**2/tdiff**2)
-    bolometric_luminosity = cumtrapz(integrand, time)
-    bolometric_luminosity = bolometric_luminosity * np.exp(-time**2/tdiff**2)
+    bolometric_luminosity = np.zeros(len(time))
+    bolometric_luminosity[1:] = cumtrapz(integrand, time)
+    bolometric_luminosity[0] = bolometric_luminosity[1]
+    bolometric_luminosity = bolometric_luminosity * np.exp(-time**2/tdiff**2) / tdiff
 
     temperature = (bolometric_luminosity / (4.0 * np.pi * sigma_sb * v0**2 * time**2))**0.25
     r_photosphere = (bolometric_luminosity / (4.0 * np.pi * sigma_sb * temperature_floor**4))**0.5
