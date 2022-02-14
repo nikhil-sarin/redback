@@ -46,7 +46,7 @@ def blackbody_to_flux_density(temperature, r_photosphere, dl, frequencies):
     boltzmann_constant = cc.k_B.cgs
     num = 2 * np.pi * planck * frequencies ** 3 * radius ** 2
     denom = dl ** 2 * speed_of_light ** 2
-    frac = 1. / (np.exp((planck * frequencies) / (boltzmann_constant * temperature)) - 1)
+    frac = 1. / (np.expm1((planck * frequencies) / (boltzmann_constant * temperature)))
     flux_density = num / denom * frac
     return flux_density
 
