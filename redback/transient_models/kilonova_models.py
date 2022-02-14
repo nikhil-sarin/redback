@@ -3,7 +3,153 @@ import pandas as pd
 
 from astropy.table import Table, Column
 from scipy.interpolate import interp1d
+from astropy.cosmology import Planck18 as cosmo  # noqa
+from redback.utils import interpolated_barnes_and_kasen_thermalisation_efficiency, blackbody_to_flux_density, electron_fraction_from_kappa
+from redback.constants import *
+import astropy.units as uu
 
+def metzger_kilonova_model(time, redshift, frequencies, mej, vej, beta, kappa_r, **kwargs):
+    """
+    :param time: observer frame time
+    :param redshift: redshift
+    :param mej: ejecta mass in solar masses
+    :param vej: minimum initial velocity
+    :param beta: velocity power law slope (M=v^-beta)
+    :param kappa_r: opacity
+    :param kwargs: neutron_precursor_switch, output_format
+    :return: flux_density or magnitude
+    """
+    time_temp = np.geomspace(1e-4, 1e7, 300)
+    bolometric_luminosity, temperature, r_photosphere = _metzger_kilonova_model(time_temp, mej, vej, beta,
+                                                                                               kappa_r, **kwargs)
+    #k correction/source frame
+    time = time / (1 + redshift)
+    frequencies = frequencies / (1 + redshift)
+    dl = cosmo.luminosity_distance(redshift).cgs.value
+
+    # interpolate properties onto observation times
+    temp_func = interp1d(time_temp, y=temperature)
+    rad_func = interp1d(time_temp, y=r_photosphere)
+    # convert to source frame time and frequency
+    time = time / (1 + redshift)
+    frequencies = frequencies / (1 + redshift)
+
+    temp = temp_func(time)
+    photosphere = rad_func(time)
+
+    flux_density = blackbody_to_flux_density(temperature=temp, r_photosphere=photosphere,
+                                             dl=dl, frequencies=frequencies)
+
+    if kwargs['output_format'] == 'flux_density':
+        return flux_density.to(uu.mJy).value
+    elif kwargs['output_format'] == 'magnitude':
+        return flux_density.to(uu.ABmag).value
+
+def _metzger_kilonova_model(time, mej, vej, beta, kappa_r, **kwargs):
+    """
+    :param time: time array to evaluate model on in source frame
+    :param redshift: redshift
+    :param mej: ejecta mass in solar masses
+    :param vej: minimum initial velocity
+    :param beta: velocity power law slope (M=v^-beta)
+    :param kappa_r: opacity
+    :param kwargs: neutron_precursor_switch
+    :return: bolometric_luminosity, temperature, photosphere_radius
+    """
+    neutron_precursor_switch = kwargs.get('neutron_precursor_switch', True)
+
+    time = time
+    tdays = time/86400
+    time_len = len(time)
+    mass_len = 250
+
+    # set up kilonova physics
+    av, bv, dv = interpolated_barnes_and_kasen_thermalisation_efficiency(mej, vej)
+    # thermalisation from Barnes+16
+    e_th = 0.36 * (np.exp(-av * tdays) + np.log1p(2.0 * bv * tdays ** dv) / (2.0 * bv * tdays ** dv))
+    electron_fraction = electron_fraction_from_kappa(kappa_r)
+    t0 = 1.3 #seconds
+    sig = 0.11  #seconds
+    tau_neutron = 900  #seconds
+
+    # convert to astrophysical units
+    m0 = mej * solar_mass
+    v0 = vej * speed_of_light
+    ek_tot_0 = 0.5 * m0 * v0 ** 2
+
+    # set up mass and velocity layers
+    m_array = np.logspace(-8, np.log10(mej), mass_len) #in solar masses
+    v_m = v0 * (m_array / (mej)) ** (-1 / beta)
+    # don't violate relativity
+    v_m[v_m > 3e10] = speed_of_light
+
+    # set up arrays
+    time_array = np.tile(time, (mass_len, 1))
+    e_th_array = np.tile(e_th, (mass_len, 1))
+    edotr = np.zeros((mass_len, time_len))
+
+    time_mask = time > t0
+    time_1 = time_array[:, time_mask]
+    time_2 = time_array[:, ~time_mask]
+    edotr[:,time_mask] = 2.1e10 * e_th_array[:, time_mask] * ((time_1/ (3600. * 24.)) ** (-1.3))
+    edotr[:, ~time_mask] = 4.0e18 * (0.5 - (1. / np.pi) * np.arctan((time_2 - t0) / sig)) ** (1.3) * e_th_array[:,~time_mask]
+
+    # set up empty arrays
+    energy_v = np.zeros((mass_len, time_len))
+    lum_rad = np.zeros((mass_len, time_len))
+    qdot_rp = np.zeros((mass_len, time_len))
+    td_v = np.zeros((mass_len, time_len))
+    tau = np.zeros((mass_len, time_len))
+    v_photosphere = np.zeros(time_len)
+    r_photosphere = np.zeros(time_len)
+
+    if neutron_precursor_switch == True:
+        neutron_mass = 1e-8 * solar_mass
+        neutron_mass_fraction = 1 - 2*electron_fraction * 2 * np.arctan(neutron_mass / m_array / solar_mass) / np.pi
+        rprocess_mass_fraction = 1.0 - neutron_mass_fraction
+        initial_neutron_mass_fraction_array = np.tile(neutron_mass_fraction, (time_len, 1)).T
+        rprocess_mass_fraction_array = np.tile(rprocess_mass_fraction, (time_len, 1)).T
+        neutron_mass_fraction_array = initial_neutron_mass_fraction_array*np.exp(-time_array / tau_neutron)
+        edotn = 3.2e14 * neutron_mass_fraction_array
+        edotn = edotn * neutron_mass_fraction_array
+        edotr = edotn + edotr
+        kappa_n = 0.4 * (1.0 - neutron_mass_fraction_array - rprocess_mass_fraction_array)
+        kappa_r = kappa_r * rprocess_mass_fraction_array
+        kappa_r = kappa_n + kappa_r
+
+    dt = np.diff(time)
+    dm = np.diff(m_array)
+
+    #initial conditions
+    energy_v[:, 0] = 0.5 * m_array*v_m**2
+    lum_rad[:, 0] = 0
+    qdot_rp[:, 0] = 0
+    kinetic_energy = ek_tot_0
+
+    # solve ODE using euler method for all mass shells v
+    for ii in range(time_len - 1):
+        if neutron_precursor_switch:
+            td_v[:-1, ii] = (kappa_r[:-1, ii] * m_array[:-1] * solar_mass * 3) / (
+                    4 * np.pi * v_m[:-1] * speed_of_light * time[ii] * beta)
+            tau[:-1, ii] = (m_array[:-1] * solar_mass * kappa_r[:-1, ii] / (4 * np.pi * (time[ii] * v_m[:-1]) ** 2))
+        else:
+            td_v[:-1, ii] = (kappa_r * m_array[:-1] * solar_mass * 3) / (
+                        4 * np.pi * v_m[:-1] * speed_of_light * time[ii] * beta)
+        lum_rad[:-1, ii] = energy_v[:-1, ii] / (td_v[:-1, ii] + time[ii] * (v_m[:-1] / speed_of_light))
+        energy_v[:-1, ii + 1] = (edotr[:-1, ii] - (energy_v[:-1, ii] / time[ii]) - lum_rad[:-1, ii]) * dt[ii] + energy_v[:-1, ii]
+        lum_rad[:-1, ii] = lum_rad[:-1, ii] * dm * solar_mass
+        tau[:-1, ii] = (m_array[:-1] * solar_mass * kappa_r / (4 * np.pi * (time[ii] * v_m[:-1]) ** 2))
+
+        tau[mass_len - 1, ii] = tau[mass_len - 2, ii]
+        photosphere_index = np.argmin(np.abs(tau[:, ii] - 1))
+        v_photosphere[ii] = v_m[photosphere_index]
+        r_photosphere[ii] = v_photosphere[ii] * time[ii]
+
+    bolometric_luminosity = np.sum(lum_rad, axis=0)
+
+    temperature = (bolometric_luminosity / (4.0 * np.pi * (r_photosphere) ** (2.0) * sigma_sb)) ** (0.25)
+
+    return bolometric_luminosity, temperature, r_photosphere
 
 def _generate_single_lightcurve(model, t_ini, t_max, dt, **parameters):
     """
@@ -133,3 +279,5 @@ gwem_Bu2019rps_bolometric, gwem_Bu2019rps_magnitudes = _gwemlightcurve_interface
 gwem_Wo2020dyn_bolometric, gwem_Wo2020dyn_magnitudes = _gwemlightcurve_interface_factory("Wo2020dyn")
 gwem_Wo2020dw_bolometric, gwem_Wo2020dw_magnitudes = _gwemlightcurve_interface_factory("Wo2020dw")
 gwem_Bu2019nsbh_bolometric, gwem_Bu2019nsbh_magnitudes = _gwemlightcurve_interface_factory("Bu2019nsbh")
+
+
