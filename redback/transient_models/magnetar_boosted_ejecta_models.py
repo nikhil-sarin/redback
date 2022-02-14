@@ -19,7 +19,7 @@ def metzger_magnetar_boosted_kilonova_model(time, redshift, frequencies, mej, ve
     :param tau_sd: magnetar spin down damping timescale
     :param nn: braking index
     :param thermalisation_efficiency: magnetar thermalisation efficiency
-    :param kwargs: neutron_precursor_switch, pair_cascade_switch, ejecta_albedo, rprocess_mass_fraction, magnetar_heating
+    :param kwargs: neutron_precursor_switch, pair_cascade_switch, ejecta_albedo, magnetar_heating
     :return: flux_density or magnitude
     """
     time_temp = np.geomspace(1e-4, 1e7, 300)
@@ -41,7 +41,8 @@ def metzger_magnetar_boosted_kilonova_model(time, redshift, frequencies, mej, ve
     temp = temp_func(time)
     photosphere = rad_func(time)
 
-    flux_density = blackbody_to_flux_density(temperature, r_photosphere, dl, frequencies)
+    flux_density = blackbody_to_flux_density(temperature=temp, r_photosphere=photosphere,
+                                             dl=dl, frequencies=frequencies)
 
     if kwargs['output_format'] == 'flux_density':
         return flux_density.to(uu.mJy).value
