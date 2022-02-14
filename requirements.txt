@@ -8,7 +8,6 @@ matplotlib
 astropy
 afterglowpy
 sherpa
-gwemlightcurves
 extinction
 requests
 lxml

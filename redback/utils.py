@@ -14,6 +14,7 @@ import pandas as pd
 from scipy.stats import gaussian_kde
 from selenium import webdriver
 from selenium.common.exceptions import NoSuchElementException
+from scipy.interpolate import RegularGridInterpolator, interp1d
 
 import redback
 from redback.constants import *
@@ -26,6 +27,67 @@ plt.style.use(filename)
 logger = logging.getLogger('redback')
 _bilby_logger = logging.getLogger('bilby')
 
+def blackbody_to_flux_density(temperature, r_photosphere, dl, frequencies):
+    """
+    A general blackbody_to_flux_density formula
+    :param temperature: effective temperature in kelvin
+    :param r_photosphere: photosphere radius in cm
+    :param dl: luminosity_distance in cm
+    :param frequencies: frequencies to calculate in Hz - Must be same length as time array or a single number
+    :return: flux_density
+    """
+    ## adding units back in to ensure dimensions are correct
+    frequencies = frequencies * uu.Hz
+    radius = r_photosphere * uu.cm
+    dl = dl * uu.cm
+    temperature = temperature * uu.K
+    planck = cc.h.cgs
+    speed_of_light = cc.c.cgs
+    boltzmann_constant = cc.k_B.cgs
+    num = 2 * np.pi * planck * frequencies ** 3 * radius ** 2
+    denom = dl ** 2 * speed_of_light ** 2
+    frac = 1. / (np.exp((planck * frequencies) / (boltzmann_constant * temperature)) - 1)
+    flux_density = num / denom * frac
+    return flux_density
+
+def interpolated_barnes_and_kasen_thermalisation_efficiency(mej, vej):
+    """
+    Uses Barnes+2016 and interpolation to calculate the r-process thermalisation efficiency
+    depending on the input mass and velocity
+    :param mej: ejecta mass in solar masses
+    :param vej: initial ejecta velocity as a fraction of speed of light
+    :return: av, bv, dv constants in the thermalisation efficiency equation Eq 25 in Metzger 2017
+    """
+    v_array = np.array([0.1, 0.2, 0.3])
+    mass_array = np.array([1.0e-3, 5.0e-3, 1.0e-2, 5.0e-2])
+    a_array = np.asarray([[2.01, 4.52, 8.16], [0.81, 1.9, 3.2],
+                     [0.56, 1.31, 2.19], [.27, .55, .95]])
+    b_array = np.asarray([[0.28, 0.62, 1.19], [0.19, 0.28, 0.45],
+                     [0.17, 0.21, 0.31], [0.10, 0.13, 0.15]])
+    d_array = np.asarray([[1.12, 1.39, 1.52], [0.86, 1.21, 1.39],
+                     [0.74, 1.13, 1.32], [0.6, 0.9, 1.13]])
+    a_func = RegularGridInterpolator((mass_array, v_array), a_array, bounds_error=False, fill_value=None)
+    b_func = RegularGridInterpolator((mass_array, v_array), b_array, bounds_error=False, fill_value=None)
+    d_func = RegularGridInterpolator((mass_array, v_array), d_array, bounds_error=False, fill_value=None)
+
+    av = a_func([mej, vej])[0]
+    bv = b_func([mej, vej])[0]
+    dv = d_func([mej, vej])[0]
+    return av, bv, dv
+
+def electron_fraction_from_kappa(kappa):
+    """
+    Uses interpolation from Tanaka+19 to calculate
+    the electron fraction based on the temperature independent gray opacity
+    :param kappa: temperature independent gray opacity
+    :return: electron_fraction
+    """
+
+    kappa_array = np.array([1, 3, 5, 20, 30])
+    ye_array = np.array([0.4,0.35,0.25,0.2, 0.1])
+    kappa_func = interp1d(kappa_array, y=ye_array)
+    electron_fraction = kappa_func(kappa)
+    return electron_fraction
 
 def mjd_to_jd(mjd):
     return mjd + 2400000.5
@@ -153,7 +215,6 @@ def check_element(driver, id_number):
     except NoSuchElementException:
         return False
     return True
-
 
 def calc_flux_density_error(magnitude, magnitude_error, reference_flux, magnitude_system='AB'):
     if magnitude_system == 'AB':
