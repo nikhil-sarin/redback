@@ -7,6 +7,81 @@ from astropy.cosmology import Planck18 as cosmo  # noqa
 from redback.utils import interpolated_barnes_and_kasen_thermalisation_efficiency, blackbody_to_flux_density, electron_fraction_from_kappa
 from redback.constants import *
 import astropy.units as uu
+from scipy.integrate import cumtrapz
+
+def one_component_kilonova_model(time, redshift, frequencies, mej, vej, kappa, **kwargs):
+    """
+    :param time: observer frame time
+    :param redshift: redshift
+    :param mej: ejecta mass in solar masses
+    :param vej: minimum initial velocity
+    :param kappa_r: opacity
+    :param kwargs: output_format
+    :return: flux_density or magnitude
+    """
+    time_temp = np.geomspace(1e-4, 1e7, 100)
+    bolometric_luminosity, temperature, r_photosphere = _one_component_kilonova_model(time_temp, mej,
+                                                                                      vej, kappa, **kwargs)
+    dl = cosmo.luminosity_distance(redshift).cgs.value
+
+    # interpolate properties onto observation times
+    temp_func = interp1d(time_temp, y=temperature)
+    rad_func = interp1d(time_temp, y=r_photosphere)
+    # convert to source frame time and frequency
+    time = time / (1 + redshift)
+    frequencies = frequencies / (1 + redshift)
+
+    temp = temp_func(time)
+    photosphere = rad_func(time)
+
+    flux_density = blackbody_to_flux_density(temperature=temp, r_photosphere=photosphere,
+                                             dl=dl, frequencies=frequencies)
+
+    if kwargs['output_format'] == 'flux_density':
+        return flux_density.to(uu.mJy).value
+    elif kwargs['output_format'] == 'magnitude':
+        return flux_density.to(uu.ABmag).value
+
+def _one_component_kilonova_model(time, mej, vej, kappa):
+    """
+    :param time: source frame time
+    :param redshift: redshift
+    :param mej: ejecta mass in solar masses
+    :param vej: minimum initial velocity
+    :param kappa_r: opacity
+    :param kwargs: output_format
+    :return: flux_density or magnitude
+    """
+    tdays = time/86400
+
+    # set up kilonova physics
+    av, bv, dv = interpolated_barnes_and_kasen_thermalisation_efficiency(mej, vej)
+    # thermalisation from Barnes+16
+    e_th = 0.36 * (np.exp(-av * tdays) + np.log1p(2.0 * bv * tdays ** dv) / (2.0 * bv * tdays ** dv))
+    t0 = 1.3 #seconds
+    sig = 0.11  #seconds
+    temperature_floor = 4000 #kelvin
+    beta = 13.7
+
+    v0 = vej * speed_of_light
+    m0 = mej * solar_mass
+    tdiff = np.sqrt(2.0 * kappa * (m0) / (beta * v0 * speed_of_light))
+    lum_in = 4.0e18 * (m0) * (0.5 - np.arctan((time - t0) / sig) / np.pi)**1.3
+    integrand = lum_in * e_th * (time/tdiff) * np.exp(time**2/tdiff**2)
+    bolometric_luminosity = cumtrapz(integrand, time)
+    bolometric_luminosity = bolometric_luminosity * np.exp(-time**2/tdiff**2)
+
+    temperature = (bolometric_luminosity / (4.0 * np.pi * sigma_sb * v0**2 * time**2))**0.25
+    r_photosphere = (bolometric_luminosity / (4.0 * np.pi * sigma_sb * temperature_floor**4))**0.5
+
+    # check temperature floor conditions
+    mask = temperature <= temperature_floor
+    temperature[mask] = temperature_floor
+    mask = np.logical_not(mask)
+    r_photosphere[mask] = v0 * time[mask]
+    return bolometric_luminosity, temperature, r_photosphere
+
+
 
 def metzger_kilonova_model(time, redshift, frequencies, mej, vej, beta, kappa_r, **kwargs):
     """
@@ -22,9 +97,6 @@ def metzger_kilonova_model(time, redshift, frequencies, mej, vej, beta, kappa_r,
     time_temp = np.geomspace(1e-4, 1e7, 300)
     bolometric_luminosity, temperature, r_photosphere = _metzger_kilonova_model(time_temp, mej, vej, beta,
                                                                                                kappa_r, **kwargs)
-    #k correction/source frame
-    time = time / (1 + redshift)
-    frequencies = frequencies / (1 + redshift)
     dl = cosmo.luminosity_distance(redshift).cgs.value
 
     # interpolate properties onto observation times
