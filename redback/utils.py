@@ -27,8 +27,28 @@ plt.style.use(filename)
 logger = logging.getLogger('redback')
 _bilby_logger = logging.getLogger('bilby')
 
-def blackbody_to_flux_density():
-    pass
+def blackbody_to_flux_density(temperature, r_photosphere, dl, frequencies):
+    """
+    A general blackbody_to_flux_density formula
+    :param temperature: effective temperature in kelvin
+    :param r_photosphere: photosphere radius in cm
+    :param dl: luminosity_distance in cm
+    :param frequencies: frequencies to calculate in Hz - Must be same length as time array or a single number
+    :return: flux_density
+    """
+    ## adding units back in to ensure dimensions are correct
+    frequencies = frequencies * uu.Hz
+    radius = r_photosphere * uu.cm
+    dl = dl * uu.cm
+    temperature = temperature * uu.K
+    planck = cc.h.cgs
+    speed_of_light = cc.c.cgs
+    boltzmann_constant = cc.k_B.cgs
+    num = 2 * np.pi * planck * frequencies ** 3 * radius ** 2
+    denom = dl ** 2 * speed_of_light ** 2
+    frac = 1. / (np.exp((planck * frequencies) / (boltzmann_constant * temperature)) - 1)
+    flux_density = num / denom * frac
+    return flux_density
 
 def interpolated_barnes_and_kasen_thermalisation_efficiency(mej, vej):
     """
