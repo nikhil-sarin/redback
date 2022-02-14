@@ -26,9 +26,6 @@ def metzger_magnetar_boosted_kilonova_model(time, redshift, frequencies, mej, ve
     bolometric_luminosity, temperature, r_photosphere = _metzger_magnetar_boosted_kilonova_model(time_temp, mej, vej, beta,
                                                                                                kappa_r, l0, tau_sd, nn,
                                                                                                thermalisation_efficiency, **kwargs)
-    #k correction/source frame
-    time = time / (1 + redshift)
-    frequencies = frequencies / (1 + redshift)
     dl = cosmo.luminosity_distance(redshift).cgs.value
 
     # interpolate properties onto observation times
