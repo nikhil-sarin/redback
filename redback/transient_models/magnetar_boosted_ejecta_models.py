@@ -143,12 +143,6 @@ def _metzger_magnetar_boosted_kilonova_model(time, mej, vej, beta, kappa_r, l0, 
 
     # solve ODE using euler method for all mass shells v
     for ii in range(time_len - 1):
-        # this works for kn only
-        # td_v[:-1, ii] = (kappa_r* m_array[:-1] * solar_mass * 3)/ (4*np.pi*v_m[:-1] * speed_of_light * time[ii] * beta)
-        # lum_rad[:-1, ii] = energy_v[:-1, ii] / (td_v[:-1, ii] + time[ii] * (v_m[:-1] / speed_of_light))
-        # energy_v[:-1, ii + 1] = (edotr[:-1, ii] - (energy_v[:-1, ii] / time[ii]) - lum_rad[:-1, ii]) * dt[ii] + energy_v[:-1, ii]
-        # lum_rad[:-1, ii] = lum_rad[:-1, ii] * dm * solar_mass
-
         # # evolve the velocity due to pdv work of central shell of mass M and thermal energy Ev0
         kinetic_energy = kinetic_energy + (np.sum(energy_v[:, ii]) / time[ii]) * dt[ii]
         v0 = (2 * kinetic_energy / m0) ** 0.5
