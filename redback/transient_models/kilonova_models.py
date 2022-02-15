@@ -7,7 +7,67 @@ from astropy.cosmology import Planck18 as cosmo  # noqa
 from redback.utils import interpolated_barnes_and_kasen_thermalisation_efficiency, blackbody_to_flux_density, electron_fraction_from_kappa
 from redback.constants import *
 import astropy.units as uu
+import astropy.constants as cc
 from scipy.integrate import cumtrapz
+
+def kilonova_hr(time, redshift, frequencies, mass, velocity_array, kappa_array, beta, **kwargs):
+    """
+    Uses kilonova_heating_rate module
+    :param time: source frame time
+    :param redshift: redshift
+    :param frequencies: frequencies to calculate - Must be same length as time array or a single number
+    :param mass: ejecta mass
+    :param velocity_array: array of ejecta velocities; length >=2
+    :param kappa_array: opacities of each shell, length = 1 less than velocity
+    :param beta: power law index of density profile
+    :param kwargs: output_format
+    :return: flux_density or magnitude
+    """
+    # convert to source frame time and frequency
+    time = time / (1 + redshift)
+    frequencies = frequencies / (1 + redshift)
+    dl = cosmo.luminosity_distance(redshift).cgs.value
+    _, temperature, r_photosphere = _kilonova_hr(time, mass, velocity_array, kappa_array, beta)
+
+    flux_density = blackbody_to_flux_density(temperature=temperature.value, r_photosphere=r_photosphere.value,
+                                             dl=dl, frequencies=frequencies)
+
+    if kwargs['output_format'] == 'flux_density':
+        return flux_density.to(uu.mJy).value
+    elif kwargs['output_format'] == 'magnitude':
+        return flux_density.to(uu.ABmag).value
+
+
+
+def _kilonova_hr(time, mass, velocity_array, kappa_array, beta):
+    """
+    Uses kilonova_heating_rate module
+    :param time: source frame time in seconds
+    :param mass: ejecta mass
+    :param velocity_array: array of ejecta velocities; length >=2
+    :param kappa_array: opacities of each shell, length = 1 less than velocity
+    :param beta: power law index of density profile
+    :return: bolometric_luminosity, temperature, photosphere
+    """
+    if len(velocity_array) < 2:
+        raise ValueError("velocity_array must be of length >=2")
+    if len(kappa_array) != len(velocity_array) - 1:
+        raise ValueError("kappa_array must have length one less than velocity")
+
+    from kilonova_heating_rate import lightcurve
+
+    mass = mass * uu.M_sun
+    velocity_array = velocity_array * cc.c
+    kappa_array = kappa_array * uu.cm**2 / uu.g
+    time = time * uu.s
+    time = time.to(uu.day)
+    if time.value[0] < 0.02:
+        raise ValueError("time in source frame must be larger than 0.01 days for this model")
+
+    bolometric_luminosity, temperature, r_photosphere = lightcurve(time, mass=mass, velocities=velocity_array,
+                                                                   opacities=kappa_array, n=beta)
+    return bolometric_luminosity, temperature, r_photosphere
+
 
 def three_component_kilonova_model(time, redshift, frequencies, mej_1, vej_1, temperature_floor_1, kappa_1,
                                  mej_2, vej_2, temperature_floor_2, kappa_2,
@@ -66,6 +126,7 @@ def two_component_kilonova_model(time, redshift, frequencies, mej_1, vej_1, temp
     """
     :param time: observer frame time
     :param redshift: redshift
+    :param frequencies: frequencies to calculate - Must be same length as time array or a single number
     :param mej_1: ejecta mass in solar masses of first component
     :param vej_1: minimum initial velocity of first component
     :param kappa_1: opacity of first component
@@ -112,6 +173,7 @@ def one_component_kilonova_model(time, redshift, frequencies, mej, vej, kappa, *
     """
     :param time: observer frame time
     :param redshift: redshift
+    :param frequencies: frequencies to calculate - Must be same length as time array or a single number
     :param mej: ejecta mass in solar masses
     :param vej: minimum initial velocity
     :param kappa_r: opacity
@@ -148,7 +210,7 @@ def _one_component_kilonova_model(time, mej, vej, kappa, **kwargs):
     :param vej: minimum initial velocity
     :param kappa_r: opacity
     :param kwargs: temperature_floor
-    :return: flux_density or magnitude
+    :return: bolometric_luminosity, temperature, r_photosphere
     """
     tdays = time/86400
 
@@ -188,6 +250,7 @@ def metzger_kilonova_model(time, redshift, frequencies, mej, vej, beta, kappa_r,
     """
     :param time: observer frame time
     :param redshift: redshift
+    :param frequencies: frequencies to calculate - Must be same length as time array or a single number
     :param mej: ejecta mass in solar masses
     :param vej: minimum initial velocity
     :param beta: velocity power law slope (M=v^-beta)
