@@ -10,10 +10,35 @@ import astropy.units as uu
 import astropy.constants as cc
 from scipy.integrate import cumtrapz
 
-def kilonova_hr(time, redshift, frequencies, mass, velocity_array, kappa_array, beta, **kwargs):
+def power_law_stratified_kilonova(time, redshift, frequencies, mass, vmin, vmax, alpha,
+                                  kappa_min, kappa_max, beta, **kwargs):
+    pass
+
+
+
+def two_layer_stratified_kilonova(time, redshift, frequencies, mass, vej_1, vej_2, kappa, beta, **kwargs):
+    """
+    Uses kilonova_heating_rate module to model a two layer stratified kilonova
+    :param time: observer frame time
+    :param redshift: redshift
+    :param frequencies: frequencies to calculate - Must be same length as time array or a single number
+    :param mass: ejecta mass
+    :param vej_1: velocity of inner shell   
+    :param vej_2: velocity of outer shell
+    :param kappa: constant gray opacity
+    :param beta: power law index of density profile
+    :param kwargs: output_format
+    :return: flux_density or magnitude
+    """
+    velocity_array = np.array([vej_1, vej_2])
+    flux_density = _kilonova_hr(time, mass, velocity_array, kappa, beta, **kwargs)
+    return flux_density
+
+
+def _kilonova_hr(time, redshift, frequencies, mass, velocity_array, kappa_array, beta, **kwargs):
     """
     Uses kilonova_heating_rate module
-    :param time: source frame time
+    :param time: observer frame time
     :param redshift: redshift
     :param frequencies: frequencies to calculate - Must be same length as time array or a single number
     :param mass: ejecta mass
@@ -27,7 +52,7 @@ def kilonova_hr(time, redshift, frequencies, mass, velocity_array, kappa_array, 
     time = time / (1 + redshift)
     frequencies = frequencies / (1 + redshift)
     dl = cosmo.luminosity_distance(redshift).cgs.value
-    _, temperature, r_photosphere = _kilonova_hr(time, mass, velocity_array, kappa_array, beta)
+    _, temperature, r_photosphere = _kilonova_hr_sourceframe(time, mass, velocity_array, kappa_array, beta)
 
     flux_density = blackbody_to_flux_density(temperature=temperature.value, r_photosphere=r_photosphere.value,
                                              dl=dl, frequencies=frequencies)
@@ -39,7 +64,7 @@ def kilonova_hr(time, redshift, frequencies, mass, velocity_array, kappa_array, 
 
 
 
-def _kilonova_hr(time, mass, velocity_array, kappa_array, beta):
+def _kilonova_hr_sourceframe(time, mass, velocity_array, kappa_array, beta):
     """
     Uses kilonova_heating_rate module
     :param time: source frame time in seconds
@@ -77,16 +102,16 @@ def three_component_kilonova_model(time, redshift, frequencies, mej_1, vej_1, te
     :param redshift: redshift
     :param mej_1: ejecta mass in solar masses of first component
     :param vej_1: minimum initial velocity of first component
-    :param kappa_1: opacity of first component
+    :param kappa_1: gray opacity of first component
     :param temperature_floor_1: floor temperature of first component
     :param mej_2: ejecta mass in solar masses of second component
     :param vej_2: minimum initial velocity of second component
     :param temperature_floor_2: floor temperature of second component
-    :param kappa_2: opacity of second component
+    :param kappa_2: gray opacity of second component
     :param mej_3: ejecta mass in solar masses of third component
     :param vej_3: minimum initial velocity of third component
     :param temperature_floor_3: floor temperature of third component
-    :param kappa_3: opacity of third component
+    :param kappa_3: gray opacity of third component
     :param kwargs: output_format
     :return: flux_density or magnitude
     """
@@ -129,12 +154,12 @@ def two_component_kilonova_model(time, redshift, frequencies, mej_1, vej_1, temp
     :param frequencies: frequencies to calculate - Must be same length as time array or a single number
     :param mej_1: ejecta mass in solar masses of first component
     :param vej_1: minimum initial velocity of first component
-    :param kappa_1: opacity of first component
+    :param kappa_1: gray opacity of first component
     :param temperature_floor_1: floor temperature of first component
     :param mej_2: ejecta mass in solar masses of second component
     :param vej_2: minimum initial velocity of second component
     :param temperature_floor_2: floor temperature of second component
-    :param kappa_2: opacity of second component
+    :param kappa_2: gray opacity of second component
     :param kwargs: output_format
     :return: flux_density or magnitude
     """
@@ -176,7 +201,7 @@ def one_component_kilonova_model(time, redshift, frequencies, mej, vej, kappa, *
     :param frequencies: frequencies to calculate - Must be same length as time array or a single number
     :param mej: ejecta mass in solar masses
     :param vej: minimum initial velocity
-    :param kappa_r: opacity
+    :param kappa_r: gray opacity
     :param kwargs: temperature_floor, output_format
     :return: flux_density or magnitude
     """
@@ -208,7 +233,7 @@ def _one_component_kilonova_model(time, mej, vej, kappa, **kwargs):
     :param redshift: redshift
     :param mej: ejecta mass in solar masses
     :param vej: minimum initial velocity
-    :param kappa_r: opacity
+    :param kappa_r: gray opacity
     :param kwargs: temperature_floor
     :return: bolometric_luminosity, temperature, r_photosphere
     """
@@ -254,7 +279,7 @@ def metzger_kilonova_model(time, redshift, frequencies, mej, vej, beta, kappa_r,
     :param mej: ejecta mass in solar masses
     :param vej: minimum initial velocity
     :param beta: velocity power law slope (M=v^-beta)
-    :param kappa_r: opacity
+    :param kappa_r: gray opacity
     :param kwargs: neutron_precursor_switch, output_format
     :return: flux_density or magnitude
     """
@@ -288,7 +313,7 @@ def _metzger_kilonova_model(time, mej, vej, beta, kappa_r, **kwargs):
     :param mej: ejecta mass in solar masses
     :param vej: minimum initial velocity
     :param beta: velocity power law slope (M=v^-beta)
-    :param kappa_r: opacity
+    :param kappa_r: gray opacity
     :param kwargs: neutron_precursor_switch
     :return: bolometric_luminosity, temperature, photosphere_radius
     """
