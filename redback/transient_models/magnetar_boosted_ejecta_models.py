@@ -11,6 +11,7 @@ def metzger_magnetar_boosted_kilonova_model(time, redshift, frequencies, mej, ve
     """
     :param time: observer frame time
     :param redshift: redshift
+    :param frequencies: frequencies to calculate - Must be same length as time array or a single number
     :param mej: ejecta mass in solar masses
     :param vej: minimum initial velocity
     :param beta: velocity power law slope (M=v^-beta)
