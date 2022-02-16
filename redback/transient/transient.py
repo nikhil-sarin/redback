@@ -78,19 +78,19 @@ class Transient(object):
             Counts for prompt data.
         ttes: np.ndarray, optional
             Time-tagged events data for unbinned prompt data.
-        bin_size: float
+        bin_size: float, optional
             Bin size for binning time-tagged event data.
-        redshift: float
+        redshift: float, optional
             Redshift value.
-        data_mode: str
+        data_mode: str, optional
             Data mode. Must be one from `Transient.DATA_MODES`.
-        name: str
+        name: str, optional
             Name of the transient.
-        path: str
+        path: str, optional
             Path to data directory.
-        photon_index: float
+        photon_index: float, optional
             Photon index value.
-        use_phase_model: bool
+        use_phase_model: bool, optional
             Whether we are using a phase model.
         frequency: np.ndarray, optional
             Array of band frequencies in photometry data.
@@ -98,7 +98,7 @@ class Transient(object):
             System values.
         bands: np.ndarray, optional
             Band values.
-        active_bands: Union[list, np.ndarray]
+        active_bands: Union[list, np.ndarray], optional
             List or array of active bands to be used in the analysis. Use all available bands if 'all' is given.
         kwargs: dict, optional
             Additional callables:
@@ -682,19 +682,19 @@ class OpticalTransient(Transient):
             Counts for prompt data.
         ttes: np.ndarray, optional
             Time-tagged events data for unbinned prompt data.
-        bin_size: float
+        bin_size: float, optional
             Bin size for binning time-tagged event data.
-        redshift: float
+        redshift: float, optional
             Redshift value.
-        data_mode: str
-            Data mode. Must be one from `Transient.DATA_MODES`.
-        name: str
+        data_mode: str, optional
+            Data mode. Must be one from `OpticalTransient.DATA_MODES`.
+        name: str, optional
             Name of the transient.
-        path: str
+        path: str, optional
             Path to data directory.
-        photon_index: float
+        photon_index: float, optional
             Photon index value.
-        use_phase_model: bool
+        use_phase_model: bool, optional
             Whether we are using a phase model.
         frequency: np.ndarray, optional
             Array of band frequencies in photometry data.
@@ -702,7 +702,7 @@ class OpticalTransient(Transient):
             System values.
         bands: np.ndarray, optional
             Band values.
-        active_bands: Union[list, np.ndarray]
+        active_bands: Union[list, np.ndarray], optional
             List or array of active bands to be used in the analysis. Use all available bands if 'all' is given.
         kwargs: dict, optional
             Additional callables:
