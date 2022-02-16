@@ -210,7 +210,7 @@ def one_component_ejecta_relation_model(time, redshift, frequencies, mass_1, mas
     ejecta_relation; a class that relates the instrinsic parameters to the kilonova parameters
     :return: flux_density or magnitude
     """
-    ejecta_relation = kwargs.get('ejecta_relation', ejr.Dietrich_ujevic_18())
+    ejecta_relation = kwargs.get('ejecta_relation', ejr.Dietrich_ujevic_18)
     ejecta_relation = ejecta_relation(mass_1, mass_2, lambda_1, lambda_2)
     mej = ejecta_relation.ejecta_mass
     vej = ejecta_relation.ejecta_velocity
