@@ -1,11 +1,12 @@
-"""
-Contains GRB class, with method to load and truncate data for SGRB and in future LGRB
-"""
+from __future__ import annotations
+
+import matplotlib.axes
 import matplotlib.pyplot as plt
 import numpy as np
 import os
 from os.path import join
 import pandas as pd
+from typing import Union
 
 from astropy.cosmology import Planck18 as cosmo  # noqa
 
@@ -20,15 +21,85 @@ class Afterglow(Transient):
 
     DATA_MODES = ['luminosity', 'flux', 'flux_density', 'photometry']
 
-    """Class for afterglows"""
-    def __init__(self, name, data_mode='flux', time=None, time_err=None, time_mjd=None, time_mjd_err=None,
-                 time_rest_frame=None, time_rest_frame_err=None, Lum50=None, Lum50_err=None, flux=None, flux_err=None,
-                 flux_density=None, flux_density_err=None, magnitude=None, magnitude_err=None, frequency=None,
-                 bands=None, system=None, active_bands='all', use_phase_model=False, **kwargs):
+    def __init__(
+            self, name: str, data_mode: str = 'flux', time: np.ndarray = None, time_err: np.ndarray = None,
+            time_mjd: np.ndarray = None, time_mjd_err: np.ndarray = None, time_rest_frame: np.ndarray = None,
+            time_rest_frame_err: np.ndarray = None, Lum50: np.ndarray = None, Lum50_err: np.ndarray = None,
+            flux: np.ndarray = None, flux_err: np.ndarray = None, flux_density: np.ndarray = None,
+            flux_density_err: np.ndarray = None, magnitude: np.ndarray = None, magnitude_err: np.ndarray = None,
+            frequency: np.ndarray = None, bands: np.ndarray = None, system: np.ndarray = None,
+            active_bands: Union[np.ndarray, str] = 'all', use_phase_model: bool = False, **kwargs: dict) -> None:
 
         """
-        :param name: Telephone number of SGRB, e.g., GRB 140903A
+        This is a general constructor for the Afterglow class. Note that you only need to give data corresponding to
+        the data mode you are using. For luminosity data provide times in the rest frame, if using a phase model
+        provide time in MJD, else use the default time (observer frame).
+
+
+        Parameters
+        ----------
+        name: str
+            Telephone number of SGRB, e.g., 'GRB140903A' or '140903A' are valid inputs
+        data_mode: str, optional
+            Data mode. Must be one from `Afterglow.DATA_MODES`.
+        time: np.ndarray, optional
+            Times in the observer frame.
+        time_err: np.ndarray, optional
+            Time errors in the observer frame.
+        time_mjd: np.ndarray, optional
+            Times in MJD. Used if using phase model.
+        time_mjd_err: np.ndarray, optional
+            Time errors in MJD. Used if using phase model.
+        time_rest_frame: np.ndarray, optional
+            Times in the rest frame. Used for luminosity data.
+        time_rest_frame_err: np.ndarray, optional
+            Time errors in the rest frame. Used for luminosity data.
+        Lum50: np.ndarray, optional
+            Luminosity values.
+        Lum50_err: np.ndarray, optional
+            Luminosity error values.
+        flux: np.ndarray, optional
+            Flux values.
+        flux_err: np.ndarray, optional
+            Flux error values.
+        flux_density: np.ndarray, optional
+            Flux density values.
+        flux_density_err: np.ndarray, optional
+            Flux density error values.
+        magnitude: np.ndarray, optional
+            Magnitude values for photometry data.
+        magnitude_err: np.ndarray, optional
+            Magnitude error values for photometry data.
+        counts: np.ndarray, optional
+            Counts for prompt data.
+        ttes: np.ndarray, optional
+            Time-tagged events data for unbinned prompt data.
+        bin_size: float
+            Bin size for binning time-tagged event data.
+        redshift: float
+            Redshift value.
+        path: str
+            Path to data directory.
+        photon_index: float
+            Photon index value.
+        use_phase_model: bool
+            Whether we are using a phase model.
+        frequency: np.ndarray, optional
+            Array of band frequencies in photometry data.
+        system: np.ndarray, optional
+            System values.
+        bands: np.ndarray, optional
+            Band values.
+        active_bands: Union[list, np.ndarray]
+            List or array of active bands to be used in the analysis. Use all available bands if 'all' is given.
+        kwargs: dict, optional
+            Additional classes that can be customised to fulfil the truncation on flux to luminosity conversion:
+            FluxToLuminosityConverter: Conversion class to convert fluxes to luminosities.
+                                       If not given use `FluxToLuminosityConverter` in this module.
+
+            Truncator: Truncation class that truncates the data. If not given use `Truncator` in this module.
         """
+
         if not name.startswith('GRB'):
             name = 'GRB' + name
 
@@ -47,7 +118,9 @@ class Afterglow(Transient):
         self._get_redshift()
 
     @classmethod
-    def from_swift_grb(cls, name, data_mode='flux', truncate=True, truncate_method='prompt_time_error'):
+    def from_swift_grb(
+            cls, name: str, data_mode: str = 'flux', truncate: bool = True,
+            truncate_method: str = 'prompt_time_error') -> Afterglow:
         if not name.startswith('GRB'):
             name = 'GRB' + name
         afterglow = cls(name=name, data_mode=data_mode)
@@ -61,10 +134,11 @@ class Afterglow(Transient):
         return afterglow
 
     @property
-    def _stripped_name(self):
+    def _stripped_name(self) -> str:
         return self.name.lstrip('GRB')
 
-    def load_and_truncate_data(self, truncate=True, truncate_method='prompt_time_error', data_mode='flux'):
+    def load_and_truncate_data(
+            self, truncate: bool = True, truncate_method: str = 'prompt_time_error', data_mode: str = 'flux') -> None:
         """
         Read data of SGRB from given path and GRB telephone number.
         Truncate the data to get rid of all but the last prompt emission point
@@ -77,7 +151,7 @@ class Afterglow(Transient):
             self.truncate(truncate_method=truncate_method)
 
     @staticmethod
-    def load_data(name, data_mode=None):
+    def load_data(name: str, data_mode: str = None) -> tuple:
         grb_dir, _, _ = afterglow_directory_structure(grb=name.lstrip('GRB'), data_mode=data_mode)
         filename = f"{name}.csv"
 
@@ -89,16 +163,16 @@ class Afterglow(Transient):
         y_err = np.array(np.abs(data[:, 4:6].T))
         return x, x_err, y, y_err
 
-    def truncate(self, truncate_method='prompt_time_error'):
+    def truncate(self, truncate_method: str = 'prompt_time_error') -> None:
         truncator = self.Truncator(x=self.x, x_err=self.x_err, y=self.y, y_err=self.y_err, time=self.time,
                                    time_err=self.time_err, truncate_method=truncate_method)
         self.x, self.x_err, self.y, self.y_err = truncator.truncate()
 
     @property
-    def event_table(self):
+    def event_table(self) -> str:
         return os.path.join(dirname, f'../tables/{self.__class__.__name__}_table.txt')
 
-    def _save_luminosity_data(self):
+    def _save_luminosity_data(self) -> None:
         grb_dir, _, _ = afterglow_directory_structure(grb=self._stripped_name, data_mode=self.data_mode)
         filename = f"{self.name}.csv"
         data = {"Time in restframe [s]": self.time_rest_frame,
@@ -110,13 +184,13 @@ class Afterglow(Transient):
         df = pd.DataFrame(data=data)
         df.to_csv(join(grb_dir, filename), index=False)
 
-    def _set_data(self):
+    def _set_data(self) -> None:
         meta_data = pd.read_csv(self.event_table, header=0, error_bad_lines=False, delimiter='\t', dtype='str')
         meta_data['BAT Photon Index (15-150 keV) (PL = simple power-law, CPL = cutoff power-law)'] = meta_data[
                   'BAT Photon Index (15-150 keV) (PL = simple power-law, CPL = cutoff power-law)'].fillna(0)
         self.meta_data = meta_data
 
-    def _set_photon_index(self):
+    def _set_photon_index(self) -> None:
         try:
             photon_index = self.meta_data.query('GRB == @self._stripped_name')[
                 'BAT Photon Index (15-150 keV) (PL = simple power-law, CPL = cutoff power-law)'].values[0]
@@ -124,7 +198,7 @@ class Afterglow(Transient):
         except IndexError:
             self.photon_index = np.nan
 
-    def _get_redshift(self):
+    def _get_redshift(self) -> None:
         # some GRBs dont have measurements
         try:
             redshift = self.meta_data.query('GRB == @self._stripped_name')['Redshift'].values[0]
@@ -135,7 +209,7 @@ class Afterglow(Transient):
         except IndexError:
             self.redshift = np.nan
 
-    def _get_redshift_for_luminosity_calculation(self):
+    def _get_redshift_for_luminosity_calculation(self) -> Union[float, None]:
         if self.redshift is None:
             return self.redshift
         if np.isnan(self.redshift):
@@ -143,7 +217,7 @@ class Afterglow(Transient):
             return 0.75
         return self.redshift
 
-    def _set_t90(self):
+    def _set_t90(self) -> None:
         try:
             t90 = self.meta_data.query('GRB == @self._stripped_name')['BAT T90 [sec]'].values[0]
             if t90 == 0.:
@@ -153,21 +227,22 @@ class Afterglow(Transient):
             self.t90 = np.nan
 
     @staticmethod
-    def __clean_string(string):
+    def __clean_string(string: str) -> float:
         for r in ["PL", "CPL", ",", "C", "~", " ", 'Gemini:emission', '()']:
             string = string.replace(r, "")
         return float(string)
 
-    def analytical_flux_to_luminosity(self):
+    def analytical_flux_to_luminosity(self) -> None:
         self._convert_flux_to_luminosity(conversion_method="analytical")
 
-    def numerical_flux_to_luminosity(self, counts_to_flux_absorbed, counts_to_flux_unabsorbed):
+    def numerical_flux_to_luminosity(self, counts_to_flux_absorbed: float, counts_to_flux_unabsorbed: float) -> None:
         self._convert_flux_to_luminosity(
             counts_to_flux_absorbed=counts_to_flux_absorbed, counts_to_flux_unabsorbed=counts_to_flux_unabsorbed,
             conversion_method="numerical")
 
-    def _convert_flux_to_luminosity(self, conversion_method="analytical",
-                                    counts_to_flux_absorbed=1, counts_to_flux_unabsorbed=1):
+    def _convert_flux_to_luminosity(
+            self, conversion_method: str = "analytical", counts_to_flux_absorbed: float = 1.,
+            counts_to_flux_unabsorbed: float = 1.) -> None:
         if self.luminosity_data:
             logger.warning('The data is already in luminosity mode, returning.')
             return
@@ -185,7 +260,7 @@ class Afterglow(Transient):
         self.x, self.x_err, self.y, self.y_err = converter.convert_flux_to_luminosity()
         self._save_luminosity_data()
 
-    def plot_data(self, axes=None, colour='k'):
+    def plot_data(self, axes: matplotlib.axes.Axes = None, colour: str = 'k') -> matplotlib.axes.Axes:
         """
         plots the data
         GRB is the telephone number of the GRB
@@ -223,10 +298,9 @@ class Afterglow(Transient):
             plt.clf()
         return ax
 
-    def plot_multiband(self, axes=None, colour='k'):
+    def plot_multiband(self, axes: matplotlib.axes.Axes = None, colour: str = 'k') -> None:
         if self.data_mode != 'flux_density':
             logger.warning('why are you doing this')
-        pass
 
 
 class SGRB(Afterglow):
@@ -241,7 +315,9 @@ class Truncator(object):
 
     TRUNCATE_METHODS = ['prompt_time_error', 'left_of_max', 'default']
 
-    def __init__(self, x, x_err, y, y_err, time, time_err, truncate_method='prompt_time_error'):
+    def __init__(
+            self, x: np.ndarray, x_err: np.ndarray, y: np.ndarray, y_err: np.ndarray, time: np.ndarray,
+            time_err: np.ndarray, truncate_method: str = 'prompt_time_error') -> None:
         self.x = x
         self.x_err = x_err
         self.y = y
@@ -250,7 +326,7 @@ class Truncator(object):
         self.time_err = time_err
         self.truncate_method = truncate_method
 
-    def truncate(self):
+    def truncate(self) -> tuple:
         if self.truncate_method == 'prompt_time_error':
             return self.truncate_prompt_time_error()
         elif self.truncate_method == 'left_of_max':
@@ -258,7 +334,7 @@ class Truncator(object):
         else:
             return self.truncate_default()
 
-    def truncate_prompt_time_error(self):
+    def truncate_prompt_time_error(self) -> tuple:
         mask1 = self.x_err[0, :] > 0.0025
         mask2 = self.x < 2.0  # dont truncate if data point is after 2.0 seconds
         mask = np.logical_and(mask1, mask2)
@@ -268,15 +344,15 @@ class Truncator(object):
         self.y_err = self.y_err[:, ~mask]
         return self.x, self.x_err, self.y, self.y_err
 
-    def truncate_left_of_max(self):
+    def truncate_left_of_max(self) -> tuple:
         return self._truncate_by_index(index=np.argmax(self.y))
 
-    def truncate_default(self):
+    def truncate_default(self) -> tuple:
         truncate = self.time_err[0, :] > 0.1
         index = len(self.time) - (len(self.time[truncate]) + 2)
         return self._truncate_by_index(index=index)
 
-    def _truncate_by_index(self, index):
+    def _truncate_by_index(self, index: Union[int, np.ndarray]) -> tuple:
         self.x = self.x[index:]
         self.x_err = self.x_err[:, index:]
         self.y = self.y[index:]
@@ -288,8 +364,10 @@ class FluxToLuminosityConverter(object):
 
     CONVERSION_METHODS = ["analytical", "numerical"]
 
-    def __init__(self, redshift, photon_index, time, time_err, flux, flux_err,
-                 counts_to_flux_absorbed=1, counts_to_flux_unabsorbed=1, conversion_method="analytical"):
+    def __init__(
+            self, redshift: float, photon_index: float, time: np.ndarray, time_err: np.ndarray, flux: np.ndarray,
+            flux_err: np.ndarray, counts_to_flux_absorbed: float = 1., counts_to_flux_unabsorbed: float = 1.,
+            conversion_method: str = "analytical") -> None:
         self.redshift = redshift
         self.photon_index = photon_index
         self.time = time
@@ -301,17 +379,17 @@ class FluxToLuminosityConverter(object):
         self.conversion_method = conversion_method
 
     @property
-    def counts_to_flux_fraction(self):
+    def counts_to_flux_fraction(self) -> float:
         return self.counts_to_flux_unabsorbed/self.counts_to_flux_absorbed
 
     @property
-    def luminosity_distance(self):
+    def luminosity_distance(self) -> float:
         return cosmo.luminosity_distance(self.redshift).cgs.value
 
-    def get_isotropic_bolometric_flux(self, k_corr):
+    def get_isotropic_bolometric_flux(self, k_corr: float) -> float:
         return (self.luminosity_distance ** 2.) * 4. * np.pi * k_corr
 
-    def get_k_correction(self):
+    def get_k_correction(self) -> Union[float, None]:
         if self.conversion_method == "analytical":
             return (1 + self.redshift) ** (self.photon_index - 2)
         elif self.conversion_method == "numerical":
@@ -335,7 +413,7 @@ class FluxToLuminosityConverter(object):
             band.eb = Ecut  # noqa
             return sherpa.calc_kcorr(self.redshift, obs_elow, obs_ehigh, bol_elow, bol_ehigh, id=1)
 
-    def convert_flux_to_luminosity(self):
+    def convert_flux_to_luminosity(self) -> tuple:
         k_corr = self.get_k_correction()
         self._calculate_rest_frame_time_and_luminosity(
             counts_to_flux_fraction=1,
@@ -343,7 +421,8 @@ class FluxToLuminosityConverter(object):
             redshift=self.redshift)
         return self.time_rest_frame, self.time_rest_frame_err, self.Lum50, self.Lum50_err
 
-    def _calculate_rest_frame_time_and_luminosity(self, counts_to_flux_fraction, isotropic_bolometric_flux, redshift):
+    def _calculate_rest_frame_time_and_luminosity(
+            self, counts_to_flux_fraction: float, isotropic_bolometric_flux: float, redshift: float) -> None:
         self.Lum50 = self.flux * counts_to_flux_fraction * isotropic_bolometric_flux * 1e-50
         self.Lum50_err = self.flux_err * isotropic_bolometric_flux * 1e-50
         self.time_rest_frame = self.time / (1 + redshift)
