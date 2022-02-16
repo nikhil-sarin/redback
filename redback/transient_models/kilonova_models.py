@@ -31,7 +31,7 @@ def two_layer_stratified_kilonova(time, redshift, frequencies, mass, vej_1, vej_
     :return: flux_density or magnitude
     """
     velocity_array = np.array([vej_1, vej_2])
-    flux_density = _kilonova_hr(time, mass, velocity_array, kappa, beta, **kwargs)
+    flux_density = _kilonova_hr(time, redshift, frequencies, mass, velocity_array, kappa, beta, **kwargs)
     return flux_density
 
 
