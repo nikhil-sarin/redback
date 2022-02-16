@@ -39,37 +39,72 @@ class Transient(object):
             frequency: np.ndarray = None, system: np.ndarray = None, bands: np.ndarray = None,
             active_bands: Union[np.ndarray, str] = None, **kwargs: dict) -> None:
         """
+        This is a general constructor for the Transient class. Note that you only need to give data corresponding to
+        the data mode you are using. For luminosity data provide times in the rest frame, if using a phase model
+        provide time in MJD, else use the default time (observer frame).
+
 
         Parameters
         ----------
-        time: array_like
-        time_err: array_like
-        time_mjd: array_like
-        time_mjd_err: array_like
-        time_rest_frame: array_like
-        time_rest_frame_err: array_like
-        Lum50: array_like
-        Lum50_err: array_like
-        flux: array_like
-        flux_err: array_like
-        flux_density: array_like
-        flux_density_err: array_like
-        magnitude: array_like
-        magnitude_err: array_like
-        counts: array_like
-        ttes: array_like
+        time: np.ndarray, optional
+            Times in the observer frame.
+        time_err: np.ndarray, optional
+            Time errors in the observer frame.
+        time_mjd: np.ndarray, optional
+            Times in MJD. Used if using phase model.
+        time_mjd_err: np.ndarray, optional
+            Time errors in MJD. Used if using phase model.
+        time_rest_frame: np.ndarray, optional
+            Times in the rest frame. Used for luminosity data.
+        time_rest_frame_err: np.ndarray, optional
+            Time errors in the rest frame. Used for luminosity data.
+        Lum50: np.ndarray, optional
+            Luminosity values.
+        Lum50_err: np.ndarray, optional
+            Luminosity error values.
+        flux: np.ndarray, optional
+            Flux values.
+        flux_err: np.ndarray, optional
+            Flux error values.
+        flux_density: np.ndarray, optional
+            Flux density values.
+        flux_density_err: np.ndarray, optional
+            Flux density error values.
+        magnitude: np.ndarray, optional
+            Magnitude values for photometry data.
+        magnitude_err: np.ndarray, optional
+            Magnitude error values for photometry data.
+        counts: np.ndarray, optional
+            Counts for prompt data.
+        ttes: np.ndarray, optional
+            Time-tagged events data for unbinned prompt data.
         bin_size: float
+            Bin size for binning time-tagged event data.
         redshift: float
+            Redshift value.
         data_mode: str
+            Data mode. Must be one from `Transient.DATA_MODES`.
         name: str
+            Name of the transient.
         path: str
+            Path to data directory.
         photon_index: float
+            Photon index value.
         use_phase_model: bool
-        frequency: array_like
-        system: array_like
-        bands: list
-        active_bands: list
-        kwargs: callable
+            Whether we are using a phase model.
+        frequency: np.ndarray, optional
+            Array of band frequencies in photometry data.
+        system: np.ndarray, optional
+            System values.
+        bands: np.ndarray, optional
+            Band values.
+        active_bands: Union[list, np.ndarray]
+            List or array of active bands to be used in the analysis. Use all available bands if 'all' is given.
+        kwargs: dict, optional
+            Additional callables:
+            bands_to_frequencies: Conversion function to convert a list of bands to frequencies. Use
+                                  redback.utils.bands_to_frequencies if not given.
+            bin_ttes: Binning function for time-tagged event data. Use redback.utils.bands_to_frequencies if not given.
         """
         self.bin_size = bin_size
         self.bin_ttes = kwargs.get("bin_ttes", redback.utils.bin_ttes)
@@ -133,42 +168,108 @@ class Transient(object):
 
     @property
     def x(self) -> np.ndarray:
+        """
+        Returns
+        -------
+        np.ndarray: The time values given the active data mode.
+        """
         return getattr(self, self._time_attribute_name)
 
     @x.setter
     def x(self, x: np.ndarray) -> None:
+        """
+        Sets the time values for the active data mode.
+
+        Parameters
+        -------
+        x: np.ndarray
+            The desired time values.
+        """
         setattr(self, self._time_attribute_name, x)
 
     @property
     def x_err(self) -> np.ndarray:
+        """
+        Returns
+        -------
+        np.ndarray: The time error values given the active data mode.
+        """
         return getattr(self, self._time_err_attribute_name)
 
     @x_err.setter
     def x_err(self, x_err: np.ndarray) -> None:
+        """
+        Sets the time error values for the active data mode.
+
+        Parameters
+        -------
+        x_err: np.ndarray
+            The desired time error values.
+        """
         setattr(self, self._time_err_attribute_name, x_err)
 
     @property
     def y(self) -> np.ndarray:
+        """
+        Returns
+        -------
+        np.ndarray: The y values given the active data mode.
+        """
+
         return getattr(self, self._y_attribute_name)
 
     @y.setter
     def y(self, y: np.ndarray) -> None:
+        """
+        Sets the y values for the active data mode.
+
+        Parameters
+        -------
+        y: np.ndarray
+            The desired y values.
+        """
         setattr(self, self._y_attribute_name, y)
 
     @property
     def y_err(self) -> np.ndarray:
+        """
+        Returns
+        -------
+        np.ndarray: The y error values given the active data mode.
+        """
         return getattr(self, self._y_err_attribute_name)
 
     @y_err.setter
     def y_err(self, y_err: np.ndarray) -> None:
+        """
+        Sets the y error values for the active data mode.
+
+        Parameters
+        -------
+        y_err: np.ndarray
+            The desired y error values.
+        """
         setattr(self, self._y_err_attribute_name, y_err)
 
     @property
     def data_mode(self) -> str:
+        """
+
+        Returns
+        -------
+        str: The currently active data mode (one in `Transient.DATA_MODES`)
+        """
         return self._data_mode
 
     @data_mode.setter
     def data_mode(self, data_mode: str) -> None:
+        """
+
+        Parameters
+        -------
+        data_mode: str
+            One of the data modes in `Transient.DATA_MODES`
+        """
         if data_mode in self.DATA_MODES or data_mode is None:
             self._data_mode = data_mode
         else:
@@ -176,6 +277,12 @@ class Transient(object):
 
     @property
     def xlabel(self) -> str:
+        """
+
+        Returns
+        -------
+        str: xlabel used in plotting functions
+        """
         if self.use_phase_model:
             return r"Time [MJD]"
         else:
@@ -183,6 +290,12 @@ class Transient(object):
 
     @property
     def ylabel(self) -> str:
+        """
+
+        Returns
+        -------
+        str: ylabel used in plotting functions
+        """
         try:
             return self.ylabel_dict[self.data_mode]
         except KeyError:
@@ -190,10 +303,23 @@ class Transient(object):
 
     @property
     def frequency(self) -> np.ndarray:
+        """
+
+        Returns
+        -------
+        np.ndarray: Used band frequencies
+        """
         return self._frequency
 
     @frequency.setter
     def frequency(self, frequency: np.ndarray) -> None:
+        """
+
+        Parameters
+        ----------
+        frequency: np.ndarray
+            Set band frequencies if an array is given. Otherwise, convert bands to frequencies.
+        """
         if frequency is None:
             self._frequency = self.bands_to_frequencies(self.bands)
         else:
@@ -201,25 +327,46 @@ class Transient(object):
 
     @property
     def active_bands(self) -> np.ndarray:
+        """
+
+        Returns
+        -------
+        np.ndarray: Array of active bands used.
+        """
         return self._active_bands
 
     @active_bands.setter
-    def active_bands(self, active_bands: np.ndarray) -> None:
+    def active_bands(self, active_bands: Union[np.ndarray, str]) -> None:
+        """
+
+        Parameters
+        ----------
+        active_bands: Union[np.ndarray, str]
+            Sets active bands based on array given.
+            If argument is 'all', all unique bands in `self.bands` will be used.
+        """
         if active_bands == 'all':
             self._active_bands = np.unique(self.bands)
         else:
             self._active_bands = active_bands
 
     def get_filtered_data(self) -> tuple:
+        """
+        Used to filter flux density and photometry data, so we only use data that is using the active bands.
+
+        Returns
+        -------
+        tuple: A tuple with the filtered data. Format is (x, x_err, y, y_err)
+        """
         if self.flux_density_data or self.photometry_data:
-            idxs = [b in self.active_bands for b in self.bands]
-            filtered_x = self.x[idxs]
+            indices = [b in self.active_bands for b in self.bands]
+            filtered_x = self.x[indices]
             try:
-                filtered_x_err = self.x_err[idxs]
+                filtered_x_err = self.x_err[indices]
             except TypeError:
                 filtered_x_err = None
-            filtered_y = self.y[idxs]
-            filtered_y_err = self.y_err[idxs]
+            filtered_y = self.y[indices]
+            filtered_y_err = self.y_err[indices]
             return filtered_x, filtered_x_err, filtered_y, filtered_y_err
         else:
             raise ValueError(f"Transient needs to be in flux density or photometry data mode, "
@@ -227,29 +374,94 @@ class Transient(object):
 
     @property
     def unique_bands(self) -> np.ndarray:
+        """
+
+        Returns
+        -------
+        np.ndarray: All bands that we get from the data, eliminating all duplicates.
+        """
         return np.unique(self.bands)
 
     @property
     def unique_frequencies(self) -> np.ndarray:
+        """
+
+        Returns
+        -------
+        np.ndarray: All frequencies that we get from the data, eliminating all duplicates.
+        """
         return self.bands_to_frequencies(self.unique_bands)
 
     @property
     def list_of_band_indices(self) -> list:
+        """
+
+        Returns
+        -------
+        list: Indices that map between bands in the data and the unique bands we obtain.
+        """
         return [np.where(self.bands == np.array(b))[0] for b in self.unique_bands]
 
     @property
     def default_filters(self) -> list:
+        """
+
+        Returns
+        -------
+        list: Default list of filters to use
+        """
         return ["g", "r", "i", "z", "y", "J", "H", "K"]
 
     @staticmethod
     def get_colors(filters: Union[np.ndarray, list]) -> matplotlib.colors.Colormap:
+        """
+
+        Parameters
+        ----------
+        filters: list
+            Array of list of filters to use in the plot.
+
+        Returns
+        -------
+        matplotlib.colors.Colormap: Colormap with one colour for each filter
+        """
         return matplotlib.cm.rainbow(np.linspace(0, 1, len(filters)))
 
     def plot_data(self, axes: matplotlib.axes.Axes = None, colour: str = 'k') -> matplotlib.axes.Axes:
+        """
+        Base function for data plotting.
+
+        Parameters
+        ----------
+        axes: matplotlib.axes.Axes, optional
+            Axes can be given if defaults are not satisfying.
+        colour: str, optional
+            Colour for plotted data.
+
+        Returns
+        -------
+        matplotlib.axes.Axes: The user can make additional modifications to the axes.
+
+        """
         fig, axes = plt.subplots()
         return axes
 
     def plot_multiband(self, axes: matplotlib.axes.Axes = None, colour: str = 'k') -> matplotlib.axes.Axes:
+        """
+        Base function for multiband data plotting.
+
+        Parameters
+        ----------
+        axes: matplotlib.axes.Axes
+            Axes can be given if defaults are not satisfying.
+        colour: str, optional
+            Colour for plotted data.
+
+        Returns
+        -------
+        matplotlib.axes.Axes: The user can make additional modifications to the axes.
+
+        """
         fig, axes = plt.subplots()
         return axes
 
@@ -257,6 +469,32 @@ class Transient(object):
             self, model: callable, filename: str = None, axes: matplotlib.axes.Axes = None,  plot_save: bool = True, 
             plot_show: bool = True, random_models: int = 100, posterior: pd.DataFrame = None, outdir: str = '.', 
             model_kwargs: dict = None, **kwargs: object) -> None:
+        """
+
+        Parameters
+        ----------
+        model: callable
+            The model used to plot the lightcurve.
+        filename: str, optional
+            The output filename. Otherwise, use default which starts with the name
+            attribute and ends with *lightcurve.png.
+        axes: matplotlib.axes.Axes, optional
+            Axes to plot in if given.
+        plot_save: bool, optional
+            Whether to save the plot.
+        plot_show: bool, optional
+            Whether to show the plot.
+        random_models: int, optional
+            Number of random posterior samples plotted faintly. Default is 100.
+        posterior: pd.DataFrame, optional
+            Posterior distribution to which to draw samples from. Is optional but must be given.
+        outdir: str, optional
+            Out directory in which to save the plot. Default is the current working directory.
+        model_kwargs: dict
+            Additional keyword arguments to be passed into the model.
+        kwargs: dict
+            No current function.
+        """
         if filename is None:
             filename = f"{self.name}_lightcurve.png"
         axes = axes or plt.gca()
@@ -280,6 +518,34 @@ class Transient(object):
             self, model: callable, filename: str = None, axes: matplotlib.axes.Axes = None, plot_save: bool = True, 
             plot_show: bool = True, random_models: int = 100, posterior: pd.DataFrame = None, outdir: str = '.', 
             model_kwargs: dict = None, **kwargs: object) -> None:
+        """
+
+        Parameters
+        ----------
+        model: callable
+            The model used to plot the lightcurve
+        filename: str, optional
+            The output filename. Otherwise, use default which starts with the name
+            attribute and ends with *lightcurve.png.
+        axes: matplotlib.axes.Axes, optional
+            Axes to plot in if given.
+        plot_save: bool, optional
+            Whether to save the plot.
+        plot_show: bool, optional
+            Whether to show the plot.
+        random_models: int, optional
+            Number of random posterior samples plotted faintly. Default is 100.
+        posterior: pd.DataFrame, optional
+            Posterior distribution to which to draw samples from. Is optional but must be given.
+        outdir: str, optional
+            Out directory in which to save the plot. Default is the current working directory.
+        model_kwargs: dict
+            Additional keyword arguments to be passed into the model.
+        kwargs: dict
+            No current function.
+        -------
+
+        """
         if self.luminosity_data or self.flux_data:
             redback.utils.logger.warning(f"Plotting multiband lightcurve not possible for {self.data_mode}. Returning.")
             return
@@ -310,6 +576,17 @@ class Transient(object):
         plt.clf()
 
     def _get_times(self, axes: matplotlib.axes.Axes) -> np.ndarray:
+        """
+
+        Parameters
+        ----------
+        axes: matplotlib.axes.Axes
+            The axes used in the plotting procedure.
+        Returns
+        -------
+        np.ndarray: Linearly or logarithmically scaled time values depending on the y scale used in the plot.
+
+        """
         if axes.get_yscale == 'linear':
             times = np.linspace(self.x[0], self.x[-1], 200)
         else:
@@ -322,6 +599,22 @@ class OpticalTransient(Transient):
 
     @staticmethod
     def load_data(name, data_mode='photometry', transient_dir="."):
+        """
+        Loads data from specified directory and file, and returns it as a tuple.
+
+        Parameters
+        ----------
+        name: str
+            Name of the transient used.
+        data_mode: str, optional
+            Name of the data mode. Must be from ['photometry', 'flux_density', 'all']. Default is photometry.
+        transient_dir: str, optional
+            Name of the directory in which the data is being stored. Default is the current directory.
+
+        Returns
+        -------
+        tuple: Six elements when querying photometry or flux_density data, Eight for 'all'
+        """
         filename = f"{name}_data.csv"
 
         data_file = join(transient_dir, filename)
@@ -350,29 +643,72 @@ class OpticalTransient(Transient):
             system: np.ndarray = None, active_bands: Union[np.ndarray, str] = 'all', use_phase_model: bool = False, 
             **kwargs: dict) -> None:
         """
+        This is a general constructor for the Transient class. Note that you only need to give data corresponding to
+        the data mode you are using. For luminosity data provide times in the rest frame, if using a phase model
+        provide time in MJD, else use the default time (observer frame).
+
 
         Parameters
         ----------
-        name
-        data_mode
-        time
-        time_err
-        time_mjd
-        time_mjd_err
-        time_rest_frame
-        time_rest_frame_err
-        Lum50
-        Lum50_err
-        flux_density
-        flux_density_err
-        magnitude
-        magnitude_err
-        frequency
-        bands
-        system
-        active_bands
-        use_phase_model
-        kwargs
+        time: np.ndarray, optional
+            Times in the observer frame.
+        time_err: np.ndarray, optional
+            Time errors in the observer frame.
+        time_mjd: np.ndarray, optional
+            Times in MJD. Used if using phase model.
+        time_mjd_err: np.ndarray, optional
+            Time errors in MJD. Used if using phase model.
+        time_rest_frame: np.ndarray, optional
+            Times in the rest frame. Used for luminosity data.
+        time_rest_frame_err: np.ndarray, optional
+            Time errors in the rest frame. Used for luminosity data.
+        Lum50: np.ndarray, optional
+            Luminosity values.
+        Lum50_err: np.ndarray, optional
+            Luminosity error values.
+        flux: np.ndarray, optional
+            Flux values.
+        flux_err: np.ndarray, optional
+            Flux error values.
+        flux_density: np.ndarray, optional
+            Flux density values.
+        flux_density_err: np.ndarray, optional
+            Flux density error values.
+        magnitude: np.ndarray, optional
+            Magnitude values for photometry data.
+        magnitude_err: np.ndarray, optional
+            Magnitude error values for photometry data.
+        counts: np.ndarray, optional
+            Counts for prompt data.
+        ttes: np.ndarray, optional
+            Time-tagged events data for unbinned prompt data.
+        bin_size: float
+            Bin size for binning time-tagged event data.
+        redshift: float
+            Redshift value.
+        data_mode: str
+            Data mode. Must be one from `Transient.DATA_MODES`.
+        name: str
+            Name of the transient.
+        path: str
+            Path to data directory.
+        photon_index: float
+            Photon index value.
+        use_phase_model: bool
+            Whether we are using a phase model.
+        frequency: np.ndarray, optional
+            Array of band frequencies in photometry data.
+        system: np.ndarray, optional
+            System values.
+        bands: np.ndarray, optional
+            Band values.
+        active_bands: Union[list, np.ndarray]
+            List or array of active bands to be used in the analysis. Use all available bands if 'all' is given.
+        kwargs: dict, optional
+            Additional callables:
+            bands_to_frequencies: Conversion function to convert a list of bands to frequencies. Use
+                                  redback.utils.bands_to_frequencies if not given.
+            bin_ttes: Binning function for time-tagged event data. Use redback.utils.bands_to_frequencies if not given.
         """
         super().__init__(time=time, time_err=time_err, time_rest_frame=time_rest_frame, time_mjd=time_mjd,
                          time_mjd_err=time_mjd_err, frequency=frequency,
@@ -387,6 +723,25 @@ class OpticalTransient(Transient):
     def from_open_access_catalogue(
             cls, name: str, data_mode: str = "photometry", active_bands: Union[np.ndarray, str] = 'all',
             use_phase_model: bool = False) -> OpticalTransient:
+        """
+        Constructor method to built object from Open Access Catalogue
+
+        Parameters
+        ----------
+        name: str
+            Name of the transient.
+        data_mode: str, optional
+            Data mode used. Must be from `OpticalTransient.DATA_MODES`. Default is photometry.
+        active_bands: Union[np.ndarray, str]
+            Sets active bands based on array given.
+            If argument is 'all', all unique bands in `self.bands` will be used.
+        use_phase_model: bool, optional
+            Whether to use a phase model.
+
+        Returns
+        -------
+        OpticalTransient: A class instance.
+        """
         transient_dir = cls._get_transient_dir(name=name)
         time_days, time_mjd, flux_density, flux_density_err, magnitude, magnitude_err, bands, system = \
             cls.load_data(name=name, transient_dir=transient_dir, data_mode="all")
@@ -397,9 +752,18 @@ class OpticalTransient(Transient):
 
     @property
     def event_table(self) -> str:
+        """
+
+        Returns
+        -------
+        str: Path to the metadata table.
+        """
         return f'{self.__class__.__name__.lower()}/{self.name}/metadata.csv'
 
     def _set_data(self) -> None:
+        """
+        Sets the metadata from the event table.
+        """
         try:
             meta_data = pd.read_csv(self.event_table, error_bad_lines=False, delimiter=',', dtype='str')
         except FileNotFoundError as e:
@@ -410,6 +774,12 @@ class OpticalTransient(Transient):
 
     @property
     def transient_dir(self) -> str:
+        """
+
+        Returns
+        -------
+        str: The transient directory given the name of the transient.
+        """
         return self._get_transient_dir(name=self.name)
 
     @classmethod
@@ -422,10 +792,23 @@ class OpticalTransient(Transient):
             self, axes: matplotlib.axes.Axes = None, filters: np.ndarray = None, plot_others: bool = True, 
             **plot_kwargs: dict) -> None:
         """
-        plots the data
-        :param axes:
-        :param filters:
-        :param plot_others:
+        Plots the data.
+
+        Parameters
+        ----------
+        axes: matplotlib.axes.Axes, optional
+            Axes can be given if defaults are not satisfying
+        filters: np.ndarray, optional
+            Which bands to plot. Will use default filters if None is given.
+        plot_others: bool, optional
+            Plot all bands outside filters in black without label if True.
+        plot_kwargs:
+            Additional optional plotting kwargs:
+            errorbar_fmt: Errorbar format ('fmt' argument in matplotlib.pyplot.errorbar)
+            colors: colors to be used for the bands
+            xlabel: Plot xlabel
+            ylabel: Plot ylabel
+            plot_label: Additional filename label appended to the default name
         """
         errorbar_fmt = plot_kwargs.get("errorbar_fmt", "x")
         colors = plot_kwargs.get("colors", self.get_colors(filters))
@@ -437,8 +820,8 @@ class OpticalTransient(Transient):
             filters = self.default_filters
 
         ax = axes or plt.gca()
-        for idxs, band in zip(self.list_of_band_indices, self.unique_bands):
-            x_err = self.x_err[idxs] if self is not None else self.x_err
+        for indices, band in zip(self.list_of_band_indices, self.unique_bands):
+            x_err = self.x_err[indices] if self is not None else self.x_err
             if band in filters:
                 color = colors[filters.index(band)]
                 label = band
@@ -447,7 +830,7 @@ class OpticalTransient(Transient):
                 label = None
             else:
                 continue
-            ax.errorbar(self.x[idxs], self.y[idxs], xerr=x_err, yerr=self.y_err[idxs],
+            ax.errorbar(self.x[indices], self.y[indices], xerr=x_err, yerr=self.y_err[indices],
                         fmt=errorbar_fmt, ms=1, color=color, elinewidth=2, capsize=0., label=label)
 
         ax.set_xlim(0.5 * self.x[0], 1.2 * self.x[-1])
@@ -472,6 +855,38 @@ class OpticalTransient(Transient):
             self, figure: matplotlib.figure.Figure = None, axes: matplotlib.axes.Axes = None, ncols: int = 2,
             nrows: int = None, figsize: tuple = None, filters: np.ndarray = None, **plot_kwargs: dict) \
             -> matplotlib.axes.Axes:
+        """
+
+        Parameters
+        ----------
+        figure: matplotlib.figure.Figure, optional
+            Figure can be given if defaults are not satisfying
+        axes: matplotlib.axes.Axes, optional
+            Axes can be given if defaults are not satisfying
+        ncols: int, optional
+            Number of columns to use on the plot. Default is 2.
+        nrows: int, optional
+            Number of rows to use on the plot. If None are given this will
+            be inferred from ncols and the number of filters.
+        figsize: tuple, optional
+            Size of the figure. A default based on ncols and nrows will be used if None is given.
+        filters: np.ndarray, optional
+            Which bands to plot. Will use default filters if None is given.
+        plot_kwargs:
+            Additional optional plotting kwargs:
+            wspace: Extra argument for matplotlib.pyplot.subplots_adjust
+            hspace: Extra argument for matplotlib.pyplot.subplots_adjust
+            fontsize: Label fontsize
+            errorbar_fmt: Errorbar format ('fmt' argument in matplotlib.pyplot.errorbar)
+            colors: colors to be used for the bands
+            xlabel: Plot xlabel
+            ylabel: Plot ylabel
+            plot_label: Addional filename label appended to the default name
+
+        Returns
+        -------
+
+        """
         if self.luminosity_data or self.flux_data:
             redback.utils.logger.warning(f"Can't plot multiband for {self.data_mode} data.")
             return
@@ -504,11 +919,11 @@ class OpticalTransient(Transient):
         axes = axes.ravel()
 
         i = 0
-        for idxs, band in zip(self.list_of_band_indices, self.unique_bands):
+        for indices, band in zip(self.list_of_band_indices, self.unique_bands):
             if band not in filters:
                 continue
 
-            x_err = self.x_err[idxs] if self.x_err is not None else self.x_err
+            x_err = self.x_err[indices] if self.x_err is not None else self.x_err
 
             color = colors[filters.index(band)]
 
@@ -517,15 +932,15 @@ class OpticalTransient(Transient):
                 label = band
             else:
                 label = freq
-            axes[i].errorbar(self.x[idxs], self.y[idxs], xerr=x_err, yerr=self.y_err[idxs],
+            axes[i].errorbar(self.x[indices], self.y[indices], xerr=x_err, yerr=self.y_err[indices],
                              fmt=errorbar_fmt, ms=1, color=color, elinewidth=2, capsize=0., label=label)
 
-            axes[i].set_xlim(0.5 * self.x[idxs][0], 1.2 * self.x[idxs][-1])
+            axes[i].set_xlim(0.5 * self.x[indices][0], 1.2 * self.x[indices][-1])
             if self.photometry_data:
-                axes[i].set_ylim(0.8 * min(self.y[idxs]), 1.2 * np.max(self.y[idxs]))
+                axes[i].set_ylim(0.8 * min(self.y[indices]), 1.2 * np.max(self.y[indices]))
                 axes[i].invert_yaxis()
             else:
-                axes[i].set_ylim(0.5 * min(self.y[idxs]), 2. * np.max(self.y[idxs]))
+                axes[i].set_ylim(0.5 * min(self.y[indices]), 2. * np.max(self.y[indices]))
                 axes[i].set_yscale("log")
             axes[i].legend(ncol=2)
             axes[i].tick_params(axis='both', which='major', pad=8)
