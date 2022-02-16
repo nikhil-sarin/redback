@@ -9,6 +9,7 @@ from redback.constants import *
 import astropy.units as uu
 import astropy.constants as cc
 from scipy.integrate import cumtrapz
+import redback.ejecta_relations as ejr
 
 def power_law_stratified_kilonova(time, redshift, frequencies, mass, vmin, vmax, alpha,
                                   kappa_min, kappa_max, beta, **kwargs):
@@ -194,6 +195,28 @@ def two_component_kilonova_model(time, redshift, frequencies, mej_1, vej_1, temp
     elif kwargs['output_format'] == 'magnitude':
         return ff.to(uu.ABmag).value
 
+def one_component_ejecta_relation_model(time, redshift, frequencies, mass_1, mass_2,
+                                        lambda_1, lambda_2, kappa, **kwargs):
+    """
+    :param time: observer frame time
+    :param redshift: redshift
+    :param frequencies: frequencies to calculate - Must be same length as time array or a single number
+    :param mass_1: mass of primary in solar masses
+    :param mass_2: mass of secondary in solar masses
+    :param lambda_1: dimensionless tidal deformability of primary
+    :param lambda_2: dimensionless tidal deformability of secondary
+    :param kappa: gray opacity
+    :param kwargs: temperature_floor, output_format,
+    ejecta_relation; a class that relates the instrinsic parameters to the kilonova parameters
+    :return: flux_density or magnitude
+    """
+    ejecta_relation = kwargs.get('ejecta_relation', ejr.Dietrich_ujevic_18())
+    ejecta_relation = ejecta_relation(mass_1, mass_2, lambda_1, lambda_2)
+    mej = ejecta_relation.ejecta_mass
+    vej = ejecta_relation.ejecta_velocity
+    flux_density = one_component_kilonova_model(time, redshift, frequencies, mej, vej, kappa, **kwargs)
+    return flux_density
+
 def one_component_kilonova_model(time, redshift, frequencies, mej, vej, kappa, **kwargs):
     """
     :param time: observer frame time
@@ -201,7 +224,7 @@ def one_component_kilonova_model(time, redshift, frequencies, mej, vej, kappa, *
     :param frequencies: frequencies to calculate - Must be same length as time array or a single number
     :param mej: ejecta mass in solar masses
     :param vej: minimum initial velocity
-    :param kappa_r: gray opacity
+    :param kappa: gray opacity
     :param kwargs: temperature_floor, output_format
     :return: flux_density or magnitude
     """
