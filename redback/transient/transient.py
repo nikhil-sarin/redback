@@ -167,7 +167,7 @@ class Transient(object):
 
     @active_bands.setter
     def active_bands(self, active_bands):
-        if active_bands == 'all':
+        if active_bands is 'all':
             self._active_bands = np.unique(self.bands)
         else:
             self._active_bands = active_bands
@@ -354,14 +354,14 @@ class OpticalTransient(Transient):
         :param filters:
         :param plot_others:
         """
+        if filters is None:
+            filters = self.default_filters
+
         errorbar_fmt = plot_kwargs.get("errorbar_fmt", "x")
         colors = plot_kwargs.get("colors", self.get_colors(filters))
         xlabel = plot_kwargs.get("xlabel", self.xlabel)
         ylabel = plot_kwargs.get("ylabel", self.ylabel)
         plot_label = plot_kwargs.get("plot_label", "lc")
-
-        if filters is None:
-            filters = self.default_filters
 
         ax = axes or plt.gca()
         for idxs, band in zip(self.list_of_band_indices, self.unique_bands):
