@@ -11,13 +11,13 @@ import astropy.constants as cc
 from scipy.integrate import cumtrapz
 import redback.ejecta_relations as ejr
 
-def power_law_stratified_kilonova(time, redshift, frequencies, mass, vmin, vmax, alpha,
+def power_law_stratified_kilonova(time, redshift, mass, vmin, vmax, alpha,
                                   kappa_min, kappa_max, beta, **kwargs):
     pass
 
 
 
-def two_layer_stratified_kilonova(time, redshift, frequencies, mass, vej_1, vej_2, kappa, beta, **kwargs):
+def two_layer_stratified_kilonova(time, redshift, mass, vej_1, vej_2, kappa, beta, **kwargs):
     """
     Uses kilonova_heating_rate module to model a two layer stratified kilonova
     :param time: observer frame time
@@ -29,14 +29,15 @@ def two_layer_stratified_kilonova(time, redshift, frequencies, mass, vej_1, vej_
     :param kappa: constant gray opacity
     :param beta: power law index of density profile
     :param kwargs: output_format
+                    frequencies (frequencies to calculate - Must be same length as time array or a single number)
     :return: flux_density or magnitude
     """
     velocity_array = np.array([vej_1, vej_2])
-    flux_density = _kilonova_hr(time, redshift, frequencies, mass, velocity_array, kappa, beta, **kwargs)
+    flux_density = _kilonova_hr(time, redshift, mass, velocity_array, kappa, beta, **kwargs)
     return flux_density
 
 
-def _kilonova_hr(time, redshift, frequencies, mass, velocity_array, kappa_array, beta, **kwargs):
+def _kilonova_hr(time, redshift, mass, velocity_array, kappa_array, beta, **kwargs):
     """
     Uses kilonova_heating_rate module
     :param time: observer frame time
@@ -47,8 +48,10 @@ def _kilonova_hr(time, redshift, frequencies, mass, velocity_array, kappa_array,
     :param kappa_array: opacities of each shell, length = 1 less than velocity
     :param beta: power law index of density profile
     :param kwargs: output_format
+                    frequencies (frequencies to calculate - Must be same length as time array or a single number)
     :return: flux_density or magnitude
     """
+    frequencies = kwargs['frequencies']
     # convert to source frame time and frequency
     time = time / (1 + redshift)
     frequencies = frequencies / (1 + redshift)
@@ -95,7 +98,7 @@ def _kilonova_hr_sourceframe(time, mass, velocity_array, kappa_array, beta):
     return bolometric_luminosity, temperature, r_photosphere
 
 
-def three_component_kilonova_model(time, redshift, frequencies, mej_1, vej_1, temperature_floor_1, kappa_1,
+def three_component_kilonova_model(time, redshift, mej_1, vej_1, temperature_floor_1, kappa_1,
                                  mej_2, vej_2, temperature_floor_2, kappa_2,
                                    mej_3, vej_3, temperature_floor_3, kappa_3, **kwargs):
     """
@@ -114,8 +117,10 @@ def three_component_kilonova_model(time, redshift, frequencies, mej_1, vej_1, te
     :param temperature_floor_3: floor temperature of third component
     :param kappa_3: gray opacity of third component
     :param kwargs: output_format
+                    frequencies (frequencies to calculate - Must be same length as time array or a single number)
     :return: flux_density or magnitude
     """
+    frequencies = kwargs['frequencies']
     # convert to source frame time and frequency
     time = time / (1 + redshift)
     frequencies = frequencies / (1 + redshift)
@@ -147,12 +152,11 @@ def three_component_kilonova_model(time, redshift, frequencies, mej_1, vej_1, te
     elif kwargs['output_format'] == 'magnitude':
         return ff.to(uu.ABmag).value
 
-def two_component_kilonova_model(time, redshift, frequencies, mej_1, vej_1, temperature_floor_1, kappa_1,
+def two_component_kilonova_model(time, redshift, mej_1, vej_1, temperature_floor_1, kappa_1,
                                  mej_2, vej_2, temperature_floor_2, kappa_2, **kwargs):
     """
     :param time: observer frame time
     :param redshift: redshift
-    :param frequencies: frequencies to calculate - Must be same length as time array or a single number
     :param mej_1: ejecta mass in solar masses of first component
     :param vej_1: minimum initial velocity of first component
     :param kappa_1: gray opacity of first component
@@ -162,8 +166,10 @@ def two_component_kilonova_model(time, redshift, frequencies, mej_1, vej_1, temp
     :param temperature_floor_2: floor temperature of second component
     :param kappa_2: gray opacity of second component
     :param kwargs: output_format
+                    frequencies (frequencies to calculate - Must be same length as time array or a single number)
     :return: flux_density or magnitude
     """
+    frequencies = kwargs['frequencies']
     # convert to source frame time and frequency
     time = time / (1 + redshift)
     frequencies = frequencies / (1 + redshift)
@@ -195,21 +201,22 @@ def two_component_kilonova_model(time, redshift, frequencies, mej_1, vej_1, temp
     elif kwargs['output_format'] == 'magnitude':
         return ff.to(uu.ABmag).value
 
-def one_component_ejecta_relation_model(time, redshift, frequencies, mass_1, mass_2,
+def one_component_ejecta_relation_model(time, redshift, mass_1, mass_2,
                                         lambda_1, lambda_2, kappa, **kwargs):
     """
     :param time: observer frame time
     :param redshift: redshift
-    :param frequencies: frequencies to calculate - Must be same length as time array or a single number
     :param mass_1: mass of primary in solar masses
     :param mass_2: mass of secondary in solar masses
     :param lambda_1: dimensionless tidal deformability of primary
     :param lambda_2: dimensionless tidal deformability of secondary
     :param kappa: gray opacity
     :param kwargs: temperature_floor, output_format,
-    ejecta_relation; a class that relates the instrinsic parameters to the kilonova parameters
+                    ejecta_relation; a class that relates the instrinsic parameters to the kilonova parameters
+                    frequencies (frequencies to calculate - Must be same length as time array or a single number)
     :return: flux_density or magnitude
     """
+    frequencies = kwargs['frequencies']
     ejecta_relation = kwargs.get('ejecta_relation', ejr.Dietrich_ujevic_18)
     ejecta_relation = ejecta_relation(mass_1, mass_2, lambda_1, lambda_2)
     mej = ejecta_relation.ejecta_mass
@@ -296,18 +303,19 @@ def _one_component_kilonova_model(time, mej, vej, kappa, **kwargs):
 
 
 
-def metzger_kilonova_model(time, redshift, frequencies, mej, vej, beta, kappa_r, **kwargs):
+def metzger_kilonova_model(time, redshift, mej, vej, beta, kappa_r, **kwargs):
     """
     :param time: observer frame time
     :param redshift: redshift
-    :param frequencies: frequencies to calculate - Must be same length as time array or a single number
     :param mej: ejecta mass in solar masses
     :param vej: minimum initial velocity
     :param beta: velocity power law slope (M=v^-beta)
     :param kappa_r: gray opacity
     :param kwargs: neutron_precursor_switch, output_format
+                frequencies (frequencies to calculate - Must be same length as time array or a single number)
     :return: flux_density or magnitude
     """
+    frequencies = kwargs['frequencies']
     time_temp = np.geomspace(1e-4, 1e7, 300)
     bolometric_luminosity, temperature, r_photosphere = _metzger_kilonova_model(time_temp, mej, vej, beta,
                                                                                                kappa_r, **kwargs)
