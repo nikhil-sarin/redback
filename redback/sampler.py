@@ -1,3 +1,4 @@
+import matplotlib.pyplot as plt
 import os
 from pathlib import Path
 
@@ -69,7 +70,7 @@ def fit_model(name, transient, model, outdir=".", source_type='GRB', sampler='dy
         raise ValueError(f'Source type {source_type} not known')
 
 
-def _fit_grb(name, transient, model, outdir, sampler='dynesty', nlive=3000, prior=None, walks=1000,
+def _fit_grb(name, transient, model, outdir, label=None, sampler='dynesty', nlive=3000, prior=None, walks=1000,
              use_photon_index_prior=False, data_mode='flux', resume=True, save_format='json',
              model_kwargs=None, **kwargs):
     if use_photon_index_prior:
@@ -88,9 +89,10 @@ def _fit_grb(name, transient, model, outdir, sampler='dynesty', nlive=3000, prio
     outdir = f"{outdir}/GRB{name}/{model}"
     Path(outdir).mkdir(parents=True, exist_ok=True)
 
-    label = data_mode
-    if use_photon_index_prior:
-        label += '_photon_index'
+    if label is None:
+        label = f"{data_mode}"
+        if use_photon_index_prior:
+            label += '_photon_index'
 
     if transient.flux_density_data or transient.photometry_data:
         x, x_err, y, y_err = transient.get_filtered_data()
@@ -108,11 +110,12 @@ def _fit_grb(name, transient, model, outdir, sampler='dynesty', nlive=3000, prio
                                outdir=outdir, plot=True, use_ratio=False, walks=walks, resume=resume,
                                maxmcmc=10 * walks, result_class=RedbackResult, meta_data=meta_data,
                                nthreads=4, save_bounds=False, nsteps=nlive, nwalkers=walks, save=save_format, **kwargs)
-
+    plt.close('all')
     return result
 
 
 def _fit_kilonova(**kwargs):
+    plt.close('all')
     pass
 
 
@@ -141,16 +144,19 @@ def _fit_prompt(name, transient, model, outdir, integrated_rate_function=True, s
     meta_data['model_kwargs'] = model_kwargs
 
     result = bilby.run_sampler(likelihood=likelihood, priors=prior, label=label, sampler=sampler, nlive=nlive,
-                               outdir=outdir, plot=True, use_ratio=False, walks=walks, resume=resume,
+                               outdir=outdir, plot=False, use_ratio=False, walks=walks, resume=resume,
                                maxmcmc=10 * walks, result_class=RedbackResult, meta_data=meta_data,
                                nthreads=4, save_bounds=False, nsteps=nlive, nwalkers=walks, save=save_format, **kwargs)
 
+    plt.close('all')
     return result
 
 
 def _fit_supernova(**kwargs):
+    plt.close('all')
     pass
 
 
 def _fit_tde(**kwargs):
+    plt.close('all')
     pass
