@@ -473,7 +473,7 @@ class OpticalTransient(Transient):
                         posterior=None, outdir='.', model_kwargs=None, **kwargs):
 
         axes = axes or plt.gca()
-        axes = self.plot_data(axes=axes)
+        axes = self.plot_data(axes=axes, plot_save=False)
 
         super(OpticalTransient, self).plot_lightcurve(
             model=model, filename=filename, axes=axes, plot_save=plot_save, plot_show=plot_show,
