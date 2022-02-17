@@ -120,7 +120,26 @@ class Afterglow(Transient):
     @classmethod
     def from_swift_grb(
             cls, name: str, data_mode: str = 'flux', truncate: bool = True,
-            truncate_method: str = 'prompt_time_error') -> Afterglow:
+            truncate_method: str = 'prompt_time_error', **kwargs) -> Afterglow:
+        """
+
+        Parameters
+        ----------
+        name: str
+            Telephone number of SGRB, e.g., 'GRB140903A' or '140903A' are valid inputs
+        data_mode: str, optional
+            Data mode. Must be one from `Afterglow.DATA_MODES`.
+        truncate: bool
+            Whether to truncate the data
+        truncate_method: str
+            Must be from `Truncator.TRUNCATE_METHODS`
+        kwargs: dict
+            Additional keywords to pass into Afterglow.__init__
+
+        Returns
+        -------
+
+        """
         if not name.startswith('GRB'):
             name = 'GRB' + name
         afterglow = cls(name=name, data_mode=data_mode)
@@ -144,6 +163,15 @@ class Afterglow(Transient):
         Truncate the data to get rid of all but the last prompt emission point
         make a cut based on the size of the temporal error; ie if t_error < 1s, the data point is
         part of the prompt emission
+
+        Parameters
+        ----------
+        truncate: bool
+            Whether to truncate the data
+        truncate_method: str
+            Must be from `Truncator.TRUNCATE_METHODS`
+        data_mode: str, optional
+            Data mode. Must be one from `Afterglow.DATA_MODES`.
         """
         self.data_mode = data_mode
         self.x, self.x_err, self.y, self.y_err = self.load_data(name=self.name, data_mode=self.data_mode)
@@ -152,6 +180,20 @@ class Afterglow(Transient):
 
     @staticmethod
     def load_data(name: str, data_mode: str = None) -> tuple:
+        """
+        Loads and returns data from a csv file
+
+        Parameters
+        ----------
+        name: str
+            Telephone number of SGRB, e.g., 'GRB140903A' or '140903A' are valid inputs
+        data_mode: str, optional
+            Data mode. Must be one from `Afterglow.DATA_MODES`.
+
+        Returns
+        -------
+        tuple: A tuple with x, x_err, y, y_err data
+        """
         grb_dir, _, _ = afterglow_directory_structure(grb=name.lstrip('GRB'), data_mode=data_mode)
         filename = f"{name}.csv"
 
@@ -164,15 +206,31 @@ class Afterglow(Transient):
         return x, x_err, y, y_err
 
     def truncate(self, truncate_method: str = 'prompt_time_error') -> None:
+        """
+        Truncate the data using the specified method.
+
+        Parameters
+        ----------
+        truncate_method: str
+            Must be from `Truncator.TRUNCATE_METHODS`
+        """
         truncator = self.Truncator(x=self.x, x_err=self.x_err, y=self.y, y_err=self.y_err, time=self.time,
                                    time_err=self.time_err, truncate_method=truncate_method)
         self.x, self.x_err, self.y, self.y_err = truncator.truncate()
 
     @property
     def event_table(self) -> str:
+        """
+        Returns
+        -------
+        str: Relative path to the event table.
+        """
         return os.path.join(dirname, f'../tables/{self.__class__.__name__}_table.txt')
 
     def _save_luminosity_data(self) -> None:
+        """
+        Saves luminosity data to a csv file.
+        """
         grb_dir, _, _ = afterglow_directory_structure(grb=self._stripped_name, data_mode=self.data_mode)
         filename = f"{self.name}.csv"
         data = {"Time in restframe [s]": self.time_rest_frame,
@@ -185,12 +243,18 @@ class Afterglow(Transient):
         df.to_csv(join(grb_dir, filename), index=False)
 
     def _set_data(self) -> None:
+        """
+        Loads data from the meta data table and sets it to the respective attribute.
+        """
         meta_data = pd.read_csv(self.event_table, header=0, error_bad_lines=False, delimiter='\t', dtype='str')
         meta_data['BAT Photon Index (15-150 keV) (PL = simple power-law, CPL = cutoff power-law)'] = meta_data[
                   'BAT Photon Index (15-150 keV) (PL = simple power-law, CPL = cutoff power-law)'].fillna(0)
         self.meta_data = meta_data
 
     def _set_photon_index(self) -> None:
+        """
+        Set the photon index attribute from the metadata table.
+        """
         try:
             photon_index = self.meta_data.query('GRB == @self._stripped_name')[
                 'BAT Photon Index (15-150 keV) (PL = simple power-law, CPL = cutoff power-law)'].values[0]
@@ -199,7 +263,9 @@ class Afterglow(Transient):
             self.photon_index = np.nan
 
     def _get_redshift(self) -> None:
-        # some GRBs dont have measurements
+        """
+        Set redshift from metadata table. Some GRBs do not have measurements.
+        """
         try:
             redshift = self.meta_data.query('GRB == @self._stripped_name')['Redshift'].values[0]
             if isinstance(redshift, str):
@@ -210,6 +276,12 @@ class Afterglow(Transient):
             self.redshift = np.nan
 
     def _get_redshift_for_luminosity_calculation(self) -> Union[float, None]:
+        """
+
+        Returns
+        -------
+
+        """
         if self.redshift is None:
             return self.redshift
         if np.isnan(self.redshift):
