@@ -429,10 +429,10 @@ def _metzger_kilonova_model(time, mej, vej, beta, kappa_r, **kwargs):
         else:
             td_v[:-1, ii] = (kappa_r * m_array[:-1] * solar_mass * 3) / (
                         4 * np.pi * v_m[:-1] * speed_of_light * time[ii] * beta)
+            tau[:-1, ii] = (m_array[:-1] * solar_mass * kappa_r / (4 * np.pi * (time[ii] * v_m[:-1]) ** 2))
         lum_rad[:-1, ii] = energy_v[:-1, ii] / (td_v[:-1, ii] + time[ii] * (v_m[:-1] / speed_of_light))
         energy_v[:-1, ii + 1] = (edotr[:-1, ii] - (energy_v[:-1, ii] / time[ii]) - lum_rad[:-1, ii]) * dt[ii] + energy_v[:-1, ii]
         lum_rad[:-1, ii] = lum_rad[:-1, ii] * dm * solar_mass
-        tau[:-1, ii] = (m_array[:-1] * solar_mass * kappa_r / (4 * np.pi * (time[ii] * v_m[:-1]) ** 2))
 
         tau[mass_len - 1, ii] = tau[mass_len - 2, ii]
         photosphere_index = np.argmin(np.abs(tau[:, ii] - 1))
