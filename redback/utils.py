@@ -27,6 +27,45 @@ plt.style.use(filename)
 logger = logging.getLogger('redback')
 _bilby_logger = logging.getLogger('bilby')
 
+def calc_compactness_from_lambda(lambda_1):
+    """
+    :param lambda_1: dimensionless tidal deformability
+    :return: compactness
+    """
+    c1 = 0.371 - 0.0391 * np.log(lambda_1) + 0.001056 * np.log(lambda_1) ** 2
+    return c1
+
+def calc_compactness(mass, radius):
+    """
+    :param mass: in solar masses
+    :param radius: in meters
+    :return: compactness
+    """
+    mass_si = mass * cc.M_sun.si.value
+    radius_si = radius #meters
+    g_si = cc.G.value
+    c_si = cc.c.value
+    compactness=g_si*mass_si / ( c_si**2 *radius_si)
+    return compactness
+
+def calc_baryonic_mass_eos_insensitive(mass_g, radius_14):
+    """
+    :param mass_g: gravitational mass in solar mass
+    :param radius_14: radius of 1.4 M_sun neutron star in meters
+    :return: baryonic mass
+    """
+    mb = mass_g + radius_14**(-1.) * mass_g**2
+    return mb
+
+def calc_baryonic_mass(mass, compactness):
+    """
+    :param mass: mass in solar masses
+    :param compactness: NS compactness
+    :return: baryonic mass
+    """
+    mb = mass*(1 + 0.8857853174243745*compactness**1.2082383572002926)
+    return mb
+
 def blackbody_to_flux_density(temperature, r_photosphere, dl, frequencies):
     """
     A general blackbody_to_flux_density formula
@@ -46,7 +85,7 @@ def blackbody_to_flux_density(temperature, r_photosphere, dl, frequencies):
     boltzmann_constant = cc.k_B.cgs
     num = 2 * np.pi * planck * frequencies ** 3 * radius ** 2
     denom = dl ** 2 * speed_of_light ** 2
-    frac = 1. / (np.exp((planck * frequencies) / (boltzmann_constant * temperature)) - 1)
+    frac = 1. / (np.expm1((planck * frequencies) / (boltzmann_constant * temperature)))
     flux_density = num / denom * frac
     return flux_density
 
