@@ -1,3 +1,6 @@
+import numpy as np
+from typing import Union
+
 from redback.transient.transient import OpticalTransient
 from redback.getdata import transient_directory_structure
 
@@ -5,10 +8,13 @@ from redback.getdata import transient_directory_structure
 class TDE(OpticalTransient):
     DATA_MODES = ['flux', 'flux_density', 'photometry', 'luminosity']
 
-    def __init__(self, name, data_mode='photometry', time=None, time_err=None, time_mjd=None, time_mjd_err=None,
-                 time_rest_frame=None, time_rest_frame_err=None, Lum50=None, Lum50_err=None, flux_density=None,
-                 flux_density_err=None, magnitude=None, magnitude_err=None, bands=None, system=None, active_bands='all',
-                 use_phase_model=False, **kwargs):
+    def __init__(
+            self, name: str, data_mode: str = 'photometry', time: np.ndarray = None, time_err: np.ndarray = None,
+            time_mjd: np.ndarray = None, time_mjd_err: np.ndarray = None, time_rest_frame: np.ndarray = None,
+            time_rest_frame_err: np.ndarray = None, Lum50: np.ndarray = None, Lum50_err: np.ndarray = None,
+            flux_density: np.ndarray = None, flux_density_err: np.ndarray = None, magnitude: np.ndarray = None,
+            magnitude_err: np.ndarray = None, bands: np.ndarray = None, system: np.ndarray = None,
+            active_bands: Union[np.ndarray, str] = 'all', use_phase_model: bool = False, **kwargs: dict) -> None:
 
         super().__init__(time=time, time_err=time_err, time_rest_frame=time_rest_frame, time_mjd=time_mjd,
                          time_mjd_err=time_mjd_err, time_rest_frame_err=time_rest_frame_err, Lum50=Lum50,
@@ -19,11 +25,11 @@ class TDE(OpticalTransient):
         self._set_data()
 
     @property
-    def event_table(self):
+    def event_table(self) -> str:
         return f'tidal_disruption_event/{self.name}/metadata.csv'
 
     @property
-    def transient_dir(self):
+    def transient_dir(self) -> str:
         transient_dir, _, _ = transient_directory_structure(
             transient=self.name, transient_type='tidal_disruption_event')
         return transient_dir
