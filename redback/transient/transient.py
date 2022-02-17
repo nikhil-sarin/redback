@@ -218,7 +218,9 @@ class Transient(object):
     def plot_lightcurve(self, model, filename=None, axes=None, plot_save=True, plot_show=True, random_models=100,
                         posterior=None, outdir='.', model_kwargs=None, **kwargs):
         if filename is None:
-            filename = f"{self.name}_lightcurve.png"
+            filename = f"{self.data_mode}_lightcurve.png"
+        if model_kwargs is None:
+            model_kwargs = dict()
         axes = axes or plt.gca()
         # axes = self.plot_data(axes=axes)
 
