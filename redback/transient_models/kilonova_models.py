@@ -217,19 +217,21 @@ def one_component_ejecta_relation_model(time, redshift, frequencies, mass_1, mas
     flux_density = one_component_kilonova_model(time, redshift, frequencies, mej, vej, kappa, **kwargs)
     return flux_density
 
-def one_component_kilonova_model(time, redshift, frequencies, mej, vej, kappa, **kwargs):
+def one_component_kilonova_model(time, redshift, mej, vej, kappa, **kwargs):
     """
     :param time: observer frame time
     :param redshift: redshift
-    :param frequencies: frequencies to calculate - Must be same length as time array or a single number
     :param mej: ejecta mass in solar masses
     :param vej: minimum initial velocity
     :param kappa: gray opacity
-    :param kwargs: temperature_floor, output_format
+    :param kwargs: temperature_floor
+                   frequencies (frequencies to calculate - Must be same length as time array or a single number)
+                   output_format
     :return: flux_density or magnitude
     """
+    frequencies = kwargs['frequencies']
     time_temp = np.geomspace(1e-4, 1e7, 300)
-    _, temperature, r_photosphere = _one_component_kilonova_model(time_temp, mej,vej, kappa, **kwargs)
+    _, temperature, r_photosphere = _one_component_kilonova_model(time_temp, mej, vej, kappa, **kwargs)
     dl = cosmo.luminosity_distance(redshift).cgs.value
 
     # interpolate properties onto observation times
@@ -269,7 +271,7 @@ def _one_component_kilonova_model(time, mej, vej, kappa, **kwargs):
     t0 = 1.3 #seconds
     sig = 0.11  #seconds
     temperature_floor = kwargs.get('temperature_floor', 4000) #kelvin
-    print('temperature_floor is', temperature_floor)
+
     beta = 13.7
 
     v0 = vej * speed_of_light

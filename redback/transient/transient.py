@@ -167,7 +167,7 @@ class Transient(object):
 
     @active_bands.setter
     def active_bands(self, active_bands):
-        if active_bands == 'all':
+        if active_bands is 'all':
             self._active_bands = np.unique(self.bands)
         else:
             self._active_bands = active_bands
@@ -222,8 +222,9 @@ class Transient(object):
         if model_kwargs is None:
             model_kwargs = dict()
         axes = axes or plt.gca()
-        axes = self.plot_data(axes=axes)
-
+        # axes = self.plot_data(axes=axes)
+        axes.set_yscale('log')
+        # plt.semilogy()
         times = self._get_times(axes)
 
         posterior.sort_values(by='log_likelihood')
@@ -349,25 +350,25 @@ class OpticalTransient(Transient):
             transient=name, transient_type=cls.__name__.lower())
         return transient_dir
 
-    def plot_data(self, axes=None, filters=None, plot_others=True, **plot_kwargs):
+    def plot_data(self, axes=None, filters=None, plot_others=True, plot_save=True, **plot_kwargs):
         """
         plots the data
         :param axes:
         :param filters:
         :param plot_others:
         """
+        if filters is None:
+            filters = self.default_filters
+
         errorbar_fmt = plot_kwargs.get("errorbar_fmt", "x")
         colors = plot_kwargs.get("colors", self.get_colors(filters))
         xlabel = plot_kwargs.get("xlabel", self.xlabel)
         ylabel = plot_kwargs.get("ylabel", self.ylabel)
-        plot_label = plot_kwargs.get("plot_label", "lc")
-
-        if filters is None:
-            filters = self.default_filters
+        plot_label = plot_kwargs.get("plot_label", "data")
 
         ax = axes or plt.gca()
         for idxs, band in zip(self.list_of_band_indices, self.unique_bands):
-            x_err = self.x_err[idxs] if self is not None else self.x_err
+            x_err = self.x_err[idxs] if self.x_err is not None else self.x_err
             if band in filters:
                 color = colors[filters.index(band)]
                 label = band
@@ -385,6 +386,7 @@ class OpticalTransient(Transient):
             ax.invert_yaxis()
         else:
             ax.set_ylim(0.5 * min(self.y), 2. * np.max(self.y))
+            ax.set_yscale('log')
         ax.set_xlabel(xlabel)
         ax.set_ylabel(ylabel)
         ax.tick_params(axis='x', pad=10)
@@ -393,9 +395,11 @@ class OpticalTransient(Transient):
         if axes is None:
             plt.tight_layout()
 
-        filename = f"{self.name}_{self.data_mode}_{plot_label}.png"
-        plt.savefig(join(self.transient_dir, filename))
-        plt.clf()
+        if plot_save:
+            filename = f"{self.name}_{self.data_mode}_{plot_label}.png"
+            plt.savefig(join(self.transient_dir, filename), bbox_inches='tight')
+            plt.clf()
+        return axes
 
     def plot_multiband(self, figure=None, axes=None, ncols=2, nrows=None, figsize=None, filters=None,
                        **plot_kwargs):
@@ -415,7 +419,7 @@ class OpticalTransient(Transient):
         colors = plot_kwargs.get("colors", self.get_colors(filters))
         xlabel = plot_kwargs.get("xlabel", self.xlabel)
         ylabel = plot_kwargs.get("ylabel", self.ylabel)
-        plot_label = plot_kwargs.get("plot_label", "multiband_lc")
+        plot_label = plot_kwargs.get("plot_label", "multiband_data")
 
         if figure is None or axes is None:
             if nrows is None:
@@ -464,3 +468,13 @@ class OpticalTransient(Transient):
         plt.subplots_adjust(wspace=wspace, hspace=hspace)
         plt.savefig(join(self.transient_dir, filename), bbox_inches="tight")
         return axes
+
+    def plot_lightcurve(self, model, filename=None, axes=None, plot_save=True, plot_show=True, random_models=100,
+                        posterior=None, outdir='.', model_kwargs=None, **kwargs):
+
+        axes = axes or plt.gca()
+        axes = self.plot_data(axes=axes, plot_save=False)
+
+        super(OpticalTransient, self).plot_lightcurve(
+            model=model, filename=filename, axes=axes, plot_save=plot_save, plot_show=plot_show,
+            random_models=random_models, posterior=posterior, outdir=outdir, model_kwargs=model_kwargs, **kwargs)

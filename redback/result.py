@@ -47,8 +47,16 @@ class RedbackResult(Result):
     def transient(self):
         return TRANSIENT_DICT[self.transient_type](**self.meta_data)
 
-    def plot_lightcurve(self, **kwargs):
-        model = model_library.all_models_dict[self.model]
+    def plot_lightcurve(self, model=None, **kwargs):
+        """
+
+        Parameters
+        ----------
+        model: callable, optional
+            User specified model. Otherwise, will try to figure out the model from the meta data.
+        """
+        if model is None:
+            model = model_library.all_models_dict[self.model]
         self.transient.plot_lightcurve(model=model, posterior=self.posterior, outdir=self.outdir,
                                        model_kwargs=self.model_kwargs, **kwargs)
 
