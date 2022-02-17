@@ -7,7 +7,7 @@ import astropy.units as uu # noqa
 import astropy.constants as cc # noqa
 from redback.utils import interpolated_barnes_and_kasen_thermalisation_efficiency, blackbody_to_flux_density, electron_fraction_from_kappa
 
-def metzger_magnetar_boosted_kilonova_model(time, redshift, frequencies, mej, vej, beta, kappa_r, l0, tau_sd, nn, thermalisation_efficiency, **kwargs):
+def metzger_magnetar_boosted_kilonova_model(time, redshift, mej, vej, beta, kappa_r, l0, tau_sd, nn, thermalisation_efficiency, **kwargs):
     """
     :param time: observer frame time
     :param redshift: redshift
@@ -21,8 +21,10 @@ def metzger_magnetar_boosted_kilonova_model(time, redshift, frequencies, mej, ve
     :param nn: braking index
     :param thermalisation_efficiency: magnetar thermalisation efficiency
     :param kwargs: neutron_precursor_switch, pair_cascade_switch, ejecta_albedo, magnetar_heating, output_format
+                    frequencies (frequencies to calculate - Must be same length as time array or a single number)
     :return: flux_density or magnitude
     """
+    frequencies = kwargs['frequencies']
     time_temp = np.geomspace(1e-4, 1e7, 300)
     bolometric_luminosity, temperature, r_photosphere = _metzger_magnetar_boosted_kilonova_model(time_temp, mej, vej, beta,
                                                                                                kappa_r, l0, tau_sd, nn,
@@ -327,12 +329,11 @@ def _comoving_blackbody_to_luminosity(frequencies, radius, temperature, doppler_
     return luminosity
 
 
-def mergernova(time, redshift, frequencies, mej, beta, ejecta_radius, kappa, n_ism, l0, tau_sd, nn,
+def mergernova(time, redshift, mej, beta, ejecta_radius, kappa, n_ism, l0, tau_sd, nn,
                thermalisation_efficiency, **kwargs):
     """
     :param time: time in observer frame
     :param redshift: redshift
-    :param frequencies: frequencies to calculate - Must be same length as time array or a single number
     :param mej: ejecta mass in solar units
     :param beta: initial ejecta velocity
     :param ejecta_radius: initial ejecta radius
@@ -343,8 +344,10 @@ def mergernova(time, redshift, frequencies, mej, beta, ejecta_radius, kappa, n_i
     :param nn: braking index
     :param thermalisation_efficiency: magnetar thermalisation efficiency
     :param kwargs: output_format - whether to output flux density or AB magnitude
+                    frequencies (frequencies to calculate - Must be same length as time array or a single number)
     :return: flux density or AB magnitude
     """
+    frequencies = kwargs['frequencies']
     time_temp = np.geomspace(1e-4, 1e8, 1000, endpoint=True)
     dl = cosmo.luminosity_distance(redshift).cgs.value
     _, bolometric_luminosity, comoving_temperature, radius, doppler_factor, _ = ejecta_dynamics_and_interaction(
