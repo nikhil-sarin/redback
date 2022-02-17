@@ -13,9 +13,9 @@ path = 'KNDir'
 # gets the photometry data for AT2017gfo, the KN associated with GW170817
 data = redback.getdata.get_open_transient_catalog_data(transient=kne, transient_type='kilonova')
 # creates a GRBDir with GRB
-kilonova = redback.kilonova.Kilonova.from_open_access_catalogue(name=kne, data_mode="photometry")
+kilonova = redback.kilonova.Kilonova.from_open_access_catalogue(name=kne, data_mode="flux_density")
+# kilonova.flux_density_data = True
 fig, axes = plt.subplots(3, 2, sharex=True, sharey=True, figsize=(12, 8))
-kilonova.flux_density_data = True
 bands = ["g"]
 kilonova.plot_multiband(figure=fig, axes=axes, filters=["g", "r", "i", "z", "y", "J"])
 
@@ -25,7 +25,7 @@ priors['redshift'] = 0.001
 model_kwargs = dict(frequencies=redback.utils.bands_to_frequencies(bands), output_format='flux_density')
 
 result = redback.fit_model(name=kne, transient=kilonova, model=model, sampler=sampler, model_kwargs=model_kwargs,
-                           path=path, prior=priors, data_mode='photometry', sample='rslice', nlive=200)
+                           path=path, prior=priors, data_mode='flux_density', sample='rslice', nlive=200)
 result.plot_corner()
 # returns a Kilonova result object
 result.plot_lightcurve(random_models=1000)

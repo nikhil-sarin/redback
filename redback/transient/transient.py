@@ -223,7 +223,8 @@ class Transient(object):
             model_kwargs = dict()
         axes = axes or plt.gca()
         # axes = self.plot_data(axes=axes)
-
+        axes.set_yscale('log')
+        # plt.semilogy()
         times = self._get_times(axes)
 
         posterior.sort_values(by='log_likelihood')
@@ -363,7 +364,7 @@ class OpticalTransient(Transient):
         colors = plot_kwargs.get("colors", self.get_colors(filters))
         xlabel = plot_kwargs.get("xlabel", self.xlabel)
         ylabel = plot_kwargs.get("ylabel", self.ylabel)
-        plot_label = plot_kwargs.get("plot_label", "lc")
+        plot_label = plot_kwargs.get("plot_label", "data")
 
         ax = axes or plt.gca()
         for idxs, band in zip(self.list_of_band_indices, self.unique_bands):
@@ -385,6 +386,7 @@ class OpticalTransient(Transient):
             ax.invert_yaxis()
         else:
             ax.set_ylim(0.5 * min(self.y), 2. * np.max(self.y))
+            ax.set_yscale('log')
         ax.set_xlabel(xlabel)
         ax.set_ylabel(ylabel)
         ax.tick_params(axis='x', pad=10)
@@ -395,7 +397,7 @@ class OpticalTransient(Transient):
 
         if plot_save:
             filename = f"{self.name}_{self.data_mode}_{plot_label}.png"
-            plt.savefig(join(self.transient_dir, filename))
+            plt.savefig(join(self.transient_dir, filename), bbox_inches='tight')
             plt.clf()
         return axes
 
@@ -417,7 +419,7 @@ class OpticalTransient(Transient):
         colors = plot_kwargs.get("colors", self.get_colors(filters))
         xlabel = plot_kwargs.get("xlabel", self.xlabel)
         ylabel = plot_kwargs.get("ylabel", self.ylabel)
-        plot_label = plot_kwargs.get("plot_label", "multiband_lc")
+        plot_label = plot_kwargs.get("plot_label", "multiband_data")
 
         if figure is None or axes is None:
             if nrows is None:

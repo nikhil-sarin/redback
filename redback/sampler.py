@@ -4,6 +4,7 @@ from pathlib import Path
 
 import bilby
 
+import redback.getdata
 from redback.likelihoods import GaussianLikelihood, GRBGaussianLikelihood, PoissonLikelihood
 from redback.model_library import all_models_dict
 from redback.result import RedbackResult
@@ -17,7 +18,7 @@ from redback.transient.tde import TDE
 dirname = os.path.dirname(__file__)
 
 
-def fit_model(name, transient, model, outdir=".", sampler='dynesty', nlive=2000, prior=None,
+def fit_model(name, transient, model, outdir=None, sampler='dynesty', nlive=2000, prior=None,
               walks=200, truncate=True, use_photon_index_prior=False, truncate_method='prompt_time_error',
               data_mode='flux', resume=True, save_format='json', model_kwargs=None, **kwargs):
     """
@@ -48,12 +49,12 @@ def fit_model(name, transient, model, outdir=".", sampler='dynesty', nlive=2000,
         prior = bilby.prior.PriorDict(filename=f"{dirname}/Priors/{model}.prior")
 
     if isinstance(transient, Afterglow):
-        return _fit_grb(name=name, transient=transient, model=model, outdir=outdir, sampler=sampler, nlive=nlive,
+        return _fit_grb(transient=transient, model=model, outdir=outdir, sampler=sampler, nlive=nlive,
                         prior=prior, walks=walks, truncate=truncate, use_photon_index_prior=use_photon_index_prior,
                         truncate_method=truncate_method, data_mode=data_mode, resume=resume,
                         save_format=save_format, model_kwargs=model_kwargs, **kwargs)
     elif isinstance(transient, Kilonova):
-        return _fit_kilonova(name=name, transient=transient, model=model, outdir=outdir, sampler=sampler, nlive=nlive,
+        return _fit_kilonova(transient=transient, model=model, outdir=outdir, sampler=sampler, nlive=nlive,
                              prior=prior, walks=walks, truncate=truncate, use_photon_index_prior=use_photon_index_prior,
                              truncate_method=truncate_method, data_mode=data_mode, resume=resume,
                              save_format=save_format, model_kwargs=model_kwargs, **kwargs)
@@ -77,7 +78,7 @@ def fit_model(name, transient, model, outdir=".", sampler='dynesty', nlive=2000,
         raise ValueError(f'Source type {transient.__class__.__name__} not known')
 
 
-def _fit_grb(name, transient, model, outdir, label=None, sampler='dynesty', nlive=3000, prior=None, walks=1000,
+def _fit_grb(transient, model, outdir=None, label=None, sampler='dynesty', nlive=3000, prior=None, walks=1000,
              use_photon_index_prior=False, data_mode='flux', resume=True, save_format='json',
              model_kwargs=None, **kwargs):
     if use_photon_index_prior:
@@ -87,14 +88,16 @@ def _fit_grb(name, transient, model, outdir, label=None, sampler='dynesty', nliv
         else:
             prior['alpha_1'] = bilby.prior.Gaussian(mu=-(transient.photon_index + 1), sigma=0.1,
                                                     latex_label=r'$\alpha_{1}$')
-
-
-    outdir = f"{outdir}/GRB{name}/{model.__name__}"
+    if outdir is None:
+        outdir, _, _ = redback.getdata.afterglow_directory_structure(
+            grb=transient._stripped_name, data_mode=data_mode, instrument='')
+        outdir = f"{outdir}/{model.__name__}"
     Path(outdir).mkdir(parents=True, exist_ok=True)
 
-    label = data_mode
-    if use_photon_index_prior:
-        label += '_photon_index'
+    if label is None:
+        label = data_mode
+        if use_photon_index_prior:
+            label += '_photon_index'
 
     if transient.flux_density_data or transient.photometry_data:
         x, x_err, y, y_err = transient.get_filtered_data()
@@ -116,18 +119,17 @@ def _fit_grb(name, transient, model, outdir, label=None, sampler='dynesty', nliv
     return result
 
 
-def _fit_kilonova(name, transient, model, outdir, sampler='dynesty', nlive=3000, prior=None, walks=1000,
-                  use_photon_index_prior=False, data_mode='flux', resume=True, save_format='json',
-                  model_kwargs=None, **kwargs):
+def _fit_kilonova(transient, model, outdir=None, label=None, sampler='dynesty', nlive=3000, prior=None, walks=1000,
+                  data_mode='flux', resume=True, save_format='json', model_kwargs=None, **kwargs):
 
-
-    outdir = f"{outdir}/{name}/{model.__name__}"
+    if outdir is None:
+        outdir, _, _ = redback.getdata.transient_directory_structure(
+            transient=transient.name, transient_type=transient.__class__.__name__)
+        outdir = f"{outdir}/{model.__name__}"
     Path(outdir).mkdir(parents=True, exist_ok=True)
 
     if label is None:
         label = f"{data_mode}"
-        if use_photon_index_prior:
-            label += '_photon_index'
 
     if transient.flux_density_data or transient.photometry_data:
         x, x_err, y, y_err = transient.get_filtered_data()
