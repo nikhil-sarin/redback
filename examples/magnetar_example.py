@@ -1,9 +1,6 @@
 import redback
-import bilby
-import matplotlib.pyplot as plt
 
-sampler = 'dynesty'
-# lots of different models implemented, including
+# We implemented many models implemented, including
 # afterglow/magnetar varieties/n_dimensional_fireball/shapelets/band function/kilonova/SNe/TDE
 model = 'evolving_magnetar'
 
@@ -15,12 +12,10 @@ redback.getdata.get_data(transient_type="afterglow", data_source="swift", event_
 # create Luminosity data
 afterglow = redback.afterglow.SGRB.from_swift_grb(name=GRB, data_mode='flux',
                                                   truncate=True, truncate_method="prompt_time_error")
-afterglow.analytical_flux_to_luminosity()
-
-# assert False
 
 # uses an analytical k-correction expression to create luminosity data if not already there.
 # Can also use a numerical k-correction through CIAO
+afterglow.analytical_flux_to_luminosity()
 
 # use default priors
 priors = redback.priors.get_priors(model=model, data_mode='luminosity')
@@ -37,9 +32,8 @@ priors = redback.priors.get_priors(model=model, data_mode='luminosity')
 # priors['II'] = bilby.core.prior.LogUniform(1e45, 1e46, 'II', latex_label = r'$I$')
 
 
-result = redback.fit_model(name=GRB, model=model, sampler=sampler, nlive=500, transient=afterglow,
-                           prior=priors, data_mode='luminosity', outdir="GRB_results")
+# Call redback.fit_model to run the sampler and obtain GRB result object
+result = redback.fit_model(name=GRB, model=model, sampler='dynesty', nlive=200, transient=afterglow,
+                           prior=priors, data_mode='luminosity', outdir="GRB_results", sample='rslice')
 
-
-# returns a GRB result object
 result.plot_lightcurve(random_models=1000)
