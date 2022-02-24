@@ -9,7 +9,7 @@ extinction_base_models = ['tophat', 'cocoon', 'gaussian',
                           'gaussiancore', 'gaussian',
                           'smoothpowerlaw', 'powerlawcore',
                           'tophat']
-
+import astropy.units as uu
 
 def extinction_with_afterglow_base_model(time, lognh, factor, **kwargs):
     import extinction  # noqa
@@ -31,6 +31,8 @@ def extinction_with_afterglow_base_model(time, lognh, factor, **kwargs):
     nh = 10 ** lognh
     av = nh / factor
     frequency = kwargs['frequency']
+    # convert to angstrom
+    frequency = (frequency * uu.Hz).to(uu.Angstrom).value
     # logger.info('Using the fitzpatrick99 extinction law')
     mag_extinction = extinction.fitzpatrick99(frequency, av, r_v=3.1)
     # read the base_model dict
@@ -56,6 +58,8 @@ def extinction_with_predeceleration(time, lognh, factor, **kwargs):
     nh = 10 ** lognh
     av = nh / factor
     frequency = kwargs['frequency']
+    # convert to angstrom
+    frequency = (frequency * uu.Hz).to(uu.Angstrom).value
     mag_extinction = extinction.fitzpatrick99(frequency, av, r_v=3.1)
     lc = extinction.apply(mag_extinction, lc, inplace=True)
     if kwargs['output_format'] == 'flux_density':

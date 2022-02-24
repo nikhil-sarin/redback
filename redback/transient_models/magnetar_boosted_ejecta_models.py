@@ -9,7 +9,7 @@ from redback.utils import interpolated_barnes_and_kasen_thermalisation_efficienc
 
 def metzger_magnetar_boosted_kilonova_model(time, redshift, mej, vej, beta, kappa_r, l0, tau_sd, nn, thermalisation_efficiency, **kwargs):
     """
-    :param time: observer frame time
+    :param time: observer frame time in days
     :param redshift: redshift
     :param frequencies: frequencies to calculate - Must be same length as time array or a single number
     :param mej: ejecta mass in solar masses
@@ -35,6 +35,7 @@ def metzger_magnetar_boosted_kilonova_model(time, redshift, mej, vej, beta, kapp
     temp_func = interp1d(time_temp, y=temperature)
     rad_func = interp1d(time_temp, y=r_photosphere)
     # convert to source frame time and frequency
+    time = time * 86400
     time = time / (1 + redshift)
     frequencies = frequencies / (1 + redshift)
 
@@ -51,7 +52,7 @@ def metzger_magnetar_boosted_kilonova_model(time, redshift, mej, vej, beta, kapp
 
 def _metzger_magnetar_boosted_kilonova_model(time, mej, vej, beta, kappa_r, l0, tau_sd, nn, thermalisation_efficiency, **kwargs):
     """
-    :param time: time array to evaluate model on in source frame
+    :param time: time array to evaluate model on in source frame in seconds
     :param redshift: redshift
     :param mej: ejecta mass in solar masses
     :param vej: minimum initial velocity
@@ -116,6 +117,7 @@ def _metzger_magnetar_boosted_kilonova_model(time, mej, vej, beta, kappa_r, l0, 
     td_v = np.zeros((mass_len, time_len))
     tau = np.zeros((mass_len, time_len))
     v_photosphere = np.zeros(time_len)
+    v0_array = np.zeros(time_len)
     r_photosphere = np.zeros(time_len)
 
     if neutron_precursor_switch == True:
@@ -146,6 +148,7 @@ def _metzger_magnetar_boosted_kilonova_model(time, mej, vej, beta, kappa_r, l0, 
         # # evolve the velocity due to pdv work of central shell of mass M and thermal energy Ev0
         kinetic_energy = kinetic_energy + (np.sum(energy_v[:, ii]) / time[ii]) * dt[ii]
         v0 = (2 * kinetic_energy / m0) ** 0.5
+        v0_array[ii] = v0
         v_m = v0 * (m_array / (mej)) ** (-1 / beta)
         v_m[v_m > 3e10] = speed_of_light
 
@@ -197,7 +200,7 @@ def _metzger_magnetar_boosted_kilonova_model(time, mej, vej, beta, kappa_r, l0, 
 
     temperature = (bolometric_luminosity / (4.0 * np.pi * (r_photosphere) ** (2.0) * sigma_sb)) ** (0.25)
 
-    return bolometric_luminosity, temperature, r_photosphere
+    return bolometric_luminosity, temperature, r_photosphere, v0_array
 
 def ejecta_dynamics_and_interaction(time, mej, beta, ejecta_radius, kappa, n_ism, l0, tau_sd, nn,
                                     thermalisation_efficiency, **kwargs):
@@ -332,7 +335,7 @@ def _comoving_blackbody_to_luminosity(frequencies, radius, temperature, doppler_
 def mergernova(time, redshift, mej, beta, ejecta_radius, kappa, n_ism, l0, tau_sd, nn,
                thermalisation_efficiency, **kwargs):
     """
-    :param time: time in observer frame
+    :param time: time in observer frame in days
     :param redshift: redshift
     :param mej: ejecta mass in solar units
     :param beta: initial ejecta velocity
@@ -360,6 +363,7 @@ def mergernova(time, redshift, mej, beta, ejecta_radius, kappa, n_ism, l0, tau_s
     rad_func = interp1d(time_temp, y=radius)
     d_func = interp1d(time_temp, y=doppler_factor)
     # convert to source frame time and frequency
+    time = time * 86400
     time = time / (1 + redshift)
     frequencies = frequencies / (1 + redshift)
 
@@ -418,7 +422,7 @@ def _trapped_magnetar_lum(time, mej, beta, ejecta_radius, kappa, n_ism, l0, tau_
 def _trapped_magnetar_flux(time, redshift, mej, beta, ejecta_radius, kappa, n_ism, l0, tau_sd, nn,
                            thermalisation_efficiency, photon_index, **kwargs):
     """
-    :param time: time in observer frame
+    :param time: time in observer frame in seconds
     :param redshift: redshift
     :param mej: ejecta mass in solar units
     :param beta: initial ejecta velocity
@@ -448,7 +452,7 @@ def _trapped_magnetar_flux(time, redshift, mej, beta, ejecta_radius, kappa, n_is
 def trapped_magnetar(time, redshift, mej, beta, ejecta_radius, kappa, n_ism, l0, tau_sd, nn, thermalisation_efficiency,
                      **kwargs):
     """
-    :param time: time in source frame or observer frame depending on kwarg
+    :param time: time in source frame or observer frame depending on output format in seconds
     :param redshift: redshift - not used if evaluating luminosity
     :param mej: ejecta mass in solar units
     :param beta: initial ejecta velocity
@@ -459,7 +463,7 @@ def trapped_magnetar(time, redshift, mej, beta, ejecta_radius, kappa, n_ism, l0,
     :param tau_sd: magnetar spin down damping timescale
     :param nn: braking index
     :param thermalisation_efficiency: magnetar thermalisation efficiency
-    :param kwargs: 'output_format' - whether to output flux density or AB magnitude
+    :param kwargs: 'output_format' - whether to output luminosity or flux
     :param kwargs: 'frequency' in Hertz to evaluate the mergernova emission - use a typical X-ray frequency
     :param kwargs: 'photon_index' only used if calculating the flux lightcurve
     :return: luminosity or integrated flux
