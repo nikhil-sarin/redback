@@ -529,7 +529,7 @@ def sort_open_access_data(transient, transient_type):
         data = data[data['system'] == 'AB']
         logger.info('Keeping only AB magnitude data')
 
-        data['flux_density(mjy)'] = calc_flux_density_from_ABmag(data['magnitude'].values)
+        data['flux_density(mjy)'] = calc_flux_density_from_ABmag(data['magnitude'].values).value
         data['flux_density_error'] = calc_flux_density_error(magnitude=data['magnitude'].values,
                                                              magnitude_error=data['e_magnitude'].values,
                                                              reference_flux=3631,
@@ -554,7 +554,7 @@ def sort_open_access_data(transient, transient_type):
 
         timeofevent = Time(timeofevent, format='mjd')
         tt = Time(np.asarray(data['time'], dtype=float), format='mjd')
-        data['time (days)'] = (tt - timeofevent).to(uu.day)
+        data['time (days)'] = (tt - timeofevent).to(uu.day).value
         data['band'] = np.array([b.replace("'", "") for b in data['band']])
         data.to_csv(fullfilename, sep=',', index=False)
         logger.info(f'Congratulations, you now have a nice data file: {fullfilename}')
