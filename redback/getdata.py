@@ -555,6 +555,7 @@ def sort_open_access_data(transient, transient_type):
         timeofevent = Time(timeofevent, format='mjd')
         tt = Time(np.asarray(data['time'], dtype=float), format='mjd')
         data['time (days)'] = (tt - timeofevent).to(uu.day)
+        data['band'] = np.array([b.replace("'", "") for b in data['band']])
         data.to_csv(fullfilename, sep=',', index=False)
         logger.info(f'Congratulations, you now have a nice data file: {fullfilename}')
     return data
