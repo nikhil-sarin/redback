@@ -365,7 +365,7 @@ class TestGRBReferenceFiles(unittest.TestCase):
         self.downloaded_file = ""
 
     def tearDown(self) -> None:
-        # shutil.rmtree('GRBData')
+        shutil.rmtree('GRBData')
         del self.downloaded_file
 
     def _compare_files(self):
