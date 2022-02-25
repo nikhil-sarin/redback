@@ -15,7 +15,30 @@ class TDE(OpticalTransient):
             flux_density: np.ndarray = None, flux_density_err: np.ndarray = None, magnitude: np.ndarray = None,
             magnitude_err: np.ndarray = None, bands: np.ndarray = None, system: np.ndarray = None,
             active_bands: Union[np.ndarray, str] = 'all', use_phase_model: bool = False, **kwargs: dict) -> None:
+        """
 
+        Parameters
+        ----------
+        name
+        data_mode
+        time
+        time_err
+        time_mjd
+        time_mjd_err
+        time_rest_frame
+        time_rest_frame_err
+        Lum50
+        Lum50_err
+        flux_density
+        flux_density_err
+        magnitude
+        magnitude_err
+        bands
+        system
+        active_bands
+        use_phase_model
+        kwargs
+        """
         super().__init__(time=time, time_err=time_err, time_rest_frame=time_rest_frame, time_mjd=time_mjd,
                          time_mjd_err=time_mjd_err, time_rest_frame_err=time_rest_frame_err, Lum50=Lum50,
                          Lum50_err=Lum50_err, flux_density=flux_density, flux_density_err=flux_density_err,
@@ -26,10 +49,22 @@ class TDE(OpticalTransient):
 
     @property
     def event_table(self) -> str:
+        """
+
+        Returns
+        -------
+
+        """
         return f'tidal_disruption_event/{self.name}/metadata.csv'
 
     @property
     def transient_dir(self) -> str:
+        """
+
+        Returns
+        -------
+
+        """
         transient_dir, _, _ = transient_directory_structure(
             transient=self.name, transient_type='tidal_disruption_event')
         return transient_dir
