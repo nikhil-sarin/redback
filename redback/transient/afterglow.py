@@ -207,7 +207,8 @@ class Afterglow(Transient):
 
     def truncate(self, truncate_method: str = 'prompt_time_error') -> None:
         """
-        Truncate the data using the specified method.
+        Truncate the data using the specified method. See `redback.transient.afterglow.Truncator` for
+        documentation of the truncation methods.
 
         Parameters
         ----------
@@ -277,9 +278,11 @@ class Afterglow(Transient):
 
     def _get_redshift_for_luminosity_calculation(self) -> Union[float, None]:
         """
+        Gets redshift or defaults to 0.75.
 
         Returns
         -------
+        Union[float, None]: Redshift value
 
         """
         if self.redshift is None:
@@ -290,6 +293,9 @@ class Afterglow(Transient):
         return self.redshift
 
     def _set_t90(self) -> None:
+        """
+        Sets t90 value from meta data table.
+        """
         try:
             t90 = self.meta_data.query('GRB == @self._stripped_name')['BAT T90 [sec]'].values[0]
             if t90 == 0.:
@@ -300,14 +306,39 @@ class Afterglow(Transient):
 
     @staticmethod
     def __clean_string(string: str) -> float:
+        """
+        Removes superfluous characters from a string. Relevant for redshift, photon index, and t90 values.
+
+        Parameters
+        ----------
+        string: str
+            String to be cleaned.
+
+        Returns
+        -------
+        float: The cleaned string converted into a float.
+        """
         for r in ["PL", "CPL", ",", "C", "~", " ", 'Gemini:emission', '()']:
             string = string.replace(r, "")
         return float(string)
 
     def analytical_flux_to_luminosity(self) -> None:
+        """
+        Converts flux to luminosity using the analytical method.
+        """
         self._convert_flux_to_luminosity(conversion_method="analytical")
 
     def numerical_flux_to_luminosity(self, counts_to_flux_absorbed: float, counts_to_flux_unabsorbed: float) -> None:
+        """
+        Converts flux to luminosity using the numerical method.
+
+        Parameters
+        ----------
+        counts_to_flux_absorbed: float
+            Absorbed counts to flux ratio - a conversion of the count rate to flux.
+        counts_to_flux_unabsorbed: float
+            Unabsorbed counts to flux ratio - a conversion of the count rate to flux.
+        """
         self._convert_flux_to_luminosity(
             counts_to_flux_absorbed=counts_to_flux_absorbed, counts_to_flux_unabsorbed=counts_to_flux_unabsorbed,
             conversion_method="numerical")
@@ -315,6 +346,19 @@ class Afterglow(Transient):
     def _convert_flux_to_luminosity(
             self, conversion_method: str = "analytical", counts_to_flux_absorbed: float = 1.,
             counts_to_flux_unabsorbed: float = 1.) -> None:
+        """
+        Converts flux to luminosity data. Redshift needs to be set. Changes data mode to luminosity and
+        saves luminosity data.
+
+        Parameters
+        ----------
+        conversion_method: str, optional
+        Either 'analytical' or 'numerical' with the standard `FluxToLuminosityConverter`
+        counts_to_flux_absorbed: float
+            Absorbed counts to flux ratio - a conversion of the count rate to flux.
+        counts_to_flux_unabsorbed: float
+            Unabsorbed counts to flux ratio - a conversion of the count rate to flux.
+        """
         if self.luminosity_data:
             logger.warning('The data is already in luminosity mode, returning.')
             return
@@ -334,10 +378,18 @@ class Afterglow(Transient):
 
     def plot_data(self, axes: matplotlib.axes.Axes = None, colour: str = 'k') -> matplotlib.axes.Axes:
         """
-        plots the data
-        GRB is the telephone number of the GRB
-        :param axes:
-        :param colour:
+        Plots the Afterglow lightcurve and returns Axes.
+
+        Parameters
+        ----------
+        axes : Union[matplotlib.axes.Axes, None], optional
+            Matplotlib axes to plot the lightcurve into. Useful for user specific modifications to the plot.
+        colour: str, optional
+            Colour of the data.
+
+        Returns
+        ----------
+        matplotlib.axes.Axes: The axes with the plot.
         """
 
         x_err = [np.abs(self.x_err[1, :]), self.x_err[0, :]]
@@ -390,6 +442,27 @@ class Truncator(object):
     def __init__(
             self, x: np.ndarray, x_err: np.ndarray, y: np.ndarray, y_err: np.ndarray, time: np.ndarray,
             time_err: np.ndarray, truncate_method: str = 'prompt_time_error') -> None:
+        """
+        Truncation class for the truncation behaviour in `Afterglow`. This class can be subclassed and passed
+        into `Afterglow` if user specific truncation is desired.
+
+        Parameters
+        ----------
+        x: np.ndarray
+            X-axis (time) data.
+        x_err: np.ndarray
+            X-axis (time)  error data.
+        y: np.ndarray
+            Y-axis (flux/flux density/ counts) data
+        y_err: np.ndarray
+            Y-axis (flux/flux density/ counts) error data
+        time: np.ndarray
+            Time to be used for default truncation method
+        time_err: np.ndarray
+            Time error to be used for default truncation method
+        truncate_method: str, optional
+            Must be from Truncator.TRUNCATE_METHODS ('prompt_time_error', 'left_of_max', 'default')
+        """
         self.x = x
         self.x_err = x_err
         self.y = y
@@ -399,6 +472,13 @@ class Truncator(object):
         self.truncate_method = truncate_method
 
     def truncate(self) -> tuple:
+        """
+        Executes the truncation and returns data as a tuple.
+
+        Returns
+        -------
+        tuple: The truncated data (x, x_err, y, y_err).
+        """
         if self.truncate_method == 'prompt_time_error':
             return self.truncate_prompt_time_error()
         elif self.truncate_method == 'left_of_max':
@@ -407,8 +487,15 @@ class Truncator(object):
             return self.truncate_default()
 
     def truncate_prompt_time_error(self) -> tuple:
+        """
+        Truncate using the prompt time error method. Does not data points after 2.0 seconds.
+
+        Returns
+        -------
+        tuple: The truncated data (x, x_err, y, y_err).
+        """
         mask1 = self.x_err[0, :] > 0.0025
-        mask2 = self.x < 2.0  # dont truncate if data point is after 2.0 seconds
+        mask2 = self.x < 2.0
         mask = np.logical_and(mask1, mask2)
         self.x = self.x[~mask]
         self.x_err = self.x_err[:, ~mask]
@@ -417,14 +504,40 @@ class Truncator(object):
         return self.x, self.x_err, self.y, self.y_err
 
     def truncate_left_of_max(self) -> tuple:
+        """
+        Truncate all data left of the maximum.
+
+        Returns
+        -------
+        tuple: The truncated data (x, x_err, y, y_err).
+        """
         return self._truncate_by_index(index=np.argmax(self.y))
 
     def truncate_default(self) -> tuple:
+        """
+        Truncate using the default method.
+
+        Returns
+        -------
+        tuple: The truncated data (x, x_err, y, y_err).
+        """
         truncate = self.time_err[0, :] > 0.1
         index = len(self.time) - (len(self.time[truncate]) + 2)
         return self._truncate_by_index(index=index)
 
-    def _truncate_by_index(self, index: Union[int, np.ndarray]) -> tuple:
+    def _truncate_by_index(self, index: int) -> tuple:
+        """
+        Truncate data left of a given index.
+
+        Parameters
+        ----------
+        index: int
+            The index at which to truncate.
+
+        Returns
+        -------
+        tuple: The truncated data (x, x_err, y, y_err).
+        """
         self.x = self.x[index:]
         self.x_err = self.x_err[:, index:]
         self.y = self.y[index:]
@@ -440,6 +553,32 @@ class FluxToLuminosityConverter(object):
             self, redshift: float, photon_index: float, time: np.ndarray, time_err: np.ndarray, flux: np.ndarray,
             flux_err: np.ndarray, counts_to_flux_absorbed: float = 1., counts_to_flux_unabsorbed: float = 1.,
             conversion_method: str = "analytical") -> None:
+        """
+        Flux to luminosity conversion class for the conversion behaviour in `Afterglow`.
+        This class can be subclassed and passed into `Afterglow` if user specific conversion is desired.
+
+        Parameters
+        ----------
+        redshift: float
+            The redshift value to use.
+        photon_index: float
+            The photon index value to use.
+        time: np.ndarray
+            Time data.
+        time_err: np.ndarray
+            Time error data.
+        flux: np.ndarray
+            Flux data.
+        flux_err: np.ndarray
+            Flux error data.
+        counts_to_flux_absorbed: float
+            Absorbed counts to flux ratio - a conversion of the count rate to flux.
+        counts_to_flux_unabsorbed: float
+            Unabsorbed counts to flux ratio - a conversion of the count rate to flux.
+        conversion_method: str, optional
+            The conversion method to use. Must be from `FluxToLuminosityConverter.CONVERSION_METHODS`
+            ('analytical' or 'numerical')
+        """
         self.redshift = redshift
         self.photon_index = photon_index
         self.time = time
@@ -452,16 +591,51 @@ class FluxToLuminosityConverter(object):
 
     @property
     def counts_to_flux_fraction(self) -> float:
+        """
+        Fraction of `counts_to_flux_absorbed` to `counts_to_flux_unabsorbed`.
+        Returns
+        -------
+        float: The counts to flux fraction.
+        """
         return self.counts_to_flux_unabsorbed/self.counts_to_flux_absorbed
 
     @property
     def luminosity_distance(self) -> float:
+        """
+        Luminosity distance given the redshift value.
+
+        Returns
+        -------
+        float: The luminosity distance.
+        """
         return cosmo.luminosity_distance(self.redshift).cgs.value
 
     def get_isotropic_bolometric_flux(self, k_corr: float) -> float:
+        """
+        Calculates the isotropic bolometric flux given the k-correction
+
+        Parameters
+        ----------
+        k_corr: float
+            The k-correction value.
+        Returns
+        -------
+        float: The isotropic bolometric flux.
+        """
         return (self.luminosity_distance ** 2.) * 4. * np.pi * k_corr
 
     def get_k_correction(self) -> Union[float, None]:
+        """
+        Calculates the k-correction depending on the conversion method.
+        analytical: Use the redshift and the photon index.
+        numerical: Call to `sherpa` package for the calculation.
+
+        Returns
+        -------
+        Union[float, None]: The k-correction.
+        Return None if 'numerical' conversion method is set but sherpa is not installed.
+
+        """
         if self.conversion_method == "analytical":
             return (1 + self.redshift) ** (self.photon_index - 2)
         elif self.conversion_method == "numerical":
@@ -486,15 +660,39 @@ class FluxToLuminosityConverter(object):
             return sherpa.calc_kcorr(self.redshift, obs_elow, obs_ehigh, bol_elow, bol_ehigh, id=1)
 
     def convert_flux_to_luminosity(self) -> tuple:
+        """
+        Calculates k-correction and converts the flux to luminosity.
+
+        Returns
+        -------
+        tuple: The rest frame times and luminosities in the format (x, x_err, y, y_err)
+        """
         k_corr = self.get_k_correction()
         self._calculate_rest_frame_time_and_luminosity(
-            counts_to_flux_fraction=1,
+            counts_to_flux_fraction=self.counts_to_flux_fraction,
             isotropic_bolometric_flux=self.get_isotropic_bolometric_flux(k_corr=k_corr),
             redshift=self.redshift)
         return self.time_rest_frame, self.time_rest_frame_err, self.Lum50, self.Lum50_err
 
     def _calculate_rest_frame_time_and_luminosity(
             self, counts_to_flux_fraction: float, isotropic_bolometric_flux: float, redshift: float) -> None:
+        """
+        Carries out flux to luminosity conversion.
+
+        Parameters
+        ----------
+        counts_to_flux_fraction: float
+            Fraction of `counts_to_flux_absorbed` to `counts_to_flux_unabsorbed`.
+        isotropic_bolometric_flux: float
+            Isotropic bolometric flux:
+        redshift: float
+            Redshift
+
+        Returns
+        -------
+        Carries out the conversion.
+
+        """
         self.Lum50 = self.flux * counts_to_flux_fraction * isotropic_bolometric_flux * 1e-50
         self.Lum50_err = self.flux_err * isotropic_bolometric_flux * 1e-50
         self.time_rest_frame = self.time / (1 + redshift)
