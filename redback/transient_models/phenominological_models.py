@@ -1,6 +1,6 @@
 import numpy as np
 
-def exponential_power(time,  a_1, alpha_1, alpha_2, tpeak, **kwargs):
+def exponential_powerlaw(time, a_1, alpha_1, alpha_2, tpeak, **kwargs):
     """
     :param time: time array in seconds
     :param a_1: exponential amplitude scale
