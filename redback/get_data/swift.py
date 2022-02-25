@@ -126,7 +126,8 @@ class SwiftDataGetter(object):
         response = requests.get(self.grb_website)
         if 'No Light curve available' in response.text:
             raise redback.redback_errors.WebsiteExist(
-                f'Problem loading the website for GRB{self.stripped_grb}. Are you sure GRB {self.stripped_grb} has Swift data?')
+                f'Problem loading the website for GRB{self.stripped_grb}. '
+                f'Are you sure GRB {self.stripped_grb} has Swift data?')
         if self.instrument == 'XRT' or self.transient_type == "prompt":
             self.download_directly()
         elif self.transient_type == 'afterglow':
@@ -245,6 +246,12 @@ class SwiftDataGetter(object):
         df.to_csv(self.fullfile, index=False, sep=',')
 
     def convert_flux_density_data_to_csv(self) -> None:
-        data = np.loadtxt(self.rawfile, skiprows=2, delimiter='\t')
-        df = pd.DataFrame(data=data, columns=self.FLUX_DENSITY_KEYS)
+        data = {key: [] for key in self.FLUX_DENSITY_KEYS}
+        with open(self.rawfile) as f:
+            for num, line in enumerate(f.readlines()):
+                if line[0].isnumeric() or line[0] == '-':
+                    line_items = line.split('\t')
+                    for key, item in zip(self.FLUX_DENSITY_KEYS, line_items):
+                        data[key].append(item.replace('\n', ''))
+        df = pd.DataFrame(data=data)
         df.to_csv(self.fullfile, index=False, sep=',')
