@@ -5,7 +5,7 @@ from redback.utils import logger
 SWIFT_PROMPT_BIN_SIZES = ['1s', '2ms', '8ms', '16ms', '64ms', '256ms']
 
 
-def afterglow_directory_structure(grb, data_mode, instrument='BAT+XRT'):
+def afterglow_directory_structure(grb: str, data_mode: str, instrument: str = 'BAT+XRT') -> tuple:
     grb_dir = f'GRBData/afterglow/{data_mode}/'
     check_directory_exists_and_if_not_mkdir(grb_dir)
 
@@ -23,7 +23,7 @@ def afterglow_directory_structure(grb, data_mode, instrument='BAT+XRT'):
     return grb_dir, rawfile, fullfile
 
 
-def prompt_directory_structure(grb, bin_size='2ms'):
+def prompt_directory_structure(grb: str, bin_size: str = '2ms') -> tuple:
     if bin_size not in SWIFT_PROMPT_BIN_SIZES:
         raise ValueError(f'Bin size {bin_size} not in allowed bin sizes.\n'
                          f'Use one of the following: {SWIFT_PROMPT_BIN_SIZES}')
@@ -35,7 +35,7 @@ def prompt_directory_structure(grb, bin_size='2ms'):
     return grb_dir, rawfile_path, processed_file_path
 
 
-def transient_directory_structure(transient, transient_type):
+def transient_directory_structure(transient: str, transient_type: str) -> tuple:
     open_transient_dir = transient_type + '/' + transient + '/'
     rawfile_path = open_transient_dir + transient + '_rawdata.csv'
     fullfile_path = open_transient_dir + transient + '_data.csv'

@@ -4,7 +4,7 @@ import pandas as pd
 dirname = os.path.dirname(__file__)
 
 
-def get_trigger_number(grb):
+def get_trigger_number(grb: str) -> str:
     grb_table = get_grb_table()
     trigger = grb_table.query('GRB == @grb')['Trigger Number']
     if len(trigger) == 0:
@@ -13,7 +13,7 @@ def get_trigger_number(grb):
         return trigger.values[0]
 
 
-def get_grb_table():
+def get_grb_table() -> pd.DataFrame:
     short_table = os.path.join(dirname, '../tables/SGRB_table.txt')
     long_table = os.path.join(dirname, '../tables/LGRB_table.txt')
     sgrb = pd.read_csv(short_table, header=0,

@@ -33,7 +33,7 @@ class SwiftDataGetter(object):
                         "flux_100_350 [counts/s/det]", "flux_100_350_err [counts/s/det]", "flux_15_350 [counts/s/det]",
                         "flux_15_350_err [counts/s/det]"]
 
-    def __init__(self, grb, transient_type, data_mode, instrument='BAT+XRT', bin_size=None):
+    def __init__(self, grb: str, transient_type: str, data_mode: str, instrument: str = 'BAT+XRT', bin_size: str = None) -> None:
         self.grb = grb
         self.transient_type = transient_type
         self.instrument = instrument
@@ -45,35 +45,43 @@ class SwiftDataGetter(object):
         self.create_directory_structure()
 
     @property
-    def data_mode(self):
+    def data_mode(self) -> str:
         return self._data_mode
 
     @data_mode.setter
-    def data_mode(self, data_mode):
+    def data_mode(self, data_mode: str) -> None:
         if data_mode not in self.VALID_DATA_MODES:
             raise ValueError("Swift does not have {} data".format(self.data_mode))
         self._data_mode = data_mode
 
     @property
-    def instrument(self):
+    def instrument(self) -> str:
         return self._instrument
 
     @instrument.setter
-    def instrument(self, instrument):
+    def instrument(self, instrument: str) -> None:
         if instrument not in self.VALID_INSTRUMENTS:
             raise ValueError("Swift does not have {} instrument mode".format(self.instrument))
         self._instrument = instrument
 
     @property
-    def stripped_grb(self):
+    def grb(self) -> str:
+        return self._grb
+
+    @grb.setter
+    def grb(self, grb: str) -> None:
+        self._grb = "GRB" + grb.lstrip('GRB')
+
+    @property
+    def stripped_grb(self) -> str:
         return self.grb.lstrip('GRB')
 
     @property
-    def trigger(self):
+    def trigger(self) -> str:
         logger.info('Getting trigger number')
         return redback.get_data.utils.get_trigger_number(self.stripped_grb)
 
-    def get_swift_id_from_grb(self):
+    def get_swift_id_from_grb(self) -> str:
         data = astropy.io.ascii.read(f'{dirname.rstrip("get_data/")}/tables/summary_general_swift_bat.txt')
         triggers = list(data['col2'])
         event_names = list(data['col1'])
@@ -84,7 +92,7 @@ class SwiftDataGetter(object):
         return swift_id
 
     @property
-    def grb_website(self):
+    def grb_website(self) -> str:
         if self.transient_type == 'prompt':
             return f"https://swift.gsfc.nasa.gov/results/batgrbcat/{self.grb}/data_product/" \
                    f"{self.get_swift_id_from_grb()}-results/lc/{self.bin_size}_lc_ascii.dat"
@@ -93,14 +101,14 @@ class SwiftDataGetter(object):
         elif self.instrument == 'XRT':
             return f'https://www.swift.ac.uk/xrt_curves/00{self.trigger}/flux.qdp'
 
-    def get_data(self):
+    def get_data(self) -> None:
         self.create_directory_structure()
         logger.info(f'opening Swift website for {self.grb}')
         self.collect_data()
         self.convert_raw_data_to_csv()
         logger.info(f'Congratulations, you now have a nice data file: {self.fullfile}')
 
-    def create_directory_structure(self):
+    def create_directory_structure(self) -> None:
         if self.transient_type == 'afterglow':
             self.grbdir, self.rawfile, self.fullfile = \
                 redback.get_data.directory.afterglow_directory_structure(
@@ -110,7 +118,7 @@ class SwiftDataGetter(object):
                 redback.get_data.directory.prompt_directory_structure(
                     grb=self.grb, bin_size=self.bin_size)
 
-    def collect_data(self):
+    def collect_data(self) -> None:
         if os.path.isfile(self.rawfile):
             logger.warning('The raw data file already exists. Returning.')
             return
@@ -127,7 +135,7 @@ class SwiftDataGetter(object):
             elif self.data_mode == 'flux_density':
                 self.download_flux_density_data()
 
-    def download_flux_density_data(self):
+    def download_flux_density_data(self) -> None:
         driver = fetch_driver()
         try:
             driver.get(self.grb_website)
@@ -148,7 +156,7 @@ class SwiftDataGetter(object):
             driver.quit()
             urllib.request.urlcleanup()
 
-    def download_integrated_flux_data(self):
+    def download_integrated_flux_data(self) -> None:
         driver = fetch_driver()
         try:
             driver.get(self.grb_website)
@@ -182,7 +190,7 @@ class SwiftDataGetter(object):
             driver.quit()
             urllib.request.urlcleanup()
 
-    def download_directly(self):
+    def download_directly(self) -> None:
         try:
             urllib.request.urlretrieve(self.grb_website, self.rawfile)
             logger.info(f'Congratulations, you now have raw {self.instrument} {self.transient_type} '
@@ -194,7 +202,7 @@ class SwiftDataGetter(object):
         finally:
             urllib.request.urlcleanup()
 
-    def convert_raw_data_to_csv(self):
+    def convert_raw_data_to_csv(self) -> None:
         if os.path.isfile(self.fullfile):
             logger.warning('The processed data file already exists. Returning.')
         if self.instrument == 'XRT':
@@ -204,25 +212,25 @@ class SwiftDataGetter(object):
         elif self.transient_type == 'prompt':
             self.convert_raw_prompt_data_to_csv()
 
-    def convert_xrt_data_to_csv(self):
+    def convert_xrt_data_to_csv(self) -> None:
         data = np.loadtxt(self.rawfile, comments=['!', 'READ', 'NO'])
         data = {key: data[:, i] for i, key in enumerate(self.XRT_DATA_KEYS)}
         data = pd.DataFrame(data)
         data = data[data["Pos. flux err [erg cm^{-2} s^{-1}]"] != 0.]
         data.to_csv(self.fullfile, index=False, sep=',')
 
-    def convert_raw_afterglow_data_to_csv(self):
+    def convert_raw_afterglow_data_to_csv(self) -> None:
         if self.data_mode == 'flux':
             self.convert_integrated_flux_data_to_csv()
         if self.data_mode == 'flux_density':
             self.convert_flux_density_data_to_csv()
 
-    def convert_raw_prompt_data_to_csv(self):
+    def convert_raw_prompt_data_to_csv(self) -> None:
         data = np.loadtxt(self.rawfile)
         df = pd.DataFrame(data=data, columns=self.PROMPT_DATA_KEYS)
         df.to_csv(self.fullfile, index=False, sep=',')
 
-    def convert_integrated_flux_data_to_csv(self):
+    def convert_integrated_flux_data_to_csv(self) -> None:
         data = {key: [] for key in self.INTEGRATED_FLUX_KEYS}
         with open(self.rawfile) as f:
             for num, line in enumerate(f.readlines()):
@@ -236,7 +244,7 @@ class SwiftDataGetter(object):
         df = pd.DataFrame(data=data)
         df.to_csv(self.fullfile, index=False, sep=',')
 
-    def convert_flux_density_data_to_csv(self):
+    def convert_flux_density_data_to_csv(self) -> None:
         data = np.loadtxt(self.rawfile, skiprows=2, delimiter='\t')
         df = pd.DataFrame(data=data, columns=self.FLUX_DENSITY_KEYS)
         df.to_csv(self.fullfile, index=False, sep=',')
