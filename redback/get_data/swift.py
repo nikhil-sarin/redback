@@ -33,7 +33,23 @@ class SwiftDataGetter(object):
                         "flux_100_350 [counts/s/det]", "flux_100_350_err [counts/s/det]", "flux_15_350 [counts/s/det]",
                         "flux_15_350_err [counts/s/det]"]
 
-    def __init__(self, grb: str, transient_type: str, data_mode: str, instrument: str = 'BAT+XRT', bin_size: str = None) -> None:
+    def __init__(
+            self, grb: str, transient_type: str, data_mode: str,
+            instrument: str = 'BAT+XRT', bin_size: str = None) -> None:
+        """
+        Constructor class for a data getter. The instance will be able to downloaded the specified Swift data.
+
+        Parameters
+        ----------
+        grb: str
+            Telephone number of GRB, e.g., 'GRB140903A' or '140903A' are valid inputs.
+        transient_type:
+            Type of the transient. Should be 'prompt' or 'afterglow'
+        data_mode:
+
+        instrument
+        bin_size
+        """
         self.grb = grb
         self.transient_type = transient_type
         self.instrument = instrument
