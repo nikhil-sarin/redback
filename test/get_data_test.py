@@ -365,7 +365,10 @@ class TestGRBReferenceFiles(unittest.TestCase):
         self.downloaded_file = ""
 
     def tearDown(self) -> None:
-        shutil.rmtree('GRBData')
+        shutil.rmtree('GRBData', ignore_errors=True)
+        shutil.rmtree('kilonova', ignore_errors=True)
+        shutil.rmtree('supernova', ignore_errors=True)
+        shutil.rmtree('tidal_disruption_event', ignore_errors=True)
         del self.downloaded_file
 
     def _compare_files(self):
@@ -404,6 +407,42 @@ class TestGRBReferenceFiles(unittest.TestCase):
         bin_size = "1s"
         self.downloaded_file = f"GRBData/prompt/flux/GRB070809_{bin_size}_lc.csv"
         redback.get_data.get_prompt_data_from_swift('GRB070809', bin_size=bin_size)
+        self._compare_files()
+
+    def test_open_catalog_kilonova_data(self):
+        redback.get_data.get_open_transient_catalog_data(transient="at2017gfo", transient_type="kilonova")
+
+        self.downloaded_file = f"kilonova/flux_density/at2017gfo.csv"
+        self._compare_files()
+
+        self.downloaded_file = f"kilonova/flux_density/at2017gfo_metadata.csv"
+        self._compare_files()
+
+        self.downloaded_file = f"kilonova/flux_density/at2017gfo_rawdata.csv"
+        self._compare_files()
+
+    def test_open_catalog_supernova_data(self):
+        redback.get_data.get_open_transient_catalog_data(transient="SN2011kl", transient_type="supernova")
+
+        self.downloaded_file = f"supernova/flux_density/SN2011kl.csv"
+        self._compare_files()
+
+        self.downloaded_file = f"supernova/flux_density/SN2011kl_metadata.csv"
+        self._compare_files()
+
+        self.downloaded_file = f"supernova/flux_density/SN2011kl_rawdata.csv"
+        self._compare_files()
+
+    def test_open_catalog_tde_data(self):
+        redback.get_data.get_open_transient_catalog_data(transient="PS18kh", transient_type="tidal_disruption_event")
+
+        self.downloaded_file = f"tidal_disruption_event/flux_density/PS18kh.csv"
+        self._compare_files()
+
+        self.downloaded_file = f"tidal_disruption_event/flux_density/PS18kh_metadata.csv"
+        self._compare_files()
+
+        self.downloaded_file = f"tidal_disruption_event/flux_density/PS18kh_rawdata.csv"
         self._compare_files()
 
     # def test_raw_swift_afterglow_flux_data(self):

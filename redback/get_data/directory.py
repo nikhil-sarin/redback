@@ -68,7 +68,7 @@ def prompt_directory_structure(grb: str, bin_size: str = '2ms') -> tuple:
     return grb_dir, rawfile_path, processed_file_path
 
 
-def transient_directory_structure(transient: str, transient_type: str) -> tuple:
+def transient_directory_structure(transient: str, transient_type: str, data_mode: str) -> tuple:
     """
 
     Parameters
@@ -77,12 +77,15 @@ def transient_directory_structure(transient: str, transient_type: str) -> tuple:
         Name of the transient.
     transient_type: str
         Type of the transient.
+    data_mode: str
+        Data mode.
 
     Returns
     -------
     tuple: The directory, the raw data file name, and the processed file name.
     """
-    open_transient_dir = transient_type + '/' + transient + '/'
+    open_transient_dir = transient_type + '/' + data_mode + '/'
+    check_directory_exists_and_if_not_mkdir(open_transient_dir)
     rawfile_path = open_transient_dir + transient + '_rawdata.csv'
-    fullfile_path = open_transient_dir + transient + '_data.csv'
+    fullfile_path = open_transient_dir + transient + '.csv'
     return open_transient_dir, rawfile_path, fullfile_path
