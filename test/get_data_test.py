@@ -362,39 +362,49 @@ class TestSwiftDataGetter(unittest.TestCase):
 class TestGRBReferenceFiles(unittest.TestCase):
 
     def setUp(self) -> None:
-        pass
+        self.downloaded_file = ""
 
     def tearDown(self) -> None:
-        shutil.rmtree('GRBData')
+        # shutil.rmtree('GRBData')
+        del self.downloaded_file
 
-    def _compare_files(self, reference_file, downloaded_file):
-        with open(reference_file, 'r') as rf:
-            with open(downloaded_file, 'r') as df:
+    def _compare_files(self):
+        with open(self.reference_file, 'r') as rf:
+            with open(self.downloaded_file, 'r') as df:
                 for l1, l2 in zip(rf.readlines(), df.readlines()):
                     self.assertEqual(l1, l2)
 
-    def test_swift_afterglow_flux_data(self):
-        downloaded_file = "GRBData/afterglow/flux/GRB070809_rawSwiftData.csv"
-        reference_file = f"reference_data/{downloaded_file}"
-        redback.get_data.get_afterglow_data_from_swift(grb='GRB070809', data_mode='flux')
-        self._compare_files(reference_file, downloaded_file)
+    @property
+    def reference_file(self):
+        return f"reference_data/{self.downloaded_file}"
 
-        downloaded_file = "GRBData/afterglow/flux/GRB070809.csv"
-        reference_file = f"reference_data/{downloaded_file}"
+    def test_swift_afterglow_flux_data(self):
+        # Raw File
+        self.downloaded_file = "GRBData/afterglow/flux/GRB070809_rawSwiftData.csv"
         redback.get_data.get_afterglow_data_from_swift(grb='GRB070809', data_mode='flux')
-        self._compare_files(reference_file, downloaded_file)
+        self._compare_files()
+
+        # Processed File
+        self.downloaded_file = "GRBData/afterglow/flux/GRB070809.csv"
+        redback.get_data.get_afterglow_data_from_swift(grb='GRB070809', data_mode='flux')
+        self._compare_files()
 
     def test_swift_xrt_flux_data(self):
-        downloaded_file = "GRBData/afterglow/flux/GRB070809_xrt_rawSwiftData.csv"
-        reference_file = f"reference_data/{downloaded_file}"
+        # Raw File
+        self.downloaded_file = "GRBData/afterglow/flux/GRB070809_xrt_rawSwiftData.csv"
         redback.get_data.get_xrt_data_from_swift(grb='GRB070809', data_mode='flux')
-        self._compare_files(reference_file, downloaded_file)
+        self._compare_files()
 
-        downloaded_file = "GRBData/afterglow/flux/GRB070809_xrt.csv"
-        reference_file = f"reference_data/{downloaded_file}"
+        # Processed File
+        self.downloaded_file = "GRBData/afterglow/flux/GRB070809_xrt.csv"
         redback.get_data.get_xrt_data_from_swift(grb='GRB070809', data_mode='flux')
-        self._compare_files(reference_file, downloaded_file)
+        self._compare_files()
 
+    def test_swift_prompt_data(self):
+        bin_size = "1s"
+        self.downloaded_file = f"GRBData/prompt/flux/GRB070809_{bin_size}_lc.csv"
+        redback.get_data.get_prompt_data_from_swift('GRB070809', bin_size=bin_size)
+        self._compare_files()
 
     # def test_raw_swift_afterglow_flux_data(self):
     #     reference_file = "reference_data/GRBData/GRB070809/afterglow/flux/GRB070809_rawSwiftData.csv"

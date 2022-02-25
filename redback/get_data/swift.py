@@ -74,10 +74,10 @@ class SwiftDataGetter(object):
         return redback.get_data.utils.get_trigger_number(self.stripped_grb)
 
     def get_swift_id_from_grb(self):
-        data = astropy.io.ascii.read(f'{dirname}/tables/summary_general_swift_bat.txt')
+        data = astropy.io.ascii.read(f'{dirname.rstrip("get_data/")}/tables/summary_general_swift_bat.txt')
         triggers = list(data['col2'])
         event_names = list(data['col1'])
-        swift_id = triggers[event_names.index(self.stripped_grb)]
+        swift_id = triggers[event_names.index(self.grb)]
         if len(swift_id) == 6:
             swift_id += "000"
             swift_id = swift_id.zfill(11)
@@ -104,10 +104,11 @@ class SwiftDataGetter(object):
         if self.transient_type == 'afterglow':
             self.grbdir, self.rawfile, self.fullfile = \
                 redback.get_data.directory.afterglow_directory_structure(
-                    grb=self.stripped_grb, data_mode=self.data_mode, instrument=self.instrument)
+                    grb=self.grb, data_mode=self.data_mode, instrument=self.instrument)
         elif self.transient_type == 'prompt':
             self.grbdir, self.rawfile, self.fullfile = \
-                redback.get_data.directory.prompt_directory_structure(grb=self.stripped_grb, bin_size=self.bin_size)
+                redback.get_data.directory.prompt_directory_structure(
+                    grb=self.grb, bin_size=self.bin_size)
 
     def collect_data(self):
         if os.path.isfile(self.rawfile):
