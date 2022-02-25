@@ -12,3 +12,5 @@ boltzmann_constant = cc.k_B.cgs.value
 km_cgs = uu.km.cgs.scale
 day_to_s = 86400
 au_cgs = uu.au.cgs.scale
+solar_radius = cc.R_sun.cgs.value
+graviational_constant = cc.G.cgs.value
