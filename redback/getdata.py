@@ -56,41 +56,6 @@ def _get_data_functions_dict():
             ("tidal_disruption_event", "open_data"): get_tidal_disruption_event_data_from_open_transient_catalog_data}
 
 
-def get_xrt_data_from_swift(grb, data_mode, **kwargs):
-    return redback.get_data.get_swift_data(grb=grb, transient_type='afterglow', data_mode=data_mode, instrument="XRT")
-
-
-def get_afterglow_data_from_swift(grb, data_mode, **kwargs):
-    return redback.get_data.get_swift_data(grb=grb, transient_type='afterglow', data_mode=data_mode, instrument="BAT+XRT")
-
-# def get_afterglow_data_from_swift(grb, data_mode='flux', **kwargs):
-#     rawfile, fullfile = collect_swift_data(grb, data_mode)
-#     sort_swift_data(rawfile, fullfile, data_mode)
-
-
-# def get_xrt_data_from_swift(grb, data_mode='flux', **kwargs):
-#     grbdir, rawfile, fullfile = afterglow_directory_structure(grb, data_mode, instrument='xrt')
-#     logger.info('Getting trigger number')
-#     trigger = get_trigger_number(grb)
-#     grb_website = 'https://www.swift.ac.uk/xrt_curves/00' + trigger + '/flux.qdp'
-#     response = requests.get(grb_website)
-#     if 'No Light curve available' in response.text:
-#         logger.warning('Problem loading the website for GRB {}. Are you sure GRB {} has Swift data?'.format(grb, grb))
-#         raise WebsiteExist('Problem loading the website for GRB {}'.format(grb))
-#
-#     urllib.request.urlretrieve(grb_website, rawfile)
-#     logger.info('Congratulations, you now have raw XRT data for GRB {}'.format(grb))
-#     data = process_xrt_data(rawfile)
-#     data.to_csv(fullfile, sep=',', index=False)
-#     logger.info('Congratulations, you now have processed XRT data for GRB {}'.format(grb))
-
-
-# def get_prompt_data_from_swift(grb, bin_size='2ms', **kwargs):
-#     collect_swift_prompt_data(grb=grb, bin_size=bin_size)
-#     data = sort_swift_prompt_data(grb=grb)
-#     return data
-
-
 def get_prompt_data_from_fermi(grb, **kwargs):
     return None
 
@@ -207,38 +172,6 @@ def get_grb_alias(transient):
         grb_alias = None
     return grb_alias
 
-#
-# def sort_swift_integrated_flux_data(rawfile, fullfile):
-#     keys = ["Time [s]", "Pos. time err [s]", "Neg. time err [s]", "Flux [erg cm^{-2} s^{-1}]",
-#             "Pos. flux err [erg cm^{-2} s^{-1}]", "Neg. flux err [erg cm^{-2} s^{-1}]", "Instrument"]
-#
-#     data = {key: [] for key in keys}
-#     with open(rawfile) as f:
-#         instrument = None
-#         for num, line in enumerate(f.readlines()):
-#             if line == "!\n":
-#                 continue
-#             elif "READ TERR 1 2" in line or "NO NO NO NO NO NO" in line:
-#                 continue
-#             elif 'batSNR4flux' in line:
-#                 instrument = 'batSNR4flux'
-#             elif 'xrtpcflux' in line:
-#                 instrument = 'xrtpcflux'
-#                 print(instrument)
-#             elif 'xrtwtflux' in line:
-#                 instrument = 'xrtwtflux'
-#                 print(instrument)
-#             else:
-#                 line_items = line.split('\t')
-#                 line_items.append(instrument)
-#                 for key, item in zip(keys, line_items):
-#                     data[key].append(item.replace('\n', ''))
-#
-#     df = pd.DataFrame(data=data)
-#     df.to_csv(fullfile, index=False)
-#     logger.info('Congratulations, you now have a nice data file: {}'.format(fullfile))
-#
-#
 # def sort_swift_flux_density_data(rawfile, fullfile):
 #     data = np.loadtxt(rawfile, skiprows=2, delimiter='\t')
 #     df = pd.DataFrame(data=data, columns=['Time [s]', 'Time err plus [s]', 'Time err minus [s]',
