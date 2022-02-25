@@ -7,10 +7,11 @@ import astropy.units as uu # noqa
 import astropy.constants as cc # noqa
 from redback.utils import interpolated_barnes_and_kasen_thermalisation_efficiency, blackbody_to_flux_density, electron_fraction_from_kappa
 
-def metzger_magnetar_boosted_kilonova_model(time, redshift, frequencies, mej, vej, beta, kappa_r, l0, tau_sd, nn, thermalisation_efficiency, **kwargs):
+def metzger_magnetar_boosted_kilonova_model(time, redshift, mej, vej, beta, kappa_r, l0, tau_sd, nn, thermalisation_efficiency, **kwargs):
     """
     :param time: observer frame time
     :param redshift: redshift
+    :param frequencies: frequencies to calculate - Must be same length as time array or a single number
     :param mej: ejecta mass in solar masses
     :param vej: minimum initial velocity
     :param beta: velocity power law slope (M=v^-beta)
@@ -20,15 +21,14 @@ def metzger_magnetar_boosted_kilonova_model(time, redshift, frequencies, mej, ve
     :param nn: braking index
     :param thermalisation_efficiency: magnetar thermalisation efficiency
     :param kwargs: neutron_precursor_switch, pair_cascade_switch, ejecta_albedo, magnetar_heating, output_format
+                    frequencies (frequencies to calculate - Must be same length as time array or a single number)
     :return: flux_density or magnitude
     """
+    frequencies = kwargs['frequencies']
     time_temp = np.geomspace(1e-4, 1e7, 300)
     bolometric_luminosity, temperature, r_photosphere = _metzger_magnetar_boosted_kilonova_model(time_temp, mej, vej, beta,
                                                                                                kappa_r, l0, tau_sd, nn,
                                                                                                thermalisation_efficiency, **kwargs)
-    #k correction/source frame
-    time = time / (1 + redshift)
-    frequencies = frequencies / (1 + redshift)
     dl = cosmo.luminosity_distance(redshift).cgs.value
 
     # interpolate properties onto observation times
@@ -143,12 +143,6 @@ def _metzger_magnetar_boosted_kilonova_model(time, mej, vej, beta, kappa_r, l0, 
 
     # solve ODE using euler method for all mass shells v
     for ii in range(time_len - 1):
-        # this works for kn only
-        # td_v[:-1, ii] = (kappa_r* m_array[:-1] * solar_mass * 3)/ (4*np.pi*v_m[:-1] * speed_of_light * time[ii] * beta)
-        # lum_rad[:-1, ii] = energy_v[:-1, ii] / (td_v[:-1, ii] + time[ii] * (v_m[:-1] / speed_of_light))
-        # energy_v[:-1, ii + 1] = (edotr[:-1, ii] - (energy_v[:-1, ii] / time[ii]) - lum_rad[:-1, ii]) * dt[ii] + energy_v[:-1, ii]
-        # lum_rad[:-1, ii] = lum_rad[:-1, ii] * dm * solar_mass
-
         # # evolve the velocity due to pdv work of central shell of mass M and thermal energy Ev0
         kinetic_energy = kinetic_energy + (np.sum(energy_v[:, ii]) / time[ii]) * dt[ii]
         v0 = (2 * kinetic_energy / m0) ** 0.5
@@ -335,12 +329,11 @@ def _comoving_blackbody_to_luminosity(frequencies, radius, temperature, doppler_
     return luminosity
 
 
-def mergernova(time, redshift, frequencies, mej, beta, ejecta_radius, kappa, n_ism, l0, tau_sd, nn,
+def mergernova(time, redshift, mej, beta, ejecta_radius, kappa, n_ism, l0, tau_sd, nn,
                thermalisation_efficiency, **kwargs):
     """
     :param time: time in observer frame
     :param redshift: redshift
-    :param frequencies: frequencies to calculate - Must be same length as time array or a single number
     :param mej: ejecta mass in solar units
     :param beta: initial ejecta velocity
     :param ejecta_radius: initial ejecta radius
@@ -351,8 +344,10 @@ def mergernova(time, redshift, frequencies, mej, beta, ejecta_radius, kappa, n_i
     :param nn: braking index
     :param thermalisation_efficiency: magnetar thermalisation efficiency
     :param kwargs: output_format - whether to output flux density or AB magnitude
+                    frequencies (frequencies to calculate - Must be same length as time array or a single number)
     :return: flux density or AB magnitude
     """
+    frequencies = kwargs['frequencies']
     time_temp = np.geomspace(1e-4, 1e8, 1000, endpoint=True)
     dl = cosmo.luminosity_distance(redshift).cgs.value
     _, bolometric_luminosity, comoving_temperature, radius, doppler_factor, _ = ejecta_dynamics_and_interaction(

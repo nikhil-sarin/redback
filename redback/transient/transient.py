@@ -345,7 +345,7 @@ class Transient(object):
             Sets active bands based on array given.
             If argument is 'all', all unique bands in `self.bands` will be used.
         """
-        if active_bands == 'all':
+        if str(active_bands) == 'all':
             self._active_bands = np.unique(self.bands)
         else:
             self._active_bands = active_bands
@@ -466,8 +466,8 @@ class Transient(object):
         return axes
 
     def plot_lightcurve(
-            self, model: callable, filename: str = None, axes: matplotlib.axes.Axes = None,  plot_save: bool = True, 
-            plot_show: bool = True, random_models: int = 100, posterior: pd.DataFrame = None, outdir: str = '.', 
+            self, model: callable, filename: str = None, axes: matplotlib.axes.Axes = None,  plot_save: bool = True,
+            plot_show: bool = True, random_models: int = 100, posterior: pd.DataFrame = None, outdir: str = '.',
             model_kwargs: dict = None, **kwargs: object) -> None:
         """
 
@@ -496,10 +496,13 @@ class Transient(object):
             No current function.
         """
         if filename is None:
-            filename = f"{self.name}_lightcurve.png"
+            filename = f"{self.data_mode}_lightcurve.png"
+        if model_kwargs is None:
+            model_kwargs = dict()
         axes = axes or plt.gca()
-        axes = self.plot_data(axes=axes)
-
+        # axes = self.plot_data(axes=axes)
+        axes.set_yscale('log')
+        # plt.semilogy()
         times = self._get_times(axes)
 
         posterior.sort_values(by='log_likelihood')
@@ -515,8 +518,8 @@ class Transient(object):
         plt.clf()
 
     def plot_multiband_lightcurve(
-            self, model: callable, filename: str = None, axes: matplotlib.axes.Axes = None, plot_save: bool = True, 
-            plot_show: bool = True, random_models: int = 100, posterior: pd.DataFrame = None, outdir: str = '.', 
+            self, model: callable, filename: str = None, axes: matplotlib.axes.Axes = None, plot_save: bool = True,
+            plot_show: bool = True, random_models: int = 100, posterior: pd.DataFrame = None, outdir: str = '.',
             model_kwargs: dict = None, **kwargs: object) -> None:
         """
 
@@ -635,12 +638,12 @@ class OpticalTransient(Transient):
             return time_days, time_mjd, flux_density, flux_density_err, magnitude, magnitude_err, bands, system
 
     def __init__(
-            self, name: str, data_mode: str = 'photometry', time: np.ndarray = None, time_err: np.ndarray = None, 
-            time_mjd: np.ndarray = None, time_mjd_err: np.ndarray = None, time_rest_frame: np.ndarray = None, 
+            self, name: str, data_mode: str = 'photometry', time: np.ndarray = None, time_err: np.ndarray = None,
+            time_mjd: np.ndarray = None, time_mjd_err: np.ndarray = None, time_rest_frame: np.ndarray = None,
             time_rest_frame_err: np.ndarray = None, Lum50: np.ndarray = None, Lum50_err: np.ndarray = None,
-            flux_density: np.ndarray = None, flux_density_err: np.ndarray = None, magnitude: np.ndarray = None, 
-            magnitude_err: np.ndarray = None, frequency: np.ndarray = None, bands: np.ndarray = None, 
-            system: np.ndarray = None, active_bands: Union[np.ndarray, str] = 'all', use_phase_model: bool = False, 
+            flux_density: np.ndarray = None, flux_density_err: np.ndarray = None, magnitude: np.ndarray = None,
+            magnitude_err: np.ndarray = None, frequency: np.ndarray = None, bands: np.ndarray = None,
+            system: np.ndarray = None, active_bands: Union[np.ndarray, str] = 'all', use_phase_model: bool = False,
             **kwargs: dict) -> None:
         """
         This is a general constructor for the Transient class. Note that you only need to give data corresponding to
@@ -789,8 +792,8 @@ class OpticalTransient(Transient):
         return transient_dir
 
     def plot_data(
-            self, axes: matplotlib.axes.Axes = None, filters: np.ndarray = None, plot_others: bool = True, 
-            **plot_kwargs: dict) -> None:
+            self, axes: matplotlib.axes.Axes = None, filters: np.ndarray = None, plot_others: bool = True,
+            plot_save: bool = True, **plot_kwargs: dict) -> None:
         """
         Plots the data.
 
@@ -810,18 +813,18 @@ class OpticalTransient(Transient):
             ylabel: Plot ylabel
             plot_label: Additional filename label appended to the default name
         """
+        if filters is None:
+            filters = self.default_filter
+
         errorbar_fmt = plot_kwargs.get("errorbar_fmt", "x")
         colors = plot_kwargs.get("colors", self.get_colors(filters))
         xlabel = plot_kwargs.get("xlabel", self.xlabel)
         ylabel = plot_kwargs.get("ylabel", self.ylabel)
-        plot_label = plot_kwargs.get("plot_label", "lc")
-
-        if filters is None:
-            filters = self.default_filters
+        plot_label = plot_kwargs.get("plot_label", "data")
 
         ax = axes or plt.gca()
         for indices, band in zip(self.list_of_band_indices, self.unique_bands):
-            x_err = self.x_err[indices] if self is not None else self.x_err
+            x_err = self.x_err[indices] if self.x_err is not None else self.x_err
             if band in filters:
                 color = colors[filters.index(band)]
                 label = band
@@ -839,6 +842,7 @@ class OpticalTransient(Transient):
             ax.invert_yaxis()
         else:
             ax.set_ylim(0.5 * min(self.y), 2. * np.max(self.y))
+            ax.set_yscale('log')
         ax.set_xlabel(xlabel)
         ax.set_ylabel(ylabel)
         ax.tick_params(axis='x', pad=10)
@@ -847,9 +851,11 @@ class OpticalTransient(Transient):
         if axes is None:
             plt.tight_layout()
 
-        filename = f"{self.name}_{self.data_mode}_{plot_label}.png"
-        plt.savefig(join(self.transient_dir, filename))
-        plt.clf()
+        if plot_save:
+            filename = f"{self.name}_{self.data_mode}_{plot_label}.png"
+            plt.savefig(join(self.transient_dir, filename), bbox_inches='tight')
+            plt.clf()
+        return axes
 
     def plot_multiband(
             self, figure: matplotlib.figure.Figure = None, axes: matplotlib.axes.Axes = None, ncols: int = 2,
@@ -903,7 +909,7 @@ class OpticalTransient(Transient):
         colors = plot_kwargs.get("colors", self.get_colors(filters))
         xlabel = plot_kwargs.get("xlabel", self.xlabel)
         ylabel = plot_kwargs.get("ylabel", self.ylabel)
-        plot_label = plot_kwargs.get("plot_label", "multiband_lc")
+        plot_label = plot_kwargs.get("plot_label", "multiband_data")
 
         if figure is None or axes is None:
             if nrows is None:
@@ -952,3 +958,13 @@ class OpticalTransient(Transient):
         plt.subplots_adjust(wspace=wspace, hspace=hspace)
         plt.savefig(join(self.transient_dir, filename), bbox_inches="tight")
         return axes
+
+    def plot_lightcurve(self, model, filename=None, axes=None, plot_save=True, plot_show=True, random_models=100,
+                        posterior=None, outdir='.', model_kwargs=None, **kwargs):
+
+        axes = axes or plt.gca()
+        axes = self.plot_data(axes=axes, plot_save=False)
+
+        super(OpticalTransient, self).plot_lightcurve(
+            model=model, filename=filename, axes=axes, plot_save=plot_save, plot_show=plot_show,
+            random_models=random_models, posterior=posterior, outdir=outdir, model_kwargs=model_kwargs, **kwargs)

@@ -161,23 +161,12 @@ def sort_integrated_flux_data(rawfile, fullfile):
 
     data = {key: [] for key in keys}
     with open(rawfile) as f:
-        instrument = None
         for num, line in enumerate(f.readlines()):
-            if line == "!\n":
-                continue
-            elif "READ TERR 1 2" in line or "NO NO NO NO NO NO" in line:
-                continue
-            elif 'batSNR4flux' in line:
-                instrument = 'batSNR4flux'
-            elif 'xrtpcflux' in line:
-                instrument = 'xrtpcflux'
-                print(instrument)
-            elif 'xrtwtflux' in line:
-                instrument = 'xrtwtflux'
-                print(instrument)
-            else:
+            if line.startswith('!'):
+                instrument = line[2:].replace('\n', '')
+            if line[0].isnumeric() or line[0] == '-':
                 line_items = line.split('\t')
-                line_items.append(instrument)
+                data['Instrument'] = instrument
                 for key, item in zip(keys, line_items):
                     data[key].append(item.replace('\n', ''))
 
@@ -566,6 +555,7 @@ def sort_open_access_data(transient, transient_type):
         timeofevent = Time(timeofevent, format='mjd')
         tt = Time(np.asarray(data['time'], dtype=float), format='mjd')
         data['time (days)'] = (tt - timeofevent).to(uu.day)
+        data['band'] = np.array([b.replace("'", "") for b in data['band']])
         data.to_csv(fullfilename, sep=',', index=False)
         logger.info(f'Congratulations, you now have a nice data file: {fullfilename}')
     return data
