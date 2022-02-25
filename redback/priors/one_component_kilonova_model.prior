@@ -1,0 +1,4 @@
+redshift = Uniform(1e-6, 0.1, 'redshift', latex_label = r'$z$')
+mej = Uniform(1e-4, 0.1, 'mej', latex_label = r'$M_{\mathrm{ej}} [M_{\odot}]$')
+vej = Uniform(0.1, 0.7, 'vej', latex_label = r'$v_{\mathrm{ej}} [c]$')
+kappa = Uniform(1, 30, 'kappa', latex_label = r'$\kappa$')

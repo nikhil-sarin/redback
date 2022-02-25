@@ -1,5 +1,5 @@
 from astropy.cosmology import Planck18 as cosmo  # noqa
-
+from inspect import isfunction
 from redback.utils import logger
 
 try:
@@ -14,6 +14,11 @@ except ModuleNotFoundError as e:
     logger.warning(e)
     afterglow = None
 
+jet_spreading_models = ['tophat', 'cocoon', 'gaussian',
+                          'kn_afterglow', 'cone_afterglow',
+                          'gaussiancore', 'gaussian',
+                          'smoothpowerlaw', 'powerlawcore',
+                          'tophat']
 
 def cocoon(time, redshift, umax, umin, loge0, k, mej, logn0, p, logepse, logepsb, ksin, g0, **kwargs):
     dl = cosmo.luminosity_distance(redshift).cgs.value
@@ -179,4 +184,21 @@ def tophat(time, redshift, thv, loge0, thc, logn0, p, logepse, logepsb, ksin, g0
          'xi_N': ksin, 'd_L': dl, 'z': redshift, 'L0': 0, 'q': 0, 'ts': 0, 'g0': g0,
          'spread': spread, 'latRes': latres, 'tRes': tres}
     flux_density = afterglow.fluxDensity(time, frequency, **Z)
+    return flux_density
+
+def afterglow_models_no_jet_spread(time, **kwargs):
+    from redback.model_library import modules_dict  # import model library in function to avoid circular dependency
+    base_model = kwargs['base_model']
+    if isfunction(base_model):
+        function = base_model
+    elif base_model not in jet_spreading_models:
+        logger.warning('{} is not implemented as a base model'.format(base_model))
+        raise ValueError('Please choose a different base model')
+    elif isinstance(base_model, str):
+        function = modules_dict['afterglow_models'][base_model]
+    else:
+        raise ValueError("Not a valid base model.")
+    kwargs['spread'] = False
+    kwargs.pop('g0')
+    flux_density = function(time, **kwargs)
     return flux_density

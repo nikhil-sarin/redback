@@ -35,9 +35,9 @@ def extinction_with_afterglow_base_model(time, lognh, factor, **kwargs):
     mag_extinction = extinction.fitzpatrick99(frequency, av, r_v=3.1)
     # read the base_model dict
     # logger.info('Using {} as the base model for extinction'.format(base_model))
-    flux = function(time, **kwargs)
-    flux = extinction.apply(mag_extinction, flux)
-    output_magnitude = calc_ABmag_from_flux_density(flux).value
+    flux_density = function(time, **kwargs)
+    flux_density = extinction.apply(mag_extinction, flux_density)
+    output_magnitude = calc_ABmag_from_flux_density(flux_density).value
     return output_magnitude
 
 
