@@ -3,6 +3,7 @@ import unittest
 from unittest.mock import MagicMock
 import redback
 import os
+import shutil
 
 
 class TestUtils(unittest.TestCase):
@@ -63,7 +64,7 @@ class TestSwiftDataGetter(unittest.TestCase):
             self.getter.data_mode = 'photometry'
 
     def set_valid_instrument(self):
-        for valid_instrument in ['BAT+XRT', 'xrt']:
+        for valid_instrument in ['BAT+XRT', 'XRT']:
             self.getter.instrument = valid_instrument
             self.assertEqual(valid_instrument, self.getter.instrument)
 
@@ -159,7 +160,7 @@ class TestSwiftDataGetter(unittest.TestCase):
     @mock.patch("os.path.isfile")
     def test_collect_data_xrt(self, isfile):
         isfile.return_value = False
-        self.getter.instrument = "xrt"
+        self.getter.instrument = "XRT"
         self.getter.download_directly = MagicMock()
         self.getter.download_integrated_flux_data = MagicMock()
         self.getter.download_flux_density_data = MagicMock()
@@ -279,7 +280,7 @@ class TestSwiftDataGetter(unittest.TestCase):
         self._test_converted_afterglow()
 
     def _download_xrt(self):
-        self.getter.instrument = 'xrt'
+        self.getter.instrument = 'XRT'
         self.getter.create_directory_structure()
         self.getter.download_directly()
 
@@ -357,6 +358,52 @@ class TestSwiftDataGetter(unittest.TestCase):
         self.getter.convert_raw_afterglow_data_to_csv.assert_not_called()
         self.getter.convert_raw_prompt_data_to_csv.assert_called_once()
 
+
+class TestGRBReferenceFiles(unittest.TestCase):
+
+    def setUp(self) -> None:
+        pass
+
+    def tearDown(self) -> None:
+        shutil.rmtree('GRBData')
+
+    def _compare_files(self, reference_file, downloaded_file):
+        with open(reference_file, 'r') as rf:
+            with open(downloaded_file, 'r') as df:
+                for l1, l2 in zip(rf.readlines(), df.readlines()):
+                    self.assertEqual(l1, l2)
+
+    def test_swift_afterglow_flux_data(self):
+        downloaded_file = "GRBData/afterglow/flux/GRB070809_rawSwiftData.csv"
+        reference_file = f"reference_data/{downloaded_file}"
+        redback.get_data.get_afterglow_data_from_swift(grb='GRB070809', data_mode='flux')
+        self._compare_files(reference_file, downloaded_file)
+
+        downloaded_file = "GRBData/afterglow/flux/GRB070809.csv"
+        reference_file = f"reference_data/{downloaded_file}"
+        redback.get_data.get_afterglow_data_from_swift(grb='GRB070809', data_mode='flux')
+        self._compare_files(reference_file, downloaded_file)
+
+    def test_swift_xrt_flux_data(self):
+        downloaded_file = "GRBData/afterglow/flux/GRB070809_xrt_rawSwiftData.csv"
+        reference_file = f"reference_data/{downloaded_file}"
+        redback.get_data.get_xrt_data_from_swift(grb='GRB070809', data_mode='flux')
+        self._compare_files(reference_file, downloaded_file)
+
+        downloaded_file = "GRBData/afterglow/flux/GRB070809_xrt.csv"
+        reference_file = f"reference_data/{downloaded_file}"
+        redback.get_data.get_xrt_data_from_swift(grb='GRB070809', data_mode='flux')
+        self._compare_files(reference_file, downloaded_file)
+
+
+    # def test_raw_swift_afterglow_flux_data(self):
+    #     reference_file = "reference_data/GRBData/GRB070809/afterglow/flux/GRB070809_rawSwiftData.csv"
+    #     downloaded_file = "GRBData/GRB070809/afterglow/flux/GRB070809_rawSwiftData.csv"
+    #     redback.get_data.get_afterglow_data_from_swift(grb='GRB070809', data_mode='flux')
+    #     with open(reference_file, 'r') as rf:
+    #         with open(downloaded_file, 'r') as df:
+    #             for l1, l2 in zip(rf.readlines(), df.readlines()):
+    #                 self.assertEqual(l1, l2)
 
 # class TestGetGRBTable(unittest.TestCase):
 #
