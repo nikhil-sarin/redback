@@ -220,24 +220,14 @@ class SwiftDataGetter(object):
     def convert_integrated_flux_data_to_csv(self):
         data = {key: [] for key in self.INTEGRATED_FLUX_KEYS}
         with open(self.rawfile) as f:
-            instrument = None
             for num, line in enumerate(f.readlines()):
-                if line == "!\n":
-                    continue
-                elif "READ TERR 1 2" in line or "NO NO NO NO NO NO" in line:
-                    continue
-                elif 'batSNR4flux' in line:
-                    instrument = 'batSNR4flux'
-                elif 'xrtpcflux' in line:
-                    instrument = 'xrtpcflux'
-                elif 'xrtwtflux' in line:
-                    instrument = 'xrtwtflux'
-                else:
+                if line.startswith('!'):
+                    instrument = line[2:].replace('\n', '')
+                if line[0].isnumeric() or line[0] == '-':
                     line_items = line.split('\t')
-                    line_items.append(instrument)
+                    data['Instrument'] = instrument
                     for key, item in zip(self.INTEGRATED_FLUX_KEYS, line_items):
                         data[key].append(item.replace('\n', ''))
-
         df = pd.DataFrame(data=data)
         df.to_csv(self.fullfile, index=False, sep=',')
 
