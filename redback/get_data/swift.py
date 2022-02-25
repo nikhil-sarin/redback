@@ -19,7 +19,7 @@ dirname = os.path.dirname(__file__)
 
 class SwiftDataGetter(object):
     VALID_DATA_MODES = {'flux', 'flux_density', 'prompt'}
-    VALID_INSTRUMENTS = {'BAT+XRT', 'xrt'}
+    VALID_INSTRUMENTS = {'BAT+XRT', 'XRT'}
 
     XRT_DATA_KEYS = ['Time [s]', "Pos. time err [s]", "Neg. time err [s]", "Flux [erg cm^{-2} s^{-1}]",
                      "Pos. flux err [erg cm^{-2} s^{-1}]", "Neg. flux err [erg cm^{-2} s^{-1}]"]
@@ -65,15 +65,19 @@ class SwiftDataGetter(object):
         self._instrument = instrument
 
     @property
+    def stripped_grb(self):
+        return self.grb.lstrip('GRB')
+
+    @property
     def trigger(self):
         logger.info('Getting trigger number')
-        return redback.get_data.utils.get_trigger_number(self.grb)
+        return redback.get_data.utils.get_trigger_number(self.stripped_grb)
 
     def get_swift_id_from_grb(self):
         data = astropy.io.ascii.read(f'{dirname}/tables/summary_general_swift_bat.txt')
         triggers = list(data['col2'])
         event_names = list(data['col1'])
-        swift_id = triggers[event_names.index(self.grb)]
+        swift_id = triggers[event_names.index(self.stripped_grb)]
         if len(swift_id) == 6:
             swift_id += "000"
             swift_id = swift_id.zfill(11)
@@ -86,12 +90,12 @@ class SwiftDataGetter(object):
                    f"{self.get_swift_id_from_grb()}-results/lc/{self.bin_size}_lc_ascii.dat"
         if self.instrument == 'BAT+XRT':
             return f'http://www.swift.ac.uk/burst_analyser/00{self.trigger}/'
-        elif self.instrument == 'xrt':
+        elif self.instrument == 'XRT':
             return f'https://www.swift.ac.uk/xrt_curves/00{self.trigger}/flux.qdp'
 
     def get_data(self):
         self.create_directory_structure()
-        logger.info(f'opening Swift website for GRB {self.grb}')
+        logger.info(f'opening Swift website for {self.grb}')
         self.collect_data()
         self.convert_raw_data_to_csv()
         logger.info(f'Congratulations, you now have a nice data file: {self.fullfile}')
@@ -99,11 +103,11 @@ class SwiftDataGetter(object):
     def create_directory_structure(self):
         if self.transient_type == 'afterglow':
             self.grbdir, self.rawfile, self.fullfile = \
-                redback.get_data.directory.afterglow_directory_structure(grb=self.grb, data_mode=self.data_mode,
-                                                                         instrument=self.instrument)
+                redback.get_data.directory.afterglow_directory_structure(
+                    grb=self.stripped_grb, data_mode=self.data_mode, instrument=self.instrument)
         elif self.transient_type == 'prompt':
             self.grbdir, self.rawfile, self.fullfile = \
-                redback.get_data.directory.prompt_directory_structure(grb=self.grb, bin_size=self.bin_size)
+                redback.get_data.directory.prompt_directory_structure(grb=self.stripped_grb, bin_size=self.bin_size)
 
     def collect_data(self):
         if os.path.isfile(self.rawfile):
@@ -113,8 +117,8 @@ class SwiftDataGetter(object):
         response = requests.get(self.grb_website)
         if 'No Light curve available' in response.text:
             raise redback.redback_errors.WebsiteExist(
-                f'Problem loading the website for GRB {self.grb}. Are you sure GRB {self.grb} has Swift data?')
-        if self.instrument == 'xrt' or self.transient_type == "prompt":
+                f'Problem loading the website for GRB{self.stripped_grb}. Are you sure GRB {self.stripped_grb} has Swift data?')
+        if self.instrument == 'XRT' or self.transient_type == "prompt":
             self.download_directly()
         elif self.transient_type == 'afterglow':
             if self.data_mode == 'flux':
@@ -133,9 +137,9 @@ class SwiftDataGetter(object):
             grb_url = driver.current_url
             # scrape the data
             urllib.request.urlretrieve(url=grb_url, filename=self.rawfile)
-            logger.info(f'Congratulations, you now have raw data for GRB {self.grb}')
+            logger.info(f'Congratulations, you now have raw data for {self.grb}')
         except Exception as e:
-            logger.warning(f'Cannot load the website for GRB {self.grb} \n'
+            logger.warning(f'Cannot load the website for {self.grb} \n'
                            f'Failed with exception: \n'
                            f'{e}')
         finally:
@@ -167,9 +171,9 @@ class SwiftDataGetter(object):
             grb_url = driver.current_url
             driver.quit()
             urllib.request.urlretrieve(grb_url, self.rawfile)
-            logger.info(f'Congratulations, you now have raw data for GRB {self.grb}')
+            logger.info(f'Congratulations, you now have raw data for {self.grb}')
         except Exception as e:
-            logger.warning(f'Cannot load the website for GRB {self.grb} \n'
+            logger.warning(f'Cannot load the website for {self.grb} \n'
                            f'Failed with exception: \n'
                            f'{e}')
         finally:
@@ -181,9 +185,9 @@ class SwiftDataGetter(object):
         try:
             urllib.request.urlretrieve(self.grb_website, self.rawfile)
             logger.info(f'Congratulations, you now have raw {self.instrument} {self.transient_type} '
-                        f'data for GRB {self.grb}')
+                        f'data for {self.grb}')
         except Exception as e:
-            logger.warning(f'Cannot load the website for GRB {self.grb} \n'
+            logger.warning(f'Cannot load the website for {self.grb} \n'
                            f'Failed with exception: \n'
                            f'{e}')
         finally:
@@ -192,7 +196,7 @@ class SwiftDataGetter(object):
     def convert_raw_data_to_csv(self):
         if os.path.isfile(self.fullfile):
             logger.warning('The processed data file already exists. Returning.')
-        if self.instrument == 'xrt':
+        if self.instrument == 'XRT':
             self.convert_xrt_data_to_csv()
         if self.transient_type == 'afterglow':
             self.convert_raw_afterglow_data_to_csv()

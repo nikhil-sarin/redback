@@ -8,7 +8,7 @@ def get_trigger_number(grb):
     grb_table = get_grb_table()
     trigger = grb_table.query('GRB == @grb')['Trigger Number']
     if len(trigger) == 0:
-        return '0'
+        raise TriggerNotFoundError(f"The trigger for {grb} does not exist in the table.")
     else:
         return trigger.values[0]
 
@@ -22,3 +22,7 @@ def get_grb_table():
                        error_bad_lines=False, delimiter='\t', dtype='str')
     frames = [lgrb, sgrb]
     return pd.concat(frames, ignore_index=True)
+
+
+class TriggerNotFoundError(Exception):
+    """ Exceptions raised when trigger is not found."""

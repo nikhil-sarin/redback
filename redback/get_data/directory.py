@@ -11,7 +11,7 @@ def afterglow_directory_structure(grb, data_mode, instrument='BAT+XRT'):
 
     path = f'{grb_dir}GRB{grb}'
 
-    if instrument == 'xrt':
+    if instrument == 'XRT':
         rawfile = f'{path}_xrt_rawSwiftData.csv'
         fullfile = f'{path}_xrt.csv'
         logger.warning('You are only downloading XRT data, you may not capture the tail of the prompt emission.')

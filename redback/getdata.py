@@ -16,6 +16,7 @@ from bilby.core.utils import check_directory_exists_and_if_not_mkdir
 
 from redback.utils import logger, fetch_driver, check_element, calc_flux_density_from_ABmag, calc_flux_density_error
 from redback.redback_errors import DataExists, WebsiteExist
+import redback
 
 dirname = os.path.dirname(__file__)
 
@@ -44,8 +45,8 @@ def get_data(transient_type, data_source, event_label, data_mode=None, **kwargs)
 
 def _get_data_functions_dict():
     return {
-            # ("afterglow", "swift"): get_afterglow_data_from_swift,
-            # ("afterglow", "swift_xrt"): get_xrt_data_from_swift,
+            ("afterglow", "swift"): get_afterglow_data_from_swift,
+            ("afterglow", "swift_xrt"): get_xrt_data_from_swift,
             # ("prompt", "swift"): get_prompt_data_from_swift,
             ("prompt", "fermi"): get_prompt_data_from_fermi,
             ("prompt", "konus"): get_prompt_data_from_konus,
@@ -54,6 +55,13 @@ def _get_data_functions_dict():
             ("supernova", "open_data"): get_supernova_data_from_open_transient_catalog_data,
             ("tidal_disruption_event", "open_data"): get_tidal_disruption_event_data_from_open_transient_catalog_data}
 
+
+def get_xrt_data_from_swift(grb, data_mode, **kwargs):
+    return redback.get_data.get_swift_data(grb=grb, transient_type='afterglow', data_mode=data_mode, instrument="XRT")
+
+
+def get_afterglow_data_from_swift(grb, data_mode, **kwargs):
+    return redback.get_data.get_swift_data(grb=grb, transient_type='afterglow', data_mode=data_mode, instrument="BAT+XRT")
 
 # def get_afterglow_data_from_swift(grb, data_mode='flux', **kwargs):
 #     rawfile, fullfile = collect_swift_data(grb, data_mode)
