@@ -39,7 +39,7 @@ class Afterglow(Transient):
         Parameters
         ----------
         name: str
-            Telephone number of SGRB, e.g., 'GRB140903A' or '140903A' are valid inputs
+            Telephone number of GRB, e.g., 'GRB140903A' or '140903A' are valid inputs
         data_mode: str, optional
             Data mode. Must be one from `Afterglow.DATA_MODES`.
         time: np.ndarray, optional
