@@ -1,12 +1,15 @@
 from redback.utils import calc_compactness_from_lambda
 
-class Dietrich_ujevic_18(object):
+class Dietrich_ujevic_17(object):
+    """
+    Relations to connect intrinsic GW parameters to extrinsic kilonova parameters from Dietrich and Ujevic 2017
+    """
     def __init__(self, mass_1, mass_2, lambda_1, lambda_2):
         self.mass_1 = mass_1
         self.mass_2 = mass_2
         self.lambda_1 = lambda_1
         self.lambda_2 = lambda_2
-
+        self.reference = 'https://ui.adsabs.harvard.edu/abs/2017CQGra..34j5014D/abstract'
         self.ejecta_mass = self.calculate_ejecta_mass()
         self.ejecta_velocity = self.calculate_ejecta_velocity()
 
