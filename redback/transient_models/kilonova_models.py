@@ -4,7 +4,8 @@ import pandas as pd
 from astropy.table import Table, Column
 from scipy.interpolate import interp1d
 from astropy.cosmology import Planck18 as cosmo  # noqa
-from redback.utils import interpolated_barnes_and_kasen_thermalisation_efficiency, electron_fraction_from_kappa, calc_kcorrected_properties
+from redback.utils import calc_kcorrected_properties, interpolated_barnes_and_kasen_thermalisation_efficiency, \
+    electron_fraction_from_kappa
 from redback.sed import blackbody_to_flux_density
 from redback.constants import *
 import astropy.units as uu
@@ -573,5 +574,3 @@ gwem_Bu2019rps_bolometric, gwem_Bu2019rps_magnitudes = _gwemlightcurve_interface
 gwem_Wo2020dyn_bolometric, gwem_Wo2020dyn_magnitudes = _gwemlightcurve_interface_factory("Wo2020dyn")
 gwem_Wo2020dw_bolometric, gwem_Wo2020dw_magnitudes = _gwemlightcurve_interface_factory("Wo2020dw")
 gwem_Bu2019nsbh_bolometric, gwem_Bu2019nsbh_magnitudes = _gwemlightcurve_interface_factory("Bu2019nsbh")
-
-

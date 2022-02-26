@@ -5,7 +5,8 @@ from astropy.cosmology import Planck18 as cosmo  # noqa
 from scipy.interpolate import interp1d
 import astropy.units as uu # noqa
 import astropy.constants as cc # noqa
-from redback.utils import interpolated_barnes_and_kasen_thermalisation_efficiency, electron_fraction_from_kappa, calc_kcorrected_properties
+from redback.utils import calc_kcorrected_properties, interpolated_barnes_and_kasen_thermalisation_efficiency, \
+    electron_fraction_from_kappa
 from redback.sed import blackbody_to_flux_density
 
 
@@ -201,7 +202,7 @@ def _metzger_magnetar_boosted_kilonova_model(time, mej, vej, beta, kappa_r, l0, 
 
     temperature = (bolometric_luminosity / (4.0 * np.pi * (r_photosphere) ** (2.0) * sigma_sb)) ** (0.25)
 
-    return bolometric_luminosity, temperature, r_photosphere, v0_array
+    return bolometric_luminosity, temperature, r_photosphere
 
 def ejecta_dynamics_and_interaction(time, mej, beta, ejecta_radius, kappa, n_ism, l0, tau_sd, nn,
                                     thermalisation_efficiency, **kwargs):
