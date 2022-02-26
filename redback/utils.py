@@ -6,7 +6,6 @@ from collections import namedtuple
 from inspect import getmembers, isfunction
 from pathlib import Path
 
-import astropy.units as uu
 import bilby
 import matplotlib.pyplot as plt
 import numpy as np
@@ -26,6 +25,11 @@ plt.style.use(filename)
 
 logger = logging.getLogger('redback')
 _bilby_logger = logging.getLogger('bilby')
+
+def calc_kcorrected_properties(frequencies, redshift, time):
+    time = time / (1 + redshift)
+    frequencies = frequencies * (1 + redshift)
+    return frequencies, time
 
 def calc_compactness_from_lambda(lambda_1):
     """
@@ -66,28 +70,6 @@ def calc_baryonic_mass(mass, compactness):
     mb = mass*(1 + 0.8857853174243745*compactness**1.2082383572002926)
     return mb
 
-def blackbody_to_flux_density(temperature, r_photosphere, dl, frequencies):
-    """
-    A general blackbody_to_flux_density formula
-    :param temperature: effective temperature in kelvin
-    :param r_photosphere: photosphere radius in cm
-    :param dl: luminosity_distance in cm
-    :param frequencies: frequencies to calculate in Hz - Must be same length as time array or a single number
-    :return: flux_density
-    """
-    ## adding units back in to ensure dimensions are correct
-    frequencies = frequencies * uu.Hz
-    radius = r_photosphere * uu.cm
-    dl = dl * uu.cm
-    temperature = temperature * uu.K
-    planck = cc.h.cgs
-    speed_of_light = cc.c.cgs
-    boltzmann_constant = cc.k_B.cgs
-    num = 2 * np.pi * planck * frequencies ** 3 * radius ** 2
-    denom = dl ** 2 * speed_of_light ** 2
-    frac = 1. / (np.expm1((planck * frequencies) / (boltzmann_constant * temperature)))
-    flux_density = num / denom * frac
-    return flux_density
 
 def interpolated_barnes_and_kasen_thermalisation_efficiency(mej, vej):
     """
