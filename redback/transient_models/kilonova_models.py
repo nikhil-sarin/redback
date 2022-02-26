@@ -4,7 +4,8 @@ import pandas as pd
 from astropy.table import Table, Column
 from scipy.interpolate import interp1d
 from astropy.cosmology import Planck18 as cosmo  # noqa
-from redback.utils import interpolated_barnes_and_kasen_thermalisation_efficiency, blackbody_to_flux_density, electron_fraction_from_kappa
+from redback.utils import interpolated_barnes_and_kasen_thermalisation_efficiency, electron_fraction_from_kappa, calc_kcorrected_properties
+from redback.sed import blackbody_to_flux_density
 from redback.constants import *
 import astropy.units as uu
 import astropy.constants as cc
@@ -54,8 +55,7 @@ def _kilonova_hr(time, redshift, mass, velocity_array, kappa_array, beta, **kwar
     frequencies = kwargs['frequencies']
     # convert to source frame time and frequency
     time = time * 86400
-    time = time / (1 + redshift)
-    frequencies = frequencies / (1 + redshift)
+    frequencies, time = calc_kcorrected_properties(frequencies=frequencies, redshift=redshift, time=time)
     dl = cosmo.luminosity_distance(redshift).cgs.value
     _, temperature, r_photosphere = _kilonova_hr_sourceframe(time, mass, velocity_array, kappa_array, beta)
 
@@ -124,8 +124,7 @@ def three_component_kilonova_model(time, redshift, mej_1, vej_1, temperature_flo
     frequencies = kwargs['frequencies']
     # convert to source frame time and frequency
     time = time * 86400
-    time = time / (1 + redshift)
-    frequencies = frequencies / (1 + redshift)
+    frequencies, time = calc_kcorrected_properties(frequencies=frequencies, redshift=redshift, time=time)
     dl = cosmo.luminosity_distance(redshift).cgs.value
 
     ff = np.zeros(len(time))
@@ -174,8 +173,7 @@ def two_component_kilonova_model(time, redshift, mej_1, vej_1, temperature_floor
     frequencies = kwargs['frequencies']
     # convert to source frame time and frequency
     time = time * 86400
-    time = time / (1 + redshift)
-    frequencies = frequencies / (1 + redshift)
+    frequencies, time = calc_kcorrected_properties(frequencies=frequencies, redshift=redshift, time=time)
     dl = cosmo.luminosity_distance(redshift).cgs.value
 
     ff = np.zeros(len(time))
@@ -249,8 +247,7 @@ def one_component_kilonova_model(time, redshift, mej, vej, kappa, **kwargs):
     temp_func = interp1d(time_temp, y=temperature)
     rad_func = interp1d(time_temp, y=r_photosphere)
     # convert to source frame time and frequency
-    time = time / (1 + redshift)
-    frequencies = frequencies / (1 + redshift)
+    frequencies, time = calc_kcorrected_properties(frequencies=frequencies, redshift=redshift, time=time)
 
     temp = temp_func(time)
     photosphere = rad_func(time)
@@ -329,8 +326,7 @@ def metzger_kilonova_model(time, redshift, mej, vej, beta, kappa_r, **kwargs):
     temp_func = interp1d(time_temp, y=temperature)
     rad_func = interp1d(time_temp, y=r_photosphere)
     # convert to source frame time and frequency
-    time = time / (1 + redshift)
-    frequencies = frequencies / (1 + redshift)
+    frequencies, time = calc_kcorrected_properties(frequencies=frequencies, redshift=redshift, time=time)
 
     temp = temp_func(time)
     photosphere = rad_func(time)

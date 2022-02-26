@@ -5,7 +5,9 @@ from astropy.cosmology import Planck18 as cosmo  # noqa
 from scipy.interpolate import interp1d
 import astropy.units as uu # noqa
 import astropy.constants as cc # noqa
-from redback.utils import interpolated_barnes_and_kasen_thermalisation_efficiency, blackbody_to_flux_density, electron_fraction_from_kappa
+from redback.utils import interpolated_barnes_and_kasen_thermalisation_efficiency, electron_fraction_from_kappa, calc_kcorrected_properties
+from redback.sed import blackbody_to_flux_density
+
 
 def metzger_magnetar_boosted_kilonova_model(time, redshift, mej, vej, beta, kappa_r, l0, tau_sd, nn, thermalisation_efficiency, **kwargs):
     """
@@ -36,8 +38,7 @@ def metzger_magnetar_boosted_kilonova_model(time, redshift, mej, vej, beta, kapp
     rad_func = interp1d(time_temp, y=r_photosphere)
     # convert to source frame time and frequency
     time = time * 86400
-    time = time / (1 + redshift)
-    frequencies = frequencies / (1 + redshift)
+    frequencies, time = calc_kcorrected_properties(frequencies=frequencies, redshift=redshift, time=time)
 
     temp = temp_func(time)
     photosphere = rad_func(time)
@@ -364,8 +365,7 @@ def mergernova(time, redshift, mej, beta, ejecta_radius, kappa, n_ism, l0, tau_s
     d_func = interp1d(time_temp, y=doppler_factor)
     # convert to source frame time and frequency
     time = time * 86400
-    time = time / (1 + redshift)
-    frequencies = frequencies / (1 + redshift)
+    frequencies, time = calc_kcorrected_properties(frequencies=frequencies, redshift=redshift, time=time)
 
     temp = temp_func(time)
     rad = rad_func(time)
@@ -438,8 +438,9 @@ def _trapped_magnetar_flux(time, redshift, mej, beta, ejecta_radius, kappa, n_is
     :param kwargs: 'photon_index' used to calculate k correction and convert from luminosity to flux
     :return: integrated flux
     """
-    time = time / (1 + redshift)
-    kwargs['frequency'] = kwargs['frequency'] / (1 + redshift)
+    frequencies = kwargs['frequency']
+    frequencies, time = calc_kcorrected_properties(frequencies=frequencies, redshift=redshift, time=time)
+
 
     lum = _trapped_magnetar_lum(time, mej, beta, ejecta_radius, kappa, n_ism, l0, tau_sd, nn, thermalisation_efficiency,
                                 **kwargs)
