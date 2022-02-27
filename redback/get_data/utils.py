@@ -1,9 +1,8 @@
 import os
 import pandas as pd
 
-from redback.get_data.directory import _dirname
 
-dirname = os.path.dirname(__file__)
+_dirname = os.path.dirname(__file__)
 
 
 def get_trigger_number(grb: str) -> str:
@@ -16,8 +15,8 @@ def get_trigger_number(grb: str) -> str:
 
 
 def get_grb_table() -> pd.DataFrame:
-    short_table = os.path.join(dirname, '../tables/SGRB_table.txt')
-    long_table = os.path.join(dirname, '../tables/LGRB_table.txt')
+    short_table = os.path.join(_dirname, '../tables/SGRB_table.txt')
+    long_table = os.path.join(_dirname, '../tables/LGRB_table.txt')
     sgrb = pd.read_csv(short_table, header=0,
                        error_bad_lines=False, delimiter='\t', dtype='str')
     lgrb = pd.read_csv(long_table, header=0,
