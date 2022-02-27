@@ -12,7 +12,7 @@ sampler = 'dynesty'
 model = 'gaussian'
 name = '910505'
 
-redback.getdata.get_data(transient_type="prompt", data_source="batse", event_label=name)
+redback.get_data.get_prompt_data_from_batse(grb=name)
 prompt = redback.transient.prompt.PromptTimeSeries.from_batse_grb_name(name=name)
 
 # use default priors

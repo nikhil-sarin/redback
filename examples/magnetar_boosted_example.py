@@ -11,7 +11,7 @@ model = 'mergernova'
 kne = 'at2017gfo'
 path = 'KNDir'
 # gets the photometry data for AT2017gfo, the KN associated with GW170817
-data = redback.getdata.get_open_transient_catalog_data(transient=kne, transient_type='kilonova')
+data = redback.get_data.get_kilonova_data_from_open_transient_catalog_data(transient=kne)
 # creates a GRBDir with GRB
 kilonova = redback.kilonova.Kilonova.from_open_access_catalogue(name=kne, data_mode="flux_density")
 # kilonova.flux_density_data = True

@@ -9,7 +9,7 @@ model = "skew_exponential"
 
 sne = "SN2011kl"
 
-data = redback.getdata.get_supernova_data_from_open_transient_catalog_data(sne)
+data = redback.get_data.get_supernova_data_from_open_transient_catalog_data(sne)
 
 supernova = redback.supernova.Supernova.from_open_access_catalogue(name=sne, data_mode='flux_density')
 fig, axes = plt.subplots(2, 2, sharex=True, sharey=True, figsize=(12, 8))

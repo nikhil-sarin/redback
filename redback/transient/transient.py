@@ -783,12 +783,11 @@ class OpticalTransient(Transient):
         -------
         str: The transient directory given the name of the transient.
         """
-        return self._get_transient_dir(name=self.name)
+        return self._get_transient_dir()
 
-    @classmethod
-    def _get_transient_dir(cls, name: str) -> str:
-        transient_dir, _, _ = redback.getdata.transient_directory_structure(
-            transient=name, transient_type=cls.__name__.lower())
+    def _get_transient_dir(self) -> str:
+        transient_dir, _, _ = redback.get_data.directory.transient_directory_structure(
+            transient=self.name, transient_type=self.__name__.lower(), data_mode=self.data_mode)
         return transient_dir
 
     def plot_data(
