@@ -7,8 +7,8 @@ import os
 import pandas as pd
 from typing import Union
 
-from redback.getdata import get_batse_trigger_from_grb
-from redback.get_data.directory import prompt_directory_structure
+from redback.get_data.utils import get_batse_trigger_from_grb
+from redback.get_data.directory import swift_prompt_directory_structure
 from redback.transient.transient import Transient
 
 dirname = os.path.dirname(__file__)
@@ -105,7 +105,7 @@ class PromptTimeSeries(Transient):
         tuple: Time, time step size, and counts in the format (time, dt, counts)
 
         """
-        grb_dir, _, _ = prompt_directory_structure(grb=name.lstrip("GRB"))
+        grb_dir, _, _ = swift_prompt_directory_structure(grb=name.lstrip("GRB"))
         filename = f"BATSE_lc.csv"
         data_file = os.path.join(grb_dir, filename)
         _time_series_data = np.genfromtxt(data_file, delimiter=",")[1:]

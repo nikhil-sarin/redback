@@ -40,7 +40,7 @@ def afterglow_directory_structure(grb: str, data_mode: str, instrument: str = 'B
     return grb_dir, rawfile, fullfile
 
 
-def prompt_directory_structure(grb: str, bin_size: str = '2ms') -> tuple:
+def swift_prompt_directory_structure(grb: str, bin_size: str = '2ms') -> tuple:
     """
     Provides directory structure for Swift prompt data.
 

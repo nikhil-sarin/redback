@@ -131,7 +131,7 @@ class SwiftDataGetter(object):
                     grb=self.grb, data_mode=self.data_mode, instrument=self.instrument)
         elif self.transient_type == 'prompt':
             self.grbdir, self.rawfile, self.fullfile = \
-                redback.get_data.directory.prompt_directory_structure(
+                redback.get_data.directory.swift_prompt_directory_structure(
                     grb=self.grb, bin_size=self.bin_size)
 
     def collect_data(self) -> None:
