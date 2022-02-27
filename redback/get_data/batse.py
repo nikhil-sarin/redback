@@ -58,16 +58,16 @@ class BATSEDataGetter(object):
 
     @property
     def start(self):
-        return str(self.s).zfill(5)
+        return str(self._s).zfill(5)
 
     @property
     def stop(self):
-        return str(self.s + 199).zfill(5)
+        return str(self._s + 199).zfill(5)
 
     @property
     def url(self):
         return f"https://heasarc.gsfc.nasa.gov/FTP/compton/data/batse/trigger/{self.start}_{self.stop}/" \
-               f"{self.trigger_filled}_burst/{self.raw_file_name}"
+               f"{self.trigger_filled}_burst/tte_bfits_{self.trigger}.fits.gz"
 
     def get_data(self):
         self.collect_data()
@@ -77,7 +77,7 @@ class BATSEDataGetter(object):
         urllib.request.urlretrieve(self.url, self.raw_file)
 
     def convert_raw_data_to_csv(self):
-        with fits.open(self.raw_file_path) as fits_data:
+        with fits.open(self.raw_file) as fits_data:
             data = fits_data[-1].data
             bin_left = np.array(data['TIMES'][:, 0])
             bin_right = np.array(data['TIMES'][:, 1])
@@ -95,7 +95,7 @@ class BATSEDataGetter(object):
 
 
 def get_batse_trigger_from_grb(grb):
-    ALPHABET = "ABCDEFGHIJKLMNOP"
+    alphabet = "ABCDEFGHIJKLMNOP"
     dat = ascii.read(f"{_dirname}/../tables/BATSE_trigger_table.txt")
     batse_triggers = list(dat['col1'])
     object_labels = list(dat['col2'])
@@ -110,7 +110,7 @@ def get_batse_trigger_from_grb(grb):
     for label, location in label_locations.items():
         if len(location) != 1:
             for i, loc in enumerate(location):
-                object_labels[loc] = object_labels[loc] + ALPHABET[i]
+                object_labels[loc] = object_labels[loc] + alphabet[i]
 
     if grb[0].isnumeric():
         grb = 'GRB' + grb
