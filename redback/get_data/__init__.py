@@ -8,6 +8,7 @@ import redback.get_data.swift
 import redback.get_data.utils
 from redback.get_data.swift import SwiftDataGetter
 from redback.get_data.open_data import OpenDataGetter
+from redback.get_data.batse import BATSEDataGetter
 from redback.utils import logger
 
 
@@ -21,6 +22,12 @@ def get_afterglow_data_from_swift(grb: str, data_mode: str, **kwargs: dict) -> S
 
 def get_prompt_data_from_swift(grb: str, bin_size: str = "1s", **kwargs: dict) -> SwiftDataGetter:
     return get_swift_data(grb=grb, transient_type='prompt', data_mode='prompt', instrument="BAT+XRT", bin_size=bin_size)
+
+
+def get_prompt_data_from_batse(grb: str, **kwargs) -> BATSEDataGetter:
+    getter = BATSEDataGetter(grb=grb)
+    getter.get_data()
+    return getter
 
 
 def get_kilonova_data_from_open_transient_catalog_data(transient):
