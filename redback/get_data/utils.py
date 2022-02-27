@@ -29,7 +29,7 @@ class TriggerNotFoundError(Exception):
     """ Exceptions raised when trigger is not found."""
 
 
-def get_batse_trigger_from_grb(grb):
+def get_batse_trigger_from_grb(grb: str) -> int:
     ALPHABET = "ABCDEFGHIJKLMNOP"
     dat = ascii.read(f"{_dirname}/../tables/BATSE_trigger_table.txt")
     batse_triggers = list(dat['col1'])

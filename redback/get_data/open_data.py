@@ -1,6 +1,7 @@
 import os
 import re
 import sqlite3
+from typing import Union
 import urllib
 import urllib.request
 import urllib.request
@@ -50,11 +51,11 @@ class OpenDataGetter(object):
         logger.info(f'Congratulations, you now have a nice data file: {self.fullfile}')
 
     @property
-    def transient_type(self):
+    def transient_type(self) -> str:
         return self._transient_type
 
     @transient_type.setter
-    def transient_type(self, transient_type):
+    def transient_type(self, transient_type: str) -> str:
         if transient_type not in self.VALID_TRANSIENT_TYPES:
             raise ValueError("Transient type does not have open access data.")
         self._transient_type = transient_type
@@ -115,7 +116,7 @@ class OpenDataGetter(object):
         logger.info(f'Congratulations, you now have a nice data file: {self.fullfile}')
         return data
 
-    def get_time_of_event(self, data, metadata):
+    def get_time_of_event(self, data: pd.DataFrame, metadata: pd.DataFrame) -> Time:
         time_of_event = metadata['timeofmerger'].iloc[0]
         if np.isnan(time_of_event):
             if self.transient_type == 'kilonova':
@@ -124,25 +125,19 @@ class OpenDataGetter(object):
             else:
                 logger.warning('No time of event in metadata.')
                 logger.warning('Temporarily using the first data point as a start time')
-                # logger.warning(
-                #     'Please run function fix_t0_of_transient before any further analysis. '
-                #     'Or use models which sample with T0.')
                 time_of_event = data['time'].iloc[0]
         return Time(time_of_event, format='mjd')
 
-    def get_t0_from_grb(self):
+    def get_t0_from_grb(self) -> float:
         grb_alias = self.get_grb_alias()
         catalog = sqlite3.connect('tables/GRBcatalog.sqlite')
         summary_table = pd.read_sql_query("SELECT * from Summary", catalog)
         time_of_event = summary_table[summary_table['GRB_name'] == grb_alias]['mjd'].iloc[0]
         if np.isnan(time_of_event):
             logger.warning('Not found an associated GRB. Temporarily using the first data point as a start time')
-            # logger.warning(
-            #     'Please run function fix_t0_of_transient before any further analysis. '
-            #     'Or use models which sample with T0.')
         return time_of_event
 
-    def get_grb_alias(self):
+    def get_grb_alias(self) -> Union[re.Match, None]:
         metadata = pd.read_csv('tables/OAC_metadata.csv')
         transient = metadata[metadata['event'] == self.transient]
         alias = transient['alias'].iloc[0]
@@ -152,20 +147,3 @@ class OpenDataGetter(object):
             logger.warning(e)
             logger.warning("Did not find a valid alias, returning None.")
             return None
-
-
-# def fix_t0_of_transient(timeofevent, transient, transient_type):
-#     """
-#     :param timeofevent: T0 of event in mjd
-#     :param transient: transient name
-#     :param transient_type:
-#     :return: None, but fixes the processed data file
-#     """
-#     directory, rawfilename, fullfilename = transient_directory_structure(transient, transient_type)
-#     data = pd.read_csv(fullfilename, sep=',')
-#     timeofevent = Time(timeofevent, format='mjd')
-#     tt = Time(np.asarray(data['time'], dtype=float), format='mjd')
-#     data['time (days)'] = (tt - timeofevent).to(uu.day)
-#     data.to_csv(fullfilename, sep=',', index=False)
-#     logger.info(f'Change input time : {fullfilename}')
-#     return None

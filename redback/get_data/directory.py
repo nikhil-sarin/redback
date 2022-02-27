@@ -72,7 +72,7 @@ def swift_prompt_directory_structure(grb: str, bin_size: str = '2ms') -> tuple:
     return grb_dir, rawfile_path, processed_file_path
 
 
-def batse_prompt_directory_structure(grb, trigger=None):
+def batse_prompt_directory_structure(grb: str, trigger: object = None) -> object:
     grb_dir = f'GRBData/prompt/flux/'
     check_directory_exists_and_if_not_mkdir(grb_dir)
     if trigger is None:

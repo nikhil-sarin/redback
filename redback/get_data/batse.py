@@ -4,9 +4,10 @@ import urllib.request
 
 import numpy as np
 import pandas as pd
-from astropy.io import ascii, fits
+from astropy.io import fits
 
 import redback
+from redback.get_data.utils import get_batse_trigger_from_grb
 
 _dirname = os.path.dirname(__file__)
 
@@ -25,7 +26,7 @@ class BATSEDataGetter(object):
             "flux_greater_300 [counts/s]",
             "flux_greater_300_err [counts/s]"]
 
-    def __init__(self, grb: str):
+    def __init__(self, grb: str) -> None:
         self.grb = grb
         self.grb_dir = None
         self.raw_file = None
@@ -41,11 +42,11 @@ class BATSEDataGetter(object):
         self._grb = "GRB" + grb.lstrip('GRB')
 
     @property
-    def trigger(self):
+    def trigger(self) -> int:
         return get_batse_trigger_from_grb(grb=self.grb)
 
     @property
-    def trigger_filled(self):
+    def trigger_filled(self) -> str:
         return str(self.trigger).zfill(5)
 
     def create_directory_structure(self) -> None:
@@ -53,30 +54,30 @@ class BATSEDataGetter(object):
             redback.get_data.directory.batse_prompt_directory_structure(grb=self.grb, trigger=self.trigger)
 
     @property
-    def _s(self):
+    def _s(self) -> int:
         return self.trigger - self.trigger % 200 + 1
 
     @property
-    def start(self):
+    def start(self) -> str:
         return str(self._s).zfill(5)
 
     @property
-    def stop(self):
+    def stop(self) -> str:
         return str(self._s + 199).zfill(5)
 
     @property
-    def url(self):
+    def url(self) -> str:
         return f"https://heasarc.gsfc.nasa.gov/FTP/compton/data/batse/trigger/{self.start}_{self.stop}/" \
                f"{self.trigger_filled}_burst/tte_bfits_{self.trigger}.fits.gz"
 
-    def get_data(self):
+    def get_data(self) -> None:
         self.collect_data()
         self.convert_raw_data_to_csv()
 
-    def collect_data(self):
+    def collect_data(self) -> None:
         urllib.request.urlretrieve(self.url, self.raw_file)
 
-    def convert_raw_data_to_csv(self):
+    def convert_raw_data_to_csv(self) -> None:
         with fits.open(self.raw_file) as fits_data:
             data = fits_data[-1].data
             bin_left = np.array(data['TIMES'][:, 0])
@@ -92,28 +93,3 @@ class BATSEDataGetter(object):
                          rates[:, 2], errors[:, 2], rates[:, 3], errors[:, 3]]).T
         df = pd.DataFrame(data=data, columns=self.BATSE_COLUMNS)
         df.to_csv(self.processed_file, index=False)
-
-
-def get_batse_trigger_from_grb(grb):
-    alphabet = "ABCDEFGHIJKLMNOP"
-    dat = ascii.read(f"{_dirname}/../tables/BATSE_trigger_table.txt")
-    batse_triggers = list(dat['col1'])
-    object_labels = list(dat['col2'])
-
-    label_locations = dict()
-    for i, label in enumerate(object_labels):
-        if label in label_locations:
-            label_locations[label].append(i)
-        else:
-            label_locations[label] = [i]
-
-    for label, location in label_locations.items():
-        if len(location) != 1:
-            for i, loc in enumerate(location):
-                object_labels[loc] = object_labels[loc] + alphabet[i]
-
-    if grb[0].isnumeric():
-        grb = 'GRB' + grb
-    index = object_labels.index(grb)
-    return int(batse_triggers[index])
-

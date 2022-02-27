@@ -9,6 +9,8 @@ import redback.get_data.utils
 from redback.get_data.swift import SwiftDataGetter
 from redback.get_data.open_data import OpenDataGetter
 from redback.get_data.batse import BATSEDataGetter
+from redback.get_data.fermi import FermiDataGetter
+from redback.get_data.konus import KonusDataGetter
 from redback.utils import logger
 
 
@@ -36,15 +38,15 @@ def get_prompt_data_from_batse(grb: str, **kwargs) -> BATSEDataGetter:
     return getter
 
 
-def get_kilonova_data_from_open_transient_catalog_data(transient, **kwargs):
+def get_kilonova_data_from_open_transient_catalog_data(transient: str, **kwargs: dict) -> OpenDataGetter:
     return get_open_transient_catalog_data(transient, transient_type="kilonova")
 
 
-def get_supernova_data_from_open_transient_catalog_data(transient, **kwargs):
+def get_supernova_data_from_open_transient_catalog_data(transient: str, **kwargs: dict) -> OpenDataGetter:
     return get_open_transient_catalog_data(transient, transient_type="supernova")
 
 
-def get_tidal_disruption_event_data_from_open_transient_catalog_data(transient, **kwargs):
+def get_tidal_disruption_event_data_from_open_transient_catalog_data(transient: str, **kwargs: dict) -> OpenDataGetter:
     return get_open_transient_catalog_data(transient, transient_type="tidal_disruption_event")
 
 
@@ -58,11 +60,11 @@ def get_swift_data(
     return getter
 
 
-def get_prompt_data_from_fermi(*args, **kwargs):
+def get_prompt_data_from_fermi(*args: list, **kwargs: dict) -> FermiDataGetter:
     raise NotImplementedError()
 
 
-def get_prompt_data_from_konus(*args, **kwargs):
+def get_prompt_data_from_konus(*args: list, **kwargs: dict) -> KonusDataGetter:
     raise NotImplementedError()
 
 
@@ -74,7 +76,7 @@ def get_open_transient_catalog_data(
     return getter
 
 
-def get_oac_metadata():
+def get_oac_metadata() -> None:
     url = 'https://api.astrocats.space/catalog?format=CSV'
     urllib.request.urlretrieve(url, 'metadata.csv')
     logger.info('Downloaded metadata for open access catalog transients')
@@ -93,5 +95,4 @@ _functions_dict = {
 
 
 def get_data(transient: str, instrument: str, **kwargs: dict) -> object:
-    _functions_dict[(transient, instrument)](transient, **kwargs)
-
+    return _functions_dict[(transient, instrument)](transient, **kwargs)
