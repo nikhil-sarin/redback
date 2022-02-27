@@ -1,6 +1,8 @@
 import os
 import pandas as pd
 
+from redback.get_data.directory import _dirname
+
 dirname = os.path.dirname(__file__)
 
 
@@ -26,3 +28,27 @@ def get_grb_table() -> pd.DataFrame:
 
 class TriggerNotFoundError(Exception):
     """ Exceptions raised when trigger is not found."""
+
+
+def get_batse_trigger_from_grb(grb):
+    ALPHABET = "ABCDEFGHIJKLMNOP"
+    dat = ascii.read(f"{_dirname}/../tables/BATSE_trigger_table.txt")
+    batse_triggers = list(dat['col1'])
+    object_labels = list(dat['col2'])
+
+    label_locations = dict()
+    for i, label in enumerate(object_labels):
+        if label in label_locations:
+            label_locations[label].append(i)
+        else:
+            label_locations[label] = [i]
+
+    for label, location in label_locations.items():
+        if len(location) != 1:
+            for i, loc in enumerate(location):
+                object_labels[loc] = object_labels[loc] + ALPHABET[i]
+
+    grb = "GRB" + grb.lstrip("GRB")
+
+    index = object_labels.index(grb)
+    return int(batse_triggers[index])

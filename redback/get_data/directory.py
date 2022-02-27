@@ -1,7 +1,11 @@
+import os
+
 from bilby.core.utils.io import check_directory_exists_and_if_not_mkdir
+
+from redback.get_data.utils import get_batse_trigger_from_grb
 from redback.utils import logger
 
-
+_dirname = os.path.dirname(__file__)
 SWIFT_PROMPT_BIN_SIZES = ['1s', '2ms', '8ms', '16ms', '64ms', '256ms']
 
 
@@ -65,6 +69,17 @@ def swift_prompt_directory_structure(grb: str, bin_size: str = '2ms') -> tuple:
 
     rawfile_path = f'{grb_dir}{grb}_{bin_size}_lc_ascii.dat'
     processed_file_path = f'{grb_dir}{grb}_{bin_size}_lc.csv'
+    return grb_dir, rawfile_path, processed_file_path
+
+
+def batse_prompt_directory_structure(grb, trigger=None):
+    grb_dir = f'GRBData/prompt/flux/'
+    check_directory_exists_and_if_not_mkdir(grb_dir)
+    if trigger is None:
+        trigger = get_batse_trigger_from_grb(grb=grb)
+
+    rawfile_path = f'{grb_dir}tte_bfits_{trigger}.fits.gz'
+    processed_file_path = f'{grb_dir}{grb}_BATSE_lc.csv'
     return grb_dir, rawfile_path, processed_file_path
 
 
