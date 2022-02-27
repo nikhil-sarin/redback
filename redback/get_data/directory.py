@@ -13,7 +13,7 @@ SWIFT_PROMPT_BIN_SIZES = ['1s', '2ms', '8ms', '16ms', '64ms', '256ms']
 DirectoryStructure = namedtuple("DirectoryStructure", ['directory_path', 'raw_file_path', 'processed_file_path'])
 
 
-def afterglow_directory_structure(grb: str, data_mode: str, instrument: str = 'BAT+XRT') -> namedtuple:
+def afterglow_directory_structure(grb: str, data_mode: str, instrument: str = 'BAT+XRT') -> DirectoryStructure:
     """
     Provides directory structure for Swift afterglow data.
 
@@ -49,7 +49,7 @@ def afterglow_directory_structure(grb: str, data_mode: str, instrument: str = 'B
         directory_path=directory_path, raw_file_path=raw_file_path, processed_file_path=processed_file_path)
 
 
-def swift_prompt_directory_structure(grb: str, bin_size: str = '2ms') -> namedtuple:
+def swift_prompt_directory_structure(grb: str, bin_size: str = '2ms') -> DirectoryStructure:
     """
     Provides directory structure for Swift prompt data.
 
@@ -78,7 +78,7 @@ def swift_prompt_directory_structure(grb: str, bin_size: str = '2ms') -> namedtu
         directory_path=directory_path, raw_file_path=raw_file_path, processed_file_path=processed_file_path)
 
 
-def batse_prompt_directory_structure(grb: str, trigger: object = None) -> object:
+def batse_prompt_directory_structure(grb: str, trigger: object = None) -> DirectoryStructure:
     directory_path = f'GRBData/prompt/flux/'
     check_directory_exists_and_if_not_mkdir(directory_path)
     if trigger is None:
@@ -90,7 +90,7 @@ def batse_prompt_directory_structure(grb: str, trigger: object = None) -> object
         directory_path=directory_path, raw_file_path=raw_file_path, processed_file_path=processed_file_path)
 
 
-def transient_directory_structure(transient: str, transient_type: str, data_mode: str) -> namedtuple:
+def transient_directory_structure(transient: str, transient_type: str, data_mode: str) -> DirectoryStructure:
     """
 
     Parameters
