@@ -12,6 +12,12 @@ from redback.get_data.batse import BATSEDataGetter
 from redback.utils import logger
 
 
+SWIFT_PROMPT_BIN_SIZES = ['1s', '2ms', '8ms', '16ms', '64ms', '256ms']
+
+DATA_SOURCES = ["swift", "swift_xrt", "fermi", "konus", "batse", "open_data"]
+TRANSIENT_TYPES = ["afterglow", "prompt", "kilonova", "supernova", "tidal_disruption_event"]
+
+
 def get_xrt_data_from_swift(grb: str, data_mode: str = None, **kwargs: dict) -> SwiftDataGetter:
     return get_swift_data(grb=grb, transient_type='afterglow', data_mode=data_mode, instrument="XRT")
 
@@ -30,15 +36,15 @@ def get_prompt_data_from_batse(grb: str, **kwargs) -> BATSEDataGetter:
     return getter
 
 
-def get_kilonova_data_from_open_transient_catalog_data(transient):
+def get_kilonova_data_from_open_transient_catalog_data(transient, **kwargs):
     return get_open_transient_catalog_data(transient, transient_type="kilonova")
 
 
-def get_supernova_data_from_open_transient_catalog_data(transient):
+def get_supernova_data_from_open_transient_catalog_data(transient, **kwargs):
     return get_open_transient_catalog_data(transient, transient_type="supernova")
 
 
-def get_tidal_disruption_event_data_from_open_transient_catalog_data(transient):
+def get_tidal_disruption_event_data_from_open_transient_catalog_data(transient, **kwargs):
     return get_open_transient_catalog_data(transient, transient_type="tidal_disruption_event")
 
 
@@ -50,6 +56,14 @@ def get_swift_data(
         bin_size=bin_size, instrument=instrument)
     getter.get_data()
     return getter
+
+
+def get_prompt_data_from_fermi(*args, **kwargs):
+    raise NotImplementedError()
+
+
+def get_prompt_data_from_konus(*args, **kwargs):
+    raise NotImplementedError()
 
 
 def get_open_transient_catalog_data(
@@ -69,14 +83,15 @@ def get_oac_metadata():
 _functions_dict = {
             ("afterglow", "swift"): get_afterglow_data_from_swift,
             ("afterglow", "swift_xrt"): get_xrt_data_from_swift,
-            ("prompt", "swift"): get_prompt_data_from_swift}
-            # ("prompt", "fermi"): get_prompt_data_from_fermi,
-            # ("prompt", "konus"): get_prompt_data_from_konus,
-            # ("prompt", "batse"): get_prompt_data_from_batse,
-            # ("kilonova", "open_data"): get_kilonova_data_from_open_transient_catalog_data,
-            # ("supernova", "open_data"): get_supernova_data_from_open_transient_catalog_data}
-            # ("tidal_disruption_event", "open_data"): get_tidal_disruption_event_data_from_open_transient_catalog_data}
+            ("prompt", "swift"): get_prompt_data_from_swift,
+            ("prompt", "fermi"): get_prompt_data_from_fermi,
+            ("prompt", "konus"): get_prompt_data_from_konus,
+            ("prompt", "batse"): get_prompt_data_from_batse,
+            ("kilonova", "open_data"): get_kilonova_data_from_open_transient_catalog_data,
+            ("supernova", "open_data"): get_supernova_data_from_open_transient_catalog_data,
+            ("tidal_disruption_event", "open_data"): get_tidal_disruption_event_data_from_open_transient_catalog_data}
 
 
-def get_data(data_mode: str, instrument: str, transient: str, **kwargs: dict) -> object:
-    _functions_dict[(transient, instrument)](data_mode=data_mode, **kwargs)
+def get_data(transient: str, instrument: str, **kwargs: dict) -> object:
+    _functions_dict[(transient, instrument)](transient, **kwargs)
+
