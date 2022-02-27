@@ -79,6 +79,21 @@ def swift_prompt_directory_structure(grb: str, bin_size: str = '2ms') -> Directo
 
 
 def batse_prompt_directory_structure(grb: str, trigger: object = None) -> DirectoryStructure:
+    """
+    Provides directory structure for BATSE prompt data.
+
+    Parameters
+    ----------
+    grb: str
+        Name of the GRB, e.g. GRB123456.
+    trigger: str, optional
+        The BATSE trigger number. Will be inferred from the GRB if not given.
+
+    Returns
+    -------
+    tuple: The directory, the raw data file name, and the processed file name.
+    """
+
     directory_path = f'GRBData/prompt/flux/'
     check_directory_exists_and_if_not_mkdir(directory_path)
     if trigger is None:
@@ -92,6 +107,7 @@ def batse_prompt_directory_structure(grb: str, trigger: object = None) -> Direct
 
 def transient_directory_structure(transient: str, transient_type: str, data_mode: str) -> DirectoryStructure:
     """
+    Provides a general directory structure.
 
     Parameters
     ----------
