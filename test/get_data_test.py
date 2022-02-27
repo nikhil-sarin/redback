@@ -120,7 +120,7 @@ class TestSwiftDataGetter(unittest.TestCase):
         expected = "0", "1", "2"
         afterglow_directory_structure.return_value = expected
         self.getter.create_directory_structure()
-        self.assertListEqual(list(expected), list([self.getter.grbdir, self.getter.rawfile, self.getter.fullfile]))
+        self.assertListEqual(list(expected), list([self.getter.directory_path, self.getter.raw_file_path, self.getter.processed_file_path]))
         afterglow_directory_structure.assert_called_with(grb=self.grb, data_mode=self.data_mode, instrument=self.instrument)
 
     @mock.patch("redback.get_data.directory.prompt_directory_structure")
@@ -129,7 +129,7 @@ class TestSwiftDataGetter(unittest.TestCase):
         expected = "0", "1", "2"
         prompt_directory_structure.return_value = expected
         self.getter.create_directory_structure()
-        self.assertListEqual(list(expected), list([self.getter.grbdir, self.getter.rawfile, self.getter.fullfile]))
+        self.assertListEqual(list(expected), list([self.getter.directory_path, self.getter.raw_file_path, self.getter.processed_file_path]))
         prompt_directory_structure.assert_called_with(grb=self.grb, bin_size=self.bin_size)
 
     def test_get_data(self):
@@ -247,14 +247,14 @@ class TestSwiftDataGetter(unittest.TestCase):
     def _test_raw_afterglow(self):
         with open(f"reference_data/afterglow/{self.getter.data_mode}/GRB{self.grb}_rawSwiftData.csv") as file:
             reference_data = file.read()
-        with open(self.getter.rawfile) as file:
+        with open(self.getter.raw_file_path) as file:
             downloaded_data = file.read()
         self.assertEqual(reference_data, downloaded_data)
 
     def _test_converted_afterglow(self):
         with open(f"reference_data/afterglow/{self.getter.data_mode}/GRB{self.grb}.csv") as file:
             reference_data = file.read()
-        with open(self.getter.fullfile) as file:
+        with open(self.getter.processed_file_path) as file:
             downloaded_data = file.read()
         self.assertEqual(reference_data, downloaded_data)
 
@@ -289,7 +289,7 @@ class TestSwiftDataGetter(unittest.TestCase):
         self._download_xrt()
         with open(f"reference_data/afterglow/{self.getter.data_mode}/GRB{self.grb}_xrt_rawSwiftData.csv") as file:
             reference_data = file.read()
-        with open(self.getter.rawfile) as file:
+        with open(self.getter.raw_file_path) as file:
             downloaded_data = file.read()
         self.assertEqual(reference_data, downloaded_data)
 
@@ -298,7 +298,7 @@ class TestSwiftDataGetter(unittest.TestCase):
         self.getter.convert_xrt_data_to_csv()
         with open(f"reference_data/afterglow/{self.getter.data_mode}/GRB{self.grb}_xrt.csv") as file:
             reference_data = file.read()
-        with open(self.getter.fullfile) as file:
+        with open(self.getter.processed_file_path) as file:
             downloaded_data = file.read()
         self.assertEqual(reference_data, downloaded_data)
 
@@ -313,7 +313,7 @@ class TestSwiftDataGetter(unittest.TestCase):
         self._download_prompt()
         with open(f"reference_data/prompt/{self.getter.data_mode}/GRB{self.grb}_{self.bin_size}_lc_ascii.dat") as file:
             reference_data = file.read()
-        with open(self.getter.rawfile) as file:
+        with open(self.getter.raw_file_path) as file:
             downloaded_data = file.read()
         self.assertEqual(reference_data, downloaded_data)
 
@@ -322,7 +322,7 @@ class TestSwiftDataGetter(unittest.TestCase):
         self.getter.convert_raw_prompt_data_to_csv()
         with open(f"reference_data/prompt/{self.getter.data_mode}/GRB{self.grb}_{self.bin_size}_lc.csv") as file:
             reference_data = file.read()
-        with open(self.getter.fullfile) as file:
+        with open(self.getter.processed_file_path) as file:
             downloaded_data = file.read()
         self.assertEqual(reference_data, downloaded_data)
 
@@ -333,7 +333,7 @@ class TestSwiftDataGetter(unittest.TestCase):
 
     def test_convert_raw_data_to_csv_file_exists(self):
         self._mock_converter_functions()
-        with open(self.getter.fullfile, "w"):  # create empty file
+        with open(self.getter.processed_file_path, "w"):  # create empty file
             pass
         self.getter.convert_raw_data_to_csv()
 

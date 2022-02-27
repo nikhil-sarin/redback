@@ -28,9 +28,9 @@ class BATSEDataGetter(object):
 
     def __init__(self, grb: str) -> None:
         self.grb = grb
-        self.grb_dir = None
-        self.raw_file = None
-        self.processed_file = None
+        self.directory_path = None
+        self.raw_file_path = None
+        self.processed_file_path = None
         self.create_directory_structure()
 
     @property
@@ -50,7 +50,7 @@ class BATSEDataGetter(object):
         return str(self.trigger).zfill(5)
 
     def create_directory_structure(self) -> None:
-        self.grb_dir, self.raw_file, self.processed_file = \
+        self.directory_path, self.raw_file_path, self.processed_file_path = \
             redback.get_data.directory.batse_prompt_directory_structure(grb=self.grb, trigger=self.trigger)
 
     @property
@@ -75,10 +75,10 @@ class BATSEDataGetter(object):
         self.convert_raw_data_to_csv()
 
     def collect_data(self) -> None:
-        urllib.request.urlretrieve(self.url, self.raw_file)
+        urllib.request.urlretrieve(self.url, self.raw_file_path)
 
     def convert_raw_data_to_csv(self) -> None:
-        with fits.open(self.raw_file) as fits_data:
+        with fits.open(self.raw_file_path) as fits_data:
             data = fits_data[-1].data
             bin_left = np.array(data['TIMES'][:, 0])
             bin_right = np.array(data['TIMES'][:, 1])
@@ -92,4 +92,4 @@ class BATSEDataGetter(object):
         data = np.array([bin_left, bin_right, rates[:, 0], errors[:, 0], rates[:, 1], errors[:, 1],
                          rates[:, 2], errors[:, 2], rates[:, 3], errors[:, 3]]).T
         df = pd.DataFrame(data=data, columns=self.BATSE_COLUMNS)
-        df.to_csv(self.processed_file, index=False)
+        df.to_csv(self.processed_file_path, index=False)

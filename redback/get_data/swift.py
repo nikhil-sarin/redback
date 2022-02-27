@@ -55,9 +55,9 @@ class SwiftDataGetter(object):
         self.instrument = instrument
         self.data_mode = data_mode
         self.bin_size = bin_size
-        self.grbdir = None
-        self.rawfile = None
-        self.fullfile = None
+        self.directory_path = None
+        self.raw_file_path = None
+        self.processed_file_path = None
         self.create_directory_structure()
 
     @property
@@ -122,20 +122,20 @@ class SwiftDataGetter(object):
         logger.info(f'opening Swift website for {self.grb}')
         self.collect_data()
         self.convert_raw_data_to_csv()
-        logger.info(f'Congratulations, you now have a nice data file: {self.fullfile}')
+        logger.info(f'Congratulations, you now have a nice data file: {self.processed_file_path}')
 
     def create_directory_structure(self) -> None:
         if self.transient_type == 'afterglow':
-            self.grbdir, self.rawfile, self.fullfile = \
+            self.directory_path, self.raw_file_path, self.processed_file_path = \
                 redback.get_data.directory.afterglow_directory_structure(
                     grb=self.grb, data_mode=self.data_mode, instrument=self.instrument)
         elif self.transient_type == 'prompt':
-            self.grbdir, self.rawfile, self.fullfile = \
+            self.directory_path, self.raw_file_path, self.processed_file_path = \
                 redback.get_data.directory.swift_prompt_directory_structure(
                     grb=self.grb, bin_size=self.bin_size)
 
     def collect_data(self) -> None:
-        if os.path.isfile(self.rawfile):
+        if os.path.isfile(self.raw_file_path):
             logger.warning('The raw data file already exists. Returning.')
             return
 
@@ -162,7 +162,7 @@ class SwiftDataGetter(object):
             time.sleep(20)
             grb_url = driver.current_url
             # scrape the data
-            urllib.request.urlretrieve(url=grb_url, filename=self.rawfile)
+            urllib.request.urlretrieve(url=grb_url, filename=self.raw_file_path)
             logger.info(f'Congratulations, you now have raw data for {self.grb}')
         except Exception as e:
             logger.warning(f'Cannot load the website for {self.grb} \n'
@@ -196,7 +196,7 @@ class SwiftDataGetter(object):
             time.sleep(20)
             grb_url = driver.current_url
             driver.quit()
-            urllib.request.urlretrieve(grb_url, self.rawfile)
+            urllib.request.urlretrieve(grb_url, self.raw_file_path)
             logger.info(f'Congratulations, you now have raw data for {self.grb}')
         except Exception as e:
             logger.warning(f'Cannot load the website for {self.grb} \n'
@@ -209,7 +209,7 @@ class SwiftDataGetter(object):
 
     def download_directly(self) -> None:
         try:
-            urllib.request.urlretrieve(self.grb_website, self.rawfile)
+            urllib.request.urlretrieve(self.grb_website, self.raw_file_path)
             logger.info(f'Congratulations, you now have raw {self.instrument} {self.transient_type} '
                         f'data for {self.grb}')
         except Exception as e:
@@ -220,7 +220,7 @@ class SwiftDataGetter(object):
             urllib.request.urlcleanup()
 
     def convert_raw_data_to_csv(self) -> None:
-        if os.path.isfile(self.fullfile):
+        if os.path.isfile(self.processed_file_path):
             logger.warning('The processed data file already exists. Returning.')
         if self.instrument == 'XRT':
             self.convert_xrt_data_to_csv()
@@ -230,11 +230,11 @@ class SwiftDataGetter(object):
             self.convert_raw_prompt_data_to_csv()
 
     def convert_xrt_data_to_csv(self) -> None:
-        data = np.loadtxt(self.rawfile, comments=['!', 'READ', 'NO'])
+        data = np.loadtxt(self.raw_file_path, comments=['!', 'READ', 'NO'])
         data = {key: data[:, i] for i, key in enumerate(self.XRT_DATA_KEYS)}
         data = pd.DataFrame(data)
         data = data[data["Pos. flux err [erg cm^{-2} s^{-1}]"] != 0.]
-        data.to_csv(self.fullfile, index=False, sep=',')
+        data.to_csv(self.processed_file_path, index=False, sep=',')
 
     def convert_raw_afterglow_data_to_csv(self) -> None:
         if self.data_mode == 'flux':
@@ -243,13 +243,13 @@ class SwiftDataGetter(object):
             self.convert_flux_density_data_to_csv()
 
     def convert_raw_prompt_data_to_csv(self) -> None:
-        data = np.loadtxt(self.rawfile)
+        data = np.loadtxt(self.raw_file_path)
         df = pd.DataFrame(data=data, columns=self.PROMPT_DATA_KEYS)
-        df.to_csv(self.fullfile, index=False, sep=',')
+        df.to_csv(self.processed_file_path, index=False, sep=',')
 
     def convert_integrated_flux_data_to_csv(self) -> None:
         data = {key: [] for key in self.INTEGRATED_FLUX_KEYS}
-        with open(self.rawfile) as f:
+        with open(self.raw_file_path) as f:
             for num, line in enumerate(f.readlines()):
                 if line.startswith('!'):
                     instrument = line[2:].replace('\n', '')
@@ -259,15 +259,15 @@ class SwiftDataGetter(object):
                     for key, item in zip(self.INTEGRATED_FLUX_KEYS, line_items):
                         data[key].append(item.replace('\n', ''))
         df = pd.DataFrame(data=data)
-        df.to_csv(self.fullfile, index=False, sep=',')
+        df.to_csv(self.processed_file_path, index=False, sep=',')
 
     def convert_flux_density_data_to_csv(self) -> None:
         data = {key: [] for key in self.FLUX_DENSITY_KEYS}
-        with open(self.rawfile) as f:
+        with open(self.raw_file_path) as f:
             for num, line in enumerate(f.readlines()):
                 if line[0].isnumeric() or line[0] == '-':
                     line_items = line.split('\t')
                     for key, item in zip(self.FLUX_DENSITY_KEYS, line_items):
                         data[key].append(item.replace('\n', ''))
         df = pd.DataFrame(data=data)
-        df.to_csv(self.fullfile, index=False, sep=',')
+        df.to_csv(self.processed_file_path, index=False, sep=',')

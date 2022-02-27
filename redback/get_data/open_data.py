@@ -40,7 +40,7 @@ class OpenDataGetter(object):
         """
         self.transient = transient
         self.transient_type = transient_type
-        self.open_transient_dir, self.rawfile, self.fullfile = \
+        self.directory_path, self.raw_file_path, self.processed_file_path = \
             redback.get_data.directory.transient_directory_structure(
                 transient_type=self.transient_type, transient=self.transient, data_mode=self.DATA_MODE)
 
@@ -48,7 +48,7 @@ class OpenDataGetter(object):
         logger.info(f'opening Swift website for {self.transient}')
         self.collect_data()
         self.convert_raw_data_to_csv()
-        logger.info(f'Congratulations, you now have a nice data file: {self.fullfile}')
+        logger.info(f'Congratulations, you now have a nice data file: {self.processed_file_path}')
 
     @property
     def transient_type(self) -> str:
@@ -61,7 +61,7 @@ class OpenDataGetter(object):
         self._transient_type = transient_type
 
     def collect_data(self) -> None:
-        if os.path.isfile(self.rawfile):
+        if os.path.isfile(self.raw_file_path):
             logger.warning('The raw data file already exists')
             return None
 
@@ -74,11 +74,11 @@ class OpenDataGetter(object):
                 f"Transient {self.transient} does not exist in the catalog. "
                 f"Are you sure you are using the right alias?")
         else:
-            if os.path.isfile(self.fullfile):
+            if os.path.isfile(self.processed_file_path):
                 logger.warning('The processed data file already exists')
             else:
-                metadata = f"{self.open_transient_dir}{self.transient}_metadata.csv"
-                urllib.request.urlretrieve(url, self.rawfile)
+                metadata = f"{self.directory_path}{self.transient}_metadata.csv"
+                urllib.request.urlretrieve(url, self.raw_file_path)
                 logger.info(f"Retrieved data for {self.transient}")
                 metadata_url = f"https://api.astrocats.space/{self.transient}/" \
                                f"timeofmerger+discoverdate+redshift+ra+dec+host+alias?format=CSV"
@@ -86,11 +86,11 @@ class OpenDataGetter(object):
                 logger.info(f"Metdata for transient {self.transient} added.")
 
     def convert_raw_data_to_csv(self) -> None:
-        if os.path.isfile(self.fullfile):
+        if os.path.isfile(self.processed_file_path):
             logger.warning('The processed data file already exists. Returning.')
             return
 
-        rawdata = pd.read_csv(self.rawfile, sep=',')
+        rawdata = pd.read_csv(self.raw_file_path, sep=',')
         if pd.isna(rawdata['system']).any():
             logger.warning("Some data points do not have system information. Assuming AB magnitude")
             rawdata['system'].fillna('AB', inplace=True)
@@ -106,14 +106,14 @@ class OpenDataGetter(object):
                                                              magnitude_error=data['e_magnitude'].values,
                                                              reference_flux=3631,
                                                              magnitude_system='AB')
-        metadata = pd.read_csv(f"{self.open_transient_dir}{self.transient}_metadata.csv")
+        metadata = pd.read_csv(f"{self.directory_path}{self.transient}_metadata.csv")
         metadata.replace(r'^\s+$', np.nan, regex=True)
         time_of_event = self.get_time_of_event(data=data, metadata=metadata)
 
         tt = Time(np.asarray(data['time'], dtype=float), format='mjd')
         data['time (days)'] = (tt - time_of_event).to(uu.day)
-        data.to_csv(self.fullfile, sep=',', index=False)
-        logger.info(f'Congratulations, you now have a nice data file: {self.fullfile}')
+        data.to_csv(self.processed_file_path, sep=',', index=False)
+        logger.info(f'Congratulations, you now have a nice data file: {self.processed_file_path}')
         return data
 
     def get_time_of_event(self, data: pd.DataFrame, metadata: pd.DataFrame) -> Time:
