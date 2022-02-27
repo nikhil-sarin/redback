@@ -1,3 +1,4 @@
+from collections import namedtuple
 import os
 
 from bilby.core.utils.io import check_directory_exists_and_if_not_mkdir
@@ -9,7 +10,10 @@ _dirname = os.path.dirname(__file__)
 SWIFT_PROMPT_BIN_SIZES = ['1s', '2ms', '8ms', '16ms', '64ms', '256ms']
 
 
-def afterglow_directory_structure(grb: str, data_mode: str, instrument: str = 'BAT+XRT') -> tuple:
+DirectoryStructure = namedtuple("DirectoryStructure", ['directory_path', 'raw_file_path', 'processed_file_path'])
+
+
+def afterglow_directory_structure(grb: str, data_mode: str, instrument: str = 'BAT+XRT') -> namedtuple:
     """
     Provides directory structure for Swift afterglow data.
 
@@ -27,24 +31,25 @@ def afterglow_directory_structure(grb: str, data_mode: str, instrument: str = 'B
     tuple: The directory, the raw data file name, and the processed file name.
 
     """
-    grb_dir = f'GRBData/afterglow/{data_mode}/'
-    check_directory_exists_and_if_not_mkdir(grb_dir)
+    directory_path = f'GRBData/afterglow/{data_mode}/'
+    check_directory_exists_and_if_not_mkdir(directory_path)
 
-    path = f'{grb_dir}{grb}'
+    path = f'{directory_path}{grb}'
 
     if instrument == 'XRT':
-        rawfile = f'{path}_xrt_rawSwiftData.csv'
-        fullfile = f'{path}_xrt.csv'
+        raw_file_path = f'{path}_xrt_rawSwiftData.csv'
+        processed_file_path = f'{path}_xrt.csv'
         logger.warning('You are only downloading XRT data, you may not capture the tail of the prompt emission.')
     else:
         logger.warning('You are downloading BAT and XRT data, you will need to truncate the data for some models.')
-        rawfile = f'{path}_rawSwiftData.csv'
-        fullfile = f'{path}.csv'
+        raw_file_path = f'{path}_rawSwiftData.csv'
+        processed_file_path = f'{path}.csv'
 
-    return grb_dir, rawfile, fullfile
+    return DirectoryStructure(
+        directory_path=directory_path, raw_file_path=raw_file_path, processed_file_path=processed_file_path)
 
 
-def swift_prompt_directory_structure(grb: str, bin_size: str = '2ms') -> tuple:
+def swift_prompt_directory_structure(grb: str, bin_size: str = '2ms') -> namedtuple:
     """
     Provides directory structure for Swift prompt data.
 
@@ -64,26 +69,28 @@ def swift_prompt_directory_structure(grb: str, bin_size: str = '2ms') -> tuple:
     if bin_size not in SWIFT_PROMPT_BIN_SIZES:
         raise ValueError(f'Bin size {bin_size} not in allowed bin sizes.\n'
                          f'Use one of the following: {SWIFT_PROMPT_BIN_SIZES}')
-    grb_dir = f'GRBData/prompt/flux/'
-    check_directory_exists_and_if_not_mkdir(grb_dir)
+    directory_path = f'GRBData/prompt/flux/'
+    check_directory_exists_and_if_not_mkdir(directory_path)
 
-    rawfile_path = f'{grb_dir}{grb}_{bin_size}_lc_ascii.dat'
-    processed_file_path = f'{grb_dir}{grb}_{bin_size}_lc.csv'
-    return grb_dir, rawfile_path, processed_file_path
+    raw_file_path = f'{directory_path}{grb}_{bin_size}_lc_ascii.dat'
+    processed_file_path = f'{directory_path}{grb}_{bin_size}_lc.csv'
+    return DirectoryStructure(
+        directory_path=directory_path, raw_file_path=raw_file_path, processed_file_path=processed_file_path)
 
 
 def batse_prompt_directory_structure(grb: str, trigger: object = None) -> object:
-    grb_dir = f'GRBData/prompt/flux/'
-    check_directory_exists_and_if_not_mkdir(grb_dir)
+    directory_path = f'GRBData/prompt/flux/'
+    check_directory_exists_and_if_not_mkdir(directory_path)
     if trigger is None:
         trigger = get_batse_trigger_from_grb(grb=grb)
 
-    rawfile_path = f'{grb_dir}tte_bfits_{trigger}.fits.gz'
-    processed_file_path = f'{grb_dir}{grb}_BATSE_lc.csv'
-    return grb_dir, rawfile_path, processed_file_path
+    raw_file_path = f'{directory_path}tte_bfits_{trigger}.fits.gz'
+    processed_file_path = f'{directory_path}{grb}_BATSE_lc.csv'
+    return DirectoryStructure(
+        directory_path=directory_path, raw_file_path=raw_file_path, processed_file_path=processed_file_path)
 
 
-def transient_directory_structure(transient: str, transient_type: str, data_mode: str) -> tuple:
+def transient_directory_structure(transient: str, transient_type: str, data_mode: str) -> namedtuple:
     """
 
     Parameters
@@ -99,8 +106,9 @@ def transient_directory_structure(transient: str, transient_type: str, data_mode
     -------
     tuple: The directory, the raw data file name, and the processed file name.
     """
-    open_transient_dir = transient_type + '/' + data_mode + '/'
-    check_directory_exists_and_if_not_mkdir(open_transient_dir)
-    rawfile_path = open_transient_dir + transient + '_rawdata.csv'
-    fullfile_path = open_transient_dir + transient + '.csv'
-    return open_transient_dir, rawfile_path, fullfile_path
+    directory_path = transient_type + '/' + data_mode + '/'
+    check_directory_exists_and_if_not_mkdir(directory_path)
+    raw_file_path = directory_path + transient + '_rawdata.csv'
+    processed_file_path = directory_path + transient + '.csv'
+    return DirectoryStructure(
+        directory_path=directory_path, raw_file_path=raw_file_path, processed_file_path=processed_file_path)
