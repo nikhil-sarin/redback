@@ -34,7 +34,85 @@ class TestUtils(unittest.TestCase):
         self.assertListEqual(expected_keys, list(table.keys()))
 
 
+class TestDirectory(unittest.TestCase):
+
+    def setUp(self) -> None:
+        pass
+
+    def tearDown(self) -> None:
+        pass
+
+
+def _delete_downloaded_files():
+    for folder in ["GRBData", "kilonova", "supernova", "tidal_disruption_event"]:
+        shutil.rmtree(folder, ignore_errors=True)
+
+
+class TestBATSEDataGetter(unittest.TestCase):
+
+    @classmethod
+    def setUpClass(cls) -> None:
+        _delete_downloaded_files()
+
+    @classmethod
+    def tearDownClass(cls) -> None:
+        _delete_downloaded_files()
+
+    def setUp(self) -> None:
+        self.grb = "GRB000526"
+        self.getter = redback.get_data.BATSEDataGetter(grb=self.grb)
+
+    def tearDown(self) -> None:
+        del self.grb
+        del self.getter
+        _delete_downloaded_files()
+
+    def test_grb(self):
+        self.assertEqual(self.grb, self.getter.grb)
+
+        self.getter.grb = self.grb.lstrip("GRB")
+        self.assertEqual(self.grb, self.getter.grb)
+
+    def test_trigger(self):
+        expected = 8121
+        self.assertEqual(expected, self.getter.trigger)
+
+    def test_trigger_filled(self):
+        expected = "08121"
+        self.assertEqual(expected, self.getter.trigger_filled)
+
+    def test_url(self):
+        expected = f"https://heasarc.gsfc.nasa.gov/FTP/compton/data/batse/trigger/08001_08200/" \
+                   f"08121_burst/tte_bfits_8121.fits.gz"
+        self.assertEqual(expected, self.getter.url)
+
+    def test_get_data(self):
+        self.getter.collect_data = MagicMock()
+        self.getter.convert_raw_data_to_csv = MagicMock()
+        self.getter.get_data()
+        self.getter.collect_data.assert_called_once()
+        self.getter.convert_raw_data_to_csv.assert_called_once()
+
+    @mock.patch("urllib.request.urlretrieve")
+    def collect_data(self, urlretrieve):
+        self.getter.collect_data()
+        urlretrieve.assert_called_once()
+
+    @mock.patch("astropy.io.fits.open")
+    @mock.patch("pandas.DataFrame")
+    def test_convert_raw_data_to_csv(self, DataFrame, fits_open):
+        pass  # Add unittests maybe. This is also covered by the reference file tests.
+
+
 class TestSwiftDataGetter(unittest.TestCase):
+
+    @classmethod
+    def setUpClass(cls) -> None:
+        _delete_downloaded_files()
+
+    @classmethod
+    def tearDownClass(cls) -> None:
+        _delete_downloaded_files()
 
     def setUp(self) -> None:
         self.grb = "050202"
@@ -63,12 +141,12 @@ class TestSwiftDataGetter(unittest.TestCase):
         with self.assertRaises(ValueError):
             self.getter.data_mode = 'photometry'
 
-    def set_valid_instrument(self):
+    def test_set_valid_instrument(self):
         for valid_instrument in ['BAT+XRT', 'XRT']:
             self.getter.instrument = valid_instrument
             self.assertEqual(valid_instrument, self.getter.instrument)
 
-    def text_set_invalid_instrument(self):
+    def test_set_invalid_instrument(self):
         with self.assertRaises(ValueError):
             self.getter.instrument = "potato"
 
@@ -265,11 +343,6 @@ class TestSwiftDataGetter(unittest.TestCase):
         self.getter.convert_raw_prompt_data_to_csv.assert_called_once()
 
 
-def _delete_downloaded_files():
-    for folder in ["GRBData", "kilonova", "supernova", "tidal_disruption_event"]:
-        shutil.rmtree(folder, ignore_errors=True)
-
-
 class TestReferenceFiles(unittest.TestCase):
 
     @classmethod
@@ -311,6 +384,22 @@ class TestReferenceFiles(unittest.TestCase):
         self._compare_files_line_by_line()
 
         self.downloaded_file = "GRBData/afterglow/flux/GRB070809_xrt.csv"
+        self._compare_files_line_by_line()
+
+    def test_swift_afterglow_flux_density_data(self):
+        redback.get_data.get_bat_xrt_afterglow_data_from_swift(grb='GRB070809', data_mode='flux_density')
+        self.downloaded_file = "GRBData/afterglow/flux_density/GRB070809_rawSwiftData.csv"
+        self._compare_files_line_by_line()
+
+        self.downloaded_file = "GRBData/afterglow/flux_density/GRB070809.csv"
+        self._compare_files_line_by_line()
+
+    def test_swift_xrt_flux_density_data(self):
+        redback.get_data.get_xrt_afterglow_data_from_swift(grb='GRB070809', data_mode='flux_density')
+        self.downloaded_file = "GRBData/afterglow/flux_density/GRB070809_xrt_rawSwiftData.csv"
+        self._compare_files_line_by_line()
+
+        self.downloaded_file = "GRBData/afterglow/flux_density/GRB070809_xrt.csv"
         self._compare_files_line_by_line()
 
     def test_swift_prompt_data(self):
