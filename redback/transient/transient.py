@@ -745,7 +745,8 @@ class OpticalTransient(Transient):
         -------
         OpticalTransient: A class instance.
         """
-        transient_dir = cls._get_transient_dir(name=name)
+        transient_dir, _, _ = redback.get_data.directory.transient_directory_structure(
+            transient=name, transient_type=cls.__name__.lower(), data_mode=data_mode)
         time_days, time_mjd, flux_density, flux_density_err, magnitude, magnitude_err, bands, system = \
             cls.load_data(name=name, transient_dir=transient_dir, data_mode="all")
         return cls(name=name, data_mode=data_mode, time=time_days, time_err=None, time_mjd=time_mjd,
@@ -787,7 +788,7 @@ class OpticalTransient(Transient):
 
     def _get_transient_dir(self) -> str:
         transient_dir, _, _ = redback.get_data.directory.transient_directory_structure(
-            transient=self.name, transient_type=self.__name__.lower(), data_mode=self.data_mode)
+            transient=self.name, transient_type=self.__class__.__name__.lower(), data_mode=self.data_mode)
         return transient_dir
 
     def plot_data(

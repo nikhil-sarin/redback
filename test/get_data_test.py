@@ -1,13 +1,16 @@
-import mock
+import filecmp
+import os.path
+import shutil
 import unittest
+from unittest import mock
 from unittest.mock import MagicMock, PropertyMock
 
 import numpy as np
 import pandas as pd
 
 import redback
-import shutil
-import filecmp
+
+_dirname = os.path.dirname(__file__)
 
 
 class TestUtils(unittest.TestCase):
@@ -308,8 +311,6 @@ class TestOpenDataGetter(unittest.TestCase):
         connect.assert_called_once_with('tables/GRBcatalog.sqlite')
 
 
-
-
 class TestSwiftDataGetter(unittest.TestCase):
 
     @classmethod
@@ -564,11 +565,19 @@ class TestReferenceFiles(unittest.TestCase):
 
     def tearDown(self) -> None:
         _delete_downloaded_files()
-        del self.downloaded_file
+        del self._downloaded_file
 
     @property
     def reference_file(self):
-        return f"reference_data/{self.downloaded_file}"
+        return f"{_dirname}/reference_data/{self._downloaded_file}"
+
+    @property
+    def downloaded_file(self):
+        return f"{_dirname}/{self._downloaded_file}"
+
+    @downloaded_file.setter
+    def downloaded_file(self, downloaded_file):
+        self._downloaded_file = downloaded_file
 
     def _compare_files_line_by_line(self):
         with open(self.reference_file, 'r') as rf:
