@@ -4,16 +4,18 @@ import numpy as np
 from redback.constants import *
 
 class TemperatureFloor(object):
-    def __init__(self, time, luminosity, vej, **kwargs):
+    def __init__(self, time, luminosity, vej, temperature_floor, **kwargs):
         """
         Photosphere with a floor temperature and effective blackbody otherwise
         :param time: source frame time in seconds
         :param luminosity: luminosity
         :param vej: ejecta velocity in cgs
+        :param temperature_floor: floor temperature in kelvin
         """
         self.time = time
         self.luminosity = luminosity
         self.v_ejecta = vej
+        self.temperature_floor = temperature_floor
         self.r_photosphere = []
         self.photosphere_temperature = []
         self.reference = 'https://ui.adsabs.harvard.edu/abs/2017ApJ...851L..21V/abstract'
@@ -23,16 +25,18 @@ class TemperatureFloor(object):
     def calculate_photosphere_properties(self):
         radius_constant = km_cgs * day_to_s
         stef_constant = 4*np.pi * sigma_sb
-        temperature = (self.luminosity / (4.0 * np.pi * sigma_sb * (self.v_ejecta*speed_of_light)**2 * self.time**2))**0.25
 
         radius_squared = (radius_constant * self.v_ejecta * self.time) ** 2
-        rec_radius_squared = self.luminosity/ (stef_constant * temperature ** 4)
+        rec_radius_squared = self.luminosity/ (stef_constant * self.temperature_floor ** 4)
+
+        temperature = np.zeros(len(self.time))
 
         mask = radius_squared < rec_radius_squared
         r_photosphere = radius_squared**0.5
 
         temperature[mask] = (self.luminosity[mask] / (stef_constant * radius_squared[mask])) ** 0.25
         r_photosphere[mask] = rec_radius_squared[mask]**0.5
+        temperature[~mask] = self.temperature_floor
 
         return temperature, r_photosphere
 
