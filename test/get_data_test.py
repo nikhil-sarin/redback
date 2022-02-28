@@ -1,5 +1,3 @@
-import filecmp
-import os.path
 import shutil
 import unittest
 from unittest import mock
@@ -9,8 +7,6 @@ import numpy as np
 import pandas as pd
 
 import redback
-
-_dirname = os.path.dirname(__file__)
 
 
 class TestUtils(unittest.TestCase):
@@ -179,7 +175,7 @@ class TestBATSEDataGetter(unittest.TestCase):
     @mock.patch("astropy.io.fits.open")
     @mock.patch("pandas.DataFrame")
     def test_convert_raw_data_to_csv(self, DataFrame, fits_open):
-        pass  # Add unittests maybe. This is also covered by the reference file tests.
+        pass  # Add unittests, maybe. This is also covered by the reference file tests.
 
 
 class TestOpenDataGetter(unittest.TestCase):
@@ -419,8 +415,11 @@ class TestSwiftDataGetter(unittest.TestCase):
         self.getter = redback.get_data.swift.SwiftDataGetter(
             grb=self.grb, transient_type=self.transient_type, data_mode=self.data_mode,
             instrument=self.instrument, bin_size=self.bin_size)  # method is called in constructor
-        self.assertListEqual(list(expected), list([self.getter.directory_path, self.getter.raw_file_path, self.getter.processed_file_path]))
-        afterglow_directory_structure.assert_called_with(grb=f"GRB{self.grb}", data_mode=self.data_mode, instrument=self.instrument)
+        self.assertListEqual(
+            list(expected),
+            list([self.getter.directory_path, self.getter.raw_file_path, self.getter.processed_file_path]))
+        afterglow_directory_structure.assert_called_with(
+            grb=f"GRB{self.grb}", data_mode=self.data_mode, instrument=self.instrument)
 
     @mock.patch("redback.get_data.directory.swift_prompt_directory_structure")
     def test_create_directory_structure_prompt(self, prompt_directory_structure):
@@ -429,7 +428,9 @@ class TestSwiftDataGetter(unittest.TestCase):
         self.getter = redback.get_data.swift.SwiftDataGetter(
             grb=self.grb, transient_type="prompt", data_mode=self.data_mode,
             instrument=self.instrument, bin_size=self.bin_size)  # method is called in constructor
-        self.assertListEqual(list(expected), list([self.getter.directory_path, self.getter.raw_file_path, self.getter.processed_file_path]))
+        self.assertListEqual(
+            list(expected),
+            list([self.getter.directory_path, self.getter.raw_file_path, self.getter.processed_file_path]))
         prompt_directory_structure.assert_called_with(grb=f"GRB{self.grb}", bin_size=self.bin_size)
 
     def test_get_data(self):
@@ -548,121 +549,3 @@ class TestSwiftDataGetter(unittest.TestCase):
         self.getter.convert_xrt_data_to_csv.assert_not_called()
         self.getter.convert_raw_afterglow_data_to_csv.assert_not_called()
         self.getter.convert_raw_prompt_data_to_csv.assert_called_once()
-
-
-class TestReferenceFiles(unittest.TestCase):
-
-    @classmethod
-    def setUpClass(cls) -> None:
-        _delete_downloaded_files()
-
-    @classmethod
-    def tearDownClass(cls) -> None:
-        _delete_downloaded_files()
-
-    def setUp(self) -> None:
-        self.downloaded_file = ""
-
-    def tearDown(self) -> None:
-        _delete_downloaded_files()
-        del self._downloaded_file
-
-    @property
-    def reference_file(self):
-        return f"{_dirname}/reference_data/{self._downloaded_file}"
-
-    @property
-    def downloaded_file(self):
-        return f"{_dirname}/{self._downloaded_file}"
-
-    @downloaded_file.setter
-    def downloaded_file(self, downloaded_file):
-        self._downloaded_file = downloaded_file
-
-    def _compare_files_line_by_line(self):
-        with open(self.reference_file, 'r') as rf:
-            with open(self.downloaded_file, 'r') as df:
-                for l1, l2 in zip(rf.readlines(), df.readlines()):
-                    self.assertEqual(l1, l2)
-
-    def test_swift_afterglow_flux_data(self):
-        redback.get_data.get_bat_xrt_afterglow_data_from_swift(grb='GRB070809', data_mode='flux')
-        self.downloaded_file = "GRBData/afterglow/flux/GRB070809_rawSwiftData.csv"
-        self._compare_files_line_by_line()
-
-        self.downloaded_file = "GRBData/afterglow/flux/GRB070809.csv"
-        self._compare_files_line_by_line()
-
-    def test_swift_xrt_flux_data(self):
-        redback.get_data.get_xrt_afterglow_data_from_swift(grb='GRB070809', data_mode='flux')
-        self.downloaded_file = "GRBData/afterglow/flux/GRB070809_xrt_rawSwiftData.csv"
-        self._compare_files_line_by_line()
-
-        self.downloaded_file = "GRBData/afterglow/flux/GRB070809_xrt.csv"
-        self._compare_files_line_by_line()
-
-    def test_swift_afterglow_flux_density_data(self):
-        redback.get_data.get_bat_xrt_afterglow_data_from_swift(grb='GRB070809', data_mode='flux_density')
-        self.downloaded_file = "GRBData/afterglow/flux_density/GRB070809_rawSwiftData.csv"
-        self._compare_files_line_by_line()
-
-        self.downloaded_file = "GRBData/afterglow/flux_density/GRB070809.csv"
-        self._compare_files_line_by_line()
-
-    def test_swift_xrt_flux_density_data(self):
-        redback.get_data.get_xrt_afterglow_data_from_swift(grb='GRB070809', data_mode='flux_density')
-        self.downloaded_file = "GRBData/afterglow/flux_density/GRB070809_xrt_rawSwiftData.csv"
-        self._compare_files_line_by_line()
-
-        self.downloaded_file = "GRBData/afterglow/flux_density/GRB070809_xrt.csv"
-        self._compare_files_line_by_line()
-
-    def test_swift_prompt_data(self):
-        bin_size = "1s"
-        redback.get_data.get_prompt_data_from_swift('GRB070809', bin_size=bin_size)
-        self.downloaded_file = f"GRBData/prompt/flux/GRB070809_{bin_size}_lc.csv"
-        self._compare_files_line_by_line()
-
-    def test_open_catalog_kilonova_data(self):
-        redback.get_data.get_open_transient_catalog_data(transient="at2017gfo", transient_type="kilonova")
-
-        self.downloaded_file = f"kilonova/flux_density/at2017gfo.csv"
-        self._compare_files_line_by_line()
-
-        self.downloaded_file = f"kilonova/flux_density/at2017gfo_metadata.csv"
-        self._compare_files_line_by_line()
-
-        self.downloaded_file = f"kilonova/flux_density/at2017gfo_rawdata.csv"
-        self._compare_files_line_by_line()
-
-    def test_open_catalog_supernova_data(self):
-        redback.get_data.get_open_transient_catalog_data(transient="SN2011kl", transient_type="supernova")
-
-        self.downloaded_file = f"supernova/flux_density/SN2011kl.csv"
-        self._compare_files_line_by_line()
-
-        self.downloaded_file = f"supernova/flux_density/SN2011kl_metadata.csv"
-        self._compare_files_line_by_line()
-
-        self.downloaded_file = f"supernova/flux_density/SN2011kl_rawdata.csv"
-        self._compare_files_line_by_line()
-
-    def test_open_catalog_tde_data(self):
-        redback.get_data.get_open_transient_catalog_data(transient="PS18kh", transient_type="tidal_disruption_event")
-
-        self.downloaded_file = f"tidal_disruption_event/flux_density/PS18kh.csv"
-        self._compare_files_line_by_line()
-
-        self.downloaded_file = f"tidal_disruption_event/flux_density/PS18kh_metadata.csv"
-        self._compare_files_line_by_line()
-
-        self.downloaded_file = f"tidal_disruption_event/flux_density/PS18kh_rawdata.csv"
-        self._compare_files_line_by_line()
-
-    def test_batse_prompt_data(self):
-        redback.get_data.get_prompt_data_from_batse(grb="000526")
-        self.downloaded_file = "GRBData/prompt/flux/GRB000526_BATSE_lc.csv"
-        self._compare_files_line_by_line()
-
-        self.downloaded_file = "GRBData/prompt/flux/tte_bfits_8121.fits.gz"
-        self.assertTrue(filecmp.cmp(self.reference_file, self.downloaded_file))
