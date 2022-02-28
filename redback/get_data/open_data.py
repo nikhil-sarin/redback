@@ -132,7 +132,7 @@ class OpenDataGetter(object):
         data = data[data['band'] != 'W']
         data = data[data['system'] == 'AB']
         logger.info('Keeping only AB magnitude data')
-        data['flux_density(mjy)'] = calc_flux_density_from_ABmag(data['magnitude'].values)
+        data['flux_density(mjy)'] = calc_flux_density_from_ABmag(data['magnitude'].values).value
         data['flux_density_error'] = calc_flux_density_error(magnitude=data['magnitude'].values,
                                                              magnitude_error=data['e_magnitude'].values,
                                                              reference_flux=3631,
@@ -142,7 +142,7 @@ class OpenDataGetter(object):
         time_of_event = self.get_time_of_event(data=data, metadata=metadata)
 
         tt = Time(np.asarray(data['time'], dtype=float), format='mjd')
-        data['time (days)'] = (tt - time_of_event).to(uu.day)
+        data['time (days)'] = ((tt - time_of_event).to(uu.day)).value
         data.to_csv(self.processed_file_path, sep=',', index=False)
         logger.info(f'Congratulations, you now have a nice data file: {self.processed_file_path}')
 

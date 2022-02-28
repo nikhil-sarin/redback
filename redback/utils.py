@@ -6,15 +6,14 @@ from collections import namedtuple
 from inspect import getmembers, isfunction
 from pathlib import Path
 
-import astropy.units as uu
 import bilby
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
+from scipy.interpolate import RegularGridInterpolator, interp1d
 from scipy.stats import gaussian_kde
 from selenium import webdriver
 from selenium.common.exceptions import NoSuchElementException
-from scipy.interpolate import RegularGridInterpolator, interp1d
 
 import redback
 from redback.constants import *
@@ -27,106 +26,34 @@ plt.style.use(filename)
 logger = logging.getLogger('redback')
 _bilby_logger = logging.getLogger('bilby')
 
-def calc_compactness_from_lambda(lambda_1):
-    """
-    :param lambda_1: dimensionless tidal deformability
-    :return: compactness
-    """
-    c1 = 0.371 - 0.0391 * np.log(lambda_1) + 0.001056 * np.log(lambda_1) ** 2
-    return c1
 
-def calc_compactness(mass, radius):
+def lambda_to_nu(wavelength):
     """
-    :param mass: in solar masses
-    :param radius: in meters
-    :return: compactness
+    :param wavelength: wavelength in Angstrom
+    :return: frequency in Hertz
     """
-    mass_si = mass * cc.M_sun.si.value
-    radius_si = radius #meters
-    g_si = cc.G.value
-    c_si = cc.c.value
-    compactness=g_si*mass_si / ( c_si**2 *radius_si)
-    return compactness
+    return speed_of_light_si / (wavelength * 1.e-10)
 
-def calc_baryonic_mass_eos_insensitive(mass_g, radius_14):
-    """
-    :param mass_g: gravitational mass in solar mass
-    :param radius_14: radius of 1.4 M_sun neutron star in meters
-    :return: baryonic mass
-    """
-    mb = mass_g + radius_14**(-1.) * mass_g**2
-    return mb
 
-def calc_baryonic_mass(mass, compactness):
+def nu_to_lambda(frequency):
     """
-    :param mass: mass in solar masses
-    :param compactness: NS compactness
-    :return: baryonic mass
+    :param frequency: frequency in Hertz
+    :return: wavelength in Angstrom
     """
-    mb = mass*(1 + 0.8857853174243745*compactness**1.2082383572002926)
-    return mb
+    return 1.e10 * (speed_of_light_si / frequency)
 
-def blackbody_to_flux_density(temperature, r_photosphere, dl, frequencies):
+def calc_kcorrected_properties(frequencies, redshift, time):
     """
-    A general blackbody_to_flux_density formula
-    :param temperature: effective temperature in kelvin
-    :param r_photosphere: photosphere radius in cm
-    :param dl: luminosity_distance in cm
-    :param frequencies: frequencies to calculate in Hz - Must be same length as time array or a single number
-    :return: flux_density
+    Perform k-correction
+    :param frequencies: observer frame frequencies
+    :param redshift: source redshift
+    :param time: observer frame time
+    :return: k-corrected frequencies and source frame time
     """
-    ## adding units back in to ensure dimensions are correct
-    frequencies = frequencies * uu.Hz
-    radius = r_photosphere * uu.cm
-    dl = dl * uu.cm
-    temperature = temperature * uu.K
-    planck = cc.h.cgs
-    speed_of_light = cc.c.cgs
-    boltzmann_constant = cc.k_B.cgs
-    num = 2 * np.pi * planck * frequencies ** 3 * radius ** 2
-    denom = dl ** 2 * speed_of_light ** 2
-    frac = 1. / (np.expm1((planck * frequencies) / (boltzmann_constant * temperature)))
-    flux_density = num / denom * frac
-    return flux_density
+    time = time / (1 + redshift)
+    frequencies = frequencies * (1 + redshift)
+    return frequencies, time
 
-def interpolated_barnes_and_kasen_thermalisation_efficiency(mej, vej):
-    """
-    Uses Barnes+2016 and interpolation to calculate the r-process thermalisation efficiency
-    depending on the input mass and velocity
-    :param mej: ejecta mass in solar masses
-    :param vej: initial ejecta velocity as a fraction of speed of light
-    :return: av, bv, dv constants in the thermalisation efficiency equation Eq 25 in Metzger 2017
-    """
-    v_array = np.array([0.1, 0.2, 0.3])
-    mass_array = np.array([1.0e-3, 5.0e-3, 1.0e-2, 5.0e-2])
-    a_array = np.asarray([[2.01, 4.52, 8.16], [0.81, 1.9, 3.2],
-                     [0.56, 1.31, 2.19], [.27, .55, .95]])
-    b_array = np.asarray([[0.28, 0.62, 1.19], [0.19, 0.28, 0.45],
-                     [0.17, 0.21, 0.31], [0.10, 0.13, 0.15]])
-    d_array = np.asarray([[1.12, 1.39, 1.52], [0.86, 1.21, 1.39],
-                     [0.74, 1.13, 1.32], [0.6, 0.9, 1.13]])
-    a_func = RegularGridInterpolator((mass_array, v_array), a_array, bounds_error=False, fill_value=None)
-    b_func = RegularGridInterpolator((mass_array, v_array), b_array, bounds_error=False, fill_value=None)
-    d_func = RegularGridInterpolator((mass_array, v_array), d_array, bounds_error=False, fill_value=None)
-
-    av = a_func([mej, vej])[0]
-    bv = b_func([mej, vej])[0]
-    dv = d_func([mej, vej])[0]
-    return av, bv, dv
-
-def electron_fraction_from_kappa(kappa):
-    """
-    Uses interpolation from Tanaka+19 to calculate
-    the electron fraction based on the temperature independent gray opacity
-    :param kappa: temperature independent gray opacity
-    :return: electron_fraction
-    """
-
-    kappa_array = np.array([1, 3, 5, 20, 30])
-    ye_array = np.array([0.4,0.35,0.25,0.2, 0.1])
-    kappa_func = interp1d(kappa_array, y=ye_array)
-    electron_fraction = kappa_func(kappa)
-    return electron_fraction
 
 def mjd_to_jd(mjd):
     return mjd + 2400000.5
@@ -436,3 +363,44 @@ def get_functions_dict(module):
     _functions_dict = {f[0]: f[1] for f in _functions_list}
     models_dict[module.__name__.split('.')[-1]] = _functions_dict
     return models_dict
+
+
+def interpolated_barnes_and_kasen_thermalisation_efficiency(mej, vej):
+    """
+    Uses Barnes+2016 and interpolation to calculate the r-process thermalisation efficiency
+    depending on the input mass and velocity
+    :param mej: ejecta mass in solar masses
+    :param vej: initial ejecta velocity as a fraction of speed of light
+    :return: av, bv, dv constants in the thermalisation efficiency equation Eq 25 in Metzger 2017
+    """
+    v_array = np.array([0.1, 0.2, 0.3])
+    mass_array = np.array([1.0e-3, 5.0e-3, 1.0e-2, 5.0e-2])
+    a_array = np.asarray([[2.01, 4.52, 8.16], [0.81, 1.9, 3.2],
+                     [0.56, 1.31, 2.19], [.27, .55, .95]])
+    b_array = np.asarray([[0.28, 0.62, 1.19], [0.19, 0.28, 0.45],
+                     [0.17, 0.21, 0.31], [0.10, 0.13, 0.15]])
+    d_array = np.asarray([[1.12, 1.39, 1.52], [0.86, 1.21, 1.39],
+                     [0.74, 1.13, 1.32], [0.6, 0.9, 1.13]])
+    a_func = RegularGridInterpolator((mass_array, v_array), a_array, bounds_error=False, fill_value=None)
+    b_func = RegularGridInterpolator((mass_array, v_array), b_array, bounds_error=False, fill_value=None)
+    d_func = RegularGridInterpolator((mass_array, v_array), d_array, bounds_error=False, fill_value=None)
+
+    av = a_func([mej, vej])[0]
+    bv = b_func([mej, vej])[0]
+    dv = d_func([mej, vej])[0]
+    return av, bv, dv
+
+
+def electron_fraction_from_kappa(kappa):
+    """
+    Uses interpolation from Tanaka+19 to calculate
+    the electron fraction based on the temperature independent gray opacity
+    :param kappa: temperature independent gray opacity
+    :return: electron_fraction
+    """
+
+    kappa_array = np.array([1, 3, 5, 20, 30])
+    ye_array = np.array([0.4,0.35,0.25,0.2, 0.1])
+    kappa_func = interp1d(kappa_array, y=ye_array)
+    electron_fraction = kappa_func(kappa)
+    return electron_fraction
