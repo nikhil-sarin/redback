@@ -2,7 +2,6 @@ import mock
 import unittest
 from unittest.mock import MagicMock
 import redback
-import os
 import shutil
 import filecmp
 
@@ -48,7 +47,7 @@ class TestSwiftDataGetter(unittest.TestCase):
             instrument=self.instrument, bin_size=self.bin_size)
 
     def tearDown(self) -> None:
-        os.remove("GRBData")
+        shutil.rmtree("GRBData", ignore_errors=True)
         del self.grb
         del self.transient_type
         del self.data_mode
@@ -73,6 +72,19 @@ class TestSwiftDataGetter(unittest.TestCase):
         with self.assertRaises(ValueError):
             self.getter.instrument = "potato"
 
+    def test_grb(self):
+        expected = f"GRB{self.grb}"
+        self.assertEqual(expected, self.getter.grb)
+
+        self.getter.grb = expected
+        self.assertEqual(expected, self.getter.grb)
+
+    def test_stripped_grb(self):
+        self.assertEqual(self.grb, self.getter.stripped_grb)
+        grb_with_prepended_grb = f"GRB{self.grb}"
+        self.getter.grb = grb_with_prepended_grb
+        self.assertEqual(self.grb, self.getter.stripped_grb)
+
     @mock.patch("redback.get_data.utils.get_trigger_number")
     def test_trigger(self, get_trigger_number):
         expected = "0"
@@ -84,12 +96,21 @@ class TestSwiftDataGetter(unittest.TestCase):
     @mock.patch("astropy.io.ascii.read")
     def test_get_swift_id_from_grb(self, ascii_read):
         swift_id_stump = "123456"
-        swift_id_expected = swift_id_stump + "000"
+        swift_id_expected = f"{swift_id_stump}000"
         swift_id_expected = swift_id_expected.zfill(11)
-        ascii_read.return_value = dict(col1=[self.grb], col2=[swift_id_stump])
+        ascii_read.return_value = dict(col1=[f"GRB{self.grb}"], col2=[swift_id_stump])
         swift_id_actual = self.getter.get_swift_id_from_grb()
         self.assertEqual(swift_id_expected, swift_id_actual)
         ascii_read.assert_called_once()
+
+    @mock.patch("astropy.io.ascii.read")
+    def test_grb_website_prompt(self, ascii_read):
+        swift_id_stump = "123456"
+        self.getter.transient_type = "prompt"
+        ascii_read.return_value = dict(col1=[f"GRB{self.grb}"], col2=[swift_id_stump])
+        expected = f"https://swift.gsfc.nasa.gov/results/batgrbcat/GRB{self.grb}/data_product/" \
+                   f"{self.getter.get_swift_id_from_grb()}-results/lc/{self.bin_size}_lc_ascii.dat"
+        self.assertEqual(expected, self.getter.grb_website)
 
     @mock.patch("redback.get_data.utils.get_trigger_number")
     def test_grb_website_bat_xrt(self, get_trigger_number):
@@ -100,44 +121,38 @@ class TestSwiftDataGetter(unittest.TestCase):
 
     @mock.patch("redback.get_data.utils.get_trigger_number")
     def test_grb_website_xrt(self, get_trigger_number):
-        self.getter.instrument = 'xrt'
+        self.getter.instrument = 'XRT'
         expected_trigger = "0"
         get_trigger_number.return_value = expected_trigger
         expected = f'https://www.swift.ac.uk/xrt_curves/00{expected_trigger}/flux.qdp'
-        self.assertEqual(expected, self.getter.grb_website)
-
-    @mock.patch("astropy.io.ascii.read")
-    def test_grb_website_prompt(self, ascii_read):
-        swift_id_stump = "123456"
-        self.getter.transient_type = "prompt"
-        ascii_read.return_value = dict(col1=[self.grb], col2=[swift_id_stump])
-        expected = f"https://swift.gsfc.nasa.gov/results/batgrbcat/{self.grb}/data_product/" \
-                   f"{self.getter.get_swift_id_from_grb()}-results/lc/{self.bin_size}_lc_ascii.dat"
         self.assertEqual(expected, self.getter.grb_website)
 
     @mock.patch("redback.get_data.directory.afterglow_directory_structure")
     def test_create_directory_structure_afterglow(self, afterglow_directory_structure):
         expected = "0", "1", "2"
         afterglow_directory_structure.return_value = expected
-        self.getter.create_directory_structure()
+        self.getter = redback.get_data.swift.SwiftDataGetter(
+            grb=self.grb, transient_type=self.transient_type, data_mode=self.data_mode,
+            instrument=self.instrument, bin_size=self.bin_size)  # method is called in constructor
         self.assertListEqual(list(expected), list([self.getter.directory_path, self.getter.raw_file_path, self.getter.processed_file_path]))
-        afterglow_directory_structure.assert_called_with(grb=self.grb, data_mode=self.data_mode, instrument=self.instrument)
+        afterglow_directory_structure.assert_called_with(grb=f"GRB{self.grb}", data_mode=self.data_mode, instrument=self.instrument)
 
-    @mock.patch("redback.get_data.directory.prompt_directory_structure")
+    @mock.patch("redback.get_data.directory.swift_prompt_directory_structure")
     def test_create_directory_structure_prompt(self, prompt_directory_structure):
-        self.getter.transient_type = "prompt"
         expected = "0", "1", "2"
         prompt_directory_structure.return_value = expected
-        self.getter.create_directory_structure()
+        self.getter = redback.get_data.swift.SwiftDataGetter(
+            grb=self.grb, transient_type="prompt", data_mode=self.data_mode,
+            instrument=self.instrument, bin_size=self.bin_size)  # method is called in constructor
         self.assertListEqual(list(expected), list([self.getter.directory_path, self.getter.raw_file_path, self.getter.processed_file_path]))
-        prompt_directory_structure.assert_called_with(grb=self.grb, bin_size=self.bin_size)
+        prompt_directory_structure.assert_called_with(grb=f"GRB{self.grb}", bin_size=self.bin_size)
 
     def test_get_data(self):
         self.getter.create_directory_structure = MagicMock()
         self.getter.collect_data = MagicMock()
         self.getter.convert_raw_data_to_csv = MagicMock()
         self.getter.get_data()
-        self.getter.create_directory_structure.assert_called_once()
+        self.getter.create_directory_structure.assert_not_called()
         self.getter.collect_data.assert_called_once()
         self.getter.convert_raw_data_to_csv.assert_called_once()
 
@@ -151,7 +166,7 @@ class TestSwiftDataGetter(unittest.TestCase):
 
     @mock.patch("os.path.isfile")
     @mock.patch('requests.get')
-    def test_collect_data_no_lightcurve_available(self, isfile, get):
+    def test_collect_data_no_lightcurve_available(self, get, isfile):
         isfile.return_value = False
         get.return_value = MagicMock()
         get.return_value.__setattr__('text', 'No Light curve available')
@@ -173,7 +188,7 @@ class TestSwiftDataGetter(unittest.TestCase):
     @mock.patch("os.path.isfile")
     def test_collect_data_prompt(self, isfile):
         isfile.return_value = False
-        self.getter.data_mode = 'prompt'
+        self.getter.transient_type = 'prompt'
         self.getter.download_directly = MagicMock()
         self.getter.download_integrated_flux_data = MagicMock()
         self.getter.download_flux_density_data = MagicMock()
@@ -210,122 +225,6 @@ class TestSwiftDataGetter(unittest.TestCase):
         self.getter.download_integrated_flux_data.assert_not_called()
         self.getter.download_flux_density_data.assert_called_once()
 
-    # @mock.patch("redback.get_data.utils.fetch_driver")
-    # @mock.patch("urllib.request.urlretrieve")
-    # @mock.patch("urllib.request.urlcleanup")
-    # def test_download_flux_density_data_mocked(self, fetch_driver, urlretrieve, urlcleanup):
-    #     mock_driver = MagicMock()
-    #     mock_driver.get = MagicMock()
-    #     mock_driver.find_element_by_xpath = MagicMock()
-    #     mock_driver.find_element_by_xpath.click = MagicMock()
-    #     mock_driver.find_element_by_id = MagicMock()
-    #     mock_driver.find_element_by_id.click = MagicMock()
-    #     mock_driver.quit = MagicMock()
-    #     mock_url = 'mock_url'
-    #     mock_driver.__setattr__('current_url', mock_url)
-    #     fetch_driver.return_value = MagicMock()
-    #
-    #     self.getter.data_mode = 'flux_density'
-    #     self.getter.transient_type = 'afterglow'
-    #     self.getter.instrument = "BAT+XRT"
-    #     self.getter.download_flux_density_data()
-    #
-    #     mock_driver.get.assert_called_once_with(self.getter.grb_website)
-    #     mock_driver.find_element_by_xpath.assert_called_once_with("//select[@name='xrtsub']/option[text()='no']")
-    #     mock_driver.find_element_by_xpath.click.assert_called_once()
-    #     mock_driver.find_element_by_id.assert_called_once_with("xrt_DENSITY_makeDownload")
-    #     mock_driver.find_element_by_id.click.assert_called_once()
-    #     urlretrieve.assert_called_once_with(url=mock_url, filename=self.getter.rawfile)
-    #     urlcleanup.assert_called_once()
-
-    def _download_afterglow(self):
-        self.getter.transient_type = 'afterglow'
-        self.getter.instrument = "BAT+XRT"
-        self.getter.create_directory_structure()
-        self.getter.collect_data()
-
-    def _test_raw_afterglow(self):
-        with open(f"reference_data/afterglow/{self.getter.data_mode}/GRB{self.grb}_rawSwiftData.csv") as file:
-            reference_data = file.read()
-        with open(self.getter.raw_file_path) as file:
-            downloaded_data = file.read()
-        self.assertEqual(reference_data, downloaded_data)
-
-    def _test_converted_afterglow(self):
-        with open(f"reference_data/afterglow/{self.getter.data_mode}/GRB{self.grb}.csv") as file:
-            reference_data = file.read()
-        with open(self.getter.processed_file_path) as file:
-            downloaded_data = file.read()
-        self.assertEqual(reference_data, downloaded_data)
-
-    def test_download_flux_density_data(self):
-        self.getter.data_mode = 'flux_density'
-        self._download_afterglow()
-        self._test_raw_afterglow()
-
-    def test_download_flux_data(self):
-        self.getter.data_mode = 'flux'
-        self._download_afterglow()
-        self._test_raw_afterglow()
-
-    def test_convert_flux_density_data_to_csv(self):
-        self.getter.data_mode = 'flux_density'
-        self._download_afterglow()
-        self.getter.convert_integrated_flux_data_to_csv()
-        self._test_converted_afterglow()
-
-    def test_convert_integrated_flux_data_to_csv(self):
-        self.getter.data_mode = 'flux'
-        self._download_afterglow()
-        self.getter.convert_integrated_flux_data_to_csv()
-        self._test_converted_afterglow()
-
-    def _download_xrt(self):
-        self.getter.instrument = 'XRT'
-        self.getter.create_directory_structure()
-        self.getter.download_directly()
-
-    def test_download_xrt_data(self):
-        self._download_xrt()
-        with open(f"reference_data/afterglow/{self.getter.data_mode}/GRB{self.grb}_xrt_rawSwiftData.csv") as file:
-            reference_data = file.read()
-        with open(self.getter.raw_file_path) as file:
-            downloaded_data = file.read()
-        self.assertEqual(reference_data, downloaded_data)
-
-    def test_convert_xrt_data_to_csv(self):
-        self._download_xrt()
-        self.getter.convert_xrt_data_to_csv()
-        with open(f"reference_data/afterglow/{self.getter.data_mode}/GRB{self.grb}_xrt.csv") as file:
-            reference_data = file.read()
-        with open(self.getter.processed_file_path) as file:
-            downloaded_data = file.read()
-        self.assertEqual(reference_data, downloaded_data)
-
-    def _download_prompt(self):
-        self.data_mode = 'prompt'
-        self.getter.bin_size = '2ms'
-        self.getter.data_mode = 'counts'
-        self.getter.create_directory_structure()
-        self.getter.download_directly()
-
-    def test_download_prompt(self):
-        self._download_prompt()
-        with open(f"reference_data/prompt/{self.getter.data_mode}/GRB{self.grb}_{self.bin_size}_lc_ascii.dat") as file:
-            reference_data = file.read()
-        with open(self.getter.raw_file_path) as file:
-            downloaded_data = file.read()
-        self.assertEqual(reference_data, downloaded_data)
-
-    def test_convert_raw_prompt_data_to_csv(self):
-        self._download_prompt()
-        self.getter.convert_raw_prompt_data_to_csv()
-        with open(f"reference_data/prompt/{self.getter.data_mode}/GRB{self.grb}_{self.bin_size}_lc.csv") as file:
-            reference_data = file.read()
-        with open(self.getter.processed_file_path) as file:
-            downloaded_data = file.read()
-        self.assertEqual(reference_data, downloaded_data)
-
     def _mock_converter_functions(self):
         self.getter.convert_xrt_data_to_csv = MagicMock()
         self.getter.convert_raw_afterglow_data_to_csv = MagicMock()
@@ -342,19 +241,25 @@ class TestSwiftDataGetter(unittest.TestCase):
         self.getter.convert_raw_prompt_data_to_csv.assert_not_called()
 
     def test_convert_raw_data_to_csv_instrument_xrt(self):
+        self.getter.instrument = "XRT"
         self._mock_converter_functions()
+        self.getter.convert_raw_data_to_csv()
         self.getter.convert_xrt_data_to_csv.assert_called_once()
         self.getter.convert_raw_afterglow_data_to_csv.assert_not_called()
         self.getter.convert_raw_prompt_data_to_csv.assert_not_called()
 
     def test_convert_raw_data_to_csv_afterglow_data(self):
+        self.getter.transient_type = "afterglow"
         self._mock_converter_functions()
+        self.getter.convert_raw_data_to_csv()
         self.getter.convert_xrt_data_to_csv.assert_not_called()
         self.getter.convert_raw_afterglow_data_to_csv.assert_called_once()
         self.getter.convert_raw_prompt_data_to_csv.assert_not_called()
 
     def test_convert_raw_data_to_csv_prompt_data(self):
+        self.getter.transient_type = "prompt"
         self._mock_converter_functions()
+        self.getter.convert_raw_data_to_csv()
         self.getter.convert_xrt_data_to_csv.assert_not_called()
         self.getter.convert_raw_afterglow_data_to_csv.assert_not_called()
         self.getter.convert_raw_prompt_data_to_csv.assert_called_once()
@@ -393,7 +298,7 @@ class TestReferenceFiles(unittest.TestCase):
                     self.assertEqual(l1, l2)
 
     def test_swift_afterglow_flux_data(self):
-        redback.get_data.get_afterglow_data_from_swift(grb='GRB070809', data_mode='flux')
+        redback.get_data.get_bat_xrt_afterglow_data_from_swift(grb='GRB070809', data_mode='flux')
         self.downloaded_file = "GRBData/afterglow/flux/GRB070809_rawSwiftData.csv"
         self._compare_files_line_by_line()
 
@@ -401,7 +306,7 @@ class TestReferenceFiles(unittest.TestCase):
         self._compare_files_line_by_line()
 
     def test_swift_xrt_flux_data(self):
-        redback.get_data.get_xrt_data_from_swift(grb='GRB070809', data_mode='flux')
+        redback.get_data.get_xrt_afterglow_data_from_swift(grb='GRB070809', data_mode='flux')
         self.downloaded_file = "GRBData/afterglow/flux/GRB070809_xrt_rawSwiftData.csv"
         self._compare_files_line_by_line()
 

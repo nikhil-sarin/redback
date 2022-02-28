@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import os
 import time
 import urllib
@@ -32,7 +34,7 @@ class SwiftDataGetter(object):
                         "flux_25_50_err [counts/s/det]", "flux_50_100 [counts/s/det]", "flux_50_100_err [counts/s/det]",
                         "flux_100_350 [counts/s/det]", "flux_100_350_err [counts/s/det]", "flux_15_350 [counts/s/det]",
                         "flux_15_350_err [counts/s/det]"]
-    SWIFT_PROMPT_BIN_SIZES = redback.get_data.directory.SWIFT_PROMPT_BIN_SIZES
+    SWIFT_PROMPT_BIN_SIZES = ['1s', '2ms', '8ms', '16ms', '64ms', '256ms']
 
     def __init__(
             self, grb: str, transient_type: str, data_mode: str,
@@ -296,9 +298,10 @@ class SwiftDataGetter(object):
         """
         if os.path.isfile(self.processed_file_path):
             logger.warning('The processed data file already exists. Returning.')
+            return
         if self.instrument == 'XRT':
             self.convert_xrt_data_to_csv()
-        if self.transient_type == 'afterglow':
+        elif self.transient_type == 'afterglow':
             self.convert_raw_afterglow_data_to_csv()
         elif self.transient_type == 'prompt':
             self.convert_raw_prompt_data_to_csv()

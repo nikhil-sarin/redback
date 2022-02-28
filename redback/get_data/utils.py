@@ -1,6 +1,7 @@
 import os
 import pandas as pd
 
+import astropy.io.ascii
 
 _dirname = os.path.dirname(__file__)
 
@@ -67,7 +68,7 @@ def get_batse_trigger_from_grb(grb: str) -> int:
     grb = "GRB" + grb.lstrip("GRB")
 
     ALPHABET = "ABCDEFGHIJKLMNOP"
-    dat = ascii.read(f"{_dirname}/../tables/BATSE_trigger_table.txt")
+    dat = astropy.io.ascii.read(f"{_dirname}/../tables/BATSE_trigger_table.txt")
     batse_triggers = list(dat['col1'])
     object_labels = list(dat['col2'])
 

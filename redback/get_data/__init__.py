@@ -3,10 +3,7 @@ from __future__ import annotations
 from typing import Union
 import urllib
 
-import redback.get_data.directory
-import redback.get_data.open_data
-import redback.get_data.swift
-import redback.get_data.utils
+from redback.get_data import batse, directory, fermi, konus, open_data, swift, utils
 from redback.get_data.swift import SwiftDataGetter
 from redback.get_data.open_data import OpenDataGetter
 from redback.get_data.batse import BATSEDataGetter
