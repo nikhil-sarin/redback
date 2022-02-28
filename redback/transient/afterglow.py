@@ -11,7 +11,7 @@ from typing import Union
 from astropy.cosmology import Planck18 as cosmo  # noqa
 
 from redback.utils import logger
-from redback.getdata import afterglow_directory_structure
+from redback.get_data.directory import afterglow_directory_structure
 from redback.transient.transient import Transient
 
 dirname = os.path.dirname(__file__)

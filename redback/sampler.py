@@ -4,7 +4,7 @@ from pathlib import Path
 
 import bilby
 
-import redback.getdata
+import redback.get_data
 from redback.likelihoods import GaussianLikelihood, GRBGaussianLikelihood, PoissonLikelihood
 from redback.model_library import all_models_dict
 from redback.result import RedbackResult
@@ -89,7 +89,7 @@ def _fit_grb(transient, model, outdir=None, label=None, sampler='dynesty', nlive
             prior['alpha_1'] = bilby.prior.Gaussian(mu=-(transient.photon_index + 1), sigma=0.1,
                                                     latex_label=r'$\alpha_{1}$')
     if outdir is None:
-        outdir, _, _ = redback.getdata.afterglow_directory_structure(
+        outdir, _, _ = redback.get_data.directory.afterglow_directory_structure(
             grb=transient._stripped_name, data_mode=data_mode, instrument='')
         outdir = f"{outdir}/{model.__name__}"
     Path(outdir).mkdir(parents=True, exist_ok=True)
@@ -123,8 +123,8 @@ def _fit_kilonova(transient, model, outdir=None, label=None, sampler='dynesty', 
                   data_mode='flux', resume=True, save_format='json', model_kwargs=None, **kwargs):
 
     if outdir is None:
-        outdir, _, _ = redback.getdata.transient_directory_structure(
-            transient=transient.name, transient_type=transient.__class__.__name__)
+        outdir, _, _ = redback.get_data.directory.transient_directory_structure(
+            transient=transient.name, transient_type=transient.__class__.__name__, data_mode=transient.data_mode)
         outdir = f"{outdir}/{model.__name__}"
     Path(outdir).mkdir(parents=True, exist_ok=True)
 
