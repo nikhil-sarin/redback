@@ -13,6 +13,15 @@ import astropy.constants as cc
 from scipy.integrate import cumtrapz
 import redback.ejecta_relations as ejr
 
+def mosfit_bns():
+    pass
+
+def mosfit_rprocess():
+    pass
+
+def mosfit_kilonova():
+    pass
+
 def power_law_stratified_kilonova(time, redshift, mass, vmin, vmax, alpha,
                                   kappa_min, kappa_max, beta, **kwargs):
     pass

@@ -141,3 +141,33 @@ def arnett(time, redshift, f_nickel, mej, interaction_process=ip.Diffusion,
     elif kwargs['output_format'] == 'magnitude':
         return flux_density.to(uu.ABmag).value
 
+def magnetar_nickel():
+    pass
+
+def superluminous_supernova():
+    pass
+
+def basic_magnetar_powered():
+    pass
+
+def braking_index_magnetar_powered():
+    pass
+
+def csm_interaction():
+    pass
+
+def csm_nickel():
+    pass
+
+def type_1a():
+    pass
+
+def type_1c():
+    pass
+
+def homologous_expansion_supernova_model():
+    pass
+
+def thin_shell_supernova_model():
+    pass
+
