@@ -1,5 +1,3 @@
-# Mostly from Mosfit/SEDs
-
 import numpy as np
 from redback.constants import *
 from redback.utils import nu_to_lambda, lambda_to_nu
@@ -51,6 +49,7 @@ class CutoffBlackbody(object):
         self.flux_density = self.calculate_flux_density()
 
     def calculate_flux_density(self):
+        # Mostly from Mosfit/SEDs
         cutoff_wavelength = self.cutoff_wavelength * angstrom_cgs
         wavelength = nu_to_lambda(self.frequencies)
         x_const = planck * speed_of_light * boltzmann_constant
@@ -87,7 +86,7 @@ class CutoffBlackbody(object):
         norms /= f_blue_reds
 
         # Apply renormalisation
-        sed *= norms[np.searchsorted(uniq_times, self.times)]
+        sed *= norms[np.searchsorted(uniq_times, self.time)]
 
         self.sed = sed
 
@@ -206,6 +205,7 @@ class Line(object):
         self.flux_density = self.calculate_flux_density()
 
     def calculate_flux_density(self):
+        # Mostly from Mosfit/SEDs
         wavelength = nu_to_lambda(self.frequencies)
         amplitude = self.line_amplitude * np.exp(-0.5*((self.time - self.line_time)/self.line_duration)**2)
 
