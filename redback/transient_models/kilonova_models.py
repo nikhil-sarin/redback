@@ -24,14 +24,14 @@ def two_layer_stratified_kilonova(time, redshift, mass, vej_1, vej_2, kappa, bet
     Uses kilonova_heating_rate module to model a two layer stratified kilonova
     :param time: observer frame time in days
     :param redshift: redshift
-    :param frequencies: frequencies to calculate - Must be same length as time array or a single number
+    :param frequency: frequency to calculate - Must be same length as time array or a single number
     :param mass: ejecta mass
     :param vej_1: velocity of inner shell   
     :param vej_2: velocity of outer shell
     :param kappa: constant gray opacity
     :param beta: power law index of density profile
     :param kwargs: output_format
-                    frequencies (frequencies to calculate - Must be same length as time array or a single number)
+                    frequency (frequency to calculate - Must be same length as time array or a single number)
     :return: flux_density or magnitude
     """
     velocity_array = np.array([vej_1, vej_2])
@@ -44,24 +44,24 @@ def _kilonova_hr(time, redshift, mass, velocity_array, kappa_array, beta, **kwar
     Uses kilonova_heating_rate module
     :param time: observer frame time in days
     :param redshift: redshift
-    :param frequencies: frequencies to calculate - Must be same length as time array or a single number
+    :param frequency: frequency to calculate - Must be same length as time array or a single number
     :param mass: ejecta mass
     :param velocity_array: array of ejecta velocities; length >=2
     :param kappa_array: opacities of each shell, length = 1 less than velocity
     :param beta: power law index of density profile
     :param kwargs: output_format
-                    frequencies (frequencies to calculate - Must be same length as time array or a single number)
+                    frequency (frequency to calculate - Must be same length as time array or a single number)
     :return: flux_density or magnitude
     """
-    frequencies = kwargs['frequencies']
+    frequency = kwargs['frequency']
     # convert to source frame time and frequency
     time = time * 86400
-    frequencies, time = calc_kcorrected_properties(frequencies=frequencies, redshift=redshift, time=time)
+    frequency, time = calc_kcorrected_properties(frequency=frequency, redshift=redshift, time=time)
     dl = cosmo.luminosity_distance(redshift).cgs.value
     _, temperature, r_photosphere = _kilonova_hr_sourceframe(time, mass, velocity_array, kappa_array, beta)
 
     flux_density = blackbody_to_flux_density(temperature=temperature.value, r_photosphere=r_photosphere.value,
-                                             dl=dl, frequencies=frequencies)
+                                             dl=dl, frequency=frequency)
 
     if kwargs['output_format'] == 'flux_density':
         return flux_density.to(uu.mJy).value
@@ -119,13 +119,13 @@ def three_component_kilonova_model(time, redshift, mej_1, vej_1, temperature_flo
     :param temperature_floor_3: floor temperature of third component
     :param kappa_3: gray opacity of third component
     :param kwargs: output_format
-                    frequencies (frequencies to calculate - Must be same length as time array or a single number)
+                    frequency (frequency to calculate - Must be same length as time array or a single number)
     :return: flux_density or magnitude
     """
-    frequencies = kwargs['frequencies']
+    frequency = kwargs['frequency']
     # convert to source frame time and frequency
     time = time * 86400
-    frequencies, time = calc_kcorrected_properties(frequencies=frequencies, redshift=redshift, time=time)
+    frequency, time = calc_kcorrected_properties(frequency=frequency, redshift=redshift, time=time)
     dl = cosmo.luminosity_distance(redshift).cgs.value
 
     ff = np.zeros(len(time))
@@ -144,7 +144,7 @@ def three_component_kilonova_model(time, redshift, mej_1, vej_1, temperature_flo
         temp = temp_func(time)
         photosphere = rad_func(time)
         flux_density = blackbody_to_flux_density(temperature=temp, r_photosphere=photosphere,
-                                                 dl=dl, frequencies=frequencies)
+                                                 dl=dl, frequency=frequency)
         units = flux_density.unit
         ff += flux_density.value
     ff = ff * units
@@ -168,13 +168,13 @@ def two_component_kilonova_model(time, redshift, mej_1, vej_1, temperature_floor
     :param temperature_floor_2: floor temperature of second component
     :param kappa_2: gray opacity of second component
     :param kwargs: output_format
-                    frequencies (frequencies to calculate - Must be same length as time array or a single number)
+                    frequency (frequency to calculate - Must be same length as time array or a single number)
     :return: flux_density or magnitude
     """
-    frequencies = kwargs['frequencies']
+    frequency = kwargs['frequency']
     # convert to source frame time and frequency
     time = time * 86400
-    frequencies, time = calc_kcorrected_properties(frequencies=frequencies, redshift=redshift, time=time)
+    frequency, time = calc_kcorrected_properties(frequency=frequency, redshift=redshift, time=time)
     dl = cosmo.luminosity_distance(redshift).cgs.value
 
     ff = np.zeros(len(time))
@@ -193,7 +193,7 @@ def two_component_kilonova_model(time, redshift, mej_1, vej_1, temperature_floor
         temp = temp_func(time)
         photosphere = rad_func(time)
         flux_density = blackbody_to_flux_density(temperature=temp, r_photosphere=photosphere,
-                                                 dl=dl, frequencies=frequencies)
+                                                 dl=dl, frequency=frequency)
         units = flux_density.unit
         ff += flux_density.value
     ff = ff * units
@@ -215,15 +215,15 @@ def one_component_ejecta_relation_model(time, redshift, mass_1, mass_2,
     :param kappa: gray opacity
     :param kwargs: temperature_floor, output_format,
                     ejecta_relation; a class that relates the instrinsic parameters to the kilonova parameters
-                    frequencies (frequencies to calculate - Must be same length as time array or a single number)
+                    frequency (frequency to calculate - Must be same length as time array or a single number)
     :return: flux_density or magnitude
     """
-    frequencies = kwargs['frequencies']
+    frequency = kwargs['frequency']
     ejecta_relation = kwargs.get('ejecta_relation', ejr.Dietrich_ujevic_17)
     ejecta_relation = ejecta_relation(mass_1, mass_2, lambda_1, lambda_2)
     mej = ejecta_relation.ejecta_mass
     vej = ejecta_relation.ejecta_velocity
-    flux_density = one_component_kilonova_model(time, redshift, frequencies, mej, vej, kappa, **kwargs)
+    flux_density = one_component_kilonova_model(time, redshift, frequency, mej, vej, kappa, **kwargs)
     return flux_density
 
 def one_component_kilonova_model(time, redshift, mej, vej, kappa, **kwargs):
@@ -234,12 +234,12 @@ def one_component_kilonova_model(time, redshift, mej, vej, kappa, **kwargs):
     :param vej: minimum initial velocity
     :param kappa: gray opacity
     :param kwargs: temperature_floor
-                   frequencies (frequencies to calculate - Must be same length as time array or a single number)
+                   frequency (frequency to calculate - Must be same length as time array or a single number)
                    output_format
     :return: flux_density or magnitude
     """
     time = time * 86400
-    frequencies = kwargs['frequencies']
+    frequency = kwargs['frequency']
     time_temp = np.geomspace(1e-4, 1e7, 300)
     _, temperature, r_photosphere = _one_component_kilonova_model(time_temp, mej, vej, kappa, **kwargs)
     dl = cosmo.luminosity_distance(redshift).cgs.value
@@ -248,13 +248,13 @@ def one_component_kilonova_model(time, redshift, mej, vej, kappa, **kwargs):
     temp_func = interp1d(time_temp, y=temperature)
     rad_func = interp1d(time_temp, y=r_photosphere)
     # convert to source frame time and frequency
-    frequencies, time = calc_kcorrected_properties(frequencies=frequencies, redshift=redshift, time=time)
+    frequency, time = calc_kcorrected_properties(frequency=frequency, redshift=redshift, time=time)
 
     temp = temp_func(time)
     photosphere = rad_func(time)
 
     flux_density = blackbody_to_flux_density(temperature=temp, r_photosphere=photosphere,
-                                             dl=dl, frequencies=frequencies)
+                                             dl=dl, frequency=frequency)
 
     if kwargs['output_format'] == 'flux_density':
         return flux_density.to(uu.mJy).value
@@ -314,10 +314,10 @@ def metzger_kilonova_model(time, redshift, mej, vej, beta, kappa_r, **kwargs):
     :param beta: velocity power law slope (M=v^-beta)
     :param kappa_r: gray opacity
     :param kwargs: neutron_precursor_switch, output_format
-                frequencies (frequencies to calculate - Must be same length as time array or a single number)
+                frequency (frequency to calculate - Must be same length as time array or a single number)
     :return: flux_density or magnitude
     """
-    frequencies = kwargs['frequencies']
+    frequency = kwargs['frequency']
     time_temp = np.geomspace(1e-4, 1e7, 300)
     bolometric_luminosity, temperature, r_photosphere = _metzger_kilonova_model(time_temp, mej, vej, beta,
                                                                                                kappa_r, **kwargs)
@@ -327,13 +327,13 @@ def metzger_kilonova_model(time, redshift, mej, vej, beta, kappa_r, **kwargs):
     temp_func = interp1d(time_temp, y=temperature)
     rad_func = interp1d(time_temp, y=r_photosphere)
     # convert to source frame time and frequency
-    frequencies, time = calc_kcorrected_properties(frequencies=frequencies, redshift=redshift, time=time)
+    frequency, time = calc_kcorrected_properties(frequency=frequency, redshift=redshift, time=time)
 
     temp = temp_func(time)
     photosphere = rad_func(time)
 
     flux_density = blackbody_to_flux_density(temperature=temp, r_photosphere=photosphere,
-                                             dl=dl, frequencies=frequencies)
+                                             dl=dl, frequency=frequency)
 
     if kwargs['output_format'] == 'flux_density':
         return flux_density.to(uu.mJy).value
