@@ -15,3 +15,5 @@ au_cgs = uu.au.cgs.scale
 solar_radius = cc.R_sun.cgs.value
 graviational_constant = cc.G.cgs.value
 angstrom_cgs = uu.Angstrom.cgs.scale
+ang_to_hz = 2.9979245799999995e+18
+speed_of_light_si = cc.c.si.value
