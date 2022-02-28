@@ -5,7 +5,7 @@ from scipy.interpolate import interp1d
 from redback.constants import *
 
 class Diffusion(object):
-    def __init__(self, time, luminosity, kappa, kappa_gamma, mej, vej):
+    def __init__(self, time, luminosity, kappa, kappa_gamma, mej, vej, **kwargs):
         """
         :param time: source frame time in seconds
         :param luminosity: luminosity
@@ -62,7 +62,7 @@ class Diffusion(object):
         return tau_diff, new_lums
 
 class AsphericalDiffusion(object):
-    def __init__(self, time, luminosity, kappa, kappa_gamma, mej, vej, area_projection, area_reference):
+    def __init__(self, time, luminosity, kappa, kappa_gamma, mej, vej, area_projection, area_reference, **kwargs):
         """
         :param time: source frame time in seconds
         :param luminosity: luminosity
@@ -126,7 +126,7 @@ class AsphericalDiffusion(object):
         return tau_diff, new_lums
 
 class CSMDiffusion(object):
-    def __init__(self, time, luminosity, kappa, csm_mass, mej, r0, eta, rho):
+    def __init__(self, time, luminosity, kappa, csm_mass, mej, r0, eta, rho, **kwargs):
         """
         :param time: source frame time in seconds
         :param luminosity: luminosity
@@ -195,7 +195,7 @@ class CSMDiffusion(object):
         return new_lums
 
 class Viscous(object):
-    def __init__(self, time, luminosity, t_viscous):
+    def __init__(self, time, luminosity, t_viscous, **kwargs):
         """
         :param time: source frame time in seconds
         :param luminosity: luminosity

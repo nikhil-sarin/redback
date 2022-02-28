@@ -26,7 +26,8 @@ def blackbody_to_flux_density(temperature, r_photosphere, dl, frequencies):
     return flux_density
 
 class CutoffBlackbody(object):
-    def __init__(self, time, temperature, luminosity, r_photosphere, frequencies, luminosity_distance, cutoff_wavelength):
+    def __init__(self, time, temperature, luminosity, r_photosphere,
+                 frequencies, luminosity_distance, cutoff_wavelength, **kwargs):
         """
         Blackbody SED with a cutoff
         :param time: time in source frame in seconds
@@ -35,6 +36,7 @@ class CutoffBlackbody(object):
         :param r_photosphere: photosphere radius in cm
         :param frequencies: frequencies in Hz - must be a single number or same length as time array
         :param luminosity_distance: dl in cm
+        :param kwargs: None
         """
         self.time = time
         self.luminosity = luminosity
@@ -103,14 +105,14 @@ class CutoffBlackbody(object):
 
 
 class Blackbody(object):
-    def __init__(self, temperature, r_photosphere, frequencies, luminosity_distance):
+    def __init__(self, temperature, r_photosphere, frequencies, luminosity_distance, **kwargs):
         """
         Simple Blackbody SED
         :param temperature: effective temperature in kelvin
         :param r_photosphere: photosphere radius in cm
         :param frequencies: frequencies to calculate in Hz - Must be same length as time array or a single number. In source frame
         :param luminosity_distance: luminosity_distance in cm
-
+        :param kwargs: None
         """
         self.temperature = temperature
         self.r_photosphere = r_photosphere
@@ -128,7 +130,7 @@ class Blackbody(object):
 
 class Synchrotron(object):
     def __init__(self, frequencies, luminosity_distance,
-                 pp,nu_max, source_radius=1e13, f0=1e-26):
+                 pp,nu_max, source_radius=1e13, f0=1e-26, **kwargs):
         """
         Synchrotron SED
         :param frequencies: frequencies to calculate in Hz - Must be same length as time array or a single number. In source frame
@@ -137,6 +139,7 @@ class Synchrotron(object):
         :param nu_max: max frequency
         :param source_radius: emitting source radius
         :param f0: frequency normalization
+        :param kwargs: None
         """
         self.frequencies = frequencies
         self.luminosity_distance = luminosity_distance
@@ -173,7 +176,7 @@ class Synchrotron(object):
 
 class Line(object):
     def __init__(self, time, luminosity, frequency, sed, luminosity_distance, line_wavelength=7.5e3, line_width=500,
-                 line_time=50, line_duration=25, line_amplitude=0.3):
+                 line_time=50, line_duration=25, line_amplitude=0.3, **kwargs):
         """
         Modifies the input SED by accounting for absorption lines
         :param time: time in source frame
@@ -186,7 +189,7 @@ class Line(object):
         :param line_time: line time
         :param line_duration: line duration
         :param line_amplitude: line amplitude
-
+        :param kwargs: None
         """
         self.time = time
         self.luminosity = luminosity

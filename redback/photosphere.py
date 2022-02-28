@@ -4,7 +4,7 @@ import numpy as np
 from redback.constants import *
 
 class TemperatureFloor(object):
-    def __init__(self, time, luminosity, vej):
+    def __init__(self, time, luminosity, vej, **kwargs):
         """
         Photosphere with a floor temperature and effective blackbody otherwise
         :param time: source frame time in seconds
@@ -38,7 +38,7 @@ class TemperatureFloor(object):
 
 
 class TDEphotosphere(object):
-    def __init__(self, time, luminosity, mass_bh, mass_star, star_radius, tpeak, beta, rph_0, lphoto):
+    def __init__(self, time, luminosity, mass_bh, mass_star, star_radius, tpeak, beta, rph_0, lphoto, **kwargs):
         """
         Photosphere that expands/recedes as a power law of Mdot
         :param time: time in source frame
@@ -104,7 +104,7 @@ class TDEphotosphere(object):
         return temperature, r_photosphere, rp
 
 class Densecore(object):
-    def __init__(self, time, luminosity, mej, vej, kappa, envelope_slope=10):
+    def __init__(self, time, luminosity, mej, vej, kappa, envelope_slope=10, **kwargs):
         """
         Photosphere with a dense core and a low-mass envelope.
         :param time: time in source frame in days
