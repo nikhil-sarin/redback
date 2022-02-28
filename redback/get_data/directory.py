@@ -78,7 +78,7 @@ def swift_prompt_directory_structure(grb: str, bin_size: str = '2ms') -> Directo
         directory_path=directory_path, raw_file_path=raw_file_path, processed_file_path=processed_file_path)
 
 
-def batse_prompt_directory_structure(grb: str, trigger: object = None) -> DirectoryStructure:
+def batse_prompt_directory_structure(grb: str, trigger: str = None, **kwargs: object) -> DirectoryStructure:
     """
     Provides directory structure for BATSE prompt data.
 
@@ -88,6 +88,8 @@ def batse_prompt_directory_structure(grb: str, trigger: object = None) -> Direct
         Name of the GRB, e.g. GRB123456.
     trigger: str, optional
         The BATSE trigger number. Will be inferred from the GRB if not given.
+    kwargs: object
+        Add callable `get_batse_trigger_from_grb` for testing
 
     Returns
     -------
@@ -96,8 +98,9 @@ def batse_prompt_directory_structure(grb: str, trigger: object = None) -> Direct
 
     directory_path = f'GRBData/prompt/flux/'
     check_directory_exists_and_if_not_mkdir(directory_path)
+    convert_grb_to_trigger = kwargs.get("get_batse_trigger_from_grb", get_batse_trigger_from_grb)
     if trigger is None:
-        trigger = get_batse_trigger_from_grb(grb=grb)
+        trigger = convert_grb_to_trigger(grb=grb)
 
     raw_file_path = f'{directory_path}tte_bfits_{trigger}.fits.gz'
     processed_file_path = f'{directory_path}{grb}_BATSE_lc.csv'
@@ -122,9 +125,9 @@ def transient_directory_structure(transient: str, transient_type: str, data_mode
     -------
     tuple: The directory, the raw data file name, and the processed file name.
     """
-    directory_path = transient_type + '/' + data_mode + '/'
+    directory_path = f"{transient_type}/{data_mode}/"
     check_directory_exists_and_if_not_mkdir(directory_path)
-    raw_file_path = directory_path + transient + '_rawdata.csv'
-    processed_file_path = directory_path + transient + '.csv'
+    raw_file_path = f"{directory_path}{transient}_rawdata.csv"
+    processed_file_path = f"{directory_path}{transient}.csv"
     return DirectoryStructure(
         directory_path=directory_path, raw_file_path=raw_file_path, processed_file_path=processed_file_path)

@@ -36,11 +36,82 @@ class TestUtils(unittest.TestCase):
 
 class TestDirectory(unittest.TestCase):
 
+    @classmethod
+    def setUpClass(cls) -> None:
+        _delete_downloaded_files()
+
+    @classmethod
+    def tearDownClass(cls) -> None:
+        _delete_downloaded_files()
+
     def setUp(self) -> None:
-        pass
+        _delete_downloaded_files()
+        self.grb = "GRB123456"
+        self.data_mode = "flux"
+        self.instrument = "BAT+XRT"
+        self.bin_size = "1s"
 
     def tearDown(self) -> None:
-        pass
+        _delete_downloaded_files()
+        del self.grb
+        del self.data_mode
+        del self.instrument
+        del self.bin_size
+
+    def test_swift_afterglow_directory_structure_bat_xrt(self):
+        structure = redback.get_data.directory.afterglow_directory_structure(
+            grb=self.grb, data_mode=self.data_mode, instrument=self.instrument)
+        self.assertEqual(f"GRBData/afterglow/{self.data_mode}/", structure.directory_path)
+        self.assertEqual(f"GRBData/afterglow/{self.data_mode}/{self.grb}_rawSwiftData.csv", structure.raw_file_path)
+        self.assertEqual(f"GRBData/afterglow/{self.data_mode}/{self.grb}.csv", structure.processed_file_path)
+
+    def test_swift_afterglow_directory_structure_xrt(self):
+        self.instrument = "XRT"
+        structure = redback.get_data.directory.afterglow_directory_structure(
+            grb=self.grb, data_mode=self.data_mode, instrument=self.instrument)
+        self.assertEqual(f"GRBData/afterglow/{self.data_mode}/", structure.directory_path)
+        self.assertEqual(f"GRBData/afterglow/{self.data_mode}/{self.grb}_xrt_rawSwiftData.csv", structure.raw_file_path)
+        self.assertEqual(f"GRBData/afterglow/{self.data_mode}/{self.grb}_xrt.csv", structure.processed_file_path)
+
+    def test_swift_prompt_directory_structure(self):
+        self.data_mode = "prompt"
+        structure = redback.get_data.directory.swift_prompt_directory_structure(grb=self.grb, bin_size=self.bin_size)
+        self.assertEqual(f"GRBData/{self.data_mode}/flux/", structure.directory_path)
+        self.assertEqual(
+            f"GRBData/{self.data_mode}/flux/{self.grb}_{self.bin_size}_lc_ascii.dat", structure.raw_file_path)
+        self.assertEqual(
+            f"GRBData/{self.data_mode}/flux/{self.grb}_{self.bin_size}_lc.csv", structure.processed_file_path)
+
+    def test_swift_prompt_directory_structure_wrong_binning(self):
+        with self.assertRaises(ValueError):
+            redback.get_data.directory.swift_prompt_directory_structure(grb=self.grb, bin_size='3 dollars')
+
+    def test_batse_prompt_directory_structure_no_trigger(self):
+        trigger = "1234"
+        self.data_mode = "prompt"
+        structure = redback.get_data.directory.batse_prompt_directory_structure(
+            grb=self.grb, trigger=None, get_batse_trigger_from_grb=lambda grb: trigger)
+        self.assertEqual(f"GRBData/{self.data_mode}/flux/", structure.directory_path)
+        self.assertEqual(f"GRBData/{self.data_mode}/flux/tte_bfits_{trigger}.fits.gz", structure.raw_file_path)
+        self.assertEqual(f"GRBData/{self.data_mode}/flux/{self.grb}_BATSE_lc.csv", structure.processed_file_path)
+
+    def test_batse_prompt_directory_structure_with_trigger(self):
+        trigger = "1234"
+        self.data_mode = "prompt"
+        structure = redback.get_data.directory.batse_prompt_directory_structure(grb=self.grb, trigger=trigger)
+        self.assertEqual(f"GRBData/{self.data_mode}/flux/", structure.directory_path)
+        self.assertEqual(f"GRBData/{self.data_mode}/flux/tte_bfits_{trigger}.fits.gz", structure.raw_file_path)
+        self.assertEqual(f"GRBData/{self.data_mode}/flux/{self.grb}_BATSE_lc.csv", structure.processed_file_path)
+
+    def test_transient_directory_structure(self):
+        transient = "abc"
+        transient_type = "tde"
+        self.data_mode = "photometry"
+        structure = redback.get_data.directory.transient_directory_structure(
+            transient=transient, transient_type=transient_type, data_mode=self.data_mode)
+        self.assertEqual(f"{transient_type}/{self.data_mode}/", structure.directory_path)
+        self.assertEqual(f"{transient_type}/{self.data_mode}/{transient}_rawdata.csv", structure.raw_file_path)
+        self.assertEqual(f"{transient_type}/{self.data_mode}/{transient}.csv", structure.processed_file_path)
 
 
 def _delete_downloaded_files():
