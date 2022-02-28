@@ -1,6 +1,10 @@
 import mock
 import unittest
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, PropertyMock
+
+import numpy as np
+import pandas as pd
+
 import redback
 import shutil
 import filecmp
@@ -173,6 +177,137 @@ class TestBATSEDataGetter(unittest.TestCase):
     @mock.patch("pandas.DataFrame")
     def test_convert_raw_data_to_csv(self, DataFrame, fits_open):
         pass  # Add unittests maybe. This is also covered by the reference file tests.
+
+
+class TestOpenDataGetter(unittest.TestCase):
+
+    @classmethod
+    def setUpClass(cls) -> None:
+        _delete_downloaded_files()
+
+    @classmethod
+    def tearDownClass(cls) -> None:
+        _delete_downloaded_files()
+
+    def setUp(self) -> None:
+        _delete_downloaded_files()
+        self.transient = "at2017gfo"
+        self.transient_type = "kilonova"
+        self.getter = redback.get_data.OpenDataGetter(transient=self.transient, transient_type=self.transient_type)
+
+    def tearDown(self) -> None:
+        del self.transient
+        del self.transient_type
+        del self.getter
+        _delete_downloaded_files()
+
+    def test_set_invalid_transient_type(self):
+        with self.assertRaises(ValueError):
+            self.getter.transient_type = "patrick"
+
+    def test_get_data(self):
+        self.getter.collect_data = MagicMock()
+        self.getter.convert_raw_data_to_csv = MagicMock()
+        self.getter.get_data()
+        self.getter.collect_data.assert_called_once()
+        self.getter.convert_raw_data_to_csv.assert_called_once()
+
+    def test_url(self):
+        expected = f"https://api.astrocats.space/{self.transient}/photometry/time+magnitude+e_" \
+                   f"magnitude+band+system?e_magnitude&band&time&format=csv"
+        self.assertEqual(expected, self.getter.url)
+
+    def test_metadata_url(self):
+        expected = f"https://api.astrocats.space/{self.transient}/" \
+                   f"timeofmerger+discoverdate+redshift+ra+dec+host+alias?format=CSV"
+        self.assertEqual(expected, self.getter.metadata_url)
+
+    def test_metadata_path(self):
+        expected = f"{self.getter.directory_path}{self.transient}_metadata.csv"
+        self.assertEqual(expected, self.getter.metadata_path)
+
+    @mock.patch("os.path.isfile")
+    @mock.patch("requests.get")
+    def test_collect_data_file_exists(self, get, isfile):
+        isfile.return_value = True
+        self.getter.collect_data()
+        isfile.assert_called_once_with(self.getter.raw_file_path)
+        get.assert_not_called()
+
+    @mock.patch("os.path.isfile")
+    @mock.patch("requests.get")
+    @mock.patch("urllib.request.urlretrieve")
+    def test_collect_data_not_found(self, urlretrieve, get, isfile):
+        isfile.return_value = False
+        type(get.return_value).text = PropertyMock(return_value='not found')
+        with self.assertRaises(ValueError):
+            self.getter.collect_data()
+        get.assert_called_once_with(self.getter.url)
+        urlretrieve.assert_not_called()
+
+    @mock.patch("os.path.isfile")
+    @mock.patch("requests.get")
+    @mock.patch("urllib.request.urlretrieve")
+    def test_collect_data(self, urlretrieve, get, isfile):
+        isfile.return_value = False
+        type(get.return_value).text = PropertyMock(return_value='')
+        self.getter.collect_data()
+        urlretrieve.assert_called_with(url=self.getter.metadata_url, filename=self.getter.metadata_path)
+
+    @mock.patch("pandas.isna")
+    @mock.patch("os.path.isfile")
+    def test_convert_raw_data_to_csv_file_exists(self, isfile, isna):
+        isfile.return_value = True
+        self.getter.convert_raw_data_to_csv()
+        isfile.assert_called_once_with(self.getter.processed_file_path)
+        isna.assert_not_called()
+
+    def test_convert_raw_data_to_csv(self):
+        pass
+        # This is covered by the reference file tests. More detailed tests can be implemented later.
+
+    def test_get_time_of_event(self):
+        pass
+
+    @mock.patch("pandas.read_csv")
+    @mock.patch("re.search")
+    def test_get_grb_alias(self, search, read_csv):
+        expected = "ret"
+        alias = "alias"
+        data = dict(event=[self.transient], alias=alias)
+        read_csv.return_value = pd.DataFrame.from_dict(data)
+        ret = MagicMock()
+        ret.group = MagicMock(return_value=expected)
+        search.return_value = ret
+        self.assertEqual(expected, self.getter.get_grb_alias())
+        search.assert_called_once_with("GRB (.+?),", alias)
+
+    @mock.patch("pandas.read_csv")
+    @mock.patch("re.search")
+    def test_get_grb_alias_fail(self, search, read_csv):
+        expected = "ret"
+        alias = "alias"
+        data = dict(event=[self.transient], alias=alias)
+        read_csv.return_value = pd.DataFrame.from_dict(data)
+        ret = MagicMock()
+        ret.group = MagicMock(return_value=expected)
+        search.return_value = ret
+        search.side_effect = AttributeError
+        self.assertIsNone(self.getter.get_grb_alias())
+
+    @mock.patch("sqlite3.connect")
+    @mock.patch("pandas.read_sql_query")
+    def test_get_t0_from_grb_isnan(self, read_sql_query, connect):
+        self.getter.get_grb_alias = MagicMock(return_value="alias")
+        connect.return_value = "connection"
+        read_sql_query.return_value = pd.DataFrame.from_dict(dict(GRB_name=["alias"], mjd=[np.nan]))
+        t0 = self.getter.get_t0_from_grb()
+        self.assertTrue(np.isnan(t0))
+
+        read_sql_query.assert_called_once_with("SELECT * from Summary", "connection")
+        connect.assert_called_once_with('tables/GRBcatalog.sqlite')
+
+
 
 
 class TestSwiftDataGetter(unittest.TestCase):

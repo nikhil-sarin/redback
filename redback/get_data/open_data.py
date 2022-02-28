@@ -4,7 +4,6 @@ import sqlite3
 from typing import Union
 import urllib
 import urllib.request
-import urllib.request
 
 import astropy.units as uu
 import numpy as np
@@ -70,33 +69,48 @@ class OpenDataGetter(object):
             raise ValueError("Transient type does not have open access data.")
         self._transient_type = transient_type
 
+    @property
+    def url(self) -> str:
+        """
+
+        Returns
+        -------
+        str: The astrocats raw data url.
+        """
+        return f"https://api.astrocats.space/{self.transient}/photometry/time+magnitude+e_" \
+               f"magnitude+band+system?e_magnitude&band&time&format=csv"
+
+    @property
+    def metadata_url(self) -> str:
+        """
+
+        Returns
+        -------
+        str: The astrocats metadata url.
+        """
+        return f"https://api.astrocats.space/{self.transient}/" \
+               f"timeofmerger+discoverdate+redshift+ra+dec+host+alias?format=CSV"
+
+    @property
+    def metadata_path(self):
+        return f"{self.directory_path}{self.transient}_metadata.csv"
+
     def collect_data(self) -> None:
         """
         Downloads the data from astrocats and saves it into the raw file path.
         """
         if os.path.isfile(self.raw_file_path):
-            logger.warning('The raw data file already exists')
+            logger.warning('The raw data file already exists.')
             return None
 
-        url = f"https://api.astrocats.space/{self.transient}/photometry/time+magnitude+e_" \
-              f"magnitude+band+system?e_magnitude&band&time&format=csv"
-        response = requests.get(url)
-
-        if 'not found' in response.text:
+        if 'not found' in requests.get(self.url).text:
             raise ValueError(
                 f"Transient {self.transient} does not exist in the catalog. "
                 f"Are you sure you are using the right alias?")
-        else:
-            if os.path.isfile(self.processed_file_path):
-                logger.warning('The processed data file already exists')
-            else:
-                metadata = f"{self.directory_path}{self.transient}_metadata.csv"
-                urllib.request.urlretrieve(url, self.raw_file_path)
-                logger.info(f"Retrieved data for {self.transient}")
-                metadata_url = f"https://api.astrocats.space/{self.transient}/" \
-                               f"timeofmerger+discoverdate+redshift+ra+dec+host+alias?format=CSV"
-                urllib.request.urlretrieve(metadata_url, metadata)
-                logger.info(f"Metdata for transient {self.transient} added.")
+        urllib.request.urlretrieve(url=self.url, filename=self.raw_file_path)
+        logger.info(f"Retrieved data for {self.transient}.")
+        urllib.request.urlretrieve(url=self.metadata_url, filename=self.metadata_path)
+        logger.info(f"Metadata for {self.transient} added.")
 
     def convert_raw_data_to_csv(self) -> None:
         """
@@ -107,13 +121,13 @@ class OpenDataGetter(object):
             logger.warning('The processed data file already exists. Returning.')
             return
 
-        rawdata = pd.read_csv(self.raw_file_path, sep=',')
-        if pd.isna(rawdata['system']).any():
+        raw_data = pd.read_csv(self.raw_file_path, sep=',')
+        if pd.isna(raw_data['system']).any():
             logger.warning("Some data points do not have system information. Assuming AB magnitude")
-            rawdata['system'].fillna('AB', inplace=True)
+            raw_data['system'].fillna('AB', inplace=True)
         logger.info('Processing data for transient {}.'.format(self.transient))
 
-        data = rawdata.copy()
+        data = raw_data.copy()
         data = data[data['band'] != 'C']
         data = data[data['band'] != 'W']
         data = data[data['system'] == 'AB']
