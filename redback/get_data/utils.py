@@ -45,10 +45,6 @@ def get_grb_table() -> pd.DataFrame:
     return pd.concat([lgrb, sgrb], ignore_index=True)
 
 
-class TriggerNotFoundError(Exception):
-    """ Exceptions raised when trigger is not found."""
-
-
 def get_batse_trigger_from_grb(grb: str) -> int:
     """
     Gets the BATSE trigger from the BATSE trigger table. If the same trigger appears multiple times,
@@ -86,3 +82,7 @@ def get_batse_trigger_from_grb(grb: str) -> int:
 
     index = object_labels.index(grb)
     return int(batse_triggers[index])
+
+
+class TriggerNotFoundError(Exception):
+    """ Exceptions raised when trigger is not found."""
