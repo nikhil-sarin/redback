@@ -273,7 +273,7 @@ class TestOpenDataGetter(unittest.TestCase):
     def test_get_grb_alias(self, search, read_csv):
         expected = "ret"
         alias = "alias"
-        data = dict(event=[self.transient], alias=alias)
+        data = dict(event=[self.transient], alias=[alias])
         read_csv.return_value = pd.DataFrame.from_dict(data)
         ret = MagicMock()
         ret.group = MagicMock(return_value=expected)
@@ -286,7 +286,7 @@ class TestOpenDataGetter(unittest.TestCase):
     def test_get_grb_alias_fail(self, search, read_csv):
         expected = "ret"
         alias = "alias"
-        data = dict(event=[self.transient], alias=alias)
+        data = dict(event=[self.transient], alias=[alias])
         read_csv.return_value = pd.DataFrame.from_dict(data)
         ret = MagicMock()
         ret.group = MagicMock(return_value=expected)
