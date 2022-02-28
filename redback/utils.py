@@ -178,7 +178,8 @@ def check_element(driver, id_number):
     """
     try:
         driver.find_element_by_id(id_number)
-    except NoSuchElementException:
+    except NoSuchElementException as e:
+        print(e)
         return False
     return True
 
