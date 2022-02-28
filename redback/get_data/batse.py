@@ -2,6 +2,7 @@ import os
 import urllib
 import urllib.request
 
+import astropy.io.fits.hdu
 import numpy as np
 import pandas as pd
 from astropy.io import fits
@@ -151,7 +152,18 @@ class BATSEDataGetter(object):
         df.to_csv(self.processed_file_path, index=False)
 
     @staticmethod
-    def _get_columns(fits_data):
+    def _get_columns(fits_data: astropy.io.fits.hdu.PrimaryHDU) -> np.ndarray:
+        """
+
+        Parameters
+        ----------
+        fits_data: astropy.io.fits.hdu.PrimaryHDU
+            The fits formatted data to which extract the columns from.
+
+        Returns
+        -------
+        numpy.ndarray: The data converted to a numpy array
+        """
         data = fits_data[-1].data
         bin_left = np.array(data['TIMES'][:, 0])
         bin_right = np.array(data['TIMES'][:, 1])
