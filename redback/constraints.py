@@ -24,35 +24,27 @@ def superluminous_supernova_constraint(parameters):
 def csm_constraints():
     pass
 
-@np.vectorize
 def basic_magnetar_powered_sn_constraints():
     pass
 
-@np.vectorize
 def general_magnetar_powered_sn_constraints():
     pass
 
 
-@np.vectorize
 def tde_constraints():
     pass
 
-@np.vectorize
 def magnetar_boosted_kilonova_constraints():
     pass
 
-@np.vectorize
 def nuclear_burning_constraints():
     pass
 
-@np.vectorize
 def simple_fallback_constraints():
     pass
 
-@np.vectorize
 def eos_constraints():
     pass
 
-@np.vectorize
 def max_mass_constraints():
     pass
