@@ -217,14 +217,50 @@ def basic_magnetar_powered(time, redshift, p0, bp, mass_ns, theta_pb, interactio
     elif kwargs['output_format'] == 'magnitude':
         return flux_density.to(uu.ABmag).value
 
+@citation_wrapper('redback')
+def slsn_bolometric(time, p0, bp, mass_ns, theta_pb,
+                                       interaction_process=ip.Diffusion, **kwargs):
+    """
+    Same as basic magnetar_powered but with constraint on rotational_energy/kinetic_energy and nebula phase
+    :param time: time in days in source frame
+    :param p0: initial spin period
+    :param bp: polar magnetic field strength in Gauss
+    :param mass_ns: mass of neutron star in solar masses
+    :param theta_pb: angle between spin and magnetic field axes
+    :param interaction_process: Default is Diffusion.
+            Can also be None in which case the output is just the raw engine luminosity
+    :param kwargs: Must be all the kwargs required by the specific interaction_process
+             e.g., for Diffusion: kappa, kappa_gamma, vej (km/s), temperature_floor
+    :return: bolometric_luminosity
+    """
+    return basic_magnetar_powered_bolometric(time=time, p0=p0, bp=bp, mass_ns=mass_ns,
+                                             theta_pb=theta_pb, interaction_process=interaction_process, **kwargs)
 
+
+@citation_wrapper('https://ui.adsabs.harvard.edu/abs/2017ApJ...850...55N/abstract')
+def slsn(time, redshift, p0, bp, mass_ns, theta_pb, interaction_process=ip.Diffusion,
+                            photosphere=photosphere.TemperatureFloor, sed=sed.Blackbody,**kwargs):
+    """
+    Same as basic magnetar_powered but with constraint on rotational_energy/kinetic_energy and nebula phase
+    :param time: time in days in observer frame
+    :param p0: initial spin period
+    :param bp: polar magnetic field strength in Gauss
+    :param mass_ns: mass of neutron star in solar masses
+    :param theta_pb: angle between spin and magnetic field axes
+    :param interaction_process: Default is Diffusion.
+            Can also be None in which case the output is just the raw engine luminosity
+    :param photosphere: Default is TemperatureFloor.
+            kwargs must have vej or relevant parameters if using different photosphere model
+    :param sed: Default is blackbody.
+    :param kwargs: Must be all the kwargs required by the specific interaction_process, photosphere, sed methods used
+             e.g., for Diffusion and TemperatureFloor: kappa, kappa_gamma, vej (km/s), temperature_floor
+    :return: flux_density or magnitude depending on output_format kwarg
+    """
+    return basic_magnetar_powered(time=time, redshift=redshift, p0=p0, bp=bp, mass_ns=mass_ns,theta_pb=theta_pb,
+                                  interaction_process=interaction_process, photosphere=photosphere, sed=sed, **kwargs)
 
 @citation_wrapper('https://ui.adsabs.harvard.edu/abs/2018ApJS..236....6G/abstract')
 def magnetar_nickel():
-    pass
-
-@citation_wrapper('https://ui.adsabs.harvard.edu/abs/2017ApJ...850...55N/abstract')
-def superluminous_supernova():
     pass
 
 @citation_wrapper('https://ui.adsabs.harvard.edu/abs/2013ApJ...773...76C/abstract')
@@ -244,7 +280,15 @@ def type_1c():
     pass
 
 @citation_wrapper('redback')
+def homologous_expansion_supernova_model_bolometric():
+    pass
+
+@citation_wrapper('redback')
 def homologous_expansion_supernova_model():
+    pass
+
+@citation_wrapper('redback')
+def thin_shell_supernova_model_bolometric():
     pass
 
 @citation_wrapper('redback')
@@ -252,6 +296,6 @@ def thin_shell_supernova_model():
     pass
 
 @citation_wrapper('redback')
-def braking_index_magnetar_powered():
+def general_magnetar_slsn():
     pass
 
