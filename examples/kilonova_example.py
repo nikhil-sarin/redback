@@ -21,7 +21,7 @@ kilonova.plot_multiband(figure=fig, axes=axes, filters=["g", "r", "i", "z", "y",
 # use default priors
 priors = redback.priors.get_priors(model=model)
 priors['redshift'] = 1e-2
-model_kwargs = dict(frequencies=redback.utils.bands_to_frequencies(bands), output_format='flux_density')
+model_kwargs = dict(frequency=redback.utils.bands_to_frequencies(bands), output_format='flux_density')
 
 result = redback.fit_model(name=kne, transient=kilonova, model=model, sampler=sampler, model_kwargs=model_kwargs,
                            prior=priors, data_mode='flux_density', sample='rslice', nlive=200, resume=False)
