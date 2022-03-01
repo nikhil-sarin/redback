@@ -18,7 +18,7 @@ def thermal_synchrotron():
 def exponential_powerlaw_bolometric(time, lbol_0, alpha_1, alpha_2, tpeak_d, interaction_process = ip.Diffusion,
                                     **kwargs):
     """
-    :param time: rest frame time in seconds
+    :param time: rest frame time in days
     :param lbol_0: bolometric luminosity scale in cgs
     :param alpha_1: first exponent
     :param alpha_2: second exponent
@@ -26,7 +26,7 @@ def exponential_powerlaw_bolometric(time, lbol_0, alpha_1, alpha_2, tpeak_d, int
     :param interaction_process: Default is Diffusion.
             Can also be None in which case the output is just the raw engine luminosity
     :param kwargs: Must be all the kwargs required by the specific interaction_process
-                e.g., for Diffusion: kappa, kappa_gamma, mej (solar masses), vej (km/s)
+                e.g., for Diffusion: kappa, kappa_gamma, mej (solar masses), vej (km/s), temperature_floor
     :return: bolometric_luminosity
     """
     lbol = exponential_powerlaw(time, a_1=lbol_0, alpha_1=alpha_1, alpha_2=alpha_2,
@@ -99,6 +99,7 @@ def arnett_bolometric(time, f_nickel, mej, interaction_process=ip.Diffusion, **k
     :param interaction_process: Default is Diffusion.
             Can also be None in which case the output is just the raw engine luminosity
     :param kwargs: Must be all the kwargs required by the specific interaction_process
+             e.g., for Diffusion: kappa, kappa_gamma, vej (km/s), temperature_floor
     :return: bolometric_luminosity
     """
 
