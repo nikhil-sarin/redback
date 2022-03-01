@@ -5,7 +5,13 @@ from redback.transient_models.fireball_models import predeceleration
 from redback.utils import logger, calc_ABmag_from_flux_density, citation_wrapper
 import astropy.units as uu
 
-def _get_correct_function(base_model, model_type):
+def _get_correct_function(base_model, model_type=None):
+    """
+    Gets the correct function to use for the base model specified
+    :param base_model: string or a function
+    :param model_type: type of model, could be None if using a function as input
+    :return: function; function to evaluate
+    """
     from redback.model_library import modules_dict  # import model library in function to avoid circular dependency
     extinction_afterglow_base_models = ['tophat', 'cocoon', 'gaussian',
                                         'kn_afterglow', 'cone_afterglow',
@@ -51,6 +57,13 @@ def _get_correct_function(base_model, model_type):
     return function
 
 def _perform_extinction(flux_density, frequency, av, r_v):
+    """
+    :param flux_density: flux density in mjy outputted by the model
+    :param frequency: frequency in Hz
+    :param av: absolute mag extinction
+    :param r_v: extinction parameter
+    :return: flux density
+    """
     import extinction  # noqa
     # convert to angstrom
     frequency = (frequency * uu.Hz).to(uu.Angstrom).value
@@ -58,117 +71,108 @@ def _perform_extinction(flux_density, frequency, av, r_v):
     flux_density = extinction.apply(mag_extinction, flux_density)
     return flux_density
 
+def _evaluate_extinction_model(time, av, model_type, **kwargs):
+    """
+    Generalised evaluate extinction function
+    :param time: time in units required by model
+    :param av: absolute mag extinction
+    :param model_type: None, or one of the types implemented
+    :param kwargs: Must be all the parameters required by the base_model specified using kwargs['base_model']
+        and r_v, default is 3.1
+    :return: flux_density or magnitude depending on kwargs['output_format']
+    """
+    base_model = kwargs['base_model']
+    frequency = kwargs['frequency']
+    temp_kwargs = kwargs.copy()
+    temp_kwargs['output_format'] = 'flux_density'
+    function = _get_correct_function(base_model=base_model, model_type=model_type)
+    flux_density = function(time, **temp_kwargs)
+    r_v = kwargs.get('r_v', 3.1)
+    flux_density = _perform_extinction(flux_density=flux_density, frequency=frequency, av=av, r_v=r_v)
+    if kwargs['output_format'] == 'flux_density':
+        return flux_density.value
+    elif kwargs['output_format'] == 'magnitude':
+        return calc_ABmag_from_flux_density(flux_density).value
+
+@citation_wrapper('redback')
+def extinction_with_function(time, av, **kwargs):
+    """
+    Extinction model when using your own specified function
+    :param time: time in observer frame in days
+    :param av: absolute mag extinction
+    :param kwargs: Must be all the parameters required by the base_model specified using kwargs['base_model']
+        and r_v, default is 3.1
+    :return: flux_density or magnitude depending on kwargs['output_format']
+    """
+    output = _evaluate_extinction_model(time=time, av=av, model_type=None, **kwargs)
+    return output
 
 @citation_wrapper('redback')
 def extinction_with_supernova_base_model(time, av, **kwargs):
     """
+    Extinction with models implemented in supernova_models
     :param time: time in observer frame in days
     :param av: absolute mag extinction
     :param kwargs: Must be all the parameters required by the base_model specified using kwargs['base_model']
         and r_v, default is 3.1
     :return: flux_density or magnitude depending on kwargs['output_format']
     """
-    base_model = kwargs['base_model']
-    frequency = kwargs['frequency']
-    temp_kwargs = kwargs.copy()
-    temp_kwargs['output_format'] = 'flux_density'
-    function = _get_correct_function(base_model=base_model, model_type='supernova')
-    flux_density = function(time, **temp_kwargs)
-    r_v = kwargs.get('r_v', 3.1)
-    flux_density = _perform_extinction(flux_density=flux_density, frequency=frequency, av=av, r_v=r_v)
-    if kwargs['output_format'] == 'flux_density':
-        return flux_density.value
-    elif kwargs['output_format'] == 'magnitude':
-        return calc_ABmag_from_flux_density(flux_density).value
+    output = _evaluate_extinction_model(time=time, av=av, model_type='supernova', **kwargs)
+    return output
 
 @citation_wrapper('redback')
 def extinction_with_kilonova_base_model(time, av, **kwargs):
     """
+    Extinction with models implemented in kilonova_models
     :param time: time in observer frame in days
     :param av: absolute mag extinction
     :param kwargs: Must be all the parameters required by the base_model specified using kwargs['base_model']
         and r_v, default is 3.1
     :return: flux_density or magnitude depending on kwargs['output_format']
     """
-    base_model = kwargs['base_model']
-    frequency = kwargs['frequency']
-    temp_kwargs = kwargs.copy()
-    temp_kwargs['output_format'] = 'flux_density'
-    function = _get_correct_function(base_model=base_model, model_type='kilonova')
-    flux_density = function(time, **temp_kwargs)
-    r_v = kwargs.get('r_v', 3.1)
-    flux_density = _perform_extinction(flux_density=flux_density, frequency=frequency, av=av, r_v=r_v)
-    if kwargs['output_format'] == 'flux_density':
-        return flux_density.value
-    elif kwargs['output_format'] == 'magnitude':
-        return calc_ABmag_from_flux_density(flux_density).value
+    output = _evaluate_extinction_model(time=time, av=av, model_type='kilonova', **kwargs)
+    return output
 
 @citation_wrapper('redback')
 def extinction_with_tde_base_model(time, av, **kwargs):
     """
+    Extinction with models implemented in tde_models
     :param time: time in observer frame in days
     :param av: absolute mag extinction
     :param kwargs: Must be all the parameters required by the base_model specified using kwargs['base_model']
         and r_v, default is 3.1
     :return: flux_density or magnitude depending on kwargs['output_format']
     """
-    base_model = kwargs['base_model']
-    frequency = kwargs['frequency']
-    temp_kwargs = kwargs.copy()
-    temp_kwargs['output_format'] = 'flux_density'
-    function = _get_correct_function(base_model=base_model, model_type='tde')
-    flux_density = function(time, **temp_kwargs)
-    r_v = kwargs.get('r_v', 3.1)
-    flux_density = _perform_extinction(flux_density=flux_density, frequency=frequency, av=av, r_v=r_v)
-    if kwargs['output_format'] == 'flux_density':
-        return flux_density.value
-    elif kwargs['output_format'] == 'magnitude':
-        return calc_ABmag_from_flux_density(flux_density).value
+    output = _evaluate_extinction_model(time=time, av=av, model_type='tde', **kwargs)
+    return output
+
 
 @citation_wrapper('Sarin et al. in prep....')
 def extinction_with_magnetar_boosted_base_model(time, av, **kwargs):
     """
+    Extinction with models implemented in magnetar_boosted_ejecta_models
     :param time: time in observer frame in days
     :param av: absolute mag extinction
     :param kwargs: Must be all the parameters required by the base_model specified using kwargs['base_model']
         and r_v, default is 3.1
     :return: flux_density or magnitude depending on kwargs['output_format']
     """
-    base_model = kwargs['base_model']
-    frequency = kwargs['frequency']
-    temp_kwargs = kwargs.copy()
-    temp_kwargs['output_format'] = 'flux_density'
-    function = _get_correct_function(base_model=base_model, model_type='magnetar_boosted')
-    flux_density = function(time, **temp_kwargs)
-    r_v = kwargs.get('r_v', 3.1)
-    flux_density = _perform_extinction(flux_density=flux_density, frequency=frequency, av=av, r_v=r_v)
-    if kwargs['output_format'] == 'flux_density':
-        return flux_density.value
-    elif kwargs['output_format'] == 'magnitude':
-        return calc_ABmag_from_flux_density(flux_density).value
+    output = _evaluate_extinction_model(time=time, av=av, model_type='magnetar_boosted', **kwargs)
+    return output
 
 
 @citation_wrapper('https://ui.adsabs.harvard.edu/abs/2021arXiv210601556S/abstract')
 def extinction_with_afterglow_base_model(time, av, **kwargs):
     """
+    Extinction with models implemented in afterglow_models
     :param time: time in observer frame in seconds
     :param av: absolute mag extinction
     :param kwargs: Must be all the parameters required by the base_model specified using kwargs['base_model']
         and r_v, default is 3.1
     :return: flux_density or magnitude depending on kwargs['output_format']
     """
-    base_model = kwargs['base_model']
-    frequency = kwargs['frequency']
-    temp_kwargs = kwargs.copy()
-    temp_kwargs['output_format'] = 'flux_density'
-    function = _get_correct_function(base_model=base_model, model_type='afterglow')
-    flux_density = function(time, **temp_kwargs)
-    r_v = kwargs.get('r_v', 3.1)
-    flux_density = _perform_extinction(flux_density=flux_density, frequency=frequency, av=av, r_v=r_v)
-    if kwargs['output_format'] == 'flux_density':
-        return flux_density.value
-    elif kwargs['output_format'] == 'magnitude':
-        return calc_ABmag_from_flux_density(flux_density).value
+    output = _evaluate_extinction_model(time=time, av=av, model_type='afterglow', **kwargs)
+    return output
 
 @citation_wrapper('https://ui.adsabs.harvard.edu/abs/2021arXiv210601556S/abstract')
 def extinction_afterglow_galactic_dust_to_gas_ratio(time, lognh, factor=2.21, **kwargs):
@@ -185,28 +189,3 @@ def extinction_afterglow_galactic_dust_to_gas_ratio(time, lognh, factor=2.21, **
     output = extinction_with_afterglow_base_model(time=time, av=av, **kwargs)
     return output
 
-@citation_wrapper('https://ui.adsabs.harvard.edu/abs/2021arXiv210601556S/abstract')
-def extinction_with_predeceleration(time, lognh, factor, **kwargs):
-    """
-    :param time: time in some unit.
-    :param lognh: host galaxy column density
-    :param factor: extinction factor
-    :param kwargs: all params
-    :return: flux or magnitude with extinction applied depending on kwargs
-    """
-    pass
-    # import extinction  # noqa
-    # lc = predeceleration(time, **kwargs)
-    # lc = np.nan_to_num(lc)
-    # factor = factor * 1e21
-    # nh = 10 ** lognh
-    # av = nh / factor
-    # frequency = kwargs['frequency']
-    # # convert to angstrom
-    # frequency = (frequency * uu.Hz).to(uu.Angstrom).value
-    # mag_extinction = extinction.fitzpatrick99(frequency, av, r_v=3.1)
-    # lc = extinction.apply(mag_extinction, lc, inplace=True)
-    # if kwargs['output_format'] == 'flux_density':
-    #     return lc
-    # elif kwargs['output_format'] == 'magnitude':
-    #     return calc_ABmag_from_flux_density(lc).value
