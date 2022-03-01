@@ -8,14 +8,115 @@ from redback.constants import *
 from redback.transient_models import extinction_models
 from redback.transient_models import integrated_flux_afterglow_models as infam
 from redback.utils import calc_ABmag_from_flux_density, calc_flux_density_from_ABmag, citation_wrapper
+from collections import namedtuple
+
+extinction_model_functions = {'supernova':extinction_models.extinction_with_supernova_base_model,
+                              'kilonova':extinction_models.extinction_with_kilonova_base_model,
+                              'afterglow':extinction_models.extinction_with_afterglow_base_model,
+                              'tde':extinction_models.extinction_with_tde_base_model,
+                              'magnetar_boosted':extinction_models.extinction_with_magnetar_boosted_base_model}
 
 @citation_wrapper('redback')
-def t0_base_model(time, **kwargs):
-    pass
+def t0_base_model(time, t0, **kwargs):
+    """
+    :param time: time in mjd
+    :param t0: start time in mjd
+    :param kwargs: Must be all the parameters required by the base_model specified using kwargs['base_model']
+    :return: output of the base_model
+    """
+    from redback.model_library import all_models_dict  # import model library in function to avoid circular dependency
+    base_model = kwargs['base_model']
+    function = all_models_dict(base_model)
+    t0 = Time(t0, format='mjd')
+    time = Time(np.asarray(time, dtype=float), format='mjd')
+    time = (time - t0).to(uu.day).value
+    output = function(time, **kwargs)
+    return output
+
+
+def _t0_with_extinction(time, t0, av, model_type='supernova', **kwargs):
+    """
+    :param time: time in mjd
+    :param t0: start time in mjd
+    :param av: absolute mag extinction
+    :param model_type: what type of transient extinction function to use
+    :param kwargs: Must be all the parameters required by the base_model specified using kwargs['base_model']
+        and r_v, default is 3.1
+    :return: flux_density or magnitude depending on kwargs['output_format']
+    """
+    output = namedtuple('output', ['time', 'observable'])
+    function = extinction_model_functions[model_type]
+    t0 = Time(t0, format='mjd')
+    time = Time(np.asarray(time, dtype=float), format='mjd')
+    time = (time - t0).to(uu.day).value
+    output.time = time
+    output.observable = function(time, av=av, **kwargs)
+    return output
 
 @citation_wrapper('redback')
-def t0_with_extinction():
-    pass
+def t0_afterglow_extinction(time, t0, av, **kwargs):
+    """
+    :param time: time in mjd
+    :param t0: start time in mjd
+    :param av: absolute mag extinction
+    :param kwargs: Must be all the parameters required by the base_model specified using kwargs['base_model']
+        and r_v, default is 3.1
+    :return: flux_density or magnitude depending on kwargs['output_format']
+    """
+    summary = _t0_with_extinction(time=time, t0=t0, av=av, model_type='afterglow', **kwargs)
+    return summary.observable
+
+@citation_wrapper('redback')
+def t0_supernova_extinction(time, t0, av, **kwargs):
+    """
+    :param time: time in mjd
+    :param t0: start time in mjd
+    :param av: absolute mag extinction
+    :param kwargs: Must be all the parameters required by the base_model specified using kwargs['base_model']
+        and r_v, default is 3.1
+    :return: flux_density or magnitude depending on kwargs['output_format']
+    """
+    summary = _t0_with_extinction(time=time, t0=t0, av=av, model_type='supernova', **kwargs)
+    return summary.observable
+
+@citation_wrapper('redback')
+def t0_kilonova_extinction(time, t0, av, **kwargs):
+    """
+    :param time: time in mjd
+    :param t0: start time in mjd
+    :param av: absolute mag extinction
+    :param kwargs: Must be all the parameters required by the base_model specified using kwargs['base_model']
+        and r_v, default is 3.1
+    :return: flux_density or magnitude depending on kwargs['output_format']
+    """
+    summary = _t0_with_extinction(time=time, t0=t0, av=av, model_type='kilonova', **kwargs)
+    return summary.observable
+
+@citation_wrapper('redback')
+def t0_tde_extinction(time, t0, av, **kwargs):
+    """
+    :param time: time in mjd
+    :param t0: start time in mjd
+    :param av: absolute mag extinction
+    :param kwargs: Must be all the parameters required by the base_model specified using kwargs['base_model']
+        and r_v, default is 3.1
+    :return: flux_density or magnitude depending on kwargs['output_format']
+    """
+    summary = _t0_with_extinction(time=time, t0=t0, av=av, model_type='tde', **kwargs)
+    return summary.observable
+
+@citation_wrapper('redback')
+def t0_magnetar_boosted_extinction(time, t0, av, **kwargs):
+    """
+    :param time: time in mjd
+    :param t0: start time in mjd
+    :param av: absolute mag extinction
+    :param kwargs: Must be all the parameters required by the base_model specified using kwargs['base_model']
+        and r_v, default is 3.1
+    :return: flux_density or magnitude depending on kwargs['output_format']
+    """
+    summary = _t0_with_extinction(time=time, t0=t0, av=av, model_type='magnetar_boosted', **kwargs)
+    return summary.observable
 
 @citation_wrapper('https://ui.adsabs.harvard.edu/abs/2021arXiv210601556S/abstract')
 def t0_afterglow_extinction_model_d2g(time, lognh, factor, **kwargs):
@@ -27,13 +128,10 @@ def t0_afterglow_extinction_model_d2g(time, lognh, factor, **kwargs):
                 And all the parameters required by the base_model specified using kwargs['base_model']
     :return: magnitude or flux_density depending on kwarg 'output_format'
     """
-    if kwargs['output_format'] is not 'flux_density' or not 'magnitude':
-        raise ValueError(
-            'Output format {} not understood. Please use magnitude or flux_density'.format(kwargs['output_format']))
     t0 = kwargs['t0']
     t0 = Time(t0, format='mjd')
     time = Time(np.asarray(time, dtype=float), format='mjd')
-    time = (time - t0).to(uu.second).value
+    time = (time - t0).to(uu.day).value
     magnitude = extinction_models.extinction_afterglow_galactic_dust_to_gas_ratio(time=time, lognh=lognh,
                                                                                   factor=factor, **kwargs)
     if kwargs['output_format'] == 'flux_density':
@@ -49,10 +147,6 @@ def _t0_thin_shell_predeceleration(time, **kwargs):
     :param kwargs:
     :return: flux or magnitude
     """
-    if kwargs['output_format'] is not 'flux_density' or not 'magnitude':
-        raise ValueError(
-            'Output format {} not understood. Please use magnitude or flux_density'.format(kwargs['output_format']))
-
     e0 = 10 ** kwargs['loge0']
     nism = 10 ** kwargs['logn0']
     g0 = kwargs['g0']
@@ -87,10 +181,6 @@ def _t0_exinction_models_with_sampled_t_peak(time, tp, **kwargs):
     :param kwargs:
     :return: flux or magnitude depending on kwargs.
     """
-    if kwargs['output_format'] is not 'flux_density' or not 'magnitude':
-        raise ValueError(
-            'Output format {} not understood. Please use magnitude or flux_density'.format(kwargs['output_format']))
-
     gradient = kwargs['m']
     tt_predec = time[time < tp]
     tt_postdec = time[time >= tp]
