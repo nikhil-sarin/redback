@@ -26,6 +26,12 @@ plt.style.use(filename)
 logger = logging.getLogger('redback')
 _bilby_logger = logging.getLogger('bilby')
 
+def citation_wrapper(r):
+    def wrapper(f):
+        f.citation = r
+        return f
+    return wrapper
+
 
 def lambda_to_nu(wavelength):
     """

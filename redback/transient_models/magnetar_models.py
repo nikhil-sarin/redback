@@ -4,7 +4,7 @@ from astropy.cosmology import Planck18 as cosmo  # noqa
 import scipy.special as ss
 from scipy.integrate import quad
 from inspect import isfunction
-from redback.utils import logger
+from redback.utils import logger, citation_wrapper
 
 from redback.constants import *
 from redback.transient_models.fireball_models import one_component_fireball_model
@@ -13,17 +13,17 @@ luminosity_models = ['evolving_magnetar', 'evolving_magnetar_only', 'gw_magnetar
                      'radiative_losses_smoothness', 'radiative_only', 'collapsing_radiative_losses']
 
 
-def mu_function(time, mu0, muinf, tm):
+def _mu_function(time, mu0, muinf, tm):
     mu = muinf + (mu0 - muinf) * np.exp(-time / tm)
     return mu
 
 
-def integrand(time, mu0, muinf, tm):
+def _integrand(time, mu0, muinf, tm):
     mu = muinf + (mu0 - muinf) * np.exp(-time / tm)
     return mu ** 2
 
-
-def evolving_magnetar_only(time, mu0, muinf, p0, sinalpha0, tm, II, **kwargs):
+@citation_wrapper('https://ui.adsabs.harvard.edu/abs/2019ApJ...886....5S/abstract')
+def _evolving_magnetar_only(time, mu0, muinf, p0, sinalpha0, tm, II, **kwargs):
     """
     Model from Mus+2019
     :param time: time
@@ -36,8 +36,8 @@ def evolving_magnetar_only(time, mu0, muinf, p0, sinalpha0, tm, II, **kwargs):
     eta = 0.1
     tau = np.zeros(len(time))
     for ii in range(len(time)):
-        tau[ii], _ = quad(integrand, 0, time[ii], args=(mu0, muinf, tm)) # noqa
-    mu = mu_function(time, mu0, muinf, tm)
+        tau[ii], _ = quad(_integrand, 0, time[ii], args=(mu0, muinf, tm)) # noqa
+    mu = _mu_function(time, mu0, muinf, tm)
     omega0 = (2 * np.pi) / p0
     tau = (omega0 ** 2) / (II * speed_of_light ** 3) * tau
     y0 = sinalpha0
@@ -51,7 +51,7 @@ def evolving_magnetar_only(time, mu0, muinf, p0, sinalpha0, tm, II, **kwargs):
     luminosity = eta * (mu ** 2 * omegatau ** 4) / (speed_of_light ** 3) * (1 + ytau ** 2)
     return luminosity / 1e50
 
-
+@citation_wrapper('https://ui.adsabs.harvard.edu/abs/2019ApJ...886....5S/abstract')
 def evolving_magnetar(time, A_1, alpha_1, mu0, muinf, p0, sinalpha0, tm, II, **kwargs):
     """
     :param time: time
@@ -62,12 +62,12 @@ def evolving_magnetar(time, A_1, alpha_1, mu0, muinf, p0, sinalpha0, tm, II, **k
     :return: luminosity or flux (depending on scaling) as a function of time.
     """
     pl = one_component_fireball_model(time=time, a_1=A_1, alpha_1=alpha_1)
-    magnetar = evolving_magnetar_only(time=time, mu0=mu0, muinf=muinf,
-                                      p0=p0, sinalpha0=sinalpha0, tm=tm, II=II)
+    magnetar = _evolving_magnetar_only(time=time, mu0=mu0, muinf=muinf,
+                                       p0=p0, sinalpha0=sinalpha0, tm=tm, II=II)
     return pl + magnetar
 
-
-def magnetar_only(time, l0, tau, nn, **kwargs):
+@citation_wrapper('https://ui.adsabs.harvard.edu/abs/2017ApJ...843L...1L/abstract')
+def _magnetar_only(time, l0, tau, nn, **kwargs):
     """
     :param time: time
     :param l0: luminosity parameter
@@ -79,10 +79,9 @@ def magnetar_only(time, l0, tau, nn, **kwargs):
     lum = l0 * (1. + time / tau) ** ((1. + nn) / (1. - nn))
     return lum
 
-
+@citation_wrapper('https://ui.adsabs.harvard.edu/abs/2018PhRvD..98d3011S/abstract')
 def gw_magnetar(time, a_1, alpha_1, fgw0, tau, nn, log_ii, **kwargs):
     """
-    Model from Sarin+2018
     :param time:
     :param a_1:
     :param alpha_1:
@@ -100,12 +99,12 @@ def gw_magnetar(time, a_1, alpha_1, fgw0, tau, nn, log_ii, **kwargs):
     l0 = ((omega_0 ** 2) * eta * ii) / (2 * tau)
     l0_50 = l0 / 1e50
 
-    magnetar = magnetar_only(time=time, l0=l0_50, tau=tau, nn=nn)
+    magnetar = _magnetar_only(time=time, l0=l0_50, tau=tau, nn=nn)
     pl = one_component_fireball_model(time=time, a_1=a_1, alpha_1=alpha_1)
 
     return pl + magnetar
 
-
+@citation_wrapper('https://ui.adsabs.harvard.edu/abs/2017ApJ...843L...1L/abstract')
 def full_magnetar(time, a_1, alpha_1, l0, tau, nn, **kwargs):
     """
     :param time:
@@ -118,10 +117,10 @@ def full_magnetar(time, a_1, alpha_1, l0, tau, nn, **kwargs):
     :return:
     """
     pl = one_component_fireball_model(time=time, a_1=a_1, alpha_1=alpha_1)
-    mag = magnetar_only(time=time, l0=l0, tau=tau, nn=nn)
+    mag = _magnetar_only(time=time, l0=l0, tau=tau, nn=nn)
     return pl + mag
 
-
+@citation_wrapper('https://ui.adsabs.harvard.edu/abs/2020PhRvD.101f3021S/abstract')
 def collapsing_magnetar(time, a_1, alpha_1, l0, tau, nn, tcol, **kwargs):
     """
     :param time:
@@ -135,11 +134,11 @@ def collapsing_magnetar(time, a_1, alpha_1, l0, tau, nn, tcol, **kwargs):
     :return:
     """
     pl = one_component_fireball_model(time, a_1, alpha_1)
-    mag = np.heaviside(tcol - time, 1e-50) * magnetar_only(time, l0, tau, nn)
+    mag = np.heaviside(tcol - time, 1e-50) * _magnetar_only(time, l0, tau, nn)
 
     return pl + mag
 
-
+@citation_wrapper('https://ui.adsabs.harvard.edu/abs/2019ApJ...872..114S/abstract')
 def general_magnetar(time, a_1, alpha_1,
                      delta_time_one, alpha_2, delta_time_two, **kwargs):
     """
@@ -167,8 +166,8 @@ def general_magnetar(time, a_1, alpha_1,
     f2 = a_2 * (1. + (time[x] / tau)) ** gamma
     return np.concatenate((f1, f2))
 
-
-def integral_general(time, t0, kappa, tau, nn, **kwargs):
+@citation_wrapper('https://ui.adsabs.harvard.edu/abs/2020MNRAS.499.5986S/abstract')
+def _integral_general(time, t0, kappa, tau, nn, **kwargs):
     """
     General integral for radiative losses model
     :param time:
@@ -182,8 +181,8 @@ def integral_general(time, t0, kappa, tau, nn, **kwargs):
     first_term, second_term = _get_integral_terms(time=time, t0=t0, kappa=kappa, tau=tau, nn=nn)
     return first_term - second_term
 
-
-def integral_general_collapsing(time, t0, kappa, tau, nn, tcol, **kwargs):
+@citation_wrapper('https://ui.adsabs.harvard.edu/abs/2020MNRAS.499.5986S/abstract')
+def _integral_general_collapsing(time, t0, kappa, tau, nn, tcol, **kwargs):
     """
     General collapsing integral for radiative losses model
     :param time:
@@ -198,7 +197,7 @@ def integral_general_collapsing(time, t0, kappa, tau, nn, tcol, **kwargs):
     first_term, second_term = _get_integral_terms(time=time, t0=t0, kappa=kappa, tau=tau, nn=nn)
     return np.heaviside(tcol - time, 1e-50) * (first_term - second_term)
 
-
+@citation_wrapper('https://ui.adsabs.harvard.edu/abs/2020MNRAS.499.5986S/abstract')
 def _get_integral_terms(time, t0, kappa, tau, nn):
     alpha = (1 + nn) / (-1 + nn)
     pft = ss.hyp2f1(1 + kappa, alpha, 2 + kappa, -time / tau)
@@ -207,8 +206,8 @@ def _get_integral_terms(time, t0, kappa, tau, nn):
     second_term = (t0 ** (1 + kappa) * pst) / (1 + kappa)
     return first_term, second_term
 
-
-def integral_mdr(time, t0, kappa, a, **kwargs):
+@citation_wrapper('https://ui.adsabs.harvard.edu/abs/2020MNRAS.499.5986S/abstract')
+def _integral_mdr(time, t0, kappa, a, **kwargs):
     z_f = (1 + a * time) ** (-1)
     z_int = (1 + a * t0) ** (-1)
     divisor_i = a ** (1 + kappa) * (kappa - 1) * (1 + a * t0) ** (1 - kappa)
@@ -217,7 +216,7 @@ def integral_mdr(time, t0, kappa, a, **kwargs):
     second = ss.hyp2f1(1 - kappa, -kappa, 2 - kappa, z_int) / divisor_i
     return first - second
 
-
+@citation_wrapper('https://ui.adsabs.harvard.edu/abs/2020MNRAS.499.5986S/abstract')
 def piecewise_radiative_losses(time, a_1, alpha_1, l0, tau, nn, kappa, t0, **kwargs):
     """
     assumes smoothness and continuity between the prompt and magnetar term by fixing e0 variable
@@ -238,14 +237,14 @@ def piecewise_radiative_losses(time, a_1, alpha_1, l0, tau, nn, kappa, t0, **kwa
     pl = one_component_fireball_model(time[pl_time], a_1, alpha_1)
 
     loss_term = e0 * (t0 / time[magnetar_time]) ** kappa
-    integ = integral_general(time[magnetar_time], t0, kappa, tau, nn)
+    integ = _integral_general(time[magnetar_time], t0, kappa, tau, nn)
     energy_loss_total = ((l0 / (time[magnetar_time] ** kappa)) * integ) + loss_term
 
     lum = (kappa * energy_loss_total / time[magnetar_time])
 
     return np.concatenate((pl, lum))
 
-
+@citation_wrapper('https://ui.adsabs.harvard.edu/abs/2020MNRAS.499.5986S/abstract')
 def radiative_losses(time, a_1, alpha_1, l0, tau, nn, kappa, t0, log_e0, **kwargs):
     """
     radiative losses model with a step function, indicating the magnetar term turns on at T0
@@ -264,14 +263,14 @@ def radiative_losses(time, a_1, alpha_1, l0, tau, nn, kappa, t0, log_e0, **kwarg
     e0 = 10 ** log_e0
     pl = one_component_fireball_model(time, a_1, alpha_1)
     loss_term = e0 * (t0 / time) ** kappa
-    integ = integral_general(time, t0, kappa, tau, nn)
+    integ = _integral_general(time, t0, kappa, tau, nn)
     energy_loss_total = ((l0 / (time ** kappa)) * integ) + loss_term
     lum = (kappa * energy_loss_total / time)
     total = pl + np.heaviside(time - t0, 1) * lum
 
     return total
 
-
+@citation_wrapper('https://ui.adsabs.harvard.edu/abs/2020MNRAS.499.5986S/abstract')
 def radiative_only(time, l0, tau, nn, kappa, t0, log_e0, **kwargs):
     """
     radiative losses model only
@@ -287,14 +286,14 @@ def radiative_only(time, l0, tau, nn, kappa, t0, log_e0, **kwargs):
     """
     e0 = 10 ** log_e0
     loss_term = e0 * (t0 / time) ** kappa
-    integ = integral_general(time, t0, kappa, tau, nn)
+    integ = _integral_general(time, t0, kappa, tau, nn)
     energy_loss_total = ((l0 / (time ** kappa)) * integ) + loss_term
     lum = (kappa * energy_loss_total / time)
     total = np.heaviside(time - t0, 1) * lum
 
     return total
 
-
+@citation_wrapper('https://ui.adsabs.harvard.edu/abs/2020MNRAS.499.5986S/abstract')
 def radiative_losses_smoothness(time, a_1, alpha_1, l0, tau, nn, kappa, t0, log_e0, **kwargs):
     """
     radiative losses model with a step function, indicating the magnetar term turns on at T0
@@ -315,7 +314,7 @@ def radiative_losses_smoothness(time, a_1, alpha_1, l0, tau, nn, kappa, t0, log_
     e0_def = (a_1 * t0 ** alpha_1 * t0) / kappa
     e0_use = np.min([e0, e0_def])
     loss_term = e0_use * (t0 / time) ** kappa
-    integ = integral_general(time, t0, kappa, tau, nn)
+    integ = _integral_general(time, t0, kappa, tau, nn)
 
     energy_loss_total = ((l0 / (time ** kappa)) * integ) + loss_term
     lum = (kappa * energy_loss_total / time)
@@ -323,7 +322,7 @@ def radiative_losses_smoothness(time, a_1, alpha_1, l0, tau, nn, kappa, t0, log_
 
     return total
 
-
+@citation_wrapper('https://ui.adsabs.harvard.edu/abs/2011A%26A...526A.121D/abstract')
 def radiative_losses_mdr(time, a_1, alpha_1, l0, tau, kappa, log_e0, t0, **kwargs):
     """
     radiative losses model for vacuum dipole radiation
@@ -342,14 +341,14 @@ def radiative_losses_mdr(time, a_1, alpha_1, l0, tau, kappa, log_e0, t0, **kwarg
     e0 = 10 ** log_e0
     pl = one_component_fireball_model(time, a_1, alpha_1)
     loss_term = e0 * (t0 / time) ** kappa
-    integ = integral_mdr(time, t0, kappa, a)
+    integ = _integral_mdr(time, t0, kappa, a)
     energy_loss_total = ((l0 / (time ** kappa)) * integ) + loss_term
 
     lightcurve = (kappa * energy_loss_total / time)
 
     return np.heaviside(time - t0, 1) * lightcurve + pl
 
-
+@citation_wrapper('https://ui.adsabs.harvard.edu/abs/2020MNRAS.499.5986S/abstract')
 def collapsing_radiative_losses(time, a_1, alpha_1, l0, tau, nn, tcol, kappa, t0, log_e0, **kwargs):
     """
     radiative losses model with collapse time
@@ -369,13 +368,14 @@ def collapsing_radiative_losses(time, a_1, alpha_1, l0, tau, nn, tcol, kappa, t0
     e0 = 10 ** log_e0
     pl = one_component_fireball_model(time, a_1, alpha_1)
     loss_term = e0 * (t0 / time) ** kappa
-    integ = integral_general_collapsing(time, t0, kappa, tau, nn, tcol)
+    integ = _integral_general_collapsing(time, t0, kappa, tau, nn, tcol)
     energy_loss_total = ((l0 / (time ** kappa)) * integ) + loss_term
     lum = (kappa * energy_loss_total / time)
     total = pl + np.heaviside(time - t0, 1) * lum
 
     return total
 
+@citation_wrapper('redback')
 def luminosity_based_magnetar_models(time, photon_index, **kwargs):
     """
     Luminosity models that you want to fit to flux data by placing a prior on the redshift.

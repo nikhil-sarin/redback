@@ -1,15 +1,15 @@
 from redback.constants import *
-from redback.transient_models.magnetar_models import magnetar_only
+from redback.transient_models.magnetar_models import _magnetar_only
 import numpy as np
 from astropy.cosmology import Planck18 as cosmo  # noqa
 from scipy.interpolate import interp1d
 import astropy.units as uu # noqa
 import astropy.constants as cc # noqa
 from redback.utils import calc_kcorrected_properties, interpolated_barnes_and_kasen_thermalisation_efficiency, \
-    electron_fraction_from_kappa
+    electron_fraction_from_kappa, citation_wrapper
 from redback.sed import blackbody_to_flux_density
 
-
+@citation_wrapper('https://ui.adsabs.harvard.edu/abs/2017LRR....20....3M/abstract')
 def metzger_magnetar_boosted_kilonova_model(time, redshift, mej, vej, beta, kappa_r, l0, tau_sd, nn, thermalisation_efficiency, **kwargs):
     """
     :param time: observer frame time in days
@@ -109,7 +109,7 @@ def _metzger_magnetar_boosted_kilonova_model(time, mej, vej, beta, kappa_r, l0, 
     time_2 = time_array[:, ~time_mask]
     edotr[:,time_mask] = 2.1e10 * e_th_array[:, time_mask] * ((time_1/ (3600. * 24.)) ** (-1.3))
     edotr[:, ~time_mask] = 4.0e18 * (0.5 - (1. / np.pi) * np.arctan((time_2 - t0) / sig)) ** (1.3) * e_th_array[:,~time_mask]
-    lsd = magnetar_only(time, l0=l0, tau=tau_sd, nn=nn)
+    lsd = _magnetar_only(time, l0=l0, tau=tau_sd, nn=nn)
     qdot_magnetar = thermalisation_efficiency * lsd
 
     # set up empty arrays
@@ -204,8 +204,8 @@ def _metzger_magnetar_boosted_kilonova_model(time, mej, vej, beta, kappa_r, l0, 
 
     return bolometric_luminosity, temperature, r_photosphere
 
-def ejecta_dynamics_and_interaction(time, mej, beta, ejecta_radius, kappa, n_ism, l0, tau_sd, nn,
-                                    thermalisation_efficiency, **kwargs):
+def _ejecta_dynamics_and_interaction(time, mej, beta, ejecta_radius, kappa, n_ism, l0, tau_sd, nn,
+                                     thermalisation_efficiency, **kwargs):
     """
     :param time: time in source frame
     :param mej: ejecta mass in solar units
@@ -233,7 +233,7 @@ def ejecta_dynamics_and_interaction(time, mej, beta, ejecta_radius, kappa, n_ism
     internal_energy = 0.5 * beta ** 2 * mej * speed_of_light ** 2
     comoving_volume = (4 / 3) * np.pi * ejecta_radius ** 3
     gamma = 1 / np.sqrt(1 - beta ** 2)
-    mag_lum = magnetar_only(time, l0=l0, tau=tau_sd, nn=nn)
+    mag_lum = _magnetar_only(time, l0=l0, tau=tau_sd, nn=nn)
 
     t0_comoving = 1.3
     tsigma_comoving = 0.11
@@ -333,7 +333,7 @@ def _comoving_blackbody_to_luminosity(frequencies, radius, temperature, doppler_
     luminosity = num / denom * frac
     return luminosity
 
-
+@citation_wrapper('https://ui.adsabs.harvard.edu/abs/2013ApJ...776L..40Y/abstract')
 def mergernova(time, redshift, mej, beta, ejecta_radius, kappa, n_ism, l0, tau_sd, nn,
                thermalisation_efficiency, **kwargs):
     """
@@ -355,7 +355,7 @@ def mergernova(time, redshift, mej, beta, ejecta_radius, kappa, n_ism, l0, tau_s
     frequencies = kwargs['frequencies']
     time_temp = np.geomspace(1e-4, 1e8, 1000, endpoint=True)
     dl = cosmo.luminosity_distance(redshift).cgs.value
-    _, bolometric_luminosity, comoving_temperature, radius, doppler_factor, _ = ejecta_dynamics_and_interaction(
+    _, bolometric_luminosity, comoving_temperature, radius, doppler_factor, _ = _ejecta_dynamics_and_interaction(
         time=time_temp, mej=mej,
         beta=beta, ejecta_radius=ejecta_radius,
         kappa=kappa, n_ism=n_ism, l0=l0,
@@ -397,13 +397,13 @@ def _trapped_magnetar_lum(time, mej, beta, ejecta_radius, kappa, n_ism, l0, tau_
     :return: luminosity
     """
     time_temp = np.geomspace(1e-4, 1e8, 1000, endpoint=True)
-    _, _, comoving_temperature, radius, doppler_factor, tau = ejecta_dynamics_and_interaction(time=time_temp, mej=mej,
-                                                                                              beta=beta,
-                                                                                              ejecta_radius=ejecta_radius,
-                                                                                              kappa=kappa, n_ism=n_ism,
-                                                                                              l0=l0,
-                                                                                              tau_sd=tau_sd, nn=nn,
-                                                                                              thermalisation_efficiency=thermalisation_efficiency)
+    _, _, comoving_temperature, radius, doppler_factor, tau = _ejecta_dynamics_and_interaction(time=time_temp, mej=mej,
+                                                                                               beta=beta,
+                                                                                               ejecta_radius=ejecta_radius,
+                                                                                               kappa=kappa, n_ism=n_ism,
+                                                                                               l0=l0,
+                                                                                               tau_sd=tau_sd, nn=nn,
+                                                                                               thermalisation_efficiency=thermalisation_efficiency)
     temp_func = interp1d(time_temp, y=comoving_temperature)
     rad_func = interp1d(time_temp, y=radius)
     d_func = interp1d(time_temp, y=doppler_factor)
@@ -415,7 +415,7 @@ def _trapped_magnetar_lum(time, mej, beta, ejecta_radius, kappa, n_ism, l0, tau_
     frequency = kwargs['frequency']
     trapped_ejecta_lum = _comoving_blackbody_to_luminosity(frequencies=frequency, radius=rad,
                                                           temperature=temp, doppler_factor=df)
-    lsd = magnetar_only(time, l0=l0, tau=tau_sd, nn=nn)
+    lsd = _magnetar_only(time, l0=l0, tau=tau_sd, nn=nn)
     lum = np.exp(-optical_depth) * lsd + trapped_ejecta_lum
     return lum
 
@@ -450,7 +450,7 @@ def _trapped_magnetar_flux(time, redshift, mej, beta, ejecta_radius, kappa, n_is
     flux = lum / (4 * np.pi * dl ** 2 * kcorr)
     return flux
 
-
+@citation_wrapper('https://ui.adsabs.harvard.edu/abs/2017ApJ...835....7S/abstract')
 def trapped_magnetar(time, redshift, mej, beta, ejecta_radius, kappa, n_ism, l0, tau_sd, nn, thermalisation_efficiency,
                      **kwargs):
     """
