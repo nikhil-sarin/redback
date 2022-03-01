@@ -9,13 +9,22 @@ from redback.transient_models import extinction_models
 from redback.transient_models import integrated_flux_afterglow_models as infam
 from redback.utils import calc_ABmag_from_flux_density, calc_flux_density_from_ABmag, citation_wrapper
 
+@citation_wrapper('redback')
+def t0_base_model(time, **kwargs):
+    pass
+
+@citation_wrapper('redback')
+def t0_with_extinction():
+    pass
+
 @citation_wrapper('https://ui.adsabs.harvard.edu/abs/2021arXiv210601556S/abstract')
-def t0_extinction_models(time, lognh, factor, **kwargs):
+def t0_afterglow_extinction_model_d2g(time, lognh, factor, **kwargs):
     """
     :param time: time in mjd
     :param lognh: hydrogen column density
     :param factor: prefactor for extinction
     :param kwargs: Must include t0 parameter which is in the same units as the data.
+                And all the parameters required by the base_model specified using kwargs['base_model']
     :return: magnitude or flux_density depending on kwarg 'output_format'
     """
     if kwargs['output_format'] is not 'flux_density' or not 'magnitude':
@@ -25,14 +34,15 @@ def t0_extinction_models(time, lognh, factor, **kwargs):
     t0 = Time(t0, format='mjd')
     time = Time(np.asarray(time, dtype=float), format='mjd')
     time = (time - t0).to(uu.second).value
-    magnitude = extinction_models.extinction_with_afterglow_base_model(time=time, lognh=lognh, factor=factor, **kwargs)
+    magnitude = extinction_models.extinction_afterglow_galactic_dust_to_gas_ratio(time=time, lognh=lognh,
+                                                                                  factor=factor, **kwargs)
     if kwargs['output_format'] == 'flux_density':
         return calc_flux_density_from_ABmag(magnitude).value
     elif kwargs['output_format'] == 'magnitude':
         return magnitude
 
 @citation_wrapper('https://ui.adsabs.harvard.edu/abs/2021arXiv210601556S/abstract')
-def t0_thin_shell_predeceleration(time, **kwargs):
+def _t0_thin_shell_predeceleration(time, **kwargs):
     """
     Assume pre-deceleration behaviour is in thin-shell regime and follows Sari and Piran 1997
     :param time:
@@ -54,13 +64,13 @@ def t0_thin_shell_predeceleration(time, **kwargs):
     tt_postdec = time[time >= tp]
     predec_kwargs = kwargs.copy()
     afterglow_kwargs = kwargs.copy()
-    f2 = t0_extinction_models(tt_postdec, **afterglow_kwargs)
-    f_at_tp = t0_extinction_models(tp, **afterglow_kwargs)
+    f2 = t0_afterglow_extinction_model_d2g(tt_postdec, **afterglow_kwargs)
+    f_at_tp = t0_afterglow_extinction_model_d2g(tp, **afterglow_kwargs)
     aa = f_at_tp / (kwargs['tp'] - kwargs['t0']) ** gradient
     predec_kwargs['aa'] = aa
     predec_kwargs['mm'] = gradient
 
-    f1 = extinction_models.extinction_with_predeceleration(tt_predec, **predec_kwargs)
+    f1 = extinction_models._extinction_with_predeceleration(tt_predec, **predec_kwargs)
     flux = np.concatenate((f1, f2))
 
     if kwargs['output_format'] == 'flux_density':
@@ -69,7 +79,7 @@ def t0_thin_shell_predeceleration(time, **kwargs):
         return calc_ABmag_from_flux_density(flux).value
 
 @citation_wrapper('https://ui.adsabs.harvard.edu/abs/2021arXiv210601556S/abstract')
-def t0_exinction_models_with_sampled_t_peak(time, tp, **kwargs):
+def _t0_exinction_models_with_sampled_t_peak(time, tp, **kwargs):
     """
     Sample in peak time and smoothly connect with afterglowpy output
     :param time: in MJD, times should be after T0.
@@ -86,12 +96,12 @@ def t0_exinction_models_with_sampled_t_peak(time, tp, **kwargs):
     tt_postdec = time[time >= tp]
     predec_kwargs = kwargs.copy()
     afterglow_kwargs = kwargs.copy()
-    f2 = t0_extinction_models(tt_postdec, **afterglow_kwargs)
-    f_at_tp = t0_extinction_models(tp, **afterglow_kwargs)
+    f2 = t0_afterglow_extinction_model_d2g(tt_postdec, **afterglow_kwargs)
+    f_at_tp = t0_afterglow_extinction_model_d2g(tp, **afterglow_kwargs)
     aa = f_at_tp / (kwargs['tp'] - kwargs['t0']) ** gradient
     predec_kwargs['aa'] = aa
     predec_kwargs['mm'] = gradient
-    f1 = extinction_models.extinction_with_predeceleration(tt_predec, **predec_kwargs)
+    f1 = extinction_models._extinction_with_predeceleration(tt_predec, **predec_kwargs)
     flux = np.concatenate((f1, f2))
     if kwargs['output_format'] == 'flux_density':
         return flux
@@ -99,7 +109,7 @@ def t0_exinction_models_with_sampled_t_peak(time, tp, **kwargs):
         return calc_ABmag_from_flux_density(flux).value
 
 @citation_wrapper('https://ui.adsabs.harvard.edu/abs/2021arXiv210510108S/abstract')
-def t0_afterglowpy_rate_model(time, **kwargs):
+def _t0_afterglowpy_rate_model(time, **kwargs):
     """
     :param time: time in seconds
     :param burst_start: burst start time in seconds
@@ -118,7 +128,7 @@ def t0_afterglowpy_rate_model(time, **kwargs):
     return rate
 
 @citation_wrapper('https://ui.adsabs.harvard.edu/abs/2021arXiv210510108S/abstract')
-def t0_afterglowpy_flux_model(time, burst_start, **kwargs):
+def _t0_afterglowpy_flux_model(time, burst_start, **kwargs):
     """
     Afterglowpy based integrated flux models with burst_start as a parameter.
     :param time: time in seconds
@@ -130,7 +140,7 @@ def t0_afterglowpy_flux_model(time, burst_start, **kwargs):
     return flux, grb_time
 
 @citation_wrapper('https://ui.adsabs.harvard.edu/abs/2021arXiv210510108S/abstract')
-def t0_afterglowpy_flux_density_model(time, burst_start, **kwargs):
+def _t0_afterglowpy_flux_density_model(time, burst_start, **kwargs):
     """
     Afterglowpy based flux density models with burst_start as a parameter.
     :param time: time in seconds

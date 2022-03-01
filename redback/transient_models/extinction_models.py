@@ -189,3 +189,27 @@ def extinction_afterglow_galactic_dust_to_gas_ratio(time, lognh, factor=2.21, **
     output = extinction_with_afterglow_base_model(time=time, av=av, **kwargs)
     return output
 
+
+def _extinction_with_predeceleration(time, lognh, factor, **kwargs):
+    """
+    :param time: time in some unit.
+    :param lognh: host galaxy column density
+    :param factor: extinction factor
+    :param kwargs: all params
+    :return: flux or magnitude with extinction applied depending on kwargs
+    """
+    import extinction  # noqa
+    lc = predeceleration(time, **kwargs)
+    lc = np.nan_to_num(lc)
+    factor = factor * 1e21
+    nh = 10 ** lognh
+    av = nh / factor
+    frequency = kwargs['frequency']
+    # convert to angstrom
+    frequency = (frequency * uu.Hz).to(uu.Angstrom).value
+    mag_extinction = extinction.fitzpatrick99(frequency, av, r_v=3.1)
+    lc = extinction.apply(mag_extinction, lc, inplace=True)
+    if kwargs['output_format'] == 'flux_density':
+        return lc
+    elif kwargs['output_format'] == 'magnitude':
+        return calc_ABmag_from_flux_density(lc).value
