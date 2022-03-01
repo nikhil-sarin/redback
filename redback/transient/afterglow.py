@@ -191,7 +191,7 @@ class Afterglow(Transient):
         -------
         tuple: A tuple with x, x_err, y, y_err data
         """
-        directory_structure = afterglow_directory_structure(grb=name.lstrip('GRB'), data_mode=data_mode)
+        directory_structure = afterglow_directory_structure(grb=f"GRB{name.lstrip('GRB')}", data_mode=data_mode)
 
         data = np.genfromtxt(directory_structure.processed_file_path, delimiter=",")[1:]
         x = data[:, 0]
