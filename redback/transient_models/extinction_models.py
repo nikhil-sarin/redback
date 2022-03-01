@@ -11,7 +11,13 @@ extinction_base_models = ['tophat', 'cocoon', 'gaussian',
                           'tophat']
 import astropy.units as uu
 
-def extinction_with_afterglow_base_model(time, lognh, factor, **kwargs):
+def extinction_with_afterglow_base_model(time, av, **kwargs):
+    """
+    :param time: time in observer frame in seconds
+    :param av: absolute mag extinction
+    :param kwargs: Must be all the parameters required by the base_model specified using kwargs['base_model']
+    :return: flux_density or magnitude depending on kwargs['output_format']
+    """
     import extinction  # noqa
     from redback.model_library import modules_dict  # import model library in function to avoid circular dependency
     base_model = kwargs['base_model']
@@ -26,10 +32,6 @@ def extinction_with_afterglow_base_model(time, lognh, factor, **kwargs):
     else:
         raise ValueError("Not a valid base model.")
 
-    # logger.info('Using the extinction factor from Guver and Ozel 2009')
-    factor = factor * 1e21
-    nh = 10 ** lognh
-    av = nh / factor
     frequency = kwargs['frequency']
     # convert to angstrom
     frequency = (frequency * uu.Hz).to(uu.Angstrom).value
@@ -39,8 +41,24 @@ def extinction_with_afterglow_base_model(time, lognh, factor, **kwargs):
     # logger.info('Using {} as the base model for extinction'.format(base_model))
     flux_density = function(time, **kwargs)
     flux_density = extinction.apply(mag_extinction, flux_density)
-    output_magnitude = calc_ABmag_from_flux_density(flux_density).value
-    return output_magnitude
+    if kwargs['output_format'] == 'flux_density':
+        return flux_density.value
+    elif kwargs['output_format'] == 'magnitude':
+        return calc_ABmag_from_flux_density(flux_density).value
+
+def extinction_with_galactic_dust_to_gas_ratio(time, lognh, factor=2.21, **kwargs):
+    """
+    :param time: time in observer frame in seconds
+    :param lognh: log10 hydrogen column density
+    :param factor: factor to convert nh to av i.e., av = nh/factor
+    :param kwargs: Must be all the parameters required by the base_model specified using kwargs['base_model']
+    :return: flux_density or magnitude depending on kwargs['output_format']
+    """
+    factor = factor * 1e21
+    nh = 10 ** lognh
+    av = nh / factor
+    output = extinction_with_afterglow_base_model(time=time, av=av, **kwargs)
+    return output
 
 
 def extinction_with_predeceleration(time, lognh, factor, **kwargs):
