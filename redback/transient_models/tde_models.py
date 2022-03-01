@@ -3,7 +3,7 @@ import redback.interaction_processes as ip
 import redback.sed as sed
 import redback.photosphere as photosphere
 from astropy.cosmology import Planck18 as cosmo  # noqa
-from redback.utils import calc_kcorrected_properties
+from redback.utils import calc_kcorrected_properties, citation_wrapper
 import astropy.units as uu
 
 def _analytic_fallback(time, l0, t_0):
@@ -22,6 +22,7 @@ def _analytic_fallback(time, l0, t_0):
 def _semianalytical_fallback():
     pass
 
+@citation_wrapper('redback')
 def tde_analytical_bolometric(time, l0, t_0,interaction_process = ip.Diffusion,
                                     **kwargs):
     """
@@ -41,7 +42,7 @@ def tde_analytical_bolometric(time, l0, t_0,interaction_process = ip.Diffusion,
         lbol = interaction_class.new_luminosity
     return lbol
 
-
+@citation_wrapper('redback')
 def tde_analytical(time, redshift, l0, t_0, interaction_process=ip.Diffusion,
                    photosphere=photosphere.TemperatureFloor,
                    sed=sed.CutoffBlackbody,
@@ -75,5 +76,6 @@ def tde_analytical(time, redshift, l0, t_0, interaction_process=ip.Diffusion,
     elif kwargs['output_format'] == 'magnitude':
         return flux_density.to(uu.ABmag).value
 
+@citation_wrapper('https://ui.adsabs.harvard.edu/abs/2019ApJ...872..151M/abstract')
 def tde_semianalytical():
     pass

@@ -2,7 +2,7 @@ from inspect import isfunction
 import numpy as np
 
 from redback.transient_models.fireball_models import predeceleration
-from redback.utils import logger, calc_ABmag_from_flux_density
+from redback.utils import logger, calc_ABmag_from_flux_density, citation_wrapper
 
 extinction_base_models = ['tophat', 'cocoon', 'gaussian',
                           'kn_afterglow', 'cone_afterglow',
@@ -11,6 +11,7 @@ extinction_base_models = ['tophat', 'cocoon', 'gaussian',
                           'tophat']
 import astropy.units as uu
 
+@citation_wrapper('https://ui.adsabs.harvard.edu/abs/2021arXiv210601556S/abstract')
 def extinction_with_afterglow_base_model(time, av, **kwargs):
     """
     :param time: time in observer frame in seconds
@@ -46,7 +47,8 @@ def extinction_with_afterglow_base_model(time, av, **kwargs):
     elif kwargs['output_format'] == 'magnitude':
         return calc_ABmag_from_flux_density(flux_density).value
 
-def extinction_with_galactic_dust_to_gas_ratio(time, lognh, factor=2.21, **kwargs):
+@citation_wrapper('https://ui.adsabs.harvard.edu/abs/2021arXiv210601556S/abstract')
+def extinction_afterglow_galactic_dust_to_gas_ratio(time, lognh, factor=2.21, **kwargs):
     """
     :param time: time in observer frame in seconds
     :param lognh: log10 hydrogen column density
@@ -60,7 +62,7 @@ def extinction_with_galactic_dust_to_gas_ratio(time, lognh, factor=2.21, **kwarg
     output = extinction_with_afterglow_base_model(time=time, av=av, **kwargs)
     return output
 
-
+@citation_wrapper('https://ui.adsabs.harvard.edu/abs/2021arXiv210601556S/abstract')
 def extinction_with_predeceleration(time, lognh, factor, **kwargs):
     """
     :param time: time in some unit.

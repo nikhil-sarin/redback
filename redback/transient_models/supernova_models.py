@@ -4,7 +4,7 @@ import redback.interaction_processes as ip
 import redback.sed as sed
 import redback.photosphere as photosphere
 from astropy.cosmology import Planck18 as cosmo  # noqa
-from redback.utils import calc_kcorrected_properties
+from redback.utils import calc_kcorrected_properties, citation_wrapper
 import astropy.units as uu
 
 def thermal_synchrotron():
@@ -15,6 +15,7 @@ def thermal_synchrotron():
     """
     pass
 
+@citation_wrapper('redback')
 def exponential_powerlaw_bolometric(time, lbol_0, alpha_1, alpha_2, tpeak_d, interaction_process = ip.Diffusion,
                                     **kwargs):
     """
@@ -36,6 +37,7 @@ def exponential_powerlaw_bolometric(time, lbol_0, alpha_1, alpha_2, tpeak_d, int
         lbol = interaction_class.new_luminosity
     return lbol
 
+@citation_wrapper('https://ui.adsabs.harvard.edu/abs/2018ApJS..236....6G/abstract')
 def sn_exponential_powerlaw(time, redshift, lbol_0, alpha_1, alpha_2, tpeak_d,
                             interaction_process = ip.Diffusion,
                             photosphere=photosphere.TemperatureFloor,
@@ -91,6 +93,7 @@ def _nickelcobalt_engine(time, f_nickel, mej, **kwargs):
     lbol = nickel_mass * (ni56_lum*np.exp(-time/ni56_life) + co56_lum * np.exp(-time/co56_life))
     return lbol
 
+@citation_wrapper('https://ui.adsabs.harvard.edu/abs/1982ApJ...253..785A/abstract')
 def arnett_bolometric(time, f_nickel, mej, interaction_process=ip.Diffusion, **kwargs):
     """
     :param time: time in days
@@ -109,6 +112,7 @@ def arnett_bolometric(time, f_nickel, mej, interaction_process=ip.Diffusion, **k
         lbol = interaction_class.new_luminosity
     return lbol
 
+@citation_wrapper('https://ui.adsabs.harvard.edu/abs/1982ApJ...253..785A/abstract')
 def arnett(time, redshift, f_nickel, mej, interaction_process=ip.Diffusion,
            photosphere=photosphere.TemperatureFloor,
            sed=sed.Blackbody, **kwargs):
@@ -142,33 +146,56 @@ def arnett(time, redshift, f_nickel, mej, interaction_process=ip.Diffusion,
     elif kwargs['output_format'] == 'magnitude':
         return flux_density.to(uu.ABmag).value
 
+def _basic_magnetar(time, p0, bp, mass_ns, theta_pb, **kwargs):
+    """
+    :param time: time in seconds in source frame
+    :param p0: initial spin period
+    :param bp: polar magnetic field strength in Gauss
+    :param mass_ns: mass of neutron star in solar masses
+    :param theta_pb: angle between spin and magnetic field axes
+    :param kwargs: None
+    :return: luminosity
+    """
+    erot = 2.6e52 * (mass_ns/1.4)**(3./2.) * p0**(-2)
+    tp = 1.3e5 * bp**(-2) * p0**2 * (mass_ns/1.4)**(3./2.) * (np.sin(theta_pb))**(-2)
+    luminosity = 2 * erot / tp / (1. + 2 * time / tp)**2
+    return luminosity
+
 def magnetar_nickel():
     pass
 
 def superluminous_supernova():
     pass
 
+@citation_wrapper('https://ui.adsabs.harvard.edu/abs/2017ApJ...850...55N/abstract')
 def basic_magnetar_powered():
     pass
 
+@citation_wrapper('redback')
 def braking_index_magnetar_powered():
     pass
 
+@citation_wrapper('https://ui.adsabs.harvard.edu/abs/2013ApJ...773...76C/abstract')
 def csm_interaction():
     pass
 
+@citation_wrapper('https://ui.adsabs.harvard.edu/abs/2018ApJS..236....6G/abstract')
 def csm_nickel():
     pass
 
+@citation_wrapper('https://ui.adsabs.harvard.edu/abs/2018ApJS..236....6G/abstract')
 def type_1a():
     pass
 
+@citation_wrapper('https://ui.adsabs.harvard.edu/abs/2018ApJS..236....6G/abstract')
 def type_1c():
     pass
 
+@citation_wrapper('redback')
 def homologous_expansion_supernova_model():
     pass
 
+@citation_wrapper('redback')
 def thin_shell_supernova_model():
     pass
 

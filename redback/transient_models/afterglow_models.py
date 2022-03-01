@@ -1,6 +1,6 @@
 from astropy.cosmology import Planck18 as cosmo  # noqa
 from inspect import isfunction
-from redback.utils import logger
+from redback.utils import logger, citation_wrapper
 
 try:
     import afterglowpy as afterglow
@@ -20,6 +20,7 @@ jet_spreading_models = ['tophat', 'cocoon', 'gaussian',
                           'smoothpowerlaw', 'powerlawcore',
                           'tophat']
 
+@citation_wrapper('https://ui.adsabs.harvard.edu/abs/2020ApJ...896..166R/abstract')
 def cocoon(time, redshift, umax, umin, loge0, k, mej, logn0, p, logepse, logepsb, ksin, g0, **kwargs):
     dl = cosmo.luminosity_distance(redshift).cgs.value
     spread = kwargs['spread']
@@ -39,7 +40,7 @@ def cocoon(time, redshift, umax, umin, loge0, k, mej, logn0, p, logepse, logepsb
     flux_density = afterglow.fluxDensity(time, frequency, **Z)
     return flux_density
 
-
+@citation_wrapper('https://ui.adsabs.harvard.edu/abs/2020ApJ...896..166R/abstract')
 def kn_afterglow(time, redshift, umax, umin, loge0, k, mej, logn0, p, logepse, logepsb, ksin, g0, **kwargs):
     dl = cosmo.luminosity_distance(redshift).cgs.value
     spread = kwargs['spread']
@@ -59,7 +60,7 @@ def kn_afterglow(time, redshift, umax, umin, loge0, k, mej, logn0, p, logepse, l
     flux_density = afterglow.fluxDensity(time, frequency, **Z)
     return flux_density
 
-
+@citation_wrapper('https://ui.adsabs.harvard.edu/abs/2020ApJ...896..166R/abstract')
 def cone_afterglow(time, redshift, thv, loge0, thw, thc, logn0, p, logepse, logepsb, ksin, g0, **kwargs):
     dl = cosmo.luminosity_distance(redshift).cgs.value
     spread = kwargs['spread']
@@ -80,7 +81,7 @@ def cone_afterglow(time, redshift, thv, loge0, thw, thc, logn0, p, logepse, loge
     flux_density = afterglow.fluxDensity(time, frequency, **Z)
     return flux_density
 
-
+@citation_wrapper('https://ui.adsabs.harvard.edu/abs/2020ApJ...896..166R/abstract')
 def gaussiancore(time, redshift, thv, loge0, thc, thw, logn0, p, logepse, logepsb, ksin, g0, **kwargs):
     dl = cosmo.luminosity_distance(redshift).cgs.value
     spread = kwargs['spread']
@@ -102,7 +103,7 @@ def gaussiancore(time, redshift, thv, loge0, thc, thw, logn0, p, logepse, logeps
     flux_density = afterglow.fluxDensity(time, frequency, **Z)
     return flux_density
 
-
+@citation_wrapper('https://ui.adsabs.harvard.edu/abs/2020ApJ...896..166R/abstract')
 def gaussian(time, redshift, thv, loge0, thw, thc, logn0, p, logepse, logepsb, ksin, g0, **kwargs):
     dl = cosmo.luminosity_distance(redshift).cgs.value
     spread = kwargs['spread']
@@ -123,7 +124,7 @@ def gaussian(time, redshift, thv, loge0, thw, thc, logn0, p, logepse, logepsb, k
     flux_density = afterglow.fluxDensity(time, frequency, **Z)
     return flux_density
 
-
+@citation_wrapper('https://ui.adsabs.harvard.edu/abs/2020ApJ...896..166R/abstract')
 def smoothpowerlaw(time, redshift, thv, loge0, thw, thc, beta, logn0, p, logepse, logepsb, ksin, g0, **kwargs):
     dl = cosmo.luminosity_distance(redshift).cgs.value
     spread = kwargs['spread']
@@ -144,7 +145,7 @@ def smoothpowerlaw(time, redshift, thv, loge0, thw, thc, beta, logn0, p, logepse
     flux_density = afterglow.fluxDensity(time, frequency, **Z)
     return flux_density
 
-
+@citation_wrapper('https://ui.adsabs.harvard.edu/abs/2020ApJ...896..166R/abstract')
 def powerlawcore(time, redshift, thv, loge0, thw, thc, beta, logn0, p, logepse, logepsb, ksin, g0, **kwargs):
     dl = cosmo.luminosity_distance(redshift).cgs.value
     spread = kwargs['spread']
@@ -165,7 +166,7 @@ def powerlawcore(time, redshift, thv, loge0, thw, thc, beta, logn0, p, logepse, 
     flux_density = afterglow.fluxDensity(time, frequency, **Z)
     return flux_density
 
-
+@citation_wrapper('https://ui.adsabs.harvard.edu/abs/2020ApJ...896..166R/abstract')
 def tophat(time, redshift, thv, loge0, thc, logn0, p, logepse, logepsb, ksin, g0, **kwargs):
     dl = cosmo.luminosity_distance(redshift).cgs.value
     spread = kwargs['spread']
@@ -186,6 +187,7 @@ def tophat(time, redshift, thv, loge0, thc, logn0, p, logepse, logepsb, ksin, g0
     flux_density = afterglow.fluxDensity(time, frequency, **Z)
     return flux_density
 
+@citation_wrapper('https://ui.adsabs.harvard.edu/abs/2020ApJ...896..166R/abstract')
 def afterglow_models_no_jet_spread(time, **kwargs):
     from redback.model_library import modules_dict  # import model library in function to avoid circular dependency
     base_model = kwargs['base_model']

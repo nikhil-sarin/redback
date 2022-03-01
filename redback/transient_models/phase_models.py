@@ -7,9 +7,9 @@ import astropy.units as uu
 from redback.constants import *
 from redback.transient_models import extinction_models
 from redback.transient_models import integrated_flux_afterglow_models as infam
-from redback.utils import calc_ABmag_from_flux_density, calc_flux_density_from_ABmag
+from redback.utils import calc_ABmag_from_flux_density, calc_flux_density_from_ABmag, citation_wrapper
 
-
+@citation_wrapper('https://ui.adsabs.harvard.edu/abs/2021arXiv210601556S/abstract')
 def t0_extinction_models(time, lognh, factor, **kwargs):
     """
     :param time: time in mjd
@@ -31,7 +31,7 @@ def t0_extinction_models(time, lognh, factor, **kwargs):
     elif kwargs['output_format'] == 'magnitude':
         return magnitude
 
-
+@citation_wrapper('https://ui.adsabs.harvard.edu/abs/2021arXiv210601556S/abstract')
 def t0_thin_shell_predeceleration(time, **kwargs):
     """
     Assume pre-deceleration behaviour is in thin-shell regime and follows Sari and Piran 1997
@@ -68,7 +68,7 @@ def t0_thin_shell_predeceleration(time, **kwargs):
     elif kwargs['output_format'] == 'magnitude':
         return calc_ABmag_from_flux_density(flux).value
 
-
+@citation_wrapper('https://ui.adsabs.harvard.edu/abs/2021arXiv210601556S/abstract')
 def t0_exinction_models_with_sampled_t_peak(time, tp, **kwargs):
     """
     Sample in peak time and smoothly connect with afterglowpy output
@@ -98,7 +98,7 @@ def t0_exinction_models_with_sampled_t_peak(time, tp, **kwargs):
     elif kwargs['output_format'] == 'magnitude':
         return calc_ABmag_from_flux_density(flux).value
 
-
+@citation_wrapper('https://ui.adsabs.harvard.edu/abs/2021arXiv210510108S/abstract')
 def t0_afterglowpy_rate_model(time, **kwargs):
     """
     :param time: time in seconds
@@ -117,7 +117,7 @@ def t0_afterglowpy_rate_model(time, **kwargs):
     rate[time < burst_start] = (background_rate * dt)
     return rate
 
-
+@citation_wrapper('https://ui.adsabs.harvard.edu/abs/2021arXiv210510108S/abstract')
 def t0_afterglowpy_flux_model(time, burst_start, **kwargs):
     """
     Afterglowpy based integrated flux models with burst_start as a parameter.
@@ -129,7 +129,7 @@ def t0_afterglowpy_flux_model(time, burst_start, **kwargs):
     flux = infam.integrated_flux_afterglowpy_base_model(grb_time, **kwargs)
     return flux, grb_time
 
-
+@citation_wrapper('https://ui.adsabs.harvard.edu/abs/2021arXiv210510108S/abstract')
 def t0_afterglowpy_flux_density_model(time, burst_start, **kwargs):
     """
     Afterglowpy based flux density models with burst_start as a parameter.
