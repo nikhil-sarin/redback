@@ -5,6 +5,33 @@ from redback.transient_models.fireball_models import predeceleration
 from redback.utils import logger, calc_ABmag_from_flux_density, citation_wrapper
 import astropy.units as uu
 
+extinction_afterglow_base_models = ['tophat', 'cocoon', 'gaussian',
+                                    'kn_afterglow', 'cone_afterglow',
+                                    'gaussiancore', 'gaussian',
+                                    'smoothpowerlaw', 'powerlawcore',
+                                    'tophat']
+extinction_supernova_base_models = ['sn_exponential_powerlaw', 'arnett',
+                                    'basic_magnetar_powered', 'slsn', 'magnetar_nickel',
+                                    'csm_interaction', 'csm_nickel', 'type_1a', 'type_1c',
+                                    'general_magnetar_slsn']
+extinction_kilonova_base_models = ['mosfit_bns', 'mosfit_rprocess', 'mosfit_kilonova',
+                                   'power_law_stratified_kilonova', 'two_layer_stratified_kilonova',
+                                   'three_component_kilonova_model', 'two_component_kilonova_model',
+                                   'one_component_kilonova_model', 'one_component_ejecta_relation_model',
+                                   'metzger_kilonova_model']
+extinction_tde_base_models = ['tde_analytical', 'tde_semianalytical']
+extinction_magnetar_boosted_base_models = ['mergernova', 'metzger_magnetar_boosted_kilonova_model']
+
+extinction_model_library = {'kilonova': extinction_kilonova_base_models,
+                            'supernova': extinction_supernova_base_models,
+                            'afterglow': extinction_afterglow_base_models,
+                            'tde': extinction_tde_base_models,
+                            'magnetar_boosted': extinction_magnetar_boosted_base_models}
+
+model_library = {'supernova': 'supernova_models', 'afterglow': 'afterglow_models',
+                 'magnetar_boosted': 'magnetar_boosted_ejecta_models', 'tde': 'tde_models',
+                 'kilonova': 'kilonova_models'}
+
 def _get_correct_function(base_model, model_type=None):
     """
     Gets the correct function to use for the base model specified
@@ -13,33 +40,6 @@ def _get_correct_function(base_model, model_type=None):
     :return: function; function to evaluate
     """
     from redback.model_library import modules_dict  # import model library in function to avoid circular dependency
-    extinction_afterglow_base_models = ['tophat', 'cocoon', 'gaussian',
-                                        'kn_afterglow', 'cone_afterglow',
-                                        'gaussiancore', 'gaussian',
-                                        'smoothpowerlaw', 'powerlawcore',
-                                        'tophat']
-    extinction_supernova_base_models = ['sn_exponential_powerlaw', 'arnett',
-                                        'basic_magnetar_powered', 'slsn', 'magnetar_nickel',
-                                        'csm_interaction', 'csm_nickel', 'type_1a', 'type_1c',
-                                        'general_magnetar_slsn']
-    extinction_kilonova_base_models = ['mosfit_bns', 'mosfit_rprocess', 'mosfit_kilonova',
-                                       'power_law_stratified_kilonova', 'two_layer_stratified_kilonova',
-                                       'three_component_kilonova_model', 'two_component_kilonova_model',
-                                       'one_component_kilonova_model', 'one_component_ejecta_relation_model',
-                                       'metzger_kilonova_model']
-    extinction_tde_base_models = ['tde_analytical', 'tde_semianalytical']
-    extinction_magnetar_boosted_base_models = ['mergernova', 'metzger_magnetar_boosted_kilonova_model']
-
-    extinction_model_library = {'kilonova': extinction_kilonova_base_models,
-                                'supernova': extinction_supernova_base_models,
-                                'afterglow': extinction_afterglow_base_models,
-                                'tde': extinction_tde_base_models,
-                                'magnetar_boosted': extinction_magnetar_boosted_base_models}
-
-    model_library = {'supernova':'supernova_models', 'afterglow':'afterglow_models',
-                     'magnetar_boosted':'magnetar_boosted_ejecta_models', 'tde':'tde_models',
-                     'kilonova':'kilonova_models'}
-
     extinction_base_models = extinction_model_library[model_type]
     module_libary = model_library[model_type]
 
@@ -74,7 +74,7 @@ def _perform_extinction(flux_density, frequency, av, r_v):
 def _evaluate_extinction_model(time, av, model_type, **kwargs):
     """
     Generalised evaluate extinction function
-    :param time: time in units required by model
+    :param time: time in days
     :param av: absolute mag extinction
     :param model_type: None, or one of the types implemented
     :param kwargs: Must be all the parameters required by the base_model specified using kwargs['base_model']
@@ -165,7 +165,7 @@ def extinction_with_magnetar_boosted_base_model(time, av, **kwargs):
 def extinction_with_afterglow_base_model(time, av, **kwargs):
     """
     Extinction with models implemented in afterglow_models
-    :param time: time in observer frame in seconds
+    :param time: time in observer frame in days
     :param av: absolute mag extinction
     :param kwargs: Must be all the parameters required by the base_model specified using kwargs['base_model']
         and r_v, default is 3.1
@@ -177,7 +177,7 @@ def extinction_with_afterglow_base_model(time, av, **kwargs):
 @citation_wrapper('https://ui.adsabs.harvard.edu/abs/2021arXiv210601556S/abstract')
 def extinction_afterglow_galactic_dust_to_gas_ratio(time, lognh, factor=2.21, **kwargs):
     """
-    :param time: time in observer frame in seconds
+    :param time: time in observer frame in days
     :param lognh: log10 hydrogen column density
     :param factor: factor to convert nh to av i.e., av = nh/factor
     :param kwargs: Must be all the parameters required by the base_model specified using kwargs['base_model']
