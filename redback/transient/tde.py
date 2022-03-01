@@ -1,8 +1,8 @@
 import numpy as np
 from typing import Union
 
+import redback.get_data.directory
 from redback.transient.transient import OpticalTransient
-from redback.get_data.directory import transient_directory_structure
 
 
 class TDE(OpticalTransient):
@@ -45,26 +45,6 @@ class TDE(OpticalTransient):
                          magnitude=magnitude, magnitude_err=magnitude_err, data_mode=data_mode, name=name,
                          use_phase_model=use_phase_model, bands=bands, system=system, active_bands=active_bands,
                          **kwargs)
+        self.directory_structure = redback.get_data.directory.transient_directory_structure(
+            transient=self.name, transient_type="tidal_disruption_event", data_mode=self.data_mode)
         self._set_data()
-
-    @property
-    def event_table(self) -> str:
-        """
-
-        Returns
-        -------
-
-        """
-        return f'tidal_disruption_event/{self.name}/metadata.csv'
-
-    @property
-    def transient_dir(self) -> str:
-        """
-
-        Returns
-        -------
-
-        """
-        transient_dir, _, _ = transient_directory_structure(
-            transient=self.name, transient_type='tidal_disruption_event')
-        return transient_dir

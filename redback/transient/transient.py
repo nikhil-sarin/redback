@@ -601,27 +601,22 @@ class OpticalTransient(Transient):
     DATA_MODES = ['flux', 'flux_density', 'photometry', 'luminosity']
 
     @staticmethod
-    def load_data(name, data_mode='photometry', transient_dir="."):
+    def load_data(processed_file_path, data_mode="photometry"):
         """
         Loads data from specified directory and file, and returns it as a tuple.
 
         Parameters
         ----------
-        name: str
-            Name of the transient used.
+        processed_file_path: str
+            Path to the processed file to load
         data_mode: str, optional
             Name of the data mode. Must be from ['photometry', 'flux_density', 'all']. Default is photometry.
-        transient_dir: str, optional
-            Name of the directory in which the data is being stored. Default is the current directory.
 
         Returns
         -------
         tuple: Six elements when querying photometry or flux_density data, Eight for 'all'
         """
-        filename = f"{name}_data.csv"
-
-        data_file = join(transient_dir, filename)
-        df = pd.read_csv(data_file)
+        df = pd.read_csv(processed_file_path)
         time_days = np.array(df["time (days)"])
         time_mjd = np.array(df["time"])
         magnitude = np.array(df["magnitude"])
@@ -720,7 +715,7 @@ class OpticalTransient(Transient):
                          magnitude_err=magnitude_err, data_mode=data_mode, name=name,
                          use_phase_model=use_phase_model, system=system, bands=bands, active_bands=active_bands,
                          **kwargs)
-        self._set_data()
+        self.directory_structure = None
 
     @classmethod
     def from_open_access_catalogue(
@@ -745,10 +740,10 @@ class OpticalTransient(Transient):
         -------
         OpticalTransient: A class instance.
         """
-        transient_dir, _, _ = redback.get_data.directory.transient_directory_structure(
+        directory_structure = redback.get_data.directory.transient_directory_structure(
             transient=name, transient_type=cls.__name__.lower(), data_mode=data_mode)
         time_days, time_mjd, flux_density, flux_density_err, magnitude, magnitude_err, bands, system = \
-            cls.load_data(name=name, transient_dir=transient_dir, data_mode="all")
+            cls.load_data(processed_file_path=directory_structure.processed_file_path, data_mode="all")
         return cls(name=name, data_mode=data_mode, time=time_days, time_err=None, time_mjd=time_mjd,
                    flux_density=flux_density, flux_density_err=flux_density_err, magnitude=magnitude,
                    magnitude_err=magnitude_err, bands=bands, system=system, active_bands=active_bands,
@@ -762,7 +757,7 @@ class OpticalTransient(Transient):
         -------
         str: Path to the metadata table.
         """
-        return f'{self.__class__.__name__.lower()}/{self.name}/metadata.csv'
+        return f"{self.directory_structure.directory_path}/{self.name}_metadata.csv"
 
     def _set_data(self) -> None:
         """

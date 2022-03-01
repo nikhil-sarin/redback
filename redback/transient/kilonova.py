@@ -3,6 +3,7 @@ from typing import Union
 
 import numpy as np
 
+import redback.get_data.directory
 from redback.transient.transient import OpticalTransient
 
 dirname = os.path.dirname(__file__)
@@ -75,4 +76,6 @@ class Kilonova(OpticalTransient):
                          Lum50_err=Lum50_err, flux_density=flux_density, flux_density_err=flux_density_err,
                          magnitude=magnitude, magnitude_err=magnitude_err, data_mode=data_mode, name=name, bands=bands,
                          system=system, active_bands=active_bands, use_phase_model=use_phase_model, **kwargs)
+        self.directory_structure = redback.get_data.directory.transient_directory_structure(
+            transient=name, transient_type="kilonova", data_mode=data_mode)
         self._set_data()

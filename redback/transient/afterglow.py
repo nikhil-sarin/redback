@@ -100,8 +100,7 @@ class Afterglow(Transient):
             Truncator: Truncation class that truncates the data. If not given use `Truncator` in this module.
         """
 
-        if not name.startswith('GRB'):
-            name = 'GRB' + name
+        name = f"GRB{name.lstrip('GRB')}"
 
         self.FluxToLuminosityConverter = kwargs.get('FluxToLuminosityConverter', FluxToLuminosityConverter)
         self.Truncator = kwargs.get('Truncator', Truncator)
@@ -140,8 +139,6 @@ class Afterglow(Transient):
         -------
 
         """
-        if not name.startswith('GRB'):
-            name = 'GRB' + name
         afterglow = cls(name=name, data_mode=data_mode)
 
         afterglow._set_data()
@@ -194,11 +191,9 @@ class Afterglow(Transient):
         -------
         tuple: A tuple with x, x_err, y, y_err data
         """
-        grb_dir, _, _ = afterglow_directory_structure(grb=name.lstrip('GRB'), data_mode=data_mode)
-        filename = f"{name}.csv"
+        directory_structure = afterglow_directory_structure(grb=name.lstrip('GRB'), data_mode=data_mode)
 
-        data_file = join(grb_dir, filename)
-        data = np.genfromtxt(data_file, delimiter=",")[1:]
+        data = np.genfromtxt(directory_structure.processed_file_path, delimiter=",")[1:]
         x = data[:, 0]
         x_err = data[:, 1:3].T
         y = np.array(data[:, 3])
@@ -525,7 +520,7 @@ class Truncator(object):
         index = len(self.time) - (len(self.time[truncate]) + 2)
         return self._truncate_by_index(index=index)
 
-    def _truncate_by_index(self, index: int) -> tuple:
+    def _truncate_by_index(self, index: Union[int, np.ndarray]) -> tuple:
         """
         Truncate data left of a given index.
 
