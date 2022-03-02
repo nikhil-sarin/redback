@@ -798,7 +798,7 @@ class OpticalTransient(Transient):
             plot_label: Additional filename label appended to the default name
         """
         if filters is None:
-            filters = self.default_filter
+            filters = self.active_bands
 
         errorbar_fmt = plot_kwargs.get("errorbar_fmt", "x")
         colors = plot_kwargs.get("colors", self.get_colors(filters))
