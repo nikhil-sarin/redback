@@ -5,7 +5,7 @@ import redback
 
 sampler = 'dynesty'
 
-model = "skew_exponential"
+model = "arnett"
 
 sne = "SN2011kl"
 
@@ -18,11 +18,11 @@ supernova.plot_multiband(figure=fig, axes=axes, filters=["J", "H", "g", "i"])
 
 # use default priors
 priors = redback.priors.get_priors(model=model)
-priors['redshift'] = 1e-2
+priors['redshift'] = 0.677
 model_kwargs = dict(frequencies=redback.utils.bands_to_frequencies(bands), output_format='flux_density')
 
+# returns a supernova result object
 result = redback.fit_model(name=sne, transient=supernova, model=model, sampler=sampler, model_kwargs=model_kwargs,
                            prior=priors, data_mode='flux_density', sample='rslice', nlive=200, resume=False)
 result.plot_corner()
-# returns a Kilonova result object
 result.plot_lightcurve(random_models=1000)
