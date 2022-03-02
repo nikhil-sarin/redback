@@ -212,7 +212,7 @@ class TestOpenDataGetter(unittest.TestCase):
         self.getter.convert_raw_data_to_csv.assert_called_once()
 
     def test_url(self):
-        expected = f"https://api.astrocats.space/{self.transient}/magnitude/time+magnitude+e_" \
+        expected = f"https://api.astrocats.space/{self.transient}/photometry/time+magnitude+e_" \
                    f"magnitude+band+system?e_magnitude&band&time&format=csv"
         self.assertEqual(expected, self.getter.url)
 
