@@ -416,7 +416,7 @@ class Afterglow(Transient):
 
     def plot_multiband(
             self, figure: matplotlib.figure.Figure = None, axes: matplotlib.axes.Axes = None, ncols: int = 2,
-            nrows: int = None, figsize: tuple = None, filters: np.ndarray = None, **plot_kwargs: dict) \
+            nrows: int = None, figsize: tuple = None, filters: list = None, **plot_kwargs: dict) \
             -> matplotlib.axes.Axes:
         """
 
@@ -433,7 +433,7 @@ class Afterglow(Transient):
             be inferred from ncols and the number of filters.
         figsize: tuple, optional
             Size of the figure. A default based on ncols and nrows will be used if None is given.
-        filters: np.ndarray, optional
+        filters: list, optional
             Which bands to plot. Will use default filters if None is given.
         plot_kwargs:
             Additional optional plotting kwargs:

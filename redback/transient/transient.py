@@ -324,6 +324,10 @@ class Transient(object):
             self._frequency = frequency
 
     @property
+    def filtered_frequencies(self) -> np.array:
+        return self.frequency[self.filtered_indices]
+
+    @property
     def active_bands(self) -> np.ndarray:
         """
 
@@ -348,6 +352,11 @@ class Transient(object):
         else:
             self._active_bands = active_bands
 
+
+    @property
+    def filtered_indices(self) -> list:
+        return [b in self.active_bands for b in self.bands]
+
     def get_filtered_data(self) -> tuple:
         """
         Used to filter flux density and photometry data, so we only use data that is using the active bands.
@@ -357,14 +366,13 @@ class Transient(object):
         tuple: A tuple with the filtered data. Format is (x, x_err, y, y_err)
         """
         if self.flux_density_data or self.magnitude_data:
-            indices = [b in self.active_bands for b in self.bands]
-            filtered_x = self.x[indices]
+            filtered_x = self.x[self.filtered_indices]
             try:
-                filtered_x_err = self.x_err[indices]
+                filtered_x_err = self.x_err[self.filtered_indices]
             except (IndexError, TypeError):
                 filtered_x_err = None
-            filtered_y = self.y[indices]
-            filtered_y_err = self.y_err[indices]
+            filtered_y = self.y[self.filtered_indices]
+            filtered_y_err = self.y_err[self.filtered_indices]
             return filtered_x, filtered_x_err, filtered_y, filtered_y_err
         else:
             raise ValueError(f"Transient needs to be in flux density or magnitude data mode, "
@@ -777,7 +785,7 @@ class OpticalTransient(Transient):
         return transient_dir
 
     def plot_data(
-            self, axes: matplotlib.axes.Axes = None, filters: np.ndarray = None, plot_others: bool = True,
+            self, axes: matplotlib.axes.Axes = None, filters: list = None, plot_others: bool = True,
             plot_save: bool = True, **plot_kwargs: dict) -> None:
         """
         Plots the data.
@@ -786,7 +794,7 @@ class OpticalTransient(Transient):
         ----------
         axes: matplotlib.axes.Axes, optional
             Axes can be given if defaults are not satisfying
-        filters: np.ndarray, optional
+        filters: list, optional
             Which bands to plot. Will use default filters if None is given.
         plot_others: bool, optional
             Plot all bands outside filters in black without label if True.
@@ -844,7 +852,7 @@ class OpticalTransient(Transient):
 
     def plot_multiband(
             self, figure: matplotlib.figure.Figure = None, axes: matplotlib.axes.Axes = None, ncols: int = 2,
-            nrows: int = None, figsize: tuple = None, filters: np.ndarray = None, **plot_kwargs: dict) \
+            nrows: int = None, figsize: tuple = None, filters: list = None, **plot_kwargs: dict) \
             -> matplotlib.axes.Axes:
         """
 
@@ -861,7 +869,7 @@ class OpticalTransient(Transient):
             be inferred from ncols and the number of filters.
         figsize: tuple, optional
             Size of the figure. A default based on ncols and nrows will be used if None is given.
-        filters: np.ndarray, optional
+        filters: list, optional
             Which bands to plot. Will use default filters if None is given.
         plot_kwargs:
             Additional optional plotting kwargs:
