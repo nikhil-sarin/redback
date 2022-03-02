@@ -27,8 +27,9 @@ class Afterglow(Transient):
             time_rest_frame_err: np.ndarray = None, Lum50: np.ndarray = None, Lum50_err: np.ndarray = None,
             flux: np.ndarray = None, flux_err: np.ndarray = None, flux_density: np.ndarray = None,
             flux_density_err: np.ndarray = None, magnitude: np.ndarray = None, magnitude_err: np.ndarray = None,
-            frequency: np.ndarray = None, bands: np.ndarray = None, system: np.ndarray = None,
-            active_bands: Union[np.ndarray, str] = 'all', use_phase_model: bool = False, **kwargs: dict) -> None:
+            redshift: float = np.nan, photon_index: float = np.nan, frequency: np.ndarray = None,
+            bands: np.ndarray = None, system: np.ndarray = None, active_bands: Union[np.ndarray, str] = 'all',
+            use_phase_model: bool = False, **kwargs: dict) -> None:
 
         """
         This is a general constructor for the Afterglow class. Note that you only need to give data corresponding to
@@ -70,18 +71,10 @@ class Afterglow(Transient):
             Magnitude values for photometry data.
         magnitude_err: np.ndarray, optional
             Magnitude error values for photometry data.
-        counts: np.ndarray, optional
-            Counts for prompt data.
-        ttes: np.ndarray, optional
-            Time-tagged events data for unbinned prompt data.
-        bin_size: float
-            Bin size for binning time-tagged event data.
         redshift: float
-            Redshift value.
-        path: str
-            Path to data directory.
+            Redshift value. Will be read from the metadata table if not given.
         photon_index: float
-            Photon index value.
+            Photon index value. Will be read from the metadata table if not given.
         use_phase_model: bool
             Whether we are using a phase model.
         frequency: np.ndarray, optional
@@ -96,7 +89,6 @@ class Afterglow(Transient):
             Additional classes that can be customised to fulfil the truncation on flux to luminosity conversion:
             FluxToLuminosityConverter: Conversion class to convert fluxes to luminosities.
                                        If not given use `FluxToLuminosityConverter` in this module.
-
             Truncator: Truncation class that truncates the data. If not given use `Truncator` in this module.
         """
 
@@ -109,7 +101,7 @@ class Afterglow(Transient):
                          time_err=time_err, time_rest_frame=time_rest_frame, time_rest_frame_err=time_rest_frame_err,
                          Lum50=Lum50, Lum50_err=Lum50_err, flux=flux, flux_err=flux_err, flux_density=flux_density,
                          flux_density_err=flux_density_err, use_phase_model=use_phase_model, magnitude=magnitude,
-                         magnitude_err=magnitude_err, frequency=frequency,
+                         magnitude_err=magnitude_err, frequency=frequency, redshift=redshift, photon_index=photon_index,
                          system=system, bands=bands, active_bands=active_bands, **kwargs)
         self._set_data()
         self._set_photon_index()
@@ -251,6 +243,8 @@ class Afterglow(Transient):
         """
         Set the photon index attribute from the metadata table.
         """
+        if not np.isnan(self.photon_index):
+            return
         try:
             photon_index = self.meta_data.query('GRB == @self._stripped_name')[
                 'BAT Photon Index (15-150 keV) (PL = simple power-law, CPL = cutoff power-law)'].values[0]
@@ -262,6 +256,8 @@ class Afterglow(Transient):
         """
         Set redshift from metadata table. Some GRBs do not have measurements.
         """
+        if not np.isnan(self.redshift):
+            return
         try:
             redshift = self.meta_data.query('GRB == @self._stripped_name')['Redshift'].values[0]
             if isinstance(redshift, str):

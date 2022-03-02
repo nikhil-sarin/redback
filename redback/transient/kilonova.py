@@ -18,8 +18,9 @@ class Kilonova(OpticalTransient):
             time_mjd: np.ndarray = None, time_mjd_err: np.ndarray = None, time_rest_frame: np.ndarray = None,
             time_rest_frame_err: np.ndarray = None, Lum50: np.ndarray = None, Lum50_err: np.ndarray = None,
             flux_density: np.ndarray = None, flux_density_err: np.ndarray = None, magnitude: np.ndarray = None,
-            magnitude_err: np.ndarray = None, bands: np.ndarray = None, system: np.ndarray = None,
-            active_bands: Union[np.ndarray, str] = 'all', use_phase_model: bool = False, **kwargs: dict) -> None:
+            magnitude_err: np.ndarray = None, redshift: float = np.nan, photon_index: float = np.nan,
+            bands: np.ndarray = None, system: np.ndarray = None, active_bands: Union[np.ndarray, str] = 'all',
+            use_phase_model: bool = False, **kwargs: dict) -> None:
         """
 
         This is a general constructor for the Kilonova class. Note that you only need to give data corresponding to
@@ -29,8 +30,8 @@ class Kilonova(OpticalTransient):
         Parameters
         ----------
         name: str
-            Name of the transient
-        data_mode: str
+            Name of the transient.
+        data_mode: str, optional
             Data mode. Must be one from `Kilonova.DATA_MODES`.
         time: np.ndarray, optional
             Times in the observer frame.
@@ -60,22 +61,31 @@ class Kilonova(OpticalTransient):
             Magnitude values for photometry data.
         magnitude_err: np.ndarray, optional
             Magnitude error values for photometry data.
-        system: np.ndarray, optional
-            System values.
+        redshift: float, optional
+            Redshift value.
+        photon_index: float, optional
+            Photon index value.
+        frequency: np.ndarray, optional
+            Array of band frequencies in photometry data.
         bands: np.ndarray, optional
             Band values.
-        active_bands: Union[list, np.ndarray]
+        system: np.ndarray, optional
+            System values.
+        active_bands: Union[list, np.ndarray], optional
             List or array of active bands to be used in the analysis. Use all available bands if 'all' is given.
         use_phase_model: bool, optional
-            Whether we are using a phose model. Default is `False`
-        kwargs: dict
-            Any additional kwargs.
+            Whether we are using a phase model.
+        kwargs: dict, optional
+            Additional callables:
+            bands_to_frequencies: Conversion function to convert a list of bands to frequencies. Use
+                                  redback.utils.bands_to_frequencies if not given.
         """
         super().__init__(time=time, time_err=time_err, time_rest_frame=time_rest_frame, time_mjd=time_mjd,
                          time_mjd_err=time_mjd_err, time_rest_frame_err=time_rest_frame_err, Lum50=Lum50,
                          Lum50_err=Lum50_err, flux_density=flux_density, flux_density_err=flux_density_err,
                          magnitude=magnitude, magnitude_err=magnitude_err, data_mode=data_mode, name=name, bands=bands,
-                         system=system, active_bands=active_bands, use_phase_model=use_phase_model, **kwargs)
+                         system=system, active_bands=active_bands, use_phase_model=use_phase_model, redshift=redshift,
+                         photon_index=photon_index, **kwargs)
         self.directory_structure = redback.get_data.directory.transient_directory_structure(
             transient=name, transient_type="kilonova", data_mode=data_mode)
         self._set_data()
