@@ -253,13 +253,17 @@ class TestOpenDataGetter(unittest.TestCase):
         self.getter.collect_data()
         urlretrieve.assert_called_with(url=self.getter.metadata_url, filename=self.getter.metadata_path)
 
+    @mock.patch("pandas.read_csv")
     @mock.patch("pandas.isna")
     @mock.patch("os.path.isfile")
-    def test_convert_raw_data_to_csv_file_exists(self, isfile, isna):
+    def test_convert_raw_data_to_csv_file_exists(self, isfile, isna, read_csv):
         isfile.return_value = True
-        self.getter.convert_raw_data_to_csv()
+        expected = 5
+        read_csv.return_value = expected
+        data = self.getter.convert_raw_data_to_csv()
         isfile.assert_called_once_with(self.getter.processed_file_path)
         isna.assert_not_called()
+        self.assertEqual(expected, data)
 
     def test_convert_raw_data_to_csv(self):
         pass
@@ -516,12 +520,15 @@ class TestSwiftDataGetter(unittest.TestCase):
         self.getter.convert_raw_afterglow_data_to_csv = MagicMock()
         self.getter.convert_raw_prompt_data_to_csv = MagicMock()
 
-    def test_convert_raw_data_to_csv_file_exists(self):
+    @mock.patch("pandas.read_csv")
+    def test_convert_raw_data_to_csv_file_exists(self, read_csv):
         self._mock_converter_functions()
+        expected = 5
+        read_csv.return_value = expected
         with open(self.getter.processed_file_path, "w"):  # create empty file
             pass
-        self.getter.convert_raw_data_to_csv()
-
+        data = self.getter.convert_raw_data_to_csv()
+        self.assertEqual(expected, data)
         self.getter.convert_xrt_data_to_csv.assert_not_called()
         self.getter.convert_raw_afterglow_data_to_csv.assert_not_called()
         self.getter.convert_raw_prompt_data_to_csv.assert_not_called()
