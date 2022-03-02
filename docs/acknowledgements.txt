@@ -1,3 +1,8 @@
 ============
-Code motivation
+Acknowledgements
 ============
+If you use redback in a scientific publication please cite the eventual redback paper.
+If you use redback to fit a model please cite redback and bilby papers.
+Alongside this, we request that you also cite the paper for a specific sampler and model.
+For all models the code model.citation will print the recommended citation to use if one utilises the model.
+In some cases, this recommends redback itself. In which case, no extra citation is required.

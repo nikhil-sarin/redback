@@ -1,3 +1,11 @@
 ============
-Code motivation
+Results
 ============
+Plotting lightcurves
+    passing in your own plotting method.
+
+Plotting corner
+
+Further analysis
+
+Loading a result file

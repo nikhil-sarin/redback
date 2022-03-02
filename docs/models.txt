@@ -1,3 +1,14 @@
 ============
-Code motivation
+Models
 ============
+Afterglow models
+Supernova models
+Kilonova models
+Magnetar boosted ejecta models
+Millisecond magnetar models
+Tidal disruption models
+Phase models
+Phenomenological and fireball models
+Modifying redback models
+
+running models as functions

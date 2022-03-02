@@ -1,3 +1,12 @@
 ============
-Code motivation
+Transients
 ============
+data processing - flux to luminosity
+supernova
+kilonova
+tde
+magnatar_powered_exotica
+afterglow
+broadband afterglow
+prompt
+generic transient

@@ -1,3 +1,3 @@
 ============
-Code motivation
+Basics of Bayesian inference and parameter estimation
 ============

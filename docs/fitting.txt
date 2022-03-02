@@ -1,3 +1,5 @@
 ============
-Code motivation
+Fitting
 ============
+Active bands
+Samplers

@@ -1,3 +1,9 @@
 ============
-Code motivation
+Get data
 ============
+
+Private data
+Swift
+Open access catalog
+BATSE
+data modes
