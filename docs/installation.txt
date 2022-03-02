@@ -1,0 +1,210 @@
+============
+Installation
+============
+
+.. tabs::
+
+   .. tab:: Conda
+
+      .. code-block:: console
+
+          $ conda install -c conda-forge bilby
+
+      Supported python versions: 3.6+.
+
+   .. tab:: Pip
+
+      .. code-block:: console
+
+          $ pip install bilby
+
+      Supported python versions: 3.6+.
+
+
+This will install all requirements for running :code:`bilby` for general
+inference problems, including our default sampler `dynesty
+<https://dynesty.readthedocs.io/en/latest/>`_. Other samplers will need to be
+installed via pip or the appropriate means.
+
+To install the requirements for running :code:`bilby.gw` for gravitational
+wave inference, please additionally run the following commands.
+
+.. tabs::
+
+   .. tab:: Conda
+
+      .. code-block:: console
+
+          $ conda install -c conda-forge gwpy python-lalsimulation
+
+   .. tab:: Pip
+
+      .. code-block:: console
+
+          $ pip install gwpy lalsuite
+
+
+Install bilby from source
+-------------------------
+
+:code:`bilby` is developed and tested with Python 3.6+. In the
+following, we assume you have a working python installation, `python pip
+<https://packaging.python.org/tutorials/installing-packages/#use-pip-for-installing)>`_,
+and `git <https://git-scm.com/>`_. See :ref:`installing-python` for our
+advise on installing anaconda python.
+
+Clone the repository, install the requirements, and then install the software:
+
+.. code-block:: console
+
+   $ git clone git@git.ligo.org:lscsoft/bilby.git
+   $ cd bilby/
+   $ pip install -r requirements.txt
+   $ pip install .
+
+Once you have run these steps, you have :code:`bilby` installed. You can now
+try to run the examples.
+
+.. note::
+   If you do not have a git.ligo account, and receive an error message:
+
+   .. code-block:: console
+
+      git@git.ligo.org: Permission denied (publickey,gssapi-keyex,gssapi-with-mic).
+      fatal: Could not read from remote repository.
+
+   Then you need to use the HTTPS URL, e.g., replace the first line above with
+
+   .. code-block:: console
+
+      $ git clone https://git.ligo.org/lscsoft/bilby.git
+
+.. note::
+   You may be use to using :code:`$ python setup.py install` to install software
+   from source. While it is possible to do this, current recommentations from
+   the python community (see, e.g. `this site <https://python3statement.org/practicalities/>`_
+   are to use :code:`pip`. For development install, the :code:`-e` flag can be
+   used.
+
+Installing optional requirements
+================================
+
+The `requirements.txt
+<https://git.ligo.org/lscsoft/bilby/blob/master/requirements.txt>`_ is a
+minimal set of requirements for using :code:`bilby`. Additionally, we provide:
+
+1. The file `optional_requirements.txt
+<https://git.ligo.org/lscsoft/bilby/blob/master/optional_requirements.txt>`_
+which you should install if you plan to use :code:`bilby` for
+gravitational-wave data analysis.
+
+2. By default, we only require the default sampler dynesty_ be installed. For
+instructions on installing other samplers, see :ref:`Installing samplers`.
+
+.. _installing-python:
+
+Installing python
+-----------------
+
+Most computers/clusters have a system installed python version. You may choose
+to use this, but here we describe an alternative. In particular, how to install
+the `anaconda distribution python package
+<https://www.anaconda.com/download/#linux>`_. Firstly, download the install
+file, you can do this from the link above, or run the command
+
+.. code-block:: console
+
+   $ wget https://repo.anaconda.com/archive/Anaconda3-5.2.0-Linux-x86_64.sh
+
+this will download an installer for python 3.6, for other versions check
+the `anaconda page <https://www.anaconda.com/download/#linux>`_.
+Then, `run the command
+<https://conda.io/docs/user-guide/install/linux.html>`_
+
+.. code-block:: console
+
+   $ bash Anaconda3-5.2.0-Linux-x86_64.sh
+
+and follow the prompts on the install screen.  After this process, you should
+have a directory :code:`~/anaconda3` in your home directory. This contains your
+python installation. In particular, if you run the command
+
+.. code-block:: console
+
+   $ which python
+   /home/users/USER/anaconda3/bin/python
+
+The output here (with a suitable replacement of the path) indicates that you
+are using the anaconda install of python. If instead, the output says something
+like :code;`/usr/bin/python`, then this is not the anaconda installation, but
+instead the system python.
+
+If you are finding that you have run the above steps, but :code:`python` is
+not pointing to your anaconda install, make sure that (a) you have appended a
+line like this to your :code:`.bashrc` file
+
+.. code-block:: console
+
+   export PATH="${HOME}/anaconda3/bin:$PATH"
+
+and (b) that you have restarted bash for this line to take effect (i.e., run
+:code:`$ bash`).
+
+.. note::
+
+    Using your own installation of python has several advantages: its generally
+    easier to debug, avoids conflicts with other packages, and if you end up
+    with a broken installation you can just delete the directory and start
+    again.
+
+
+Installing lalsuite
+-------------------
+
+For many gravitational-wave related examples you'll need access to the
+`lalsuite <https://wiki.ligo.org/DASWG/LALSuite>`_ tool set. These should be
+installed by default in the requirements. However, if you have problems with
+your installation, you can first try to install the simple way:
+
+.. code-block:: console
+
+   $ pip install lalsuite.
+
+If this doesn't work, or you prefer to, you can also install from source.
+
+First, head to https://git.ligo.org/lscsoft/lalsuite to check you have an
+account and SSH keys set up. Then,
+
+.. code-block:: console
+
+   $ git lfs install # you may need to install git-lfs first
+   $ git clone git@git.ligo.org:lscsoft/lalsuite.git
+   $ cd lalsuite
+   $ ./00boot
+   $ ./configure --prefix=${HOME}/lalsuite-install --disable-all-lal --enable-swig  --enable-lalsimulation
+   $ make; make install
+
+Warning: in the configure line here, we have disabled everything except
+lalsimulation. If you need other modules, see `./configure --help`.
+
+Common problems: multiple bilby versions
+----------------------------------------
+
+Occasionally, it is possible to end up with multiple bilby installations.
+To diagnose this, run the following
+
+.. code-block:: console
+
+   $ python -c 'import bilby; print(bilby.__file__)'
+   /home/user1/anaconda3/lib/python3.6/site-packages/bilby-0.2.10py3.6.egg/bilby/__init__.pyc
+
+Here we can see it's installed under `site-packages` within anaconda. Your
+installation path may differ. If you believe you have multiple installs, you
+can verify this by running :code:`ls` in that directory. Then, you
+can purge your installation of bilby by running
+
+.. code-block:: console
+
+   $ rm -r /home/user1/anaconda/lib/python3.6/site-packages/bilby*
+
+Replacing the path with the output of the previous command.

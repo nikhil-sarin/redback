@@ -7,54 +7,34 @@ Welcome to REDBACK's documentation!
    :maxdepth: 2
    :caption: Contents:
 
-   Installation
-   Code motivation
-   Basics of Bayesian inference and parameter estimation
-   Likelihood
-   Priors
-      Constraints
-   Getting Data
-      Private data
-      Swift
-      Open access catalog
-      BATSE
-      Data modes
-   Transients
-      Flux to luminosity conversion
-      Supernova
-      Kilonova
-      Broadband Afterglow
-      magnetar powered exotica
-      Tidal disruption event
-      Prompt
-      Generic transient
-   Models
-      Afterglow models
-      Supernova models
-      Kilonova models
-      Magnetar boosted ejecta models
-      Millisecond magnetar models
-      Tidal disruption models
-      Phase models
-      Phenomenological and fireball models
-      Modifying your models
-   Fitting
-      Active bands
-      Samplers
-   Result object
-      Plotting lightcurves
-      Plotting corner
-      Further analysis
-      Loading a result file
-   Acknowledgements
-   Contributing guidelines
+   installation
+   code_motivation
+   pe_basics
+   likelihood
+   priors
+   getting_data
+   transients
+   models
+   fitting
+   results
+   acknowledgements
+   contributing
 
-#Indices and tables
-#==================
+.. toctree::
+   :maxdepth: 1
+   :caption: Examples:
 
-#* :ref:`genindex`
-#* :ref:`modindex`
-#* :ref:`search`
+   broadband_afterglow_private_data_example
+   fit_your_own_model_example
+   kilonova_example
+   magnetar_boosted_example
+   magnetar_example
+   prompt_example
+   supernova_example
+   tde_example
+   SN2011kl_sample_in_t0_example
+
+.. currentmodule:: redback
 
 API:
 ----
@@ -65,7 +45,19 @@ API:
    :caption: API:
    :recursive:
 
-    core
-    gw
-    hyper
-    bilby_mcmc
+   get_data
+   priors
+   plotting
+   eos
+   constraints
+   analysis
+   ejecta_relations
+   interaction_processes
+   utils
+   transient
+   transient_models
+   sampler
+   result
+   sed
+   photosphere
+   likelihoods

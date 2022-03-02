@@ -11,3 +11,4 @@ sherpa
 extinction
 requests
 lxml
+sphinx-rtd-theme
