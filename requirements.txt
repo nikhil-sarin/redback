@@ -12,4 +12,4 @@ extinction
 requests
 lxml
 sphinx-rtd-theme
-sphinx-rtd-theme
+sphinx-tabs
