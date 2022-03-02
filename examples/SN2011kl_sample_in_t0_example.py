@@ -14,7 +14,7 @@ base_model = "exponential_powerlaw"
 data = redback.get_data.get_supernova_data_from_open_transient_catalog_data(sne)
 
 # load the data into a supernova transient object which does all the processing and can be used to make plots etc
-# we set the data_mode to flux density to use/fit flux density. We could use 'photometry' or 'luminosity' or flux as well.
+# we set the data_mode to flux density to use/fit flux density. We could use 'magnitude' or 'luminosity' or flux as well.
 # However, for optical transients we recommend fitting in flux_density.
 supernova = redback.supernova.Supernova.from_open_access_catalogue(name=sne, data_mode='flux_density')
 

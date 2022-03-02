@@ -31,6 +31,7 @@ def afterglow_directory_structure(grb: str, data_mode: str, instrument: str = 'B
     tuple: The directory, the raw data file name, and the processed file name.
 
     """
+    grb = "GRB" + grb.lstrip("GRB")
     directory_path = f'GRBData/afterglow/{data_mode}/'
     check_directory_exists_and_if_not_mkdir(directory_path)
 

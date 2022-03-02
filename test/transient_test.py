@@ -54,7 +54,7 @@ class TestTransient(unittest.TestCase):
         self.assertFalse(self.transient.luminosity_data)
         self.assertFalse(self.transient.flux_data)
         self.assertFalse(self.transient.flux_density_data)
-        self.assertFalse(self.transient.photometry_data)
+        self.assertFalse(self.transient.magnitude_data)
         self.assertFalse(self.transient.tte_data)
 
     def test_set_data_mode_switch(self):
@@ -93,7 +93,7 @@ class TestTransient(unittest.TestCase):
         self.assertEqual(r'Counts', self.transient.ylabel)
         self.transient.luminosity_data = True
         self.assertEqual(r'Luminosity [$10^{50}$ erg s$^{-1}$]', self.transient.ylabel)
-        self.transient.photometry_data = True
+        self.transient.magnitude_data = True
         self.assertEqual(r'Magnitude', self.transient.ylabel)
         self.transient.flux_data = True
         self.assertEqual(r'Flux [erg cm$^{-2}$ s$^{-1}$]', self.transient.ylabel)
@@ -199,11 +199,11 @@ class TestOpticalTransient(unittest.TestCase):
         del self.active_bands
         del self.transient
 
-    def test_load_data_photometry(self):
+    def test_load_data_magnitude(self):
         name = "optical_transient_test_data"
         transient_dir = f"{dirname}/data"
         processed_file_path = f"{transient_dir}/{name}.csv"
-        data_mode = "photometry"
+        data_mode = "magnitude"
         time_days, time_mjd, magnitude, magnitude_err, bands, system = \
             self.transient.load_data(processed_file_path=processed_file_path, data_mode=data_mode)
         expected_time_days = np.array([0.4813999999969383, 0.49020000000018626])
@@ -279,7 +279,7 @@ class TestOpticalTransient(unittest.TestCase):
                 expected_magnitude, expected_magnitude_err, expected_bands, expected_system
             name = "test"
             transient = redback.transient.transient.OpticalTransient.from_open_access_catalogue(name=name)
-            self.assertTrue(transient.photometry_data)
+            self.assertTrue(transient.magnitude_data)
             self.assertEqual(name, transient.name)
             self.assertTrue(np.allclose(expected_time_days, transient.time))
             self.assertTrue(np.allclose(expected_time_mjd, transient.time_mjd))
@@ -418,9 +418,9 @@ class TestAfterglow(unittest.TestCase):
             use_phase_model=self.use_phase_model, bands=self.bands,
             active_bands=self.active_bands, FluxToLuminosityConverter=self.FluxToLuminosityConverter,
             Truncator=self.Truncator)
-        self.sgrb_photometry = redback.transient.afterglow.SGRB(
+        self.sgrb_magnitude = redback.transient.afterglow.SGRB(
             time=self.time, time_err=self.time_err, magnitude=self.y, magnitude_err=self.y_err,
-            data_mode="photometry", name=self.name,
+            data_mode="magnitude", name=self.name,
             use_phase_model=self.use_phase_model, bands=self.bands,
             active_bands=self.active_bands, FluxToLuminosityConverter=self.FluxToLuminosityConverter,
             Truncator=self.Truncator)
@@ -442,7 +442,7 @@ class TestAfterglow(unittest.TestCase):
         del self.active_bands
         del self.sgrb
         del self.sgrb_not_existing
-        del self.sgrb_photometry
+        del self.sgrb_magnitude
         del self.sgrb_all_active_bands
         del self.FluxToLuminosityConverter
 
@@ -490,7 +490,7 @@ class TestAfterglow(unittest.TestCase):
         self.assertTrue(np.array_equal(frequency, self.sgrb.frequency))
 
     def test_get_filtered_data(self):
-        filtered_x, filtered_x_err, filtered_y, filtered_y_err = self.sgrb_photometry.get_filtered_data()
+        filtered_x, filtered_x_err, filtered_y, filtered_y_err = self.sgrb_magnitude.get_filtered_data()
         expected_x = self.time[1:]
         expected_x_err = self.time_err[1:]
         expected_y = self.y[1:]
@@ -501,8 +501,8 @@ class TestAfterglow(unittest.TestCase):
         self.assertTrue(np.array_equal(expected_y_err, filtered_y_err))
 
     def test_get_filtered_data_no_x_err(self):
-        self.sgrb_photometry.x_err = None
-        _, filtered_x_err, _, _ = self.sgrb_photometry.get_filtered_data()
+        self.sgrb_magnitude.x_err = None
+        _, filtered_x_err, _, _ = self.sgrb_magnitude.get_filtered_data()
         self.assertIsNone(filtered_x_err)
 
     def test_get_filtered_data_illegal_data_mode(self):

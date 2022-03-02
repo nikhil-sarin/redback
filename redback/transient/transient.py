@@ -12,12 +12,12 @@ from redback.plotting import MultiBandPlotter
 
 
 class Transient(object):
-    DATA_MODES = ['luminosity', 'flux', 'flux_density', 'photometry', 'counts', 'ttes']
+    DATA_MODES = ['luminosity', 'flux', 'flux_density', 'magnitude', 'counts', 'ttes']
     _ATTRIBUTE_NAME_DICT = dict(luminosity="Lum50", flux="flux", flux_density="flux_density",
-                                counts="counts", photometry="magnitude")
+                                counts="counts", magnitude="magnitude")
 
     ylabel_dict = dict(luminosity=r'Luminosity [$10^{50}$ erg s$^{-1}$]',
-                       photometry=r'Magnitude',
+                       magnitude=r'Magnitude',
                        flux=r'Flux [erg cm$^{-2}$ s$^{-1}$]',
                        flux_density=r'Flux density [mJy]',
                        counts=r'Counts')
@@ -25,7 +25,7 @@ class Transient(object):
     luminosity_data = redback.utils.DataModeSwitch('luminosity')
     flux_data = redback.utils.DataModeSwitch('flux')
     flux_density_data = redback.utils.DataModeSwitch('flux_density')
-    photometry_data = redback.utils.DataModeSwitch('photometry')
+    magnitude_data = redback.utils.DataModeSwitch('magnitude')
     counts_data = redback.utils.DataModeSwitch('counts')
     tte_data = redback.utils.DataModeSwitch('ttes')
 
@@ -356,7 +356,7 @@ class Transient(object):
         -------
         tuple: A tuple with the filtered data. Format is (x, x_err, y, y_err)
         """
-        if self.flux_density_data or self.photometry_data:
+        if self.flux_density_data or self.magnitude_data:
             indices = [b in self.active_bands for b in self.bands]
             filtered_x = self.x[indices]
             try:
@@ -367,7 +367,7 @@ class Transient(object):
             filtered_y_err = self.y_err[indices]
             return filtered_x, filtered_x_err, filtered_y, filtered_y_err
         else:
-            raise ValueError(f"Transient needs to be in flux density or photometry data mode, "
+            raise ValueError(f"Transient needs to be in flux density or magnitude data mode, "
                              f"but is in {self.data_mode} instead.")
 
     @property
@@ -596,10 +596,10 @@ class Transient(object):
 
 
 class OpticalTransient(Transient):
-    DATA_MODES = ['flux', 'flux_density', 'photometry', 'luminosity']
+    DATA_MODES = ['flux', 'flux_density', 'magnitude', 'luminosity']
 
     @staticmethod
-    def load_data(processed_file_path, data_mode="photometry"):
+    def load_data(processed_file_path, data_mode="magnitude"):
         """
         Loads data from specified directory and file, and returns it as a tuple.
 
@@ -608,11 +608,11 @@ class OpticalTransient(Transient):
         processed_file_path: str
             Path to the processed file to load
         data_mode: str, optional
-            Name of the data mode. Must be from ['photometry', 'flux_density', 'all']. Default is photometry.
+            Name of the data mode. Must be from ['magnitude', 'flux_density', 'all']. Default is magnitude.
 
         Returns
         -------
-        tuple: Six elements when querying photometry or flux_density data, Eight for 'all'
+        tuple: Six elements when querying magnitude or flux_density data, Eight for 'all'
         """
         df = pd.read_csv(processed_file_path)
         time_days = np.array(df["time (days)"])
@@ -623,7 +623,7 @@ class OpticalTransient(Transient):
         system = np.array(df["system"])
         flux_density = np.array(df["flux_density(mjy)"])
         flux_density_err = np.array(df["flux_density_error"])
-        if data_mode == "photometry":
+        if data_mode == "magnitude":
             return time_days, time_mjd, magnitude, magnitude_err, bands, system
         elif data_mode == "flux_density":
             return time_days, time_mjd, flux_density, flux_density_err, bands, system
@@ -631,7 +631,7 @@ class OpticalTransient(Transient):
             return time_days, time_mjd, flux_density, flux_density_err, magnitude, magnitude_err, bands, system
 
     def __init__(
-            self, name: str, data_mode: str = 'photometry', time: np.ndarray = None, time_err: np.ndarray = None,
+            self, name: str, data_mode: str = 'magnitude', time: np.ndarray = None, time_err: np.ndarray = None,
             time_mjd: np.ndarray = None, time_mjd_err: np.ndarray = None, time_rest_frame: np.ndarray = None,
             time_rest_frame_err: np.ndarray = None, Lum50: np.ndarray = None, Lum50_err: np.ndarray = None,
             flux: np.ndarray = None, flux_err: np.ndarray = None, flux_density: np.ndarray = None,
@@ -709,7 +709,7 @@ class OpticalTransient(Transient):
 
     @classmethod
     def from_open_access_catalogue(
-            cls, name: str, data_mode: str = "photometry", active_bands: Union[np.ndarray, str] = 'all',
+            cls, name: str, data_mode: str = "magnitude", active_bands: Union[np.ndarray, str] = 'all',
             use_phase_model: bool = False) -> OpticalTransient:
         """
         Constructor method to built object from Open Access Catalogue
@@ -719,7 +719,7 @@ class OpticalTransient(Transient):
         name: str
             Name of the transient.
         data_mode: str, optional
-            Data mode used. Must be from `OpticalTransient.DATA_MODES`. Default is photometry.
+            Data mode used. Must be from `OpticalTransient.DATA_MODES`. Default is magnitude.
         active_bands: Union[np.ndarray, str]
             Sets active bands based on array given.
             If argument is 'all', all unique bands in `self.bands` will be used.
@@ -822,7 +822,7 @@ class OpticalTransient(Transient):
                         fmt=errorbar_fmt, ms=1, color=color, elinewidth=2, capsize=0., label=label)
 
         ax.set_xlim(0.5 * self.x[0], 1.2 * self.x[-1])
-        if self.photometry_data:
+        if self.magnitude_data:
             ax.set_ylim(0.8 * min(self.y), 1.2 * np.max(self.y))
             ax.invert_yaxis()
         else:

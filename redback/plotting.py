@@ -95,7 +95,7 @@ class MultiBandPlotter(object):
                              fmt=errorbar_fmt, ms=1, color=color, elinewidth=2, capsize=0., label=label)
 
             axes[i].set_xlim(0.5 * self.transient.x[indices][0], 1.2 * self.transient.x[indices][-1])
-            if self.transient.photometry_data:
+            if self.transient.magnitude_data:
                 axes[i].set_ylim(0.8 * min(self.transient.y[indices]), 1.2 * np.max(self.transient.y[indices]))
                 axes[i].invert_yaxis()
             else:

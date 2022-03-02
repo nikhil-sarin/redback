@@ -6,10 +6,10 @@ from redback.transient.transient import OpticalTransient
 
 
 class TDE(OpticalTransient):
-    DATA_MODES = ['flux', 'flux_density', 'photometry', 'luminosity']
+    DATA_MODES = ['flux', 'flux_density', 'magnitude', 'luminosity']
 
     def __init__(
-            self, name: str, data_mode: str = 'photometry', time: np.ndarray = None, time_err: np.ndarray = None,
+            self, name: str, data_mode: str = 'magnitude', time: np.ndarray = None, time_err: np.ndarray = None,
             time_mjd: np.ndarray = None, time_mjd_err: np.ndarray = None, time_rest_frame: np.ndarray = None,
             time_rest_frame_err: np.ndarray = None, Lum50: np.ndarray = None, Lum50_err: np.ndarray = None,
             flux_density: np.ndarray = None, flux_density_err: np.ndarray = None, magnitude: np.ndarray = None,

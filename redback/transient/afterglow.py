@@ -20,7 +20,7 @@ dirname = os.path.dirname(__file__)
 
 class Afterglow(Transient):
 
-    DATA_MODES = ['luminosity', 'flux', 'flux_density', 'photometry']
+    DATA_MODES = ['luminosity', 'flux', 'flux_density', 'magnitude']
 
     def __init__(
             self, name: str, data_mode: str = 'flux', time: np.ndarray = None, time_err: np.ndarray = None,
@@ -450,7 +450,7 @@ class Afterglow(Transient):
         -------
 
         """
-        if self.data_mode not in ['flux_density', 'photometry']:
+        if self.data_mode not in ['flux_density', 'magnitude']:
             raise ValueError(
                 f'You cannot plot multiband data with {self.data_mode} data mode . Why are you doing this?')
         mbd = MultiBandPlotter(transient=self)

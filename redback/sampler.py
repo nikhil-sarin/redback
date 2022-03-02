@@ -20,7 +20,7 @@ dirname = os.path.dirname(__file__)
 
 def fit_model(name, transient, model, outdir=None, sampler='dynesty', nlive=2000, prior=None,
               walks=200, truncate=True, use_photon_index_prior=False, truncate_method='prompt_time_error',
-              data_mode='flux', resume=True, save_format='json', model_kwargs=None, **kwargs):
+              resume=True, save_format='json', model_kwargs=None, **kwargs):
     """
 
     Parameters
@@ -36,7 +36,6 @@ def fit_model(name, transient, model, outdir=None, sampler='dynesty', nlive=2000
     :param truncate: flag to confirm whether to truncate the prompt emission data
     :param use_photon_index_prior: flag to turn off/on photon index prior and fits according to the curvature effect
     :param truncate_method: method of truncation
-    :param data_mode: 'luminosity', 'flux', 'flux_density', depending on which kind of data will be accessed
     :param resume:
     :param save_format:
     :param kwargs: additional parameters that will be passed to the sampler
@@ -45,42 +44,46 @@ def fit_model(name, transient, model, outdir=None, sampler='dynesty', nlive=2000
     if isinstance(model, str):
         model = all_models_dict[model]
 
+    if transient.data_mode in ["flux_density", "magnitude"]:
+        if model_kwargs["output_format"] != transient.data_mode:
+            raise ValueError(
+                f"Transient data mode {transient.data_mode} is inconsistent with "
+                f"output format {model_kwargs['output_format']}. These should be the same.")
+
     if prior is None:
         prior = bilby.prior.PriorDict(filename=f"{dirname}/Priors/{model}.prior")
 
     if isinstance(transient, Afterglow):
-        return _fit_grb(transient=transient, model=model, outdir=outdir, sampler=sampler, nlive=nlive,
-                        prior=prior, walks=walks, truncate=truncate, use_photon_index_prior=use_photon_index_prior,
-                        truncate_method=truncate_method, data_mode=data_mode, resume=resume,
-                        save_format=save_format, model_kwargs=model_kwargs, **kwargs)
+        return _fit_grb(transient=transient, model=model, outdir=outdir, sampler=sampler, nlive=nlive, prior=prior,
+                        walks=walks, use_photon_index_prior=use_photon_index_prior, resume=resume,
+                        save_format=save_format, model_kwargs=model_kwargs, truncate=truncate,
+                        truncate_method=truncate_method, **kwargs)
     elif isinstance(transient, Kilonova):
-        return _fit_kilonova(transient=transient, model=model, outdir=outdir, sampler=sampler, nlive=nlive,
-                             prior=prior, walks=walks, truncate=truncate, use_photon_index_prior=use_photon_index_prior,
-                             truncate_method=truncate_method, data_mode=data_mode, resume=resume,
-                             save_format=save_format, model_kwargs=model_kwargs, **kwargs)
+        return _fit_kilonova(transient=transient, model=model, outdir=outdir, sampler=sampler, nlive=nlive, prior=prior,
+                             walks=walks, resume=resume, save_format=save_format, model_kwargs=model_kwargs,
+                             truncate=truncate, use_photon_index_prior=use_photon_index_prior,
+                             truncate_method=truncate_method, **kwargs)
     elif isinstance(transient, PromptTimeSeries):
         return _fit_prompt(name=name, transient=transient, model=model, outdir=outdir, sampler=sampler, nlive=nlive,
-                           prior=prior, walks=walks, use_photon_index_prior=use_photon_index_prior,
-                           data_mode=data_mode, resume=resume,
+                           prior=prior, walks=walks, use_photon_index_prior=use_photon_index_prior, resume=resume,
                            save_format=save_format, model_kwargs=model_kwargs, **kwargs)
     elif isinstance(transient, Supernova):
         return _fit_supernova(name=name, transient=transient, model=model, outdir=outdir, sampler=sampler, nlive=nlive,
                               prior=prior, walks=walks, truncate=truncate,
                               use_photon_index_prior=use_photon_index_prior, truncate_method=truncate_method,
-                              data_mode=data_mode, resume=resume, save_format=save_format, model_kwargs=model_kwargs,
+                              resume=resume, save_format=save_format, model_kwargs=model_kwargs,
                               **kwargs)
     elif isinstance(transient, TDE):
         return _fit_tde(name=name, transient=transient, model=model, outdir=outdir, sampler=sampler, nlive=nlive,
                         prior=prior, walks=walks, truncate=truncate, use_photon_index_prior=use_photon_index_prior,
-                        truncate_method=truncate_method, data_mode=data_mode,
+                        truncate_method=truncate_method,
                         resume=resume, save_format=save_format, model_kwargs=model_kwargs, **kwargs)
     else:
         raise ValueError(f'Source type {transient.__class__.__name__} not known')
 
 
 def _fit_grb(transient, model, outdir=None, label=None, sampler='dynesty', nlive=3000, prior=None, walks=1000,
-             use_photon_index_prior=False, data_mode='flux', resume=True, save_format='json',
-             model_kwargs=None, **kwargs):
+             use_photon_index_prior=False, resume=True, save_format='json', model_kwargs=None, **kwargs):
     if use_photon_index_prior:
         if transient.photon_index < 0.:
             logger.info('photon index for GRB', transient.name, 'is negative. Using default prior on alpha_1')
@@ -90,16 +93,16 @@ def _fit_grb(transient, model, outdir=None, label=None, sampler='dynesty', nlive
                                                     latex_label=r'$\alpha_{1}$')
     if outdir is None:
         outdir, _, _ = redback.get_data.directory.afterglow_directory_structure(
-            grb=transient._stripped_name, data_mode=data_mode, instrument='')
+            grb=transient.name, data_mode=transient.data_mode, instrument='')
         outdir = f"{outdir}/{model.__name__}"
     Path(outdir).mkdir(parents=True, exist_ok=True)
 
     if label is None:
-        label = data_mode
+        label = transient.data_mode
         if use_photon_index_prior:
             label += '_photon_index'
 
-    if transient.flux_density_data or transient.photometry_data:
+    if transient.flux_density_data or transient.magnitude_data:
         x, x_err, y, y_err = transient.get_filtered_data()
     else:
         x, x_err, y, y_err = transient.x, transient.x_err, transient.y, transient.y_err
@@ -120,7 +123,7 @@ def _fit_grb(transient, model, outdir=None, label=None, sampler='dynesty', nlive
 
 
 def _fit_kilonova(transient, model, outdir=None, label=None, sampler='dynesty', nlive=3000, prior=None, walks=1000,
-                  data_mode='flux', resume=True, save_format='json', model_kwargs=None, **kwargs):
+                  resume=True, save_format='json', model_kwargs=None, **kwargs):
 
     if outdir is None:
         outdir, _, _ = redback.get_data.directory.transient_directory_structure(
@@ -129,9 +132,9 @@ def _fit_kilonova(transient, model, outdir=None, label=None, sampler='dynesty', 
     Path(outdir).mkdir(parents=True, exist_ok=True)
 
     if label is None:
-        label = f"{data_mode}"
+        label = f"{transient.data_mode}"
 
-    if transient.flux_density_data or transient.photometry_data:
+    if transient.flux_density_data or transient.magnitude_data:
         x, x_err, y, y_err = transient.get_filtered_data()
     else:
         x, x_err, y, y_err = transient.x, transient.x_err, transient.y, transient.y_err
@@ -152,14 +155,14 @@ def _fit_kilonova(transient, model, outdir=None, label=None, sampler='dynesty', 
 
 
 def _fit_prompt(name, transient, model, outdir, integrated_rate_function=True, sampler='dynesty', nlive=3000,
-                prior=None, walks=1000, use_photon_index_prior=False, data_mode='flux', resume=True, save_format='json',
+                prior=None, walks=1000, use_photon_index_prior=False, resume=True, save_format='json',
                 model_kwargs=None, **kwargs):
 
 
     outdir = f"{outdir}/GRB{name}/{model.__name__}"
     Path(outdir).mkdir(parents=True, exist_ok=True)
 
-    label = data_mode
+    label = transient.data_mode
     if use_photon_index_prior:
         label += '_photon_index'
 

@@ -109,7 +109,7 @@ class TestDirectory(unittest.TestCase):
     def test_transient_directory_structure(self):
         transient = "abc"
         transient_type = "tde"
-        self.data_mode = "photometry"
+        self.data_mode = "magnitude"
         structure = redback.get_data.directory.transient_directory_structure(
             transient=transient, transient_type=transient_type, data_mode=self.data_mode)
         self.assertEqual(f"{transient_type}/{self.data_mode}/", structure.directory_path)
@@ -212,7 +212,7 @@ class TestOpenDataGetter(unittest.TestCase):
         self.getter.convert_raw_data_to_csv.assert_called_once()
 
     def test_url(self):
-        expected = f"https://api.astrocats.space/{self.transient}/photometry/time+magnitude+e_" \
+        expected = f"https://api.astrocats.space/{self.transient}/magnitude/time+magnitude+e_" \
                    f"magnitude+band+system?e_magnitude&band&time&format=csv"
         self.assertEqual(expected, self.getter.url)
 
@@ -342,7 +342,7 @@ class TestSwiftDataGetter(unittest.TestCase):
 
     def test_set_invalid_data_mode(self):
         with self.assertRaises(ValueError):
-            self.getter.data_mode = 'photometry'
+            self.getter.data_mode = 'magnitude'
 
     def test_set_valid_instrument(self):
         for valid_instrument in ['BAT+XRT', 'XRT']:
