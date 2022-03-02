@@ -12,6 +12,7 @@ from astropy.cosmology import Planck18 as cosmo  # noqa
 
 from redback.utils import logger
 from redback.get_data.directory import afterglow_directory_structure
+from redback.plotting import MultiBandPlotter
 from redback.transient.transient import Transient
 
 dirname = os.path.dirname(__file__)
@@ -413,10 +414,49 @@ class Afterglow(Transient):
             plt.clf()
         return ax
 
-    def plot_multiband(self, axes: matplotlib.axes.Axes = None, colour: str = 'k') -> None:
-        if self.data_mode != 'flux_density':
-            logger.warning('why are you doing this')
+    def plot_multiband(
+            self, figure: matplotlib.figure.Figure = None, axes: matplotlib.axes.Axes = None, ncols: int = 2,
+            nrows: int = None, figsize: tuple = None, filters: np.ndarray = None, **plot_kwargs: dict) \
+            -> matplotlib.axes.Axes:
+        """
 
+        Parameters
+        ----------
+        figure: matplotlib.figure.Figure, optional
+            Figure can be given if defaults are not satisfying
+        axes: matplotlib.axes.Axes, optional
+            Axes can be given if defaults are not satisfying
+        ncols: int, optional
+            Number of columns to use on the plot. Default is 2.
+        nrows: int, optional
+            Number of rows to use on the plot. If None are given this will
+            be inferred from ncols and the number of filters.
+        figsize: tuple, optional
+            Size of the figure. A default based on ncols and nrows will be used if None is given.
+        filters: np.ndarray, optional
+            Which bands to plot. Will use default filters if None is given.
+        plot_kwargs:
+            Additional optional plotting kwargs:
+            wspace: Extra argument for matplotlib.pyplot.subplots_adjust
+            hspace: Extra argument for matplotlib.pyplot.subplots_adjust
+            fontsize: Label fontsize
+            errorbar_fmt: Errorbar format ('fmt' argument in matplotlib.pyplot.errorbar)
+            colors: colors to be used for the bands
+            xlabel: Plot xlabel
+            ylabel: Plot ylabel
+            plot_label: Addional filename label appended to the default name
+
+        Returns
+        -------
+
+        """
+        if self.data_mode not in ['flux_density', 'photometry']:
+            raise ValueError(
+                f'You cannot plot multiband data with {self.data_mode} data mode . Why are you doing this?')
+        mbd = MultiBandPlotter(transient=self)
+        return mbd.plot_multiband(
+            figure=figure, axes=axes, ncols=ncols,
+            nrows=nrows, figsize=figsize, filters=filters, **plot_kwargs)
 
 class SGRB(Afterglow):
     pass

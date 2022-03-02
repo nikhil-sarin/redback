@@ -8,6 +8,7 @@ import pandas as pd
 from typing import Union
 
 import redback
+from redback.plotting import MultiBandPlotter
 
 
 class Transient(object):
@@ -877,71 +878,10 @@ class OpticalTransient(Transient):
         -------
 
         """
-        if self.luminosity_data or self.flux_data:
-            redback.utils.logger.warning(f"Can't plot multiband for {self.data_mode} data.")
-            return
-
-        if filters is None:
-            filters = self.active_bands
-        elif filters == 'default':
-            filters = self.default_filters
-
-        wspace = plot_kwargs.get("wspace", 0.15)
-        hspace = plot_kwargs.get("hspace", 0.04)
-        fontsize = plot_kwargs.get("fontsize", 30)
-        errorbar_fmt = plot_kwargs.get("errorbar_fmt", "x")
-        colors = plot_kwargs.get("colors", self.get_colors(filters))
-        xlabel = plot_kwargs.get("xlabel", self.xlabel)
-        ylabel = plot_kwargs.get("ylabel", self.ylabel)
-        plot_label = plot_kwargs.get("plot_label", "multiband_data")
-
-        if figure is None or axes is None:
-            if nrows is None:
-                nrows = int(np.ceil(len(filters) / 2))
-            npanels = ncols * nrows
-            if npanels < len(filters):
-                raise ValueError(f"Insufficient number of panels. {npanels} panels were given "
-                                 f"but {len(filters)} panels are needed.")
-            if figsize is None:
-                figsize = (4 * ncols, 4 * nrows)
-            figure, axes = plt.subplots(ncols=ncols, nrows=nrows, sharex='all', sharey='all', figsize=figsize)
-
-        axes = axes.ravel()
-
-        i = 0
-        for indices, band in zip(self.list_of_band_indices, self.unique_bands):
-            if band not in filters:
-                continue
-
-            x_err = self.x_err[indices] if self.x_err is not None else self.x_err
-
-            color = colors[filters.index(band)]
-
-            freq = self.bands_to_frequencies([band])
-            if 1e10 < freq < 1e15:
-                label = band
-            else:
-                label = freq
-            axes[i].errorbar(self.x[indices], self.y[indices], xerr=x_err, yerr=self.y_err[indices],
-                             fmt=errorbar_fmt, ms=1, color=color, elinewidth=2, capsize=0., label=label)
-
-            axes[i].set_xlim(0.5 * self.x[indices][0], 1.2 * self.x[indices][-1])
-            if self.photometry_data:
-                axes[i].set_ylim(0.8 * min(self.y[indices]), 1.2 * np.max(self.y[indices]))
-                axes[i].invert_yaxis()
-            else:
-                axes[i].set_ylim(0.5 * min(self.y[indices]), 2. * np.max(self.y[indices]))
-                axes[i].set_yscale("log")
-            axes[i].legend(ncol=2)
-            axes[i].tick_params(axis='both', which='major', pad=8)
-            i += 1
-
-        figure.supxlabel(xlabel, fontsize=fontsize)
-        figure.supylabel(ylabel, fontsize=fontsize)
-        filename = f"{self.name}_{self.data_mode}_{plot_label}.png"
-        plt.subplots_adjust(wspace=wspace, hspace=hspace)
-        plt.savefig(join(self.transient_dir, filename), bbox_inches="tight")
-        return axes
+        mbd = MultiBandPlotter(transient=self)
+        return mbd.plot_multiband(
+            figure=figure, axes=axes, ncols=ncols,
+            nrows=nrows, figsize=figsize, filters=filters, **plot_kwargs)
 
     def plot_lightcurve(self, model, filename=None, axes=None, plot_save=True, plot_show=True, random_models=100,
                         posterior=None, outdir='.', model_kwargs=None, **kwargs):
