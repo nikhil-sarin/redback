@@ -89,37 +89,37 @@ class TestReferenceFiles(unittest.TestCase):
     def test_open_catalog_kilonova_data(self):
         redback.get_data.get_open_transient_catalog_data(transient="at2017gfo", transient_type="kilonova")
 
-        self.downloaded_file = f"kilonova/flux_density/at2017gfo.csv"
+        self.downloaded_file = f"kilonova/at2017gfo.csv"
         self._compare_files_line_by_line()
 
-        self.downloaded_file = f"kilonova/flux_density/at2017gfo_metadata.csv"
+        self.downloaded_file = f"kilonova/at2017gfo_metadata.csv"
         self._compare_files_line_by_line()
 
-        self.downloaded_file = f"kilonova/flux_density/at2017gfo_rawdata.csv"
+        self.downloaded_file = f"kilonova/at2017gfo_rawdata.csv"
         self._compare_files_line_by_line()
 
     def test_open_catalog_supernova_data(self):
         redback.get_data.get_open_transient_catalog_data(transient="SN2011kl", transient_type="supernova")
 
-        self.downloaded_file = f"supernova/flux_density/SN2011kl.csv"
+        self.downloaded_file = f"supernova/SN2011kl.csv"
         self._compare_files_line_by_line()
 
-        self.downloaded_file = f"supernova/flux_density/SN2011kl_metadata.csv"
+        self.downloaded_file = f"supernova/SN2011kl_metadata.csv"
         self._compare_files_line_by_line()
 
-        self.downloaded_file = f"supernova/flux_density/SN2011kl_rawdata.csv"
+        self.downloaded_file = f"supernova/SN2011kl_rawdata.csv"
         self._compare_files_line_by_line()
 
     def test_open_catalog_tde_data(self):
         redback.get_data.get_open_transient_catalog_data(transient="PS18kh", transient_type="tidal_disruption_event")
 
-        self.downloaded_file = f"tidal_disruption_event/flux_density/PS18kh.csv"
+        self.downloaded_file = f"tidal_disruption_event/PS18kh.csv"
         self._compare_files_line_by_line()
 
-        self.downloaded_file = f"tidal_disruption_event/flux_density/PS18kh_metadata.csv"
+        self.downloaded_file = f"tidal_disruption_event/PS18kh_metadata.csv"
         self._compare_files_line_by_line()
 
-        self.downloaded_file = f"tidal_disruption_event/flux_density/PS18kh_rawdata.csv"
+        self.downloaded_file = f"tidal_disruption_event/PS18kh_rawdata.csv"
         self._compare_files_line_by_line()
 
     def test_batse_prompt_data(self):
