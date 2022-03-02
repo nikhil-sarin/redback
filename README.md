@@ -1,19 +1,28 @@
 # Redback
-Introducing REDBACK, a robust bayesian inference pipeline for electromagnetic transients
+Introducing REDBACK, a bayesian inference software package for fitting electromagnetic transients
 
-`How to Install:`
-for the time being its recommended that you install with a symlink
-this can be done using:
- `pip install -e .`
- This may not work on a cluster so installing locally is advised:
- pip install . --user
+### Online documentation
 
- This software relies on bilby and associated samplers, and other packages for models/transient catalogues etc.
+- [Installation](https://github.com/nikhil-sarin/redback)
+- [Examples](https://github.com/nikhil-sarin/redback/tree/master/examples)
+- [Documentation](https://github.com/nikhil-sarin/docs)
 
- # Basic use #this is out of date.
- `Process GRB data:`
 
-To download all the XRT data from the Swift Website you can use the helper functions:
-`grb_bilby.processing.process_data.process_long_grbs()`
+### Motivation and why redback might be useful to you.
+The launch of new telescopes/surveys is leading to an explosion of transient observations. 
+Redback is a software package for end-to-end interpretation and parameter estimation of these transients.
 
-Helper functions also exist for short GRBs and for processing specific GRBs in a list.
+- Download data for supernovae, tidal disruption events, gamma-ray burst afterglows, kilonovae, prompt emission from 
+  different catalogs/telescopes; Swift, BATSE, Open access catalogs. Users can also provide their own data or use simulated data
+- Redback processes the data into a homogeneous transient object, plotting lightcurves and doing other processing.
+- The user can then fit one of the models implemented in redback. Or fit their own model. Models for several different types of electromagnetic transients are implemented and range from simple analytical models to numerical surrogates.
+- All models are implemented as functions and can be used to simulate populations, without needing to provide data. This way redback can be used simply as a tool to simulate realistic populations, no need to actually fit anything.
+- [Bilby](https://lscsoft.docs.ligo.org/bilby/index.html) under the hood. Can easily switch samplers/likelihoods etc. By default the choice is made depending on the data.
+- Fitting returns a homogenous result object, with functionality to plot lightcurves and the posterior/evidence etc.
+
+### Contributing 
+Redback is currently in alpha with a paper in preparation. If you are interested in contributing please join the redback slack. All contributors at the alpha stage will be invited to be co-authors of the first paper.
+
+To make changes to redback, we require users to use a pull request system. 
+
+
