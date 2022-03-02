@@ -306,7 +306,7 @@ class SwiftDataGetter(object):
 
         if os.path.isfile(self.processed_file_path):
             logger.warning('The processed data file already exists. Returning.')
-            return
+            return pd.read_csv(self.processed_file_path)
         if self.instrument == 'XRT':
             return self.convert_xrt_data_to_csv()
         elif self.transient_type == 'afterglow':

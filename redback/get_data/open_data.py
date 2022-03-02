@@ -121,7 +121,7 @@ class OpenDataGetter(object):
         """
         if os.path.isfile(self.processed_file_path):
             logger.warning('The processed data file already exists. Returning.')
-            return
+            return pd.read_csv(self.processed_file_path)
 
         raw_data = pd.read_csv(self.raw_file_path, sep=',')
         if pd.isna(raw_data['system']).any():
