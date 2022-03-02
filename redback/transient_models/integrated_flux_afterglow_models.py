@@ -3,7 +3,7 @@ import numpy as np
 
 from scipy.integrate import simps
 
-from redback.utils import logger
+from redback.utils import logger, citation_wrapper
 
 integrated_flux_base_models = ['tophat', 'cocoon', 'gaussian',
                                'kn_afterglow', 'cone_afterglow',
@@ -11,7 +11,7 @@ integrated_flux_base_models = ['tophat', 'cocoon', 'gaussian',
                                'smoothpowerlaw', 'powerlawcore',
                                'tophat']
 
-
+@citation_wrapper('https://ui.adsabs.harvard.edu/abs/2021arXiv210510108S/abstract')
 def integrated_flux_afterglowpy_base_model(time, **kwargs):
     from ..model_library import modules_dict  # import model library in function to avoid circular dependency
     base_model = kwargs['base_model']
@@ -39,7 +39,7 @@ def integrated_flux_afterglowpy_base_model(time, **kwargs):
     integrated_flux = simps(lightcurve_at_nu, axis=0, x=nu_1d)
     return integrated_flux
 
-
+@citation_wrapper('https://ui.adsabs.harvard.edu/abs/2021arXiv210510108S/abstract')
 def integrated_flux_rate_model(time, **kwargs):
     """
     :param time:

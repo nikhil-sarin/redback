@@ -88,7 +88,7 @@ class Piecewise_polytrope(object):
         :return: dimensionless tidal deformability
         """
 
-        tmp = np.array([lambda_of_central_pressure(pp) for pp in central_pressure_array])
+        tmp = np.array([self.lambda_of_central_pressure(pp) for pp in central_pressure_array])
         mass = tmp[:, 0]
         lambdas = tmp[:, 1]
 

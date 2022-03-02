@@ -8,26 +8,30 @@ from redback.utils import calc_kcorrected_properties, interpolated_barnes_and_ka
     electron_fraction_from_kappa
 from redback.sed import blackbody_to_flux_density
 from redback.constants import *
+from redback.utils import citation_wrapper
 import astropy.units as uu
 import astropy.constants as cc
 from scipy.integrate import cumtrapz
 import redback.ejecta_relations as ejr
 
+@citation_wrapper('https://ui.adsabs.harvard.edu/abs/2021MNRAS.505.3016N/abstract')
 def mosfit_bns():
     pass
 
+@citation_wrapper('https://ui.adsabs.harvard.edu/abs/2017ApJ...851L..21V/abstract')
 def mosfit_rprocess():
     pass
 
+@citation_wrapper('https://ui.adsabs.harvard.edu/abs/2017ApJ...851L..21V/abstract')
 def mosfit_kilonova():
     pass
 
+@citation_wrapper('https://ui.adsabs.harvard.edu/abs/2020ApJ...891..152H/abstract')
 def power_law_stratified_kilonova(time, redshift, mass, vmin, vmax, alpha,
                                   kappa_min, kappa_max, beta, **kwargs):
     pass
 
-
-
+@citation_wrapper('https://ui.adsabs.harvard.edu/abs/2020ApJ...891..152H/abstract')
 def two_layer_stratified_kilonova(time, redshift, mass, vej_1, vej_2, kappa, beta, **kwargs):
     """
     Uses kilonova_heating_rate module to model a two layer stratified kilonova
@@ -108,7 +112,7 @@ def _kilonova_hr_sourceframe(time, mass, velocity_array, kappa_array, beta):
                                                                    opacities=kappa_array, n=beta)
     return bolometric_luminosity, temperature, r_photosphere
 
-
+@citation_wrapper('redback')
 def three_component_kilonova_model(time, redshift, mej_1, vej_1, temperature_floor_1, kappa_1,
                                  mej_2, vej_2, temperature_floor_2, kappa_2,
                                    mej_3, vej_3, temperature_floor_3, kappa_3, **kwargs):
@@ -163,6 +167,7 @@ def three_component_kilonova_model(time, redshift, mej_1, vej_1, temperature_flo
     elif kwargs['output_format'] == 'magnitude':
         return ff.to(uu.ABmag).value
 
+@citation_wrapper('redback')
 def two_component_kilonova_model(time, redshift, mej_1, vej_1, temperature_floor_1, kappa_1,
                                  mej_2, vej_2, temperature_floor_2, kappa_2, **kwargs):
     """
@@ -212,6 +217,7 @@ def two_component_kilonova_model(time, redshift, mej_1, vej_1, temperature_floor
     elif kwargs['output_format'] == 'magnitude':
         return ff.to(uu.ABmag).value
 
+@citation_wrapper('redback')
 def one_component_ejecta_relation_model(time, redshift, mass_1, mass_2,
                                         lambda_1, lambda_2, kappa, **kwargs):
     """
@@ -235,6 +241,7 @@ def one_component_ejecta_relation_model(time, redshift, mass_1, mass_2,
     flux_density = one_component_kilonova_model(time, redshift, frequency, mej, vej, kappa, **kwargs)
     return flux_density
 
+@citation_wrapper('redback')
 def one_component_kilonova_model(time, redshift, mej, vej, kappa, **kwargs):
     """
     :param time: observer frame time in days
@@ -312,8 +319,7 @@ def _one_component_kilonova_model(time, mej, vej, kappa, **kwargs):
     r_photosphere[mask] = v0 * time[mask]
     return bolometric_luminosity, temperature, r_photosphere
 
-
-
+@citation_wrapper('https://ui.adsabs.harvard.edu/abs/2017LRR....20....3M/abstract')
 def metzger_kilonova_model(time, redshift, mej, vej, beta, kappa_r, **kwargs):
     """
     :param time: observer frame time in days
