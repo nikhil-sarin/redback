@@ -368,7 +368,12 @@ class SwiftDataGetter(object):
         """
         data = {key: [] for key in self.INTEGRATED_FLUX_KEYS}
         with open(self.raw_file_path) as f:
+            started = False
             for num, line in enumerate(f.readlines()):
+                if line.startswith('NO NO NO'):
+                    started = True
+                if not started:
+                    continue
                 if line.startswith('!'):
                     instrument = line[2:].replace('\n', '')
                 if line[0].isnumeric() or line[0] == '-':
@@ -391,11 +396,20 @@ class SwiftDataGetter(object):
         """
         data = {key: [] for key in self.FLUX_DENSITY_KEYS}
         with open(self.raw_file_path) as f:
+            started = False
             for num, line in enumerate(f.readlines()):
+                if line.startswith('NO NO NO'):
+                    started = True
+                if not started:
+                    continue
                 if line[0].isnumeric() or line[0] == '-':
                     line_items = line.split('\t')
                     for key, item in zip(self.FLUX_DENSITY_KEYS, line_items):
                         data[key].append(item.replace('\n', ''))
+        data['Flux [mJy]'] = [float(x) * 1000 for x in data['Flux [mJy]']]
+        data['Pos. flux err [mJy]'] = [float(x) * 1000 for x in data['Pos. flux err [mJy]']]
+        data['Neg. flux err [mJy]'] = [float(x) * 1000 for x in data['Neg. flux err [mJy]']]
         df = pd.DataFrame(data=data)
         df.to_csv(self.processed_file_path, index=False, sep=',')
         return df
+# [float(x) for x in data['Flux [mJy]']]
