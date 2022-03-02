@@ -42,9 +42,9 @@ def afterglow_directory_structure(grb: str, data_mode: str, instrument: str = 'B
         processed_file_path = f'{path}_xrt.csv'
         logger.warning('You are only downloading XRT data, you may not capture the tail of the prompt emission.')
     else:
-        logger.warning('You are downloading BAT and XRT data, you will need to truncate the data for some models.')
         raw_file_path = f'{path}_rawSwiftData.csv'
         processed_file_path = f'{path}.csv'
+        logger.warning('You are downloading BAT and XRT data, you will need to truncate the data for some models.')
 
     return DirectoryStructure(
         directory_path=directory_path, raw_file_path=raw_file_path, processed_file_path=processed_file_path)
