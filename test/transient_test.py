@@ -355,7 +355,7 @@ class TestOpticalTransient(unittest.TestCase):
         self.assertDictEqual(expected, self.transient.meta_data)
 
     def test_transient_dir(self):
-        with mock.patch('redback.get_data.directory.transient_directory_structure') as m:
+        with mock.patch('redback.get_data.directory.open_access_directory_structure') as m:
             expected = 'expected'
             m.return_value = expected, '_', '_'
             self.assertEqual(expected, self.transient.transient_dir)
