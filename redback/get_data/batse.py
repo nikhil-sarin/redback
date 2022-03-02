@@ -128,12 +128,12 @@ class BATSEDataGetter(object):
         return f"https://heasarc.gsfc.nasa.gov/FTP/compton/data/batse/trigger/{self._start}_{self._stop}/" \
                f"{self.trigger_filled}_burst/tte_bfits_{self.trigger}.fits.gz"
 
-    def get_data(self) -> None:
+    def get_data(self) -> pd.DataFrame:
         """
         Downloads the raw data and produces a processed .csv file.
         """
         self.collect_data()
-        self.convert_raw_data_to_csv()
+        return self.convert_raw_data_to_csv()
 
     def collect_data(self) -> None:
         """
@@ -141,15 +141,19 @@ class BATSEDataGetter(object):
         """
         urllib.request.urlretrieve(self.url, self.raw_file_path)
 
-    def convert_raw_data_to_csv(self) -> None:
+    def convert_raw_data_to_csv(self) -> pd.DataFrame:
         """
         Converts the raw data into processed data and saves it into the processed file path.
         The column names are in `BATSEDataGetter.PROCESSED_FILE_COLUMNS`.
+
+        ----------
+        pd.DataFrame: The processed data frame.
         """
         with fits.open(self.raw_file_path) as fits_data:
             data = self._get_columns(fits_data=fits_data)
         df = pd.DataFrame(data=data, columns=self.PROCESSED_FILE_COLUMNS)
         df.to_csv(self.processed_file_path, index=False)
+        return df
 
     @staticmethod
     def _get_columns(fits_data: astropy.io.fits.hdu.PrimaryHDU) -> np.ndarray:

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import os
 import time
+from typing import Union
 import urllib
 import urllib.request
 
@@ -167,14 +168,16 @@ class SwiftDataGetter(object):
         elif self.instrument == 'XRT':
             return f'https://www.swift.ac.uk/xrt_curves/00{self.trigger}/flux.qdp'
 
-    def get_data(self) -> None:
+    def get_data(self) -> pd.DataFrame:
         """
         Downloads the raw data and produces a processed .csv file.
+
+        Returns
+        -------
+        pandas.DataFrame: The processed data.
         """
-        logger.info(f'opening Swift website for {self.grb}')
         self.collect_data()
-        self.convert_raw_data_to_csv()
-        logger.info(f'Congratulations, you now have a nice data file: {self.processed_file_path}')
+        return self.convert_raw_data_to_csv()
 
     def create_directory_structure(self) -> redback.get_data.directory.DirectoryStructure:
         """
@@ -292,53 +295,76 @@ class SwiftDataGetter(object):
         finally:
             urllib.request.urlcleanup()
 
-    def convert_raw_data_to_csv(self) -> None:
+    def convert_raw_data_to_csv(self) -> Union[pd.DataFrame, None]:
         """
         Converts the raw data into processed data and saves it into the processed file path.
+
+        Returns
+        -------
+        pandas.DataFrame: The processed data.
         """
+
         if os.path.isfile(self.processed_file_path):
             logger.warning('The processed data file already exists. Returning.')
             return
         if self.instrument == 'XRT':
-            self.convert_xrt_data_to_csv()
+            return self.convert_xrt_data_to_csv()
         elif self.transient_type == 'afterglow':
-            self.convert_raw_afterglow_data_to_csv()
+            return self.convert_raw_afterglow_data_to_csv()
         elif self.transient_type == 'prompt':
-            self.convert_raw_prompt_data_to_csv()
+            return self.convert_raw_prompt_data_to_csv()
 
-    def convert_xrt_data_to_csv(self) -> None:
+    def convert_xrt_data_to_csv(self) -> pd.DataFrame:
         """
         Converts the raw XRT data into processed data and saves it into the processed file path.
         The column names are in `SwiftDataGetter.XRT_DATA_KEYS`
+
+        Returns
+        -------
+        pandas.DataFrame: The processed data.
         """
         data = np.loadtxt(self.raw_file_path, comments=['!', 'READ', 'NO'])
         data = {key: data[:, i] for i, key in enumerate(self.XRT_DATA_KEYS)}
         data = pd.DataFrame(data)
         data = data[data["Pos. flux err [erg cm^{-2} s^{-1}]"] != 0.]
         data.to_csv(self.processed_file_path, index=False, sep=',')
+        return data
 
-    def convert_raw_afterglow_data_to_csv(self) -> None:
+    def convert_raw_afterglow_data_to_csv(self) -> pd.DataFrame:
         """
         Converts the raw afterglow data into processed data and saves it into the processed file path.
+
+        Returns
+        -------
+        pandas.DataFrame: The processed data.
         """
         if self.data_mode == 'flux':
-            self.convert_integrated_flux_data_to_csv()
+            return self.convert_integrated_flux_data_to_csv()
         if self.data_mode == 'flux_density':
-            self.convert_flux_density_data_to_csv()
+            return self.convert_flux_density_data_to_csv()
 
-    def convert_raw_prompt_data_to_csv(self) -> None:
+    def convert_raw_prompt_data_to_csv(self) -> pd.DataFrame:
         """
         Converts the raw prompt data into processed data and saves it into the processed file path.
         The column names are in `SwiftDataGetter.PROMPT_DATA_KEYS`
+
+        Returns
+        -------
+        pandas.DataFrame: The processed data.
         """
         data = np.loadtxt(self.raw_file_path)
         df = pd.DataFrame(data=data, columns=self.PROMPT_DATA_KEYS)
         df.to_csv(self.processed_file_path, index=False, sep=',')
+        return df
 
-    def convert_integrated_flux_data_to_csv(self) -> None:
+    def convert_integrated_flux_data_to_csv(self) -> pd.DataFrame:
         """
         Converts the flux data into processed data and saves it into the processed file path.
         The column names are in `SwiftDataGetter.INTEGRATED_FLUX_KEYS`
+
+        Returns
+        -------
+        pandas.DataFrame: The processed data.
         """
         data = {key: [] for key in self.INTEGRATED_FLUX_KEYS}
         with open(self.raw_file_path) as f:
@@ -352,11 +378,16 @@ class SwiftDataGetter(object):
                         data[key].append(item.replace('\n', ''))
         df = pd.DataFrame(data=data)
         df.to_csv(self.processed_file_path, index=False, sep=',')
+        return df
 
-    def convert_flux_density_data_to_csv(self) -> None:
+    def convert_flux_density_data_to_csv(self) -> pd.DataFrame:
         """
         Converts the flux data into processed data and saves it into the processed file path.
         The column names are in `SwiftDataGetter.FLUX_DENSITY_KEYS`
+
+        Returns
+        -------
+        pandas.DataFrame: The processed data.
         """
         data = {key: [] for key in self.FLUX_DENSITY_KEYS}
         with open(self.raw_file_path) as f:
@@ -367,3 +398,4 @@ class SwiftDataGetter(object):
                         data[key].append(item.replace('\n', ''))
         df = pd.DataFrame(data=data)
         df.to_csv(self.processed_file_path, index=False, sep=',')
+        return df

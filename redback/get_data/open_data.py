@@ -43,14 +43,16 @@ class OpenDataGetter(object):
             redback.get_data.directory.transient_directory_structure(
                 transient_type=self.transient_type, transient=self.transient, data_mode=self.DATA_MODE)
 
-    def get_data(self) -> None:
+    def get_data(self) -> pd.DataFrame:
         """
         Downloads the raw data and produces a processed .csv file.
+
+        Returns
+        -------
+        pandas.DataFrame: The processed data.
         """
-        logger.info(f'Opening Swift website for {self.transient}.')
         self.collect_data()
-        self.convert_raw_data_to_csv()
-        logger.info(f'Congratulations, you now have a nice data file: {self.processed_file_path}')
+        return self.convert_raw_data_to_csv()
 
     @property
     def transient_type(self) -> str:
@@ -112,7 +114,7 @@ class OpenDataGetter(object):
         urllib.request.urlretrieve(url=self.metadata_url, filename=self.metadata_path)
         logger.info(f"Metadata for {self.transient} added.")
 
-    def convert_raw_data_to_csv(self) -> None:
+    def convert_raw_data_to_csv(self) -> Union[pd.DataFrame, None]:
         """
         Converts the raw data into processed data and saves it into the processed file path.
         The data columns are in `OpenDataGetter.PROCESSED_FILE_COLUMNS`.
@@ -145,6 +147,7 @@ class OpenDataGetter(object):
         data['time (days)'] = ((tt - time_of_event).to(uu.day)).value
         data.to_csv(self.processed_file_path, sep=',', index=False)
         logger.info(f'Congratulations, you now have a nice data file: {self.processed_file_path}')
+        return data
 
     def get_time_of_event(self, data: pd.DataFrame, metadata: pd.DataFrame) -> Time:
         """

@@ -114,7 +114,7 @@ def get_swift_data(
         grb=grb, transient_type=transient_type, data_mode=data_mode,
         bin_size=bin_size, instrument=instrument)
     getter.get_data()
-    return getter
+    return getter.data
 
 
 def get_prompt_data_from_batse(grb: str, **kwargs) -> BATSEDataGetter:
@@ -136,7 +136,7 @@ def get_prompt_data_from_batse(grb: str, **kwargs) -> BATSEDataGetter:
     """
     getter = BATSEDataGetter(grb=grb)
     getter.get_data()
-    return getter
+    return getter.data
 
 
 def get_kilonova_data_from_open_transient_catalog_data(transient: str, **kwargs: dict) -> OpenDataGetter:
@@ -255,13 +255,12 @@ def get_open_transient_catalog_data(
 
     Returns
     -------
-    OpenDataGetter: The getter can help debug issues.
+    pandas.DataFrame: The processed data.
 
     """
     getter = OpenDataGetter(
         transient_type=transient_type, transient=transient)
-    getter.get_data()
-    return getter
+    return getter.get_data()
 
 
 def get_oac_metadata() -> None:

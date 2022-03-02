@@ -328,30 +328,29 @@ class Transient(object):
         return self.frequency[self.filtered_indices]
 
     @property
-    def active_bands(self) -> np.ndarray:
+    def active_bands(self) -> list:
         """
 
         Returns
         -------
-        np.ndarray: Array of active bands used.
+        list: Array of active bands used.
         """
         return self._active_bands
 
     @active_bands.setter
-    def active_bands(self, active_bands: Union[np.ndarray, str]) -> None:
+    def active_bands(self, active_bands: Union[list, str]) -> None:
         """
 
         Parameters
         ----------
-        active_bands: Union[np.ndarray, str]
-            Sets active bands based on array given.
+        active_bands: Union[list, str]
+            Sets active bands based on list given.
             If argument is 'all', all unique bands in `self.bands` will be used.
         """
         if str(active_bands) == 'all':
-            self._active_bands = np.unique(self.bands)
+            self._active_bands = list(np.unique(self.bands))
         else:
             self._active_bands = active_bands
-
 
     @property
     def filtered_indices(self) -> list:
