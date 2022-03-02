@@ -106,15 +106,15 @@ class TestDirectory(unittest.TestCase):
         self.assertEqual(f"GRBData/{self.data_mode}/flux/tte_bfits_{trigger}.fits.gz", structure.raw_file_path)
         self.assertEqual(f"GRBData/{self.data_mode}/flux/{self.grb}_BATSE_lc.csv", structure.processed_file_path)
 
-    def test_transient_directory_structure(self):
+    def test_open_access_directory_structure(self):
         transient = "abc"
         transient_type = "tde"
         self.data_mode = "magnitude"
-        structure = redback.get_data.directory.transient_directory_structure(
-            transient=transient, transient_type=transient_type, data_mode=self.data_mode)
-        self.assertEqual(f"{transient_type}/{self.data_mode}/", structure.directory_path)
-        self.assertEqual(f"{transient_type}/{self.data_mode}/{transient}_rawdata.csv", structure.raw_file_path)
-        self.assertEqual(f"{transient_type}/{self.data_mode}/{transient}.csv", structure.processed_file_path)
+        structure = redback.get_data.directory.open_access_directory_structure(
+            transient=transient, transient_type=transient_type)
+        self.assertEqual(f"{transient_type}/", structure.directory_path)
+        self.assertEqual(f"{transient_type}/{transient}_rawdata.csv", structure.raw_file_path)
+        self.assertEqual(f"{transient_type}/{transient}.csv", structure.processed_file_path)
 
 
 def _delete_downloaded_files():

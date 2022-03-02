@@ -126,8 +126,8 @@ def _fit_kilonova(transient, model, outdir=None, label=None, sampler='dynesty', 
                   resume=True, save_format='json', model_kwargs=None, **kwargs):
 
     if outdir is None:
-        outdir, _, _ = redback.get_data.directory.transient_directory_structure(
-            transient=transient.name, transient_type=transient.__class__.__name__, data_mode=transient.data_mode)
+        outdir, _, _ = redback.get_data.directory.open_access_directory_structure(transient=transient.name,
+                                                                                  transient_type=transient.__class__.__name__)
         outdir = f"{outdir}/{model.__name__}"
     Path(outdir).mkdir(parents=True, exist_ok=True)
 

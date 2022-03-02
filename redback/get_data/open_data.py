@@ -40,8 +40,8 @@ class OpenDataGetter(object):
         self.transient = transient
         self.transient_type = transient_type
         self.directory_path, self.raw_file_path, self.processed_file_path = \
-            redback.get_data.directory.transient_directory_structure(
-                transient_type=self.transient_type, transient=self.transient, data_mode=self.DATA_MODE)
+            redback.get_data.directory.open_access_directory_structure(transient=self.transient,
+                                                                       transient_type=self.transient_type)
 
     def get_data(self) -> pd.DataFrame:
         """
