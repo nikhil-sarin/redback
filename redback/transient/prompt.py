@@ -96,7 +96,7 @@ class PromptTimeSeries(Transient):
         Parameters
         ----------
         name: str
-            Name of the transient.
+            Name of the GRB, e.g. GRB123456.
         channels: Union[np.ndarray, float]
             Array of channels to use. Use all channels if 'all' is given.
 
@@ -105,10 +105,9 @@ class PromptTimeSeries(Transient):
         tuple: Time, time step size, and counts in the format (time, dt, counts)
 
         """
-        grb_dir, _, _ = swift_prompt_directory_structure(grb=name.lstrip("GRB"))
-        filename = f"BATSE_lc.csv"
-        data_file = os.path.join(grb_dir, filename)
-        _time_series_data = np.genfromtxt(data_file, delimiter=",")[1:]
+        name = f"GRB{name.lstrip('GRB')}"
+        directory_structure = swift_prompt_directory_structure(grb=name)
+        _time_series_data = np.genfromtxt(directory_structure.processed_file_path, delimiter=",")[1:]
 
         bin_left = _time_series_data[:, 0]
         bin_right = _time_series_data[:, 1]
@@ -158,7 +157,7 @@ class PromptTimeSeries(Transient):
             The trigger number.
         """
         if trigger_number is None:
-            self._trigger_number = get_batse_trigger_from_grb(self.name)
+            self._trigger_number = str(get_batse_trigger_from_grb(self.name))
         else:
             self._trigger_number = str(trigger_number)
 

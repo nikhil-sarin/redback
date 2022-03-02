@@ -35,7 +35,7 @@ class Transient(object):
             flux_err: np.ndarray = None, flux_density: np.ndarray = None, flux_density_err: np.ndarray = None,
             magnitude: np.ndarray = None, magnitude_err: np.ndarray = None, counts: np.ndarray = None,
             ttes: np.ndarray = None, bin_size: float = None, redshift: float = np.nan, data_mode: str = None,
-            name: str = '', path: str = '.', photon_index: float = np.nan, use_phase_model: bool = False,
+            name: str = '', photon_index: float = np.nan, use_phase_model: bool = False,
             frequency: np.ndarray = None, system: np.ndarray = None, bands: np.ndarray = None,
             active_bands: Union[np.ndarray, str] = None, **kwargs: dict) -> None:
         """
@@ -86,8 +86,6 @@ class Transient(object):
             Data mode. Must be one from `Transient.DATA_MODES`.
         name: str, optional
             Name of the transient.
-        path: str, optional
-            Path to data directory.
         photon_index: float, optional
             Photon index value.
         use_phase_model: bool, optional
@@ -139,7 +137,6 @@ class Transient(object):
         self.data_mode = data_mode
         self.redshift = redshift
         self.name = name
-        self.path = path
         self.use_phase_model = use_phase_model
 
         self.meta_data = None
@@ -601,27 +598,22 @@ class OpticalTransient(Transient):
     DATA_MODES = ['flux', 'flux_density', 'photometry', 'luminosity']
 
     @staticmethod
-    def load_data(name, data_mode='photometry', transient_dir="."):
+    def load_data(processed_file_path, data_mode="photometry"):
         """
         Loads data from specified directory and file, and returns it as a tuple.
 
         Parameters
         ----------
-        name: str
-            Name of the transient used.
+        processed_file_path: str
+            Path to the processed file to load
         data_mode: str, optional
             Name of the data mode. Must be from ['photometry', 'flux_density', 'all']. Default is photometry.
-        transient_dir: str, optional
-            Name of the directory in which the data is being stored. Default is the current directory.
 
         Returns
         -------
         tuple: Six elements when querying photometry or flux_density data, Eight for 'all'
         """
-        filename = f"{name}_data.csv"
-
-        data_file = join(transient_dir, filename)
-        df = pd.read_csv(data_file)
+        df = pd.read_csv(processed_file_path)
         time_days = np.array(df["time (days)"])
         time_mjd = np.array(df["time"])
         magnitude = np.array(df["magnitude"])
@@ -641,18 +633,22 @@ class OpticalTransient(Transient):
             self, name: str, data_mode: str = 'photometry', time: np.ndarray = None, time_err: np.ndarray = None,
             time_mjd: np.ndarray = None, time_mjd_err: np.ndarray = None, time_rest_frame: np.ndarray = None,
             time_rest_frame_err: np.ndarray = None, Lum50: np.ndarray = None, Lum50_err: np.ndarray = None,
-            flux_density: np.ndarray = None, flux_density_err: np.ndarray = None, magnitude: np.ndarray = None,
-            magnitude_err: np.ndarray = None, frequency: np.ndarray = None, bands: np.ndarray = None,
-            system: np.ndarray = None, active_bands: Union[np.ndarray, str] = 'all', use_phase_model: bool = False,
-            **kwargs: dict) -> None:
+            flux: np.ndarray = None, flux_err: np.ndarray = None, flux_density: np.ndarray = None,
+            flux_density_err: np.ndarray = None, magnitude: np.ndarray = None, magnitude_err: np.ndarray = None,
+            redshift: float = np.nan, photon_index: float = np.nan, frequency: np.ndarray = None,
+            bands: np.ndarray = None, system: np.ndarray = None, active_bands: Union[np.ndarray, str] = 'all',
+            use_phase_model: bool = False, **kwargs: dict) -> None:
         """
         This is a general constructor for the Transient class. Note that you only need to give data corresponding to
         the data mode you are using. For luminosity data provide times in the rest frame, if using a phase model
         provide time in MJD, else use the default time (observer frame).
 
-
         Parameters
         ----------
+        name: str
+            Name of the transient.
+        data_mode: str, optional
+            Data mode. Must be one from `OpticalTransient.DATA_MODES`.
         time: np.ndarray, optional
             Times in the observer frame.
         time_err: np.ndarray, optional
@@ -681,46 +677,34 @@ class OpticalTransient(Transient):
             Magnitude values for photometry data.
         magnitude_err: np.ndarray, optional
             Magnitude error values for photometry data.
-        counts: np.ndarray, optional
-            Counts for prompt data.
-        ttes: np.ndarray, optional
-            Time-tagged events data for unbinned prompt data.
-        bin_size: float, optional
-            Bin size for binning time-tagged event data.
         redshift: float, optional
             Redshift value.
-        data_mode: str, optional
-            Data mode. Must be one from `OpticalTransient.DATA_MODES`.
-        name: str, optional
-            Name of the transient.
-        path: str, optional
-            Path to data directory.
         photon_index: float, optional
             Photon index value.
-        use_phase_model: bool, optional
-            Whether we are using a phase model.
         frequency: np.ndarray, optional
             Array of band frequencies in photometry data.
-        system: np.ndarray, optional
-            System values.
         bands: np.ndarray, optional
             Band values.
+        system: np.ndarray, optional
+            System values.
         active_bands: Union[list, np.ndarray], optional
             List or array of active bands to be used in the analysis. Use all available bands if 'all' is given.
+        use_phase_model: bool, optional
+            Whether we are using a phase model.
         kwargs: dict, optional
             Additional callables:
             bands_to_frequencies: Conversion function to convert a list of bands to frequencies. Use
                                   redback.utils.bands_to_frequencies if not given.
-            bin_ttes: Binning function for time-tagged event data. Use redback.utils.bands_to_frequencies if not given.
         """
         super().__init__(time=time, time_err=time_err, time_rest_frame=time_rest_frame, time_mjd=time_mjd,
                          time_mjd_err=time_mjd_err, frequency=frequency,
                          time_rest_frame_err=time_rest_frame_err, Lum50=Lum50, Lum50_err=Lum50_err,
+                         flux=flux, flux_err=flux_err, redshift=redshift, photon_index=photon_index,
                          flux_density=flux_density, flux_density_err=flux_density_err, magnitude=magnitude,
                          magnitude_err=magnitude_err, data_mode=data_mode, name=name,
                          use_phase_model=use_phase_model, system=system, bands=bands, active_bands=active_bands,
                          **kwargs)
-        self._set_data()
+        self.directory_structure = None
 
     @classmethod
     def from_open_access_catalogue(
@@ -745,10 +729,10 @@ class OpticalTransient(Transient):
         -------
         OpticalTransient: A class instance.
         """
-        transient_dir, _, _ = redback.get_data.directory.transient_directory_structure(
+        directory_structure = redback.get_data.directory.transient_directory_structure(
             transient=name, transient_type=cls.__name__.lower(), data_mode=data_mode)
         time_days, time_mjd, flux_density, flux_density_err, magnitude, magnitude_err, bands, system = \
-            cls.load_data(name=name, transient_dir=transient_dir, data_mode="all")
+            cls.load_data(processed_file_path=directory_structure.processed_file_path, data_mode="all")
         return cls(name=name, data_mode=data_mode, time=time_days, time_err=None, time_mjd=time_mjd,
                    flux_density=flux_density, flux_density_err=flux_density_err, magnitude=magnitude,
                    magnitude_err=magnitude_err, bands=bands, system=system, active_bands=active_bands,
@@ -762,7 +746,7 @@ class OpticalTransient(Transient):
         -------
         str: Path to the metadata table.
         """
-        return f'{self.__class__.__name__.lower()}/{self.name}/metadata.csv'
+        return f"{self.directory_structure.directory_path}/{self.name}_metadata.csv"
 
     def _set_data(self) -> None:
         """
