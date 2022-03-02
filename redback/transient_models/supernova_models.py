@@ -1,5 +1,5 @@
 import numpy as np
-from redback.transient_models.phenominological_models import exponential_powerlaw
+from redback.transient_models.phenomenological_models import exponential_powerlaw
 import redback.interaction_processes as ip
 import redback.sed as sed
 import redback.photosphere as photosphere
