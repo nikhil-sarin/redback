@@ -6,5 +6,5 @@ mej = LogUniform(1e-4, 100, 'mej', latex_label = r'$M_{\mathrm{ej}} [M_{\odot}]$
 vej = LogUniform(1e3, 1e5, 'vej', latex_label = r'$v_{\mathrm{ej}} [km/s]$')
 kappa = Uniform(0.05, 2, 'kappa', latex_label = r'$\kappa$')
 kappa_gamma = Uniform(1e-4, 1e4, 'kappa_gamma', latex_label = r'$\kappa_{\gamma}$')
-e_rot_constraint = Constraint(name='e_rot_constraint', mininum=10, maximum=1e10)
-t_nebula_min = Constraint(name='t_nebula_min', mininum=0.1,maximum=500)
+e_rot_constraint = Constraint(name='e_rot_constraint', minimum=10, maximum=1e10)
+t_nebula_min = Constraint(name='t_nebula_min', minimum=0.1,maximum=500)

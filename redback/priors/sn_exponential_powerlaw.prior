@@ -1,5 +1,5 @@
 redshift = Uniform(1e-6,3,name='redshift', latex_label = r'$z$')
-lbol_0 = LogUniform(1e36,1e48,name='lbol_0', latex_label = r'$L_{\mathrm{bol},0}}$'
+lbol_0 = LogUniform(1e36,1e48,name='lbol_0', latex_label = r'$L_{\mathrm{bol},0}$')
 alpha_1 = Uniform(0,10,name='alpha_1',latex_label='$\alpha_{1}$')
 alpha_2 = Uniform(0,10,name='alpha_2',latex_label='$\alpha_{2}$')
 tpeak_d = LogUniform(0.001,200,name='tpeak', latex_label = r'$t_{\mathrm{peak}}$~[days]')
