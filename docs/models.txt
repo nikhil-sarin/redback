@@ -131,6 +131,10 @@ by switching the default argument with something else already implemented in red
 
 The specific physics that can be changed:
 
+- Jet spreading on/off
+- Whether to infer lorentz factor in afterglow models
+- Whether to turn on/off pair cascades
+- Whether to turn on/off neutron precursor emission
 - Different ejecta relations: See relations already implemented `here <https://github.com/nikhil-sarin/redback/blob/master/redback/ejecta_relations.py>`_.
 - Different equations of states: See eos already implemented `here <https://github.com/nikhil-sarin/redback/blob/master/redback/eos.py>`_.
 - Different interaction process: See processes already implemented `here <https://github.com/nikhil-sarin/redback/blob/master/redback/interaction_processes.py>`_.
