@@ -64,6 +64,7 @@ class PromptTimeSeries(Transient):
         self.channels = channels
         self.instrument = instrument
         self._set_data()
+        self.directory_structure = swift_prompt_directory_structure(grb=self.name, bin_size=self.bin_size)
 
     @classmethod
     def from_batse_grb_name(

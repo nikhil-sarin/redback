@@ -81,6 +81,6 @@ class Supernova(OpticalTransient):
                          magnitude=magnitude, magnitude_err=magnitude_err, data_mode=data_mode, name=name,
                          use_phase_model=use_phase_model, bands=bands, system=system, active_bands=active_bands,
                          redshift=redshift, photon_index=photon_index, **kwargs)
-        self.directory_structure = redback.get_data.directory.open_access_directory_structure(transient=name,
-                                                                                              transient_type="supernova")
+        self.directory_structure = redback.get_data.directory.open_access_directory_structure(
+            transient=name, transient_type="supernova")
         self._set_data()

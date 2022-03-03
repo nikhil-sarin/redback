@@ -86,6 +86,6 @@ class Kilonova(OpticalTransient):
                          magnitude=magnitude, magnitude_err=magnitude_err, data_mode=data_mode, name=name, bands=bands,
                          system=system, active_bands=active_bands, use_phase_model=use_phase_model, redshift=redshift,
                          photon_index=photon_index, **kwargs)
-        self.directory_structure = redback.get_data.directory.open_access_directory_structure(transient=name,
-                                                                                              transient_type="kilonova")
+        self.directory_structure = redback.get_data.directory.open_access_directory_structure(
+            transient=name, transient_type="kilonova")
         self._set_data()

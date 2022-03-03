@@ -109,6 +109,7 @@ class Afterglow(Transient):
         self._set_photon_index()
         self._set_t90()
         self._get_redshift()
+        self.directory_structure = afterglow_directory_structure(grb=self.name, data_mode=self.data_mode, instrument="")
 
     @classmethod
     def from_swift_grb(
@@ -221,7 +222,6 @@ class Afterglow(Transient):
         """
         Saves luminosity data to a csv file.
         """
-        grb_dir, _, _ = afterglow_directory_structure(grb=self._stripped_name, data_mode=self.data_mode)
         filename = f"{self.name}.csv"
         data = {"Time in restframe [s]": self.time_rest_frame,
                 "Pos. time err in restframe [s]": self.time_rest_frame_err[0, :],
@@ -230,7 +230,7 @@ class Afterglow(Transient):
                 "Pos. luminosity err [10^50 erg s^{-1}]": self.Lum50_err[0, :],
                 "Neg. luminosity err [10^50 erg s^{-1}]": self.Lum50_err[1, :]}
         df = pd.DataFrame(data=data)
-        df.to_csv(join(grb_dir, filename), index=False)
+        df.to_csv(join(self.directory_structure.directory_path, filename), index=False)
 
     def _set_data(self) -> None:
         """
