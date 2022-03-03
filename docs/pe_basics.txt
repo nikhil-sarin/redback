@@ -1,3 +1,27 @@
 ============
 Basics of Bayesian inference and parameter estimation
 ============
+
+To use redback we assume some level of familiarity with Bayesian inference and model fitting.
+However, if this is not the case, :code:`bilby` provides a basic demonstration of Bayesian inference and
+how they are implemented in :code:`bilby` is available in the :code:`bilby` `documentation <https://lscsoft.docs.ligo.org/bilby/basics-of-parameter-estimation.html>_`
+
+Redback workflow
+-------------------------
+
+In redback, we make this process homogenous specifically for fitting electromagnetic transients. The redback workflow for fitting is:
+
+- Download the data from a public catalog, or provide your own data. Or simulate it.
+- Load the data into a homogenous transient object, which does the necessary processing and provides simple way to plot data.
+- The user then specifies a model (either already implemented in redback or their own function).
+- Write a prior or use the default priors.
+- Specify sampler settings as in :code:`bilby`
+- Fit model!
+- The fit returns a homogenous result object, which can be used for further diagnostics, and provides a simple way to plot the fit.
+
+More advanced functionality
+-------------------------
+
+- The likelihood is by default set by the type of transient/data used, the more advanced users can provide their own or use more complicated likelihoods implemented in redback.
+- Modify the physics of a transient model by passing in different class constructors
+- Place constraints on priors if necessary.

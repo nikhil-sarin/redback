@@ -183,7 +183,7 @@ class Line(object):
                  line_time=50, line_duration=25, line_amplitude=0.3, **kwargs):
         """
         Modifies the input SED by accounting for absorption lines
-        
+
         :param time: time in source frame
         :param luminosity: luminosity in cgs
         :param frequency: frequencies to calculate in Hz - Must be same length as time array or a single number. In source frame
