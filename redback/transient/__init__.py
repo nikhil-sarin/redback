@@ -1,10 +1,10 @@
 from redback.transient import afterglow, kilonova, prompt, supernova, tde, transient
-from afterglow import Afterglow, LGRB, SGRB
-from kilonova import Kilonova
-from prompt import PromptTimeSeries
-from supernova import Supernova
-from tde import TDE
-from transient import Transient
+from redback.transient.afterglow import Afterglow, LGRB, SGRB
+from redback.transient.kilonova import Kilonova
+from redback.transient.prompt import PromptTimeSeries
+from redback.transient.supernova import Supernova
+from redback.transient.tde import TDE
+from redback.transient.transient import Transient
 
 
 TRANSIENT_DICT = dict(

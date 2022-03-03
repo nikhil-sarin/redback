@@ -8,7 +8,8 @@ import pandas as pd
 from typing import Union
 
 import redback
-from redback.plotting import MultiBandPlotter
+from redback.plotting import \
+    MultiBandPlotter, LuminosityPlotter, FluxDensityPlotter, IntegratedFluxPlotter, MagnitudePlotter
 
 
 class Transient(object):
@@ -805,49 +806,18 @@ class OpticalTransient(Transient):
             ylabel: Plot ylabel
             plot_label: Additional filename label appended to the default name
         """
-        if filters is None:
-            filters = self.active_bands
-
-        errorbar_fmt = plot_kwargs.get("errorbar_fmt", "x")
-        colors = plot_kwargs.get("colors", self.get_colors(filters))
-        xlabel = plot_kwargs.get("xlabel", self.xlabel)
-        ylabel = plot_kwargs.get("ylabel", self.ylabel)
-        plot_label = plot_kwargs.get("plot_label", "data")
-
-        ax = axes or plt.gca()
-        for indices, band in zip(self.list_of_band_indices, self.unique_bands):
-            x_err = self.x_err[indices] if self.x_err is not None else self.x_err
-            if band in filters:
-                color = colors[filters.index(band)]
-                label = band
-            elif plot_others:
-                color = "black"
-                label = None
-            else:
-                continue
-            ax.errorbar(self.x[indices], self.y[indices], xerr=x_err, yerr=self.y_err[indices],
-                        fmt=errorbar_fmt, ms=1, color=color, elinewidth=2, capsize=0., label=label)
-
-        ax.set_xlim(0.5 * self.x[0], 1.2 * self.x[-1])
-        if self.magnitude_data:
-            ax.set_ylim(0.8 * min(self.y), 1.2 * np.max(self.y))
-            ax.invert_yaxis()
+        if self.flux_data:
+            plotter = IntegratedFluxPlotter(transient=self)
+        elif self.luminosity_data:
+            plotter = LuminosityPlotter(transient=self)
+        elif self.flux_density_data:
+            plotter = FluxDensityPlotter(transient=self)
+        elif self.magnitude_data:
+            plotter = MagnitudePlotter(transient=self)
         else:
-            ax.set_ylim(0.5 * min(self.y), 2. * np.max(self.y))
-            ax.set_yscale('log')
-        ax.set_xlabel(xlabel)
-        ax.set_ylabel(ylabel)
-        ax.tick_params(axis='x', pad=10)
-        ax.legend(ncol=2)
+            return axes
+        return plotter.plot_data(axes=axes, filters=filters, plot_others=plot_others, plot_save=plot_save, **plot_kwargs)
 
-        if axes is None:
-            plt.tight_layout()
-
-        if plot_save:
-            filename = f"{self.name}_{self.data_mode}_{plot_label}.png"
-            plt.savefig(join(self.transient_dir, filename), bbox_inches='tight')
-            plt.clf()
-        return axes
 
     def plot_multiband(
             self, figure: matplotlib.figure.Figure = None, axes: matplotlib.axes.Axes = None, ncols: int = 2,

@@ -12,7 +12,8 @@ from astropy.cosmology import Planck18 as cosmo  # noqa
 
 from redback.utils import logger
 from redback.get_data.directory import afterglow_directory_structure
-from redback.plotting import MultiBandPlotter
+from redback.plotting import \
+    MultiBandPlotter, IntegratedFluxPlotter, LuminosityPlotter, FluxDensityPlotter, MagnitudePlotter
 from redback.transient.transient import Transient
 
 dirname = os.path.dirname(__file__)
@@ -235,10 +236,14 @@ class Afterglow(Transient):
         """
         Loads data from the meta data table and sets it to the respective attribute.
         """
-        meta_data = pd.read_csv(self.event_table, header=0, error_bad_lines=False, delimiter='\t', dtype='str')
-        meta_data['BAT Photon Index (15-150 keV) (PL = simple power-law, CPL = cutoff power-law)'] = meta_data[
-                  'BAT Photon Index (15-150 keV) (PL = simple power-law, CPL = cutoff power-law)'].fillna(0)
-        self.meta_data = meta_data
+        try:
+            meta_data = pd.read_csv(self.event_table, header=0, error_bad_lines=False, delimiter='\t', dtype='str')
+            meta_data['BAT Photon Index (15-150 keV) (PL = simple power-law, CPL = cutoff power-law)'] = meta_data[
+                      'BAT Photon Index (15-150 keV) (PL = simple power-law, CPL = cutoff power-law)'].fillna(0)
+            self.meta_data = meta_data
+        except FileNotFoundError:
+            logger.warning("Meta data does not exist for this event.")
+            self.meta_data = None
 
     def _set_photon_index(self) -> None:
         """
@@ -246,11 +251,13 @@ class Afterglow(Transient):
         """
         if not np.isnan(self.photon_index):
             return
+        if self.magnitude_data or self.flux_density_data:
+            self.photon_index = np.nan
         try:
             photon_index = self.meta_data.query('GRB == @self._stripped_name')[
                 'BAT Photon Index (15-150 keV) (PL = simple power-law, CPL = cutoff power-law)'].values[0]
             self.photon_index = self.__clean_string(photon_index)
-        except IndexError:
+        except (AttributeError, IndexError):
             self.photon_index = np.nan
 
     def _get_redshift(self) -> None:
@@ -265,7 +272,7 @@ class Afterglow(Transient):
                 self.redshift = self.__clean_string(redshift)
             else:
                 self.redshift = redshift
-        except IndexError:
+        except (AttributeError, IndexError):
             self.redshift = np.nan
 
     def _get_redshift_for_luminosity_calculation(self) -> Union[float, None]:
@@ -293,7 +300,7 @@ class Afterglow(Transient):
             if t90 == 0.:
                 return np.nan
             self.t90 = self.__clean_string(t90)
-        except IndexError:
+        except (AttributeError, IndexError):
             self.t90 = np.nan
 
     @staticmethod
@@ -368,7 +375,7 @@ class Afterglow(Transient):
         self.x, self.x_err, self.y, self.y_err = converter.convert_flux_to_luminosity()
         self._save_luminosity_data()
 
-    def plot_data(self, axes: matplotlib.axes.Axes = None, colour: str = 'k') -> matplotlib.axes.Axes:
+    def plot_data(self, axes: matplotlib.axes.Axes = None, colour: str = 'k', **kwargs: dict) -> matplotlib.axes.Axes:
         """
         Plots the Afterglow lightcurve and returns Axes.
 
@@ -378,41 +385,26 @@ class Afterglow(Transient):
             Matplotlib axes to plot the lightcurve into. Useful for user specific modifications to the plot.
         colour: str, optional
             Colour of the data.
+        kwargs: dict
+            Additional keyword arguments to pass in the Plotter methods.
 
         Returns
         ----------
         matplotlib.axes.Axes: The axes with the plot.
         """
 
-        x_err = [np.abs(self.x_err[1, :]), self.x_err[0, :]]
-        y_err = [np.abs(self.y_err[1, :]), self.y_err[0, :]]
+        if self.flux_data:
+            plotter = IntegratedFluxPlotter(transient=self)
+        elif self.luminosity_data:
+            plotter = LuminosityPlotter(transient=self)
+        elif self.flux_density_data:
+            plotter = FluxDensityPlotter(transient=self)
+        elif self.magnitude_data:
+            plotter = MagnitudePlotter(transient=self)
+        else:
+            return axes
+        return plotter.plot_data(axes=axes, colour=colour, **kwargs)
 
-        ax = axes or plt.gca()
-        ax.errorbar(self.x, self.y, xerr=x_err, yerr=y_err,
-                    fmt='x', c=colour, ms=1, elinewidth=2, capsize=0.)
-
-        ax.set_xscale('log')
-        ax.set_yscale('log')
-
-        ax.set_xlim(0.5 * self.x[0], 2 * (self.x[-1] + x_err[1][-1]))
-        ax.set_ylim(0.5 * min(self.y), 2. * np.max(self.y))
-
-        ax.annotate(self.name, xy=(0.95, 0.9), xycoords='axes fraction',
-                    horizontalalignment='right', size=20)
-
-        ax.set_xlabel(r'Time since burst [s]')
-        ax.set_ylabel(self.ylabel)
-        ax.tick_params(axis='x', pad=10)
-
-        if axes is None:
-            plt.tight_layout()
-
-        grb_dir, _, _ = afterglow_directory_structure(grb=self._stripped_name, data_mode=self.data_mode)
-        filename = f"{self.name}_lc.png"
-        plt.savefig(join(grb_dir, filename))
-        if axes is None:
-            plt.clf()
-        return ax
 
     def plot_multiband(
             self, figure: matplotlib.figure.Figure = None, axes: matplotlib.axes.Axes = None, ncols: int = 2,
