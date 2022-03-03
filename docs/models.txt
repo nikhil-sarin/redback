@@ -102,6 +102,7 @@ For example:
                         mej=30, vej=1000, kappa=2, kappa_gamma=1e2)
 
 Users can also use the prior objects to get a simulation of the light curves predicted by the function for randomly drawn samples from the prior.
+Here we have also demonstrated the all_models_dict for easy access to all different models.
 
 .. code:: python
 
