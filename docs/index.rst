@@ -18,22 +18,9 @@ Welcome to REDBACK's documentation!
    dependency_injections
    fitting
    results
+   examples
    acknowledgements
    contributing
-
-.. toctree::
-   :maxdepth: 1
-   :caption: Examples:
-
-   broadband_afterglow_private_data_example
-   fit_your_own_model_example
-   kilonova_example
-   magnetar_boosted_example
-   magnetar_example
-   prompt_example
-   supernova_example
-   tde_example
-   SN2011kl_sample_in_t0_example
 
 .. currentmodule:: redback
 
