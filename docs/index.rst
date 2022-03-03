@@ -15,6 +15,7 @@ Welcome to REDBACK's documentation!
    getting_data
    transients
    models
+   dependency_injections
    fitting
    results
    acknowledgements
