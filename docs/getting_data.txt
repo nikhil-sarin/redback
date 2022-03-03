@@ -44,8 +44,9 @@ We do not have to use data from the above catalogs for fitting.
 Redback can be used on private data or on simulated data.
 We have written an example demonstrating this `here <https://github.com/nikhil-sarin/redback/blob/master/examples/broadband_afterglow_private_data_example.py>`_
 
-Redback.simulation
+Simulating your own data
 -------------------------
 
-We will soon add an automated interace to simulating data in specific bands/frequencies using the in built redback models.
-For now, users can use any redback model as functions, pass in parameters or a dictionary of parameters, and create their own simulated data.
+We will soon add an automated interace to simulating data in specific bands/frequencies/flux/luminosity using the in built :code:`redback` models.
+For now, users can use any :code:`redback` model as functions, pass in parameters or a dictionary of parameters, and create their own simulated data.
+See `API <https://redback.readthedocs.io/en/latest/>`_.
