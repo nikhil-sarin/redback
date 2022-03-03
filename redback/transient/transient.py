@@ -416,7 +416,11 @@ class Transient(object):
         -------
         np.ndarray: All frequencies that we get from the data, eliminating all duplicates.
         """
-        return self.bands_to_frequencies(self.unique_bands)
+        try:
+            if isinstance(self.unique_bands[0], (float, int)):
+                return self.unique_bands
+        except (TypeError, IndexError):
+            return self.bands_to_frequencies(self.unique_bands)
 
     @property
     def list_of_band_indices(self) -> list:
@@ -587,17 +591,18 @@ class Transient(object):
         times = self._get_times(axes)
 
         times_mesh, frequency_mesh = np.meshgrid(times, self.unique_frequencies)
-        model_kwargs['frequency'] = frequency_mesh
+        new_model_kwargs = model_kwargs.copy()
+        new_model_kwargs['frequency'] = frequency_mesh
         posterior.sort_values(by='log_likelihood')
         max_like_params = posterior.iloc[-1]
-        ys = model(times_mesh, **max_like_params, **model_kwargs)
+        ys = model(times_mesh, **max_like_params, **new_model_kwargs)
 
         for i in range(len(self.unique_frequencies)):
             axes[i].plot(times_mesh[i], ys[i], color='blue', alpha=0.65, lw=2)
-            params = posterior.iloc[np.random.randint(len(posterior))]
-            ys = model(times_mesh, **params, **model_kwargs)
             for _ in range(random_models):
-                axes.plot(times, ys[i], color='red', alpha=0.05, lw=2, zorder=-1)
+                params = posterior.iloc[np.random.randint(len(posterior))]
+                ys = model(times_mesh, **params, **new_model_kwargs)
+                axes[i].plot(times, ys[i], color='red', alpha=0.05, lw=2, zorder=-1)
         if plot_save:
             plt.savefig(join(outdir, filename), dpi=300, bbox_inches="tight")
         if plot_show:
@@ -616,7 +621,12 @@ class Transient(object):
         np.ndarray: Linearly or logarithmically scaled time values depending on the y scale used in the plot.
 
         """
-        if axes.get_yscale == 'linear':
+        if isinstance(axes, np.ndarray):
+            ax = axes[0]
+        else:
+            ax = axes
+
+        if ax.get_yscale() == 'linear':
             times = np.linspace(self.x[0], self.x[-1], 200)
         else:
             times = np.exp(np.linspace(np.log(self.x[0]), np.log(self.x[-1]), 200))
