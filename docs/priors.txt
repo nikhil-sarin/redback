@@ -58,4 +58,4 @@ Create our prior:
 
 Then define our priors on all other parameters in the normal way.
 
-You can implement your own constraints by following the constraint templates and :code:`bilby` `documentation <https://lscsoft.docs.ligo.org/bilby/prior.html>_`
+You can implement your own constraints by following the constraint templates and :code:`bilby` `documentation <https://lscsoft.docs.ligo.org/bilby/prior.html>`_

@@ -20,4 +20,4 @@ Advantages of the interface to Bilby
 -------------------------
 
 As we are using :code:`bilby` under the hood for sampling, priors, likelihood, we have a natural interface to gravitational-wave parameter estimation. This enables easy multi-messenger analysis with redback doing the transient part, and bilby doing the GW part.
-We demonstrate this in the `examples <https://github.com/nikhil-sarin/redback/tree/master/examples>'_
+We demonstrate this in the `examples <https://github.com/nikhil-sarin/redback/tree/master/examples>`_

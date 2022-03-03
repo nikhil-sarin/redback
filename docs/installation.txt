@@ -57,4 +57,4 @@ For full functionality, please also install optional requirements.
 
    $ pip install -r optional_requirements.txt
 
-You are now ready to use redback. Please check out the `examples <https://github.com/nikhil-sarin/redback/tree/master/examples>'_
+You are now ready to use redback. Please check out the `examples <https://github.com/nikhil-sarin/redback/tree/master/examples>`_

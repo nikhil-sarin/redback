@@ -25,37 +25,39 @@ Use your own likelihood
 
 If you don't like the likelihoods implemented in redback, you can write your own, subclassing the redback likelihood for example,
 
-class GaussianLikelihoodKnownNoise(redback.Likelihood):
-       def __init__(self, x, y, sigma, function):
-           """
-           A general Gaussian likelihood - the parameters are inferred from the
-           arguments of function
+.. code:: python
 
-           Parameters
-           ----------
-           x, y: array_like
-               The data to analyse
-           sigma: float
-               The standard deviation of the noise
-           function:
-               The python function to fit to the data. Note, this must take the
-               dependent variable as its first argument. The other arguments are
-               will require a prior and will be sampled over (unless a fixed
-               value is given).
-           """
-           self.x = x
-           self.y = y
-           self.sigma = sigma
-           self.N = len(x)
-           self.function = function
+    class GaussianLikelihoodKnownNoise(redback.Likelihood):
+           def __init__(self, x, y, sigma, function):
+               """
+               A general Gaussian likelihood - the parameters are inferred from the
+               arguments of function
 
-           # These lines of code infer the parameters from the provided function
-           parameters = inspect.getargspec(function).args
-           parameters.pop(0)
-           super().__init__(parameters=dict.fromkeys(parameters))
+               Parameters
+               ----------
+               x, y: array_like
+                   The data to analyse
+               sigma: float
+                   The standard deviation of the noise
+               function:
+                   The python function to fit to the data. Note, this must take the
+                   dependent variable as its first argument. The other arguments are
+                   will require a prior and will be sampled over (unless a fixed
+                   value is given).
+               """
+               self.x = x
+               self.y = y
+               self.sigma = sigma
+               self.N = len(x)
+               self.function = function
+
+               # These lines of code infer the parameters from the provided function
+               parameters = inspect.getargspec(function).args
+               parameters.pop(0)
+               super().__init__(parameters=dict.fromkeys(parameters))
 
 
-       def log_likelihood(self):
-           res = self.y - self.function(self.x, **self.parameters)
-           return -0.5 * (np.sum((res / self.sigma)**2)
-                          + self.N*np.log(2*np.pi*self.sigma**2))
+           def log_likelihood(self):
+               res = self.y - self.function(self.x, **self.parameters)
+               return -0.5 * (np.sum((res / self.sigma)**2)
+                              + self.N*np.log(2*np.pi*self.sigma**2))
