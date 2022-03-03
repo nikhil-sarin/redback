@@ -4,7 +4,7 @@ from astropy import constants as cc
 
 class Dietrich_ujevic_17(object):
     """
-    Relations to connect intrinsic GW parameters to extrinsic kilonova parameters from Dietrich and Ujevic 2017
+    Relations to connect intrinsic GW parameters to extrinsic kilonova parameters
     """
     def __init__(self, mass_1, mass_2, lambda_1, lambda_2):
         self.mass_1 = mass_1

@@ -1,14 +1,148 @@
 ============
 Models
 ============
-Afterglow models
-Supernova models
-Kilonova models
-Magnetar boosted ejecta models
-Millisecond magnetar models
-Tidal disruption models
-Phase models
-Phenomenological and fireball models
-Modifying redback models
 
-running models as functions
+In :code:`redback` we have already implemented a lot of different models, which can be combined or modified to create another model easily.
+These models range from phenomenological, to analytical, semi-analytical to numerical surrogates built with machine learning techniques.
+Implementing a new model is probably the easiest way to contribute to redback!
+
+Specifically, the models already included are
+
+- Afterglow models:
+
+    - Several structured jet models implemented in `afterglowpy <https://afterglowpy.readthedocs.io/en/latest/>`_.
+    - Tophat jet implemented in `afterglowpy <https://afterglowpy.readthedocs.io/en/latest/>`_.
+    - Cocoon
+    - Kilonova afterglow
+    - Surrogate built on top of `jetfit <https://github.com/NYU-CAL/JetFit>`_.
+    - Surrogate built on top of `boxfit <https://cosmo.nyu.edu/afterglowlibrary/index.html>`_.
+
+- Kilonova models
+
+    - One/two/three component kilonova models
+    - two_layer_stratified_kilonova
+    - power_law_stratified_kilonova
+    - `kilonova heating rate <https://github.com/Basdorsman/kilonova-heating-rate>`_
+    - ejecta_relation_kilonova_model
+    - `Metzger 2017 <https://ui.adsabs.harvard.edu/abs/2017LRR....20....3M/abstract>`_
+    - Surrogates of several different numerical simulations
+    - All kilonova models in `gwemlightcurves <https://github.com/mcoughlin/gwemlightcurves>`_
+
+- Supernova models: Can output in flux density/magnitude/bolometric luminosity
+
+    - Arnett
+    - CSM
+    - CSM + Ni
+    - Basic magnetar powered
+    - General magnetar powered
+    - magnetar + nickel
+    - SLSN
+    - exponential powerlaw
+
+- Magnetar boosted ejecta models:
+
+    - Metzger magnetar boosted kilonova
+    - Mergernova
+    - Trapped magnetar
+    - General magnetar boosted kilonova
+
+- Millisecond magnetar models
+
+    - vacuum dipole magnetar
+    - magnetar with variable braking index
+    - evolving magnetar
+    - magnetar with radiative losses
+    - collapsing magnetar
+    - piecewise magnetar
+
+- Tidal disruption models
+
+    - Simple analytic fallback
+    - `Surrogate from numerical simulation <https://ui.adsabs.harvard.edu/abs/2019ApJ...872..151M/abstract>`_
+
+- Phenomenological and fireball models
+
+    - 1-6 component piecewise power law
+    - exponential_powerlaw
+
+We note that these models can output in a range of format set by the keyword argument `output_format` or using the appropriate bolometric/flux function.
+
+Alongside these models we also include some general models which can many of the above models as a `base_model`
+
+- Homologous expansion
+- Thin shell
+- Extinction models
+- Phase models
+- Phase + extinction models
+- Gaussian process base model: Will be soon implemented.
+
+For a full up to date list of models implemented in :code:`redback`, look at the `API <https://redback.readthedocs.io/en/latest/>`_
+
+Using :code:`redback` models as functions
+-------------------------
+
+All models in :code:`redback` are implemented as functions with minimal dependencies.
+This means that users can simply use these functions by themselves as you would any other python function.
+All users need to do is pass into the function a time array and any other parameter required by the function.
+In this way, users can use :code:`redback` to just explore the impact of different parameters on the light curve and better understand the physics.
+
+For example:
+
+.. code:: python
+
+    from redback.constants import day_to_s
+    from redback.model_library import all_models_dict
+    import numpy as np
+
+    model = 'arnett_bolometric'
+
+    function = all_models_dict(model)
+    time = np.logspace(2, 8, 100)/day_to_s
+    bolometric_luminosity = function(time, f_nickel=0.6,
+                        mej=30, vej=1000, kappa=2, kappa_gamma=1e2)
+
+Users can also use the prior objects to get a simulation of the light curves predicted by the function for randomly drawn samples from the prior.
+Here we have also demonstrated the all_models_dict for easy access to all different models.
+
+.. code:: python
+
+    from redback.constants import day_to_s
+    from redback.model_library import all_models_dict
+    from redback.priors import get_priors
+    import numpy as np
+    import pandas as pd
+
+    model = 'arnett_bolometric'
+    priors = get_priors(model=model, data_mode='luminosity')
+    samples = pd.DataFrame(priors.sample(100))
+    function = all_models_dict[model]
+    time = np.logspace(2, 8, 100)/day_to_s
+
+    bolometric_luminosity = function(time, **samples.iloc[0])
+
+Remember that the priors are simply a dictionary so users could also just pass a dictionary/dataframe they created themselves as well.
+Users could also sample a lot of different draws from the prior at once (in the above we randomly drew a 100 samples) and then loop through them to simulate a population.
+Remember that we can only place arbitrary constraints on the priors to make a really specific population/simulation.
+
+Modifying :code:`redback` models
+-------------------------
+A lot of the physics in different redback models is set by default.
+However, several different pieces of physics in various models can be changed by either passing your own function/class (see next section),
+by switching the default argument with something else already implemented in redback, or changing a keyword argument.
+
+The specific physics that can be changed:
+
+- Jet spreading on/off
+- Whether to infer lorentz factor in afterglow models
+- Whether to turn on/off pair cascades
+- Whether to turn on/off neutron precursor emission
+- Different ejecta relations: See relations already implemented `here <https://github.com/nikhil-sarin/redback/blob/master/redback/ejecta_relations.py>`_.
+- Different equations of states: See eos already implemented `here <https://github.com/nikhil-sarin/redback/blob/master/redback/eos.py>`_.
+- Different interaction process: See processes already implemented `here <https://github.com/nikhil-sarin/redback/blob/master/redback/interaction_processes.py>`_.
+- Different photosphere: See photospheres already implemented `here <https://github.com/nikhil-sarin/redback/blob/master/redback/photosphere.py>`_.
+- Different SED: See SED's already implemented `here <https://github.com/nikhil-sarin/redback/blob/master/redback/sed.py>`_.
+
+We encourage users to add more of these, which is another easy way to contribute to :code:`redback`.
+
+
+

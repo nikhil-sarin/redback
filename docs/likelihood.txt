@@ -1,3 +1,63 @@
 ============
 Likelihood
 ============
+
+By default the likelihood is determined by the type of transient/data being used.
+However, users can choose a different likelihood (assuming they have an edge case which requires a different likelihood).
+
+Regular likelihoods
+-------------------------
+
+- Gaussian likelihood - general Gaussian likelihood
+- GRB Gaussian likelihood - a GRB specific Gaussian likelihood
+- Poisson likelihood - For a poisson process
+
+More advanced likelihoods
+-------------------------
+
+- Gaussian likelihood with additional noise - When you want to estimate some additional uncertainty on your model
+- Gaussian likelihood with uniform x errors - When you have x errors that are bin widths
+- Gaussian likelihood with non detections - A general Gaussian likelihood with a upper limits on some data points
+- Gaussian likelihood with non detections and quadrature noise - Same as above but with an additional noise source added in quadrature
+
+Use your own likelihood
+-------------------------
+
+If you don't like the likelihoods implemented in redback, you can write your own, subclassing the redback likelihood for example,
+
+.. code:: python
+
+    class GaussianLikelihoodKnownNoise(redback.Likelihood):
+           def __init__(self, x, y, sigma, function):
+               """
+               A general Gaussian likelihood - the parameters are inferred from the
+               arguments of function
+
+               Parameters
+               ----------
+               x, y: array_like
+                   The data to analyse
+               sigma: float
+                   The standard deviation of the noise
+               function:
+                   The python function to fit to the data. Note, this must take the
+                   dependent variable as its first argument. The other arguments are
+                   will require a prior and will be sampled over (unless a fixed
+                   value is given).
+               """
+               self.x = x
+               self.y = y
+               self.sigma = sigma
+               self.N = len(x)
+               self.function = function
+
+               # These lines of code infer the parameters from the provided function
+               parameters = inspect.getargspec(function).args
+               parameters.pop(0)
+               super().__init__(parameters=dict.fromkeys(parameters))
+
+
+           def log_likelihood(self):
+               res = self.y - self.function(self.x, **self.parameters)
+               return -0.5 * (np.sum((res / self.sigma)**2)
+                              + self.N*np.log(2*np.pi*self.sigma**2))

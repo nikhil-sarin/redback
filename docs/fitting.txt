@@ -1,5 +1,64 @@
 ============
 Fitting
 ============
-Active bands
+
+After downloading/simulating data, creating a transient object, specifying a model,
+and creating a prior we now come to the exciting part; Fitting the model to data!
+
+To fit our model to data we have to specify a sampler and sampler settings.
+The likelihood is set by default depending on the transient/data but one can use a different one
+or write their own as explained in the likelihood `documentation <https://redback.readthedocs.io/en/latest/likelihood.html>`_
+
+Installing :code:`redback` with minimal requirements will install the default sampler `dynesty
+<https://dynesty.readthedocs.io/en/latest/>`_. Installing optional requirements will also install `nestle
+<http://kylebarbary.com/nestle/`_. We generally find `dynesty` to be more reliable/robust but nestle is much faster.
+We note that `dynesty` has checkpointing!
+
 Samplers
+---------------
+
+As we use :code:`bilby` under the hood, we have access to several different samplers.
+Cross-checking results with different samplers is often a great way to ensure results are robust
+so we encourage users to install multiple samplers and fit models with different samplers.
+
+Nested samplers
+
+- Dynesty:
+- Nestle
+- CPNest
+- PyMultiNest
+- PyPolyChord
+- UltraNest
+- DNest4
+- Nessai
+
+MCMC samplers
+
+- bilby-mcmc
+- emcee
+- ptemcee
+- pymc3
+- zeus
+
+A full up to date list of samplers can be found in the `bilby documentation <https://lscsoft.docs.ligo.org/bilby/samplers.html>`_.
+This page also provides guidance on how to install these samplers, while the bilby `API <https://lscsoft.docs.ligo.org/bilby/api/bilby.core.sampler.html>`_
+provides information on the sampler settings for each sampler.
+
+In redback, having created a transient object, specified a model, priors, fitting is done in a single line.
+
+.. code:: python
+
+    result = redback.fit_model(name='GRB', model=model, sampler='dynesty',
+                               nlive=200, transient=afterglow, prior=priors,
+                               data_mode='luminosity', **kwargs)
+
+Here
+
+- name: `GRB` is a string/name of transient fitting, this is used to .
+- model: is a string referring to a function implemented in redback. Or a function the user has implemented.
+- sampler: is a string referring to the sampler. It could be a string referring to any name of a sampler implemented in :code:`bilby`.
+- nlive: is the number of live points to sample with. Higher = better. Typically we would use nlive=1000/2000 but this depends on the sampler.
+- transient: the transient object
+- prior: the prior object
+- data_mode: type of data to fit.
+- kwargs: Additional keyword arguments to pass to fit_grb, such as the likelihood, or things required by the sampler, label of the result file, directory where results are saved to etc.

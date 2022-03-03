@@ -35,6 +35,7 @@ model_library = {'supernova': 'supernova_models', 'afterglow': 'afterglow_models
 def _get_correct_function(base_model, model_type=None):
     """
     Gets the correct function to use for the base model specified
+
     :param base_model: string or a function
     :param model_type: type of model, could be None if using a function as input
     :return: function; function to evaluate
@@ -74,6 +75,7 @@ def _perform_extinction(flux_density, frequency, av, r_v):
 def _evaluate_extinction_model(time, av, model_type, **kwargs):
     """
     Generalised evaluate extinction function
+
     :param time: time in days
     :param av: absolute mag extinction
     :param model_type: None, or one of the types implemented
@@ -98,6 +100,7 @@ def _evaluate_extinction_model(time, av, model_type, **kwargs):
 def extinction_with_function(time, av, **kwargs):
     """
     Extinction model when using your own specified function
+
     :param time: time in observer frame in days
     :param av: absolute mag extinction
     :param kwargs: Must be all the parameters required by the base_model specified using kwargs['base_model']
@@ -111,6 +114,7 @@ def extinction_with_function(time, av, **kwargs):
 def extinction_with_supernova_base_model(time, av, **kwargs):
     """
     Extinction with models implemented in supernova_models
+
     :param time: time in observer frame in days
     :param av: absolute mag extinction
     :param kwargs: Must be all the parameters required by the base_model specified using kwargs['base_model']
@@ -137,6 +141,7 @@ def extinction_with_kilonova_base_model(time, av, **kwargs):
 def extinction_with_tde_base_model(time, av, **kwargs):
     """
     Extinction with models implemented in tde_models
+
     :param time: time in observer frame in days
     :param av: absolute mag extinction
     :param kwargs: Must be all the parameters required by the base_model specified using kwargs['base_model']
@@ -151,6 +156,7 @@ def extinction_with_tde_base_model(time, av, **kwargs):
 def extinction_with_magnetar_boosted_base_model(time, av, **kwargs):
     """
     Extinction with models implemented in magnetar_boosted_ejecta_models
+
     :param time: time in observer frame in days
     :param av: absolute mag extinction
     :param kwargs: Must be all the parameters required by the base_model specified using kwargs['base_model']
@@ -165,6 +171,7 @@ def extinction_with_magnetar_boosted_base_model(time, av, **kwargs):
 def extinction_with_afterglow_base_model(time, av, **kwargs):
     """
     Extinction with models implemented in afterglow_models
+
     :param time: time in observer frame in days
     :param av: absolute mag extinction
     :param kwargs: Must be all the parameters required by the base_model specified using kwargs['base_model']
@@ -177,6 +184,8 @@ def extinction_with_afterglow_base_model(time, av, **kwargs):
 @citation_wrapper('https://ui.adsabs.harvard.edu/abs/2021arXiv210601556S/abstract')
 def extinction_afterglow_galactic_dust_to_gas_ratio(time, lognh, factor=2.21, **kwargs):
     """
+    Extinction with afterglow models and a dust-to-gas ratio
+
     :param time: time in observer frame in days
     :param lognh: log10 hydrogen column density
     :param factor: factor to convert nh to av i.e., av = nh/factor

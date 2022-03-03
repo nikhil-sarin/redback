@@ -18,6 +18,7 @@ def two_component_powerlaw_model(time, a_1, alpha_1,
                                  delta_time_one, alpha_2, **kwargs):
     """
     Two component powerlaw model
+
     :param time: time array for power law
     :param a_1: power law decay amplitude
     :param alpha_1: power law decay exponent
@@ -43,6 +44,7 @@ def three_component_powerlaw_model(time, a_1, alpha_1,
                                    delta_time_two, alpha_3, **kwargs):
     """
     Three component powerlaw model
+
     :param time: time array for power law
     :param a_1: power law decay amplitude
     :param alpha_1: power law decay exponent
@@ -74,6 +76,7 @@ def four_component_powerlaw_model(time, a_1, alpha_1, delta_time_one,
                                   alpha_4, **kwargs):
     """
     Four component powerlaw model
+
     :param time: time array for power law
     :param a_1: power law decay amplitude
     :param alpha_1: power law decay exponent
@@ -114,6 +117,7 @@ def five_component_powerlaw_model(time, a_1, alpha_1,
                                   delta_time_four, alpha_5):
     """
     Five component powerlaw model
+
     :param time: time array for power law
     :param a_1: power law decay amplitude
     :param alpha_1: power law decay exponent
@@ -163,6 +167,7 @@ def six_component_powerlaw_model(time, a_1, alpha_1,
                                  delta_time_five, alpha_6):
     """
     six component powerlaw model
+
     :param time: time array for power law
     :param a_1: power law decay amplitude
     :param alpha_1: power law decay exponent

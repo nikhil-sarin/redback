@@ -2,8 +2,51 @@
 Get data
 ============
 
-Private data
-Swift
-Open access catalog
-BATSE
-data modes
+Redback provides a simple interface to getting data from the open access, Swift, and BATSE catalogs.
+We will soon add an interface to get data from the Zwicky Transient Facility, and LASAIR.
+
+- Swift: Prompt, X-ray afterglow [counts, flux, flux density]
+- Open access catalog: Supernova, kilonova, tidal disruption event [photometry]
+- BATSE: Prompt [count rate]
+
+For example, downloading the X-ray afterglow of GRB 070809 is as simple as
+
+.. code:: python
+
+    GRB = '070809'
+
+    data = redback.get_data.get_bat_xrt_afterglow_data_from_swift(grb=GRB, data_mode="flux")
+
+Or downloading the flux_density/magnitude data of the kilonova at2017gfo
+
+.. code:: python
+
+    kne = 'at2017gfo'
+
+    data = redback.get_data.get_kilonova_data_from_open_transient_catalog_data(transient=kne)
+
+Both these commands return the data, in a pandas dataframe. They also save the raw data and the processed data in a sensible way.
+In particular, the kilonova data will be saved to :code:`kilonova/at2017gfo/` and the afterglow will be saved to :code:`afterglow/GRB070809/flux/`
+
+Please look at the API or the examples to see how we can get other data.
+
+Basic processing and metadata
+-------------------------
+
+We do some basic processing to the raw data to make the files homogenous and save them in a homogenous format.
+We also get metadata about the transient, such as redshift, start time, photon index etc from publically available sources.
+Users can also provide this data themselves.
+
+Private data or simulated data
+-------------------------
+
+We do not have to use data from the above catalogs for fitting.
+Redback can be used on private data or on simulated data.
+We have written an example demonstrating this `here <https://github.com/nikhil-sarin/redback/blob/master/examples/broadband_afterglow_private_data_example.py>`_
+
+Simulating your own data
+-------------------------
+
+We will soon add an automated interace to simulating data in specific bands/frequencies/flux/luminosity using the in built :code:`redback` models.
+For now, users can use any :code:`redback` model as functions, pass in parameters or a dictionary of parameters, and create their own simulated data.
+See `API <https://redback.readthedocs.io/en/latest/>`_.

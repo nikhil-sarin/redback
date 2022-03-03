@@ -3,9 +3,9 @@ Introducing REDBACK, a bayesian inference software package for fitting electroma
 
 ### Online documentation
 
-- [Installation](https://github.com/nikhil-sarin/redback)
+- [Installation](https://redback.readthedocs.io/en/latest/)
 - [Examples](https://github.com/nikhil-sarin/redback/tree/master/examples)
-- [Documentation](https://github.com/nikhil-sarin/docs)
+- [Documentation](https://redback.readthedocs.io/en/latest/)
 
 
 ### Motivation and why redback might be useful to you.
@@ -21,7 +21,8 @@ Redback is a software package for end-to-end interpretation and parameter estima
 - Fitting returns a homogenous result object, with functionality to plot lightcurves and the posterior/evidence etc.
 
 ### Contributing 
-Redback is currently in alpha with a paper in preparation. If you are interested in contributing please join the redback slack. All contributors at the alpha stage will be invited to be co-authors of the first paper.
+Redback is currently in alpha with a paper in preparation. 
+If you are interested in contributing please join the redback [slack](https://join.slack.com/t/slack-23u4492/shared_invite/zt-14y9q1qmo-VRmc8ZxHzB3u~dB3Wi6pjw). All contributors at the alpha stage will be invited to be co-authors of the first paper.
 
 To make changes to redback, we require users to use a pull request system. 
 
