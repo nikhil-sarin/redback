@@ -1,0 +1,87 @@
+======
+Making changes to models and plotting using dependency injections
+======
+
+Several models and classes in :code:`redback` use dependency injections.
+This allows users to easily swap some functionality with their own preferred method while keeping the rest of the infrastructure intact.
+
+Modifying a model physics/Creating a new model
+-------------------------
+In `models <https://redback.readthedocs.io/en/latest/models.html>`_ we discussed how to make changes to models with functions/classes already implemented in redback.
+
+Here we show how to create your own modification to the physics and pass that into a redback model.
+We demonstrate this functionality with creating a new ejecta relation class,
+that provides a link from the intrinsic binary neutron star parameters to the properties of the ejecta.
+
+.. code:: python
+
+    from redback.ejecta_relations import calc_compactness_from_lambda
+
+    class I_made_this_relation_up(object):
+        """
+        Relations to connect intrinsic GW parameters to extrinsic kilonova parameters
+        """
+        def __init__(self, mass_1, mass_2, lambda_1, lambda_2):
+            self.mass_1 = mass_1
+            self.mass_2 = mass_2
+            self.lambda_1 = lambda_1
+            self.lambda_2 = lambda_2
+            self.reference = 'No, I really just made this up'
+            self.ejecta_mass = self.calculate_ejecta_mass()
+            self.ejecta_velocity = self.calculate_ejecta_velocity()
+
+        @property
+        def calculate_ejecta_velocity(self):
+            c1 = calc_compactness_from_lambda(self.lambda_1)
+            c2 = calc_compactness_from_lambda(self.lambda_2)
+
+            vej = 1000 * (self.mass_1 / self.mass_2) * (1 + 0.5) + 0.99 * (self.mass_2 / self.mass_1)
+            return vej
+
+        @property
+        def calculate_ejecta_mass(self):
+            c1 = calc_compactness_from_lambda(self.lambda_1)
+            c2 = calc_compactness_from_lambda(self.lambda_2)
+
+            log10_mej = (self.mass_1 * (self.mass_2 / self.mass_1)**c1
+
+            mej = 10 ** log10_mej
+            return mej
+
+We can now use the class above in the :code:`redback` `one_component_ejecta_relation_model` kilonova model
+
+.. code:: python
+
+    from redback.model_library import all_models_dict
+    import numpy as np
+
+    model = 'one_component_ejecta_relation_model'
+
+    function = all_models_dict(model)
+    time = np.logspace(2, 8, 100)/day_to_s
+
+    # create a kwargs dictionary for additional model parameters/ejecta relationship
+    kwargs = {}
+
+    # Pass in our class name, the class will be instantiated within the function.
+    kwargs['ejecta_relation'] = I_made_this_relation_up
+
+    kwargs['frequency'] = 2e14   # frequency to evaluate on
+
+    kwargs['temperature_floor'] = 4000 # minimum photosphere temperature
+
+    kwargs['output_format'] = flux_density # output format
+
+    flux_density = function(time, redshift=0.05, mass_1=1.4, mass_2=1.4,
+                                        lambda_1=400, lambda_2=400, kappa=3, **kwargs)
+
+
+The above is just an example to create a new model by changing the relating the ejecta properties in a kilonova to the binary parameters.
+We can similarly create other functions/classes to change what cosmology is used, model engine, type of interaction process, photosphere, or SED.
+
+
+Modifying plot_lightcurve
+-------------------------
+
+Similarly to how a user can modify a model, a user can also modify the plot_lightcurve and plot_multiband_lightcurve routines.
+We don't really recommend this for aesthetic things as they can be simply passed to the existing function, but a user can do this if they want to.
