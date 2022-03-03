@@ -26,6 +26,7 @@ afterglow = redback.transient.Afterglow(
 
 # Now we have loaded the data up, we can plot it.
 afterglow.plot_data()
+afterglow.plot_multiband()
 
 # now let's actually fit it with data. We will use all the data and a gaussiancore structured jet from afterglowpy.
 # Note this is not a fast example, so we will make some sampling sacrifices for speed.
@@ -33,7 +34,7 @@ afterglow.plot_data()
 model = 'gaussiancore'
 
 # use default priors and 'nestle' sampler
-sampler = 'nestle'
+sampler = 'dynesty'
 priors = redback.priors.get_priors(model=model)
 priors['redshift'] = redshift
 
@@ -48,7 +49,7 @@ model_kwargs = dict(frequency=frequency, output_format='flux_density')
 
 # returns a supernova result object
 result = redback.fit_model(name=name, transient=afterglow, model=model, sampler=sampler, model_kwargs=model_kwargs,
-                           prior=priors, data_mode='flux_density', nlive=200, resume=False)
+                           prior=priors, sample='rslice', data_mode='flux_density', nlive=200, resume=True)
 # plot corner
 result.plot_corner()
 

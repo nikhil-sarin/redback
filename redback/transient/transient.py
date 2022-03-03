@@ -132,8 +132,8 @@ class Transient(object):
         self.counts_err = np.sqrt(counts) if counts is not None else None
         self.ttes = ttes
 
-        self.bands = bands
         self.frequency = frequency
+        self.bands = bands
         self.system = system
         self.active_bands = active_bands
         self.data_mode = data_mode
@@ -339,7 +339,7 @@ class Transient(object):
         return self._active_bands
 
     @active_bands.setter
-    def active_bands(self, active_bands: Union[list, str]) -> None:
+    def active_bands(self, active_bands: Union[list, str, None]) -> None:
         """
 
         Parameters
@@ -358,6 +358,18 @@ class Transient(object):
         if self.bands is None:
             return list(np.arange(len(self.x)))
         return [b in self.active_bands for b in self.bands]
+
+    @property
+    def bands(self) -> Union[list, None, np.ndarray]:
+        return self._bands
+
+    @bands.setter
+    def bands(self, bands: Union[list, None, np.ndarray]):
+        if bands is None:
+            self._bands = self.frequency
+        else:
+            self._bands = bands
+
 
     def get_filtered_data(self) -> tuple:
         """

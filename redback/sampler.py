@@ -97,10 +97,9 @@ def _fit_grb(transient, model, outdir=None, label=None, sampler='dynesty', nlive
         outdir = f"{outdir}/{model.__name__}"
     Path(outdir).mkdir(parents=True, exist_ok=True)
 
-    if label is None:
-        label = transient.data_mode
-        if use_photon_index_prior:
-            label += '_photon_index'
+    label = kwargs.get("label", transient.name)
+    if use_photon_index_prior:
+        label += '_photon_index'
 
     if transient.flux_density_data or transient.magnitude_data:
         x, x_err, y, y_err = transient.get_filtered_data()
@@ -122,7 +121,7 @@ def _fit_grb(transient, model, outdir=None, label=None, sampler='dynesty', nlive
     return result
 
 
-def _fit_kilonova(transient, model, outdir=None, label=None, sampler='dynesty', nlive=3000, prior=None, walks=1000,
+def _fit_kilonova(transient, model, outdir=None, sampler='dynesty', nlive=3000, prior=None, walks=1000,
                   resume=True, save_format='json', model_kwargs=None, **kwargs):
 
     if outdir is None:
@@ -131,8 +130,7 @@ def _fit_kilonova(transient, model, outdir=None, label=None, sampler='dynesty', 
         outdir = f"{outdir}/{model.__name__}"
     Path(outdir).mkdir(parents=True, exist_ok=True)
 
-    if label is None:
-        label = f"{transient.data_mode}"
+    label = kwargs.get("label", transient.name)
 
     if transient.flux_density_data or transient.magnitude_data:
         x, x_err, y, y_err = transient.get_filtered_data()
@@ -162,7 +160,7 @@ def _fit_prompt(name, transient, model, outdir, integrated_rate_function=True, s
     outdir = f"{outdir}/GRB{name}/{model.__name__}"
     Path(outdir).mkdir(parents=True, exist_ok=True)
 
-    label = transient.data_mode
+    label = kwargs.get("label", transient.name)
     if use_photon_index_prior:
         label += '_photon_index'
 

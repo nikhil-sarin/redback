@@ -75,12 +75,11 @@ class MultiBandPlotter(object):
                                  f"but {len(filters)} panels are needed.")
             if figsize is None:
                 figsize = (4 * ncols, 4 * nrows)
-            figure, axes = plt.subplots(ncols=ncols, nrows=nrows, sharex='all', sharey='all', figsize=figsize)
+            figure, axes = plt.subplots(ncols=ncols, nrows=nrows, sharex='all', figsize=figsize)
 
         axes = axes.ravel()
 
-        i = 0
-        for indices, band in zip(self.transient.list_of_band_indices, self.transient.unique_bands):
+        for i, (indices, band) in enumerate(zip(self.transient.list_of_band_indices, self.transient.unique_bands)):
             if band not in filters:
                 continue
 
@@ -88,11 +87,14 @@ class MultiBandPlotter(object):
 
             color = colors[filters.index(band)]
 
-            freq = self.transient.bands_to_frequencies([band])
-            if 1e10 < freq < 1e15:
-                label = band
+            if isinstance(band, str):
+                freq = self.transient.bands_to_frequencies([band])
+                if 1e10 < freq < 1e15:
+                    label = band
+                else:
+                    label = freq
             else:
-                label = freq
+                label = f"{band:.2e}"
             axes[i].errorbar(self.transient.x[indices], self.transient.y[indices], xerr=x_err, yerr=self.transient.y_err[indices],
                              fmt=errorbar_fmt, ms=1, color=color, elinewidth=2, capsize=0., label=label)
 
@@ -105,13 +107,13 @@ class MultiBandPlotter(object):
                 axes[i].set_yscale("log")
             axes[i].legend(ncol=2)
             axes[i].tick_params(axis='both', which='major', pad=8)
-            i += 1
 
         figure.supxlabel(xlabel, fontsize=fontsize)
         figure.supylabel(ylabel, fontsize=fontsize)
-        filename = f"{self.transient.name}_{self.transient.data_mode}_{plot_label}.png"
+        filename = f"{self.transient.name}_{plot_label}.png"
         plt.subplots_adjust(wspace=wspace, hspace=hspace)
-        plt.savefig(join(self.transient.transient_dir, filename), bbox_inches="tight")
+        directory_structure = afterglow_directory_structure(grb=self.transient.name, data_mode=self.transient.data_mode)
+        plt.savefig(join(directory_structure.directory_path, filename), bbox_inches="tight")
         return axes
 
 
@@ -223,6 +225,8 @@ class MagnitudePlotter(object):
                 label = None
             else:
                 continue
+            if isinstance(label, float):
+                label = f"{label:.2e}"
             ax.errorbar(
                 self.transient.x[indices], self.transient.y[indices], xerr=x_err, yerr=self.transient.y_err[indices],
                 fmt=errorbar_fmt, ms=1, color=color, elinewidth=2, capsize=0., label=label)
@@ -232,15 +236,15 @@ class MagnitudePlotter(object):
         ax.set_xlabel(xlabel)
         ax.set_ylabel(ylabel)
         ax.tick_params(axis='x', pad=10)
-        ax.legend(ncol=2)
+        ax.legend(ncol=2, loc='best')
 
         if axes is None:
             plt.tight_layout()
 
         if plot_save:
-            filename = f"{self.transient.name}_{self.transient.data_mode}_{plot_label}.png"
+            filename = f"{self.transient.name}_{plot_label}.png"
             structure = afterglow_directory_structure(
-                grb=self.transient.name, data_mode='', instrument='')
+                grb=self.transient.name, data_mode=self.transient.data_mode, instrument='')
 
             plt.savefig(join(structure.directory_path, filename), bbox_inches='tight')
             plt.clf()
