@@ -1,3 +1,5 @@
+[![Documentation Status](https://readthedocs.org/projects/redback/badge/?version=latest)](https://redback.readthedocs.io/en/latest/?badge=latest)
+
 # Redback
 Introducing REDBACK, a bayesian inference software package for fitting electromagnetic transients
 
