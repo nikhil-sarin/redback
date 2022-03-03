@@ -117,7 +117,7 @@ def _fit_grb(transient, model, outdir=None, label=None, sampler='dynesty', nlive
                                outdir=outdir, plot=True, use_ratio=False, walks=walks, resume=resume,
                                maxmcmc=10 * walks, result_class=RedbackResult, meta_data=meta_data,
                                nthreads=4, save_bounds=False, nsteps=nlive, nwalkers=walks, save=save_format, **kwargs)
-
+    plt.close('all')
     return result
 
 

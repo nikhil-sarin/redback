@@ -132,8 +132,9 @@ class Transient(object):
         self.counts_err = np.sqrt(counts) if counts is not None else None
         self.ttes = ttes
 
-        self.frequency = frequency
-        self.bands = bands
+        self._frequency = None
+        self._bands = None
+        self.set_bands_and_frequency(bands=bands, frequency=frequency)
         self.system = system
         self.active_bands = active_bands
         self.data_mode = data_mode
@@ -300,6 +301,18 @@ class Transient(object):
         except KeyError:
             raise ValueError("No data mode specified")
 
+    def set_bands_and_frequency(
+            self, bands: Union[None, list, np.ndarray], frequency: Union[None, list, np.ndarray]):
+        if (bands is None and frequency is None) or (bands is not None and frequency is not None):
+            self._bands = bands
+            self._frequency = bands
+        elif bands is None and frequency is not None:
+            self._frequency = frequency
+            self._bands = self.frequency
+        elif bands is not None and frequency is None:
+            self._bands = bands
+            self._frequency = self.bands_to_frequencies(self.bands)
+
     @property
     def frequency(self) -> np.ndarray:
         """
@@ -319,10 +332,15 @@ class Transient(object):
         frequency: np.ndarray
             Set band frequencies if an array is given. Otherwise, convert bands to frequencies.
         """
-        if frequency is None:
-            self._frequency = self.bands_to_frequencies(self.bands)
-        else:
-            self._frequency = frequency
+        self.set_bands_and_frequency(bands=self.bands, frequency=frequency)
+
+    @property
+    def bands(self) -> Union[list, None, np.ndarray]:
+        return self._bands
+
+    @bands.setter
+    def bands(self, bands: Union[list, None, np.ndarray]):
+        self.set_bands_and_frequency(bands=bands, frequency=self.frequency)
 
     @property
     def filtered_frequencies(self) -> np.array:
@@ -358,18 +376,6 @@ class Transient(object):
         if self.bands is None:
             return list(np.arange(len(self.x)))
         return [b in self.active_bands for b in self.bands]
-
-    @property
-    def bands(self) -> Union[list, None, np.ndarray]:
-        return self._bands
-
-    @bands.setter
-    def bands(self, bands: Union[list, None, np.ndarray]):
-        if bands is None:
-            self._bands = self.frequency
-        else:
-            self._bands = bands
-
 
     def get_filtered_data(self) -> tuple:
         """
@@ -520,9 +526,9 @@ class Transient(object):
         if model_kwargs is None:
             model_kwargs = dict()
         axes = axes or plt.gca()
-        # axes = self.plot_data(axes=axes)
+        axes = self.plot_data(axes=axes)
         axes.set_yscale('log')
-        # plt.semilogy()
+        plt.semilogy()
         times = self._get_times(axes)
 
         posterior.sort_values(by='log_likelihood')
