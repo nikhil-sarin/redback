@@ -4,7 +4,7 @@ Basics of Bayesian inference and parameter estimation
 
 To use redback we assume some level of familiarity with Bayesian inference and model fitting.
 However, if this is not the case, :code:`bilby` provides a basic demonstration of Bayesian inference and
-how they are implemented in :code:`bilby` is available in the :code:`bilby` `documentation <https://lscsoft.docs.ligo.org/bilby/basics-of-parameter-estimation.html>`_
+how it is implemented in :code:`bilby` for a basic problem of fitting a line is available in the :code:`bilby` `documentation <https://lscsoft.docs.ligo.org/bilby/basics-of-parameter-estimation.html>`_
 
 Redback workflow
 -------------------------
