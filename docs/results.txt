@@ -15,6 +15,7 @@ Plotting lightcurves and corner plots
 -------------------------
 
 Plotting a corner plot is as simple as
+
 .. code:: python
 
     result.plot_corner()
