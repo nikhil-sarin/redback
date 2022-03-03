@@ -1,4 +1,61 @@
 ============
 Priors
 ============
+Redback uses bilby priors. See `here <https://lscsoft.docs.ligo.org/bilby/prior.html>`_ for general documentation.
+
+Analytical priors
+-------------------------
+
+Thanks to :code:`bilby` there are several different priors already implemented.
+
+- Beta
+- Categorical
+- Cauchy
+- ChiSquared
+- Cosine
+- DeltaFunction
+- Exponential
+- FermiDirac
+- Gamma
+- Gaussian
+- HalfGaussian
+- LogGaussian
+- LogUniform
+- Logistic
+- Lorentzian
+- PowerLaw
+- Sine
+- StudentT
+- SymmetricLogUniform
+- TruncatedGaussian
+- Uniform
+
+
+Interpolated or from file
+-------------------------
+
+Users can also create a prior from a grid of values i.e., an interpolated_prior.
+See documentation `here <https://lscsoft.docs.ligo.org/bilby/api/bilby.core.prior.interpolated.Interped.html#bilby.core.prior.interpolated.Interped>`_
+
 Constrained priors
+-------------------------
+
+Sometimes there are some additional constraints on the priors that are difficult to parameterise or not on a sampled parameter.
+For example, the rotational energy of a neutron star cannot be exceeded in a super luminous supernova.
+In redback, we have written several of these constraints which can be used by simply loading the particular constraint from redback.constraints
+
+For example,
+
+Create our prior:
+
+.. code:: python
+
+    from bilby.core.prior import PriorDict, Uniform, Constraint
+
+    priors = PriorDict(conversion_function=redback.constraints.slsn_constraint)
+    priors['erot_constraint'] = Constraint(minimum=0, maximum=100)
+    priors['t_nebula_min'] = Constraint(minimum=0, maximum=100)
+
+Then define our priors on all other parameters in the normal way.
+
+You can implement your own constraints by following the constraint templates and :code:`bilby` `documentation <https://lscsoft.docs.ligo.org/bilby/prior.html>_`
