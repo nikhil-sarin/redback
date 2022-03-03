@@ -1,10 +1,10 @@
-import matplotlib
-import numpy as np
-import matplotlib.pyplot as plt
 from os.path import join
 
+import matplotlib
+import matplotlib.pyplot as plt
+import numpy as np
+
 import redback
-from redback.get_data.directory import afterglow_directory_structure
 
 
 class MultiBandPlotter(object):
@@ -79,13 +79,14 @@ class MultiBandPlotter(object):
 
         axes = axes.ravel()
 
-        for i, (indices, band) in enumerate(zip(self.transient.list_of_band_indices, self.transient.unique_bands)):
+        i = 0
+        for indices, band in zip(self.transient.list_of_band_indices, self.transient.unique_bands):
             if band not in filters:
                 continue
 
             x_err = self.transient.x_err[indices] if self.transient.x_err is not None else self.transient.x_err
 
-            color = colors[filters.index(band)]
+            color = colors[list(filters).index(band)]
 
             if isinstance(band, str):
                 freq = self.transient.bands_to_frequencies([band])
@@ -107,13 +108,13 @@ class MultiBandPlotter(object):
                 axes[i].set_yscale("log")
             axes[i].legend(ncol=2)
             axes[i].tick_params(axis='both', which='major', pad=8)
+            i += 1
 
         figure.supxlabel(xlabel, fontsize=fontsize)
         figure.supylabel(ylabel, fontsize=fontsize)
         filename = f"{self.transient.name}_{plot_label}.png"
         plt.subplots_adjust(wspace=wspace, hspace=hspace)
-        directory_structure = afterglow_directory_structure(grb=self.transient.name, data_mode=self.transient.data_mode)
-        plt.savefig(join(directory_structure.directory_path, filename), bbox_inches="tight")
+        plt.savefig(join(self.transient.directory_structure.directory_path, filename), bbox_inches="tight")
         return axes
 
 
@@ -166,9 +167,8 @@ class IntegratedFluxPlotter(object):
         if axes is None:
             plt.tight_layout()
 
-        directory_structure = afterglow_directory_structure(grb=self.transient.name, data_mode=self.transient.data_mode)
         filename = f"{self.transient.name}_lc.png"
-        plt.savefig(join(directory_structure.directory_path, filename))
+        plt.savefig(join(self.transient.directory_structure.directory_path, filename))
         if axes is None:
             plt.clf()
         return ax
@@ -218,7 +218,7 @@ class MagnitudePlotter(object):
         for indices, band in zip(self.transient.list_of_band_indices, self.transient.unique_bands):
             x_err = self.transient.x_err[indices] if self.transient.x_err is not None else self.transient.x_err
             if band in filters:
-                color = colors[filters.index(band)]
+                color = colors[list(filters).index(band)]
                 label = band
             elif plot_others:
                 color = "black"
@@ -243,10 +243,7 @@ class MagnitudePlotter(object):
 
         if plot_save:
             filename = f"{self.transient.name}_{plot_label}.png"
-            structure = afterglow_directory_structure(
-                grb=self.transient.name, data_mode=self.transient.data_mode, instrument='')
-
-            plt.savefig(join(structure.directory_path, filename), bbox_inches='tight')
+            plt.savefig(join(self.transient.directory_structure.directory_path, filename), bbox_inches='tight')
             plt.clf()
         return axes
 

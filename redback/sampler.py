@@ -92,9 +92,7 @@ def _fit_grb(transient, model, outdir=None, label=None, sampler='dynesty', nlive
             prior['alpha_1'] = bilby.prior.Gaussian(mu=-(transient.photon_index + 1), sigma=0.1,
                                                     latex_label=r'$\alpha_{1}$')
     if outdir is None:
-        outdir, _, _ = redback.get_data.directory.afterglow_directory_structure(
-            grb=transient.name, data_mode=transient.data_mode, instrument='')
-        outdir = f"{outdir}/{model.__name__}"
+        outdir = f"{transient.directory_structure.directory_path}/{model.__name__}"
     Path(outdir).mkdir(parents=True, exist_ok=True)
 
     label = kwargs.get("label", transient.name)
