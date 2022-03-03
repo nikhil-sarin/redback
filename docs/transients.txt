@@ -18,7 +18,8 @@ Specific transient object
 
 These parent classes are inherited by some transient specific classes, which provide additional functionality.
 
-- Afterglow: For the afterglow
+- Afterglow: afterglow of a gamma-ray burst
+
     - SGRB/LGRB:  short and long gamma-ray bursts.
 - Kilonova: For kilonovae
 - Prompt: For prompt gamma-ray bursts
