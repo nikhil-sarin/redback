@@ -1,8 +1,44 @@
 ============
 Acknowledgements
 ============
-If you use redback in a scientific publication please cite the eventual redback paper.
-If you use redback to fit a model please cite redback and bilby papers.
-Alongside this, we request that you also cite the paper for a specific sampler and model.
-For all models the code model.citation will print the recommended citation to use if one utilises the model.
-In some cases, this recommends redback itself. In which case, no extra citation is required.
+
+The paper describing :code:`redback` is currently in preparation.
+If you use :code:`redback` in a scientific publication before this paper is released,
+please acknowledge the :code:`redback` software, and cite the github page.
+
+Using :code:`redback` to fit transients
+-------------------------
+
+If you use :code:`redback` to fit an electromagnetic transient, please cite the `Bilby paper <https://ui.adsabs.harvard.edu/#abs/2018arXiv181102042A/abstract>`_
+
+Alongside this we request that you also cite the paper associated with the sampler you use.
+Furthermore, several models implemented in :code:`redback` are introduced in previous scientific publications.
+These scientific publications are easily accessible via :code:`model_name.citation` or as a reference in a class.
+
+For example,
+
+.. code:: python
+
+    from redback.transient_models import kilonova_models
+    import numpy as np
+
+    citation = kilonova_models.one_component_kilonova_model.citation
+
+Here citation will be a url to the ads page for the model.
+If you use a specific model or build upon it, we request that you also cite the paper for the model.
+
+In several cases, the citation will be `redback`, in which case,
+only a citation to :code:`redback`, :code:`bilby`, and the sampler is necessary.
+
+Using :code:`redback` to simulate transients
+-------------------------
+
+If you use the capability of :code:`redback` to simulate a population of transients,
+please cite the :code:`redback` paper (when it is out) and the paper for the model you use.
+
+
+Using :code:`redback` to download transient data
+-------------------------
+
+If you use :code:`redback` to simply download and process data for different transients,
+please cite the :code:`redback` paper (when it is out).
