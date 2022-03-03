@@ -1,6 +1,7 @@
 import redback
 from bilby.core.prior import LogUniform, Uniform
 
+
 # If your favourite model is not implemented in redback. You can still fit it using redback!
 # Now instead of passing a string as the model. You need to pass a python function.
 
@@ -9,7 +10,8 @@ from bilby.core.prior import LogUniform, Uniform
 
 # time must be the first element.
 def my_favourite_model(time, l0, alpha):
-    return l0*time**alpha
+    return l0 * time ** alpha
+
 
 model = my_favourite_model
 
@@ -31,8 +33,8 @@ afterglow.analytical_flux_to_luminosity()
 # You need to create your own priors for this new model.
 # The model has two parameters l0 and alpha. We use bilby priors for this
 priors = {}
-priors['l0'] = LogUniform(1e40, 1e55, 'l0', latex_label = r'$l_{0}$')
-priors['alpha_1'] = Uniform(-7, -1, 'alpha_1', latex_label = r'$\alpha_{1}$')
+priors['l0'] = LogUniform(1e40, 1e55, 'l0', latex_label=r'$l_{0}$')
+priors['alpha_1'] = Uniform(-7, -1, 'alpha_1', latex_label=r'$\alpha_{1}$')
 
 # Call redback.fit_model to run the sampler and obtain GRB result object
 result = redback.fit_model(name=GRB, model=model, sampler='dynesty', nlive=200, transient=afterglow,
