@@ -42,8 +42,8 @@ Constrained priors
 
 Sometimes there are some additional constraints on the priors that are difficult to parameterise or not on a sampled parameter.
 
-For example, the rotational energy of a neutron star cannot be exceeded in a super luminous supernova.
-In redback, we have written several of these constraints which can be used by simply loading the particular constraint from redback.constraints
+For example, the rotational energy of a neutron star cannot be exceeded in a super luminous supernova. Or that a numerical surrogate is only valid in a certain domain etc.
+In redback, we have written several of these constraints which can be used by simply loading the particular constraint from redback.constraints and passing them to the bilby prior dictionary.
 
 For example,
 
