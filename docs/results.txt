@@ -57,4 +57,4 @@ We also provide functionality for loading in a result file.
     redback.result.read_in_result(filepath)
 
 Here filepath is the path to file, the result file recreates the transient object exactly as it was used when fitted.
-This ensures users can keep their results consistent with the data_mode/filters etc of the transient they chose. 
+This ensures users can keep their results consistent with the data_mode/filters etc of the transient they chose.
