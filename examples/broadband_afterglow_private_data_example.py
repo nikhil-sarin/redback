@@ -55,5 +55,3 @@ result.plot_corner()
 
 # plot multiband lightcurve. This will plot a panel for every unique frequency
 result.plot_multiband_lightcurve(random_models=100)
-
-
