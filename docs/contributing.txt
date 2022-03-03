@@ -1,3 +1,20 @@
 ============
 Contributing
 ============
+
+Redback is currently in alpha with a paper in preparation.
+If you are interested in contributing please join the :code:`redback` `slack <https://join.slack.com/t/slack-23u4492/shared_invite/zt-14y9q1qmo-VRmc8ZxHzB3u~dB3Wi6pjw>`_.
+All contributors at the alpha stage will be invited to be co-authors of the first paper.
+
+To make contributions to :code:`redback` at this stage,
+we request that you first make an issue on :code:`redback` github `page <https://github.com/nikhil-sarin/redback/issues>`_.
+This minimises the risk of double effort from different people contributing the same functionality.
+
+We also request that you use a merge request and implement some form of a unit test/or example that can be used to test your feature.
+A lot of the documentation is automatically generated and this requires
+that any feature you implement is well documented following the numpy or restructured text convention.
+
+Before your request is merged, one of the core developers will look through your implementation and suggest any changes if necessary.
+This is to ensure that the software remains consistent and easily maintainable.
+
+For more general tips, we recommend the guide to contributing for :code:`bilby` `here <https://github.com/lscsoft/bilby/blob/master/CONTRIBUTING.md>`_.
