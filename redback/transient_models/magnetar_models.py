@@ -25,7 +25,8 @@ def _integrand(time, mu0, muinf, tm):
 @citation_wrapper('https://ui.adsabs.harvard.edu/abs/2019ApJ...886....5S/abstract')
 def _evolving_magnetar_only(time, mu0, muinf, p0, sinalpha0, tm, II, **kwargs):
     """
-    Model from Mus+2019
+    Millisecond magnetar model with evolution of inclination angle
+
     :param time: time
     :param kwargs: key word argument for handling plotting
     :return: luminosity (depending on scaling) as a function of time.
@@ -142,7 +143,8 @@ def collapsing_magnetar(time, a_1, alpha_1, l0, tau, nn, tcol, **kwargs):
 def general_magnetar(time, a_1, alpha_1,
                      delta_time_one, alpha_2, delta_time_two, **kwargs):
     """
-    Reparameterized millisecond magnetar model from Sarin et al. (2018b) (piecewise)
+    Reparameterized millisecond magnetar model (piecewise)
+
     :param time: time array for power law
     :param a_1: power law decay amplitude
     :param alpha_1: power law decay exponent
@@ -219,7 +221,8 @@ def _integral_mdr(time, t0, kappa, a, **kwargs):
 @citation_wrapper('https://ui.adsabs.harvard.edu/abs/2020MNRAS.499.5986S/abstract')
 def piecewise_radiative_losses(time, a_1, alpha_1, l0, tau, nn, kappa, t0, **kwargs):
     """
-    assumes smoothness and continuity between the prompt and magnetar term by fixing e0 variable
+    Assumes smoothness and continuity between the prompt and magnetar term by fixing e0 variable
+
     :param time:
     :param a_1:
     :param alpha_1:
@@ -248,6 +251,7 @@ def piecewise_radiative_losses(time, a_1, alpha_1, l0, tau, nn, kappa, t0, **kwa
 def radiative_losses(time, a_1, alpha_1, l0, tau, nn, kappa, t0, log_e0, **kwargs):
     """
     radiative losses model with a step function, indicating the magnetar term turns on at T0
+
     :param time:
     :param a_1:
     :param alpha_1:
@@ -274,6 +278,7 @@ def radiative_losses(time, a_1, alpha_1, l0, tau, nn, kappa, t0, log_e0, **kwarg
 def radiative_only(time, l0, tau, nn, kappa, t0, log_e0, **kwargs):
     """
     radiative losses model only
+
     :param time:
     :param l0:
     :param tau:
@@ -297,6 +302,7 @@ def radiative_only(time, l0, tau, nn, kappa, t0, log_e0, **kwargs):
 def radiative_losses_smoothness(time, a_1, alpha_1, l0, tau, nn, kappa, t0, log_e0, **kwargs):
     """
     radiative losses model with a step function, indicating the magnetar term turns on at T0
+
     :param time:
     :param a_1:
     :param alpha_1:
@@ -326,6 +332,7 @@ def radiative_losses_smoothness(time, a_1, alpha_1, l0, tau, nn, kappa, t0, log_
 def radiative_losses_mdr(time, a_1, alpha_1, l0, tau, kappa, log_e0, t0, **kwargs):
     """
     radiative losses model for vacuum dipole radiation
+
     :param time:
     :param a_1:
     :param alpha_1:
@@ -352,6 +359,7 @@ def radiative_losses_mdr(time, a_1, alpha_1, l0, tau, kappa, log_e0, t0, **kwarg
 def collapsing_radiative_losses(time, a_1, alpha_1, l0, tau, nn, tcol, kappa, t0, log_e0, **kwargs):
     """
     radiative losses model with collapse time
+
     :param time:
     :param a_1:
     :param alpha_1:
@@ -379,6 +387,7 @@ def collapsing_radiative_losses(time, a_1, alpha_1, l0, tau, nn, tcol, kappa, t0
 def luminosity_based_magnetar_models(time, photon_index, **kwargs):
     """
     Luminosity models that you want to fit to flux data by placing a prior on the redshift.
+
     :param time: time in observers frame
     :param photon_index: photon index
     :param kwargs: all parameters for the model of choice.

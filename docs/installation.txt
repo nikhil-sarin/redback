@@ -1,3 +1,37 @@
 ============
 Installation
 ============
+
+.. tabs::
+
+   .. tab:: Conda
+
+      .. code-block:: console
+
+          $ conda install -c conda-forge redback
+
+      Supported python versions: 3.7+.
+
+   .. tab:: Pip
+
+      .. code-block:: console
+
+          $ pip install redback
+
+      Supported python versions: 3.7+.
+
+
+This will install all requirements for running :code:`redback` for general transient fitting, including bilby and our default sampler `dynesty
+<https://dynesty.readthedocs.io/en/latest/>`_. Other samplers will need to be
+installed via pip or the appropriate means. Please look through :code:`redback` `documentation<http://redback.readthedocs.io/>`_ for what samplers are available.
+
+
+
+
+For full functionality, please also install optional requirements.
+.. code-block:: console
+
+   $ git clone git@git.ligo.org:lscsoft/bilby.git
+   $ cd bilby/
+   $ pip install -r requirements.txt
+   $ pip install .

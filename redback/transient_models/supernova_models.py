@@ -224,6 +224,7 @@ def basic_magnetar_powered(time, redshift, p0, bp, mass_ns, theta_pb, interactio
 def slsn_bolometric(time, p0, bp, mass_ns, theta_pb,interaction_process=ip.Diffusion, **kwargs):
     """
     Same as basic magnetar_powered but with constraint on rotational_energy/kinetic_energy and nebula phase
+
     :param time: time in days in source frame
     :param p0: initial spin period
     :param bp: polar magnetic field strength in Gauss
@@ -244,6 +245,7 @@ def slsn(time, redshift, p0, bp, mass_ns, theta_pb, interaction_process=ip.Diffu
          photosphere=photosphere.TemperatureFloor, sed=sed.CutoffBlackbody,**kwargs):
     """
     Same as basic magnetar_powered but with constraint on rotational_energy/kinetic_energy and nebula phase
+
     :param time: time in days in observer frame
     :param redshift: source redshift
     :param p0: initial spin period

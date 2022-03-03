@@ -5,6 +5,7 @@ from redback.utils import nu_to_lambda, lambda_to_nu
 def blackbody_to_flux_density(temperature, r_photosphere, dl, frequencies):
     """
     A general blackbody_to_flux_density formula
+
     :param temperature: effective temperature in kelvin
     :param r_photosphere: photosphere radius in cm
     :param dl: luminosity_distance in cm
@@ -30,6 +31,7 @@ class CutoffBlackbody(object):
                  frequencies, luminosity_distance, cutoff_wavelength, **kwargs):
         """
         Blackbody SED with a cutoff
+
         :param time: time in source frame in seconds
         :param luminosity: luminosity in cgs
         :param temperature: temperature in kelvin
@@ -108,6 +110,7 @@ class Blackbody(object):
     def __init__(self, temperature, r_photosphere, frequencies, luminosity_distance, **kwargs):
         """
         Simple Blackbody SED
+
         :param temperature: effective temperature in kelvin
         :param r_photosphere: photosphere radius in cm
         :param frequencies: frequencies to calculate in Hz - Must be same length as time array or a single number. In source frame
@@ -133,6 +136,7 @@ class Synchrotron(object):
                  pp,nu_max, source_radius=1e13, f0=1e-26, **kwargs):
         """
         Synchrotron SED
+
         :param frequencies: frequencies to calculate in Hz - Must be same length as time array or a single number. In source frame
         :param luminosity_distance: luminosity_distance in cm
         :param pp: synchrotron power law slope
@@ -179,6 +183,7 @@ class Line(object):
                  line_time=50, line_duration=25, line_amplitude=0.3, **kwargs):
         """
         Modifies the input SED by accounting for absorption lines
+        
         :param time: time in source frame
         :param luminosity: luminosity in cgs
         :param frequency: frequencies to calculate in Hz - Must be same length as time array or a single number. In source frame
