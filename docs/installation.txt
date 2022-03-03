@@ -23,15 +23,38 @@ Installation
 
 This will install all requirements for running :code:`redback` for general transient fitting, including bilby and our default sampler `dynesty
 <https://dynesty.readthedocs.io/en/latest/>`_. Other samplers will need to be
-installed via pip or the appropriate means. Please look through :code:`redback` `documentation<http://redback.readthedocs.io/>`_ for what samplers are available.
+installed via pip or the appropriate means. Please look through :code:`redback` `documentation <http://redback.readthedocs.io/>`_ for what samplers are available.
 
+Install redback from source
+-------------------------
 
+:code:`redback` is developed and tested with Python 3.7+. In the
+following, we assume you have a working python installation, `python pip
+<https://packaging.python.org/tutorials/installing-packages/#use-pip-for-installing>`_,
+and `git <https://git-scm.com/>`_.
 
+Clone the repository, install the requirements, and then install the software:
 
-For full functionality, please also install optional requirements.
 .. code-block:: console
 
-   $ git clone git@git.ligo.org:lscsoft/bilby.git
-   $ cd bilby/
+   $ git clone https://github.com/nikhil-sarin/redback
+   $ cd redback/
    $ pip install -r requirements.txt
    $ pip install .
+
+To install with development mode, use:
+
+.. code-block:: console
+
+   $ git clone https://github.com/nikhil-sarin/redback
+   $ cd redback/
+   $ pip install -r requirements.txt
+   $ pip install . -e
+
+For full functionality, please also install optional requirements.
+
+.. code-block:: console
+
+   $ pip install -r optional_requirements.txt
+
+You are now ready to use redback. Please check out the `examples <https://github.com/nikhil-sarin/redback/tree/master/examples>'_
