@@ -7,7 +7,6 @@ bilby
 matplotlib
 astropy
 afterglowpy
-sherpa
 extinction
 requests
 lxml

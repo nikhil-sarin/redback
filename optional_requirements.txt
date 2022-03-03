@@ -2,3 +2,4 @@ gwemlightcurves
 sncosmo
 lalsimulation
 nestle
+sherpa
