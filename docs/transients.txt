@@ -1,12 +1,134 @@
 ============
 Transients
 ============
-data processing - flux to luminosity
-supernova
-kilonova
-tde
-magnatar_powered_exotica
-afterglow
-broadband afterglow
-prompt
-generic transient
+
+A transient in :code:`redback` is implemented as a :code:`redback.transient` object. This class implements the required functionality for fitting all other analysis.
+It also provides a homogenous way to plot the data, or do any processing such as converting integrated flux to luminosity.
+
+General transient object
+-------------------------
+
+There are two parent classes
+
+- Transient: For any type of generic transient
+- OpticalTransient: For any type of generic optical transient
+
+Specific transient object
+-------------------------
+
+These parent classes are inherited by some transient specific classes, which provide additional functionality.
+
+- Afterglow: For the afterglow
+    - SGRB/LGRB:  short and long gamma-ray bursts.
+- Kilonova: For kilonovae
+- Prompt: For prompt gamma-ray bursts
+- Supernova: For supernovae of different varieties
+- TDE: For tidal disruption events
+
+These classes come with additional functionality and lookup tables which provide metadata useful for further analysis, such as redshift, T90, start time, etc.
+They also allow other processing such as converting flux to luminosity.
+
+We provide two method for the former, a simple analytical method, and a more involved method using `sherpa <https://sherpa.readthedocs.io/en/4.14.0/>`_
+
+For each of the transients we have different :code:`data_modes` which determines what data to fit, plot labels, type of likelihood to use etc.
+We note that the latter two can be changed by users if desired.
+
+Data modes
+-------------------------
+
+The data modes available for each transient are
+
+- Afterglow: luminosity, flux, flux_density, magnitude
+- Kilonova: flux_density, magnitude, luminosity
+- Prompt: counts, time tagged events
+- Supernova: flux_density, magnitude, luminosity
+- TDE: flux_density, magnitude, luminosity
+
+Loading catalog data
+-------------------------
+
+Loading and creating a transient object is simple.
+
+.. code:: python
+
+    kne = 'at2017gfo'
+    kilonova = redback.Kilonova.from_open_access_catalogue(name=kne, data_mode="flux_density", active_bands=np.array(["g", "i"]))
+
+This loads the data from at2017gfo that was previously downloaded and creates a kilonova object, with the flux_density data mode. 
+Here we have also specified :code:`active_bands=np.array(['g', 'i')`. This sets the rest of the data to be inactive, i.e., not used in the fitting.
+All bands/frequencies are active by default.
+
+We can use this transient object to create plots of the data.
+
+.. code:: python
+
+    kwargs = {}
+    kilonova.plot_data()
+    fig, axes = plt.subplots(3, 2, sharex=True, sharey=True, figsize=(12, 8))
+    kilonova.plot_multiband(figure=fig, axes=axes, filters=["g", "r", "i", "z", "y", "J"], **kwargs)
+
+Here the first `plot_data` will plot the data with all bands on one plot. While the second will plot all filters in the list in separate panels.
+We have also passed kwargs here (in this case empty) but can be populated with other keyword arguments to pass to matplotlib. We note that if no figure/axes/filters
+are passed then redback will use the defaults.
+
+A user can create a different plot_data and plot_multiband functions and pass them in when constructing the class.
+We describe this functionality through an example `here <https://github.com/nikhil-sarin/redback/blob/master/examples/>`_.
+
+Other transient objects can be constructed in a similar manner to the kilonova object.
+
+.. code:: python
+
+    prompt = '910505'
+    GRB = '070809'
+    sne = "SN2011kl"
+    tde = "PS18kh"
+
+    afterglow = redback.SGRB.from_swift_grb(name=GRB, data_mode='flux')
+    tidal_disruption_event = redback.TDE.from_open_access_catalogue(tde, data_mode='magnitude')
+    prompt = redback.PromptTimeSeries.from_batse_grb_name(name=name)
+    supernova = redback.supernova.Supernova.from_open_access_catalogue(name=sne, data_mode='flux_density', use_phase_model=True)
+
+Which loads the SGRB, TDE, prompt, and Supernova transient objects with the data for the specific transient respectively.
+Note that in the supernova object, we set :code:`phase_model=True`.
+This sets the time to the actual modified julian date time of the observations, to use when one wants to sample the start time of the transient.
+
+Loading private/simulated data
+-------------------------
+
+The above showed the scenario where a user has used :code:`redback` to download the data.
+In many cases, this is not possible as either a catalog is not implemented in :code:`redback`, or the data is simulated, or the data is private.
+
+In this scenario, a user can still create the :code:`redback.transient` object and use it as they would otherwise.
+
+We demonstrate this with data loaded from a pandas dataframe in the example
+`here <https://github.com/nikhil-sarin/redback/blob/master/examples/broadband_afterglow_private_data_example.py>`_.
+
+Specifically, to create your own transient object, you pass in the time/flux/frequencies/bands to the transient object of relevance.
+
+For example,
+
+.. code:: python
+
+    import pandas as pd
+    import redback
+
+    data = pd.read_csv('data.csv')
+    time_days = data['time'].values
+    flux_density = data['flux_density'].values
+    frequency = data['frequency'].values
+    flux_density_err = data['flux_density_err'].values
+
+    name = '220501'
+    afterglow = redback.afterglow(name=name, time=time_days, flux=flux_density, flux_density_err=flux_density_err, frequency=frequency)
+
+We can again plot the data and multiband data
+
+.. code:: python
+
+    afterglow.plot_data()
+    afterglow.plot_multiband()
+
+
+These transient objects provide the interface to fit and interpret many different types of electromagnetic transients.
+In particular, broadband afterglows, kilonovae, prompt gamma-ray burst, supernovae, tidal disruption events,
+magnetar powered transients, millisecond magnetars or any other generic electromagnetic transient.
