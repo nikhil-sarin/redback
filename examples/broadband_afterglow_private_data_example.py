@@ -8,10 +8,10 @@ import pandas as pd
 
 # load the data file
 data = pd.read_csv('example_data/grb_afterglow.csv')
-time_d = data['time']
-flux_density = data['flux']
-frequency = data['frequency']
-flux_density_err = data['flux_err']
+time_d = data['time'].values
+flux_density = data['flux'].values
+frequency = data['frequency'].values
+flux_density_err = data['flux_err'].values
 
 # we now load the afterglow transient object. We are using flux_density data here so we need to use that data mode
 data_mode = 'flux_density'
@@ -20,14 +20,15 @@ data_mode = 'flux_density'
 name = '170817A'
 redshift = 1e-2
 
-afterglow = redback.transient.Afterglow(name=name, data_mode=data_mode, time=time_d,
-                                        flux_density=flux_density, flux_err=flux_density_err, frequency=frequency)
+afterglow = redback.transient.Afterglow(
+    name=name, data_mode=data_mode, time=time_d,
+    flux_density=flux_density, flux_density_err=flux_density_err, frequency=frequency)
 
 # Now we have loaded the data up, we can plot it.
 afterglow.plot_data()
 
 # now let's actually fit it with data. We will use all the data and a gaussiancore structured jet from afterglowpy.
-# Note this is not a fast example so we will make some sampling sacrifices for speed.
+# Note this is not a fast example, so we will make some sampling sacrifices for speed.
 
 model = 'gaussiancore'
 
@@ -43,11 +44,11 @@ priors['logepse'] = -1.25
 priors['logepsb'] = -3.8
 priors['ksin'] = 1.
 
-model_kwargs = dict(frequencies=frequency, output_format='flux_density')
+model_kwargs = dict(frequency=frequency, output_format='flux_density')
 
 # returns a supernova result object
 result = redback.fit_model(name=name, transient=afterglow, model=model, sampler=sampler, model_kwargs=model_kwargs,
-                           prior=priors, data_mode='flux_density', sample='rslice', nlive=200, resume=False)
+                           prior=priors, data_mode='flux_density', nlive=200, resume=False)
 # plot corner
 result.plot_corner()
 

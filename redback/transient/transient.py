@@ -354,7 +354,9 @@ class Transient(object):
             self._active_bands = active_bands
 
     @property
-    def filtered_indices(self) -> list:
+    def filtered_indices(self) -> Union[list, None]:
+        if self.bands is None:
+            return list(np.arange(len(self.x)))
         return [b in self.active_bands for b in self.bands]
 
     def get_filtered_data(self) -> tuple:

@@ -239,7 +239,10 @@ class MagnitudePlotter(object):
 
         if plot_save:
             filename = f"{self.transient.name}_{self.transient.data_mode}_{plot_label}.png"
-            plt.savefig(join(self.transient.transient_dir, filename), bbox_inches='tight')
+            structure = afterglow_directory_structure(
+                grb=self.transient.name, data_mode='', instrument='')
+
+            plt.savefig(join(structure.directory_path, filename), bbox_inches='tight')
             plt.clf()
         return axes
 

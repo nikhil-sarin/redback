@@ -88,11 +88,11 @@ def cone_afterglow(time, redshift, thv, loge0, thw, thc, logn0, p, logepse, loge
 def gaussiancore(time, redshift, thv, loge0, thc, thw, logn0, p, logepse, logepsb, ksin, g0, **kwargs):
     time = time * day_to_s
     dl = cosmo.luminosity_distance(redshift).cgs.value
-    spread = kwargs['spread']
-    latres = kwargs['latres']
-    tres = kwargs['tres']
+    spread = kwargs.get('spread', True)
+    latres = kwargs.get('latres', 2)
+    tres = kwargs.get('tres', 100)
     jettype = jettype_dict['gaussian_w_core']
-    spectype = kwargs['spectype']
+    spectype = kwargs.get('spectype', 0)
     frequency = kwargs['frequency']
 
     thw = thw * thc
