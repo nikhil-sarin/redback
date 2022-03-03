@@ -176,6 +176,15 @@ class SwiftDataGetter(object):
         -------
         pandas.DataFrame: The processed data.
         """
+        if self.instrument == "BAT+XRT":
+            logger.warning(
+                "You are downloading BAT and XRT data, "
+                "you will need to truncate the data for some models.")
+        elif self.instrument == "XRT":
+            logger.warning(
+                "You are only downloading XRT data, you may not capture"
+                " the tail of the prompt emission.")
+
         self.collect_data()
         return self.convert_raw_data_to_csv()
 
