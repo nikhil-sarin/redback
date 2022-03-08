@@ -60,7 +60,7 @@ def sn_exponential_powerlaw(time, redshift, lbol_0, alpha_1, alpha_2, tpeak_d,
     """
     frequency = kwargs['frequency']
     # time = time * 86400
-    frequency, time = calc_kcorrected_properties(frequencies=frequency, redshift=redshift, time=time)
+    frequency, time = calc_kcorrected_properties(frequency=frequency, redshift=redshift, time=time)
     dl = cosmo.luminosity_distance(redshift).cgs.value
 
     lbol = exponential_powerlaw_bolometric(time=time, lbol_0=lbol_0,
@@ -68,7 +68,7 @@ def sn_exponential_powerlaw(time, redshift, lbol_0, alpha_1, alpha_2, tpeak_d,
                                            interaction_process=interaction_process, **kwargs)
     photo = photosphere(time=time, luminosity=lbol, **kwargs)
     sed_1 = sed(temperature=photo.photosphere_temperature, r_photosphere=photo.r_photosphere,
-              frequencies=frequency, luminosity_distance=dl)
+              frequency=frequency, luminosity_distance=dl)
 
     flux_density = sed_1.flux_density
 
@@ -133,13 +133,13 @@ def arnett(time, redshift, f_nickel, mej, interaction_process=ip.Diffusion,
     """
     frequency = kwargs['frequency']
     # time = time * 86400
-    frequency, time = calc_kcorrected_properties(frequencies=frequency, redshift=redshift, time=time)
+    frequency, time = calc_kcorrected_properties(frequency=frequency, redshift=redshift, time=time)
     dl = cosmo.luminosity_distance(redshift).cgs.value
 
     lbol = arnett_bolometric(time=time, f_nickel=f_nickel, mej=mej, interaction_process=interaction_process, **kwargs)
     photo = photosphere(time=time, luminosity=lbol, **kwargs)
     sed_1 = sed(temperature=photo.photosphere_temperature, r_photosphere=photo.r_photosphere,
-                frequencies=frequency, luminosity_distance=dl)
+                frequency=frequency, luminosity_distance=dl)
 
     flux_density = sed_1.flux_density
 
@@ -203,7 +203,7 @@ def basic_magnetar_powered(time, redshift, p0, bp, mass_ns, theta_pb, interactio
     :return: flux_density or magnitude depending on output_format kwarg
     """
     frequency = kwargs['frequency']
-    frequency, time = calc_kcorrected_properties(frequencies=frequency, redshift=redshift, time=time)
+    frequency, time = calc_kcorrected_properties(frequency=frequency, redshift=redshift, time=time)
     dl = cosmo.luminosity_distance(redshift).cgs.value
 
     lbol = basic_magnetar_powered_bolometric(time=time, p0=p0,bp=bp, mass_ns=mass_ns, theta_pb=theta_pb,
@@ -211,7 +211,7 @@ def basic_magnetar_powered(time, redshift, p0, bp, mass_ns, theta_pb, interactio
     photo = photosphere(time=time, luminosity=lbol, **kwargs)
 
     sed_1 = sed(temperature=photo.photosphere_temperature, r_photosphere=photo.r_photosphere,
-                frequencies=frequency, luminosity_distance=dl)
+                frequency=frequency, luminosity_distance=dl)
 
     flux_density = sed_1.flux_density
 
@@ -263,13 +263,13 @@ def slsn(time, redshift, p0, bp, mass_ns, theta_pb, interaction_process=ip.Diffu
     """
     frequency = kwargs['frequency']
     cutoff_wavelength = kwargs.get('cutoff_wavelength', 3000)
-    frequency, time = calc_kcorrected_properties(frequencies=frequency, redshift=redshift, time=time)
+    frequency, time = calc_kcorrected_properties(frequency=frequency, redshift=redshift, time=time)
     dl = cosmo.luminosity_distance(redshift).cgs.value
     lbol = slsn_bolometric(time=time, p0=p0, bp=bp, mass_ns=mass_ns, theta_pb=theta_pb,
                            interaction_process=interaction_process)
     photo = photosphere(time=time, luminosity=lbol, **kwargs)
     sed_1 = sed(temperature=photo.photosphere_temperature, r_photosphere=photo.r_photosphere,
-                frequencies=frequency, luminosity_distance=dl, cutoff_wavelength=cutoff_wavelength)
+                frequency=frequency, luminosity_distance=dl, cutoff_wavelength=cutoff_wavelength)
 
     flux_density = sed_1.flux_density
 
@@ -300,7 +300,7 @@ def magnetar_nickel(time, redshift, f_nickel, mej, p0, bp, mass_ns, theta_pb, in
     :return: flux_density or magnitude depending on output_format kwarg
     """
     frequency = kwargs['frequency']
-    frequency, time = calc_kcorrected_properties(frequencies=frequency, redshift=redshift, time=time)
+    frequency, time = calc_kcorrected_properties(frequency=frequency, redshift=redshift, time=time)
     dl = cosmo.luminosity_distance(redshift).cgs.value
 
     lbol_mag = _basic_magnetar(time=time*86400, p0=p0, bp=bp, mass_ns=mass_ns, theta_pb=theta_pb)
@@ -314,7 +314,7 @@ def magnetar_nickel(time, redshift, f_nickel, mej, p0, bp, mass_ns, theta_pb, in
     photo = photosphere(time=time, luminosity=lbol, **kwargs)
 
     sed_1 = sed(temperature=photo.photosphere_temperature, r_photosphere=photo.r_photosphere,
-                frequencies=frequency, luminosity_distance=dl)
+                frequency=frequency, luminosity_distance=dl)
 
     flux_density = sed_1.flux_density
 
@@ -340,7 +340,9 @@ def type_1c():
     pass
 
 @citation_wrapper('redback')
-def homologous_expansion_supernova_model_bolometric():
+def homologous_expansion_supernova_model_bolometric(time, **kwargs):
+    v_ejecta = np.sqrt(10.0 * self._energy * FOE /
+                       (3.0 * self._m_ejecta * M_SUN_CGS)) / KM_CGS
     pass
 
 @citation_wrapper('redback')
