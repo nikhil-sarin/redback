@@ -4,8 +4,15 @@ import redback.interaction_processes as ip
 import redback.sed as sed
 import redback.photosphere as photosphere
 from astropy.cosmology import Planck18 as cosmo  # noqa
-from redback.utils import calc_kcorrected_properties, citation_wrapper
+from redback.utils import calc_kcorrected_properties, citation_wrapper, logger
+from redback.constants import day_to_s, solar_mass, km_cgs
+from inspect import isfunction
 import astropy.units as uu
+
+homologous_expansion_models = ['exponential_powerlaw_bolometric', 'arnett_bolometric',
+                               'basic_magnetar_powered_bolometric','slsn_bolometric',
+                               'general_magnetar_slsn_bolometric','csm_interaction_bolometric',
+                               'type_1c_bolometric','type_1a_bolometric']
 
 def thermal_synchrotron():
     """
@@ -323,6 +330,105 @@ def magnetar_nickel(time, redshift, f_nickel, mej, p0, bp, mass_ns, theta_pb, in
     elif kwargs['output_format'] == 'magnitude':
         return flux_density.to(uu.ABmag).value
 
+@citation_wrapper('redback')
+def homologous_expansion_supernova_model_bolometric(time, mej, ek, interaction_process=ip.Diffusion,
+                                                    **kwargs):
+    from redback.model_library import modules_dict  # import model library in function to avoid circular dependency
+    base_model = kwargs['base_model']
+    if isfunction(base_model):
+        function = base_model
+    elif base_model not in homologous_expansion_models:
+        logger.warning('{} is not implemented as a base model'.format(base_model))
+        raise ValueError('Please choose a different base model')
+    elif isinstance(base_model, str):
+        function = modules_dict['supernova_models'][base_model]
+    else:
+        raise ValueError("Not a valid base model.")
+    v_ejecta = np.sqrt(10.0 * ek / (3.0 * mej * solar_mass)) / km_cgs
+    kwargs['vej'] = v_ejecta
+    kwargs['mej'] = mej
+
+    lbol = function(time, interaction_process=interaction_process, **kwargs)
+
+    return lbol
+
+
+@citation_wrapper('redback')
+def thin_shell_supernova_model_bolometric(time, mej, ek, interaction_process=ip.Diffusion,
+                                          **kwargs):
+    from redback.model_library import modules_dict  # import model library in function to avoid circular dependency
+    base_model = kwargs['base_model']
+    if isfunction(base_model):
+        function = base_model
+    elif base_model not in homologous_expansion_models:
+        logger.warning('{} is not implemented as a base model'.format(base_model))
+        raise ValueError('Please choose a different base model')
+    elif isinstance(base_model, str):
+        function = modules_dict['supernova_models'][base_model]
+    else:
+        raise ValueError("Not a valid base model.")
+    v_ejecta = np.sqrt(2.0 * ek / (mej * solar_mass)) / km_cgs
+    kwargs['vej'] = v_ejecta
+    kwargs['mej'] = mej
+
+    lbol = function(time, interaction_process=interaction_process, **kwargs)
+    return lbol
+
+
+@citation_wrapper('redback')
+def homologous_expansion_supernova_model(time, redshift, mej, ek, interaction_process=ip.Diffusion,
+                    photosphere=photosphere.TemperatureFloor, sed=sed.Blackbody, **kwargs):
+    frequency = kwargs['frequency']
+    frequency, time = calc_kcorrected_properties(frequency=frequency, redshift=redshift, time=time)
+    dl = cosmo.luminosity_distance(redshift).cgs.value
+
+    lbol = homologous_expansion_supernova_model_bolometric(time=time, mej=mej, ek=ek,
+                                                           interaction_process=interaction_process, **kwargs)
+    photo = photosphere(time=time, luminosity=lbol, **kwargs)
+
+    sed_1 = sed(temperature=photo.photosphere_temperature, r_photosphere=photo.r_photosphere,
+                frequency=frequency, luminosity_distance=dl)
+
+    flux_density = sed_1.flux_density
+
+    if kwargs['output_format'] == 'flux_density':
+        return flux_density.to(uu.mJy).value
+    elif kwargs['output_format'] == 'magnitude':
+        return flux_density.to(uu.ABmag).value
+
+@citation_wrapper('redback')
+def thin_shell_supernova_model(time, redshift, mej, ek, interaction_process=ip.Diffusion,
+                    photosphere=photosphere.TemperatureFloor, sed=sed.Blackbody, **kwargs):
+    frequency = kwargs['frequency']
+    frequency, time = calc_kcorrected_properties(frequency=frequency, redshift=redshift, time=time)
+    dl = cosmo.luminosity_distance(redshift).cgs.value
+
+    lbol = thin_shell_supernova_model_bolometric(time=time, mej=mej, ek=ek,
+                                     interaction_process=interaction_process, **kwargs)
+    photo = photosphere(time=time, luminosity=lbol, **kwargs)
+
+    sed_1 = sed(temperature=photo.photosphere_temperature, r_photosphere=photo.r_photosphere,
+                frequency=frequency, luminosity_distance=dl)
+
+    flux_density = sed_1.flux_density
+
+    if kwargs['output_format'] == 'flux_density':
+        return flux_density.to(uu.mJy).value
+    elif kwargs['output_format'] == 'magnitude':
+        return flux_density.to(uu.ABmag).value
+
+@citation_wrapper('redback')
+def general_magnetar_slsn_bolometric():
+    pass
+
+@citation_wrapper('redback')
+def general_magnetar_slsn():
+    pass
+
+@citation_wrapper('redback')
+def csm_interaction_bolometric():
+    pass
+
 @citation_wrapper('https://ui.adsabs.harvard.edu/abs/2013ApJ...773...76C/abstract')
 def csm_interaction():
     pass
@@ -331,33 +437,22 @@ def csm_interaction():
 def csm_nickel():
     pass
 
+@citation_wrapper('redback')
+def csm_interaction_bolometric():
+    pass
+
+@citation_wrapper('redback')
+def type_1a_bolometric():
+    pass
+
 @citation_wrapper('https://ui.adsabs.harvard.edu/abs/2018ApJS..236....6G/abstract')
 def type_1a():
+    pass
+
+@citation_wrapper('redback')
+def type_1c_bolometric():
     pass
 
 @citation_wrapper('https://ui.adsabs.harvard.edu/abs/2018ApJS..236....6G/abstract')
 def type_1c():
     pass
-
-@citation_wrapper('redback')
-def homologous_expansion_supernova_model_bolometric(time, **kwargs):
-    v_ejecta = np.sqrt(10.0 * self._energy * FOE /
-                       (3.0 * self._m_ejecta * M_SUN_CGS)) / KM_CGS
-    pass
-
-@citation_wrapper('redback')
-def homologous_expansion_supernova_model():
-    pass
-
-@citation_wrapper('redback')
-def thin_shell_supernova_model_bolometric():
-    pass
-
-@citation_wrapper('redback')
-def thin_shell_supernova_model():
-    pass
-
-@citation_wrapper('redback')
-def general_magnetar_slsn():
-    pass
-
