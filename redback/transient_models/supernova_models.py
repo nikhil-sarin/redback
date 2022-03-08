@@ -333,6 +333,19 @@ def magnetar_nickel(time, redshift, f_nickel, mej, p0, bp, mass_ns, theta_pb, in
 @citation_wrapper('redback')
 def homologous_expansion_supernova_model_bolometric(time, mej, ek, interaction_process=ip.Diffusion,
                                                     **kwargs):
+    """
+    Assumes homologous expansion to transform kinetic energy to ejecta velocity
+
+    :param time: time in days in source frame
+    :param mej: ejecta mass in solar masses
+    :param ek: kinetic energy in ergs
+    :param interaction_process: Default is Diffusion.
+            Can also be None in which case the output is just the raw engine luminosity
+    :param kwargs: Must be all the kwargs required by the specific interaction_process
+             e.g., for Diffusion: kappa, kappa_gamma, vej (km/s), temperature_floor
+            'base model' from homologous_expansion_models list
+    :return: bolometric_luminosity
+    """
     from redback.model_library import modules_dict  # import model library in function to avoid circular dependency
     base_model = kwargs['base_model']
     if isfunction(base_model):
@@ -356,6 +369,19 @@ def homologous_expansion_supernova_model_bolometric(time, mej, ek, interaction_p
 @citation_wrapper('redback')
 def thin_shell_supernova_model_bolometric(time, mej, ek, interaction_process=ip.Diffusion,
                                           **kwargs):
+    """
+    Assumes thin shell ejecta to transform kinetic energy into ejecta velocity
+
+    :param time: time in days in source frame
+    :param mej: ejecta mass in solar masses
+    :param ek: kinetic energy in ergs
+    :param interaction_process: Default is Diffusion.
+            Can also be None in which case the output is just the raw engine luminosity
+    :param kwargs: Must be all the kwargs required by the specific interaction_process
+             e.g., for Diffusion: kappa, kappa_gamma, vej (km/s), temperature_floor,
+             'base model' from homologous_expansion_models list
+    :return: bolometric_luminosity
+    """
     from redback.model_library import modules_dict  # import model library in function to avoid circular dependency
     base_model = kwargs['base_model']
     if isfunction(base_model):
@@ -378,6 +404,23 @@ def thin_shell_supernova_model_bolometric(time, mej, ek, interaction_process=ip.
 @citation_wrapper('redback')
 def homologous_expansion_supernova_model(time, redshift, mej, ek, interaction_process=ip.Diffusion,
                     photosphere=photosphere.TemperatureFloor, sed=sed.Blackbody, **kwargs):
+    """
+    Assumes homologous expansion to transform kinetic energy to ejecta velocity
+
+    :param time: time in days in observer frame
+    :param redshift: source redshift
+    :param mej: ejecta mass in solar masses
+    :param ek: kinetic energy in ergs
+    :param interaction_process: Default is Diffusion.
+            Can also be None in which case the output is just the raw engine luminosity
+    :param photosphere: Default is TemperatureFloor.
+            kwargs must have vej or relevant parameters if using different photosphere model
+    :param sed: Default is blackbody.
+    :param kwargs: Must be all the kwargs required by the specific interaction_process, photosphere, sed methods used
+             e.g., for Diffusion and TemperatureFloor: kappa, kappa_gamma, vej (km/s), temperature_floor
+         'base model' from homologous_expansion_models list
+    :return: flux_density or magnitude depending on output_format kwarg
+    """
     frequency = kwargs['frequency']
     frequency, time = calc_kcorrected_properties(frequency=frequency, redshift=redshift, time=time)
     dl = cosmo.luminosity_distance(redshift).cgs.value
@@ -399,6 +442,23 @@ def homologous_expansion_supernova_model(time, redshift, mej, ek, interaction_pr
 @citation_wrapper('redback')
 def thin_shell_supernova_model(time, redshift, mej, ek, interaction_process=ip.Diffusion,
                     photosphere=photosphere.TemperatureFloor, sed=sed.Blackbody, **kwargs):
+    """
+    Assumes thin shell ejecta to transform kinetic energy into ejecta velocity
+
+    :param time: time in days in observer frame
+    :param redshift: source redshift
+    :param mej: ejecta mass in solar masses
+    :param ek: kinetic energy in ergs
+    :param interaction_process: Default is Diffusion.
+            Can also be None in which case the output is just the raw engine luminosity
+    :param photosphere: Default is TemperatureFloor.
+            kwargs must have vej or relevant parameters if using different photosphere model
+    :param sed: Default is blackbody.
+    :param kwargs: Must be all the kwargs required by the specific interaction_process, photosphere, sed methods used
+             e.g., for Diffusion and TemperatureFloor: kappa, kappa_gamma, vej (km/s), temperature_floor
+             'base model' from homologous_expansion_models list
+    :return: flux_density or magnitude depending on output_format kwarg
+    """
     frequency = kwargs['frequency']
     frequency, time = calc_kcorrected_properties(frequency=frequency, redshift=redshift, time=time)
     dl = cosmo.luminosity_distance(redshift).cgs.value
