@@ -23,7 +23,8 @@ def metzger_magnetar_boosted_kilonova_model(time, redshift, mej, vej, beta, kapp
     :param nn: braking index
     :param thermalisation_efficiency: magnetar thermalisation efficiency
     :param kwargs: neutron_precursor_switch, pair_cascade_switch, ejecta_albedo, magnetar_heating, output_format
-                    frequency (frequency to calculate - Must be same length as time array or a single number)
+                    frequency (frequency to calculate - Must be same length as time array or a single number),
+                    pair_cascade_fraction: fraction of magnetar spin down energy that turns into pair cascades
     :return: flux_density or magnitude
     """
     frequency = kwargs['frequency']
@@ -63,15 +64,13 @@ def _metzger_magnetar_boosted_kilonova_model(time, mej, vej, beta, kappa_r, l0, 
     :param tau_sd: magnetar spin down damping timescale
     :param nn: braking index
     :param thermalisation_efficiency: magnetar thermalisation efficiency
-    :param kwargs: neutron_precursor_switch, pair_cascade_switch, ejecta_albedo, magnetar_heating
+    :param kwargs: neutron_precursor_switch, pair_cascade_switch, ejecta_albedo, magnetar_heating, pair_cascade_fraction
     :return: bolometric_luminosity, temperature, photosphere_radius
     """
     pair_cascade_switch = kwargs.get('pair_cascade_switch', True)
     neutron_precursor_switch = kwargs.get('neutron_precursor_switch', True)
     magnetar_heating = kwargs.get('magnetar_heating', 'first_layer')
 
-    if kwargs['pair_cascade_switch'] == True:
-        ejecta_albedo = kwargs.get('ejecta_albedo', 0.5)
 
     time = time
     tdays = time/86400
@@ -195,7 +194,9 @@ def _metzger_magnetar_boosted_kilonova_model(time, mej, vej, beta, kappa_r, l0, 
     bolometric_luminosity = np.sum(lum_rad, axis=0)
 
     if pair_cascade_switch == True:
-        tlife_t = (0.6/(1 - ejecta_albedo))*(electron_fraction/0.1)**0.5 * (bolometric_luminosity/1.0e45)**0.5 \
+        ejecta_albedo = kwargs.get('ejecta_albedo', 0.5)
+        pair_cascade_fraction = kwargs.get('pair_cascade_fraction', 0.01)
+        tlife_t = (0.6/(1 - ejecta_albedo))*(pair_cascade_fraction/0.1)**0.5 * (lsd/1.0e45)**0.5 \
                   * (v0/(0.3*speed_of_light))**(0.5) * (time/86400)**(-0.5)
         bolometric_luminosity = bolometric_luminosity / (1.0 + tlife_t)
 
