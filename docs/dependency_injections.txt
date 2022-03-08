@@ -3,7 +3,7 @@ Making changes to models and plotting using dependency injections
 ======
 
 Several models and classes in :code:`redback` use dependency injections.
-This allows users to easily swap some functionality with their own preferred method while keeping the rest of the infrastructure intact.
+This enables users to easily swap some functionality with their own preferred method while keeping the rest of the infrastructure intact.
 
 Modifying a model physics/Creating a new model
 -------------------------
