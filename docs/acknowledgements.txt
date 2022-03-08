@@ -9,7 +9,9 @@ please acknowledge the :code:`redback` software, and cite the github page.
 Using :code:`redback` to fit transients
 -------------------------
 
-If you use :code:`redback` to fit an electromagnetic transient, please cite the `Bilby paper <https://ui.adsabs.harvard.edu/#abs/2018arXiv181102042A/abstract>`_
+If you use :code:`redback` to fit an electromagnetic transient,
+please cite the `Bilby paper <https://ui.adsabs.harvard.edu/#abs/2018arXiv181102042A/abstract>`_,
+and the :code:`redback` paper (when it is out).
 
 Alongside this we request that you also cite the paper associated with the sampler you use.
 Furthermore, several models implemented in :code:`redback` are introduced in previous scientific publications.
@@ -24,11 +26,12 @@ For example,
 
     citation = kilonova_models.one_component_kilonova_model.citation
 
-Here citation will be a url to the ads page for the model.
+Here citation will be a url to the NASA ads page for the paper describing the model.
 If you use a specific model or build upon it, we request that you also cite the paper for the model.
 
 In several cases, the citation will be `redback`, in which case,
 only a citation to :code:`redback`, :code:`bilby`, and the sampler is necessary.
+Although we recommend periodically checking the citation in the latest :code:`redback` release.
 
 Using :code:`redback` to simulate transients
 -------------------------
