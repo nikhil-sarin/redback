@@ -48,17 +48,17 @@ def nu_to_lambda(frequency):
     """
     return 1.e10 * (speed_of_light_si / frequency)
 
-def calc_kcorrected_properties(frequencies, redshift, time):
+def calc_kcorrected_properties(frequency, redshift, time):
     """
     Perform k-correction
-    :param frequencies: observer frame frequencies
+    :param frequency: observer frame frequency
     :param redshift: source redshift
     :param time: observer frame time
-    :return: k-corrected frequencies and source frame time
+    :return: k-corrected frequency and source frame time
     """
     time = time / (1 + redshift)
-    frequencies = frequencies * (1 + redshift)
-    return frequencies, time
+    frequency = frequency * (1 + redshift)
+    return frequency, time
 
 
 def mjd_to_jd(mjd):
@@ -146,7 +146,7 @@ def date_to_mjd(year, month, day):
     return mjd
 
 
-def get_filter_frequencies(filter):
+def get_filter_frequency(filter):
     pass
 
 
@@ -205,16 +205,16 @@ def calc_flux_from_mag(magnitude, reference_flux, magnitude_system='AB'):
     return 1000 * flux  # return in mJy
 
 
-def bands_to_frequencies(bands):
+def bands_to_frequency(bands):
     """
-    Converts a list of bands into an array of frequencies in Hz
+    Converts a list of bands into an array of frequency in Hz
     ----------
     bands: list[str]
         List of bands.
 
     Returns
     ----------
-    array_like: An array of frequencies associated with the given bands.
+    array_like: An array of frequency associated with the given bands.
     """
     if bands is None:
         bands = []

@@ -14,7 +14,6 @@ def metzger_magnetar_boosted_kilonova_model(time, redshift, mej, vej, beta, kapp
     """
     :param time: observer frame time in days
     :param redshift: redshift
-    :param frequencies: frequencies to calculate - Must be same length as time array or a single number
     :param mej: ejecta mass in solar masses
     :param vej: minimum initial velocity
     :param beta: velocity power law slope (M=v^-beta)
@@ -24,10 +23,10 @@ def metzger_magnetar_boosted_kilonova_model(time, redshift, mej, vej, beta, kapp
     :param nn: braking index
     :param thermalisation_efficiency: magnetar thermalisation efficiency
     :param kwargs: neutron_precursor_switch, pair_cascade_switch, ejecta_albedo, magnetar_heating, output_format
-                    frequencies (frequencies to calculate - Must be same length as time array or a single number)
+                    frequency (frequency to calculate - Must be same length as time array or a single number)
     :return: flux_density or magnitude
     """
-    frequencies = kwargs['frequencies']
+    frequency = kwargs['frequency']
     time_temp = np.geomspace(1e-4, 1e7, 300)
     bolometric_luminosity, temperature, r_photosphere = _metzger_magnetar_boosted_kilonova_model(time_temp, mej, vej, beta,
                                                                                                kappa_r, l0, tau_sd, nn,
@@ -39,13 +38,13 @@ def metzger_magnetar_boosted_kilonova_model(time, redshift, mej, vej, beta, kapp
     rad_func = interp1d(time_temp, y=r_photosphere)
     # convert to source frame time and frequency
     time = time * 86400
-    frequencies, time = calc_kcorrected_properties(frequencies=frequencies, redshift=redshift, time=time)
+    frequency, time = calc_kcorrected_properties(frequency=frequency, redshift=redshift, time=time)
 
     temp = temp_func(time)
     photosphere = rad_func(time)
 
     flux_density = blackbody_to_flux_density(temperature=temp, r_photosphere=photosphere,
-                                             dl=dl, frequencies=frequencies)
+                                             dl=dl, frequency=frequency)
 
     if kwargs['output_format'] == 'flux_density':
         return flux_density.to(uu.mJy).value
@@ -288,48 +287,48 @@ def _ejecta_dynamics_and_interaction(time, mej, beta, ejecta_radius, kappa, n_is
     return lorentz_factor, lbol_rest, comoving_temperature, radius, doppler_factor, tau
 
 
-def _comoving_blackbody_to_flux_density(dl, frequencies, radius, temperature, doppler_factor):
+def _comoving_blackbody_to_flux_density(dl, frequency, radius, temperature, doppler_factor):
     """
     :param dl: luminosity distance in cm
-    :param frequencies: frequencies to calculate in Hz - Must be same length as time array or a single number
+    :param frequency: frequency to calculate in Hz - Must be same length as time array or a single number
     :param radius: ejecta radius in cm
     :param temperature: comoving temperature in K
     :param doppler_factor: doppler_factor
     :return: flux_density
     """
     ## adding units back in to ensure dimensions are correct
-    frequencies = frequencies * uu.Hz
+    frequency = frequency * uu.Hz
     radius = radius * uu.cm
     dl = dl * uu.cm
     temperature = temperature * uu.K
     planck = cc.h.cgs
     speed_of_light = cc.c.cgs
     boltzmann_constant = cc.k_B.cgs
-    num = 2 * np.pi * planck * frequencies ** 3 * radius ** 2
+    num = 2 * np.pi * planck * frequency ** 3 * radius ** 2
     denom = dl ** 2 * speed_of_light ** 2 * doppler_factor ** 2
-    frac = 1. / (np.exp((planck * frequencies) / (boltzmann_constant * temperature * doppler_factor)) - 1)
+    frac = 1. / (np.exp((planck * frequency) / (boltzmann_constant * temperature * doppler_factor)) - 1)
     flux_density = num / denom * frac
     return flux_density
 
 
-def _comoving_blackbody_to_luminosity(frequencies, radius, temperature, doppler_factor):
+def _comoving_blackbody_to_luminosity(frequency, radius, temperature, doppler_factor):
     """
-    :param frequencies: frequencies to calculate in Hz - Must be same length as time array or a single number
+    :param frequency: frequency to calculate in Hz - Must be same length as time array or a single number
     :param radius: ejecta radius in cm
     :param temperature: comoving temperature in K
     :param doppler_factor: doppler_factor
     :return: luminosity
     """
     ## adding units back in to ensure dimensions are correct
-    frequencies = frequencies * uu.Hz
+    frequency = frequency * uu.Hz
     radius = radius * uu.cm
     temperature = temperature * uu.K
     planck = cc.h.cgs
     speed_of_light = cc.c.cgs
     boltzmann_constant = cc.k_B.cgs
-    num = 8 * np.pi ** 2 * planck * frequencies ** 4 * radius ** 2
+    num = 8 * np.pi ** 2 * planck * frequency ** 4 * radius ** 2
     denom = speed_of_light ** 2 * doppler_factor ** 2
-    frac = 1. / (np.exp((planck * frequencies) / (boltzmann_constant * temperature * doppler_factor)) - 1)
+    frac = 1. / (np.exp((planck * frequency) / (boltzmann_constant * temperature * doppler_factor)) - 1)
     luminosity = num / denom * frac
     return luminosity
 
@@ -349,10 +348,10 @@ def mergernova(time, redshift, mej, beta, ejecta_radius, kappa, n_ism, l0, tau_s
     :param nn: braking index
     :param thermalisation_efficiency: magnetar thermalisation efficiency
     :param kwargs: output_format - whether to output flux density or AB magnitude
-                    frequencies (frequencies to calculate - Must be same length as time array or a single number)
+                    frequency (frequency to calculate - Must be same length as time array or a single number)
     :return: flux density or AB magnitude
     """
-    frequencies = kwargs['frequencies']
+    frequency = kwargs['frequency']
     time_temp = np.geomspace(1e-4, 1e8, 1000, endpoint=True)
     dl = cosmo.luminosity_distance(redshift).cgs.value
     _, bolometric_luminosity, comoving_temperature, radius, doppler_factor, _ = _ejecta_dynamics_and_interaction(
@@ -366,12 +365,12 @@ def mergernova(time, redshift, mej, beta, ejecta_radius, kappa, n_ism, l0, tau_s
     d_func = interp1d(time_temp, y=doppler_factor)
     # convert to source frame time and frequency
     time = time * 86400
-    frequencies, time = calc_kcorrected_properties(frequencies=frequencies, redshift=redshift, time=time)
+    frequency, time = calc_kcorrected_properties(frequency=frequency, redshift=redshift, time=time)
 
     temp = temp_func(time)
     rad = rad_func(time)
     df = d_func(time)
-    flux_density = _comoving_blackbody_to_flux_density(dl=dl, frequencies=frequencies, radius=rad, temperature=temp,
+    flux_density = _comoving_blackbody_to_flux_density(dl=dl, frequency=frequency, radius=rad, temperature=temp,
                                                       doppler_factor=df)
     if kwargs['output_format'] == 'flux_density':
         return flux_density.to(uu.mJy).value
@@ -413,7 +412,7 @@ def _trapped_magnetar_lum(time, mej, beta, ejecta_radius, kappa, n_ism, l0, tau_
     df = d_func(time)
     optical_depth = tau_func(time)
     frequency = kwargs['frequency']
-    trapped_ejecta_lum = _comoving_blackbody_to_luminosity(frequencies=frequency, radius=rad,
+    trapped_ejecta_lum = _comoving_blackbody_to_luminosity(frequency=frequency, radius=rad,
                                                           temperature=temp, doppler_factor=df)
     lsd = _magnetar_only(time, l0=l0, tau=tau_sd, nn=nn)
     lum = np.exp(-optical_depth) * lsd + trapped_ejecta_lum
@@ -439,8 +438,8 @@ def _trapped_magnetar_flux(time, redshift, mej, beta, ejecta_radius, kappa, n_is
     :param kwargs: 'photon_index' used to calculate k correction and convert from luminosity to flux
     :return: integrated flux
     """
-    frequencies = kwargs['frequency']
-    frequencies, time = calc_kcorrected_properties(frequencies=frequencies, redshift=redshift, time=time)
+    frequency = kwargs['frequency']
+    frequency, time = calc_kcorrected_properties(frequency=frequency, redshift=redshift, time=time)
 
 
     lum = _trapped_magnetar_lum(time, mej, beta, ejecta_radius, kappa, n_ism, l0, tau_sd, nn, thermalisation_efficiency,
