@@ -2,22 +2,34 @@
 Code motivation
 ============
 
-How redback can be useful to you
--------------------------
-
 The launch of new telescopes/surveys is leading to an explosion of transient observations.
-Redback is a software package for end-to-end interpretation and parameter estimation of these transients.
+Redback is a software package that enables end-to-end interpretation and parameter estimation of these transients.
+Redback is built with an object oriented modular approach.
+This ensures that users can use different parts of :code:`redback` for their own use without needing to interact with other parts.
+
+How :code:`redback` can be useful to you
+-------------------------
 
 - Download data for supernovae, tidal disruption events, gamma-ray burst afterglows, kilonovae, prompt emission from
-  different catalogs/telescopes; Swift, BATSE, Open access catalogs. Users can also provide their own data or use simulated data
-- Redback processes the data into a homogeneous transient object, plotting lightcurves and doing other processing.
-- The user can then fit one of the models implemented in redback. Or fit their own model. Models for several different types of electromagnetic transients are implemented and range from simple analytical models to numerical surrogates.
-- All models are implemented as functions and can be used to simulate populations, without needing to provide data. This way redback can be used simply as a tool to simulate realistic populations, no need to actually fit anything.
-- `Bilby <https://lscsoft.docs.ligo.org/bilby/index.html>`_ under the hood. Can easily switch samplers/likelihoods etc. By default the choice is made depending on the data.
-- Fitting returns a homogenous result object, with functionality to plot lightcurves and the posterior/evidence etc.
+  different catalogs/telescopes; Swift, BATSE, Open access catalogs, ZTF, etc. Users can also provide their own data or use simulated data.
+- Process transient data into a homogeneous transient object, providing an interface for plotting lightcurves and doing other processing.
+- Fit one of the models implemented in :code:`redback`, or fit your own model.
+  Models for several different types of electromagnetic transients are implemented and range from simple analytical models to numerical surrogates.
+- All models are implemented as functions and can be used to simulate populations, without needing to provide data.
+This way :code:`redback` can be used simply as a tool to simulate realistic populations, no need to actually fit anything.
+- Fitting returns a homogenous result object, with functionality to plot lightcurves/walkers/corner and the posterior/evidence/credible interval etc.
+This way :code:`redback` results can feed into hierarchical analysis of populations of transients or be used in reweighting.
 
-Advantages of the interface to Bilby
+Advantages of the interface to :code:`bilby`
 -------------------------
 
-As we are using :code:`bilby` under the hood for sampling, priors, likelihood, we have a natural interface to gravitational-wave parameter estimation. This enables easy multi-messenger analysis with redback doing the transient part, and bilby doing the GW part.
-We demonstrate this in the `examples <https://github.com/nikhil-sarin/redback/tree/master/examples>`_
+We use `bilby <https://lscsoft.docs.ligo.org/bilby/index.html>`_ under the hood for inference, which has many advantages.
+
+- Easily change samplers, likelihoods, place constraints on priors, etc.
+- Natural interface with gravitational-wave parameter estimation.
+  Enabling multi-messenger analysis with :code:`redback` used in fitting to the electromagnetic data,
+  and :code:`bilby` for gravitational-wave parameter estimation.
+- A large developer/user base for core functionality.
+`:code:`bilby` is adopted by the LIGO-Virgo-Kagra Collaboration
+and used in all parameter estimation results by the LVK collaboration and in over 300 publications,
+a testament to its ease of use and robustness.
