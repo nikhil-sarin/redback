@@ -23,7 +23,7 @@ Installation
 
 This will install all requirements for running :code:`redback` for general transient fitting, including bilby and our default sampler `dynesty
 <https://dynesty.readthedocs.io/en/latest/>`_. Other samplers will need to be
-installed via pip or the appropriate means. Please look through :code:`redback` `documentation <http://redback.readthedocs.io/>`_ for what samplers are available.
+installed via pip or the appropriate means. Please look through :code:`redback` `fitting documentation <https://redback.readthedocs.io/en/latest/fitting.html>`_ for what samplers are available.
 
 Install redback from source
 -------------------------
