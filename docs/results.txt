@@ -10,6 +10,7 @@ such as making pp_plots, walker_plots, getting credible intervals etc. is automa
 See the :code:`bilby` `API <https://lscsoft.docs.ligo.org/bilby/api/bilby.core.result.Result.html#bilby.core.result.Result>`_ for a full list of features.
 
 The result file is by default saved to the `transient/transient_name/model/`, but the user can of course change this.
+It is by default saved in a `json` format, which can be changed to 'hdf5' for more compression.
 
 Plotting lightcurves and corner plots
 -------------------------
@@ -21,7 +22,7 @@ Plotting a corner plot is as simple as
     result.plot_corner()
 
 The user can pass in different keyword arguments to change the look/format/what parameters are plotted.
-See the :code:`bilby` `API <https://lscsoft.docs.ligo.org/bilby/api/bilby.core.sampler.html>`_
+See the :code:`bilby` `API <https://lscsoft.docs.ligo.org/bilby/api/bilby.core.sampler.html>`_.
 
 We can also plot the fit
 

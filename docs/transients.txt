@@ -2,7 +2,7 @@
 Transients
 ============
 
-A transient in :code:`redback` is implemented as a :code:`redback.transient` object. This class implements the required functionality for fitting all other analysis.
+A transient in :code:`redback` is implemented as a :code:`redback.transient` object. This class implements the required functionality for fitting and all other analysis.
 It also provides a homogenous way to plot the data, or do any processing such as converting integrated flux to luminosity.
 
 General transient object
@@ -20,7 +20,7 @@ These parent classes are inherited by some transient specific classes, which pro
 
 - Afterglow: afterglow of a gamma-ray burst
 
-    - SGRB/LGRB:  short and long gamma-ray bursts.
+    - SGRB/LGRB:  short and long gamma-ray bursts
 - Kilonova: For kilonovae
 - Prompt: For prompt gamma-ray bursts
 - Supernova: For supernovae of different varieties
@@ -29,7 +29,7 @@ These parent classes are inherited by some transient specific classes, which pro
 These classes come with additional functionality and lookup tables which provide metadata useful for further analysis, such as redshift, T90, start time, etc.
 They also allow other processing such as converting flux to luminosity.
 
-We provide two method for the former, a simple analytical method, and a more involved method using `sherpa <https://sherpa.readthedocs.io/en/4.14.0/>`_
+We provide two methods for converting integrated flux to luminosity, a simple analytical method, and a more involved method using `sherpa <https://sherpa.readthedocs.io/en/4.14.0/>`_.
 
 For each of the transients we have different :code:`data_modes` which determines what data to fit, plot labels, type of likelihood to use etc.
 We note that the latter two can be changed by users if desired.
@@ -53,7 +53,8 @@ Loading and creating a transient object is simple.
 .. code:: python
 
     kne = 'at2017gfo'
-    kilonova = redback.Kilonova.from_open_access_catalogue(name=kne, data_mode="flux_density", active_bands=np.array(["g", "i"]))
+    kilonova = redback.Kilonova.from_open_access_catalogue(name=kne,
+                data_mode="flux_density", active_bands=np.array(["g", "i"]))
 
 This loads the data from at2017gfo that was previously downloaded and creates a kilonova object, with the flux_density data mode. 
 Here we have also specified :code:`active_bands=np.array(['g', 'i')`. This sets the rest of the data to be inactive, i.e., not used in the fitting.
@@ -66,10 +67,13 @@ We can use this transient object to create plots of the data.
     kwargs = {}
     kilonova.plot_data()
     fig, axes = plt.subplots(3, 2, sharex=True, sharey=True, figsize=(12, 8))
-    kilonova.plot_multiband(figure=fig, axes=axes, filters=["g", "r", "i", "z", "y", "J"], **kwargs)
+    kilonova.plot_multiband(figure=fig, axes=axes,
+                            filters=["g", "r", "i", "z", "y", "J"], **kwargs)
 
 Here the first `plot_data` will plot the data with all bands on one plot. While the second will plot all filters in the list in separate panels.
-We have also passed kwargs here (in this case empty) but can be populated with other keyword arguments to pass to matplotlib. We note that if no figure/axes/filters
+We have also passed kwargs here (in this case empty) but can be populated with other keyword arguments to pass to matplotlib.
+We have also passed in a `fig` and `axes` to set up the plot in the specific way we wanted.
+We note that if no figure/axes/filters
 are passed then redback will use the defaults.
 
 A user can create a different plot_data and plot_multiband functions and pass them in when constructing the class.
@@ -87,11 +91,13 @@ Other transient objects can be constructed in a similar manner to the kilonova o
     afterglow = redback.SGRB.from_swift_grb(name=GRB, data_mode='flux')
     tidal_disruption_event = redback.TDE.from_open_access_catalogue(tde, data_mode='magnitude')
     prompt = redback.PromptTimeSeries.from_batse_grb_name(name=name)
-    supernova = redback.supernova.Supernova.from_open_access_catalogue(name=sne, data_mode='flux_density', use_phase_model=True)
+    supernova = redback.supernova.Supernova.from_open_access_catalogue(name=sne,
+                                data_mode='flux_density', use_phase_model=True)
 
 Which loads the SGRB, TDE, prompt, and Supernova transient objects with the data for the specific transient respectively.
 Note that in the supernova object, we set :code:`phase_model=True`.
-This sets the time to the actual modified julian date time of the observations, to use when one wants to sample the start time of the transient.
+This sets the time attribute of the class to the modified julian date time of the observations.
+This is specifically for situations when users want to also sample the start time of the transient.
 
 Loading private/simulated data
 -------------------------
@@ -120,7 +126,8 @@ For example,
     flux_density_err = data['flux_density_err'].values
 
     name = '220501'
-    afterglow = redback.afterglow(name=name, time=time_days, flux=flux_density, flux_density_err=flux_density_err, frequency=frequency)
+    afterglow = redback.afterglow(name=name, time=time_days, flux=flux_density,
+                                    flux_density_err=flux_density_err, frequency=frequency)
 
 We can again plot the data and multiband data
 

@@ -38,6 +38,7 @@ Specifically, the models already included are
     - magnetar + nickel
     - SLSN
     - exponential powerlaw
+    - SNcosmo
 
 - Magnetar boosted ejecta models:
 
@@ -65,7 +66,8 @@ Specifically, the models already included are
     - 1-6 component piecewise power law
     - exponential_powerlaw
 
-We note that these models can output in a range of format set by the keyword argument `output_format` or using the appropriate bolometric/flux function.
+We note that these models can output in `flux_density` or `magnitude` set by the keyword argument
+`output_format` or using the appropriate bolometric/flux function.
 
 Alongside these models we also include some general models which can many of the above models as a `base_model`
 
@@ -101,8 +103,9 @@ For example:
     bolometric_luminosity = function(time, f_nickel=0.6,
                         mej=30, vej=1000, kappa=2, kappa_gamma=1e2)
 
+Here we use `all_models_dict` to provide a simple way to access the relevant function. A user could of course just import the function themselves.
+
 Users can also use the prior objects to get a simulation of the light curves predicted by the function for randomly drawn samples from the prior.
-Here we have also demonstrated the all_models_dict for easy access to all different models.
 
 .. code:: python
 
@@ -121,12 +124,14 @@ Here we have also demonstrated the all_models_dict for easy access to all differ
     bolometric_luminosity = function(time, **samples.iloc[0])
 
 Remember that the priors are simply a dictionary so users could also just pass a dictionary/dataframe they created themselves as well.
+
 Users could also sample a lot of different draws from the prior at once (in the above we randomly drew a 100 samples) and then loop through them to simulate a population.
 Remember that we can only place arbitrary constraints on the priors to make a really specific population/simulation.
 
 Modifying :code:`redback` models
 -------------------------
-A lot of the physics in different redback models is set by default.
+
+A lot of the physics in different :code:`redback` models is set by default.
 However, several different pieces of physics in various models can be changed by either passing your own function/class (see next section),
 by switching the default argument with something else already implemented in redback, or changing a keyword argument.
 
@@ -142,7 +147,7 @@ The specific physics that can be changed:
 - Different photosphere: See photospheres already implemented `here <https://github.com/nikhil-sarin/redback/blob/master/redback/photosphere.py>`_.
 - Different SED: See SED's already implemented `here <https://github.com/nikhil-sarin/redback/blob/master/redback/sed.py>`_.
 
-We encourage users to add more of these, which is another easy way to contribute to :code:`redback`.
+We encourage users to add more of these physics switches, which is another easy way to contribute to :code:`redback`.
 
 
 

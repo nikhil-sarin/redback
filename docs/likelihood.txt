@@ -3,7 +3,11 @@ Likelihood
 ============
 
 By default the likelihood is determined by the type of transient/data being used.
-However, users can choose a different likelihood (assuming they have an edge case which requires a different likelihood).
+However, users can choose a different likelihood. We note that there is typically only one `correct` choice of likelihood but
+there may be edge cases such as errors in time, or non-detections, or uncertain y errors which requires users to use a different likelihood.
+Many different simple to more complicated likelihoods are included in :code:`redback`,
+these should cover most of the cases seen in transient data but if not, users can write their own likelihoods.
+We encourage users to add such likelihoods to :code:`redback`.
 
 Regular likelihoods
 -------------------------

@@ -3,3 +3,4 @@ sncosmo
 lalsimulation
 nestle
 sherpa
+kilonova-heating-rate

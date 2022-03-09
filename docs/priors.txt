@@ -1,7 +1,7 @@
 ============
 Priors
 ============
-Redback uses bilby priors. See `here <https://lscsoft.docs.ligo.org/bilby/prior.html>`_ for general documentation.
+Redback uses :code:`bilby` under the hood for priors. See `here <https://lscsoft.docs.ligo.org/bilby/prior.html>`_ for general documentation of priors in :code:`bilby`.
 
 Analytical priors
 -------------------------
@@ -35,7 +35,7 @@ Interpolated or from file
 -------------------------
 
 Users can also create a prior from a grid of values i.e., an interpolated_prior.
-See documentation `here <https://lscsoft.docs.ligo.org/bilby/api/bilby.core.prior.interpolated.Interped.html#bilby.core.prior.interpolated.Interped>`_
+See documentation `here <https://lscsoft.docs.ligo.org/bilby/api/bilby.core.prior.interpolated.Interped.html#bilby.core.prior.interpolated.Interped>`_.
 
 Constrained priors
 -------------------------
@@ -49,6 +49,7 @@ For example,
 
 .. code:: python
 
+    import redback
     from bilby.core.prior import PriorDict, Uniform, Constraint
 
     priors = PriorDict(conversion_function=redback.constraints.slsn_constraint)
@@ -57,4 +58,4 @@ For example,
 
 Then define our priors on all other parameters in the normal way.
 
-You can implement your own constraints by following the constraint templates and :code:`bilby` `documentation <https://lscsoft.docs.ligo.org/bilby/prior.html>`_
+You can implement your own constraints by following the constraint templates and :code:`bilby` `documentation <https://lscsoft.docs.ligo.org/bilby/prior.html>`_.

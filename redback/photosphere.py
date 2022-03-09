@@ -10,7 +10,7 @@ class TemperatureFloor(object):
 
         :param time: source frame time in days
         :param luminosity: luminosity
-        :param vej: ejecta velocity in cgs
+        :param vej: ejecta velocity in km/s
         :param temperature_floor: floor temperature in kelvin
         """
         self.time = time
@@ -117,7 +117,7 @@ class Densecore(object):
         :param time: time in source frame in days
         :param luminosity: luminosity
         :param mej: ejecta mass
-        :param vej: ejecta velocity in km
+        :param vej: ejecta velocity in km/s
         :param kappa: opacity
         :param envelope_slope: envelope slope, default = 10
         """
