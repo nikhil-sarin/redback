@@ -4,10 +4,11 @@ import redback.interaction_processes as ip
 import redback.sed as sed
 import redback.photosphere as photosphere
 from astropy.cosmology import Planck18 as cosmo  # noqa
-from redback.utils import calc_kcorrected_properties, citation_wrapper, logger
-from redback.constants import day_to_s, solar_mass, km_cgs
+from redback.utils import calc_kcorrected_properties, citation_wrapper, logger, get_csm_properties
+from redback.constants import day_to_s, solar_mass, km_cgs, au_cgs
 from inspect import isfunction
 import astropy.units as uu
+from collections import namedtuple
 
 homologous_expansion_models = ['exponential_powerlaw_bolometric', 'arnett_bolometric',
                                'basic_magnetar_powered_bolometric','slsn_bolometric',
@@ -32,7 +33,7 @@ def exponential_powerlaw_bolometric(time, lbol_0, alpha_1, alpha_2, tpeak_d, int
     :param alpha_2: second exponent
     :param tpeak_d: peak time in days
     :param interaction_process: Default is Diffusion.
-            Can also be None in which case the output is just the raw engine luminosity
+            Can also be None in which case the output is just the raw engine luminosity, or another interaction process.
     :param kwargs: Must be all the kwargs required by the specific interaction_process
                 e.g., for Diffusion: kappa, kappa_gamma, mej (solar masses), vej (km/s), temperature_floor
     :return: bolometric_luminosity
@@ -57,7 +58,7 @@ def sn_exponential_powerlaw(time, redshift, lbol_0, alpha_1, alpha_2, tpeak_d,
     :param alpha_2: second exponent
     :param tpeak_d: peak time in days
     :param interaction_process: Default is Diffusion.
-            Can also be None in which case the output is just the raw engine luminosity
+            Can also be None in which case the output is just the raw engine luminosity, or another interaction process.
     :param photosphere: Default is TemperatureFloor.
             kwargs must vej or relevant parameters if using different photosphere model
     :param sed: Default is blackbody.
@@ -108,7 +109,7 @@ def arnett_bolometric(time, f_nickel, mej, interaction_process=ip.Diffusion, **k
     :param f_nickel: fraction of nickel mass
     :param mej: total ejecta mass in solar masses
     :param interaction_process: Default is Diffusion.
-            Can also be None in which case the output is just the raw engine luminosity
+            Can also be None in which case the output is just the raw engine luminosity, or another interaction process.
     :param kwargs: Must be all the kwargs required by the specific interaction_process
              e.g., for Diffusion: kappa, kappa_gamma, vej (km/s), temperature_floor
     :return: bolometric_luminosity
@@ -130,7 +131,7 @@ def arnett(time, redshift, f_nickel, mej, interaction_process=ip.Diffusion,
     :param f_nickel: fraction of nickel mass
     :param mej: total ejecta mass in solar masses
     :param interaction_process: Default is Diffusion.
-            Can also be None in which case the output is just the raw engine luminosity
+            Can also be None in which case the output is just the raw engine luminosity, or another interaction process.
     :param photosphere: Default is TemperatureFloor.
             kwargs must have vej or relevant parameters if using different photosphere model
     :param sed: Default is blackbody.
@@ -179,7 +180,7 @@ def basic_magnetar_powered_bolometric(time, p0, bp, mass_ns, theta_pb,interactio
     :param mass_ns: mass of neutron star in solar masses
     :param theta_pb: angle between spin and magnetic field axes
     :param interaction_process: Default is Diffusion.
-            Can also be None in which case the output is just the raw engine luminosity
+            Can also be None in which case the output is just the raw engine luminosity, or another interaction process.
     :param kwargs: Must be all the kwargs required by the specific interaction_process
              e.g., for Diffusion: kappa, kappa_gamma, vej (km/s), temperature_floor
     :return: bolometric_luminosity
@@ -201,7 +202,7 @@ def basic_magnetar_powered(time, redshift, p0, bp, mass_ns, theta_pb, interactio
     :param mass_ns: mass of neutron star in solar masses
     :param theta_pb: angle between spin and magnetic field axes
     :param interaction_process: Default is Diffusion.
-            Can also be None in which case the output is just the raw engine luminosity
+            Can also be None in which case the output is just the raw engine luminosity, or another interaction process.
     :param photosphere: Default is TemperatureFloor.
             kwargs must have vej or relevant parameters if using different photosphere model
     :param sed: Default is blackbody.
@@ -238,7 +239,7 @@ def slsn_bolometric(time, p0, bp, mass_ns, theta_pb,interaction_process=ip.Diffu
     :param mass_ns: mass of neutron star in solar masses
     :param theta_pb: angle between spin and magnetic field axes
     :param interaction_process: Default is Diffusion.
-            Can also be None in which case the output is just the raw engine luminosity
+            Can also be None in which case the output is just the raw engine luminosity, or another interaction process.
     :param kwargs: Must be all the kwargs required by the specific interaction_process
              e.g., for Diffusion: kappa, kappa_gamma, vej (km/s), temperature_floor
     :return: bolometric_luminosity
@@ -260,7 +261,7 @@ def slsn(time, redshift, p0, bp, mass_ns, theta_pb, interaction_process=ip.Diffu
     :param mass_ns: mass of neutron star in solar masses
     :param theta_pb: angle between spin and magnetic field axes
     :param interaction_process: Default is Diffusion.
-            Can also be None in which case the output is just the raw engine luminosity
+            Can also be None in which case the output is just the raw engine luminosity, or another interaction process.
     :param photosphere: Default is TemperatureFloor.
             kwargs must have vej or relevant parameters if using different photosphere model
     :param sed: Default is CutoffBlackbody.
@@ -298,7 +299,7 @@ def magnetar_nickel(time, redshift, f_nickel, mej, p0, bp, mass_ns, theta_pb, in
     :param mass_ns: mass of neutron star in solar masses
     :param theta_pb: angle between spin and magnetic field axes
     :param interaction_process: Default is Diffusion.
-            Can also be None in which case the output is just the raw engine luminosity
+            Can also be None in which case the output is just the raw engine luminosity, or another interaction process.
     :param photosphere: Default is TemperatureFloor.
             kwargs must have vej or relevant parameters if using different photosphere model
     :param sed: Default is blackbody.
@@ -340,7 +341,7 @@ def homologous_expansion_supernova_model_bolometric(time, mej, ek, interaction_p
     :param mej: ejecta mass in solar masses
     :param ek: kinetic energy in ergs
     :param interaction_process: Default is Diffusion.
-            Can also be None in which case the output is just the raw engine luminosity
+            Can also be None in which case the output is just the raw engine luminosity, or another interaction process.
     :param kwargs: Must be all the kwargs required by the specific interaction_process
              e.g., for Diffusion: kappa, kappa_gamma, vej (km/s), temperature_floor
             'base model' from homologous_expansion_models list
@@ -376,7 +377,7 @@ def thin_shell_supernova_model_bolometric(time, mej, ek, interaction_process=ip.
     :param mej: ejecta mass in solar masses
     :param ek: kinetic energy in ergs
     :param interaction_process: Default is Diffusion.
-            Can also be None in which case the output is just the raw engine luminosity
+            Can also be None in which case the output is just the raw engine luminosity, or another interaction process.
     :param kwargs: Must be all the kwargs required by the specific interaction_process
              e.g., for Diffusion: kappa, kappa_gamma, vej (km/s), temperature_floor,
              'base model' from homologous_expansion_models list
@@ -412,7 +413,7 @@ def homologous_expansion_supernova_model(time, redshift, mej, ek, interaction_pr
     :param mej: ejecta mass in solar masses
     :param ek: kinetic energy in ergs
     :param interaction_process: Default is Diffusion.
-            Can also be None in which case the output is just the raw engine luminosity
+            Can also be None in which case the output is just the raw engine luminosity, or another interaction process.
     :param photosphere: Default is TemperatureFloor.
             kwargs must have vej or relevant parameters if using different photosphere model
     :param sed: Default is blackbody.
@@ -450,7 +451,7 @@ def thin_shell_supernova_model(time, redshift, mej, ek, interaction_process=ip.D
     :param mej: ejecta mass in solar masses
     :param ek: kinetic energy in ergs
     :param interaction_process: Default is Diffusion.
-            Can also be None in which case the output is just the raw engine luminosity
+            Can also be None in which case the output is just the raw engine luminosity, or another interaction process.
     :param photosphere: Default is TemperatureFloor.
             kwargs must have vej or relevant parameters if using different photosphere model
     :param sed: Default is blackbody.
@@ -477,29 +478,215 @@ def thin_shell_supernova_model(time, redshift, mej, ek, interaction_process=ip.D
     elif kwargs['output_format'] == 'magnitude':
         return flux_density.to(uu.ABmag).value
 
-@citation_wrapper('redback')
-def general_magnetar_slsn_bolometric():
-    pass
+
+def _csm_engine(time, mej, csm_mass, vej, eta, rho, kappa, r0, **kwargs):
+    """
+    :param time: time in days in source frame
+    :param mej: ejecta mass in solar masses
+    :param csm_mass: csm mass in solar masses
+    :param vej: ejecta velocity in km/s
+    :param eta: csm density profile exponent
+    :param rho: csm density profile amplitude
+    :param kappa: opacity
+    :param r0: radius of csm shell in AU
+    :param kwargs:
+            efficiency: in converting between kinetic energy and luminosity, default 0.5
+            delta: default 1,
+            nn: default 12,
+    :return: named tuple with 'lbol','r_photosphere' 'mass_csm_threshold'
+    """
+    mej = mej * solar_mass
+    csm_mass = csm_mass * solar_mass
+    r0 = r0 * au_cgs
+    vej = vej * km_cgs
+    Esn = 3. * vej ** 2 * mej / 10.
+    ti = 1.
+
+    delta = kwargs.get('delta', 1)
+    nn = kwargs.get('nn', 12)
+    efficiency = kwargs.get('efficiency', 0.5)
+
+    csm_properties = get_csm_properties(nn, eta)
+    AA = csm_properties.AA
+    Bf = csm_properties.Bf
+    Br = csm_properties.Br
+
+    # Derived parameters
+    # scaling constant for CSM density profile
+    qq = rho * r0 ** eta
+    # outer CSM shell radius
+    radius_csm = ((3.0 - eta) / (4.0 * np.pi * qq) * csm_mass + r0 ** (3.0 - eta)) ** (
+            1.0 / (3.0 - eta))
+    # photosphere radius
+    r_photosphere = abs((-2.0 * (1.0 - eta) / (3.0 * kappa * qq) +
+                         radius_csm ** (1.0 - eta)) ** (1.0 / (1.0 - eta)))
+
+    # mass of the optically thick CSM (tau > 2/3).
+    mass_csm_threshold = np.abs(4.0 * np.pi * qq / (3.0 - eta) * (
+            r_photosphere ** (3.0 - eta) - r0 ** (3.0 - eta)))
+
+    # g**n is scaling parameter for ejecta density profile
+    g_n = (1.0 / (4.0 * np.pi * (nn - delta)) * (
+            2.0 * (5.0 - delta) * (nn - 5.0) * Esn) ** ((nn - 3.) / 2.0) / (
+                   (3.0 - delta) * (nn - 3.0) * mej) ** ((nn - 5.0) / 2.0))
+
+    # time at which shock breaks out of optically thick CSM - forward shock
+    t_FS = (abs((3.0 - eta) * qq ** ((3.0 - nn) / (nn - eta)) * (
+            AA * g_n) ** ((eta - 3.0) / (nn - eta)) /
+                (4.0 * np.pi * Bf ** (3.0 - eta))) ** (
+                    (nn - eta) / ((nn - 3.0) * (3.0 - eta))) * (mass_csm_threshold) ** (
+                    (nn - eta) / ((nn - 3.0) * (3.0 - eta))))
+
+    # time at which reverse shock sweeps up all ejecta - reverse shock
+    t_RS = (vej / (Br * (AA * g_n / qq) ** (
+            1.0 / (nn - eta))) *
+            (1.0 - (3.0 - nn) * mej /
+             (4.0 * np.pi * vej **
+              (3.0 - nn) * g_n)) ** (1.0 / (3.0 - nn))) ** (
+                   (nn - eta) / (eta - 3.0))
+
+    mask_1 = t_FS - time * day_to_s > 0
+    mask_2 = t_RS - time * day_to_s > 0
+
+    lbol = efficiency * (2.0 * np.pi / (nn - eta) ** 3 * g_n ** ((5.0 - eta) / (nn - eta)) * qq **
+                         ((nn - 5.0) / (nn - eta)) * (nn - 3.0) ** 2 * (nn - 5.0) * Bf ** (5.0 - eta) * AA **
+                         ((5.0 - eta) / (nn - eta)) * (time * day_to_s + ti) **
+                         ((2.0 * nn + 6.0 * eta - nn * eta - 15.) /
+                          (nn - eta)) + 2.0 * np.pi * (AA * g_n / qq) **
+                         ((5.0 - nn) / (nn - eta)) * Br ** (5.0 - nn) * g_n * ((3.0 - eta) / (nn - eta)) ** 3 * (
+                                     time * day_to_s + ti) **
+                         ((2.0 * nn + 6.0 * eta - nn * eta - 15.0) / (nn - eta)))
+
+    lbol[~mask_1] = 0
+    lbol[~mask_2] = 0
+
+    csm_output = namedtuple('csm_output', ['lbol', 'r_photosphere', 'mass_csm_threshold'])
+    csm_output.lbol = lbol
+    csm_output.r_photosphere = r_photosphere
+    csm_output.mass_csm_threshold = mass_csm_threshold
+    return csm_output
+
 
 @citation_wrapper('redback')
-def general_magnetar_slsn():
-    pass
+def csm_interaction_bolometric(time, mej, csm_mass, vej, eta, rho, kappa, r0,
+                               interaction_process=ip.CSMDiffusion, **kwargs):
+    """
+    :param time: time in days in source frame
+    :param mej: ejecta mass in solar masses
+    :param csm_mass: csm mass in solar masses
+    :param vej: ejecta velocity in km/s
+    :param eta: csm density profile exponent
+    :param rho: csm density profile amplitude
+    :param kappa: opacity
+    :param r0: radius of csm shell in AU
+    :param interaction_process: Default is CSMDiffusion.
+        Can also be None in which case the output is just the raw engine luminosity, or another interaction process.
+    :param kwargs:
+            efficiency: in converting between kinetic energy and luminosity, default 0.5
+            delta: default 1,
+            nn: default 12,
+            If interaction process is different kwargs must include other keyword arguments that are required.
+    :return: bolometric_luminosity
+    """
+    csm_output = _csm_engine(time=time, mej=mej, csm_mass=csm_mass, vej=vej,
+                             eta=eta, rho=rho, kappa=kappa, r0=r0, **kwargs)
+    lbol = csm_output.lbol
+    r_photosphere = csm_output.r_photosphere
+    mass_csm_threshold = csm_output.mass_csm_threshold
 
-@citation_wrapper('redback')
-def csm_interaction_bolometric():
-    pass
+    if interaction_process is not None:
+        interaction_class = interaction_process(time=time, luminosity=lbol,
+                                                kappa=kappa, r_photosphere=r_photosphere,
+                                                mass_csm_threshold=mass_csm_threshold, csm_mass=csm_mass, **kwargs)
+        lbol = interaction_class.new_luminosity
+    return lbol
+
 
 @citation_wrapper('https://ui.adsabs.harvard.edu/abs/2013ApJ...773...76C/abstract')
-def csm_interaction():
-    pass
+def csm_interaction(time, redshift, mej, csm_mass, vej, eta, rho, kappa, r0,
+                    interaction_process=ip.CSMDiffusion, photosphere=photosphere.TemperatureFloor,
+                    sed=sed.Blackbody, **kwargs):
+    """
+    :param time: time in days in observer frame
+    :param redshift: source redshift
+    :param mej: ejecta mass in solar masses
+    :param csm_mass: csm mass in solar masses
+    :param vej: ejecta velocity in km/s
+    :param eta: csm density profile exponent
+    :param rho: csm density profile amplitude
+    :param kappa: opacity
+    :param r0: radius of csm shell in AU
+    :param interaction_process: Default is CSMDiffusion.
+            Can also be None in which case the output is just the raw engine luminosity, or another interaction process.
+    :param photosphere: Default is TemperatureFloor.
+            kwargs must have vej or relevant parameters if using different photosphere model
+    :param sed: Default is blackbody.
+    :param kwargs: Must be all the kwargs required by the specific interaction_process, photosphere, sed methods used
+             e.g., for Diffusion and TemperatureFloor: kappa_gamma, temperature_floor
+             'base model' from homologous_expansion_models list
+    :return: flux_density or magnitude depending on output_format kwarg
+    """
+    frequency = kwargs['frequency']
+    frequency, time = calc_kcorrected_properties(frequency=frequency, redshift=redshift, time=time)
+    dl = cosmo.luminosity_distance(redshift).cgs.value
+
+    lbol = csm_interaction_bolometric(time=time, mej=mej, csm_mass=csm_mass, vej=vej, eta=eta,
+                                      rho=rho, kappa=kappa, r0=r0, interaction_process=interaction_process, **kwargs)
+
+    photo = photosphere(time=time, luminosity=lbol, vej=vej, **kwargs)
+
+    sed_1 = sed(temperature=photo.photosphere_temperature, r_photosphere=photo.r_photosphere,
+                frequency=frequency, luminosity_distance=dl)
+
+    flux_density = sed_1.flux_density
+
+    if kwargs['output_format'] == 'flux_density':
+        return flux_density.to(uu.mJy).value
+    elif kwargs['output_format'] == 'magnitude':
+        return flux_density.to(uu.ABmag).value
 
 @citation_wrapper('https://ui.adsabs.harvard.edu/abs/2018ApJS..236....6G/abstract')
-def csm_nickel():
-    pass
+def csm_nickel(time, redshift, mej, f_nickel, csm_mass, ek, eta, rho, kappa, r0, **kwargs):
+    """
+    Assumes csm and nickel engine with homologous expansion
 
-@citation_wrapper('redback')
-def csm_interaction_bolometric():
-    pass
+    :param time: time in days in observer frame
+    :param redshift: source redshift
+    :param mej: ejecta mass in solar masses
+    :param csm_mass: csm mass in solar masses
+    :param ek: kinetic energy in ergs
+    :param eta: csm density profile exponent
+    :param rho: csm density profile amplitude
+    :param kappa: opacity
+    :param r0: radius of csm shell in AU
+    :param kwargs: kappa_gamma, temperature_floor, and any kwarg to
+                change any other input physics/parameters from default.
+    :return: flux_density or magnitude depending on output_format kwarg
+    """
+    frequency = kwargs['frequency']
+    frequency, time = calc_kcorrected_properties(frequency=frequency, redshift=redshift, time=time)
+    dl = cosmo.luminosity_distance(redshift).cgs.value
+
+    vej = np.sqrt(2.0 * ek / (mej * solar_mass)) / km_cgs
+    kwargs['vej'] = vej
+    nickel_lbol = arnett_bolometric(time=time, f_nickel=f_nickel,
+                                    mej=mej, interaction_process=ip.Diffusion, **kwargs)
+    csm_lbol = csm_interaction_bolometric(time=time, mej=mej, csm_mass=csm_mass, eta=eta,
+                                      rho=rho, kappa=kappa, r0=r0, interaction_process=ip.CSMDiffusion, **kwargs)
+    lbol = nickel_lbol + csm_lbol
+
+    photo = photosphere.TemperatureFloor(time=time, luminosity=lbol, vej=vej, **kwargs)
+
+    sed_1 = sed.Blackbody(temperature=photo.photosphere_temperature, r_photosphere=photo.r_photosphere,
+                frequency=frequency, luminosity_distance=dl)
+
+    flux_density = sed_1.flux_density
+
+    if kwargs['output_format'] == 'flux_density':
+        return flux_density.to(uu.mJy).value
+    elif kwargs['output_format'] == 'magnitude':
+        return flux_density.to(uu.ABmag).value
+
 
 @citation_wrapper('redback')
 def type_1a_bolometric():
@@ -516,3 +703,13 @@ def type_1c_bolometric():
 @citation_wrapper('https://ui.adsabs.harvard.edu/abs/2018ApJS..236....6G/abstract')
 def type_1c():
     pass
+
+@citation_wrapper('redback')
+def general_magnetar_slsn_bolometric():
+    pass
+
+@citation_wrapper('redback')
+def general_magnetar_slsn():
+    pass
+
+
