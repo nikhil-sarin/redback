@@ -126,7 +126,7 @@ class AsphericalDiffusion(object):
         return tau_diff, new_lums
 
 class CSMDiffusion(object):
-    def __init__(self, time, luminosity, kappa, csm_mass, mej, r0, eta, rho, **kwargs):
+    def __init__(self, time, luminosity, kappa, r_photosphere, mass_csm_threshold, csm_mass, **kwargs):
         """
         :param time: source frame time in days
         :param luminosity: luminosity
@@ -141,11 +141,9 @@ class CSMDiffusion(object):
         self.time = time
         self.luminosity = luminosity
         self.kappa = kappa
+        self.r_photosphere = r_photosphere
+        self.mass_csm_threshold = mass_csm_threshold
         self.csm_mass = csm_mass * solar_mass
-        self.m_ejecta = mej * solar_mass
-        self.r0 = r0 * au_cgs
-        self.eta = eta
-        self.rho = rho
         self.reference = 'https://ui.adsabs.harvard.edu/abs/2013ApJ...773...76C/abstract'
 
         self.new_luminosity = []
@@ -156,18 +154,15 @@ class CSMDiffusion(object):
         minimum_log_spacing = -3
 
         # Derived parameters
-        # scaling constant for CSM density profile
-        qq = self.rho * self.r0 ** self.eta
-        # outer CSM shell radius
-        radius_csm = ((3.0 - self.eta) / (4.0 * np.pi * qq) * self.csm_mass + self.r0 ** (3.0 - self.eta)) ** (1.0 / (3.0 - self.eta))
+
         # photosphere radius
-        r_photosphere = abs((-2.0 * (1.0 - self.eta) / (3.0 * self.kappa * qq) +
-                             radius_csm ** (1.0 - self.eta)) ** (1.0 / (1.0 - self.eta)))
+        r_photosphere = self.r_photosphere
 
         tau_diff = (self.kappa * self.csm_mass) / (13.8 * speed_of_light * r_photosphere) / day_to_s
+
         # mass of the optically thick CSM (tau > 2/3).
-        mass_csm_threshold = np.abs(4.0 * np.pi * qq / (3.0 - self.eta) * (
-                r_photosphere ** (3.0 - self.eta) - self.r0 ** (3.0 - self.eta)))
+        mass_csm_threshold = self.mass_csm_threshold
+
         beta = 4. * np.pi ** 3. / 9.
         t0 = self.kappa * (mass_csm_threshold) / (beta * speed_of_light * r_photosphere) / day_to_s
 
