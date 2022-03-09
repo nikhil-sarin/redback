@@ -32,6 +32,27 @@ def citation_wrapper(r):
         return f
     return wrapper
 
+def get_csm_properties(nn, eta):
+    csm_properties = namedtuple('csm_properties', ['AA', 'Bf', 'Br'])
+    filepath = f"{dirname}/tables/csm_table.txt"
+    ns, ss, bfs, brs, aas = np.loadtxt(filepath, delimiter=',', unpack=True)
+    bfs = np.reshape(bfs, (10, 30)).T
+    brs = np.reshape(brs, (10, 30)).T
+    aas = np.reshape(aas, (10, 30)).T
+    ns = np.unique(ns)
+    ss = np.unique(ss)
+    bf_func = RegularGridInterpolator((ss, ns), bfs)
+    br_func = RegularGridInterpolator((ss, ns), brs)
+    aa_func = RegularGridInterpolator((ss, ns), aas)
+
+    Bf = bf_func([nn, eta])[0]
+    Br = br_func([nn, eta])[0]
+    AA = aa_func([nn, eta])[0]
+
+    csm_properties.AA = AA
+    csm_properties.Bf = Bf
+    csm_properties.Br = Br
+    return csm_properties
 
 def lambda_to_nu(wavelength):
     """
