@@ -1,5 +1,6 @@
 import numpy as np
 from redback.transient_models.phenomenological_models import exponential_powerlaw
+from redback.transient_models.magnetar_models import _magnetar_only
 import redback.interaction_processes as ip
 import redback.sed as sed
 import redback.photosphere as photosphere
@@ -67,7 +68,6 @@ def sn_exponential_powerlaw(time, redshift, lbol_0, alpha_1, alpha_2, tpeak_d,
     :return: flux_density or magnitude depending on output_format kwarg
     """
     frequency = kwargs['frequency']
-    # time = time * 86400
     frequency, time = calc_kcorrected_properties(frequency=frequency, redshift=redshift, time=time)
     dl = cosmo.luminosity_distance(redshift).cgs.value
 
@@ -140,7 +140,6 @@ def arnett(time, redshift, f_nickel, mej, interaction_process=ip.Diffusion,
     :return: flux_density or magnitude depending on output_format kwarg
     """
     frequency = kwargs['frequency']
-    # time = time * 86400
     frequency, time = calc_kcorrected_properties(frequency=frequency, redshift=redshift, time=time)
     dl = cosmo.luminosity_distance(redshift).cgs.value
 
@@ -185,7 +184,7 @@ def basic_magnetar_powered_bolometric(time, p0, bp, mass_ns, theta_pb,interactio
              e.g., for Diffusion: kappa, kappa_gamma, vej (km/s), temperature_floor
     :return: bolometric_luminosity
     """
-    lbol = _basic_magnetar(time=time*86400, p0=p0, bp=bp, mass_ns=mass_ns, theta_pb=theta_pb)
+    lbol = _basic_magnetar(time=time*day_to_s, p0=p0, bp=bp, mass_ns=mass_ns, theta_pb=theta_pb)
     if interaction_process is not None:
         interaction_class = interaction_process(time=time, luminosity=lbol, **kwargs)
         lbol = interaction_class.new_luminosity
@@ -267,6 +266,7 @@ def slsn(time, redshift, p0, bp, mass_ns, theta_pb, interaction_process=ip.Diffu
     :param sed: Default is CutoffBlackbody.
     :param kwargs: Must be all the kwargs required by the specific interaction_process, photosphere, sed methods used
              e.g., for Diffusion and TemperatureFloor: kappa, kappa_gamma, vej (km/s), temperature_floor
+             and CutoffBlackbody: cutoff_wavelength, default is 3000 Angstrom
     :return: flux_density or magnitude depending on output_format kwarg
     """
     frequency = kwargs['frequency']
@@ -276,8 +276,9 @@ def slsn(time, redshift, p0, bp, mass_ns, theta_pb, interaction_process=ip.Diffu
     lbol = slsn_bolometric(time=time, p0=p0, bp=bp, mass_ns=mass_ns, theta_pb=theta_pb,
                            interaction_process=interaction_process)
     photo = photosphere(time=time, luminosity=lbol, **kwargs)
-    sed_1 = sed(temperature=photo.photosphere_temperature, r_photosphere=photo.r_photosphere,
-                frequency=frequency, luminosity_distance=dl, cutoff_wavelength=cutoff_wavelength)
+    sed_1 = sed(time=time, luminosity=lbol, temperature=photo.photosphere_temperature,
+                r_photosphere=photo.r_photosphere,frequency=frequency, luminosity_distance=dl,
+                cutoff_wavelength=cutoff_wavelength)
 
     flux_density = sed_1.flux_density
 
@@ -311,7 +312,7 @@ def magnetar_nickel(time, redshift, f_nickel, mej, p0, bp, mass_ns, theta_pb, in
     frequency, time = calc_kcorrected_properties(frequency=frequency, redshift=redshift, time=time)
     dl = cosmo.luminosity_distance(redshift).cgs.value
 
-    lbol_mag = _basic_magnetar(time=time*86400, p0=p0, bp=bp, mass_ns=mass_ns, theta_pb=theta_pb)
+    lbol_mag = _basic_magnetar(time=time*day_to_s, p0=p0, bp=bp, mass_ns=mass_ns, theta_pb=theta_pb)
     lbol_arnett = _nickelcobalt_engine(time=time, f_nickel=f_nickel, mej=mej)
     lbol = lbol_mag + lbol_arnett
 
@@ -688,28 +689,128 @@ def csm_nickel(time, redshift, mej, f_nickel, csm_mass, ek, eta, rho, kappa, r0,
         return flux_density.to(uu.ABmag).value
 
 
-@citation_wrapper('redback')
-def type_1a_bolometric():
-    pass
+@citation_wrapper('https://ui.adsabs.harvard.edu/abs/2018ApJS..236....6G/abstract')
+def type_1a(time, redshift, f_nickel, mej, **kwargs):
+    """
+    A nickel powered explosion with line absorption and cutoff blackbody SED for SNe 1A.
+
+    :param time: time in days in observer frame
+    :param redshift: source redshift
+    :param f_nickel: fraction of nickel mass
+    :param mej: ejecta mass in solar masses
+    :param kwargs: kappa, kappa_gamma, vej (km/s),
+                    temperature_floor (K), Cutoff_wavelength (default is 3000 Angstrom)
+    :return: flux_density or magnitude depending on output_format kwarg
+    """
+    frequency = kwargs['frequency']
+    cutoff_wavelength = kwargs.get('cutoff_wavelength', 3000)
+    frequency, time = calc_kcorrected_properties(frequency=frequency, redshift=redshift, time=time)
+    dl = cosmo.luminosity_distance(redshift).cgs.value
+    lbol = arnett_bolometric(time=time, f_nickel=f_nickel, mej=mej,
+                             interaction_process=ip.Diffusion, **kwargs)
+
+    photo = photosphere.TemperatureFloor(time=time, luminosity=lbol, **kwargs)
+    sed_1 = sed.CutoffBlackbody(time=time, luminosity=lbol, temperature=photo.photosphere_temperature,
+                                r_photosphere=photo.r_photosphere,frequency=frequency, luminosity_distance=dl,
+                                cutoff_wavelength=cutoff_wavelength)
+    sed_2 = sed.Line(time=time, luminosity=lbol, frequency=frequency, luminosity_distance=dl,
+                     sed=sed_1, **kwargs)
+
+    flux_density = sed_2.flux_density
+
+    if kwargs['output_format'] == 'flux_density':
+        return flux_density.to(uu.mJy).value
+    elif kwargs['output_format'] == 'magnitude':
+        return flux_density.to(uu.ABmag).value
+
 
 @citation_wrapper('https://ui.adsabs.harvard.edu/abs/2018ApJS..236....6G/abstract')
-def type_1a():
-    pass
+def type_1c(time, redshift, f_nickel, mej, **kwargs):
+    """
+    A nickel powered explosion with synchrotron and blackbody SED's for SNe 1C.
+
+    :param time: time in days in observer frame
+    :param redshift: source redshift
+    :param f_nickel: fraction of nickel mass
+    :param mej: ejecta mass in solar masses
+    :param kwargs: kappa, kappa_gamma, vej (km/s), temperature_floor (K), pp, nu_max (default is 1e9 Hz)
+            source_radius (default is 1e13), f0: synchrotron normalisation (default is 1e-26).
+    :return: flux_density or magnitude depending on output_format kwarg
+    """
+    frequency = kwargs['frequency']
+    pp = kwargs['pp']
+    nu_max = kwargs.get('nu_max', 1e9)
+    frequency, time = calc_kcorrected_properties(frequency=frequency, redshift=redshift, time=time)
+    dl = cosmo.luminosity_distance(redshift).cgs.value
+    lbol = arnett_bolometric(time=time, f_nickel=f_nickel, mej=mej,
+                             interaction_process=ip.Diffusion, **kwargs)
+
+    photo = photosphere.TemperatureFloor(time=time, luminosity=lbol, **kwargs)
+    sed_1 = sed.Blackbody(temperature=photo.photosphere_temperature,
+                          r_photosphere=photo.r_photosphere,frequency=frequency, luminosity_distance=dl)
+    sed_2 = sed.Synchrotron(frequency=frequency, luminosity_distance=dl, pp=pp, nu_max=nu_max, **kwargs)
+
+    flux_density = sed_1.flux_density + sed_2.flux_density
+
+    if kwargs['output_format'] == 'flux_density':
+        return flux_density.to(uu.mJy).value
+    elif kwargs['output_format'] == 'magnitude':
+        return flux_density.to(uu.ABmag).value
 
 @citation_wrapper('redback')
-def type_1c_bolometric():
-    pass
-
-@citation_wrapper('https://ui.adsabs.harvard.edu/abs/2018ApJS..236....6G/abstract')
-def type_1c():
-    pass
+def general_magnetar_slsn_bolometric(time, l0, tsd, nn, interaction_process=ip.Diffusion, **kwargs):
+    """
+    :param time: time in days in source frame
+    :param l0: magnetar energy normalisation in ergs
+    :param tsd: magnetar spin down damping timescale in source frame days
+    :param nn: braking index
+    :param interaction_process: Default is Diffusion.
+            Can also be None in which case the output is just the raw engine luminosity, or another interaction process.
+    :param kwargs: Must be all the kwargs required by the specific interaction_process,
+             e.g., for Diffusion: kappa, kappa_gamma, vej (km/s)
+    :return:
+    """
+    lbol = _magnetar_only(time=time*day_to_s, l0=l0, tsd=tsd*day_to_s, nn=nn)
+    if interaction_process is not None:
+        interaction_class = interaction_process(time=time, luminosity=lbol, **kwargs)
+        lbol = interaction_class.new_luminosity
+    return lbol
 
 @citation_wrapper('redback')
-def general_magnetar_slsn_bolometric():
-    pass
+def general_magnetar_slsn(time, redshift, l0, tsd, nn, interaction_process = ip.Diffusion,
+    photosphere = photosphere.TemperatureFloor, sed = sed.Blackbody, ** kwargs):
+    """
+    :param time: time in days in observer frame
+    :param redshift: source redshift
+    :param l0: magnetar energy normalisation in ergs
+    :param tsd: magnetar spin down damping timescale in source frame in days
+    :param nn: braking index
+    :param interaction_process: Default is Diffusion.
+            Can also be None in which case the output is just the raw engine luminosity, or another interaction process.
+    :param photosphere: Default is TemperatureFloor.
+            kwargs must have vej or relevant parameters if using different photosphere model
+    :param sed: Default is blackbody.
+    :param kwargs: Must be all the kwargs required by the specific interaction_process, photosphere, sed methods used
+             e.g., for Diffusion and TemperatureFloor: kappa, kappa_gamma, vej (km/s), temperature_floor
+    :return: flux_density or magnitude depending on output_format kwarg
+    """
+    frequency = kwargs['frequency']
+    frequency, time = calc_kcorrected_properties(frequency=frequency, redshift=redshift, time=time)
+    dl = cosmo.luminosity_distance(redshift).cgs.value
 
-@citation_wrapper('redback')
-def general_magnetar_slsn():
-    pass
+    lbol = general_magnetar_slsn_bolometric(time=time, l0=l0, tsd=tsd, nn=nn,
+                                             interaction_process = interaction_process, ** kwargs)
+    photo = photosphere(time=time, luminosity=lbol, **kwargs)
+
+    sed_1 = sed(temperature=photo.photosphere_temperature, r_photosphere=photo.r_photosphere,
+                frequency = frequency, luminosity_distance = dl)
+
+    flux_density = sed_1.flux_density
+
+    if kwargs['output_format'] == 'flux_density':
+        return flux_density.to(uu.mJy).value
+    elif kwargs['output_format'] == 'magnitude':
+        return flux_density.to(uu.ABmag).value
+
 
 
