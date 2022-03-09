@@ -30,6 +30,6 @@ We use `bilby <https://lscsoft.docs.ligo.org/bilby/index.html>`_ under the hood 
   Enabling multi-messenger analysis with :code:`redback` used in fitting to the electromagnetic data,
   and :code:`bilby` for gravitational-wave parameter estimation.
 - A large developer/user base for core functionality.
-`:code:`bilby` is adopted by the LIGO-Virgo-Kagra Collaboration
-and used in all parameter estimation results by the LVK collaboration and in over 300 publications,
-a testament to its ease of use and robustness.
+  :code:`bilby` is adopted by the LIGO-Virgo-Kagra Collaboration
+  and used in all parameter estimation results by the LVK collaboration and in over 300 publications,
+  a testament to its ease of use and robustness.
