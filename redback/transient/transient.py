@@ -9,7 +9,7 @@ from typing import Union
 
 import redback
 from redback.plotting import \
-    MultiBandPlotter, LuminosityPlotter, FluxDensityPlotter, IntegratedFluxPlotter, MagnitudePlotter
+    LuminosityPlotter, FluxDensityPlotter, IntegratedFluxPlotter, MagnitudePlotter
 
 
 class Transient(object):
@@ -458,43 +458,83 @@ class Transient(object):
         """
         return matplotlib.cm.rainbow(np.linspace(0, 1, len(filters)))
 
-    def plot_data(self, axes: matplotlib.axes.Axes = None, colour: str = 'k') -> matplotlib.axes.Axes:
+    def plot_data(self, axes: matplotlib.axes.Axes = None, colour: str = 'k', **kwargs: dict) -> matplotlib.axes.Axes:
         """
-        Base function for data plotting.
+        Plots the Afterglow lightcurve and returns Axes.
 
         Parameters
         ----------
+        axes : Union[matplotlib.axes.Axes, None], optional
+            Matplotlib axes to plot the lightcurve into. Useful for user specific modifications to the plot.
+        colour: str, optional
+            Colour of the data.
+        kwargs: dict
+            Additional keyword arguments to pass in the Plotter methods.
+
+        Returns
+        ----------
+        matplotlib.axes.Axes: The axes with the plot.
+        """
+
+        if self.flux_data:
+            plotter = IntegratedFluxPlotter(transient=self)
+        elif self.luminosity_data:
+            plotter = LuminosityPlotter(transient=self)
+        elif self.flux_density_data:
+            plotter = FluxDensityPlotter(transient=self)
+        elif self.magnitude_data:
+            plotter = MagnitudePlotter(transient=self)
+        else:
+            return axes
+        return plotter.plot_data(axes=axes, colour=colour, **kwargs)
+
+    def plot_multiband(
+            self, figure: matplotlib.figure.Figure = None, axes: matplotlib.axes.Axes = None, ncols: int = 2,
+            nrows: int = None, figsize: tuple = None, filters: list = None, **plot_kwargs: dict) \
+            -> matplotlib.axes.Axes:
+        """
+
+        Parameters
+        ----------
+        figure: matplotlib.figure.Figure, optional
+            Figure can be given if defaults are not satisfying
         axes: matplotlib.axes.Axes, optional
-            Axes can be given if defaults are not satisfying.
-        colour: str, optional
-            Colour for plotted data.
+            Axes can be given if defaults are not satisfying
+        ncols: int, optional
+            Number of columns to use on the plot. Default is 2.
+        nrows: int, optional
+            Number of rows to use on the plot. If None are given this will
+            be inferred from ncols and the number of filters.
+        figsize: tuple, optional
+            Size of the figure. A default based on ncols and nrows will be used if None is given.
+        filters: list, optional
+            Which bands to plot. Will use default filters if None is given.
+        plot_kwargs:
+            Additional optional plotting kwargs:
+            wspace: Extra argument for matplotlib.pyplot.subplots_adjust
+            hspace: Extra argument for matplotlib.pyplot.subplots_adjust
+            fontsize: Label fontsize
+            errorbar_fmt: Errorbar format ('fmt' argument in matplotlib.pyplot.errorbar)
+            colors: colors to be used for the bands
+            xlabel: Plot xlabel
+            ylabel: Plot ylabel
+            plot_label: Addional filename label appended to the default name
 
         Returns
         -------
-        matplotlib.axes.Axes: The user can make additional modifications to the axes.
 
         """
-        fig, axes = plt.subplots()
-        return axes
-
-    def plot_multiband(self, axes: matplotlib.axes.Axes = None, colour: str = 'k') -> matplotlib.axes.Axes:
-        """
-        Base function for multiband data plotting.
-
-        Parameters
-        ----------
-        axes: matplotlib.axes.Axes
-            Axes can be given if defaults are not satisfying.
-        colour: str, optional
-            Colour for plotted data.
-
-        Returns
-        -------
-        matplotlib.axes.Axes: The user can make additional modifications to the axes.
-
-        """
-        fig, axes = plt.subplots()
-        return axes
+        if self.data_mode not in ['flux_density', 'magnitude']:
+            raise ValueError(
+                f'You cannot plot multiband data with {self.data_mode} data mode . Why are you doing this?')
+        if self.magnitude_data:
+            plotter = MagnitudePlotter(transient=self)
+        elif self.flux_density_data:
+            plotter = FluxDensityPlotter(transient=self)
+        else:
+            return
+        return plotter.plot_multiband(
+            figure=figure, axes=axes, ncols=ncols, nrows=nrows, figsize=figsize, filters=filters, **plot_kwargs)
 
     def plot_lightcurve(
             self, model: callable, filename: str = None, axes: matplotlib.axes.Axes = None,  plot_save: bool = True,
@@ -526,31 +566,21 @@ class Transient(object):
         kwargs: dict
             No current function.
         """
-        if filename is None:
-            filename = f"{self.data_mode}_lightcurve.png"
-        if model_kwargs is None:
-            model_kwargs = dict()
-        axes = axes or plt.gca()
-        axes = self.plot_data(axes=axes)
-        axes.set_yscale('log')
-        plt.semilogy()
-        times = self._get_times(axes)
+        if self.flux_data:
+            plotter = IntegratedFluxPlotter(transient=self)
+        elif self.luminosity_data:
+            plotter = LuminosityPlotter(transient=self)
+        elif self.flux_density_data:
+            plotter = FluxDensityPlotter(transient=self)
+        elif self.magnitude_data:
+            plotter = MagnitudePlotter(transient=self)
+        else:
+            return axes
+        return plotter.plot_lightcurve(
+            model=model, filename=filename, axes=axes, plot_save=plot_save,
+            plot_show=plot_show, random_models=random_models, posterior=posterior,
+            outdir=outdir, model_kwargs=model_kwargs, **kwargs)
 
-        times_mesh, frequency_mesh = np.meshgrid(times, self.unique_frequencies)
-        new_model_kwargs = model_kwargs.copy()
-        new_model_kwargs['frequency'] = frequency_mesh
-
-        posterior.sort_values(by='log_likelihood')
-        max_like_params = posterior.iloc[-1]
-        ys = model(times, **max_like_params, **new_model_kwargs)
-        axes.plot(times, ys, color='blue', alpha=0.65, lw=2)
-
-        for _ in range(random_models):
-            params = posterior.iloc[np.random.randint(len(posterior))]
-            ys = model(times, **params, **model_kwargs)
-            axes.plot(times, ys, color='red', alpha=0.05, lw=2, zorder=-1)
-        plt.savefig(join(outdir, filename), dpi=300, bbox_inches="tight")
-        plt.clf()
 
     def plot_multiband_lightcurve(
             self, model: callable, filename: str = None, axes: matplotlib.axes.Axes = None, plot_save: bool = True,
@@ -584,58 +614,18 @@ class Transient(object):
         -------
 
         """
-        if self.luminosity_data or self.flux_data:
-            redback.utils.logger.warning(f"Plotting multiband lightcurve not possible for {self.data_mode}. Returning.")
+        if self.data_mode not in ['flux_density', 'magnitude']:
+            raise ValueError(
+                f'You cannot plot multiband data with {self.data_mode} data mode . Why are you doing this?')
+        if self.magnitude_data:
+            plotter = MagnitudePlotter(transient=self)
+        elif self.flux_density_data:
+            plotter = FluxDensityPlotter(transient=self)
+        else:
             return
-
-        if filename is None:
-            filename = f"{self.name}_multiband_lightcurve.png"
-        axes = axes or plt.gca()
-        axes = self.plot_multiband(axes=axes)
-
-        times = self._get_times(axes)
-
-        times_mesh, frequency_mesh = np.meshgrid(times, self.unique_frequencies)
-        new_model_kwargs = model_kwargs.copy()
-        new_model_kwargs['frequency'] = frequency_mesh
-        posterior.sort_values(by='log_likelihood')
-        max_like_params = posterior.iloc[-1]
-        ys = model(times_mesh, **max_like_params, **new_model_kwargs)
-
-        for i in range(len(self.unique_frequencies)):
-            axes[i].plot(times_mesh[i], ys[i], color='blue', alpha=0.65, lw=2)
-            for _ in range(random_models):
-                params = posterior.iloc[np.random.randint(len(posterior))]
-                ys = model(times_mesh, **params, **new_model_kwargs)
-                axes[i].plot(times, ys[i], color='red', alpha=0.05, lw=2, zorder=-1)
-        if plot_save:
-            plt.savefig(join(outdir, filename), dpi=300, bbox_inches="tight")
-        if plot_show:
-            plt.show()
-        plt.clf()
-
-    def _get_times(self, axes: matplotlib.axes.Axes) -> np.ndarray:
-        """
-
-        Parameters
-        ----------
-        axes: matplotlib.axes.Axes
-            The axes used in the plotting procedure.
-        Returns
-        -------
-        np.ndarray: Linearly or logarithmically scaled time values depending on the y scale used in the plot.
-
-        """
-        if isinstance(axes, np.ndarray):
-            ax = axes[0]
-        else:
-            ax = axes
-
-        if ax.get_yscale() == 'linear':
-            times = np.linspace(self.x[0], self.x[-1], 200)
-        else:
-            times = np.exp(np.linspace(np.log(self.x[0]), np.log(self.x[-1]), 200))
-        return times
+        return plotter.plot_multiband_lightcurve(model=model, filename=filename, axes=axes, plot_save=plot_save,
+            plot_show=plot_show, random_models=random_models, posterior=posterior, outdir=outdir,
+            model_kwargs=model_kwargs, **kwargs)
 
 
 class OpticalTransient(Transient):
@@ -818,89 +808,3 @@ class OpticalTransient(Transient):
         transient_dir, _, _ = redback.get_data.directory.open_access_directory_structure(transient=self.name,
                                                                                          transient_type=self.__class__.__name__.lower())
         return transient_dir
-
-    def plot_data(
-            self, axes: matplotlib.axes.Axes = None, filters: list = None, plot_others: bool = True,
-            plot_save: bool = True, **plot_kwargs: dict) -> None:
-        """
-        Plots the data.
-
-        Parameters
-        ----------
-        axes: matplotlib.axes.Axes, optional
-            Axes can be given if defaults are not satisfying
-        filters: list, optional
-            Which bands to plot. Will use default filters if None is given.
-        plot_others: bool, optional
-            Plot all bands outside filters in black without label if True.
-        plot_kwargs:
-            Additional optional plotting kwargs:
-            errorbar_fmt: Errorbar format ('fmt' argument in matplotlib.pyplot.errorbar)
-            colors: colors to be used for the bands
-            xlabel: Plot xlabel
-            ylabel: Plot ylabel
-            plot_label: Additional filename label appended to the default name
-        """
-        if self.flux_data:
-            plotter = IntegratedFluxPlotter(transient=self)
-        elif self.luminosity_data:
-            plotter = LuminosityPlotter(transient=self)
-        elif self.flux_density_data:
-            plotter = FluxDensityPlotter(transient=self)
-        elif self.magnitude_data:
-            plotter = MagnitudePlotter(transient=self)
-        else:
-            return axes
-        return plotter.plot_data(axes=axes, filters=filters, plot_others=plot_others, plot_save=plot_save, **plot_kwargs)
-
-
-    def plot_multiband(
-            self, figure: matplotlib.figure.Figure = None, axes: matplotlib.axes.Axes = None, ncols: int = 2,
-            nrows: int = None, figsize: tuple = None, filters: list = None, **plot_kwargs: dict) \
-            -> matplotlib.axes.Axes:
-        """
-
-        Parameters
-        ----------
-        figure: matplotlib.figure.Figure, optional
-            Figure can be given if defaults are not satisfying
-        axes: matplotlib.axes.Axes, optional
-            Axes can be given if defaults are not satisfying
-        ncols: int, optional
-            Number of columns to use on the plot. Default is 2.
-        nrows: int, optional
-            Number of rows to use on the plot. If None are given this will
-            be inferred from ncols and the number of filters.
-        figsize: tuple, optional
-            Size of the figure. A default based on ncols and nrows will be used if None is given.
-        filters: list, optional
-            Which bands to plot. Will use default filters if None is given.
-        plot_kwargs:
-            Additional optional plotting kwargs:
-            wspace: Extra argument for matplotlib.pyplot.subplots_adjust
-            hspace: Extra argument for matplotlib.pyplot.subplots_adjust
-            fontsize: Label fontsize
-            errorbar_fmt: Errorbar format ('fmt' argument in matplotlib.pyplot.errorbar)
-            colors: colors to be used for the bands
-            xlabel: Plot xlabel
-            ylabel: Plot ylabel
-            plot_label: Addional filename label appended to the default name
-
-        Returns
-        -------
-
-        """
-        mbd = MultiBandPlotter(transient=self)
-        return mbd.plot_multiband(
-            figure=figure, axes=axes, ncols=ncols,
-            nrows=nrows, figsize=figsize, filters=filters, **plot_kwargs)
-
-    def plot_lightcurve(self, model, filename=None, axes=None, plot_save=True, plot_show=True, random_models=100,
-                        posterior=None, outdir='.', model_kwargs=None, **kwargs):
-
-        axes = axes or plt.gca()
-        axes = self.plot_data(axes=axes, plot_save=False)
-
-        super(OpticalTransient, self).plot_lightcurve(
-            model=model, filename=filename, axes=axes, plot_save=plot_save, plot_show=plot_show,
-            random_models=random_models, posterior=posterior, outdir=outdir, model_kwargs=model_kwargs, **kwargs)

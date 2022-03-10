@@ -13,7 +13,7 @@ from astropy.cosmology import Planck18 as cosmo  # noqa
 from redback.utils import logger
 from redback.get_data.directory import afterglow_directory_structure
 from redback.plotting import \
-    MultiBandPlotter, IntegratedFluxPlotter, LuminosityPlotter, FluxDensityPlotter, MagnitudePlotter
+    IntegratedFluxPlotter, LuminosityPlotter, FluxDensityPlotter, MagnitudePlotter
 from redback.transient.transient import Transient
 
 dirname = os.path.dirname(__file__)
@@ -493,10 +493,27 @@ class Afterglow(Transient):
         if self.data_mode not in ['flux_density', 'magnitude']:
             raise ValueError(
                 f'You cannot plot multiband data with {self.data_mode} data mode . Why are you doing this?')
-        mbd = MultiBandPlotter(transient=self)
-        return mbd.plot_multiband(
-            figure=figure, axes=axes, ncols=ncols,
-            nrows=nrows, figsize=figsize, filters=filters, **plot_kwargs)
+        if self.magnitude_data:
+            plotter = MagnitudePlotter(transient=self)
+        elif self.flux_density_data:
+            plotter = FluxDensityPlotter(transient=self)
+        else:
+            return
+        return plotter.plot_multiband(
+            figure=figure, axes=axes, ncols=ncols, nrows=nrows, figsize=figsize, filters=filters, **plot_kwargs)
+
+    def plot_multiband_lightcurve(
+            self, model: callable, filename: str = None, axes: matplotlib.axes.Axes = None, plot_save: bool = True,
+            plot_show: bool = True, random_models: int = 100, posterior: pd.DataFrame = None, outdir: str = '.',
+            model_kwargs: dict = None, **kwargs: object) -> None:
+
+        if self.data_mode not in ['flux_density', 'magnitude']:
+            raise ValueError(
+                f'You cannot plot multiband data with {self.data_mode} data mode . Why are you doing this?')
+        return super(Afterglow, self).plot_multiband_lightcurve(
+            model=model, filename=filename, axes=axes, plot_save=plot_save, plot_show=plot_show,
+            random_models=random_models, posterior=posterior, outdir=outdir, model_kwargs=model_kwargs, **kwargs)
+
 
 class SGRB(Afterglow):
     pass
