@@ -420,7 +420,8 @@ class Transient(object):
             if isinstance(self.unique_bands[0], (float, int)):
                 return self.unique_bands
         except (TypeError, IndexError):
-            return self.bands_to_frequencies(self.unique_bands)
+            pass
+        return self.bands_to_frequencies(self.unique_bands)
 
     @property
     def list_of_band_indices(self) -> list:
@@ -535,9 +536,13 @@ class Transient(object):
         plt.semilogy()
         times = self._get_times(axes)
 
+        times_mesh, frequency_mesh = np.meshgrid(times, self.unique_frequencies)
+        new_model_kwargs = model_kwargs.copy()
+        new_model_kwargs['frequency'] = frequency_mesh
+
         posterior.sort_values(by='log_likelihood')
         max_like_params = posterior.iloc[-1]
-        ys = model(times, **max_like_params, **model_kwargs)
+        ys = model(times, **max_like_params, **new_model_kwargs)
         axes.plot(times, ys, color='blue', alpha=0.65, lw=2)
 
         for _ in range(random_models):
