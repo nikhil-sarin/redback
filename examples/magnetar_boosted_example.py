@@ -9,7 +9,6 @@ sampler = 'dynesty'
 model = 'mergernova'
 
 kne = 'at2017gfo'
-path = 'KNDir'
 # gets the magnitude data for AT2017gfo, the KN associated with GW170817
 data = redback.get_data.get_kilonova_data_from_open_transient_catalog_data(transient=kne)
 # creates a GRBDir with GRB
@@ -30,7 +29,7 @@ priors['thermalisation_efficiency'] = 0.3
 model_kwargs = dict(frequencies=redback.utils.bands_to_frequency(bands), output_format='flux_density')
 
 result = redback.fit_model(name=kne, transient=kilonova, model=model, sampler=sampler, model_kwargs=model_kwargs,
-                           path=path, prior=priors, sample='rslice', nlive=200)
+                           prior=priors, sample='rslice', nlive=200)
 result.plot_corner()
 # returns a Kilonova result object
 result.plot_lightcurve(random_models=1000)
