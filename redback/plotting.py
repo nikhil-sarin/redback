@@ -3,6 +3,7 @@ from os.path import join
 import matplotlib
 import matplotlib.pyplot as plt
 import numpy as np
+import pandas as pd
 
 import redback
 
@@ -123,7 +124,25 @@ class IntegratedFluxPlotter(object):
     def __init__(self, transient):
         self.transient = transient
 
-    def plot_data(self, axes: matplotlib.axes.Axes = None, colour: str = 'k', **kwargs) -> matplotlib.axes.Axes:
+    @property
+    def xlim_low(self):
+        return 0.5 * self.transient.x[0]
+
+    @property
+    def xlim_high(self):
+        if self.x_err is None:
+            return 2 * self.transient.x[-1]
+        return 2 * (self.transient.x[-1] + self.x_err[1][-1])
+
+    @property
+    def x_err(self):
+        if self.transient.x_err is not None:
+            return [np.abs(self.transient.x_err[1, :]), self.transient.x_err[0, :]]
+        else:
+            return None
+
+    def plot_data(self, axes: matplotlib.axes.Axes = None, colour: str = 'k', plot_save: bool = True,
+                  plot_show: bool = True, **kwargs) -> matplotlib.axes.Axes:
         """
         Plots the Afterglow lightcurve and returns Axes.
 
@@ -141,20 +160,16 @@ class IntegratedFluxPlotter(object):
         matplotlib.axes.Axes: The axes with the plot.
         """
 
-        if self.transient.x_err is not None:
-            x_err = [np.abs(self.transient.x_err[1, :]), self.transient.x_err[0, :]]
-        else:
-            x_err = None
         y_err = [np.abs(self.transient.y_err[1, :]), self.transient.y_err[0, :]]
 
         ax = axes or plt.gca()
-        ax.errorbar(self.transient.x, self.transient.y, xerr=x_err, yerr=y_err,
+        ax.errorbar(self.transient.x, self.transient.y, xerr=self.x_err, yerr=y_err,
                     fmt='x', c=colour, ms=1, elinewidth=2, capsize=0.)
 
         ax.set_xscale('log')
         ax.set_yscale('log')
 
-        ax.set_xlim(0.5 * self.transient.x[0], 2 * (self.transient.x[-1] + x_err[1][-1]))
+        ax.set_xlim(self.xlim_low, self.xlim_high)
         ax.set_ylim(0.5 * min(self.transient.y), 2. * np.max(self.transient.y))
 
         ax.annotate(self.transient.name, xy=(0.95, 0.9), xycoords='axes fraction',
@@ -167,11 +182,96 @@ class IntegratedFluxPlotter(object):
         if axes is None:
             plt.tight_layout()
 
-        filename = f"{self.transient.name}_lc.png"
-        plt.savefig(join(self.transient.directory_structure.directory_path, filename))
+        filename = f"{self.transient.name}_data.png"
+        if plot_save:
+            plt.tight_layout()
+            plt.savefig(join(self.transient.directory_structure.directory_path, filename))
+        if plot_show:
+            plt.tight_layout()
+            plt.show()
         if axes is None:
             plt.clf()
         return ax
+
+    def plot_lightcurve(
+            self, model: callable, filename: str = None, axes: matplotlib.axes.Axes = None, plot_save: bool = True,
+            plot_show: bool = True, random_models: int = 100, posterior: pd.DataFrame = None, outdir: str = '.',
+            model_kwargs: dict = None, **kwargs: object) -> None:
+        """
+
+        Parameters
+        ----------
+        model: callable
+            The model used to plot the lightcurve.
+        filename: str, optional
+            The output filename. Otherwise, use default which starts with the name
+            attribute and ends with *lightcurve.png.
+        axes: matplotlib.axes.Axes, optional
+            Axes to plot in if given.
+        plot_save: bool, optional
+            Whether to save the plot.
+        plot_show: bool, optional
+            Whether to show the plot.
+        random_models: int, optional
+            Number of random posterior samples plotted faintly. Default is 100.
+        posterior: pd.DataFrame, optional
+            Posterior distribution to which to draw samples from. Is optional but must be given.
+        outdir: str, optional
+            Out directory in which to save the plot. Default is the current working directory.
+        model_kwargs: dict
+            Additional keyword arguments to be passed into the model.
+        kwargs: dict
+            No current function.
+        """
+        if filename is None:
+            filename = f"{self.transient.name}_lightcurve.png"
+        if model_kwargs is None:
+            model_kwargs = dict()
+        axes = axes or plt.gca()
+        axes = self.plot_data(axes=axes, plot_save=False, plot_show=False)
+        axes.set_yscale('log')
+        plt.semilogy()
+        times = self._get_times(axes)
+
+        posterior.sort_values(by='log_likelihood')
+        max_like_params = posterior.iloc[-1]
+        ys = model(times, **max_like_params, **model_kwargs)
+        axes.plot(times, ys, color='blue', alpha=0.65, lw=2)
+
+        for _ in range(random_models):
+            params = posterior.iloc[np.random.randint(len(posterior))]
+            ys = model(times, **params, **model_kwargs)
+            axes.plot(times, ys, color='red', alpha=0.05, lw=2, zorder=-1, **kwargs)
+
+        if plot_save:
+            plt.savefig(join(outdir, filename), dpi=300, bbox_inches="tight")
+        if plot_show:
+            plt.tight_layout()
+            plt.show()
+        plt.clf()
+
+    def _get_times(self, axes: matplotlib.axes.Axes) -> np.ndarray:
+        """
+
+        Parameters
+        ----------
+        axes: matplotlib.axes.Axes
+            The axes used in the plotting procedure.
+        Returns
+        -------
+        np.ndarray: Linearly or logarithmically scaled time values depending on the y scale used in the plot.
+
+        """
+        if isinstance(axes, np.ndarray):
+            ax = axes[0]
+        else:
+            ax = axes
+
+        if ax.get_yscale() == 'linear':
+            times = np.linspace(self.xlim_low, self.xlim_high, 200)
+        else:
+            times = np.exp(np.linspace(np.log(self.xlim_low), np.log(self.xlim_high), 200))
+        return times
 
 
 class LuminosityPlotter(IntegratedFluxPlotter):
@@ -250,6 +350,17 @@ class MagnitudePlotter(object):
     def _set_y_axis(self, ax):
         ax.set_ylim(0.8 * min(self.transient.y), 1.2 * np.max(self.transient.y))
         ax.invert_yaxis()
+
+    def plot_lightcurve(self):
+        pass
+
+    def plot_multiband(self):
+        pass
+
+    def plot_multiband_lightcurve(self):
+        pass
+
+
 
 
 class FluxDensityPlotter(MagnitudePlotter):
