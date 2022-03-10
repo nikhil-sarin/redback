@@ -36,9 +36,6 @@ class Plotter(object):
             times = np.exp(np.linspace(np.log(self.xlim_low), np.log(self.xlim_high), 200))
         return times
 
-
-class IntegratedFluxPlotter(Plotter):
-
     @property
     def xlim_low(self):
         return 0.5 * self.transient.x[0]
@@ -67,6 +64,9 @@ class IntegratedFluxPlotter(Plotter):
     @property
     def y_err(self):
         return [np.abs(self.transient.y_err[1, :]), self.transient.y_err[0, :]]
+
+
+class IntegratedFluxPlotter(Plotter):
 
     @property
     def xlabel(self):
@@ -183,7 +183,7 @@ class IntegratedFluxPlotter(Plotter):
         if plot_show:
             plt.tight_layout()
             plt.show()
-        plt.clf()
+        return axes
 
 
 class LuminosityPlotter(IntegratedFluxPlotter):
@@ -193,8 +193,8 @@ class LuminosityPlotter(IntegratedFluxPlotter):
 class MagnitudePlotter(Plotter):
 
     def plot_data(
-            self, axes: matplotlib.axes.Axes = None, filters: list = None, plot_others: bool = True,
-            plot_save: bool = True, **plot_kwargs: dict) -> None:
+            self, axes: matplotlib.axes.Axes = None, filters: list = None, plot_others: bool = False,
+            plot_save: bool = True, plot_show: bool = True, **plot_kwargs: dict) -> None:
         """
         Plots the data.
 
@@ -253,19 +253,79 @@ class MagnitudePlotter(Plotter):
         if plot_save:
             filename = f"{self.transient.name}_{plot_label}.png"
             plt.savefig(join(self.transient.directory_structure.directory_path, filename), bbox_inches='tight')
-            plt.clf()
+        if plot_show:
+            plt.tight_layout()
+            plt.show()
         return axes
 
     def _set_y_axis(self, ax):
         ax.set_ylim(0.8 * min(self.transient.y), 1.2 * np.max(self.transient.y))
         ax.invert_yaxis()
 
-    def plot_lightcurve(self):
-        pass
+    def plot_lightcurve(
+            self, model: callable, filename: str = None, axes: matplotlib.axes.Axes = None,  plot_save: bool = True,
+            plot_show: bool = True, random_models: int = 100, posterior: pd.DataFrame = None, outdir: str = '.',
+            model_kwargs: dict = None, **kwargs: object) -> None:
+        """
+
+        Parameters
+        ----------
+        model: callable
+            The model used to plot the lightcurve.
+        filename: str, optional
+            The output filename. Otherwise, use default which starts with the name
+            attribute and ends with *lightcurve.png.
+        axes: matplotlib.axes.Axes, optional
+            Axes to plot in if given.
+        plot_save: bool, optional
+            Whether to save the plot.
+        plot_show: bool, optional
+            Whether to show the plot.
+        random_models: int, optional
+            Number of random posterior samples plotted faintly. Default is 100.
+        posterior: pd.DataFrame, optional
+            Posterior distribution to which to draw samples from. Is optional but must be given.
+        outdir: str, optional
+            Out directory in which to save the plot. Default is the current working directory.
+        model_kwargs: dict
+            Additional keyword arguments to be passed into the model.
+        kwargs: dict
+            No current function.
+        """
+        if filename is None:
+            filename = f"{self.transient.name}_lightcurve.png"
+        if model_kwargs is None:
+            model_kwargs = dict()
+        axes = axes or plt.gca()
+        axes = self.plot_data(axes=axes, plot_save=False, plot_show=False)
+        axes.set_yscale('log')
+        # plt.semilogy()
+        times = self._get_times(axes)
+
+        posterior.sort_values(by='log_likelihood')
+        max_like_params = posterior.iloc[-1]
+        random_params_list = [posterior.iloc[np.random.randint(len(posterior))] for _ in range(random_models)]
+
+        for band, color in zip(self.transient.active_bands, self.transient.get_colors(self.transient.active_bands)):
+            frequency = redback.utils.bands_to_frequency([band])
+            model_kwargs["frequency"] = np.ones(len(times)) * frequency
+            ys = model(times, **max_like_params, **model_kwargs)
+            axes.plot(times, ys, color=color, alpha=0.65, lw=2)
+
+            for params in random_params_list:
+                ys = model(times, **params, **model_kwargs)
+                axes.plot(times, ys, color='red', alpha=0.05, lw=2, zorder=-1)
+        if plot_save:
+            plt.savefig(join(outdir, filename), dpi=300, bbox_inches="tight")
+        if plot_show:
+            plt.tight_layout()
+            plt.show()
+        return axes
 
     def plot_multiband(
             self, figure: matplotlib.figure.Figure = None, axes: matplotlib.axes.Axes = None, ncols: int = 2,
-            nrows: int = None, figsize: tuple = None, filters: list = None, **plot_kwargs: dict) -> \
+            nrows: int = None, figsize: tuple = None, filters: list = None, plot_save: bool=True, plot_show: bool=True,
+            **plot_kwargs: dict) -> \
             matplotlib.axes.Axes:
         """
 
@@ -325,7 +385,7 @@ class MagnitudePlotter(Plotter):
                 raise ValueError(f"Insufficient number of panels. {npanels} panels were given "
                                  f"but {len(filters)} panels are needed.")
             if figsize is None:
-                figsize = (6 * nrows, 4 * ncols)
+                figsize = (4 + 4 * ncols, 2 + 2 * nrows)
             figure, axes = plt.subplots(ncols=ncols, nrows=nrows, sharex='all', figsize=figsize)
 
         axes = axes.ravel()
@@ -365,7 +425,11 @@ class MagnitudePlotter(Plotter):
         figure.supylabel(ylabel, fontsize=fontsize)
         filename = f"{self.transient.name}_{plot_label}.png"
         plt.subplots_adjust(wspace=wspace, hspace=hspace)
-        plt.savefig(join(self.transient.directory_structure.directory_path, filename), bbox_inches="tight")
+        if plot_save:
+            plt.savefig(join(self.transient.directory_structure.directory_path, filename), bbox_inches="tight")
+        if plot_show:
+            plt.tight_layout()
+            plt.show()
         return axes
 
     def plot_multiband_lightcurve(
@@ -408,19 +472,20 @@ class MagnitudePlotter(Plotter):
         if filename is None:
             filename = f"{self.transient.name}_multiband_lightcurve.png"
         axes = axes or plt.gca()
-        axes = self.plot_multiband(axes=axes)
+        filters = kwargs.get("filters", self.transient.active_bands)
+        axes = self.plot_multiband(axes=axes, plot_save=False, plot_show=False, filters=filters)
 
         times = self._get_times(axes)
 
-        times_mesh, frequency_mesh = np.meshgrid(times, self.transient.unique_frequencies)
+        times_mesh, frequency_mesh = np.meshgrid(times, redback.utils.bands_to_frequency(filters))
         new_model_kwargs = model_kwargs.copy()
         new_model_kwargs['frequency'] = frequency_mesh
         posterior.sort_values(by='log_likelihood')
         max_like_params = posterior.iloc[-1]
         ys = model(times_mesh, **max_like_params, **new_model_kwargs)
 
-        for i in range(len(self.transient.unique_frequencies)):
-            axes[i].plot(times_mesh[i], ys[i], color='blue', alpha=0.65, lw=2)
+        for i in range(len(filters)):
+            axes[i].plot(times, ys[i], color='blue', alpha=0.65, lw=2)
             for _ in range(random_models):
                 params = posterior.iloc[np.random.randint(len(posterior))]
                 ys = model(times_mesh, **params, **new_model_kwargs)
@@ -429,7 +494,7 @@ class MagnitudePlotter(Plotter):
             plt.savefig(join(outdir, filename), dpi=300, bbox_inches="tight")
         if plot_show:
             plt.show()
-        plt.clf()
+        return axes
 
 
 class FluxDensityPlotter(MagnitudePlotter):

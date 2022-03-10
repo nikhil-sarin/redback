@@ -49,7 +49,7 @@ model_kwargs = dict(frequency=frequency, output_format='flux_density')
 
 # returns a supernova result object
 result = redback.fit_model(name=name, transient=afterglow, model=model, sampler=sampler, model_kwargs=model_kwargs,
-                           prior=priors, sample='rslice', nlive=200, resume=True)
+                           prior=priors, sample='rslice', nlive=50, dlogz=10, resume=True)
 # plot corner
 result.plot_corner()
 
