@@ -42,7 +42,7 @@ priors['t0'] = Gaussian(data['time [mjd]'], sigma=0.5, name='t0', latex_label=r'
 priors['av'] = Uniform(0.1, 1, name='av', latex_label=r'$a_{v}$')
 
 
-model_kwargs = dict(frequencies=redback.utils.bands_to_frequency(bands), output_format='flux_density')
+model_kwargs = dict(frequency=redback.utils.bands_to_frequency(bands), output_format='flux_density')
 
 # returns a supernova result object
 result = redback.fit_model(name=sne, transient=supernova, model=model, sampler=sampler, model_kwargs=model_kwargs,

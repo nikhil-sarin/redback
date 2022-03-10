@@ -25,7 +25,7 @@ priors = redback.priors.get_priors(model=model)
 # We can do this through the metadata that was downloaded alongside the data, or if you just know it.
 priors['redshift'] = tidal_disruption_event.redshift
 
-model_kwargs = dict(frequencies=redback.utils.bands_to_frequency(bands), output_format='flux_density')
+model_kwargs = dict(frequency=redback.utils.bands_to_frequency(bands), output_format='flux_density')
 
 # returns a tde result object
 result = redback.fit_model(name=tde, transient=tidal_disruption_event, model=model, sampler=sampler,
