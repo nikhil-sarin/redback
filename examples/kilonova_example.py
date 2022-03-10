@@ -24,7 +24,7 @@ priors = redback.priors.get_priors(model=model)
 priors['redshift'] = 1e-2
 
 model_kwargs = dict(frequency=kilonova.filtered_frequencies, output_format='flux_density')
-# result = redback.fit_model(name=kne, transient=kilonova, model=model, sampler=sampler, model_kwargs=model_kwargs,
+# result = redback.fit_model(transient=kilonova, model=model, sampler=sampler, model_kwargs=model_kwargs,
 #                            prior=priors, sample='rslice', nlive=200, resume=True)
 result = redback.result.read_in_result("kilonova/one_component_kilonova_model/at2017gfo_result.json")
 # result.plot_corner()

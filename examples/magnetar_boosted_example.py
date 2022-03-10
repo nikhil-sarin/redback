@@ -28,8 +28,9 @@ priors['thermalisation_efficiency'] = 0.3
 
 model_kwargs = dict(frequency=redback.utils.bands_to_frequency(bands), output_format='flux_density')
 
-result = redback.fit_model(name=kne, transient=kilonova, model=model, sampler=sampler, model_kwargs=model_kwargs,
-                           prior=priors, sample='rslice', nlive=200)
-result.plot_corner()
+result = redback.fit_model(transient=kilonova, model=model, sampler=sampler, model_kwargs=model_kwargs,
+                           prior=priors, sample='rslice', nlive=200, resume=True)
+# result.plot_corner()
 # returns a Kilonova result object
-result.plot_lightcurve(random_models=1000)
+# result.plot_lightcurve(random_models=1000)
+result.plot_multiband_lightcurve()

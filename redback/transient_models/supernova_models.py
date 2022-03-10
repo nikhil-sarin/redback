@@ -122,9 +122,7 @@ def arnett_bolometric(time, f_nickel, mej, interaction_process=ip.Diffusion, **k
     return lbol
 
 @citation_wrapper('https://ui.adsabs.harvard.edu/abs/1982ApJ...253..785A/abstract')
-def arnett(time, redshift, f_nickel, mej, interaction_process=ip.Diffusion,
-           photosphere=photosphere.TemperatureFloor,
-           sed=sed.Blackbody, **kwargs):
+def arnett(time, redshift, f_nickel, mej, **kwargs):
     """
     :param time: time in days
     :param redshift: source redshift
@@ -139,13 +137,18 @@ def arnett(time, redshift, f_nickel, mej, interaction_process=ip.Diffusion,
              e.g., for Diffusion and TemperatureFloor: kappa, kappa_gamma, vej (km/s), temperature_floor
     :return: flux_density or magnitude depending on output_format kwarg
     """
+    _interaction_process = kwargs.get("interaction_process", ip.Diffusion)
+    _photosphere = kwargs.get("photosphere", photosphere.TemperatureFloor)
+    _sed = kwargs.get("sed", sed.Blackbody)
+
+
     frequency = kwargs['frequency']
     frequency, time = calc_kcorrected_properties(frequency=frequency, redshift=redshift, time=time)
     dl = cosmo.luminosity_distance(redshift).cgs.value
 
-    lbol = arnett_bolometric(time=time, f_nickel=f_nickel, mej=mej, interaction_process=interaction_process, **kwargs)
-    photo = photosphere(time=time, luminosity=lbol, **kwargs)
-    sed_1 = sed(temperature=photo.photosphere_temperature, r_photosphere=photo.r_photosphere,
+    lbol = arnett_bolometric(time=time, f_nickel=f_nickel, mej=mej, interaction_process=_interaction_process, **kwargs)
+    photo = _photosphere(time=time, luminosity=lbol, **kwargs)
+    sed_1 = _sed(temperature=photo.photosphere_temperature, r_photosphere=photo.r_photosphere,
                 frequency=frequency, luminosity_distance=dl)
 
     flux_density = sed_1.flux_density

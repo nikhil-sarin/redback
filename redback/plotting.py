@@ -38,7 +38,10 @@ class Plotter(object):
 
     @property
     def xlim_low(self):
-        return 0.5 * self.transient.x[0]
+        xlim_low = 0.5 * self.transient.x[0]
+        if xlim_low == 0:
+            xlim_low += 1e-3
+        return xlim_low
 
     @property
     def xlim_high(self):

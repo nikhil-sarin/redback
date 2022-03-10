@@ -62,7 +62,7 @@ class CutoffBlackbody(object):
         mask = wavelength < cutoff_wavelength
         sed = np.zeros(len(self.time))
 
-        sed[mask] = flux_const * (self.r_photosphere[mask]**2 / cutoff_wavelength[mask] / wavelength ** 4) \
+        sed[mask] = flux_const * (self.r_photosphere[mask]**2 / cutoff_wavelength / wavelength[mask] ** 4) \
                     / np.expm1(x_const / wavelength[mask] / self.temperature[mask])
         sed[~mask] = flux_const * (self.r_photosphere[~mask]**2 / wavelength[~mask]**5) \
                      / np.expm1(x_const / wavelength[~mask] / self.temperature[~mask])
@@ -82,10 +82,13 @@ class CutoffBlackbody(object):
         tp3 = tp**3
         nxcs = x_const * np.array(range(1, 11))
                 
-        f_blue_reds = np.sum((np.exp(-nxcs / (cutoff_wavelength * tp)) * (
-        nxcs ** 2 + 2 * (nxcs * cutoff_wavelength * tp + cutoff_wavelength**2 * tp2)) / (nxcs ** 3 * cutoff_wavelength**3)) + (
-        (6 * tp3 - np.exp(-nxcs / (cutoff_wavelength * tp)) * (nxcs ** 3 + 3 * nxcs ** 2 * cutoff_wavelength * tp + 6 * (
-        nxcs * cutoff_wavelength**2 * tp2 + cutoff_wavelength**3 *tp3)) / cutoff_wavelength**3) / (nxcs ** 4), 1))
+        f_blue_reds = \
+            np.sum(
+                np.exp(-nxcs / (cutoff_wavelength * tp)) * (nxcs ** 2 + 2 * (nxcs * cutoff_wavelength * tp + cutoff_wavelength**2 * tp2)) / (nxcs ** 3 * cutoff_wavelength**3) +
+                (
+                    (6 * tp3 - np.exp(-nxcs / (cutoff_wavelength * tp)) * (nxcs ** 3 + 3 * nxcs ** 2 * cutoff_wavelength * tp + 6 * (nxcs * cutoff_wavelength**2 * tp2 + cutoff_wavelength**3 *tp3)) / cutoff_wavelength**3) / (nxcs ** 4)
+                ), 1
+            )
         
         norms /= f_blue_reds
 
@@ -95,7 +98,7 @@ class CutoffBlackbody(object):
         self.sed = sed
 
         # sed units are erg/s/Angstrom - need to turn them into flux density compatible units
-        units = uu.erg / uu.s / uu.hz / uu.cm**2.
+        units = uu.erg / uu.s / uu.Hz / uu.cm**2.
         sed = sed / (4 * np.pi * self.luminosity_distance ** 2) * lambda_to_nu(1.)
 
         # add units

@@ -19,7 +19,7 @@ prompt = redback.transient.prompt.PromptTimeSeries.from_batse_grb_name(name=name
 priors = redback.priors.get_priors(model=model, data_mode='counts', times=prompt.time,
                                    y=prompt.counts, yerr=prompt.counts_err, dt=prompt.bin_size)
 
-result = redback.fit_model(source_type='prompt', name=name, model=model, transient=prompt, nlive=500,
+result = redback.fit_model(source_type='prompt', model=model, transient=prompt, nlive=500,
                            sampler=sampler, prior=priors, outdir="GRB_results", sample='rslice')
 # returns a GRB prompt result object
 result.plot_lightcurve(random_models=1000)

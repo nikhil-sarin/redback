@@ -18,7 +18,7 @@ from redback.transient.tde import TDE
 dirname = os.path.dirname(__file__)
 
 
-def fit_model(name, transient, model, outdir=None, sampler='dynesty', nlive=2000, prior=None,
+def fit_model(transient, model, outdir=None, sampler='dynesty', nlive=2000, prior=None,
               walks=200, truncate=True, use_photon_index_prior=False, truncate_method='prompt_time_error',
               resume=True, save_format='json', model_kwargs=None, **kwargs):
     """
@@ -61,17 +61,17 @@ def fit_model(name, transient, model, outdir=None, sampler='dynesty', nlive=2000
                              truncate=truncate, use_photon_index_prior=use_photon_index_prior,
                              truncate_method=truncate_method, **kwargs)
     elif isinstance(transient, PromptTimeSeries):
-        return _fit_prompt(name=name, transient=transient, model=model, outdir=outdir, sampler=sampler, nlive=nlive,
+        return _fit_prompt(transient=transient, model=model, outdir=outdir, sampler=sampler, nlive=nlive,
                            prior=prior, walks=walks, use_photon_index_prior=use_photon_index_prior, resume=resume,
                            save_format=save_format, model_kwargs=model_kwargs, **kwargs)
     elif isinstance(transient, Supernova):
-        return _fit_supernova(name=name, transient=transient, model=model, outdir=outdir, sampler=sampler, nlive=nlive,
+        return _fit_kilonova(transient=transient, model=model, outdir=outdir, sampler=sampler, nlive=nlive,
                               prior=prior, walks=walks, truncate=truncate,
                               use_photon_index_prior=use_photon_index_prior, truncate_method=truncate_method,
                               resume=resume, save_format=save_format, model_kwargs=model_kwargs,
                               **kwargs)
     elif isinstance(transient, TDE):
-        return _fit_tde(name=name, transient=transient, model=model, outdir=outdir, sampler=sampler, nlive=nlive,
+        return _fit_kilonova(transient=transient, model=model, outdir=outdir, sampler=sampler, nlive=nlive,
                         prior=prior, walks=walks, truncate=truncate, use_photon_index_prior=use_photon_index_prior,
                         truncate_method=truncate_method,
                         resume=resume, save_format=save_format, model_kwargs=model_kwargs, **kwargs)
@@ -147,7 +147,7 @@ def _fit_kilonova(transient, model, outdir=None, sampler='dynesty', nlive=3000, 
     return result
 
 
-def _fit_prompt(name, transient, model, outdir, integrated_rate_function=True, sampler='dynesty', nlive=3000,
+def _fit_prompt(transient, model, outdir, integrated_rate_function=True, sampler='dynesty', nlive=3000,
                 prior=None, walks=1000, use_photon_index_prior=False, resume=True, save_format='json',
                 model_kwargs=None, **kwargs):
 

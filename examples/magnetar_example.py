@@ -34,7 +34,7 @@ priors = redback.priors.get_priors(model=model, data_mode='luminosity')
 
 
 # Call redback.fit_model to run the sampler and obtain GRB result object
-result = redback.fit_model(name=GRB, model=model, sampler='dynesty', nlive=200, transient=afterglow,
+result = redback.fit_model(model=model, sampler='dynesty', nlive=200, transient=afterglow,
                            prior=priors, sample='rslice', resume=True)
 
 result.plot_lightcurve(random_models=1000)

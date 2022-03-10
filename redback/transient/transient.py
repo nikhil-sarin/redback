@@ -763,8 +763,12 @@ class OpticalTransient(Transient):
         -------
         OpticalTransient: A class instance.
         """
-        directory_structure = redback.get_data.directory.open_access_directory_structure(transient=name,
-                                                                                         transient_type=cls.__name__.lower())
+        if cls.__name__ == "TDE":
+            transient_type = "tidal_disruption_event"
+        else:
+            transient_type = cls.__name__.lower()
+        directory_structure = redback.get_data.directory.open_access_directory_structure(
+            transient=name, transient_type=transient_type)
         time_days, time_mjd, flux_density, flux_density_err, magnitude, magnitude_err, bands, system = \
             cls.load_data(processed_file_path=directory_structure.processed_file_path, data_mode="all")
         return cls(name=name, data_mode=data_mode, time=time_days, time_err=None, time_mjd=time_mjd,

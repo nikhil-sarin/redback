@@ -15,7 +15,7 @@ def _analytic_fallback(time, l0, t_0):
     """
     mask = time - t_0 > 0.
     lbol = np.zeros(len(time))
-    lbol[mask] = l0 / (time * 86400)**(5./3.)
+    lbol[mask] = l0 / (time[mask] * 86400)**(5./3.)
     lbol[~mask] = l0 / (t_0 * 86400)**(5./3.)
     return lbol
 
@@ -43,10 +43,7 @@ def tde_analytical_bolometric(time, l0, t_0,interaction_process = ip.Diffusion,
     return lbol
 
 @citation_wrapper('redback')
-def tde_analytical(time, redshift, l0, t_0, interaction_process=ip.Diffusion,
-                   photosphere=photosphere.TemperatureFloor,
-                   sed=sed.CutoffBlackbody,
-                   **kwargs):
+def tde_analytical(time, redshift, l0, t_0, **kwargs):
     """
     :param time: rest frame time in days
     :param l0: bolometric luminosity at 1 second in cgs
@@ -59,15 +56,19 @@ def tde_analytical(time, redshift, l0, t_0, interaction_process=ip.Diffusion,
      e.g., for Diffusion TemperatureFloor: kappa, kappa_gamma, vej (km/s), temperature_floor
     :return: flux_density or magnitude depending on output_format kwarg
     """
+    _interaction_process = kwargs.get("interaction_process", ip.Diffusion)
+    _photosphere = kwargs.get("photosphere", photosphere.TemperatureFloor)
+    _sed = kwargs.get("sed", sed.CutoffBlackbody)
+
     frequency = kwargs['frequency']
     cutoff_wavelength = kwargs.get('cutoff_wavelength', 3000)
     frequency, time = calc_kcorrected_properties(frequency=frequency, redshift=redshift, time=time)
     dl = cosmo.luminosity_distance(redshift).cgs.value
-    lbol = tde_analytical_bolometric(time=time, l0=l0, t_0=t_0, interaction_process=interaction_process)
+    lbol = tde_analytical_bolometric(time=time, l0=l0, t_0=t_0, interaction_process=_interaction_process, **kwargs)
 
-    photo = photosphere(time=time, luminosity=lbol, **kwargs)
-    sed_1 = sed(temperature=photo.photosphere_temperature, r_photosphere=photo.r_photosphere,
-                frequency=frequency, luminosity_distance=dl, cutoff_wavelength=cutoff_wavelength)
+    photo = _photosphere(time=time, luminosity=lbol, **kwargs)
+    sed_1 = _sed(time=time, temperature=photo.photosphere_temperature, r_photosphere=photo.r_photosphere,
+                 frequency=frequency, luminosity_distance=dl, cutoff_wavelength=cutoff_wavelength, luminosity=lbol)
 
     flux_density = sed_1.flux_density
 
