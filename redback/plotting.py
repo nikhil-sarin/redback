@@ -10,6 +10,9 @@ import redback
 
 class Plotter(object):
 
+    def __init__(self, transient):
+        self.transient = transient
+
     def _get_times(self, axes: matplotlib.axes.Axes) -> np.ndarray:
         """
 
@@ -36,9 +39,6 @@ class Plotter(object):
 
 class IntegratedFluxPlotter(Plotter):
 
-    def __init__(self, transient):
-        self.transient = transient
-
     @property
     def xlim_low(self):
         return 0.5 * self.transient.x[0]
@@ -50,11 +50,27 @@ class IntegratedFluxPlotter(Plotter):
         return 2 * (self.transient.x[-1] + self.x_err[1][-1])
 
     @property
+    def ylim_low(self):
+        return 0.5 * min(self.transient.y)
+
+    @property
+    def ylim_high(self):
+        return 2. * np.max(self.transient.y)
+
+    @property
     def x_err(self):
         if self.transient.x_err is not None:
             return [np.abs(self.transient.x_err[1, :]), self.transient.x_err[0, :]]
         else:
             return None
+
+    @property
+    def y_err(self):
+        return [np.abs(self.transient.y_err[1, :]), self.transient.y_err[0, :]]
+
+    @property
+    def xlabel(self):
+        return r"Time since burst [s]"
 
     def plot_data(self, axes: matplotlib.axes.Axes = None, colour: str = 'k', plot_save: bool = True,
                   plot_show: bool = True, **kwargs) -> matplotlib.axes.Axes:
@@ -74,23 +90,27 @@ class IntegratedFluxPlotter(Plotter):
         ----------
         matplotlib.axes.Axes: The axes with the plot.
         """
+        xy = kwargs.get("xy", (0.95, 0.9))
+        xycoords = kwargs.get("xycoords", "axes fraction")
+        horizontalalignment = kwargs.get("horizontalalignment", "right")
+        annotation_size = kwargs.get("annotation_size", 20)
 
-        y_err = [np.abs(self.transient.y_err[1, :]), self.transient.y_err[0, :]]
 
         ax = axes or plt.gca()
-        ax.errorbar(self.transient.x, self.transient.y, xerr=self.x_err, yerr=y_err,
+        ax.errorbar(self.transient.x, self.transient.y, xerr=self.x_err, yerr=self.y_err,
                     fmt='x', c=colour, ms=1, elinewidth=2, capsize=0.)
 
         ax.set_xscale('log')
         ax.set_yscale('log')
 
         ax.set_xlim(self.xlim_low, self.xlim_high)
-        ax.set_ylim(0.5 * min(self.transient.y), 2. * np.max(self.transient.y))
+        ax.set_ylim(self.ylim_low, self.ylim_high)
 
-        ax.annotate(self.transient.name, xy=(0.95, 0.9), xycoords='axes fraction',
-                    horizontalalignment='right', size=20)
+        ax.annotate(
+            self.transient.name, xy=xy, xycoords=xycoords,
+            horizontalalignment=horizontalalignment, size=annotation_size)
 
-        ax.set_xlabel(r'Time since burst [s]')
+        ax.set_xlabel(self.xlabel)
         ax.set_ylabel(self.transient.ylabel)
         ax.tick_params(axis='x', pad=10)
 
@@ -171,9 +191,6 @@ class LuminosityPlotter(IntegratedFluxPlotter):
 
 
 class MagnitudePlotter(Plotter):
-
-    def __init__(self, transient):
-        self.transient = transient
 
     def plot_data(
             self, axes: matplotlib.axes.Axes = None, filters: list = None, plot_others: bool = True,
@@ -413,7 +430,6 @@ class MagnitudePlotter(Plotter):
         if plot_show:
             plt.show()
         plt.clf()
-
 
 
 class FluxDensityPlotter(MagnitudePlotter):
