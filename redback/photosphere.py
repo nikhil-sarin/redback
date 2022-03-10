@@ -7,9 +7,10 @@ class TemperatureFloor(object):
     def __init__(self, time, luminosity, vej, temperature_floor, **kwargs):
         """
         Photosphere with a floor temperature and effective blackbody otherwise
-        :param time: source frame time in seconds
+
+        :param time: source frame time in days
         :param luminosity: luminosity
-        :param vej: ejecta velocity in cgs
+        :param vej: ejecta velocity in km/s
         :param temperature_floor: floor temperature in kelvin
         """
         self.time = time
@@ -45,7 +46,8 @@ class TDEphotosphere(object):
     def __init__(self, time, luminosity, mass_bh, mass_star, star_radius, tpeak, beta, rph_0, lphoto, **kwargs):
         """
         Photosphere that expands/recedes as a power law of Mdot
-        :param time: time in source frame
+
+        :param time: time in source frame in days
         :param luminosity: luminosity
         :param mass_bh: black hole mass in solar masses
         :param mass_star: star mass in solar masses
@@ -111,10 +113,11 @@ class Densecore(object):
     def __init__(self, time, luminosity, mej, vej, kappa, envelope_slope=10, **kwargs):
         """
         Photosphere with a dense core and a low-mass envelope.
+
         :param time: time in source frame in days
         :param luminosity: luminosity
         :param mej: ejecta mass
-        :param vej: ejecta velocity in km
+        :param vej: ejecta velocity in km/s
         :param kappa: opacity
         :param envelope_slope: envelope slope, default = 10
         """

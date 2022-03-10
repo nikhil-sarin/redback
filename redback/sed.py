@@ -2,39 +2,41 @@ import numpy as np
 from redback.constants import *
 from redback.utils import nu_to_lambda, lambda_to_nu
 
-def blackbody_to_flux_density(temperature, r_photosphere, dl, frequencies):
+def blackbody_to_flux_density(temperature, r_photosphere, dl, frequency):
     """
     A general blackbody_to_flux_density formula
+
     :param temperature: effective temperature in kelvin
     :param r_photosphere: photosphere radius in cm
     :param dl: luminosity_distance in cm
-    :param frequencies: frequencies to calculate in Hz - Must be same length as time array or a single number. In source frame
+    :param frequency: frequency to calculate in Hz - Must be same length as time array or a single number. In source frame
     :return: flux_density
     """
     ## adding units back in to ensure dimensions are correct
-    frequencies = frequencies * uu.Hz
+    frequency = frequency * uu.Hz
     radius = r_photosphere * uu.cm
     dl = dl * uu.cm
     temperature = temperature * uu.K
     planck = cc.h.cgs
     speed_of_light = cc.c.cgs
     boltzmann_constant = cc.k_B.cgs
-    num = 2 * np.pi * planck * frequencies ** 3 * radius ** 2
+    num = 2 * np.pi * planck * frequency ** 3 * radius ** 2
     denom = dl ** 2 * speed_of_light ** 2
-    frac = 1. / (np.expm1((planck * frequencies) / (boltzmann_constant * temperature)))
+    frac = 1. / (np.expm1((planck * frequency) / (boltzmann_constant * temperature)))
     flux_density = num / denom * frac
     return flux_density
 
 class CutoffBlackbody(object):
     def __init__(self, time, temperature, luminosity, r_photosphere,
-                 frequencies, luminosity_distance, cutoff_wavelength, **kwargs):
+                 frequency, luminosity_distance, cutoff_wavelength, **kwargs):
         """
         Blackbody SED with a cutoff
+
         :param time: time in source frame in seconds
         :param luminosity: luminosity in cgs
         :param temperature: temperature in kelvin
         :param r_photosphere: photosphere radius in cm
-        :param frequencies: frequencies in Hz - must be a single number or same length as time array
+        :param frequency: frequency in Hz - must be a single number or same length as time array
         :param luminosity_distance: dl in cm
         :param kwargs: None
         """
@@ -42,7 +44,7 @@ class CutoffBlackbody(object):
         self.luminosity = luminosity
         self.temperature = temperature
         self.r_photosphere = r_photosphere
-        self.frequencies = frequencies
+        self.frequency = frequency
         self.luminosity_distance = luminosity_distance
         self.cutoff_wavelength = cutoff_wavelength
         self.reference = 'https://ui.adsabs.harvard.edu/abs/2017ApJ...850...55N/abstract'
@@ -53,7 +55,7 @@ class CutoffBlackbody(object):
     def calculate_flux_density(self):
         # Mostly from Mosfit/SEDs
         cutoff_wavelength = self.cutoff_wavelength * angstrom_cgs
-        wavelength = nu_to_lambda(self.frequencies)
+        wavelength = nu_to_lambda(self.frequency)
         x_const = planck * speed_of_light * boltzmann_constant
         flux_const = 4 * np.pi * 2*np.pi * planck * speed_of_light**2 * angstrom_cgs
 
@@ -105,18 +107,19 @@ class CutoffBlackbody(object):
 
 
 class Blackbody(object):
-    def __init__(self, temperature, r_photosphere, frequencies, luminosity_distance, **kwargs):
+    def __init__(self, temperature, r_photosphere, frequency, luminosity_distance, **kwargs):
         """
         Simple Blackbody SED
+
         :param temperature: effective temperature in kelvin
         :param r_photosphere: photosphere radius in cm
-        :param frequencies: frequencies to calculate in Hz - Must be same length as time array or a single number. In source frame
+        :param frequency: frequency to calculate in Hz - Must be same length as time array or a single number. In source frame
         :param luminosity_distance: luminosity_distance in cm
         :param kwargs: None
         """
         self.temperature = temperature
         self.r_photosphere = r_photosphere
-        self.frequencies = frequencies
+        self.frequency = frequency
         self.luminosity_distance = luminosity_distance
         self.reference = 'It is a blackbody - Do you really need a reference for this?'
 
@@ -124,16 +127,17 @@ class Blackbody(object):
 
     def calculate_flux_density(self):
         flux_density = blackbody_to_flux_density(temperature=self.temperature, r_photosphere=self.r_photosphere,
-                                                 frequencies=self.frequencies, dl=self.luminosity_distance)
+                                                 frequency=self.frequency, dl=self.luminosity_distance)
         return flux_density
 
 
 class Synchrotron(object):
-    def __init__(self, frequencies, luminosity_distance,
+    def __init__(self, frequency, luminosity_distance,
                  pp,nu_max, source_radius=1e13, f0=1e-26, **kwargs):
         """
         Synchrotron SED
-        :param frequencies: frequencies to calculate in Hz - Must be same length as time array or a single number. In source frame
+
+        :param frequency: frequency to calculate in Hz - Must be same length as time array or a single number. In source frame
         :param luminosity_distance: luminosity_distance in cm
         :param pp: synchrotron power law slope
         :param nu_max: max frequency
@@ -141,7 +145,7 @@ class Synchrotron(object):
         :param f0: frequency normalization
         :param kwargs: None
         """
-        self.frequencies = frequencies
+        self.frequency = frequency
         self.luminosity_distance = luminosity_distance
         self.pp = pp
         self.nu_max = nu_max
@@ -154,16 +158,16 @@ class Synchrotron(object):
 
     def calculate_flux_density(self):
         fmax = self.f0 * self.source_radius**2 * self.nu_max ** 2.5 # for SSA
-        mask = self.frequencies < self.nu_max
-        sed = np.zeros(len(self.frequencies))
+        mask = self.frequency < self.nu_max
+        sed = np.zeros(len(self.frequency))
 
         # sed units are erg/s/Angstrom - need to turn them into flux density compatible units
         units = uu.erg / uu.s / uu.hz / uu.cm**2
 
         sed[mask] = self.f0 * self.source_radius**2 * \
-                    (self.frequencies/self.nu_max)**2.5 * angstrom_cgs / speed_of_light * self.frequencies **2
-        sed[~mask] = fmax * (self.frequencies/self.nu_max)**(-(self.pp - 1.)/2.) \
-                     * angstrom_cgs / speed_of_light * self.frequencies **2
+                    (self.frequency/self.nu_max)**2.5 * angstrom_cgs / speed_of_light * self.frequency **2
+        sed[~mask] = fmax * (self.frequency/self.nu_max)**(-(self.pp - 1.)/2.) \
+                     * angstrom_cgs / speed_of_light * self.frequency **2
         self.sed = sed
         sed = sed / (4*np.pi * self.luminosity_distance**2) * lambda_to_nu(1.)
 
@@ -179,9 +183,10 @@ class Line(object):
                  line_time=50, line_duration=25, line_amplitude=0.3, **kwargs):
         """
         Modifies the input SED by accounting for absorption lines
+
         :param time: time in source frame
         :param luminosity: luminosity in cgs
-        :param frequency: frequencies to calculate in Hz - Must be same length as time array or a single number. In source frame
+        :param frequency: frequency to calculate in Hz - Must be same length as time array or a single number. In source frame
         :param sed: instantiated SED class object.
         :param luminosity_distance: luminosity_distance in cm
         :param line_wavelength: line wavelength in angstrom
@@ -193,7 +198,7 @@ class Line(object):
         """
         self.time = time
         self.luminosity = luminosity
-        self.frequencies = frequency
+        self.frequency = frequency
         self.SED = sed
         self.luminosity_distance = luminosity_distance
         self.line_wavelength = line_wavelength
@@ -209,7 +214,7 @@ class Line(object):
 
     def calculate_flux_density(self):
         # Mostly from Mosfit/SEDs
-        wavelength = nu_to_lambda(self.frequencies)
+        wavelength = nu_to_lambda(self.frequency)
         amplitude = self.line_amplitude * np.exp(-0.5*((self.time - self.line_time)/self.line_duration)**2)
 
         seds = self.SED.sed * (1 - amplitude)

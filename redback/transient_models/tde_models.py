@@ -61,13 +61,13 @@ def tde_analytical(time, redshift, l0, t_0, interaction_process=ip.Diffusion,
     """
     frequency = kwargs['frequency']
     cutoff_wavelength = kwargs.get('cutoff_wavelength', 3000)
-    frequency, time = calc_kcorrected_properties(frequencies=frequency, redshift=redshift, time=time)
+    frequency, time = calc_kcorrected_properties(frequency=frequency, redshift=redshift, time=time)
     dl = cosmo.luminosity_distance(redshift).cgs.value
     lbol = tde_analytical_bolometric(time=time, l0=l0, t_0=t_0, interaction_process=interaction_process)
 
     photo = photosphere(time=time, luminosity=lbol, **kwargs)
     sed_1 = sed(temperature=photo.photosphere_temperature, r_photosphere=photo.r_photosphere,
-                frequencies=frequency, luminosity_distance=dl, cutoff_wavelength=cutoff_wavelength)
+                frequency=frequency, luminosity_distance=dl, cutoff_wavelength=cutoff_wavelength)
 
     flux_density = sed_1.flux_density
 

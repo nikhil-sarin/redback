@@ -2,7 +2,14 @@ import numpy as np
 from redback.constants import *
 import redback.transient_models as tm
 
-def superluminous_supernova_constraint(parameters):
+def slsn_constraint(parameters):
+    """
+    Place constraints on the magnetar rotational energy being larger than the output energy,
+    and the that nebula phase does not begin till at least a 100 days.
+
+    :param parameters: dictionary of parameters
+    :return: converted_parameters dictionary where the violated samples are thrown out
+    """
     converted_parameters = parameters.copy()
     mej = parameters['mej'] * solar_mass
     vej = parameters['vej'] * km_cgs

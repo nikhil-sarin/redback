@@ -143,6 +143,7 @@ def t0_afterglow_extinction_model_d2g(time, lognh, factor, **kwargs):
 def _t0_thin_shell_predeceleration(time, **kwargs):
     """
     Assume pre-deceleration behaviour is in thin-shell regime and follows Sari and Piran 1997
+
     :param time:
     :param kwargs:
     :return: flux or magnitude
@@ -176,6 +177,7 @@ def _t0_thin_shell_predeceleration(time, **kwargs):
 def _t0_exinction_models_with_sampled_t_peak(time, tp, **kwargs):
     """
     Sample in peak time and smoothly connect with afterglowpy output
+
     :param time: in MJD, times should be after T0.
     :param tp: in MJD
     :param kwargs:
@@ -221,6 +223,7 @@ def _t0_afterglowpy_rate_model(time, **kwargs):
 def _t0_afterglowpy_flux_model(time, burst_start, **kwargs):
     """
     Afterglowpy based integrated flux models with burst_start as a parameter.
+
     :param time: time in seconds
     :param kwargs: Must include a burst_start and background_rate parameter. This background rate could be zero.
     :return: integrated flux
@@ -233,6 +236,7 @@ def _t0_afterglowpy_flux_model(time, burst_start, **kwargs):
 def _t0_afterglowpy_flux_density_model(time, burst_start, **kwargs):
     """
     Afterglowpy based flux density models with burst_start as a parameter.
+
     :param time: time in seconds
     :param kwargs: Must include a burst_start and background_rate parameter. This background rate could be zero.
     :return: flux density for time > T0 parameter

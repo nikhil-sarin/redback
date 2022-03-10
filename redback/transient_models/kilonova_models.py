@@ -35,6 +35,7 @@ def power_law_stratified_kilonova(time, redshift, mass, vmin, vmax, alpha,
 def two_layer_stratified_kilonova(time, redshift, mass, vej_1, vej_2, kappa, beta, **kwargs):
     """
     Uses kilonova_heating_rate module to model a two layer stratified kilonova
+
     :param time: observer frame time in days
     :param redshift: redshift
     :param frequency: frequency to calculate - Must be same length as time array or a single number
@@ -55,6 +56,7 @@ def two_layer_stratified_kilonova(time, redshift, mass, vej_1, vej_2, kappa, bet
 def _kilonova_hr(time, redshift, mass, velocity_array, kappa_array, beta, **kwargs):
     """
     Uses kilonova_heating_rate module
+
     :param time: observer frame time in days
     :param redshift: redshift
     :param frequency: frequency to calculate - Must be same length as time array or a single number
@@ -86,6 +88,7 @@ def _kilonova_hr(time, redshift, mass, velocity_array, kappa_array, beta, **kwar
 def _kilonova_hr_sourceframe(time, mass, velocity_array, kappa_array, beta):
     """
     Uses kilonova_heating_rate module
+
     :param time: source frame time in seconds
     :param mass: ejecta mass
     :param velocity_array: array of ejecta velocities; length >=2
@@ -264,13 +267,13 @@ def one_component_kilonova_model(time, redshift, mej, vej, kappa, **kwargs):
     temp_func = interp1d(time_temp, y=temperature)
     rad_func = interp1d(time_temp, y=r_photosphere)
     # convert to source frame time and frequency
-    frequency, time = calc_kcorrected_properties(frequencies=frequency, redshift=redshift, time=time)
+    frequency, time = calc_kcorrected_properties(frequency=frequency, redshift=redshift, time=time)
 
     temp = temp_func(time)
     photosphere = rad_func(time)
 
     flux_density = blackbody_to_flux_density(temperature=temp, r_photosphere=photosphere,
-                                             dl=dl, frequencies=frequency)
+                                             dl=dl, frequency=frequency)
 
     if kwargs['output_format'] == 'flux_density':
         return flux_density.to(uu.mJy).value
