@@ -89,7 +89,7 @@ class MultiBandPlotter(object):
             color = colors[list(filters).index(band)]
 
             if isinstance(band, str):
-                freq = self.transient.bands_to_frequencies([band])
+                freq = self.transient.bands_to_frequency([band])
                 if 1e10 < freq < 1e15:
                     label = band
                 else:

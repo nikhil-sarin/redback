@@ -19,7 +19,7 @@ supernova.plot_multiband(figure=fig, axes=axes, filters=["J", "H", "g", "i"])
 # use default priors
 priors = redback.priors.get_priors(model=model)
 priors['redshift'] = 0.677
-model_kwargs = dict(frequencies=redback.utils.bands_to_frequencies(bands), output_format='flux_density')
+model_kwargs = dict(frequencies=redback.utils.bands_to_frequency(bands), output_format='flux_density')
 
 # returns a supernova result object
 result = redback.fit_model(name=sne, transient=supernova, model=model, sampler=sampler, model_kwargs=model_kwargs,

@@ -77,8 +77,8 @@ class Kilonova(OpticalTransient):
             Whether we are using a phase model.
         kwargs: dict, optional
             Additional callables:
-            bands_to_frequencies: Conversion function to convert a list of bands to frequencies. Use
-                                  redback.utils.bands_to_frequencies if not given.
+            bands_to_frequency: Conversion function to convert a list of bands to frequencies. Use
+                                  redback.utils.bands_to_frequency if not given.
         """
         super().__init__(time=time, time_err=time_err, time_rest_frame=time_rest_frame, time_mjd=time_mjd,
                          time_mjd_err=time_mjd_err, time_rest_frame_err=time_rest_frame_err, Lum50=Lum50,

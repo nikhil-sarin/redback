@@ -303,14 +303,14 @@ class TestOpticalTransient(unittest.TestCase):
 
     def test_set_frequencies_from_bands(self):
         expected = [1, 2, 2]
-        bands_to_frequencies = MagicMock(return_value=expected)
+        bands_to_frequency = MagicMock(return_value=expected)
         self.transient = redback.transient.transient.OpticalTransient(
             time=self.time, time_err=self.time_err, flux_density=self.y, flux_density_err=self.y_err,
             redshift=self.redshift, data_mode=self.data_mode, name=self.name,
             photon_index=self.photon_index, use_phase_model=self.use_phase_model, bands=self.bands,
-            active_bands=self.active_bands, bands_to_frequencies=bands_to_frequencies)
+            active_bands=self.active_bands, bands_to_frequency=bands_to_frequency)
         self.assertTrue(np.array_equal(expected, self.transient.frequency))
-        bands_to_frequencies.assert_called_once()
+        bands_to_frequency.assert_called_once()
 
     def test_set_frequencies_default(self):
         frequency = np.array([1, 2, 2])
@@ -471,14 +471,14 @@ class TestAfterglow(unittest.TestCase):
 
     def test_set_frequencies_from_bands(self):
         expected = [1, 2, 2]
-        bands_to_frequencies = MagicMock(return_value=expected)
+        bands_to_frequency = MagicMock(return_value=expected)
         self.sgrb = redback.transient.afterglow.SGRB(
             time=self.time, time_err=self.time_err, flux_density=self.y, flux_density_err=self.y_err,
             data_mode=self.data_mode, name=self.name,
             use_phase_model=self.use_phase_model, bands=self.bands,
-            active_bands=self.active_bands, bands_to_frequencies=bands_to_frequencies)
+            active_bands=self.active_bands, bands_to_frequency=bands_to_frequency)
         self.assertTrue(np.array_equal(expected, self.sgrb.frequency))
-        bands_to_frequencies.assert_called_once()
+        bands_to_frequency.assert_called_once()
 
     def test_set_frequencies_default(self):
         frequency = np.array([1, 2, 2])

@@ -27,7 +27,7 @@ priors['n_ism'] = 1e-3
 priors['tau_sd'] = 1e3
 priors['thermalisation_efficiency'] = 0.3
 
-model_kwargs = dict(frequencies=redback.utils.bands_to_frequencies(bands), output_format='flux_density')
+model_kwargs = dict(frequencies=redback.utils.bands_to_frequency(bands), output_format='flux_density')
 
 result = redback.fit_model(name=kne, transient=kilonova, model=model, sampler=sampler, model_kwargs=model_kwargs,
                            path=path, prior=priors, data_mode='flux_density', sample='rslice', nlive=200)

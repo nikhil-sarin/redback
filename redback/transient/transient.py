@@ -102,13 +102,13 @@ class Transient(object):
             List or array of active bands to be used in the analysis. Use all available bands if 'all' is given.
         kwargs: dict, optional
             Additional callables:
-            bands_to_frequencies: Conversion function to convert a list of bands to frequencies. Use
-                                  redback.utils.bands_to_frequencies if not given.
-            bin_ttes: Binning function for time-tagged event data. Use redback.utils.bands_to_frequencies if not given.
+            bands_to_frequency: Conversion function to convert a list of bands to frequencies. Use
+                                  redback.utils.bands_to_frequency if not given.
+            bin_ttes: Binning function for time-tagged event data. Use redback.utils.bands_to_frequency if not given.
         """
         self.bin_size = bin_size
         self.bin_ttes = kwargs.get("bin_ttes", redback.utils.bin_ttes)
-        self.bands_to_frequencies = kwargs.get("bands_to_frequencies", redback.utils.bands_to_frequencies)
+        self.bands_to_frequency = kwargs.get("bands_to_frequency", redback.utils.bands_to_frequency)
 
         if data_mode == 'ttes':
             time, counts = self.bin_ttes(ttes, self.bin_size)
@@ -311,7 +311,7 @@ class Transient(object):
             self._bands = self.frequency
         elif bands is not None and frequency is None:
             self._bands = bands
-            self._frequency = self.bands_to_frequencies(self.bands)
+            self._frequency = self.bands_to_frequency(self.bands)
 
     @property
     def frequency(self) -> np.ndarray:
@@ -421,7 +421,7 @@ class Transient(object):
                 return self.unique_bands
         except (TypeError, IndexError):
             pass
-        return self.bands_to_frequencies(self.unique_bands)
+        return self.bands_to_frequency(self.unique_bands)
 
     @property
     def list_of_band_indices(self) -> list:
@@ -737,8 +737,8 @@ class OpticalTransient(Transient):
             Whether we are using a phase model.
         kwargs: dict, optional
             Additional callables:
-            bands_to_frequencies: Conversion function to convert a list of bands to frequencies. Use
-                                  redback.utils.bands_to_frequencies if not given.
+            bands_to_frequency: Conversion function to convert a list of bands to frequencies. Use
+                                  redback.utils.bands_to_frequency if not given.
         """
         super().__init__(time=time, time_err=time_err, time_rest_frame=time_rest_frame, time_mjd=time_mjd,
                          time_mjd_err=time_mjd_err, frequency=frequency,
