@@ -1,5 +1,5 @@
 redshift = Uniform(1e-6,3,name='redshift', latex_label = r'$z$')
-f_nickel = LogUniform(1e-3,1,name='f_nickel', latex_label = r'$f_{\mathrm{Ni}}')
+f_nickel = LogUniform(1e-3,1,name='f_nickel', latex_label = r'$f_{\mathrm{Ni}}$')
 p0 = Uniform(1, 10, 'p0', latex_label = r'$P_{0]$ [ms]')
 bp = LogUniform(0.1,10,'bp',latex_label = r'$B_{p}$~[10$^{14}$G]')
 mass_ns = Uniform(1.1, 2.2, 'mass_ns', latex_label = r'$M_{\mathrm{NS}} [M_{\odot}]$')
