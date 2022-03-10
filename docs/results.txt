@@ -1,0 +1,62 @@
+============
+Results
+============
+
+Fitting in :code:`redback` returns a :code:`redback.result` object.
+This object provides a homogenous format for all further analysis and plotting the results of the fitting.
+The :code:`redback.result` object inherits from the :code:`bilby.result` object
+so all functionality in the :code:`bilby.result`
+such as making pp_plots, walker_plots, getting credible intervals etc. is automatically implemented.
+See the :code:`bilby` `API <https://lscsoft.docs.ligo.org/bilby/api/bilby.core.result.Result.html#bilby.core.result.Result>`_ for a full list of features.
+
+The result file is by default saved to the `transient/transient_name/model/`, but the user can of course change this.
+It is by default saved in a `json` format, which can be changed to 'hdf5' for more compression.
+
+Plotting lightcurves and corner plots
+-------------------------
+
+Plotting a corner plot is as simple as
+
+.. code:: python
+
+    result.plot_corner()
+
+The user can pass in different keyword arguments to change the look/format/what parameters are plotted.
+See the :code:`bilby` `API <https://lscsoft.docs.ligo.org/bilby/api/bilby.core.sampler.html>`_.
+
+We can also plot the fit
+
+.. code:: python
+
+    result.plot_lightcurve(random_models=100)
+    result.plot_multiband_lightcurve()
+
+Here the first line will plot the lightcurve on a single panel with a 100 random models randomly drawn from the posterior and the maximum likelihood model.
+The second line will plot the lightcurve on multiple panels, each panel corresponding to a particular band/frequency.
+
+In both functions, users can pass additional keyword arguments to change the aesthetics or what is plotted.
+See the :code:`redback` `API <https://redback.readthedocs.io/en/latest/>`_ for more details.
+
+Further analysis
+-------------------------
+
+The result file provides the posterior values as a pandas data frame accessible via :code:`result.posterior`.
+Other properties such as the evidence etc are also stored.
+
+These posteriors and properties can be used for further analysis such as different diagnostic plots,
+model selection, reweighting or hierarchical inference.
+
+We will soon implement a :code:`redback.analysis` object which will enable users to easily make plots for diagnostic for specific models/transients.
+
+Loading a result file
+-------------------------
+
+We also provide functionality for loading in a result file.
+
+.. code:: python
+
+    import redback
+    redback.result.read_in_result(filepath)
+
+Here filepath is the path to file, the result file recreates the transient object exactly as it was used when fitted.
+This ensures users can keep their results consistent with the data_mode/filters etc of the transient they chose.

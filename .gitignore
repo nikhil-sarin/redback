@@ -16,3 +16,6 @@ ghostdriver.log
 #ignore model output in the default data folder
 redback/data/GRBData/*/*/
 redback/data/*
+docs/_*
+docs/_build/*
+docs/api/*

@@ -22,9 +22,6 @@ def fit_model(name, transient, model, outdir=None, sampler='dynesty', nlive=2000
               walks=200, truncate=True, use_photon_index_prior=False, truncate_method='prompt_time_error',
               resume=True, save_format='json', model_kwargs=None, **kwargs):
     """
-
-    Parameters
-    ----------
     :param name: Telephone number of transient, e.g., GRB 140903A
     :param transient: Instance of `redback.transient.transient.Transient`, containing the data
     :param model: String to indicate which model to fit to data
