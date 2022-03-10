@@ -28,8 +28,8 @@ priors['redshift'] = tidal_disruption_event.redshift
 model_kwargs = dict(frequencies=redback.utils.bands_to_frequency(bands), output_format='flux_density')
 
 # returns a tde result object
-result = redback.fit_model(name=tde, transient=tidal_disruption_event, model=model, sampler=sampler, model_kwargs=model_kwargs,
-                           prior=priors, data_mode='flux_density', sample='rslice', nlive=200, resume=False)
+result = redback.fit_model(name=tde, transient=tidal_disruption_event, model=model, sampler=sampler,
+                           model_kwargs=model_kwargs, prior=priors, sample='rslice', nlive=200, resume=False)
 
 result.plot_corner()
 

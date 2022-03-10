@@ -23,6 +23,6 @@ model_kwargs = dict(frequencies=redback.utils.bands_to_frequency(bands), output_
 
 # returns a supernova result object
 result = redback.fit_model(name=sne, transient=supernova, model=model, sampler=sampler, model_kwargs=model_kwargs,
-                           prior=priors, data_mode='flux_density', sample='rslice', nlive=200, resume=False)
+                           prior=priors, sample='rslice', nlive=200, resume=False)
 result.plot_corner()
 result.plot_lightcurve(random_models=1000)

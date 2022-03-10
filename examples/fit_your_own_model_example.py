@@ -42,6 +42,6 @@ priors['alpha'] = Uniform(-7, 0, 'alpha', latex_label=r'$\alpha$')
 
 # Call redback.fit_model to run the sampler and obtain GRB result object
 result = redback.fit_model(name=GRB, model=model, sampler='dynesty', nlive=200, transient=afterglow,
-                           prior=priors, data_mode='luminosity', sample='rslice', resume=False)
+                           prior=priors, sample='rslice', resume=False)
 
 result.plot_lightcurve(random_models=1000, model=my_favourite_model)

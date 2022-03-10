@@ -26,7 +26,7 @@ priors['redshift'] = 1e-2
 model_kwargs = dict(frequency=kilonova.filtered_frequencies, output_format='flux_density')
 
 result = redback.fit_model(name=kne, transient=kilonova, model=model, sampler=sampler, model_kwargs=model_kwargs,
-                           prior=priors, data_mode='flux_density', sample='rslice', nlive=200, resume=True)
+                           prior=priors, sample='rslice', nlive=200, resume=True)
 result.plot_corner()
 # returns a Kilonova result object
 result.plot_lightcurve(random_models=1000)
