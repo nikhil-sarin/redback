@@ -28,11 +28,11 @@ redback.get_data.get_bat_xrt_afterglow_data_from_swift(grb=GRB, data_mode="flux"
 afterglow = redback.afterglow.SGRB.from_swift_grb(name=GRB, data_mode='flux',
                                                   truncate=True, truncate_method="prompt_time_error")
 
-afterglow.plot_data()
 
 # uses an analytical k-correction expression to create luminosity data if not already there.
 # Can also use a numerical k-correction through CIAO
 afterglow.analytical_flux_to_luminosity()
+afterglow.plot_data()
 
 # You need to create your own priors for this new model.
 # The model has two parameters l0 and alpha. We use bilby priors for this
