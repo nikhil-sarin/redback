@@ -535,8 +535,7 @@ class Transient(object):
             plotter = FluxDensityPlotter(transient=self, filters=filters, filename=filename, outdir=outdir, nrows=nrows, ncols=ncols, figsize=figsize, **kwargs)
         else:
             return
-        return plotter.plot_multiband(
-            figure=figure, axes=axes, save=save, show=show)
+        return plotter.plot_multiband(figure=figure, axes=axes, save=save, show=show)
 
     def plot_lightcurve(
             self, model: callable, filename: str = None, outdir: str = None, axes: matplotlib.axes.Axes = None,
@@ -578,8 +577,7 @@ class Transient(object):
             plotter = MagnitudePlotter(transient=self, model=model, filename=filename, outdir=outdir, posterior=posterior, model_kwargs=model_kwargs, **kwargs)
         else:
             return axes
-        return plotter.plot_lightcurve(
-            axes=axes, save=save, show=show)
+        return plotter.plot_lightcurve(axes=axes, save=save, show=show)
 
     def plot_multiband_lightcurve(
             self, model: callable, filename: str = None, outdir: str = None, axes: matplotlib.axes.Axes = None,
@@ -622,8 +620,7 @@ class Transient(object):
             plotter = FluxDensityPlotter(transient=self, model=model, filename=filename, outdir=outdir, posterior=posterior, model_kwargs=model_kwargs, **kwargs)
         else:
             return
-        return plotter.plot_multiband_lightcurve(
-            axes=axes, save=save, show=show, random_models=random_models)
+        return plotter.plot_multiband_lightcurve(axes=axes, save=save, show=show)
 
 
 class OpticalTransient(Transient):

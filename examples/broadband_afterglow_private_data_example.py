@@ -25,8 +25,8 @@ afterglow = redback.transient.Afterglow(
     flux_density=flux_density, flux_density_err=flux_density_err, frequency=frequency)
 
 # Now we have loaded the data up, we can plot it.
-# afterglow.plot_data()
-# afterglow.plot_multiband()
+afterglow.plot_data()
+afterglow.plot_multiband()
 
 # now let's actually fit it with data. We will use all the data and a gaussiancore structured jet from afterglowpy.
 # Note this is not a fast example, so we will make some sampling sacrifices for speed.
