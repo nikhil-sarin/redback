@@ -6,12 +6,30 @@ import numpy as np
 import pandas as pd
 
 import redback
+from redback.utils import KwargsAccessorWithDefault
 
 
 class Plotter(object):
 
-    def __init__(self, transient):
+    capsize = KwargsAccessorWithDefault("capsize", 0.)
+    dpi = KwargsAccessorWithDefault("dpi", 300)
+    elinewidth = KwargsAccessorWithDefault("elinewidth", 2)
+    errorbar_fmt = KwargsAccessorWithDefault("errorbar_fmt", "x")
+    ms = KwargsAccessorWithDefault("ms", 1)
+    x_axis_tick_params_pad = KwargsAccessorWithDefault("x_axis_tick_params_pad", 10)
+    model = KwargsAccessorWithDefault("model", None)
+
+    max_likelihood_alpha = KwargsAccessorWithDefault("max_likelihood_alpha", 0.65)
+    random_sample_alpha = KwargsAccessorWithDefault("random_sample_alpha", 0.05)
+    max_likelihood_color = KwargsAccessorWithDefault("max_likelihood_color", "blue")
+    random_sample_color = KwargsAccessorWithDefault("random_sample_color", "red")
+
+    linewidth = KwargsAccessorWithDefault("linewidth", 2)
+    zorder = KwargsAccessorWithDefault("zorder", -1)
+
+    def __init__(self, transient, **kwargs):
         self.transient = transient
+        self.kwargs = kwargs
 
     def _get_times(self, axes: matplotlib.axes.Axes) -> np.ndarray:
         """
@@ -68,15 +86,71 @@ class Plotter(object):
     def y_err(self):
         return [np.abs(self.transient.y_err[1, :]), self.transient.y_err[0, :]]
 
+    @property
+    def lightcurve_plot_outdir(self):
+        return self._get_outdir(join(self.transient.directory_structure.directory_path, self.model.__name__))
+
+    @property
+    def data_plot_outdir(self):
+        return self._get_outdir(self.transient.directory_structure.directory_path)
+
+    def _get_outdir(self, default):
+        return self._get_kwarg_with_default(kwarg="outdir", default=default)
+
+    def _get_filename(self, default):
+        return self._get_kwarg_with_default(kwarg="filename", default=default)
+
+    def _get_kwarg_with_default(self, kwarg, default):
+        val = self.kwargs.get(kwarg, default)
+        return val or default
+
+    @property
+    def data_plot_filename(self):
+        return self._get_filename(default=f"{self.transient.name}_data.png")
+
+    @property
+    def lightcurve_plot_filename(self):
+        return self._get_filename(default=f"{self.transient.name}_lightcurve.png")
+
+    @property
+    def multiband_data_plot_filename(self):
+        return self._get_filename(default=f"{self.transient.name}_multiband_data.png")
+
+    @property
+    def multiband_lightcurve_plot_filename(self):
+        return self._get_filename(default=f"{self.transient.name}_multiband_lightcurve.png")
+
+    @property
+    def data_plot_filepath(self):
+        return join(self.data_plot_outdir, self.data_plot_filename)
+
+    @property
+    def lightcurve_plot_filepath(self):
+        return join(self.lightcurve_plot_outdir, self.lightcurve_plot_filename)
+
+    @property
+    def multiband_data_plot_filepath(self):
+        return join(self.data_plot_outdir, self.multiband_data_plot_filename)
+
+    @property
+    def multiband_lightcurve_plot_filepath(self):
+        return join(self.lightcurve_plot_outdir, self.multiband_lightcurve_plot_filename)
+
 
 class IntegratedFluxPlotter(Plotter):
+
+    xy = KwargsAccessorWithDefault("xy", (0.95, 0.9))
+    xycoords = KwargsAccessorWithDefault("xycoords", "axes fraction")
+    horizontalalignment = KwargsAccessorWithDefault("horizontalalignment", "right")
+    annotation_size = KwargsAccessorWithDefault("annotation_size", 20)
 
     @property
     def xlabel(self):
         return r"Time since burst [s]"
 
-    def plot_data(self, axes: matplotlib.axes.Axes = None, colour: str = 'k', plot_save: bool = True,
-                  plot_show: bool = True, **kwargs) -> matplotlib.axes.Axes:
+    def plot_data(
+            self, axes: matplotlib.axes.Axes = None, color: str = 'k', plot_save: bool = True,
+            plot_show: bool = True) -> matplotlib.axes.Axes:
         """
         Plots the Afterglow lightcurve and returns Axes.
 
@@ -84,8 +158,8 @@ class IntegratedFluxPlotter(Plotter):
         ----------
         axes : Union[matplotlib.axes.Axes, None], optional
             Matplotlib axes to plot the lightcurve into. Useful for user specific modifications to the plot.
-        colour: str, optional
-            Colour of the data.
+        color: str, optional
+            color of the data.
         kwargs: dict
             Additional keyword arguments.
 
@@ -93,57 +167,41 @@ class IntegratedFluxPlotter(Plotter):
         ----------
         matplotlib.axes.Axes: The axes with the plot.
         """
-        xy = kwargs.get("xy", (0.95, 0.9))
-        xycoords = kwargs.get("xycoords", "axes fraction")
-        horizontalalignment = kwargs.get("horizontalalignment", "right")
-        annotation_size = kwargs.get("annotation_size", 20)
-
 
         ax = axes or plt.gca()
         ax.errorbar(self.transient.x, self.transient.y, xerr=self.x_err, yerr=self.y_err,
-                    fmt='x', c=colour, ms=1, elinewidth=2, capsize=0.)
+                    fmt='x', c=color, ms=self.ms, elinewidth=self.elinewidth, capsize=self.capsize)
 
         ax.set_xscale('log')
         ax.set_yscale('log')
 
         ax.set_xlim(self.xlim_low, self.xlim_high)
         ax.set_ylim(self.ylim_low, self.ylim_high)
-
-        ax.annotate(
-            self.transient.name, xy=xy, xycoords=xycoords,
-            horizontalalignment=horizontalalignment, size=annotation_size)
-
         ax.set_xlabel(self.xlabel)
         ax.set_ylabel(self.transient.ylabel)
-        ax.tick_params(axis='x', pad=10)
 
-        if axes is None:
-            plt.tight_layout()
+        ax.annotate(
+            self.transient.name, xy=self.xy, xycoords=self.xycoords,
+            horizontalalignment=self.horizontalalignment, size=self.annotation_size)
 
-        filename = f"{self.transient.name}_data.png"
+        ax.tick_params(axis='x', pad=self.x_axis_tick_params_pad)
+
         if plot_save:
             plt.tight_layout()
-            plt.savefig(join(self.transient.directory_structure.directory_path, filename))
+            plt.savefig(self.data_plot_filepath, dpi=self.dpi, bbox_inches="tight")
         if plot_show:
             plt.tight_layout()
             plt.show()
-        if axes is None:
-            plt.clf()
         return ax
 
     def plot_lightcurve(
-            self, model: callable, filename: str = None, axes: matplotlib.axes.Axes = None, plot_save: bool = True,
-            plot_show: bool = True, random_models: int = 100, posterior: pd.DataFrame = None, outdir: str = '.',
-            model_kwargs: dict = None, **kwargs: object) -> None:
+            self, axes: matplotlib.axes.Axes = None, plot_save: bool = True,
+            plot_show: bool = True, random_models: int = 100, posterior: pd.DataFrame = None,
+            model_kwargs: dict = None) -> None:
         """
 
         Parameters
         ----------
-        model: callable
-            The model used to plot the lightcurve.
-        filename: str, optional
-            The output filename. Otherwise, use default which starts with the name
-            attribute and ends with *lightcurve.png.
         axes: matplotlib.axes.Axes, optional
             Axes to plot in if given.
         plot_save: bool, optional
@@ -154,39 +212,38 @@ class IntegratedFluxPlotter(Plotter):
             Number of random posterior samples plotted faintly. Default is 100.
         posterior: pd.DataFrame, optional
             Posterior distribution to which to draw samples from. Is optional but must be given.
-        outdir: str, optional
-            Out directory in which to save the plot. Default is the current working directory.
         model_kwargs: dict
             Additional keyword arguments to be passed into the model.
         kwargs: dict
             No current function.
         """
-        if filename is None:
-            filename = f"{self.transient.name}_lightcurve.png"
         if model_kwargs is None:
             model_kwargs = dict()
         axes = axes or plt.gca()
+
         axes = self.plot_data(axes=axes, plot_save=False, plot_show=False)
-        axes.set_yscale('log')
-        plt.semilogy()
         times = self._get_times(axes)
 
-        posterior.sort_values(by='log_likelihood')
-        max_like_params = posterior.iloc[-1]
-        ys = model(times, **max_like_params, **model_kwargs)
-        axes.plot(times, ys, color='blue', alpha=0.65, lw=2)
-
-        for _ in range(random_models):
-            params = posterior.iloc[np.random.randint(len(posterior))]
-            ys = model(times, **params, **model_kwargs)
-            axes.plot(times, ys, color='red', alpha=0.05, lw=2, zorder=-1, **kwargs)
+        self._plot_lightcurves(axes, model_kwargs, posterior, random_models, times)
 
         if plot_save:
-            plt.savefig(join(outdir, filename), dpi=300, bbox_inches="tight")
+            plt.tight_layout()
+            plt.savefig(self.lightcurve_plot_filepath, dpi=self.dpi, bbox_inches="tight")
         if plot_show:
             plt.tight_layout()
             plt.show()
         return axes
+
+    def _plot_lightcurves(self, axes, model_kwargs, posterior, random_models, times):
+        posterior.sort_values(by='log_likelihood')
+        max_like_params = posterior.iloc[-1]
+        ys = self.model(times, **max_like_params, **model_kwargs)
+        axes.plot(times, ys, color=self.max_likelihood_color, alpha=self.max_likelihood_alpha, lw=self.linewidth)
+        for _ in range(random_models):
+            params = posterior.iloc[np.random.randint(len(posterior))]
+            ys = self.model(times, **params, **model_kwargs)
+            axes.plot(times, ys, color=self.random_sample_color, alpha=self.random_sample_alpha, lw=self.linewidth,
+                      zorder=self.zorder, **self.kwargs)
 
 
 class LuminosityPlotter(IntegratedFluxPlotter):
@@ -195,9 +252,25 @@ class LuminosityPlotter(IntegratedFluxPlotter):
 
 class MagnitudePlotter(Plotter):
 
+    wspace = KwargsAccessorWithDefault("wspace", 0.15)
+    hspace = KwargsAccessorWithDefault("hspace", 0.04)
+    fontsize = KwargsAccessorWithDefault("fontsize", 30)
+
+    @property
+    def colors(self):
+        return self.kwargs.get("colors", self.transient.get_colors(self.filters))
+
+    @property
+    def xlabel(self):
+        return self.kwargs.get("xlabel", self.transient.xlabel)
+
+    @property
+    def ylabel(self):
+        return self.kwargs.get("ylabel", self.transient.ylabel)
+
     def plot_data(
-            self, axes: matplotlib.axes.Axes = None, filters: list = None, plot_others: bool = False,
-            plot_save: bool = True, plot_show: bool = True, **plot_kwargs: dict) -> None:
+            self, axes: matplotlib.axes.Axes = None, plot_others: bool = False,
+            plot_save: bool = True, plot_show: bool = True) -> None:
         """
         Plots the data.
 
@@ -205,8 +278,6 @@ class MagnitudePlotter(Plotter):
         ----------
         axes: matplotlib.axes.Axes, optional
             Axes can be given if defaults are not satisfying
-        filters: list, optional
-            Which bands to plot. Will use default filters if None is given.
         plot_others: bool, optional
             Plot all bands outside filters in black without label if True.
         plot_kwargs:
@@ -217,20 +288,10 @@ class MagnitudePlotter(Plotter):
             ylabel: Plot ylabel
             plot_label: Additional filename label appended to the default name
         """
-        if filters is None:
-            filters = self.transient.active_bands
-
-        errorbar_fmt = plot_kwargs.get("errorbar_fmt", "x")
-        colors = plot_kwargs.get("colors", self.transient.get_colors(filters))
-        xlabel = plot_kwargs.get("xlabel", self.transient.xlabel)
-        ylabel = plot_kwargs.get("ylabel", self.transient.ylabel)
-        plot_label = plot_kwargs.get("plot_label", "data")
-
         ax = axes or plt.gca()
         for indices, band in zip(self.transient.list_of_band_indices, self.transient.unique_bands):
-            x_err = self.transient.x_err[indices] if self.transient.x_err is not None else self.transient.x_err
-            if band in filters:
-                color = colors[list(filters).index(band)]
+            if band in self.filters:
+                color = self.colors[list(self.filters).index(band)]
                 label = band
             elif plot_others:
                 color = "black"
@@ -240,44 +301,50 @@ class MagnitudePlotter(Plotter):
             if isinstance(label, float):
                 label = f"{label:.2e}"
             ax.errorbar(
-                self.transient.x[indices], self.transient.y[indices], xerr=x_err, yerr=self.transient.y_err[indices],
-                fmt=errorbar_fmt, ms=1, color=color, elinewidth=2, capsize=0., label=label)
+                self.transient.x[indices], self.transient.y[indices], xerr=self._get_x_err(indices),
+                yerr=self.transient.y_err[indices], fmt=self.errorbar_fmt, ms=self.ms, color=color,
+                elinewidth=self.elinewidth, capsize=self.capsize, label=label)
 
         ax.set_xlim(0.5 * self.transient.x[0], 1.2 * self.transient.x[-1])
-        self._set_y_axis(ax)
-        ax.set_xlabel(xlabel)
-        ax.set_ylabel(ylabel)
-        ax.tick_params(axis='x', pad=10)
+        self._set_y_axis_data(ax)
+
+        ax.set_xlabel(self.xlabel)
+        ax.set_ylabel(self.ylabel)
+
+        ax.tick_params(axis='x', pad=self.x_axis_tick_params_pad)
         ax.legend(ncol=2, loc='best')
 
-        if axes is None:
-            plt.tight_layout()
-
         if plot_save:
-            filename = f"{self.transient.name}_{plot_label}.png"
-            plt.savefig(join(self.transient.directory_structure.directory_path, filename), bbox_inches='tight')
+            plt.tight_layout()
+            plt.savefig(self.data_plot_filepath, dpi=self.dpi, bbox_inches='tight')
         if plot_show:
             plt.tight_layout()
             plt.show()
         return axes
 
-    def _set_y_axis(self, ax):
+    def _get_x_err(self, indices):
+        return self.transient.x_err[indices] if self.transient.x_err is not None else self.transient.x_err
+
+    def _set_y_axis_data(self, ax):
         ax.set_ylim(0.8 * min(self.transient.y), 1.2 * np.max(self.transient.y))
         ax.invert_yaxis()
 
+    def _set_y_axis_multiband_data(self, axis, indices):
+        if self.transient.magnitude_data:
+            axis.set_ylim(0.8 * min(self.transient.y[indices]), 1.2 * np.max(self.transient.y[indices]))
+            axis.invert_yaxis()
+        else:
+            axis.set_ylim(0.5 * min(self.transient.y[indices]), 2. * np.max(self.transient.y[indices]))
+            axis.set_yscale("log")
+
     def plot_lightcurve(
-            self, model: callable, filename: str = None, axes: matplotlib.axes.Axes = None,  plot_save: bool = True,
-            plot_show: bool = True, random_models: int = 100, posterior: pd.DataFrame = None, outdir: str = '.',
-            model_kwargs: dict = None, **kwargs: object) -> None:
+            self, axes: matplotlib.axes.Axes = None,  plot_save: bool = True,
+            plot_show: bool = True, random_models: int = 100, posterior: pd.DataFrame = None,
+            model_kwargs: dict = None) -> None:
         """
 
         Parameters
         ----------
-        model: callable
-            The model used to plot the lightcurve.
-        filename: str, optional
-            The output filename. Otherwise, use default which starts with the name
-            attribute and ends with *lightcurve.png.
         axes: matplotlib.axes.Axes, optional
             Axes to plot in if given.
         plot_save: bool, optional
@@ -288,21 +355,17 @@ class MagnitudePlotter(Plotter):
             Number of random posterior samples plotted faintly. Default is 100.
         posterior: pd.DataFrame, optional
             Posterior distribution to which to draw samples from. Is optional but must be given.
-        outdir: str, optional
-            Out directory in which to save the plot. Default is the current working directory.
         model_kwargs: dict
             Additional keyword arguments to be passed into the model.
         kwargs: dict
             No current function.
         """
-        if filename is None:
-            filename = f"{self.transient.name}_lightcurve.png"
         if model_kwargs is None:
             model_kwargs = dict()
         axes = axes or plt.gca()
         axes = self.plot_data(axes=axes, plot_save=False, plot_show=False)
         axes.set_yscale('log')
-        # plt.semilogy()
+
         times = self._get_times(axes)
 
         posterior.sort_values(by='log_likelihood')
@@ -312,14 +375,15 @@ class MagnitudePlotter(Plotter):
         for band, color in zip(self.transient.active_bands, self.transient.get_colors(self.transient.active_bands)):
             frequency = redback.utils.bands_to_frequency([band])
             model_kwargs["frequency"] = np.ones(len(times)) * frequency
-            ys = model(times, **max_like_params, **model_kwargs)
+            ys = self.model(times, **max_like_params, **model_kwargs)
             axes.plot(times, ys, color=color, alpha=0.65, lw=2)
 
             for params in random_params_list:
-                ys = model(times, **params, **model_kwargs)
+                ys = self.model(times, **params, **model_kwargs)
                 axes.plot(times, ys, color='red', alpha=0.05, lw=2, zorder=-1)
         if plot_save:
-            plt.savefig(join(outdir, filename), dpi=300, bbox_inches="tight")
+            plt.tight_layout()
+            plt.savefig(self.lightcurve_plot_filepath, dpi=self.dpi, bbox_inches="tight")
         if plot_show:
             plt.tight_layout()
             plt.show()
@@ -327,8 +391,7 @@ class MagnitudePlotter(Plotter):
 
     def plot_multiband(
             self, figure: matplotlib.figure.Figure = None, axes: matplotlib.axes.Axes = None, ncols: int = 2,
-            nrows: int = None, figsize: tuple = None, filters: list = None, plot_save: bool=True, plot_show: bool=True,
-            **plot_kwargs: dict) -> \
+            nrows: int = None, figsize: tuple = None, plot_save: bool=True, plot_show: bool=True) -> \
             matplotlib.axes.Axes:
         """
 
@@ -345,8 +408,6 @@ class MagnitudePlotter(Plotter):
             be inferred from ncols and the number of filters.
         figsize: tuple, optional
             Size of the figure. A default based on ncols and nrows will be used if None is given.
-        filters: list, optional
-            Which bands to plot. Will use default filters if None is given.
         plot_kwargs:
             Additional optional plotting kwargs:
             wspace: Extra argument for matplotlib.pyplot.subplots_adjust
@@ -366,27 +427,13 @@ class MagnitudePlotter(Plotter):
             redback.utils.logger.warning(f"Can't plot multiband for {self.transient.data_mode} data.")
             return
 
-        if filters is None:
-            filters = self.transient.active_bands
-        elif str(filters) == 'default':
-            filters = self.transient.default_filters
-
-        wspace = plot_kwargs.get("wspace", 0.15)
-        hspace = plot_kwargs.get("hspace", 0.04)
-        fontsize = plot_kwargs.get("fontsize", 30)
-        errorbar_fmt = plot_kwargs.get("errorbar_fmt", "x")
-        colors = plot_kwargs.get("colors", self.transient.get_colors(filters))
-        xlabel = plot_kwargs.get("xlabel", self.transient.xlabel)
-        ylabel = plot_kwargs.get("ylabel", self.transient.ylabel)
-        plot_label = plot_kwargs.get("plot_label", "multiband_data")
-
         if figure is None or axes is None:
             if nrows is None:
-                nrows = int(np.ceil(len(filters) / 2))
+                nrows = int(np.ceil(len(self.filters) / 2))
             npanels = ncols * nrows
-            if npanels < len(filters):
+            if npanels < len(self.filters):
                 raise ValueError(f"Insufficient number of panels. {npanels} panels were given "
-                                 f"but {len(filters)} panels are needed.")
+                                 f"but {len(self.filters)} panels are needed.")
             if figsize is None:
                 figsize = (4 + 4 * ncols, 2 + 2 * nrows)
             figure, axes = plt.subplots(ncols=ncols, nrows=nrows, sharex='all', figsize=figsize)
@@ -394,60 +441,65 @@ class MagnitudePlotter(Plotter):
         axes = axes.ravel()
 
         i = 0
-        for indices, band in zip(self.transient.list_of_band_indices, self.transient.unique_bands):
-            if band not in filters:
+        for indices, band, freq in zip(
+                self.transient.list_of_band_indices, self.transient.unique_bands, self.transient.unique_frequencies):
+            if band not in self.filters:
                 continue
 
-            x_err = self.transient.x_err[indices] if self.transient.x_err is not None else self.transient.x_err
+            x_err = self._get_x_err(indices)
+            color = self.colors[list(self.filters).index(band)]
 
-            color = colors[list(filters).index(band)]
-
-            if isinstance(band, str):
-                freq = self.transient.bands_to_frequency([band])
-                if 1e10 < freq < 1e15:
-                    label = band
-                else:
-                    label = freq
-            else:
-                label = f"{band:.2e}"
-            axes[i].errorbar(self.transient.x[indices], self.transient.y[indices], xerr=x_err, yerr=self.transient.y_err[indices],
-                             fmt=errorbar_fmt, ms=1, color=color, elinewidth=2, capsize=0., label=label)
+            label = self._get_multiband_plot_label(band, freq)
+            axes[i].errorbar(
+                self.transient.x[indices], self.transient.y[indices], xerr=x_err, yerr=self.transient.y_err[indices],
+                fmt=self.errorbar_fmt, ms=self.ms, color=color, elinewidth=self.elinewidth, capsize=self.capsize,
+                label=label)
 
             axes[i].set_xlim(0.5 * self.transient.x[indices][0], 1.2 * self.transient.x[indices][-1])
-            if self.transient.magnitude_data:
-                axes[i].set_ylim(0.8 * min(self.transient.y[indices]), 1.2 * np.max(self.transient.y[indices]))
-                axes[i].invert_yaxis()
-            else:
-                axes[i].set_ylim(0.5 * min(self.transient.y[indices]), 2. * np.max(self.transient.y[indices]))
-                axes[i].set_yscale("log")
+            self._set_y_axis_multiband_data(axes[i], indices)
             axes[i].legend(ncol=2)
             axes[i].tick_params(axis='both', which='major', pad=8)
             i += 1
 
-        figure.supxlabel(xlabel, fontsize=fontsize)
-        figure.supylabel(ylabel, fontsize=fontsize)
-        filename = f"{self.transient.name}_{plot_label}.png"
-        plt.subplots_adjust(wspace=wspace, hspace=hspace)
+        figure.supxlabel(self.xlabel, fontsize=self.fontsize)
+        figure.supylabel(self.ylabel, fontsize=self.fontsize)
+        plt.subplots_adjust(wspace=self.wspace, hspace=self.hspace)
         if plot_save:
-            plt.savefig(join(self.transient.directory_structure.directory_path, filename), bbox_inches="tight")
+            plt.tight_layout()
+            plt.savefig(self.multiband_data_plot_filepath, dpi=self.dpi, bbox_inches="tight")
         if plot_show:
             plt.tight_layout()
             plt.show()
         return axes
 
+    @staticmethod
+    def _get_multiband_plot_label(band, freq):
+        if isinstance(band, str):
+            if 1e10 < freq < 1e15:
+                label = band
+            else:
+                label = freq
+        else:
+            label = f"{band:.2e}"
+        return label
+
+    @property
+    def filters(self):
+        filters = self.kwargs.get("filters", self.transient.active_bands)
+        if filters is None:
+            return self.transient.active_bands
+        elif str(filters) == 'default':
+            return self.transient.default_filters
+        return filters
+
     def plot_multiband_lightcurve(
-            self, model: callable, filename: str = None, axes: matplotlib.axes.Axes = None, plot_save: bool = True,
-            plot_show: bool = True, random_models: int = 100, posterior: pd.DataFrame = None, outdir: str = '.',
-            model_kwargs: dict = None, **kwargs: object) -> None:
+            self, axes: matplotlib.axes.Axes = None, plot_save: bool = True,
+            plot_show: bool = True, random_models: int = 100, posterior: pd.DataFrame = None,
+            model_kwargs: dict = None) -> None:
         """
 
         Parameters
         ----------
-        model: callable
-            The model used to plot the lightcurve
-        filename: str, optional
-            The output filename. Otherwise, use default which starts with the name
-            attribute and ends with *lightcurve.png.
         axes: matplotlib.axes.Axes, optional
             Axes to plot in if given.
         plot_save: bool, optional
@@ -458,12 +510,8 @@ class MagnitudePlotter(Plotter):
             Number of random posterior samples plotted faintly. Default is 100.
         posterior: pd.DataFrame, optional
             Posterior distribution to which to draw samples from. Is optional but must be given.
-        outdir: str, optional
-            Out directory in which to save the plot. Default is the current working directory.
         model_kwargs: dict
             Additional keyword arguments to be passed into the model.
-        kwargs: dict
-            No current function.
         -------
 
         """
@@ -472,36 +520,39 @@ class MagnitudePlotter(Plotter):
                 f"Plotting multiband lightcurve not possible for {self.transient.data_mode}. Returning.")
             return
 
-        if filename is None:
-            filename = f"{self.transient.name}_multiband_lightcurve.png"
         axes = axes or plt.gca()
-        filters = kwargs.get("filters", self.transient.active_bands)
-        axes = self.plot_multiband(axes=axes, plot_save=False, plot_show=False, filters=filters)
+        axes = self.plot_multiband(axes=axes, plot_save=False, plot_show=False)
 
         times = self._get_times(axes)
-
-        times_mesh, frequency_mesh = np.meshgrid(times, redback.utils.bands_to_frequency(filters))
+        times_mesh, frequency_mesh = np.meshgrid(times, self.transient.bands_to_frequency(self.filters))
         new_model_kwargs = model_kwargs.copy()
         new_model_kwargs['frequency'] = frequency_mesh
         posterior.sort_values(by='log_likelihood')
         max_like_params = posterior.iloc[-1]
-        ys = model(times_mesh, **max_like_params, **new_model_kwargs)
+        ys = self.model(times_mesh, **max_like_params, **new_model_kwargs)
 
-        for i in range(len(filters)):
-            axes[i].plot(times, ys[i], color='blue', alpha=0.65, lw=2)
-            for _ in range(random_models):
-                params = posterior.iloc[np.random.randint(len(posterior))]
-                ys = model(times_mesh, **params, **new_model_kwargs)
-                axes[i].plot(times, ys[i], color='red', alpha=0.05, lw=2, zorder=-1)
+        random_yss = []
+        for _ in range(random_models):
+            params = posterior.iloc[np.random.randint(len(posterior))]
+            random_yss.append(self.model(times_mesh, **params, **new_model_kwargs))
+
+        for i in range(len(ys)):
+            axes[i].plot(times, ys[i], color=self.max_likelihood_color, alpha=self.max_likelihood_alpha, lw=self.linewidth)
+            for random_ys in random_yss:
+                axes[i].plot(
+                    times, random_ys[i], color=self.random_sample_color,
+                    alpha=self.random_sample_alpha, lw=self.linewidth, zorder=self.zorder)
         if plot_save:
-            plt.savefig(join(outdir, filename), dpi=300, bbox_inches="tight")
+            plt.tight_layout()
+            plt.savefig(self.multiband_lightcurve_plot_filepath, dpi=self.dpi, bbox_inches="tight")
         if plot_show:
+            plt.tight_layout()
             plt.show()
         return axes
 
 
 class FluxDensityPlotter(MagnitudePlotter):
 
-    def _set_y_axis(self, ax):
+    def _set_y_axis_data(self, ax):
         ax.set_ylim(0.5 * min(self.transient.y), 2. * np.max(self.transient.y))
         ax.set_yscale('log')

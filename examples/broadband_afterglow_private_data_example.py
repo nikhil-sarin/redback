@@ -48,10 +48,12 @@ priors['ksin'] = 1.
 model_kwargs = dict(frequency=frequency, output_format='flux_density')
 
 # returns a supernova result object
-result = redback.fit_model(transient=afterglow, model=model, sampler=sampler, model_kwargs=model_kwargs,
-                           prior=priors, sample='rslice', nlive=50, dlogz=10, resume=True)
+# result = redback.fit_model(transient=afterglow, model=model, sampler=sampler, model_kwargs=model_kwargs,
+#                            prior=priors, sample='rslice', nlive=50, dlogz=10, resume=True)
 # plot corner
-result.plot_corner()
+# result.plot_corner()
+result = redback.result.read_in_result(filename="GRBData/afterglow/flux_density/gaussiancore/GRB170817A_result.json")
 
 # plot multiband lightcurve. This will plot a panel for every unique frequency
+result.plot_lightcurve()
 result.plot_multiband_lightcurve(random_models=100)
