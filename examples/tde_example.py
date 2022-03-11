@@ -22,7 +22,7 @@ tidal_disruption_event.active_bands = bands
 priors = redback.priors.get_priors(model=model)
 # we know the redshift for PS18kh so we just fix the prior for the redshift to the known value.
 # We can do this through the metadata that was downloaded alongside the data, or if you just know it.
-# priors['redshift'] = tidal_disruption_event.redshift
+priors['redshift'] = 0.07
 
 model_kwargs = dict(frequency=tidal_disruption_event.filtered_frequencies, output_format='flux_density')
 
