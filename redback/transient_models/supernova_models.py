@@ -254,7 +254,7 @@ def slsn_bolometric(time, p0, bp, mass_ns, theta_pb,**kwargs):
     """
     _interaction_process = kwargs.get("interaction_process", ip.Diffusion)
     return basic_magnetar_powered_bolometric(time=time, p0=p0, bp=bp, mass_ns=mass_ns,
-                                             theta_pb=theta_pb, interaction_process=_interaction_process, **kwargs)
+                                             theta_pb=theta_pb, **kwargs)
 
 
 @citation_wrapper('https://ui.adsabs.harvard.edu/abs/2017ApJ...850...55N/abstract')
@@ -286,8 +286,7 @@ def slsn(time, redshift, p0, bp, mass_ns, theta_pb,**kwargs):
     frequency, time = calc_kcorrected_properties(frequency=frequency, redshift=redshift, time=time)
     dl = cosmo.luminosity_distance(redshift).cgs.value
 
-    lbol = slsn_bolometric(time=time, p0=p0, bp=bp, mass_ns=mass_ns, theta_pb=theta_pb,
-                           interaction_process=_interaction_process)
+    lbol = slsn_bolometric(time=time, p0=p0, bp=bp, mass_ns=mass_ns, theta_pb=theta_pb, **kwargs)
     photo = _photosphere(time=time, luminosity=lbol, **kwargs)
     sed_1 = _sed(time=time, luminosity=lbol, temperature=photo.photosphere_temperature,
                 r_photosphere=photo.r_photosphere,frequency=frequency, luminosity_distance=dl,
