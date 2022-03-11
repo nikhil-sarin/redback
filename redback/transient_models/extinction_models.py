@@ -1,6 +1,7 @@
 from inspect import isfunction
 import numpy as np
 
+import redback.utils
 from redback.transient_models.fireball_models import predeceleration
 from redback.utils import logger, calc_ABmag_from_flux_density, citation_wrapper
 import astropy.units as uu
@@ -67,8 +68,8 @@ def _perform_extinction(flux_density, frequency, av, r_v):
     """
     import extinction  # noqa
     # convert to angstrom
-    frequency = (frequency * uu.Hz).to(uu.Angstrom).value
-    mag_extinction = extinction.fitzpatrick99(frequency, av, r_v=r_v)
+    angstroms = redback.utils.nu_to_lambda(frequency)
+    mag_extinction = extinction.fitzpatrick99(angstroms, av, r_v=r_v)
     flux_density = extinction.apply(mag_extinction, flux_density)
     return flux_density
 
@@ -92,7 +93,7 @@ def _evaluate_extinction_model(time, av, model_type, **kwargs):
     r_v = kwargs.get('r_v', 3.1)
     flux_density = _perform_extinction(flux_density=flux_density, frequency=frequency, av=av, r_v=r_v)
     if kwargs['output_format'] == 'flux_density':
-        return flux_density.value
+        return flux_density
     elif kwargs['output_format'] == 'magnitude':
         return calc_ABmag_from_flux_density(flux_density).value
 

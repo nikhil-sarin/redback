@@ -147,6 +147,22 @@ class RedbackResult(Result):
         self.transient.plot_lightcurve(model=model, posterior=self.posterior, outdir=self.outdir,
                                        model_kwargs=self.model_kwargs, **kwargs)
 
+    def plot_multiband_lightcurve(self, model: Union[callable, str] = None, **kwargs: dict) -> None:
+        """
+        Reconstructs the transient and calls the specific `plot_multiband_lightcurve` method.
+
+        Parameters
+        ----------
+        model: Union[callable, str], optional
+            User specified model.
+        kwargs: dict
+            Any kwargs to be passed into the `plot_lightcurve` method.
+        """
+        if model is None:
+            model = model_library.all_models_dict[self.model]
+        self.transient.plot_multiband_lightcurve(
+            model=model, posterior=self.posterior, outdir=self.outdir, model_kwargs=self.model_kwargs, **kwargs)
+
     def plot_data(self, **kwargs: dict) -> None:
         """
         Reconstructs the transient and calls the specific `plot_data` method.

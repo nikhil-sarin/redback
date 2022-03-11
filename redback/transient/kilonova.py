@@ -77,8 +77,8 @@ class Kilonova(OpticalTransient):
             Whether we are using a phase model.
         kwargs: dict, optional
             Additional callables:
-            bands_to_frequencies: Conversion function to convert a list of bands to frequencies. Use
-                                  redback.utils.bands_to_frequencies if not given.
+            bands_to_frequency: Conversion function to convert a list of bands to frequencies. Use
+                                  redback.utils.bands_to_frequency if not given.
         """
         super().__init__(time=time, time_err=time_err, time_rest_frame=time_rest_frame, time_mjd=time_mjd,
                          time_mjd_err=time_mjd_err, time_rest_frame_err=time_rest_frame_err, Lum50=Lum50,
@@ -86,6 +86,6 @@ class Kilonova(OpticalTransient):
                          magnitude=magnitude, magnitude_err=magnitude_err, data_mode=data_mode, name=name, bands=bands,
                          system=system, active_bands=active_bands, use_phase_model=use_phase_model, redshift=redshift,
                          photon_index=photon_index, **kwargs)
-        self.directory_structure = redback.get_data.directory.open_access_directory_structure(transient=name,
-                                                                                              transient_type="kilonova")
+        self.directory_structure = redback.get_data.directory.open_access_directory_structure(
+            transient=name, transient_type="kilonova")
         self._set_data()

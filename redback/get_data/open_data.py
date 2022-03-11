@@ -139,6 +139,7 @@ class OpenDataGetter(object):
                                                              magnitude_error=data['e_magnitude'].values,
                                                              reference_flux=3631,
                                                              magnitude_system='AB')
+        data['band'] = [b.replace("'", "") for b in data["band"]]
         metadata = pd.read_csv(f"{self.directory_path}{self.transient}_metadata.csv")
         metadata.replace(r'^\s+$', np.nan, regex=True)
         time_of_event = self.get_time_of_event(data=data, metadata=metadata)

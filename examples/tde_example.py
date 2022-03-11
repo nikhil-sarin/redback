@@ -8,11 +8,10 @@ tde = "PS18kh"
 
 data = redback.get_data.get_tidal_disruption_event_data_from_open_transient_catalog_data(tde)
 
-tidal_disruption_event = redback.tde.TDE.from_open_access_catalogue(tidal_disruption_event, data_mode='flux_density')
+tidal_disruption_event = redback.tde.TDE.from_open_access_catalogue(tde, data_mode='flux_density')
 
 # lets make a plot of the data
-fig, axes = plt.subplots(2, 2, sharex=True, sharey=True, figsize=(12, 8))
-tidal_disruption_event.plot_multiband(figure=fig, axes=axes, filters=["J", "H", "g", "i"])
+tidal_disruption_event.plot_multiband(filters=["V", "r", "g", "i"])
 
 # we are now only going to fit u and r bands. We set this using the transient object and the active bands attribute.
 # By default all data is used, this is just for speed in the example or if you only trust some of the data/physics.
@@ -23,14 +22,14 @@ tidal_disruption_event.active_bands = bands
 priors = redback.priors.get_priors(model=model)
 # we know the redshift for PS18kh so we just fix the prior for the redshift to the known value.
 # We can do this through the metadata that was downloaded alongside the data, or if you just know it.
-priors['redshift'] = tidal_disruption_event.redshift
+priors['redshift'] = 0.07
 
-model_kwargs = dict(frequencies=redback.utils.bands_to_frequencies(bands), output_format='flux_density')
+model_kwargs = dict(frequency=tidal_disruption_event.filtered_frequencies, output_format='flux_density')
 
 # returns a tde result object
-result = redback.fit_model(name=tde, transient=tidal_disruption_event, model=model, sampler=sampler, model_kwargs=model_kwargs,
-                           prior=priors, data_mode='flux_density', sample='rslice', nlive=200, resume=False)
+result = redback.fit_model(transient=tidal_disruption_event, model=model, sampler=sampler,
+                           model_kwargs=model_kwargs, prior=priors, sample='rslice', nlive=200, resume=False)
 
 result.plot_corner()
 
-result.plot_lightcurve(random_models=1000)
+result.plot_lightcurve(random_models=100)

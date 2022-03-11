@@ -38,7 +38,7 @@ def metzger_magnetar_boosted_kilonova_model(time, redshift, mej, vej, beta, kapp
     temp_func = interp1d(time_temp, y=temperature)
     rad_func = interp1d(time_temp, y=r_photosphere)
     # convert to source frame time and frequency
-    time = time * 86400
+    time = time * day_to_s
     frequency, time = calc_kcorrected_properties(frequency=frequency, redshift=redshift, time=time)
 
     temp = temp_func(time)
@@ -73,7 +73,7 @@ def _metzger_magnetar_boosted_kilonova_model(time, mej, vej, beta, kappa_r, l0, 
 
 
     time = time
-    tdays = time/86400
+    tdays = time/day_to_s
     time_len = len(time)
     mass_len = 250
 
@@ -197,7 +197,7 @@ def _metzger_magnetar_boosted_kilonova_model(time, mej, vej, beta, kappa_r, l0, 
         ejecta_albedo = kwargs.get('ejecta_albedo', 0.5)
         pair_cascade_fraction = kwargs.get('pair_cascade_fraction', 0.01)
         tlife_t = (0.6/(1 - ejecta_albedo))*(pair_cascade_fraction/0.1)**0.5 * (lsd/1.0e45)**0.5 \
-                  * (v0/(0.3*speed_of_light))**(0.5) * (time/86400)**(-0.5)
+                  * (v0/(0.3*speed_of_light))**(0.5) * (time/day_to_s)**(-0.5)
         bolometric_luminosity = bolometric_luminosity / (1.0 + tlife_t)
 
     temperature = (bolometric_luminosity / (4.0 * np.pi * (r_photosphere) ** (2.0) * sigma_sb)) ** (0.25)
@@ -365,7 +365,7 @@ def mergernova(time, redshift, mej, beta, ejecta_radius, kappa, n_ism, l0, tau_s
     rad_func = interp1d(time_temp, y=radius)
     d_func = interp1d(time_temp, y=doppler_factor)
     # convert to source frame time and frequency
-    time = time * 86400
+    time = time * day_to_s
     frequency, time = calc_kcorrected_properties(frequency=frequency, redshift=redshift, time=time)
 
     temp = temp_func(time)

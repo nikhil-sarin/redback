@@ -18,7 +18,7 @@ from redback.transient.tde import TDE
 dirname = os.path.dirname(__file__)
 
 
-def fit_model(name, transient, model, outdir=None, sampler='dynesty', nlive=2000, prior=None,
+def fit_model(transient, model, outdir=None, sampler='dynesty', nlive=2000, prior=None,
               walks=200, truncate=True, use_photon_index_prior=False, truncate_method='prompt_time_error',
               resume=True, save_format='json', model_kwargs=None, **kwargs):
     """
@@ -61,17 +61,17 @@ def fit_model(name, transient, model, outdir=None, sampler='dynesty', nlive=2000
                              truncate=truncate, use_photon_index_prior=use_photon_index_prior,
                              truncate_method=truncate_method, **kwargs)
     elif isinstance(transient, PromptTimeSeries):
-        return _fit_prompt(name=name, transient=transient, model=model, outdir=outdir, sampler=sampler, nlive=nlive,
+        return _fit_prompt(transient=transient, model=model, outdir=outdir, sampler=sampler, nlive=nlive,
                            prior=prior, walks=walks, use_photon_index_prior=use_photon_index_prior, resume=resume,
                            save_format=save_format, model_kwargs=model_kwargs, **kwargs)
     elif isinstance(transient, Supernova):
-        return _fit_supernova(name=name, transient=transient, model=model, outdir=outdir, sampler=sampler, nlive=nlive,
+        return _fit_kilonova(transient=transient, model=model, outdir=outdir, sampler=sampler, nlive=nlive,
                               prior=prior, walks=walks, truncate=truncate,
                               use_photon_index_prior=use_photon_index_prior, truncate_method=truncate_method,
                               resume=resume, save_format=save_format, model_kwargs=model_kwargs,
                               **kwargs)
     elif isinstance(transient, TDE):
-        return _fit_tde(name=name, transient=transient, model=model, outdir=outdir, sampler=sampler, nlive=nlive,
+        return _fit_kilonova(transient=transient, model=model, outdir=outdir, sampler=sampler, nlive=nlive,
                         prior=prior, walks=walks, truncate=truncate, use_photon_index_prior=use_photon_index_prior,
                         truncate_method=truncate_method,
                         resume=resume, save_format=save_format, model_kwargs=model_kwargs, **kwargs)
@@ -89,47 +89,12 @@ def _fit_grb(transient, model, outdir=None, label=None, sampler='dynesty', nlive
             prior['alpha_1'] = bilby.prior.Gaussian(mu=-(transient.photon_index + 1), sigma=0.1,
                                                     latex_label=r'$\alpha_{1}$')
     if outdir is None:
-        outdir, _, _ = redback.get_data.directory.afterglow_directory_structure(
-            grb=transient.name, data_mode=transient.data_mode, instrument='')
-        outdir = f"{outdir}/{model.__name__}"
+        outdir = f"{transient.directory_structure.directory_path}/{model.__name__}"
     Path(outdir).mkdir(parents=True, exist_ok=True)
 
-    if label is None:
-        label = transient.data_mode
-        if use_photon_index_prior:
-            label += '_photon_index'
-
-    if transient.flux_density_data or transient.magnitude_data:
-        x, x_err, y, y_err = transient.get_filtered_data()
-    else:
-        x, x_err, y, y_err = transient.x, transient.x_err, transient.y, transient.y_err
-
-    likelihood = kwargs.get('likelihood', GaussianLikelihood(x=x, y=y, sigma=y_err, function=model, kwargs=model_kwargs))
-
-    meta_data = dict(model=model.__name__, transient_type=transient.__class__.__name__.lower())
-    transient_kwargs = {k.lstrip("_"): v for k, v in transient.__dict__.items()}
-    meta_data.update(transient_kwargs)
-    meta_data['model_kwargs'] = model_kwargs
-
-    result = bilby.run_sampler(likelihood=likelihood, priors=prior, label=label, sampler=sampler, nlive=nlive,
-                               outdir=outdir, plot=True, use_ratio=False, walks=walks, resume=resume,
-                               maxmcmc=10 * walks, result_class=RedbackResult, meta_data=meta_data,
-                               nthreads=4, save_bounds=False, nsteps=nlive, nwalkers=walks, save=save_format, **kwargs)
-
-    return result
-
-
-def _fit_kilonova(transient, model, outdir=None, label=None, sampler='dynesty', nlive=3000, prior=None, walks=1000,
-                  resume=True, save_format='json', model_kwargs=None, **kwargs):
-
-    if outdir is None:
-        outdir, _, _ = redback.get_data.directory.open_access_directory_structure(transient=transient.name,
-                                                                                  transient_type=transient.__class__.__name__)
-        outdir = f"{outdir}/{model.__name__}"
-    Path(outdir).mkdir(parents=True, exist_ok=True)
-
-    if label is None:
-        label = f"{transient.data_mode}"
+    label = kwargs.get("label", transient.name)
+    if use_photon_index_prior:
+        label += '_photon_index'
 
     if transient.flux_density_data or transient.magnitude_data:
         x, x_err, y, y_err = transient.get_filtered_data()
@@ -151,7 +116,38 @@ def _fit_kilonova(transient, model, outdir=None, label=None, sampler='dynesty', 
     return result
 
 
-def _fit_prompt(name, transient, model, outdir, integrated_rate_function=True, sampler='dynesty', nlive=3000,
+def _fit_kilonova(transient, model, outdir=None, sampler='dynesty', nlive=3000, prior=None, walks=1000,
+                  resume=True, save_format='json', model_kwargs=None, **kwargs):
+
+    if outdir is None:
+        outdir, _, _ = redback.get_data.directory.open_access_directory_structure(transient=transient.name,
+                                                                                  transient_type=transient.__class__.__name__)
+        outdir = f"{outdir}/{model.__name__}"
+    Path(outdir).mkdir(parents=True, exist_ok=True)
+
+    label = kwargs.get("label", transient.name)
+
+    if transient.flux_density_data or transient.magnitude_data:
+        x, x_err, y, y_err = transient.get_filtered_data()
+    else:
+        x, x_err, y, y_err = transient.x, transient.x_err, transient.y, transient.y_err
+
+    likelihood = kwargs.get('likelihood', GaussianLikelihood(x=x, y=y, sigma=y_err, function=model, kwargs=model_kwargs))
+
+    meta_data = dict(model=model.__name__, transient_type=transient.__class__.__name__.lower())
+    transient_kwargs = {k.lstrip("_"): v for k, v in transient.__dict__.items()}
+    meta_data.update(transient_kwargs)
+    meta_data['model_kwargs'] = model_kwargs
+
+    result = bilby.run_sampler(likelihood=likelihood, priors=prior, label=label, sampler=sampler, nlive=nlive,
+                               outdir=outdir, plot=True, use_ratio=False, walks=walks, resume=resume,
+                               maxmcmc=10 * walks, result_class=RedbackResult, meta_data=meta_data,
+                               nthreads=4, save_bounds=False, nsteps=nlive, nwalkers=walks, save=save_format, **kwargs)
+    plt.close('all')
+    return result
+
+
+def _fit_prompt(transient, model, outdir, integrated_rate_function=True, sampler='dynesty', nlive=3000,
                 prior=None, walks=1000, use_photon_index_prior=False, resume=True, save_format='json',
                 model_kwargs=None, **kwargs):
 
@@ -159,7 +155,7 @@ def _fit_prompt(name, transient, model, outdir, integrated_rate_function=True, s
     outdir = f"{outdir}/GRB{name}/{model.__name__}"
     Path(outdir).mkdir(parents=True, exist_ok=True)
 
-    label = transient.data_mode
+    label = kwargs.get("label", transient.name)
     if use_photon_index_prior:
         label += '_photon_index'
 
