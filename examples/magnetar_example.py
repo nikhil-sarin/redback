@@ -1,4 +1,5 @@
 import redback
+import bilby
 
 # We implemented many models implemented, including
 # afterglow/magnetar varieties/n_dimensional_fireball/shapelets/band function/kilonova/SNe/TDE
@@ -21,8 +22,8 @@ afterglow.plot_data()
 # use default priors
 priors = redback.priors.get_priors(model=model, data_mode='luminosity')
 
-# alternatively can pass in some priors
-# priors = {}
+# alternatively can create a dictionary of priors in some priors
+# priors = bilby.core.prior.PriorDict()
 # priors['A_1'] = bilby.core.prior.LogUniform(1e-15, 1e15, 'A_1', latex_label = r'$A_{1}$')
 # priors['alpha_1'] = bilby.core.prior.Uniform(-7, -1, 'alpha_1', latex_label = r'$\alpha_{1}$')
 # priors['p0'] = bilby.core.prior.Uniform(0.7e-3, 0.1, 'p0', latex_label = r'$P_{0} [s]$')
@@ -37,4 +38,4 @@ priors = redback.priors.get_priors(model=model, data_mode='luminosity')
 result = redback.fit_model(model=model, sampler='dynesty', nlive=200, transient=afterglow,
                            prior=priors, sample='rslice', resume=True)
 
-result.plot_lightcurve(random_models=1000)
+result.plot_lightcurve(random_models=100)
