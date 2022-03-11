@@ -176,7 +176,7 @@ class PromptTimeSeries(Transient):
         plt.clf()
 
     def plot_lightcurve(
-            self, model: callable, axes: matplotlib.axes.Axes = None, plot_save: bool = True, plot_show: bool = True,
+            self, model: callable, axes: matplotlib.axes.Axes = None, save: bool = True, show: bool = True,
             random_models: int = 1000, posterior: pd.DataFrame = None, outdir: str = None, **kwargs: dict) -> None:
         """
 
@@ -186,9 +186,9 @@ class PromptTimeSeries(Transient):
             The model we are using
         axes: matplotlib.axes.Axes, optional
             Axes to plot into. Currently a placeholder.
-        plot_save: bool, option
+        save: bool, option
             Whether to save the plot. Default is `True`. Currently, a placeholder.
-        plot_show: bool, optional
+        show: bool, optional
             Whether to show the plot. Default is `True`. Currently, a placeholder.
         random_models: int, optional
             Number of random posterior samples to use for plots. Default is 1000.

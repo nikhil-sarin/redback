@@ -458,7 +458,8 @@ class Transient(object):
         """
         return matplotlib.cm.rainbow(np.linspace(0, 1, len(filters)))
 
-    def plot_data(self, axes: matplotlib.axes.Axes = None, color: str = 'k', **kwargs: dict) -> matplotlib.axes.Axes:
+    def plot_data(self, axes: matplotlib.axes.Axes = None, filename: str = None, outdir: str = None, save: bool = True,
+            show: bool = True, plot_others: bool = True, color: str = 'k', **kwargs: dict) -> matplotlib.axes.Axes:
         """
         Plots the Afterglow lightcurve and returns Axes.
 
@@ -477,19 +478,20 @@ class Transient(object):
         """
 
         if self.flux_data:
-            plotter = IntegratedFluxPlotter(transient=self, color=color, **kwargs)
+            plotter = IntegratedFluxPlotter(transient=self, color=color, filename=filename, outdir=outdir, **kwargs)
         elif self.luminosity_data:
-            plotter = LuminosityPlotter(transient=self, color=color, **kwargs)
+            plotter = LuminosityPlotter(transient=self, color=color, filename=filename, outdir=outdir, **kwargs)
         elif self.flux_density_data:
-            plotter = FluxDensityPlotter(transient=self, color=color, **kwargs)
+            plotter = FluxDensityPlotter(transient=self, color=color, filename=filename, outdir=outdir, plot_others=plot_others, **kwargs)
         elif self.magnitude_data:
-            plotter = MagnitudePlotter(transient=self, color=color, **kwargs)
+            plotter = MagnitudePlotter(transient=self, color=color, filename=filename, outdir=outdir, plot_others=plot_others, **kwargs)
         else:
             return axes
-        return plotter.plot_data(axes=axes)
+        return plotter.plot_data(axes=axes, save=save, show=show)
 
     def plot_multiband(
-            self, figure: matplotlib.figure.Figure = None, axes: matplotlib.axes.Axes = None, ncols: int = 2,
+            self, figure: matplotlib.figure.Figure = None, axes: matplotlib.axes.Axes = None, filename: str = None,
+            outdir: str = None, ncols: int = 2, save: bool = True, show: bool = True,
             nrows: int = None, figsize: tuple = None, filters: list = None, **kwargs: dict) \
             -> matplotlib.axes.Axes:
         """
@@ -528,17 +530,17 @@ class Transient(object):
             raise ValueError(
                 f'You cannot plot multiband data with {self.data_mode} data mode . Why are you doing this?')
         if self.magnitude_data:
-            plotter = MagnitudePlotter(transient=self, filters=filters, **kwargs)
+            plotter = MagnitudePlotter(transient=self, filters=filters, filename=filename, outdir=outdir, nrows=nrows, ncols=ncols, figsize=figsize, **kwargs)
         elif self.flux_density_data:
-            plotter = FluxDensityPlotter(transient=self, filters=filters, **kwargs)
+            plotter = FluxDensityPlotter(transient=self, filters=filters, filename=filename, outdir=outdir, nrows=nrows, ncols=ncols, figsize=figsize, **kwargs)
         else:
             return
         return plotter.plot_multiband(
-            figure=figure, axes=axes, ncols=ncols, nrows=nrows, figsize=figsize)
+            figure=figure, axes=axes, save=save, show=show)
 
     def plot_lightcurve(
-            self, model: callable, filename: str = None, axes: matplotlib.axes.Axes = None,  plot_save: bool = True,
-            plot_show: bool = True, random_models: int = 100, posterior: pd.DataFrame = None, outdir: str = None,
+            self, model: callable, filename: str = None, outdir: str = None, axes: matplotlib.axes.Axes = None,
+            save: bool = True, show: bool = True, random_models: int = 100, posterior: pd.DataFrame = None,
             model_kwargs: dict = None, **kwargs: object) -> None:
         """
 
@@ -551,9 +553,9 @@ class Transient(object):
             attribute and ends with *lightcurve.png.
         axes: matplotlib.axes.Axes, optional
             Axes to plot in if given.
-        plot_save: bool, optional
+        save: bool, optional
             Whether to save the plot.
-        plot_show: bool, optional
+        show: bool, optional
             Whether to show the plot.
         random_models: int, optional
             Number of random posterior samples plotted faintly. Default is 100.
@@ -567,23 +569,21 @@ class Transient(object):
             No current function.
         """
         if self.flux_data:
-            plotter = IntegratedFluxPlotter(transient=self, model=model, filename=filename, outdir=outdir, **kwargs)
+            plotter = IntegratedFluxPlotter(transient=self, model=model, filename=filename, outdir=outdir, posterior=posterior, model_kwargs=model_kwargs, **kwargs)
         elif self.luminosity_data:
-            plotter = LuminosityPlotter(transient=self, model=model, filename=filename, outdir=outdir, **kwargs)
+            plotter = LuminosityPlotter(transient=self, model=model, filename=filename, outdir=outdir, posterior=posterior, model_kwargs=model_kwargs, **kwargs)
         elif self.flux_density_data:
-            plotter = FluxDensityPlotter(transient=self, model=model, filename=filename, outdir=outdir, **kwargs)
+            plotter = FluxDensityPlotter(transient=self, model=model, filename=filename, outdir=outdir, posterior=posterior, model_kwargs=model_kwargs, **kwargs)
         elif self.magnitude_data:
-            plotter = MagnitudePlotter(transient=self, model=model, filename=filename, outdir=outdir, **kwargs)
+            plotter = MagnitudePlotter(transient=self, model=model, filename=filename, outdir=outdir, posterior=posterior, model_kwargs=model_kwargs, **kwargs)
         else:
             return axes
         return plotter.plot_lightcurve(
-            axes=axes, plot_save=plot_save,
-            plot_show=plot_show, random_models=random_models, posterior=posterior,
-            model_kwargs=model_kwargs)
+            axes=axes, save=save, show=show)
 
     def plot_multiband_lightcurve(
-            self, model: callable, filename: str = None, axes: matplotlib.axes.Axes = None, plot_save: bool = True,
-            plot_show: bool = True, random_models: int = 100, posterior: pd.DataFrame = None, outdir: str = None,
+            self, model: callable, filename: str = None, outdir: str = None, axes: matplotlib.axes.Axes = None,
+            save: bool = True, show: bool = True, random_models: int = 100, posterior: pd.DataFrame = None,
             model_kwargs: dict = None, **kwargs: object) -> None:
         """
 
@@ -596,9 +596,9 @@ class Transient(object):
             attribute and ends with *lightcurve.png.
         axes: matplotlib.axes.Axes, optional
             Axes to plot in if given.
-        plot_save: bool, optional
+        save: bool, optional
             Whether to save the plot.
-        plot_show: bool, optional
+        show: bool, optional
             Whether to show the plot.
         random_models: int, optional
             Number of random posterior samples plotted faintly. Default is 100.
@@ -617,15 +617,13 @@ class Transient(object):
             raise ValueError(
                 f'You cannot plot multiband data with {self.data_mode} data mode . Why are you doing this?')
         if self.magnitude_data:
-            plotter = MagnitudePlotter(transient=self, model=model, filename=filename, outdir=outdir, **kwargs)
+            plotter = MagnitudePlotter(transient=self, model=model, filename=filename, outdir=outdir, posterior=posterior, model_kwargs=model_kwargs, **kwargs)
         elif self.flux_density_data:
-            plotter = FluxDensityPlotter(transient=self, model=model, filename=filename, outdir=outdir, **kwargs)
+            plotter = FluxDensityPlotter(transient=self, model=model, filename=filename, outdir=outdir, posterior=posterior, model_kwargs=model_kwargs, **kwargs)
         else:
             return
         return plotter.plot_multiband_lightcurve(
-            axes=axes, plot_save=plot_save,
-            plot_show=plot_show, random_models=random_models, posterior=posterior,
-            model_kwargs=model_kwargs)
+            axes=axes, save=save, show=show, random_models=random_models)
 
 
 class OpticalTransient(Transient):

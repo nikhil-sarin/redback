@@ -25,8 +25,8 @@ afterglow = redback.transient.Afterglow(
     flux_density=flux_density, flux_density_err=flux_density_err, frequency=frequency)
 
 # Now we have loaded the data up, we can plot it.
-afterglow.plot_data()
-afterglow.plot_multiband()
+# afterglow.plot_data()
+# afterglow.plot_multiband()
 
 # now let's actually fit it with data. We will use all the data and a gaussiancore structured jet from afterglowpy.
 # Note this is not a fast example, so we will make some sampling sacrifices for speed.
@@ -56,4 +56,4 @@ result = redback.result.read_in_result(filename="GRBData/afterglow/flux_density/
 
 # plot multiband lightcurve. This will plot a panel for every unique frequency
 result.plot_lightcurve()
-result.plot_multiband_lightcurve(random_models=100)
+result.plot_multiband_lightcurve()
