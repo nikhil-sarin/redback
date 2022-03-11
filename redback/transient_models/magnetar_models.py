@@ -75,7 +75,7 @@ def evolving_magnetar(time, a_1, alpha_1, mu0, muinf, p0, sinalpha0, tm, II, **k
     :param kwargs: key word argument for handling plotting
     :return: luminosity (depending on scaling) as a function of time.
     """
-    pl = one_component_fireball_model(time=time, a_1=A_1, alpha_1=alpha_1)
+    pl = one_component_fireball_model(time=time, a_1=a_1, alpha_1=alpha_1)
     magnetar = _evolving_magnetar_only(time=time, mu0=mu0, muinf=muinf,
                                        p0=p0, sinalpha0=sinalpha0, tm=tm, II=II)
     return pl + magnetar
@@ -409,7 +409,7 @@ def collapsing_radiative_losses(time, a_1, alpha_1, l0, tau, nn, tcol, kappa, t0
     :param l0: initial luminosity parameter
     :param tau: spin-down damping timescale
     :param nn: braking index
-    :param tcol: collapse time in seconds 
+    :param tcol: collapse time in seconds
     :param kappa: radiative efficiency
     :param t0: time for radiative losses to start in seconds
     :param log_e0: log10 E0 to connect curvature effect energy smoothly with transition point energy
