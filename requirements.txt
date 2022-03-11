@@ -2,7 +2,7 @@ setuptools
 numpy
 pandas
 scipy
-selenium
+selenium==3.8.0
 bilby
 matplotlib
 astropy
