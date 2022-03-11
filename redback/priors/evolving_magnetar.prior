@@ -1,4 +1,4 @@
-A_1 = LogUniform(1e-20, 1e20, 'a_1', latex_label = r'$A_{1}$')
+a_1 = LogUniform(1e-20, 1e20, 'a_1', latex_label = r'$a_{1}$')
 alpha_1 = Uniform(-10, -0.5, 'alpha_1', latex_label = r'$\\alpha_{1}$')
 p0 = Uniform(0.7e-3, 0.1, 'p0', latex_label = r'$P_{0} [s]$')
 mu0 = Uniform(1e-3, 10, 'mu0', latex_label = r'$\mu_{0} [10^{33} G cm^{3}]$')
