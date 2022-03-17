@@ -530,9 +530,11 @@ class Transient(object):
             raise ValueError(
                 f'You cannot plot multiband data with {self.data_mode} data mode . Why are you doing this?')
         if self.magnitude_data:
-            plotter = MagnitudePlotter(transient=self, filters=filters, filename=filename, outdir=outdir, nrows=nrows, ncols=ncols, figsize=figsize, **kwargs)
+            plotter = MagnitudePlotter(transient=self, filters=filters, filename=filename, outdir=outdir, nrows=nrows,
+                                       ncols=ncols, figsize=figsize, **kwargs)
         elif self.flux_density_data:
-            plotter = FluxDensityPlotter(transient=self, filters=filters, filename=filename, outdir=outdir, nrows=nrows, ncols=ncols, figsize=figsize, **kwargs)
+            plotter = FluxDensityPlotter(transient=self, filters=filters, filename=filename, outdir=outdir, nrows=nrows,
+                                         ncols=ncols, figsize=figsize, **kwargs)
         else:
             return
         return plotter.plot_multiband(figure=figure, axes=axes, save=save, show=show)
