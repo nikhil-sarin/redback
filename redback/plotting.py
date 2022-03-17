@@ -92,16 +92,18 @@ class Plotter(object):
 
     @property
     def xlim_low(self):
-        xlim_low = 0.5 * self.transient.x[0]
-        if xlim_low == 0:
-            xlim_low += 1e-3
-        return xlim_low
+        default = 0.5 * self.transient.x[0]
+        if default == 0:
+            default += 1e-3
+        return self.kwargs.get("xlim_low", default)
 
     @property
     def xlim_high(self):
         if self.x_err is None:
-            return 2 * self.transient.x[-1]
-        return 2 * (self.transient.x[-1] + self.x_err[1][-1])
+            default = 2 * self.transient.x[-1]
+        else:
+            default = 2 * (self.transient.x[-1] + self.x_err[1][-1])
+        return self.kwargs.get("xlim_high", default)
 
     @property
     def ylim_low(self):
@@ -277,11 +279,31 @@ class MagnitudePlotter(Plotter):
 
     @property
     def xlabel(self):
-        return self.kwargs.get("xlabel", self.transient.xlabel)
+        if self.transient.use_phase_model:
+            default = f"Time since {self.reference_mjd_date} MJD [days]"
+        else:
+            default = self.transient.xlabel
+        return self.kwargs.get("xlabel", default)
 
     @property
     def ylabel(self):
         return self.kwargs.get("ylabel", self.transient.ylabel)
+
+    @property
+    def xlim_low(self):
+        if self.transient.use_phase_model:
+            default = (self.transient.x[0] - self.reference_mjd_date) * 0.9
+        else:
+            default = 0.5 * self.transient.x[0]
+        return self.kwargs.get("xlim_low", default)
+
+    @property
+    def xlim_high(self):
+        if self.transient.use_phase_model:
+            default = (self.transient.x[-1] - self.reference_mjd_date) * 1.1
+        else:
+            default = 1.2 * self.transient.x[0]
+        return self.kwargs.get("xlim_high", default)
 
     def _get_x_err(self, indices):
         return self.transient.x_err[indices] if self.transient.x_err is not None else self.transient.x_err
@@ -300,6 +322,11 @@ class MagnitudePlotter(Plotter):
 
     ncols = KwargsAccessorWithDefault("ncols", 2)
 
+    def _set_xaxis(self, axes):
+        if self.transient.use_phase_model:
+            axes.set_xscale("log")
+        axes.set_xlim(self.xlim_low, self.xlim_high)
+
     @property
     def nrows(self):
         default = int(np.ceil(len(self.filters) / 2))
@@ -317,6 +344,12 @@ class MagnitudePlotter(Plotter):
     def figsize(self):
         default = (4 + 4 * self.ncols, 2 + 2 * self.nrows)
         return self._get_kwarg_with_default("figsize", default=default)
+
+    @property
+    def reference_mjd_date(self):
+        if self.transient.use_phase_model:
+            return self.kwargs.get("reference_mjd_date", int(self.transient.x[0]))
+        return 0
 
     def plot_data(
             self, axes: matplotlib.axes.Axes = None, save: bool = True, show: bool = True) -> None:
@@ -349,11 +382,12 @@ class MagnitudePlotter(Plotter):
             if isinstance(label, float):
                 label = f"{label:.2e}"
             ax.errorbar(
-                self.transient.x[indices], self.transient.y[indices], xerr=self._get_x_err(indices),
-                yerr=self.transient.y_err[indices], fmt=self.errorbar_fmt, ms=self.ms, color=color,
+                self.transient.x[indices] - self.reference_mjd_date, self.transient.y[indices],
+                xerr=self._get_x_err(indices), yerr=self.transient.y_err[indices],
+                fmt=self.errorbar_fmt, ms=self.ms, color=color,
                 elinewidth=self.elinewidth, capsize=self.capsize, label=label)
 
-        ax.set_xlim(0.5 * self.transient.x[0], 1.2 * self.transient.x[-1])
+        self._set_xaxis(axes=ax)
         self._set_y_axis_data(ax)
 
         ax.set_xlabel(self.xlabel)
@@ -394,11 +428,11 @@ class MagnitudePlotter(Plotter):
             frequency = redback.utils.bands_to_frequency([band])
             self.model_kwargs["frequency"] = np.ones(len(times)) * frequency
             ys = self.model(times, **self.max_like_params, **self.model_kwargs)
-            axes.plot(times, ys, color=color, alpha=0.65, lw=2)
+            axes.plot(times - self.reference_mjd_date, ys, color=color, alpha=0.65, lw=2)
 
             for params in random_params:
                 ys = self.model(times, **params, **self.model_kwargs)
-                axes.plot(times, ys, color='red', alpha=0.05, lw=2, zorder=-1)
+                axes.plot(times - self.reference_mjd_date, ys, color='red', alpha=0.05, lw=2, zorder=-1)
 
         self._save_and_show(filepath=self.lightcurve_plot_filepath, save=save, show=show)
         return axes
@@ -455,11 +489,12 @@ class MagnitudePlotter(Plotter):
 
             label = self._get_multiband_plot_label(band, freq)
             axes[i].errorbar(
-                self.transient.x[indices], self.transient.y[indices], xerr=x_err, yerr=self.transient.y_err[indices],
-                fmt=self.errorbar_fmt, ms=self.ms, color=color, elinewidth=self.elinewidth, capsize=self.capsize,
+                self.transient.x[indices] - self.reference_mjd_date, self.transient.y[indices], xerr=x_err,
+                yerr=self.transient.y_err[indices], fmt=self.errorbar_fmt, ms=self.ms, color=color,
+                elinewidth=self.elinewidth, capsize=self.capsize,
                 label=label)
 
-            axes[i].set_xlim(0.5 * self.transient.x[indices][0], 1.2 * self.transient.x[indices][-1])
+            self._set_xaxis(axes[i])
             self._set_y_axis_multiband_data(axes[i], indices)
             axes[i].legend(ncol=2)
             axes[i].tick_params(axis='both', which='major', pad=8)
@@ -525,10 +560,10 @@ class MagnitudePlotter(Plotter):
 
         for i in range(len(ys)):
             axes[i].plot(
-                times, ys[i], color=self.max_likelihood_color, alpha=self.max_likelihood_alpha, lw=self.linewidth)
+                times - self.reference_mjd_date, ys[i], color=self.max_likelihood_color, alpha=self.max_likelihood_alpha, lw=self.linewidth)
             for random_ys in random_ys_list:
                 axes[i].plot(
-                    times, random_ys[i], color=self.random_sample_color,
+                    times - self.reference_mjd_date, random_ys[i], color=self.random_sample_color,
                     alpha=self.random_sample_alpha, lw=self.linewidth, zorder=self.zorder)
 
         self._save_and_show(filepath=self.multiband_lightcurve_plot_filepath, save=save, show=show)
