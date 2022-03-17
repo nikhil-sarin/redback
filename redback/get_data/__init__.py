@@ -5,12 +5,13 @@ import urllib
 
 import pandas as pd
 
-from redback.get_data import batse, directory, fermi, konus, open_data, swift, utils
+from redback.get_data import batse, directory, fermi, konus, lasair, open_data, swift, utils
 from redback.get_data.swift import SwiftDataGetter
 from redback.get_data.open_data import OpenDataGetter
 from redback.get_data.batse import BATSEDataGetter
 from redback.get_data.fermi import FermiDataGetter
 from redback.get_data.konus import KonusDataGetter
+from redback.get_data.lasair import LasairDataGetter
 from redback.utils import logger
 
 SWIFT_PROMPT_BIN_SIZES = ['1s', '2ms', '8ms', '16ms', '64ms', '256ms']
@@ -22,7 +23,7 @@ TRANSIENT_TYPES = ["afterglow", "prompt", "kilonova", "supernova", "tidal_disrup
 def get_xrt_afterglow_data_from_swift(grb: str, data_mode: str = None, **kwargs: dict) -> pd.DataFrame:
     """
     Get XRT afterglow data from Swift. Creates a directory structure and saves the data.
-    Returns the getter, though no further action needs to be taken by the user.
+    Returns the data, though no further action needs to be taken by the user.
 
     Parameters
     ----------
@@ -44,7 +45,7 @@ def get_xrt_afterglow_data_from_swift(grb: str, data_mode: str = None, **kwargs:
 def get_bat_xrt_afterglow_data_from_swift(grb: str, data_mode: str, **kwargs: dict) -> pd.DataFrame:
     """
     Get BAT+XRT afterglow data from Swift. Creates a directory structure and saves the data.
-    Returns the getter, though no further action needs to be taken by the user.
+    Returns the data, though no further action needs to be taken by the user.
 
     Parameters
     ----------
@@ -66,7 +67,7 @@ def get_bat_xrt_afterglow_data_from_swift(grb: str, data_mode: str, **kwargs: di
 def get_prompt_data_from_swift(grb: str, bin_size: str = "1s", **kwargs: dict) -> pd.DataFrame:
     """
     Get prompt emission data from Swift. Creates a directory structure and saves the data.
-    Returns the getter, though no further action needs to be taken by the user.
+    Returns the data, though no further action needs to be taken by the user.
 
     Parameters
     ----------
@@ -90,7 +91,7 @@ def get_swift_data(
         bin_size: str = None, **kwargs: dict) -> pd.DataFrame:
     """
     Catch all data getting function for Swift.  Creates a directory structure and saves the data.
-    Returns the getter, though no further action needs to be taken by the user.
+    Returns the data, though no further action needs to be taken by the user.
 
     Parameters
     ----------
@@ -121,7 +122,7 @@ def get_swift_data(
 def get_prompt_data_from_batse(grb: str, **kwargs) -> pd.DataFrame:
     """
     Get prompt emission data from BATSE. Creates a directory structure and saves the data.
-    Returns the getter, though no further action needs to be taken by the user.
+    Returns the data, though no further action needs to be taken by the user.
 
     Parameters
     ----------
@@ -142,7 +143,7 @@ def get_prompt_data_from_batse(grb: str, **kwargs) -> pd.DataFrame:
 def get_kilonova_data_from_open_transient_catalog_data(transient: str, **kwargs: dict) -> pd.DataFrame:
     """
     Get kilonova data from the Open Access Catalog. Creates a directory structure and saves the data.
-    Returns the getter, though no further action needs to be taken by the user.
+    Returns the data, though no further action needs to be taken by the user.
 
     Parameters
     ----------
@@ -162,7 +163,7 @@ def get_kilonova_data_from_open_transient_catalog_data(transient: str, **kwargs:
 def get_supernova_data_from_open_transient_catalog_data(transient: str, **kwargs: dict) -> pd.DataFrame:
     """
     Get supernova data from the Open Access Catalog. Creates a directory structure and saves the data.
-    Returns the getter, though no further action needs to be taken by the user.
+    Returns the data, though no further action needs to be taken by the user.
 
     Parameters
     ----------
@@ -183,7 +184,7 @@ def get_tidal_disruption_event_data_from_open_transient_catalog_data(
         transient: str, **kwargs: dict) -> pd.DataFrame:
     """
     Get TDE data from the Open Access Catalog. Creates a directory structure and saves the data.
-    Returns the getter, though no further action needs to be taken by the user.
+    Returns the data, though no further action needs to be taken by the user.
 
     Parameters
     ----------
@@ -203,7 +204,7 @@ def get_tidal_disruption_event_data_from_open_transient_catalog_data(
 def get_prompt_data_from_fermi(*args: list, **kwargs: dict) -> pd.DataFrame:
     """
     Get prompt emission data from Fermi. Creates a directory structure and saves the data.
-    Returns the getter, though no further action needs to be taken by the user.
+    Returns the data, though no further action needs to be taken by the user.
 
     Parameters
     ----------
@@ -222,7 +223,7 @@ def get_prompt_data_from_fermi(*args: list, **kwargs: dict) -> pd.DataFrame:
 def get_prompt_data_from_konus(*args: list, **kwargs: dict) -> pd.DataFrame:
     """
     Get prompt emission data from Konus. Creates a directory structure and saves the data.
-    Returns the getter, though no further action needs to be taken by the user.
+    Returns the data, though no further action needs to be taken by the user.
 
     Parameters
     ----------
@@ -238,11 +239,35 @@ def get_prompt_data_from_konus(*args: list, **kwargs: dict) -> pd.DataFrame:
     raise NotImplementedError("This function is not yet implemented.")
 
 
+def get_lasair_data(
+        transient: str, transient_type: str, **kwargs) -> pd.DataFrame:
+    """
+    Catch all data getting function for Lasair data. Creates a directory structure and saves the data.
+    Returns the data, though no further action needs to be taken by the user.
+
+    Parameters
+    ----------
+    transient: str
+        The name of the transient, e.g. 'ZTF19aagqkrq'.
+    transient_type: str
+        Type of the transient. Must be from `redback.get_data.lasair.LasairDataGetter.VALID_TRANSIENT_TYPES`.
+    kwargs: dict
+        Placeholder to prevent TypeErrors.
+
+    Returns
+    -------
+    pandas.DataFrame: The processed data.
+
+    """
+    getter = LasairDataGetter(
+        transient_type=transient_type, transient=transient)
+    return getter.get_data()
+
 def get_open_transient_catalog_data(
         transient: str, transient_type: str, **kwargs) -> pd.DataFrame:
     """
     Catch all data getting function for the Open Access Catalog. Creates a directory structure and saves the data.
-    Returns the getter, though no further action needs to be taken by the user.
+    Returns the data, though no further action needs to be taken by the user.
 
     Parameters
     ----------
