@@ -305,7 +305,7 @@ class Transient(object):
             self, bands: Union[None, list, np.ndarray], frequency: Union[None, list, np.ndarray]):
         if (bands is None and frequency is None) or (bands is not None and frequency is not None):
             self._bands = bands
-            self._frequency = bands
+            self._frequency = frequency
         elif bands is None and frequency is not None:
             self._frequency = frequency
             self._bands = self.frequency

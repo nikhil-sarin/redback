@@ -297,7 +297,7 @@ class PoissonLikelihoodTest(unittest.TestCase):
             m.return_value = expected
             actual = self.likelihood.log_likelihood()
             self.assertEqual(expected, actual)
-            self.assertTrue(np.array_equal(np.array([1, 2, 3]), m.call_args.kwargs['rate']))
+            self.assertTrue(np.array_equal(np.array([1, 2, 3]), m.call_args[1]['rate']))
 
     def test_log_likelihood_not_integrated_rate_function(self):
         self.likelihood.integrated_rate_function = False
@@ -306,7 +306,7 @@ class PoissonLikelihoodTest(unittest.TestCase):
             m.return_value = expected
             actual = self.likelihood.log_likelihood()
             self.assertEqual(expected, actual)
-            self.assertTrue(np.array_equal(np.array([3, 6, 9]), m.call_args.kwargs['rate']))
+            self.assertTrue(np.array_equal(np.array([3, 6, 9]), m.call_args[1]['rate']))
 
     def test_log_likelihood_value(self):
         expected = -6 + np.log(9)
