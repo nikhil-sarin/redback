@@ -49,8 +49,8 @@ def two_layer_stratified_kilonova(time, redshift, mass, vej_1, vej_2, kappa, bet
     :return: flux_density or magnitude
     """
     velocity_array = np.array([vej_1, vej_2])
-    flux_density = _kilonova_hr(time, redshift, mass, velocity_array, kappa, beta, **kwargs)
-    return flux_density
+    output = _kilonova_hr(time, redshift, mass, velocity_array, kappa, beta, **kwargs)
+    return output
 
 
 def _kilonova_hr(time, redshift, mass, velocity_array, kappa_array, beta, **kwargs):
@@ -70,7 +70,7 @@ def _kilonova_hr(time, redshift, mass, velocity_array, kappa_array, beta, **kwar
     """
     frequency = kwargs['frequency']
     # convert to source frame time and frequency
-    time = time * 86400
+    time = time * day_to_s
     frequency, time = calc_kcorrected_properties(frequency=frequency, redshift=redshift, time=time)
     dl = cosmo.luminosity_distance(redshift).cgs.value
     _, temperature, r_photosphere = _kilonova_hr_sourceframe(time, mass, velocity_array, kappa_array, beta)
@@ -140,7 +140,7 @@ def three_component_kilonova_model(time, redshift, mej_1, vej_1, temperature_flo
     """
     frequency = kwargs['frequency']
     # convert to source frame time and frequency
-    time = time * 86400
+    time = time * day_to_s
     frequency, time = calc_kcorrected_properties(frequency=frequency, redshift=redshift, time=time)
     dl = cosmo.luminosity_distance(redshift).cgs.value
 
@@ -190,7 +190,7 @@ def two_component_kilonova_model(time, redshift, mej_1, vej_1, temperature_floor
     """
     frequency = kwargs['frequency']
     # convert to source frame time and frequency
-    time = time * 86400
+    time = time * day_to_s
     frequency, time = calc_kcorrected_properties(frequency=frequency, redshift=redshift, time=time)
     dl = cosmo.luminosity_distance(redshift).cgs.value
 
@@ -257,7 +257,7 @@ def one_component_kilonova_model(time, redshift, mej, vej, kappa, **kwargs):
                    output_format
     :return: flux_density or magnitude
     """
-    time = time * 86400
+    time = time * day_to_s
     frequency = kwargs['frequency']
     time_temp = np.geomspace(1e-4, 1e7, 300)
     _, temperature, r_photosphere = _one_component_kilonova_model(time_temp, mej, vej, kappa, **kwargs)
@@ -290,7 +290,7 @@ def _one_component_kilonova_model(time, mej, vej, kappa, **kwargs):
     :param kwargs: temperature_floor
     :return: bolometric_luminosity, temperature, r_photosphere
     """
-    tdays = time/86400
+    tdays = time/day_to_s
 
     # set up kilonova physics
     av, bv, dv = interpolated_barnes_and_kasen_thermalisation_efficiency(mej, vej)
@@ -335,6 +335,7 @@ def metzger_kilonova_model(time, redshift, mej, vej, beta, kappa_r, **kwargs):
                 frequency (frequency to calculate - Must be same length as time array or a single number)
     :return: flux_density or magnitude
     """
+    time = time * day_to_s
     frequency = kwargs['frequency']
     time_temp = np.geomspace(1e-4, 1e7, 300)
     bolometric_luminosity, temperature, r_photosphere = _metzger_kilonova_model(time_temp, mej, vej, beta,
@@ -372,7 +373,7 @@ def _metzger_kilonova_model(time, mej, vej, beta, kappa_r, **kwargs):
     neutron_precursor_switch = kwargs.get('neutron_precursor_switch', True)
 
     time = time
-    tdays = time/86400
+    tdays = time/day_to_s
     time_len = len(time)
     mass_len = 250
 
@@ -506,7 +507,7 @@ def _generate_single_lightcurve_at_times(model, times, **parameters):
     model: str
         The `gwemlightcurve` model, e.g. 'DiUj2017'
     times: array_like
-        Times at which we interpolate the `gwemlightcurves` values
+        Times at which we interpolate the `gwemlightcurves` values, in days
     parameters: dict
         Function parameters for the given model.
     Returns
@@ -530,7 +531,6 @@ def _generate_single_lightcurve_at_times(model, times, **parameters):
 def _gwemlightcurve_interface_factory(model):
     """
     Generates `bilby`-compatible functions from `gwemlightcurve` models.
-    This is currently very inefficient as there is an interpolation step.
 
     Parameters
     ----------

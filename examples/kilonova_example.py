@@ -24,10 +24,10 @@ priors = redback.priors.get_priors(model=model)
 priors['redshift'] = 1e-2
 
 model_kwargs = dict(frequency=kilonova.filtered_frequencies, output_format='flux_density')
-# result = redback.fit_model(transient=kilonova, model=model, sampler=sampler, model_kwargs=model_kwargs,
-#                            prior=priors, sample='rslice', nlive=200, resume=True)
-result = redback.result.read_in_result("kilonova/one_component_kilonova_model/at2017gfo_result.json")
-# result.plot_corner()
+result = redback.fit_model(transient=kilonova, model=model, sampler=sampler, model_kwargs=model_kwargs,
+                           prior=priors, sample='rslice', nlive=200, resume=True)
+result.plot_corner()
 # returns a Kilonova result object
-result.plot_lightcurve(show=False)
-result.plot_multiband_lightcurve(filters=["g", "r", "i", "z", "y", "J"], show=False)
+result.plot_lightcurve(plot_show=False)
+# Even though we only fit the 'g' band, we can still plot the fit for different bands.
+result.plot_multiband_lightcurve(filters=["g", "r", "i", "z", "y", "J"], plot_show=False)

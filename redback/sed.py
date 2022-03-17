@@ -56,7 +56,7 @@ class CutoffBlackbody(object):
         # Mostly from Mosfit/SEDs
         cutoff_wavelength = self.cutoff_wavelength * angstrom_cgs
         wavelength = nu_to_lambda(self.frequency)
-        x_const = planck * speed_of_light * boltzmann_constant
+        x_const = planck * speed_of_light / boltzmann_constant
         flux_const = 4 * np.pi * 2*np.pi * planck * speed_of_light**2 * angstrom_cgs
 
         mask = wavelength < cutoff_wavelength
@@ -75,8 +75,6 @@ class CutoffBlackbody(object):
         norms = self.luminosity[uniq_is] / \
                 (flux_const / angstrom_cgs * self.r_photosphere[uniq_is]**2 * self.temperature[uniq_is])
 
-        rp2 = self.r_photosphere[uniq_is]**2
-        rp2 = rp2.reshape(lu, 1)
         tp = self.temperature[uniq_is].reshape(lu, 1)
         tp2 = tp**2
         tp3 = tp**3
@@ -89,7 +87,6 @@ class CutoffBlackbody(object):
                     (6 * tp3 - np.exp(-nxcs / (cutoff_wavelength * tp)) * (nxcs ** 3 + 3 * nxcs ** 2 * cutoff_wavelength * tp + 6 * (nxcs * cutoff_wavelength**2 * tp2 + cutoff_wavelength**3 *tp3)) / cutoff_wavelength**3) / (nxcs ** 4)
                 ), 1
             )
-        
         norms /= f_blue_reds
 
         # Apply renormalisation

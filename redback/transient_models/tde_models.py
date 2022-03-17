@@ -71,7 +71,7 @@ def tde_analytical(time, redshift, l0, t_0, **kwargs):
                  frequency=frequency, luminosity_distance=dl, cutoff_wavelength=cutoff_wavelength, luminosity=lbol)
 
     flux_density = sed_1.flux_density
-
+    flux_density = np.nan_to_num(flux_density)
     if kwargs['output_format'] == 'flux_density':
         return flux_density.to(uu.mJy).value
     elif kwargs['output_format'] == 'magnitude':

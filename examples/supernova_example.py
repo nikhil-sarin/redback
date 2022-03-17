@@ -11,8 +11,7 @@ sne = "SN2011kl"
 
 data = redback.get_data.get_supernova_data_from_open_transient_catalog_data(sne)
 
-supernova = redback.supernova.Supernova.from_open_access_catalogue(name=sne, data_mode='flux_density')
-bands = ["g", "i"]
+supernova = redback.supernova.Supernova.from_open_access_catalogue(name=sne, data_mode='flux_density', active_bands=["g", "i"])
 supernova.plot_multiband(filters=["J", "H", "g", "i"])
 
 # use default priors

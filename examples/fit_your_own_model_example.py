@@ -44,4 +44,4 @@ priors['alpha'] = Uniform(-7, 0, 'alpha', latex_label=r'$\alpha$')
 result = redback.fit_model(model=model, sampler='dynesty', nlive=200, transient=afterglow,
                            prior=priors, sample='rslice', resume=False)
 
-result.plot_lightcurve(random_models=1000, model=my_favourite_model)
+result.plot_lightcurve(random_models=100, model=my_favourite_model)
