@@ -3,7 +3,6 @@ import bilby
 from os import listdir
 from pathlib import Path
 from shutil import rmtree
-from os.path import isfile
 
 
 class TestLoadPriors(unittest.TestCase):
@@ -44,8 +43,7 @@ class TestCornerPlotPriorSamples(unittest.TestCase):
 
     @classmethod
     def tearDownClass(cls) -> None:
-        pass
-        # rmtree(cls.outdir)
+        rmtree(cls.outdir)
 
     def setUp(self) -> None:
         self.path_to_files = "../redback/priors/"
@@ -87,6 +85,4 @@ class TestCornerPlotPriorSamples(unittest.TestCase):
     def test_plot_priors(self):
         for f in self.prior_files:
             res = self.get_result(file=f)
-            if isfile(f"{self.outdir}/{res.label}_corner.png"):
-                continue
             res.plot_corner()
