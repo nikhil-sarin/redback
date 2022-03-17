@@ -1,14 +1,17 @@
 import unittest
 import bilby
 from os import listdir
+from os.path import dirname
 from pathlib import Path
 from shutil import rmtree
+
+_dirname = dirname(__file__)
 
 
 class TestLoadPriors(unittest.TestCase):
 
     def setUp(self) -> None:
-        self.path_to_files = "../redback/priors/"
+        self.path_to_files = f"{_dirname}/../redback/priors/"
         self.prior_files = listdir(self.path_to_files)
 
     def tearDown(self) -> None:
@@ -46,7 +49,7 @@ class TestCornerPlotPriorSamples(unittest.TestCase):
         rmtree(cls.outdir)
 
     def setUp(self) -> None:
-        self.path_to_files = "../redback/priors/"
+        self.path_to_files = f"{_dirname}/../redback/priors/"
         self.prior_files = listdir(self.path_to_files)
 
     def tearDown(self) -> None:
