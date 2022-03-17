@@ -302,7 +302,7 @@ class MagnitudePlotter(Plotter):
         if self.transient.use_phase_model:
             default = (self.transient.x[-1] - self.reference_mjd_date) * 1.1
         else:
-            default = 1.2 * self.transient.x[0]
+            default = 1.2 * self.transient.x[-1]
         return self.kwargs.get("xlim_high", default)
 
     def _get_x_err(self, indices):
