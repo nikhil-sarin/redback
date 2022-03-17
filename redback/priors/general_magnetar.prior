@@ -1,5 +1,5 @@
 a_1 = LogUniform(1e-20, 1e20, 'a_1', latex_label = r'$A_{1}$')
 alpha_1 = Uniform(-5, -0.5, 'alpha_1', latex_label = r'$\\alpha_{1}$')
-delta_time_one = LogUniform(1e-10, 1e6, 'delta_time_one', latex_label = r'$\Delta t_{1}$')
+delta_time_one = LogUniform(1e-10, 1e6, 'delta_time_one', latex_label = r'$\Delta_{ } t_{1}$')
 alpha_2 = Uniform(-10, 0, 'alpha_2', latex_label = r'$\\alpha_{2}$')
-delta_time_two = LogUniform(10, 1e6, 'delta_time_two', latex_label = r'$\Delta t_{2}$')
+delta_time_two = LogUniform(10, 1e6, 'delta_time_two', latex_label = r'$\Delta_{ } t_{2}$')
