@@ -20,7 +20,6 @@ dirname = os.path.dirname(__file__)
 
 
 class Afterglow(Transient):
-
     DATA_MODES = ['luminosity', 'flux', 'flux_density', 'magnitude']
 
     def __init__(
@@ -268,7 +267,7 @@ class Afterglow(Transient):
         try:
             meta_data = pd.read_csv(self.event_table, header=0, error_bad_lines=False, delimiter='\t', dtype='str')
             meta_data['BAT Photon Index (15-150 keV) (PL = simple power-law, CPL = cutoff power-law)'] = meta_data[
-                      'BAT Photon Index (15-150 keV) (PL = simple power-law, CPL = cutoff power-law)'].fillna(0)
+                'BAT Photon Index (15-150 keV) (PL = simple power-law, CPL = cutoff power-law)'].fillna(0)
             self.meta_data = meta_data
         except FileNotFoundError:
             logger.warning("Meta data does not exist for this event.")
@@ -404,116 +403,6 @@ class Afterglow(Transient):
         self.x, self.x_err, self.y, self.y_err = converter.convert_flux_to_luminosity()
         self._save_luminosity_data()
 
-    def plot_lightcurve(
-            self, model: callable, filename: str = None, axes: matplotlib.axes.Axes = None,  plot_save: bool = True,
-            plot_show: bool = True, random_models: int = 100, posterior: pd.DataFrame = None, outdir: str = '.',
-            model_kwargs: dict = None, **kwargs: object) -> None:
-        if self.flux_data:
-            plotter = IntegratedFluxPlotter(transient=self)
-        elif self.luminosity_data:
-            plotter = LuminosityPlotter(transient=self)
-        elif self.flux_density_data:
-            plotter = FluxDensityPlotter(transient=self)
-        elif self.magnitude_data:
-            plotter = MagnitudePlotter(transient=self)
-        else:
-            return axes
-        return plotter.plot_lightcurve(
-            model=model, filename=filename, axes=axes, plot_save=plot_save,
-            plot_show=plot_show, random_models=random_models, posterior=posterior,
-            outdir=outdir, model_kwargs=model_kwargs, **kwargs)
-
-    def plot_data(self, axes: matplotlib.axes.Axes = None, colour: str = 'k', **kwargs: dict) -> matplotlib.axes.Axes:
-        """
-        Plots the Afterglow lightcurve and returns Axes.
-
-        Parameters
-        ----------
-        axes : Union[matplotlib.axes.Axes, None], optional
-            Matplotlib axes to plot the lightcurve into. Useful for user specific modifications to the plot.
-        colour: str, optional
-            Colour of the data.
-        kwargs: dict
-            Additional keyword arguments to pass in the Plotter methods.
-
-        Returns
-        ----------
-        matplotlib.axes.Axes: The axes with the plot.
-        """
-
-        if self.flux_data:
-            plotter = IntegratedFluxPlotter(transient=self)
-        elif self.luminosity_data:
-            plotter = LuminosityPlotter(transient=self)
-        elif self.flux_density_data:
-            plotter = FluxDensityPlotter(transient=self)
-        elif self.magnitude_data:
-            plotter = MagnitudePlotter(transient=self)
-        else:
-            return axes
-        return plotter.plot_data(axes=axes, colour=colour, **kwargs)
-
-
-    def plot_multiband(
-            self, figure: matplotlib.figure.Figure = None, axes: matplotlib.axes.Axes = None, ncols: int = 2,
-            nrows: int = None, figsize: tuple = None, filters: list = None, **plot_kwargs: dict) \
-            -> matplotlib.axes.Axes:
-        """
-
-        Parameters
-        ----------
-        figure: matplotlib.figure.Figure, optional
-            Figure can be given if defaults are not satisfying
-        axes: matplotlib.axes.Axes, optional
-            Axes can be given if defaults are not satisfying
-        ncols: int, optional
-            Number of columns to use on the plot. Default is 2.
-        nrows: int, optional
-            Number of rows to use on the plot. If None are given this will
-            be inferred from ncols and the number of filters.
-        figsize: tuple, optional
-            Size of the figure. A default based on ncols and nrows will be used if None is given.
-        filters: list, optional
-            Which bands to plot. Will use default filters if None is given.
-        plot_kwargs:
-            Additional optional plotting kwargs:
-            wspace: Extra argument for matplotlib.pyplot.subplots_adjust
-            hspace: Extra argument for matplotlib.pyplot.subplots_adjust
-            fontsize: Label fontsize
-            errorbar_fmt: Errorbar format ('fmt' argument in matplotlib.pyplot.errorbar)
-            colors: colors to be used for the bands
-            xlabel: Plot xlabel
-            ylabel: Plot ylabel
-            plot_label: Addional filename label appended to the default name
-
-        Returns
-        -------
-
-        """
-        if self.data_mode not in ['flux_density', 'magnitude']:
-            raise ValueError(
-                f'You cannot plot multiband data with {self.data_mode} data mode . Why are you doing this?')
-        if self.magnitude_data:
-            plotter = MagnitudePlotter(transient=self)
-        elif self.flux_density_data:
-            plotter = FluxDensityPlotter(transient=self)
-        else:
-            return
-        return plotter.plot_multiband(
-            figure=figure, axes=axes, ncols=ncols, nrows=nrows, figsize=figsize, filters=filters, **plot_kwargs)
-
-    def plot_multiband_lightcurve(
-            self, model: callable, filename: str = None, axes: matplotlib.axes.Axes = None, plot_save: bool = True,
-            plot_show: bool = True, random_models: int = 100, posterior: pd.DataFrame = None, outdir: str = '.',
-            model_kwargs: dict = None, **kwargs: object) -> None:
-
-        if self.data_mode not in ['flux_density', 'magnitude']:
-            raise ValueError(
-                f'You cannot plot multiband data with {self.data_mode} data mode . Why are you doing this?')
-        return super(Afterglow, self).plot_multiband_lightcurve(
-            model=model, filename=filename, axes=axes, plot_save=plot_save, plot_show=plot_show,
-            random_models=random_models, posterior=posterior, outdir=outdir, model_kwargs=model_kwargs, **kwargs)
-
 
 class SGRB(Afterglow):
     pass
@@ -524,7 +413,6 @@ class LGRB(Afterglow):
 
 
 class Truncator(object):
-
     TRUNCATE_METHODS = ['prompt_time_error', 'left_of_max', 'default']
 
     def __init__(
@@ -634,7 +522,6 @@ class Truncator(object):
 
 
 class FluxToLuminosityConverter(object):
-
     CONVERSION_METHODS = ["analytical", "numerical"]
 
     def __init__(
@@ -685,7 +572,7 @@ class FluxToLuminosityConverter(object):
         -------
         float: The counts to flux fraction.
         """
-        return self.counts_to_flux_unabsorbed/self.counts_to_flux_absorbed
+        return self.counts_to_flux_unabsorbed / self.counts_to_flux_absorbed
 
     @property
     def luminosity_distance(self) -> float:

@@ -144,7 +144,7 @@ class RedbackResult(Result):
         """
         if model is None:
             model = model_library.all_models_dict[self.model]
-        self.transient.plot_lightcurve(model=model, posterior=self.posterior, outdir=self.outdir,
+        self.transient.plot_lightcurve(model=model, posterior=self.posterior,
                                        model_kwargs=self.model_kwargs, **kwargs)
 
     def plot_multiband_lightcurve(self, model: Union[callable, str] = None, **kwargs: dict) -> None:
@@ -161,7 +161,7 @@ class RedbackResult(Result):
         if model is None:
             model = model_library.all_models_dict[self.model]
         self.transient.plot_multiband_lightcurve(
-            model=model, posterior=self.posterior, outdir=self.outdir, model_kwargs=self.model_kwargs, **kwargs)
+            model=model, posterior=self.posterior, model_kwargs=self.model_kwargs, **kwargs)
 
     def plot_data(self, **kwargs: dict) -> None:
         """

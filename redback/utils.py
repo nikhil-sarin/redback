@@ -241,7 +241,7 @@ def bands_to_frequency(bands):
         bands = []
     df = pd.read_csv(f"{dirname}/tables/filters.csv")
     bands_to_freqs = {band: wavelength for band, wavelength in zip(df['bands'], df['wavelength [Hz]'])}
-    return np.array([bands_to_freqs.get(band, np.nan) for band in bands])
+    return np.array([bands_to_freqs.get(band, band) for band in bands])
 
 
 def fetch_driver():
@@ -382,6 +382,19 @@ class DataModeSwitch(object):
             instance.data_mode = self.data_mode
         else:
             instance.data_mode = None
+
+
+class KwargsAccessorWithDefault(object):
+    def __init__(self, kwarg, default=None):
+        self.kwarg = kwarg
+        self.default = default
+
+    def __get__(self, instance, owner):
+        return instance.kwargs.get(self.kwarg, self.default)
+
+    def __set__(self, instance, value):
+        instance.kwargs[self.kwarg] = value
+
 
 
 def get_functions_dict(module):
