@@ -295,6 +295,8 @@ class MagnitudePlotter(Plotter):
             default = (self.transient.x[0] - self.reference_mjd_date) * 0.9
         else:
             default = 0.5 * self.transient.x[0]
+        if default == 0:
+            default += 1e-3
         return self.kwargs.get("xlim_low", default)
 
     @property
@@ -510,7 +512,7 @@ class MagnitudePlotter(Plotter):
     @staticmethod
     def _get_multiband_plot_label(band, freq):
         if isinstance(band, str):
-            if 1e10 < freq < 1e15:
+            if 1e10 < float(freq) < 1e15:
                 label = band
             else:
                 label = freq
@@ -549,22 +551,18 @@ class MagnitudePlotter(Plotter):
         axes = self.plot_multiband(axes=axes, save=False, show=False)
 
         times = self._get_times(axes)
-        times_mesh, frequency_mesh = np.meshgrid(times, self.transient.bands_to_frequency(self.filters))
-        new_model_kwargs = self.model_kwargs.copy()
-        new_model_kwargs['frequency'] = frequency_mesh
-
-        ys = self.model(times_mesh, **self.max_like_params, **new_model_kwargs)
-
-        random_ys_list = [self.model(times_mesh, **random_params, **new_model_kwargs)
-                          for random_params in self.get_random_parameters()]
-
-        for i in range(len(ys)):
-            axes[i].plot(
-                times - self.reference_mjd_date, ys[i], color=self.max_likelihood_color, alpha=self.max_likelihood_alpha, lw=self.linewidth)
+        frequency = self.transient.bands_to_frequency(self.filters)
+        for ii in range(len(frequency)):
+            new_model_kwargs = self.model_kwargs.copy()
+            new_model_kwargs['frequency'] = frequency[ii]
+            ys = self.model(times, **self.max_like_params, **new_model_kwargs)
+            axes[ii].plot(
+                times - self.reference_mjd_date, ys, color=self.max_likelihood_color, alpha=self.max_likelihood_alpha, lw=self.linewidth)
+            random_ys_list = [self.model(times, **random_params, **new_model_kwargs)
+                              for random_params in self.get_random_parameters()]
             for random_ys in random_ys_list:
-                axes[i].plot(
-                    times - self.reference_mjd_date, random_ys[i], color=self.random_sample_color,
-                    alpha=self.random_sample_alpha, lw=self.linewidth, zorder=self.zorder)
+                axes[ii].plot(times - self.reference_mjd_date, random_ys, color=self.random_sample_color,
+                              alpha=self.random_sample_alpha, lw=self.linewidth, zorder=self.zorder)
 
         self._save_and_show(filepath=self.multiband_lightcurve_plot_filepath, save=save, show=show)
         return axes
