@@ -375,7 +375,7 @@ def _metzger_kilonova_model(time, mej, vej, beta, kappa_r, **kwargs):
     time = time
     tdays = time/day_to_s
     time_len = len(time)
-    mass_len = 250
+    mass_len = 200
 
     # set up kilonova physics
     av, bv, dv = interpolated_barnes_and_kasen_thermalisation_efficiency(mej, vej)
@@ -392,10 +392,11 @@ def _metzger_kilonova_model(time, mej, vej, beta, kappa_r, **kwargs):
     ek_tot_0 = 0.5 * m0 * v0 ** 2
 
     # set up mass and velocity layers
-    m_array = np.logspace(-8, np.log10(mej), mass_len) #in solar masses
-    v_m = v0 * (m_array / (mej)) ** (-1 / beta)
-    # don't violate relativity
-    v_m[v_m > 3e10] = speed_of_light
+    vmin = vej
+    vmax = kwargs.get('vmax', 0.7)
+    vel = np.linspace(vmin, vmax, mass_len)
+    m_array = mej * (vel/vmin)**(-beta)
+    v_m = vel * speed_of_light
 
     # set up arrays
     time_array = np.tile(time, (mass_len, 1))
@@ -432,13 +433,12 @@ def _metzger_kilonova_model(time, mej, vej, beta, kappa_r, **kwargs):
         kappa_r = kappa_n + kappa_r
 
     dt = np.diff(time)
-    dm = np.diff(m_array)
+    dm = np.abs(np.diff(m_array))
 
     #initial conditions
     energy_v[:, 0] = 0.5 * m_array*v_m**2
     lum_rad[:, 0] = 0
     qdot_rp[:, 0] = 0
-    kinetic_energy = ek_tot_0
 
     # solve ODE using euler method for all mass shells v
     for ii in range(time_len - 1):
