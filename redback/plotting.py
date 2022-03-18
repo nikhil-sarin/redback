@@ -160,10 +160,10 @@ class Plotter(object):
     def get_random_parameters(self):
         return [self.posterior.iloc[np.random.randint(len(self.posterior))] for _ in range(self.random_models)]
 
-    data_plot_filename = _FilenameGetter(suffix="data.png")
-    lightcurve_plot_filename = _FilenameGetter(suffix="lightcurve.png")
-    multiband_data_plot_filename = _FilenameGetter(suffix="multiband_data.png")
-    multiband_lightcurve_plot_filename = _FilenameGetter(suffix="multiband_lightcurve.png")
+    data_plot_filename = _FilenameGetter(suffix="data")
+    lightcurve_plot_filename = _FilenameGetter(suffix="lightcurve")
+    multiband_data_plot_filename = _FilenameGetter(suffix="multiband_data")
+    multiband_lightcurve_plot_filename = _FilenameGetter(suffix="multiband_lightcurve")
 
     data_plot_filepath = _FilePathGetter(
         directory_property="data_plot_outdir", filename_property="data_plot_filename")
