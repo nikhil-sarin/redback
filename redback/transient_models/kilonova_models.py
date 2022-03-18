@@ -389,7 +389,6 @@ def _metzger_kilonova_model(time, mej, vej, beta, kappa_r, **kwargs):
     # convert to astrophysical units
     m0 = mej * solar_mass
     v0 = vej * speed_of_light
-    ek_tot_0 = 0.5 * m0 * v0 ** 2
 
     # set up mass and velocity layers
     vmin = vej
