@@ -52,14 +52,14 @@ def metzger_magnetar_boosted_kilonova_model(time, redshift, mej, vej, beta, kapp
     elif kwargs['output_format'] == 'magnitude':
         return flux_density.to(uu.ABmag).value
 
-def _metzger_magnetar_boosted_kilonova_model(time, mej, vej, beta, kappa_r, l0, tau_sd, nn, thermalisation_efficiency, **kwargs):
+def _metzger_magnetar_boosted_kilonova_model(time, mej, vej, beta, kappa, l0, tau_sd, nn, thermalisation_efficiency, **kwargs):
     """
     :param time: time array to evaluate model on in source frame in seconds
     :param redshift: redshift
     :param mej: ejecta mass in solar masses
     :param vej: minimum initial velocity
     :param beta: velocity power law slope (M=v^-beta)
-    :param kappa_r: opacity 
+    :param kappa: opacity
     :param l0: initial magnetar X-ray luminosity
     :param tau_sd: magnetar spin down damping timescale
     :param nn: braking index
@@ -75,13 +75,13 @@ def _metzger_magnetar_boosted_kilonova_model(time, mej, vej, beta, kappa_r, l0, 
     time = time
     tdays = time/day_to_s
     time_len = len(time)
-    mass_len = 250
+    mass_len = 200
 
     # set up kilonova physics
     av, bv, dv = interpolated_barnes_and_kasen_thermalisation_efficiency(mej, vej)
     # thermalisation from Barnes+16
     e_th = 0.36 * (np.exp(-av * tdays) + np.log1p(2.0 * bv * tdays ** dv) / (2.0 * bv * tdays ** dv))
-    electron_fraction = electron_fraction_from_kappa(kappa_r)
+    electron_fraction = electron_fraction_from_kappa(kappa)
     t0 = 1.3 #seconds
     sig = 0.11  #seconds
     tau_neutron = 900  #seconds
@@ -92,10 +92,11 @@ def _metzger_magnetar_boosted_kilonova_model(time, mej, vej, beta, kappa_r, l0, 
     ek_tot_0 = 0.5 * m0 * v0 ** 2
 
     # set up mass and velocity layers
-    m_array = np.logspace(-8, np.log10(mej), mass_len) #in solar masses
-    v_m = v0 * (m_array / (mej)) ** (-1 / beta)
-    # don't violate relativity
-    v_m[v_m > 3e10] = speed_of_light
+    vmin = vej
+    vmax = kwargs.get('vmax', 0.7)
+    vel = np.linspace(vmin, vmax, mass_len)
+    m_array = mej * (vel/vmin)**(-beta)
+    v_m = vel * speed_of_light
 
     # set up arrays
     time_array = np.tile(time, (mass_len, 1))
@@ -131,11 +132,11 @@ def _metzger_magnetar_boosted_kilonova_model(time, mej, vej, beta, kappa_r, l0, 
         edotn = edotn * neutron_mass_fraction_array
         edotr = edotn + edotr
         kappa_n = 0.4 * (1.0 - neutron_mass_fraction_array - rprocess_mass_fraction_array)
-        kappa_r = kappa_r * rprocess_mass_fraction_array
-        kappa_r = kappa_n + kappa_r
+        kappa = kappa * rprocess_mass_fraction_array
+        kappa = kappa_n + kappa
 
     dt = np.diff(time)
-    dm = np.diff(m_array)
+    dm = np.abs(np.diff(m_array))
 
     #initial conditions
     energy_v[:, 0] = 0.5 * m_array*v_m**2
@@ -146,7 +147,8 @@ def _metzger_magnetar_boosted_kilonova_model(time, mej, vej, beta, kappa_r, l0, 
     # solve ODE using euler method for all mass shells v
     for ii in range(time_len - 1):
         # # evolve the velocity due to pdv work of central shell of mass M and thermal energy Ev0
-        kinetic_energy = kinetic_energy + (np.sum(energy_v[:, ii]) / time[ii]) * dt[ii]
+        kinetic_energy = kinetic_energy + (energy_v[0, ii] / time[ii]) * dt[ii]
+        # kinetic_energy = kinetic_energy + (np.sum(energy_v[:, ii]) / time[ii]) * dt[ii]
         v0 = (2 * kinetic_energy / m0) ** 0.5
         v0_array[ii] = v0
         v_m = v0 * (m_array / (mej)) ** (-1 / beta)
@@ -154,10 +156,10 @@ def _metzger_magnetar_boosted_kilonova_model(time, mej, vej, beta, kappa_r, l0, 
 
         if magnetar_heating == 'all_layers':
             if neutron_precursor_switch:
-                td_v[:-1, ii] = (kappa_r[:-1,ii] * m_array[:-1] * solar_mass * 3) / (
+                td_v[:-1, ii] = (kappa[:-1, ii] * m_array[:-1] * solar_mass * 3) / (
                             4 * np.pi * v_m[:-1] * speed_of_light * time[ii] * beta)
             else:
-                td_v[:-1, ii] = (kappa_r* m_array[:-1] * solar_mass * 3)/ (4*np.pi*v_m[:-1] * speed_of_light * time[ii] * beta)
+                td_v[:-1, ii] = (kappa * m_array[:-1] * solar_mass * 3) / (4 * np.pi * v_m[:-1] * speed_of_light * time[ii] * beta)
 
             lum_rad[:-1, ii] = energy_v[:-1, ii] / (td_v[:-1, ii] + time[ii] * (v_m[:-1] / speed_of_light))
             energy_v[:-1, ii + 1] = (qdot_magnetar[ii] + edotr[:-1, ii] * dm * solar_mass - (energy_v[:-1, ii] / time[ii]) - lum_rad[:-1, ii]) * dt[ii] + energy_v[:-1, ii]
@@ -166,13 +168,13 @@ def _metzger_magnetar_boosted_kilonova_model(time, mej, vej, beta, kappa_r, l0, 
         # only bottom layer i.e., 0'th mass layer gets magnetar contribution
         if magnetar_heating == 'first_layer':
             if neutron_precursor_switch:
-                td_v[0, ii] = (kappa_r[0, ii] * m_array[0] * solar_mass * 3) / (
+                td_v[0, ii] = (kappa[0, ii] * m_array[0] * solar_mass * 3) / (
                             4 * np.pi * v_m[0] * speed_of_light * time[ii] * beta)
-                td_v[1:-1, ii] = (kappa_r[1:-1, ii] * m_array[1:-1] * solar_mass * 3) / (
+                td_v[1:-1, ii] = (kappa[1:-1, ii] * m_array[1:-1] * solar_mass * 3) / (
                             4 * np.pi * v_m[1:-1] * speed_of_light * time[ii] * beta)
             else:
-                td_v[0, ii] = (kappa_r* m_array[0] * solar_mass * 3)/ (4*np.pi*v_m[0] * speed_of_light * time[ii] * beta)
-                td_v[1:-1, ii] = (kappa_r * m_array[1:-1] * solar_mass * 3) / (
+                td_v[0, ii] = (kappa * m_array[0] * solar_mass * 3) / (4 * np.pi * v_m[0] * speed_of_light * time[ii] * beta)
+                td_v[1:-1, ii] = (kappa * m_array[1:-1] * solar_mass * 3) / (
                             4 * np.pi * v_m[1:-1] * speed_of_light * time[ii] * beta)
 
             lum_rad[0, ii] = energy_v[0, ii] / (td_v[0, ii] + time[ii] * (v_m[0] / speed_of_light))
@@ -182,9 +184,9 @@ def _metzger_magnetar_boosted_kilonova_model(time, mej, vej, beta, kappa_r, l0, 
             energy_v[1:-1, ii + 1] = (edotr[1:-1, ii] * dm[1:] * solar_mass - (energy_v[1:-1, ii] / time[ii]) - lum_rad[1:-1, ii]) * dt[ii] + energy_v[1:-1, ii]
 
         if neutron_precursor_switch:
-            tau[:-1, ii] = (m_array[:-1] * solar_mass * kappa_r[:-1, ii] / (4 * np.pi * (time[ii] * v_m[:-1]) ** 2))
+            tau[:-1, ii] = (m_array[:-1] * solar_mass * kappa[:-1, ii] / (4 * np.pi * (time[ii] * v_m[:-1]) ** 2))
         else:
-            tau[:-1, ii] = (m_array[:-1] * solar_mass * kappa_r / (4 * np.pi * (time[ii] * v_m[:-1]) ** 2))
+            tau[:-1, ii] = (m_array[:-1] * solar_mass * kappa / (4 * np.pi * (time[ii] * v_m[:-1]) ** 2))
 
         tau[mass_len - 1, ii] = tau[mass_len - 2, ii]
         photosphere_index = np.argmin(np.abs(tau[:, ii] - 1))

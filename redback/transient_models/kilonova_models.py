@@ -323,14 +323,14 @@ def _one_component_kilonova_model(time, mej, vej, kappa, **kwargs):
     return bolometric_luminosity, temperature, r_photosphere
 
 @citation_wrapper('https://ui.adsabs.harvard.edu/abs/2017LRR....20....3M/abstract')
-def metzger_kilonova_model(time, redshift, mej, vej, beta, kappa_r, **kwargs):
+def metzger_kilonova_model(time, redshift, mej, vej, beta, kappa, **kwargs):
     """
     :param time: observer frame time in days
     :param redshift: redshift
     :param mej: ejecta mass in solar masses
     :param vej: minimum initial velocity
     :param beta: velocity power law slope (M=v^-beta)
-    :param kappa_r: gray opacity
+    :param kappa: gray opacity
     :param kwargs: neutron_precursor_switch, output_format
                 frequency (frequency to calculate - Must be same length as time array or a single number)
     :return: flux_density or magnitude
@@ -339,7 +339,7 @@ def metzger_kilonova_model(time, redshift, mej, vej, beta, kappa_r, **kwargs):
     frequency = kwargs['frequency']
     time_temp = np.geomspace(1e-4, 1e7, 300)
     bolometric_luminosity, temperature, r_photosphere = _metzger_kilonova_model(time_temp, mej, vej, beta,
-                                                                                               kappa_r, **kwargs)
+                                                                                kappa, **kwargs)
     dl = cosmo.luminosity_distance(redshift).cgs.value
 
     # interpolate properties onto observation times
@@ -359,14 +359,14 @@ def metzger_kilonova_model(time, redshift, mej, vej, beta, kappa_r, **kwargs):
     elif kwargs['output_format'] == 'magnitude':
         return flux_density.to(uu.ABmag).value
 
-def _metzger_kilonova_model(time, mej, vej, beta, kappa_r, **kwargs):
+def _metzger_kilonova_model(time, mej, vej, beta, kappa, **kwargs):
     """
     :param time: time array to evaluate model on in source frame in seconds
     :param redshift: redshift
     :param mej: ejecta mass in solar masses
     :param vej: minimum initial velocity
     :param beta: velocity power law slope (M=v^-beta)
-    :param kappa_r: gray opacity
+    :param kappa: gray opacity
     :param kwargs: neutron_precursor_switch
     :return: bolometric_luminosity, temperature, photosphere_radius
     """
@@ -375,13 +375,13 @@ def _metzger_kilonova_model(time, mej, vej, beta, kappa_r, **kwargs):
     time = time
     tdays = time/day_to_s
     time_len = len(time)
-    mass_len = 250
+    mass_len = 200
 
     # set up kilonova physics
     av, bv, dv = interpolated_barnes_and_kasen_thermalisation_efficiency(mej, vej)
     # thermalisation from Barnes+16
     e_th = 0.36 * (np.exp(-av * tdays) + np.log1p(2.0 * bv * tdays ** dv) / (2.0 * bv * tdays ** dv))
-    electron_fraction = electron_fraction_from_kappa(kappa_r)
+    electron_fraction = electron_fraction_from_kappa(kappa)
     t0 = 1.3 #seconds
     sig = 0.11  #seconds
     tau_neutron = 900  #seconds
@@ -389,13 +389,13 @@ def _metzger_kilonova_model(time, mej, vej, beta, kappa_r, **kwargs):
     # convert to astrophysical units
     m0 = mej * solar_mass
     v0 = vej * speed_of_light
-    ek_tot_0 = 0.5 * m0 * v0 ** 2
 
     # set up mass and velocity layers
-    m_array = np.logspace(-8, np.log10(mej), mass_len) #in solar masses
-    v_m = v0 * (m_array / (mej)) ** (-1 / beta)
-    # don't violate relativity
-    v_m[v_m > 3e10] = speed_of_light
+    vmin = vej
+    vmax = kwargs.get('vmax', 0.7)
+    vel = np.linspace(vmin, vmax, mass_len)
+    m_array = mej * (vel/vmin)**(-beta)
+    v_m = vel * speed_of_light
 
     # set up arrays
     time_array = np.tile(time, (mass_len, 1))
@@ -428,28 +428,27 @@ def _metzger_kilonova_model(time, mej, vej, beta, kappa_r, **kwargs):
         edotn = edotn * neutron_mass_fraction_array
         edotr = edotn + edotr
         kappa_n = 0.4 * (1.0 - neutron_mass_fraction_array - rprocess_mass_fraction_array)
-        kappa_r = kappa_r * rprocess_mass_fraction_array
-        kappa_r = kappa_n + kappa_r
+        kappa = kappa * rprocess_mass_fraction_array
+        kappa = kappa_n + kappa
 
     dt = np.diff(time)
-    dm = np.diff(m_array)
+    dm = np.abs(np.diff(m_array))
 
     #initial conditions
     energy_v[:, 0] = 0.5 * m_array*v_m**2
     lum_rad[:, 0] = 0
     qdot_rp[:, 0] = 0
-    kinetic_energy = ek_tot_0
 
     # solve ODE using euler method for all mass shells v
     for ii in range(time_len - 1):
         if neutron_precursor_switch:
-            td_v[:-1, ii] = (kappa_r[:-1, ii] * m_array[:-1] * solar_mass * 3) / (
+            td_v[:-1, ii] = (kappa[:-1, ii] * m_array[:-1] * solar_mass * 3) / (
                     4 * np.pi * v_m[:-1] * speed_of_light * time[ii] * beta)
-            tau[:-1, ii] = (m_array[:-1] * solar_mass * kappa_r[:-1, ii] / (4 * np.pi * (time[ii] * v_m[:-1]) ** 2))
+            tau[:-1, ii] = (m_array[:-1] * solar_mass * kappa[:-1, ii] / (4 * np.pi * (time[ii] * v_m[:-1]) ** 2))
         else:
-            td_v[:-1, ii] = (kappa_r * m_array[:-1] * solar_mass * 3) / (
+            td_v[:-1, ii] = (kappa * m_array[:-1] * solar_mass * 3) / (
                         4 * np.pi * v_m[:-1] * speed_of_light * time[ii] * beta)
-            tau[:-1, ii] = (m_array[:-1] * solar_mass * kappa_r / (4 * np.pi * (time[ii] * v_m[:-1]) ** 2))
+            tau[:-1, ii] = (m_array[:-1] * solar_mass * kappa / (4 * np.pi * (time[ii] * v_m[:-1]) ** 2))
         lum_rad[:-1, ii] = energy_v[:-1, ii] / (td_v[:-1, ii] + time[ii] * (v_m[:-1] / speed_of_light))
         energy_v[:-1, ii + 1] = (edotr[:-1, ii] - (energy_v[:-1, ii] / time[ii]) - lum_rad[:-1, ii]) * dt[ii] + energy_v[:-1, ii]
         lum_rad[:-1, ii] = lum_rad[:-1, ii] * dm * solar_mass

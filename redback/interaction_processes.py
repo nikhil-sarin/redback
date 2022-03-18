@@ -36,7 +36,7 @@ class Diffusion(object):
         tau_diff = np.sqrt(diffusion_constant * self.kappa * self.m_ejecta / self.v_ejecta) / day_to_s
         trap_coeff = (trapping_constant * self.kappa_gamma * self.m_ejecta / (self.v_ejecta ** 2)) / day_to_s ** 2
 
-        min_te = min(self.time)
+        min_te = np.min(self.time)
         tb = max(0.0, min_te)
         luminosity_interpolator = interp1d(self.time, self.luminosity, copy=False,assume_sorted=True)
 

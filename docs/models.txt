@@ -40,7 +40,7 @@ Specifically, the models already included are
     - exponential powerlaw
     - SNcosmo
 
-- Magnetar boosted ejecta models:
+- Magnetar driven ejecta models:
 
     - Metzger magnetar boosted kilonova
     - Mergernova
