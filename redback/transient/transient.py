@@ -146,6 +146,79 @@ class Transient(object):
 
         self.photon_index = photon_index
 
+    @staticmethod
+    def load_data_generic(processed_file_path, data_mode="magnitude"):
+        """
+        Loads data from specified directory and file, and returns it as a tuple.
+
+        Parameters
+        ----------
+        processed_file_path: str
+            Path to the processed file to load
+        data_mode: str, optional
+            Name of the data mode. Must be from ['magnitude', 'flux_density', 'all']. Default is magnitude.
+
+        Returns
+        -------
+        tuple: Six elements when querying magnitude or flux_density data, Eight for 'all'
+        """
+        df = pd.read_csv(processed_file_path)
+        time_days = np.array(df["time (days)"])
+        time_mjd = np.array(df["time"])
+        magnitude = np.array(df["magnitude"])
+        magnitude_err = np.array(df["e_magnitude"])
+        bands = np.array(df["band"])
+        flux_density = np.array(df["flux_density(mjy)"])
+        flux_density_err = np.array(df["flux_density_error"])
+        if data_mode == "magnitude":
+            return time_days, time_mjd, magnitude, magnitude_err, bands
+        elif data_mode == "flux_density":
+            return time_days, time_mjd, flux_density, flux_density_err, bands
+        elif data_mode == "all":
+            return time_days, time_mjd, flux_density, flux_density_err, magnitude, magnitude_err, bands
+
+    @classmethod
+    def from_lasair_data(
+            cls, name: str, data_mode: str = "magnitude", active_bands: Union[np.ndarray, str] = 'all',
+            use_phase_model: bool = False) -> Transient:
+        """
+        Constructor method to built object from Open Access Catalogue
+
+        Parameters
+        ----------
+        name: str
+            Name of the transient.
+        data_mode: str, optional
+            Data mode used. Must be from `OpticalTransient.DATA_MODES`. Default is magnitude.
+        active_bands: Union[np.ndarray, str]
+            Sets active bands based on array given.
+            If argument is 'all', all unique bands in `self.bands` will be used.
+        use_phase_model: bool, optional
+            Whether to use a phase model.
+
+        Returns
+        -------
+        OpticalTransient: A class instance.
+        """
+        if cls.__name__ == "TDE":
+            transient_type = "tidal_disruption_event"
+        else:
+            transient_type = cls.__name__.lower()
+        directory_structure = redback.get_data.directory.lasair_directory_structure(
+            transient=name, transient_type=transient_type)
+        df = pd.read_csv(directory_structure.processed_file_path)
+        time_days = np.array(df["time (days)"])
+        time_mjd = np.array(df["time"])
+        magnitude = np.array(df["magnitude"])
+        magnitude_err = np.array(df["e_magnitude"])
+        bands = np.array(df["band"])
+        flux_density = np.array(df["flux_density(mjy)"])
+        flux_density_err = np.array(df["flux_density_error"])
+        return cls(name=name, data_mode=data_mode, time=time_days, time_err=None, time_mjd=time_mjd,
+                   flux_density=flux_density, flux_density_err=flux_density_err, magnitude=magnitude,
+                   magnitude_err=magnitude_err, bands=bands, active_bands=active_bands,
+                   use_phase_model=use_phase_model)
+
     @property
     def _time_attribute_name(self) -> str:
         if self.luminosity_data:

@@ -128,3 +128,30 @@ def open_access_directory_structure(transient: str, transient_type: str) -> Dire
     processed_file_path = f"{directory_path}{transient}.csv"
     return DirectoryStructure(
         directory_path=directory_path, raw_file_path=raw_file_path, processed_file_path=processed_file_path)
+
+
+def lasair_directory_structure(transient: str, transient_type: str) -> DirectoryStructure:
+    """
+    Provides a general directory structure.
+
+    Parameters
+    ----------
+    transient: str
+        Name of the transient.
+    transient_type: str
+        Type of the transient.
+
+    Returns
+    -------
+    tuple: The directory, the raw data file name, and the processed file name.
+    """
+    if transient_type == "afterglow":
+        directory_path = "GRBData/afterglow/"
+    else:
+        directory_path = f"{transient_type}/"
+    check_directory_exists_and_if_not_mkdir(directory_path)
+    raw_file_path = f"{directory_path}{transient}_rawdata.json"
+    processed_file_path = f"{directory_path}{transient}.csv"
+    return DirectoryStructure(
+        directory_path=directory_path, raw_file_path=raw_file_path, processed_file_path=processed_file_path)
+
