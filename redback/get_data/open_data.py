@@ -14,19 +14,19 @@ from astropy.time import Time
 import redback
 import redback.get_data.directory
 import redback.get_data.utils
+from redback.get_data.getter import DataGetter
 import redback.redback_errors
 from redback.utils import logger, calc_flux_density_from_ABmag, calc_flux_density_error
 
 dirname = os.path.dirname(__file__)
 
 
-class OpenDataGetter(object):
+class OpenDataGetter(DataGetter):
     VALID_TRANSIENT_TYPES = ['kilonova', 'supernova', 'tidal_disruption_event']
 
     DATA_MODE = 'flux_density'
 
-    def __init__(
-            self, transient: str, transient_type: str) -> None:
+    def __init__(self, transient: str, transient_type: str) -> None:
         """
         Constructor class for a data getter. The instance will be able to downloaded the specified Swift data.
 
@@ -37,39 +37,10 @@ class OpenDataGetter(object):
         transient_type: str
             Type of the transient. Must be from `redback.get_data.open_data.OpenDataGetter.VALID_TRANSIENT_TYPES`.
         """
-        self.transient = transient
-        self.transient_type = transient_type
+        super().__init__(transient, transient_type)
         self.directory_path, self.raw_file_path, self.processed_file_path = \
             redback.get_data.directory.open_access_directory_structure(transient=self.transient,
                                                                        transient_type=self.transient_type)
-
-    def get_data(self) -> pd.DataFrame:
-        """
-        Downloads the raw data and produces a processed .csv file.
-
-        Returns
-        -------
-        pandas.DataFrame: The processed data.
-        """
-        self.collect_data()
-        return self.convert_raw_data_to_csv()
-
-    @property
-    def transient_type(self) -> str:
-        """
-        Checks if the transient type is valid when setting.
-
-        Returns
-        -------
-        str: The transient type.
-        """
-        return self._transient_type
-
-    @transient_type.setter
-    def transient_type(self, transient_type: str) -> None:
-        if transient_type not in self.VALID_TRANSIENT_TYPES:
-            raise ValueError("Transient type does not have open access data.")
-        self._transient_type = transient_type
 
     @property
     def url(self) -> str:

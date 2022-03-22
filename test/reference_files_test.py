@@ -129,3 +129,11 @@ class TestReferenceFiles(unittest.TestCase):
 
         self.downloaded_file = "GRBData/prompt/flux/tte_bfits_8121.fits.gz"
         self.assertTrue(filecmp.cmp(self.reference_file, self.downloaded_file))
+
+    def test_lasair_data(self):
+        redback.get_data.get_lasair_data(transient="ZTF19aagqkrq", transient_type="afterglow")
+        self.downloaded_file = "GRBData/afterglow/ZTF19aagqkrq.csv"
+        self._compare_files_line_by_line()
+
+        self.downloaded_file = "GRBData/afterglow/ZTF19aagqkrq_rawdata.json"
+        self._compare_files_line_by_line()

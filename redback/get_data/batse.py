@@ -8,12 +8,15 @@ import pandas as pd
 from astropy.io import fits
 
 import redback
+from redback.get_data.getter import GRBDataGetter
 from redback.get_data.utils import get_batse_trigger_from_grb
 
 _dirname = os.path.dirname(__file__)
 
 
-class BATSEDataGetter(object):
+class BATSEDataGetter(GRBDataGetter):
+
+    VALID_TRANSIENT_TYPES = ["prompt"]
 
     PROCESSED_FILE_COLUMNS = [
             "Time bin left [s]",
@@ -36,7 +39,7 @@ class BATSEDataGetter(object):
         grb: str
             Telephone number of GRB, e.g., 'GRB140903A' or '140903A' are valid inputs.
         """
-        self.grb = grb
+        super().__init__(grb=grb, transient_type="prompt")
         self.directory_path, self.raw_file_path, self.processed_file_path = self.create_directory_structure()
 
     @property
@@ -47,11 +50,11 @@ class BATSEDataGetter(object):
         -------
         str: The GRB number with prepended 'GRB'.
         """
-        return self._grb
+        return self.transient
 
     @grb.setter
     def grb(self, grb: str) -> None:
-        self._grb = "GRB" + grb.lstrip('GRB')
+        self.transient = "GRB" + grb.lstrip('GRB')
 
     @property
     def trigger(self) -> int:
@@ -84,7 +87,7 @@ class BATSEDataGetter(object):
         -------
         tuple: Named tuple with the directory path, raw file path, and processed file path.
         """
-        return redback.get_data.directory.batse_prompt_directory_structure(grb=self.grb, trigger=self.trigger)
+        return redback.get_data.directory.batse_prompt_directory_structure(grb=self.grb, trigger=str(self.trigger))
 
     @property
     def _s(self) -> int:
@@ -127,13 +130,6 @@ class BATSEDataGetter(object):
         """
         return f"https://heasarc.gsfc.nasa.gov/FTP/compton/data/batse/trigger/{self._start}_{self._stop}/" \
                f"{self.trigger_filled}_burst/tte_bfits_{self.trigger}.fits.gz"
-
-    def get_data(self) -> pd.DataFrame:
-        """
-        Downloads the raw data and produces a processed .csv file.
-        """
-        self.collect_data()
-        return self.convert_raw_data_to_csv()
 
     def collect_data(self) -> None:
         """
