@@ -2,6 +2,7 @@ import unittest
 import bilby
 from os import listdir
 from os.path import dirname
+import pandas as pd
 from pathlib import Path
 from shutil import rmtree
 
@@ -21,20 +22,6 @@ class TestLoadPriors(unittest.TestCase):
         for f in self.prior_files:
             prior_dict = bilby.prior.PriorDict()
             prior_dict.from_file(f"{self.path_to_files}{f}")
-
-    # def test_dollar_signs(self):
-    #     for f in self.prior_files:
-    #         print()
-    #         print(f)
-    #         prior_dict = bilby.prior.PriorDict()
-    #         prior_dict.from_file(f"{self.path_to_files}{f}")
-    #         for k, p in prior_dict.items():
-    #             print(k)
-    #             occurences = p.latex_label.count("$")
-    #             assert occurences % 2 == 0
-
-
-import pandas as pd
 
 
 class TestCornerPlotPriorSamples(unittest.TestCase):
