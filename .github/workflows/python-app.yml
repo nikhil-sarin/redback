@@ -36,11 +36,11 @@ jobs:
         name: dist-without-markdown
         path: |
           .
-    - name: Coveralls GitHub Action
-      uses: coverallsapp/github-action@1.1.3
-      run: coveralls --service=github
-      with:
-        github-token: ${{ secrets.github_token }}
+#    - name: Coveralls GitHub Action
+#      uses: coverallsapp/github-action@1.1.3
+#      run: coveralls --service=github
+#      with:
+#        github-token: ${{ secrets.github_token }}
 #    - name: Archive code coverage results
 #      uses: actions/upload-artifact@v3
 #      with:
