@@ -37,8 +37,13 @@ jobs:
         name: dist-without-markdown
         path: |
           coverage.svg
+    - name: Coveralls
+      uses: coverallsapp/github-action@1.1.3
+      run: coveralls --service=github
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+#      if: ${success()}
 #    - name: Coveralls GitHub Action
-#      uses: coverallsapp/github-action@1.1.3
 #      run: coveralls --service=github
 #      with:
 #        github-token: ${{ secrets.github_token }}
