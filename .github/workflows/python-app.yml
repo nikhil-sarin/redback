@@ -29,14 +29,14 @@ jobs:
     - name: Run tests
       run: |
         coverage run -m pytest test/ --ignore=test/reference_files_test.py --ignore=test/prior_test.py
+    - name: Archive production artifacts
+      uses: actions/upload-artifact@v3
+      with:
+        name: dist-without-markdown
+        path: |
+          dist
+          !dist/**/*.md
 
-#    - name: Archive production artifacts
-#      uses: actions/upload-artifact@v3
-#      with:
-#        name: dist-without-markdown
-#        path: |
-#          dist
-#          !dist/**/*.md
 #    - name: Archive code coverage results
 #      uses: actions/upload-artifact@v3
 #      with:
