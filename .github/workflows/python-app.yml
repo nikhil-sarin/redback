@@ -32,13 +32,13 @@ jobs:
       run: |
         coverage run -m pytest test/ --durations=10 --ignore=test/reference_files_test.py
         coverage lcov
-        coverage-badge -o coverage.svg
+        coverage html
     - name: Archive production artifacts
       uses: actions/upload-artifact@v3
       with:
-        name: dist-without-markdown
+        name: HTML coverage upload
         path: |
-          coverage.svg
+          htmlcov
     - name: Coveralls
       run: coveralls --service=github
       env:
