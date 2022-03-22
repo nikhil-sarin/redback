@@ -30,7 +30,7 @@ jobs:
         pip install flake8 pytest pytest-cov coverage coverage-badge coveralls
     - name: Run tests
       run: |
-        coverage run -m pytest test/ --durations=10
+        coverage run -m pytest test/ --durations=10 --ignore=test/reference_files_test.py
         coverage lcov
         coverage-badge -o coverage.svg
     - name: Archive production artifacts
