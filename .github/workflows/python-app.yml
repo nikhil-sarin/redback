@@ -36,17 +36,17 @@ jobs:
         name: dist-without-markdown
         path: |
           .
+    - name: Coveralls GitHub Action
+      uses: coverallsapp/github-action@1.1.3
+      run: coveralls --service=github
+      with:
+        github-token: ${{ secrets.github_token }}
 #    - name: Archive code coverage results
 #      uses: actions/upload-artifact@v3
 #      with:
 #        name: code-coverage-report
-#        path: output/test/code-coverage.html
 
-#    - name: Coveralls GitHub Action
-#      uses: coverallsapp/github-action@1.1.3
-#      run: coveralls --service=github
-#      with:
-#        github-token: ${{ secrets.github_token }}
+#        path: output/test/code-coverage.html
 #    - name: Lint with flake8
 #      run: |
 #         stop the build if there are Python syntax errors or undefined names
