@@ -22,8 +22,6 @@ jobs:
         python-version: 3.9
     - name: Install dependencies
       run: |
-#        sudo apt install texlive-latex-extra
-#        sudo apt-get install dvipng texlive-latex-extra texlive-fonts-recommended cm-super
         python -m pip install --upgrade pip
         pip install flake8 pytest
         if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
@@ -31,19 +29,19 @@ jobs:
     - name: Run tests
       run: |
         coverage run -m pytest test/ --ignore=test/reference_files_test.py --ignore=test/prior_test.py
-#        coverage lcov
-    - name: Archive production artifacts
-      uses: actions/upload-artifact@v3
-      with:
-        name: dist-without-markdown
-        path: |
-          dist
-          !dist/**/*.md
-    - name: Archive code coverage results
-      uses: actions/upload-artifact@v3
-      with:
-        name: code-coverage-report
-        path: output/test/code-coverage.html
+
+#    - name: Archive production artifacts
+#      uses: actions/upload-artifact@v3
+#      with:
+#        name: dist-without-markdown
+#        path: |
+#          dist
+#          !dist/**/*.md
+#    - name: Archive code coverage results
+#      uses: actions/upload-artifact@v3
+#      with:
+#        name: code-coverage-report
+#        path: output/test/code-coverage.html
 
 #    - name: Coveralls GitHub Action
 #      uses: coverallsapp/github-action@1.1.3
