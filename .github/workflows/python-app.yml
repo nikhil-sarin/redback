@@ -33,6 +33,8 @@ jobs:
         pytest --cov=redback test/ --ignore=test/reference_files_test.py
     - name: Coveralls GitHub Action
       uses: coverallsapp/github-action@1.1.3
+      with:
+        github-token: ${{ secrets.github_token }}
 #    - name: Lint with flake8
 #      run: |
 #         stop the build if there are Python syntax errors or undefined names
