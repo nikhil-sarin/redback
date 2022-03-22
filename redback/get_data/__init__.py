@@ -5,7 +5,7 @@ import urllib
 
 import pandas as pd
 
-from redback.get_data import batse, directory, fermi, konus, lasair, open_data, swift, utils
+from redback.get_data import batse, directory, fermi, getter, konus, lasair, open_data, swift, utils
 from redback.get_data.swift import SwiftDataGetter
 from redback.get_data.open_data import OpenDataGetter
 from redback.get_data.batse import BATSEDataGetter

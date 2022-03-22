@@ -1,3 +1,4 @@
+import os.path
 import shutil
 import unittest
 from unittest import mock
@@ -122,6 +123,66 @@ def _delete_downloaded_files():
         shutil.rmtree(folder, ignore_errors=True)
 
 
+class TestDataGetterMethods(unittest.TestCase):
+
+    def setUp(self) -> None:
+        self.transient = "GRB000526"
+        self.transient_type = "afterglow"
+
+        class SimpleDataGetter(redback.get_data.getter.DataGetter):
+
+            VALID_TRANSIENT_TYPES = ["afterglow"]
+
+        self.getter = SimpleDataGetter(transient=self.transient, transient_type=self.transient_type)
+
+    def tearDown(self) -> None:
+        del self.transient
+        del self.transient_type
+        del self.getter
+
+    def test_get_data(self):
+        self.getter.collect_data = MagicMock()
+        self.getter.convert_raw_data_to_csv = MagicMock()
+        self.getter.get_data()
+        self.getter.collect_data.assert_called_once()
+        self.getter.convert_raw_data_to_csv.assert_called_once()
+
+    def test_set_invalid_transient_type(self):
+        with self.assertRaises(ValueError):
+            self.getter.transient_type = "invalid"
+
+
+class TestGRBDataGetterMethods(unittest.TestCase):
+
+    def setUp(self) -> None:
+        self.grb = "GRB000526"
+        self.transient_type = "afterglow"
+
+        class SimpleGRBDataGetter(redback.get_data.getter.GRBDataGetter):
+            VALID_TRANSIENT_TYPES = ["afterglow"]
+
+        self.getter = SimpleGRBDataGetter(grb=self.grb, transient_type=self.transient_type)
+
+    def tearDown(self) -> None:
+        del self.grb
+        del self.transient_type
+        del self.getter
+
+    def test_grb_name(self):
+        self.assertEqual(self.grb, self.getter.grb)
+
+        self.getter.grb = self.grb.lstrip("GRB")
+        self.assertEqual(self.grb, self.getter.grb)
+
+    def test_set_grb_name_without_prefix(self):
+        self.getter.grb = "000526"
+        self.assertEqual(self.grb, self.getter.grb)
+
+    def test_stripped_grb(self):
+        stripped_grb = "000526"
+        self.assertEqual(stripped_grb, self.getter.stripped_grb)
+
+
 class TestBATSEDataGetter(unittest.TestCase):
 
     @classmethod
@@ -141,12 +202,6 @@ class TestBATSEDataGetter(unittest.TestCase):
         del self.getter
         _delete_downloaded_files()
 
-    def test_grb(self):
-        self.assertEqual(self.grb, self.getter.grb)
-
-        self.getter.grb = self.grb.lstrip("GRB")
-        self.assertEqual(self.grb, self.getter.grb)
-
     def test_trigger(self):
         expected = 8121
         self.assertEqual(expected, self.getter.trigger)
@@ -159,13 +214,6 @@ class TestBATSEDataGetter(unittest.TestCase):
         expected = f"https://heasarc.gsfc.nasa.gov/FTP/compton/data/batse/trigger/08001_08200/" \
                    f"08121_burst/tte_bfits_8121.fits.gz"
         self.assertEqual(expected, self.getter.url)
-
-    def test_get_data(self):
-        self.getter.collect_data = MagicMock()
-        self.getter.convert_raw_data_to_csv = MagicMock()
-        self.getter.get_data()
-        self.getter.collect_data.assert_called_once()
-        self.getter.convert_raw_data_to_csv.assert_called_once()
 
     @mock.patch("urllib.request.urlretrieve")
     def collect_data(self, urlretrieve):
@@ -203,13 +251,6 @@ class TestOpenDataGetter(unittest.TestCase):
     def test_set_invalid_transient_type(self):
         with self.assertRaises(ValueError):
             self.getter.transient_type = "patrick"
-
-    def test_get_data(self):
-        self.getter.collect_data = MagicMock()
-        self.getter.convert_raw_data_to_csv = MagicMock()
-        self.getter.get_data()
-        self.getter.collect_data.assert_called_once()
-        self.getter.convert_raw_data_to_csv.assert_called_once()
 
     def test_url(self):
         expected = f"https://api.astrocats.space/{self.transient}/photometry/time+magnitude+e_" \
@@ -357,19 +398,6 @@ class TestSwiftDataGetter(unittest.TestCase):
         with self.assertRaises(ValueError):
             self.getter.instrument = "potato"
 
-    def test_grb(self):
-        expected = f"GRB{self.grb}"
-        self.assertEqual(expected, self.getter.grb)
-
-        self.getter.grb = expected
-        self.assertEqual(expected, self.getter.grb)
-
-    def test_stripped_grb(self):
-        self.assertEqual(self.grb, self.getter.stripped_grb)
-        grb_with_prepended_grb = f"GRB{self.grb}"
-        self.getter.grb = grb_with_prepended_grb
-        self.assertEqual(self.grb, self.getter.stripped_grb)
-
     @mock.patch("redback.get_data.utils.get_trigger_number")
     def test_trigger(self, get_trigger_number):
         expected = "0"
@@ -436,15 +464,6 @@ class TestSwiftDataGetter(unittest.TestCase):
             list(expected),
             list([self.getter.directory_path, self.getter.raw_file_path, self.getter.processed_file_path]))
         prompt_directory_structure.assert_called_with(grb=f"GRB{self.grb}", bin_size=self.bin_size)
-
-    def test_get_data(self):
-        self.getter.create_directory_structure = MagicMock()
-        self.getter.collect_data = MagicMock()
-        self.getter.convert_raw_data_to_csv = MagicMock()
-        self.getter.get_data()
-        self.getter.create_directory_structure.assert_not_called()
-        self.getter.collect_data.assert_called_once()
-        self.getter.convert_raw_data_to_csv.assert_called_once()
 
     @mock.patch("os.path.isfile")
     def test_collect_data_rawfile_exists(self, isfile):
@@ -556,3 +575,65 @@ class TestSwiftDataGetter(unittest.TestCase):
         self.getter.convert_xrt_data_to_csv.assert_not_called()
         self.getter.convert_raw_afterglow_data_to_csv.assert_not_called()
         self.getter.convert_raw_prompt_data_to_csv.assert_called_once()
+
+
+class TestLasairDataGetter(unittest.TestCase):
+
+    @classmethod
+    def setUpClass(cls) -> None:
+        _delete_downloaded_files()
+
+    @classmethod
+    def tearDownClass(cls) -> None:
+        _delete_downloaded_files()
+
+    def setUp(self) -> None:
+        self.transient = "ZTF19aagqkrq"
+        self.transient_type = "afterglow"
+        self.getter = redback.get_data.LasairDataGetter(
+            transient=self.transient, transient_type=self.transient_type)
+
+    def tearDown(self) -> None:
+        shutil.rmtree("GRBData", ignore_errors=True)
+        del self.transient
+        del self.transient_type
+        del self.getter
+
+    def test_directory_path(self):
+        expected_directory_path, expected_raw_file_path, expected_processed_file_path = \
+            redback.get_data.directory.lasair_directory_structure(
+                transient_type=self.transient_type, transient=self.transient)
+        self.assertEqual(expected_directory_path, self.getter.directory_path)
+        self.assertEqual(expected_raw_file_path, self.getter.raw_file_path)
+        self.assertEqual(expected_processed_file_path, self.getter.processed_file_path)
+
+    def test_url(self):
+        expected = f"https://lasair.roe.ac.uk/object/{self.transient}/json/"
+        self.assertEqual(expected, self.getter.url)
+
+    @mock.patch("os.path.isfile")
+    def test_collect_data_rawfile_exists(self, isfile):
+        isfile.return_value = True
+        redback.utils.logger.warning = MagicMock()
+        self.getter.collect_data()
+        isfile.assert_called_once()
+        redback.utils.logger.warning.assert_called_once()
+
+    @mock.patch("os.path.isfile")
+    @mock.patch("requests.get")
+    def test_collect_data_no_lightcurve_available(self, get, isfile):
+        isfile.return_value = False
+        get.return_value = MagicMock()
+        get.return_value.__setattr__('text', 'does not exist')
+        with self.assertRaises(ValueError):
+            self.getter.collect_data()
+
+    @mock.patch("os.path.isfile")
+    @mock.patch("requests.get")
+    @mock.patch("urllib.request.urlretrieve")
+    def test_collect_data(self, urlretrieve, get, isfile):
+        isfile.return_value = False
+        get.return_value = MagicMock()
+        get.return_value.__setattr__('text', '')
+        self.getter.collect_data()
+        urlretrieve.assert_called_with(url=self.getter.url, filename=self.getter.raw_file_path)

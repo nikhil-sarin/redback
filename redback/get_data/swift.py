@@ -14,15 +14,17 @@ import requests
 import redback.get_data.directory
 import redback.get_data.utils
 import redback.redback_errors
+from redback.get_data.getter import GRBDataGetter
 from redback.utils import fetch_driver, check_element
 from redback.utils import logger
 
 dirname = os.path.dirname(__file__)
 
 
-class SwiftDataGetter(object):
-    VALID_DATA_MODES = {'flux', 'flux_density', 'prompt'}
-    VALID_INSTRUMENTS = {'BAT+XRT', 'XRT'}
+class SwiftDataGetter(GRBDataGetter):
+    VALID_TRANSIENT_TYPES = ["afterglow", "prompt"]
+    VALID_DATA_MODES = ['flux', 'flux_density', 'prompt']
+    VALID_INSTRUMENTS = ['BAT+XRT', 'XRT']
 
     XRT_DATA_KEYS = ['Time [s]', "Pos. time err [s]", "Neg. time err [s]", "Flux [erg cm^{-2} s^{-1}]",
                      "Pos. flux err [erg cm^{-2} s^{-1}]", "Neg. flux err [erg cm^{-2} s^{-1}]"]
@@ -56,8 +58,8 @@ class SwiftDataGetter(object):
         bin_size: str, optional
             Bin size. Must be from `redback.get_data.swift.SwiftDataGetter.SWIFT_PROMPT_BIN_SIZES`.
         """
+        super().__init__(grb=grb, transient_type=transient_type)
         self.grb = grb
-        self.transient_type = transient_type
         self.instrument = instrument
         self.data_mode = data_mode
         self.bin_size = bin_size
@@ -97,31 +99,6 @@ class SwiftDataGetter(object):
         if instrument not in self.VALID_INSTRUMENTS:
             raise ValueError("Swift does not have {} instrument mode".format(self.instrument))
         self._instrument = instrument
-
-    @property
-    def grb(self) -> str:
-        """
-
-        Returns
-        -------
-        str: The GRB number with prepended 'GRB'.
-        """
-        return self._grb
-
-    @grb.setter
-    def grb(self, grb: str) -> None:
-        self._grb = "GRB" + grb.lstrip('GRB')
-
-    @property
-    def stripped_grb(self) -> str:
-        """
-
-        Returns
-        -------
-        str: The GRB number without prepended 'GRB'.
-
-        """
-        return self.grb.lstrip('GRB')
 
     @property
     def trigger(self) -> str:
@@ -184,9 +161,7 @@ class SwiftDataGetter(object):
             logger.warning(
                 "You are only downloading XRT data, you may not capture"
                 " the tail of the prompt emission.")
-
-        self.collect_data()
-        return self.convert_raw_data_to_csv()
+        return super(SwiftDataGetter, self).get_data()
 
     def create_directory_structure(self) -> redback.get_data.directory.DirectoryStructure:
         """
@@ -421,4 +396,3 @@ class SwiftDataGetter(object):
         df = pd.DataFrame(data=data)
         df.to_csv(self.processed_file_path, index=False, sep=',')
         return df
-# [float(x) for x in data['Flux [mJy]']]
