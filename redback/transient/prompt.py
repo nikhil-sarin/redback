@@ -22,7 +22,7 @@ class PromptTimeSeries(Transient):
             time_err: np.ndarray = None, time_rest_frame: np.ndarray = None, time_rest_frame_err: np.ndarray = None, 
             counts: np.ndarray = None, channel_tags: np.ndarray = None, data_mode: str = 'ttes',
             trigger_number: str = None, channels: Union[np.ndarray, str] = "all", instrument: str = "batse", 
-            **kwargs: dict) -> None:
+            **kwargs: None) -> None:
         """
 
         Parameters
@@ -162,7 +162,7 @@ class PromptTimeSeries(Transient):
         else:
             self._trigger_number = str(trigger_number)
 
-    def plot_data(self, **kwargs: dict) -> None:
+    def plot_data(self, **kwargs: None) -> None:
         """
         Simple plot of the data.
 
@@ -177,7 +177,7 @@ class PromptTimeSeries(Transient):
 
     def plot_lightcurve(
             self, model: callable, axes: matplotlib.axes.Axes = None, save: bool = True, show: bool = True,
-            random_models: int = 1000, posterior: pd.DataFrame = None, outdir: str = None, **kwargs: dict) -> None:
+            random_models: int = 1000, posterior: pd.DataFrame = None, outdir: str = None, **kwargs: None) -> None:
         """
 
         Parameters

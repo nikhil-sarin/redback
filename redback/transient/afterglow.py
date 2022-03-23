@@ -30,7 +30,7 @@ class Afterglow(Transient):
             flux_density_err: np.ndarray = None, magnitude: np.ndarray = None, magnitude_err: np.ndarray = None,
             redshift: float = np.nan, photon_index: float = np.nan, frequency: np.ndarray = None,
             bands: np.ndarray = None, system: np.ndarray = None, active_bands: Union[np.ndarray, str] = 'all',
-            use_phase_model: bool = False, **kwargs: dict) -> None:
+            use_phase_model: bool = False, **kwargs: None) -> None:
 
         """
         This is a general constructor for the Afterglow class. Note that you only need to give data corresponding to

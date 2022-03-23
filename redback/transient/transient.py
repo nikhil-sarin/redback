@@ -39,7 +39,7 @@ class Transient(object):
             ttes: np.ndarray = None, bin_size: float = None, redshift: float = np.nan, data_mode: str = None,
             name: str = '', photon_index: float = np.nan, use_phase_model: bool = False,
             frequency: np.ndarray = None, system: np.ndarray = None, bands: np.ndarray = None,
-            active_bands: Union[np.ndarray, str] = None, **kwargs: dict) -> None:
+            active_bands: Union[np.ndarray, str] = None, **kwargs: None) -> None:
         """
         This is a general constructor for the Transient class. Note that you only need to give data corresponding to
         the data mode you are using. For luminosity data provide times in the rest frame, if using a phase model
@@ -532,7 +532,7 @@ class Transient(object):
         return matplotlib.cm.rainbow(np.linspace(0, 1, len(filters)))
 
     def plot_data(self, axes: matplotlib.axes.Axes = None, filename: str = None, outdir: str = None, save: bool = True,
-            show: bool = True, plot_others: bool = True, color: str = 'k', **kwargs: dict) -> matplotlib.axes.Axes:
+            show: bool = True, plot_others: bool = True, color: str = 'k', **kwargs: None) -> matplotlib.axes.Axes:
         """
         Plots the Afterglow lightcurve and returns Axes.
 
@@ -565,7 +565,7 @@ class Transient(object):
     def plot_multiband(
             self, figure: matplotlib.figure.Figure = None, axes: matplotlib.axes.Axes = None, filename: str = None,
             outdir: str = None, ncols: int = 2, save: bool = True, show: bool = True,
-            nrows: int = None, figsize: tuple = None, filters: list = None, **kwargs: dict) \
+            nrows: int = None, figsize: tuple = None, filters: list = None, **kwargs: None) \
             -> matplotlib.axes.Axes:
         """
 
@@ -741,7 +741,7 @@ class OpticalTransient(Transient):
             flux_density_err: np.ndarray = None, magnitude: np.ndarray = None, magnitude_err: np.ndarray = None,
             redshift: float = np.nan, photon_index: float = np.nan, frequency: np.ndarray = None,
             bands: np.ndarray = None, system: np.ndarray = None, active_bands: Union[np.ndarray, str] = 'all',
-            use_phase_model: bool = False, **kwargs: dict) -> None:
+            use_phase_model: bool = False, **kwargs: None) -> None:
         """
         This is a general constructor for the Transient class. Note that you only need to give data corresponding to
         the data mode you are using. For luminosity data provide times in the rest frame, if using a phase model

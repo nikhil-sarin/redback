@@ -131,7 +131,7 @@ class RedbackResult(Result):
         """
         return TRANSIENT_DICT[self.transient_type](**self.meta_data)
 
-    def plot_lightcurve(self, model: Union[callable, str] = None, **kwargs: dict) -> None:
+    def plot_lightcurve(self, model: Union[callable, str] = None, **kwargs: None) -> None:
         """
         Reconstructs the transient and calls the specific `plot_lightcurve` method.
 
@@ -147,7 +147,7 @@ class RedbackResult(Result):
         self.transient.plot_lightcurve(model=model, posterior=self.posterior,
                                        model_kwargs=self.model_kwargs, **kwargs)
 
-    def plot_multiband_lightcurve(self, model: Union[callable, str] = None, **kwargs: dict) -> None:
+    def plot_multiband_lightcurve(self, model: Union[callable, str] = None, **kwargs: None) -> None:
         """
         Reconstructs the transient and calls the specific `plot_multiband_lightcurve` method.
 
@@ -163,7 +163,7 @@ class RedbackResult(Result):
         self.transient.plot_multiband_lightcurve(
             model=model, posterior=self.posterior, model_kwargs=self.model_kwargs, **kwargs)
 
-    def plot_data(self, **kwargs: dict) -> None:
+    def plot_data(self, **kwargs: None) -> None:
         """
         Reconstructs the transient and calls the specific `plot_data` method.
 
@@ -174,7 +174,7 @@ class RedbackResult(Result):
         """
         self.transient.plot_data(**kwargs)
 
-    def plot_multiband(self, **kwargs: dict) -> None:
+    def plot_multiband(self, **kwargs: None) -> None:
         """
         Reconstructs the transient and calls the specific `plot_multiband` method.
 
