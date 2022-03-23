@@ -25,7 +25,7 @@ This will install all requirements for running :code:`redback` for general trans
 <https://dynesty.readthedocs.io/en/latest/>`_. Other samplers will need to be
 installed via pip or the appropriate means. Please look through :code:`redback` `fitting documentation <https://redback.readthedocs.io/en/latest/fitting.html>`_ for what samplers are available.
 Currently :code:`redback` is going significant development, and we can not guarantee that any `pip` or `conda` releases will be completely up to date.
-Therefore, for the near future, we recommend installing :code:`redback` from source.
+Therefore, for the near future, we recommend installing :code:`redback` from source, and in development mode.
 
 Install :code:`redback` from source
 -------------------------
@@ -51,7 +51,7 @@ To install with development mode, use:
    $ git clone https://github.com/nikhil-sarin/redback
    $ cd redback/
    $ pip install -r requirements.txt
-   $ pip install . -e
+   $ pip install -e .
 
 For full functionality, please also install optional requirements.
 
