@@ -98,7 +98,7 @@ For example:
 
     model = 'arnett_bolometric'
 
-    function = all_models_dict(model)
+    function = all_models_dict[model]
     time = np.logspace(2, 8, 100)/day_to_s
     bolometric_luminosity = function(time, f_nickel=0.6,
                         mej=30, vej=1000, kappa=2, kappa_gamma=1e2)
@@ -126,7 +126,9 @@ Users can also use the prior objects to get a simulation of the light curves pre
 Remember that the priors are simply a dictionary so users could also just pass a dictionary/dataframe they created themselves as well.
 
 Users could also sample a lot of different draws from the prior at once (in the above we randomly drew a 100 samples) and then loop through them to simulate a population.
-Remember that we can only place arbitrary constraints on the priors to make a really specific population/simulation.
+Remember that we can also place arbitrary constraints on the priors to make a really specific population/simulation.
+For example, we could make a constraint that all priors in the population were brighter than 24th mag at peak or something else.
+Almost any time of constraint is possible, as long as it can be written mathematically.
 
 Modifying :code:`redback` models
 -------------------------
