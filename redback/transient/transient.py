@@ -1,11 +1,10 @@
 from __future__ import annotations
 
-import matplotlib.pyplot as plt
+from typing import Union
+
 import matplotlib
 import numpy as np
-from os.path import join
 import pandas as pd
-from typing import Union
 
 import redback
 from redback.plotting import \
@@ -94,7 +93,8 @@ class Transient(object):
         :type system: np.ndarray, optional
         :param bands: Band values.
         :type bands: np.ndarray, optional
-        :param active_bands: List or array of active bands to be used in the analysis. Use all available bands if 'all' is given.
+        :param active_bands: List or array of active bands to be used in the analysis.
+                             Use all available bands if 'all' is given.
         :type active_bands: Union[list, np.ndarray], optional
         :param kwargs: Additional callables:
                        bands_to_frequency: Conversion function to convert a list of bands to frequencies.
@@ -149,7 +149,8 @@ class Transient(object):
 
         :param processed_file_path: Path to the processed file to load
         :type processed_file_path: str
-        :param data_mode: Name of the data mode. Must be from ['magnitude', 'flux_density', 'all']. Default is magnitude.
+        :param data_mode: Name of the data mode.
+                          Must be from ['magnitude', 'flux_density', 'all']. Default is magnitude.
         :type data_mode: str, optional
 
         :return: Six elements when querying magnitude or flux_density data, Eight for 'all'.
@@ -488,6 +489,16 @@ class Transient(object):
 
         :param axes: Matplotlib axes to plot the lightcurve into. Useful for user specific modifications to the plot.
         :type axes: Union[matplotlib.axes.Axes, None], optional
+        :param filename: Name of the file to be plotted in.
+        :type filename: str
+        :param outdir: The directory in which to save the file in.
+        :type outdir: str
+        :param save: Whether to save the plot. (Default value = True)
+        :type save: bool
+        :param show: Whether to show the plot. (Default value = True)
+        :type show: bool
+        :param plot_others: Whether to plot inactive bands. (Default value = True)
+        :type plot_others: bool
         :param color: Color of the data.
         :type color: str, optional
         :param kwargs: Additional keyword arguments to pass in the Plotter methods.
@@ -521,6 +532,14 @@ class Transient(object):
         :type figure: matplotlib.figure.Figure, optional
         :param axes: Axes can be given if defaults are not satisfying
         :type axes: matplotlib.axes.Axes, optional
+        :param filename: Name of the file to be plotted in.
+        :type filename: str
+        :param outdir: The directory in which to save the file in.
+        :type outdir: str
+        :param save: Whether to save the plot. (Default value = True)
+        :type save: bool
+        :param show: Whether to show the plot. (Default value = True)
+        :type show: bool
         :param ncols: Number of columns to use on the plot. Default is 2.
         :type ncols: int, optional
         :param nrows: Number of rows to use on the plot. If None are given this will
@@ -663,7 +682,8 @@ class OpticalTransient(Transient):
 
         :param processed_file_path: Path to the processed file to load
         :type processed_file_path: str
-        :param data_mode: Name of the data mode. Must be from ['magnitude', 'flux_density', 'all']. Default is magnitude.
+        :param data_mode: Name of the data mode.
+                          Must be from ['magnitude', 'flux_density', 'all']. Default is magnitude.
         :type data_mode: str, optional
 
         :return: Six elements when querying magnitude or flux_density data, Eight for 'all'
@@ -826,6 +846,6 @@ class OpticalTransient(Transient):
         :return: The transient directory path
         :rtype: str
         """
-        transient_dir, _, _ = redback.get_data.directory.open_access_directory_structure(transient=self.name,
-                                                                                         transient_type=self.__class__.__name__.lower())
+        transient_dir, _, _ = redback.get_data.directory.open_access_directory_structure(
+            transient=self.name, transient_type=self.__class__.__name__.lower())
         return transient_dir
