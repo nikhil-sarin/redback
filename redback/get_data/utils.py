@@ -7,18 +7,12 @@ _dirname = os.path.dirname(__file__)
 
 
 def get_trigger_number(grb: str) -> str:
-    """
-    Gets the trigger number from the GRB table.
+    """Gets the trigger number from the GRB table.
 
-    Parameters
-    ----------
-    grb: str
-        Telephone number of GRB, e.g., 'GRB140903A' or '140903A' are valid inputs.
-
-    Returns
-    -------
-    str: The GRB trigger number.
-
+    :param grb: Telephone number of GRB, e.g., 'GRB140903A' or '140903A' are valid inputs.
+    :type grb: str
+    :return: The GRB trigger number.
+    :rtype: str
     """
     grb = grb.lstrip('GRB')
     grb_table = get_grb_table()
@@ -31,10 +25,8 @@ def get_trigger_number(grb: str) -> str:
 
 def get_grb_table() -> pd.DataFrame:
     """
-    Returns
-    -------
-    pandas.DataFrame: The combined long and short GRB table.
-
+    :return: The combined long and short GRB table.
+    :rtype: pandas.DataFrame
     """
     short_table = os.path.join(_dirname, '../tables/SGRB_table.txt')
     long_table = os.path.join(_dirname, '../tables/LGRB_table.txt')
@@ -46,20 +38,14 @@ def get_grb_table() -> pd.DataFrame:
 
 
 def get_batse_trigger_from_grb(grb: str) -> int:
-    """
-    Gets the BATSE trigger from the BATSE trigger table. If the same trigger appears multiple times,
+    """Gets the BATSE trigger from the BATSE trigger table. If the same trigger appears multiple times,
     successive alphabetical letters need to be appended to distinguish the triggers.
 
-    Parameters
-    ----------
-    grb: str
-        Telephone number of GRB, e.g., 'GRB910425A' or '910425A' are valid inputs. An alphabetical letter
-        needs to be appended if the event is listed multiple times.
-
-    Returns
-    -------
-    int: The BATSE trigger number.
-
+    :param grb: Telephone number of GRB, e.g., 'GRB910425A' or '910425A' are valid inputs. An alphabetical letter
+                needs to be appended if the event is listed multiple times.
+    :type grb: str
+    :return: The BATSE trigger number.
+    :rtype: int
     """
     grb = "GRB" + grb.lstrip("GRB")
 

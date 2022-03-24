@@ -1,6 +1,7 @@
 import matplotlib.pyplot as plt
 import os
 from pathlib import Path
+from typing import Union
 
 import bilby
 
@@ -22,21 +23,33 @@ def fit_model(transient, model, outdir=None, sampler='dynesty', nlive=2000, prio
               walks=200, truncate=True, use_photon_index_prior=False, truncate_method='prompt_time_error',
               resume=True, save_format='json', model_kwargs=None, **kwargs):
     """
-    :param name: Telephone number of transient, e.g., GRB 140903A
-    :param transient: Instance of `redback.transient.transient.Transient`, containing the data
-    :param model: String to indicate which model to fit to data
-    :param sampler: String to indicate which sampler to use, default is dynesty
-    and nested samplers are encouraged to allow evidence calculation
-    :param nlive: number of live points
-    :param prior: if Prior is true user needs to pass a dictionary with priors defined the bilby way
-    :param walks: number of walkers
-    :param truncate: flag to confirm whether to truncate the prompt emission data
+    :param transient: The transient to be fitted
+    :type transient: redback.transient.transient.Transient
+    :param model: Name of the model to fit to data or a function.
+    :type model: Union[callable, str]
+    :param sampler: The sampling backend. Nested samplers are encouraged to allow evidence calculation.
+                    (Default value = 'dynesty')
+    :type sampler: str
+    :param nlive: Number of live points.
+    :type nlive: int
+    :param prior: Priors to use during sampling. If not given, we use the default priors for the given model.
+    :type prior: [None, dict, bilby.prior.PriorDict]
+    :param walks: Number of `dynesty` random walks.
+    :type walks: int
+    :param truncate: Flag to confirm whether to truncate the prompt emission data
+    :type truncate: bool
     :param use_photon_index_prior: flag to turn off/on photon index prior and fits according to the curvature effect
+    :type use_photon_index_prior: bool
     :param truncate_method: method of truncation
-    :param resume:
-    :param save_format:
-    :param kwargs: additional parameters that will be passed to the sampler
-    :return: bilby result object, transient specific data object
+    :type truncate_method: str
+    :param resume: Whether to resume the run from a checkpoint if available.
+    :type resume: bool
+    :param save_format: The format to save the result in. (Default value = 'json'_
+    :type save_format: str
+    :param kwargs: Additional parameters that will be passed to the sampler
+    :type kwargs: None
+    :return: Redback result object, transient specific data object
+    :rtype: redback.result.RedbackResult
     """
     if isinstance(model, str):
         model = all_models_dict[model]

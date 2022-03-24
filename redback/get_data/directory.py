@@ -4,7 +4,6 @@ import os
 from bilby.core.utils.io import check_directory_exists_and_if_not_mkdir
 
 from redback.get_data.utils import get_batse_trigger_from_grb
-from redback.utils import logger
 
 _dirname = os.path.dirname(__file__)
 SWIFT_PROMPT_BIN_SIZES = ['1s', '2ms', '8ms', '16ms', '64ms', '256ms']
@@ -14,22 +13,17 @@ DirectoryStructure = namedtuple("DirectoryStructure", ['directory_path', 'raw_fi
 
 
 def afterglow_directory_structure(grb: str, data_mode: str, instrument: str = 'BAT+XRT') -> DirectoryStructure:
-    """
-    Provides directory structure for Swift afterglow data.
+    """Provides directory structure for Swift afterglow data.
 
-    Parameters
-    ----------
-    grb: str
-        Name of the GRB, e.g. GRB123456.
-    data_mode: str
-        Data mode.
-    instrument: str, optional
-        Must be in ['BAT+XRT', 'XRT'], default is 'BAT+XRT'
+    :param grb: Name of the GRB, e.g. GRB123456.
+    :type grb: str
+    :param data_mode: Data mode.
+    :type data_mode: str
+    :param instrument: Must be in ['BAT+XRT', 'XRT'], default is 'BAT+XRT' (Default value = 'BAT+XRT')
+    :type instrument: str, optional
 
-    Returns
-    -------
-    tuple: The directory, the raw data file name, and the processed file name.
-
+    :return: The directory structure, with 'directory_path', 'raw_file_path', and 'processed_file_path'
+    :rtype: namedtuple
     """
     grb = "GRB" + grb.lstrip("GRB")
     directory_path = f'GRBData/afterglow/{data_mode}/'
@@ -49,21 +43,15 @@ def afterglow_directory_structure(grb: str, data_mode: str, instrument: str = 'B
 
 
 def swift_prompt_directory_structure(grb: str, bin_size: str = '2ms') -> DirectoryStructure:
-    """
-    Provides directory structure for Swift prompt data.
+    """Provides directory structure for Swift prompt data.
 
+    :param grb: Name of the GRB, e.g. GRB123456.
+    :type grb: str
+    :param bin_size: Bin size to use. Must be in `SWIFT_PROMPT_BIN_SIZES`. (Default value = '2ms')
+    :type bin_size: str
 
-    Parameters
-    ----------
-    grb: str
-        Name of the GRB, e.g. GRB123456.
-    bin_size: str
-        Bin size to use. Must be in `SWIFT_PROMPT_BIN_SIZES`. Default is '2ms'.
-
-    Returns
-    -------
-    tuple: The directory, the raw data file name, and the processed file name.
-
+    :return: The directory structure, with 'directory_path', 'raw_file_path', and 'processed_file_path'
+    :rtype: namedtuple
     """
     if bin_size not in SWIFT_PROMPT_BIN_SIZES:
         raise ValueError(f'Bin size {bin_size} not in allowed bin sizes.\n'
@@ -77,22 +65,18 @@ def swift_prompt_directory_structure(grb: str, bin_size: str = '2ms') -> Directo
         directory_path=directory_path, raw_file_path=raw_file_path, processed_file_path=processed_file_path)
 
 
-def batse_prompt_directory_structure(grb: str, trigger: str = None, **kwargs: object) -> DirectoryStructure:
-    """
-    Provides directory structure for BATSE prompt data.
+def batse_prompt_directory_structure(grb: str, trigger: str = None, **kwargs: None) -> DirectoryStructure:
+    """Provides directory structure for BATSE prompt data.
 
-    Parameters
-    ----------
-    grb: str
-        Name of the GRB, e.g. GRB123456.
-    trigger: str, optional
-        The BATSE trigger number. Will be inferred from the GRB if not given.
-    kwargs: object
-        Add callable `get_batse_trigger_from_grb` for testing
+    :param grb: Name of the GRB, e.g. GRB123456.
+    :type grb: str
+    :param trigger: The BATSE trigger number. Will be inferred from the GRB if not given. (Default value = None)
+    :type trigger: str, optional
+    :param kwargs: Add callable `get_batse_trigger_from_grb` for testing
+    :type kwargs: None
 
-    Returns
-    -------
-    tuple: The directory, the raw data file name, and the processed file name.
+    :return: The directory structure, with 'directory_path', 'raw_file_path', and 'processed_file_path'
+    :rtype: namedtuple
     """
 
     directory_path = f'GRBData/prompt/flux/'
@@ -108,19 +92,15 @@ def batse_prompt_directory_structure(grb: str, trigger: str = None, **kwargs: ob
 
 
 def open_access_directory_structure(transient: str, transient_type: str) -> DirectoryStructure:
-    """
-    Provides a general directory structure.
+    """Provides a general directory structure.
 
-    Parameters
-    ----------
-    transient: str
-        Name of the transient.
-    transient_type: str
-        Type of the transient.
+    :param transient: Name of the transient.
+    :type transient: str
+    :param transient_type: Type of the transient.
+    :type transient_type: str
 
-    Returns
-    -------
-    tuple: The directory, the raw data file name, and the processed file name.
+    :return: The directory structure, with 'directory_path', 'raw_file_path', and 'processed_file_path'
+    :rtype: namedtuple
     """
     directory_path = f"{transient_type}/"
     check_directory_exists_and_if_not_mkdir(directory_path)
@@ -131,19 +111,15 @@ def open_access_directory_structure(transient: str, transient_type: str) -> Dire
 
 
 def lasair_directory_structure(transient: str, transient_type: str) -> DirectoryStructure:
-    """
-    Provides a general directory structure.
+    """Provides a general directory structure.
 
-    Parameters
-    ----------
-    transient: str
-        Name of the transient.
-    transient_type: str
-        Type of the transient.
+    :param transient: Name of the transient.
+    :type transient: str
+    :param transient_type: Type of the transient.
+    :type transient_type: str
 
-    Returns
-    -------
-    tuple: The directory, the raw data file name, and the processed file name.
+    :return: The directory structure, with 'directory_path', 'raw_file_path', and 'processed_file_path'
+    :rtype: namedtuple
     """
     if transient_type == "afterglow":
         directory_path = "GRBData/afterglow/"

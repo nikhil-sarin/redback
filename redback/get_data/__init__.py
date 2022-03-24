@@ -20,98 +20,80 @@ DATA_SOURCES = ["swift", "swift_xrt", "fermi", "konus", "batse", "open_data"]
 TRANSIENT_TYPES = ["afterglow", "prompt", "kilonova", "supernova", "tidal_disruption_event"]
 
 
-def get_xrt_afterglow_data_from_swift(grb: str, data_mode: str = None, **kwargs: dict) -> pd.DataFrame:
-    """
-    Get XRT afterglow data from Swift. Creates a directory structure and saves the data.
+def get_xrt_afterglow_data_from_swift(grb: str, data_mode: str = None, **kwargs: None) -> pd.DataFrame:
+    """Get XRT afterglow data from Swift. Creates a directory structure and saves the data.
     Returns the data, though no further action needs to be taken by the user.
 
-    Parameters
-    ----------
-    grb: str
-        Telephone number of GRB, e.g., 'GRB140903A' or '140903A' are valid inputs.
-    data_mode: str
-        Data mode must be from `redback.get_data.swift.SwiftDataGetter.VALID_DATA_MODES`.
-    kwargs: dict
-        Placeholder to prevent TypeErrors.
+    :param grb: Telephone number of GRB, e.g., 'GRB140903A' or '140903A' are valid inputs.
+    :type grb: str
+    :param data_mode: Data mode must be from `redback.get_data.swift.SwiftDataGetter.VALID_DATA_MODES`.
+    :type data_mode: str
+    :param kwargs: Placeholder to prevent TypeErrors.
 
-    Returns
-    -------
-    pandas.DataFrame: The processed data.
-
+    :return: The processed data.
+    :rtype: pandas.DataFrame
     """
     return get_swift_data(grb=grb, transient_type='afterglow', data_mode=data_mode, instrument="XRT")
 
 
-def get_bat_xrt_afterglow_data_from_swift(grb: str, data_mode: str, **kwargs: dict) -> pd.DataFrame:
-    """
-    Get BAT+XRT afterglow data from Swift. Creates a directory structure and saves the data.
+def get_bat_xrt_afterglow_data_from_swift(grb: str, data_mode: str, **kwargs: None) -> pd.DataFrame:
+    """Get BAT+XRT afterglow data from Swift. Creates a directory structure and saves the data.
     Returns the data, though no further action needs to be taken by the user.
 
-    Parameters
-    ----------
-    grb: str
-        Telephone number of GRB, e.g., 'GRB140903A' or '140903A' are valid inputs.
-    data_mode: str
-        Data mode must be from `redback.get_data.swift.SwiftDataGetter.VALID_DATA_MODES`.
-    kwargs: dict
-        Placeholder to prevent TypeErrors.
-
-    Returns
-    -------
-    pandas.DataFrame: The processed data.
-
+    :param grb: Telephone number of GRB, e.g., 'GRB140903A' or '140903A' are valid inputs.
+    :type grb: str
+    :param data_mode: Data mode must be from `redback.get_data.swift.SwiftDataGetter.VALID_DATA_MODES`.
+    :type data_mode: str
+    :param kwargs: Placeholder to prevent TypeErrors.
+    :type kwargs: dict
+    
+    :return: The processed data.
+    :rtype: pandas.DataFrame
     """
     return get_swift_data(grb=grb, transient_type='afterglow', data_mode=data_mode, instrument="BAT+XRT")
 
 
-def get_prompt_data_from_swift(grb: str, bin_size: str = "1s", **kwargs: dict) -> pd.DataFrame:
-    """
-    Get prompt emission data from Swift. Creates a directory structure and saves the data.
+def get_prompt_data_from_swift(grb: str, bin_size: str = "1s", **kwargs: None) -> pd.DataFrame:
+    """Get prompt emission data from Swift. Creates a directory structure and saves the data.
     Returns the data, though no further action needs to be taken by the user.
 
-    Parameters
-    ----------
-    grb: str
-        Telephone number of GRB, e.g., 'GRB140903A' or '140903A' are valid inputs.
-    bin_size: str, optional
-        Bin size. Must be from `redback.get_data.swift.SwiftDataGetter.SWIFT_PROMPT_BIN_SIZES`.
-    kwargs: dict
-        Placeholder to prevent TypeErrors.
+    :param grb: Telephone number of GRB, e.g., 'GRB140903A' or '140903A' are valid inputs.
+    :type grb: str
+    :param bin_size: Bin size. Must be from `redback.get_data.swift.SwiftDataGetter.SWIFT_PROMPT_BIN_SIZES`. 
+                     (Default value = "1s")
+    :type bin_size: str, optional
+    :param kwargs: Placeholder to prevent TypeErrors.
+    :type kwargs: None
 
-    Returns
-    -------
-    pandas.DataFrame: The processed data.
-
+    :return: The processed data.
+    :rtype: pandas.DataFrame
     """
     return get_swift_data(grb=grb, transient_type='prompt', data_mode='prompt', instrument="BAT+XRT", bin_size=bin_size)
 
 
 def get_swift_data(
         grb: str, transient_type: str, data_mode: str = 'flux', instrument: str = 'BAT+XRT',
-        bin_size: str = None, **kwargs: dict) -> pd.DataFrame:
-    """
-    Catch all data getting function for Swift.  Creates a directory structure and saves the data.
+        bin_size: str = None, **kwargs: None) -> pd.DataFrame:
+    """Catch all data getting function for Swift.  Creates a directory structure and saves the data.
     Returns the data, though no further action needs to be taken by the user.
 
-    Parameters
-    ----------
-    grb: str
-        Telephone number of GRB, e.g., 'GRB140903A' or '140903A' are valid inputs.
-    transient_type:
-        Type of the transient. Should be 'prompt' or 'afterglow'.
-    data_mode: str
-        Data mode must be from `redback.get_data.swift.SwiftDataGetter.VALID_DATA_MODES`.
-    instrument: str
-        Instrument(s) to use. Must be from `redback.get_data.swift.SwiftDataGetter.VALID_INSTRUMENTS`.
-    bin_size: str, optional
-        Bin size. Must be from `redback.get_data.swift.SwiftDataGetter.SWIFT_PROMPT_BIN_SIZES`.
-    kwargs: dict
-        Placeholder to prevent TypeErrors.
+    :param grb: Telephone number of GRB, e.g., 'GRB140903A' or '140903A' are valid inputs.
+    :type grb: str
+    :param transient_type: Type of the transient. Should be 'prompt' or 'afterglow'.
+    :param data_mode: Data mode must be from `redback.get_data.swift.SwiftDataGetter.VALID_DATA_MODES`.
+                      (Default value = 'flux')
+    :type data_mode: str
+    :param instrument: Instrument(s) to use. Must be from `redback.get_data.swift.SwiftDataGetter.VALID_INSTRUMENTS`.
+                       (Default value = 'BAT+XRT')
+    :type instrument: str
+    :param bin_size: Bin size. Must be from `redback.get_data.swift.SwiftDataGetter.SWIFT_PROMPT_BIN_SIZES`.
+                     (Default value = None)
+    :type bin_size: str, optional
+    :param kwargs: Placeholder to prevent TypeErrors.
+    :type kwargs: None
 
-    Returns
-    -------
-    pandas.DataFrame: The processed data.
-
+    :return: The processed data.
+    :rtype: pandas.DataFrame
     """
     getter = SwiftDataGetter(
         grb=grb, transient_type=transient_type, data_mode=data_mode,
@@ -119,169 +101,132 @@ def get_swift_data(
     return getter.get_data()
 
 
-def get_prompt_data_from_batse(grb: str, **kwargs) -> pd.DataFrame:
-    """
-    Get prompt emission data from BATSE. Creates a directory structure and saves the data.
+def get_prompt_data_from_batse(grb: str, **kwargs: None) -> pd.DataFrame:
+    """Get prompt emission data from BATSE. Creates a directory structure and saves the data.
     Returns the data, though no further action needs to be taken by the user.
 
-    Parameters
-    ----------
-    grb: str
-        Telephone number of GRB, e.g., 'GRB140903A' or '140903A' are valid inputs.
-    kwargs: dict
-        Placeholder to prevent TypeErrors.
+    :param grb: Telephone number of GRB, e.g., 'GRB140903A' or '140903A' are valid inputs.
+    :type grb: str
+    :param kwargs: Placeholder to prevent TypeErrors.
+    :type kwargs: None
 
-    Returns
-    -------
-    pandas.DataFrame: The processed data.
-
+    :return: The processed data.
+    :rtype: pandas.DataFrame
     """
     getter = BATSEDataGetter(grb=grb)
     return getter.get_data()
 
 
-def get_kilonova_data_from_open_transient_catalog_data(transient: str, **kwargs: dict) -> pd.DataFrame:
-    """
-    Get kilonova data from the Open Access Catalog. Creates a directory structure and saves the data.
+def get_kilonova_data_from_open_transient_catalog_data(transient: str, **kwargs: None) -> pd.DataFrame:
+    """Get kilonova data from the Open Access Catalog. Creates a directory structure and saves the data.
     Returns the data, though no further action needs to be taken by the user.
 
-    Parameters
-    ----------
-    transient: str
-        The name of the transient, e.g. 'at2017gfo'.
-    kwargs: dict
-        Placeholder to prevent TypeErrors.
+    :param transient: The name of the transient, e.g. 'at2017gfo'.
+    :type transient: str
+    :param kwargs: Placeholder to prevent TypeErrors.
+    :type kwargs: None
 
-    Returns
-    -------
-    pandas.DataFrame: The processed data.
-
+    :return: The processed data.
+    :rtype: pandas.DataFrame
     """
     return get_open_transient_catalog_data(transient, transient_type="kilonova")
 
 
-def get_supernova_data_from_open_transient_catalog_data(transient: str, **kwargs: dict) -> pd.DataFrame:
-    """
-    Get supernova data from the Open Access Catalog. Creates a directory structure and saves the data.
+def get_supernova_data_from_open_transient_catalog_data(transient: str, **kwargs: None) -> pd.DataFrame:
+    """Get supernova data from the Open Access Catalog. Creates a directory structure and saves the data.
     Returns the data, though no further action needs to be taken by the user.
 
-    Parameters
-    ----------
-    transient: str
-        The name of the transient, e.g. 'SN2011kl'.
-    kwargs: dict
-        Placeholder to prevent TypeErrors.
+    :param transient: The name of the transient, e.g. 'SN2011kl'.
+    :type transient: str
+    :param kwargs: Placeholder to prevent TypeErrors.
+    :type kwargs: None
 
-    Returns
-    -------
-    pandas.DataFrame: The processed data.
-
+    :return: The processed data.
+    :rtype: pandas.DataFrame
     """
     return get_open_transient_catalog_data(transient, transient_type="supernova")
 
 
 def get_tidal_disruption_event_data_from_open_transient_catalog_data(
-        transient: str, **kwargs: dict) -> pd.DataFrame:
-    """
-    Get TDE data from the Open Access Catalog. Creates a directory structure and saves the data.
+        transient: str, **kwargs: None) -> pd.DataFrame:
+    """Get TDE data from the Open Access Catalog. Creates a directory structure and saves the data.
     Returns the data, though no further action needs to be taken by the user.
 
-    Parameters
-    ----------
-    transient: str
-        The name of the transient, e.g. 'PS18kh'.
-    kwargs: dict
-        Placeholder to prevent TypeErrors.
-
-    Returns
-    -------
-    pandas.DataFrame: The processed data.
-
+    :param transient: The name of the transient, e.g. 'PS18kh'.
+    :type transient: str
+    :param kwargs: Placeholder to prevent TypeErrors.
+    :type kwargs: None
+    
+    :return: The processed data.
+    :rtype: pandas.DataFrame
     """
     return get_open_transient_catalog_data(transient, transient_type="tidal_disruption_event")
 
 
-def get_prompt_data_from_fermi(*args: list, **kwargs: dict) -> pd.DataFrame:
-    """
-    Get prompt emission data from Fermi. Creates a directory structure and saves the data.
+def get_prompt_data_from_fermi(*args: None, **kwargs: None) -> pd.DataFrame:
+    """Get prompt emission data from Fermi. Creates a directory structure and saves the data.
     Returns the data, though no further action needs to be taken by the user.
 
-    Parameters
-    ----------
-    args: list
-        Placeholder
-    kwargs: dict
-        Placeholder
-    Raises
-    -------
-    NotImplementedError: Functionality needs yet to be implemented.
-
+    :param args: Placeholder
+    :type args: None
+    :param kwargs: 
+    :type kwargs: None
+    
+    :return: The processed data.
+    :rtype: pandas.DataFrame
     """
     raise NotImplementedError("This function is not yet implemented.")
 
 
-def get_prompt_data_from_konus(*args: list, **kwargs: dict) -> pd.DataFrame:
-    """
-    Get prompt emission data from Konus. Creates a directory structure and saves the data.
+def get_prompt_data_from_konus(*args: list, **kwargs: None) -> pd.DataFrame:
+    """Get prompt emission data from Konus. Creates a directory structure and saves the data.
     Returns the data, though no further action needs to be taken by the user.
 
-    Parameters
-    ----------
-    args: list
-        Placeholder
-    kwargs: dict
-        Placeholder
-    Raises
-    -------
-    NotImplementedError: Functionality needs yet to be implemented.
-
+    :param args: Placeholder
+    :type args: None
+    :param kwargs: 
+    :type kwargs: None
+    
+    :return: The processed data.
+    :rtype: pandas.DataFrame
     """
     raise NotImplementedError("This function is not yet implemented.")
 
 
 def get_lasair_data(
-        transient: str, transient_type: str, **kwargs) -> pd.DataFrame:
-    """
-    Catch all data getting function for Lasair data. Creates a directory structure and saves the data.
+        transient: str, transient_type: str, **kwargs: None) -> pd.DataFrame:
+    """Catch all data getting function for Lasair data. Creates a directory structure and saves the data.
     Returns the data, though no further action needs to be taken by the user.
 
-    Parameters
-    ----------
-    transient: str
-        The name of the transient, e.g. 'ZTF19aagqkrq'.
-    transient_type: str
-        Type of the transient. Must be from `redback.get_data.lasair.LasairDataGetter.VALID_TRANSIENT_TYPES`.
-    kwargs: dict
-        Placeholder to prevent TypeErrors.
+    :param transient: The name of the transient, e.g. 'ZTF19aagqkrq'.
+    :type transient: str
+    :param transient_type: Type of the transient. Must be from `redback.get_data.lasair.LasairDataGetter.VALID_TRANSIENT_TYPES`.
+    :type transient_type: str
+    :param kwargs: Placeholder to prevent TypeErrors.
+    :type kwargs: None
 
-    Returns
-    -------
-    pandas.DataFrame: The processed data.
-
+    :return: The processed data.
+    :rtype: pandas.DataFrame
     """
     getter = LasairDataGetter(
         transient_type=transient_type, transient=transient)
     return getter.get_data()
 
 def get_open_transient_catalog_data(
-        transient: str, transient_type: str, **kwargs) -> pd.DataFrame:
-    """
-    Catch all data getting function for the Open Access Catalog. Creates a directory structure and saves the data.
+        transient: str, transient_type: str, **kwargs: None) -> pd.DataFrame:
+    """Catch all data getting function for the Open Access Catalog. Creates a directory structure and saves the data.
     Returns the data, though no further action needs to be taken by the user.
 
-    Parameters
-    ----------
-    transient: str
-        The name of the transient, e.g. 'at2017gfo'.
-    transient_type: str
-        Type of the transient. Must be from `redback.get_data.open_data.OpenDataGetter.VALID_TRANSIENT_TYPES`.
-    kwargs: dict
-        Placeholder to prevent TypeErrors.
-
-    Returns
-    -------
-    pandas.DataFrame: The processed data.
-
+    :param transient: The name of the transient, e.g. 'at2017gfo'.
+    :type transient: str
+    :param transient_type: Type of the transient. Must be from
+                           `redback.get_data.open_data.OpenDataGetter.VALID_TRANSIENT_TYPES`.
+    :type transient_type: str
+    :param kwargs: Placeholder to prevent TypeErrors.
+    :type kwargs: None
+    
+    :return: The processed data.
+    :rtype: pandas.DataFrame
     """
     getter = OpenDataGetter(
         transient_type=transient_type, transient=transient)
@@ -289,9 +234,7 @@ def get_open_transient_catalog_data(
 
 
 def get_oac_metadata() -> None:
-    """
-    Retrieves Open Access Catalog metadata table.
-    """
+    """Retrieves Open Access Catalog metadata table."""
     url = 'https://api.astrocats.space/catalog?format=CSV'
     urllib.request.urlretrieve(url, 'metadata.csv')
     logger.info('Downloaded metadata for open access catalog transients.')
@@ -310,23 +253,18 @@ _functions_dict = {
 
 
 def get_data(
-        transient: str, instrument: str, **kwargs: dict)\
+        transient: str, instrument: str, **kwargs: None)\
         -> pd.DataFrame:
-    """
-    Catch all data getter.
+    """Catch all data getter.
 
-    Parameters
-    ----------
-    transient: str
-        The name of the transient.
-    instrument: str
-        The name of the instrument.
-    kwargs: dict
-        Any other keyword arguments to be passed through.
+    :param transient: The name of the transient.
+    :type transient: str
+    :param instrument: The name of the instrument.
+    :type instrument: str
+    :param kwargs: Any other keyword arguments to be passed through.
+    :type kwargs: None
 
-    Returns
-    -------
-    pandas.DataFrame: The processed data.
-
+    :return: The processed data.
+    :rtype: pandas.DataFrame
     """
     return _functions_dict[(transient, instrument)](transient, **kwargs)
