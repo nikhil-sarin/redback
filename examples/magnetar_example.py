@@ -20,7 +20,7 @@ afterglow.analytical_flux_to_luminosity()
 afterglow.plot_data()
 
 # use default priors
-priors = redback.priors.get_priors(model=model, data_mode='luminosity')
+priors = redback.priors.get_priors(model=model)
 
 # alternatively can create a dictionary of priors in some priors
 # priors = bilby.core.prior.PriorDict()

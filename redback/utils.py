@@ -227,15 +227,12 @@ def calc_flux_from_mag(magnitude, reference_flux, magnitude_system='AB'):
 
 
 def bands_to_frequency(bands):
-    """
-    Converts a list of bands into an array of frequency in Hz
-    ----------
-    bands: list[str]
-        List of bands.
+    """Converts a list of bands into an array of frequency in Hz
 
-    Returns
-    ----------
-    array_like: An array of frequency associated with the given bands.
+    :param bands: List of bands.
+    :type bands: list[str]
+    :return: An array of frequency associated with the given bands.
+    :rtype: np.ndarray
     """
     if bands is None:
         bands = []
@@ -303,16 +300,17 @@ def find_path(path):
 
 
 def setup_logger(outdir='.', label=None, log_level='INFO'):
-    """ Setup logging output: call at the start of the script to use
+    """Setup logging output: call at the start of the script to use
 
-    Parameters
-    ==========
-    outdir, label: str
-        If supplied, write the logging output to outdir/label.log
-    log_level: str, optional
+    :param outdir: If supplied, write the logging output to outdir/label.log
+    :type outdir: str
+    :param label: If supplied, write the logging output to outdir/label.log
+    :type label: str
+    :param log_level:
         ['debug', 'info', 'warning']
         Either a string from the list above, or an integer as specified
         in https://docs.python.org/2/library/logging.html#logging-levels
+        (Default value = 'INFO')
     """
     log_file = f'{outdir}/{label}.log'
     with contextlib.suppress(FileNotFoundError):
@@ -385,6 +383,10 @@ class DataModeSwitch(object):
 
 
 class KwargsAccessorWithDefault(object):
+    """
+    Descriptor class to access a kwarg dictionary with defaults.
+    """
+
     def __init__(self, kwarg, default=None):
         self.kwarg = kwarg
         self.default = default
@@ -394,7 +396,6 @@ class KwargsAccessorWithDefault(object):
 
     def __set__(self, instance, value):
         instance.kwargs[self.kwarg] = value
-
 
 
 def get_functions_dict(module):

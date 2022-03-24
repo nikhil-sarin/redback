@@ -57,7 +57,7 @@ class GaussianLikelihoodTest(unittest.TestCase):
                              sorted(list(self.likelihood.parameters.keys())))
 
     def test_N(self):
-        self.assertEqual(3, self.likelihood.N)
+        self.assertEqual(3, self.likelihood.n)
 
     def test_log_l_value(self):
         expected = -3 * np.log(2 * np.pi * self.sigma ** 2) / 2

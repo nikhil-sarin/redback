@@ -8,7 +8,7 @@ import redback.model_library
 from redback.utils import logger
 
 
-def get_priors(model, data_mode=None, times=None, y=None, yerr=None, dt=None, **kwargs):
+def get_priors(model, times=None, y=None, yerr=None, dt=None, **kwargs):
     prompt_prior_functions = dict(gaussian=get_gaussian_priors, skew_gaussian=get_skew_gaussian_priors,
                                   skew_exponential=get_skew_exponential_priors, fred=get_fred_priors,
                                   fred_extended=get_fred_extended_priors)
