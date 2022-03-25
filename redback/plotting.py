@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from os.path import join
 from typing import Any, Union
 
@@ -14,10 +16,10 @@ class _FilenameGetter(object):
     def __init__(self, suffix: str) -> None:
         self.suffix = suffix
 
-    def __get__(self, instance: object, owner: object) -> str:
-        return instance._get_filename(default=f"{instance.transient.name}_{self.suffix}.png")
+    def __get__(self, instance: Plotter, owner: object) -> str:
+        return instance.get_filename(default=f"{instance.transient.name}_{self.suffix}.png")
 
-    def __set__(self, instance: object, value: object) -> None:
+    def __set__(self, instance: Plotter, value: object) -> None:
         pass
 
 
@@ -27,7 +29,7 @@ class _FilePathGetter(object):
         self.directory_property = directory_property
         self.filename_property = filename_property
 
-    def __get__(self, instance: object, owner: object) -> str:
+    def __get__(self, instance: Plotter, owner: object) -> str:
         return join(getattr(instance, self.directory_property), getattr(instance, self.filename_property))
 
 
@@ -139,7 +141,7 @@ class Plotter(object):
     def _get_outdir(self, default: str) -> str:
         return self._get_kwarg_with_default(kwarg="outdir", default=default)
 
-    def _get_filename(self, default: str) -> str:
+    def get_filename(self, default: str) -> str:
         return self._get_kwarg_with_default(kwarg="filename", default=default)
 
     def _get_kwarg_with_default(self, kwarg: str, default: Any) -> Any:
@@ -170,13 +172,13 @@ class Plotter(object):
     _multiband_lightcurve_plot_filename = _FilenameGetter(suffix="multiband_lightcurve")
 
     _data_plot_filepath = _FilePathGetter(
-        directory_property="data_plot_outdir", filename_property="data_plot_filename")
+        directory_property="_data_plot_outdir", filename_property="_data_plot_filename")
     _lightcurve_plot_filepath = _FilePathGetter(
-        directory_property="lightcurve_plot_outdir", filename_property="lightcurve_plot_filename")
+        directory_property="_lightcurve_plot_outdir", filename_property="_lightcurve_plot_filename")
     _multiband_data_plot_filepath = _FilePathGetter(
-        directory_property="data_plot_outdir", filename_property="multiband_data_plot_filename")
+        directory_property="_data_plot_outdir", filename_property="_multiband_data_plot_filename")
     _multiband_lightcurve_plot_filepath = _FilePathGetter(
-        directory_property="lightcurve_plot_outdir", filename_property="multiband_lightcurve_plot_filename")
+        directory_property="_lightcurve_plot_outdir", filename_property="_multiband_lightcurve_plot_filename")
 
     def _save_and_show(self, filepath: str, save: bool, show: bool) -> None:
         plt.tight_layout()
@@ -283,7 +285,7 @@ class MagnitudePlotter(Plotter):
 
     @property
     def _colors(self) -> str:
-        return self.kwargs.get("colors", self.transient.get_colors(self.filters))
+        return self.kwargs.get("colors", self.transient.get_colors(self._filters))
 
     @property
     def _xlabel(self) -> str:
@@ -356,15 +358,15 @@ class MagnitudePlotter(Plotter):
 
     @property
     def _nrows(self) -> int:
-        default = int(np.ceil(len(self.filters) / 2))
+        default = int(np.ceil(len(self._filters) / 2))
         return self._get_kwarg_with_default("nrows", default=default)
 
     @property
     def _npanels(self) -> int:
         npanels = self._nrows * self.ncols
-        if npanels < len(self.filters):
+        if npanels < len(self._filters):
             raise ValueError(f"Insufficient number of panels. {npanels} panels were given "
-                             f"but {len(self.filters)} panels are needed.")
+                             f"but {len(self._filters)} panels are needed.")
         return npanels
 
     @property
@@ -395,8 +397,8 @@ class MagnitudePlotter(Plotter):
         ax = axes or plt.gca()
 
         for indices, band in zip(self.transient.list_of_band_indices, self.transient.unique_bands):
-            if band in self.filters:
-                color = self._colors[list(self.filters).index(band)]
+            if band in self._filters:
+                color = self._colors[list(self._filters).index(band)]
                 label = band
             elif self.plot_others:
                 color = "black"
@@ -495,11 +497,11 @@ class MagnitudePlotter(Plotter):
         i = 0
         for indices, band, freq in zip(
                 self.transient.list_of_band_indices, self.transient.unique_bands, self.transient.unique_frequencies):
-            if band not in self.filters:
+            if band not in self._filters:
                 continue
 
             x_err = self._get_x_err(indices)
-            color = self._colors[list(self.filters).index(band)]
+            color = self._colors[list(self._filters).index(band)]
 
             label = self._get_multiband_plot_label(band, freq)
             axes[i].errorbar(
@@ -562,13 +564,14 @@ class MagnitudePlotter(Plotter):
         axes = self.plot_multiband(axes=axes, save=False, show=False)
 
         times = self._get_times(axes)
-        frequency = self.transient.bands_to_frequency(self.filters)
+        frequency = self.transient.bands_to_frequency(self._filters)
         for ii in range(len(frequency)):
             new_model_kwargs = self._model_kwargs.copy()
             new_model_kwargs['frequency'] = frequency[ii]
             ys = self.model(times, **self._max_like_params, **new_model_kwargs)
             axes[ii].plot(
-                times - self._reference_mjd_date, ys, color=self.max_likelihood_color, alpha=self.max_likelihood_alpha, lw=self.linewidth)
+                times - self._reference_mjd_date, ys, color=self.max_likelihood_color,
+                alpha=self.max_likelihood_alpha, lw=self.linewidth)
             random_ys_list = [self.model(times, **random_params, **new_model_kwargs)
                               for random_params in self._get_random_parameters()]
             for random_ys in random_ys_list:
