@@ -121,6 +121,15 @@ def _fit_grb(transient, model, outdir=None, label=None, sampler='dynesty', nlive
     meta_data.update(transient_kwargs)
     meta_data['model_kwargs'] = model_kwargs
 
+    if not kwargs.get("clean", False):
+        try:
+            result = redback.result.read_in_result(
+                outdir=outdir, label=label, extension=kwargs.get("extension", "json"), gzip=kwargs.get("gzip", False))
+            plt.close('all')
+            return result
+        except Exception:
+            pass
+
     result = bilby.run_sampler(likelihood=likelihood, priors=prior, label=label, sampler=sampler, nlive=nlive,
                                outdir=outdir, plot=True, use_ratio=False, walks=walks, resume=resume,
                                maxmcmc=10 * walks, result_class=RedbackResult, meta_data=meta_data,
@@ -152,6 +161,15 @@ def _fit_kilonova(transient, model, outdir=None, sampler='dynesty', nlive=3000, 
     meta_data.update(transient_kwargs)
     meta_data['model_kwargs'] = model_kwargs
 
+    if not kwargs.get("clean", False):
+        try:
+            result = redback.result.read_in_result(
+                outdir=outdir, label=label, extension=kwargs.get("extension", "json"), gzip=kwargs.get("gzip", False))
+            plt.close('all')
+            return result
+        except Exception:
+            pass
+
     result = bilby.run_sampler(likelihood=likelihood, priors=prior, label=label, sampler=sampler, nlive=nlive,
                                outdir=outdir, plot=True, use_ratio=False, walks=walks, resume=resume,
                                maxmcmc=10 * walks, result_class=RedbackResult, meta_data=meta_data,
@@ -180,6 +198,15 @@ def _fit_prompt(transient, model, outdir, integrated_rate_function=True, sampler
     transient_kwargs = {k.lstrip("_"): v for k, v in transient.__dict__.items()}
     meta_data.update(transient_kwargs)
     meta_data['model_kwargs'] = model_kwargs
+
+    if not kwargs.get("clean", False):
+        try:
+            result = redback.result.read_in_result(
+                outdir=outdir, label=label, extension=kwargs.get("extension", "json"), gzip=kwargs.get("gzip", False))
+            plt.close('all')
+            return result
+        except Exception:
+            pass
 
     result = bilby.run_sampler(likelihood=likelihood, priors=prior, label=label, sampler=sampler, nlive=nlive,
                                outdir=outdir, plot=False, use_ratio=False, walks=walks, resume=resume,
