@@ -128,7 +128,7 @@ class Plotter(object):
 
     @property
     def _y_err(self) -> np.ndarray:
-        return np.ndarray([np.abs(self.transient.y_err[1, :]), self.transient.y_err[0, :]])
+        return np.array([np.abs(self.transient.y_err[1, :]), self.transient.y_err[0, :]])
 
     @property
     def _lightcurve_plot_outdir(self) -> str:
@@ -267,7 +267,7 @@ class IntegratedFluxPlotter(Plotter):
     def _plot_single_lightcurve(self, axes: matplotlib.axes.Axes, times: np.ndarray, params: dict) -> None:
         ys = self.model(times, **params, **self._model_kwargs)
         axes.plot(times, ys, color=self.random_sample_color, alpha=self.random_sample_alpha, lw=self.linewidth,
-                  zorder=self.zorder, **self.kwargs)
+                  zorder=self.zorder)
 
 
 class LuminosityPlotter(IntegratedFluxPlotter):
