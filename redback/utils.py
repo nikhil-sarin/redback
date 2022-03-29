@@ -6,6 +6,7 @@ from collections import namedtuple
 from inspect import getmembers, isfunction
 from pathlib import Path
 
+from astropy.time import Time
 import bilby
 import matplotlib.pyplot as plt
 import numpy as np
@@ -83,88 +84,29 @@ def calc_kcorrected_properties(frequency, redshift, time):
 
 
 def mjd_to_jd(mjd):
-    return mjd + 2400000.5
+    return Time(mjd, format="mjd").jd
 
 
 def jd_to_mjd(jd):
-    return jd - 2400000.5
+    return Time(jd, format="jd").mjd
 
 
 def jd_to_date(jd):
-    jd = jd + 0.5
+    year, month, day, _, _, _ = Time(jd, format="jd").to_value("ymdhms")
+    return year, month, day
 
-    F, I = math.modf(jd)
-    I = int(I)
 
-    A = math.trunc((I - 1867216.25) / 36524.25)
-
-    if I > 2299160:
-        B = I + 1 + A - math.trunc(A / 4.)
-    else:
-        B = I
-
-    C = B + 1524
-
-    D = math.trunc((C - 122.1) / 365.25)
-
-    E = math.trunc(365.25 * D)
-
-    G = math.trunc((C - E) / 30.6001)
-
-    day = C - E + F - math.trunc(30.6001 * G)
-
-    if G < 13.5:
-        month = G - 1
-    else:
-        month = G - 13
-
-    if month > 2.5:
-        year = D - 4716
-    else:
-        year = D - 4715
-
+def mjd_to_date(mjd):
+    year, month, day, _, _, _ = Time(mjd, format="mjd").to_value("ymdhms")
     return year, month, day
 
 
 def date_to_jd(year, month, day):
-    if month == 1 or month == 2:
-        year_p = year - 1
-        month_p = month + 12
-    else:
-        year_p = year
-        month_p = month
-
-    # this checks where we are in relation to October 15, 1582, the beginning
-    # of the Gregorian calendar.
-    if ((year < 1582) or
-            (year == 1582 and month < 10) or
-            (year == 1582 and month == 10 and day < 15)):
-        # before start of Gregorian calendar
-        B = 0
-    else:
-        # after start of Gregorian calendar
-        A = math.trunc(year_p / 100.)
-        B = 2 - A + math.trunc(A / 4.)
-    if year_p < 0:
-        C = math.trunc((365.25 * year_p) - 0.75)
-    else:
-        C = math.trunc(365.25 * year_p)
-
-    D = math.trunc(30.6001 * (month_p + 1))
-    jd = B + C + D + day + 1720994.5
-    return jd
-
-
-def mjd_to_date(mjd):
-    jd = mjd_to_jd(mjd)
-    year, month, day = jd_to_date(jd)
-    return year, month, day
+    return Time(dict(year=year, month=month, day=day), format="ymdhms").jd
 
 
 def date_to_mjd(year, month, day):
-    jd = date_to_jd(year=year, month=month, day=day)
-    mjd = jd_to_mjd(jd)
-    return mjd
+    return Time(dict(year=year, month=month, day=day), format="ymdhms").mjd
 
 
 def get_filter_frequency(filter):
