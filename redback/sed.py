@@ -96,7 +96,12 @@ class CutoffBlackbody(object):
 
         # sed units are erg/s/Angstrom - need to turn them into flux density compatible units
         units = uu.erg / uu.s / uu.Hz / uu.cm**2.
-        sed = sed / (4 * np.pi * self.luminosity_distance ** 2) * lambda_to_nu(1.)
+
+        # add distance units
+        sed = sed / (4*np.pi * self.luminosity_distance**2)
+        # get rid of Angstrom and normalise to frequency
+        sed = sed * nu_to_lambda(self.frequency)
+        sed = sed / self.frequency
 
         # add units
         flux_density = sed << units
@@ -169,7 +174,11 @@ class Synchrotron(object):
         sed[~mask] = fmax * (self.frequency/self.nu_max)**(-(self.pp - 1.)/2.) \
                      * angstrom_cgs / speed_of_light * self.frequency **2
         self.sed = sed
-        sed = sed / (4*np.pi * self.luminosity_distance**2) * lambda_to_nu(1.)
+        # add distance units
+        sed = sed / (4*np.pi * self.luminosity_distance**2)
+        # get rid of Angstrom and normalise to frequency
+        sed = sed * nu_to_lambda(self.frequency)
+        sed = sed / self.frequency
 
         # add units
         flux_density = sed << units
@@ -227,7 +236,11 @@ class Line(object):
         # sed units are erg/s/Angstrom - need to turn them into flux density compatible units
         units = uu.erg / uu.s / uu.hz / uu.cm ** 2
 
-        seds = seds / (4 * np.pi * self.luminosity_distance ** 2) * lambda_to_nu(1.)
+        # add distance units
+        seds = seds / (4*np.pi * self.luminosity_distance**2)
+        # get rid of Angstrom and normalise to frequency
+        seds = seds * nu_to_lambda(self.frequency)
+        seds = seds / self.frequency
 
         # add units
         flux_density = seds << units
