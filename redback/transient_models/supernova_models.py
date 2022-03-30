@@ -1,11 +1,12 @@
 import numpy as np
+import pandas as pd
 from redback.transient_models.phenomenological_models import exponential_powerlaw
 from redback.transient_models.magnetar_models import _magnetar_only
 import redback.interaction_processes as ip
 import redback.sed as sed
 import redback.photosphere as photosphere
 from astropy.cosmology import Planck18 as cosmo  # noqa
-from redback.utils import calc_kcorrected_properties, citation_wrapper, logger, get_csm_properties
+from redback.utils import calc_kcorrected_properties, citation_wrapper, logger, get_csm_properties, nu_to_lambda
 from redback.constants import day_to_s, solar_mass, km_cgs, au_cgs
 from inspect import isfunction
 import astropy.units as uu
@@ -15,6 +16,78 @@ homologous_expansion_models = ['exponential_powerlaw_bolometric', 'arnett_bolome
                                'basic_magnetar_powered_bolometric','slsn_bolometric',
                                'general_magnetar_slsn_bolometric','csm_interaction_bolometric',
                                'type_1c_bolometric','type_1a_bolometric']
+
+@citation_wrapper('https://zenodo.org/record/6363879#.YkQn3y8RoeY')
+def sncosmo_models(time, redshift, model_kwargs, **kwargs):
+    """
+    A wrapper to SNCosmo models
+
+    :param time: observer frame time in days
+    :param redshift: redshift
+    :param model_kwargs: all model keyword arguments in a dictionary
+    :param kwargs: Additional keyword arguments for redback
+    :param frequency: Frequency in Hz to evaluate model on, must be same shape as time array or a single value.
+    :param sncosmo_model: String of the SNcosmo model to use.
+    :param peak_time: SNe peak time in days
+    :param cosmology: astropy cosmology object by default set to Planck18
+    :param peak_abs_mag: SNe peak absolute magnitude default set to -19
+    :param peak_abs_mag_band: Band corresponding to the peak abs mag limit, default to standard::b. Must be in SNCosmo
+    :param mw_extinction: Boolean for whether there is MW extinction or not. Default True
+    :param magnitude_system: Mag system; default ab
+    :param host_extinction: Boolean for whether there is host extinction or not. Default True
+            if used adds an extra parameter ebv which must also be in kwargs; host galaxy E(B-V). Set to 0.1 by default
+    :return: flux_density or magnitude depending on output_format kwarg
+    """
+    import sncosmo
+    frequency = kwargs['frequency']
+
+    if (len(frequency) != 1 or len(frequency) == len(time)):
+        raise ValueError('frequency array must be of length 1 or same size as time array')
+
+    cosmology = kwargs.get('cosmology', cosmo)
+    peak_time = kwargs.get('peak_time', 0)
+    peak_abs_mag = kwargs.get('peak_abs_mag', -19)
+    peak_abs_mag_band = kwargs.get('peak_abs_mag_band', 'standard::b')
+    model_name = kwargs.get('sncosmo_model', 'salt2')
+    host_extinction = kwargs.get('host_extinction', True)
+    mw_extinction = kwargs.get('mw_extinction',True)
+    magsystem = kwargs.get('magnitude_system', 'ab')
+
+    model = sncosmo.Model(source=model_name)
+    model.set(z=redshift)
+    model.set(t0=peak_time)
+    model.update(model_kwargs)
+
+    if host_extinction:
+        ebv = kwargs.get('ebv', 0.1)
+        model.add_effect(sncosmo.CCM89Dust(), 'host', 'rest')
+        model.set(hostebv=ebv)
+    if mw_extinction:
+        model.add_effect(sncosmo.F99Dust(), 'mw', 'obs')
+
+    model.set_source_peakabsmag(peak_abs_mag, band=peak_abs_mag_band, magsys=magsystem, cosmo=cosmology)
+    unique_frequency = np.sort(np.unique(frequency))
+    angstroms = nu_to_lambda(unique_frequency)
+
+    _flux = model.flux(time, angstroms)
+
+    if len(frequency) > 1:
+        _flux = pd.DataFrame(_flux)
+        _flux.columns = unique_frequency
+        _flux = np.array([_flux[freq].iloc[i] for i, freq in enumerate(frequency)])
+
+    units = uu.erg / uu.s / uu.Hz / uu.cm ** 2.
+    _flux = _flux * nu_to_lambda(frequency)
+    _flux = _flux / frequency
+    _flux = _flux << units
+
+    flux_density = _flux.to(uu.mJy).flatten()
+
+    if kwargs['output_format'] == 'flux_density':
+        return flux_density.value
+    elif kwargs['output_format'] == 'magnitude':
+        return flux_density.to(uu.ABmag).value
+
 
 def thermal_synchrotron():
     """
