@@ -35,14 +35,14 @@ class TestCutoffBlackbody(unittest.TestCase):
     def test_flux_density(self):
         expected_flux_density = np.array([-1.89280803e-61,  3.02849285e-60, -1.02140923e-59])
         actual_flux_density = np.array([q.value for q in self.sed.flux_density])
-        self.assertTrue(np.allclose(expected_flux_density, actual_flux_density, atol=1e-80))
+        self.assertTrue(np.allclose(expected_flux_density, actual_flux_density, atol=1e-70))
 
     def test_flux_density_units(self):
         self.assertEqual(uu.mJy, self.sed.flux_density.unit)
 
     def test_sed(self):
         expected_sed = np.array([-7.93406459e-75, 5.07780134e-73, -3.85328781e-72])
-        self.assertTrue(np.allclose(expected_sed, self.sed.sed, atol=1e-90))
+        self.assertTrue(np.allclose(expected_sed, self.sed.sed, atol=1e-80))
 
 
 class TestBlackBody(unittest.TestCase):
