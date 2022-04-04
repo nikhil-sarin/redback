@@ -96,13 +96,61 @@ class TestSynchrotron(unittest.TestCase):
         del self.sed
 
     def test_flux_density(self):
-        expected_flux_density = np.array([8.05267394e-33, 4.55528028e-32, 6.55328283e-31])
+        expected_flux_density = np.array([1.20790109e-06, 6.83292042e-06, 9.82992424e-05])
         actual_flux_density = np.array([q.value for q in self.sed.flux_density])
-        self.assertTrue(np.allclose(expected_flux_density, actual_flux_density, atol=1e-40))
+        self.assertTrue(np.allclose(expected_flux_density, actual_flux_density, atol=1e-50))
 
     def test_flux_density_units(self):
         self.assertEqual(uu.mJy, self.sed.flux_density.unit)
 
     def test_sed(self):
-        expected_sed = np.array([3.37543132e-46, 7.63772920e-45, 2.47223973e-43])
+        expected_sed = np.array([5.06314698e-20, 1.14565938e-18, 3.70835960e-17])
         self.assertTrue(np.allclose(expected_sed, self.sed.sed, atol=1e-50))
+
+
+class TestLine(unittest.TestCase):
+
+    def setUp(self) -> None:
+        self.time = np.array([1, 2, 3])
+        self.luminosity = np.array([1, 2, 3]) * 2e17
+        self.temperature = np.array([3000, 2000, 1000])
+        self.frequency = np.array([1, 2, 3])
+        self.luminosity_distance = 1e15
+        self.sed = MagicMock
+        self.sed.sed = np.array([1e-10, 2e-10, 3e-10])
+        print(self.sed.sed)
+        self.line_wavelength = 7.5e3
+        self.line_width = 500
+        self.line_duration = 25
+        self.line_amplitude = 0.3
+        self.line = redback.sed.Line(
+            time=self.time, luminosity=self.luminosity, frequency=self.frequency, sed=self.sed,
+            luminosity_distance=self.luminosity_distance, line_wavelength=self.line_wavelength,
+            line_width=self.line_width, line_duration=self.line_duration, line_amplitude=self.line_amplitude)
+
+    def tearDown(self) -> None:
+        del self.time
+        del self.luminosity
+        del self.temperature
+        del self.frequency
+        del self.luminosity_distance
+        del self.sed
+
+        del self.line_wavelength
+        del self.line_width
+        del self.line_duration
+        del self.line_amplitude
+        del self.line
+
+    def test_flux_density(self):
+        print(self.line.flux_density)
+        # expected_flux_density = np.array([])
+        # actual_flux_density = np.array([q.value for q in self.sed.flux_density])
+        # self.assertTrue(np.allclose(expected_flux_density, actual_flux_density, atol=1e-80))
+
+    def test_flux_density_units(self):
+        self.assertEqual(uu.mJy, self.sed.flux_density.unit)
+
+    # def test_sed(self):
+    #     expected_sed = np.array([])
+    #     self.assertTrue(np.allclose(expected_sed, self.sed.sed, atol=1e-90))
