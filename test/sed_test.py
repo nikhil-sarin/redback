@@ -2,7 +2,6 @@ import unittest
 from unittest.mock import MagicMock
 
 import astropy.units as uu
-import astropy
 import numpy as np
 
 import redback.sed
@@ -118,7 +117,6 @@ class TestLine(unittest.TestCase):
         self.luminosity_distance = 1e15
         self.sed = MagicMock
         self.sed.sed = np.array([1e-10, 2e-10, 3e-10])
-        print(self.sed.sed)
         self.line_wavelength = 7.5e3
         self.line_width = 500
         self.line_duration = 25
@@ -143,14 +141,9 @@ class TestLine(unittest.TestCase):
         del self.line
 
     def test_flux_density(self):
-        print(self.line.flux_density)
-        # expected_flux_density = np.array([])
-        # actual_flux_density = np.array([q.value for q in self.sed.flux_density])
-        # self.assertTrue(np.allclose(expected_flux_density, actual_flux_density, atol=1e-80))
+        expected_flux_density = np.array([2280.82962468, 1136.1849078, 754.47437923])
+        actual_flux_density = np.array([q.value for q in self.line.flux_density])
+        self.assertTrue(np.allclose(expected_flux_density, actual_flux_density, atol=1e-10))
 
     def test_flux_density_units(self):
-        self.assertEqual(uu.mJy, self.sed.flux_density.unit)
-
-    # def test_sed(self):
-    #     expected_sed = np.array([])
-    #     self.assertTrue(np.allclose(expected_sed, self.sed.sed, atol=1e-90))
+        self.assertEqual(uu.mJy, self.line.flux_density.unit)

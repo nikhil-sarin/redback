@@ -2,7 +2,7 @@ from typing import Union
 
 import numpy as np
 from redback.constants import *
-from redback.utils import nu_to_lambda, lambda_to_nu
+from redback.utils import nu_to_lambda
 
 
 def blackbody_to_flux_density(temperature, r_photosphere, dl, frequency):
@@ -12,10 +12,11 @@ def blackbody_to_flux_density(temperature, r_photosphere, dl, frequency):
     :param temperature: effective temperature in kelvin
     :param r_photosphere: photosphere radius in cm
     :param dl: luminosity_distance in cm
-    :param frequency: frequency to calculate in Hz - Must be same length as time array or a single number. In source frame
+    :param frequency: frequency to calculate in Hz - Must be same length as time array or a single number.
+                      In source frame
     :return: flux_density
     """
-    ## adding units back in to ensure dimensions are correct
+    # adding units back in to ensure dimensions are correct
     frequency = frequency * uu.Hz
     radius = r_photosphere * uu.cm
     dl = dl * uu.cm
@@ -32,6 +33,17 @@ def blackbody_to_flux_density(temperature, r_photosphere, dl, frequency):
 
 class _SED(object):
 
+    # sed units are erg/s/Angstrom - need to turn them into flux density compatible units
+    UNITS = uu.erg / uu.s / uu.Hz / uu.cm**2
+
+    def __init__(self, frequency: Union[np.ndarray, float], luminosity_distance: float) -> None:
+        self.sed = None
+        if isinstance(frequency, (float, int)):
+            self.frequency = np.array([frequency])
+        else:
+            self.frequency = frequency
+        self.luminosity_distance = luminosity_distance
+
     @property
     def flux_density(self):
         flux_density = self.sed.copy()
@@ -47,12 +59,11 @@ class _SED(object):
         # convert to mJy
         return flux_density.to(uu.mJy)
 
+
 class CutoffBlackbody(_SED):
 
     X_CONST = planck * speed_of_light / boltzmann_constant
     FLUX_CONST = 4 * np.pi * 2 * np.pi * planck * speed_of_light ** 2 * angstrom_cgs
-    # sed units are erg/s/Angstrom - need to turn them into flux density compatible units
-    UNITS = uu.erg / uu.s / uu.Hz / uu.cm**2.
 
     reference = "https://ui.adsabs.harvard.edu/abs/2017ApJ...850...55N/abstract"
 
@@ -71,6 +82,7 @@ class CutoffBlackbody(_SED):
         :param cutoff_wavelength: cutoff wavelength in Angstrom
         :param kwargs: None
         """
+        super(CutoffBlackbody, self).__init__(frequency=frequency, luminosity_distance=luminosity_distance)
         self.time = time
         self.unique_times = np.unique(self.time)
         tsort = np.argsort(self.time)
@@ -79,11 +91,6 @@ class CutoffBlackbody(_SED):
         self.luminosity = luminosity
         self.temperature = temperature
         self.r_photosphere = r_photosphere
-        if isinstance(frequency, (float, int)):
-            self.frequency = np.array([frequency])
-        else:
-            self.frequency = frequency
-        self.luminosity_distance = luminosity_distance
         self.cutoff_wavelength = cutoff_wavelength * angstrom_cgs
 
         self.norms = None
@@ -154,7 +161,8 @@ class Blackbody(object):
 
         :param temperature: effective temperature in kelvin
         :param r_photosphere: photosphere radius in cm
-        :param frequency: frequency to calculate in Hz - Must be same length as time array or a single number. In source frame
+        :param frequency: frequency to calculate in Hz - Must be same length as time array or a single number.
+                          In source frame
         :param luminosity_distance: luminosity_distance in cm
         :param kwargs: None
         """
@@ -175,10 +183,8 @@ class Blackbody(object):
 class Synchrotron(_SED):
 
     reference = "https://ui.adsabs.harvard.edu/abs/2004rvaa.conf...13H/abstract"
-    # sed units are erg/s/Angstrom - need to turn them into flux density compatible units
-    UNITS = uu.erg / uu.s / uu.Hz / uu.cm**2
 
-    def __init__(self, frequency: Union[np.ndarray, float, int], luminosity_distance: float, pp: float, nu_max: float,
+    def __init__(self, frequency: Union[np.ndarray, float], luminosity_distance: float, pp: float, nu_max: float,
                  source_radius: float = 1e13, f0: float = 1e-26, **kwargs: None) -> None:
         """
         Synchrotron SED
@@ -192,11 +198,7 @@ class Synchrotron(_SED):
         :param f0: frequency normalization
         :param kwargs: None
         """
-        if isinstance(frequency, (float, int)):
-            self.frequency = np.array([frequency])
-        else:
-            self.frequency = frequency
-        self.luminosity_distance = luminosity_distance
+        super(Synchrotron, self).__init__(frequency=frequency, luminosity_distance=luminosity_distance)
         self.pp = pp
         self.nu_max = nu_max
         self.source_radius = source_radius
@@ -220,7 +222,7 @@ class Synchrotron(_SED):
             * angstrom_cgs / speed_of_light * self.frequency[self.mask] ** 2
         self.sed[~self.mask] = \
             self.f_max * (self.frequency[~self.mask]/self.nu_max)**(-(self.pp - 1.)/2.) \
-            * angstrom_cgs / speed_of_light * self.frequency[~self.mask] **2
+            * angstrom_cgs / speed_of_light * self.frequency[~self.mask] ** 2
 
     def calculate_flux_density(self):
         self._set_sed()
@@ -230,11 +232,11 @@ class Synchrotron(_SED):
 class Line(_SED):
 
     reference = "https://ui.adsabs.harvard.edu/abs/2018ApJS..236....6G/abstract"
-    # sed units are erg/s/Angstrom - need to turn them into flux density compatible units
-    UNITS = uu.erg / uu.s / uu.Hz / uu.cm**2
 
-    def __init__(self, time, luminosity, frequency, sed, luminosity_distance, line_wavelength=7.5e3, line_width=500,
-                 line_time=50, line_duration=25, line_amplitude=0.3, **kwargs):
+    def __init__(self, time: np.ndarray, luminosity: np.ndarray, frequency: Union[np.ndarray, float],
+                 sed: Union[_SED, Blackbody], luminosity_distance: float, line_wavelength: float = 7.5e3,
+                 line_width: float = 500, line_time: float = 50, line_duration: float = 25,
+                 line_amplitude: float = 0.3, **kwargs: None) -> None:
         """
         Modifies the input SED by accounting for absorption lines
 
@@ -251,12 +253,11 @@ class Line(_SED):
         :param line_amplitude: line amplitude
         :param kwargs: None
         """
+        super(Line, self).__init__(frequency=frequency, luminosity_distance=luminosity_distance)
         self.time = time
         self.luminosity = luminosity
-        self.frequency = frequency
         self.SED = sed
         self.sed = None
-        self.luminosity_distance = luminosity_distance
         self.line_wavelength = line_wavelength
         self.line_width = line_width
         self.line_time = line_time
