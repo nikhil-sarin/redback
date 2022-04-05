@@ -1,6 +1,5 @@
 import numpy as np
 from redback.constants import *
-import redback.transient_models as tm
 
 def slsn_constraint(parameters):
     """
@@ -27,15 +26,41 @@ def slsn_constraint(parameters):
     converted_parameters['t_nebula_min'] = tnebula - 100
     return converted_parameters
 
+def basic_magnetar_powered_sn_constraints(parameters):
+    """
+    Constraint so that magnetar rotational energy is larger than ejecta kinetic energy
 
-def csm_constraints():
-    pass
+    :param parameters: dictionary of parameters
+    :return: converted_parameters dictionary where the violated samples are thrown out
+    """
+    converted_parameters = parameters.copy()
+    mej = parameters['mej'] * solar_mass
+    vej = parameters['vej'] * km_cgs
+    mass_ns = parameters['mass_ns']
+    p0 = parameters['p0']
+    kinetic_energy = 0.5 * mej * vej**2
+    rotational_energy = 2.6e52 * (mass_ns/1.4)**(3./2.) * p0**(-2)
+    # ensure rotational energy is greater than total output energy
+    converted_parameters['erot_constraint'] = rotational_energy - kinetic_energy
+    return converted_parameters
 
-def basic_magnetar_powered_sn_constraints():
-    pass
+def general_magnetar_powered_sn_constraints(parameters):
+    """
+    Constraint so that magnetar rotational energy is larger than ejecta kinetic energy
 
-def general_magnetar_powered_sn_constraints():
-    pass
+    :param parameters: dictionary of parameters
+    :return: converted_parameters dictionary where the violated samples are thrown out
+    """
+    converted_parameters = parameters.copy()
+    mej = parameters['mej'] * solar_mass
+    vej = parameters['vej'] * km_cgs
+    kinetic_energy = 0.5 * mej * vej ** 2
+    mass_ns = parameters['mass_ns']
+    p0 = parameters['p0']
+    rotational_energy = 2.6e52 * (mass_ns/1.4)**(3./2.) * p0**(-2)
+    # ensure rotational energy is greater than total output energy
+    converted_parameters['erot_constraint'] = rotational_energy - kinetic_energy
+    return converted_parameters
 
 def tde_constraints(parameters):
     """
@@ -50,6 +75,9 @@ def tde_constraints(parameters):
     schwarzchild_radius = (2 * graviational_constant * mass_bh * solar_mass /(speed_of_light**2))
     converted_parameters['disruption_radius'] = rp - schwarzchild_radius
     return converted_parameters
+
+def csm_constraints():
+    pass
 
 def magnetar_driven_kilonova_constraints():
     pass
