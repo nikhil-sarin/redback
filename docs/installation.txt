@@ -60,3 +60,23 @@ For full functionality, please also install optional requirements.
    $ pip install -r optional_requirements.txt
 
 You are now ready to use redback. Please check out the `examples <https://github.com/nikhil-sarin/redback/tree/master/examples>`_
+
+Install :code:`phantomjs`
+-------------------------
+
+If you want to use :code:`redback` functionality to download Swift data you need to install phantomjs.
+Installing phantomjs essentially requires that you first download the phantomjs file for your operating system from
+the `website <https://phantomjs.org/download.html>`_. Then create a softlink or export the path to the bin file;
+see discussion on `stackoverflow <https://stackoverflow.com/questions/36993962/installing-phantomjs-on-mac>`_.
+
+If you use homebrew on Mac then you don't need to follow the above steps and can simply do
+
+.. code-block:: console
+
+   $ brew install --cask phantomjs
+
+Or use pkg installer if you are on linux.
+
+.. code-block:: console
+
+   $ sudo pkg install phantomjs
