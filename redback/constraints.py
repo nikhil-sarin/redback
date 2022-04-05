@@ -1,4 +1,5 @@
 import numpy as np
+import toast
 from redback.constants import *
 
 def slsn_constraint(parameters):
@@ -76,6 +77,9 @@ def tde_constraints(parameters):
     converted_parameters['disruption_radius'] = rp - schwarzchild_radius
     return converted_parameters
 
+def simple_fallback_constraints():
+    pass
+
 def csm_constraints():
     pass
 
@@ -85,11 +89,33 @@ def magnetar_driven_kilonova_constraints():
 def nuclear_burning_constraints():
     pass
 
-def simple_fallback_constraints():
-    pass
+def piecewise_polytrope_eos_constraints(parameters):
+    """
+    Constraint on piecewise-polytrope EOS to enforce causality and max mass
 
-def eos_constraints():
-    pass
+    :param parameters: dictionary of parameters
+    :return: converted_parameters dictionary where the violated samples are thrown out
+    """
+    converted_parameters = parameters.copy()
+    log_p = parameters['log_p']
+    gamma_1 = parameters['gamma_1']
+    gamma_2 = parameters['gamma_2']
+    gamma_3 = parameters['gamma_3']
+    maximum_eos_mass = calc_max_mass(log_p=log_p, gamma_1=gamma_1, gamma_2=gamma_2, gamma_3=gamma_3)
+    converted_parameters['maximum_eos_mass'] = maximum_eos_mass
 
-def max_mass_constraints():
-    pass
+    maximum_speed_of_sound = calc_speed_of_sound(log_p=log_p, gamma_1=gamma_1, gamma_2=gamma_2, gamma_3=gamma_3)
+    converted_parameters['maximum_speed_of_sound'] = maximum_speed_of_sound
+    return converted_parameters
+
+@np.vectorize
+def calc_max_mass(log_p, gamma_1, gamma_2, gamma_3, **kwargs):
+    maximum_eos_mass = toast.piecewise_polytrope.maximum_mass(
+        log_p=log_p, Gamma_1=gamma_1, Gamma_2=gamma_2, Gamma_3=gamma_3)
+    return maximum_eos_mass
+
+@np.vectorize
+def calc_speed_of_sound(log_p, gamma_1, gamma_2, gamma_3, **kwargs):
+    maximum_speed_of_sound = toast.piecewise_polytrope.maximum_speed_of_sound(
+        log_p=log_p, Gamma_1=gamma_1, Gamma_2=gamma_2, Gamma_3=gamma_3)
+    return maximum_speed_of_sound
