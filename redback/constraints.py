@@ -93,14 +93,47 @@ def nuclear_burning_constraints(parameters):
     converted_parameters['emax_constraint'] = emax - kinetic_energy
     return converted_parameters
 
-def simple_fallback_constraints():
-    pass
+def simple_fallback_constraints(parameters):
+    """
+    Constraint on the fall back energy being larger than the kinetic energy,
+    and the that nebula phase does not begin till at least a 100 days.
 
-def csm_constraints():
-    pass
+    :param parameters: dictionary of parameters
+    :return: converted_parameters dictionary where the violated samples are thrown out
+    """
+    converted_parameters = parameters.copy()
+    mej = parameters['mej'] * solar_mass
+    vej = parameters['vej'] * km_cgs
+    kappa = parameters['kappa']
+    l0 = parameters['l0']
+    t0 = parameters['t_0']
+    kinetic_energy = 0.5 * mej * vej**2
+    tnebula =  np.sqrt(3 * kappa * mej / (4 * np.pi * vej ** 2)) / 86400
+    e_fallback = l0 * 5./2./(t0 * day_to_s)**(2./3.)
+    neutrino_energy = 1e51
+    total_energy = e_fallback + neutrino_energy
+    # ensure total energy is greater than kinetic energy
+    converted_parameters['en_constraint'] = total_energy - kinetic_energy
+    # ensure t_nebula is greater than 100 days
+    converted_parameters['t_nebula_min'] = tnebula - 100
+    return converted_parameters
 
-def magnetar_driven_kilonova_constraints():
-    pass
+def csm_constraints(parameters):
+    """
+    Constraint so that nuclear burning energy is greater than kinetic energy.
+
+    :param parameters: dictionary of parameters
+    :return: converted_parameters dictionary where the violated samples are thrown out
+    """
+    converted_parameters = parameters.copy()
+    mej = parameters['mej'] * solar_mass
+    vej = parameters['vej'] * km_cgs
+    fnickel = parameters['fnickel']
+    kinetic_energy = 0.5 * mej * (vej / 2.0) ** 2
+    excess_constant = -(56.0 / 4.0 * 2.4249 - 53.9037) / proton_mass * mev_cgs
+    emax = excess_constant * mej * fnickel
+    converted_parameters['emax_constraint'] = emax - kinetic_energy
+    return converted_parameters
 
 def piecewise_polytrope_eos_constraints(parameters):
     """
@@ -134,3 +167,6 @@ def calc_speed_of_sound(log_p, gamma_1, gamma_2, gamma_3, **kwargs):
     maximum_speed_of_sound = toast.piecewise_polytrope.maximum_speed_of_sound(
         log_p=log_p, Gamma_1=gamma_1, Gamma_2=gamma_2, Gamma_3=gamma_3)
     return maximum_speed_of_sound
+
+def magnetar_driven_kilonova_constraints():
+    pass
