@@ -120,7 +120,8 @@ def simple_fallback_constraints(parameters):
 
 def csm_constraints(parameters):
     """
-    Constraint so that nuclear burning energy is greater than kinetic energy.
+    Constraint so that photospheric radius is within the csm and the
+    diffusion time is less than the shock crossing time.
 
     :param parameters: dictionary of parameters
     :return: converted_parameters dictionary where the violated samples are thrown out
