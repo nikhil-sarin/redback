@@ -76,6 +76,23 @@ def tde_constraints(parameters):
     converted_parameters['disruption_radius'] = rp - schwarzchild_radius
     return converted_parameters
 
+def nuclear_burning_constraints(parameters):
+    """
+    Constraint so that nuclear burning energy is greater than kinetic energy.
+
+    :param parameters: dictionary of parameters
+    :return: converted_parameters dictionary where the violated samples are thrown out
+    """
+    converted_parameters = parameters.copy()
+    mej = parameters['mej'] * solar_mass
+    vej = parameters['vej'] * km_cgs
+    fnickel = parameters['fnickel']
+    kinetic_energy = 0.5 * mej * (vej / 2.0) ** 2
+    excess_constant = -(56.0 / 4.0 * 2.4249 - 53.9037) / proton_mass * mev_cgs
+    emax = excess_constant * mej * fnickel
+    converted_parameters['emax_constraint'] = emax - kinetic_energy
+    return converted_parameters
+
 def simple_fallback_constraints():
     pass
 
@@ -83,9 +100,6 @@ def csm_constraints():
     pass
 
 def magnetar_driven_kilonova_constraints():
-    pass
-
-def nuclear_burning_constraints():
     pass
 
 def piecewise_polytrope_eos_constraints(parameters):
