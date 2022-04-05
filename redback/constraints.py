@@ -55,9 +55,9 @@ def general_magnetar_powered_sn_constraints(parameters):
     mej = parameters['mej'] * solar_mass
     vej = parameters['vej'] * km_cgs
     kinetic_energy = 0.5 * mej * vej ** 2
-    mass_ns = parameters['mass_ns']
-    p0 = parameters['p0']
-    rotational_energy = 2.6e52 * (mass_ns/1.4)**(3./2.) * p0**(-2)
+    l0 = parameters['l0']
+    tau = parameters['tsd']
+    rotational_energy = 2*l0*tau
     # ensure rotational energy is greater than total output energy
     converted_parameters['erot_constraint'] = rotational_energy - kinetic_energy
     return converted_parameters
