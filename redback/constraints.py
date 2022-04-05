@@ -126,14 +126,52 @@ def csm_constraints(parameters):
     :param parameters: dictionary of parameters
     :return: converted_parameters dictionary where the violated samples are thrown out
     """
+    from redback.utils import get_csm_properties
     converted_parameters = parameters.copy()
-    mej = parameters['mej'] * solar_mass
-    vej = parameters['vej'] * km_cgs
-    fnickel = parameters['fnickel']
-    kinetic_energy = 0.5 * mej * (vej / 2.0) ** 2
-    excess_constant = -(56.0 / 4.0 * 2.4249 - 53.9037) / proton_mass * mev_cgs
-    emax = excess_constant * mej * fnickel
-    converted_parameters['emax_constraint'] = emax - kinetic_energy
+    mej = parameters['mej']
+    csm_mass = parameters['csm_mass']
+    kappa = parameters['kappa']
+    r0 = parameters['r0']
+    vej = parameters['vej']
+    nn = parameters.get('nn', 12)
+    delta = parameters.get('delta', 1)
+    eta = parameters['eta']
+    rho = parameters['rho']
+
+    mej = mej * solar_mass
+    csm_mass = csm_mass * solar_mass
+    r0 = r0 * au_cgs
+    vej = vej * km_cgs
+    Esn = 3. * vej ** 2 * mej / 10.
+
+    csm_properties = get_csm_properties(nn, eta)
+    AA = csm_properties.AA
+    Bf = csm_properties.Bf
+    qq = rho * r0 ** eta
+    # outer CSM shell radius
+    radius_csm = ((3.0 - eta) / (4.0 * np.pi * qq) * csm_mass + r0 ** (3.0 - eta)) ** (
+            1.0 / (3.0 - eta))
+    # photosphere radius
+    r_photosphere = abs((-2.0 * (1.0 - eta) / (3.0 * kappa * qq) +
+                         radius_csm ** (1.0 - eta)) ** (1.0 / (1.0 - eta)))
+
+    # mass of the optically thick CSM (tau > 2/3).
+    mass_csm_threshold = np.abs(4.0 * np.pi * qq / (3.0 - eta) * (
+            r_photosphere ** (3.0 - eta) - r0 ** (3.0 - eta)))
+
+    g_n = (1.0 / (4.0 * np.pi * (nn - delta)) * (
+            2.0 * (5.0 - delta) * (nn - 5.0) * Esn) ** ((nn - 3.) / 2.0) / (
+                   (3.0 - delta) * (nn - 3.0) * mej) ** ((nn - 5.0) / 2.0))
+
+    tshock = ((radius_csm - r0) / Bf / (AA * g_n / qq) ** (
+                       1. / (nn - eta))) ** ((nn - eta) /(nn - 3))
+
+    diffusion_time = np.sqrt(2. * kappa * mass_csm_threshold /(vej * 13.7 * 3.e10))
+    # ensure shock crossing time is greater than diffusion time
+    converted_parameters['shock_time'] = tshock - diffusion_time
+    # ensure photospheric radius is within the csm i.e., r_photo < radius_csm and r_photo > r0
+    converted_parameters['photosphere_constraint_1'] = radius_csm - r_photosphere
+    converted_parameters['photosphere_constraint_2'] = r_photosphere - r0
     return converted_parameters
 
 def piecewise_polytrope_eos_constraints(parameters):
@@ -168,6 +206,3 @@ def calc_speed_of_sound(log_p, gamma_1, gamma_2, gamma_3, **kwargs):
     maximum_speed_of_sound = toast.piecewise_polytrope.maximum_speed_of_sound(
         log_p=log_p, Gamma_1=gamma_1, Gamma_2=gamma_2, Gamma_3=gamma_3)
     return maximum_speed_of_sound
-
-def magnetar_driven_kilonova_constraints():
-    pass
