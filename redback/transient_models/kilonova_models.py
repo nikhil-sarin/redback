@@ -237,7 +237,7 @@ def one_component_ejecta_relation_model(time, redshift, mass_1, mass_2,
     :return: flux_density or magnitude
     """
     frequency = kwargs['frequency']
-    ejecta_relation = kwargs.get('ejecta_relation', ejr.Dietrich_ujevic_17)
+    ejecta_relation = kwargs.get('ejecta_relation', ejr.Dietrich_Ujevic_2017)
     ejecta_relation = ejecta_relation(mass_1, mass_2, lambda_1, lambda_2)
     mej = ejecta_relation.ejecta_mass
     vej = ejecta_relation.ejecta_velocity
