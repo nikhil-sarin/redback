@@ -167,6 +167,125 @@ class OneComponentBNSProjection(object):
         """
         return 4.0 * self.qej * np.pi / 2.0
 
+class TwoComponentBNS(object):
+    def __init__(self, mass_1, mass_2, lambda_1, lambda_2, mtov, zeta):
+        """
+        Relations to connect intrinsic GW parameters to extrinsic kilonova parameters from Coughlin+2019
+        for a two component BNS kilonova model.
+
+        :param mass_1: mass of primary neutron star
+        :param mass_2: mass of secondary neutron star
+        :param lambda_1: tidal deformability of primary neutron star
+        :param lambda_2: tidal deformability of secondary neutron star
+        :param mtov: Tolman Oppenheimer Volkoff maximum neutron star mass
+        :param zeta: fraction of disk that gets unbound
+        """
+        self.mass_1 = mass_1
+        self.mass_2 = mass_2
+        self.lambda_1 = lambda_1
+        self.lambda_2 = lambda_2
+        self.mtov = mtov
+        self.zeta = zeta
+        self.c1 = calc_compactness_from_lambda(self.lambda_1)
+        self.c2 = calc_compactness_from_lambda(self.lambda_2)
+        self.reference = 'https://ui.adsabs.harvard.edu/abs/2019MNRAS.489L..91C/abstract'
+        self.vrho = calc_vrho(mass_1=self.mass_1, mass_2=self.mass_2, lambda_1=self.lambda_1, lambda_2=self.lambda_2)
+        self.vz = calc_vz(mass_1=self.mass_1, mass_2=self.mass_2, lambda_1=self.lambda_1, lambda_2=self.lambda_2)
+        self.dynamical_mej = self.calculate_dynamical_ejecta_mass()
+        self.disk_wind_mej = self.calculate_disk_wind_mass()
+        self.ejecta_velocity = self.calculate_ejecta_velocity()
+        self.qej = self.calculate_qej()
+        self.phej = self.calculate_phej()
+
+    @property
+    def calculate_ejecta_velocity(self):
+        """
+        Calculate ejecta velocity of the dynamical ejecta
+
+        :return: ejecta velocity in c
+        """
+        c1 = self.c1
+        c2 = self.c2
+
+        a = -0.3090
+        b = 0.657
+        c = -1.879
+
+        vej = a * (self.mass_1 / self.mass_2) * (1 + c * c1) + a * (self.mass_2 / self.mass_1) * (1 + c * c2) + b
+        return vej
+
+    @property
+    def calculate_dynamical_ejecta_mass(self):
+        """
+        Calculate the disk wind and dynamical ejecta masses
+
+        :return: ejecta mass in solar masses
+        """
+        c1 = self.c1
+        c2 = self.c2
+        m1 = self.mass_1
+        m2 = self.mass_2
+
+        a = -0.0719
+        b = 0.2116
+        d = -2.42
+        n = -2.905
+
+        log10_mej = a * (m1 * (1 - 2 * c1) / c1 + m2 * (1 - 2 * c2) / c2) + b * (
+                    m1 * (m2 / m1) ** n + m2 * (m1 / m2) ** n) + d
+
+        mej_dynamical = 10 ** log10_mej
+        return mej_dynamical
+
+    @property
+    def calculate_disk_wind_mass(self):
+        """
+        Calculate the disk wind and dynamical ejecta masses
+
+        :return: ejecta mass in solar masses
+        """
+        q = self.mass_1 / self.mass_2
+
+        lambdatilde = (16.0 / 13.0) * \
+                      (self.lambda_2 + self.lambda_1 * (q ** 5) + 12 * self.lambda_1 * (q ** 4) + 12 * self.lambda_2 * q) / (
+                    (q + 1) ** 5)
+        mc = ((self.mass_1 * self.mass_2) ** (3. / 5.)) * ((self.mass_1 + self.mass_2) ** (-1. / 5.))
+
+        mTOV = self.mtov
+        R16 = mc * (lambdatilde / 0.0042) ** (1.0 / 6.0)
+        mth = (2.38 - 3.606 * mTOV / R16) * mTOV
+
+        a, b, c, d = -31.335, -0.9760, 1.0474, 0.05957
+
+        mtot = self.mass_1 + self.mass_2
+        mdisk = a * (1 + b * np.tanh((c - mtot / mth) / d))
+
+        mdisk = 10 ** mdisk
+
+        mej_disk_wind = self.zeta * mdisk
+        return mej_disk_wind
+
+    @property
+    def calculate_qej(self):
+        """
+        Polar opening angle
+
+        :return: polar opening angle
+        """
+        tmp1 = 3. * self.vz + np.sqrt(9 * self.vz**2 + 4 * self.vrho**2)
+        qej = ((2.0 ** (4.0 / 3.0)) * self.vrho**2 + (2. * self.vrho**2 * tmp1) ** (2.0 / 3.0)) / ((self.vrho ** 5.0) * tmp1) ** (
+                    1.0 / 3.0)
+        return qej
+
+    @property
+    def calculate_phej(self):
+        """
+        azimuthal opening angle
+
+        :return: azimuthal opening angle
+        """
+        return 4.0 * self.qej * np.pi / 2.0
+
 class OneComponentNSBH(object):
     def __init__(self, mass_bh, mass_ns, chi_eff, lambda_ns):
         """
