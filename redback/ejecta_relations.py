@@ -286,6 +286,97 @@ class TwoComponentBNS(object):
         """
         return 4.0 * self.qej * np.pi / 2.0
 
+
+class TwoComponentNSBH(object):
+    def __init__(self, mass_bh, mass_ns, chi_eff, lambda_ns, zeta):
+        """
+        Relations to connect intrinsic GW parameters to extrinsic kilonova parameters
+        for a neutron star black hole merger with two components using relations from Kawaguchi et al. 2016.
+        and Foucart et al. 2018
+
+        :param mass_bh: mass of black hole
+        :param mass_2: mass of neutron star
+        :param chi_eff: effective spin of black hole
+        :param lambda_ns: tidal deformability of neutron star
+        :param zeta: fraction of disk that gets unbound
+        """
+        self.mass_bh = mass_bh
+        self.mass_ns = mass_ns
+        self.mass_ratio = mass_bh/mass_ns
+        self.chi_eff = chi_eff
+        self.lambda_ns = lambda_ns
+        self.zeta = zeta
+        self.reference = ['https://ui.adsabs.harvard.edu/abs/2016ApJ...825...52K/abstract',
+                          'https://ui.adsabs.harvard.edu/abs/2018PhRvD..98h1501F/abstract']
+        self.risco = self.rcap_isco()
+        self.ejecta_velocity = self.calculate_ejecta_velocity()
+        self.dynamical_mej = self.calculate_dynamical_ejecta_mass()
+        self.disk_wind_mej = self.calculate_disk_wind_mass()
+
+    @property
+    def rcap_isco(self):
+        """
+        Calculate the normalized ISCO radius for a given BH spin.
+
+        :return: Normalized radius of the Innermost Stable Circular Orbit
+        """
+        chi_bh = self.chi_eff
+        z1 = 1 + (1 - chi_bh ** 2) ** (1 / 3) * (
+                (1 + chi_bh) ** (1 / 3) + (1 - chi_bh) ** (1 / 3))
+        z2 = np.sqrt(3 * chi_bh ** 2 + z1 ** 2)
+        risco = 3 + z2 - np.sign(chi_bh) * np.sqrt((3 - z1) * (3 + z1 + 2 * z2))
+        return risco
+
+    @property
+    def calculate_ejecta_velocity(self):
+        """
+        Calculate ejecta velocity
+
+        :return: ejecta velocity in c
+        """
+        vej = 1.5333330951369120e-2*self.mass_ratio+0.19066667068621043
+        return vej
+
+    @property
+    def calculate_dynamical_ejecta_mass(self):
+        """
+        Calculate ejecta mass
+
+        :return: ejecta mass in solar masses
+        """
+        compactness = calc_compactness_from_lambda(self.lambda_ns)
+        baryonic_mass = calc_baryonic_mass(mass=self.mass_ns, compactness=compactness)
+
+        # Compute mass_dyn. Formula from Kawaguchi et al., 2016
+        a1, a2, a3, a4, n1, n2 = 4.464e-2, 2.269e-3, 2.431, -0.4159, 0.2497, 1.352
+        term_a1 = a1 * (self.mass_ratio ** n1) * (1 - 2 * compactness) / compactness
+        term_a2 = -a2 * (self.mass_ratio ** n2) * self.risco
+        term_a3 = a3 * (1 - self.mass_ns / baryonic_mass)
+        term_a4 = a4
+        mass_dyn = baryonic_mass * np.maximum(term_a1 + term_a2 + term_a3 + term_a4, 0)
+        return mass_dyn
+
+    @property
+    def calculate_disk_wind_mass(self):
+        """
+        Calculate ejecta mass
+
+        :return: ejecta mass in solar masses
+        """
+        compactness = calc_compactness_from_lambda(self.lambda_ns)
+        baryonic_mass = calc_baryonic_mass(mass=self.mass_ns, compactness=compactness)
+        rho = (15 * self.lambda_ns) ** (-1 / 5)
+        eta = self.mass_ratio / (1 + self.mass_ratio) ** 2
+
+        # Compute mass_out. Formula from ^Foucart et al., 2018
+        alpha, beta, gamma, delta = 0.308, 0.124, 0.283, 1.536
+        term_alpha = alpha * (1 - 2 * rho) / (eta ** (1 / 3))
+        term_beta = -beta * self.risco * rho / eta
+        term_gamma = gamma
+        mej_disk = baryonic_mass * (np.maximum(term_alpha + term_beta + term_gamma, 0.0)) ** delta
+        mej_disk_wind = self.zeta * mej_disk
+        return mej_disk_wind
+
 class OneComponentNSBH(object):
     def __init__(self, mass_bh, mass_ns, chi_eff, lambda_ns):
         """
