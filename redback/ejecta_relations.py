@@ -1,11 +1,12 @@
 import numpy as np
 from astropy import constants as cc
+from redback.utils import citation_wrapper
 
 
-class Dietrich_Ujevic_2017(object):
+class OneComponentBNSNoProjection(object):
     """
     Relations to connect intrinsic GW parameters to extrinsic kilonova parameters from Dietrich and Ujevic 2017
-    for a one component kilonova model
+    for a one component BNS kilonova model.
     """
     def __init__(self, mass_1, mass_2, lambda_1, lambda_2):
         self.mass_1 = mass_1
@@ -45,10 +46,10 @@ class Dietrich_Ujevic_2017(object):
         mej = 10 ** log10_mej
         return mej
 
-class Kawaguchi_nsbh_2016(object):
+class OneComponentNSBH(object):
     """
     Relations to connect intrinsic GW parameters to extrinsic kilonova parameters
-    for a neutron star black hole merger with one component
+    for a neutron star black hole merger with one component (zone) from Kawaguchi et al. 2016.
     """
     def __init__(self, mass_bh, mass_ns, chi_eff, lambda_ns):
         self.mass_bh = mass_bh
@@ -134,3 +135,41 @@ def calc_baryonic_mass(mass, compactness):
     """
     mb = mass*(1 + 0.8857853174243745*compactness**1.2082383572002926)
     return mb
+
+@citation_wrapper('https://ui.adsabs.harvard.edu/abs/2017CQGra..34j5014D/abstract')
+def calc_vrho(mass_1,mass_2,lambda_1,lambda_2):
+    """
+    Average velocity in the orbital plane
+
+    :param mass_1: mass of primary neutron star
+    :param mass_2: mass of secondary neutron star
+    :param lambda_1: tidal deformability of primary neutron star
+    :param lambda_2: tidal deformability of secondary neutron star
+    :return: average velocity in the orbital plane
+    """
+    a=-0.219479
+    b=0.444836
+    c=-2.67385
+    compactness_1 = calc_compactness_from_lambda(lambda_1)
+    compactness_2 = calc_compactness_from_lambda(lambda_2)
+
+    return ((mass_1/mass_2)*(1.0+c*compactness_1)+(mass_2/mass_1)*(1.0+c*compactness_2))*a+b
+
+@citation_wrapper('https://ui.adsabs.harvard.edu/abs/2017CQGra..34j5014D/abstract')
+def calc_vz(mass_1,mass_2,lambda_1,lambda_2):
+    """
+    Velocity orthogonal to the orbital plane (z direction)
+
+    :param mass_1: mass of primary neutron star
+    :param mass_2: mass of secondary neutron star
+    :param lambda_1: tidal deformability of primary neutron star
+    :param lambda_2: tidal deformability of secondary neutron star
+    :return: average velocity orthogonal to the orbital plane
+    """
+    a=-0.315585
+    b=0.63808
+    c=-1.00757
+    compactness_1 = calc_compactness_from_lambda(lambda_1)
+    compactness_2 = calc_compactness_from_lambda(lambda_2)
+
+    return ((mass_1/mass_2)*(1.0+c*compactness_1)+(mass_2/mass_1)*(1.0+c*compactness_2))*a+b
