@@ -88,15 +88,6 @@ def sncosmo_models(time, redshift, model_kwargs, **kwargs):
     elif kwargs['output_format'] == 'magnitude':
         return flux_density.to(uu.ABmag).value
 
-
-def thermal_synchrotron():
-    """
-    From Margalit paper ...
-
-    :return:
-    """
-    pass
-
 @citation_wrapper('redback')
 def exponential_powerlaw_bolometric(time, lbol_0, alpha_1, alpha_2, tpeak_d, **kwargs):
     """
