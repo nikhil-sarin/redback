@@ -1,5 +1,6 @@
 import numpy as np
 
+
 def exponential_powerlaw(time, a_1, alpha_1, alpha_2, tpeak, **kwargs):
     """
     :param time: time array in seconds
@@ -14,8 +15,8 @@ def exponential_powerlaw(time, a_1, alpha_1, alpha_2, tpeak, **kwargs):
     return total
 
 
-def two_component_powerlaw_model(time, a_1, alpha_1,
-                                 delta_time_one, alpha_2, **kwargs):
+def two_component_powerlaw(time, a_1, alpha_1,
+                           delta_time_one, alpha_2, **kwargs):
     """
     Two component powerlaw model
 
@@ -39,9 +40,9 @@ def two_component_powerlaw_model(time, a_1, alpha_1,
     return total
 
 
-def three_component_powerlaw_model(time, a_1, alpha_1,
-                                   delta_time_one, alpha_2,
-                                   delta_time_two, alpha_3, **kwargs):
+def three_component_powerlaw(time, a_1, alpha_1,
+                             delta_time_one, alpha_2,
+                             delta_time_two, alpha_3, **kwargs):
     """
     Three component powerlaw model
 
@@ -70,10 +71,10 @@ def three_component_powerlaw_model(time, a_1, alpha_1,
     return total
 
 
-def four_component_powerlaw_model(time, a_1, alpha_1, delta_time_one,
-                                  alpha_2, delta_time_two,
-                                  alpha_3, delta_time_three,
-                                  alpha_4, **kwargs):
+def four_component_powerlaw(time, a_1, alpha_1, delta_time_one,
+                            alpha_2, delta_time_two,
+                            alpha_3, delta_time_three,
+                            alpha_4, **kwargs):
     """
     Four component powerlaw model
 
@@ -110,11 +111,11 @@ def four_component_powerlaw_model(time, a_1, alpha_1, delta_time_one,
     return total
 
 
-def five_component_powerlaw_model(time, a_1, alpha_1,
-                                  delta_time_one, alpha_2,
-                                  delta_time_two, alpha_3,
-                                  delta_time_three, alpha_4,
-                                  delta_time_four, alpha_5):
+def five_component_powerlaw(time, a_1, alpha_1,
+                            delta_time_one, alpha_2,
+                            delta_time_two, alpha_3,
+                            delta_time_three, alpha_4,
+                            delta_time_four, alpha_5, **kwargs):
     """
     Five component powerlaw model
 
@@ -159,12 +160,12 @@ def five_component_powerlaw_model(time, a_1, alpha_1,
     return total
 
 
-def six_component_powerlaw_model(time, a_1, alpha_1,
-                                 delta_time_one, alpha_2,
-                                 delta_time_two, alpha_3,
-                                 delta_time_three, alpha_4,
-                                 delta_time_four, alpha_5,
-                                 delta_time_five, alpha_6):
+def six_component_powerlaw(time, a_1, alpha_1,
+                           delta_time_one, alpha_2,
+                           delta_time_two, alpha_3,
+                           delta_time_three, alpha_4,
+                           delta_time_four, alpha_5,
+                           delta_time_five, alpha_6, **kwargs):
     """
     six component powerlaw model
 

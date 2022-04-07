@@ -23,7 +23,7 @@ def _integrand(time, mu0, muinf, tm):
     return mu ** 2
 
 @citation_wrapper('https://ui.adsabs.harvard.edu/abs/2019ApJ...886....5S/abstract')
-def _evolving_magnetar_only(time, mu0, muinf, p0, sinalpha0, tm, II, **kwargs):
+def evolving_magnetar_only(time, mu0, muinf, p0, sinalpha0, tm, II, **kwargs):
     """
     Millisecond magnetar model with evolution of inclination angle
 
@@ -76,12 +76,12 @@ def evolving_magnetar(time, a_1, alpha_1, mu0, muinf, p0, sinalpha0, tm, II, **k
     :return: luminosity (depending on scaling) as a function of time.
     """
     pl = one_component_fireball_model(time=time, a_1=a_1, alpha_1=alpha_1)
-    magnetar = _evolving_magnetar_only(time=time, mu0=mu0, muinf=muinf,
-                                       p0=p0, sinalpha0=sinalpha0, tm=tm, II=II)
+    magnetar = evolving_magnetar_only(time=time, mu0=mu0, muinf=muinf,
+                                      p0=p0, sinalpha0=sinalpha0, tm=tm, II=II)
     return pl + magnetar
 
 @citation_wrapper('https://ui.adsabs.harvard.edu/abs/2017ApJ...843L...1L/abstract')
-def _magnetar_only(time, l0, tau, nn, **kwargs):
+def magnetar_only(time, l0, tau, nn, **kwargs):
     """
     :param time: time in seconds
     :param l0: initial luminosity parameter
@@ -113,7 +113,7 @@ def gw_magnetar(time, a_1, alpha_1, fgw0, tau, nn, log_ii, **kwargs):
     l0 = ((omega_0 ** 2) * eta * ii) / (2 * tau)
     l0_50 = l0 / 1e50
 
-    magnetar = _magnetar_only(time=time, l0=l0_50, tau=tau, nn=nn)
+    magnetar = magnetar_only(time=time, l0=l0_50, tau=tau, nn=nn)
     pl = one_component_fireball_model(time=time, a_1=a_1, alpha_1=alpha_1)
 
     return pl + magnetar
@@ -133,7 +133,7 @@ def full_magnetar(time, a_1, alpha_1, l0, tau, nn, **kwargs):
     :return: luminosity or flux (depending on scaling of l0) as a function of time.
     """
     pl = one_component_fireball_model(time=time, a_1=a_1, alpha_1=alpha_1)
-    mag = _magnetar_only(time=time, l0=l0, tau=tau, nn=nn)
+    mag = magnetar_only(time=time, l0=l0, tau=tau, nn=nn)
     return pl + mag
 
 @citation_wrapper('https://ui.adsabs.harvard.edu/abs/2020PhRvD.101f3021S/abstract')
@@ -152,7 +152,7 @@ def collapsing_magnetar(time, a_1, alpha_1, l0, tau, nn, tcol, **kwargs):
     :return: luminosity or flux (depending on scaling of l0) as a function of time.
     """
     pl = one_component_fireball_model(time, a_1, alpha_1)
-    mag = np.heaviside(tcol - time, 1e-50) * _magnetar_only(time, l0, tau, nn)
+    mag = np.heaviside(tcol - time, 1e-50) * magnetar_only(time, l0, tau, nn)
 
     return pl + mag
 

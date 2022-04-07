@@ -73,7 +73,7 @@ def cocoon(time, redshift, umax, umin, loge0, k, mej, logn0, p, logepse, logepsb
         return calc_ABmag_from_flux_density(flux_density).value
 
 @citation_wrapper('https://ui.adsabs.harvard.edu/abs/2020ApJ...896..166R/abstract')
-def kn_afterglow(time, redshift, umax, umin, loge0, k, mej, logn0, p, logepse, logepsb, ksin, g0, **kwargs):
+def kilonova_afterglow(time, redshift, umax, umin, loge0, k, mej, logn0, p, logepse, logepsb, ksin, g0, **kwargs):
     """
     A kilonova afterglow model from afterglowpy, similar to cocoon but with constraints.
 

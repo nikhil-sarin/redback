@@ -1,5 +1,5 @@
 from redback.constants import *
-from redback.transient_models.magnetar_models import _magnetar_only
+from redback.transient_models.magnetar_models import magnetar_only
 import numpy as np
 from astropy.cosmology import Planck18 as cosmo  # noqa
 from scipy.interpolate import interp1d
@@ -108,7 +108,7 @@ def _metzger_magnetar_boosted_kilonova_model(time, mej, vej, beta, kappa, l0, ta
     time_2 = time_array[:, ~time_mask]
     edotr[:,time_mask] = 2.1e10 * e_th_array[:, time_mask] * ((time_1/ (3600. * 24.)) ** (-1.3))
     edotr[:, ~time_mask] = 4.0e18 * (0.5 - (1. / np.pi) * np.arctan((time_2 - t0) / sig)) ** (1.3) * e_th_array[:,~time_mask]
-    lsd = _magnetar_only(time, l0=l0, tau=tau_sd, nn=nn)
+    lsd = magnetar_only(time, l0=l0, tau=tau_sd, nn=nn)
     qdot_magnetar = thermalisation_efficiency * lsd
 
     # set up empty arrays
@@ -235,7 +235,7 @@ def _ejecta_dynamics_and_interaction(time, mej, beta, ejecta_radius, kappa, n_is
     internal_energy = 0.5 * beta ** 2 * mej * speed_of_light ** 2
     comoving_volume = (4 / 3) * np.pi * ejecta_radius ** 3
     gamma = 1 / np.sqrt(1 - beta ** 2)
-    mag_lum = _magnetar_only(time, l0=l0, tau=tau_sd, nn=nn)
+    mag_lum = magnetar_only(time, l0=l0, tau=tau_sd, nn=nn)
 
     t0_comoving = 1.3
     tsigma_comoving = 0.11
@@ -417,7 +417,7 @@ def _trapped_magnetar_lum(time, mej, beta, ejecta_radius, kappa, n_ism, l0, tau_
     frequency = kwargs['frequency']
     trapped_ejecta_lum = _comoving_blackbody_to_luminosity(frequency=frequency, radius=rad,
                                                           temperature=temp, doppler_factor=df)
-    lsd = _magnetar_only(time, l0=l0, tau=tau_sd, nn=nn)
+    lsd = magnetar_only(time, l0=l0, tau=tau_sd, nn=nn)
     lum = np.exp(-optical_depth) * lsd + trapped_ejecta_lum
     return lum
 
