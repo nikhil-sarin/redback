@@ -1,2 +1,0 @@
-a_1 = LogUniform(1e-20, 1e20, 'a_1', latex_label = r'$A_{1}$')
-alpha_1 = Uniform(-10, -0.5, 'alpha_1', latex_label = r'$\\alpha_{1}$')

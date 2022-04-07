@@ -1,7 +1,7 @@
 import numpy as np
 
 
-def gaussian(times, amplitude, t_0, sigma, **kwargs):
+def gaussian_prompt(times, amplitude, t_0, sigma, **kwargs):
     dt = kwargs.get('dt', 1)
     return amplitude * np.exp(-(times - t_0) ** 2 / (2 * sigma ** 2)) * dt
 
@@ -11,9 +11,9 @@ def skew_gaussian(times, amplitude, t_0, sigma_rise, sigma_fall, **kwargs):
     before_burst_indices = np.where(times <= t_0)
     after_burst_indices = np.where(times > t_0)
     envelope = np.zeros(len(times))
-    envelope[before_burst_indices] = gaussian(
+    envelope[before_burst_indices] = gaussian_prompt(
         times=times[before_burst_indices], amplitude=amplitude, t_0=t_0, sigma=sigma_rise)
-    envelope[after_burst_indices] = gaussian(
+    envelope[after_burst_indices] = gaussian_prompt(
         times=times[after_burst_indices], amplitude=amplitude, t_0=t_0, sigma=sigma_fall)
     return envelope * dt
 

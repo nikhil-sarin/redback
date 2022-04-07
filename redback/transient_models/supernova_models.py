@@ -1,7 +1,7 @@
 import numpy as np
 import pandas as pd
 from redback.transient_models.phenomenological_models import exponential_powerlaw
-from redback.transient_models.magnetar_models import _magnetar_only
+from redback.transient_models.magnetar_models import magnetar_only
 import redback.interaction_processes as ip
 import redback.sed as sed
 import redback.photosphere as photosphere
@@ -366,11 +366,12 @@ def slsn(time, redshift, p0, bp, mass_ns, theta_pb,**kwargs):
                 cutoff_wavelength=cutoff_wavelength)
 
     flux_density = sed_1.flux_density
-
     if kwargs['output_format'] == 'flux_density':
         return flux_density.to(uu.mJy).value
     elif kwargs['output_format'] == 'magnitude':
         return flux_density.to(uu.ABmag).value
+    else:
+        raise ValueError
 
 @citation_wrapper('https://ui.adsabs.harvard.edu/abs/2018ApJS..236....6G/abstract')
 def magnetar_nickel(time, redshift, f_nickel, mej, p0, bp, mass_ns, theta_pb, **kwargs):
@@ -405,7 +406,7 @@ def magnetar_nickel(time, redshift, f_nickel, mej, p0, bp, mass_ns, theta_pb, **
     lbol = lbol_mag + lbol_arnett
 
     if _interaction_process is not None:
-        interaction_class = _interaction_process(time=time, luminosity=lbol, **kwargs)
+        interaction_class = _interaction_process(time=time, luminosity=lbol, mej=mej, **kwargs)
         lbol = interaction_class.new_luminosity
 
     photo = _photosphere(time=time, luminosity=lbol, **kwargs)
@@ -870,7 +871,7 @@ def general_magnetar_slsn_bolometric(time, l0, tsd, nn, **kwargs):
     """
     _interaction_process = kwargs.get("interaction_process", ip.Diffusion)
 
-    lbol = _magnetar_only(time=time*day_to_s, l0=l0, tsd=tsd*day_to_s, nn=nn)
+    lbol = magnetar_only(time=time * day_to_s, l0=l0, tsd=tsd * day_to_s, nn=nn)
     if _interaction_process is not None:
         interaction_class = _interaction_process(time=time, luminosity=lbol, **kwargs)
         lbol = interaction_class.new_luminosity
