@@ -37,6 +37,7 @@ class Plotter(object):
 
     capsize = KwargsAccessorWithDefault("capsize", 0.)
     color = KwargsAccessorWithDefault("color", "k")
+    band_labels = KwargsAccessorWithDefault("band_labels", None)
     dpi = KwargsAccessorWithDefault("dpi", 300)
     elinewidth = KwargsAccessorWithDefault("elinewidth", 2)
     errorbar_fmt = KwargsAccessorWithDefault("errorbar_fmt", "x")
@@ -58,7 +59,8 @@ class Plotter(object):
     horizontalalignment = KwargsAccessorWithDefault("horizontalalignment", "right")
     annotation_size = KwargsAccessorWithDefault("annotation_size", 20)
 
-    fontsize = KwargsAccessorWithDefault("fontsize", 30)
+    fontsize_axes = KwargsAccessorWithDefault("fontsize_axes", 18)
+    fontsize_figure = KwargsAccessorWithDefault("fontsize_figure", 30)
     hspace = KwargsAccessorWithDefault("hspace", 0.04)
     wspace = KwargsAccessorWithDefault("wspace", 0.15)
 
@@ -225,8 +227,8 @@ class IntegratedFluxPlotter(Plotter):
 
         ax.set_xlim(self._xlim_low, self._xlim_high)
         ax.set_ylim(self._ylim_low, self.ylim_high)
-        ax.set_xlabel(self._xlabel)
-        ax.set_ylabel(self._ylabel)
+        ax.set_xlabel(self._xlabel, fontsize=self.fontsize_axes)
+        ax.set_ylabel(self._ylabel, fontsize=self.fontsize_axes)
 
         ax.annotate(
             self.transient.name, xy=self.xy, xycoords=self.xycoords,
@@ -288,14 +290,14 @@ class IntegratedFluxPlotter(Plotter):
                 nrows=2, ncols=1, sharex=True, sharey=False, figsize=(10, 8), gridspec_kw=dict(height_ratios=[2, 1]))
 
         axes[0] = self.plot_lightcurve(axes=axes[0], save=False, show=False)
-        axes[1].set_xlabel(axes[0].get_xlabel())
+        axes[1].set_xlabel(axes[0].get_xlabel(), fontsize=self.fontsize_axes)
         axes[0].set_xlabel("")
         ys = self.model(self.transient.x, **self._max_like_params, **self._model_kwargs)
         axes[1].errorbar(
             self.transient.x, self.transient.y - ys, xerr=self._x_err, yerr=self._y_err,
             fmt=self.errorbar_fmt, c=self.color, ms=self.ms, elinewidth=self.elinewidth, capsize=self.capsize)
         axes[1].set_yscale("log")
-        axes[1].set_ylabel("Residual")
+        axes[1].set_ylabel("Residual", fontsize=self.fontsize_axes)
         self._save_and_show(filepath=self._residual_plot_filepath, save=save, show=show)
         return axes
 
@@ -410,6 +412,11 @@ class MagnitudePlotter(Plotter):
             return self.kwargs.get("reference_mjd_date", int(self.transient.x[0]))
         return 0
 
+    @property
+    def band_label_generator(self):
+        if self.band_labels is not None:
+            return (bl for bl in self.band_labels)
+
     def plot_data(
             self, axes: matplotlib.axes.Axes = None, save: bool = True, show: bool = True) -> matplotlib.axes.Axes:
         """Plots the Magnitude data and returns Axes.
@@ -426,10 +433,15 @@ class MagnitudePlotter(Plotter):
         """
         ax = axes or plt.gca()
 
+        band_label_generator = self.band_label_generator
+
         for indices, band in zip(self.transient.list_of_band_indices, self.transient.unique_bands):
             if band in self._filters:
                 color = self._colors[list(self._filters).index(band)]
-                label = band
+                if band_label_generator is None:
+                    label = band
+                else:
+                    label = next(band_label_generator)
             elif self.plot_others:
                 color = "black"
                 label = None
@@ -446,8 +458,8 @@ class MagnitudePlotter(Plotter):
         self._set_x_axis(axes=ax)
         self._set_y_axis_data(ax)
 
-        ax.set_xlabel(self._xlabel)
-        ax.set_ylabel(self._ylabel)
+        ax.set_xlabel(self._xlabel, fontsize=self.fontsize_axes)
+        ax.set_ylabel(self._ylabel, fontsize=self.fontsize_axes)
 
         ax.tick_params(axis='x', pad=self.x_axis_tick_params_pad)
         ax.legend(ncol=2, loc='best')
@@ -524,6 +536,8 @@ class MagnitudePlotter(Plotter):
 
         axes = axes.ravel()
 
+        band_label_generator = self.band_label_generator
+
         i = 0
         for indices, band, freq in zip(
                 self.transient.list_of_band_indices, self.transient.unique_bands, self.transient.unique_frequencies):
@@ -532,8 +546,11 @@ class MagnitudePlotter(Plotter):
 
             x_err = self._get_x_err(indices)
             color = self._colors[list(self._filters).index(band)]
+            if band_label_generator is None:
+                label = self._get_multiband_plot_label(band, freq)
+            else:
+                label = next(band_label_generator)
 
-            label = self._get_multiband_plot_label(band, freq)
             axes[i].errorbar(
                 self.transient.x[indices] - self._reference_mjd_date, self.transient.y[indices], xerr=x_err,
                 yerr=self.transient.y_err[indices], fmt=self.errorbar_fmt, ms=self.ms, color=color,
@@ -546,8 +563,8 @@ class MagnitudePlotter(Plotter):
             axes[i].tick_params(axis='both', which='major', pad=8)
             i += 1
 
-        figure.supxlabel(self._xlabel, fontsize=self.fontsize)
-        figure.supylabel(self._ylabel, fontsize=self.fontsize)
+        figure.supxlabel(self._xlabel, fontsize=self.fontsize_figure)
+        figure.supylabel(self._ylabel, fontsize=self.fontsize_figure)
         plt.subplots_adjust(wspace=self.wspace, hspace=self.hspace)
 
         self._save_and_show(filepath=self._multiband_data_plot_filepath, save=save, show=show)

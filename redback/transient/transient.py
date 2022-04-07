@@ -484,7 +484,7 @@ class Transient(object):
         return matplotlib.cm.rainbow(np.linspace(0, 1, len(filters)))
 
     def plot_data(self, axes: matplotlib.axes.Axes = None, filename: str = None, outdir: str = None, save: bool = True,
-            show: bool = True, plot_others: bool = True, color: str = 'k', **kwargs: None) -> matplotlib.axes.Axes:
+            show: bool = True, plot_others: bool = True, color: str = 'k', **kwargs) -> matplotlib.axes.Axes:
         """Plots the Afterglow lightcurve and returns Axes.
 
         :param axes: Matplotlib axes to plot the lightcurve into. Useful for user specific modifications to the plot.
