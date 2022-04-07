@@ -14,11 +14,13 @@ We provide several different examples so users can get a more practical grasp of
 - `tde_example <https://github.com/nikhil-sarin/redback/blob/master/examples/tde_example.py>`_
 - `SN2011kl_sample_in_t0_example <https://github.com/nikhil-sarin/redback/blob/master/examples/SN2011kl_sample_in_t0_example.py>`_
 
+We have also written a more tutorial style `jupyter notebook <https://github.com/nikhil-sarin/redback/blob/master/examples/RedbackTutorial.ipynb>`_
+demonstrating the bulk of the functionality of :code:`redback`.
+
 Coming soon:
 
 - Sampling with constraint priors
-- homologous expansion
 - Simulating a population with :code:`redback`
-- Creating and sampling with new ejecta relations
+- Creating and sampling with new ejecta relations; modifying models
 - Joint likelihood analysis
 - Gaussian process with a :code:`redback` base model using `tinygp <https://tinygp.readthedocs.io/en/latest/index.html>`_
