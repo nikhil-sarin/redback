@@ -130,7 +130,6 @@ class RedbackResult(Result):
     def plot_lightcurve(self, model: Union[callable, str] = None, **kwargs: None) -> None:
         """Reconstructs the transient and calls the specific `plot_lightcurve` method.
 
-
         :param model: User specified model.
         :type model: Union[callable, str], optional
         :param kwargs: Any kwargs to be passed into the `plot_lightcurve` method.
@@ -140,6 +139,19 @@ class RedbackResult(Result):
             model = model_library.all_models_dict[self.model]
         self.transient.plot_lightcurve(model=model, posterior=self.posterior,
                                        model_kwargs=self.model_kwargs, **kwargs)
+
+    def plot_residual(self, model: Union[callable, str] = None, **kwargs: None) -> None:
+        """Reconstructs the transient and calls the specific `plot_residual` method.
+
+        :param model: User specified model.
+        :type model: Union[callable, str], optional
+        :param kwargs: Any kwargs to be passed into the `plot_lightcurve` method.
+        :type kwargs: None
+        """
+        if model is None:
+            model = model_library.all_models_dict[self.model]
+        self.transient.plot_residual(model=model, posterior=self.posterior,
+                                     model_kwargs=self.model_kwargs, **kwargs)
 
     def plot_multiband_lightcurve(self, model: Union[callable, str] = None, **kwargs: None) -> None:
         """Reconstructs the transient and calls the specific `plot_multiband_lightcurve` method.
