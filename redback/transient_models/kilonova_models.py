@@ -224,6 +224,8 @@ def two_component_kilonova_model(time, redshift, mej_1, vej_1, temperature_floor
 def one_component_ejecta_relation_model(time, redshift, mass_1, mass_2,
                                         lambda_1, lambda_2, kappa, **kwargs):
     """
+    Assumes no velocity projection in the ejecta velocity ejecta relation
+
     :param time: observer frame time in days
     :param redshift: redshift
     :param mass_1: mass of primary in solar masses
@@ -243,6 +245,47 @@ def one_component_ejecta_relation_model(time, redshift, mass_1, mass_2,
     vej = ejecta_relation.ejecta_velocity
     flux_density = one_component_kilonova_model(time, redshift, frequency, mej, vej, kappa, **kwargs)
     return flux_density
+
+@citation_wrapper('redback')
+def one_component_ejecta_relation_model_projection(time, redshift, mass_1, mass_2,
+                                        lambda_1, lambda_2, kappa, **kwargs):
+    """
+    Assumes a velocity projection between the orthogonal and orbital plane
+
+    :param time: observer frame time in days
+    :param redshift: redshift
+    :param mass_1: mass of primary in solar masses
+    :param mass_2: mass of secondary in solar masses
+    :param lambda_1: dimensionless tidal deformability of primary
+    :param lambda_2: dimensionless tidal deformability of secondary
+    :param kappa: gray opacity
+    :param kwargs: temperature_floor, output_format,
+                    ejecta_relation; a class that relates the instrinsic parameters to the kilonova parameters
+                    frequency (frequency to calculate - Must be same length as time array or a single number)
+    :return: flux_density or magnitude
+    """
+    frequency = kwargs['frequency']
+    ejecta_relation = kwargs.get('ejecta_relation', ejr.OneComponentBNSProjection)
+    ejecta_relation = ejecta_relation(mass_1, mass_2, lambda_1, lambda_2)
+    mej = ejecta_relation.ejecta_mass
+    vej = ejecta_relation.ejecta_velocity
+    flux_density = one_component_kilonova_model(time, redshift, frequency, mej, vej, kappa, **kwargs)
+    return flux_density
+
+@citation_wrapper('redback')
+def two_component_bns_ejecta_relation_model(time, redshift, mass_1, mass_2,
+                                        lambda_1, lambda_2, kappa, **kwargs):
+    pass
+
+@citation_wrapper('redback')
+def one_component_nsbh_ejecta_relation_model(time, redshift, mass_1, mass_2,
+                                        lambda_1, lambda_2, kappa, **kwargs):
+    pass
+
+@citation_wrapper('redback')
+def two_component_nsbh_ejecta_relation_model(time, redshift, mass_1, mass_2,
+                                        lambda_1, lambda_2, kappa, **kwargs):
+    pass
 
 @citation_wrapper('redback')
 def one_component_kilonova_model(time, redshift, mej, vej, kappa, **kwargs):
