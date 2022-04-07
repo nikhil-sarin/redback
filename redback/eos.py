@@ -12,7 +12,7 @@ except ModuleNotFoundError as e:
     logger.warning('lalsimulation is not installed. Some EOS based models will not work.'
                    'Either use bilby eos or pass your own EOS generation class to the model')
 
-class Piecewise_polytrope(object):
+class PiecewisePolytrope(object):
     def __init__(self, log_p, gamma_1, gamma_2, gamma_3):
         """
         :param log_p: log central pressure in SI units
