@@ -24,7 +24,7 @@ priors = redback.priors.get_priors(model=model)
 
 # alternatively can create a dictionary of priors in some priors
 # priors = bilby.core.prior.PriorDict()
-# priors['A_1'] = bilby.core.prior.LogUniform(1e-15, 1e15, 'A_1', latex_label = r'$A_{1}$')
+# priors['a_1'] = bilby.core.prior.LogUniform(1e-15, 1e15, 'A_1', latex_label = r'$A_{1}$')
 # priors['alpha_1'] = bilby.core.prior.Uniform(-7, -1, 'alpha_1', latex_label = r'$\alpha_{1}$')
 # priors['p0'] = bilby.core.prior.Uniform(0.7e-3, 0.1, 'p0', latex_label = r'$P_{0} [s]$')
 # priors['mu0'] = bilby.core.prior.Uniform(1e-3, 10, 'mu0', latex_label = r'$\mu_{0} [10^{33} G cm^{3}]$')
@@ -39,3 +39,4 @@ result = redback.fit_model(model=model, sampler='dynesty', nlive=200, transient=
                            prior=priors, sample='rslice', resume=True)
 
 result.plot_lightcurve(random_models=100)
+result.plot_residual()

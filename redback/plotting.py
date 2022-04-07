@@ -70,7 +70,7 @@ class Plotter(object):
     ylim_high_multiplier = 2.0
     ylim_low_multiplier = 0.5
 
-    def __init__(self, transient: redback.transient.transient.Transient, **kwargs: None) -> None:
+    def __init__(self, transient: redback.transient.Transient, **kwargs) -> None:
         self.transient = transient
         self.kwargs = kwargs
         self._posterior_sorted = False
@@ -168,6 +168,7 @@ class Plotter(object):
 
     _data_plot_filename = _FilenameGetter(suffix="data")
     _lightcurve_plot_filename = _FilenameGetter(suffix="lightcurve")
+    _residual_plot_filename = _FilenameGetter(suffix="residual")
     _multiband_data_plot_filename = _FilenameGetter(suffix="multiband_data")
     _multiband_lightcurve_plot_filename = _FilenameGetter(suffix="multiband_lightcurve")
 
@@ -175,6 +176,8 @@ class Plotter(object):
         directory_property="_data_plot_outdir", filename_property="_data_plot_filename")
     _lightcurve_plot_filepath = _FilePathGetter(
         directory_property="_lightcurve_plot_outdir", filename_property="_lightcurve_plot_filename")
+    _residual_plot_filepath = _FilePathGetter(
+        directory_property="_lightcurve_plot_outdir", filename_property="_residual_plot_filename")
     _multiband_data_plot_filepath = _FilePathGetter(
         directory_property="_data_plot_outdir", filename_property="_multiband_data_plot_filename")
     _multiband_lightcurve_plot_filepath = _FilePathGetter(
@@ -268,6 +271,33 @@ class IntegratedFluxPlotter(Plotter):
         ys = self.model(times, **params, **self._model_kwargs)
         axes.plot(times, ys, color=self.random_sample_color, alpha=self.random_sample_alpha, lw=self.linewidth,
                   zorder=self.zorder)
+
+    def plot_residuals(
+            self, axes: matplotlib.axes.Axes = None, save: bool = True, show: bool = True) -> matplotlib.axes.Axes:
+        """Plots the residual of the Integrated flux data returns Axes.
+
+        :param axes: Matplotlib axes to plot the lightcurve into. Useful for user specific modifications to the plot.
+        :param save: Whether to save the plot. (Default value = True)
+        :param show: Whether to show the plot. (Default value = True)
+
+        :return: The axes with the plot.
+        :rtype: matplotlib.axes.Axes
+        """
+        if axes is None:
+            fig, axes = plt.subplots(
+                nrows=2, ncols=1, sharex=True, sharey=False, figsize=(10, 8), gridspec_kw=dict(height_ratios=[2, 1]))
+
+        axes[0] = self.plot_lightcurve(axes=axes[0], save=False, show=False)
+        axes[1].set_xlabel(axes[0].get_xlabel())
+        axes[0].set_xlabel("")
+        ys = self.model(self.transient.x, **self._max_like_params, **self._model_kwargs)
+        axes[1].errorbar(
+            self.transient.x, self.transient.y - ys, xerr=self._x_err, yerr=self._y_err,
+            fmt=self.errorbar_fmt, c=self.color, ms=self.ms, elinewidth=self.elinewidth, capsize=self.capsize)
+        axes[1].set_yscale("log")
+        axes[1].set_ylabel("Residual")
+        self._save_and_show(filepath=self._residual_plot_filepath, save=save, show=show)
+        return axes
 
 
 class LuminosityPlotter(IntegratedFluxPlotter):

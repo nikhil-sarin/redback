@@ -627,6 +627,45 @@ class Transient(object):
             return axes
         return plotter.plot_lightcurve(axes=axes, save=save, show=show)
 
+    def plot_residual(self, model: callable, filename: str = None, outdir: str = None, axes: matplotlib.axes.Axes = None,
+                      save: bool = True, show: bool = True, posterior: pd.DataFrame = None,
+                      model_kwargs: dict = None, **kwargs: None) -> None:
+        """
+        :param model: The model used to plot the lightcurve.
+        :type model: callable
+        :param filename: The output filename. Otherwise, use default which starts with the name
+                         attribute and ends with *lightcurve.png.
+        :type filename: str, optional
+        :param axes: Axes to plot in if given.
+        :type axes: matplotlib.axes.Axes, optional
+        :param save:Whether to save the plot.
+        :type save: bool, optional
+        :param show: Whether to show the plot.
+        :type show: bool, optional
+        :param posterior: Posterior distribution to which to draw samples from. Is optional but must be given.
+        :type posterior: pd.DataFrame, optional
+        :param outdir: Out directory in which to save the plot. Default is the current working directory.
+        :type outdir: str, optional
+        :param model_kwargs: Additional keyword arguments to be passed into the model.
+        :type model_kwargs: dict
+        :param kwargs: No current function.
+        :type kwargs: None
+
+        :return: The axes.
+        :rtype: matplotlib.axes.Axes
+        """
+        if self.flux_data:
+            plotter = IntegratedFluxPlotter(
+                transient=self, model=model, filename=filename, outdir=outdir,
+                posterior=posterior, model_kwargs=model_kwargs, **kwargs)
+        elif self.luminosity_data:
+            plotter = LuminosityPlotter(
+                transient=self, model=model, filename=filename, outdir=outdir,
+                posterior=posterior, model_kwargs=model_kwargs, **kwargs)
+        else:
+            raise ValueError("Residual plotting not implemented for this data mode")
+        return plotter.plot_residuals(axes=axes, save=save, show=show)
+
     def plot_multiband_lightcurve(
             self, model: callable, filename: str = None, outdir: str = None, axes: matplotlib.axes.Axes = None,
             save: bool = True, show: bool = True, random_models: int = 100, posterior: pd.DataFrame = None,
