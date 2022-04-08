@@ -4,5 +4,4 @@ lalsimulation
 nestle
 sherpa
 kilonova-heating-rate
-toast
 PyQt5
