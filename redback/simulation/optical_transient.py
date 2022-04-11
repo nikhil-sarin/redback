@@ -1,9 +1,13 @@
 import simsurvey
+<<<<<<< refs/remotes/origin/master
 import sncosmo
+=======
+>>>>>>> Beginning of simsurvey integration
 
 
 class Optical_Transient(object):
     def __init__(name=None, parameters=None, observations=None):
+<<<<<<< refs/remotes/origin/master
 
         super.__init__()
 
@@ -61,3 +65,5 @@ class Optical_Transient(object):
         temp_kwargs['output_format'] = 'flux_density'
         function = _get_correct_function(base_model=base_model, model_type=model_type)
         flux_density = function(time, **temp_kwargs)
+=======
+>>>>>>> Beginning of simsurvey integration
