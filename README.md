@@ -1,5 +1,7 @@
 [![Documentation Status](https://readthedocs.org/projects/redback/badge/?version=latest)](https://redback.readthedocs.io/en/latest/?badge=latest)
 [![Coverage Status](https://coveralls.io/repos/github/nikhil-sarin/redback/badge.svg?branch=master)](https://coveralls.io/github/nikhil-sarin/redback?branch=master)
+![PyPI](https://img.shields.io/pypi/v/redback)
+![PyPI - Downloads](https://img.shields.io/pypi/dm/redback)
 
 # Redback
 Introducing REDBACK, a bayesian inference software package for fitting electromagnetic transients
