@@ -7,6 +7,16 @@ from redback.utils import calc_kcorrected_properties, citation_wrapper, logger
 
 @citation_wrapper('https://ui.adsabs.harvard.edu/abs/2021ApJ...909..209P/abstract')
 def _shock_cooling(time, mass, radius, energy, **kwargs):
+    """
+    :param time: time in source frame in seconds
+    :param mass: mass of extended material in solar masses
+    :param radius: radius of extended material in cm
+    :param energy: energy of extended material in ergs
+    :param kwargs: extra parameters to change physics
+    :param nn: density power law slope
+    :param delta: inner density power law slope
+    :return: namedtuple with lbol, r_photosphere, and temperature
+    """
     nn = kwargs.get('nn',10)
     delta = kwargs.get('delta',1.1)
     kk_pow = (nn - 3) * (3 - delta) / (4 * np.pi * (nn - delta))
@@ -39,6 +49,16 @@ def _shock_cooling(time, mass, radius, energy, **kwargs):
 
 @citation_wrapper('https://ui.adsabs.harvard.edu/abs/2021ApJ...909..209P/abstract')
 def shock_cooling_bolometric(time, log10_mass, log10_radius, log10_energy, **kwargs):
+    """
+    :param time: time in source frame in seconds
+    :param log10_mass: log10 mass of extended material in solar masses
+    :param log10_radius: log10 radius of extended material in cm
+    :param log10_energy: log10 energy of extended material in ergs
+    :param kwargs: extra parameters to change physics
+    :param nn: density power law slope
+    :param delta: inner density power law slope
+    :return: bolometric_luminosity
+    """
     mass = 10 ** log10_mass
     radius = 10 ** log10_radius
     energy = 10 ** log10_energy
@@ -47,6 +67,18 @@ def shock_cooling_bolometric(time, log10_mass, log10_radius, log10_energy, **kwa
 
 @citation_wrapper('https://ui.adsabs.harvard.edu/abs/2021ApJ...909..209P/abstract')
 def shock_cooling(time, redshift, log10_mass, log10_radius, log10_energy, **kwargs):
+    """
+    :param time: time in observer frame in days
+    :param log10_mass: log10 mass of extended material in solar masses
+    :param log10_radius: log10 radius of extended material in cm
+    :param log10_energy: log10 energy of extended material in ergs
+    :param kwargs: extra parameters to change physics and other settings
+    :param frequency: frequency to calculate model on - Must be same length as time array or a single number)
+    :param nn: density power law slope
+    :param delta: inner density power law slope
+    :param output_format: 'flux_density' or 'magnitude'
+    :return: flux density or AB magnitude
+    """
     mass = 10 ** log10_mass
     radius = 10 ** log10_radius
     energy = 10 ** log10_energy
