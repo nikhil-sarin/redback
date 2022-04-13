@@ -35,6 +35,14 @@ def _shock_cooling(time, mass, radius, energy, **kwargs):
     output.temperature = temperature
     return output
 
+@citation_wrapper('https://ui.adsabs.harvard.edu/abs/2021ApJ...909..209P/abstract')
+def shock_cooling_bolometric(time, log10_mass, log10_radius, log10_energy, **kwargs):
+    mass = 10 ** log10_mass
+    radius = 10 ** log10_radius
+    energy = 10 ** log10_energy
+    output = _shock_cooling(time, mass=mass, radius=radius, energy=energy, **kwargs)
+    return output.lbol
+
 @citation_wrapper('https://ui.adsabs.harvard.edu/abs/2021ApJ...923L..14M/abstract')
 def _thermal_synchrotron():
     pass
