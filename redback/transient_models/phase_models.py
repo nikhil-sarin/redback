@@ -14,7 +14,7 @@ extinction_model_functions = {'supernova':extinction_models.extinction_with_supe
                               'kilonova':extinction_models.extinction_with_kilonova_base_model,
                               'afterglow':extinction_models.extinction_with_afterglow_base_model,
                               'tde':extinction_models.extinction_with_tde_base_model,
-                              'magnetar_boosted':extinction_models.extinction_with_magnetar_boosted_base_model}
+                              'magnetar_driven':extinction_models.extinction_with_magnetar_driven_base_model}
 
 @citation_wrapper('redback')
 def t0_base_model(time, t0, **kwargs):
@@ -106,7 +106,7 @@ def t0_tde_extinction(time, t0, av, **kwargs):
     return summary.observable
 
 @citation_wrapper('redback')
-def t0_magnetar_boosted_extinction(time, t0, av, **kwargs):
+def t0_magnetar_driven_extinction(time, t0, av, **kwargs):
     """
     :param time: time in mjd
     :param t0: start time in mjd
@@ -115,7 +115,7 @@ def t0_magnetar_boosted_extinction(time, t0, av, **kwargs):
         and r_v, default is 3.1
     :return: flux_density or magnitude depending on kwargs['output_format']
     """
-    summary = _t0_with_extinction(time=time, t0=t0, av=av, model_type='magnetar_boosted', **kwargs)
+    summary = _t0_with_extinction(time=time, t0=t0, av=av, model_type='magnetar_driven', **kwargs)
     return summary.observable
 
 @citation_wrapper('https://ui.adsabs.harvard.edu/abs/2021arXiv210601556S/abstract')
