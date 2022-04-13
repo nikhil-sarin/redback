@@ -47,6 +47,7 @@ Specifically, the models already included are
     - SLSN
     - exponential powerlaw
     - SNcosmo
+    - Shock cooling + Arnett
 
 - Shock models: Can output in flux density/magnitude/bolometric luminosity
 
