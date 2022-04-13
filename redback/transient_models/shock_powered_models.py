@@ -1,6 +1,8 @@
 import numpy as np
 from collections import namedtuple
 from redback.constants import *
+import redback.sed as sed
+from astropy.cosmology import Planck18 as cosmo  # noqa
 from redback.utils import calc_kcorrected_properties, citation_wrapper, logger
 
 @citation_wrapper('https://ui.adsabs.harvard.edu/abs/2021ApJ...909..209P/abstract')
@@ -42,6 +44,25 @@ def shock_cooling_bolometric(time, log10_mass, log10_radius, log10_energy, **kwa
     energy = 10 ** log10_energy
     output = _shock_cooling(time, mass=mass, radius=radius, energy=energy, **kwargs)
     return output.lbol
+
+@citation_wrapper('https://ui.adsabs.harvard.edu/abs/2021ApJ...909..209P/abstract')
+def shock_cooling(time, redshift, log10_mass, log10_radius, log10_energy, **kwargs):
+    mass = 10 ** log10_mass
+    radius = 10 ** log10_radius
+    energy = 10 ** log10_energy
+
+    frequency = kwargs['frequency']
+    frequency, time = calc_kcorrected_properties(frequency=frequency, redshift=redshift, time=time)
+    dl = cosmo.luminosity_distance(redshift).cgs.value
+
+    output = _shock_cooling(time, mass=mass, radius=radius, energy=energy, **kwargs)
+    flux_density = sed.blackbody_to_flux_density(temperature=output.temperature, r_photosphere=output.r_photosphere,
+                                             dl=dl, frequency=frequency)
+
+    if kwargs['output_format'] == 'flux_density':
+        return flux_density.to(uu.mJy).value
+    elif kwargs['output_format'] == 'magnitude':
+        return flux_density.to(uu.ABmag).value
 
 @citation_wrapper('https://ui.adsabs.harvard.edu/abs/2021ApJ...923L..14M/abstract')
 def _thermal_synchrotron():
