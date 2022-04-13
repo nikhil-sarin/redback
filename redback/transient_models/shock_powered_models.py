@@ -260,7 +260,7 @@ def _tau_nu(x, nism, radius, bfield, theta, xi, p, z_cool):
     return val
 
 @citation_wrapper('https://ui.adsabs.harvard.edu/abs/2021ApJ...923L..14M/abstract')
-def thermal_synchrotron_lnu(time, initial_n0, initial_velocity, initial_radius, eta, logepse, logepsb, xi, p,**kwargs):
+def thermal_synchrotron_lnu(time, initial_n0, initial_velocity, initial_radius, eta, logepse, logepsb, xi, p, **kwargs):
     """
     :param time: time in source frame in seconds
     :param initial_n0: initial ambient ism density
@@ -322,7 +322,8 @@ def thermal_synchrotron_lnu(time, initial_n0, initial_velocity, initial_radius, 
     return lnu
 
 @citation_wrapper('https://ui.adsabs.harvard.edu/abs/2021ApJ...923L..14M/abstract')
-def thermal_synchrotron_fluxdensity(time, redshift, initial_n0, initial_velocity, initial_radius, eta, logepse, logepsb, xi, p,**kwargs):
+def thermal_synchrotron_fluxdensity(time, redshift, initial_n0, initial_velocity, initial_radius, eta, logepse, logepsb,
+                                    xi, p, **kwargs):
     """
     :param time: time in observer frame in days
     :param redshift: redshift
