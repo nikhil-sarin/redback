@@ -21,16 +21,16 @@ extinction_kilonova_base_models = ['mosfit_bns', 'mosfit_rprocess', 'mosfit_kilo
                                    'one_component_kilonova_model', 'one_component_ejecta_relation_model',
                                    'metzger_kilonova_model']
 extinction_tde_base_models = ['tde_analytical', 'tde_semianalytical']
-extinction_magnetar_boosted_base_models = ['mergernova', 'metzger_magnetar_boosted_kilonova_model']
+extinction_magnetar_driven_base_models = ['mergernova', 'metzger_magnetar_driven_kilonova_model']
 
 extinction_model_library = {'kilonova': extinction_kilonova_base_models,
                             'supernova': extinction_supernova_base_models,
                             'afterglow': extinction_afterglow_base_models,
                             'tde': extinction_tde_base_models,
-                            'magnetar_boosted': extinction_magnetar_boosted_base_models}
+                            'magnetar_driven': extinction_magnetar_driven_base_models}
 
 model_library = {'supernova': 'supernova_models', 'afterglow': 'afterglow_models',
-                 'magnetar_boosted': 'magnetar_boosted_ejecta_models', 'tde': 'tde_models',
+                 'magnetar_driven': 'magnetar_driven_ejecta_models', 'tde': 'tde_models',
                  'kilonova': 'kilonova_models'}
 
 def _get_correct_function(base_model, model_type=None):
@@ -154,9 +154,9 @@ def extinction_with_tde_base_model(time, av, **kwargs):
 
 
 @citation_wrapper('Sarin et al. in prep....')
-def extinction_with_magnetar_boosted_base_model(time, av, **kwargs):
+def extinction_with_magnetar_driven_base_model(time, av, **kwargs):
     """
-    Extinction with models implemented in magnetar_boosted_ejecta_models
+    Extinction with models implemented in magnetar_driven_ejecta_models
 
     :param time: time in observer frame in days
     :param av: absolute mag extinction
@@ -164,7 +164,7 @@ def extinction_with_magnetar_boosted_base_model(time, av, **kwargs):
         and r_v, default is 3.1
     :return: flux_density or magnitude depending on kwargs['output_format']
     """
-    output = _evaluate_extinction_model(time=time, av=av, model_type='magnetar_boosted', **kwargs)
+    output = _evaluate_extinction_model(time=time, av=av, model_type='magnetar_driven', **kwargs)
     return output
 
 
