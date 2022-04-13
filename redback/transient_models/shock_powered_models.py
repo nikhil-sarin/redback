@@ -70,6 +70,7 @@ def shock_cooling_bolometric(time, log10_mass, log10_radius, log10_energy, **kwa
 def shock_cooling(time, redshift, log10_mass, log10_radius, log10_energy, **kwargs):
     """
     :param time: time in observer frame in days
+    :param redshift: redshift
     :param log10_mass: log10 mass of extended material in solar masses
     :param log10_radius: log10 radius of extended material in cm
     :param log10_energy: log10 energy of extended material in ergs
@@ -88,7 +89,7 @@ def shock_cooling(time, redshift, log10_mass, log10_radius, log10_energy, **kwar
     frequency, time = calc_kcorrected_properties(frequency=frequency, redshift=redshift, time=time)
     dl = cosmo.luminosity_distance(redshift).cgs.value
 
-    output = _shock_cooling(time, mass=mass, radius=radius, energy=energy, **kwargs)
+    output = _shock_cooling(time*day_to_s, mass=mass, radius=radius, energy=energy, **kwargs)
     flux_density = sed.blackbody_to_flux_density(temperature=output.temperature, r_photosphere=output.r_photosphere,
                                              dl=dl, frequency=frequency)
 
@@ -259,7 +260,7 @@ def _tau_nu(x, nism, radius, bfield, theta, xi, p, z_cool):
     return val
 
 @citation_wrapper('https://ui.adsabs.harvard.edu/abs/2021ApJ...923L..14M/abstract')
-def _thermal_synchrotron(time, initial_n0, initial_velocity, initial_radius, eta, logepse, logepsb, xi, p,**kwargs):
+def thermal_synchrotron_lnu(time, initial_n0, initial_velocity, initial_radius, eta, logepse, logepsb, xi, p,**kwargs):
     """
     :param time: time in source frame in seconds
     :param initial_n0: initial ambient ism density
@@ -321,12 +322,32 @@ def _thermal_synchrotron(time, initial_n0, initial_velocity, initial_radius, eta
     return lnu
 
 @citation_wrapper('https://ui.adsabs.harvard.edu/abs/2021ApJ...923L..14M/abstract')
-def thermal_synchrotron_lnu():
-    pass
-
-@citation_wrapper('https://ui.adsabs.harvard.edu/abs/2021ApJ...923L..14M/abstract')
-def thermal_synchrotron_fluxdensity():
-    pass
+def thermal_synchrotron_fluxdensity(time, redshift, initial_n0, initial_velocity, initial_radius, eta, logepse, logepsb, xi, p,**kwargs):
+    """
+    :param time: time in observer frame in days
+    :param redshift: redshift
+    :param initial_n0: initial ambient ism density
+    :param initial_velocity: initial velocity in c
+    :param initial_radius: initial radius
+    :param eta: deceleration slope (r = r0 * (time/t0)**eta; v = v0*(time/t0)**(eta-1))
+    :param logepse: log10 epsilon_e; electron thermalisation efficiency
+    :param logepsb: log10 epsilon_b; magnetic field amplification efficiency
+    :param xi: fraction of energy carried by power law electrons
+    :param p: electron power law slope
+    :param kwargs: extra parameters to change physics/settings
+    :param frequency: frequency to calculate model on - Must be same length as time array or a single number)
+    :param wind_slope: slope for ism density scaling (nism = n0 * (r/r0)**(-wind_slope)). Default is 2
+    :param mu: mean molecular weight, default is 0.62
+    :param mu_e: mean molecular weight per electron, default is 1.18
+    :return: flux density
+    """
+    frequency = kwargs['frequency']
+    frequency, time = calc_kcorrected_properties(frequency=frequency, redshift=redshift, time=time)
+    time = time * day_to_s
+    dl = cosmo.luminosity_distance(redshift).cgs.value
+    lnu = thermal_synchrotron_lnu(time,initial_n0, initial_velocity, initial_radius, eta, logepse, logepsb, xi, p,**kwargs)
+    flux_density = lnu / (4.0 * np.pi * dl**2)
+    return flux_density
 
 @citation_wrapper('https://ui.adsabs.harvard.edu/abs/2018ApJ...855..103P/abstract')
 def _shocked_cocoon():
