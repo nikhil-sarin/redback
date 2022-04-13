@@ -98,6 +98,10 @@ def shock_cooling(time, redshift, log10_mass, log10_radius, log10_energy, **kwar
         return flux_density.to(uu.ABmag).value
 
 def _c_j(p):
+    """
+    :param p: electron power law slope
+    :return: prefactor for emissivity
+    """
     term1 = (special.gamma((p+5.0)/4.0)/special.gamma((p+7.0)/4.0))
     term2 = special.gamma((3.0*p+19.0)/12.0)
     term3 = special.gamma((3.0*p-1.0)/12.0)*((p-2.0)/(p+1.0))
@@ -106,6 +110,10 @@ def _c_j(p):
     return term1*term2*term3*term4*term5
 
 def _c_alpha(p):
+    """
+    :param p: electron power law slope
+    :return: prefactor for absorption coefficient
+    """
     term1 = (special.gamma((p+6.0)/4.0)/special.gamma((p+8.0)/4.0))
     term2 = special.gamma((3.0*p+2.0)/12.0)
     term3 = special.gamma((3.0*p+22.0)/12.0)*(p-2.0)*3.0**((2.0*p-5.0)/2.0)
@@ -114,12 +122,23 @@ def _c_alpha(p):
 
 
 def _g_theta(theta,p):
+    """
+    :param theta: dimensionless electron temperature
+    :param p: electron power law slope
+    :return: correction term for power law electron distribution
+    """
     aa = (6.0 + 15.0 * theta) / (4.0 + 5.0 * theta)
     gamma_m = 1e0 + aa * theta
     gtheta = ((p-1.0)*(1e0+aa*theta)/((p-1.0)*gamma_m - p+2.0))*(gamma_m/(3.0*theta))**(p-1.0)
     return gtheta
 
 def _low_freq_jpl_correction(x,theta,p):
+    """
+    :param x: dimensionless frequency
+    :param theta: dimensionless electron temperature
+    :param p: electron power law slope
+    :return: low-frequency correction to power-law emissivity
+    """
     aa = (6.0 + 15.0 * theta) / (4.0 + 5.0 * theta)
     gamma_m = 1e0 + aa * theta
     # synchrotron constant in x<<x_m limit
@@ -132,6 +151,12 @@ def _low_freq_jpl_correction(x,theta,p):
     return val
 
 def _low_freq_apl_correction(x,theta,p):
+    """
+    :param x: dimensionless frequency
+    :param theta: dimensionless electron temperature
+    :param p: electron power law slope
+    :return: low-frequency correction to power-law absorption coefficient
+    """
     aa = (6.0 + 15.0 * theta) / (4.0 + 5.0 * theta)
     gamma_m = 1e0 + aa * theta
     # synchrotron constant in x<<x_m limit
@@ -144,6 +169,16 @@ def _low_freq_apl_correction(x,theta,p):
     return val
 
 def _emissivity_pl(x, nism, bfield, theta, xi, p, z_cool):
+    """
+    :param x: dimensionless frequency
+    :param nism: electron number density in emitting region (cm^-3)
+    :param bfield: magnetic field strength in Gauss
+    :param theta: dimensionless electron temperature
+    :param xi: fraction of energy carried by power law electrons
+    :param p: electron power law slope
+    :param z_cool: normalised cooling lorentz factor
+    :return: synchrotron emissivity of power-law electrons
+    """
     val = _c_j(p)*(qe**3/(electron_mass*speed_of_light**2))*xi*nism*bfield*_g_theta(theta=theta,p=p)*x**(-(p-1.0)/2.0)
     # correct emission at low-frequencies x < x_m:
     val *= _low_freq_jpl_correction(x=x,theta=theta,p=p)
@@ -154,6 +189,14 @@ def _emissivity_pl(x, nism, bfield, theta, xi, p, z_cool):
     return emissivity_pl
 
 def _emissivity_thermal(x, nism, bfield, theta, z_cool):
+    """
+    :param x: dimensionless frequency
+    :param nism: electron number density in emitting region (cm^-3)
+    :param bfield: magnetic field strength in Gauss
+    :param theta: dimensionless electron temperature
+    :param z_cool: normalised cooling lorentz factor
+    :return: synchrotron emissivity of thermal electrons
+    """
     ff = 2.0*theta**2/special.kn(2,1.0/theta)
     ix = 4.0505*x**(-1.0/6.0)*( 1.0 + 0.40*x**(-0.25) + 0.5316*x**(-0.5) )*np.exp(-1.8899*x**(1.0/3.0))
     val = (3.0**0.5/(8.0*np.pi))*(qe**3/(electron_mass*speed_of_light**2))*ff*nism*bfield*x*ix
@@ -163,6 +206,14 @@ def _emissivity_thermal(x, nism, bfield, theta, z_cool):
     return val
 
 def _alphanu_th(x, nism, bfield, theta, z_cool):
+    """
+    :param x: dimensionless frequency
+    :param nism: electron number density in emitting region (cm^-3)
+    :param bfield: magnetic field strength in Gauss
+    :param theta: dimensionless electron temperature
+    :param z_cool: normalised cooling lorentz factor
+    :return: Synchrotron absorption coeff of thermal electrons
+    """
     ff = 2.0 * theta ** 2 / special.kn(2, 1.0 / theta)
     ix = 4.0505*x**(-1.0/6.0)*( 1.0 + 0.40*x**(-0.25) + 0.5316*x**(-0.5) )*np.exp(-1.8899*x**(1.0/3.0))
     val = (np.pi*3.0**(-3.0/2.0))*qe*(nism/(theta**5*bfield))*ff*x**(-1.0)*ix
@@ -172,6 +223,16 @@ def _alphanu_th(x, nism, bfield, theta, z_cool):
     return val
 
 def _alphanu_pl(x, nism, bfield, theta, xi, p, z_cool):
+    """
+    :param x: dimensionless frequency
+    :param nism: electron number density in emitting region (cm^-3)
+    :param bfield: magnetic field strength in Gauss
+    :param theta: dimensionless electron temperature
+    :param xi: fraction of energy carried by power law electrons
+    :param p: electron power law slope
+    :param z_cool: normalised cooling lorentz factor
+    :return: Synchrotron absorption coeff of power-law electrons
+    """
     val = _c_alpha(p)*qe*(xi*nism/(theta**5*bfield))*_g_theta(theta,p=p)*x**(-(p+4.0)/2.0)
     # correct emission at low-frequencies x < x_m:
     val *= _low_freq_apl_correction(x,theta,p)
@@ -181,18 +242,48 @@ def _alphanu_pl(x, nism, bfield, theta, xi, p, z_cool):
     return val
 
 def _tau_nu(x, nism, radius, bfield, theta, xi, p, z_cool):
+    """
+    :param x: dimensionless frequency
+    :param nism: electron number density in emitting region (cm^-3)
+    :param radius: characteristic size of the emitting region (in cm)
+    :param bfield: magnetic field strength in Gauss
+    :param theta: dimensionless electron temperature
+    :param xi: fraction of energy carried by power law electrons
+    :param p: electron power law slope
+    :param z_cool: normalised cooling lorentz factor
+    :return: Total (thermal+non-thermal) synchrotron optical depth
+    """
     alphanu_pl = _alphanu_pl(x=x,nism=nism,bfield=bfield,theta=theta,xi=xi,p=p,z_cool=z_cool)
     alphanu_thermal = _alphanu_th(x=x, nism=nism, bfield=bfield,theta=theta,z_cool=z_cool)
     val = radius*(alphanu_thermal + alphanu_pl)
     return val
 
 @citation_wrapper('https://ui.adsabs.harvard.edu/abs/2021ApJ...923L..14M/abstract')
-def _thermal_synchrotron(time, initial_n0, initial_velocity, initial_radius, eta, logepse, logepsb, xi, p, mu, mu_e, **kwargs):
+def _thermal_synchrotron(time, initial_n0, initial_velocity, initial_radius, eta, logepse, logepsb, xi, p,**kwargs):
+    """
+    :param time: time in source frame in seconds
+    :param initial_n0: initial ambient ism density
+    :param initial_velocity: initial velocity in c
+    :param initial_radius: initial radius
+    :param eta: deceleration slope (r = r0 * (time/t0)**eta; v = v0*(time/t0)**(eta-1))
+    :param logepse: log10 epsilon_e; electron thermalisation efficiency
+    :param logepsb: log10 epsilon_b; magnetic field amplification efficiency
+    :param xi: fraction of energy carried by power law electrons
+    :param p: electron power law slope
+    :param kwargs: extra parameters to change physics/settings
+    :param frequency: frequency to calculate model on - Must be same length as time array or a single number)
+    :param wind_slope: slope for ism density scaling (nism = n0 * (r/r0)**(-wind_slope)). Default is 2
+    :param mu: mean molecular weight, default is 0.62
+    :param mu_e: mean molecular weight per electron, default is 1.18
+    :return: lnu
+    """
     v0 = initial_velocity * speed_of_light
     t0 = eta*initial_radius/initial_velocity
     radius = initial_radius * (time/t0)**eta
     velocity = v0 * (time/t0)**(eta - 1)
     wind_slope = kwargs.get('wind_slope',2)
+    mu = kwargs.get('mu', 0.62)
+    mu_e = kwargs.get('mu_e', 1.18)
     nism = initial_n0 * (radius/initial_radius)**(-wind_slope)
 
     epsilon_T = 10**logepse
@@ -234,7 +325,7 @@ def thermal_synchrotron_lnu():
     pass
 
 @citation_wrapper('https://ui.adsabs.harvard.edu/abs/2021ApJ...923L..14M/abstract')
-def thermal_synchrotron():
+def thermal_synchrotron_fluxdensity():
     pass
 
 @citation_wrapper('https://ui.adsabs.harvard.edu/abs/2018ApJ...855..103P/abstract')
