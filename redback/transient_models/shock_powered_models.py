@@ -1,5 +1,6 @@
 import numpy as np
 from collections import namedtuple
+from scipy import special
 from redback.constants import *
 import redback.sed as sed
 from astropy.cosmology import Planck18 as cosmo  # noqa
@@ -96,12 +97,140 @@ def shock_cooling(time, redshift, log10_mass, log10_radius, log10_energy, **kwar
     elif kwargs['output_format'] == 'magnitude':
         return flux_density.to(uu.ABmag).value
 
-@citation_wrapper('https://ui.adsabs.harvard.edu/abs/2021ApJ...923L..14M/abstract')
-def _thermal_synchrotron():
-    pass
+def _c_j(p):
+    term1 = (special.gamma((p+5.0)/4.0)/special.gamma((p+7.0)/4.0))
+    term2 = special.gamma((3.0*p+19.0)/12.0)
+    term3 = special.gamma((3.0*p-1.0)/12.0)*((p-2.0)/(p+1.0))
+    term4 = 3.0**((2.0*p-1.0)/2.0)
+    term5 = 2.0**(-(7.0-p)/2.0)*np.pi**(-0.5)
+    return term1*term2*term3*term4*term5
+
+def _c_alpha(p):
+    term1 = (special.gamma((p+6.0)/4.0)/special.gamma((p+8.0)/4.0))
+    term2 = special.gamma((3.0*p+2.0)/12.0)
+    term3 = special.gamma((3.0*p+22.0)/12.0)*(p-2.0)*3.0**((2.0*p-5.0)/2.0)
+    term4 = 2.0**(p/2.0)*np.pi**(3.0/2.0)
+    return term1*term2*term3*term4
+
+
+def _g_theta(theta,p):
+    aa = (6.0 + 15.0 * theta) / (4.0 + 5.0 * theta)
+    gamma_m = 1e0 + aa * theta
+    gtheta = ((p-1.0)*(1e0+aa*theta)/((p-1.0)*gamma_m - p+2.0))*(gamma_m/(3.0*theta))**(p-1.0)
+    return gtheta
+
+def _low_freq_jpl_correction(x,theta,p):
+    aa = (6.0 + 15.0 * theta) / (4.0 + 5.0 * theta)
+    gamma_m = 1e0 + aa * theta
+    # synchrotron constant in x<<x_m limit
+    Cj_low = -np.pi**1.5*(p-2.0)/( 2.0**(1.0/3.0)*3.0**(1.0/6.0)*(3.0*p-1.0)*special.gamma(1.0/3.0)*special.gamma(-1.0/3.0)*special.gamma(11.0/6.0) )
+    # multiplicative correction term
+    corr = (Cj_low/_c_j(p))*(gamma_m/(3.0*theta))**(-(3.0*p-1.0)/3.0)*x**((3.0*p-1.0)/6.0)
+    # approximate interpolation with a "smoothing parameter" = s
+    s = 3.0/p
+    val = (1e0 + corr**(-s))**(-1.0/s)
+    return val
+
+def _low_freq_apl_correction(x,theta,p):
+    aa = (6.0 + 15.0 * theta) / (4.0 + 5.0 * theta)
+    gamma_m = 1e0 + aa * theta
+    # synchrotron constant in x<<x_m limit
+    Calpha_low = -2.0**(8.0/3.0)*np.pi**(7.0/2.0)*(p+2.0)*(p-2.0)/( 3.0**(19.0/6.0)*(3.0*p+2)*special.gamma(1.0/3.0)*special.gamma(-1.0/3.0)*special.gamma(11.0/6.0) )
+    # multiplicative correction term
+    corr = (Calpha_low/_c_alpha(p))*(gamma_m/(3.0*theta))**(-(3.0*p+2.0)/3.0)*x**((3.0*p+2.0)/6.0)
+    # approximate interpolation with a "smoothing parameter" = s
+    s = 3.0/p
+    val = ( 1e0 + corr**(-s) )**(-1.0/s)
+    return val
+
+def _emissivity_pl(x, nism, bfield, theta, xi, p, z_cool):
+    val = _c_j(p)*(qe**3/(electron_mass*speed_of_light**2))*xi*nism*bfield*_g_theta(theta=theta,p=p)*x**(-(p-1.0)/2.0)
+    # correct emission at low-frequencies x < x_m:
+    val *= _low_freq_jpl_correction(x=x,theta=theta,p=p)
+    # fast-cooling correction:
+    z0 = x**0.5
+    val *= np.minimum( 1e0, (z0/z_cool)**(-1) )
+    emissivity_pl = val
+    return emissivity_pl
+
+def _emissivity_thermal(x, nism, bfield, theta, z_cool):
+    ff = 2.0*theta**2/special.kn(2,1.0/theta)
+    ix = 4.0505*x**(-1.0/6.0)*( 1.0 + 0.40*x**(-0.25) + 0.5316*x**(-0.5) )*np.exp(-1.8899*x**(1.0/3.0))
+    val = (3.0**0.5/(8.0*np.pi))*(qe**3/(electron_mass*speed_of_light**2))*ff*nism*bfield*x*ix
+    # fast-cooling correction:
+    z0 = (2.0*x)**(1.0/3.0)
+    val *= np.minimum(1e0, (z0/z_cool)**(-1))
+    return val
+
+def _alphanu_th(x, nism, bfield, theta, z_cool):
+    ff = 2.0 * theta ** 2 / special.kn(2, 1.0 / theta)
+    ix = 4.0505*x**(-1.0/6.0)*( 1.0 + 0.40*x**(-0.25) + 0.5316*x**(-0.5) )*np.exp(-1.8899*x**(1.0/3.0))
+    val = (np.pi*3.0**(-3.0/2.0))*qe*(nism/(theta**5*bfield))*ff*x**(-1.0)*ix
+    # fast-cooling correction:
+    z0 = (2.0*x)**(1.0/3.0)
+    val *= np.minimum( 1e0, (z0/z_cool)**(-1) )
+    return val
+
+def _alphanu_pl(x, nism, bfield, theta, xi, p, z_cool):
+    val = _c_alpha(p)*qe*(xi*nism/(theta**5*bfield))*_g_theta(theta,p=p)*x**(-(p+4.0)/2.0)
+    # correct emission at low-frequencies x < x_m:
+    val *= _low_freq_apl_correction(x,theta,p)
+    # fast-cooling correction:
+    z0 = x**0.5
+    val *= np.minimum( 1e0, (z0/z_cool)**(-1) )
+    return val
+
+def _tau_nu(x, nism, radius, bfield, theta, xi, p, z_cool):
+    alphanu_pl = _alphanu_pl(x=x,nism=nism,bfield=bfield,theta=theta,xi=xi,p=p,z_cool=z_cool)
+    alphanu_thermal = _alphanu_th(x=x, nism=nism, bfield=bfield,theta=theta,z_cool=z_cool)
+    val = radius*(alphanu_thermal + alphanu_pl)
+    return val
 
 @citation_wrapper('https://ui.adsabs.harvard.edu/abs/2021ApJ...923L..14M/abstract')
-def thermal_synchrotron_bolometric():
+def _thermal_synchrotron(time, initial_n0, initial_velocity, initial_radius, eta, logepse, logepsb, xi, p, mu, mu_e, **kwargs):
+    v0 = initial_velocity * speed_of_light
+    t0 = eta*initial_radius/initial_velocity
+    radius = initial_radius * (time/t0)**eta
+    velocity = v0 * (time/t0)**(eta - 1)
+    wind_slope = kwargs.get('wind_slope',2)
+    nism = initial_n0 * (radius/initial_radius)**(-wind_slope)
+
+    epsilon_T = 10**logepse
+    epsilon_B = 10**logepsb
+
+    frequency = kwargs['frequency']
+
+    ne = 4.0*mu_e*nism
+    beta = velocity/speed_of_light
+
+    theta0 = epsilon_T * (9.0 * mu * proton_mass / (32.0 * mu_e * electron_mass)) * beta ** 2
+    theta = (5.0*theta0-6.0+(25.0*theta0**2+180.0*theta0+36.0)**0.5)/30.0
+
+    bfield = (9.0*np.pi*epsilon_B*nism*mu*proton_mass)**0.5*velocity
+    # mean dynamical time:
+    td = radius/velocity
+
+    z_cool = (6.0 * np.pi * electron_mass * speed_of_light / (sigma_T * bfield ** 2 * td)) / theta
+    normalised_frequency_denom = 3.0*theta**2*qe*bfield/(4.0*np.pi*electron_mass*speed_of_light)
+    x = frequency / normalised_frequency_denom
+
+    emissivity_pl = _emissivity_pl(x=x, nism=ne, bfield=bfield, theta=theta, xi=xi, p=p, z_cool=z_cool)
+
+    emissivity_thermal = _emissivity_thermal(x=x, nism=ne, bfield=bfield, theta=theta, z_cool=z_cool)
+
+    emissivity = emissivity_thermal + emissivity_pl
+
+    tau = _tau_nu(x=x, nism=ne, radius=radius, bfield=bfield, theta=theta, xi=xi, p=p, z_cool=z_cool)
+
+    lnu = 4.0 * np.pi ** 2 * radius ** 3 * emissivity * (1e0 - np.exp(-tau)) / tau
+    if np.size(x) > 1:
+        lnu[tau < 1e-10] = (4.0 * np.pi ** 2 * radius ** 3 * emissivity)[tau < 1e-10]
+    elif tau < 1e-10:
+        lnu = 4.0 * np.pi ** 2 * radius ** 3 * emissivity
+    return lnu
+
+@citation_wrapper('https://ui.adsabs.harvard.edu/abs/2021ApJ...923L..14M/abstract')
+def thermal_synchrotron_lnu():
     pass
 
 @citation_wrapper('https://ui.adsabs.harvard.edu/abs/2021ApJ...923L..14M/abstract')
