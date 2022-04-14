@@ -167,7 +167,7 @@ def _fit_prompt(transient, model, outdir, label, integrated_rate_function=True, 
         time=transient.x, counts=transient.y, dt=transient.bin_size, function=model,
         integrated_rate_function=integrated_rate_function, kwargs=model_kwargs)
 
-    meta_data = dict(model=model.__name__, transient_type="prompt")
+    meta_data = dict(model=model.__name__, transient_type=transient.__class__.__name__.lower())
     transient_kwargs = {k.lstrip("_"): v for k, v in transient.__dict__.items()}
     meta_data.update(transient_kwargs)
     meta_data['model_kwargs'] = model_kwargs
