@@ -260,12 +260,12 @@ def _tau_nu(x, nism, radius, bfield, theta, xi, p, z_cool):
     return val
 
 @citation_wrapper('https://ui.adsabs.harvard.edu/abs/2021ApJ...923L..14M/abstract')
-def thermal_synchrotron_lnu(time, initial_n0, initial_velocity, initial_radius, eta, logepse, logepsb, xi, p, **kwargs):
+def thermal_synchrotron_lnu(time, logn0, v0, logr0, eta, logepse, logepsb, xi, p, **kwargs):
     """
     :param time: time in source frame in seconds
-    :param initial_n0: initial ambient ism density
-    :param initial_velocity: initial velocity in c
-    :param initial_radius: initial radius
+    :param logn0: log10 initial ambient ism density
+    :param v0: initial velocity in c
+    :param logr0: log10 initial radius
     :param eta: deceleration slope (r = r0 * (time/t0)**eta; v = v0*(time/t0)**(eta-1))
     :param logepse: log10 epsilon_e; electron thermalisation efficiency
     :param logepsb: log10 epsilon_b; magnetic field amplification efficiency
@@ -278,14 +278,16 @@ def thermal_synchrotron_lnu(time, initial_n0, initial_velocity, initial_radius, 
     :param mu_e: mean molecular weight per electron, default is 1.18
     :return: lnu
     """
-    v0 = initial_velocity * speed_of_light
-    t0 = eta*initial_radius/initial_velocity
-    radius = initial_radius * (time/t0)**eta
+    v0 = v0 * speed_of_light
+    r0 = 10**logr0
+    t0 = eta * r0 / v0
+    radius = r0 * (time / t0) ** eta
     velocity = v0 * (time/t0)**(eta - 1)
     wind_slope = kwargs.get('wind_slope',2)
     mu = kwargs.get('mu', 0.62)
     mu_e = kwargs.get('mu_e', 1.18)
-    nism = initial_n0 * (radius/initial_radius)**(-wind_slope)
+    n0 = 10 ** logn0
+    nism = n0 * (radius / r0) ** (-wind_slope)
 
     epsilon_T = 10**logepse
     epsilon_B = 10**logepsb
@@ -322,14 +324,14 @@ def thermal_synchrotron_lnu(time, initial_n0, initial_velocity, initial_radius, 
     return lnu
 
 @citation_wrapper('https://ui.adsabs.harvard.edu/abs/2021ApJ...923L..14M/abstract')
-def thermal_synchrotron_fluxdensity(time, redshift, initial_n0, initial_velocity, initial_radius, eta, logepse, logepsb,
+def thermal_synchrotron_fluxdensity(time, redshift, logn0, v0, logr0, eta, logepse, logepsb,
                                     xi, p, **kwargs):
     """
     :param time: time in observer frame in days
     :param redshift: redshift
-    :param initial_n0: initial ambient ism density
-    :param initial_velocity: initial velocity in c
-    :param initial_radius: initial radius
+    :param logn0: log10 initial ambient ism density
+    :param v0: initial velocity in c
+    :param logr0: log10 initial radius
     :param eta: deceleration slope (r = r0 * (time/t0)**eta; v = v0*(time/t0)**(eta-1))
     :param logepse: log10 epsilon_e; electron thermalisation efficiency
     :param logepsb: log10 epsilon_b; magnetic field amplification efficiency
@@ -346,7 +348,7 @@ def thermal_synchrotron_fluxdensity(time, redshift, initial_n0, initial_velocity
     frequency, time = calc_kcorrected_properties(frequency=frequency, redshift=redshift, time=time)
     time = time * day_to_s
     dl = cosmo.luminosity_distance(redshift).cgs.value
-    lnu = thermal_synchrotron_lnu(time,initial_n0, initial_velocity, initial_radius, eta, logepse, logepsb, xi, p,**kwargs)
+    lnu = thermal_synchrotron_lnu(time,logn0, v0, logr0, eta, logepse, logepsb, xi, p,**kwargs)
     flux_density = lnu / (4.0 * np.pi * dl**2)
     return flux_density
 
