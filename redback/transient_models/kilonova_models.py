@@ -238,12 +238,11 @@ def one_component_ejecta_relation(time, redshift, mass_1, mass_2,
                     frequency (frequency to calculate - Must be same length as time array or a single number)
     :return: flux_density or magnitude
     """
-    frequency = kwargs['frequency']
     ejecta_relation = kwargs.get('ejecta_relation', ejr.OneComponentBNSNoProjection)
     ejecta_relation = ejecta_relation(mass_1, mass_2, lambda_1, lambda_2)
     mej = ejecta_relation.ejecta_mass
     vej = ejecta_relation.ejecta_velocity
-    flux_density = one_component_kilonova_model(time, redshift, frequency, mej, vej, kappa, **kwargs)
+    flux_density = one_component_kilonova_model(time, redshift, mej, vej, kappa, **kwargs)
     return flux_density
 
 @citation_wrapper('redback')
@@ -264,12 +263,11 @@ def one_component_ejecta_relation_projection(time, redshift, mass_1, mass_2,
                     frequency (frequency to calculate - Must be same length as time array or a single number)
     :return: flux_density or magnitude
     """
-    frequency = kwargs['frequency']
     ejecta_relation = kwargs.get('ejecta_relation', ejr.OneComponentBNSProjection)
     ejecta_relation = ejecta_relation(mass_1, mass_2, lambda_1, lambda_2)
     mej = ejecta_relation.ejecta_mass
     vej = ejecta_relation.ejecta_velocity
-    flux_density = one_component_kilonova_model(time, redshift, frequency, mej, vej, kappa, **kwargs)
+    flux_density = one_component_kilonova_model(time, redshift, mej, vej, kappa, **kwargs)
     return flux_density
 
 @citation_wrapper('redback')
