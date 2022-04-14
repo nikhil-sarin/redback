@@ -346,9 +346,11 @@ def thermal_synchrotron_fluxdensity(time, redshift, logn0, v0, logr0, eta, logep
     """
     frequency = kwargs['frequency']
     frequency, time = calc_kcorrected_properties(frequency=frequency, redshift=redshift, time=time)
+    new_kwargs = kwargs.copy()
+    new_kwargs['frequency'] = frequency
     time = time * day_to_s
     dl = cosmo.luminosity_distance(redshift).cgs.value
-    lnu = thermal_synchrotron_lnu(time,logn0, v0, logr0, eta, logepse, logepsb, xi, p,**kwargs)
+    lnu = thermal_synchrotron_lnu(time,logn0, v0, logr0, eta, logepse, logepsb, xi, p,**new_kwargs)
     flux_density = lnu / (4.0 * np.pi * dl**2)
     return flux_density
 
@@ -421,7 +423,7 @@ def shocked_cocoon(time, redshift, mej, vej, eta, tshock, shocked_fraction, cos_
     :param kwargs: Extra parameters used by function
     :param frequency: frequency to calculate model on - Must be same length as time array or a single number)
     :param output_format: 'flux_density' or 'magnitude'
-    :return: bolometric_luminosity
+    :return: flux density or magnitude
     """
     frequency = kwargs['frequency']
     frequency, time = calc_kcorrected_properties(frequency=frequency, redshift=redshift, time=time)
