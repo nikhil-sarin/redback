@@ -221,8 +221,8 @@ def two_component_kilonova_model(time, redshift, mej_1, vej_1, temperature_floor
         return ff.to(uu.ABmag).value
 
 @citation_wrapper('redback')
-def one_component_ejecta_relation_model(time, redshift, mass_1, mass_2,
-                                        lambda_1, lambda_2, kappa, **kwargs):
+def one_component_ejecta_relation(time, redshift, mass_1, mass_2,
+                                  lambda_1, lambda_2, kappa, **kwargs):
     """
     Assumes no velocity projection in the ejecta velocity ejecta relation
 
@@ -247,8 +247,8 @@ def one_component_ejecta_relation_model(time, redshift, mass_1, mass_2,
     return flux_density
 
 @citation_wrapper('redback')
-def one_component_ejecta_relation_model_projection(time, redshift, mass_1, mass_2,
-                                        lambda_1, lambda_2, kappa, **kwargs):
+def one_component_ejecta_relation_projection(time, redshift, mass_1, mass_2,
+                                             lambda_1, lambda_2, kappa, **kwargs):
     """
     Assumes a velocity projection between the orthogonal and orbital plane
 

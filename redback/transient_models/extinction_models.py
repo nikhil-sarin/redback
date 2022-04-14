@@ -18,7 +18,7 @@ extinction_supernova_base_models = ['sn_exponential_powerlaw', 'arnett',
 extinction_kilonova_base_models = ['mosfit_bns', 'mosfit_rprocess', 'mosfit_kilonova',
                                    'power_law_stratified_kilonova', 'two_layer_stratified_kilonova',
                                    'three_component_kilonova_model', 'two_component_kilonova_model',
-                                   'one_component_kilonova_model', 'one_component_ejecta_relation_model',
+                                   'one_component_kilonova_model', 'one_component_ejecta_relation',
                                    'metzger_kilonova_model']
 extinction_tde_base_models = ['tde_analytical', 'tde_semianalytical']
 extinction_magnetar_driven_base_models = ['mergernova', 'metzger_magnetar_driven_kilonova_model']
