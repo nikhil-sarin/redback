@@ -6,6 +6,7 @@ from scipy.interpolate import interp1d
 from astropy.cosmology import Planck18 as cosmo  # noqa
 from redback.utils import calc_kcorrected_properties, interpolated_barnes_and_kasen_thermalisation_efficiency, \
     electron_fraction_from_kappa
+from redback.eos import PiecewisePolytrope
 from redback.sed import blackbody_to_flux_density
 from redback.constants import *
 from redback.utils import citation_wrapper
@@ -295,6 +296,53 @@ def two_component_bns_ejecta_relation(time, redshift, mass_1, mass_2,
     :param output_format: 'flux_density' or 'magnitude'
     :return: flux density or AB magnitude
     """
+    ejecta_relation = kwargs.get('ejecta_relation', ejr.TwoComponentBNS)
+    ejecta_relation = ejecta_relation(mass_1=mass_1, mass_2=mass_2, lambda_1=lambda_1,
+                                      lambda_2=lambda_2, mtov=mtov, zeta=zeta)
+    mej_1 = ejecta_relation.dynamical_mej
+    mej_2 = ejecta_relation.disk_wind_mej
+    vej_1 = ejecta_relation.ejecta_velocity
+
+    output = two_component_kilonova_model(time=time, redshift=redshift, mej_1=mej_1,
+                                                vej_1=vej_1, temperature_floor_1=tf_1,
+                                                kappa_1=kappa_1, mej_2=mej_2, vej_2=vej_2,
+                                                temperature_floor_2=tf_2, kappa_2=kappa_2, **kwargs)
+    return output
+
+@citation_wrapper('redback')
+def polytrope_eos_two_component_bns(time, redshift, mass_1, mass_2,  log_p, gamma_1, gamma_2, gamma_3,
+                                    zeta, vej_2, kappa_1, kappa_2, tf_1, tf_2, **kwargs):
+    """
+    Assumes two kilonova components corresponding to dynamical and disk wind ejecta with properties
+    derived using ejecta relation specified by keyword argument and lambda set by polytropic EOS.
+
+    :param time: observer frame time in days
+    :param redshift: redshift
+    :param mass_1: mass of primary in solar masses
+    :param mass_2: mass of secondary in solar masses
+    :param log_p: log central pressure in SI units
+    :param gamma_1: polytrope index 1
+    :param gamma_2: polytrope index 2
+    :param gamma_3: polytrope index 3
+    :param zeta: fraction of disk that gets unbound
+    :param vej_2: disk wind velocity in c
+    :param kappa_1: gray opacity of first component
+    :param kappa_2: gracy opacity of second component
+    :param tf_1: floor temperature of first component
+    :param tf_2: floor temperature of second component
+    :param kwargs: additional keyword arguments
+    :param ejecta_relation: a class that relates the instrinsic parameters to the kilonova parameters
+            default is TwoComponentBNS
+    :param frequency: (frequency to calculate - Must be same length as time array or a single number)
+    :param output_format: 'flux_density' or 'magnitude'
+    :return: flux density or AB magnitude
+    """
+    central_pressure = np.logspace(np.log10(4e32), np.log10(2.5e35), 70)
+    eos = PiecewisePolytrope(log_p=log_p, gamma_1=gamma_1, gamma_2=gamma_2, gamma_3=gamma_3)
+    mtov = eos.maximum_mass()
+    masses = np.array([mass_1, mass_2])
+    tidal_deformability, _ = eos.lambda_of_mass(central_pressure=central_pressure, mass=masses)
+    lambda_1, lambda_2 = tidal_deformability[0], tidal_deformability[1]
     ejecta_relation = kwargs.get('ejecta_relation', ejr.TwoComponentBNS)
     ejecta_relation = ejecta_relation(mass_1=mass_1, mass_2=mass_2, lambda_1=lambda_1,
                                       lambda_2=lambda_2, mtov=mtov, zeta=zeta)
