@@ -3,4 +3,4 @@ log10_mass = Uniform(-2, 3, 'log10_mass', latex_label=r'$\log_{10} m_{\mathrm{en
 log10_radius = Uniform(10, 14, 'log10_radius', latex_label=r'$\log_{10} R_{\mathrm{en}}$')
 log10_energy = Uniform(40, 52, 'log10_energy', latex_label=r'$\log_{10} E_{\mathrm{en}}$')
 nn = Uniform(8, 12, 'nn', latex_label=r'$nn$')
-delta = Uniform(1, 1.5, 'delta', latex_label=r'$\delta$')
+delta = Uniform(1, 1.5, 'delta', latex_label=r'$\\delta$')
