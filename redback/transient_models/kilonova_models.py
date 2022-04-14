@@ -27,21 +27,21 @@ def mosfit_kilonova():
     pass
 
 @citation_wrapper('https://ui.adsabs.harvard.edu/abs/2020ApJ...891..152H/abstract')
-def power_law_stratified_kilonova(time, redshift, mass, vmin, vmax, alpha,
+def power_law_stratified_kilonova(time, redshift, mej, vmin, vmax, alpha,
                                   kappa_min, kappa_max, beta, **kwargs):
     pass
 
 @citation_wrapper('https://ui.adsabs.harvard.edu/abs/2020ApJ...891..152H/abstract')
-def two_layer_stratified_kilonova(time, redshift, mass, vej_1, vej_2, kappa, beta, **kwargs):
+def two_layer_stratified_kilonova(time, redshift, mej, vej_1, vej_2, kappa, beta, **kwargs):
     """
     Uses kilonova_heating_rate module to model a two layer stratified kilonova
 
     :param time: observer frame time in days
     :param redshift: redshift
     :param frequency: frequency to calculate - Must be same length as time array or a single number
-    :param mass: ejecta mass
-    :param vej_1: velocity of inner shell   
-    :param vej_2: velocity of outer shell
+    :param mej: ejecta mass in solar masses
+    :param vej_1: velocity of inner shell in c
+    :param vej_2: velocity of outer shell in c
     :param kappa: constant gray opacity
     :param beta: power law index of density profile
     :param kwargs: output_format
@@ -49,18 +49,18 @@ def two_layer_stratified_kilonova(time, redshift, mass, vej_1, vej_2, kappa, bet
     :return: flux_density or magnitude
     """
     velocity_array = np.array([vej_1, vej_2])
-    output = _kilonova_hr(time, redshift, mass, velocity_array, kappa, beta, **kwargs)
+    output = _kilonova_hr(time, redshift, mej, velocity_array, kappa, beta, **kwargs)
     return output
 
 
-def _kilonova_hr(time, redshift, mass, velocity_array, kappa_array, beta, **kwargs):
+def _kilonova_hr(time, redshift, mej, velocity_array, kappa_array, beta, **kwargs):
     """
     Uses kilonova_heating_rate module
 
     :param time: observer frame time in days
     :param redshift: redshift
     :param frequency: frequency to calculate - Must be same length as time array or a single number
-    :param mass: ejecta mass
+    :param mej: ejecta mass
     :param velocity_array: array of ejecta velocities; length >=2
     :param kappa_array: opacities of each shell, length = 1 less than velocity
     :param beta: power law index of density profile
@@ -73,7 +73,7 @@ def _kilonova_hr(time, redshift, mass, velocity_array, kappa_array, beta, **kwar
     time = time * day_to_s
     frequency, time = calc_kcorrected_properties(frequency=frequency, redshift=redshift, time=time)
     dl = cosmo.luminosity_distance(redshift).cgs.value
-    _, temperature, r_photosphere = _kilonova_hr_sourceframe(time, mass, velocity_array, kappa_array, beta)
+    _, temperature, r_photosphere = _kilonova_hr_sourceframe(time, mej, velocity_array, kappa_array, beta)
 
     flux_density = blackbody_to_flux_density(temperature=temperature.value, r_photosphere=r_photosphere.value,
                                              dl=dl, frequency=frequency)
@@ -85,12 +85,12 @@ def _kilonova_hr(time, redshift, mass, velocity_array, kappa_array, beta, **kwar
 
 
 
-def _kilonova_hr_sourceframe(time, mass, velocity_array, kappa_array, beta):
+def _kilonova_hr_sourceframe(time, mej, velocity_array, kappa_array, beta):
     """
     Uses kilonova_heating_rate module
 
     :param time: source frame time in seconds
-    :param mass: ejecta mass
+    :param mej: ejecta mass
     :param velocity_array: array of ejecta velocities; length >=2
     :param kappa_array: opacities of each shell, length = 1 less than velocity
     :param beta: power law index of density profile
@@ -103,7 +103,7 @@ def _kilonova_hr_sourceframe(time, mass, velocity_array, kappa_array, beta):
 
     from kilonova_heating_rate import lightcurve
 
-    mass = mass * uu.M_sun
+    mej = mej * uu.M_sun
     velocity_array = velocity_array * cc.c
     kappa_array = kappa_array * uu.cm**2 / uu.g
     time = time * uu.s
@@ -111,7 +111,7 @@ def _kilonova_hr_sourceframe(time, mass, velocity_array, kappa_array, beta):
     if time.value[0] < 0.02:
         raise ValueError("time in source frame must be larger than 0.01 days for this model")
 
-    bolometric_luminosity, temperature, r_photosphere = lightcurve(time, mass=mass, velocities=velocity_array,
+    bolometric_luminosity, temperature, r_photosphere = lightcurve(time, mass=mej, velocities=velocity_array,
                                                                    opacities=kappa_array, n=beta)
     return bolometric_luminosity, temperature, r_photosphere
 
