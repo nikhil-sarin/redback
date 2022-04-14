@@ -71,14 +71,14 @@ class PiecewisePolytrope(object):
     def lambda_of_central_pressure(self, central_pressure):
         """
         :param central_pressure:
-        :return: dimensionless tidal deformability
+        :return: mass in solar masses and dimensionless tidal deformability
         """
         polytrope = lalsim.SimNeutronStarEOS4ParameterPiecewisePolytrope(self.log_p, self.gamma_1,
                                                                          self.gamma_2, self.gamma_3)
         radius, mass, k2 = lalsim.SimNeutronStarTOVODEIntegrate(central_pressure, polytrope)
 
         Lambda = (2 / 3) * k2 * (cc.c.si.value ** 2 * radius / (cc.G.si.value * mass)) ** 5
-        return Lambda
+        return mass, Lambda
 
     def lambda_array_of_central_pressure(self, central_pressure_array, maximum_mass_lower_limit=2.01):
         """
