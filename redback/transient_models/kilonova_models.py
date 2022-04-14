@@ -312,8 +312,31 @@ def two_component_bns_ejecta_relation(time, redshift, mass_1, mass_2,
 
 @citation_wrapper('redback')
 def one_component_nsbh_ejecta_relation(time, redshift, mass_bh, mass_ns,
-                                        lambda_1, lambda_2, kappa, **kwargs):
-    pass
+                                        chi_eff, lambda_ns, kappa, **kwargs):
+    """
+    One component NSBH model
+
+    :param time: observer frame time in days
+    :param redshift: redshift
+    :param mass_bh: mass of black hole
+    :param mass_2: mass of neutron star
+    :param chi_eff: effective spin of black hole
+    :param lambda_ns: tidal deformability of neutron star
+    :param kappa: opacity
+    :param kwargs: additional keyword arguments
+    :param temperature_floor: floor temperature
+    :param ejecta_relation: a class that relates the instrinsic parameters to the kilonova parameters
+            default is TwoComponentBNS
+    :param frequency: (frequency to calculate - Must be same length as time array or a single number)
+    :param output_format: 'flux_density' or 'magnitude'
+    :return: flux density or AB magnitude
+    """
+    ejecta_relation = kwargs.get('ejecta_relation', ejr.OneComponentNSBH)
+    ejecta_relation = ejecta_relation(mass_bh=mass_bh, mass_ns=mass_ns, chi_eff=chi_eff, lambda_ns=lambda_ns)
+    mej = ejecta_relation.ejecta_mass
+    vej = ejecta_relation.ejecta_velocity
+    output = one_component_kilonova_model(time, redshift, mej, vej, kappa, **kwargs)
+    return output
 
 @citation_wrapper('redback')
 def two_component_nsbh_ejecta_relation(time, redshift, mass_1, mass_2,
