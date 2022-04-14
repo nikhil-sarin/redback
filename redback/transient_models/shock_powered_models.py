@@ -435,4 +435,4 @@ def shocked_cocoon(time, redshift, mej, vej, eta, tshock, shocked_fraction, cos_
 
 @citation_wrapper('https://ui.adsabs.harvard.edu/abs/2022ApJ...928..122M/abstract')
 def csm_truncation_shock():
-    pass
+    raise NotImplementedError("This model is not yet implemented.")
