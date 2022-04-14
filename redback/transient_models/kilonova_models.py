@@ -272,7 +272,7 @@ def one_component_ejecta_relation_projection(time, redshift, mass_1, mass_2,
 
 @citation_wrapper('redback')
 def two_component_bns_ejecta_relation(time, redshift, mass_1, mass_2,
-                                        lambda_1, lambda_2, mtov, zeta, vej_2, kappa_1, kappa_2, tc_1, tc_2, **kwargs):
+                                        lambda_1, lambda_2, mtov, zeta, vej_2, kappa_1, kappa_2, tf_1, tf_2, **kwargs):
     """
     Assumes two kilonova components corresponding to dynamical and disk wind ejecta with properties
     derived using ejecta relation specified by keyword argument.
@@ -288,8 +288,8 @@ def two_component_bns_ejecta_relation(time, redshift, mass_1, mass_2,
     :param vej_2: disk wind velocity in c
     :param kappa_1: gray opacity of first component
     :param kappa_2: gracy opacity of second component
-    :param tc_1: floor temperature of first component
-    :param tc_2: floor temperature of second component
+    :param tf_1: floor temperature of first component
+    :param tf_2: floor temperature of second component
     :param kwargs: additional keyword arguments
     :param ejecta_relation: a class that relates the instrinsic parameters to the kilonova parameters
             default is TwoComponentBNS
@@ -305,9 +305,9 @@ def two_component_bns_ejecta_relation(time, redshift, mass_1, mass_2,
     vej_1 = ejecta_relation.dynamical_vej
 
     output = two_component_kilonova_model(time=time, redshift=redshift, mej_1=mej_1,
-                                                vej_1=vej_1, temperature_floor_1=tc_1,
+                                                vej_1=vej_1, temperature_floor_1=tf_1,
                                                 kappa_1=kappa_1, mej_2=mej_2, vej_2=vej_2,
-                                                temperature_floor_2=tc_2, kappa_2=kappa_2, **kwargs)
+                                                temperature_floor_2=tf_2, kappa_2=kappa_2, **kwargs)
     return output
 
 @citation_wrapper('redback')
