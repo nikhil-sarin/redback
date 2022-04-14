@@ -1,0 +1,6 @@
+redshift = Uniform(1e-3, 0.1, 'redshift', latex_label = r'$z$')
+mej = Uniform(1e-4, 0.1, 'mej', latex_label = r'$M_{\mathrm{ej}} [M_{\odot}]$')
+vej_1 = Uniform(0.1, 0.7, 'vej_1', latex_label = r'$v_{\mathrm{ej}, 1} [c]$')
+vej_2 = Uniform(0.1, 0.7, 'vej_2', latex_label = r'$v_{\mathrm{ej}, 2} [c]$')
+kappa = Uniform(1, 30, 'kappa', latex_label = r'$\kappa$')
+beta = Uniform(1.5, 8, 'beta', latex_label = r'$\\beta$')
