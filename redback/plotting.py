@@ -47,6 +47,7 @@ class Plotter(object):
 
     max_likelihood_alpha = KwargsAccessorWithDefault("max_likelihood_alpha", 0.65)
     random_sample_alpha = KwargsAccessorWithDefault("random_sample_alpha", 0.05)
+    uncertainty_band_alpha = KwargsAccessorWithDefault("uncertainty_band_alpha", 0.4)
     max_likelihood_color = KwargsAccessorWithDefault("max_likelihood_color", "blue")
     random_sample_color = KwargsAccessorWithDefault("random_sample_color", "red")
 
@@ -66,6 +67,7 @@ class Plotter(object):
 
     plot_others = KwargsAccessorWithDefault("plot_others", True)
     random_models = KwargsAccessorWithDefault("random_models", 100)
+    uncertainty_mode = KwargsAccessorWithDefault("uncertainty_mode", "random_models")  # "random_models" or "credible_intervals"
 
     xlim_high_multiplier = 2.0
     xlim_low_multiplier = 0.5
@@ -266,8 +268,18 @@ class IntegratedFluxPlotter(Plotter):
     def _plot_lightcurves(self, axes: matplotlib.axes.Axes, times: np.ndarray) -> None:
         ys = self.model(times, **self._max_like_params, **self._model_kwargs)
         axes.plot(times, ys, color=self.max_likelihood_color, alpha=self.max_likelihood_alpha, lw=self.linewidth)
-        for params in self._get_random_parameters():
-            self._plot_single_lightcurve(axes=axes, times=times, params=params)
+
+        random_ys_list = [self.model(times, **random_params, **self._model_kwargs)
+                          for random_params in self._get_random_parameters()]
+
+        if self.uncertainty_mode == "random_models":
+            for ys in random_ys_list:
+                axes.plot(times, ys, color=self.random_sample_color, alpha=self.random_sample_alpha, lw=self.linewidth,
+                          zorder=self.zorder)
+        elif self.uncertainty_mode == "credible_intervals":
+            lower_bound, upper_bound, _ = redback.utils.calc_credible_intervals(samples=random_ys_list)
+            axes.fill_between(
+                times, lower_bound, upper_bound, alpha=self.uncertainty_band_alpha, color=self.max_likelihood_color)
 
     def _plot_single_lightcurve(self, axes: matplotlib.axes.Axes, times: np.ndarray, params: dict) -> None:
         ys = self.model(times, **params, **self._model_kwargs)
@@ -497,9 +509,17 @@ class MagnitudePlotter(Plotter):
             ys = self.model(times, **self._max_like_params, **self._model_kwargs)
             axes.plot(times - self._reference_mjd_date, ys, color=color, alpha=0.65, lw=2)
 
-            for params in random_params:
-                ys = self.model(times, **params, **self._model_kwargs)
-                axes.plot(times - self._reference_mjd_date, ys, color='red', alpha=0.05, lw=2, zorder=-1)
+            random_ys_list = [self.model(times, **random_params, **self._model_kwargs)
+                              for random_params in self._get_random_parameters()]
+
+            if self.uncertainty_mode == "random_models":
+                for ys in random_ys_list:
+                    axes.plot(times - self._reference_mjd_date, ys, color='red', alpha=0.05, lw=2, zorder=-1)
+            elif self.uncertainty_mode == "credible_intervals":
+                lower_bound, upper_bound, _ = redback.utils.calc_credible_intervals(samples=random_ys_list)
+                axes.fill_between(
+                    times - self._reference_mjd_date, lower_bound, upper_bound,
+                    alpha=self.uncertainty_band_alpha, color=color)
 
         self._save_and_show(filepath=self._lightcurve_plot_filepath, save=save, show=show)
         return axes
@@ -538,7 +558,7 @@ class MagnitudePlotter(Plotter):
 
         band_label_generator = self.band_label_generator
 
-        i = 0
+        ii = 0
         for indices, band, freq in zip(
                 self.transient.list_of_band_indices, self.transient.unique_bands, self.transient.unique_frequencies):
             if band not in self._filters:
@@ -551,17 +571,17 @@ class MagnitudePlotter(Plotter):
             else:
                 label = next(band_label_generator)
 
-            axes[i].errorbar(
+            axes[ii].errorbar(
                 self.transient.x[indices] - self._reference_mjd_date, self.transient.y[indices], xerr=x_err,
                 yerr=self.transient.y_err[indices], fmt=self.errorbar_fmt, ms=self.ms, color=color,
                 elinewidth=self.elinewidth, capsize=self.capsize,
                 label=label)
 
-            self._set_x_axis(axes[i])
-            self._set_y_axis_multiband_data(axes[i], indices)
-            axes[i].legend(ncol=2)
-            axes[i].tick_params(axis='both', which='major', pad=8)
-            i += 1
+            self._set_x_axis(axes[ii])
+            self._set_y_axis_multiband_data(axes[ii], indices)
+            axes[ii].legend(ncol=2)
+            axes[ii].tick_params(axis='both', which='major', pad=8)
+            ii += 1
 
         figure.supxlabel(self._xlabel, fontsize=self.fontsize_figure)
         figure.supylabel(self._ylabel, fontsize=self.fontsize_figure)
@@ -611,19 +631,29 @@ class MagnitudePlotter(Plotter):
         axes = self.plot_multiband(axes=axes, save=False, show=False)
 
         times = self._get_times(axes)
-        frequency = self.transient.bands_to_frequency(self._filters)
-        for ii in range(len(frequency)):
+
+        ii = 0
+        for band, freq in zip(self.transient.unique_bands, self.transient.unique_frequencies):
+            if band not in self._filters:
+                continue
             new_model_kwargs = self._model_kwargs.copy()
-            new_model_kwargs['frequency'] = frequency[ii]
+            new_model_kwargs['frequency'] = freq
             ys = self.model(times, **self._max_like_params, **new_model_kwargs)
             axes[ii].plot(
                 times - self._reference_mjd_date, ys, color=self.max_likelihood_color,
                 alpha=self.max_likelihood_alpha, lw=self.linewidth)
             random_ys_list = [self.model(times, **random_params, **new_model_kwargs)
                               for random_params in self._get_random_parameters()]
-            for random_ys in random_ys_list:
-                axes[ii].plot(times - self._reference_mjd_date, random_ys, color=self.random_sample_color,
-                              alpha=self.random_sample_alpha, lw=self.linewidth, zorder=self.zorder)
+            if self.uncertainty_mode == "random_models":
+                for random_ys in random_ys_list:
+                    axes[ii].plot(times - self._reference_mjd_date, random_ys, color=self.random_sample_color,
+                                  alpha=self.random_sample_alpha, lw=self.linewidth, zorder=self.zorder)
+            elif self.uncertainty_mode == "credible_intervals":
+                lower_bound, upper_bound, _ = redback.utils.calc_credible_intervals(samples=random_ys_list)
+                axes[ii].fill_between(
+                    times - self._reference_mjd_date, lower_bound, upper_bound,
+                    alpha=self.uncertainty_band_alpha, color=self.max_likelihood_color)
+            ii += 1
 
         self._save_and_show(filepath=self._multiband_lightcurve_plot_filepath, save=save, show=show)
         return axes
