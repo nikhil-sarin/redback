@@ -1,6 +1,5 @@
 gwemlightcurves
 sncosmo
-lalsuite
 nestle
 sherpa
 kilonova-heating-rate
