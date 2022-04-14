@@ -27,8 +27,6 @@ class TestModels(unittest.TestCase):
     def test_models(self):
         kwargs = dict(frequency=2e14, output_format="flux_density")
         times = np.array([1, 2, 3])
-        # for k in redback.model_library.all_models_dict:
-        #     print(k)
         for f in self.prior_files:
             print(f)
             prior = self.get_prior(file=f)

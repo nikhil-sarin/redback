@@ -1,5 +1,8 @@
 [![Documentation Status](https://readthedocs.org/projects/redback/badge/?version=latest)](https://redback.readthedocs.io/en/latest/?badge=latest)
+![Python package](https://github.com/nikhil-sarin/redback/workflows/Python%20application/badge.svg)
 [![Coverage Status](https://coveralls.io/repos/github/nikhil-sarin/redback/badge.svg?branch=master)](https://coveralls.io/github/nikhil-sarin/redback?branch=master)
+![PyPI](https://img.shields.io/pypi/v/redback)
+![PyPI - Downloads](https://img.shields.io/pypi/dm/redback)
 
 # Redback
 Introducing REDBACK, a bayesian inference software package for fitting electromagnetic transients
@@ -26,7 +29,7 @@ Redback is a software package for end-to-end interpretation and parameter estima
 ### Contributing 
 Redback is currently in alpha with a paper in preparation. 
 If you are interested in contributing please join the redback 
-[slack](https://join.slack.com/t/slack-23u4492/shared_invite/zt-14y9q1qmo-VRmc8ZxHzB3u~dB3Wi6pjw)
+[slack](https://join.slack.com/t/redback-group/shared_invite/zt-17cuuf8zl-U1tQcqYC6tajcNrNJwEiKw)
 and email [Nikhil Sarin](mailto:nikhil.sarin@su.se?subject=Contributing%20to%20redback). 
 All contributors at the alpha stage will be invited to be co-authors of the first paper.
 

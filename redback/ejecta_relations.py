@@ -22,10 +22,10 @@ class OneComponentBNSNoProjection(object):
         self.reference = 'https://ui.adsabs.harvard.edu/abs/2017CQGra..34j5014D/abstract'
         self.vrho = calc_vrho(mass_1=self.mass_1, mass_2=self.mass_2, lambda_1=self.lambda_1, lambda_2=self.lambda_2)
         self.vz = calc_vz(mass_1=self.mass_1, mass_2=self.mass_2, lambda_1=self.lambda_1, lambda_2=self.lambda_2)
-        self.ejecta_mass = self.calculate_ejecta_mass()
-        self.ejecta_velocity = self.calculate_ejecta_velocity()
-        self.qej = self.calculate_qej()
-        self.phej = self.calculate_phej()
+        self.ejecta_mass = self.calculate_ejecta_mass
+        self.ejecta_velocity = self.calculate_ejecta_velocity
+        self.qej = self.calculate_qej
+        self.phej = self.calculate_phej
 
     @property
     def calculate_ejecta_velocity(self):
@@ -105,10 +105,10 @@ class OneComponentBNSProjection(object):
         self.reference = 'https://ui.adsabs.harvard.edu/abs/2017CQGra..34j5014D/abstract'
         self.vrho = calc_vrho(mass_1=self.mass_1, mass_2=self.mass_2, lambda_1=self.lambda_1, lambda_2=self.lambda_2)
         self.vz = calc_vz(mass_1=self.mass_1, mass_2=self.mass_2, lambda_1=self.lambda_1, lambda_2=self.lambda_2)
-        self.ejecta_mass = self.calculate_ejecta_mass()
-        self.ejecta_velocity = self.calculate_ejecta_velocity()
-        self.qej = self.calculate_qej()
-        self.phej = self.calculate_phej()
+        self.ejecta_mass = self.calculate_ejecta_mass
+        self.ejecta_velocity = self.calculate_ejecta_velocity
+        self.qej = self.calculate_qej
+        self.phej = self.calculate_phej
 
     @property
     def calculate_ejecta_velocity(self):
@@ -191,11 +191,11 @@ class TwoComponentBNS(object):
         self.reference = 'https://ui.adsabs.harvard.edu/abs/2019MNRAS.489L..91C/abstract'
         self.vrho = calc_vrho(mass_1=self.mass_1, mass_2=self.mass_2, lambda_1=self.lambda_1, lambda_2=self.lambda_2)
         self.vz = calc_vz(mass_1=self.mass_1, mass_2=self.mass_2, lambda_1=self.lambda_1, lambda_2=self.lambda_2)
-        self.dynamical_mej = self.calculate_dynamical_ejecta_mass()
-        self.disk_wind_mej = self.calculate_disk_wind_mass()
-        self.ejecta_velocity = self.calculate_ejecta_velocity()
-        self.qej = self.calculate_qej()
-        self.phej = self.calculate_phej()
+        self.dynamical_mej = self.calculate_dynamical_ejecta_mass
+        self.disk_wind_mej = self.calculate_disk_wind_mass
+        self.ejecta_velocity = self.calculate_ejecta_velocity
+        self.qej = self.calculate_qej
+        self.phej = self.calculate_phej
 
     @property
     def calculate_ejecta_velocity(self):
@@ -308,10 +308,10 @@ class TwoComponentNSBH(object):
         self.zeta = zeta
         self.reference = ['https://ui.adsabs.harvard.edu/abs/2016ApJ...825...52K/abstract',
                           'https://ui.adsabs.harvard.edu/abs/2018PhRvD..98h1501F/abstract']
-        self.risco = self.rcap_isco()
-        self.ejecta_velocity = self.calculate_ejecta_velocity()
-        self.dynamical_mej = self.calculate_dynamical_ejecta_mass()
-        self.disk_wind_mej = self.calculate_disk_wind_mass()
+        self.risco = self.rcap_isco
+        self.ejecta_velocity = self.calculate_ejecta_velocity
+        self.dynamical_mej = self.calculate_dynamical_ejecta_mass
+        self.disk_wind_mej = self.calculate_disk_wind_mass
 
     @property
     def rcap_isco(self):
@@ -394,9 +394,9 @@ class OneComponentNSBH(object):
         self.chi_eff = chi_eff
         self.lambda_ns = lambda_ns
         self.reference = 'https://ui.adsabs.harvard.edu/abs/2016ApJ...825...52K/abstract'
-        self.risco = self.isco_radius()
-        self.ejecta_velocity = self.calculate_ejecta_velocity()
-        self.ejecta_mass = self.calculate_ejecta_mass()
+        self.risco = self.isco_radius
+        self.ejecta_velocity = self.calculate_ejecta_velocity
+        self.ejecta_mass = self.calculate_ejecta_mass
 
     @property
     def isco_radius(self):

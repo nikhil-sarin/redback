@@ -6,6 +6,7 @@ from scipy.interpolate import interp1d
 from astropy.cosmology import Planck18 as cosmo  # noqa
 from redback.utils import calc_kcorrected_properties, interpolated_barnes_and_kasen_thermalisation_efficiency, \
     electron_fraction_from_kappa
+from redback.eos import PiecewisePolytrope
 from redback.sed import blackbody_to_flux_density
 from redback.constants import *
 from redback.utils import citation_wrapper
@@ -27,21 +28,21 @@ def mosfit_kilonova():
     pass
 
 @citation_wrapper('https://ui.adsabs.harvard.edu/abs/2020ApJ...891..152H/abstract')
-def power_law_stratified_kilonova(time, redshift, mass, vmin, vmax, alpha,
+def power_law_stratified_kilonova(time, redshift, mej, vmin, vmax, alpha,
                                   kappa_min, kappa_max, beta, **kwargs):
     pass
 
 @citation_wrapper('https://ui.adsabs.harvard.edu/abs/2020ApJ...891..152H/abstract')
-def two_layer_stratified_kilonova(time, redshift, mass, vej_1, vej_2, kappa, beta, **kwargs):
+def two_layer_stratified_kilonova(time, redshift, mej, vej_1, vej_2, kappa, beta, **kwargs):
     """
     Uses kilonova_heating_rate module to model a two layer stratified kilonova
 
     :param time: observer frame time in days
     :param redshift: redshift
     :param frequency: frequency to calculate - Must be same length as time array or a single number
-    :param mass: ejecta mass
-    :param vej_1: velocity of inner shell   
-    :param vej_2: velocity of outer shell
+    :param mej: ejecta mass in solar masses
+    :param vej_1: velocity of inner shell in c
+    :param vej_2: velocity of outer shell in c
     :param kappa: constant gray opacity
     :param beta: power law index of density profile
     :param kwargs: output_format
@@ -49,18 +50,18 @@ def two_layer_stratified_kilonova(time, redshift, mass, vej_1, vej_2, kappa, bet
     :return: flux_density or magnitude
     """
     velocity_array = np.array([vej_1, vej_2])
-    output = _kilonova_hr(time, redshift, mass, velocity_array, kappa, beta, **kwargs)
+    output = _kilonova_hr(time, redshift, mej, velocity_array, kappa, beta, **kwargs)
     return output
 
 
-def _kilonova_hr(time, redshift, mass, velocity_array, kappa_array, beta, **kwargs):
+def _kilonova_hr(time, redshift, mej, velocity_array, kappa_array, beta, **kwargs):
     """
     Uses kilonova_heating_rate module
 
     :param time: observer frame time in days
     :param redshift: redshift
     :param frequency: frequency to calculate - Must be same length as time array or a single number
-    :param mass: ejecta mass
+    :param mej: ejecta mass
     :param velocity_array: array of ejecta velocities; length >=2
     :param kappa_array: opacities of each shell, length = 1 less than velocity
     :param beta: power law index of density profile
@@ -73,7 +74,7 @@ def _kilonova_hr(time, redshift, mass, velocity_array, kappa_array, beta, **kwar
     time = time * day_to_s
     frequency, time = calc_kcorrected_properties(frequency=frequency, redshift=redshift, time=time)
     dl = cosmo.luminosity_distance(redshift).cgs.value
-    _, temperature, r_photosphere = _kilonova_hr_sourceframe(time, mass, velocity_array, kappa_array, beta)
+    _, temperature, r_photosphere = _kilonova_hr_sourceframe(time, mej, velocity_array, kappa_array, beta)
 
     flux_density = blackbody_to_flux_density(temperature=temperature.value, r_photosphere=r_photosphere.value,
                                              dl=dl, frequency=frequency)
@@ -85,12 +86,12 @@ def _kilonova_hr(time, redshift, mass, velocity_array, kappa_array, beta, **kwar
 
 
 
-def _kilonova_hr_sourceframe(time, mass, velocity_array, kappa_array, beta):
+def _kilonova_hr_sourceframe(time, mej, velocity_array, kappa_array, beta):
     """
     Uses kilonova_heating_rate module
 
     :param time: source frame time in seconds
-    :param mass: ejecta mass
+    :param mej: ejecta mass
     :param velocity_array: array of ejecta velocities; length >=2
     :param kappa_array: opacities of each shell, length = 1 less than velocity
     :param beta: power law index of density profile
@@ -98,12 +99,10 @@ def _kilonova_hr_sourceframe(time, mass, velocity_array, kappa_array, beta):
     """
     if len(velocity_array) < 2:
         raise ValueError("velocity_array must be of length >=2")
-    if len(kappa_array) != len(velocity_array) - 1:
-        raise ValueError("kappa_array must have length one less than velocity")
 
     from kilonova_heating_rate import lightcurve
 
-    mass = mass * uu.M_sun
+    mej = mej * uu.M_sun
     velocity_array = velocity_array * cc.c
     kappa_array = kappa_array * uu.cm**2 / uu.g
     time = time * uu.s
@@ -111,7 +110,7 @@ def _kilonova_hr_sourceframe(time, mass, velocity_array, kappa_array, beta):
     if time.value[0] < 0.02:
         raise ValueError("time in source frame must be larger than 0.01 days for this model")
 
-    bolometric_luminosity, temperature, r_photosphere = lightcurve(time, mass=mass, velocities=velocity_array,
+    bolometric_luminosity, temperature, r_photosphere = lightcurve(time, mass=mej, velocities=velocity_array,
                                                                    opacities=kappa_array, n=beta)
     return bolometric_luminosity, temperature, r_photosphere
 
@@ -221,9 +220,11 @@ def two_component_kilonova_model(time, redshift, mej_1, vej_1, temperature_floor
         return ff.to(uu.ABmag).value
 
 @citation_wrapper('redback')
-def one_component_ejecta_relation_model(time, redshift, mass_1, mass_2,
-                                        lambda_1, lambda_2, kappa, **kwargs):
+def one_component_ejecta_relation(time, redshift, mass_1, mass_2,
+                                  lambda_1, lambda_2, kappa, **kwargs):
     """
+    Assumes no velocity projection in the ejecta velocity ejecta relation
+
     :param time: observer frame time in days
     :param redshift: redshift
     :param mass_1: mass of primary in solar masses
@@ -236,13 +237,190 @@ def one_component_ejecta_relation_model(time, redshift, mass_1, mass_2,
                     frequency (frequency to calculate - Must be same length as time array or a single number)
     :return: flux_density or magnitude
     """
-    frequency = kwargs['frequency']
     ejecta_relation = kwargs.get('ejecta_relation', ejr.OneComponentBNSNoProjection)
     ejecta_relation = ejecta_relation(mass_1, mass_2, lambda_1, lambda_2)
     mej = ejecta_relation.ejecta_mass
     vej = ejecta_relation.ejecta_velocity
-    flux_density = one_component_kilonova_model(time, redshift, frequency, mej, vej, kappa, **kwargs)
+    flux_density = one_component_kilonova_model(time, redshift, mej, vej, kappa, **kwargs)
     return flux_density
+
+@citation_wrapper('redback')
+def one_component_ejecta_relation_projection(time, redshift, mass_1, mass_2,
+                                             lambda_1, lambda_2, kappa, **kwargs):
+    """
+    Assumes a velocity projection between the orthogonal and orbital plane
+
+    :param time: observer frame time in days
+    :param redshift: redshift
+    :param mass_1: mass of primary in solar masses
+    :param mass_2: mass of secondary in solar masses
+    :param lambda_1: dimensionless tidal deformability of primary
+    :param lambda_2: dimensionless tidal deformability of secondary
+    :param kappa: gray opacity
+    :param kwargs: temperature_floor, output_format,
+                    ejecta_relation; a class that relates the instrinsic parameters to the kilonova parameters
+                    frequency (frequency to calculate - Must be same length as time array or a single number)
+    :return: flux_density or magnitude
+    """
+    ejecta_relation = kwargs.get('ejecta_relation', ejr.OneComponentBNSProjection)
+    ejecta_relation = ejecta_relation(mass_1, mass_2, lambda_1, lambda_2)
+    mej = ejecta_relation.ejecta_mass
+    vej = ejecta_relation.ejecta_velocity
+    flux_density = one_component_kilonova_model(time, redshift, mej, vej, kappa, **kwargs)
+    return flux_density
+
+@citation_wrapper('redback')
+def two_component_bns_ejecta_relation(time, redshift, mass_1, mass_2,
+                                        lambda_1, lambda_2, mtov, zeta, vej_2, kappa_1, kappa_2, tf_1, tf_2, **kwargs):
+    """
+    Assumes two kilonova components corresponding to dynamical and disk wind ejecta with properties
+    derived using ejecta relation specified by keyword argument.
+
+    :param time: observer frame time in days
+    :param redshift: redshift
+    :param mass_1: mass of primary in solar masses
+    :param mass_2: mass of secondary in solar masses
+    :param lambda_1: dimensionless tidal deformability of primary
+    :param lambda_2: dimensionless tidal deformability of secondary
+    :param mtov: Tolman Oppenheimer Volkoff mass in solar masses
+    :param zeta: fraction of disk that gets unbound
+    :param vej_2: disk wind velocity in c
+    :param kappa_1: gray opacity of first component
+    :param kappa_2: gracy opacity of second component
+    :param tf_1: floor temperature of first component
+    :param tf_2: floor temperature of second component
+    :param kwargs: additional keyword arguments
+    :param ejecta_relation: a class that relates the instrinsic parameters to the kilonova parameters
+            default is TwoComponentBNS
+    :param frequency: (frequency to calculate - Must be same length as time array or a single number)
+    :param output_format: 'flux_density' or 'magnitude'
+    :return: flux density or AB magnitude
+    """
+    ejecta_relation = kwargs.get('ejecta_relation', ejr.TwoComponentBNS)
+    ejecta_relation = ejecta_relation(mass_1=mass_1, mass_2=mass_2, lambda_1=lambda_1,
+                                      lambda_2=lambda_2, mtov=mtov, zeta=zeta)
+    mej_1 = ejecta_relation.dynamical_mej
+    mej_2 = ejecta_relation.disk_wind_mej
+    vej_1 = ejecta_relation.ejecta_velocity
+
+    output = two_component_kilonova_model(time=time, redshift=redshift, mej_1=mej_1,
+                                                vej_1=vej_1, temperature_floor_1=tf_1,
+                                                kappa_1=kappa_1, mej_2=mej_2, vej_2=vej_2,
+                                                temperature_floor_2=tf_2, kappa_2=kappa_2, **kwargs)
+    return output
+
+@citation_wrapper('redback')
+def polytrope_eos_two_component_bns(time, redshift, mass_1, mass_2,  log_p, gamma_1, gamma_2, gamma_3,
+                                    zeta, vej_2, kappa_1, kappa_2, tf_1, tf_2, **kwargs):
+    """
+    Assumes two kilonova components corresponding to dynamical and disk wind ejecta with properties
+    derived using ejecta relation specified by keyword argument and lambda set by polytropic EOS.
+
+    :param time: observer frame time in days
+    :param redshift: redshift
+    :param mass_1: mass of primary in solar masses
+    :param mass_2: mass of secondary in solar masses
+    :param log_p: log central pressure in SI units
+    :param gamma_1: polytrope index 1
+    :param gamma_2: polytrope index 2
+    :param gamma_3: polytrope index 3
+    :param zeta: fraction of disk that gets unbound
+    :param vej_2: disk wind velocity in c
+    :param kappa_1: gray opacity of first component
+    :param kappa_2: gracy opacity of second component
+    :param tf_1: floor temperature of first component
+    :param tf_2: floor temperature of second component
+    :param kwargs: additional keyword arguments
+    :param ejecta_relation: a class that relates the instrinsic parameters to the kilonova parameters
+            default is TwoComponentBNS
+    :param frequency: (frequency to calculate - Must be same length as time array or a single number)
+    :param output_format: 'flux_density' or 'magnitude'
+    :return: flux density or AB magnitude
+    """
+    central_pressure = np.logspace(np.log10(4e32), np.log10(2.5e35), 70)
+    eos = PiecewisePolytrope(log_p=log_p, gamma_1=gamma_1, gamma_2=gamma_2, gamma_3=gamma_3)
+    mtov = eos.maximum_mass()
+    masses = np.array([mass_1, mass_2])
+    tidal_deformability, _ = eos.lambda_of_mass(central_pressure=central_pressure, mass=masses)
+    lambda_1, lambda_2 = tidal_deformability[0], tidal_deformability[1]
+    ejecta_relation = kwargs.get('ejecta_relation', ejr.TwoComponentBNS)
+    ejecta_relation = ejecta_relation(mass_1=mass_1, mass_2=mass_2, lambda_1=lambda_1,
+                                      lambda_2=lambda_2, mtov=mtov, zeta=zeta)
+    mej_1 = ejecta_relation.dynamical_mej
+    mej_2 = ejecta_relation.disk_wind_mej
+    vej_1 = ejecta_relation.ejecta_velocity
+
+    output = two_component_kilonova_model(time=time, redshift=redshift, mej_1=mej_1,
+                                                vej_1=vej_1, temperature_floor_1=tf_1,
+                                                kappa_1=kappa_1, mej_2=mej_2, vej_2=vej_2,
+                                                temperature_floor_2=tf_2, kappa_2=kappa_2, **kwargs)
+    return output
+
+@citation_wrapper('redback')
+def one_component_nsbh_ejecta_relation(time, redshift, mass_bh, mass_ns,
+                                        chi_eff, lambda_ns, kappa, **kwargs):
+    """
+    One component NSBH model
+
+    :param time: observer frame time in days
+    :param redshift: redshift
+    :param mass_bh: mass of black hole
+    :param mass_2: mass of neutron star
+    :param chi_eff: effective spin of black hole
+    :param lambda_ns: tidal deformability of neutron star
+    :param kappa: opacity
+    :param kwargs: additional keyword arguments
+    :param temperature_floor: floor temperature
+    :param ejecta_relation: a class that relates the instrinsic parameters to the kilonova parameters
+            default is TwoComponentBNS
+    :param frequency: (frequency to calculate - Must be same length as time array or a single number)
+    :param output_format: 'flux_density' or 'magnitude'
+    :return: flux density or AB magnitude
+    """
+    ejecta_relation = kwargs.get('ejecta_relation', ejr.OneComponentNSBH)
+    ejecta_relation = ejecta_relation(mass_bh=mass_bh, mass_ns=mass_ns, chi_eff=chi_eff, lambda_ns=lambda_ns)
+    mej = ejecta_relation.ejecta_mass
+    vej = ejecta_relation.ejecta_velocity
+    output = one_component_kilonova_model(time, redshift, mej, vej, kappa, **kwargs)
+    return output
+
+@citation_wrapper('redback')
+def two_component_nsbh_ejecta_relation(time, redshift,  mass_bh, mass_ns,
+                                        chi_eff, lambda_ns, zeta, vej_2, kappa_1, kappa_2, tf_1, tf_2, **kwargs):
+    """
+    Two component NSBH model with dynamical and disk wind ejecta
+
+    :param time: observer frame time in days
+    :param redshift: redshift
+    :param mass_bh: mass of black hole
+    :param mass_2: mass of neutron star
+    :param chi_eff: effective spin of black hole
+    :param lambda_ns: tidal deformability of neutron star
+    :param zeta: fraction of disk that gets unbound
+    :param vej_2: disk wind velocity in c
+    :param kappa_1: gray opacity of first component
+    :param kappa_2: gracy opacity of second component
+    :param tf_1: floor temperature of first component
+    :param tf_2: floor temperature of second component
+    :param kwargs: additional keyword arguments
+    :param ejecta_relation: a class that relates the instrinsic parameters to the kilonova parameters
+            default is TwoComponentNSBH
+    :param frequency: (frequency to calculate - Must be same length as time array or a single number)
+    :param output_format: 'flux_density' or 'magnitude'
+    :return: flux density or AB magnitude
+    """
+    ejecta_relation = kwargs.get('ejecta_relation', ejr.TwoComponentNSBH)
+    ejecta_relation = ejecta_relation(mass_bh=mass_bh, mass_ns=mass_ns, chi_eff=chi_eff,
+                                      lambda_ns=lambda_ns, zeta=zeta)
+    mej_1 = ejecta_relation.dynamical_mej
+    mej_2 = ejecta_relation.disk_wind_mej
+    vej_1 = ejecta_relation.ejecta_velocity
+
+    output = two_component_kilonova_model(time=time, redshift=redshift, mej_1=mej_1,
+                                                vej_1=vej_1, temperature_floor_1=tf_1,
+                                                kappa_1=kappa_1, mej_2=mej_2, vej_2=vej_2,
+                                                temperature_floor_2=tf_2, kappa_2=kappa_2, **kwargs)
+    return output
 
 @citation_wrapper('redback')
 def one_component_kilonova_model(time, redshift, mej, vej, kappa, **kwargs):

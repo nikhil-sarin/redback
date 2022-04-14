@@ -8,7 +8,7 @@ Implementing a new model is probably the easiest way to contribute to redback!
 
 Specifically, the models already included are
 
-- Afterglow models:
+- Afterglow models: Can output in flux density/magnitude/integrated flux/luminosity
 
     - Several structured jet models implemented in `afterglowpy <https://afterglowpy.readthedocs.io/en/latest/>`_.
     - Tophat jet implemented in `afterglowpy <https://afterglowpy.readthedocs.io/en/latest/>`_.
@@ -17,13 +17,21 @@ Specifically, the models already included are
     - Surrogate built on top of `jetfit <https://github.com/NYU-CAL/JetFit>`_.
     - Surrogate built on top of `boxfit <https://cosmo.nyu.edu/afterglowlibrary/index.html>`_.
 
-- Kilonova models
+- Kilonova models: Can output in flux density/magnitude/
 
     - One/two/three component kilonova models
     - two_layer_stratified_kilonova
     - power_law_stratified_kilonova
     - `kilonova heating rate <https://github.com/Basdorsman/kilonova-heating-rate>`_
-    - ejecta_relation_kilonova_model
+    - One component BNS ejecta relation
+    - Two component BNS ejecta relation
+    - One component NSBH ejecta relation
+    - Two component NSBH ejecta relation
+    - Polytrope EOS ejecta relation
+    - Aspherical kilonova
+    - `Three component model <https://ui.adsabs.harvard.edu/abs/2021MNRAS.505.3016N/abstract>`_ ejecta relation
+    - `Three component model <https://ui.adsabs.harvard.edu/abs/2017ApJ...848L..17C/abstract>`_ temperature floor
+    - `Three component model <https://ui.adsabs.harvard.edu/abs/2017ApJ...851L..21V/abstract>`_ temperature floor and diffusion
     - `Metzger 2017 <https://ui.adsabs.harvard.edu/abs/2017LRR....20....3M/abstract>`_
     - Surrogates of several different numerical simulations
     - All kilonova models in `gwemlightcurves <https://github.com/mcoughlin/gwemlightcurves>`_
@@ -39,13 +47,24 @@ Specifically, the models already included are
     - SLSN
     - exponential powerlaw
     - SNcosmo
+    - Shock cooling + Arnett
+
+- Shock models: Can output in flux density/magnitude/bolometric luminosity
+
+    - Shock cooling
+    - Thermal synchrotron
+    - Shocked cocoon
+    - CSM truncation shock
 
 - Magnetar driven ejecta models:
 
-    - Metzger magnetar boosted kilonova
+    - Metzger magnetar driven kilonova
     - Mergernova
     - Trapped magnetar
-    - General magnetar boosted kilonova
+    - General magnetar driven kilonova
+    - General mergernova
+    - Magnetic field mergernova
+    - Magnetic field metzger driven kilonova
 
 - Millisecond magnetar models
 
@@ -67,7 +86,7 @@ Specifically, the models already included are
     - exponential_powerlaw
 
 We note that these models can output in `flux_density` or `magnitude` set by the keyword argument
-`output_format` or using the appropriate bolometric/flux function.
+`output_format` or in integrated flux or luminosity using the appropriate luminosity/flux function.
 
 Alongside these models we also include some general models which can many of the above models as a `base_model`
 
@@ -76,6 +95,7 @@ Alongside these models we also include some general models which can many of the
 - Extinction models
 - Phase models
 - Phase + extinction models
+- Integrated flux afterglow models
 - Gaussian process base model: Will be soon implemented.
 
 For a full up to date list of models implemented in :code:`redback`, look at the `API <https://redback.readthedocs.io/en/latest/>`_

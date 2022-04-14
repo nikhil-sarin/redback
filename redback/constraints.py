@@ -1,4 +1,5 @@
 import numpy as np
+import redback.eos as eos
 from redback.constants import *
 
 def slsn_constraint(parameters):
@@ -195,14 +196,12 @@ def piecewise_polytrope_eos_constraints(parameters):
 
 @np.vectorize
 def calc_max_mass(log_p, gamma_1, gamma_2, gamma_3, **kwargs):
-    import toast
-    maximum_eos_mass = toast.piecewise_polytrope.maximum_mass(
-        log_p=log_p, Gamma_1=gamma_1, Gamma_2=gamma_2, Gamma_3=gamma_3)
+    polytrope = eos.PiecewisePolytrope(log_p=log_p, gamma_1=gamma_1, gamma_2=gamma_2, gamma_3=gamma_3)
+    maximum_eos_mass = polytrope.maximum_mass()
     return maximum_eos_mass
 
 @np.vectorize
 def calc_speed_of_sound(log_p, gamma_1, gamma_2, gamma_3, **kwargs):
-    import toast
-    maximum_speed_of_sound = toast.piecewise_polytrope.maximum_speed_of_sound(
-        log_p=log_p, Gamma_1=gamma_1, Gamma_2=gamma_2, Gamma_3=gamma_3)
+    polytrope = eos.PiecewisePolytrope(log_p=log_p, gamma_1=gamma_1, gamma_2=gamma_2, gamma_3=gamma_3)
+    maximum_speed_of_sound = polytrope.maximum_speed_of_sound()
     return maximum_speed_of_sound

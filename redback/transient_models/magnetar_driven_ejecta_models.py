@@ -10,7 +10,7 @@ from redback.utils import calc_kcorrected_properties, interpolated_barnes_and_ka
 from redback.sed import blackbody_to_flux_density
 
 @citation_wrapper('https://ui.adsabs.harvard.edu/abs/2017LRR....20....3M/abstract')
-def metzger_magnetar_boosted_kilonova_model(time, redshift, mej, vej, beta, kappa_r, l0, tau_sd, nn, thermalisation_efficiency, **kwargs):
+def metzger_magnetar_driven_kilonova_model(time, redshift, mej, vej, beta, kappa_r, l0, tau_sd, nn, thermalisation_efficiency, **kwargs):
     """
     :param time: observer frame time in days
     :param redshift: redshift
@@ -29,9 +29,9 @@ def metzger_magnetar_boosted_kilonova_model(time, redshift, mej, vej, beta, kapp
     """
     frequency = kwargs['frequency']
     time_temp = np.geomspace(1e-4, 1e7, 300)
-    bolometric_luminosity, temperature, r_photosphere = _metzger_magnetar_boosted_kilonova_model(time_temp, mej, vej, beta,
-                                                                                               kappa_r, l0, tau_sd, nn,
-                                                                                               thermalisation_efficiency, **kwargs)
+    bolometric_luminosity, temperature, r_photosphere = _metzger_magnetar_driven_kilonova_model(time_temp, mej, vej, beta,
+                                                                                                kappa_r, l0, tau_sd, nn,
+                                                                                                thermalisation_efficiency, **kwargs)
     dl = cosmo.luminosity_distance(redshift).cgs.value
 
     # interpolate properties onto observation times
@@ -52,7 +52,7 @@ def metzger_magnetar_boosted_kilonova_model(time, redshift, mej, vej, beta, kapp
     elif kwargs['output_format'] == 'magnitude':
         return flux_density.to(uu.ABmag).value
 
-def _metzger_magnetar_boosted_kilonova_model(time, mej, vej, beta, kappa, l0, tau_sd, nn, thermalisation_efficiency, **kwargs):
+def _metzger_magnetar_driven_kilonova_model(time, mej, vej, beta, kappa, l0, tau_sd, nn, thermalisation_efficiency, **kwargs):
     """
     :param time: time array to evaluate model on in source frame in seconds
     :param redshift: redshift
