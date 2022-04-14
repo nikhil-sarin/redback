@@ -68,6 +68,7 @@ class Plotter(object):
     plot_others = KwargsAccessorWithDefault("plot_others", True)
     random_models = KwargsAccessorWithDefault("random_models", 100)
     uncertainty_mode = KwargsAccessorWithDefault("uncertainty_mode", "random_models")  # "random_models" or "credible_intervals"
+    plot_max_likelihood = KwargsAccessorWithDefault("plot_max_likelihood", True)
 
     xlim_high_multiplier = 2.0
     xlim_low_multiplier = 0.5
@@ -168,7 +169,9 @@ class Plotter(object):
         return self._posterior.iloc[-1]
 
     def _get_random_parameters(self) -> list[pd.core.series.Series]:
-        return [self._posterior.iloc[np.random.randint(len(self._posterior))] for _ in range(self.random_models)]
+        integers = np.arange(len(self._posterior))
+        indices = np.random.choice(integers, size=self.random_models)
+        return [self._posterior.iloc[idx] for idx in indices]
 
     _data_plot_filename = _FilenameGetter(suffix="data")
     _lightcurve_plot_filename = _FilenameGetter(suffix="lightcurve")
@@ -266,12 +269,12 @@ class IntegratedFluxPlotter(Plotter):
         return axes
 
     def _plot_lightcurves(self, axes: matplotlib.axes.Axes, times: np.ndarray) -> None:
-        ys = self.model(times, **self._max_like_params, **self._model_kwargs)
-        axes.plot(times, ys, color=self.max_likelihood_color, alpha=self.max_likelihood_alpha, lw=self.linewidth)
+        if self.plot_max_likelihood:
+            ys = self.model(times, **self._max_like_params, **self._model_kwargs)
+            axes.plot(times, ys, color=self.max_likelihood_color, alpha=self.max_likelihood_alpha, lw=self.linewidth)
 
         random_ys_list = [self.model(times, **random_params, **self._model_kwargs)
                           for random_params in self._get_random_parameters()]
-
         if self.uncertainty_mode == "random_models":
             for ys in random_ys_list:
                 axes.plot(times, ys, color=self.random_sample_color, alpha=self.random_sample_alpha, lw=self.linewidth,
@@ -501,13 +504,12 @@ class MagnitudePlotter(Plotter):
 
         times = self._get_times(axes)
 
-        random_params = self._get_random_parameters()
-
         for band, color in zip(self.transient.active_bands, self.transient.get_colors(self.transient.active_bands)):
             frequency = redback.utils.bands_to_frequency([band])
             self._model_kwargs["frequency"] = np.ones(len(times)) * frequency
-            ys = self.model(times, **self._max_like_params, **self._model_kwargs)
-            axes.plot(times - self._reference_mjd_date, ys, color=color, alpha=0.65, lw=2)
+            if self.plot_max_likelihood:
+                ys = self.model(times, **self._max_like_params, **self._model_kwargs)
+                axes.plot(times - self._reference_mjd_date, ys, color=color, alpha=0.65, lw=2)
 
             random_ys_list = [self.model(times, **random_params, **self._model_kwargs)
                               for random_params in self._get_random_parameters()]
@@ -638,10 +640,11 @@ class MagnitudePlotter(Plotter):
                 continue
             new_model_kwargs = self._model_kwargs.copy()
             new_model_kwargs['frequency'] = freq
-            ys = self.model(times, **self._max_like_params, **new_model_kwargs)
-            axes[ii].plot(
-                times - self._reference_mjd_date, ys, color=self.max_likelihood_color,
-                alpha=self.max_likelihood_alpha, lw=self.linewidth)
+            if self.plot_max_likelihood:
+                ys = self.model(times, **self._max_like_params, **new_model_kwargs)
+                axes[ii].plot(
+                    times - self._reference_mjd_date, ys, color=self.max_likelihood_color,
+                    alpha=self.max_likelihood_alpha, lw=self.linewidth)
             random_ys_list = [self.model(times, **random_params, **new_model_kwargs)
                               for random_params in self._get_random_parameters()]
             if self.uncertainty_mode == "random_models":
