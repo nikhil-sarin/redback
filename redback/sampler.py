@@ -56,8 +56,6 @@ def fit_model(
     outdir = outdir or f"{transient.directory_structure.directory_path}/{model.__name__}"
     Path(outdir).mkdir(parents=True, exist_ok=True)
     label = label or transient.name
-    if use_photon_index_prior:
-        label += '_photon_index'
 
     if isinstance(transient, Afterglow):
         return _fit_grb(
@@ -81,6 +79,7 @@ def fit_model(
 def _fit_grb(transient, model, outdir, label, sampler='dynesty', nlive=3000, prior=None, walks=1000,
              use_photon_index_prior=False, resume=True, save_format='json', model_kwargs=None, **kwargs):
     if use_photon_index_prior:
+        label += '_photon_index'
         if transient.photon_index < 0.:
             logger.info('photon index for GRB', transient.name, 'is negative. Using default prior on alpha_1')
             prior['alpha_1'] = bilby.prior.Uniform(-10, -0.5, 'alpha_1', latex_label=r'$\alpha_{1}$')
