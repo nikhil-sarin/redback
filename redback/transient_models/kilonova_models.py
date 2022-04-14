@@ -302,7 +302,7 @@ def two_component_bns_ejecta_relation(time, redshift, mass_1, mass_2,
                                       lambda_2=lambda_2, mtov=mtov, zeta=zeta)
     mej_1 = ejecta_relation.dynamical_mej
     mej_2 = ejecta_relation.disk_wind_mej
-    vej_1 = ejecta_relation.dynamical_vej
+    vej_1 = ejecta_relation.ejecta_velocity
 
     output = two_component_kilonova_model(time=time, redshift=redshift, mej_1=mej_1,
                                                 vej_1=vej_1, temperature_floor_1=tf_1,
@@ -339,16 +339,41 @@ def one_component_nsbh_ejecta_relation(time, redshift, mass_bh, mass_ns,
     return output
 
 @citation_wrapper('redback')
-def two_component_nsbh_ejecta_relation(time, redshift, mass_1, mass_2,
-                                        lambda_1, lambda_2, kappa, **kwargs):
+def two_component_nsbh_ejecta_relation(time, redshift,  mass_bh, mass_ns,
+                                        chi_eff, lambda_ns, zeta, vej_2, kappa_1, kappa_2, tf_1, tf_2, **kwargs):
+    """
+    Two component NSBH model with dynamical and disk wind ejecta
+
+    :param time: observer frame time in days
+    :param redshift: redshift
+    :param mass_bh: mass of black hole
+    :param mass_2: mass of neutron star
+    :param chi_eff: effective spin of black hole
+    :param lambda_ns: tidal deformability of neutron star
+    :param zeta: fraction of disk that gets unbound
+    :param vej_2: disk wind velocity in c
+    :param kappa_1: gray opacity of first component
+    :param kappa_2: gracy opacity of second component
+    :param tf_1: floor temperature of first component
+    :param tf_2: floor temperature of second component
+    :param kwargs: additional keyword arguments
+    :param ejecta_relation: a class that relates the instrinsic parameters to the kilonova parameters
+            default is TwoComponentNSBH
+    :param frequency: (frequency to calculate - Must be same length as time array or a single number)
+    :param output_format: 'flux_density' or 'magnitude'
+    :return: flux density or AB magnitude
+    """
+    ejecta_relation = kwargs.get('ejecta_relation', ejr.TwoComponentNSBH)
+    ejecta_relation = ejecta_relation(mass_bh=mass_bh, mass_ns=mass_ns, chi_eff=chi_eff,
+                                      lambda_ns=lambda_ns, zeta=zeta)
     mej_1 = ejecta_relation.dynamical_mej
     mej_2 = ejecta_relation.disk_wind_mej
-    vej_1 = ejecta_relation.dynamical_vej
+    vej_1 = ejecta_relation.ejecta_velocity
 
     output = two_component_kilonova_model(time=time, redshift=redshift, mej_1=mej_1,
-                                                vej_1=vej_1, temperature_floor_1=tc_1,
+                                                vej_1=vej_1, temperature_floor_1=tf_1,
                                                 kappa_1=kappa_1, mej_2=mej_2, vej_2=vej_2,
-                                                temperature_floor_2=tc_2, kappa_2=kappa_2, **kwargs)
+                                                temperature_floor_2=tf_2, kappa_2=kappa_2, **kwargs)
     return output
 
 @citation_wrapper('redback')
