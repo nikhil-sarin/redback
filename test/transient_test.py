@@ -177,8 +177,8 @@ class TestOpticalTransient(unittest.TestCase):
         self.name = "SN2000A"
         self.photon_index = 2
         self.use_phase_model = False
-        self.bands = np.array(['a', 'b', 'b'])
-        self.active_bands = np.array(['b'])
+        self.bands = np.array(['i', 'g', 'g'])
+        self.active_bands = np.array(['g'])
         self.transient = redback.transient.transient.OpticalTransient(
             time=self.time, time_err=self.time_err, flux_density=self.y, flux_density_err=self.y_err,
             redshift=self.redshift, data_mode=self.data_mode, name=self.name,
@@ -299,7 +299,7 @@ class TestOpticalTransient(unittest.TestCase):
             redshift=self.redshift, data_mode=self.data_mode, name=self.name,
             photon_index=self.photon_index, use_phase_model=self.use_phase_model, bands=self.bands,
             active_bands='all')
-        self.assertTrue(np.array_equal(np.array(['a', 'b']), self.transient.active_bands))
+        self.assertTrue(np.array_equal(np.array(['g', 'i']), self.transient.active_bands))
 
     def test_set_frequencies_from_bands(self):
         expected = [1, 2, 2]
@@ -361,11 +361,11 @@ class TestOpticalTransient(unittest.TestCase):
             self.assertEqual(expected, self.transient.transient_dir)
 
     def test_unique_bands(self):
-        expected = np.array(['a', 'b'])
+        expected = np.array(['g', 'i'])
         self.assertTrue(np.array_equal(expected, self.transient.unique_bands))
 
     def test_list_of_band_indices(self):
-        expected = [np.array([0]), np.array([1, 2])]
+        expected = [np.array([1, 2]), np.array([0])]
         self.assertTrue(np.array_equal(expected[0], self.transient.list_of_band_indices[0]))
         self.assertTrue(np.array_equal(expected[1], self.transient.list_of_band_indices[1]))
 
@@ -390,8 +390,8 @@ class TestAfterglow(unittest.TestCase):
         self.data_mode = 'flux'
         self.name = "GRB070809"
         self.use_phase_model = False
-        self.bands = np.array(['a', 'b', 'b'])
-        self.active_bands = np.array(['b'])
+        self.bands = np.array(['i', 'g', 'g'])
+        self.active_bands = np.array(['g'])
         self.FluxToLuminosityConverter = MagicMock()
         self.Truncator = MagicMock()
         self.sgrb = redback.transient.afterglow.SGRB(
@@ -467,7 +467,7 @@ class TestAfterglow(unittest.TestCase):
         self.assertTrue(np.array_equal(np.array(self.active_bands), self.sgrb.active_bands))
 
     def test_set_active_bands_all(self):
-        self.assertTrue(np.array_equal(np.array(['a', 'b']), self.sgrb_all_active_bands.active_bands))
+        self.assertTrue(np.array_equal(np.array(['g', 'i']), self.sgrb_all_active_bands.active_bands))
 
     def test_set_frequencies_from_bands(self):
         expected = [1, 2, 2]
