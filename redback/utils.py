@@ -180,7 +180,14 @@ def bands_to_frequency(bands):
         bands = []
     df = pd.read_csv(f"{dirname}/tables/filters.csv")
     bands_to_freqs = {band: wavelength for band, wavelength in zip(df['bands'], df['wavelength [Hz]'])}
-    return np.array([bands_to_freqs.get(band, band) for band in bands])
+    res = []
+    for band in bands:
+        try:
+            res.append(bands_to_freqs[band])
+        except KeyError as e:
+            logger.info(e)
+            raise KeyError(f"Band {band} is not defined in filters.csv!")
+    return np.array(res)
 
 
 def fetch_driver():
