@@ -272,18 +272,61 @@ def one_component_ejecta_relation_projection(time, redshift, mass_1, mass_2,
 
 @citation_wrapper('redback')
 def two_component_bns_ejecta_relation(time, redshift, mass_1, mass_2,
-                                        lambda_1, lambda_2, kappa, **kwargs):
-    pass
+                                        lambda_1, lambda_2, mtov, zeta, vej_2, kappa_1, kappa_2, tc_1, tc_2, **kwargs):
+    """
+    Assumes two kilonova components corresponding to dynamical and disk wind ejecta with properties
+    derived using ejecta relation specified by keyword argument.
+
+    :param time: observer frame time in days
+    :param redshift: redshift
+    :param mass_1: mass of primary in solar masses
+    :param mass_2: mass of secondary in solar masses
+    :param lambda_1: dimensionless tidal deformability of primary
+    :param lambda_2: dimensionless tidal deformability of secondary
+    :param mtov: Tolman Oppenheimer Volkoff mass in solar masses
+    :param zeta: fraction of disk that gets unbound
+    :param vej_2: disk wind velocity in c
+    :param kappa_1: gray opacity of first component
+    :param kappa_2: gracy opacity of second component
+    :param tc_1: floor temperature of first component
+    :param tc_2: floor temperature of second component
+    :param kwargs: additional keyword arguments
+    :param ejecta_relation: a class that relates the instrinsic parameters to the kilonova parameters
+            default is TwoComponentBNS
+    :param frequency: (frequency to calculate - Must be same length as time array or a single number)
+    :param output_format: 'flux_density' or 'magnitude'
+    :return: flux density or AB magnitude
+    """
+    ejecta_relation = kwargs.get('ejecta_relation', ejr.TwoComponentBNS)
+    ejecta_relation = ejecta_relation(mass_1=mass_1, mass_2=mass_2, lambda_1=lambda_1,
+                                      lambda_2=lambda_2, mtov=mtov, zeta=zeta)
+    mej_1 = ejecta_relation.dynamical_mej
+    mej_2 = ejecta_relation.disk_wind_mej
+    vej_1 = ejecta_relation.dynamical_vej
+
+    output = two_component_kilonova_model(time=time, redshift=redshift, mej_1=mej_1,
+                                                vej_1=vej_1, temperature_floor_1=tc_1,
+                                                kappa_1=kappa_1, mej_2=mej_2, vej_2=vej_2,
+                                                temperature_floor_2=tc_2, kappa_2=kappa_2, **kwargs)
+    return output
 
 @citation_wrapper('redback')
-def one_component_nsbh_ejecta_relation(time, redshift, mass_1, mass_2,
+def one_component_nsbh_ejecta_relation(time, redshift, mass_bh, mass_ns,
                                         lambda_1, lambda_2, kappa, **kwargs):
     pass
 
 @citation_wrapper('redback')
 def two_component_nsbh_ejecta_relation(time, redshift, mass_1, mass_2,
                                         lambda_1, lambda_2, kappa, **kwargs):
-    pass
+    mej_1 = ejecta_relation.dynamical_mej
+    mej_2 = ejecta_relation.disk_wind_mej
+    vej_1 = ejecta_relation.dynamical_vej
+
+    output = two_component_kilonova_model(time=time, redshift=redshift, mej_1=mej_1,
+                                                vej_1=vej_1, temperature_floor_1=tc_1,
+                                                kappa_1=kappa_1, mej_2=mej_2, vej_2=vej_2,
+                                                temperature_floor_2=tc_2, kappa_2=kappa_2, **kwargs)
+    return output
 
 @citation_wrapper('redback')
 def one_component_kilonova_model(time, redshift, mej, vej, kappa, **kwargs):
