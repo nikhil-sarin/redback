@@ -308,7 +308,7 @@ class TwoComponentNSBH(object):
         self.zeta = zeta
         self.reference = ['https://ui.adsabs.harvard.edu/abs/2016ApJ...825...52K/abstract',
                           'https://ui.adsabs.harvard.edu/abs/2018PhRvD..98h1501F/abstract']
-        self.risco = self.rcap_isco()
+        self.risco = self.rcap_isco
         self.ejecta_velocity = self.calculate_ejecta_velocity
         self.dynamical_mej = self.calculate_dynamical_ejecta_mass
         self.disk_wind_mej = self.calculate_disk_wind_mass

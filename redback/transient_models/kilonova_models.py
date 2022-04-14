@@ -98,8 +98,6 @@ def _kilonova_hr_sourceframe(time, mej, velocity_array, kappa_array, beta):
     """
     if len(velocity_array) < 2:
         raise ValueError("velocity_array must be of length >=2")
-    if len(kappa_array) != len(velocity_array) - 1:
-        raise ValueError("kappa_array must have length one less than velocity")
 
     from kilonova_heating_rate import lightcurve
 
