@@ -2,5 +2,4 @@ gwemlightcurves
 sncosmo
 nestle
 sherpa
-kilonova-heating-rate
 PyQt5
