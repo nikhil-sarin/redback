@@ -352,6 +352,17 @@ def thermal_synchrotron_fluxdensity(time, redshift, initial_n0, initial_velocity
 
 @citation_wrapper('https://ui.adsabs.harvard.edu/abs/2018ApJ...855..103P/abstract')
 def _shocked_cocoon(time, mej, vej, eta, tshock, shocked_fraction, cos_theta_cocoon, kappa):
+    """
+    :param time: source frame time in days
+    :param mej: ejecta mass in solar masses
+    :param vej: ejecta mass in km/s
+    :param eta: slope for ejecta density profile
+    :param tshock: shock time in seconds
+    :param shocked_fraction: fraction of ejecta mass shocked
+    :param cos_theta_cocoon: cocoon opening angle
+    :param kappa: opacity
+    :return: namedtuple with lbol, r_photosphere, and temperature
+    """
     diff_const = solar_mass / (4*np.pi * speed_of_light * km_cgs)
     c_kms = speed_of_light / km_cgs
     rshock = tshock * speed_of_light
@@ -378,13 +389,49 @@ def _shocked_cocoon(time, mej, vej, eta, tshock, shocked_fraction, cos_theta_coc
     pass
 
 @citation_wrapper('https://ui.adsabs.harvard.edu/abs/2018ApJ...855..103P/abstract')
-def shocked_cocoon_bolometric():
-    output = _shocked_cocoon(time, mass=mass, radius=radius, energy=energy, **kwargs)
+def shocked_cocoon_bolometric(time, mej, vej, eta, tshock, shocked_fraction, cos_theta_cocoon, kappa, **kwargs):
+    """
+    :param time: source frame time in days
+    :param mej: ejecta mass in solar masses
+    :param vej: ejecta mass in km/s
+    :param eta: slope for ejecta density profile
+    :param tshock: shock time in seconds
+    :param shocked_fraction: fraction of ejecta mass shocked
+    :param cos_theta_cocoon: cocoon opening angle
+    :param kappa: opacity
+    :param kwargs: None
+    :return: bolometric_luminosity
+    """
+    output = _shocked_cocoon(time, mej, vej, eta, tshock, shocked_fraction, cos_theta_cocoon, kappa)
     return output.lbol
 
 @citation_wrapper('https://ui.adsabs.harvard.edu/abs/2018ApJ...855..103P/abstract')
-def shocked_cocoon():
-    pass
+def shocked_cocoon(time, redshift, mej, vej, eta, tshock, shocked_fraction, cos_theta_cocoon, kappa, **kwargs):
+    """
+    :param time: source frame time in days
+    :param mej: ejecta mass in solar masses
+    :param vej: ejecta mass in km/s
+    :param eta: slope for ejecta density profile
+    :param tshock: shock time in seconds
+    :param shocked_fraction: fraction of ejecta mass shocked
+    :param cos_theta_cocoon: cocoon opening angle
+    :param kappa: opacity
+    :param kwargs: Extra parameters used by function
+    :param frequency: frequency to calculate model on - Must be same length as time array or a single number)
+    :param output_format: 'flux_density' or 'magnitude'
+    :return: bolometric_luminosity
+    """
+    frequency = kwargs['frequency']
+    frequency, time = calc_kcorrected_properties(frequency=frequency, redshift=redshift, time=time)
+    dl = cosmo.luminosity_distance(redshift).cgs.value
+
+    output = _shocked_cocoon(time, mej, vej, eta, tshock, shocked_fraction, cos_theta_cocoon, kappa)
+    flux_density = sed.blackbody_to_flux_density(temperature=output.temperature, r_photosphere=output.r_photosphere,
+                                                 dl=dl, frequency=frequency)
+    if kwargs['output_format'] == 'flux_density':
+        return flux_density.to(uu.mJy).value
+    elif kwargs['output_format'] == 'magnitude':
+        return flux_density.to(uu.ABmag).value
 
 @citation_wrapper('https://ui.adsabs.harvard.edu/abs/2022ApJ...928..122M/abstract')
 def csm_truncation_shock():
