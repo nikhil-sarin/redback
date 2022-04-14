@@ -142,6 +142,8 @@ class Transient(object):
         self.meta_data = None
 
         self.photon_index = photon_index
+        self.directory_structure = redback.get_data.directory.DirectoryStructure(
+            directory_path=".", raw_file_path=".", processed_file_path=".")
 
     @staticmethod
     def load_data_generic(processed_file_path, data_mode="magnitude"):
