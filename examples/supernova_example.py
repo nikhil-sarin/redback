@@ -21,7 +21,7 @@ model_kwargs = dict(frequency=supernova.filtered_frequencies, output_format='flu
 
 # returns a supernova result object
 result = redback.fit_model(transient=supernova, model=model, sampler=sampler, model_kwargs=model_kwargs,
-                           prior=priors, sample='rslice', nlive=200, resume=True)
+                           prior=priors, sample='rslice', nlive=100, resume=True)
 result.plot_corner()
 result.plot_lightcurve(random_models=100)
 result.plot_multiband_lightcurve()
