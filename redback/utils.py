@@ -195,9 +195,11 @@ def fetch_driver():
     return webdriver.PhantomJS()
 
 
-def calc_confidence_intervals(samples):
-    lower_bound = np.quantile(samples, 0.05, axis=0)
-    upper_bound = np.quantile(samples, 0.95, axis=0)
+def calc_credible_intervals(samples, interval=0.9):
+    if not 0 <= interval <= 1:
+        raise ValueError
+    lower_bound = np.quantile(samples, 0.5 - interval/2, axis=0)
+    upper_bound = np.quantile(samples, 0.5 + interval/2, axis=0)
     median = np.quantile(samples, 0.5, axis=0)
     return lower_bound, upper_bound, median
 
