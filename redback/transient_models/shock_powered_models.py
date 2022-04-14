@@ -351,12 +351,36 @@ def thermal_synchrotron_fluxdensity(time, redshift, initial_n0, initial_velocity
     return flux_density
 
 @citation_wrapper('https://ui.adsabs.harvard.edu/abs/2018ApJ...855..103P/abstract')
-def _shocked_cocoon():
+def _shocked_cocoon(time, mej, vej, eta, tshock, shocked_fraction, cos_theta_cocoon, kappa):
+    diff_const = solar_mass / (4*np.pi * speed_of_light * km_cgs)
+    c_kms = speed_of_light / km_cgs
+    rshock = tshock * speed_of_light
+    shocked_mass = mej * shocked_fraction
+    theta = np.arcos(cos_theta_cocoon)
+    tau_diff = np.sqrt(diff_const * kappa * shocked_mass / vej) / day_to_s
+
+    t_thin = (c_kms / vej) ** 0.5 * tau_diff
+
+    l0 = (theta ** 2 / 2) ** (1 / 3) * (shocked_mass * solar_mass *
+                                        vej * km_cgs * rshock / (tau_diff * day_to_s) ** 2)
+
+    lbol = l0 * (time/tau_diff)**(-4/(eta+2)) * (1 + np.tanh(t_thin - time))/2
+
+    v_photosphere = vej * (time / t_thin) ** (-2. / (eta + 3))
+    r_photosphere = km_cgs * day_to_s * v_photosphere * time
+    temperature = (lbol / (4.0 * np.pi * sigma_sb * r_photosphere**2))**0.25
+
+    output = namedtuple('output', ['lbol', 'r_photosphere', 'temperature'])
+    output.lbol = lbol
+    output.r_photosphere = r_photosphere
+    output.temperature = temperature
+    return output
     pass
 
 @citation_wrapper('https://ui.adsabs.harvard.edu/abs/2018ApJ...855..103P/abstract')
 def shocked_cocoon_bolometric():
-    pass
+    output = _shocked_cocoon(time, mass=mass, radius=radius, energy=energy, **kwargs)
+    return output.lbol
 
 @citation_wrapper('https://ui.adsabs.harvard.edu/abs/2018ApJ...855..103P/abstract')
 def shocked_cocoon():
