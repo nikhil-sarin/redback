@@ -273,17 +273,17 @@ def one_component_ejecta_relation_projection(time, redshift, mass_1, mass_2,
     return flux_density
 
 @citation_wrapper('redback')
-def two_component_bns_ejecta_relation_model(time, redshift, mass_1, mass_2,
+def two_component_bns_ejecta_relation(time, redshift, mass_1, mass_2,
                                         lambda_1, lambda_2, kappa, **kwargs):
     pass
 
 @citation_wrapper('redback')
-def one_component_nsbh_ejecta_relation_model(time, redshift, mass_1, mass_2,
+def one_component_nsbh_ejecta_relation(time, redshift, mass_1, mass_2,
                                         lambda_1, lambda_2, kappa, **kwargs):
     pass
 
 @citation_wrapper('redback')
-def two_component_nsbh_ejecta_relation_model(time, redshift, mass_1, mass_2,
+def two_component_nsbh_ejecta_relation(time, redshift, mass_1, mass_2,
                                         lambda_1, lambda_2, kappa, **kwargs):
     pass
 
