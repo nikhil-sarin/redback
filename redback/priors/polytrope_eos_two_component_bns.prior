@@ -1,7 +1,7 @@
 redshift = Uniform(1e-3, 0.1, 'redshift', latex_label = r'$z$')
 mass_1 = Uniform(1.1, 2.1, 'mass_1', latex_label = r'mass$_1$')
 mass_2 = Uniform(1.1, 2.1, 'mass_2', latex_label = r'mass$_2$')
-log_p = Uniform(32.6,33.8,name='log_p',latex_label='$\\log p_0$')
+log_p = Uniform(32.6,33.8,name='log_p',latex_label='$\log_{10} p_0$')
 gamma_1 = Uniform(2,4.5,name='gamma_1',latex_label='$\\Gamma_1$')
 gamma_2 = Uniform(2,4.5,name='gamma_2',latex_label='$\\Gamma_1$')
 gamma_3 = Uniform(2,4.5,name='gamma_3',latex_label='$\\Gamma_1$')
