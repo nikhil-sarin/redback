@@ -369,7 +369,7 @@ def _shocked_cocoon(time, mej, vej, eta, tshock, shocked_fraction, cos_theta_coc
     c_kms = speed_of_light / km_cgs
     rshock = tshock * speed_of_light
     shocked_mass = mej * shocked_fraction
-    theta = np.arcos(cos_theta_cocoon)
+    theta = np.arccos(cos_theta_cocoon)
     tau_diff = np.sqrt(diff_const * kappa * shocked_mass / vej) / day_to_s
 
     t_thin = (c_kms / vej) ** 0.5 * tau_diff
