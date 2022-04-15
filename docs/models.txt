@@ -69,6 +69,8 @@ Specifically, the models already included are
 - Millisecond magnetar models
 
     - vacuum dipole magnetar
+    - basic magnetar
+    - gw + em magnetar
     - magnetar with variable braking index
     - evolving magnetar
     - magnetar with radiative losses
