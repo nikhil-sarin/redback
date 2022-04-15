@@ -4,7 +4,7 @@ import numpy as np
 import redback
 
 
-sampler = 'nestle'
+sampler = 'dynesty'
 # lots of different models implemented, including
 # afterglow/magnetar varieties/n_dimensional_fireball/shapelets/band function/kilonova/SNe/TDE
 model = 'one_component_kilonova_model'
