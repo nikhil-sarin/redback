@@ -315,6 +315,63 @@ def general_mergernova_thermalisation(time, redshift, mej, beta, ejecta_radius, 
     elif kwargs['output_format'] == 'magnitude':
         return flux_density.to(uu.ABmag).value
 
+@citation_wrapper('Sarin et al. in prep.')
+def general_mergernova_evolution(time, redshift, mej, beta, ejecta_radius, kappa, n_ism, logbint,
+                                 logbext, p0, radius, logmoi, kappa_gamma, **kwargs):
+    """
+    :param time: time in observer frame in days
+    :param redshift: redshift
+    :param mej: ejecta mass in solar units
+    :param beta: initial ejecta velocity
+    :param ejecta_radius: initial ejecta radius
+    :param kappa: opacity
+    :param n_ism: ism number density
+    :param logbint: log10 internal magnetic field in G
+    :param logbext: log10 external magnetic field in G
+    :param p0: spin period in s
+    :param radius: radius of NS in KM
+    :param logmoi: log10 moment of inertia of NS
+    :param kappa_gamma: gamma-ray opacity used to calculate magnetar thermalisation efficiency
+    :param kwargs: Additional parameters
+    :param pair_cascade_switch: whether to account for pair cascade losses, default is True
+    :param ejecta albedo: ejecta albedo; default is 0.5
+    :param pair_cascade_fraction: fraction of magnetar luminosity lost to pair cascades; default is 0.05
+    :param output_format: whether to output flux density or AB magnitude
+    :param frequency: (frequency to calculate - Must be same length as time array or a single number)
+    :return: flux density or AB magnitude
+    """
+    frequency = kwargs['frequency']
+    pair_cascade_switch = kwargs.get('pair_cascade_switch', True)
+    time_temp = np.geomspace(1e-4, 1e8, 1000, endpoint=True)
+    dl = cosmo.luminosity_distance(redshift).cgs.value
+    bint = 10 ** logbint
+    bext = 10 ** logbext
+    radius = radius * km_cgs
+    moi = 10 ** logmoi
+    output = _evolving_gw_and_em_magnetar(time=time_temp, bint=bint, bext=bext, p0=p0, radius=radius, moi=moi)
+    magnetar_luminosity = output.Edot_d
+    output = _ejecta_dynamics_and_interaction(time=time_temp, mej=mej,
+                                              beta=beta, ejecta_radius=ejecta_radius,
+                                              kappa=kappa, n_ism=n_ism, magnetar_luminosity=magnetar_luminosity,
+                                              kappa_gamma=kappa_gamma, pair_cascade_switch=pair_cascade_switch,
+                                              use_gamma_ray_opacity=True, **kwargs)
+    temp_func = interp1d(time_temp, y=output.comoving_temperature)
+    rad_func = interp1d(time_temp, y=output.radius)
+    d_func = interp1d(time_temp, y=output.doppler_factor)
+    # convert to source frame time and frequency
+    time = time * day_to_s
+    frequency, time = calc_kcorrected_properties(frequency=frequency, redshift=redshift, time=time)
+
+    temp = temp_func(time)
+    rad = rad_func(time)
+    df = d_func(time)
+    flux_density = _comoving_blackbody_to_flux_density(dl=dl, frequency=frequency, radius=rad, temperature=temp,
+                                                      doppler_factor=df)
+    if kwargs['output_format'] == 'flux_density':
+        return flux_density.to(uu.mJy).value
+    elif kwargs['output_format'] == 'magnitude':
+        return flux_density.to(uu.ABmag).value
+
 def _trapped_magnetar_lum(time, mej, beta, ejecta_radius, kappa, n_ism, l0, tau_sd, nn, thermalisation_efficiency,
                           **kwargs):
     """
