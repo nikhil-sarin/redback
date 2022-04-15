@@ -337,7 +337,7 @@ def general_mergernova_thermalisation(time, redshift, mej, beta, ejecta_radius, 
 
 @citation_wrapper('Sarin et al. in prep.')
 def general_mergernova_evolution(time, redshift, mej, beta, ejecta_radius, kappa, n_ism, logbint,
-                                 logbext, p0, radius, logmoi, kappa_gamma, **kwargs):
+                                 logbext, p0, chi0, radius, logmoi, kappa_gamma, **kwargs):
     """
     :param time: time in observer frame in days
     :param redshift: redshift
@@ -349,6 +349,7 @@ def general_mergernova_evolution(time, redshift, mej, beta, ejecta_radius, kappa
     :param logbint: log10 internal magnetic field in G
     :param logbext: log10 external magnetic field in G
     :param p0: spin period in s
+    :param chi0: initial inclination angle
     :param radius: radius of NS in KM
     :param logmoi: log10 moment of inertia of NS
     :param kappa_gamma: gamma-ray opacity used to calculate magnetar thermalisation efficiency
@@ -368,7 +369,7 @@ def general_mergernova_evolution(time, redshift, mej, beta, ejecta_radius, kappa
     bext = 10 ** logbext
     radius = radius * km_cgs
     moi = 10 ** logmoi
-    output = _evolving_gw_and_em_magnetar(time=time_temp, bint=bint, bext=bext, p0=p0, radius=radius, moi=moi)
+    output = _evolving_gw_and_em_magnetar(time=time_temp, bint=bint, bext=bext, p0=p0, chi0=chi0, radius=radius, moi=moi)
     magnetar_luminosity = output.Edot_d
     output = _ejecta_dynamics_and_interaction(time=time_temp, mej=mej,
                                               beta=beta, ejecta_radius=ejecta_radius,
@@ -825,7 +826,7 @@ def general_metzger_magnetar_driven_thermalisation(time, redshift, mej, vej, bet
         return flux_density.to(uu.ABmag).value
 
 def general_metzger_magnetar_driven_evolution(time, redshift, mej, vej, beta, kappa_r, logbint,
-                                 logbext, p0, radius, logmoi, kappa_gamma, **kwargs):
+                                 logbext, p0, chi0, radius, logmoi, kappa_gamma, **kwargs):
     """
     :param time: observer frame time in days
     :param redshift: redshift
@@ -836,6 +837,7 @@ def general_metzger_magnetar_driven_evolution(time, redshift, mej, vej, beta, ka
     :param logbint: log10 internal magnetic field in G
     :param logbext: log10 external magnetic field in G
     :param p0: spin period in s
+    :param chi0: initial inclination angle
     :param radius: radius of NS in KM
     :param logmoi: log10 moment of inertia of NS
     :param kappa_gamma: gamma-ray opacity used to calculate magnetar thermalisation efficiency
@@ -855,7 +857,7 @@ def general_metzger_magnetar_driven_evolution(time, redshift, mej, vej, beta, ka
     bext = 10 ** logbext
     radius = radius * km_cgs
     moi = 10 ** logmoi
-    output = _evolving_gw_and_em_magnetar(time=time_temp, bint=bint, bext=bext, p0=p0, radius=radius, moi=moi)
+    output = _evolving_gw_and_em_magnetar(time=time_temp, bint=bint, bext=bext, p0=p0, chi0=chi0, radius=radius, moi=moi)
     magnetar_luminosity = output.Edot_d
     output = _general_metzger_magnetar_driven_kilonova_model(time=time_temp, mej=mej, vej=vej, beta=beta, kappa=kappa_r,
                                                              magnetar_luminosity=magnetar_luminosity,

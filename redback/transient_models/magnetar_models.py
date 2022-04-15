@@ -177,6 +177,7 @@ def _evolving_gw_and_em_magnetar(time, bint, bext, p0, chi0, radius, moi, **kwar
     :param bint: internal magnetic field in G
     :param bext: external magnetic field in G
     :param p0: spin period in s
+    :param chi0: initial inclination angle
     :param radius: radius of NS in cm
     :param moi: moment of inertia of NS
     :param kwargs: None
@@ -219,7 +220,7 @@ def _evolving_gw_and_em_magnetar(time, bint, bext, p0, chi0, radius, moi, **kwar
     output.Edot_gw = Edot_gw
     return output
 
-def magnetar_luminosity_evolution(time, logbint, logbext, p0, radius, logmoi, **kwargs):
+def magnetar_luminosity_evolution(time, logbint, logbext, p0, chi0, radius, logmoi, **kwargs):
     """
     Assumes a combination of GW and EM spin down with a constant spin-magnetic field inclination angle.
     Only EM contributes to observed emission.
@@ -228,6 +229,7 @@ def magnetar_luminosity_evolution(time, logbint, logbext, p0, radius, logmoi, **
     :param logbint: log10 internal magnetic field in G
     :param logbext: log10 external magnetic field in G
     :param p0: spin period in s
+    :param chi0: initial inclination angle
     :param radius: radius of NS in KM
     :param logmoi: log10 moment of inertia of NS
     :param kwargs: None
@@ -238,7 +240,7 @@ def magnetar_luminosity_evolution(time, logbint, logbext, p0, radius, logmoi, **
     bext = 10**logbext
     radius = radius * km_cgs
     moi = 10**logmoi
-    output = _evolving_gw_and_em_magnetar(time=time_temp, bint=bint, bext=bext, p0=p0, radius=radius, moi=moi)
+    output = _evolving_gw_and_em_magnetar(time=time_temp, bint=bint, bext=bext, p0=p0, chi0=chi0, radius=radius, moi=moi)
     lum = output.Edot_d
     lum_func = interp1d(time_temp, y=lum)
     return lum_func(time)
