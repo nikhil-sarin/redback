@@ -1,5 +1,5 @@
 from redback.constants import *
-from redback.transient_models.magnetar_models import magnetar_only
+from redback.transient_models.magnetar_models import magnetar_only, basic_magnetar, _evolving_gw_and_em_magnetar
 import numpy as np
 from astropy.cosmology import Planck18 as cosmo  # noqa
 from scipy.interpolate import interp1d
@@ -180,9 +180,34 @@ def _comoving_blackbody_to_luminosity(frequency, radius, temperature, doppler_fa
     return luminosity
 
 @citation_wrapper('https://ui.adsabs.harvard.edu/abs/2013ApJ...776L..40Y/abstract')
-def basic_mergernova(time, redshift, mej, beta, ejecta_radius, kappa, n_ism, l0, tau_sd, nn,
-               thermalisation_efficiency, **kwargs):
-    pass
+def basic_mergernova(time, redshift, mej, beta, ejecta_radius, kappa, n_ism, p0, logbp,
+                     mass_ns, theta_pb, thermalisation_efficiency, **kwargs):
+    frequency = kwargs['frequency']
+    time_temp = np.geomspace(1e-4, 1e8, 1000, endpoint=True)
+    dl = cosmo.luminosity_distance(redshift).cgs.value
+    bp = 10**logbp
+    magnetar_luminosity = basic_magnetar(time=time_temp, p0=p0, bp=bp, mass_ns=mass_ns, theta_pb=theta_pb)
+    output = _ejecta_dynamics_and_interaction(time=time_temp, mej=mej,
+                                              beta=beta, ejecta_radius=ejecta_radius,
+                                              kappa=kappa, n_ism=n_ism, magnetar_luminosity=magnetar_luminosity,
+                                              thermalisation_efficiency=thermalisation_efficiency,
+                                              pair_cascade_switch=False, use_gamma_ray_opacity=False)
+    temp_func = interp1d(time_temp, y=output.comoving_temperature)
+    rad_func = interp1d(time_temp, y=output.radius)
+    d_func = interp1d(time_temp, y=output.doppler_factor)
+    # convert to source frame time and frequency
+    time = time * day_to_s
+    frequency, time = calc_kcorrected_properties(frequency=frequency, redshift=redshift, time=time)
+
+    temp = temp_func(time)
+    rad = rad_func(time)
+    df = d_func(time)
+    flux_density = _comoving_blackbody_to_flux_density(dl=dl, frequency=frequency, radius=rad, temperature=temp,
+                                                      doppler_factor=df)
+    if kwargs['output_format'] == 'flux_density':
+        return flux_density.to(uu.mJy).value
+    elif kwargs['output_format'] == 'magnitude':
+        return flux_density.to(uu.ABmag).value
 
 @citation_wrapper('https://ui.adsabs.harvard.edu/abs/2013ApJ...776L..40Y/abstract')
 def general_mergernova(time, redshift, mej, beta, ejecta_radius, kappa, n_ism, l0, tau_sd, nn,
@@ -206,7 +231,7 @@ def general_mergernova(time, redshift, mej, beta, ejecta_radius, kappa, n_ism, l
     frequency = kwargs['frequency']
     time_temp = np.geomspace(1e-4, 1e8, 1000, endpoint=True)
     dl = cosmo.luminosity_distance(redshift).cgs.value
-    magnetar_luminosity = magnetar_only(l0=l0, tau=tau_sd, nn=nn)
+    magnetar_luminosity = magnetar_only(time=time_temp, l0=l0, tau=tau_sd, nn=nn)
     output = _ejecta_dynamics_and_interaction(time=time_temp, mej=mej,
                                               beta=beta, ejecta_radius=ejecta_radius,
                                               kappa=kappa, n_ism=n_ism, magnetar_luminosity=magnetar_luminosity,
@@ -252,7 +277,7 @@ def _trapped_magnetar_lum(time, mej, beta, ejecta_radius, kappa, n_ism, l0, tau_
     :return: luminosity
     """
     time_temp = np.geomspace(1e-4, 1e8, 1000, endpoint=True)
-    magnetar_luminosity = magnetar_only(l0=l0, tau=tau_sd, nn=nn)
+    magnetar_luminosity = magnetar_only(time=time_temp, l0=l0, tau=tau_sd, nn=nn)
     output = _ejecta_dynamics_and_interaction(time=time_temp, mej=mej,
                                               beta=beta, ejecta_radius=ejecta_radius,
                                               kappa=kappa, n_ism=n_ism, magnetar_luminosity=magnetar_luminosity,
