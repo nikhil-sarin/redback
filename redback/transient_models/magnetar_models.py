@@ -177,7 +177,7 @@ def _evolving_gw_and_em_magnetar(time, bint, bext, p0, chi0, radius, moi, **kwar
     :param bint: internal magnetic field in G
     :param bext: external magnetic field in G
     :param p0: spin period in s
-    :param radius: radius of NS in KM
+    :param radius: radius of NS in cm
     :param moi: moment of inertia of NS
     :param kwargs: None
     :return: luminosity
