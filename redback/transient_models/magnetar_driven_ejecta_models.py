@@ -257,7 +257,7 @@ def _trapped_magnetar_lum(time, mej, beta, ejecta_radius, kappa, n_ism, l0, tau_
                                               beta=beta, ejecta_radius=ejecta_radius,
                                               kappa=kappa, n_ism=n_ism, magnetar_luminosity=magnetar_luminosity,
                                               thermalisation_efficiency=thermalisation_efficiency,
-                                              pair_cascade_switch=True, use_gamma_ray_opacity=False)
+                                              pair_cascade_switch=False, use_gamma_ray_opacity=False)
     temp_func = interp1d(time_temp, y=output.comoving_temperature)
     rad_func = interp1d(time_temp, y=output.radius)
     d_func = interp1d(time_temp, y=output.doppler_factor)
