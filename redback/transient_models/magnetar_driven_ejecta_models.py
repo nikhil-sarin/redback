@@ -505,7 +505,7 @@ def _general_metzger_magnetar_driven_kilonova_model(time, mej, vej, beta, kappa,
     :param pair_cascade_fraction: fraction of magnetar luminosity lost to pair cascades; default is 0.05
     :param kappa_gamma: Gamma-ray opacity for leakage efficiency, only used if use_gamma_ray_opacity = True
     :param thermalisation_efficiency: magnetar thermalisation efficiency only used if use_gamma_ray_opacity = False
-    :param neutron_precursor_switch: whether to have neutron precursor emission, default false
+    :param neutron_precursor_switch: whether to have neutron precursor emission, default True
     :param pair_cascade_switch: whether to account for pair cascade losses, default is True
     :param magnetar_heating: whether magnetar heats all layers or just the bottom layer.
     :param vmax: maximum initial velocity of mass layers, default is 0.7c
@@ -515,7 +515,7 @@ def _general_metzger_magnetar_driven_kilonova_model(time, mej, vej, beta, kappa,
     pair_cascade_switch = kwargs.get('pair_cascade_switch', True)
     ejecta_albedo = kwargs.get('ejecta_albedo', 0.5)
     pair_cascade_fraction = kwargs.get('pair_cascade_fraction', 0.01)
-    neutron_precursor_switch = kwargs.get('neutron_precursor_switch', False)
+    neutron_precursor_switch = kwargs.get('neutron_precursor_switch', True)
     magnetar_heating = kwargs.get('magnetar_heating', 'first_layer')
     vmax = kwargs.get('vmax', 0.7)
 
@@ -688,6 +688,9 @@ def metzger_magnetar_driven_kilonova_model(time, redshift, mej, vej, beta, kappa
     :param pair_cascade_switch: whether to account for pair cascade losses, default is True
     :param ejecta albedo: ejecta albedo; default is 0.5
     :param pair_cascade_fraction: fraction of magnetar luminosity lost to pair cascades; default is 0.05
+    :param neutron_precursor_switch: whether to have neutron precursor emission, default True
+    :param magnetar_heating: whether magnetar heats all layers or just the bottom layer. default first layer only
+    :param vmax: maximum initial velocity of mass layers, default is 0.7c
     :param output_format: whether to output flux density or AB magnitude
     :param frequency: (frequency to calculate - Must be same length as time array or a single number)
     :return: flux density or AB magnitude
@@ -737,9 +740,9 @@ def general_metzger_magnetar_driven(time, redshift, mej, vej, beta, kappa_r, l0,
     :param kwargs: Additional parameters
     :param ejecta albedo: ejecta albedo; default is 0.5
     :param pair_cascade_fraction: fraction of magnetar luminosity lost to pair cascades; default is 0.05
-    :param neutron_precursor_switch: whether to have neutron precursor emission, default false
+    :param neutron_precursor_switch: whether to have neutron precursor emission, default true
     :param pair_cascade_switch: whether to account for pair cascade losses, default is True
-    :param magnetar_heating: whether magnetar heats all layers or just the bottom layer.
+    :param magnetar_heating: whether magnetar heats all layers or just the bottom layer. default first layer only
     :param vmax: maximum initial velocity of mass layers, default is 0.7c
     :return: flux_density or magnitude
     """
@@ -787,9 +790,9 @@ def general_metzger_magnetar_driven_thermalisation(time, redshift, mej, vej, bet
     :param kwargs: Additional parameters
     :param ejecta albedo: ejecta albedo; default is 0.5
     :param pair_cascade_fraction: fraction of magnetar luminosity lost to pair cascades; default is 0.05
-    :param neutron_precursor_switch: whether to have neutron precursor emission, default false
+    :param neutron_precursor_switch: whether to have neutron precursor emission, default true
     :param pair_cascade_switch: whether to account for pair cascade losses, default is True
-    :param magnetar_heating: whether magnetar heats all layers or just the bottom layer.
+    :param magnetar_heating: whether magnetar heats all layers or just the bottom layer. default first layer only
     :param vmax: maximum initial velocity of mass layers, default is 0.7c
     :return: flux_density or magnitude
     """
@@ -839,9 +842,9 @@ def general_metzger_magnetar_driven_evolution(time, redshift, mej, vej, beta, ka
     :param kwargs: Additional parameters
     :param ejecta albedo: ejecta albedo; default is 0.5
     :param pair_cascade_fraction: fraction of magnetar luminosity lost to pair cascades; default is 0.05
-    :param neutron_precursor_switch: whether to have neutron precursor emission, default false
+    :param neutron_precursor_switch: whether to have neutron precursor emission, default true
     :param pair_cascade_switch: whether to account for pair cascade losses, default is True
-    :param magnetar_heating: whether magnetar heats all layers or just the bottom layer.
+    :param magnetar_heating: whether magnetar heats all layers or just the bottom layer. default first layer only
     :param vmax: maximum initial velocity of mass layers, default is 0.7c
     :return: flux_density or magnitude
     """

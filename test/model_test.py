@@ -29,7 +29,10 @@ class TestModels(unittest.TestCase):
         times = np.array([1, 2, 3])
         for f in self.prior_files:
             print(f)
+            model_name = f.replace(".prior", "")
+            if model_name == 'trapped_magnetar':
+                kwargs['output_format'] = 'luminosity'
             prior = self.get_prior(file=f)
-            function = redback.model_library.all_models_dict[f.replace(".prior", "")]
+            function = redback.model_library.all_models_dict[model_name]
             ys = function(times, **prior.sample(), **kwargs)
             self.assertEqual(len(times), len(ys))
