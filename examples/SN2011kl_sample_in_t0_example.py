@@ -20,7 +20,7 @@ supernova = redback.supernova.Supernova.from_open_access_catalogue(name=sne, dat
 supernova.plot_multiband(filters=["J", "H", "g", "i"])
 
 # we are now only going to fit g and i bands. We set this using the transient object and the active bands attribute
-bands = ["g", "i"]
+bands = ["g", "H"]
 supernova.active_bands = bands
 
 # use default priors
@@ -43,7 +43,7 @@ model_kwargs = dict(frequency=supernova.filtered_frequencies, output_format='flu
 
 # returns a supernova result object
 result = redback.fit_model(transient=supernova, model=model, sampler=sampler, model_kwargs=model_kwargs,
-                           prior=priors, sample='rslice', nlive=200, resume=True)
+                           prior=priors, sample='rslice', nlive=500, resume=True)
 
 result.plot_corner()
 
