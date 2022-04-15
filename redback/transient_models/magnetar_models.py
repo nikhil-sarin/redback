@@ -82,6 +82,38 @@ def evolving_magnetar(time, a_1, alpha_1, mu0, muinf, p0, sinalpha0, tm, II, **k
                                       p0=p0, sinalpha0=sinalpha0, tm=tm, II=II)
     return pl + magnetar
 
+@citation_wrapper('https://ui.adsabs.harvard.edu/abs/2001ApJ...552L..35Z/abstract')
+def vacuum_dipole_magnetar_only(time, l0, tau, **kwargs):
+    """
+    :param time: time in seconds
+    :param l0: initial luminosity parameter
+    :param tau: spin-down damping timescale
+    :param nn: braking index
+    :param kwargs: key word arguments for handling plotting/other functionality
+    :return: luminosity or flux (depending on scaling of l0) as a function of time.
+    """
+    nn = 3
+    lum = l0 * (1. + time / tau) ** ((1. + nn) / (1. - nn))
+    return lum
+
+@citation_wrapper('https://ui.adsabs.harvard.edu/abs/2013MNRAS.430.1061R/abstract')
+def full_vacuum_dipole_magnetar(time, a_1, alpha_1, l0, tau, **kwargs):
+    """
+    Generalised millisecond magnetar with curvature effect power law
+
+    :param time: time in seconds
+    :param A_1: amplitude of curvature effect power law
+    :param alpha_1: index of curvature effect power law
+    :param l0: initial luminosity parameter
+    :param tau: spin-down damping timescale
+    :param nn: braking index
+    :param kwargs: key word arguments for handling plotting/other functionality
+    :return: luminosity or flux (depending on scaling of l0) as a function of time.
+    """
+    pl = one_component_fireball_model(time=time, a_1=a_1, alpha_1=alpha_1)
+    mag = vacuum_dipole_magnetar_only(time=time, l0=l0, tau=tau)
+    return pl + mag
+
 @citation_wrapper('https://ui.adsabs.harvard.edu/abs/2017ApJ...843L...1L/abstract')
 def magnetar_only(time, l0, tau, nn, **kwargs):
     """
@@ -120,7 +152,7 @@ def gw_magnetar(time, a_1, alpha_1, fgw0, tau, nn, log_ii, **kwargs):
 
     return pl + magnetar
 
-@citation_wrapper('https://ui.adsabs.harvard.edu/abs/2001ApJ...552L..35Z/abstract')
+@citation_wrapper('https://ui.adsabs.harvard.edu/abs/2006ApJ...648L..51S/abstract')
 def basic_magnetar(time, p0, bp, mass_ns, theta_pb, **kwargs):
     """
     :param time: time in seconds in source frame
