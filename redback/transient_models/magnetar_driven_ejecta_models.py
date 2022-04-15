@@ -320,8 +320,7 @@ def _trapped_magnetar_flux(time, redshift, mej, beta, ejecta_radius, kappa, n_is
     """
     frequency = kwargs['frequency']
     frequency, time = calc_kcorrected_properties(frequency=frequency, redshift=redshift, time=time)
-
-
+    kwargs['frequency'] = frequency
     lum = _trapped_magnetar_lum(time, mej, beta, ejecta_radius, kappa, n_ism, l0, tau_sd, nn, thermalisation_efficiency,
                                 **kwargs)
     dl = cosmo.luminosity_distance(redshift).cgs.value
