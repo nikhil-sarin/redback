@@ -1,7 +1,7 @@
 import numpy as np
 import pandas as pd
 from redback.transient_models.phenomenological_models import exponential_powerlaw
-from redback.transient_models.magnetar_models import magnetar_only
+from redback.transient_models.magnetar_models import magnetar_only, basic_magnetar
 import redback.interaction_processes as ip
 import redback.sed as sed
 import redback.photosphere as photosphere
@@ -223,21 +223,6 @@ def arnett(time, redshift, f_nickel, mej, **kwargs):
     elif kwargs['output_format'] == 'magnitude':
         return flux_density.to(uu.ABmag).value
 
-def _basic_magnetar(time, p0, bp, mass_ns, theta_pb, **kwargs):
-    """
-    :param time: time in seconds in source frame
-    :param p0: initial spin period
-    :param bp: polar magnetic field strength in Gauss
-    :param mass_ns: mass of neutron star in solar masses
-    :param theta_pb: angle between spin and magnetic field axes
-    :param kwargs: None
-    :return: luminosity
-    """
-    erot = 2.6e52 * (mass_ns/1.4)**(3./2.) * p0**(-2)
-    tp = 1.3e5 * bp**(-2) * p0**2 * (mass_ns/1.4)**(3./2.) * (np.sin(theta_pb))**(-2)
-    luminosity = 2 * erot / tp / (1. + 2 * time / tp)**2
-    return luminosity
-
 @citation_wrapper('redback')
 def basic_magnetar_powered_bolometric(time, p0, bp, mass_ns, theta_pb, **kwargs):
     """
@@ -254,7 +239,7 @@ def basic_magnetar_powered_bolometric(time, p0, bp, mass_ns, theta_pb, **kwargs)
     """
     _interaction_process = kwargs.get("interaction_process", ip.Diffusion)
 
-    lbol = _basic_magnetar(time=time*day_to_s, p0=p0, bp=bp, mass_ns=mass_ns, theta_pb=theta_pb)
+    lbol = basic_magnetar(time=time * day_to_s, p0=p0, bp=bp, mass_ns=mass_ns, theta_pb=theta_pb)
     if _interaction_process is not None:
         interaction_class = _interaction_process(time=time, luminosity=lbol, **kwargs)
         lbol = interaction_class.new_luminosity
@@ -392,7 +377,7 @@ def magnetar_nickel(time, redshift, f_nickel, mej, p0, bp, mass_ns, theta_pb, **
     frequency, time = calc_kcorrected_properties(frequency=frequency, redshift=redshift, time=time)
     dl = cosmo.luminosity_distance(redshift).cgs.value
 
-    lbol_mag = _basic_magnetar(time=time*day_to_s, p0=p0, bp=bp, mass_ns=mass_ns, theta_pb=theta_pb)
+    lbol_mag = basic_magnetar(time=time * day_to_s, p0=p0, bp=bp, mass_ns=mass_ns, theta_pb=theta_pb)
     lbol_arnett = _nickelcobalt_engine(time=time, f_nickel=f_nickel, mej=mej)
     lbol = lbol_mag + lbol_arnett
 
