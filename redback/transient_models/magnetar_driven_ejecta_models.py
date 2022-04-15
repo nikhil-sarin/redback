@@ -783,7 +783,7 @@ def general_metzger_magnetar_driven_thermalisation(time, redshift, mej, vej, bet
     :param l0: initial magnetar X-ray luminosity
     :param tau_sd: magnetar spin down damping timescale
     :param nn: braking index
-    :param thermalisation_efficiency: magnetar thermalisation efficiency
+    :param kappa_gamma: gamma-ray opacity used to calculate magnetar thermalisation efficiency
     :param kwargs: Additional parameters
     :param ejecta albedo: ejecta albedo; default is 0.5
     :param pair_cascade_fraction: fraction of magnetar luminosity lost to pair cascades; default is 0.05
@@ -821,5 +821,59 @@ def general_metzger_magnetar_driven_thermalisation(time, redshift, mej, vej, bet
     elif kwargs['output_format'] == 'magnitude':
         return flux_density.to(uu.ABmag).value
 
-def general_metzger_magnetar_driven_evolution():
-    pass
+def general_metzger_magnetar_driven_evolution(time, redshift, mej, vej, beta, kappa_r, logbint,
+                                 logbext, p0, radius, logmoi, kappa_gamma, **kwargs):
+    """
+    :param time: observer frame time in days
+    :param redshift: redshift
+    :param mej: ejecta mass in solar masses
+    :param vej: minimum initial velocity
+    :param beta: velocity power law slope (M=v^-beta)
+    :param kappa_r: opacity
+    :param logbint: log10 internal magnetic field in G
+    :param logbext: log10 external magnetic field in G
+    :param p0: spin period in s
+    :param radius: radius of NS in KM
+    :param logmoi: log10 moment of inertia of NS
+    :param kappa_gamma: gamma-ray opacity used to calculate magnetar thermalisation efficiency
+    :param kwargs: Additional parameters
+    :param ejecta albedo: ejecta albedo; default is 0.5
+    :param pair_cascade_fraction: fraction of magnetar luminosity lost to pair cascades; default is 0.05
+    :param neutron_precursor_switch: whether to have neutron precursor emission, default false
+    :param pair_cascade_switch: whether to account for pair cascade losses, default is True
+    :param magnetar_heating: whether magnetar heats all layers or just the bottom layer.
+    :param vmax: maximum initial velocity of mass layers, default is 0.7c
+    :return: flux_density or magnitude
+    """
+    frequency = kwargs['frequency']
+    time_temp = np.geomspace(1e-4, 1e7, 500)
+    use_gamma_ray_opacity = True
+    bint = 10 ** logbint
+    bext = 10 ** logbext
+    radius = radius * km_cgs
+    moi = 10 ** logmoi
+    output = _evolving_gw_and_em_magnetar(time=time_temp, bint=bint, bext=bext, p0=p0, radius=radius, moi=moi)
+    magnetar_luminosity = output.Edot_d
+    output = _general_metzger_magnetar_driven_kilonova_model(time=time_temp, mej=mej, vej=vej, beta=beta, kappa=kappa_r,
+                                                             magnetar_luminosity=magnetar_luminosity,
+                                                             use_gamma_ray_opacity=use_gamma_ray_opacity,
+                                                             kappa_gamma=kappa_gamma, **kwargs)
+    dl = cosmo.luminosity_distance(redshift).cgs.value
+
+    # interpolate properties onto observation times
+    temp_func = interp1d(time_temp, y=output.temperature)
+    rad_func = interp1d(time_temp, y=output.r_photosphere)
+    # convert to source frame time and frequency
+    time = time * day_to_s
+    frequency, time = calc_kcorrected_properties(frequency=frequency, redshift=redshift, time=time)
+
+    temp = temp_func(time)
+    photosphere = rad_func(time)
+
+    flux_density = blackbody_to_flux_density(temperature=temp, r_photosphere=photosphere,
+                                             dl=dl, frequency=frequency)
+
+    if kwargs['output_format'] == 'flux_density':
+        return flux_density.to(uu.mJy).value
+    elif kwargs['output_format'] == 'magnitude':
+        return flux_density.to(uu.ABmag).value
