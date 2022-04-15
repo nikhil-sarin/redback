@@ -17,7 +17,7 @@ kilonova = redback.kilonova.Kilonova.from_open_access_catalogue(
     name=kne, data_mode="flux_density", active_bands=np.array(["g", "i"]))
 kilonova.plot_data(show=False)
 fig, axes = plt.subplots(3, 2, sharex=True, sharey=True, figsize=(12, 8))
-kilonova.plot_multiband(figure=fig, axes=axes, filters=["g", "r", "i", "z", "y", "J"], show=False)
+kilonova.plot_multiband(figure=fig, axes=axes, filters=["g", "r", "i", "z", "y", "J"], plot_show=False)
 
 # use default priors
 priors = redback.priors.get_priors(model=model)
@@ -25,7 +25,7 @@ priors['redshift'] = 1e-2
 
 model_kwargs = dict(frequency=kilonova.filtered_frequencies, output_format='flux_density')
 result = redback.fit_model(transient=kilonova, model=model, sampler=sampler, model_kwargs=model_kwargs,
-                           prior=priors, sample='rslice', nlive=200, resume=True)
+                           prior=priors, sample='rslice', nlive=1000, resume=True)
 result.plot_corner()
 # returns a Kilonova result object
 result.plot_lightcurve(plot_show=False)

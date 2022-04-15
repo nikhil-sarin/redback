@@ -1,0 +1,2 @@
+l0 = LogUniform(1e-20, 1e5, 'l0', latex_label = r'$L_{0}$')
+tau = LogUniform(1e2, 1e6, 'tau', latex_label = r'$\\tau$')

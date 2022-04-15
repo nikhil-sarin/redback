@@ -2,7 +2,9 @@ import numpy as np
 from astropy.cosmology import Planck18 as cosmo  # noqa
 
 import scipy.special as ss
-from scipy.integrate import quad
+from collections import namedtuple
+from scipy.interpolate import interp1d
+from scipy.integrate import quad, cumtrapz
 from inspect import isfunction
 from redback.utils import logger, citation_wrapper
 
@@ -80,6 +82,38 @@ def evolving_magnetar(time, a_1, alpha_1, mu0, muinf, p0, sinalpha0, tm, II, **k
                                       p0=p0, sinalpha0=sinalpha0, tm=tm, II=II)
     return pl + magnetar
 
+@citation_wrapper('https://ui.adsabs.harvard.edu/abs/2001ApJ...552L..35Z/abstract')
+def vacuum_dipole_magnetar_only(time, l0, tau, **kwargs):
+    """
+    :param time: time in seconds
+    :param l0: initial luminosity parameter
+    :param tau: spin-down damping timescale
+    :param nn: braking index
+    :param kwargs: key word arguments for handling plotting/other functionality
+    :return: luminosity or flux (depending on scaling of l0) as a function of time.
+    """
+    nn = 3
+    lum = l0 * (1. + time / tau) ** ((1. + nn) / (1. - nn))
+    return lum
+
+@citation_wrapper('https://ui.adsabs.harvard.edu/abs/2013MNRAS.430.1061R/abstract')
+def full_vacuum_dipole_magnetar(time, a_1, alpha_1, l0, tau, **kwargs):
+    """
+    Generalised millisecond magnetar with curvature effect power law
+
+    :param time: time in seconds
+    :param A_1: amplitude of curvature effect power law
+    :param alpha_1: index of curvature effect power law
+    :param l0: initial luminosity parameter
+    :param tau: spin-down damping timescale
+    :param nn: braking index
+    :param kwargs: key word arguments for handling plotting/other functionality
+    :return: luminosity or flux (depending on scaling of l0) as a function of time.
+    """
+    pl = one_component_fireball_model(time=time, a_1=a_1, alpha_1=alpha_1)
+    mag = vacuum_dipole_magnetar_only(time=time, l0=l0, tau=tau)
+    return pl + mag
+
 @citation_wrapper('https://ui.adsabs.harvard.edu/abs/2017ApJ...843L...1L/abstract')
 def magnetar_only(time, l0, tau, nn, **kwargs):
     """
@@ -117,6 +151,100 @@ def gw_magnetar(time, a_1, alpha_1, fgw0, tau, nn, log_ii, **kwargs):
     pl = one_component_fireball_model(time=time, a_1=a_1, alpha_1=alpha_1)
 
     return pl + magnetar
+
+@citation_wrapper('https://ui.adsabs.harvard.edu/abs/2006ApJ...648L..51S/abstract')
+def basic_magnetar(time, p0, bp, mass_ns, theta_pb, **kwargs):
+    """
+    :param time: time in seconds in source frame
+    :param p0: initial spin period in seconds
+    :param bp: polar magnetic field strength in Gauss
+    :param mass_ns: mass of neutron star in solar masses
+    :param theta_pb: angle between spin and magnetic field axes
+    :param kwargs: None
+    :return: luminosity
+    """
+    erot = 2.6e52 * (mass_ns/1.4)**(3./2.) * p0**(-2)
+    tp = 1.3e5 * bp**(-2) * p0**2 * (mass_ns/1.4)**(3./2.) * (np.sin(theta_pb))**(-2)
+    luminosity = 2 * erot / tp / (1. + 2 * time / tp)**2
+    return luminosity
+
+def _evolving_gw_and_em_magnetar(time, bint, bext, p0, chi0, radius, moi, **kwargs):
+    """
+    Assumes a combination of GW and EM spin down with a constant spin-magnetic field inclination angle.
+    Only EM contributes to observed emission.
+
+    :param time: time in source frame in seconds (must be a large array as this function is semianalytic)
+    :param bint: internal magnetic field in G
+    :param bext: external magnetic field in G
+    :param p0: spin period in s
+    :param chi0: initial inclination angle
+    :param radius: radius of NS in cm
+    :param moi: moment of inertia of NS
+    :param kwargs: None
+    :return: luminosity
+    """
+    epsilon_b = -3e-4 * (bint / bext) ** 2 * (bext / 1e16) ** 2
+    omega_0 = 2.0 * np.pi / p0
+    erot = 0.5 * moi * omega_0**2
+
+    dt = time[1:] - time[:-1]
+    omega = np.zeros_like(time)
+    chi = chi0
+
+    omega[0] = omega_0
+
+    for i in range(len(time) - 1):
+        omega[i + 1] = omega[i] + dt[i] * (
+            -(bext**2*radius**6/(moi*speed_of_light**3))*omega[i]**3*(1. + np.sin(chi)) - (
+            2.0*graviational_constant*moi*epsilon_b**2/(5.0*speed_of_light**5)) * omega[i]**5*np.sin(chi)**2*(1.0+15.0*np.sin(chi)**2))
+
+    Edot_d = (bext ** 2 * radius ** 6 / (4*speed_of_light ** 3)) * omega ** 4 * (1.0 + np.sin(chi)**2)
+    Edot_gw = (2.0 * graviational_constant * moi ** 2 * epsilon_b ** 2 / (5.0 * speed_of_light ** 5)) * omega ** 6 * np.sin(chi)**2 * (
+                1.0 + 15.0 * np.sin(chi)**2)
+
+    Ed = cumtrapz(Edot_d, x=time)
+    Egw = cumtrapz(Edot_gw, x=time)
+
+    En_t =  3.5e50*(bint/1e17)**2*(radius/1.5e6)**3
+    En_p = 5.5e47 * (bext / 1e14) ** 2 * (radius / 1.5e6) ** 3
+
+    output = namedtuple('output', ['e_gw', 'e_em', 'tsd', 'epsilon_b', 'e_magnetic', 'Edot_d', 'Edot_gw', 'erot'])
+    output.e_gw = Egw[-1]
+    output.e_em = Ed[-1]
+    output.erot = erot
+    period = p0
+    output.tsd = 2.4 * (period/1e-3)**2 *((bext/1e14)**(2) + 7.2*(bint/1e16)**4*(period/1e-3)**(-2))**(-1) * (60*60)
+    output.epsilon_b = epsilon_b
+    output.e_magnetic = En_t + En_p
+    output.Edot_d = Edot_d
+    output.Edot_gw = Edot_gw
+    return output
+
+def magnetar_luminosity_evolution(time, logbint, logbext, p0, chi0, radius, logmoi, **kwargs):
+    """
+    Assumes a combination of GW and EM spin down with a constant spin-magnetic field inclination angle.
+    Only EM contributes to observed emission.
+
+    :param time: time in source frame in seconds
+    :param logbint: log10 internal magnetic field in G
+    :param logbext: log10 external magnetic field in G
+    :param p0: spin period in s
+    :param chi0: initial inclination angle
+    :param radius: radius of NS in KM
+    :param logmoi: log10 moment of inertia of NS
+    :param kwargs: None
+    :return: luminosity
+    """
+    time_temp = np.geomspace(1e-4, 1e7, 300)
+    bint = 10**logbint
+    bext = 10**logbext
+    radius = radius * km_cgs
+    moi = 10**logmoi
+    output = _evolving_gw_and_em_magnetar(time=time_temp, bint=bint, bext=bext, p0=p0, chi0=chi0, radius=radius, moi=moi)
+    lum = output.Edot_d
+    lum_func = interp1d(time_temp, y=lum)
+    return lum_func(time)
+
 
 @citation_wrapper('https://ui.adsabs.harvard.edu/abs/2017ApJ...843L...1L/abstract')
 def full_magnetar(time, a_1, alpha_1, l0, tau, nn, **kwargs):
