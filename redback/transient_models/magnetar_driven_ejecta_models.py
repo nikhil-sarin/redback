@@ -252,17 +252,16 @@ def _trapped_magnetar_lum(time, mej, beta, ejecta_radius, kappa, n_ism, l0, tau_
     :return: luminosity
     """
     time_temp = np.geomspace(1e-4, 1e8, 1000, endpoint=True)
-    _, _, comoving_temperature, radius, doppler_factor, tau = _ejecta_dynamics_and_interaction(time=time_temp, mej=mej,
-                                                                                               beta=beta,
-                                                                                               ejecta_radius=ejecta_radius,
-                                                                                               kappa=kappa, n_ism=n_ism,
-                                                                                               l0=l0,
-                                                                                               tau_sd=tau_sd, nn=nn,
-                                                                                               thermalisation_efficiency=thermalisation_efficiency)
-    temp_func = interp1d(time_temp, y=comoving_temperature)
-    rad_func = interp1d(time_temp, y=radius)
-    d_func = interp1d(time_temp, y=doppler_factor)
-    tau_func = interp1d(time_temp, y=tau)
+    magnetar_luminosity = magnetar_only(l0=l0, tau=tau_sd, nn=nn)
+    output = _ejecta_dynamics_and_interaction(time=time_temp, mej=mej,
+                                              beta=beta, ejecta_radius=ejecta_radius,
+                                              kappa=kappa, n_ism=n_ism, magnetar_luminosity=magnetar_luminosity,
+                                              thermalisation_efficiency=thermalisation_efficiency,
+                                              pair_cascade_switch=True, use_gamma_ray_opacity=False)
+    temp_func = interp1d(time_temp, y=output.comoving_temperature)
+    rad_func = interp1d(time_temp, y=output.radius)
+    d_func = interp1d(time_temp, y=output.doppler_factor)
+    tau_func = interp1d(time_temp, y=output.tau)
     temp = temp_func(time)
     rad = rad_func(time)
     df = d_func(time)
