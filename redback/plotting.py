@@ -188,7 +188,7 @@ class Plotter(object):
     def _save_and_show(self, filepath: str, save: bool, show: bool) -> None:
         plt.tight_layout()
         if save:
-            plt.savefig(filepath, dpi=self.dpi, bbox_inches=self.bbox_inches)
+            plt.savefig(filepath, dpi=self.dpi, bbox_inches=self.bbox_inches, transparent=False, facecolor='white')
         if show:
             plt.show()
 
