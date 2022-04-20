@@ -19,3 +19,7 @@ redback/data/*
 docs/_*
 docs/_build/*
 docs/api/*
+
+examples/.ipynb_checkpoints/
+
+examples/kilonova/

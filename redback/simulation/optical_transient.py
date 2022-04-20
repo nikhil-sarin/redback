@@ -1,3 +1,6 @@
+import numpy as np
+from typing import Union
+from sncosmo import TimeSeriesSource, Model
 import simsurvey
 <<<<<<< refs/remotes/origin/master
 import sncosmo
@@ -9,6 +12,17 @@ class Optical_Transient(object):
     def __init__(name=None, parameters=None, observations=None):
 <<<<<<< refs/remotes/origin/master
 
+    :param name:
+    :param 
+
+    """
+
+    def __init__(model, parameters: dict or None, pointings: dict or None):
+        self.name = name
+        self.parameters = parameters
+        self.observations = observations
+        self.sncosmo =
+        # pseudo code call to sncosmo rapper
         super.__init__()
 
     def function_wrapper(model, parameters, function=all_models_dict[model]):
