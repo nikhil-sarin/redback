@@ -72,9 +72,42 @@ class Plotter(object):
     ylim_high_multiplier = 2.0
     ylim_low_multiplier = 0.5
 
+    doc_dict = {
+        capsize: "Same as matplotlib capsize.",
+        color: "Color of the data points.",
+        band_labels: "List with the names of the bands.",
+        dpi: "Same as matplotlib dpi.",
+        elinewidth: "same as matplotlib elinewidth",
+        errorbar_fmt: "'fmt' argument of `ax.errorbar`.",
+        model: "str or callable, the model to plot.",
+        ms: "Same as matplotlib markersize.",
+        x_axis_tick_params_pad: "`pad` argument in calls to `ax.tick_params` when setting the x axis.",
+        max_likelihood_alpha: "`alpha` argument, i.e. transparency, when plotting the max likelihood curve.",
+        random_sample_alpha: "`alpha` argument, i.e. transparency, when plotting random sample curves.",
+        max_likelihood_color: "Color of the maximum likelihood curve.",
+        random_sample_color: "Color of the random sample curves.",
+        bbox_inches: "Setting for saving plots. Default is 'tight'.",
+        linewidth: "Same as matplotlib linewidth",
+        zorder: "Same as matplotlib zorder",
+        xy: "For `ax.annotate' x and y coordinates of the point to annotate.",
+        xycoords: "The coordinate system `xy` is given in. Default is 'axes fraction'",
+        horizontalalignment: "Horizontal alignment of the annotation. Default is 'right'",
+        annotation_size: "`size` argument of of `ax.annotate`.",
+        fontsize_axes: "font size of the x and y labels.",
+        fontsize_figure: "font size of the figure. Relevant for multiband plots. Used on `supxlabel` and `supylabel`.",
+        hspace: "Argument for `subplots_adjust`, sets horizontal spacing between panels.",
+        wspace: "Argument for `subplots_adjust`, sets horizontal spacing between panels.",
+        plot_others: "Whether to plot additional bands in the data plot, all in the same colors",
+        random_models: "Number of random draws to use to calculate credible bands or to plot.",
+        xlim_high_multiplier: "Adjust the maximum xlim based on available x values.",
+        xlim_low_multiplier: "Adjust the minimum xlim based on available x values.",
+        ylim_high_multiplier: "Adjust the maximum ylim based on available x values.",
+        ylim_low_multiplier: "Adjust the minimum ylim based on available x values.",
+    }
+
     def __init__(self, transient: redback.transient.Transient, **kwargs) -> None:
         self.transient = transient
-        self.kwargs = kwargs
+        self.kwargs = kwargs or dict()
         self._posterior_sorted = False
 
     def _get_times(self, axes: matplotlib.axes.Axes) -> np.ndarray:
@@ -226,7 +259,7 @@ class IntegratedFluxPlotter(Plotter):
         ax.set_yscale('log')
 
         ax.set_xlim(self._xlim_low, self._xlim_high)
-        ax.set_ylim(self._ylim_low, self.ylim_high)
+        ax.set_ylim(self._ylim_low, self._ylim_high)
         ax.set_xlabel(self._xlabel, fontsize=self.fontsize_axes)
         ax.set_ylabel(self._ylabel, fontsize=self.fontsize_axes)
 
@@ -371,7 +404,7 @@ class MagnitudePlotter(Plotter):
             ax.set_ylim(self._ylim_low_magnitude, self._ylim_high_magnitude)
             ax.invert_yaxis()
         else:
-            ax.set_ylim(self._ylim_low, self.ylim_high)
+            ax.set_ylim(self._ylim_low, self._ylim_high)
             ax.set_yscale("log")
 
     def _set_y_axis_multiband_data(self, ax: matplotlib.axes.Axes, indices: list) -> None:
