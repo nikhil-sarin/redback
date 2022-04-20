@@ -67,7 +67,7 @@ class Plotter(object):
 
     plot_others = KwargsAccessorWithDefault("plot_others", True)
     random_models = KwargsAccessorWithDefault("random_models", 100)
-    uncertainty_mode = KwargsAccessorWithDefault("uncertainty_mode", "random_models")  # "random_models" or "credible_intervals"
+    uncertainty_mode = KwargsAccessorWithDefault("uncertainty_mode", "random_models")
     plot_max_likelihood = KwargsAccessorWithDefault("plot_max_likelihood", True)
 
     xlim_high_multiplier = 2.0
@@ -75,10 +75,51 @@ class Plotter(object):
     ylim_high_multiplier = 2.0
     ylim_low_multiplier = 0.5
 
-    def __init__(self, transient: redback.transient.Transient, **kwargs) -> None:
+    def __init__(self, transient: Union[redback.transient.Transient, None], **kwargs) -> None:
+        """
+        :param transient: An instance of `redback.transient.Transient`. Contains the data to be plotted.
+        :param kwargs: Additional kwargs the plotter uses. -------
+        :keyword capsize: Same as matplotlib capsize.
+        :keyword color: Color of the data points.
+        :keyword band_labels: List with the names of the bands.
+        :keyword dpi: Same as matplotlib dpi.
+        :keyword elinewidth: same as matplotlib elinewidth
+        :keyword errorbar_fmt: 'fmt' argument of `ax.errorbar`.
+        :keyword model: str or callable, the model to plot.
+        :keyword ms: Same as matplotlib markersize.
+        :keyword x_axis_tick_params_pad: `pad` argument in calls to `ax.tick_params` when setting the x axis.
+        :keyword max_likelihood_alpha: `alpha` argument, i.e. transparency, when plotting the max likelihood curve.
+        :keyword random_sample_alpha: `alpha` argument, i.e. transparency, when plotting random sample curves.
+        :keyword uncertainty_band_alpha: `alpha` argument, i.e. transparency, when plotting a credible band.
+        :keyword max_likelihood_color: Color of the maximum likelihood curve.
+        :keyword random_sample_color: Color of the random sample curves.
+        :keyword bbox_inches: Setting for saving plots. Default is 'tight'.
+        :keyword linewidth: Same as matplotlib linewidth
+        :keyword zorder: Same as matplotlib zorder
+        :keyword xy: For `ax.annotate' x and y coordinates of the point to annotate.
+        :keyword xycoords: The coordinate system `xy` is given in. Default is 'axes fraction'
+        :keyword horizontalalignment: Horizontal alignment of the annotation. Default is 'right'
+        :keyword annotation_size: `size` argument of of `ax.annotate`.
+        :keyword fontsize_axes: Font size of the x and y labels.
+        :keyword fontsize_figure: Font size of the figure. Relevant for multiband plots.
+                                  Used on `supxlabel` and `supylabel`.
+        :keyword hspace: Argument for `subplots_adjust`, sets horizontal spacing between panels.
+        :keyword wspace: Argument for `subplots_adjust`, sets horizontal spacing between panels.
+        :keyword plot_others: Whether to plot additional bands in the data plot, all in the same colors
+        :keyword random_models: Number of random draws to use to calculate credible bands or to plot.
+        :keyword uncertainty_mode: 'random_models': Plot random draws from the available parameter sets.
+                                   'credible_intervals': Plot a credible interval that is calculated based
+                                   on the available parameter sets.
+        :keyword xlim_high_multiplier: Adjust the maximum xlim based on available x values.
+        :keyword xlim_low_multiplier: Adjust the minimum xlim based on available x values.
+        :keyword ylim_high_multiplier: Adjust the maximum ylim based on available x values.
+        :keyword ylim_low_multiplier: Adjust the minimum ylim based on available x values.
+        """
         self.transient = transient
-        self.kwargs = kwargs
+        self.kwargs = kwargs or dict()
         self._posterior_sorted = False
+
+    keyword_docstring = __init__.__doc__.split("-------")[1]
 
     def _get_times(self, axes: matplotlib.axes.Axes) -> np.ndarray:
         """
@@ -120,7 +161,7 @@ class Plotter(object):
         return self.kwargs.get("ylim_low", default)
 
     @property
-    def ylim_high(self) -> float:
+    def _ylim_high(self) -> float:
         default = self.ylim_high_multiplier * np.max(self.transient.y)
         return self.kwargs.get("ylim_high", default)
 
@@ -231,7 +272,7 @@ class IntegratedFluxPlotter(Plotter):
         ax.set_yscale('log')
 
         ax.set_xlim(self._xlim_low, self._xlim_high)
-        ax.set_ylim(self._ylim_low, self.ylim_high)
+        ax.set_ylim(self._ylim_low, self._ylim_high)
         ax.set_xlabel(self._xlabel, fontsize=self.fontsize_axes)
         ax.set_ylabel(self._ylabel, fontsize=self.fontsize_axes)
 
@@ -386,7 +427,7 @@ class MagnitudePlotter(Plotter):
             ax.set_ylim(self._ylim_low_magnitude, self._ylim_high_magnitude)
             ax.invert_yaxis()
         else:
-            ax.set_ylim(self._ylim_low, self.ylim_high)
+            ax.set_ylim(self._ylim_low, self._ylim_high)
             ax.set_yscale("log")
 
     def _set_y_axis_multiband_data(self, ax: matplotlib.axes.Axes, indices: list) -> None:

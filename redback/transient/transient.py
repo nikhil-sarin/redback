@@ -487,27 +487,19 @@ class Transient(object):
 
     def plot_data(self, axes: matplotlib.axes.Axes = None, filename: str = None, outdir: str = None, save: bool = True,
             show: bool = True, plot_others: bool = True, color: str = 'k', **kwargs) -> matplotlib.axes.Axes:
-        """Plots the Afterglow lightcurve and returns Axes.
+        """Plots the Transient data and returns Axes.
 
         :param axes: Matplotlib axes to plot the lightcurve into. Useful for user specific modifications to the plot.
-        :type axes: Union[matplotlib.axes.Axes, None], optional
         :param filename: Name of the file to be plotted in.
-        :type filename: str
         :param outdir: The directory in which to save the file in.
-        :type outdir: str
         :param save: Whether to save the plot. (Default value = True)
-        :type save: bool
         :param show: Whether to show the plot. (Default value = True)
-        :type show: bool
         :param plot_others: Whether to plot inactive bands. (Default value = True)
-        :type plot_others: bool
         :param color: Color of the data.
-        :type color: str, optional
         :param kwargs: Additional keyword arguments to pass in the Plotter methods.
-        :type kwargs: None
-
+        Available in the online documentation under at `redback.plotting.Plotter`.
+        `print(Transient.plot_data.__doc__)` to see all options!
         :return: The axes with the plot.
-        :rtype: matplotlib.axes.Axes
         """
 
         if self.flux_data:
@@ -531,40 +523,20 @@ class Transient(object):
             -> matplotlib.axes.Axes:
         """
         :param figure: Figure can be given if defaults are not satisfying
-        :type figure: matplotlib.figure.Figure, optional
         :param axes: Axes can be given if defaults are not satisfying
-        :type axes: matplotlib.axes.Axes, optional
         :param filename: Name of the file to be plotted in.
-        :type filename: str
         :param outdir: The directory in which to save the file in.
-        :type outdir: str
         :param save: Whether to save the plot. (Default value = True)
-        :type save: bool
         :param show: Whether to show the plot. (Default value = True)
-        :type show: bool
         :param ncols: Number of columns to use on the plot. Default is 2.
-        :type ncols: int, optional
         :param nrows: Number of rows to use on the plot. If None are given this will
                       be inferred from ncols and the number of filters.
-        :type nrows: int, optional
         :param figsize: Size of the figure. A default based on ncols and nrows will be used if None is given.
-        :type figsize: tuple, optional
         :param filters: Which bands to plot. Will use default filters if None is given.
-        :type filters: list, optional
-        :param kwargs:
-            Additional optional plotting kwargs:
-            wspace: Extra argument for matplotlib.pyplot.subplots_adjust
-            hspace: Extra argument for matplotlib.pyplot.subplots_adjust
-            fontsize: Label fontsize
-            errorbar_fmt: Errorbar format ('fmt' argument in matplotlib.pyplot.errorbar)
-            colors: colors to be used for the bands
-            xlabel: Plot xlabel
-            ylabel: Plot ylabel
-            plot_label: Addional filename label appended to the default name
-        :type kwargs: None
-
+        :param kwargs: Additional keyword arguments to pass in the Plotter methods.
+        Available in the online documentation under at `redback.plotting.Plotter`.
+        `print(Transient.plot_multiband.__doc__)` to see all options!
         :return: The axes.
-        :rtype: matplotlib.axes.Axes
         """
         if self.data_mode not in ['flux_density', 'magnitude']:
             raise ValueError(
@@ -585,29 +557,19 @@ class Transient(object):
             model_kwargs: dict = None, **kwargs: None) -> matplotlib.axes.Axes:
         """
         :param model: The model used to plot the lightcurve.
-        :type model: callable
         :param filename: The output filename. Otherwise, use default which starts with the name
                          attribute and ends with *lightcurve.png.
-        :type filename: str, optional
         :param axes: Axes to plot in if given.
-        :type axes: matplotlib.axes.Axes, optional
         :param save:Whether to save the plot.
-        :type save: bool, optional
         :param show: Whether to show the plot.
-        :type show: bool, optional
         :param random_models: Number of random posterior samples plotted faintly. (Default value = 100)
-        :type random_models: int, optional
         :param posterior: Posterior distribution to which to draw samples from. Is optional but must be given.
-        :type posterior: pd.DataFrame, optional
         :param outdir: Out directory in which to save the plot. Default is the current working directory.
-        :type outdir: str, optional
         :param model_kwargs: Additional keyword arguments to be passed into the model.
-        :type model_kwargs: dict
-        :param kwargs: No current function.
-        :type kwargs: None
-
+        :param kwargs: Additional keyword arguments to pass in the Plotter methods.
+        Available in the online documentation under at `redback.plotting.Plotter`.
+        `print(Transient.plot_lightcurve.__doc__)` to see all options!
         :return: The axes.
-        :rtype: matplotlib.axes.Axes
         """
         if self.flux_data:
             plotter = IntegratedFluxPlotter(
@@ -634,27 +596,18 @@ class Transient(object):
                       model_kwargs: dict = None, **kwargs: None) -> matplotlib.axes.Axes:
         """
         :param model: The model used to plot the lightcurve.
-        :type model: callable
         :param filename: The output filename. Otherwise, use default which starts with the name
                          attribute and ends with *lightcurve.png.
-        :type filename: str, optional
         :param axes: Axes to plot in if given.
-        :type axes: matplotlib.axes.Axes, optional
         :param save:Whether to save the plot.
-        :type save: bool, optional
         :param show: Whether to show the plot.
-        :type show: bool, optional
         :param posterior: Posterior distribution to which to draw samples from. Is optional but must be given.
-        :type posterior: pd.DataFrame, optional
         :param outdir: Out directory in which to save the plot. Default is the current working directory.
-        :type outdir: str, optional
         :param model_kwargs: Additional keyword arguments to be passed into the model.
-        :type model_kwargs: dict
-        :param kwargs: No current function.
-        :type kwargs: None
-
+        :param kwargs: Additional keyword arguments to pass in the Plotter methods.
+        Available in the online documentation under at `redback.plotting.Plotter`.
+        `print(Transient.plot_residual.__doc__)` to see all options!
         :return: The axes.
-        :rtype: matplotlib.axes.Axes
         """
         if self.flux_data:
             plotter = IntegratedFluxPlotter(
@@ -674,29 +627,20 @@ class Transient(object):
             model_kwargs: dict = None, **kwargs: object) -> matplotlib.axes.Axes:
         """
         :param model: The model used to plot the lightcurve.
-        :type model: callable
         :param filename: The output filename. Otherwise, use default which starts with the name
                          attribute and ends with *lightcurve.png.
-        :type filename: str, optional
         :param axes: Axes to plot in if given.
-        :type axes: matplotlib.axes.Axes, optional
         :param save:Whether to save the plot.
-        :type save: bool, optional
         :param show: Whether to show the plot.
-        :type show: bool, optional
         :param random_models: Number of random posterior samples plotted faintly. (Default value = 100)
-        :type random_models: int, optional
         :param posterior: Posterior distribution to which to draw samples from. Is optional but must be given.
-        :type posterior: pd.DataFrame, optional
         :param outdir: Out directory in which to save the plot. Default is the current working directory.
-        :type outdir: str, optional
         :param model_kwargs: Additional keyword arguments to be passed into the model.
-        :type model_kwargs: dict
-        :param kwargs: No current function.
-        :type kwargs: None
+        :param kwargs: Additional keyword arguments to pass in the Plotter methods.
+        Available in the online documentation under at `redback.plotting.Plotter`.
+        `print(Transient.plot_multiband_lightcurve.__doc__)` to see all options!
 
         :return: The axes.
-        :rtype: matplotlib.axes.Axes
         """
         if self.data_mode not in ['flux_density', 'magnitude']:
             raise ValueError(
@@ -712,6 +656,18 @@ class Transient(object):
         else:
             return
         return plotter.plot_multiband_lightcurve(axes=axes, save=save, show=show)
+
+    _formatted_kwargs_options = redback.plotting.Plotter.keyword_docstring
+    plot_data.__doc__ = plot_data.__doc__.replace(
+        "`print(Transient.plot_data.__doc__)` to see all options!", _formatted_kwargs_options)
+    plot_multiband.__doc__ = plot_multiband.__doc__.replace(
+        "`print(Transient.plot_multiband.__doc__)` to see all options!", _formatted_kwargs_options)
+    plot_lightcurve.__doc__ = plot_lightcurve.__doc__.replace(
+        "`print(Transient.plot_lightcurve.__doc__)` to see all options!", _formatted_kwargs_options)
+    plot_multiband_lightcurve.__doc__ = plot_multiband_lightcurve.__doc__.replace(
+        "`print(Transient.plot_multiband_lightcurve.__doc__)` to see all options!", _formatted_kwargs_options)
+    plot_residual.__doc__ = plot_residual.__doc__.replace(
+        "`print(Transient.plot_residual.__doc__)` to see all options!", _formatted_kwargs_options)
 
 
 class OpticalTransient(Transient):
