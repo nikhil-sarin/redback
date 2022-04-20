@@ -76,7 +76,7 @@ def fit_model(
         raise ValueError(f'Source type {transient.__class__.__name__} not known')
 
 
-def _fit_grb(transient, model, outdir, label, sampler='dynesty', nlive=3000, prior=None, walks=1000,
+def _fit_grb(transient, model, outdir, label, likelihood=None, sampler='dynesty', nlive=3000, prior=None, walks=1000,
              use_photon_index_prior=False, resume=True, save_format='json', model_kwargs=None, **kwargs):
     if use_photon_index_prior:
         label += '_photon_index'
@@ -92,8 +92,7 @@ def _fit_grb(transient, model, outdir, label, sampler='dynesty', nlive=3000, pri
     else:
         x, x_err, y, y_err = transient.x, transient.x_err, transient.y, transient.y_err
 
-    likelihood = \
-        kwargs.get('likelihood', GaussianLikelihood(x=x, y=y, sigma=y_err, function=model, kwargs=model_kwargs))
+    likelihood = likelihood or GaussianLikelihood(x=x, y=y, sigma=y_err, function=model, kwargs=model_kwargs)
 
     meta_data = dict(model=model.__name__, transient_type=transient.__class__.__name__.lower())
     transient_kwargs = {k.lstrip("_"): v for k, v in transient.__dict__.items()}
@@ -117,7 +116,7 @@ def _fit_grb(transient, model, outdir, label, sampler='dynesty', nlive=3000, pri
     return result
 
 
-def _fit_optical_transient(transient, model, outdir, label, sampler='dynesty', nlive=3000, prior=None,
+def _fit_optical_transient(transient, model, outdir, label, likelihood=None, sampler='dynesty', nlive=3000, prior=None,
                            walks=1000, resume=True, save_format='json', model_kwargs=None, **kwargs):
 
     if transient.flux_density_data or transient.magnitude_data:
@@ -125,8 +124,7 @@ def _fit_optical_transient(transient, model, outdir, label, sampler='dynesty', n
     else:
         x, x_err, y, y_err = transient.x, transient.x_err, transient.y, transient.y_err
 
-    likelihood = kwargs.get(
-        'likelihood', GaussianLikelihood(x=x, y=y, sigma=y_err, function=model, kwargs=model_kwargs))
+    likelihood = likelihood or GaussianLikelihood(x=x, y=y, sigma=y_err, function=model, kwargs=model_kwargs)
 
     meta_data = dict(model=model.__name__, transient_type=transient.__class__.__name__.lower())
     transient_kwargs = {k.lstrip("_"): v for k, v in transient.__dict__.items()}
@@ -150,11 +148,10 @@ def _fit_optical_transient(transient, model, outdir, label, sampler='dynesty', n
     return result
 
 
-def _fit_prompt(transient, model, outdir, label, integrated_rate_function=True, sampler='dynesty', nlive=3000,
-                prior=None, walks=1000, resume=True, save_format='json',
-                model_kwargs=None, **kwargs):
+def _fit_prompt(transient, model, outdir, label, likelihood=None, integrated_rate_function=True, sampler='dynesty',
+                nlive=3000, prior=None, walks=1000, resume=True, save_format='json', model_kwargs=None, **kwargs):
 
-    likelihood = PoissonLikelihood(
+    likelihood = likelihood or PoissonLikelihood(
         time=transient.x, counts=transient.y, dt=transient.bin_size, function=model,
         integrated_rate_function=integrated_rate_function, kwargs=model_kwargs)
 
