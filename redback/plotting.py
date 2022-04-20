@@ -67,7 +67,7 @@ class Plotter(object):
 
     plot_others = KwargsAccessorWithDefault("plot_others", True)
     random_models = KwargsAccessorWithDefault("random_models", 100)
-    uncertainty_mode = KwargsAccessorWithDefault("uncertainty_mode", "random_models")  # "random_models" or "credible_intervals"
+    uncertainty_mode = KwargsAccessorWithDefault("uncertainty_mode", "random_models")
     plot_max_likelihood = KwargsAccessorWithDefault("plot_max_likelihood", True)
 
     xlim_high_multiplier = 2.0
@@ -76,39 +76,43 @@ class Plotter(object):
     ylim_low_multiplier = 0.5
 
     doc_dict = {
-        capsize: "Same as matplotlib capsize.",
-        color: "Color of the data points.",
-        band_labels: "List with the names of the bands.",
-        dpi: "Same as matplotlib dpi.",
-        elinewidth: "same as matplotlib elinewidth",
-        errorbar_fmt: "'fmt' argument of `ax.errorbar`.",
-        model: "str or callable, the model to plot.",
-        ms: "Same as matplotlib markersize.",
-        x_axis_tick_params_pad: "`pad` argument in calls to `ax.tick_params` when setting the x axis.",
-        max_likelihood_alpha: "`alpha` argument, i.e. transparency, when plotting the max likelihood curve.",
-        random_sample_alpha: "`alpha` argument, i.e. transparency, when plotting random sample curves.",
-        max_likelihood_color: "Color of the maximum likelihood curve.",
-        random_sample_color: "Color of the random sample curves.",
-        bbox_inches: "Setting for saving plots. Default is 'tight'.",
-        linewidth: "Same as matplotlib linewidth",
-        zorder: "Same as matplotlib zorder",
-        xy: "For `ax.annotate' x and y coordinates of the point to annotate.",
-        xycoords: "The coordinate system `xy` is given in. Default is 'axes fraction'",
-        horizontalalignment: "Horizontal alignment of the annotation. Default is 'right'",
-        annotation_size: "`size` argument of of `ax.annotate`.",
-        fontsize_axes: "font size of the x and y labels.",
-        fontsize_figure: "font size of the figure. Relevant for multiband plots. Used on `supxlabel` and `supylabel`.",
-        hspace: "Argument for `subplots_adjust`, sets horizontal spacing between panels.",
-        wspace: "Argument for `subplots_adjust`, sets horizontal spacing between panels.",
-        plot_others: "Whether to plot additional bands in the data plot, all in the same colors",
-        random_models: "Number of random draws to use to calculate credible bands or to plot.",
-        xlim_high_multiplier: "Adjust the maximum xlim based on available x values.",
-        xlim_low_multiplier: "Adjust the minimum xlim based on available x values.",
-        ylim_high_multiplier: "Adjust the maximum ylim based on available x values.",
-        ylim_low_multiplier: "Adjust the minimum ylim based on available x values.",
+        "capsize": "Same as matplotlib capsize.",
+        "color": "Color of the data points.",
+        "band_labels": "List with the names of the bands.",
+        "dpi": "Same as matplotlib dpi.",
+        "elinewidth": "same as matplotlib elinewidth",
+        "errorbar_fmt": "'fmt' argument of `ax.errorbar`.",
+        "model": "str or callable, the model to plot.",
+        "ms": "Same as matplotlib markersize.",
+        "x_axis_tick_params_pad": "`pad` argument in calls to `ax.tick_params` when setting the x axis.",
+        "max_likelihood_alpha": "`alpha` argument, i.e. transparency, when plotting the max likelihood curve.",
+        "random_sample_alpha": "`alpha` argument, i.e. transparency, when plotting random sample curves.",
+        "uncertainty_band_alpha":"`alpha` argument, i.e. transparency, when plotting a credible band.",
+        "max_likelihood_color": "Color of the maximum likelihood curve.",
+        "random_sample_color": "Color of the random sample curves.",
+        "bbox_inches": "Setting for saving plots. Default is 'tight'.",
+        "linewidth": "Same as matplotlib linewidth",
+        "zorder": "Same as matplotlib zorder",
+        "xy": "For `ax.annotate' x and y coordinates of the point to annotate.",
+        "xycoords": "The coordinate system `xy` is given in. Default is 'axes fraction'",
+        "horizontalalignment": "Horizontal alignment of the annotation. Default is 'right'",
+        "annotation_size": "`size` argument of of `ax.annotate`.",
+        "fontsize_axes": "font size of the x and y labels.",
+        "fontsize_figure": "font size of the figure. Relevant for multiband plots. Used on `supxlabel` and `supylabel`.",
+        "hspace": "Argument for `subplots_adjust`, sets horizontal spacing between panels.",
+        "wspace": "Argument for `subplots_adjust`, sets horizontal spacing between panels.",
+        "plot_others": "Whether to plot additional bands in the data plot, all in the same colors",
+        "random_models": "Number of random draws to use to calculate credible bands or to plot.",
+        "uncertainty_mode": "'random_models': Plot random draws from the available parameter sets.\n"
+                            "'credible_intervals': Plot a credible interval that is calculated based"
+                            " on the available parameter sets.",
+        "xlim_high_multiplier": "Adjust the maximum xlim based on available x values.",
+        "xlim_low_multiplier": "Adjust the minimum xlim based on available x values.",
+        "ylim_high_multiplier": "Adjust the maximum ylim based on available x values.",
+        "ylim_low_multiplier": "Adjust the minimum ylim based on available x values.",
     }
 
-    def __init__(self, transient: redback.transient.Transient, **kwargs) -> None:
+    def __init__(self, transient: Union[redback.transient.Transient, None], **kwargs) -> None:
         self.transient = transient
         self.kwargs = kwargs or dict()
         self._posterior_sorted = False
@@ -153,7 +157,7 @@ class Plotter(object):
         return self.kwargs.get("ylim_low", default)
 
     @property
-    def ylim_high(self) -> float:
+    def _ylim_high(self) -> float:
         default = self.ylim_high_multiplier * np.max(self.transient.y)
         return self.kwargs.get("ylim_high", default)
 
