@@ -582,7 +582,7 @@ class Transient(object):
     def plot_lightcurve(
             self, model: callable, filename: str = None, outdir: str = None, axes: matplotlib.axes.Axes = None,
             save: bool = True, show: bool = True, random_models: int = 100, posterior: pd.DataFrame = None,
-            model_kwargs: dict = None, **kwargs: None) -> None:
+            model_kwargs: dict = None, **kwargs: None) -> matplotlib.axes.Axes:
         """
         :param model: The model used to plot the lightcurve.
         :type model: callable
@@ -631,7 +631,7 @@ class Transient(object):
 
     def plot_residual(self, model: callable, filename: str = None, outdir: str = None, axes: matplotlib.axes.Axes = None,
                       save: bool = True, show: bool = True, posterior: pd.DataFrame = None,
-                      model_kwargs: dict = None, **kwargs: None) -> None:
+                      model_kwargs: dict = None, **kwargs: None) -> matplotlib.axes.Axes:
         """
         :param model: The model used to plot the lightcurve.
         :type model: callable
@@ -671,7 +671,7 @@ class Transient(object):
     def plot_multiband_lightcurve(
             self, model: callable, filename: str = None, outdir: str = None, axes: matplotlib.axes.Axes = None,
             save: bool = True, show: bool = True, random_models: int = 100, posterior: pd.DataFrame = None,
-            model_kwargs: dict = None, **kwargs: object) -> None:
+            model_kwargs: dict = None, **kwargs: object) -> matplotlib.axes.Axes:
         """
         :param model: The model used to plot the lightcurve.
         :type model: callable
