@@ -497,6 +497,7 @@ class Transient(object):
         :param plot_others: Whether to plot inactive bands. (Default value = True)
         :param color: Color of the data.
         :param kwargs: Additional keyword arguments to pass in the Plotter methods.
+        Available in the online documentation under at `redback.plotting.Plotter`.
         `print(Transient.plot_data.__doc__)` to see all options!
         :return: The axes with the plot.
         """
@@ -533,6 +534,7 @@ class Transient(object):
         :param figsize: Size of the figure. A default based on ncols and nrows will be used if None is given.
         :param filters: Which bands to plot. Will use default filters if None is given.
         :param kwargs: Additional keyword arguments to pass in the Plotter methods.
+        Available in the online documentation under at `redback.plotting.Plotter`.
         `print(Transient.plot_multiband.__doc__)` to see all options!
         :return: The axes.
         """
@@ -565,6 +567,7 @@ class Transient(object):
         :param outdir: Out directory in which to save the plot. Default is the current working directory.
         :param model_kwargs: Additional keyword arguments to be passed into the model.
         :param kwargs: Additional keyword arguments to pass in the Plotter methods.
+        Available in the online documentation under at `redback.plotting.Plotter`.
         `print(Transient.plot_lightcurve.__doc__)` to see all options!
         :return: The axes.
         """
@@ -602,6 +605,7 @@ class Transient(object):
         :param outdir: Out directory in which to save the plot. Default is the current working directory.
         :param model_kwargs: Additional keyword arguments to be passed into the model.
         :param kwargs: Additional keyword arguments to pass in the Plotter methods.
+        Available in the online documentation under at `redback.plotting.Plotter`.
         `print(Transient.plot_residual.__doc__)` to see all options!
         :return: The axes.
         """
@@ -633,6 +637,7 @@ class Transient(object):
         :param outdir: Out directory in which to save the plot. Default is the current working directory.
         :param model_kwargs: Additional keyword arguments to be passed into the model.
         :param kwargs: Additional keyword arguments to pass in the Plotter methods.
+        Available in the online documentation under at `redback.plotting.Plotter`.
         `print(Transient.plot_multiband_lightcurve.__doc__)` to see all options!
 
         :return: The axes.
@@ -652,9 +657,7 @@ class Transient(object):
             return
         return plotter.plot_multiband_lightcurve(axes=axes, save=save, show=show)
 
-    _formatted_kwargs_options = ""
-    for k, v in redback.plotting.Plotter.doc_dict.items():
-        _formatted_kwargs_options += f"\t\t\t:kwarg {k}: {v}\n"
+    _formatted_kwargs_options = redback.plotting.Plotter.keyword_docstring
     plot_data.__doc__ = plot_data.__doc__.replace(
         "`print(Transient.plot_data.__doc__)` to see all options!", _formatted_kwargs_options)
     plot_multiband.__doc__ = plot_multiband.__doc__.replace(

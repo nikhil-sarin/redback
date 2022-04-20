@@ -75,47 +75,51 @@ class Plotter(object):
     ylim_high_multiplier = 2.0
     ylim_low_multiplier = 0.5
 
-    doc_dict = {
-        "capsize": "Same as matplotlib capsize.",
-        "color": "Color of the data points.",
-        "band_labels": "List with the names of the bands.",
-        "dpi": "Same as matplotlib dpi.",
-        "elinewidth": "same as matplotlib elinewidth",
-        "errorbar_fmt": "'fmt' argument of `ax.errorbar`.",
-        "model": "str or callable, the model to plot.",
-        "ms": "Same as matplotlib markersize.",
-        "x_axis_tick_params_pad": "`pad` argument in calls to `ax.tick_params` when setting the x axis.",
-        "max_likelihood_alpha": "`alpha` argument, i.e. transparency, when plotting the max likelihood curve.",
-        "random_sample_alpha": "`alpha` argument, i.e. transparency, when plotting random sample curves.",
-        "uncertainty_band_alpha":"`alpha` argument, i.e. transparency, when plotting a credible band.",
-        "max_likelihood_color": "Color of the maximum likelihood curve.",
-        "random_sample_color": "Color of the random sample curves.",
-        "bbox_inches": "Setting for saving plots. Default is 'tight'.",
-        "linewidth": "Same as matplotlib linewidth",
-        "zorder": "Same as matplotlib zorder",
-        "xy": "For `ax.annotate' x and y coordinates of the point to annotate.",
-        "xycoords": "The coordinate system `xy` is given in. Default is 'axes fraction'",
-        "horizontalalignment": "Horizontal alignment of the annotation. Default is 'right'",
-        "annotation_size": "`size` argument of of `ax.annotate`.",
-        "fontsize_axes": "font size of the x and y labels.",
-        "fontsize_figure": "font size of the figure. Relevant for multiband plots. Used on `supxlabel` and `supylabel`.",
-        "hspace": "Argument for `subplots_adjust`, sets horizontal spacing between panels.",
-        "wspace": "Argument for `subplots_adjust`, sets horizontal spacing between panels.",
-        "plot_others": "Whether to plot additional bands in the data plot, all in the same colors",
-        "random_models": "Number of random draws to use to calculate credible bands or to plot.",
-        "uncertainty_mode": "'random_models': Plot random draws from the available parameter sets.\n"
-                            "'credible_intervals': Plot a credible interval that is calculated based"
-                            " on the available parameter sets.",
-        "xlim_high_multiplier": "Adjust the maximum xlim based on available x values.",
-        "xlim_low_multiplier": "Adjust the minimum xlim based on available x values.",
-        "ylim_high_multiplier": "Adjust the maximum ylim based on available x values.",
-        "ylim_low_multiplier": "Adjust the minimum ylim based on available x values.",
-    }
-
     def __init__(self, transient: Union[redback.transient.Transient, None], **kwargs) -> None:
+        """
+        :param transient: An instance of `redback.transient.Transient`. Contains the data to be plotted.
+        :param kwargs: Additional kwargs the plotter uses. -------
+        :keyword capsize: Same as matplotlib capsize.
+        :keyword color: Color of the data points.
+        :keyword band_labels: List with the names of the bands.
+        :keyword dpi: Same as matplotlib dpi.
+        :keyword elinewidth: same as matplotlib elinewidth
+        :keyword errorbar_fmt: 'fmt' argument of `ax.errorbar`.
+        :keyword model: str or callable, the model to plot.
+        :keyword ms: Same as matplotlib markersize.
+        :keyword x_axis_tick_params_pad: `pad` argument in calls to `ax.tick_params` when setting the x axis.
+        :keyword max_likelihood_alpha: `alpha` argument, i.e. transparency, when plotting the max likelihood curve.
+        :keyword random_sample_alpha: `alpha` argument, i.e. transparency, when plotting random sample curves.
+        :keyword uncertainty_band_alpha: `alpha` argument, i.e. transparency, when plotting a credible band.
+        :keyword max_likelihood_color: Color of the maximum likelihood curve.
+        :keyword random_sample_color: Color of the random sample curves.
+        :keyword bbox_inches: Setting for saving plots. Default is 'tight'.
+        :keyword linewidth: Same as matplotlib linewidth
+        :keyword zorder: Same as matplotlib zorder
+        :keyword xy: For `ax.annotate' x and y coordinates of the point to annotate.
+        :keyword xycoords: The coordinate system `xy` is given in. Default is 'axes fraction'
+        :keyword horizontalalignment: Horizontal alignment of the annotation. Default is 'right'
+        :keyword annotation_size: `size` argument of of `ax.annotate`.
+        :keyword fontsize_axes: Font size of the x and y labels.
+        :keyword fontsize_figure: Font size of the figure. Relevant for multiband plots.
+                                  Used on `supxlabel` and `supylabel`.
+        :keyword hspace: Argument for `subplots_adjust`, sets horizontal spacing between panels.
+        :keyword wspace: Argument for `subplots_adjust`, sets horizontal spacing between panels.
+        :keyword plot_others: Whether to plot additional bands in the data plot, all in the same colors
+        :keyword random_models: Number of random draws to use to calculate credible bands or to plot.
+        :keyword uncertainty_mode: 'random_models': Plot random draws from the available parameter sets.
+                                   'credible_intervals': Plot a credible interval that is calculated based
+                                   on the available parameter sets.
+        :keyword xlim_high_multiplier: Adjust the maximum xlim based on available x values.
+        :keyword xlim_low_multiplier: Adjust the minimum xlim based on available x values.
+        :keyword ylim_high_multiplier: Adjust the maximum ylim based on available x values.
+        :keyword ylim_low_multiplier: Adjust the minimum ylim based on available x values.
+        """
         self.transient = transient
         self.kwargs = kwargs or dict()
         self._posterior_sorted = False
+
+    keyword_docstring = __init__.__doc__.split("-------")[1]
 
     def _get_times(self, axes: matplotlib.axes.Axes) -> np.ndarray:
         """
