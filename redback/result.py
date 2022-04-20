@@ -3,6 +3,7 @@ import numpy as np
 import os
 from typing import Union
 import warnings
+import matplotlib
 
 import pandas as pd
 from bilby.core.result import Result
@@ -127,7 +128,7 @@ class RedbackResult(Result):
         """
         return TRANSIENT_DICT[self.transient_type](**self.meta_data)
 
-    def plot_lightcurve(self, model: Union[callable, str] = None, **kwargs: None) -> None:
+    def plot_lightcurve(self, model: Union[callable, str] = None, **kwargs: None) -> matplotlib.axes.Axes:
         """Reconstructs the transient and calls the specific `plot_lightcurve` method.
 
         :param model: User specified model.
@@ -137,10 +138,10 @@ class RedbackResult(Result):
         """
         if model is None:
             model = model_library.all_models_dict[self.model]
-        self.transient.plot_lightcurve(model=model, posterior=self.posterior,
-                                       model_kwargs=self.model_kwargs, **kwargs)
+        return self.transient.plot_lightcurve(model=model, posterior=self.posterior,
+                                              model_kwargs=self.model_kwargs, **kwargs)
 
-    def plot_residual(self, model: Union[callable, str] = None, **kwargs: None) -> None:
+    def plot_residual(self, model: Union[callable, str] = None, **kwargs: None) -> matplotlib.axes.Axes:
         """Reconstructs the transient and calls the specific `plot_residual` method.
 
         :param model: User specified model.
@@ -150,10 +151,10 @@ class RedbackResult(Result):
         """
         if model is None:
             model = model_library.all_models_dict[self.model]
-        self.transient.plot_residual(model=model, posterior=self.posterior,
-                                     model_kwargs=self.model_kwargs, **kwargs)
+        return self.transient.plot_residual(model=model, posterior=self.posterior,
+                                            model_kwargs=self.model_kwargs, **kwargs)
 
-    def plot_multiband_lightcurve(self, model: Union[callable, str] = None, **kwargs: None) -> None:
+    def plot_multiband_lightcurve(self, model: Union[callable, str] = None, **kwargs: None) -> matplotlib.axes.Axes:
         """Reconstructs the transient and calls the specific `plot_multiband_lightcurve` method.
 
         :param model: User specified model.
@@ -163,24 +164,24 @@ class RedbackResult(Result):
         """
         if model is None:
             model = model_library.all_models_dict[self.model]
-        self.transient.plot_multiband_lightcurve(
+        return self.transient.plot_multiband_lightcurve(
             model=model, posterior=self.posterior, model_kwargs=self.model_kwargs, **kwargs)
 
-    def plot_data(self, **kwargs: None) -> None:
+    def plot_data(self, **kwargs: None) -> matplotlib.axes.Axes:
         """Reconstructs the transient and calls the specific `plot_data` method.
 
         :param kwargs: Any kwargs to be passed into the `plot_data` method.
         :type kwargs: None
         """
-        self.transient.plot_data(**kwargs)
+        return self.transient.plot_data(**kwargs)
 
-    def plot_multiband(self, **kwargs: None) -> None:
+    def plot_multiband(self, **kwargs: None) -> matplotlib.axes.Axes:
         """Reconstructs the transient and calls the specific `plot_multiband` method.
 
         :param kwargs: Any kwargs to be passed into the `plot_multiband` method.
         :type kwargs: None
         """
-        self.transient.plot_multiband(**kwargs)
+        return self.transient.plot_multiband(**kwargs)
 
 
 def read_in_result(
