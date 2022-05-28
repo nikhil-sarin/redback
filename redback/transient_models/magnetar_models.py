@@ -58,7 +58,7 @@ def evolving_magnetar_only(time, mu0, muinf, p0, sinalpha0, tm, II, **kwargs):
     ytau = y0 / ((1 + ftau) ** 0.5)
     omegatau = omega0 * (1 - y0 ** 2) * ((1 + ftau) ** 0.5) / (1 - y0 ** 2 + ftau)
     luminosity = eta * (mu ** 2 * omegatau ** 4) / (speed_of_light ** 3) * (1 + ytau ** 2)
-    output = kwargs.get('output', 'namedtuple')
+    output = kwargs.get('output', 'luminosity')
     if output == 'luminosity':
         return luminosity / 1e50
     else:
