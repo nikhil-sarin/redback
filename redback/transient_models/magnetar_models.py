@@ -58,7 +58,23 @@ def evolving_magnetar_only(time, mu0, muinf, p0, sinalpha0, tm, II, **kwargs):
     ytau = y0 / ((1 + ftau) ** 0.5)
     omegatau = omega0 * (1 - y0 ** 2) * ((1 + ftau) ** 0.5) / (1 - y0 ** 2 + ftau)
     luminosity = eta * (mu ** 2 * omegatau ** 4) / (speed_of_light ** 3) * (1 + ytau ** 2)
-    return luminosity / 1e50
+    output = kwargs.get('output', 'namedtuple')
+    if output == 'luminosity':
+        return luminosity / 1e50
+    else:
+        alpha = np.arcsin(ytau)
+        nn_frac = (np.sin(alpha) * np.cos(alpha)) / (1 + np.sin(alpha) ** 2)
+        omegadot = -(mu ** 2 * omegatau ** 3) / (II * speed_of_light ** 3) * (1 + np.sin(alpha) ** 2)
+        mudot = -(mu - muinf) / tm
+        nn = 3 + 2 * nn_frac ** 2 + 2 * omegatau / omegadot * mudot / mu
+        output = namedtuple('output', ['luminosity', 'omegatau', 'ytau', 'mu', 'nn', 'alpha'])
+        output.luminosity = luminosity / 1e50
+        output.omegatau = omegatau
+        output.ytau = ytau
+        output.alpha = alpha
+        output.mu = mu
+        output.nn = nn
+        return output
 
 @citation_wrapper('https://ui.adsabs.harvard.edu/abs/2019ApJ...886....5S/abstract')
 def evolving_magnetar(time, a_1, alpha_1, mu0, muinf, p0, sinalpha0, tm, II, **kwargs):
