@@ -23,3 +23,5 @@ docs/api/*
 examples/.ipynb_checkpoints/
 
 examples/kilonova/
+
+kilonova/
