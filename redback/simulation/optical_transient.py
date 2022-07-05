@@ -1,6 +1,6 @@
 import numpy as np
 from typing import Union
-from sncosmo import TimeSeriesSource, Model
+from sncosmo import TimeSeriesSource, Model, get_bandpass
 import simsurvey
 <<<<<<< refs/remotes/origin/master
 import sncosmo
@@ -13,17 +13,29 @@ class Optical_Transient(object):
 <<<<<<< refs/remotes/origin/master
 
     :param name:
-    :param 
+    :param
 
     """
+    energy_unit_base = getattr(u, energy_unit)
+    if re.search('Hz', energy_unit, re.IGNORECASE).lastindex is not None:
+        energy_unit_scale = 'frequency'
+        dAng = (dEng*energy_unit_base).to(u.Angstrom).value
+    else:
+        energy_unit_scale = 'wavelength'
+        dAng = (dEng*energy_unit_base).to(u.Angstrom).value
 
-    def __init__(model, parameters: dict or None, pointings: dict or None):
-        self.name = name
-        self.parameters = parameters
-        self.observations = observations
-        self.sncosmo =
-        # pseudo code call to sncosmo rapper
-        super.__init__()
+    unique_filter_list = pointings.filter.unique()
+    min_wave_list = []
+    max_wave_list = []
+    for filter_name in unique_filter_list:
+        bp = get_bandpass(filter_name)
+        min_wave_list.append(bp.wave.min())
+        max_wave_list.append(bp.wave.max())
+    min_wave = min(min_wave_list)
+    max_wave = max(max_wave_list)
+    wavelengths = np.linspace(min_wave, max_wave, num=int((max_wave - min_wave)/dAng))
+    # determine wavelength/frequency range based on spectral width of filters provided
+    sncosmo_wrapped_model = sncosmo_function_wrapper(model, energy_unit_scale, energy_unit_base, parameters, wavelengths)
 
     def function_wrapper(model, parameters, function=all_models_dict[model]):
         dense_times = np.linspace(0.0, )
