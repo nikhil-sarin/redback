@@ -25,6 +25,7 @@ class Optical_Transient(object):
         dAng = (dEng*energy_unit_base).to(u.Angstrom).value
 
     unique_filter_list = pointings.filter.unique()
+    times = pointings.times
     min_wave_list = []
     max_wave_list = []
     for filter_name in unique_filter_list:
