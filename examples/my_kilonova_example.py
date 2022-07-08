@@ -24,11 +24,6 @@ kilonova = redback.kilonova.Kilonova.from_open_access_catalogue(
     data_mode="flux_density",
     active_bands=np.array(["u", "g", "r", "i", "z", "y", "J"]),
 )
-kilonova.plot_data(show=False)
-fig, axes = plt.subplots(4, 2, sharex=True, sharey=True, figsize=(12, 8))
-kilonova.plot_multiband(
-    figure=fig, axes=axes, filters=["u", "g", "r", "i", "z", "y", "J"], plot_show=False
-)
 
 # use default priors
 priors = bilby.core.prior.PriorDict()
@@ -58,10 +53,10 @@ result = redback.fit_model(
     use_pool=True,
     resume=True,
 )
-result.plot_corner()
-# returns a Kilonova result object
-result.plot_lightcurve(plot_show=False)
-# Even though we only fit the 'g' band, we can still plot the fit for different bands.
-result.plot_multiband_lightcurve(
-    filters=["g", "r", "i", "z", "y", "J"], plot_show=False
+result.save_to_file(
+    filename="S22kne_test",
+    overwrite=False,
+    outdir="/cfs/data/chse9649/output_data/kne_data/redback_fits/",
+    extension="hdf5",
+    gzip=False,
 )
