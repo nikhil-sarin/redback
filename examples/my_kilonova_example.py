@@ -50,7 +50,6 @@ result = redback.fit_model(
     nlive=1000,
     pool=run_pool,
     queue_size=cpu_count() - 1,
-    use_pool=True,
     resume=True,
 )
 result.save_to_file(
