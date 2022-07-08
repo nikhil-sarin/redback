@@ -22,15 +22,15 @@ kilonova = redback.kilonova.Kilonova.from_open_access_catalogue(
     active_bands=np.array(["u", "g", "r", "i", "z", "y", "J"]),
 )
 kilonova.plot_data(show=False)
-fig, axes = plt.subplots(3, 2, sharex=True, sharey=True, figsize=(12, 8))
+fig, axes = plt.subplots(4, 2, sharex=True, sharey=True, figsize=(12, 8))
 kilonova.plot_multiband(
     figure=fig, axes=axes, filters=["u", "g", "r", "i", "z", "y", "J"], plot_show=False
 )
 
 # use default priors
 priors = bilby.core.prior.PriorDict()
-priors["m1"] = Uniform(0.5, 2.0, "m1", latex_label=r"$M_1$")
-priors["m2"] = Uniform(0.5, 2.0, "m2", latex_label=r"$M_2$")
+priors["m1"] = Uniform(1.0, 2.0, "m1", latex_label=r"$M_1$")
+priors["m2"] = Uniform(1.0, 2.0, "m2", latex_label=r"$M_2$")
 priors["theta_obs"] = Sine(name="theta_obs", latex_label=r"$\iota$")
 priors["redshift"] = Uniform(0.009, 0.011, "redshift", latex_label=r"$z$")
 priors["disk_eff"] = Uniform(0.1, 0.4, "disk_eff", latex_label=r"$\eta_\mathrm{disk}$")
