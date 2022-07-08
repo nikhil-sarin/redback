@@ -4,6 +4,9 @@ import redback
 import bilby.core.prior
 from bilby.core.prior import LogUniform, Uniform, Sine
 from bnspopkne.redback_interface import redback_S22_BNS_popkNe as saeev
+from multiprocessing import Pool, cpu_count
+
+run_pool = Pool(cpu_count() - 1)
 
 sampler = "dynesty"
 # lots of different models implemented, including
@@ -41,6 +44,7 @@ priors["dec"] = np.deg2rad(-23.3814842)
 model_kwargs = dict(
     frequency=kilonova.filtered_frequencies, output_format="flux_density"
 )
+
 result = redback.fit_model(
     transient=kilonova,
     model=model,
@@ -49,6 +53,9 @@ result = redback.fit_model(
     prior=priors,
     sample="rslice",
     nlive=1000,
+    pool=run_pool,
+    queue_size=cpu_count() - 1,
+    use_pool=True,
     resume=True,
 )
 result.plot_corner()
