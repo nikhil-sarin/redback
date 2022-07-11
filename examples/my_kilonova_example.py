@@ -34,10 +34,10 @@ tov_mass = eos.get_max_EOS_mass(E1)
 
 # use default priors
 priors = bilby.core.prior.PriorDict()
+priors["redshift"] = 0.01
 priors["m1"] = Uniform(1.0, tov_mass, "m1", latex_label=r"$M_1$")
 priors["m2"] = Uniform(1.0, tov_mass, "m2", latex_label=r"$M_2$")
 priors["theta_obs"] = Sine(name="theta_obs", latex_label=r"$\iota$")
-priors["redshift"] = Uniform(0.009, 0.011, "redshift", latex_label=r"$z$")
 priors["disk_eff"] = Uniform(0.1, 0.4, "disk_eff", latex_label=r"$\eta_\mathrm{disk}$")
 priors["peculiar_velocity"] = Gaussian(
     0.0, 300.0, name="peculiar_velocity", latex_label=r"$v_\mathrm{p}$"
