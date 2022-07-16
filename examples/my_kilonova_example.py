@@ -6,9 +6,8 @@ from bilby.core.prior import Uniform, Sine, Gaussian
 from bnspopkne.redback_interface import redback_S22_BNS_popkNe_streamlined as saeev
 from bnspopkne import equation_of_state as eos
 from bnspopkne import mappings
-from multiprocessing import Pool, cpu_count
+from multiprocessing import cpu_count
 
-run_pool = Pool(cpu_count() - 1)
 
 sampler = "dynesty"
 # lots of different models implemented, including
@@ -22,13 +21,11 @@ data = redback.get_data.get_kilonova_data_from_open_transient_catalog_data(
 )
 # creates a GRBDir with GRB
 kilonova = redback.kilonova.Kilonova.from_open_access_catalogue(
-    name=kne,
-    data_mode="flux_density",
-    active_bands=np.array(["u", "g", "r", "i", "z", "y"]),
+    name=kne, data_mode="flux_density", active_bands=["u", "g", "r", "i", "z", "y"],
 )
 EOS = "sfho"
-# EOS_path = "/cfs/data/chse9649/input_data/kne_data/eos_data/"
-EOS_path = "/Users/cnsetzer/Documents/Project1_kNe/kne_modeling/eos_data/"
+EOS_path = "/cfs/data/chse9649/input_data/kne_data/eos_data/"
+# EOS_path = "/Users/cnsetzer/Documents/Project1_kNe/kne_modeling/eos_data/"
 E1 = eos.get_EOS_table(EOS=EOS, EOS_path=EOS_path)
 tov_mass = eos.get_max_EOS_mass(E1)
 
@@ -43,9 +40,8 @@ priors["peculiar_velocity"] = Gaussian(
     0.0, 300.0, name="peculiar_velocity", latex_label=r"$v_\mathrm{p}$"
 )
 
-# kappa_grid_path = "/cfs/data/chse9649/input_data/kne_data/opacity_data/Setzer2022_popkNe_opacities.csv"
-kappa_grid_path = "Setzer2022_popkNe_opacities.csv"
-gp_hyperparameter_file = "/cfs/data/chse9649/input_data/kne_data/opacity_data/Setzer2022_popkNe_GP_hyperparam.npy"
+kappa_grid_path = "/cfs/data/chse9649/input_data/kne_data/opacity_data/Setzer2022_popkNe_opacities.csv"
+# kappa_grid_path = "Setzer2022_popkNe_opacities.csv"
 EOS_mass_to_rad = eos.get_radius_from_EOS(E1)
 opacity_data, gp = mappings.construct_opacity_gaussian_process(kappa_grid_path, None)
 
@@ -72,7 +68,6 @@ result = redback.fit_model(
     prior=priors,
     sample="rslice",
     nlive=1000,
-    pool=run_pool,
     queue_size=cpu_count() - 1,
     resume=True,
 )
