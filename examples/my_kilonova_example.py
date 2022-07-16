@@ -35,7 +35,7 @@ priors["redshift"] = 0.01
 priors["m1"] = Uniform(1.0, tov_mass, "m1", latex_label=r"$M_1$")
 priors["m2"] = Uniform(1.0, tov_mass, "m2", latex_label=r"$M_2$")
 priors["theta_obs"] = Sine(name="theta_obs", latex_label=r"$\iota$")
-priors["disk_eff"] = Uniform(0.1, 0.4, "disk_eff", latex_label=r"$\eta_\mathrm{disk}$")
+priors["disk_eff"] = Uniform(0.0, 1.0, "disk_eff", latex_label=r"$\eta_\mathrm{disk}$")
 priors["peculiar_velocity"] = Gaussian(
     0.0, 300.0, name="peculiar_velocity", latex_label=r"$v_\mathrm{p}$"
 )
@@ -66,7 +66,7 @@ result = redback.fit_model(
     sampler=sampler,
     model_kwargs=model_kwargs,
     prior=priors,
-    sample="rslice",
+    sample="rwalk",
     nlive=1000,
     queue_size=cpu_count() - 1,
     resume=True,
