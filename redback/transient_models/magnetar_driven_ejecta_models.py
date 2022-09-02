@@ -234,7 +234,7 @@ def basic_mergernova(time, redshift, mej, beta, ejecta_radius, kappa, n_ism, p0,
     elif kwargs['output_format'] == 'magnitude':
         return flux_density.to(uu.ABmag).value
 
-@citation_wrapper('Sarin et al. in prep.')
+@citation_wrapper('https://ui.adsabs.harvard.edu/abs/2022arXiv220514159S/abstract')
 def general_mergernova(time, redshift, mej, beta, ejecta_radius, kappa, n_ism, l0, tau_sd, nn,
                thermalisation_efficiency, **kwargs):
     """
@@ -285,7 +285,7 @@ def general_mergernova(time, redshift, mej, beta, ejecta_radius, kappa, n_ism, l
     elif kwargs['output_format'] == 'magnitude':
         return flux_density.to(uu.ABmag).value
 
-@citation_wrapper('Sarin et al. in prep.')
+@citation_wrapper('https://ui.adsabs.harvard.edu/abs/2022arXiv220514159S/abstract')
 def general_mergernova_thermalisation(time, redshift, mej, beta, ejecta_radius, kappa, n_ism, l0, tau_sd, nn,
                kappa_gamma, **kwargs):
     """
@@ -335,7 +335,7 @@ def general_mergernova_thermalisation(time, redshift, mej, beta, ejecta_radius, 
     elif kwargs['output_format'] == 'magnitude':
         return flux_density.to(uu.ABmag).value
 
-@citation_wrapper('Sarin et al. in prep.')
+@citation_wrapper('https://ui.adsabs.harvard.edu/abs/2022arXiv220514159S/abstract')
 def general_mergernova_evolution(time, redshift, mej, beta, ejecta_radius, kappa, n_ism, logbint,
                                  logbext, p0, chi0, radius, logmoi, kappa_gamma, **kwargs):
     """
@@ -725,7 +725,7 @@ def metzger_magnetar_driven_kilonova_model(time, redshift, mej, vej, beta, kappa
     elif kwargs['output_format'] == 'magnitude':
         return flux_density.to(uu.ABmag).value
 
-@citation_wrapper('Sarin et al. in prep.')
+@citation_wrapper('https://ui.adsabs.harvard.edu/abs/2022arXiv220514159S/abstract')
 def general_metzger_magnetar_driven(time, redshift, mej, vej, beta, kappa_r, l0,
                                     tau_sd, nn, thermalisation_efficiency, **kwargs):
     """
@@ -776,7 +776,7 @@ def general_metzger_magnetar_driven(time, redshift, mej, vej, beta, kappa_r, l0,
     elif kwargs['output_format'] == 'magnitude':
         return flux_density.to(uu.ABmag).value
 
-@citation_wrapper('Sarin et al. in prep.')
+@citation_wrapper('https://ui.adsabs.harvard.edu/abs/2022arXiv220514159S/abstract')
 def general_metzger_magnetar_driven_thermalisation(time, redshift, mej, vej, beta, kappa_r, l0,
                                     tau_sd, nn, kappa_gamma, **kwargs):
     """
@@ -827,7 +827,7 @@ def general_metzger_magnetar_driven_thermalisation(time, redshift, mej, vej, bet
     elif kwargs['output_format'] == 'magnitude':
         return flux_density.to(uu.ABmag).value
 
-@citation_wrapper('Sarin et al. in prep.')
+@citation_wrapper('https://ui.adsabs.harvard.edu/abs/2022arXiv220514159S/abstract')
 def general_metzger_magnetar_driven_evolution(time, redshift, mej, vej, beta, kappa_r, logbint,
                                  logbext, p0, chi0, radius, logmoi, kappa_gamma, **kwargs):
     """

@@ -4,6 +4,7 @@ import numpy as np
 import pandas as pd
 
 import redback.model_library
+from redback.utils import logger
 from redback.result import RedbackResult
 
 
@@ -44,5 +45,28 @@ def plot_multiband_lightcurve(transient, parameters, model, model_kwargs=None):
     return res.plot_multiband_lightcurve(model=model, random_models=len(parameters), plot_max_likelihood=False)
 
 
-def plot_evolution_parameters():
-    pass
+def plot_evolution_parameters(result, random_models=100):
+    logger.warning("This type of plot is only valid for evolving magnetar models")
+    tmin = np.log10(np.min(result.metadata['time']))
+    tmax = np.log10(np.max(result.metadata['time']))
+    time = np.logspace(tmin, tmax, 100)
+    fig, ax = plt.subplots(3, 1, sharex=True, figsize=(5, 10))
+    for j in range(random_models):
+        s = dict(result.posterior.iloc[np.random.randint(len(result.posterior))])
+        s["output"] = "namedtuple"
+        model = redback.model_library.all_models_dict["evolving_magnetar_only"]
+        output = model(time, **s)
+        nn = output.nn
+        mu = output.mu
+        alpha = output.alpha
+        ax[0].plot(time, nn, "--", lw=1, color='red', alpha=2.5, zorder=-1)
+        ax[1].plot(time, np.rad2deg(alpha), "--", lw=1, color='red', alpha=2.5, zorder=-1)
+        ax[2].plot(time, mu, "--", lw=1, color='red', alpha=2.5, zorder=-1)
+        ax[0].set_ylabel('braking index')
+        ax[1].set_ylabel('inclination angle')
+        ax[2].set_ylabel('magnetic moment')
+    for x in range(3):
+        ax[x].set_yscale('log')
+        ax[x].set_xscale('log')
+    fig.supxlabel(r"Time since burst [s]")
+    return fig, ax
