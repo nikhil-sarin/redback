@@ -101,7 +101,10 @@ class CutoffBlackbody(_SED):
 
     @property
     def wavelength(self):
-        return nu_to_lambda(self.frequency)
+        if len(self.frequency) == 1:
+            self.frequency = np.ones(len(self.time)) * self.frequency
+        wavelength = nu_to_lambda(self.frequency) * angstrom_cgs
+        return wavelength
 
     @property
     def mask(self):
@@ -134,7 +137,7 @@ class CutoffBlackbody(_SED):
         c1 = np.exp(-self.nxcs / (self.cutoff_wavelength * tp))
 
         term_1 = \
-            c1 * (self.nxcs ** 2 + 2 * (self.nxcs * self.cutoff_wavelength * tp + self.cutoff_wavelength ** 2 * tp2)) \
+             c1 * (self.nxcs ** 2 + 2 * (self.nxcs * self.cutoff_wavelength * tp + self.cutoff_wavelength ** 2 * tp2)) \
             / (self.nxcs ** 3 * self.cutoff_wavelength ** 3)
         term_2 = \
             (6 * tp3 - c1 *
@@ -145,7 +148,6 @@ class CutoffBlackbody(_SED):
         self.norms /= f_blue_reds
 
     def calculate_flux_density(self):
-        # Mostly from Mosfit/SEDs
         self._set_norm()
         self._set_sed()
         return self.flux_density
