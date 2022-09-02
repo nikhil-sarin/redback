@@ -26,7 +26,7 @@ def t0_base_model(time, t0, **kwargs):
     """
     from redback.model_library import all_models_dict  # import model library in function to avoid circular dependency
     base_model = kwargs['base_model']
-    function = all_models_dict(base_model)
+    function = all_models_dict[base_model]
     t0 = Time(t0, format='mjd')
     time = Time(np.asarray(time, dtype=float), format='mjd')
     time = (time - t0).to(uu.day).value
