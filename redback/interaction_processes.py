@@ -54,7 +54,7 @@ class Diffusion(object):
         int_args = int_lums * int_times * np.exp((int_times ** 2 - int_te2s.reshape(lu, 1)) / tau_diff**2)
         int_args[np.isnan(int_args)] = 0.0
 
-        uniq_lums = np.trapz(int_args, axis=1)
+        uniq_lums = np.trapz(int_args, int_times, axis=1)
         uniq_lums *= -2.0 * np.expm1(-trap_coeff / int_te2s) / tau_diff**2
 
         new_lums = uniq_lums[np.searchsorted(uniq_times, self.time)]
@@ -115,7 +115,7 @@ class AsphericalDiffusion(object):
         int_args = int_lums * int_times * np.exp((int_times ** 2 - int_te2s.reshape(lu, 1)) / tau_diff**2)
         int_args[np.isnan(int_args)] = 0.0
 
-        uniq_lums = np.trapz(int_args, axis=1)
+        uniq_lums = np.trapz(int_args, int_times, axis=1)
         uniq_lums *= -2.0 * np.expm1(-trap_coeff / int_te2s) / tau_diff**2
 
         uniq_lums *= (1 + 1.4 * (2 + uniq_times/tau_diff/0.59) / (1 + np.exp(uniq_times/tau_diff/0.59)) *
@@ -183,7 +183,7 @@ class CSMDiffusion(object):
         int_args = int_lums * np.exp((int_times) / t0)
         int_args[np.isnan(int_args)] = 0.0
 
-        uniq_lums = np.trapz(int_args, axis=1)
+        uniq_lums = np.trapz(int_args, int_times, axis=1)
         uniq_lums *= np.exp(-int_tes/t0)/t0
 
         new_lums = uniq_lums[np.searchsorted(uniq_times, self.time)]
@@ -227,7 +227,7 @@ class Viscous(object):
         int_args = int_lums * np.exp((int_times - int_tes.reshape(lu, 1)) / self.tvisc)
         int_args[np.isnan(int_args)] = 0.0
 
-        uniq_lums = np.trapz(int_args, axis=1)/self.tvisc
+        uniq_lums = np.trapz(int_args, int_times, axis=1)/self.tvisc
 
         new_lums = uniq_lums[np.searchsorted(uniq_times, self.time)]
 
