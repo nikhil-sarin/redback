@@ -43,7 +43,7 @@ class TemperatureFloor(object):
 
     @property
     def mask(self) -> np.ndarray:
-        return self.radius_squared < self.rec_radius_squared
+        return self.radius_squared >= self.rec_radius_squared
 
     def calculate_r_photosphere(self) -> None:
         self.r_photosphere = self.radius_squared ** 0.5
