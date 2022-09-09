@@ -172,7 +172,7 @@ def gw_magnetar(time, a_1, alpha_1, fgw0, tau, nn, log_ii, **kwargs):
 def basic_magnetar(time, p0, bp, mass_ns, theta_pb, **kwargs):
     """
     :param time: time in seconds in source frame
-    :param p0: initial spin period in seconds
+    :param p0: initial spin period in milli seconds
     :param bp: polar magnetic field strength in Gauss
     :param mass_ns: mass of neutron star in solar masses
     :param theta_pb: angle between spin and magnetic field axes
@@ -181,7 +181,7 @@ def basic_magnetar(time, p0, bp, mass_ns, theta_pb, **kwargs):
     """
     erot = 2.6e52 * (mass_ns/1.4)**(3./2.) * p0**(-2)
     tp = 1.3e5 * bp**(-2) * p0**2 * (mass_ns/1.4)**(3./2.) * (np.sin(theta_pb))**(-2)
-    luminosity = 2 * erot / tp / (1. + 2 * time / tp)**2
+    luminosity = erot / tp / (1. + time / tp)**2
     return luminosity
 
 def _evolving_gw_and_em_magnetar(time, bint, bext, p0, chi0, radius, moi, **kwargs):
