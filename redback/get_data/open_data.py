@@ -73,14 +73,15 @@ class OpenDataGetter(DataGetter):
             logger.warning('The raw data file already exists.')
             return None
 
-        response = requests.get(self.url)
-        if 'not found' in response.text:
-            raise ValueError(f"Transient {self.transient} does not exist in the catalog. "
+        if 'not found' in requests.get(self.url).text:
+            raise ValueError(
+                f"Transient {self.transient} does not exist in the catalog. "
                 f"Are you sure you are using the right alias?")
+        urllib.request.urlretrieve(url=self.url, filename=self.raw_file_path)
         logger.info(f"Retrieved data for {self.transient}.")
-        open(self.raw_file_path, 'wb').write(response.content)
-        open(self.metadata_path, 'wb').write(requests.get(self.metadata_url).content)
+        urllib.request.urlretrieve(url=self.metadata_url, filename=self.metadata_path)
         logger.info(f"Metadata for {self.transient} added.")
+
 
     def convert_raw_data_to_csv(self) -> Union[pd.DataFrame, None]:
         """Converts the raw data into processed data and saves it into the processed file path.
