@@ -92,8 +92,7 @@ def _metzger_tde(mbh_6, stellar_mass, eta, alpha, beta, **kwargs):
 
     Mdotfb = (0.8 * Mstar / (3.0 * tfb)) * (time_temp / tfb) ** (-5. / 3.)
     Mdotfb_Edd = Mdotfb / (Ledd40 / (0.1 * cc.speed_of_light ** (2.0)))
-    Mdotfb_Edd = Mdotfb_Edd / 1.0e20
-    Mdotfb_Edd = Mdotfb_Edd / 1.0e20
+    Mdotfb_Edd = Mdotfb_Edd / 1.0e40
 
     # ** initialize grid quantities at t = t0 [grid point 0] **
     # initial envelope mass at t0
@@ -123,7 +122,8 @@ def _metzger_tde(mbh_6, stellar_mass, eta, alpha, beta, **kwargs):
     Teff[0] = 1.0e10 * ((Ledd40 + Edotfb40[0]) / (4.0 * np.pi * cc.sigma_sb * Rph[0] ** (2.0))) ** (0.25)
 
     t = time_temp
-    for ii in range(len(time_temp)):
+    for ii in range(len(time_temp) - 1):
+        ii = ii + 1
         Me[ii] = Me[ii - 1] - (MdotBH[ii - 1] - Mdotfb[ii - 1]) * (t[ii] - t[ii - 1])
         # update envelope energy due to SMBH heating + radiative losses
         Ee40[ii] = Ee40[ii - 1] + (Ledd40 - Edotbh40[ii - 1]) * (t[ii] - t[ii - 1])
@@ -153,14 +153,26 @@ def _metzger_tde(mbh_6, stellar_mass, eta, alpha, beta, **kwargs):
 
     output = namedtuple('output', ['bolometric_luminosity', 'photosphere_temperature',
                                    'photospheric_radius', 'lum_xray', 'accretion_radius',
-                                   'SMBH_accretion_rate', 'time_temp'])
-    output.bolometric_luminosity = Lrad
-    output.photosphere_temperature = Teff
-    output.photosphere_radius = Rph
-    output.lum_xray = LX40
-    output.accretion_radius = Racc
-    output.SMBH_accretion_rate = MdotBH
-    output.time_temp = time_temp
+                                   'SMBH_accretion_rate', 'time_temp', 'nulnu', 'time_since_fb'])
+    constraint_1 = np.min(np.where(Rv < Rcirc / 2.))
+    constraint_2 = np.min(np.where(Me < 0.0))
+    constraint = np.min([constraint_1, constraint_2])
+    nu = 6.0e14
+    expon = 1. / (np.exp(cc.planck * nu / (cc.boltzmann_constant * Teff)) - 1.0)
+    nuLnu40 = (8.0*np.pi ** (2.0) * Rph ** (2.0) / cc.speed_of_light ** (2.0))
+    nuLnu40 = nuLnu40 * ((cc.planck * nu) * (nu ** (2.0))) / 1.0e30
+    nuLnu40 = nuLnu40 * expon
+    nuLnu40 = nuLnu40 * (nu / 1.0e10)
+
+    output.bolometric_luminosity = Lrad[:constraint] * 1e40
+    output.photosphere_temperature = Teff[:constraint]
+    output.photosphere_radius = Rph[:constraint]
+    output.lum_xray = LX40[:constraint]
+    output.accretion_radius = Racc[:constraint]
+    output.SMBH_accretion_rate = MdotBH[:constraint]
+    output.time_temp = time_temp[:constraint]
+    output.time_since_fb = output.time_temp - output.time_temp[0]
+    output.nulnu = nuLnu40[:constraint] * 1e40
     return output
 
 @citation_wrapper('https://ui.adsabs.harvard.edu/abs/2022arXiv220707136M/abstract')
