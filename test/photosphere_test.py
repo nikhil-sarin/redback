@@ -24,7 +24,7 @@ class TestTemperatureFloor(unittest.TestCase):
     def test_calculate_photosphere_properties(self):
         temperatures, r_photosphere = self.temperature_floor_instance.calculate_photosphere_properties()
         expected_temperatures = np.array([1.39250008, 1., 1.])
-        expected_r_photosphere = np.array([1.67534478e+10, 3.45600000e+10, 7.77600000e+10])
+        expected_r_photosphere = np.array([8640000000.0, 2.36929531e10, 29017822836.350456])
         self.assertTrue(np.allclose(expected_temperatures, temperatures))
         self.assertTrue(np.allclose(expected_r_photosphere, r_photosphere))
 
