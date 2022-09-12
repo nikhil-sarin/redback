@@ -4,6 +4,7 @@ import sqlite3
 from typing import Union
 import urllib
 import urllib.request
+import ssl
 
 import astropy.units as uu
 import numpy as np
@@ -72,13 +73,13 @@ class OpenDataGetter(DataGetter):
             logger.warning('The raw data file already exists.')
             return None
 
-        if 'not found' in requests.get(self.url).text:
-            raise ValueError(
-                f"Transient {self.transient} does not exist in the catalog. "
+        response = requests.get(self.url, verify=False)
+        if 'not found' in response.text:
+            raise ValueError(f"Transient {self.transient} does not exist in the catalog. "
                 f"Are you sure you are using the right alias?")
-        urllib.request.urlretrieve(url=self.url, filename=self.raw_file_path)
         logger.info(f"Retrieved data for {self.transient}.")
-        urllib.request.urlretrieve(url=self.metadata_url, filename=self.metadata_path)
+        open(self.raw_file_path, 'wb').write(response.content)
+        open(self.metadata_path, 'wb').write(requests.get(self.metadata_url, verify=False).content)
         logger.info(f"Metadata for {self.transient} added.")
 
     def convert_raw_data_to_csv(self) -> Union[pd.DataFrame, None]:
