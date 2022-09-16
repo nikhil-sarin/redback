@@ -23,16 +23,18 @@ def _ejecta_dynamics_and_interaction(time, mej, beta, ejecta_radius, kappa, n_is
     :param pair_cascade_switch: whether to account for pair cascade losses
     :param use_gamma_ray_opacity: whether to use gamma ray opacity to calculate thermalisation efficiency
     :param kwargs: Additional parameters
+    :param use_r_process: whether to use r-process
     :param kappa_gamma: Gamma-ray opacity for leakage efficiency, only used if use_gamma_ray_opacity = True
     :param thermalisation_efficiency: magnetar thermalisation efficiency only used if use_gamma_ray_opacity = False
     :param ejecta albedo: ejecta albedo; default is 0.5
     :param pair_cascade_fraction: fraction of magnetar luminosity lost to pair cascades; default is 0.05
+    :param f_nickel: nickel fraction (if not using r_process)
     :return: named tuple with 'lorentz_factor', 'bolometric_luminosity', 'comoving_temperature',
             'radius', 'doppler_factor', 'tau', 'time', 'kinetic_energy',
             'erad_total', 'thermalisation_efficiency'
     """
     mag_lum = magnetar_luminosity
-
+    use_r_process = kwargs.get('use_r_process',True)
     ejecta_albedo = kwargs.get('ejecta_albedo', 0.5)
     pair_cascade_fraction = kwargs.get('pair_cascade_fraction', 0.05)
 
@@ -53,7 +55,11 @@ def _ejecta_dynamics_and_interaction(time, mej, beta, ejecta_radius, kappa, n_is
 
     t0_comoving = 1.3
     tsigma_comoving = 0.11
-
+    
+    ni56_lum = 6.45e43
+    co56_lum = 1.45e43
+    ni56_life = 8.8  # days
+    co56_life = 111.3  # days    
 
     for i in range(len(time)):
         beta = np.sqrt(1 - 1 / gamma ** 2)
@@ -70,7 +76,12 @@ def _ejecta_dynamics_and_interaction(time, mej, beta, ejecta_radius, kappa, n_is
         comoving_time = doppler_factor_temp * time[i]
         comoving_dvdt = 4 * np.pi * ejecta_radius ** 2 * beta * speed_of_light
         rad_denom = (1 / 2) - (1 / 3.141592654) * np.arctan((comoving_time - t0_comoving) / tsigma_comoving)
-        comoving_radiative_luminosity = (4 * 10 ** 49 * (mej / (2 * 10 ** 33) * 10 ** 2) * rad_denom ** 1.3)
+        if use_r_process:
+            comoving_radiative_luminosity = (4 * 10 ** 49 * (mej / (2 * 10 ** 33) * 10 ** 2) * rad_denom ** 1.3)
+        else:
+            f_nickel = kwargs.get('f_nickel',0)
+            nickel_mass = f_nickel * mej
+            comoving_radiative_luminosity = nickel_mass * (ni56_lum*np.exp(-comoving_time/ni56_life) + co56_lum * np.exp(-comoving_time/co56_life))
         tau_temp = kappa * (mej / comoving_volume) * (ejecta_radius / gamma)
 
         if tau_temp <= 1:

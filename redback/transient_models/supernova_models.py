@@ -2,15 +2,17 @@ import numpy as np
 import pandas as pd
 from redback.transient_models.phenomenological_models import exponential_powerlaw
 from redback.transient_models.magnetar_models import magnetar_only, basic_magnetar
+from redback.transient_models.magnetar_driven_ejecta_models import _ejecta_dynamics_and_interaction
 import redback.interaction_processes as ip
 import redback.sed as sed
 import redback.photosphere as photosphere
 from astropy.cosmology import Planck18 as cosmo  # noqa
 from redback.utils import calc_kcorrected_properties, citation_wrapper, logger, get_csm_properties, nu_to_lambda
-from redback.constants import day_to_s, solar_mass, km_cgs, au_cgs
+from redback.constants import day_to_s, solar_mass, km_cgs, au_cgs, speed_of_light, solar_mass
 from inspect import isfunction
 import astropy.units as uu
 from collections import namedtuple
+from scipy.interpolate import interp1d
 
 homologous_expansion_models = ['exponential_powerlaw_bolometric', 'arnett_bolometric',
                                'basic_magnetar_powered_bolometric','slsn_bolometric',
@@ -892,5 +894,72 @@ def general_magnetar_slsn(time, redshift, l0, tsd, nn, ** kwargs):
     elif kwargs['output_format'] == 'magnitude':
         return flux_density.to(uu.ABmag).value
 
+# In development, imported from general_mergernova_thermalization in magnetar_driven_ejecta_models
+# To-do: cutoff-blackbody spectrum?
+def general_magnetar_driven_supernova(time, redshift, mej, E_sn, ejecta_radius, kappa, n_ism, l0, tau_sd, nn,
+               kappa_gamma, **kwargs):
+    """
+    :param time: time in observer frame in days
+    :param redshift: redshift
+    :param mej: ejecta mass in solar units
+    :param E_sn: supernova explosion energy
+    :param ejecta_radius: initial ejecta radius
+    :param kappa: opacity
+    :param n_ism: ism number density
+    :param l0: initial magnetar X-ray luminosity
+    :param tau_sd: magnetar spin down damping timescale
+    :param nn: braking index
+    :param kappa_gamma: gamma-ray opacity used to calculate magnetar thermalisation efficiency
+    :param kwargs: Additional parameters - Must be all the kwargs required by the specific interaction_process, photosphere, sed methods used
+             e.g., for Diffusion and TemperatureFloor: kappa, kappa_gamma, vej (km/s), temperature_floor
+             and CutoffBlackbody: cutoff_wavelength, default is 3000 Angstrom
+    :param pair_cascade_switch: whether to account for pair cascade losses, default is True
+    :param ejecta albedo: ejecta albedo; default is 0.5
+    :param pair_cascade_fraction: fraction of magnetar luminosity lost to pair cascades; default is 0.05
+    :param output_format: whether to output flux density or AB magnitude
+    :param frequency: (frequency to calculate - Must be same length as time array or a single number)
+    :param f_nickel: Ni^56 mass in solar units
+    :param photosphere: Default is TemperatureFloor.
+            kwargs must have vej or relevant parameters if using different photosphere model
+    :param sed: Default is CutoffBlackbody.
+    :return: flux density or AB magnitude
+    """
+    frequency = kwargs['frequency']
+    pair_cascade_switch = kwargs.get('pair_cascade_switch', False)
+    time_temp = np.geomspace(1e-4, 1e9, 1000, endpoint=True)
+    dl = cosmo.luminosity_distance(redshift).cgs.value
+    magnetar_luminosity = magnetar_only(time=time_temp, l0=l0, tau=tau_sd, nn=nn)
+    beta = np.sqrt(E_sn / (0.5 * mej * solar_mass)) / speed_of_light
+    
+    _photosphere = kwargs.get("photosphere", photosphere.TemperatureFloor)
+    _sed = kwargs.get("sed", sed.CutoffBlackbody)
+    cutoff_wavelength = kwargs.get('cutoff_wavelength', 3000)
+    
+    output = _ejecta_dynamics_and_interaction(time=time_temp, mej=mej,
+                                              beta=beta, ejecta_radius=ejecta_radius,
+                                              kappa=kappa, n_ism=n_ism, magnetar_luminosity=magnetar_luminosity,
+                                              kappa_gamma=kappa_gamma, pair_cascade_switch=pair_cascade_switch,
+                                              use_gamma_ray_opacity=True, **kwargs)
+    kwargs['vej'] = redback.utils.velocity_from_Lorentz_factor(output.lorentz_factor)/km_cgs                                     
+    photo = _photosphere(time=time_temp/day_to_s, luminosity=output.bolometric_luminosity, **kwargs)                                          
+    temp_func = interp1d(time_temp, y=photo.photosphere_temperature)
+    rad_func = interp1d(time_temp, y=photo.r_photosphere)
+    d_func = interp1d(time_temp, y=output.doppler_factor)
+    # convert to source frame time and frequency
+    time = time * day_to_s
+    frequency, time = calc_kcorrected_properties(frequency=frequency, redshift=redshift, time=time)
+    
+    temp = temp_func(time)
+    rad = rad_func(time)
+    df = d_func(time)  
+    sed_1 = _sed(time=time, luminosity=output.bolometric_luminosity, temperature=temp,
+                r_photosphere=rad, frequency=frequency, luminosity_distance=dl,
+                cutoff_wavelength=cutoff_wavelength) #make this relativistic
+    flux_density = sed_1.flux_density
+
+    if kwargs['output_format'] == 'flux_density':
+        return flux_density.to(uu.mJy).value
+    elif kwargs['output_format'] == 'magnitude':
+        return flux_density.to(uu.ABmag).value
 
 
