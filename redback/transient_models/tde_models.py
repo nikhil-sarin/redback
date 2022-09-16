@@ -3,10 +3,12 @@ import redback.interaction_processes as ip
 import redback.sed as sed
 import redback.photosphere as photosphere
 from astropy.cosmology import Planck18 as cosmo  # noqa
-from redback.utils import calc_kcorrected_properties, citation_wrapper
+from redback.utils import calc_kcorrected_properties, citation_wrapper, calc_tfb
 import redback.constants as cc
+import redback.transient_models.phenomenological_models as pm
 from collections import namedtuple
 import astropy.units as uu
+from scipy.interpolate import interp1d
 
 def _analytic_fallback(time, l0, t_0):
     """
@@ -54,7 +56,7 @@ def _metzger_tde(mbh_6, stellar_mass, eta, alpha, beta, **kwargs):
     # circularization radius
     Rcirc = 2.0 * Rt / beta
     # fall-back time of most tightly bound debris
-    tfb = 58. * (3600. * 24.) * (mbh_6 ** (0.5)) * (stellar_mass ** (0.2)) * ((binding_energy_const / 0.8) ** (-1.5))
+    tfb = calc_tfb(binding_energy_const, mbh_6, stellar_mass)
     # Eddington luminosity of SMBH in units of 1e40 erg/s
     Ledd40 = 1.4e4 * mbh_6
     time_temp = np.logspace(np.log10(1.0*tfb), np.log10(100*tfb), 500)
@@ -91,8 +93,6 @@ def _metzger_tde(mbh_6, stellar_mass, eta, alpha, beta, **kwargs):
     LX40 = np.empty_like(tdays)
 
     Mdotfb = (0.8 * Mstar / (3.0 * tfb)) * (time_temp / tfb) ** (-5. / 3.)
-    Mdotfb_Edd = Mdotfb / (Ledd40 / (0.1 * cc.speed_of_light ** (2.0)))
-    Mdotfb_Edd = Mdotfb_Edd / 1.0e40
 
     # ** initialize grid quantities at t = t0 [grid point 0] **
     # initial envelope mass at t0
@@ -153,7 +153,7 @@ def _metzger_tde(mbh_6, stellar_mass, eta, alpha, beta, **kwargs):
 
     output = namedtuple('output', ['bolometric_luminosity', 'photosphere_temperature',
                                    'photospheric_radius', 'lum_xray', 'accretion_radius',
-                                   'SMBH_accretion_rate', 'time_temp', 'nulnu', 'time_since_fb'])
+                                   'SMBH_accretion_rate', 'time_temp', 'nulnu', 'time_since_fb','tfb'])
     constraint_1 = np.min(np.where(Rv < Rcirc / 2.))
     constraint_2 = np.min(np.where(Me < 0.0))
     constraint = np.min([constraint_1, constraint_2])
@@ -172,12 +172,15 @@ def _metzger_tde(mbh_6, stellar_mass, eta, alpha, beta, **kwargs):
     output.SMBH_accretion_rate = MdotBH[:constraint]
     output.time_temp = time_temp[:constraint]
     output.time_since_fb = output.time_temp - output.time_temp[0]
+    output.tfb = tfb
     output.nulnu = nuLnu40[:constraint] * 1e40
     return output
 
 @citation_wrapper('https://ui.adsabs.harvard.edu/abs/2022arXiv220707136M/abstract')
 def metzger_tde(time, redshift,  mbh_6, stellar_mass, eta, alpha, beta, **kwargs):
     """
+    This model is only valid for time after circulation. Use the gaussianrise_metzgertde model for the full lightcurve
+
     :param time: time in observer frame in days
     :param redshift: redshift
     :param mbh_6: mass of supermassive black hole in units of 10^6 solar mass
@@ -191,22 +194,70 @@ def metzger_tde(time, redshift,  mbh_6, stellar_mass, eta, alpha, beta, **kwargs
     :return: flux density or AB magnitude
     """
     frequency = kwargs['frequency']
-    output = _metzger_tde(time_temp, **kwargs)
+    output = _metzger_tde(mbh_6, stellar_mass, eta, alpha, beta, **kwargs)
     dl = cosmo.luminosity_distance(redshift).cgs.value
 
-    # interpolate properties onto observation times
-    temp_func = interp1d(output.time_temp, y=output.photosphere_temperature)
-    rad_func = interp1d(output.time_temp, y=output.photospheric_radius)
+    # interpolate properties onto observation times post tfb
+    temp_func = interp1d(output.time_since_fb, y=output.photosphere_temperature)
+    rad_func = interp1d(output.time_since_fb, y=output.photospheric_radius)
 
     # convert to source frame time and frequency
-    time = time * day_to_s
+    time = time * cc.day_to_s
     frequency, time = calc_kcorrected_properties(frequency=frequency, redshift=redshift, time=time)
 
     temp = temp_func(time)
     photosphere = rad_func(time)
 
-    flux_density = blackbody_to_flux_density(temperature=temp, r_photosphere=photosphere,
+    flux_density = sed.blackbody_to_flux_density(temperature=temp, r_photosphere=photosphere,
                                              dl=dl, frequency=frequency)
+
+    if kwargs['output_format'] == 'flux_density':
+        return flux_density.to(uu.mJy).value
+    elif kwargs['output_format'] == 'magnitude':
+        return flux_density.to(uu.ABmag).value
+
+@citation_wrapper('redback')
+def gaussianrise_metzger_tde(time, redshift, peak_time, sigma, mbh_6, stellar_mass, eta, alpha, beta, **kwargs):
+    """
+    This model is only valid for time after circulation. Use the gaussianrise_metzgertde model for the full lightcurve
+
+    :param time: time in observer frame in days
+    :param redshift: redshift
+    :param mbh_6: mass of supermassive black hole in units of 10^6 solar mass
+    :param stellar_mass: stellar mass in units of solar masses
+    :param eta: SMBH feedback efficiency (typical range: etamin - 0.1)
+    :param alpha: disk viscosity
+    :param beta: TDE penetration factor (typical range: 1 - beta_max)
+    :param kwargs: Additional parameters
+    :param output_format: whether to output flux density or AB magnitude
+    :param frequency: (frequency to calculate - Must be same length as time array or a single number)
+    :return: flux density or AB magnitude
+    """
+    binding_energy_const = kwargs.get('binding_energy_const', 0.8)
+    tfb = calc_tfb(binding_energy_const, mbh_6, stellar_mass)
+
+    f1 = pm.gaussian_rise(time=tfb, a_1=1, peak_time=peak_time, sigma=sigma)
+    output = _metzger_tde(mbh_6, stellar_mass, eta, alpha, beta, **kwargs)
+
+    frequency = kwargs['frequency']
+    frequency, tfb = calc_kcorrected_properties(frequency=frequency, redshift=redshift, time=tfb)
+
+    unique_frequency = np.unique(frequency)
+    dl = cosmo.luminosity_distance(redshift).cgs.value
+
+    f2 = sed.blackbody_to_flux_density(temperature=output.photosphere_temperature[0],
+                                       r_photosphere=output.photosphere_temperature[0],
+                                       dl=dl, frequency=unique_frequency)
+    norms = f2/f1
+
+    # interpolate properties onto observation times post tfb
+    temp_func = interp1d(output.time_since_fb, y=output.photosphere_temperature)
+    rad_func = interp1d(output.time_since_fb, y=output.photospheric_radius)
+
+    tt_pre_fb = time[time <= tfb]
+    tt_post_fb = time[time > tfb]
+
+    flux_density = np.concatenate((f1, f2))
 
     if kwargs['output_format'] == 'flux_density':
         return flux_density.to(uu.mJy).value
