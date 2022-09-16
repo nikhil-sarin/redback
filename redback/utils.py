@@ -33,7 +33,45 @@ def citation_wrapper(r):
         return f
     return wrapper
 
+def calc_tfb(binding_energy_const, mbh_6, stellar_mass):
+    tfb = 58. * (3600. * 24.) * (mbh_6 ** (0.5)) * (stellar_mass ** (0.2)) * ((binding_energy_const / 0.8) ** (-1.5))
+    return tfb
+
+def calculate_normalisation(unique_frequency, model_1, model_2, tref, model_1_dict, model_2_dict):
+    """
+    Calculate the normalisation for smoothly joining two models together at a reference time.
+
+    :param unique_frequency: An array of unique frequencies. Can be None in which case we assume there is only one normalisation.
+    :param model_1: must be redback model with a normalisation parameter
+    :param model_2: any redback model
+    :param tref: time which transition from model_1 to model_2 takes place
+    :param model_1_dict: dictionary of parameters and values for model 1
+    :param model_2: dictionary of parameters and values for model 1
+    :return: normalisation, namedtuple corresponding to the normalisation for the specific frequency.
+    Could be bolometric luminosity, magnitude, or frequency
+    """
+    from redback.model_library import all_models_dict
+    f1 = all_models_dict[model_1](time=tref, a_1=1, **model_1_dict)
+    if unique_frequency == None:
+        f2 = all_models_dict[model_2](time=tref, **model_2_dict)
+        norm = f2/f1
+        normalisation = namedtuple('normalisation', ['bolometric_luminosity'])(norm)
+    else:
+        model_2_dict['frequency'] = unique_frequency
+        f2 = all_models_dict[model_2](time=tref, **model_2_dict)
+        unique_norms = f2/f1
+        dd = dict(zip(unique_frequency, unique_norms))
+        normalisation = namedtuple('normalisation', dd.keys())(*dd.values())
+    return normalisation
+
 def get_csm_properties(nn, eta):
+    """
+    Calculate CSM properties for CSM interacting models
+
+    :param nn: csm norm
+    :param eta: csm density profile exponent
+    :return: csm_properties named tuple
+    """
     csm_properties = namedtuple('csm_properties', ['AA', 'Bf', 'Br'])
     filepath = f"{dirname}/tables/csm_table.txt"
     ns, ss, bfs, brs, aas = np.loadtxt(filepath, delimiter=',', unpack=True)
