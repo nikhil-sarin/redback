@@ -152,8 +152,9 @@ def _metzger_tde(mbh_6, stellar_mass, eta, alpha, beta, **kwargs):
         Edotbh40[ii] = eta * cc.speed_of_light ** (2.0) * (Me[ii] / tacc[ii]) * (1.0e-40)
 
     output = namedtuple('output', ['bolometric_luminosity', 'photosphere_temperature',
-                                   'photospheric_radius', 'lum_xray', 'accretion_radius',
-                                   'SMBH_accretion_rate', 'time_temp', 'nulnu', 'time_since_fb','tfb'])
+                                   'photosphere_radius', 'lum_xray', 'accretion_radius',
+                                   'SMBH_accretion_rate', 'time_temp', 'nulnu',
+                                   'time_since_fb','tfb', 'lnu'])
     constraint_1 = np.min(np.where(Rv < Rcirc / 2.))
     constraint_2 = np.min(np.where(Me < 0.0))
     constraint = np.min([constraint_1, constraint_2])
@@ -194,12 +195,14 @@ def metzger_tde(time, redshift,  mbh_6, stellar_mass, eta, alpha, beta, **kwargs
     :return: flux density or AB magnitude
     """
     frequency = kwargs['frequency']
+    if isinstance(frequency, float):
+        frequency = np.ones(len(time)) * frequency
     output = _metzger_tde(mbh_6, stellar_mass, eta, alpha, beta, **kwargs)
     dl = cosmo.luminosity_distance(redshift).cgs.value
 
     # interpolate properties onto observation times post tfb
     temp_func = interp1d(output.time_since_fb, y=output.photosphere_temperature)
-    rad_func = interp1d(output.time_since_fb, y=output.photospheric_radius)
+    rad_func = interp1d(output.time_since_fb, y=output.photosphere_radius)
 
     # convert to source frame time and frequency
     time = time * cc.day_to_s
@@ -235,30 +238,61 @@ def gaussianrise_metzger_tde(time, redshift, peak_time, sigma, mbh_6, stellar_ma
     """
     binding_energy_const = kwargs.get('binding_energy_const', 0.8)
     tfb = calc_tfb(binding_energy_const, mbh_6, stellar_mass)
-
-    f1 = pm.gaussian_rise(time=tfb, a_1=1, peak_time=peak_time, sigma=sigma)
-    output = _metzger_tde(mbh_6, stellar_mass, eta, alpha, beta, **kwargs)
-
     frequency = kwargs['frequency']
-    frequency, tfb = calc_kcorrected_properties(frequency=frequency, redshift=redshift, time=tfb)
-
-    unique_frequency = np.unique(frequency)
+    if isinstance(frequency, float):
+        frequency = np.ones(len(time)) * frequency
+    unique_frequency = np.sort(np.unique(frequency))
     dl = cosmo.luminosity_distance(redshift).cgs.value
 
+    f1 = pm.gaussian_rise(time=tfb, a_1=1, peak_time=peak_time*cc.day_to_s, sigma=sigma*cc.day_to_s)
+    output = _metzger_tde(mbh_6, stellar_mass, eta, alpha, beta, **kwargs)
+
+    frequency, time = calc_kcorrected_properties(frequency=frequency, redshift=redshift, time=time)
+
     f2 = sed.blackbody_to_flux_density(temperature=output.photosphere_temperature[0],
-                                       r_photosphere=output.photosphere_temperature[0],
-                                       dl=dl, frequency=unique_frequency)
-    norms = f2/f1
+                                       r_photosphere=output.photosphere_radius[0],
+                                       dl=dl, frequency=unique_frequency[0]).to(uu.mJy)
+    norms = f2.value / f1
+    norm_dict = dict(zip(unique_frequency, norms))
 
     # interpolate properties onto observation times post tfb
-    temp_func = interp1d(output.time_since_fb, y=output.photosphere_temperature)
-    rad_func = interp1d(output.time_since_fb, y=output.photospheric_radius)
+    temp_func = interp1d(output.time_temp/cc.day_to_s, y=output.photosphere_temperature)
+    rad_func = interp1d(output.time_temp/cc.day_to_s, y=output.photosphere_radius)
 
-    tt_pre_fb = time[time <= tfb]
-    tt_post_fb = time[time > tfb]
+    mask = time <= tfb / cc.day_to_s
+    tt_pre_fb = time[mask]
+    tt_post_fb = time[~mask]
 
-    flux_density = np.concatenate((f1, f2))
+    f2 = sed.blackbody_to_flux_density(temperature=output.photosphere_temperature[0],
+                                       r_photosphere=output.photosphere_radius[0],
+                                       dl=dl, frequency=unique_frequency)
+    norms = f2.to(uu.mJy).value/f1
+    norm_dict = dict(zip(unique_frequency, norms))
 
+    # mask arrays for post or pre peak
+    time = time * cc.day_to_s
+    _, time = calc_kcorrected_properties(frequency=frequency, redshift=redshift, time=time)
+    mask = time <= tfb
+    tt_pre_fb = time[mask]
+    tt_post_fb = time[~mask]
+    frequency_pre_fb = frequency[mask]
+    frequency_post_fb = frequency[~mask]
+
+    temp = temp_func(tt_post_fb)
+    photosphere = rad_func(tt_post_fb)
+
+    flux_density_post_fb = sed.blackbody_to_flux_density(temperature=temp, r_photosphere=photosphere,
+                                                 dl=dl, frequency=frequency_post_fb)
+    flux_density_post_fb = flux_density_post_fb.to(uu.mJy)
+    flux_density_pre_fb = np.zeros(len(tt_pre_fb))
+    for ii in range(len(tt_pre_fb)):
+        norm_value = norm_dict[frequency_pre_fb[ii]]
+        flux_density_pre_fb[ii] = pm.gaussian_rise(time=tt_pre_fb[ii], a_1 = norm_value,
+                                                   peak_time=peak_time*cc.day_to_s, sigma=sigma*cc.day_to_s)
+    flux_density_pre_fb = flux_density_pre_fb
+    flux_density_post_fb = flux_density_post_fb.to(uu.mJy).value
+    flux_density = np.concatenate((flux_density_pre_fb, flux_density_post_fb))
+    flux_density = flux_density * uu.mJy
     if kwargs['output_format'] == 'flux_density':
         return flux_density.to(uu.mJy).value
     elif kwargs['output_format'] == 'magnitude':
