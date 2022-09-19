@@ -2,6 +2,7 @@ import numpy as np
 import pandas as pd
 from redback.transient_models.phenomenological_models import exponential_powerlaw
 from redback.transient_models.magnetar_models import magnetar_only, basic_magnetar
+from redback.transient_models.shock_powered_models import _shock_cooling
 import redback.interaction_processes as ip
 import redback.sed as sed
 import redback.photosphere as photosphere
@@ -211,6 +212,60 @@ def arnett(time, redshift, f_nickel, mej, **kwargs):
 
     lbol = arnett_bolometric(time=time, f_nickel=f_nickel, mej=mej, **kwargs)
     photo = kwargs['photosphere'](time=time, luminosity=lbol, **kwargs)
+    sed_1 = kwargs['sed'](temperature=photo.photosphere_temperature, r_photosphere=photo.r_photosphere,
+                frequency=frequency, luminosity_distance=dl)
+
+    flux_density = sed_1.flux_density
+
+    if kwargs['output_format'] == 'flux_density':
+        return flux_density.to(uu.mJy).value
+    elif kwargs['output_format'] == 'magnitude':
+        return flux_density.to(uu.ABmag).value
+
+@citation_wrapper('redback')
+def shock_cooling_and_arnett(time, redshift, log10_mass, log10_radius, log10_energy,
+                             f_nickel, mej, **kwargs):
+    """
+    :param time: time in days
+    :param redshift: source redshift
+    :param log10_mass: log10 mass of extended material in solar masses
+    :param log10_radius: log10 radius of extended material in cm
+    :param log10_energy: log10 energy of extended material in ergs
+    :param f_nickel: fraction of nickel mass
+    :param mej: total ejecta mass in solar masses
+    :param kwargs: Must be all the kwargs required by the specific interaction_process, photosphere, sed methods used
+         e.g., for Diffusion and TemperatureFloor: kappa, kappa_gamma, vej (km/s), temperature_floor
+    :param nn: density power law slope
+    :param delta: inner density power law slope
+    :param interaction_process: Default is Diffusion.
+            Can also be None in which case the output is just the raw engine luminosity, or another interaction process.
+    :param photosphere: Default is TemperatureFloor.
+            kwargs must have vej or relevant parameters if using different photosphere model
+    :param sed: Default is blackbody.
+    :return: flux_density or magnitude depending on output_format kwarg
+    """
+    kwargs['interaction_process'] = kwargs.get("interaction_process", ip.Diffusion)
+    kwargs['photosphere'] = kwargs.get("photosphere", photosphere.TemperatureFloor)
+    kwargs['sed'] = kwargs.get("sed", sed.Blackbody)
+
+    frequency = kwargs['frequency']
+    frequency, time = calc_kcorrected_properties(frequency=frequency, redshift=redshift, time=time)
+    dl = cosmo.luminosity_distance(redshift).cgs.value
+
+    mass = 10 ** log10_mass
+    radius = 10 ** log10_radius
+    energy = 10 ** log10_energy
+    output = _shock_cooling(time * day_to_s, mass=mass, radius=radius, energy=energy, **kwargs)
+    lbol_1 = output.lbol
+    lbol_2 = _nickelcobalt_engine(time=time, f_nickel=f_nickel, mej=mej)
+    lbol = lbol_1 + lbol_2
+
+    if kwargs['interaction_process'] is not None:
+        interaction_class = kwargs['interaction_process'](time=time, luminosity=lbol, mej=mej, **kwargs)
+        lbol = interaction_class.new_luminosity
+
+    photo = kwargs['photosphere'](time=time, luminosity=lbol, **kwargs)
+
     sed_1 = kwargs['sed'](temperature=photo.photosphere_temperature, r_photosphere=photo.r_photosphere,
                 frequency=frequency, luminosity_distance=dl)
 
