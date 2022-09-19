@@ -283,8 +283,7 @@ def gaussianrise_metzger_tde(time, redshift, peak_time, sigma, mbh_6, stellar_ma
         return flux_density.to(uu.ABmag).value
 
 @citation_wrapper('redback')
-def tde_analytical_bolometric(time, l0, t_0,interaction_process = ip.Diffusion,
-                                    **kwargs):
+def tde_analytical_bolometric(time, l0, t_0, **kwargs):
     """
     :param time: rest frame time in days
     :param l0: bolometric luminosity at 1 second in cgs
@@ -295,10 +294,10 @@ def tde_analytical_bolometric(time, l0, t_0,interaction_process = ip.Diffusion,
                 e.g., for Diffusion: kappa, kappa_gamma, mej (solar masses), vej (km/s), temperature_floor
     :return: bolometric_luminosity
     """
-
+    _interaction_process = kwargs.get("interaction_process", ip.Diffusion)
     lbol = _analytic_fallback(time=time, l0=l0, t_0=t_0)
-    if interaction_process is not None:
-        interaction_class = interaction_process(time=time, luminosity=lbol, **kwargs)
+    if _interaction_process is not None:
+        interaction_class = _interaction_process(time=time, luminosity=lbol, **kwargs)
         lbol = interaction_class.new_luminosity
     return lbol
 
@@ -316,18 +315,18 @@ def tde_analytical(time, redshift, l0, t_0, **kwargs):
      e.g., for Diffusion TemperatureFloor: kappa, kappa_gamma, vej (km/s), temperature_floor
     :return: flux_density or magnitude depending on output_format kwarg
     """
-    _interaction_process = kwargs.get("interaction_process", ip.Diffusion)
-    _photosphere = kwargs.get("photosphere", photosphere.TemperatureFloor)
-    _sed = kwargs.get("sed", sed.CutoffBlackbody)
+    kwargs['interaction_process'] = kwargs.get("interaction_process", ip.Diffusion)
+    kwargs['photosphere'] = kwargs.get("photosphere", photosphere.TemperatureFloor)
+    kwargs['sed'] = kwargs.get("sed", sed.CutoffBlackbody)
 
     frequency = kwargs['frequency']
     cutoff_wavelength = kwargs.get('cutoff_wavelength', 3000)
     frequency, time = calc_kcorrected_properties(frequency=frequency, redshift=redshift, time=time)
     dl = cosmo.luminosity_distance(redshift).cgs.value
-    lbol = tde_analytical_bolometric(time=time, l0=l0, t_0=t_0, interaction_process=_interaction_process, **kwargs)
+    lbol = tde_analytical_bolometric(time=time, l0=l0, t_0=t_0, **kwargs)
 
-    photo = _photosphere(time=time, luminosity=lbol, **kwargs)
-    sed_1 = _sed(time=time, temperature=photo.photosphere_temperature, r_photosphere=photo.r_photosphere,
+    photo = kwargs['photosphere'](time=time, luminosity=lbol, **kwargs)
+    sed_1 = kwargs['sed'](time=time, temperature=photo.photosphere_temperature, r_photosphere=photo.r_photosphere,
                  frequency=frequency, luminosity_distance=dl, cutoff_wavelength=cutoff_wavelength, luminosity=lbol)
 
     flux_density = sed_1.flux_density

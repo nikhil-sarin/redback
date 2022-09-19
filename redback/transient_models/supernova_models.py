@@ -496,7 +496,7 @@ def homologous_expansion_supernova_model(time, redshift, mej, ek, **kwargs):
     photo = kwargs['photosphere'] (time=time, luminosity=lbol, **kwargs)
 
     sed_1 = kwargs['sed'](temperature=photo.photosphere_temperature, r_photosphere=photo.r_photosphere,
-                frequency=frequency, luminosity_distance=dl, **kwargs)
+                frequency=frequency, luminosity_distance=dl)
 
     flux_density = sed_1.flux_density
 
