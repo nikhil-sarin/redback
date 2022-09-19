@@ -239,59 +239,43 @@ def gaussianrise_metzger_tde(time, redshift, peak_time, sigma, mbh_6, stellar_ma
     binding_energy_const = kwargs.get('binding_energy_const', 0.8)
     tfb = calc_tfb(binding_energy_const, mbh_6, stellar_mass)
     frequency = kwargs['frequency']
+
     if isinstance(frequency, float):
         frequency = np.ones(len(time)) * frequency
-    unique_frequency = np.sort(np.unique(frequency))
+
     dl = cosmo.luminosity_distance(redshift).cgs.value
 
     f1 = pm.gaussian_rise(time=tfb, a_1=1, peak_time=peak_time*cc.day_to_s, sigma=sigma*cc.day_to_s)
     output = _metzger_tde(mbh_6, stellar_mass, eta, alpha, beta, **kwargs)
 
     frequency, time = calc_kcorrected_properties(frequency=frequency, redshift=redshift, time=time)
+    unique_frequency = np.sort(np.unique(frequency))
 
     f2 = sed.blackbody_to_flux_density(temperature=output.photosphere_temperature[0],
                                        r_photosphere=output.photosphere_radius[0],
-                                       dl=dl, frequency=unique_frequency[0]).to(uu.mJy)
+                                       dl=dl, frequency=unique_frequency).to(uu.mJy)
     norms = f2.value / f1
     norm_dict = dict(zip(unique_frequency, norms))
 
-    # interpolate properties onto observation times post tfb
-    temp_func = interp1d(output.time_temp/cc.day_to_s, y=output.photosphere_temperature)
-    rad_func = interp1d(output.time_temp/cc.day_to_s, y=output.photosphere_radius)
+    # build flux density function for each frequency
+    flux_den_interp_func = {}
+    for freq in unique_frequency:
+        tt_pre_fb = np.linspace(-100, output.time_temp[0]/cc.day_to_s - 0.01, 100) * cc.day_to_s
+        tt_post_fb = output.time_temp
+        total_time = np.concatenate([tt_pre_fb, tt_post_fb])
+        f1 = pm.gaussian_rise(time=tt_pre_fb, a_1=norm_dict[freq],
+                         peak_time=peak_time * cc.day_to_s, sigma=sigma * cc.day_to_s)
+        f2 = sed.blackbody_to_flux_density(temperature=output.photosphere_temperature,
+                                           r_photosphere=output.photosphere_radius,
+                                           dl=dl, frequency=freq).to(uu.mJy)
+        flux_den = np.concatenate([f1, f2.value])
+        flux_den_interp_func[freq] = interp1d(total_time, flux_den)
 
-    mask = time <= tfb / cc.day_to_s
-    tt_pre_fb = time[mask]
-    tt_post_fb = time[~mask]
+    # interpolate onto actual observed frequency and time values
+    flux_density = []
+    for freq, tt in zip(frequency, time):
+        flux_density.append(flux_den_interp_func[freq](tt*cc.day_to_s))
 
-    f2 = sed.blackbody_to_flux_density(temperature=output.photosphere_temperature[0],
-                                       r_photosphere=output.photosphere_radius[0],
-                                       dl=dl, frequency=unique_frequency)
-    norms = f2.to(uu.mJy).value/f1
-    norm_dict = dict(zip(unique_frequency, norms))
-
-    # mask arrays for post or pre peak
-    time = time * cc.day_to_s
-    _, time = calc_kcorrected_properties(frequency=frequency, redshift=redshift, time=time)
-    mask = time <= tfb
-    tt_pre_fb = time[mask]
-    tt_post_fb = time[~mask]
-    frequency_pre_fb = frequency[mask]
-    frequency_post_fb = frequency[~mask]
-
-    temp = temp_func(tt_post_fb)
-    photosphere = rad_func(tt_post_fb)
-
-    flux_density_post_fb = sed.blackbody_to_flux_density(temperature=temp, r_photosphere=photosphere,
-                                                 dl=dl, frequency=frequency_post_fb)
-    flux_density_post_fb = flux_density_post_fb.to(uu.mJy)
-    flux_density_pre_fb = np.zeros(len(tt_pre_fb))
-    for ii in range(len(tt_pre_fb)):
-        norm_value = norm_dict[frequency_pre_fb[ii]]
-        flux_density_pre_fb[ii] = pm.gaussian_rise(time=tt_pre_fb[ii], a_1 = norm_value,
-                                                   peak_time=peak_time*cc.day_to_s, sigma=sigma*cc.day_to_s)
-    flux_density_pre_fb = flux_density_pre_fb
-    flux_density_post_fb = flux_density_post_fb.to(uu.mJy).value
-    flux_density = np.concatenate((flux_density_pre_fb, flux_density_post_fb))
     flux_density = flux_density * uu.mJy
     if kwargs['output_format'] == 'flux_density':
         return flux_density.to(uu.mJy).value
