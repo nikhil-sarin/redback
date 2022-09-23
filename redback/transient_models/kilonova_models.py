@@ -70,7 +70,7 @@ def _mosfit_bns(time, mass_1, mass_2, lambda_s, kappa_red, kappa_blue,
     if dynamical_ejecta < 0:
         dynamical_ejecta = 0
 
-    return output
+    pass
 
 @citation_wrapper('https://ui.adsabs.harvard.edu/abs/2021MNRAS.505.3016N/abstract')
 def mosfit_bns(time, redshift, mass_1, mass_2, lambda_s, kappa_red, kappa_blue,
@@ -79,6 +79,10 @@ def mosfit_bns(time, redshift, mass_1, mass_2, lambda_s, kappa_red, kappa_blue,
 
 @citation_wrapper('https://ui.adsabs.harvard.edu/abs/2017ApJ...851L..21V/abstract')
 def mosfit_rprocess():
+    pass
+
+@citation_wrapper('https://ui.adsabs.harvard.edu/abs/2017ApJ...851L..21V/abstract')
+def _mosfit_kilonova_one_component(time, mej, vej, kappa, ):
     pass
 
 @citation_wrapper('https://ui.adsabs.harvard.edu/abs/2017ApJ...851L..21V/abstract')
