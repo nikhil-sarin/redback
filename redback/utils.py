@@ -205,6 +205,42 @@ def calc_flux_from_mag(magnitude, reference_flux, magnitude_system='AB'):
     flux = 10 ** (magnitude / -2.5) * reference_flux  # Jansky
     return 1000 * flux  # return in mJy
 
+def magnitude_to_flux(magnitude, bands):
+    """
+    Convert magnitude to flux density
+    :param magnitude: magnitude
+    :param bands: bandpass
+    :return: flux density
+    """
+    reference_flux = bands_to_reference_flux(bands)
+    if magnitude == np.nan:
+        return np.nan
+    else:
+        maggi = np.power(10.0, magnitude / (-2.5))
+        flux = maggi * reference_flux
+        return flux
+
+def bands_to_reference_flux(bands):
+    """
+    Looks up the reference flux for a given band from the filters table.
+
+    :param bands: List of bands.
+    :type bands: list[str]
+    :return: An array of reference flux associated with the given bands.
+    :rtype: np.ndarray
+    """
+    if bands is None:
+        bands = []
+    df = pd.read_csv(f"{dirname}/tables/filters.csv")
+    bands_to_flux = {band: wavelength for band, wavelength in zip(df['bands'], df['reference_flux'])}
+    res = []
+    for band in bands:
+        try:
+            res.append(bands_to_flux[band])
+        except KeyError as e:
+            logger.info(e)
+            raise KeyError(f"Band {band} is not defined in filters.csv!")
+    return np.array(res)
 
 def bands_to_frequency(bands):
     """Converts a list of bands into an array of frequency in Hz
