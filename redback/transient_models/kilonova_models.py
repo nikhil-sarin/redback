@@ -16,6 +16,10 @@ from scipy.integrate import cumtrapz
 import redback.ejecta_relations as ejr
 
 @citation_wrapper('https://ui.adsabs.harvard.edu/abs/2021MNRAS.505.3016N/abstract')
+def mosfit_aspherical_kilonova():
+    pass
+
+@citation_wrapper('https://ui.adsabs.harvard.edu/abs/2021MNRAS.505.3016N/abstract')
 def mosfit_bns():
     pass
 
@@ -27,7 +31,7 @@ def mosfit_rprocess():
 def mosfit_kilonova():
     pass
 
-@citation_wrapper('https://ui.adsabs.harvard.edu/abs/2020ApJ...891..152H/abstract')
+@citation_wrapper('redback')
 def power_law_stratified_kilonova(time, redshift, mej, vmin, vmax, alpha,
                                   kappa_min, kappa_max, beta, **kwargs):
     pass
@@ -39,7 +43,6 @@ def two_layer_stratified_kilonova(time, redshift, mej, vej_1, vej_2, kappa, beta
 
     :param time: observer frame time in days
     :param redshift: redshift
-    :param frequency: frequency to calculate - Must be same length as time array or a single number
     :param mej: ejecta mass in solar masses
     :param vej_1: velocity of inner shell in c
     :param vej_2: velocity of outer shell in c
@@ -83,7 +86,6 @@ def _kilonova_hr(time, redshift, mej, velocity_array, kappa_array, beta, **kwarg
         return flux_density.to(uu.mJy).value
     elif kwargs['output_format'] == 'magnitude':
         return flux_density.to(uu.ABmag).value
-
 
 
 def _kilonova_hr_sourceframe(time, mej, velocity_array, kappa_array, beta):
