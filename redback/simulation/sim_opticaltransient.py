@@ -4,6 +4,7 @@ import regex as re
 from sncosmo import TimeSeriesSource, Model, get_bandpass
 import simsurvey
 import redback
+from collections import namedtuple
 import astropy.units as uu
 
 
@@ -26,7 +27,7 @@ class SimulateOpticalTransient(object):
         self.parameters = parameters
         self.start_mjd = start_mjd
 
-    def SimulateOpticalTransient(model, parameters, pointings, dEng=1.0, energy_unit=uu.Hz):
+    def SimulateOpticalTransient(self, dEng=1.0, energy_unit=uu.Hz):
         """
         :param model:
         :type model:
@@ -41,9 +42,13 @@ class SimulateOpticalTransient(object):
         :return:
         :rtype:
         """
+        try:
+            self.pointings
+        except AttributeError:
+            get_pointings()
         energy_unit = energy_unit.to(uu.Angstrom, equivalencies=uu.spectral())
-        unique_filter_list = pointings.filter.unique()
-        times = pointings.times
+        unique_filter_list = self.pointings.filter.unique()
+        times = self.pointings.times
         min_wave_list = []
         max_wave_list = []
         for filter_name in unique_filter_list:
@@ -54,10 +59,9 @@ class SimulateOpticalTransient(object):
         max_wave = max(max_wave_list)
         wavelengths = np.linspace(min_wave, max_wave, num=int((max_wave - min_wave)/dAng))
         # determine wavelength/frequency range based on spectral width of filters provided
-        sncosmo_wrapped_model = sncosmo_function_wrapper(model, energy_unit_scale, energy_unit_base, parameters, wavelengths)
+        self.sncosmo_model = sncosmo_function_wrapper(model, energy_unit_scale, energy_unit_base, parameters, wavelengths)
 
-
-    def sncosmo_function_wrapper(model, energy_unit_scale, energy_unit_base, parameters, wavelengths, dense_times, **kwargs):
+    def sncosmo_function_wrapper(self, model, energy_unit_scale, energy_unit_base, parameters, wavelengths, dense_times, **kwargs):
         """
         Function to wrap redback models into sncosmo model format for added functionality.
         """
@@ -79,6 +83,7 @@ class SimulateOpticalTransient(object):
         else:
             energy_delimiter = wavelengths
 
+        # may want to also have dense wavelengths so that bandpass fluxes are estimated correctly
         redshift = parameters.pop("z")
 
         model_output = model_function(dense_times, redshift, parameters, f"{energy_unit_scale}"=energy_delimiter, output_format='flux_density', kwargs)
@@ -100,13 +105,13 @@ class SimulateOpticalTransient(object):
             pass # could verify provided pointings format here.
         else:
             if instrument == 'ZTF':
-                pointings =  # create list of pointings based on ZTF
+                pointings = create_ztf_pointings() # create list of pointings based on ZTF
             elif instrument == 'Rubin':
-                pointings =  # create list of pointings based on Rubin
+                pointings = create_rubin_pointings() # create list of pointings based on Rubin
             elif instrument == 'Roman':
-                pointings =  # create list of pointings based on Roman
+                pointings = create_roman_pointings() # create list of pointings based on Roman
             else:
-                print()
+                print('The requested observatory does not have an implemented set of pointings.')
         return
 
     def pointings_from_scheduler(self, pointings, scheduler):
@@ -118,16 +123,15 @@ class SimulateOpticalTransient(object):
         return
 
 
-    def make_observations(self, ):
-        """
-        
-        """
-        self.model
-        return
-
-    def SimulateMockObservations(self, ):
+    def SimulateMockObservations(self, bands, times, zpsys='ab'):
         """
         Function to generate mock observations from the given model and pointings, but can be reexecuted for different parameters
         """
+
+        bandfluxes = self.sncosmo_model.bandflux(bands, times, zpsys)
+        noisy_bandfluxes = np.random.normal(loc=bandfluxes, scale=self.pointings.sky_noise, size=bandfluxes.shape)
+        # Return observation table
+        # What columns do we want to add, time, band, band-wave, bandflux, flux_err,
+        pd.DataFrame(columns=['Time_mjd', 'Band', 'Bandflux', 'Flux_err'])
 
         return
