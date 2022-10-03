@@ -735,7 +735,11 @@ def csm_interaction_bolometric(time, mej, csm_mass, vej, eta, rho, kappa, r0, **
     mass_csm_threshold = csm_output.mass_csm_threshold
 
     if _interaction_process is not None:
-        interaction_class = _interaction_process(time=time, luminosity=lbol,
+        dense_resolution = kwargs.get("dense_resolution", 1000)
+        dense_times = np.linspace(0, time[-1]+100, dense_resolution)
+        dense_lbols = _csm_engine(time=dense_times, mej=mej, csm_mass=csm_mass, vej=vej,
+                             eta=eta, rho=rho, kappa=kappa, r0=r0, **kwargs).lbol
+        interaction_class = _interaction_process(time=time, dense_times=dense_times, luminosity=lbol,
                                                 kappa=kappa, r_photosphere=r_photosphere,
                                                 mass_csm_threshold=mass_csm_threshold, csm_mass=csm_mass, **kwargs)
         lbol = interaction_class.new_luminosity
