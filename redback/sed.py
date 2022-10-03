@@ -2,7 +2,7 @@ from typing import Union
 
 import numpy as np
 from redback.constants import *
-from redback.utils import nu_to_lambda, magnitude_to_flux
+from redback.utils import nu_to_lambda, bandpass_magnitude_to_flux
 
 
 def blackbody_to_flux_density(temperature, r_photosphere, dl, frequency):
@@ -287,16 +287,16 @@ class Line(_SED):
         amp_new = np.exp(-0.5 * ((self.wavelength - self.line_wavelength) / self.line_width) ** 2)
         self.sed += amplitude * amp_new
 
-def get_bandpass_from_spectra(times, bands, spectra, frequency_array, **kwargs):
+def get_correct_output_format_from_spectra(times, bands, spectra, frequency_array, **kwargs):
     """
     Use SNcosmo to get the bandpass flux or magnitude in AB from spectra at given times.
 
     :param times: times in observer frame
     :param bands: band array - must be same length as time array or a single value
-    :param frequency_array: frequency array in Angstrom in observer frame
     :param spectra: spectra in mJy evaluated at all times and frequencies; shape (len(times), len(frequency_array))
+    :param frequency_array: frequency array in Angstrom in observer frame
     :param kwargs: Additional parameters
-    :param output_format: 'flux', 'magnitude', 'sncosmo_source'
+    :param output_format: 'flux', 'magnitude', 'sncosmo_source', 'flux_density'
     :return: flux, magnitude or SNcosmo TimeSeries Source depending on output format kwarg
     """
     from sncosmo import TimeSeriesSource
@@ -306,10 +306,12 @@ def get_bandpass_from_spectra(times, bands, spectra, frequency_array, **kwargs):
     source = TimeSeriesSource(phase=times, wave=frequency_array, flux=fmjy)
     magnitude = source.bandmag(phase=times, band=bands, magsys='ab')
     if kwargs['output_format'] == 'flux':
-        return magnitude_to_flux(magnitude, bands)
+        return bandpass_magnitude_to_flux(magnitude=magnitude, bands=bands)
+    elif kwargs['output_format'] == 'flux_density':
+        return spectra
     elif kwargs['output_format'] == 'magnitude':
         return magnitude
     elif kwargs['output_format'] == 'sncosmo_source':
         return source
     else:
-        raise ValueError("Output format must be 'flux', 'magnitude' or 'sncosmo_source'")
+        raise ValueError("Output format must be 'flux', 'magnitude', 'sncosmo_source', or 'flux_density'")
