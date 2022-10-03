@@ -65,9 +65,10 @@ class Diffusion(object):
         return tau_diff, new_lums
 
 class AsphericalDiffusion(object):
-    def __init__(self, time, luminosity, kappa, kappa_gamma, mej, vej, area_projection, area_reference, **kwargs):
+    def __init__(self, time, dense_times, luminosity, kappa, kappa_gamma, mej, vej, area_projection, area_reference, **kwargs):
         """
         :param time: source frame time in days
+        :param dense_times: dense time array in days
         :param luminosity: luminosity
         :param kappa: opacity
         :param kappa_gamma: gamma-ray opacity
@@ -81,6 +82,7 @@ class AsphericalDiffusion(object):
         self.kappa_gamma = kappa_gamma
         self.luminosity = luminosity
         self.time = time
+        self.dense_times = dense_times
         self.m_ejecta = mej
         self.v_ejecta = vej
         self.area_projection = area_projection
@@ -100,18 +102,18 @@ class AsphericalDiffusion(object):
         tau_diff = np.sqrt(diffusion_constant * self.kappa * self.m_ejecta / self.v_ejecta) / day_to_s
         trap_coeff = (trapping_constant * self.kappa_gamma * self.m_ejecta / (self.v_ejecta ** 2)) / day_to_s ** 2
 
-        min_te = min(self.time)
+        min_te = min(self.dense_times)
         tb = max(0.0, min_te)
-        luminosity_interpolator = interp1d(self.time, self.luminosity, copy=False,assume_sorted=True)
+        luminosity_interpolator = interp1d(self.dense_times, self.luminosity, copy=False,assume_sorted=True)
 
-        uniq_times = np.unique(self.time[(self.time >= tb) & (self.time <= self.time[-1])])
+        uniq_times = np.unique(self.time[(self.time >= tb) & (self.time <= self.dense_times[-1])])
         lu = len(uniq_times)
 
         num = int(round(timesteps / 2.0))
-        lsp = np.logspace(np.log10(tau_diff /self.time[-1]) + minimum_log_spacing, 0, num)
+        lsp = np.logspace(np.log10(tau_diff /self.dense_times[-1]) + minimum_log_spacing, 0, num)
         xm = np.unique(np.concatenate((lsp, 1 - lsp)))
 
-        int_times = np.clip(tb + (uniq_times.reshape(lu, 1) - tb) * xm, tb, self.time[-1])
+        int_times = np.clip(tb + (uniq_times.reshape(lu, 1) - tb) * xm, tb, self.dense_times[-1])
 
         int_te2s = int_times[:, -1] ** 2
         int_lums = luminosity_interpolator(int_times)
