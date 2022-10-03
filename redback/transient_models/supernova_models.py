@@ -107,7 +107,11 @@ def exponential_powerlaw_bolometric(time, lbol_0, alpha_1, alpha_2, tpeak_d, **k
     lbol = exponential_powerlaw(time, a_1=lbol_0, alpha_1=alpha_1, alpha_2=alpha_2,
                                 tpeak=tpeak_d, **kwargs)
     if _interaction_process is not None:
-        interaction_class = _interaction_process(time=time, luminosity=lbol, **kwargs)
+        dense_resolution = kwargs.get("dense_resolution", 1000)
+        dense_times = np.linspace(0, time[-1]+100, dense_resolution)
+        dense_lbols = exponential_powerlaw(dense_times, a_1=lbol_0, alpha_1=alpha_1, alpha_2=alpha_2,
+                                tpeak=tpeak_d, **kwargs)
+        interaction_class = _interaction_process(time=time, dense_times=dense_times, luminosity=dense_lbols, **kwargs)
         lbol = interaction_class.new_luminosity
     return lbol
 
@@ -174,7 +178,7 @@ def arnett_bolometric(time, f_nickel, mej, **kwargs):
     :param f_nickel: fraction of nickel mass
     :param mej: total ejecta mass in solar masses
     :param kwargs: Must be all the kwargs required by the specific interaction_process
-        interaction_process: Default is Diffusion.
+    :param interaction_process: Default is Diffusion.
         Can also be None in which case the output is just the raw engine luminosity, or another interaction process.
         e.g., for Diffusion: kappa, kappa_gamma, vej (km/s), temperature_floor
     :return: bolometric_luminosity
@@ -182,7 +186,10 @@ def arnett_bolometric(time, f_nickel, mej, **kwargs):
     _interaction_process = kwargs.get("interaction_process", ip.Diffusion)
     lbol = _nickelcobalt_engine(time=time, f_nickel=f_nickel, mej=mej)
     if _interaction_process is not None:
-        interaction_class = _interaction_process(time=time, luminosity=lbol, mej=mej, **kwargs)
+        dense_resolution = kwargs.get("dense_resolution", 1000)
+        dense_times = np.linspace(0, time[-1]+100, dense_resolution)
+        dense_lbols = _nickelcobalt_engine(time=dense_times, f_nickel=f_nickel, mej=mej)
+        interaction_class = _interaction_process(time=time, dense_times=dense_times, luminosity=dense_lbols, mej=mej, **kwargs)
         lbol = interaction_class.new_luminosity
     return lbol
 
@@ -261,7 +268,12 @@ def shock_cooling_and_arnett(time, redshift, log10_mass, log10_radius, log10_ene
     lbol = lbol_1 + lbol_2
 
     if kwargs['interaction_process'] is not None:
-        interaction_class = kwargs['interaction_process'](time=time, luminosity=lbol, mej=mej, **kwargs)
+        dense_resolution = kwargs.get("dense_resolution", 1000)
+        dense_times = np.linspace(0, time[-1]+100, dense_resolution)
+        dense_lbols = _nickelcobalt_engine(time=dense_times, f_nickel=f_nickel, mej=mej)
+        dense_lbols += _shock_cooling(dense_times * day_to_s, mass=mass, radius=radius, energy=energy, **kwargs).lbol
+        interaction_class = kwargs['interaction_process'](time=time, dense_times=dense_times, luminosity=dense_lbols,
+                                                          mej=mej, **kwargs)
         lbol = interaction_class.new_luminosity
 
     photo = kwargs['photosphere'](time=time, luminosity=lbol, **kwargs)
@@ -291,10 +303,12 @@ def basic_magnetar_powered_bolometric(time, p0, bp, mass_ns, theta_pb, **kwargs)
     :return: bolometric_luminosity
     """
     _interaction_process = kwargs.get("interaction_process", ip.Diffusion)
-
     lbol = basic_magnetar(time=time * day_to_s, p0=p0, bp=bp, mass_ns=mass_ns, theta_pb=theta_pb)
     if _interaction_process is not None:
-        interaction_class = _interaction_process(time=time, luminosity=lbol, **kwargs)
+        dense_resolution = kwargs.get("dense_resolution", 1000)
+        dense_times = np.linspace(0, time[-1]+100, dense_resolution)
+        dense_lbols = basic_magnetar(time=dense_times * day_to_s, p0=p0, bp=bp, mass_ns=mass_ns, theta_pb=theta_pb)
+        interaction_class = _interaction_process(time=time, dense_times=dense_times, luminosity=dense_lbols,**kwargs)
         lbol = interaction_class.new_luminosity
     return lbol
 
@@ -353,7 +367,6 @@ def slsn_bolometric(time, p0, bp, mass_ns, theta_pb,**kwargs):
             Can also be None in which case the output is just the raw engine luminosity, or another interaction process.
     :return: bolometric_luminosity
     """
-    _interaction_process = kwargs.get("interaction_process", ip.Diffusion)
     return basic_magnetar_powered_bolometric(time=time, p0=p0, bp=bp, mass_ns=mass_ns,
                                              theta_pb=theta_pb, **kwargs)
 
@@ -434,7 +447,12 @@ def magnetar_nickel(time, redshift, f_nickel, mej, p0, bp, mass_ns, theta_pb, **
     lbol = lbol_mag + lbol_arnett
 
     if kwargs['interaction_process'] is not None:
-        interaction_class = kwargs['interaction_process'](time=time, luminosity=lbol, mej=mej, **kwargs)
+        dense_resolution = kwargs.get("dense_resolution", 1000)
+        dense_times = np.linspace(0, time[-1]+100, dense_resolution)
+        dense_lbols = _nickelcobalt_engine(time=dense_times, f_nickel=f_nickel, mej=mej)
+        dense_lbols += basic_magnetar(time=dense_times * day_to_s, p0=p0, bp=bp, mass_ns=mass_ns, theta_pb=theta_pb)
+        interaction_class = kwargs['interaction_process'](time=time, dense_times=dense_times, luminosity=dense_lbols,
+                                                          mej=mej, **kwargs)
         lbol = interaction_class.new_luminosity
 
     photo = kwargs['photosphere'](time=time, luminosity=lbol, **kwargs)
@@ -482,7 +500,6 @@ def homologous_expansion_supernova_model_bolometric(time, mej, ek, **kwargs):
     kwargs['interaction_process'] = kwargs.get("interaction_process", ip.Diffusion)
     lbol = function(time, **kwargs)
     return lbol
-
 
 @citation_wrapper('redback')
 def thin_shell_supernova_model_bolometric(time, mej, ek, **kwargs):
