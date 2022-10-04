@@ -15,7 +15,8 @@ import redback.get_data.directory
 import redback.get_data.utils
 import redback.redback_errors
 from redback.get_data.getter import DataGetter
-from redback.utils import logger, calc_flux_density_from_ABmag, calc_flux_density_error
+from redback.utils import logger, calc_flux_density_from_ABmag, \
+    calc_flux_density_error_from_monochromatic_magnitude, bandpass_magnitude_to_flux, bands_to_reference_flux
 
 dirname = os.path.dirname(__file__)
 
@@ -74,7 +75,7 @@ class LasairDataGetter(DataGetter):
         with open(self.raw_file_path, "r") as f:
             raw_data = json.load(f)
 
-        lasair_to_general_bands = {1: "g", 2: "r"}
+        lasair_to_general_bands = {1: "ztfg", 2: "ztfr", 3:'ztfi'}
         processed_data = pd.DataFrame()
 
         processed_data["time"] = [d["mjd"] for d in raw_data["candidates"] if "candid" in d]
@@ -83,11 +84,16 @@ class LasairDataGetter(DataGetter):
         processed_data["band"] = [lasair_to_general_bands[d["fid"]] for d in raw_data["candidates"] if "candid" in d]
 
         processed_data["flux_density(mjy)"] = calc_flux_density_from_ABmag(processed_data["magnitude"].values).value
-        processed_data["flux_density_error"] = calc_flux_density_error(
-            magnitude=processed_data["magnitude"].values,
-            magnitude_error=processed_data["e_magnitude"].values,
-            reference_flux=3631,
-            magnitude_system="AB")
+        processed_data["flux_density_error"] = calc_flux_density_error_from_monochromatic_magnitude(
+            magnitude=processed_data["magnitude"].values, magnitude_error=processed_data["e_magnitude"].values,
+            reference_flux=3631, magnitude_system="AB")
+        processed_data['flux(erg/cm2/s)'] = bandpass_magnitude_to_flux(processed_data['magnitude'].values, processed_data['band'].values).value
+        processed_data['flux_error'] = calc_flux_density_error_from_monochromatic_magnitude(magnitude=processed_data['magnitude'].values,
+                                                                                  magnitude_error=processed_data[
+                                                                                      'e_magnitude'].values,
+                                                                                  reference_flux=bands_to_reference_flux(
+                                                                                      processed_data['band'].values),
+                                                                                  magnitude_system='AB')
         processed_data = processed_data.sort_values(by="time")
 
         time_of_event = min(processed_data["time"])
