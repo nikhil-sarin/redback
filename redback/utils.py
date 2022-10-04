@@ -1,6 +1,5 @@
 import contextlib
 import logging
-import math
 import os
 from collections import namedtuple
 from inspect import getmembers, isfunction
@@ -216,14 +215,18 @@ def deceleration_timescale(e0, g0, n0):
     t_peak = (num / denom) ** (1. / 3.)
     return t_peak
 
-def calc_flux_density_from_ABmag(magnitudes):
+def calc_flux_density_from_ABmag(magnitudes, bands):
     """
     Calculate flux density from AB magnitude assuming monochromatic AB filter
 
     :param magnitudes:
     :return: flux density
     """
-    return (magnitudes * uu.ABmag).to(uu.mJy)
+    reference_flux = bands_to_reference_flux(bands)
+    zeropoint_fluxdensity = reference_flux/bands_to_frequency(bands)
+    zeropoint_fluxdensity = zeropoint_fluxdensity * (uu.erg / uu.s / uu.cm ** 2 / uu.Hz)
+    flux_density = 10 ** (-0.4 * (magnitudes)) * zeropoint_fluxdensity
+    return flux_density.to(uu.mJy)
 
 def calc_ABmag_from_flux_density(fluxdensity):
     """
@@ -273,6 +276,17 @@ def calc_flux_density_error_from_monochromatic_magnitude(magnitude, magnitude_er
     flux_err = ((dfdm * magnitude_error) ** 2) ** 0.5
     return flux_err
 
+def bands_to_zeropoint(bands):
+    """
+    Bands to zero point
+
+    :param bands: list of bands
+    :return: zeropoint for magnitude to flux density calculation
+    """
+    reference_flux = bands_to_reference_flux(bands)
+    zeropoint = 10**(reference_flux/-2.5)
+    return zeropoint
+
 def bandpass_magnitude_to_flux(magnitude, bands):
     """
     Convert magnitude to flux density
@@ -288,6 +302,22 @@ def bandpass_magnitude_to_flux(magnitude, bands):
         maggi = np.power(10.0, magnitude / (-2.5))
         flux = maggi * reference_flux
         return flux
+
+def bandpass_flux_to_magnitude(flux, bands):
+    """
+    Convert flux density to magnitude
+
+    :param flux: flux density
+    :param bands: bandpass
+    :return: magnitude
+    """
+    reference_flux = bands_to_reference_flux(bands)
+    if flux == np.nan:
+        return np.nan
+    else:
+        maggi = flux / reference_flux
+        magnitude = -2.5 * np.log10(maggi)
+        return magnitude
 
 def bands_to_reference_flux(bands):
     """
