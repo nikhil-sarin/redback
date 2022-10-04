@@ -215,18 +215,14 @@ def deceleration_timescale(e0, g0, n0):
     t_peak = (num / denom) ** (1. / 3.)
     return t_peak
 
-def calc_flux_density_from_ABmag(magnitudes, bands):
+def calc_flux_density_from_ABmag(magnitudes):
     """
     Calculate flux density from AB magnitude assuming monochromatic AB filter
 
     :param magnitudes:
     :return: flux density
     """
-    reference_flux = bands_to_reference_flux(bands)
-    zeropoint_fluxdensity = reference_flux/bands_to_frequency(bands)
-    zeropoint_fluxdensity = zeropoint_fluxdensity * (uu.erg / uu.s / uu.cm ** 2 / uu.Hz)
-    flux_density = 10 ** (-0.4 * (magnitudes)) * zeropoint_fluxdensity
-    return flux_density.to(uu.mJy)
+    return (magnitudes * uu.mJy).to(uu.ABmag)
 
 def calc_ABmag_from_flux_density(fluxdensity):
     """
@@ -236,6 +232,30 @@ def calc_ABmag_from_flux_density(fluxdensity):
     :return: AB magnitude
     """
     return (fluxdensity * uu.mJy).to(uu.ABmag)
+
+def calc_flux_density_from_vegamag(magnitudes, zeropoint):
+    """
+    Calculate flux density from Vega magnitude assuming Vega filter
+
+    :param magnitudes:
+    :param zeropoint: Vega zeropoint for a given filter in Jy
+    :return: flux density in mJy
+    """
+    zeropoint = zeropoint * 1000
+    flux_density = zeropoint * 10 ** (magnitudes/-2.5)
+    return flux_density
+
+def calc_vegamag_from_flux_density(fluxdensity, zeropoint):
+    """
+    Calculate Vega magnitude from flux density assuming Vega filter
+
+    :param fluxdensity: in mJy
+    :param zeropoint: Vega zeropoint for a given filter in Jy
+    :return: Vega magnitude
+    """
+    zeropoint = zeropoint * 1000
+    magnitude = -2.5 * np.log10(fluxdensity / zeropoint)
+    return magnitude
 
 def convert_absolute_mag_to_apparent(magnitude, distance):
     """
@@ -299,7 +319,7 @@ def bandpass_magnitude_to_flux(magnitude, bands):
     if magnitude == np.nan:
         return np.nan
     else:
-        maggi = np.power(10.0, magnitude / (-2.5))
+        maggi = 10.0**(magnitude / (-2.5))
         flux = maggi * reference_flux
         return flux
 
