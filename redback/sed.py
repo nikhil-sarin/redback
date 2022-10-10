@@ -308,6 +308,7 @@ def get_correct_output_format_from_spectra(times, bands, spectra, frequency_arra
     if kwargs['output_format'] == 'flux':
         return bandpass_magnitude_to_flux(magnitude=magnitude, bands=bands)
     elif kwargs['output_format'] == 'flux_density':
+        # current output
         return spectra
     elif kwargs['output_format'] == 'magnitude':
         return magnitude
