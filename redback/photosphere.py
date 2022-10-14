@@ -1,4 +1,4 @@
-# This is mostly from mosfit/photospheres
+# This is mostly from mosfit/photospheres but rewritten considerably.
 from typing import Any, Union
 
 import numpy as np

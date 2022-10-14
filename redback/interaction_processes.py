@@ -1,4 +1,4 @@
-# This is mostly from mosfit/transforms
+# This is mostly from mosfit/transforms but rewritten to be modular
 
 import numpy as np
 from scipy.interpolate import interp1d
