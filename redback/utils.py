@@ -316,12 +316,9 @@ def bandpass_magnitude_to_flux(magnitude, bands):
     :return: flux density
     """
     reference_flux = bands_to_reference_flux(bands)
-    if magnitude == np.nan:
-        return np.nan
-    else:
-        maggi = 10.0**(magnitude / (-2.5))
-        flux = maggi * reference_flux
-        return flux
+    maggi = 10.0**(magnitude / (-2.5))
+    flux = maggi * reference_flux
+    return flux
 
 def bandpass_flux_to_magnitude(flux, bands):
     """
@@ -332,12 +329,9 @@ def bandpass_flux_to_magnitude(flux, bands):
     :return: magnitude
     """
     reference_flux = bands_to_reference_flux(bands)
-    if flux == np.nan:
-        return np.nan
-    else:
-        maggi = flux / reference_flux
-        magnitude = -2.5 * np.log10(maggi)
-        return magnitude
+    maggi = flux / reference_flux
+    magnitude = -2.5 * np.log10(maggi)
+    return magnitude
 
 def bands_to_reference_flux(bands):
     """
