@@ -3,4 +3,3 @@ sncosmo
 nestle
 sherpa
 PyQt5
-beautifulsoup4
