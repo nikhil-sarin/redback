@@ -46,7 +46,7 @@ class LasairDataGetter(DataGetter):
         :return: The lasair raw data url.
         :rtype: str
         """
-        return f"https://lasair.roe.ac.uk/object/{self.transient}/json/"
+        return f"https://lasair.roe.ac.uk/object/{self.transient}/"
 
     def collect_data(self) -> None:
         """Downloads the data from astrocats and saves it into the raw file path."""
@@ -58,7 +58,19 @@ class LasairDataGetter(DataGetter):
             raise ValueError(
                 f"Transient {self.transient} does not exist in the catalog. "
                 f"Are you sure you are using the right alias?")
-        urllib.request.urlretrieve(url=self.url, filename=self.raw_file_path)
+        data = pd.read_html(self.url)
+        data = data[1]
+        data['diff_magnitude'] = [data['magpsf'].iloc[x].split(" ")[0] for x in range(len(data))]
+        data['diff_magnitude_error'] = [data['magpsf'].iloc[x].split(" ")[-1] for x in range(len(data))]
+
+        logger.warning('Using the difference magnitude to calculate quantities. '
+                       'Reduce the data yourself if you would like to use a reference magnitude')
+
+        # Change the dataframe to the correct raw dataframe format
+        del data['UTC']
+        del data['images']
+        del data['magpsf']
+        data.to_csv(self.raw_file_path, index=False)
         logger.info(f"Retrieved data for {self.transient}.")
 
     def convert_raw_data_to_csv(self) -> Union[pd.DataFrame, None]:
@@ -72,22 +84,21 @@ class LasairDataGetter(DataGetter):
             logger.warning('The processed data file already exists. Returning.')
             return pd.read_csv(self.processed_file_path)
 
-        with open(self.raw_file_path, "r") as f:
-            raw_data = json.load(f)
-
-        lasair_to_general_bands = {1: "ztfg", 2: "ztfr", 3:'ztfi'}
+        raw_data = pd.read_csv(self.raw_file_path)
+        lasair_to_general_bands = {"g": "ztfg", "r": "ztfr", "i":'ztfi'}
         processed_data = pd.DataFrame()
 
-        processed_data["time"] = [d["mjd"] for d in raw_data["candidates"] if "candid" in d]
-        processed_data["magnitude"] = [d["dc_mag"] for d in raw_data["candidates"] if "candid" in d]
-        processed_data["e_magnitude"] = [d["dc_sigmag"] for d in raw_data["candidates"] if "candid" in d]
-        processed_data["band"] = [lasair_to_general_bands[d["fid"]] for d in raw_data["candidates"] if "candid" in d]
+        processed_data["time"] = raw_data['MJD']
+        processed_data["magnitude"] = raw_data['diff_magnitude']
+        processed_data["e_magnitude"] = raw_data['diff_magnitude_error']
+        bands = [lasair_to_general_bands[x] for x in raw_data['Filter']]
+        processed_data["band"] = bands
 
         processed_data["flux_density(mjy)"] = calc_flux_density_from_ABmag(processed_data["magnitude"].values).value
         processed_data["flux_density_error"] = calc_flux_density_error_from_monochromatic_magnitude(
             magnitude=processed_data["magnitude"].values, magnitude_error=processed_data["e_magnitude"].values,
             reference_flux=3631, magnitude_system="AB")
-        processed_data['flux(erg/cm2/s)'] = bandpass_magnitude_to_flux(processed_data['magnitude'].values, processed_data['band'].values).value
+        processed_data['flux(erg/cm2/s)'] = bandpass_magnitude_to_flux(processed_data['magnitude'].values, processed_data['band'].values)
         processed_data['flux_error'] = calc_flux_density_error_from_monochromatic_magnitude(magnitude=processed_data['magnitude'].values,
                                                                                   magnitude_error=processed_data[
                                                                                       'e_magnitude'].values,

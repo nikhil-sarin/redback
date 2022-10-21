@@ -110,7 +110,7 @@ class OpenDataGetter(DataGetter):
         data['flux_density_error'] = calc_flux_density_error_from_monochromatic_magnitude(
             magnitude=data['magnitude'].values, magnitude_error=data['e_magnitude'].values, reference_flux=3631,
             magnitude_system='AB')
-        data['flux(erg/cm2/s)'] = bandpass_magnitude_to_flux(data['magnitude'].values, data['band'].values).value
+        data['flux(erg/cm2/s)'] = bandpass_magnitude_to_flux(data['magnitude'].values, data['band'].values)
         data['flux_error'] = calc_flux_density_error_from_monochromatic_magnitude(magnitude=data['magnitude'].values,
             magnitude_error=data['e_magnitude'].values, reference_flux=bands_to_reference_flux(data['band'].values),
             magnitude_system='AB')

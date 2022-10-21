@@ -126,7 +126,7 @@ def lasair_directory_structure(transient: str, transient_type: str) -> Directory
     else:
         directory_path = f"{transient_type}/"
     check_directory_exists_and_if_not_mkdir(directory_path)
-    raw_file_path = f"{directory_path}{transient}_rawdata.json"
+    raw_file_path = f"{directory_path}{transient}_rawdata.csv"
     processed_file_path = f"{directory_path}{transient}.csv"
     return DirectoryStructure(
         directory_path=directory_path, raw_file_path=raw_file_path, processed_file_path=processed_file_path)
