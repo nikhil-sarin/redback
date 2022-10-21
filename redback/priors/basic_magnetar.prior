@@ -1,4 +1,4 @@
 p0 = LogUniform(0.7e-3, 10e-3, 'p0', latex_label = r'$p_{0} [s]$')
-bp = LogUniform(1e14, 1e18, 'bp', latex_label = r'$B_{\mathrm{ext}} [G]$')
+bp = LogUniform(-4, 4, 'bp', latex_label = r'$B_{\mathrm{ext}} [G]$')
 mass_ns = Uniform(1.1, 2.2, 'mass_ns', latex_label = r'$M [M_{\odot}]$')
-theta_pb = Uniform(15, 50, 'theta_pb', latex_label = r'$\theta_{\mathrm{PB}}$')
+theta_pb = Uniform(0, 3.14, 'theta_pb', latex_label = r'$\theta_{\mathrm{PB}}$')
