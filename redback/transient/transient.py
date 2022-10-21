@@ -204,7 +204,7 @@ class Transient(object):
         magnitude = np.array(df["magnitude"])
         magnitude_err = np.array(df["e_magnitude"])
         bands = np.array(df["band"])
-        flux = np.array(df["flux"])
+        flux = np.array(df["flux(erg/cm2/s)"])
         flux_err = np.array(df["flux_error"])
         flux_density = np.array(df["flux_density(mjy)"])
         flux_density_err = np.array(df["flux_density_error"])
@@ -697,7 +697,7 @@ class OpticalTransient(Transient):
         system = np.array(df["system"])
         flux_density = np.array(df["flux_density(mjy)"])
         flux_density_err = np.array(df["flux_density_error"])
-        flux = np.array(df["flux"])
+        flux = np.array(df["flux(erg/cm2/s)"])
         flux_err = np.array(df['flux_error'])
         if data_mode == "magnitude":
             return time_days, time_mjd, magnitude, magnitude_err, bands, system
