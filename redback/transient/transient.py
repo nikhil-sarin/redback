@@ -204,11 +204,13 @@ class Transient(object):
         magnitude = np.array(df["magnitude"])
         magnitude_err = np.array(df["e_magnitude"])
         bands = np.array(df["band"])
+        flux = np.array(df["flux"])
+        flux_err = np.array(df["flux_error"])
         flux_density = np.array(df["flux_density(mjy)"])
         flux_density_err = np.array(df["flux_density_error"])
         return cls(name=name, data_mode=data_mode, time=time_days, time_err=None, time_mjd=time_mjd,
                    flux_density=flux_density, flux_density_err=flux_density_err, magnitude=magnitude,
-                   magnitude_err=magnitude_err, bands=bands, active_bands=active_bands,
+                   magnitude_err=magnitude_err, flux=flux, flux_err=flux_err, bands=bands, active_bands=active_bands,
                    use_phase_model=use_phase_model)
 
     @property
@@ -695,12 +697,17 @@ class OpticalTransient(Transient):
         system = np.array(df["system"])
         flux_density = np.array(df["flux_density(mjy)"])
         flux_density_err = np.array(df["flux_density_error"])
+        flux = np.array(df["flux"])
+        flux_err = np.array(df['flux_error'])
         if data_mode == "magnitude":
             return time_days, time_mjd, magnitude, magnitude_err, bands, system
         elif data_mode == "flux_density":
             return time_days, time_mjd, flux_density, flux_density_err, bands, system
+        elif data_mode == "flux":
+            return time_days, time_mjd, flux, flux_err, bands, system
         elif data_mode == "all":
-            return time_days, time_mjd, flux_density, flux_density_err, magnitude, magnitude_err, bands, system
+            return time_days, time_mjd, flux_density, flux_density_err, \
+                   magnitude, magnitude_err, flux, flux_err, bands, system
 
     def __init__(
             self, name: str, data_mode: str = 'magnitude', time: np.ndarray = None, time_err: np.ndarray = None,
@@ -804,12 +811,12 @@ class OpticalTransient(Transient):
             transient_type = cls.__name__.lower()
         directory_structure = redback.get_data.directory.open_access_directory_structure(
             transient=name, transient_type=transient_type)
-        time_days, time_mjd, flux_density, flux_density_err, magnitude, magnitude_err, bands, system = \
+        time_days, time_mjd, flux_density, flux_density_err, magnitude, magnitude_err, flux, flux_err, bands, system = \
             cls.load_data(processed_file_path=directory_structure.processed_file_path, data_mode="all")
         return cls(name=name, data_mode=data_mode, time=time_days, time_err=None, time_mjd=time_mjd,
                    flux_density=flux_density, flux_density_err=flux_density_err, magnitude=magnitude,
                    magnitude_err=magnitude_err, bands=bands, system=system, active_bands=active_bands,
-                   use_phase_model=use_phase_model)
+                   use_phase_model=use_phase_model, flux=flux, flux_err=flux_err)
 
     @property
     def event_table(self) -> str:
