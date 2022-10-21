@@ -31,9 +31,9 @@ def get_grb_table() -> pd.DataFrame:
     short_table = os.path.join(_dirname, '../tables/SGRB_table.txt')
     long_table = os.path.join(_dirname, '../tables/LGRB_table.txt')
     sgrb = pd.read_csv(
-        short_table, header=0, error_bad_lines=False, delimiter='\t', dtype='str')
+        short_table, header=0, on_bad_lines='skip', delimiter='\t', dtype='str')
     lgrb = pd.read_csv(
-        long_table, header=0, error_bad_lines=False, delimiter='\t', dtype='str')
+        long_table, header=0, on_bad_lines='skip', delimiter='\t', dtype='str')
     return pd.concat([lgrb, sgrb], ignore_index=True)
 
 
