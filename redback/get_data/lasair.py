@@ -85,6 +85,7 @@ class LasairDataGetter(DataGetter):
             return pd.read_csv(self.processed_file_path)
 
         raw_data = pd.read_csv(self.raw_file_path)
+        raw_data = raw_data[raw_data['status'] != 'non-detection']
         lasair_to_general_bands = {"g": "ztfg", "r": "ztfr", "i":'ztfi'}
         processed_data = pd.DataFrame()
 
