@@ -245,12 +245,14 @@ class TestOpticalTransient(unittest.TestCase):
         transient_dir = f"{dirname}/data"
         processed_file_path = f"{transient_dir}/{name}.csv"
         data_mode = "all"
-        time_days, time_mjd, flux_density, flux_density_err, magnitude, magnitude_err, bands, system = \
+        time_days, time_mjd, flux_density, flux_density_err, magnitude, magnitude_err, flux, flux_err, bands, system = \
             self.transient.load_data(processed_file_path=processed_file_path, data_mode=data_mode)
         expected_time_days = np.array([0.4813999999969383, 0.49020000000018626])
         expected_time_mjd = np.array([57982.9814, 57982.9902])
         expected_flux_density = np.array([0.36982817978026444, 0.1803017740859559])
         expected_flux_density_err = np.array([0.006812898591418732, 0.024911116226263914])
+        expected_flux = np.array([0.36982817978026444, 0.1803017740859559])
+        expected_flux_err = np.array([0.006812898591418732, 0.024911116226263914])
         expected_magnitude = np.array([17.48, 18.26])
         expected_magnitude_err = np.array([0.02, 0.15])
         expected_bands = np.array(["i", "H"])
@@ -261,6 +263,8 @@ class TestOpticalTransient(unittest.TestCase):
         self.assertTrue(np.allclose(expected_flux_density_err, flux_density_err))
         self.assertTrue(np.allclose(expected_magnitude, magnitude))
         self.assertTrue(np.allclose(expected_magnitude_err, magnitude_err))
+        self.assertTrue(np.allclose(expected_flux, flux))
+        self.assertTrue(np.allclose(expected_flux_err, flux_err))
         self.assertTrue(np.array_equal(expected_bands, bands))
         self.assertTrue(np.array_equal(expected_system, system))
 
@@ -270,13 +274,16 @@ class TestOpticalTransient(unittest.TestCase):
             expected_time_mjd = np.array([57982.9814, 57982.9902])
             expected_flux_density = np.array([0.36982817978026444, 0.1803017740859559])
             expected_flux_density_err = np.array([0.006812898591418732, 0.024911116226263914])
+            expected_flux = np.array([0.36982817978026444, 0.1803017740859559])
+            expected_flux_err = np.array([0.006812898591418732, 0.024911116226263914])
             expected_magnitude = np.array([17.48, 18.26])
             expected_magnitude_err = np.array([0.02, 0.15])
             expected_bands = np.array(["i", "H"])
             expected_system = np.array(["AB", "AB"])
             m.return_value = \
                 expected_time_days, expected_time_mjd, expected_flux_density, expected_flux_density_err, \
-                expected_magnitude, expected_magnitude_err, expected_bands, expected_system
+                expected_magnitude, expected_magnitude_err, expected_flux, expected_flux_err, \
+                expected_bands, expected_system
             name = "test"
             transient = redback.transient.transient.OpticalTransient.from_open_access_catalogue(name=name)
             self.assertTrue(transient.magnitude_data)
@@ -285,6 +292,8 @@ class TestOpticalTransient(unittest.TestCase):
             self.assertTrue(np.allclose(expected_time_mjd, transient.time_mjd))
             self.assertTrue(np.allclose(expected_flux_density, transient.flux_density))
             self.assertTrue(np.allclose(expected_flux_density_err, transient.flux_density_err))
+            self.assertTrue(np.allclose(expected_flux, transient.flux))
+            self.assertTrue(np.allclose(expected_flux_err, transient.flux_err))
             self.assertTrue(np.allclose(expected_magnitude, transient.magnitude))
             self.assertTrue(np.allclose(expected_magnitude_err, transient.magnitude_err))
             self.assertTrue(np.array_equal(expected_bands, transient.bands))
