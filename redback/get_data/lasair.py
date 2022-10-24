@@ -105,7 +105,7 @@ class LasairDataGetter(DataGetter):
                                                                                       'e_magnitude'].values,
                                                                                   reference_flux=bands_to_reference_flux(
                                                                                       processed_data['band'].values),
-                                                                                  magnitude_system='AB')
+                                                                                  magnitude_system='FLUX')
         processed_data = processed_data.sort_values(by="time")
 
         time_of_event = min(processed_data["time"])

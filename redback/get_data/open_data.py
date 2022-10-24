@@ -113,7 +113,7 @@ class OpenDataGetter(DataGetter):
         data['flux(erg/cm2/s)'] = bandpass_magnitude_to_flux(data['magnitude'].values, data['band'].values)
         data['flux_error'] = calc_flux_density_error_from_monochromatic_magnitude(magnitude=data['magnitude'].values,
             magnitude_error=data['e_magnitude'].values, reference_flux=bands_to_reference_flux(data['band'].values),
-            magnitude_system='AB')
+            magnitude_system='FLUX')
         data['band'] = [b.replace("'", "") for b in data["band"]]
         metadata = pd.read_csv(f"{self.directory_path}{self.transient}_metadata.csv")
         metadata.replace(r'^\s+$', np.nan, regex=True)
