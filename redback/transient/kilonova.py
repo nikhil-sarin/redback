@@ -11,7 +11,7 @@ dirname = os.path.dirname(__file__)
 
 class Kilonova(OpticalTransient):
 
-    DATA_MODES = ['flux_density', 'magnitude', 'luminosity']
+    DATA_MODES = ['flux_density', 'magnitude', 'luminosity', 'flux']
 
     def __init__(
             self, name: str, data_mode: str = 'magnitude', time: np.ndarray = None, time_err: np.ndarray = None,
@@ -20,7 +20,7 @@ class Kilonova(OpticalTransient):
             flux_density: np.ndarray = None, flux_density_err: np.ndarray = None, magnitude: np.ndarray = None,
             magnitude_err: np.ndarray = None, redshift: float = np.nan, photon_index: float = np.nan,
             bands: np.ndarray = None, system: np.ndarray = None, active_bands: Union[np.ndarray, str] = 'all',
-            use_phase_model: bool = False, **kwargs: None) -> None:
+            use_phase_model: bool = False, optical_data: bool = True, **kwargs: None) -> None:
         """This is a general constructor for the Kilonova class. Note that you only need to give data corresponding to
         the data mode you are using. For luminosity data provide times in the rest frame, if using a phase model
         provide time in MJD, else use the default time (observer frame).
@@ -64,6 +64,8 @@ class Kilonova(OpticalTransient):
         :type photon_index: float
         :param use_phase_model: Whether we are using a phase model.
         :type use_phase_model: bool
+        :param optical_data: Whether we are fitting optical data, useful for plotting.
+        :type optical_data: bool, optional
         :param frequency: Array of band frequencies in photometry data.
         :type frequency: np.ndarray, optional
         :param system: System values.
@@ -83,7 +85,7 @@ class Kilonova(OpticalTransient):
                          Lum50_err=Lum50_err, flux_density=flux_density, flux_density_err=flux_density_err,
                          magnitude=magnitude, magnitude_err=magnitude_err, data_mode=data_mode, name=name, bands=bands,
                          system=system, active_bands=active_bands, use_phase_model=use_phase_model, redshift=redshift,
-                         photon_index=photon_index, **kwargs)
+                         photon_index=photon_index, optical_data=optical_data, **kwargs)
         self.directory_structure = redback.get_data.directory.open_access_directory_structure(
             transient=name, transient_type="kilonova")
         self._set_data()

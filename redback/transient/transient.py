@@ -8,7 +8,7 @@ import pandas as pd
 
 import redback
 from redback.plotting import \
-    LuminosityPlotter, FluxDensityPlotter, IntegratedFluxPlotter, MagnitudePlotter
+    LuminosityPlotter, FluxDensityPlotter, IntegratedFluxPlotter, MagnitudePlotter, IntegratedFluxOpticalPlotter
 
 
 class Transient(object):
@@ -37,7 +37,7 @@ class Transient(object):
             magnitude: np.ndarray = None, magnitude_err: np.ndarray = None, counts: np.ndarray = None,
             ttes: np.ndarray = None, bin_size: float = None, redshift: float = np.nan, data_mode: str = None,
             name: str = '', photon_index: float = np.nan, use_phase_model: bool = False,
-            frequency: np.ndarray = None, system: np.ndarray = None, bands: np.ndarray = None,
+            optical_data: bool = False, frequency: np.ndarray = None, system: np.ndarray = None, bands: np.ndarray = None,
             active_bands: Union[np.ndarray, str] = None, **kwargs: None) -> None:
         """This is a general constructor for the Transient class. Note that you only need to give data corresponding to
         the data mode you are using. For luminosity data provide times in the rest frame, if using a phase model
@@ -87,6 +87,8 @@ class Transient(object):
         :type photon_index: float, optional
         :param use_phase_model: Whether we are using a phase model.
         :type use_phase_model: bool, optional
+        :param optical_data: Whether we are fitting optical data, useful for plotting.
+        :type optical_data: bool, optional
         :param frequency: Array of band frequencies in photometry data.
         :type frequency: np.ndarray, optional
         :param system: System values.
@@ -138,6 +140,7 @@ class Transient(object):
         self.redshift = redshift
         self.name = name
         self.use_phase_model = use_phase_model
+        self.optical_data = optical_data
 
         self.meta_data = None
 
@@ -211,7 +214,7 @@ class Transient(object):
         return cls(name=name, data_mode=data_mode, time=time_days, time_err=None, time_mjd=time_mjd,
                    flux_density=flux_density, flux_density_err=flux_density_err, magnitude=magnitude,
                    magnitude_err=magnitude_err, flux=flux, flux_err=flux_err, bands=bands, active_bands=active_bands,
-                   use_phase_model=use_phase_model)
+                   use_phase_model=use_phase_model, optical_data=True)
 
     @property
     def _time_attribute_name(self) -> str:
@@ -505,7 +508,10 @@ class Transient(object):
         """
 
         if self.flux_data:
-            plotter = IntegratedFluxPlotter(transient=self, color=color, filename=filename, outdir=outdir, **kwargs)
+            if self.optical_data:
+                plotter = IntegratedFluxOpticalPlotter()
+            else:
+                plotter = IntegratedFluxPlotter(transient=self, color=color, filename=filename, outdir=outdir, **kwargs)
         elif self.luminosity_data:
             plotter = LuminosityPlotter(transient=self, color=color, filename=filename, outdir=outdir, **kwargs)
         elif self.flux_density_data:
@@ -540,7 +546,7 @@ class Transient(object):
         `print(Transient.plot_multiband.__doc__)` to see all options!
         :return: The axes.
         """
-        if self.data_mode not in ['flux_density', 'magnitude']:
+        if self.data_mode not in ['flux_density', 'magnitude', 'flux']:
             raise ValueError(
                 f'You cannot plot multiband data with {self.data_mode} data mode . Why are you doing this?')
         if self.magnitude_data:
@@ -549,6 +555,9 @@ class Transient(object):
         elif self.flux_density_data:
             plotter = FluxDensityPlotter(transient=self, filters=filters, filename=filename, outdir=outdir, nrows=nrows,
                                          ncols=ncols, figsize=figsize, **kwargs)
+        elif self.flux_data:
+            plotter = IntegratedFluxOpticalPlotter(transient=self, filters=filters, filename=filename, outdir=outdir,
+                                                   nrows=nrows, ncols=ncols, figsize=figsize, **kwargs)
         else:
             return
         return plotter.plot_multiband(figure=figure, axes=axes, save=save, show=show)
@@ -574,9 +583,12 @@ class Transient(object):
         :return: The axes.
         """
         if self.flux_data:
-            plotter = IntegratedFluxPlotter(
-                transient=self, model=model, filename=filename, outdir=outdir,
-                posterior=posterior, model_kwargs=model_kwargs, random_models=random_models, **kwargs)
+            if self.optical_data:
+                plotter = IntegratedFluxOpticalPlotter()
+            else:
+                plotter = IntegratedFluxPlotter(
+                    transient=self, model=model, filename=filename, outdir=outdir,
+                    posterior=posterior, model_kwargs=model_kwargs, random_models=random_models, **kwargs)
         elif self.luminosity_data:
             plotter = LuminosityPlotter(
                 transient=self, model=model, filename=filename, outdir=outdir,
@@ -644,13 +656,15 @@ class Transient(object):
 
         :return: The axes.
         """
-        if self.data_mode not in ['flux_density', 'magnitude']:
+        if self.data_mode not in ['flux_density', 'magnitude', 'flux']:
             raise ValueError(
                 f'You cannot plot multiband data with {self.data_mode} data mode . Why are you doing this?')
         if self.magnitude_data:
             plotter = MagnitudePlotter(
                 transient=self, model=model, filename=filename, outdir=outdir,
                 posterior=posterior, model_kwargs=model_kwargs, random_models=random_models, **kwargs)
+        elif self.flux_data:
+            plotter = IntegratedFluxOpticalPlotter(transient=self, filename=filename, outdir=outdir, **kwargs)
         elif self.flux_density_data:
             plotter = FluxDensityPlotter(
                 transient=self, model=model, filename=filename, outdir=outdir,
@@ -717,7 +731,7 @@ class OpticalTransient(Transient):
             flux_density_err: np.ndarray = None, magnitude: np.ndarray = None, magnitude_err: np.ndarray = None,
             redshift: float = np.nan, photon_index: float = np.nan, frequency: np.ndarray = None,
             bands: np.ndarray = None, system: np.ndarray = None, active_bands: Union[np.ndarray, str] = 'all',
-            use_phase_model: bool = False, **kwargs: None) -> None:
+            use_phase_model: bool = False, optical_data:bool = True, **kwargs: None) -> None:
         """This is a general constructor for the Transient class. Note that you only need to give data corresponding to
         the data mode you are using. For luminosity data provide times in the rest frame, if using a phase model
         provide time in MJD, else use the default time (observer frame).
@@ -769,6 +783,8 @@ class OpticalTransient(Transient):
         :type active_bands: Union[list, np.ndarray], optional
         :param use_phase_model: Whether we are using a phase model.
         :type use_phase_model: bool, optional
+        :param optical_data: Whether we are fitting optical data, useful for plotting.
+        :type optical_data: bool, optional
         :param kwargs:
             Additional callables:
             bands_to_frequency: Conversion function to convert a list of bands to frequencies. Use
@@ -781,8 +797,8 @@ class OpticalTransient(Transient):
                          flux=flux, flux_err=flux_err, redshift=redshift, photon_index=photon_index,
                          flux_density=flux_density, flux_density_err=flux_density_err, magnitude=magnitude,
                          magnitude_err=magnitude_err, data_mode=data_mode, name=name,
-                         use_phase_model=use_phase_model, system=system, bands=bands, active_bands=active_bands,
-                         **kwargs)
+                         use_phase_model=use_phase_model, optical_data=optical_data, system=system, bands=bands,
+                         active_bands=active_bands, **kwargs)
         self.directory_structure = None
 
     @classmethod
@@ -816,7 +832,7 @@ class OpticalTransient(Transient):
         return cls(name=name, data_mode=data_mode, time=time_days, time_err=None, time_mjd=time_mjd,
                    flux_density=flux_density, flux_density_err=flux_density_err, magnitude=magnitude,
                    magnitude_err=magnitude_err, bands=bands, system=system, active_bands=active_bands,
-                   use_phase_model=use_phase_model, flux=flux, flux_err=flux_err)
+                   use_phase_model=use_phase_model, optical_data=True, flux=flux, flux_err=flux_err)
 
     @property
     def event_table(self) -> str:

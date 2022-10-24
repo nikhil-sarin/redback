@@ -705,3 +705,25 @@ class MagnitudePlotter(Plotter):
 
 class FluxDensityPlotter(MagnitudePlotter):
     pass
+
+class IntegratedFluxOpticalPlotter(MagnitudePlotter):
+    pass
+    # def __init__(self):
+    #     pass
+    #
+    # def plot_data(self):
+    #     pass
+    #
+    # def plot_multiband(self):
+    #     pass
+    #
+    # def plot_lightcurve(self, axes: matplotlib.axes.Axes = None, save: bool = True,
+    #                     show: bool = True) -> matplotlib.axes.Axes:
+    #     pass
+    #
+    # def plot_multiband_lightcurve(self):
+    #     pass
+
+class SpectraPlotter(Plotter):
+    pass
+

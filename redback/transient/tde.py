@@ -15,7 +15,7 @@ class TDE(OpticalTransient):
             flux_density: np.ndarray = None, flux_density_err: np.ndarray = None, magnitude: np.ndarray = None,
             magnitude_err: np.ndarray = None, redshift: float = np.nan, photon_index: float = np.nan,
             bands: np.ndarray = None, system: np.ndarray = None, active_bands: Union[np.ndarray, str] = 'all',
-            use_phase_model: bool = False, **kwargs: None) -> None:
+            use_phase_model: bool = False, optical_data:bool = True, **kwargs: None) -> None:
         """
 
         :param name: Name of the transient.
@@ -56,6 +56,8 @@ class TDE(OpticalTransient):
         :type photon_index: float
         :param use_phase_model: Whether we are using a phase model.
         :type use_phase_model: bool
+        :param optical_data: Whether we are fitting optical data, useful for plotting.
+        :type optical_data: bool, optional
         :param frequency: Array of band frequencies in photometry data.
         :type frequency: np.ndarray, optional
         :param system: System values.
@@ -73,8 +75,9 @@ class TDE(OpticalTransient):
                          time_mjd_err=time_mjd_err, time_rest_frame_err=time_rest_frame_err, Lum50=Lum50,
                          Lum50_err=Lum50_err, flux_density=flux_density, flux_density_err=flux_density_err,
                          magnitude=magnitude, magnitude_err=magnitude_err, data_mode=data_mode, name=name,
-                         use_phase_model=use_phase_model, bands=bands, system=system, active_bands=active_bands,
-                         redshift=redshift, photon_index=photon_index, **kwargs)
+                         use_phase_model=use_phase_model, optical_data=optical_data, bands=bands,
+                         system=system, active_bands=active_bands,redshift=redshift,
+                         photon_index=photon_index, **kwargs)
         self.directory_structure = redback.get_data.directory.open_access_directory_structure(
             transient=self.name, transient_type="tidal_disruption_event")
         self._set_data()
