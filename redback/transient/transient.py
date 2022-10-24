@@ -509,7 +509,8 @@ class Transient(object):
 
         if self.flux_data:
             if self.optical_data:
-                plotter = IntegratedFluxOpticalPlotter()
+                plotter = IntegratedFluxOpticalPlotter(transient=self, color=color, filename=filename, outdir=outdir,
+                                       plot_others=plot_others, **kwargs)
             else:
                 plotter = IntegratedFluxPlotter(transient=self, color=color, filename=filename, outdir=outdir, **kwargs)
         elif self.luminosity_data:
@@ -584,7 +585,9 @@ class Transient(object):
         """
         if self.flux_data:
             if self.optical_data:
-                plotter = IntegratedFluxOpticalPlotter()
+                plotter = IntegratedFluxOpticalPlotter(
+                    transient=self, model=model, filename=filename, outdir=outdir,
+                    posterior=posterior, model_kwargs=model_kwargs, random_models=random_models, **kwargs)
             else:
                 plotter = IntegratedFluxPlotter(
                     transient=self, model=model, filename=filename, outdir=outdir,
@@ -664,7 +667,8 @@ class Transient(object):
                 transient=self, model=model, filename=filename, outdir=outdir,
                 posterior=posterior, model_kwargs=model_kwargs, random_models=random_models, **kwargs)
         elif self.flux_data:
-            plotter = IntegratedFluxOpticalPlotter(transient=self, filename=filename, outdir=outdir, **kwargs)
+            plotter = IntegratedFluxOpticalPlotter(transient=self, model=model, filename=filename, outdir=outdir,
+                posterior=posterior, model_kwargs=model_kwargs, random_models=random_models, **kwargs)
         elif self.flux_density_data:
             plotter = FluxDensityPlotter(
                 transient=self, model=model, filename=filename, outdir=outdir,

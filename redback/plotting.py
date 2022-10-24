@@ -568,7 +568,7 @@ class MagnitudePlotter(Plotter):
         return axes
 
     def _check_valid_multiband_data_mode(self) -> bool:
-        if self.transient.luminosity_data or self.transient.flux_data:
+        if self.transient.luminosity_data:
             redback.utils.logger.warning(
                 f"Plotting multiband lightcurve/data not possible for {self.transient.data_mode}. Returning.")
             return False
@@ -708,21 +708,6 @@ class FluxDensityPlotter(MagnitudePlotter):
 
 class IntegratedFluxOpticalPlotter(MagnitudePlotter):
     pass
-    # def __init__(self):
-    #     pass
-    #
-    # def plot_data(self):
-    #     pass
-    #
-    # def plot_multiband(self):
-    #     pass
-    #
-    # def plot_lightcurve(self, axes: matplotlib.axes.Axes = None, save: bool = True,
-    #                     show: bool = True) -> matplotlib.axes.Axes:
-    #     pass
-    #
-    # def plot_multiband_lightcurve(self):
-    #     pass
 
 class SpectraPlotter(Plotter):
     pass
