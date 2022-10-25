@@ -296,6 +296,20 @@ def calc_flux_density_error_from_monochromatic_magnitude(magnitude, magnitude_er
     flux_err = ((dfdm * magnitude_error) ** 2) ** 0.5
     return flux_err
 
+def calc_flux_error_from_magnitude(magnitude, magnitude_error, reference_flux):
+    """
+    Calculate flux error from magnitude error
+
+    :param magnitude: magnitude
+    :param magnitude_error: magnitude error
+    :param reference_flux: reference flux density
+    :return: Flux error
+    """
+    prefactor = np.log(10) / (-2.5)
+    dfdm = prefactor * reference_flux * np.exp(prefactor * magnitude)
+    flux_err = ((dfdm * magnitude_error) ** 2) ** 0.5
+    return flux_err
+
 def bands_to_zeropoint(bands):
     """
     Bands to zero point
