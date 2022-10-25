@@ -5,13 +5,14 @@ import urllib
 
 import pandas as pd
 
-from redback.get_data import batse, directory, fermi, getter, konus, lasair, open_data, swift, utils
+from redback.get_data import batse, directory, fermi, getter, konus, lasair, fink, open_data, swift, utils
 from redback.get_data.swift import SwiftDataGetter
 from redback.get_data.open_data import OpenDataGetter
 from redback.get_data.batse import BATSEDataGetter
 from redback.get_data.fermi import FermiDataGetter
 from redback.get_data.konus import KonusDataGetter
 from redback.get_data.lasair import LasairDataGetter
+from redback.get_data.fink import FinkDataGetter
 from redback.utils import logger
 
 SWIFT_PROMPT_BIN_SIZES = ['1s', '2ms', '8ms', '16ms', '64ms', '256ms']
@@ -209,6 +210,25 @@ def get_lasair_data(
     :rtype: pandas.DataFrame
     """
     getter = LasairDataGetter(
+        transient_type=transient_type, transient=transient)
+    return getter.get_data()
+
+def get_fink_data(
+        transient: str, transient_type: str, **kwargs: None) -> pd.DataFrame:
+    """Catch all data getting function for Fink data. Creates a directory structure and saves the data.
+    Returns the data, though no further action needs to be taken by the user.
+
+    :param transient: The name of the transient, e.g. 'ZTF19aagqkrq'.
+    :type transient: str
+    :param transient_type: Type of the transient. Must be from `redback.get_data.fink.FinkDataGetter.VALID_TRANSIENT_TYPES`.
+    :type transient_type: str
+    :param kwargs: Placeholder to prevent TypeErrors.
+    :type kwargs: None
+
+    :return: The processed data.
+    :rtype: pandas.DataFrame
+    """
+    getter = FinkDataGetter(
         transient_type=transient_type, transient=transient)
     return getter.get_data()
 

@@ -608,7 +608,7 @@ class TestLasairDataGetter(unittest.TestCase):
         self.assertEqual(expected_processed_file_path, self.getter.processed_file_path)
 
     def test_url(self):
-        expected = f"https://lasair.roe.ac.uk/object/{self.transient}/json/"
+        expected = f"https://lasair.roe.ac.uk/object/{self.transient}/"
         self.assertEqual(expected, self.getter.url)
 
     @mock.patch("os.path.isfile")
