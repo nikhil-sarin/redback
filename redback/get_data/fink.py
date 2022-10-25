@@ -60,8 +60,7 @@ class FinkDataGetter(DataGetter):
             logger.warning('The raw data file already exists.')
             return None
 
-        response = requests.post(
-            'https://fink-portal.org/api/v1/objects',
+        response = requests.post(url=self.url,
             json={'objectId': self.objectId, 'output-format': 'csv', 'withupperlim': 'True'})
 
         data = pd.read_csv(io.BytesIO(response.content))
