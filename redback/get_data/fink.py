@@ -89,9 +89,9 @@ class FinkDataGetter(DataGetter):
         fink_to_general_bands = {1: "ztfg", 2: "ztfr", 3:'ztfi'}
         processed_data = pd.DataFrame()
 
-        processed_data["time"] = jd_to_mjd(raw_data["jd"])
-        processed_data["magnitude"] = raw_data['i:magap']
-        processed_data["e_magnitude"] = raw_data['i:sigmagap']
+        processed_data["time"] = jd_to_mjd(raw_data["i:jd"].values)
+        processed_data["magnitude"] = raw_data['i:magap'].values
+        processed_data["e_magnitude"] = raw_data['i:sigmagap'].values
         bands = [fink_to_general_bands[x] for x in raw_data['i:fid']]
         processed_data["band"] = bands
 
