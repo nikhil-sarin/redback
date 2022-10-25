@@ -1,4 +1,5 @@
 import os
+import io
 from typing import Union
 
 import astropy.units as uu
@@ -13,12 +14,12 @@ import redback.get_data.utils
 import redback.redback_errors
 from redback.get_data.getter import DataGetter
 from redback.utils import logger, calc_flux_density_from_ABmag, \
-    calc_flux_density_error_from_monochromatic_magnitude, bandpass_magnitude_to_flux, bands_to_reference_flux
+    calc_flux_density_error_from_monochromatic_magnitude, bandpass_magnitude_to_flux, bands_to_reference_flux, jd_to_mjd
 
 dirname = os.path.dirname(__file__)
 
 
-class LasairDataGetter(DataGetter):
+class FinkDataGetter(DataGetter):
 
     VALID_TRANSIENT_TYPES = ["afterglow", "kilonova", "supernova", "tidal_disruption_event", "unknown"]
 
@@ -29,7 +30,7 @@ class LasairDataGetter(DataGetter):
         :param transient: Telephone number of GRB, e.g., 'GRB140903A' or '140903A' are valid inputs.
         :type transient: str
         :param transient_type: Type of the transient. Must be from
-                               `redback.get_data.open_data.LasairDataGetter.VALID_TRANSIENT_TYPES`.
+                               `redback.get_data.open_data.FinkDataGetter.VALID_TRANSIENT_TYPES`.
         :type transient_type: str
         """
         super().__init__(transient, transient_type)
@@ -40,10 +41,10 @@ class LasairDataGetter(DataGetter):
     @property
     def url(self) -> str:
         """
-        :return: The lasair raw data url.
+        :return: The fink raw data url.
         :rtype: str
         """
-        return f"https://lasair.roe.ac.uk/object/{self.transient}/"
+        return "https://fink-portal.org/api/v1/objects"
 
     def collect_data(self) -> None:
         """Downloads the data from astrocats and saves it into the raw file path."""
@@ -51,22 +52,17 @@ class LasairDataGetter(DataGetter):
             logger.warning('The raw data file already exists.')
             return None
 
-        if 'does not exist' in requests.get(self.url).text:
+        response = requests.post(
+            'https://fink-portal.org/api/v1/objects',
+            json={'objectId': self.transient, 'output-format': 'csv', 'withupperlim': 'True'})
+
+        data = pd.read_csv(io.BytesIO(response.content))
+
+        if len(data) == 0:
             raise ValueError(
                 f"Transient {self.transient} does not exist in the catalog. "
                 f"Are you sure you are using the right alias?")
-        data = pd.read_html(self.url)
-        data = data[1]
-        data['diff_magnitude'] = [data['magpsf'].iloc[x].split(" ")[0] for x in range(len(data))]
-        data['diff_magnitude_error'] = [data['magpsf'].iloc[x].split(" ")[-1] for x in range(len(data))]
 
-        logger.warning('Using the difference magnitude to calculate quantities. '
-                       'Reduce the data yourself if you would like to use a reference magnitude')
-
-        # Change the dataframe to the correct raw dataframe format
-        del data['UTC']
-        del data['images']
-        del data['magpsf']
         data.to_csv(self.raw_file_path, index=False)
         logger.info(f"Retrieved data for {self.transient}.")
 
@@ -82,14 +78,14 @@ class LasairDataGetter(DataGetter):
             return pd.read_csv(self.processed_file_path)
 
         raw_data = pd.read_csv(self.raw_file_path)
-        raw_data = raw_data[raw_data['status'] != 'non-detection']
-        lasair_to_general_bands = {"g": "ztfg", "r": "ztfr", "i":'ztfi'}
+        raw_data = raw_data[raw_data['d:tag']=='valid']
+        fink_to_general_bands = {1: "ztfg", 2: "ztfr", 3:'ztfi'}
         processed_data = pd.DataFrame()
 
-        processed_data["time"] = raw_data['MJD']
-        processed_data["magnitude"] = raw_data['diff_magnitude']
-        processed_data["e_magnitude"] = raw_data['diff_magnitude_error']
-        bands = [lasair_to_general_bands[x] for x in raw_data['Filter']]
+        processed_data["time"] = jd_to_mjd(raw_data["jd"])
+        processed_data["magnitude"] = raw_data['i:magap']
+        processed_data["e_magnitude"] = raw_data['i:sigmagap']
+        bands = [fink_to_general_bands[x] for x in raw_data['i:fid']]
         processed_data["band"] = bands
 
         processed_data["flux_density(mjy)"] = calc_flux_density_from_ABmag(processed_data["magnitude"].values).value
