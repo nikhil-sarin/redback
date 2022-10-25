@@ -22,7 +22,7 @@ def fit_model(
         transient: redback.transient.transient.Transient, model: Union[callable, str], outdir: str = None,
         label: str = None, sampler: str = "dynesty", nlive: int = 2000, prior: dict = None, walks: int = 200,
         truncate: bool = True, use_photon_index_prior: bool = False, truncate_method: str = "prompt_time_error",
-        resume: bool = True, save_format: str = "json", model_kwargs: dict = None, **kwargs)\
+        resume: bool = True, save_format: str = "json", model_kwargs: dict = None, plot=True, **kwargs)\
         -> redback.result.RedbackResult:
     """
     :param transient: The transient to be fitted
@@ -41,6 +41,7 @@ def fit_model(
     :param save_format: The format to save the result in. (Default value = 'json'_
     :param model_kwargs: Additional keyword arguments for the model.
     :param kwargs: Additional parameters that will be passed to the sampler
+    :param plot: If True, create corner and lightcurve plot
     :return: Redback result object, transient specific data object
     """
     if isinstance(model, str):
@@ -61,23 +62,24 @@ def fit_model(
         return _fit_grb(
             transient=transient, model=model, outdir=outdir, label=label, sampler=sampler, nlive=nlive, prior=prior,
             walks=walks, use_photon_index_prior=use_photon_index_prior, resume=resume, save_format=save_format,
-            model_kwargs=model_kwargs, truncate=truncate, truncate_method=truncate_method, **kwargs)
+            model_kwargs=model_kwargs, truncate=truncate, truncate_method=truncate_method, plot=plot, **kwargs)
     elif isinstance(transient, PromptTimeSeries):
         return _fit_prompt(
             transient=transient, model=model, outdir=outdir, label=label, sampler=sampler, nlive=nlive, prior=prior,
-            walks=walks, resume=resume, save_format=save_format, model_kwargs=model_kwargs, **kwargs)
+            walks=walks, resume=resume, save_format=save_format, model_kwargs=model_kwargs, plot=plot, **kwargs)
     elif isinstance(transient, OpticalTransient):
         return _fit_optical_transient(
             transient=transient, model=model, outdir=outdir, label=label, sampler=sampler, nlive=nlive, prior=prior,
             walks=walks, truncate=truncate, use_photon_index_prior=use_photon_index_prior,
             truncate_method=truncate_method, resume=resume, save_format=save_format, model_kwargs=model_kwargs,
-            **kwargs)
+            plot=plot, **kwargs)
     else:
         raise ValueError(f'Source type {transient.__class__.__name__} not known')
 
 
+
 def _fit_grb(transient, model, outdir, label, likelihood=None, sampler='dynesty', nlive=3000, prior=None, walks=1000,
-             use_photon_index_prior=False, resume=True, save_format='json', model_kwargs=None, **kwargs):
+             use_photon_index_prior=False, resume=True, save_format='json', model_kwargs=None, plot=True, **kwargs):
     if use_photon_index_prior:
         label += '_photon_index'
         if transient.photon_index < 0.:
@@ -99,6 +101,7 @@ def _fit_grb(transient, model, outdir, label, likelihood=None, sampler='dynesty'
     meta_data.update(transient_kwargs)
     meta_data['model_kwargs'] = model_kwargs
 
+    result = None
     if not kwargs.get("clean", False):
         try:
             result = redback.result.read_in_result(
@@ -108,16 +111,19 @@ def _fit_grb(transient, model, outdir, label, likelihood=None, sampler='dynesty'
         except Exception:
             pass
 
-    result = bilby.run_sampler(likelihood=likelihood, priors=prior, label=label, sampler=sampler, nlive=nlive,
-                               outdir=outdir, plot=True, use_ratio=False, walks=walks, resume=resume,
-                               maxmcmc=10 * walks, result_class=RedbackResult, meta_data=meta_data,
-                               nthreads=4, save_bounds=False, nsteps=nlive, nwalkers=walks, save=save_format, **kwargs)
+    result = result or bilby.run_sampler(
+        likelihood=likelihood, priors=prior, label=label, sampler=sampler, nlive=nlive,
+        outdir=outdir, plot=plot, use_ratio=False, walks=walks, resume=resume,
+        maxmcmc=10 * walks, result_class=RedbackResult, meta_data=meta_data,
+        nthreads=4, save_bounds=False, nsteps=nlive, nwalkers=walks, save=save_format, **kwargs)
     plt.close('all')
+    if plot:
+        result.plot_lightcurve(model=model)
     return result
 
 
 def _fit_optical_transient(transient, model, outdir, label, likelihood=None, sampler='dynesty', nlive=3000, prior=None,
-                           walks=1000, resume=True, save_format='json', model_kwargs=None, **kwargs):
+                           walks=1000, resume=True, save_format='json', model_kwargs=None, plot=True, **kwargs):
 
     if transient.flux_density_data or transient.magnitude_data:
         x, x_err, y, y_err = transient.get_filtered_data()
@@ -131,6 +137,7 @@ def _fit_optical_transient(transient, model, outdir, label, likelihood=None, sam
     meta_data.update(transient_kwargs)
     meta_data['model_kwargs'] = model_kwargs
 
+    result = None
     if not kwargs.get("clean", False):
         try:
             result = redback.result.read_in_result(
@@ -140,26 +147,31 @@ def _fit_optical_transient(transient, model, outdir, label, likelihood=None, sam
         except Exception:
             pass
 
-    result = bilby.run_sampler(likelihood=likelihood, priors=prior, label=label, sampler=sampler, nlive=nlive,
-                               outdir=outdir, plot=True, use_ratio=False, walks=walks, resume=resume,
-                               maxmcmc=10 * walks, result_class=RedbackResult, meta_data=meta_data,
-                               nthreads=4, save_bounds=False, nsteps=nlive, nwalkers=walks, save=save_format, **kwargs)
+    result = result or bilby.run_sampler(
+        likelihood=likelihood, priors=prior, label=label, sampler=sampler, nlive=nlive,
+        outdir=outdir, plot=plot, use_ratio=False, walks=walks, resume=resume,
+        maxmcmc=10 * walks, result_class=RedbackResult, meta_data=meta_data,
+        nthreads=4, save_bounds=False, nsteps=nlive, nwalkers=walks, save=save_format, **kwargs)
     plt.close('all')
+    if plot:
+        result.plot_lightcurve(model=model)
     return result
 
 
-def _fit_prompt(transient, model, outdir, label, likelihood=None, integrated_rate_function=True, sampler='dynesty',
-                nlive=3000, prior=None, walks=1000, resume=True, save_format='json', model_kwargs=None, **kwargs):
+def _fit_prompt(transient, model, outdir, label, likelihood=None, integrated_rate_function=True, sampler='dynesty', nlive=3000,
+                prior=None, walks=1000, resume=True, save_format='json',
+                model_kwargs=None, plot=True, **kwargs):
 
     likelihood = likelihood or PoissonLikelihood(
         time=transient.x, counts=transient.y, dt=transient.bin_size, function=model,
         integrated_rate_function=integrated_rate_function, kwargs=model_kwargs)
 
-    meta_data = dict(model=model.__name__, transient_type="prompt")
+    meta_data = dict(model=model.__name__, transient_type=transient.__class__.__name__.lower())
     transient_kwargs = {k.lstrip("_"): v for k, v in transient.__dict__.items()}
     meta_data.update(transient_kwargs)
     meta_data['model_kwargs'] = model_kwargs
 
+    result = None
     if not kwargs.get("clean", False):
         try:
             result = redback.result.read_in_result(
@@ -169,10 +181,12 @@ def _fit_prompt(transient, model, outdir, label, likelihood=None, integrated_rat
         except Exception:
             pass
 
-    result = bilby.run_sampler(likelihood=likelihood, priors=prior, label=label, sampler=sampler, nlive=nlive,
-                               outdir=outdir, plot=False, use_ratio=False, walks=walks, resume=resume,
-                               maxmcmc=10 * walks, result_class=RedbackResult, meta_data=meta_data,
-                               nthreads=4, save_bounds=False, nsteps=nlive, nwalkers=walks, save=save_format, **kwargs)
-
+    result = result or bilby.run_sampler(
+        likelihood=likelihood, priors=prior, label=label, sampler=sampler, nlive=nlive,
+        outdir=outdir, plot=False, use_ratio=False, walks=walks, resume=resume,
+        maxmcmc=10 * walks, result_class=RedbackResult, meta_data=meta_data,
+        nthreads=4, save_bounds=False, nsteps=nlive, nwalkers=walks, save=save_format, **kwargs)
     plt.close('all')
+    if plot:
+        result.plot_lightcurve(model=model)
     return result

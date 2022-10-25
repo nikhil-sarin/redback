@@ -1,87 +1,72 @@
 import matplotlib.pyplot as plt
 import numpy as np
 
-from redback.transient_models.phase_models import t0_extinction_models
-from redback.utils import calc_confidence_intervals, logger
+import pandas as pd
+
+import redback.model_library
+from redback.utils import logger
+from redback.result import RedbackResult
 
 
-def plot_multiple_multiband_lightcurves():
-    pass
+def _setup_plotting_result(model, model_kwargs, parameters, transient):
+    if isinstance(parameters, dict):
+        parameters = pd.DataFrame.from_dict(parameters)
+    parameters["log_likelihood"] = np.arange(len(parameters))
+    if isinstance(model, str):
+        model = redback.model_library.all_models_dict[model]
+    meta_data = dict(model=model.__name__, transient_type=transient.__class__.__name__.lower())
+    transient_kwargs = {k.lstrip("_"): v for k, v in transient.__dict__.items()}
+    meta_data.update(transient_kwargs)
+    meta_data['model_kwargs'] = model_kwargs or dict()
+    res = RedbackResult(label="None", outdir="None",
+                        search_parameter_keys=None,
+                        fixed_parameter_keys=None,
+                        constraint_parameter_keys=None, priors=None,
+                        sampler_kwargs=dict(), injection_parameters=None,
+                        meta_data=meta_data, posterior=parameters, samples=None,
+                        nested_samples=None, log_evidence=0,
+                        log_evidence_err=0, information_gain=0,
+                        log_noise_evidence=0, log_bayes_factor=0,
+                        log_likelihood_evaluations=0,
+                        log_prior_evaluations=0, sampling_time=0, nburn=0,
+                        num_likelihood_evaluations=0, walkers=0,
+                        max_autocorrelation_time=0, use_ratio=False,
+                        version=None)
+    return model, parameters, res
 
 
-def plot_evolution_parameters():
-    pass
+def plot_lightcurve(transient, parameters, model, model_kwargs=None):
+    model, parameters, res = _setup_plotting_result(model, model_kwargs, parameters, transient)
+    return res.plot_lightcurve(model=model, random_models=len(parameters), plot_max_likelihood=False)
 
 
-def plot_multiple_lightcurves():
-    pass
+def plot_multiband_lightcurve(transient, parameters, model, model_kwargs=None):
+    model, parameters, res = _setup_plotting_result(model, model_kwargs, parameters, transient)
+    return res.plot_multiband_lightcurve(model=model, random_models=len(parameters), plot_max_likelihood=False)
 
 
-def plot_afterglowpy_lightcurves(time, plot=False, **kwargs):
-    """
-    :param time: Time for the axis
-    :param kwargs:
-    :return: either the time and flux arrays or plot.
-    """
-    from model_library import modules_dict
-    base_model = kwargs['base_model']
-    if isinstance(base_model, str):
-        function = modules_dict['afterglow_models'][base_model]
-
-    logger.info('Using {} as the base model'.format(base_model))
-
-    flux = function(time, **kwargs)
-
-    if plot:
-        plt.loglog(time, flux, lw=0.1, c='red', alpha=0.1, zorder=-1)
-        return None
-    else:
-        return time, flux
-
-
-def evaluate_extinction(time, **s):
-    nus = np.array([nu_rband, nu_gband, nu_iband])
-    nu_1d = nus  # data['Hz']
-    t_1d = time
-    t, nu = np.meshgrid(t_1d, nu_1d)
-    t = t.flatten()
-    nu = nu.flatten()
-    s['frequency'] = nu
-    magnitudes = t0_extinction_models(t, **s)
-    magnitudes = magnitudes.reshape(len(nu_1d), len(t_1d))
-    return magnitudes, nus
-
-
-def confidence_interval_lightcurve(result, base_model):
-    kwargs = dict()
-    frequency_obs = data['frequency'].values
-    kwargs['frequency'] = frequency_obs
-    kwargs['spread'] = False
-    kwargs['latres'] = 2
-    kwargs['tres'] = 100
-    kwargs['spectype'] = 1
-    kwargs['base_model'] = base_model
-    kwargs['output_format'] = 'flux_density'
-    models = 10
-    frequency = 3
-    tt_len = 30
-    lc_r = np.zeros((models, tt_len))
-    lc_i = np.zeros((models, tt_len))
-    lc_g = np.zeros((models, tt_len))
-    for x in range(models):
-        samples = dict(result.posterior.iloc[np.random.randint(len(result.posterior))])
-        t0 = samples['t0']
-        time = np.linspace(t0 + 1e-5, 58882.55, 30)
-        samples.update(kwargs)
-        lc, nus = evaluate_extinction(time, **samples)
-        lc_r[x] = lc[0]
-        lc_g[x] = lc[1]
-        lc_i[x] = lc[2]
-    lcs = [lc_r, lc_g, lc_i]
-    lower_bound = {}
-    upper_bound = {}
-    median = {}
+def plot_evolution_parameters(result, random_models=100):
+    logger.warning("This type of plot is only valid for evolving magnetar models")
+    tmin = np.log10(np.min(result.metadata['time']))
+    tmax = np.log10(np.max(result.metadata['time']))
+    time = np.logspace(tmin, tmax, 100)
+    fig, ax = plt.subplots(3, 1, sharex=True, figsize=(5, 10))
+    for j in range(random_models):
+        s = dict(result.posterior.iloc[np.random.randint(len(result.posterior))])
+        s["output"] = "namedtuple"
+        model = redback.model_library.all_models_dict["evolving_magnetar_only"]
+        output = model(time, **s)
+        nn = output.nn
+        mu = output.mu
+        alpha = output.alpha
+        ax[0].plot(time, nn, "--", lw=1, color='red', alpha=2.5, zorder=-1)
+        ax[1].plot(time, np.rad2deg(alpha), "--", lw=1, color='red', alpha=2.5, zorder=-1)
+        ax[2].plot(time, mu, "--", lw=1, color='red', alpha=2.5, zorder=-1)
+        ax[0].set_ylabel('braking index')
+        ax[1].set_ylabel('inclination angle')
+        ax[2].set_ylabel('magnetic moment')
     for x in range(3):
-        lower_bound[x], upper_bound[x], median[x] = calc_confidence_intervals(lcs[x])
-
-    return lower_bound, upper_bound, median
+        ax[x].set_yscale('log')
+        ax[x].set_xscale('log')
+    fig.supxlabel(r"Time since burst [s]")
+    return fig, ax

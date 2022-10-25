@@ -22,6 +22,14 @@ def _analytic_fallback(time, l0, t_0):
 def _semianalytical_fallback():
     pass
 
+@citation_wrapper('https://ui.adsabs.harvard.edu/abs/2022arXiv220707136M/abstract')
+def _metzger_tde(time, redshift, **kwargs):
+    pass
+
+@citation_wrapper('https://ui.adsabs.harvard.edu/abs/2022arXiv220707136M/abstract')
+def metzger_tde(time, redshift, **kwargs):
+    pass
+
 @citation_wrapper('redback')
 def tde_analytical_bolometric(time, l0, t_0,interaction_process = ip.Diffusion,
                                     **kwargs):
