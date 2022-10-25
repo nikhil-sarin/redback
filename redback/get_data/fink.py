@@ -46,6 +46,14 @@ class FinkDataGetter(DataGetter):
         """
         return "https://fink-portal.org/api/v1/objects"
 
+    @property
+    def objectId(self) -> str:
+        """
+        :return: The object ID i.e., the transient name
+        :rtype: str
+        """
+        return self.transient
+
     def collect_data(self) -> None:
         """Downloads the data from astrocats and saves it into the raw file path."""
         if os.path.isfile(self.raw_file_path):
@@ -54,7 +62,7 @@ class FinkDataGetter(DataGetter):
 
         response = requests.post(
             'https://fink-portal.org/api/v1/objects',
-            json={'objectId': self.transient, 'output-format': 'csv', 'withupperlim': 'True'})
+            json={'objectId': self.objectId, 'output-format': 'csv', 'withupperlim': 'True'})
 
         data = pd.read_csv(io.BytesIO(response.content))
 
