@@ -621,24 +621,24 @@ class TestLasairDataGetter(unittest.TestCase):
         isfile.assert_called_once()
         redback.utils.logger.warning.assert_called_once()
 
-    # @mock.patch("os.path.isfile")
-    # @mock.patch("requests.get")
-    # def test_collect_data_no_lightcurve_available(self, get, isfile):
-    #     isfile.return_value = False
-    #     get.return_value = MagicMock()
-    #     get.return_value.__setattr__('text', 'does not exist')
-    #     with self.assertRaises(ValueError):
-    #         self.getter.collect_data()
-    #
-    # @mock.patch("os.path.isfile")
-    # @mock.patch("requests.get")
-    # @mock.patch("pandas.read_html")
-    # def test_collect_data(self, get, isfile):
-    #     isfile.return_value = False
-    #     get.return_value = MagicMock()
-    #     get.return_value.__setattr__('text', '')
-    #     self.getter.collect_data()
-    #     pd.read_html.assert_called_with(url=self.getter.url)
+    @mock.patch("os.path.isfile")
+    @mock.patch("requests.get")
+    def test_collect_data_no_lightcurve_available(self, get, isfile):
+        isfile.return_value = False
+        get.return_value = MagicMock()
+        get.return_value.__setattr__('text', 'does not exist')
+        with self.assertRaises(ValueError):
+            self.getter.collect_data()
+
+    @mock.patch("os.path.isfile")
+    @mock.patch("requests.get")
+    @mock.patch("pandas.read_html")
+    def test_collect_data(self, read, get, isfile):
+        isfile.return_value = False
+        get.return_value = MagicMock()
+        get.return_value.__setattr__('text', '')
+        self.getter.collect_data()
+        read.assert_called_with(self.getter.url)
 
 class TestFinkDataGetter(unittest.TestCase):
 
