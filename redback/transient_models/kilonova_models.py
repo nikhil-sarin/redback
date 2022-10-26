@@ -89,7 +89,7 @@ def _mosfit_kilonova_one_component(time, mej, vej, kappa, ):
 def mosfit_kilonova():
     pass
 
-@citation_wrapper('redback')
+@citation_wrapper("redback,https://ui.adsabs.harvard.edu/abs/2020ApJ...891..152H/abstract")
 def power_law_stratified_kilonova(time, redshift, mej, vmin, vmax, alpha,
                                   kappa_min, kappa_max, beta, **kwargs):
     pass

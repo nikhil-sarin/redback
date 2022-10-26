@@ -396,6 +396,14 @@ class Transient(object):
         return self.frequency[self.filtered_indices]
 
     @property
+    def filtered_bands(self) -> np.array:
+        """
+        :return: The band names only associated with the active bands.
+        :rtype: np.ndarray
+        """
+        return self.bands[self.filtered_indices]
+
+    @property
     def active_bands(self) -> list:
         """
         :return: List of active bands used.
