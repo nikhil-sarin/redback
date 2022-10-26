@@ -4,6 +4,7 @@ pandas
 scipy
 selenium==3.8.0
 bilby
+sncosmo
 lalsuite
 kilonova-heating-rate
 matplotlib

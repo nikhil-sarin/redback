@@ -16,6 +16,8 @@ and the :code:`redback` paper (when it is out).
 Alongside this we request that you also cite the paper associated with the sampler you use.
 Furthermore, several models implemented in :code:`redback` are introduced in previous scientific publications.
 These scientific publications are easily accessible via :code:`model_name.citation` or as a reference in a class.
+For optical transients, we request that you also cite `SNCosmo <https://sncosmo.readthedocs.io/en/stable/index.html>`_ as that is used to convert redback
+spectra to magnitudes and other quantities.
 
 For example,
 
