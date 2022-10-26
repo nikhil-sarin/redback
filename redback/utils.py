@@ -26,6 +26,27 @@ plt.style.use(filename)
 logger = logging.getLogger('redback')
 _bilby_logger = logging.getLogger('bilby')
 
+def check_kwargs_validity(kwargs):
+    if 'output_format' not in kwargs.keys():
+        raise ValueError("output_format must be specified")
+    else:
+        output_format = kwargs['output_format']
+
+    if 'frequency' or 'bands' not in kwargs.keys():
+        raise ValueError("frequency or bands must be specified")
+
+    if output_format == 'flux_density':
+        if 'frequency' not in kwargs.keys():
+            kwargs['frequency'] = redback.utils.bands_to_frequency(kwargs['bands'])
+
+    if output_format in ['flux', 'sncosmo_source', 'magnitude']:
+        if 'bands' not in kwargs.keys():
+            kwargs['bands'] = redback.utils.frequency_to_bandname(kwargs['frequency'])
+
+    if output_format == 'spectra':
+        kwargs['frequency_array'] = kwargs.get('frequency_array', np.linspace(100, 20000, 100))
+    return kwargs
+
 def citation_wrapper(r):
     """
     Wrapper for citation function to allow functions to have a citation attribute
