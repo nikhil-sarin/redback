@@ -2,6 +2,7 @@ import numpy as np
 import pandas as pd
 from redback.transient_models.phenomenological_models import exponential_powerlaw
 from redback.transient_models.magnetar_models import magnetar_only, basic_magnetar
+from redback.transient_models.shock_powered_models import _shock_cooling
 import redback.interaction_processes as ip
 import redback.sed as sed
 import redback.photosphere as photosphere
@@ -106,7 +107,11 @@ def exponential_powerlaw_bolometric(time, lbol_0, alpha_1, alpha_2, tpeak_d, **k
     lbol = exponential_powerlaw(time, a_1=lbol_0, alpha_1=alpha_1, alpha_2=alpha_2,
                                 tpeak=tpeak_d, **kwargs)
     if _interaction_process is not None:
-        interaction_class = _interaction_process(time=time, luminosity=lbol, **kwargs)
+        dense_resolution = kwargs.get("dense_resolution", 1000)
+        dense_times = np.linspace(0, time[-1]+100, dense_resolution)
+        dense_lbols = exponential_powerlaw(dense_times, a_1=lbol_0, alpha_1=alpha_1, alpha_2=alpha_2,
+                                tpeak=tpeak_d, **kwargs)
+        interaction_class = _interaction_process(time=time, dense_times=dense_times, luminosity=dense_lbols, **kwargs)
         lbol = interaction_class.new_luminosity
     return lbol
 
@@ -128,19 +133,18 @@ def sn_exponential_powerlaw(time, redshift, lbol_0, alpha_1, alpha_2, tpeak_d, *
     :param sed: Default is blackbody.
     :return: flux_density or magnitude depending on output_format kwarg
     """
-    _interaction_process = kwargs.get("interaction_process", ip.Diffusion)
-    _photosphere = kwargs.get("photosphere", photosphere.TemperatureFloor)
-    _sed = kwargs.get("sed", sed.Blackbody)
+    kwargs['interaction_process'] = kwargs.get("interaction_process", ip.Diffusion)
+    kwargs['photosphere'] = kwargs.get("photosphere", photosphere.TemperatureFloor)
+    kwargs['sed'] = kwargs.get("sed", sed.Blackbody)
 
     frequency = kwargs['frequency']
     frequency, time = calc_kcorrected_properties(frequency=frequency, redshift=redshift, time=time)
     dl = cosmo.luminosity_distance(redshift).cgs.value
 
     lbol = exponential_powerlaw_bolometric(time=time, lbol_0=lbol_0,
-                                           alpha_1=alpha_1,alpha_2=alpha_2, tpeak_d=tpeak_d,
-                                           interaction_process=_interaction_process, **kwargs)
-    photo = _photosphere(time=time, luminosity=lbol, **kwargs)
-    sed_1 = _sed(temperature=photo.photosphere_temperature, r_photosphere=photo.r_photosphere,
+                                           alpha_1=alpha_1,alpha_2=alpha_2, tpeak_d=tpeak_d, **kwargs)
+    photo = kwargs['photosphere'](time=time, luminosity=lbol, **kwargs)
+    sed_1 = kwargs['sed'](temperature=photo.photosphere_temperature, r_photosphere=photo.r_photosphere,
               frequency=frequency, luminosity_distance=dl)
 
     flux_density = sed_1.flux_density
@@ -174,7 +178,7 @@ def arnett_bolometric(time, f_nickel, mej, **kwargs):
     :param f_nickel: fraction of nickel mass
     :param mej: total ejecta mass in solar masses
     :param kwargs: Must be all the kwargs required by the specific interaction_process
-        interaction_process: Default is Diffusion.
+    :param interaction_process: Default is Diffusion.
         Can also be None in which case the output is just the raw engine luminosity, or another interaction process.
         e.g., for Diffusion: kappa, kappa_gamma, vej (km/s), temperature_floor
     :return: bolometric_luminosity
@@ -182,7 +186,10 @@ def arnett_bolometric(time, f_nickel, mej, **kwargs):
     _interaction_process = kwargs.get("interaction_process", ip.Diffusion)
     lbol = _nickelcobalt_engine(time=time, f_nickel=f_nickel, mej=mej)
     if _interaction_process is not None:
-        interaction_class = _interaction_process(time=time, luminosity=lbol, mej=mej, **kwargs)
+        dense_resolution = kwargs.get("dense_resolution", 1000)
+        dense_times = np.linspace(0, time[-1]+100, dense_resolution)
+        dense_lbols = _nickelcobalt_engine(time=dense_times, f_nickel=f_nickel, mej=mej)
+        interaction_class = _interaction_process(time=time, dense_times=dense_times, luminosity=dense_lbols, mej=mej, **kwargs)
         lbol = interaction_class.new_luminosity
     return lbol
 
@@ -202,18 +209,76 @@ def arnett(time, redshift, f_nickel, mej, **kwargs):
     :param sed: Default is blackbody.
     :return: flux_density or magnitude depending on output_format kwarg
     """
-    _interaction_process = kwargs.get("interaction_process", ip.Diffusion)
-    _photosphere = kwargs.get("photosphere", photosphere.TemperatureFloor)
-    _sed = kwargs.get("sed", sed.Blackbody)
-
+    kwargs['interaction_process'] = kwargs.get("interaction_process", ip.Diffusion)
+    kwargs['photosphere'] = kwargs.get("photosphere", photosphere.TemperatureFloor)
+    kwargs['sed'] = kwargs.get("sed", sed.Blackbody)
 
     frequency = kwargs['frequency']
     frequency, time = calc_kcorrected_properties(frequency=frequency, redshift=redshift, time=time)
     dl = cosmo.luminosity_distance(redshift).cgs.value
 
-    lbol = arnett_bolometric(time=time, f_nickel=f_nickel, mej=mej, interaction_process=_interaction_process, **kwargs)
-    photo = _photosphere(time=time, luminosity=lbol, **kwargs)
-    sed_1 = _sed(temperature=photo.photosphere_temperature, r_photosphere=photo.r_photosphere,
+    lbol = arnett_bolometric(time=time, f_nickel=f_nickel, mej=mej, **kwargs)
+    photo = kwargs['photosphere'](time=time, luminosity=lbol, **kwargs)
+    sed_1 = kwargs['sed'](temperature=photo.photosphere_temperature, r_photosphere=photo.r_photosphere,
+                frequency=frequency, luminosity_distance=dl)
+
+    flux_density = sed_1.flux_density
+
+    if kwargs['output_format'] == 'flux_density':
+        return flux_density.to(uu.mJy).value
+    elif kwargs['output_format'] == 'magnitude':
+        return flux_density.to(uu.ABmag).value
+
+@citation_wrapper('redback')
+def shock_cooling_and_arnett(time, redshift, log10_mass, log10_radius, log10_energy,
+                             f_nickel, mej, **kwargs):
+    """
+    :param time: time in days
+    :param redshift: source redshift
+    :param log10_mass: log10 mass of extended material in solar masses
+    :param log10_radius: log10 radius of extended material in cm
+    :param log10_energy: log10 energy of extended material in ergs
+    :param f_nickel: fraction of nickel mass
+    :param mej: total ejecta mass in solar masses
+    :param kwargs: Must be all the kwargs required by the specific interaction_process, photosphere, sed methods used
+         e.g., for Diffusion and TemperatureFloor: kappa, kappa_gamma, vej (km/s), temperature_floor
+    :param nn: density power law slope
+    :param delta: inner density power law slope
+    :param interaction_process: Default is Diffusion.
+            Can also be None in which case the output is just the raw engine luminosity, or another interaction process.
+    :param photosphere: Default is TemperatureFloor.
+            kwargs must have vej or relevant parameters if using different photosphere model
+    :param sed: Default is blackbody.
+    :return: flux_density or magnitude depending on output_format kwarg
+    """
+    kwargs['interaction_process'] = kwargs.get("interaction_process", ip.Diffusion)
+    kwargs['photosphere'] = kwargs.get("photosphere", photosphere.TemperatureFloor)
+    kwargs['sed'] = kwargs.get("sed", sed.Blackbody)
+
+    frequency = kwargs['frequency']
+    frequency, time = calc_kcorrected_properties(frequency=frequency, redshift=redshift, time=time)
+    dl = cosmo.luminosity_distance(redshift).cgs.value
+
+    mass = 10 ** log10_mass
+    radius = 10 ** log10_radius
+    energy = 10 ** log10_energy
+    output = _shock_cooling(time * day_to_s, mass=mass, radius=radius, energy=energy, **kwargs)
+    lbol_1 = output.lbol
+    lbol_2 = _nickelcobalt_engine(time=time, f_nickel=f_nickel, mej=mej)
+    lbol = lbol_1 + lbol_2
+
+    if kwargs['interaction_process'] is not None:
+        dense_resolution = kwargs.get("dense_resolution", 1000)
+        dense_times = np.linspace(0, time[-1]+100, dense_resolution)
+        dense_lbols = _nickelcobalt_engine(time=dense_times, f_nickel=f_nickel, mej=mej)
+        dense_lbols += _shock_cooling(dense_times * day_to_s, mass=mass, radius=radius, energy=energy, **kwargs).lbol
+        interaction_class = kwargs['interaction_process'](time=time, dense_times=dense_times, luminosity=dense_lbols,
+                                                          mej=mej, **kwargs)
+        lbol = interaction_class.new_luminosity
+
+    photo = kwargs['photosphere'](time=time, luminosity=lbol, **kwargs)
+
+    sed_1 = kwargs['sed'](temperature=photo.photosphere_temperature, r_photosphere=photo.r_photosphere,
                 frequency=frequency, luminosity_distance=dl)
 
     flux_density = sed_1.flux_density
@@ -238,10 +303,12 @@ def basic_magnetar_powered_bolometric(time, p0, bp, mass_ns, theta_pb, **kwargs)
     :return: bolometric_luminosity
     """
     _interaction_process = kwargs.get("interaction_process", ip.Diffusion)
-
     lbol = basic_magnetar(time=time * day_to_s, p0=p0, bp=bp, mass_ns=mass_ns, theta_pb=theta_pb)
     if _interaction_process is not None:
-        interaction_class = _interaction_process(time=time, luminosity=lbol, **kwargs)
+        dense_resolution = kwargs.get("dense_resolution", 1000)
+        dense_times = np.linspace(0, time[-1]+100, dense_resolution)
+        dense_lbols = basic_magnetar(time=dense_times * day_to_s, p0=p0, bp=bp, mass_ns=mass_ns, theta_pb=theta_pb)
+        interaction_class = _interaction_process(time=time, dense_times=dense_times, luminosity=dense_lbols,**kwargs)
         lbol = interaction_class.new_luminosity
     return lbol
 
@@ -263,19 +330,18 @@ def basic_magnetar_powered(time, redshift, p0, bp, mass_ns, theta_pb,**kwargs):
     :param sed: Default is blackbody.
     :return: flux_density or magnitude depending on output_format kwarg
     """
-    _interaction_process = kwargs.get("interaction_process", ip.Diffusion)
-    _photosphere = kwargs.get("photosphere", photosphere.TemperatureFloor)
-    _sed = kwargs.get("sed", sed.Blackbody)
+    kwargs['interaction_process'] = kwargs.get("interaction_process", ip.Diffusion)
+    kwargs['photosphere'] = kwargs.get("photosphere", photosphere.TemperatureFloor)
+    kwargs['sed'] = kwargs.get("sed", sed.Blackbody)
 
     frequency = kwargs['frequency']
     frequency, time = calc_kcorrected_properties(frequency=frequency, redshift=redshift, time=time)
     dl = cosmo.luminosity_distance(redshift).cgs.value
 
-    lbol = basic_magnetar_powered_bolometric(time=time, p0=p0,bp=bp, mass_ns=mass_ns, theta_pb=theta_pb,
-                                     interaction_process=_interaction_process, **kwargs)
-    photo = _photosphere(time=time, luminosity=lbol, **kwargs)
+    lbol = basic_magnetar_powered_bolometric(time=time, p0=p0,bp=bp, mass_ns=mass_ns, theta_pb=theta_pb,**kwargs)
+    photo = kwargs['photosphere'](time=time, luminosity=lbol, **kwargs)
 
-    sed_1 = _sed(temperature=photo.photosphere_temperature, r_photosphere=photo.r_photosphere,
+    sed_1 = kwargs['sed'](temperature=photo.photosphere_temperature, r_photosphere=photo.r_photosphere,
                 frequency=frequency, luminosity_distance=dl)
 
     flux_density = sed_1.flux_density
@@ -301,7 +367,6 @@ def slsn_bolometric(time, p0, bp, mass_ns, theta_pb,**kwargs):
             Can also be None in which case the output is just the raw engine luminosity, or another interaction process.
     :return: bolometric_luminosity
     """
-    _interaction_process = kwargs.get("interaction_process", ip.Diffusion)
     return basic_magnetar_powered_bolometric(time=time, p0=p0, bp=bp, mass_ns=mass_ns,
                                              theta_pb=theta_pb, **kwargs)
 
@@ -328,16 +393,16 @@ def slsn(time, redshift, p0, bp, mass_ns, theta_pb,**kwargs):
     :return: flux_density or magnitude depending on output_format kwarg
     """
     frequency = kwargs['frequency']
-    _interaction_process = kwargs.get("interaction_process", ip.Diffusion)
-    _photosphere = kwargs.get("photosphere", photosphere.TemperatureFloor)
-    _sed = kwargs.get("sed", sed.CutoffBlackbody)
+    kwargs['interaction_process'] = kwargs.get("interaction_process", ip.Diffusion)
+    kwargs['photosphere'] = kwargs.get("photosphere", photosphere.TemperatureFloor)
+    kwargs['sed'] = kwargs.get("sed", sed.CutoffBlackbody)
     cutoff_wavelength = kwargs.get('cutoff_wavelength', 3000)
     frequency, time = calc_kcorrected_properties(frequency=frequency, redshift=redshift, time=time)
     dl = cosmo.luminosity_distance(redshift).cgs.value
 
     lbol = slsn_bolometric(time=time, p0=p0, bp=bp, mass_ns=mass_ns, theta_pb=theta_pb, **kwargs)
-    photo = _photosphere(time=time, luminosity=lbol, **kwargs)
-    sed_1 = _sed(time=time, luminosity=lbol, temperature=photo.photosphere_temperature,
+    photo = kwargs['photosphere'](time=time, luminosity=lbol, **kwargs)
+    sed_1 = kwargs['sed'](time=time, luminosity=lbol, temperature=photo.photosphere_temperature,
                 r_photosphere=photo.r_photosphere,frequency=frequency, luminosity_distance=dl,
                 cutoff_wavelength=cutoff_wavelength)
 
@@ -369,9 +434,9 @@ def magnetar_nickel(time, redshift, f_nickel, mej, p0, bp, mass_ns, theta_pb, **
     :param sed: Default is blackbody.
     :return: flux_density or magnitude depending on output_format kwarg
     """
-    _interaction_process = kwargs.get("interaction_process", ip.Diffusion)
-    _photosphere = kwargs.get("photosphere", photosphere.TemperatureFloor)
-    _sed = kwargs.get("sed", sed.Blackbody)
+    kwargs['interaction_process'] = kwargs.get("interaction_process", ip.Diffusion)
+    kwargs['photosphere'] = kwargs.get("photosphere", photosphere.TemperatureFloor)
+    kwargs['sed'] = kwargs.get("sed", sed.Blackbody)
 
     frequency = kwargs['frequency']
     frequency, time = calc_kcorrected_properties(frequency=frequency, redshift=redshift, time=time)
@@ -381,13 +446,18 @@ def magnetar_nickel(time, redshift, f_nickel, mej, p0, bp, mass_ns, theta_pb, **
     lbol_arnett = _nickelcobalt_engine(time=time, f_nickel=f_nickel, mej=mej)
     lbol = lbol_mag + lbol_arnett
 
-    if _interaction_process is not None:
-        interaction_class = _interaction_process(time=time, luminosity=lbol, mej=mej, **kwargs)
+    if kwargs['interaction_process'] is not None:
+        dense_resolution = kwargs.get("dense_resolution", 1000)
+        dense_times = np.linspace(0, time[-1]+100, dense_resolution)
+        dense_lbols = _nickelcobalt_engine(time=dense_times, f_nickel=f_nickel, mej=mej)
+        dense_lbols += basic_magnetar(time=dense_times * day_to_s, p0=p0, bp=bp, mass_ns=mass_ns, theta_pb=theta_pb)
+        interaction_class = kwargs['interaction_process'](time=time, dense_times=dense_times, luminosity=dense_lbols,
+                                                          mej=mej, **kwargs)
         lbol = interaction_class.new_luminosity
 
-    photo = _photosphere(time=time, luminosity=lbol, **kwargs)
+    photo = kwargs['photosphere'](time=time, luminosity=lbol, **kwargs)
 
-    sed_1 = _sed(temperature=photo.photosphere_temperature, r_photosphere=photo.r_photosphere,
+    sed_1 = kwargs['sed'](temperature=photo.photosphere_temperature, r_photosphere=photo.r_photosphere,
                 frequency=frequency, luminosity_distance=dl)
 
     flux_density = sed_1.flux_density
@@ -427,11 +497,9 @@ def homologous_expansion_supernova_model_bolometric(time, mej, ek, **kwargs):
     kwargs['vej'] = v_ejecta
     kwargs['mej'] = mej
 
-    _interaction_process = kwargs.get("interaction_process", ip.Diffusion)
-    lbol = function(time, interaction_process=_interaction_process, **kwargs)
-
+    kwargs['interaction_process'] = kwargs.get("interaction_process", ip.Diffusion)
+    lbol = function(time, **kwargs)
     return lbol
-
 
 @citation_wrapper('redback')
 def thin_shell_supernova_model_bolometric(time, mej, ek, **kwargs):
@@ -463,8 +531,8 @@ def thin_shell_supernova_model_bolometric(time, mej, ek, **kwargs):
     kwargs['vej'] = v_ejecta
     kwargs['mej'] = mej
 
-    _interaction_process = kwargs.get("interaction_process", ip.Diffusion)
-    lbol = function(time, interaction_process=_interaction_process, **kwargs)
+    kwargs['interaction_process'] = kwargs.get("interaction_process", ip.Diffusion)
+    lbol = function(time, **kwargs)
     return lbol
 
 
@@ -488,19 +556,18 @@ def homologous_expansion_supernova_model(time, redshift, mej, ek, **kwargs):
 
     :return: flux_density or magnitude depending on output_format kwarg
     """
-    _interaction_process = kwargs.get("interaction_process", ip.Diffusion)
-    _photosphere = kwargs.get("photosphere", photosphere.TemperatureFloor)
-    _sed = kwargs.get("sed", sed.Blackbody)
+    kwargs['interaction_process'] = kwargs.get("interaction_process", ip.Diffusion)
+    kwargs['photosphere'] = kwargs.get("photosphere", photosphere.TemperatureFloor)
+    kwargs['sed'] = kwargs.get("sed", sed.Blackbody)
 
     frequency = kwargs['frequency']
     frequency, time = calc_kcorrected_properties(frequency=frequency, redshift=redshift, time=time)
     dl = cosmo.luminosity_distance(redshift).cgs.value
 
-    lbol = homologous_expansion_supernova_model_bolometric(time=time, mej=mej, ek=ek,
-                                                           interaction_process=_interaction_process, **kwargs)
-    photo = _photosphere(time=time, luminosity=lbol, **kwargs)
+    lbol = homologous_expansion_supernova_model_bolometric(time=time, mej=mej, ek=ek, **kwargs)
+    photo = kwargs['photosphere'] (time=time, luminosity=lbol, **kwargs)
 
-    sed_1 = _sed(temperature=photo.photosphere_temperature, r_photosphere=photo.r_photosphere,
+    sed_1 = kwargs['sed'](temperature=photo.photosphere_temperature, r_photosphere=photo.r_photosphere,
                 frequency=frequency, luminosity_distance=dl)
 
     flux_density = sed_1.flux_density
@@ -529,19 +596,18 @@ def thin_shell_supernova_model(time, redshift, mej, ek, **kwargs):
     :param sed: Default is blackbody.
     :return: flux_density or magnitude depending on output_format kwarg
     """
-    _interaction_process = kwargs.get("interaction_process", ip.Diffusion)
-    _photosphere = kwargs.get("photosphere", photosphere.TemperatureFloor)
-    _sed = kwargs.get("sed", sed.Blackbody)
+    kwargs['interaction_process'] = kwargs.get("interaction_process", ip.Diffusion)
+    kwargs['photosphere'] = kwargs.get("photosphere", photosphere.TemperatureFloor)
+    kwargs['sed'] = kwargs.get("sed", sed.Blackbody)
 
     frequency = kwargs['frequency']
     frequency, time = calc_kcorrected_properties(frequency=frequency, redshift=redshift, time=time)
     dl = cosmo.luminosity_distance(redshift).cgs.value
 
-    lbol = thin_shell_supernova_model_bolometric(time=time, mej=mej, ek=ek,
-                                     interaction_process=_interaction_process, **kwargs)
-    photo = _photosphere(time=time, luminosity=lbol, **kwargs)
+    lbol = thin_shell_supernova_model_bolometric(time=time, mej=mej, ek=ek, **kwargs)
+    photo = kwargs['photosphere'](time=time, luminosity=lbol, **kwargs)
 
-    sed_1 = _sed(temperature=photo.photosphere_temperature, r_photosphere=photo.r_photosphere,
+    sed_1 = kwargs['sed'](temperature=photo.photosphere_temperature, r_photosphere=photo.r_photosphere,
                 frequency=frequency, luminosity_distance=dl)
 
     flux_density = sed_1.flux_density
@@ -669,7 +735,11 @@ def csm_interaction_bolometric(time, mej, csm_mass, vej, eta, rho, kappa, r0, **
     mass_csm_threshold = csm_output.mass_csm_threshold
 
     if _interaction_process is not None:
-        interaction_class = _interaction_process(time=time, luminosity=lbol,
+        dense_resolution = kwargs.get("dense_resolution", 1000)
+        dense_times = np.linspace(0, time[-1]+100, dense_resolution)
+        dense_lbols = _csm_engine(time=dense_times, mej=mej, csm_mass=csm_mass, vej=vej,
+                             eta=eta, rho=rho, kappa=kappa, r0=r0, **kwargs).lbol
+        interaction_class = _interaction_process(time=time, dense_times=dense_times, luminosity=lbol,
                                                 kappa=kappa, r_photosphere=r_photosphere,
                                                 mass_csm_threshold=mass_csm_threshold, csm_mass=csm_mass, **kwargs)
         lbol = interaction_class.new_luminosity
@@ -698,20 +768,20 @@ def csm_interaction(time, redshift, mej, csm_mass, vej, eta, rho, kappa, r0, **k
     :param sed: Default is blackbody.
     :return: flux_density or magnitude depending on output_format kwarg
     """
-    _interaction_process = kwargs.get("interaction_process", ip.CSMDiffusion)
-    _photosphere = kwargs.get("photosphere", photosphere.TemperatureFloor)
-    _sed = kwargs.get("sed", sed.Blackbody)
+    kwargs['interaction_process'] = kwargs.get("interaction_process", ip.CSMDiffusion)
+    kwargs['photosphere'] = kwargs.get("photosphere", photosphere.TemperatureFloor)
+    kwargs['sed'] = kwargs.get("sed", sed.Blackbody)
 
     frequency = kwargs['frequency']
     frequency, time = calc_kcorrected_properties(frequency=frequency, redshift=redshift, time=time)
     dl = cosmo.luminosity_distance(redshift).cgs.value
 
     lbol = csm_interaction_bolometric(time=time, mej=mej, csm_mass=csm_mass, vej=vej, eta=eta,
-                                      rho=rho, kappa=kappa, r0=r0, interaction_process=_interaction_process, **kwargs)
+                                      rho=rho, kappa=kappa, r0=r0, **kwargs)
 
-    photo = _photosphere(time=time, luminosity=lbol, vej=vej, **kwargs)
+    photo = kwargs['photosphere'](time=time, luminosity=lbol, vej=vej, **kwargs)
 
-    sed_1 = _sed(temperature=photo.photosphere_temperature, r_photosphere=photo.r_photosphere,
+    sed_1 = kwargs['sed'](temperature=photo.photosphere_temperature, r_photosphere=photo.r_photosphere,
                 frequency=frequency, luminosity_distance=dl)
 
     flux_density = sed_1.flux_density
@@ -870,19 +940,18 @@ def general_magnetar_slsn(time, redshift, l0, tsd, nn, ** kwargs):
     :param sed: Default is blackbody.
     :return: flux_density or magnitude depending on output_format kwarg
     """
-    _interaction_process = kwargs.get("interaction_process", ip.Diffusion)
-    _photosphere = kwargs.get("photosphere", photosphere.TemperatureFloor)
-    _sed = kwargs.get("sed", sed.Blackbody)
+    kwargs['interaction_process'] = kwargs.get("interaction_process", ip.Diffusion)
+    kwargs['photosphere'] = kwargs.get("photosphere", photosphere.TemperatureFloor)
+    kwargs['sed'] = kwargs.get("sed", sed.Blackbody)
 
     frequency = kwargs['frequency']
     frequency, time = calc_kcorrected_properties(frequency=frequency, redshift=redshift, time=time)
     dl = cosmo.luminosity_distance(redshift).cgs.value
 
-    lbol = general_magnetar_slsn_bolometric(time=time, l0=l0, tsd=tsd, nn=nn,
-                                             interaction_process = _interaction_process, ** kwargs)
-    photo = _photosphere(time=time, luminosity=lbol, **kwargs)
+    lbol = general_magnetar_slsn_bolometric(time=time, l0=l0, tsd=tsd, nn=nn, ** kwargs)
+    photo = kwargs['photosphere'](time=time, luminosity=lbol, **kwargs)
 
-    sed_1 = _sed(temperature=photo.photosphere_temperature, r_photosphere=photo.r_photosphere,
+    sed_1 = kwargs['sed'](temperature=photo.photosphere_temperature, r_photosphere=photo.r_photosphere,
                 frequency = frequency, luminosity_distance = dl)
 
     flux_density = sed_1.flux_density

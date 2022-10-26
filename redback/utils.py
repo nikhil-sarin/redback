@@ -1,6 +1,5 @@
 import contextlib
 import logging
-import math
 import os
 from collections import namedtuple
 from inspect import getmembers, isfunction
@@ -28,12 +27,62 @@ logger = logging.getLogger('redback')
 _bilby_logger = logging.getLogger('bilby')
 
 def citation_wrapper(r):
+    """
+    Wrapper for citation function to allow functions to have a citation attribute
+    :param r: proxy argument
+    :return: wrapped function
+    """
     def wrapper(f):
         f.citation = r
         return f
     return wrapper
 
+def calc_tfb(binding_energy_const, mbh_6, stellar_mass):
+    """
+    Calculate the fall back timescale for a SMBH disrupting a stellar mass object
+    :param binding_energy_const:
+    :param mbh_6: SMBH mass in solar masses
+    :param stellar_mass: stellar mass in solar masses
+    :return: fall back time in seconds
+    """
+    tfb = 58. * (3600. * 24.) * (mbh_6 ** (0.5)) * (stellar_mass ** (0.2)) * ((binding_energy_const / 0.8) ** (-1.5))
+    return tfb
+
+def calculate_normalisation(unique_frequency, model_1, model_2, tref, model_1_dict, model_2_dict):
+    """
+    Calculate the normalisation for smoothly joining two models together at a reference time.
+
+    :param unique_frequency: An array of unique frequencies. Can be None in which case we assume there is only one normalisation.
+    :param model_1: must be redback model with a normalisation parameter
+    :param model_2: any redback model
+    :param tref: time which transition from model_1 to model_2 takes place
+    :param model_1_dict: dictionary of parameters and values for model 1
+    :param model_2: dictionary of parameters and values for model 1
+    :return: normalisation, namedtuple corresponding to the normalisation for the specific frequency.
+    Could be bolometric luminosity, magnitude, or frequency
+    """
+    from redback.model_library import all_models_dict
+    f1 = all_models_dict[model_1](time=tref, a_1=1, **model_1_dict)
+    if unique_frequency == None:
+        f2 = all_models_dict[model_2](time=tref, **model_2_dict)
+        norm = f2/f1
+        normalisation = namedtuple('normalisation', ['bolometric_luminosity'])(norm)
+    else:
+        model_2_dict['frequency'] = unique_frequency
+        f2 = all_models_dict[model_2](time=tref, **model_2_dict)
+        unique_norms = f2/f1
+        dd = dict(zip(unique_frequency, unique_norms))
+        normalisation = namedtuple('normalisation', dd.keys())(*dd.values())
+    return normalisation
+
 def get_csm_properties(nn, eta):
+    """
+    Calculate CSM properties for CSM interacting models
+
+    :param nn: csm norm
+    :param eta: csm density profile exponent
+    :return: csm_properties named tuple
+    """
     csm_properties = namedtuple('csm_properties', ['AA', 'Bf', 'Br'])
     filepath = f"{dirname}/tables/csm_table.txt"
     ns, ss, bfs, brs, aas = np.loadtxt(filepath, delimiter=',', unpack=True)
@@ -73,6 +122,7 @@ def nu_to_lambda(frequency):
 def calc_kcorrected_properties(frequency, redshift, time):
     """
     Perform k-correction
+
     :param frequency: observer frame frequency
     :param redshift: source redshift
     :param time: observer frame time
@@ -84,61 +134,138 @@ def calc_kcorrected_properties(frequency, redshift, time):
 
 
 def mjd_to_jd(mjd):
+    """
+    Convert MJD to JD
+
+    :param mjd: mjd time
+    :return: JD time
+    """
     return Time(mjd, format="mjd").jd
 
 
 def jd_to_mjd(jd):
+    """
+    Convert JD to MJD
+
+    :param jd: jd time
+    :return: MJD time
+    """
     return Time(jd, format="jd").mjd
 
 
 def jd_to_date(jd):
+    """
+    Convert JD to date
+
+    :param jd: jd time
+    :return: date
+    """
     year, month, day, _, _, _ = Time(jd, format="jd").to_value("ymdhms")
     return year, month, day
 
 
 def mjd_to_date(mjd):
+    """
+    Convert MJD to date
+
+    :param mjd: mjd time
+    :return: data
+    """
     year, month, day, _, _, _ = Time(mjd, format="mjd").to_value("ymdhms")
     return year, month, day
 
 
 def date_to_jd(year, month, day):
+    """
+    Convert date to JD
+
+    :param year:
+    :param month:
+    :param day:
+    :return: JD time
+    """
     return Time(dict(year=year, month=month, day=day), format="ymdhms").jd
 
 
 def date_to_mjd(year, month, day):
+    """
+    Convert date to MJD
+
+    :param year:
+    :param month:
+    :param day:
+    :return: MJD time
+    """
     return Time(dict(year=year, month=month, day=day), format="ymdhms").mjd
 
+def deceleration_timescale(e0, g0, n0):
+    """
+    Calculate the deceleration timescale for an afterglow
 
-def get_filter_frequency(filter):
-    pass
-
-
-def deceleration_timescale(**kwargs):
-    e0 = 10 ** kwargs['loge0']
-    gamma0 = kwargs['g0']
-    nism = 10 ** kwargs['logn0']
+    :param e0: kinetic energy of afterglow
+    :param g0: lorentz factor of afterglow
+    :param n0: nism number density
+    :return: peak time in seconds
+    """
+    e0 = e0
+    gamma0 = g0
+    nism = n0
     denom = 32 * np.pi * gamma0 ** 8 * nism * proton_mass * speed_of_light ** 5
     num = 3 * e0
     t_peak = (num / denom) ** (1. / 3.)
     return t_peak
 
+def calc_flux_density_from_ABmag(magnitudes):
+    """
+    Calculate flux density from AB magnitude assuming monochromatic AB filter
+
+    :param magnitudes:
+    :return: flux density
+    """
+    return (magnitudes * uu.mJy).to(uu.ABmag)
 
 def calc_ABmag_from_flux_density(fluxdensity):
+    """
+    Calculate AB magnitude from flux density assuming monochromatic AB filter
+
+    :param fluxdensity:
+    :return: AB magnitude
+    """
     return (fluxdensity * uu.mJy).to(uu.ABmag)
 
+def calc_flux_density_from_vegamag(magnitudes, zeropoint):
+    """
+    Calculate flux density from Vega magnitude assuming Vega filter
+
+    :param magnitudes:
+    :param zeropoint: Vega zeropoint for a given filter in Jy
+    :return: flux density in mJy
+    """
+    zeropoint = zeropoint * 1000
+    flux_density = zeropoint * 10 ** (magnitudes/-2.5)
+    return flux_density
+
+def calc_vegamag_from_flux_density(fluxdensity, zeropoint):
+    """
+    Calculate Vega magnitude from flux density assuming Vega filter
+
+    :param fluxdensity: in mJy
+    :param zeropoint: Vega zeropoint for a given filter in Jy
+    :return: Vega magnitude
+    """
+    zeropoint = zeropoint * 1000
+    magnitude = -2.5 * np.log10(fluxdensity / zeropoint)
+    return magnitude
 
 def convert_absolute_mag_to_apparent(magnitude, distance):
     """
     Convert absolute magnitude to apparent
+
     :param magnitude: AB absolute magnitude
     :param distance: Distance in parsecs
     """
     app_mag = magnitude + 5 * (np.log10(distance) - 1)
     return app_mag
-
-
-def calc_flux_density_from_ABmag(magnitudes):
-    return (magnitudes * uu.ABmag).to(uu.mJy)
 
 
 def check_element(driver, id_number):
@@ -152,7 +279,16 @@ def check_element(driver, id_number):
         return False
     return True
 
-def calc_flux_density_error(magnitude, magnitude_error, reference_flux, magnitude_system='AB'):
+def calc_flux_density_error_from_monochromatic_magnitude(magnitude, magnitude_error, reference_flux, magnitude_system='AB'):
+    """
+    Calculate flux density error from magnitude error
+
+    :param magnitude: magnitude
+    :param magnitude_error: magnitude error
+    :param reference_flux: reference flux density
+    :param magnitude_system: magnitude system
+    :return: Flux density error
+    """
     if magnitude_system == 'AB':
         reference_flux = 3631
     prefactor = np.log(10) / (-2.5)
@@ -160,16 +296,82 @@ def calc_flux_density_error(magnitude, magnitude_error, reference_flux, magnitud
     flux_err = ((dfdm * magnitude_error) ** 2) ** 0.5
     return flux_err
 
+def calc_flux_error_from_magnitude(magnitude, magnitude_error, reference_flux):
+    """
+    Calculate flux error from magnitude error
 
-def calc_flux_from_mag(magnitude, reference_flux, magnitude_system='AB'):
-    if magnitude_system == 'AB':
-        reference_flux = 3631
-    flux = 10 ** (magnitude / -2.5) * reference_flux  # Jansky
-    return 1000 * flux  # return in mJy
+    :param magnitude: magnitude
+    :param magnitude_error: magnitude error
+    :param reference_flux: reference flux density
+    :return: Flux error
+    """
+    prefactor = np.log(10) / (-2.5)
+    dfdm = prefactor * reference_flux * np.exp(prefactor * magnitude)
+    flux_err = ((dfdm * magnitude_error) ** 2) ** 0.5
+    return flux_err
 
+def bands_to_zeropoint(bands):
+    """
+    Bands to zero point
+
+    :param bands: list of bands
+    :return: zeropoint for magnitude to flux density calculation
+    """
+    reference_flux = bands_to_reference_flux(bands)
+    zeropoint = 10**(reference_flux/-2.5)
+    return zeropoint
+
+def bandpass_magnitude_to_flux(magnitude, bands):
+    """
+    Convert magnitude to flux density
+
+    :param magnitude: magnitude
+    :param bands: bandpass
+    :return: flux density
+    """
+    reference_flux = bands_to_reference_flux(bands)
+    maggi = 10.0**(magnitude / (-2.5))
+    flux = maggi * reference_flux
+    return flux
+
+def bandpass_flux_to_magnitude(flux, bands):
+    """
+    Convert flux density to magnitude
+
+    :param flux: flux density
+    :param bands: bandpass
+    :return: magnitude
+    """
+    reference_flux = bands_to_reference_flux(bands)
+    maggi = flux / reference_flux
+    magnitude = -2.5 * np.log10(maggi)
+    return magnitude
+
+def bands_to_reference_flux(bands):
+    """
+    Looks up the reference flux for a given band from the filters table.
+
+    :param bands: List of bands.
+    :type bands: list[str]
+    :return: An array of reference flux associated with the given bands.
+    :rtype: np.ndarray
+    """
+    if bands is None:
+        bands = []
+    df = pd.read_csv(f"{dirname}/tables/filters.csv")
+    bands_to_flux = {band: wavelength for band, wavelength in zip(df['bands'], df['reference_flux'])}
+    res = []
+    for band in bands:
+        try:
+            res.append(bands_to_flux[band])
+        except KeyError as e:
+            logger.info(e)
+            raise KeyError(f"Band {band} is not defined in filters.csv!")
+    return np.array(res)
 
 def bands_to_frequency(bands):
-    """Converts a list of bands into an array of frequency in Hz
+    """
+    Converts a list of bands into an array of frequency in Hz
 
     :param bands: List of bands.
     :type bands: list[str]
@@ -189,6 +391,27 @@ def bands_to_frequency(bands):
             raise KeyError(f"Band {band} is not defined in filters.csv!")
     return np.array(res)
 
+def frequency_to_bandname(frequency):
+    """
+    Converts a list of frequencies into an array corresponding band names
+
+    :param frequency: List of bands.
+    :type frequency: list[str]
+    :return: An array of bandnames associated with the given frequency.
+    :rtype: np.ndarray
+    """
+    if frequency is None:
+        frequency = []
+    df = pd.read_csv(f"{dirname}/tables/filters.csv")
+    freqs_to_bands = {wavelength: band for wavelength, band in zip(df['wavelength [Hz]'], df['bands'])}
+    res = []
+    for freq in frequency:
+        try:
+            res.append(freqs_to_bands[freq])
+        except KeyError as e:
+            logger.info(e)
+            raise KeyError(f"Wavelength {freq} is not defined in filters.csv!")
+    return np.array(res)
 
 def fetch_driver():
     # open the webdriver
@@ -196,6 +419,13 @@ def fetch_driver():
 
 
 def calc_credible_intervals(samples, interval=0.9):
+    """
+    Calculate credible intervals from samples
+
+    :param samples: samples array
+    :param interval: credible interval to calculate
+    :return: lower_bound, upper_bound, median
+    """
     if not 0 <= interval <= 1:
         raise ValueError
     lower_bound = np.quantile(samples, 0.5 - interval/2, axis=0)
@@ -205,6 +435,14 @@ def calc_credible_intervals(samples, interval=0.9):
 
 
 def calc_one_dimensional_median_and_error_bar(samples, quantiles=(0.16, 0.84), fmt='.2f'):
+    """
+    Calculate the median and error bar of a one dimensional array of samples
+
+    :param samples: samples array
+    :param quantiles: quantiles to calculate
+    :param fmt: latex fmt
+    :return: summary named tuple
+    """
     summary = namedtuple('summary', ['median', 'lower', 'upper', 'string'])
 
     if len(quantiles) != 2:
@@ -224,7 +462,14 @@ def calc_one_dimensional_median_and_error_bar(samples, quantiles=(0.16, 0.84), f
 
 
 def kde_scipy(x, bandwidth=0.05, **kwargs):
-    """Kernel Density Estimation with Scipy"""
+    """
+    Kernel Density Estimation with Scipy
+
+    :param x: samples
+    :param bandwidth: bandwidth of the kernel
+    :param kwargs: Any extra kwargs passed to scipy.kde
+    :return: gaussian kde object
+    """
     # Note that scipy weights its bandwidth by the covariance of the
     # input data.  To make the results comparable to the other methods,
     # we divide the bandwidth by the sample standard deviation here.
@@ -233,17 +478,39 @@ def kde_scipy(x, bandwidth=0.05, **kwargs):
 
 
 def cdf(x, plot=True, *args, **kwargs):
+    """
+    Cumulative distribution function
+
+    :param x: samples
+    :param plot: whether to plot the cdf
+    :param args: extra args passed to plt.plot
+    :param kwargs: extra kwargs passed to plt.plot
+    :return: x, y or plot
+    """
     x, y = sorted(x), np.arange(len(x)) / len(x)
     return plt.plot(x, y, *args, **kwargs) if plot else (x, y)
 
 
 def bin_ttes(ttes, bin_size):
+    """
+    Bin TimeTaggedEvents into bins of size bin_size
+
+    :param ttes: time tagged events
+    :param bin_size: bin sizes
+    :return: times and counts in bins
+    """
     counts, bin_edges = np.histogram(ttes, np.arange(ttes[0], ttes[-1], bin_size))
     times = np.array([bin_edges[i] + (bin_edges[i + 1] - bin_edges[i]) / 2 for i in range(len(bin_edges) - 1)])
     return times, counts
 
 
 def find_path(path):
+    """
+    Find the path of some data in the package
+
+    :param path:
+    :return:
+    """
     if path == 'default':
         return os.path.join(dirname, '../data/GRBData')
     else:
@@ -251,7 +518,8 @@ def find_path(path):
 
 
 def setup_logger(outdir='.', label=None, log_level='INFO'):
-    """Setup logging output: call at the start of the script to use
+    """
+    Setup logging output: call at the start of the script to use
 
     :param outdir: If supplied, write the logging output to outdir/label.log
     :type outdir: str

@@ -28,8 +28,8 @@ model_kwargs = dict(frequency=tidal_disruption_event.filtered_frequencies, outpu
 
 # returns a tde result object
 result = redback.fit_model(transient=tidal_disruption_event, model=model, sampler=sampler,
-                           model_kwargs=model_kwargs, prior=priors, sample='rslice', nlive=200, resume=False)
+                           model_kwargs=model_kwargs, prior=priors, sample='rslice', nlive=200, resume=True)
 
 result.plot_corner()
 
-result.plot_lightcurve(random_models=100)
+result.plot_multiband_lightcurve(random_models=100,filters=["V", "r", "g", "i"])

@@ -26,7 +26,7 @@ class Afterglow(Transient):
             flux_density_err: np.ndarray = None, magnitude: np.ndarray = None, magnitude_err: np.ndarray = None,
             redshift: float = np.nan, photon_index: float = np.nan, frequency: np.ndarray = None,
             bands: np.ndarray = None, system: np.ndarray = None, active_bands: Union[np.ndarray, str] = 'all',
-            use_phase_model: bool = False, **kwargs: None) -> None:
+            use_phase_model: bool = False, optical_data: bool = False, **kwargs: None) -> None:
 
         """
         This is a general constructor for the Afterglow class. Note that you only need to give data corresponding to
@@ -71,6 +71,8 @@ class Afterglow(Transient):
         :type photon_index: float
         :param use_phase_model: Whether we are using a phase model.
         :type use_phase_model: bool
+        :param optical_data: Whether we are fitting optical data, useful for plotting.
+        :type optical_data: bool, optional
         :param frequency: Array of band frequencies in photometry data.
         :type frequency: np.ndarray, optional
         :param system: System values.
@@ -95,9 +97,9 @@ class Afterglow(Transient):
         super().__init__(name=name, data_mode=data_mode, time=time, time_mjd=time_mjd, time_mjd_err=time_mjd_err,
                          time_err=time_err, time_rest_frame=time_rest_frame, time_rest_frame_err=time_rest_frame_err,
                          Lum50=Lum50, Lum50_err=Lum50_err, flux=flux, flux_err=flux_err, flux_density=flux_density,
-                         flux_density_err=flux_density_err, use_phase_model=use_phase_model, magnitude=magnitude,
-                         magnitude_err=magnitude_err, frequency=frequency, redshift=redshift, photon_index=photon_index,
-                         system=system, bands=bands, active_bands=active_bands, **kwargs)
+                         flux_density_err=flux_density_err, use_phase_model=use_phase_model, optical_data=optical_data,
+                         magnitude=magnitude, magnitude_err=magnitude_err, frequency=frequency, redshift=redshift,
+                         photon_index=photon_index, system=system, bands=bands, active_bands=active_bands, **kwargs)
         self._set_data()
         self._set_photon_index()
         self._set_t90()

@@ -9,6 +9,15 @@ from redback.result import RedbackResult
 
 
 def _setup_plotting_result(model, model_kwargs, parameters, transient):
+    """
+    Helper function to setup the plotting result
+
+    :param model: model string or model function
+    :param model_kwargs: keyword arguments passed to the model
+    :param parameters: parameters to plot
+    :param transient: transient object
+    :return: a tuple of model, parameters, and result
+    """
     if isinstance(parameters, dict):
         parameters = pd.DataFrame.from_dict(parameters)
     parameters["log_likelihood"] = np.arange(len(parameters))
@@ -36,16 +45,41 @@ def _setup_plotting_result(model, model_kwargs, parameters, transient):
 
 
 def plot_lightcurve(transient, parameters, model, model_kwargs=None):
+    """
+    Plot a lightcurve for a given model and parameters
+
+    :param transient: transient object
+    :param parameters: parameters to plot
+    :param model: model string or model function
+    :param model_kwargs: keyword arguments passed to the model
+    :return: plot_lightcurve
+    """
     model, parameters, res = _setup_plotting_result(model, model_kwargs, parameters, transient)
     return res.plot_lightcurve(model=model, random_models=len(parameters), plot_max_likelihood=False)
 
 
 def plot_multiband_lightcurve(transient, parameters, model, model_kwargs=None):
+    """
+    Plot a multiband lightcurve for a given model and parameters
+
+    :param transient: transient object
+    :param parameters: parameters to plot
+    :param model: model string or model function
+    :param model_kwargs: keyword arguments passed to the model
+    :return: plot_multiband_lightcurve
+    """
     model, parameters, res = _setup_plotting_result(model, model_kwargs, parameters, transient)
     return res.plot_multiband_lightcurve(model=model, random_models=len(parameters), plot_max_likelihood=False)
 
 
 def plot_evolution_parameters(result, random_models=100):
+    """
+    Plot evolution parameters for a given evolving_magnetar result
+
+    :param result: redback result
+    :param random_models: number of random models to plot
+    :return: fig and axes
+    """
     logger.warning("This type of plot is only valid for evolving magnetar models")
     tmin = np.log10(np.min(result.metadata['time']))
     tmax = np.log10(np.max(result.metadata['time']))
