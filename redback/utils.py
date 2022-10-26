@@ -391,6 +391,27 @@ def bands_to_frequency(bands):
             raise KeyError(f"Band {band} is not defined in filters.csv!")
     return np.array(res)
 
+def frequency_to_bandname(frequency):
+    """
+    Converts a list of frequencies into an array corresponding band names
+
+    :param frequency: List of bands.
+    :type frequency: list[str]
+    :return: An array of bandnames associated with the given frequency.
+    :rtype: np.ndarray
+    """
+    if frequency is None:
+        frequency = []
+    df = pd.read_csv(f"{dirname}/tables/filters.csv")
+    freqs_to_bands = {wavelength: band for wavelength, band in zip(df['wavelength [Hz]'], df['bands'])}
+    res = []
+    for freq in frequency:
+        try:
+            res.append(freqs_to_bands[freq])
+        except KeyError as e:
+            logger.info(e)
+            raise KeyError(f"Wavelength {freq} is not defined in filters.csv!")
+    return np.array(res)
 
 def fetch_driver():
     # open the webdriver
