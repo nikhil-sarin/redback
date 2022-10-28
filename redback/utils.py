@@ -31,15 +31,17 @@ def check_kwargs_validity(kwargs):
         raise ValueError("output_format must be specified")
     else:
         output_format = kwargs['output_format']
-
-    if 'frequency' or 'bands' not in kwargs.keys():
-        raise ValueError("frequency or bands must be specified")
+    match = ['frequency', 'bands']
+    if any(x in kwargs.keys() for x in match):
+        pass
+    else:
+        raise ValueError("frequency or bands must be specified in model_kwargs")
 
     if output_format == 'flux_density':
         if 'frequency' not in kwargs.keys():
             kwargs['frequency'] = redback.utils.bands_to_frequency(kwargs['bands'])
 
-    if output_format in ['flux', 'sncosmo_source', 'magnitude']:
+    if output_format in ['flux', 'magnitude']:
         if 'bands' not in kwargs.keys():
             kwargs['bands'] = redback.utils.frequency_to_bandname(kwargs['frequency'])
 
