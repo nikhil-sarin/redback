@@ -243,7 +243,7 @@ def calc_flux_density_from_ABmag(magnitudes):
     :param magnitudes:
     :return: flux density
     """
-    return (magnitudes * uu.mJy).to(uu.ABmag)
+    return (magnitudes * uu.ABmag).to(uu.mJy)
 
 def calc_ABmag_from_flux_density(fluxdensity):
     """
