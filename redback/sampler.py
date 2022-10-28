@@ -99,6 +99,7 @@ def _fit_grb(transient, model, outdir, label, likelihood=None, sampler='dynesty'
     meta_data = dict(model=model.__name__, transient_type=transient.__class__.__name__.lower())
     transient_kwargs = {k.lstrip("_"): v for k, v in transient.__dict__.items()}
     meta_data.update(transient_kwargs)
+    model_kwargs = redback.utils.check_kwargs_validity(model_kwargs)
     meta_data['model_kwargs'] = model_kwargs
 
     result = None
@@ -135,8 +136,8 @@ def _fit_optical_transient(transient, model, outdir, label, likelihood=None, sam
     meta_data = dict(model=model.__name__, transient_type=transient.__class__.__name__.lower())
     transient_kwargs = {k.lstrip("_"): v for k, v in transient.__dict__.items()}
     meta_data.update(transient_kwargs)
+    model_kwargs = redback.utils.check_kwargs_validity(model_kwargs)
     meta_data['model_kwargs'] = model_kwargs
-
     result = None
     if not kwargs.get("clean", False):
         try:
@@ -169,6 +170,7 @@ def _fit_prompt(transient, model, outdir, label, likelihood=None, integrated_rat
     meta_data = dict(model=model.__name__, transient_type=transient.__class__.__name__.lower())
     transient_kwargs = {k.lstrip("_"): v for k, v in transient.__dict__.items()}
     meta_data.update(transient_kwargs)
+    model_kwargs = redback.utils.check_kwargs_validity(model_kwargs)
     meta_data['model_kwargs'] = model_kwargs
 
     result = None
