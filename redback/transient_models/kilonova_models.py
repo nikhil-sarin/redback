@@ -4,15 +4,17 @@ import pandas as pd
 from astropy.table import Table, Column
 from scipy.interpolate import interp1d
 from astropy.cosmology import Planck18 as cosmo  # noqa
-from redback.utils import calc_kcorrected_properties, interpolated_barnes_and_kasen_thermalisation_efficiency, \
-    electron_fraction_from_kappa
-from redback.eos import PiecewisePolytrope
-from redback.sed import blackbody_to_flux_density
-from redback.constants import *
-from redback.utils import citation_wrapper
 import astropy.units as uu
 import astropy.constants as cc
 from scipy.integrate import cumtrapz
+from collections import namedtuple
+
+from redback.utils import calc_kcorrected_properties, interpolated_barnes_and_kasen_thermalisation_efficiency, \
+    electron_fraction_from_kappa
+from redback.eos import PiecewisePolytrope
+from redback.sed import blackbody_to_flux_density, get_correct_output_format_from_spectra
+from redback.constants import *
+from redback.utils import citation_wrapper, lambda_to_nu
 import redback.ejecta_relations as ejr
 
 @citation_wrapper('https://ui.adsabs.harvard.edu/abs/2021MNRAS.505.3016N/abstract')
@@ -209,7 +211,7 @@ def three_component_kilonova_model(time, redshift, mej_1, vej_1, temperature_flo
     temperature_floor = [temperature_floor_1, temperature_floor_2, temperature_floor_3]
     kappa = [kappa_1, kappa_2, kappa_3]
     for x in range(3):
-        time_temp = np.geomspace(1e-4, 1e7, 300)
+        time_temp = np.geomspace(1e-4, 3e6, 300)
         temp_kwargs = {}
         temp_kwargs['temperature_floor'] = temperature_floor[x]
         _, temperature, r_photosphere = _one_component_kilonova_model(time_temp, mej[x], vej[x], kappa[x],**temp_kwargs)
@@ -259,7 +261,7 @@ def two_component_kilonova_model(time, redshift, mej_1, vej_1, temperature_floor
     temperature_floor = [temperature_floor_1, temperature_floor_2]
     kappa = [kappa_1, kappa_2]
     for x in range(2):
-        time_temp = np.geomspace(1e-4, 1e7, 300)
+        time_temp = np.geomspace(1e-4, 3e6, 300)
         temp_kwargs = {}
         temp_kwargs['temperature_floor'] = temperature_floor[x]
         _, temperature, r_photosphere = _one_component_kilonova_model(time_temp, mej[x], vej[x], kappa[x],**temp_kwargs)
@@ -495,28 +497,47 @@ def one_component_kilonova_model(time, redshift, mej, vej, kappa, **kwargs):
                    output_format
     :return: flux_density or magnitude
     """
-    time = time * day_to_s
-    frequency = kwargs['frequency']
-    time_temp = np.geomspace(1e-4, 1e7, 300)
-    _, temperature, r_photosphere = _one_component_kilonova_model(time_temp, mej, vej, kappa, **kwargs)
     dl = cosmo.luminosity_distance(redshift).cgs.value
-
-    # interpolate properties onto observation times
-    temp_func = interp1d(time_temp, y=temperature)
-    rad_func = interp1d(time_temp, y=r_photosphere)
-    # convert to source frame time and frequency
-    frequency, time = calc_kcorrected_properties(frequency=frequency, redshift=redshift, time=time)
-
-    temp = temp_func(time)
-    photosphere = rad_func(time)
-
-    flux_density = blackbody_to_flux_density(temperature=temp, r_photosphere=photosphere,
-                                             dl=dl, frequency=frequency)
+    time_temp = np.geomspace(1e-4, 3e6, 300)
+    time_obs = time
 
     if kwargs['output_format'] == 'flux_density':
+        _, temperature, r_photosphere = _one_component_kilonova_model(time_temp, mej, vej, kappa, **kwargs)
+        time = time_obs * day_to_s
+        frequency = kwargs['frequency']
+        # interpolate properties onto observation times
+        temp_func = interp1d(time_temp, y=temperature)
+        rad_func = interp1d(time_temp, y=r_photosphere)
+        # convert to source frame time and frequency
+        frequency, time = calc_kcorrected_properties(frequency=frequency, redshift=redshift, time=time)
+
+        temp = temp_func(time)
+        photosphere = rad_func(time)
+
+        flux_density = blackbody_to_flux_density(temperature=temp, r_photosphere=photosphere,
+                                                 dl=dl, frequency=frequency)
+
         return flux_density.to(uu.mJy).value
-    elif kwargs['output_format'] == 'magnitude':
-        return flux_density.to(uu.ABmag).value
+
+    else:
+        frequency_observer_frame = kwargs.get('frequency_array', np.geomspace(100, 20000, 100))
+        time_observer_frame = time_temp
+        _, temperature, r_photosphere = _one_component_kilonova_model(time_temp, mej, vej, kappa, **kwargs)
+        frequency, time = calc_kcorrected_properties(frequency=lambda_to_nu(frequency_observer_frame),
+                                                     redshift=redshift, time=time_observer_frame)
+        fmjy = blackbody_to_flux_density(temperature=temperature,
+                                         r_photosphere=r_photosphere, frequency=frequency[:, None], dl=dl)
+        fmjy = fmjy.T
+        spectra = fmjy.to(uu.mJy).to(uu.erg / uu.cm ** 2 / uu.s / uu.Angstrom,
+                                     equivalencies=uu.spectral_density(wav=frequency_observer_frame * uu.Angstrom))
+        if kwargs['output_format'] == 'spectra':
+            return namedtuple('output', ['time', 'frequency', 'spectra'])(time=time_observer_frame,
+                                                                           frequency=frequency_observer_frame,
+                                                                           spectra=spectra)
+        else:
+            return get_correct_output_format_from_spectra(time=time_obs, time_eval=time_observer_frame/day_to_s,
+                                                          spectra=spectra, frequency_array=frequency_observer_frame,
+                                                          **kwargs)
 
 def _one_component_kilonova_model(time, mej, vej, kappa, **kwargs):
     """

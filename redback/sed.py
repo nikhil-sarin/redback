@@ -1,6 +1,8 @@
 from typing import Union
 
 import numpy as np
+from sncosmo import TimeSeriesSource
+
 from redback.constants import *
 from redback.utils import nu_to_lambda, bandpass_magnitude_to_flux
 
@@ -287,29 +289,24 @@ class Line(_SED):
         amp_new = np.exp(-0.5 * ((self.wavelength - self.line_wavelength) / self.line_width) ** 2)
         self.sed += amplitude * amp_new
 
-def get_correct_output_format_from_spectra(times, bands, spectra, frequency_array, **kwargs):
+def get_correct_output_format_from_spectra(time, time_eval, spectra, frequency_array, **kwargs):
     """
     Use SNcosmo to get the bandpass flux or magnitude in AB from spectra at given times.
 
-    :param times: times in observer frame
-    :param bands: band array - must be same length as time array or a single value
+    :param time: times in observer frame in days to evaluate the model on
+    :param time_eval: times in observer frame where spectra are evaluated. A densely sampled array for accuracy
+    :param bands: band array - must be same length as time array or a single band
     :param spectra: spectra in mJy evaluated at all times and frequencies; shape (len(times), len(frequency_array))
     :param frequency_array: frequency array in Angstrom in observer frame
     :param kwargs: Additional parameters
     :param output_format: 'flux', 'magnitude', 'sncosmo_source', 'flux_density'
     :return: flux, magnitude or SNcosmo TimeSeries Source depending on output format kwarg
     """
-    from sncosmo import TimeSeriesSource
-    fmjy = spectra * uu.mJy
-    fmjy = fmjy * uu.mJy.to(uu.erg / uu.cm ** 2 / uu.s / uu.Angstrom,
-                            equivalencies=uu.spectral_density(wav=frequency_array * uu.Angstrom))
-    source = TimeSeriesSource(phase=times, wave=frequency_array, flux=fmjy)
-    magnitude = source.bandmag(phase=times, band=bands, magsys='ab')
+    bands = kwargs['bands']
+    source = TimeSeriesSource(phase=time_eval, wave=frequency_array, flux=spectra)
+    magnitude = source.bandmag(phase=time, band=bands, magsys='ab')
     if kwargs['output_format'] == 'flux':
         return bandpass_magnitude_to_flux(magnitude=magnitude, bands=bands)
-    elif kwargs['output_format'] == 'flux_density':
-        # current output
-        return spectra
     elif kwargs['output_format'] == 'magnitude':
         return magnitude
     elif kwargs['output_format'] == 'sncosmo_source':

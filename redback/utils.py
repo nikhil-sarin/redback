@@ -346,11 +346,11 @@ def bands_to_zeropoint(bands):
 
 def bandpass_magnitude_to_flux(magnitude, bands):
     """
-    Convert magnitude to flux density
+    Convert magnitude to flux
 
     :param magnitude: magnitude
     :param bands: bandpass
-    :return: flux density
+    :return: flux
     """
     reference_flux = bands_to_reference_flux(bands)
     maggi = 10.0**(magnitude / (-2.5))
@@ -359,9 +359,9 @@ def bandpass_magnitude_to_flux(magnitude, bands):
 
 def bandpass_flux_to_magnitude(flux, bands):
     """
-    Convert flux density to magnitude
+    Convert flux to magnitude
 
-    :param flux: flux density
+    :param flux: flux
     :param bands: bandpass
     :return: magnitude
     """
