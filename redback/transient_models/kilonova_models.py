@@ -208,37 +208,70 @@ def three_component_kilonova_model(time, redshift, mej_1, vej_1, temperature_flo
     :param bands: Required if output_format is 'magnitude' or 'flux'.
     :return: set by output format - 'flux_density', 'magnitude', 'spectra', 'flux'
     """
-    frequency = kwargs['frequency']
-    # convert to source frame time and frequency
-    time = time * day_to_s
-    frequency, time = calc_kcorrected_properties(frequency=frequency, redshift=redshift, time=time)
     dl = cosmo.luminosity_distance(redshift).cgs.value
+    time_temp = np.geomspace(1e-4, 3e6, 300)
+    time_obs = time
 
-    ff = np.zeros(len(time))
     mej = [mej_1, mej_2, mej_3]
     vej = [vej_1, vej_2, vej_3]
     temperature_floor = [temperature_floor_1, temperature_floor_2, temperature_floor_3]
     kappa = [kappa_1, kappa_2, kappa_3]
-    for x in range(3):
-        time_temp = np.geomspace(1e-4, 3e6, 300)
-        temp_kwargs = {}
-        temp_kwargs['temperature_floor'] = temperature_floor[x]
-        _, temperature, r_photosphere = _one_component_kilonova_model(time_temp, mej[x], vej[x], kappa[x],**temp_kwargs)
-        # interpolate properties onto observation times
-        temp_func = interp1d(time_temp, y=temperature)
-        rad_func = interp1d(time_temp, y=r_photosphere)
-        temp = temp_func(time)
-        photosphere = rad_func(time)
-        flux_density = blackbody_to_flux_density(temperature=temp, r_photosphere=photosphere,
-                                                 dl=dl, frequency=frequency)
-        units = flux_density.unit
-        ff += flux_density.value
-    ff = ff * units
 
     if kwargs['output_format'] == 'flux_density':
+        time = time * day_to_s
+        frequency = kwargs['frequency']
+
+        # convert to source frame time and frequency
+        frequency, time = calc_kcorrected_properties(frequency=frequency, redshift=redshift, time=time)
+
+        ff = np.zeros(len(time))
+        for x in range(3):
+            temp_kwargs = {}
+            temp_kwargs['temperature_floor'] = temperature_floor[x]
+            _, temperature, r_photosphere = _one_component_kilonova_model(time_temp, mej[x], vej[x], kappa[x],
+                                                                          **temp_kwargs)
+            # interpolate properties onto observation times
+            temp_func = interp1d(time_temp, y=temperature)
+            rad_func = interp1d(time_temp, y=r_photosphere)
+            temp = temp_func(time)
+            photosphere = rad_func(time)
+            flux_density = blackbody_to_flux_density(temperature=temp, r_photosphere=photosphere,
+                                                     dl=dl, frequency=frequency)
+            units = flux_density.unit
+            ff += flux_density.value
+
+        ff = ff * units
         return ff.to(uu.mJy).value
-    elif kwargs['output_format'] == 'magnitude':
-        return ff.to(uu.ABmag).value
+
+    else:
+        frequency_observer_frame = kwargs.get('frequency_array', np.geomspace(100, 20000, 100))
+        time_observer_frame = time_temp
+        frequency, time = calc_kcorrected_properties(frequency=lambda_to_nu(frequency_observer_frame),
+                                                     redshift=redshift, time=time_observer_frame)
+        full_spec = np.zeros((len(frequency), len(time)))
+        for x in range(3):
+            temp_kwargs = {}
+            temp_kwargs['temperature_floor'] = temperature_floor[x]
+            _, temperature, r_photosphere = _one_component_kilonova_model(time_temp, mej[x], vej[x], kappa[x],
+                                                                          **temp_kwargs)
+            fmjy = blackbody_to_flux_density(temperature=temperature,
+                                             r_photosphere=r_photosphere, frequency=frequency[:, None], dl=dl)
+            fmjy = fmjy.T
+            spectra = fmjy.to(uu.mJy).to(uu.erg / uu.cm ** 2 / uu.s / uu.Angstrom,
+                                         equivalencies=uu.spectral_density(wav=frequency_observer_frame * uu.Angstrom))
+            units = spectra.unit
+            full_spec += spectra.value
+
+        full_spec = full_spec * units
+        if kwargs['output_format'] == 'spectra':
+            return namedtuple('output', ['time', 'frequency', 'spectra'])(time=time_observer_frame,
+                                                                          frequency=frequency_observer_frame,
+                                                                          spectra=full_spec)
+        else:
+            return get_correct_output_format_from_spectra(time=time_obs, time_eval=time_observer_frame / day_to_s,
+                                                          spectra=full_spec, frequency_array=frequency_observer_frame,
+                                                          **kwargs)
+
 
 @citation_wrapper('redback')
 def two_component_kilonova_model(time, redshift, mej_1, vej_1, temperature_floor_1, kappa_1,
@@ -262,37 +295,70 @@ def two_component_kilonova_model(time, redshift, mej_1, vej_1, temperature_floor
     :return: set by output format - 'flux_density', 'magnitude', 'spectra', 'flux'
     :return: flux_density or magnitude
     """
-    frequency = kwargs['frequency']
-    # convert to source frame time and frequency
-    time = time * day_to_s
-    frequency, time = calc_kcorrected_properties(frequency=frequency, redshift=redshift, time=time)
     dl = cosmo.luminosity_distance(redshift).cgs.value
+    time_temp = np.geomspace(1e-4, 3e6, 300)
+    time_obs = time
 
-    ff = np.zeros(len(time))
     mej = [mej_1, mej_2]
     vej = [vej_1, vej_2]
     temperature_floor = [temperature_floor_1, temperature_floor_2]
     kappa = [kappa_1, kappa_2]
-    for x in range(2):
-        time_temp = np.geomspace(1e-4, 3e6, 300)
-        temp_kwargs = {}
-        temp_kwargs['temperature_floor'] = temperature_floor[x]
-        _, temperature, r_photosphere = _one_component_kilonova_model(time_temp, mej[x], vej[x], kappa[x],**temp_kwargs)
-        # interpolate properties onto observation times
-        temp_func = interp1d(time_temp, y=temperature)
-        rad_func = interp1d(time_temp, y=r_photosphere)
-        temp = temp_func(time)
-        photosphere = rad_func(time)
-        flux_density = blackbody_to_flux_density(temperature=temp, r_photosphere=photosphere,
-                                                 dl=dl, frequency=frequency)
-        units = flux_density.unit
-        ff += flux_density.value
-    ff = ff * units
 
     if kwargs['output_format'] == 'flux_density':
+        time = time * day_to_s
+        frequency = kwargs['frequency']
+
+        # convert to source frame time and frequency
+        frequency, time = calc_kcorrected_properties(frequency=frequency, redshift=redshift, time=time)
+
+        ff = np.zeros(len(time))
+        for x in range(2):
+            temp_kwargs = {}
+            temp_kwargs['temperature_floor'] = temperature_floor[x]
+            _, temperature, r_photosphere = _one_component_kilonova_model(time_temp, mej[x], vej[x], kappa[x],
+                                                                          **temp_kwargs)
+            # interpolate properties onto observation times
+            temp_func = interp1d(time_temp, y=temperature)
+            rad_func = interp1d(time_temp, y=r_photosphere)
+            temp = temp_func(time)
+            photosphere = rad_func(time)
+            flux_density = blackbody_to_flux_density(temperature=temp, r_photosphere=photosphere,
+                                                     dl=dl, frequency=frequency)
+            units = flux_density.unit
+            ff += flux_density.value
+
+        ff = ff * units
         return ff.to(uu.mJy).value
-    elif kwargs['output_format'] == 'magnitude':
-        return ff.to(uu.ABmag).value
+
+    else:
+        frequency_observer_frame = kwargs.get('frequency_array', np.geomspace(100, 20000, 100))
+        time_observer_frame = time_temp
+        frequency, time = calc_kcorrected_properties(frequency=lambda_to_nu(frequency_observer_frame),
+                                                     redshift=redshift, time=time_observer_frame)
+        full_spec = np.zeros((len(frequency), len(time)))
+
+        for x in range(2):
+            temp_kwargs = {}
+            temp_kwargs['temperature_floor'] = temperature_floor[x]
+            _, temperature, r_photosphere = _one_component_kilonova_model(time_temp, mej[x], vej[x], kappa[x],
+                                                                          **temp_kwargs)
+            fmjy = blackbody_to_flux_density(temperature=temperature,
+                                             r_photosphere=r_photosphere, frequency=frequency[:, None], dl=dl)
+            fmjy = fmjy.T
+            spectra = fmjy.to(uu.mJy).to(uu.erg / uu.cm ** 2 / uu.s / uu.Angstrom,
+                                         equivalencies=uu.spectral_density(wav=frequency_observer_frame * uu.Angstrom))
+            units = spectra.unit
+            full_spec += spectra.value
+
+        full_spec = full_spec * units
+        if kwargs['output_format'] == 'spectra':
+            return namedtuple('output', ['time', 'frequency', 'spectra'])(time=time_observer_frame,
+                                                                           frequency=frequency_observer_frame,
+                                                                           spectra=full_spec)
+        else:
+            return get_correct_output_format_from_spectra(time=time_obs, time_eval=time_observer_frame/day_to_s,
+                                                          spectra=full_spec, frequency_array=frequency_observer_frame,
+                                                          **kwargs)
 
 @citation_wrapper('redback')
 def one_component_ejecta_relation(time, redshift, mass_1, mass_2,
