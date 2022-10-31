@@ -302,12 +302,14 @@ def get_correct_output_format_from_spectra(time, time_eval, spectra, frequency_a
     :param output_format: 'flux', 'magnitude', 'sncosmo_source', 'flux_density'
     :return: flux, magnitude or SNcosmo TimeSeries Source depending on output format kwarg
     """
-    bands = kwargs['bands']
     source = TimeSeriesSource(phase=time_eval, wave=frequency_array, flux=spectra)
-    magnitude = source.bandmag(phase=time, band=bands, magsys='ab')
     if kwargs['output_format'] == 'flux':
+        bands = kwargs['bands']
+        magnitude = source.bandmag(phase=time, band=bands, magsys='ab')
         return bandpass_magnitude_to_flux(magnitude=magnitude, bands=bands)
     elif kwargs['output_format'] == 'magnitude':
+        bands = kwargs['bands']
+        magnitude = source.bandmag(phase=time, band=bands, magsys='ab')
         return magnitude
     elif kwargs['output_format'] == 'sncosmo_source':
         return source
