@@ -492,17 +492,20 @@ def one_component_kilonova_model(time, redshift, mej, vej, kappa, **kwargs):
     :param mej: ejecta mass in solar masses
     :param vej: minimum initial velocity
     :param kappa: gray opacity
-    :param kwargs: temperature_floor
-                   frequency (frequency to calculate - Must be same length as time array or a single number)
-                   output_format
-    :return: flux_density or magnitude
+    :param kwargs: Additional keyword arguments
+    :param temperature_floor: Temperature floor in K (default 4000)
+    :param output_format: 'flux_density', 'magnitude', 'spectra', 'flux'
+    :param frequency: Required if output_format is 'flux_density'.
+        frequency to calculate - Must be same length as time array or a single number).
+    :return: set by output format - 'flux_density', 'magnitude', 'spectra', 'flux'
     """
     dl = cosmo.luminosity_distance(redshift).cgs.value
     time_temp = np.geomspace(1e-4, 3e6, 300)
     time_obs = time
+    _, temperature, r_photosphere = _one_component_kilonova_model(time_temp, mej, vej, kappa, **kwargs)
 
     if kwargs['output_format'] == 'flux_density':
-        _, temperature, r_photosphere = _one_component_kilonova_model(time_temp, mej, vej, kappa, **kwargs)
+
         time = time_obs * day_to_s
         frequency = kwargs['frequency']
         # interpolate properties onto observation times
@@ -522,7 +525,6 @@ def one_component_kilonova_model(time, redshift, mej, vej, kappa, **kwargs):
     else:
         frequency_observer_frame = kwargs.get('frequency_array', np.geomspace(100, 20000, 100))
         time_observer_frame = time_temp
-        _, temperature, r_photosphere = _one_component_kilonova_model(time_temp, mej, vej, kappa, **kwargs)
         frequency, time = calc_kcorrected_properties(frequency=lambda_to_nu(frequency_observer_frame),
                                                      redshift=redshift, time=time_observer_frame)
         fmjy = blackbody_to_flux_density(temperature=temperature,
@@ -590,33 +592,55 @@ def metzger_kilonova_model(time, redshift, mej, vej, beta, kappa, **kwargs):
     :param vej: minimum initial velocity
     :param beta: velocity power law slope (M=v^-beta)
     :param kappa: gray opacity
-    :param kwargs: neutron_precursor_switch, output_format
-                frequency (frequency to calculate - Must be same length as time array or a single number)
-    :return: flux_density or magnitude
+    :param kwargs: Additional keyword arguments
+    :param neutron_precursor_switch: Whether to include neutron precursor emission
+    :param output_format: 'flux_density', 'magnitude', 'spectra', 'flux'
+    :param frequency: Required if output_format is 'flux_density'.
+        frequency to calculate - Must be same length as time array or a single number).
+    :return: set by output format - 'flux_density', 'magnitude', 'spectra', 'flux'
     """
-    time = time * day_to_s
-    frequency = kwargs['frequency']
+    dl = cosmo.luminosity_distance(redshift).cgs.value
     time_temp = np.geomspace(1e-4, 1e7, 300)
+    time_obs = time
     bolometric_luminosity, temperature, r_photosphere = _metzger_kilonova_model(time_temp, mej, vej, beta,
                                                                                 kappa, **kwargs)
-    dl = cosmo.luminosity_distance(redshift).cgs.value
-
-    # interpolate properties onto observation times
-    temp_func = interp1d(time_temp, y=temperature)
-    rad_func = interp1d(time_temp, y=r_photosphere)
-    # convert to source frame time and frequency
-    frequency, time = calc_kcorrected_properties(frequency=frequency, redshift=redshift, time=time)
-
-    temp = temp_func(time)
-    photosphere = rad_func(time)
-
-    flux_density = blackbody_to_flux_density(temperature=temp, r_photosphere=photosphere,
-                                             dl=dl, frequency=frequency)
 
     if kwargs['output_format'] == 'flux_density':
+        time = time * day_to_s
+        frequency = kwargs['frequency']
+
+        # interpolate properties onto observation times
+        temp_func = interp1d(time_temp, y=temperature)
+        rad_func = interp1d(time_temp, y=r_photosphere)
+        # convert to source frame time and frequency
+        frequency, time = calc_kcorrected_properties(frequency=frequency, redshift=redshift, time=time)
+
+        temp = temp_func(time)
+        photosphere = rad_func(time)
+
+        flux_density = blackbody_to_flux_density(temperature=temp, r_photosphere=photosphere,
+                                                 dl=dl, frequency=frequency)
         return flux_density.to(uu.mJy).value
-    elif kwargs['output_format'] == 'magnitude':
-        return flux_density.to(uu.ABmag).value
+
+    else:
+        frequency_observer_frame = kwargs.get('frequency_array', np.geomspace(100, 20000, 100))
+        time_observer_frame = time_temp
+        frequency, time = calc_kcorrected_properties(frequency=lambda_to_nu(frequency_observer_frame),
+                                                     redshift=redshift, time=time_observer_frame)
+        fmjy = blackbody_to_flux_density(temperature=temperature,
+                                         r_photosphere=r_photosphere, frequency=frequency[:, None], dl=dl)
+        fmjy = fmjy.T
+        spectra = fmjy.to(uu.mJy).to(uu.erg / uu.cm ** 2 / uu.s / uu.Angstrom,
+                                     equivalencies=uu.spectral_density(wav=frequency_observer_frame * uu.Angstrom))
+        if kwargs['output_format'] == 'spectra':
+            return namedtuple('output', ['time', 'frequency', 'spectra'])(time=time_observer_frame,
+                                                                          frequency=frequency_observer_frame,
+                                                                          spectra=spectra)
+        else:
+            return get_correct_output_format_from_spectra(time=time_obs, time_eval=time_observer_frame / day_to_s,
+                                                          spectra=spectra, frequency_array=frequency_observer_frame,
+                                                          **kwargs)
+
 
 def _metzger_kilonova_model(time, mej, vej, beta, kappa, **kwargs):
     """
@@ -626,7 +650,8 @@ def _metzger_kilonova_model(time, mej, vej, beta, kappa, **kwargs):
     :param vej: minimum initial velocity
     :param beta: velocity power law slope (M=v^-beta)
     :param kappa: gray opacity
-    :param kwargs: neutron_precursor_switch
+    :param kwargs: Additional keyword arguments
+    :param neutron_precursor_switch: Whether to include neutron precursor emission
     :return: bolometric_luminosity, temperature, photosphere_radius
     """
     neutron_precursor_switch = kwargs.get('neutron_precursor_switch', True)
