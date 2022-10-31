@@ -138,20 +138,39 @@ def _kilonova_hr(time, redshift, mej, velocity_array, kappa_array, beta, **kwarg
     :param bands: Required if output_format is 'magnitude' or 'flux'.
     :return: set by output format - 'flux_density', 'magnitude', 'spectra', 'flux'
     """
-    frequency = kwargs['frequency']
-    # convert to source frame time and frequency
-    time = time * day_to_s
-    frequency, time = calc_kcorrected_properties(frequency=frequency, redshift=redshift, time=time)
     dl = cosmo.luminosity_distance(redshift).cgs.value
-    _, temperature, r_photosphere = _kilonova_hr_sourceframe(time, mej, velocity_array, kappa_array, beta)
-
-    flux_density = blackbody_to_flux_density(temperature=temperature.value, r_photosphere=r_photosphere.value,
-                                             dl=dl, frequency=frequency)
+    time_obs = time
 
     if kwargs['output_format'] == 'flux_density':
+        frequency = kwargs['frequency']
+        time = time * day_to_s
+        # convert to source frame time and frequency
+        frequency, time = calc_kcorrected_properties(frequency=frequency, redshift=redshift, time=time)
+
+        _, temperature, r_photosphere = _kilonova_hr_sourceframe(time, mej, velocity_array, kappa_array, beta)
+
+        flux_density = blackbody_to_flux_density(temperature=temperature.value, r_photosphere=r_photosphere.value,
+                                                 dl=dl, frequency=frequency)
         return flux_density.to(uu.mJy).value
-    elif kwargs['output_format'] == 'magnitude':
-        return flux_density.to(uu.ABmag).value
+    else:
+        frequency_observer_frame = kwargs.get('frequency_array', np.geomspace(100, 20000, 100))
+        time_observer_frame = np.geomspace(0.1, 10, 100) * day_to_s
+        frequency, time = calc_kcorrected_properties(frequency=lambda_to_nu(frequency_observer_frame),
+                                                     redshift=redshift, time=time_observer_frame)
+        _, temperature, r_photosphere = _kilonova_hr_sourceframe(time, mej, velocity_array, kappa_array, beta)
+        fmjy = blackbody_to_flux_density(temperature=temperature,
+                                         r_photosphere=r_photosphere, frequency=frequency[:, None], dl=dl)
+        fmjy = fmjy.T
+        spectra = fmjy.to(uu.mJy).to(uu.erg / uu.cm ** 2 / uu.s / uu.Angstrom,
+                                     equivalencies=uu.spectral_density(wav=frequency_observer_frame * uu.Angstrom))
+        if kwargs['output_format'] == 'spectra':
+            return namedtuple('output', ['time', 'frequency', 'spectra'])(time=time_observer_frame,
+                                                                          frequency=frequency_observer_frame,
+                                                                          spectra=spectra)
+        else:
+            return get_correct_output_format_from_spectra(time=time_obs, time_eval=time_observer_frame / day_to_s,
+                                                          spectra=spectra, frequency_array=frequency_observer_frame,
+                                                          **kwargs)
 
 
 def _kilonova_hr_sourceframe(time, mej, velocity_array, kappa_array, beta):
@@ -176,7 +195,7 @@ def _kilonova_hr_sourceframe(time, mej, velocity_array, kappa_array, beta):
     time = time * uu.s
     time = time.to(uu.day)
     if time.value[0] < 0.02:
-        raise ValueError("time in source frame must be larger than 0.01 days for this model")
+        raise ValueError("time in source frame must be larger than 0.02 days for this model")
 
     bolometric_luminosity, temperature, r_photosphere = lightcurve(time, mass=mej, velocities=velocity_array,
                                                                    opacities=kappa_array, n=beta)
@@ -599,7 +618,6 @@ def one_component_kilonova_model(time, redshift, mej, vej, kappa, **kwargs):
     _, temperature, r_photosphere = _one_component_kilonova_model(time_temp, mej, vej, kappa, **kwargs)
 
     if kwargs['output_format'] == 'flux_density':
-
         time = time_obs * day_to_s
         frequency = kwargs['frequency']
         # interpolate properties onto observation times
