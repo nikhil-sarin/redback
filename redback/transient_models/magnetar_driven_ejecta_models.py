@@ -213,6 +213,33 @@ def _processing_other_formats(dl, output, redshift, time_obs, time_temp, **kwarg
         return get_correct_output_format_from_spectra(time=time_obs, time_eval=time_observer_frame / day_to_s,
                                                       spectra=spectra, frequency_array=frequency_observer_frame,
                                                       **kwargs)
+
+def _process_flux_density(dl, output, redshift, time, time_temp, **kwargs):
+    """
+    Function to process the output of the dynamics function into flux density
+
+    :param dl: luminosity distance in cm
+    :param output: dynamics output
+    :param redshift: source redshift
+    :param time_obs: observed time array in days
+    :param time_temp: temporary time array in seconds where output is evaluated
+    :param kwargs: extra arguments
+    :return: returns the correct output format
+    """
+    frequency = kwargs['frequency']
+    time = time * day_to_s
+    # convert to source frame time and frequency
+    frequency, time = calc_kcorrected_properties(frequency=frequency, redshift=redshift, time=time)
+    temp_func = interp1d(time_temp, y=output.comoving_temperature)
+    rad_func = interp1d(time_temp, y=output.radius)
+    d_func = interp1d(time_temp, y=output.doppler_factor)
+    temp = temp_func(time)
+    rad = rad_func(time)
+    df = d_func(time)
+    flux_density = _comoving_blackbody_to_flux_density(dl=dl, frequency=frequency, radius=rad, temperature=temp,
+                                                       doppler_factor=df)
+    return flux_density.to(uu.mJy).value
+
 @citation_wrapper('https://ui.adsabs.harvard.edu/abs/2013ApJ...776L..40Y/abstract')
 def basic_mergernova(time, redshift, mej, beta, ejecta_radius, kappa, n_ism, p0, bp,
                      mass_ns, theta_pb, thermalisation_efficiency, **kwargs):
@@ -250,21 +277,8 @@ def basic_mergernova(time, redshift, mej, beta, ejecta_radius, kappa, n_ism, p0,
     time_obs = time
 
     if kwargs['output_format'] == 'flux_density':
-        frequency = kwargs['frequency']
-        time = time * day_to_s
-        # convert to source frame time and frequency
-        frequency, time = calc_kcorrected_properties(frequency=frequency, redshift=redshift, time=time)
-
-        temp_func = interp1d(time_temp, y=output.comoving_temperature)
-        rad_func = interp1d(time_temp, y=output.radius)
-        d_func = interp1d(time_temp, y=output.doppler_factor)
-
-        temp = temp_func(time)
-        rad = rad_func(time)
-        df = d_func(time)
-        flux_density = _comoving_blackbody_to_flux_density(dl=dl, frequency=frequency, radius=rad, temperature=temp,
-                                                           doppler_factor=df)
-        return flux_density.to(uu.mJy).value
+        return _process_flux_density(dl=dl, output=output, redshift=redshift,
+                                     time=time, time_temp=time_temp, **kwargs)
     else:
         return _processing_other_formats(dl=dl, output=output, redshift=redshift,
                                          time_obs=time_obs, time_temp=time_temp, **kwargs)
@@ -308,21 +322,8 @@ def general_mergernova(time, redshift, mej, beta, ejecta_radius, kappa, n_ism, l
     time_obs = time
 
     if kwargs['output_format'] == 'flux_density':
-        frequency = kwargs['frequency']
-        time = time * day_to_s
-        # convert to source frame time and frequency
-        frequency, time = calc_kcorrected_properties(frequency=frequency, redshift=redshift, time=time)
-
-        temp_func = interp1d(time_temp, y=output.comoving_temperature)
-        rad_func = interp1d(time_temp, y=output.radius)
-        d_func = interp1d(time_temp, y=output.doppler_factor)
-
-        temp = temp_func(time)
-        rad = rad_func(time)
-        df = d_func(time)
-        flux_density = _comoving_blackbody_to_flux_density(dl=dl, frequency=frequency, radius=rad, temperature=temp,
-                                                          doppler_factor=df)
-        return flux_density.to(uu.mJy).value
+        return _process_flux_density(dl=dl, output=output, redshift=redshift,
+                                     time=time, time_temp=time_temp, **kwargs)
     else:
         return _processing_other_formats(dl=dl, output=output, redshift=redshift,
                                          time_obs=time_obs, time_temp=time_temp, **kwargs)
@@ -347,11 +348,12 @@ def general_mergernova_thermalisation(time, redshift, mej, beta, ejecta_radius, 
     :param pair_cascade_switch: whether to account for pair cascade losses, default is True
     :param ejecta albedo: ejecta albedo; default is 0.5
     :param pair_cascade_fraction: fraction of magnetar luminosity lost to pair cascades; default is 0.05
-    :param output_format: whether to output flux density or AB magnitude
-    :param frequency: (frequency to calculate - Must be same length as time array or a single number)
-    :return: flux density or AB magnitude
+    :param frequency: Required if output_format is 'flux_density'.
+        frequency to calculate - Must be same length as time array or a single number).
+    :param bands: Required if output_format is 'magnitude' or 'flux'.
+    :param output_format: 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
+    :return: set by output format - 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
     """
-    frequency = kwargs['frequency']
     pair_cascade_switch = kwargs.get('pair_cascade_switch', True)
     time_temp = np.geomspace(1e-4, 1e8, 1000, endpoint=True)
     dl = cosmo.luminosity_distance(redshift).cgs.value
@@ -361,22 +363,14 @@ def general_mergernova_thermalisation(time, redshift, mej, beta, ejecta_radius, 
                                               kappa=kappa, n_ism=n_ism, magnetar_luminosity=magnetar_luminosity,
                                               kappa_gamma=kappa_gamma, pair_cascade_switch=pair_cascade_switch,
                                               use_gamma_ray_opacity=True, **kwargs)
-    temp_func = interp1d(time_temp, y=output.comoving_temperature)
-    rad_func = interp1d(time_temp, y=output.radius)
-    d_func = interp1d(time_temp, y=output.doppler_factor)
-    # convert to source frame time and frequency
-    time = time * day_to_s
-    frequency, time = calc_kcorrected_properties(frequency=frequency, redshift=redshift, time=time)
+    time_obs = time
 
-    temp = temp_func(time)
-    rad = rad_func(time)
-    df = d_func(time)
-    flux_density = _comoving_blackbody_to_flux_density(dl=dl, frequency=frequency, radius=rad, temperature=temp,
-                                                      doppler_factor=df)
     if kwargs['output_format'] == 'flux_density':
-        return flux_density.to(uu.mJy).value
-    elif kwargs['output_format'] == 'magnitude':
-        return flux_density.to(uu.ABmag).value
+        return _process_flux_density(dl=dl, output=output, redshift=redshift,
+                                     time=time, time_temp=time_temp, **kwargs)
+    else:
+        return _processing_other_formats(dl=dl, output=output, redshift=redshift,
+                                         time_obs=time_obs, time_temp=time_temp, **kwargs)
 
 @citation_wrapper('https://ui.adsabs.harvard.edu/abs/2022arXiv220514159S/abstract')
 def general_mergernova_evolution(time, redshift, mej, beta, ejecta_radius, kappa, n_ism, logbint,
