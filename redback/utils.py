@@ -381,6 +381,8 @@ def bands_to_reference_flux(bands):
     """
     if bands is None:
         bands = []
+    if isinstance(bands, str):
+        bands = [bands]
     df = pd.read_csv(f"{dirname}/tables/filters.csv")
     bands_to_flux = {band: wavelength for band, wavelength in zip(df['bands'], df['reference_flux'])}
     res = []
