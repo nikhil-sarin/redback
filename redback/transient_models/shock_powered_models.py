@@ -4,7 +4,7 @@ from scipy import special
 from redback.constants import *
 import redback.sed as sed
 from astropy.cosmology import Planck18 as cosmo  # noqa
-from redback.utils import calc_kcorrected_properties, citation_wrapper, logger
+from redback.utils import calc_kcorrected_properties, citation_wrapper, lambda_to_nu
 
 @citation_wrapper('https://ui.adsabs.harvard.edu/abs/2021ApJ...909..209P/abstract')
 def _shock_cooling(time, mass, radius, energy, **kwargs):
@@ -78,25 +78,46 @@ def shock_cooling(time, redshift, log10_mass, log10_radius, log10_energy, **kwar
     :param frequency: frequency to calculate model on - Must be same length as time array or a single number)
     :param nn: density power law slope
     :param delta: inner density power law slope
-    :param output_format: 'flux_density' or 'magnitude'
-    :return: flux density or AB magnitude
+    :param frequency: Required if output_format is 'flux_density'.
+        frequency to calculate - Must be same length as time array or a single number).
+    :param bands: Required if output_format is 'magnitude' or 'flux'.
+    :param output_format: 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
+    :return: set by output format - 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
     """
     mass = 10 ** log10_mass
     radius = 10 ** log10_radius
     energy = 10 ** log10_energy
-
-    frequency = kwargs['frequency']
-    frequency, time = calc_kcorrected_properties(frequency=frequency, redshift=redshift, time=time)
     dl = cosmo.luminosity_distance(redshift).cgs.value
-
-    output = _shock_cooling(time*day_to_s, mass=mass, radius=radius, energy=energy, **kwargs)
-    flux_density = sed.blackbody_to_flux_density(temperature=output.temperature, r_photosphere=output.r_photosphere,
-                                             dl=dl, frequency=frequency)
+    time_obs = time
 
     if kwargs['output_format'] == 'flux_density':
+        frequency = kwargs['frequency']
+        frequency, time = calc_kcorrected_properties(frequency=frequency, redshift=redshift, time=time)
+        output = _shock_cooling(time*day_to_s, mass=mass, radius=radius, energy=energy, **kwargs)
+        flux_density = sed.blackbody_to_flux_density(temperature=output.temperature, r_photosphere=output.r_photosphere,
+                                             dl=dl, frequency=frequency)
         return flux_density.to(uu.mJy).value
-    elif kwargs['output_format'] == 'magnitude':
-        return flux_density.to(uu.ABmag).value
+    else:
+        time_temp = np.linspace(1e-4, 50, 50)
+        frequency_observer_frame = kwargs.get('frequency_array', np.geomspace(100, 20000, 100))
+
+        time_observer_frame = time_temp
+        frequency, time = calc_kcorrected_properties(frequency=lambda_to_nu(frequency_observer_frame),
+                                                     redshift=redshift, time=time_observer_frame)
+        output = _shock_cooling(time=time * day_to_s, mass=mass, radius=radius, energy=energy, **kwargs)
+        fmjy = sed.blackbody_to_flux_density(temperature=output.temperature,
+                                             r_photosphere=output.r_photosphere, frequency=frequency[:, None], dl=dl)
+        fmjy = fmjy.T
+        spectra = fmjy.to(uu.mJy).to(uu.erg / uu.cm ** 2 / uu.s / uu.Angstrom,
+                                     equivalencies=uu.spectral_density(wav=frequency_observer_frame * uu.Angstrom))
+        if kwargs['output_format'] == 'spectra':
+            return namedtuple('output', ['time', 'frequency', 'spectra'])(time=time_observer_frame,
+                                                                          frequency=frequency_observer_frame,
+                                                                          spectra=spectra)
+        else:
+            return sed.get_correct_output_format_from_spectra(time=time_obs, time_eval=time_observer_frame / day_to_s,
+                                                              spectra=spectra, frequency_array=frequency_observer_frame,
+                                                              **kwargs)
 
 def _c_j(p):
     """
@@ -412,7 +433,7 @@ def shocked_cocoon_bolometric(time, mej, vej, eta, tshock, shocked_fraction, cos
 @citation_wrapper('https://ui.adsabs.harvard.edu/abs/2018ApJ...855..103P/abstract')
 def shocked_cocoon(time, redshift, mej, vej, eta, tshock, shocked_fraction, cos_theta_cocoon, kappa, **kwargs):
     """
-    :param time: source frame time in days
+    :param time: observer frame time in days
     :param mej: ejecta mass in solar masses
     :param vej: ejecta mass in km/s
     :param eta: slope for ejecta density profile
@@ -421,21 +442,46 @@ def shocked_cocoon(time, redshift, mej, vej, eta, tshock, shocked_fraction, cos_
     :param cos_theta_cocoon: cocoon opening angle
     :param kappa: opacity
     :param kwargs: Extra parameters used by function
-    :param frequency: frequency to calculate model on - Must be same length as time array or a single number)
-    :param output_format: 'flux_density' or 'magnitude'
-    :return: flux density or magnitude
+    :param frequency: Required if output_format is 'flux_density'.
+        frequency to calculate - Must be same length as time array or a single number).
+    :param bands: Required if output_format is 'magnitude' or 'flux'.
+    :param output_format: 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
+    :return: set by output format - 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
     """
-    frequency = kwargs['frequency']
-    frequency, time = calc_kcorrected_properties(frequency=frequency, redshift=redshift, time=time)
     dl = cosmo.luminosity_distance(redshift).cgs.value
+    time_obs = time
 
-    output = _shocked_cocoon(time, mej, vej, eta, tshock, shocked_fraction, cos_theta_cocoon, kappa)
-    flux_density = sed.blackbody_to_flux_density(temperature=output.temperature, r_photosphere=output.r_photosphere,
-                                                 dl=dl, frequency=frequency)
     if kwargs['output_format'] == 'flux_density':
+        frequency = kwargs['frequency']
+        frequency, time = calc_kcorrected_properties(frequency=frequency, redshift=redshift, time=time)
+        output = _shocked_cocoon(time=time, mej=mej, vej=vej, eta=eta,
+                                 tshock=tshock, shocked_fraction=shocked_fraction,
+                                 cos_theta_cocoon=cos_theta_cocoon, kappa=kappa)
+        flux_density = sed.blackbody_to_flux_density(temperature=output.temperature, r_photosphere=output.r_photosphere,
+                                                     dl=dl, frequency=frequency)
         return flux_density.to(uu.mJy).value
-    elif kwargs['output_format'] == 'magnitude':
-        return flux_density.to(uu.ABmag).value
+    else:
+        frequency_observer_frame = kwargs.get('frequency_array', np.geomspace(100, 20000, 100))
+        time_temp = np.linspace(1e-4, 50, 30)
+        time_observer_frame = time_temp
+        frequency, time = calc_kcorrected_properties(frequency=lambda_to_nu(frequency_observer_frame),
+                                                     redshift=redshift, time=time_observer_frame)
+        output = _shocked_cocoon(time=time, mej=mej, vej=vej, eta=eta,
+                                 tshock=tshock, shocked_fraction=shocked_fraction,
+                                 cos_theta_cocoon=cos_theta_cocoon, kappa=kappa)
+        fmjy = sed.blackbody_to_flux_density(temperature=output.temperature,
+                                         r_photosphere=output.r_photosphere, frequency=frequency[:, None], dl=dl)
+        fmjy = fmjy.T
+        spectra = fmjy.to(uu.mJy).to(uu.erg / uu.cm ** 2 / uu.s / uu.Angstrom,
+                                     equivalencies=uu.spectral_density(wav=frequency_observer_frame * uu.Angstrom))
+        if kwargs['output_format'] == 'spectra':
+            return namedtuple('output', ['time', 'frequency', 'spectra'])(time=time_observer_frame,
+                                                                          frequency=frequency_observer_frame,
+                                                                          spectra=spectra)
+        else:
+            return sed.get_correct_output_format_from_spectra(time=time_obs, time_eval=time_observer_frame / day_to_s,
+                                                          spectra=spectra, frequency_array=frequency_observer_frame,
+                                                          **kwargs)
 
 @citation_wrapper('https://ui.adsabs.harvard.edu/abs/2022ApJ...928..122M/abstract')
 def csm_truncation_shock():
