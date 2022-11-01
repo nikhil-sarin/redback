@@ -184,7 +184,7 @@ def _comoving_blackbody_to_luminosity(frequency, radius, temperature, doppler_fa
     return luminosity
 
 @citation_wrapper('https://ui.adsabs.harvard.edu/abs/2013ApJ...776L..40Y/abstract')
-def basic_mergernova(time, redshift, mej, beta, ejecta_radius, kappa, n_ism, p0, logbp,
+def basic_mergernova(time, redshift, mej, beta, ejecta_radius, kappa, n_ism, p0, bp,
                      mass_ns, theta_pb, thermalisation_efficiency, **kwargs):
     """
     :param time: time in observer frame in days
@@ -194,10 +194,10 @@ def basic_mergernova(time, redshift, mej, beta, ejecta_radius, kappa, n_ism, p0,
     :param ejecta_radius: initial ejecta radius
     :param kappa: opacity
     :param n_ism: ism number density
-    :param p0: initial spin period in seconds
-    :param bp: polar magnetic field strength in Gauss
+    :param p0: initial spin period in milliseconds
+    :param bp: polar magnetic field strength in units of 10^14 Gauss
     :param mass_ns: mass of neutron star in solar masses
-    :param theta_pb: angle between spin and magnetic field axes
+    :param theta_pb: angle between spin and magnetic field axes in radians
     :param thermalisation_efficiency: magnetar thermalisation efficiency
     :param kwargs: Additional parameters
     :param pair_cascade_switch: whether to account for pair cascade losses, default is False
@@ -207,9 +207,8 @@ def basic_mergernova(time, redshift, mej, beta, ejecta_radius, kappa, n_ism, p0,
     """
     pair_cascade_switch = kwargs.get('pair_cascade_switch', False)
     frequency = kwargs['frequency']
-    time_temp = np.geomspace(1e-4, 1e8, 1000, endpoint=True)
+    time_temp = np.geomspace(1e-4, 1e8, 500, endpoint=True)
     dl = cosmo.luminosity_distance(redshift).cgs.value
-    bp = 10**logbp
     magnetar_luminosity = basic_magnetar(time=time_temp, p0=p0, bp=bp, mass_ns=mass_ns, theta_pb=theta_pb)
     output = _ejecta_dynamics_and_interaction(time=time_temp, mej=mej,
                                               beta=beta, ejecta_radius=ejecta_radius,
