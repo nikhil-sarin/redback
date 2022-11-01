@@ -4,8 +4,6 @@ import pandas as pd
 from astropy.table import Table, Column
 from scipy.interpolate import interp1d
 from astropy.cosmology import Planck18 as cosmo  # noqa
-import astropy.units as uu
-import astropy.constants as cc
 from scipy.integrate import cumtrapz
 from collections import namedtuple
 
@@ -152,7 +150,7 @@ def _kilonova_hr(time, redshift, mej, velocity_array, kappa_array, beta, **kwarg
         return flux_density.to(uu.mJy).value
     else:
         frequency_observer_frame = kwargs.get('frequency_array', np.geomspace(100, 20000, 100))
-        time_observer_frame = np.geomspace(0.1, 10, 100) * day_to_s
+        time_observer_frame = np.geomspace(0.03, 10, 100) * day_to_s
         frequency, time = calc_kcorrected_properties(frequency=lambda_to_nu(frequency_observer_frame),
                                                      redshift=redshift, time=time_observer_frame)
         _, temperature, r_photosphere = _kilonova_hr_sourceframe(time, mej, velocity_array, kappa_array, beta)
@@ -226,7 +224,7 @@ def three_component_kilonova_model(time, redshift, mej_1, vej_1, temperature_flo
     :return: set by output format - 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
     """
     dl = cosmo.luminosity_distance(redshift).cgs.value
-    time_temp = np.geomspace(1e-4, 3e6, 300)
+    time_temp = np.geomspace(1e-4, 3e6, 300) # in source frame
     time_obs = time
 
     mej = [mej_1, mej_2, mej_3]
@@ -262,7 +260,7 @@ def three_component_kilonova_model(time, redshift, mej_1, vej_1, temperature_flo
 
     else:
         frequency_observer_frame = kwargs.get('frequency_array', np.geomspace(100, 20000, 100))
-        time_observer_frame = time_temp
+        time_observer_frame = time_temp * (1. + redshift)
         frequency, time = calc_kcorrected_properties(frequency=lambda_to_nu(frequency_observer_frame),
                                                      redshift=redshift, time=time_observer_frame)
         full_spec = np.zeros((len(frequency), len(time)))
@@ -312,7 +310,7 @@ def two_component_kilonova_model(time, redshift, mej_1, vej_1, temperature_floor
     :return: set by output format - 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
     """
     dl = cosmo.luminosity_distance(redshift).cgs.value
-    time_temp = np.geomspace(1e-4, 3e6, 300)
+    time_temp = np.geomspace(1e-4, 3e6, 300) # in source frame
     time_obs = time
 
     mej = [mej_1, mej_2]
@@ -348,7 +346,7 @@ def two_component_kilonova_model(time, redshift, mej_1, vej_1, temperature_floor
 
     else:
         frequency_observer_frame = kwargs.get('frequency_array', np.geomspace(100, 20000, 100))
-        time_observer_frame = time_temp
+        time_observer_frame = time_temp * (1. + redshift)
         frequency, time = calc_kcorrected_properties(frequency=lambda_to_nu(frequency_observer_frame),
                                                      redshift=redshift, time=time_observer_frame)
         full_spec = np.zeros((len(frequency), len(time)))
@@ -610,7 +608,7 @@ def one_component_kilonova_model(time, redshift, mej, vej, kappa, **kwargs):
     :return: set by output format - 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
     """
     dl = cosmo.luminosity_distance(redshift).cgs.value
-    time_temp = np.geomspace(1e-4, 3e6, 300)
+    time_temp = np.geomspace(1e-4, 3e6, 300) # in source frame
     time_obs = time
     _, temperature, r_photosphere = _one_component_kilonova_model(time_temp, mej, vej, kappa, **kwargs)
 
@@ -633,7 +631,7 @@ def one_component_kilonova_model(time, redshift, mej, vej, kappa, **kwargs):
 
     else:
         frequency_observer_frame = kwargs.get('frequency_array', np.geomspace(100, 20000, 100))
-        time_observer_frame = time_temp
+        time_observer_frame = time_temp * (1. + redshift)
         frequency, time = calc_kcorrected_properties(frequency=lambda_to_nu(frequency_observer_frame),
                                                      redshift=redshift, time=time_observer_frame)
         fmjy = blackbody_to_flux_density(temperature=temperature,
@@ -710,7 +708,7 @@ def metzger_kilonova_model(time, redshift, mej, vej, beta, kappa, **kwargs):
     :return: set by output format - 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
     """
     dl = cosmo.luminosity_distance(redshift).cgs.value
-    time_temp = np.geomspace(1e-4, 1e7, 300)
+    time_temp = np.geomspace(1e-4, 1e7, 300) # in source frame
     time_obs = time
     bolometric_luminosity, temperature, r_photosphere = _metzger_kilonova_model(time_temp, mej, vej, beta,
                                                                                 kappa, **kwargs)
@@ -734,7 +732,7 @@ def metzger_kilonova_model(time, redshift, mej, vej, beta, kappa, **kwargs):
 
     else:
         frequency_observer_frame = kwargs.get('frequency_array', np.geomspace(100, 20000, 100))
-        time_observer_frame = time_temp
+        time_observer_frame = time_temp * (1. + redshift)
         frequency, time = calc_kcorrected_properties(frequency=lambda_to_nu(frequency_observer_frame),
                                                      redshift=redshift, time=time_observer_frame)
         fmjy = blackbody_to_flux_density(temperature=temperature,
