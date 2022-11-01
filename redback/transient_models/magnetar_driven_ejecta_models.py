@@ -670,7 +670,7 @@ def _general_metzger_magnetar_driven_kilonova_model(time, mej, vej, beta, kappa,
     return dynamics_output
 
 @citation_wrapper('https://ui.adsabs.harvard.edu/abs/2017LRR....20....3M/abstract')
-def metzger_magnetar_driven_kilonova_model(time, redshift, mej, vej, beta, kappa_r, p0, logbp,
+def metzger_magnetar_driven_kilonova_model(time, redshift, mej, vej, beta, kappa_r, p0, bp,
                                            mass_ns, theta_pb, thermalisation_efficiency, **kwargs):
     """
     :param time: observer frame time in days
@@ -679,8 +679,8 @@ def metzger_magnetar_driven_kilonova_model(time, redshift, mej, vej, beta, kappa
     :param vej: minimum initial velocity
     :param beta: velocity power law slope (M=v^-beta)
     :param kappa_r: opacity
-    :param p0: initial spin period in seconds
-    :param bp: polar magnetic field strength in Gauss
+    :param p0: initial spin period in milliseconds
+    :param bp: polar magnetic field strength in units of 10^14 Gauss
     :param mass_ns: mass of neutron star in solar masses
     :param theta_pb: angle between spin and magnetic field axes
     :param thermalisation_efficiency: magnetar thermalisation efficiency
@@ -697,7 +697,6 @@ def metzger_magnetar_driven_kilonova_model(time, redshift, mej, vej, beta, kappa
     """
     frequency = kwargs['frequency']
     time_temp = np.geomspace(1e-4, 1e7, 300)
-    bp = 10 ** logbp
     use_gamma_ray_opacity = False
     magnetar_luminosity = basic_magnetar(time=time_temp, p0=p0, bp=bp, mass_ns=mass_ns, theta_pb=theta_pb)
     output = _general_metzger_magnetar_driven_kilonova_model(time=time_temp, mej=mej, vej=vej, beta=beta, kappa=kappa_r,
