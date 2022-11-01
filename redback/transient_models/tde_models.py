@@ -341,4 +341,4 @@ def tde_analytical(time, redshift, l0, t_0, **kwargs):
 
 @citation_wrapper('https://ui.adsabs.harvard.edu/abs/2019ApJ...872..151M/abstract')
 def tde_semianalytical():
-    pass
+    raise NotImplementedError("This model is not yet implemented.")

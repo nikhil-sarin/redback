@@ -10,17 +10,15 @@ from scipy.integrate import cumtrapz
 from collections import namedtuple
 
 from redback.utils import calc_kcorrected_properties, interpolated_barnes_and_kasen_thermalisation_efficiency, \
-    electron_fraction_from_kappa
+    electron_fraction_from_kappa, citation_wrapper, lambda_to_nu
 from redback.eos import PiecewisePolytrope
 from redback.sed import blackbody_to_flux_density, get_correct_output_format_from_spectra
 from redback.constants import *
-from redback.utils import citation_wrapper, lambda_to_nu
 import redback.ejecta_relations as ejr
 
 @citation_wrapper('https://ui.adsabs.harvard.edu/abs/2021MNRAS.505.3016N/abstract')
 def _mosfit_bns(time, mass_1, mass_2, lambda_s, kappa_red, kappa_blue,
                mtov, epsilon, alpha, cos_theta_open, **kwargs):
-
     a = 0.07550
     b = np.array([[-2.235, 0.8474], [10.45, -3.251], [-15.70, 13.61]])
     c = np.array([[-2.048, 0.5976], [7.941, 0.5658], [-7.360, -1.320]])
@@ -72,16 +70,16 @@ def _mosfit_bns(time, mass_1, mass_2, lambda_s, kappa_red, kappa_blue,
     if dynamical_ejecta < 0:
         dynamical_ejecta = 0
 
-    pass
+    raise NotImplementedError("This model is not yet implemented.")
 
 @citation_wrapper('https://ui.adsabs.harvard.edu/abs/2021MNRAS.505.3016N/abstract')
 def mosfit_bns(time, redshift, mass_1, mass_2, lambda_s, kappa_red, kappa_blue,
                mtov, epsilon, alpha, cos_theta_open, **kwargs):
-    pass
+    raise NotImplementedError("This model is not yet implemented.")
 
 @citation_wrapper('https://ui.adsabs.harvard.edu/abs/2017ApJ...851L..21V/abstract')
 def mosfit_rprocess():
-    pass
+    raise NotImplementedError("This model is not yet implemented.")
 
 @citation_wrapper('https://ui.adsabs.harvard.edu/abs/2017ApJ...851L..21V/abstract')
 def _mosfit_kilonova_one_component(time, mej, vej, kappa, ):
@@ -89,12 +87,12 @@ def _mosfit_kilonova_one_component(time, mej, vej, kappa, ):
 
 @citation_wrapper('https://ui.adsabs.harvard.edu/abs/2017ApJ...851L..21V/abstract')
 def mosfit_kilonova():
-    pass
+    raise NotImplementedError("This model is not yet implemented.")
 
 @citation_wrapper("redback,https://ui.adsabs.harvard.edu/abs/2020ApJ...891..152H/abstract")
 def power_law_stratified_kilonova(time, redshift, mej, vmin, vmax, alpha,
                                   kappa_min, kappa_max, beta, **kwargs):
-    pass
+    raise NotImplementedError("This model is not yet implemented.")
 
 @citation_wrapper('https://ui.adsabs.harvard.edu/abs/2020ApJ...891..152H/abstract')
 def two_layer_stratified_kilonova(time, redshift, mej, vej_1, vej_2, kappa, beta, **kwargs):
@@ -109,11 +107,11 @@ def two_layer_stratified_kilonova(time, redshift, mej, vej_1, vej_2, kappa, beta
     :param kappa: constant gray opacity
     :param beta: power law index of density profile
     :param kwargs: Additional keyword arguments
-    :param output_format: 'flux_density', 'magnitude', 'spectra', 'flux'
     :param frequency: Required if output_format is 'flux_density'.
-        frequency to calculate - Must be same length as time array or a single number).
+    frequency to calculate - Must be same length as time array or a single number).
     :param bands: Required if output_format is 'magnitude' or 'flux'.
-    :return: set by output format - 'flux_density', 'magnitude', 'spectra', 'flux'
+    :param output_format: 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
+    :return: set by output format - 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
     """
     velocity_array = np.array([vej_1, vej_2])
     output = _kilonova_hr(time, redshift, mej, velocity_array, kappa, beta, **kwargs)
@@ -132,11 +130,11 @@ def _kilonova_hr(time, redshift, mej, velocity_array, kappa_array, beta, **kwarg
     :param kappa_array: opacities of each shell, length = 1 less than velocity
     :param beta: power law index of density profile
     :param kwargs: Additional keyword arguments
-    :param output_format: 'flux_density', 'magnitude', 'spectra', 'flux'
     :param frequency: Required if output_format is 'flux_density'.
-        frequency to calculate - Must be same length as time array or a single number).
+    frequency to calculate - Must be same length as time array or a single number).
     :param bands: Required if output_format is 'magnitude' or 'flux'.
-    :return: set by output format - 'flux_density', 'magnitude', 'spectra', 'flux'
+    :param output_format: 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
+    :return: set by output format - 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
     """
     dl = cosmo.luminosity_distance(redshift).cgs.value
     time_obs = time
@@ -221,11 +219,11 @@ def three_component_kilonova_model(time, redshift, mej_1, vej_1, temperature_flo
     :param temperature_floor_3: floor temperature of third component
     :param kappa_3: gray opacity of third component
     :param kwargs: Additional keyword arguments
-    :param output_format: 'flux_density', 'magnitude', 'spectra', 'flux'
     :param frequency: Required if output_format is 'flux_density'.
-        frequency to calculate - Must be same length as time array or a single number).
+    frequency to calculate - Must be same length as time array or a single number).
     :param bands: Required if output_format is 'magnitude' or 'flux'.
-    :return: set by output format - 'flux_density', 'magnitude', 'spectra', 'flux'
+    :param output_format: 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
+    :return: set by output format - 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
     """
     dl = cosmo.luminosity_distance(redshift).cgs.value
     time_temp = np.geomspace(1e-4, 3e6, 300)
@@ -307,12 +305,11 @@ def two_component_kilonova_model(time, redshift, mej_1, vej_1, temperature_floor
     :param temperature_floor_2: floor temperature of second component
     :param kappa_2: gray opacity of second component
     :param kwargs: Additional keyword arguments
-    :param output_format: 'flux_density', 'magnitude', 'spectra', 'flux'
     :param frequency: Required if output_format is 'flux_density'.
-        frequency to calculate - Must be same length as time array or a single number).
+    frequency to calculate - Must be same length as time array or a single number).
     :param bands: Required if output_format is 'magnitude' or 'flux'.
-    :return: set by output format - 'flux_density', 'magnitude', 'spectra', 'flux'
-    :return: flux_density or magnitude
+    :param output_format: 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
+    :return: set by output format - 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
     """
     dl = cosmo.luminosity_distance(redshift).cgs.value
     time_temp = np.geomspace(1e-4, 3e6, 300)
@@ -394,11 +391,11 @@ def one_component_ejecta_relation(time, redshift, mass_1, mass_2,
     :param kappa: gray opacity
     :param kwargs: Additional keyword arguments
     :param temperature_floor: Temperature floor in K (default 4000)
-    :param output_format: 'flux_density', 'magnitude', 'spectra', 'flux'
     :param frequency: Required if output_format is 'flux_density'.
-        frequency to calculate - Must be same length as time array or a single number).
+    frequency to calculate - Must be same length as time array or a single number).
     :param bands: Required if output_format is 'magnitude' or 'flux'.
-    :return: set by output format - 'flux_density', 'magnitude', 'spectra', 'flux'
+    :param output_format: 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
+    :return: set by output format - 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
     """
     ejecta_relation = kwargs.get('ejecta_relation', ejr.OneComponentBNSNoProjection)
     ejecta_relation = ejecta_relation(mass_1, mass_2, lambda_1, lambda_2)
@@ -422,11 +419,11 @@ def one_component_ejecta_relation_projection(time, redshift, mass_1, mass_2,
     :param kappa: gray opacity
     :param kwargs: Additional keyword arguments
     :param temperature_floor: Temperature floor in K (default 4000)
-    :param output_format: 'flux_density', 'magnitude', 'spectra', 'flux'
     :param frequency: Required if output_format is 'flux_density'.
-        frequency to calculate - Must be same length as time array or a single number).
+    frequency to calculate - Must be same length as time array or a single number).
     :param bands: Required if output_format is 'magnitude' or 'flux'.
-    :return: set by output format - 'flux_density', 'magnitude', 'spectra', 'flux'
+    :param output_format: 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
+    :return: set by output format - 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
     """
     ejecta_relation = kwargs.get('ejecta_relation', ejr.OneComponentBNSProjection)
     ejecta_relation = ejecta_relation(mass_1, mass_2, lambda_1, lambda_2)
@@ -458,11 +455,11 @@ def two_component_bns_ejecta_relation(time, redshift, mass_1, mass_2,
     :param kwargs: additional keyword arguments
     :param ejecta_relation: a class that relates the instrinsic parameters to the kilonova parameters
             default is TwoComponentBNS
-    :param output_format: 'flux_density', 'magnitude', 'spectra', 'flux'
     :param frequency: Required if output_format is 'flux_density'.
-        frequency to calculate - Must be same length as time array or a single number).
+    frequency to calculate - Must be same length as time array or a single number).
     :param bands: Required if output_format is 'magnitude' or 'flux'.
-    :return: set by output format - 'flux_density', 'magnitude', 'spectra', 'flux'
+    :param output_format: 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
+    :return: set by output format - 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
     """
     ejecta_relation = kwargs.get('ejecta_relation', ejr.TwoComponentBNS)
     ejecta_relation = ejecta_relation(mass_1=mass_1, mass_2=mass_2, lambda_1=lambda_1,
@@ -501,11 +498,11 @@ def polytrope_eos_two_component_bns(time, redshift, mass_1, mass_2,  log_p, gamm
     :param kwargs: additional keyword arguments
     :param ejecta_relation: a class that relates the instrinsic parameters to the kilonova parameters
             default is TwoComponentBNS
-    :param output_format: 'flux_density', 'magnitude', 'spectra', 'flux'
     :param frequency: Required if output_format is 'flux_density'.
-        frequency to calculate - Must be same length as time array or a single number).
+    frequency to calculate - Must be same length as time array or a single number).
     :param bands: Required if output_format is 'magnitude' or 'flux'.
-    :return: set by output format - 'flux_density', 'magnitude', 'spectra', 'flux'
+    :param output_format: 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
+    :return: set by output format - 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
     """
     central_pressure = np.logspace(np.log10(4e32), np.log10(2.5e35), 70)
     eos = PiecewisePolytrope(log_p=log_p, gamma_1=gamma_1, gamma_2=gamma_2, gamma_3=gamma_3)
@@ -543,11 +540,11 @@ def one_component_nsbh_ejecta_relation(time, redshift, mass_bh, mass_ns,
     :param temperature_floor: floor temperature
     :param ejecta_relation: a class that relates the instrinsic parameters to the kilonova parameters
             default is OneComponentNSBH
-    :param output_format: 'flux_density', 'magnitude', 'spectra', 'flux'
     :param frequency: Required if output_format is 'flux_density'.
-        frequency to calculate - Must be same length as time array or a single number).
+    frequency to calculate - Must be same length as time array or a single number).
     :param bands: Required if output_format is 'magnitude' or 'flux'.
-    :return: set by output format - 'flux_density', 'magnitude', 'spectra', 'flux'
+    :param output_format: 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
+    :return: set by output format - 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
     """
     ejecta_relation = kwargs.get('ejecta_relation', ejr.OneComponentNSBH)
     ejecta_relation = ejecta_relation(mass_bh=mass_bh, mass_ns=mass_ns, chi_eff=chi_eff, lambda_ns=lambda_ns)
@@ -577,11 +574,11 @@ def two_component_nsbh_ejecta_relation(time, redshift,  mass_bh, mass_ns,
     :param kwargs: additional keyword arguments
     :param ejecta_relation: a class that relates the instrinsic parameters to the kilonova parameters
             default is TwoComponentNSBH
-    :param output_format: 'flux_density', 'magnitude', 'spectra', 'flux'
     :param frequency: Required if output_format is 'flux_density'.
-        frequency to calculate - Must be same length as time array or a single number).
+    frequency to calculate - Must be same length as time array or a single number).
     :param bands: Required if output_format is 'magnitude' or 'flux'.
-    :return: set by output format - 'flux_density', 'magnitude', 'spectra', 'flux'
+    :param output_format: 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
+    :return: set by output format - 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
     """
     ejecta_relation = kwargs.get('ejecta_relation', ejr.TwoComponentNSBH)
     ejecta_relation = ejecta_relation(mass_bh=mass_bh, mass_ns=mass_ns, chi_eff=chi_eff,
@@ -606,11 +603,11 @@ def one_component_kilonova_model(time, redshift, mej, vej, kappa, **kwargs):
     :param kappa: gray opacity
     :param kwargs: Additional keyword arguments
     :param temperature_floor: Temperature floor in K (default 4000)
-    :param output_format: 'flux_density', 'magnitude', 'spectra', 'flux'
     :param frequency: Required if output_format is 'flux_density'.
-        frequency to calculate - Must be same length as time array or a single number).
+    frequency to calculate - Must be same length as time array or a single number).
     :param bands: Required if output_format is 'magnitude' or 'flux'.
-    :return: set by output format - 'flux_density', 'magnitude', 'spectra', 'flux'
+    :param output_format: 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
+    :return: set by output format - 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
     """
     dl = cosmo.luminosity_distance(redshift).cgs.value
     time_temp = np.geomspace(1e-4, 3e6, 300)
@@ -706,10 +703,11 @@ def metzger_kilonova_model(time, redshift, mej, vej, beta, kappa, **kwargs):
     :param kappa: gray opacity
     :param kwargs: Additional keyword arguments
     :param neutron_precursor_switch: Whether to include neutron precursor emission
-    :param output_format: 'flux_density', 'magnitude', 'spectra', 'flux'
     :param frequency: Required if output_format is 'flux_density'.
-        frequency to calculate - Must be same length as time array or a single number).
-    :return: set by output format - 'flux_density', 'magnitude', 'spectra', 'flux'
+    frequency to calculate - Must be same length as time array or a single number).
+    :param bands: Required if output_format is 'magnitude' or 'flux'.
+    :param output_format: 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
+    :return: set by output format - 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
     """
     dl = cosmo.luminosity_distance(redshift).cgs.value
     time_temp = np.geomspace(1e-4, 1e7, 300)
