@@ -196,7 +196,7 @@ def _processing_other_formats(dl, output, redshift, time_obs, time_temp, **kwarg
     :return: returns the correct output format
     """
     frequency_observer_frame = kwargs.get('frequency_array', np.geomspace(100, 20000, 100))
-    time_observer_frame = time_temp
+    time_observer_frame = time_temp * (1. + redshift)
     frequency, time = calc_kcorrected_properties(frequency=lambda_to_nu(frequency_observer_frame),
                                                  redshift=redshift, time=time_observer_frame)
     if kwargs['use_relativistic_blackbody']:
@@ -279,7 +279,7 @@ def basic_mergernova(time, redshift, mej, beta, ejecta_radius, kappa, n_ism, p0,
     pair_cascade_switch = kwargs.get('pair_cascade_switch', False)
     kwargs['use_relativistic_blackbody'] = True
 
-    time_temp = np.geomspace(1e-4, 1e8, 500, endpoint=True)
+    time_temp = np.geomspace(1e-4, 1e8, 500, endpoint=True) #in source frame
     dl = cosmo.luminosity_distance(redshift).cgs.value
     magnetar_luminosity = basic_magnetar(time=time_temp, p0=p0, bp=bp, mass_ns=mass_ns, theta_pb=theta_pb)
     output = _ejecta_dynamics_and_interaction(time=time_temp, mej=mej,
@@ -326,7 +326,7 @@ def general_mergernova(time, redshift, mej, beta, ejecta_radius, kappa, n_ism, l
     pair_cascade_switch = kwargs.get('pair_cascade_switch', True)
     kwargs['use_relativistic_blackbody'] = True
 
-    time_temp = np.geomspace(1e-4, 1e8, 1000, endpoint=True)
+    time_temp = np.geomspace(1e-4, 1e8, 500, endpoint=True) #in source frame
     dl = cosmo.luminosity_distance(redshift).cgs.value
     magnetar_luminosity = magnetar_only(time=time_temp, l0=l0, tau=tau_sd, nn=nn)
     output = _ejecta_dynamics_and_interaction(time=time_temp, mej=mej,
@@ -373,7 +373,7 @@ def general_mergernova_thermalisation(time, redshift, mej, beta, ejecta_radius, 
     pair_cascade_switch = kwargs.get('pair_cascade_switch', True)
     kwargs['use_relativistic_blackbody'] = True
 
-    time_temp = np.geomspace(1e-4, 1e8, 1000, endpoint=True)
+    time_temp = np.geomspace(1e-4, 1e8, 500, endpoint=True) #in source frame
     dl = cosmo.luminosity_distance(redshift).cgs.value
     magnetar_luminosity = magnetar_only(time=time_temp, l0=l0, tau=tau_sd, nn=nn)
     output = _ejecta_dynamics_and_interaction(time=time_temp, mej=mej,
@@ -421,7 +421,7 @@ def general_mergernova_evolution(time, redshift, mej, beta, ejecta_radius, kappa
     pair_cascade_switch = kwargs.get('pair_cascade_switch', True)
     kwargs['use_relativistic_blackbody'] = True
 
-    time_temp = np.geomspace(1e-4, 1e8, 1000, endpoint=True)
+    time_temp = np.geomspace(1e-4, 1e8, 500, endpoint=True) #in source frame
     dl = cosmo.luminosity_distance(redshift).cgs.value
     bint = 10 ** logbint
     bext = 10 ** logbext
@@ -460,7 +460,7 @@ def _trapped_magnetar_lum(time, mej, beta, ejecta_radius, kappa, n_ism, l0, tau_
     :param kwargs: 'frequency' in Hertz to evaluate the mergernova emission - use a typical X-ray frequency
     :return: luminosity
     """
-    time_temp = np.geomspace(1e-4, 1e8, 1000, endpoint=True)
+    time_temp = np.geomspace(1e-4, 1e8, 500, endpoint=True) #in source frame
     magnetar_luminosity = magnetar_only(time=time_temp, l0=l0, tau=tau_sd, nn=nn)
     output = _ejecta_dynamics_and_interaction(time=time_temp, mej=mej,
                                               beta=beta, ejecta_radius=ejecta_radius,
@@ -751,7 +751,7 @@ def metzger_magnetar_driven_kilonova_model(time, redshift, mej, vej, beta, kappa
     use_gamma_ray_opacity = False
     kwargs['use_relativistic_blackbody'] = False
 
-    time_temp = np.geomspace(1e-4, 1e7, 300)
+    time_temp = np.geomspace(1e-4, 1e7, 300) #in source frame
     dl = cosmo.luminosity_distance(redshift).cgs.value
     magnetar_luminosity = basic_magnetar(time=time_temp, p0=p0, bp=bp, mass_ns=mass_ns, theta_pb=theta_pb)
     output = _general_metzger_magnetar_driven_kilonova_model(time=time_temp, mej=mej, vej=vej, beta=beta, kappa=kappa_r,
@@ -797,7 +797,7 @@ def general_metzger_magnetar_driven(time, redshift, mej, vej, beta, kappa_r, l0,
     use_gamma_ray_opacity = False
     kwargs['use_relativistic_blackbody'] = False
 
-    time_temp = np.geomspace(1e-4, 1e7, 300)
+    time_temp = np.geomspace(1e-4, 1e7, 300) #in source frame
     dl = cosmo.luminosity_distance(redshift).cgs.value
     magnetar_luminosity = magnetar_only(time=time_temp, l0=l0, tau=tau_sd, nn=nn)
     output = _general_metzger_magnetar_driven_kilonova_model(time=time_temp, mej=mej, vej=vej, beta=beta, kappa=kappa_r,
@@ -844,7 +844,7 @@ def general_metzger_magnetar_driven_thermalisation(time, redshift, mej, vej, bet
     kwargs['use_relativistic_blackbody'] = False
     use_gamma_ray_opacity = True
 
-    time_temp = np.geomspace(1e-4, 1e7, 300)
+    time_temp = np.geomspace(1e-4, 1e7, 300) #in source frame
     dl = cosmo.luminosity_distance(redshift).cgs.value
     magnetar_luminosity = magnetar_only(time=time_temp, l0=l0, tau=tau_sd, nn=nn)
     output = _general_metzger_magnetar_driven_kilonova_model(time=time_temp, mej=mej, vej=vej, beta=beta, kappa=kappa_r,
@@ -892,7 +892,7 @@ def general_metzger_magnetar_driven_evolution(time, redshift, mej, vej, beta, ka
     use_gamma_ray_opacity = True
     kwargs['use_relativistic_blackbody'] = False
 
-    time_temp = np.geomspace(1e-4, 1e7, 500)
+    time_temp = np.geomspace(1e-4, 1e7, 500) #in source frame
     bint = 10 ** logbint
     bext = 10 ** logbext
     radius = radius * km_cgs
