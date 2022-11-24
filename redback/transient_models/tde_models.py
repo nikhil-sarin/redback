@@ -2,11 +2,12 @@ import numpy as np
 import redback.interaction_processes as ip
 import redback.sed as sed
 import redback.photosphere as photosphere
-from astropy.cosmology import Planck18 as cosmo  # noqa
 from redback.utils import calc_kcorrected_properties, citation_wrapper, calc_tfb, lambda_to_nu
 import redback.constants as cc
 import redback.transient_models.phenomenological_models as pm
+
 from collections import namedtuple
+from astropy.cosmology import Planck18 as cosmo  # noqa
 import astropy.units as uu
 from scipy.interpolate import interp1d
 
@@ -363,7 +364,7 @@ def tde_analytical_bolometric(time, l0, t_0, **kwargs):
 @citation_wrapper('redback')
 def tde_analytical(time, redshift, l0, t_0, **kwargs):
     """
-    :param time: rest frame time in days
+    :param time: observer frame time in days
     :param l0: bolometric luminosity at 1 second in cgs
     :param t_0: turn on time in days (after this time lbol decays as 5/3 powerlaw)
     :param interaction_process: Default is Diffusion.
@@ -381,23 +382,35 @@ def tde_analytical(time, redshift, l0, t_0, **kwargs):
     kwargs['interaction_process'] = kwargs.get("interaction_process", ip.Diffusion)
     kwargs['photosphere'] = kwargs.get("photosphere", photosphere.TemperatureFloor)
     kwargs['sed'] = kwargs.get("sed", sed.CutoffBlackbody)
-
-    frequency = kwargs['frequency']
     cutoff_wavelength = kwargs.get('cutoff_wavelength', 3000)
-    frequency, time = calc_kcorrected_properties(frequency=frequency, redshift=redshift, time=time)
     dl = cosmo.luminosity_distance(redshift).cgs.value
     lbol = tde_analytical_bolometric(time=time, l0=l0, t_0=t_0, **kwargs)
-
     photo = kwargs['photosphere'](time=time, luminosity=lbol, **kwargs)
-    sed_1 = kwargs['sed'](time=time, temperature=photo.photosphere_temperature, r_photosphere=photo.r_photosphere,
-                 frequency=frequency, luminosity_distance=dl, cutoff_wavelength=cutoff_wavelength, luminosity=lbol)
 
-    flux_density = sed_1.flux_density
-    flux_density = np.nan_to_num(flux_density)
     if kwargs['output_format'] == 'flux_density':
+        frequency = kwargs['frequency']
+        frequency, time = calc_kcorrected_properties(frequency=frequency, redshift=redshift, time=time)
+        sed_1 = kwargs['sed'](time=time, temperature=photo.photosphere_temperature, r_photosphere=photo.r_photosphere,
+                     frequency=frequency, luminosity_distance=dl, cutoff_wavelength=cutoff_wavelength, luminosity=lbol)
+
+        flux_density = sed_1.flux_density
+        flux_density = np.nan_to_num(flux_density)
         return flux_density.to(uu.mJy).value
-    elif kwargs['output_format'] == 'magnitude':
-        return flux_density.to(uu.ABmag).value
+    else:
+        frequency_observer_frame = kwargs.get('frequency_array', np.geomspace(100, 20000, 100))
+        time_temp = np.geomspace(0.1, 300, 200) # in days
+        time_observer_frame = time_temp * (1. + redshift)
+        frequency, time = calc_kcorrected_properties(frequency=lambda_to_nu(frequency_observer_frame),
+                                                     redshift=redshift, time=time_observer_frame)
+
+        if kwargs['output_format'] == 'spectra':
+            return namedtuple('output', ['time', 'frequency', 'spectra'])(time=time_observer_frame,
+                                                                           frequency=frequency_observer_frame,
+                                                                           spectra=spectra)
+        else:
+            return get_correct_output_format_from_spectra(time=time_obs, time_eval=time_observer_frame/day_to_s,
+                                                          spectra=spectra, frequency_array=frequency_observer_frame,
+                                                          **kwargs)
 
 @citation_wrapper('https://ui.adsabs.harvard.edu/abs/2019ApJ...872..151M/abstract')
 def tde_semianalytical():
