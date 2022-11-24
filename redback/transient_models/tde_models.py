@@ -384,12 +384,12 @@ def tde_analytical(time, redshift, l0, t_0, **kwargs):
     kwargs['sed'] = kwargs.get("sed", sed.CutoffBlackbody)
     cutoff_wavelength = kwargs.get('cutoff_wavelength', 3000)
     dl = cosmo.luminosity_distance(redshift).cgs.value
-    lbol = tde_analytical_bolometric(time=time, l0=l0, t_0=t_0, **kwargs)
-    photo = kwargs['photosphere'](time=time, luminosity=lbol, **kwargs)
 
     if kwargs['output_format'] == 'flux_density':
         frequency = kwargs['frequency']
         frequency, time = calc_kcorrected_properties(frequency=frequency, redshift=redshift, time=time)
+        lbol = tde_analytical_bolometric(time=time, l0=l0, t_0=t_0, **kwargs)
+        photo = kwargs['photosphere'](time=time, luminosity=lbol, **kwargs)
         sed_1 = kwargs['sed'](time=time, temperature=photo.photosphere_temperature, r_photosphere=photo.r_photosphere,
                      frequency=frequency, luminosity_distance=dl, cutoff_wavelength=cutoff_wavelength, luminosity=lbol)
 
@@ -397,18 +397,21 @@ def tde_analytical(time, redshift, l0, t_0, **kwargs):
         flux_density = np.nan_to_num(flux_density)
         return flux_density.to(uu.mJy).value
     else:
+        time_obs = time
         frequency_observer_frame = kwargs.get('frequency_array', np.geomspace(100, 20000, 100))
         time_temp = np.geomspace(0.1, 300, 200) # in days
         time_observer_frame = time_temp * (1. + redshift)
         frequency, time = calc_kcorrected_properties(frequency=lambda_to_nu(frequency_observer_frame),
                                                      redshift=redshift, time=time_observer_frame)
+        lbol = tde_analytical_bolometric(time=time, l0=l0, t_0=t_0, **kwargs)
+        photo = kwargs['photosphere'](time=time, luminosity=lbol, **kwargs)
 
         if kwargs['output_format'] == 'spectra':
             return namedtuple('output', ['time', 'frequency', 'spectra'])(time=time_observer_frame,
                                                                            frequency=frequency_observer_frame,
                                                                            spectra=spectra)
         else:
-            return get_correct_output_format_from_spectra(time=time_obs, time_eval=time_observer_frame/day_to_s,
+            return sed.get_correct_output_format_from_spectra(time=time_obs, time_eval=time_observer_frame/day_to_s,
                                                           spectra=spectra, frequency_array=frequency_observer_frame,
                                                           **kwargs)
 

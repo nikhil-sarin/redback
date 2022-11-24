@@ -4,8 +4,25 @@ import numpy as np
 from sncosmo import TimeSeriesSource
 
 from redback.constants import *
-from redback.utils import nu_to_lambda, bandpass_magnitude_to_flux
+from redback.utils import nu_to_lambda, bandpass_magnitude_to_flux, citation_wrapper
 
+@citation_wrapper('https://ui.adsabs.harvard.edu/abs/2017ApJ...850...55N/abstract')
+def suppressed_blackbody_to_flux_density(temperature, r_photosphere, dl, frequency, **kwargs):
+    """
+    Blackbody SED with a cutoff, as described in https://ui.adsabs.harvard.edu/abs/2017ApJ...850...55N/abstract.
+
+    :param time: time in source frame in seconds
+    :param temperature: temperature in kelvin
+    :param luminosity: luminosity in cgs
+    :param r_photosphere: photosphere radius in cm
+    :param frequency: frequency in Hz - must be a single number or same length as time array
+    :param luminosity_distance: dl in cm
+    :param cutoff_wavelength: cutoff wavelength in Angstrom
+    :param kwargs: None
+    """
+    flux_density = blackbody_to_flux_density(temperature=temperature, r_photosphere=r_photosphere, dl=dl,
+                                             frequency=frequency)
+    return flux_density
 
 def blackbody_to_flux_density(temperature, r_photosphere, dl, frequency):
     """
