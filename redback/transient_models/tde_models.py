@@ -405,13 +405,20 @@ def tde_analytical(time, redshift, l0, t_0, **kwargs):
                                                      redshift=redshift, time=time_observer_frame)
         lbol = tde_analytical_bolometric(time=time, l0=l0, t_0=t_0, **kwargs)
         photo = kwargs['photosphere'](time=time, luminosity=lbol, **kwargs)
-
+        full_sed = np.zeros((len(time), len(frequency)))
+        for ii in range(len(frequency)):
+            ss = kwargs['sed'](time=time,temperature=photo.photosphere_temperature,
+                                r_photosphere=photo.r_photosphere,frequency=frequency[ii],
+                                luminosity_distance=dl, cutoff_wavelength=cutoff_wavelength, luminosity=lbol)
+            full_sed[:, ii] = ss.flux_density.to(uu.mJy).value
+        spectra = (full_sed * uu.mJy).to(uu.erg / uu.cm ** 2 / uu.s / uu.Angstrom,
+                                     equivalencies=uu.spectral_density(wav=frequency_observer_frame * uu.Angstrom))
         if kwargs['output_format'] == 'spectra':
             return namedtuple('output', ['time', 'frequency', 'spectra'])(time=time_observer_frame,
                                                                            frequency=frequency_observer_frame,
                                                                            spectra=spectra)
         else:
-            return sed.get_correct_output_format_from_spectra(time=time_obs, time_eval=time_observer_frame/day_to_s,
+            return sed.get_correct_output_format_from_spectra(time=time_obs, time_eval=time_observer_frame,
                                                           spectra=spectra, frequency_array=frequency_observer_frame,
                                                           **kwargs)
 
