@@ -367,12 +367,12 @@ def tde_analytical(time, redshift, l0, t_0, **kwargs):
     :param time: observer frame time in days
     :param l0: bolometric luminosity at 1 second in cgs
     :param t_0: turn on time in days (after this time lbol decays as 5/3 powerlaw)
+    :param kwargs: Must be all the kwargs required by the specific interaction_process
+     e.g., for Diffusion TemperatureFloor: kappa, kappa_gamma, vej (km/s), temperature_floor
     :param interaction_process: Default is Diffusion.
             Can also be None in which case the output is just the raw engine luminosity
     :param photosphere: TemperatureFloor
     :param sed: CutoffBlackbody must have cutoff_wavelength in kwargs or it will default to 3000 Angstrom
-    :param kwargs: Must be all the kwargs required by the specific interaction_process
-     e.g., for Diffusion TemperatureFloor: kappa, kappa_gamma, vej (km/s), temperature_floor
     :param frequency: Required if output_format is 'flux_density'.
         frequency to calculate - Must be same length as time array or a single number).
     :param bands: Required if output_format is 'magnitude' or 'flux'.
