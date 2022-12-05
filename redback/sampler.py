@@ -12,7 +12,7 @@ from redback.result import RedbackResult
 from redback.utils import logger
 from redback.transient.afterglow import Afterglow
 from redback.transient.prompt import PromptTimeSeries
-from redback.transient.transient import OpticalTransient
+from redback.transient.transient import OpticalTransient, Transient
 
 
 dirname = os.path.dirname(__file__)
@@ -73,6 +73,12 @@ def fit_model(
             walks=walks, truncate=truncate, use_photon_index_prior=use_photon_index_prior,
             truncate_method=truncate_method, resume=resume, save_format=save_format, model_kwargs=model_kwargs,
             plot=plot, **kwargs)
+    elif isinstance(transient, Transient):
+        return _fit_optical_transient(
+            transient=transient, model=model, outdir=outdir, label=label, sampler=sampler, nlive=nlive, prior=prior,
+            walks=walks, truncate=truncate, use_photon_index_prior=use_photon_index_prior,
+            truncate_method=truncate_method, resume=resume, save_format=save_format, model_kwargs=model_kwargs,
+            plot=plot, **kwargs)
     else:
         raise ValueError(f'Source type {transient.__class__.__name__} not known')
 
@@ -99,7 +105,9 @@ def _fit_grb(transient, model, outdir, label, likelihood=None, sampler='dynesty'
     meta_data = dict(model=model.__name__, transient_type=transient.__class__.__name__.lower())
     transient_kwargs = {k.lstrip("_"): v for k, v in transient.__dict__.items()}
     meta_data.update(transient_kwargs)
+    model_kwargs = redback.utils.check_kwargs_validity(model_kwargs)
     meta_data['model_kwargs'] = model_kwargs
+    nthreads = kwargs.get('nthreads', 1)
 
     result = None
     if not kwargs.get("clean", False):
@@ -115,7 +123,7 @@ def _fit_grb(transient, model, outdir, label, likelihood=None, sampler='dynesty'
         likelihood=likelihood, priors=prior, label=label, sampler=sampler, nlive=nlive,
         outdir=outdir, plot=plot, use_ratio=False, walks=walks, resume=resume,
         maxmcmc=10 * walks, result_class=RedbackResult, meta_data=meta_data,
-        nthreads=4, save_bounds=False, nsteps=nlive, nwalkers=walks, save=save_format, **kwargs)
+        nthreads=nthreads, save_bounds=False, nsteps=nlive, nwalkers=walks, save=save_format, **kwargs)
     plt.close('all')
     if plot:
         result.plot_lightcurve(model=model)
@@ -135,7 +143,9 @@ def _fit_optical_transient(transient, model, outdir, label, likelihood=None, sam
     meta_data = dict(model=model.__name__, transient_type=transient.__class__.__name__.lower())
     transient_kwargs = {k.lstrip("_"): v for k, v in transient.__dict__.items()}
     meta_data.update(transient_kwargs)
+    model_kwargs = redback.utils.check_kwargs_validity(model_kwargs)
     meta_data['model_kwargs'] = model_kwargs
+    nthreads = kwargs.get('nthreads', 1)
 
     result = None
     if not kwargs.get("clean", False):
@@ -151,7 +161,7 @@ def _fit_optical_transient(transient, model, outdir, label, likelihood=None, sam
         likelihood=likelihood, priors=prior, label=label, sampler=sampler, nlive=nlive,
         outdir=outdir, plot=plot, use_ratio=False, walks=walks, resume=resume,
         maxmcmc=10 * walks, result_class=RedbackResult, meta_data=meta_data,
-        nthreads=4, save_bounds=False, nsteps=nlive, nwalkers=walks, save=save_format, **kwargs)
+        nthreads=nthreads, save_bounds=False, nsteps=nlive, nwalkers=walks, save=save_format, **kwargs)
     plt.close('all')
     if plot:
         result.plot_lightcurve(model=model)
@@ -169,7 +179,9 @@ def _fit_prompt(transient, model, outdir, label, likelihood=None, integrated_rat
     meta_data = dict(model=model.__name__, transient_type=transient.__class__.__name__.lower())
     transient_kwargs = {k.lstrip("_"): v for k, v in transient.__dict__.items()}
     meta_data.update(transient_kwargs)
+    model_kwargs = redback.utils.check_kwargs_validity(model_kwargs)
     meta_data['model_kwargs'] = model_kwargs
+    nthreads = kwargs.get('nthreads', 1)
 
     result = None
     if not kwargs.get("clean", False):
@@ -185,7 +197,7 @@ def _fit_prompt(transient, model, outdir, label, likelihood=None, integrated_rat
         likelihood=likelihood, priors=prior, label=label, sampler=sampler, nlive=nlive,
         outdir=outdir, plot=False, use_ratio=False, walks=walks, resume=resume,
         maxmcmc=10 * walks, result_class=RedbackResult, meta_data=meta_data,
-        nthreads=4, save_bounds=False, nsteps=nlive, nwalkers=walks, save=save_format, **kwargs)
+        nthreads=nthreads, save_bounds=False, nsteps=nlive, nwalkers=walks, save=save_format, **kwargs)
     plt.close('all')
     if plot:
         result.plot_lightcurve(model=model)

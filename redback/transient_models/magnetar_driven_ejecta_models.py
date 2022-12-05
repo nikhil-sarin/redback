@@ -7,8 +7,8 @@ from collections import namedtuple
 import astropy.units as uu # noqa
 import astropy.constants as cc # noqa
 from redback.utils import calc_kcorrected_properties, interpolated_barnes_and_kasen_thermalisation_efficiency, \
-    electron_fraction_from_kappa, citation_wrapper
-from redback.sed import blackbody_to_flux_density
+    electron_fraction_from_kappa, citation_wrapper, lambda_to_nu
+from redback.sed import blackbody_to_flux_density, get_correct_output_format_from_spectra
 
 def _ejecta_dynamics_and_interaction(time, mej, beta, ejecta_radius, kappa, n_ism,
                                      magnetar_luminosity, pair_cascade_switch, use_gamma_ray_opacity, **kwargs):
@@ -183,8 +183,77 @@ def _comoving_blackbody_to_luminosity(frequency, radius, temperature, doppler_fa
     luminosity = num / denom * frac
     return luminosity
 
+def _processing_other_formats(dl, output, redshift, time_obs, time_temp, **kwargs):
+    """
+    Function to process the output of the dynamics function into other formats
+
+    :param dl: luminosity distance in cm
+    :param output: dynamics output
+    :param redshift: source redshift
+    :param time_obs: observed time array in days
+    :param time_temp: temporary time array in seconds where output is evaluated
+    :param kwargs: extra arguments
+    :return: returns the correct output format
+    """
+    frequency_observer_frame = kwargs.get('frequency_array', np.geomspace(100, 20000, 100))
+    time_observer_frame = time_temp * (1. + redshift)
+    frequency, time = calc_kcorrected_properties(frequency=lambda_to_nu(frequency_observer_frame),
+                                                 redshift=redshift, time=time_observer_frame)
+    if kwargs['use_relativistic_blackbody']:
+        fmjy = _comoving_blackbody_to_flux_density(dl=dl, frequency=frequency[:, None], radius=output.radius,
+                                                   temperature=output.comoving_temperature,
+                                                   doppler_factor=output.doppler_factor)
+    else:
+        fmjy = blackbody_to_flux_density(temperature=output.temperature,
+                                         r_photosphere=output.r_photosphere, frequency=frequency[:, None], dl=dl)
+
+    fmjy = fmjy.T
+    spectra = fmjy.to(uu.mJy).to(uu.erg / uu.cm ** 2 / uu.s / uu.Angstrom,
+                                 equivalencies=uu.spectral_density(wav=frequency_observer_frame * uu.Angstrom))
+    if kwargs['output_format'] == 'spectra':
+        return namedtuple('output', ['time', 'frequency', 'spectra'])(time=time_observer_frame,
+                                                                      frequency=frequency_observer_frame,
+                                                                      spectra=spectra)
+    else:
+        return get_correct_output_format_from_spectra(time=time_obs, time_eval=time_observer_frame / day_to_s,
+                                                      spectra=spectra, frequency_array=frequency_observer_frame,
+                                                      **kwargs)
+
+def _process_flux_density(dl, output, redshift, time, time_temp, **kwargs):
+    """
+    Function to process the output of the dynamics function into flux density
+
+    :param dl: luminosity distance in cm
+    :param output: dynamics output
+    :param redshift: source redshift
+    :param time_obs: observed time array in days
+    :param time_temp: temporary time array in seconds where output is evaluated
+    :param kwargs: extra arguments
+    :return: returns the correct output format
+    """
+    frequency = kwargs['frequency']
+    time = time * day_to_s
+    # convert to source frame time and frequency
+    frequency, time = calc_kcorrected_properties(frequency=frequency, redshift=redshift, time=time)
+    if kwargs['use_relativistic_blackbody']:
+        temp_func = interp1d(time_temp, y=output.comoving_temperature)
+        rad_func = interp1d(time_temp, y=output.radius)
+        d_func = interp1d(time_temp, y=output.doppler_factor)
+        temp = temp_func(time)
+        rad = rad_func(time)
+        df = d_func(time)
+        flux_density = _comoving_blackbody_to_flux_density(dl=dl, frequency=frequency, radius=rad, temperature=temp,
+                                                       doppler_factor=df)
+    else:
+        temp_func = interp1d(time_temp, y=output.temperature)
+        rad_func = interp1d(time_temp, y=output.r_photosphere)
+        temp = temp_func(time)
+        rad = rad_func(time)
+        flux_density = blackbody_to_flux_density(temperature=temp, r_photosphere=rad, frequency=frequency, dl=dl)
+    return flux_density.to(uu.mJy).value
+
 @citation_wrapper('https://ui.adsabs.harvard.edu/abs/2013ApJ...776L..40Y/abstract')
-def basic_mergernova(time, redshift, mej, beta, ejecta_radius, kappa, n_ism, p0, logbp,
+def basic_mergernova(time, redshift, mej, beta, ejecta_radius, kappa, n_ism, p0, bp,
                      mass_ns, theta_pb, thermalisation_efficiency, **kwargs):
     """
     :param time: time in observer frame in days
@@ -194,22 +263,24 @@ def basic_mergernova(time, redshift, mej, beta, ejecta_radius, kappa, n_ism, p0,
     :param ejecta_radius: initial ejecta radius
     :param kappa: opacity
     :param n_ism: ism number density
-    :param p0: initial spin period in seconds
-    :param bp: polar magnetic field strength in Gauss
+    :param p0: initial spin period in milliseconds
+    :param bp: polar magnetic field strength in units of 10^14 Gauss
     :param mass_ns: mass of neutron star in solar masses
-    :param theta_pb: angle between spin and magnetic field axes
+    :param theta_pb: angle between spin and magnetic field axes in radians
     :param thermalisation_efficiency: magnetar thermalisation efficiency
     :param kwargs: Additional parameters
     :param pair_cascade_switch: whether to account for pair cascade losses, default is False
-    :param output_format: whether to output flux density or AB magnitude
-    :param frequency: (frequency to calculate - Must be same length as time array or a single number)
-    :return: flux density or AB magnitude
+    :param frequency: Required if output_format is 'flux_density'.
+        frequency to calculate - Must be same length as time array or a single number).
+    :param bands: Required if output_format is 'magnitude' or 'flux'.
+    :param output_format: 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
+    :return: set by output format - 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
     """
     pair_cascade_switch = kwargs.get('pair_cascade_switch', False)
-    frequency = kwargs['frequency']
-    time_temp = np.geomspace(1e-4, 1e8, 1000, endpoint=True)
+    kwargs['use_relativistic_blackbody'] = True
+
+    time_temp = np.geomspace(1e-4, 1e8, 500, endpoint=True) #in source frame
     dl = cosmo.luminosity_distance(redshift).cgs.value
-    bp = 10**logbp
     magnetar_luminosity = basic_magnetar(time=time_temp, p0=p0, bp=bp, mass_ns=mass_ns, theta_pb=theta_pb)
     output = _ejecta_dynamics_and_interaction(time=time_temp, mej=mej,
                                               beta=beta, ejecta_radius=ejecta_radius,
@@ -217,22 +288,15 @@ def basic_mergernova(time, redshift, mej, beta, ejecta_radius, kappa, n_ism, p0,
                                               thermalisation_efficiency=thermalisation_efficiency,
                                               pair_cascade_switch=pair_cascade_switch,
                                               use_gamma_ray_opacity=False, **kwargs)
-    temp_func = interp1d(time_temp, y=output.comoving_temperature)
-    rad_func = interp1d(time_temp, y=output.radius)
-    d_func = interp1d(time_temp, y=output.doppler_factor)
-    # convert to source frame time and frequency
-    time = time * day_to_s
-    frequency, time = calc_kcorrected_properties(frequency=frequency, redshift=redshift, time=time)
+    time_obs = time
 
-    temp = temp_func(time)
-    rad = rad_func(time)
-    df = d_func(time)
-    flux_density = _comoving_blackbody_to_flux_density(dl=dl, frequency=frequency, radius=rad, temperature=temp,
-                                                      doppler_factor=df)
     if kwargs['output_format'] == 'flux_density':
-        return flux_density.to(uu.mJy).value
-    elif kwargs['output_format'] == 'magnitude':
-        return flux_density.to(uu.ABmag).value
+        return _process_flux_density(dl=dl, output=output, redshift=redshift,
+                                     time=time, time_temp=time_temp, **kwargs)
+    else:
+        return _processing_other_formats(dl=dl, output=output, redshift=redshift,
+                                         time_obs=time_obs, time_temp=time_temp, **kwargs)
+
 
 @citation_wrapper('https://ui.adsabs.harvard.edu/abs/2022arXiv220514159S/abstract')
 def general_mergernova(time, redshift, mej, beta, ejecta_radius, kappa, n_ism, l0, tau_sd, nn,
@@ -253,13 +317,16 @@ def general_mergernova(time, redshift, mej, beta, ejecta_radius, kappa, n_ism, l
     :param pair_cascade_switch: whether to account for pair cascade losses, default is True
     :param ejecta albedo: ejecta albedo; default is 0.5
     :param pair_cascade_fraction: fraction of magnetar luminosity lost to pair cascades; default is 0.05
-    :param output_format: whether to output flux density or AB magnitude
-    :param frequency: (frequency to calculate - Must be same length as time array or a single number)
-    :return: flux density or AB magnitude
+    :param frequency: Required if output_format is 'flux_density'.
+        frequency to calculate - Must be same length as time array or a single number).
+    :param bands: Required if output_format is 'magnitude' or 'flux'.
+    :param output_format: 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
+    :return: set by output format - 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
     """
-    frequency = kwargs['frequency']
     pair_cascade_switch = kwargs.get('pair_cascade_switch', True)
-    time_temp = np.geomspace(1e-4, 1e8, 1000, endpoint=True)
+    kwargs['use_relativistic_blackbody'] = True
+
+    time_temp = np.geomspace(1e-4, 1e8, 500, endpoint=True) #in source frame
     dl = cosmo.luminosity_distance(redshift).cgs.value
     magnetar_luminosity = magnetar_only(time=time_temp, l0=l0, tau=tau_sd, nn=nn)
     output = _ejecta_dynamics_and_interaction(time=time_temp, mej=mej,
@@ -268,22 +335,15 @@ def general_mergernova(time, redshift, mej, beta, ejecta_radius, kappa, n_ism, l
                                               thermalisation_efficiency=thermalisation_efficiency,
                                               pair_cascade_switch=pair_cascade_switch,
                                               use_gamma_ray_opacity=False, **kwargs)
-    temp_func = interp1d(time_temp, y=output.comoving_temperature)
-    rad_func = interp1d(time_temp, y=output.radius)
-    d_func = interp1d(time_temp, y=output.doppler_factor)
-    # convert to source frame time and frequency
-    time = time * day_to_s
-    frequency, time = calc_kcorrected_properties(frequency=frequency, redshift=redshift, time=time)
+    time_obs = time
 
-    temp = temp_func(time)
-    rad = rad_func(time)
-    df = d_func(time)
-    flux_density = _comoving_blackbody_to_flux_density(dl=dl, frequency=frequency, radius=rad, temperature=temp,
-                                                      doppler_factor=df)
     if kwargs['output_format'] == 'flux_density':
-        return flux_density.to(uu.mJy).value
-    elif kwargs['output_format'] == 'magnitude':
-        return flux_density.to(uu.ABmag).value
+        return _process_flux_density(dl=dl, output=output, redshift=redshift,
+                                     time=time, time_temp=time_temp, **kwargs)
+    else:
+        return _processing_other_formats(dl=dl, output=output, redshift=redshift,
+                                         time_obs=time_obs, time_temp=time_temp, **kwargs)
+
 
 @citation_wrapper('https://ui.adsabs.harvard.edu/abs/2022arXiv220514159S/abstract')
 def general_mergernova_thermalisation(time, redshift, mej, beta, ejecta_radius, kappa, n_ism, l0, tau_sd, nn,
@@ -304,13 +364,16 @@ def general_mergernova_thermalisation(time, redshift, mej, beta, ejecta_radius, 
     :param pair_cascade_switch: whether to account for pair cascade losses, default is True
     :param ejecta albedo: ejecta albedo; default is 0.5
     :param pair_cascade_fraction: fraction of magnetar luminosity lost to pair cascades; default is 0.05
-    :param output_format: whether to output flux density or AB magnitude
-    :param frequency: (frequency to calculate - Must be same length as time array or a single number)
-    :return: flux density or AB magnitude
+    :param frequency: Required if output_format is 'flux_density'.
+        frequency to calculate - Must be same length as time array or a single number).
+    :param bands: Required if output_format is 'magnitude' or 'flux'.
+    :param output_format: 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
+    :return: set by output format - 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
     """
-    frequency = kwargs['frequency']
     pair_cascade_switch = kwargs.get('pair_cascade_switch', True)
-    time_temp = np.geomspace(1e-4, 1e8, 1000, endpoint=True)
+    kwargs['use_relativistic_blackbody'] = True
+
+    time_temp = np.geomspace(1e-4, 1e8, 500, endpoint=True) #in source frame
     dl = cosmo.luminosity_distance(redshift).cgs.value
     magnetar_luminosity = magnetar_only(time=time_temp, l0=l0, tau=tau_sd, nn=nn)
     output = _ejecta_dynamics_and_interaction(time=time_temp, mej=mej,
@@ -318,22 +381,14 @@ def general_mergernova_thermalisation(time, redshift, mej, beta, ejecta_radius, 
                                               kappa=kappa, n_ism=n_ism, magnetar_luminosity=magnetar_luminosity,
                                               kappa_gamma=kappa_gamma, pair_cascade_switch=pair_cascade_switch,
                                               use_gamma_ray_opacity=True, **kwargs)
-    temp_func = interp1d(time_temp, y=output.comoving_temperature)
-    rad_func = interp1d(time_temp, y=output.radius)
-    d_func = interp1d(time_temp, y=output.doppler_factor)
-    # convert to source frame time and frequency
-    time = time * day_to_s
-    frequency, time = calc_kcorrected_properties(frequency=frequency, redshift=redshift, time=time)
+    time_obs = time
 
-    temp = temp_func(time)
-    rad = rad_func(time)
-    df = d_func(time)
-    flux_density = _comoving_blackbody_to_flux_density(dl=dl, frequency=frequency, radius=rad, temperature=temp,
-                                                      doppler_factor=df)
     if kwargs['output_format'] == 'flux_density':
-        return flux_density.to(uu.mJy).value
-    elif kwargs['output_format'] == 'magnitude':
-        return flux_density.to(uu.ABmag).value
+        return _process_flux_density(dl=dl, output=output, redshift=redshift,
+                                     time=time, time_temp=time_temp, **kwargs)
+    else:
+        return _processing_other_formats(dl=dl, output=output, redshift=redshift,
+                                         time_obs=time_obs, time_temp=time_temp, **kwargs)
 
 @citation_wrapper('https://ui.adsabs.harvard.edu/abs/2022arXiv220514159S/abstract')
 def general_mergernova_evolution(time, redshift, mej, beta, ejecta_radius, kappa, n_ism, logbint,
@@ -357,13 +412,16 @@ def general_mergernova_evolution(time, redshift, mej, beta, ejecta_radius, kappa
     :param pair_cascade_switch: whether to account for pair cascade losses, default is True
     :param ejecta albedo: ejecta albedo; default is 0.5
     :param pair_cascade_fraction: fraction of magnetar luminosity lost to pair cascades; default is 0.05
-    :param output_format: whether to output flux density or AB magnitude
-    :param frequency: (frequency to calculate - Must be same length as time array or a single number)
-    :return: flux density or AB magnitude
+    :param frequency: Required if output_format is 'flux_density'.
+        frequency to calculate - Must be same length as time array or a single number).
+    :param bands: Required if output_format is 'magnitude' or 'flux'.
+    :param output_format: 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
+    :return: set by output format - 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
     """
-    frequency = kwargs['frequency']
     pair_cascade_switch = kwargs.get('pair_cascade_switch', True)
-    time_temp = np.geomspace(1e-4, 1e8, 1000, endpoint=True)
+    kwargs['use_relativistic_blackbody'] = True
+
+    time_temp = np.geomspace(1e-4, 1e8, 500, endpoint=True) #in source frame
     dl = cosmo.luminosity_distance(redshift).cgs.value
     bint = 10 ** logbint
     bext = 10 ** logbext
@@ -376,22 +434,14 @@ def general_mergernova_evolution(time, redshift, mej, beta, ejecta_radius, kappa
                                               kappa=kappa, n_ism=n_ism, magnetar_luminosity=magnetar_luminosity,
                                               kappa_gamma=kappa_gamma, pair_cascade_switch=pair_cascade_switch,
                                               use_gamma_ray_opacity=True, **kwargs)
-    temp_func = interp1d(time_temp, y=output.comoving_temperature)
-    rad_func = interp1d(time_temp, y=output.radius)
-    d_func = interp1d(time_temp, y=output.doppler_factor)
-    # convert to source frame time and frequency
-    time = time * day_to_s
-    frequency, time = calc_kcorrected_properties(frequency=frequency, redshift=redshift, time=time)
+    time_obs = time
 
-    temp = temp_func(time)
-    rad = rad_func(time)
-    df = d_func(time)
-    flux_density = _comoving_blackbody_to_flux_density(dl=dl, frequency=frequency, radius=rad, temperature=temp,
-                                                      doppler_factor=df)
     if kwargs['output_format'] == 'flux_density':
-        return flux_density.to(uu.mJy).value
-    elif kwargs['output_format'] == 'magnitude':
-        return flux_density.to(uu.ABmag).value
+        return _process_flux_density(dl=dl, output=output, redshift=redshift,
+                                     time=time, time_temp=time_temp, **kwargs)
+    else:
+        return _processing_other_formats(dl=dl, output=output, redshift=redshift,
+                                         time_obs=time_obs, time_temp=time_temp, **kwargs)
 
 def _trapped_magnetar_lum(time, mej, beta, ejecta_radius, kappa, n_ism, l0, tau_sd, nn, thermalisation_efficiency,
                           **kwargs):
@@ -410,7 +460,7 @@ def _trapped_magnetar_lum(time, mej, beta, ejecta_radius, kappa, n_ism, l0, tau_
     :param kwargs: 'frequency' in Hertz to evaluate the mergernova emission - use a typical X-ray frequency
     :return: luminosity
     """
-    time_temp = np.geomspace(1e-4, 1e8, 1000, endpoint=True)
+    time_temp = np.geomspace(1e-4, 1e8, 500, endpoint=True) #in source frame
     magnetar_luminosity = magnetar_only(time=time_temp, l0=l0, tau=tau_sd, nn=nn)
     output = _ejecta_dynamics_and_interaction(time=time_temp, mej=mej,
                                               beta=beta, ejecta_radius=ejecta_radius,
@@ -671,7 +721,7 @@ def _general_metzger_magnetar_driven_kilonova_model(time, mej, vej, beta, kappa,
     return dynamics_output
 
 @citation_wrapper('https://ui.adsabs.harvard.edu/abs/2017LRR....20....3M/abstract')
-def metzger_magnetar_driven_kilonova_model(time, redshift, mej, vej, beta, kappa_r, p0, logbp,
+def metzger_magnetar_driven_kilonova_model(time, redshift, mej, vej, beta, kappa_r, p0, bp,
                                            mass_ns, theta_pb, thermalisation_efficiency, **kwargs):
     """
     :param time: observer frame time in days
@@ -680,10 +730,10 @@ def metzger_magnetar_driven_kilonova_model(time, redshift, mej, vej, beta, kappa
     :param vej: minimum initial velocity
     :param beta: velocity power law slope (M=v^-beta)
     :param kappa_r: opacity
-    :param p0: initial spin period in seconds
-    :param bp: polar magnetic field strength in Gauss
+    :param p0: initial spin period in milliseconds
+    :param bp: polar magnetic field strength in units of 10^14 Gauss
     :param mass_ns: mass of neutron star in solar masses
-    :param theta_pb: angle between spin and magnetic field axes
+    :param theta_pb: angle between spin and magnetic field axes in radians
     :param thermalisation_efficiency: magnetar thermalisation efficiency
     :param kwargs: Additional parameters
     :param pair_cascade_switch: whether to account for pair cascade losses, default is True
@@ -692,38 +742,30 @@ def metzger_magnetar_driven_kilonova_model(time, redshift, mej, vej, beta, kappa
     :param neutron_precursor_switch: whether to have neutron precursor emission, default True
     :param magnetar_heating: whether magnetar heats all layers or just the bottom layer. default first layer only
     :param vmax: maximum initial velocity of mass layers, default is 0.7c
-    :param output_format: whether to output flux density or AB magnitude
-    :param frequency: (frequency to calculate - Must be same length as time array or a single number)
-    :return: flux density or AB magnitude
+    :param frequency: Required if output_format is 'flux_density'.
+        frequency to calculate - Must be same length as time array or a single number).
+    :param bands: Required if output_format is 'magnitude' or 'flux'.
+    :param output_format: 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
+    :return: set by output format - 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
     """
-    frequency = kwargs['frequency']
-    time_temp = np.geomspace(1e-4, 1e7, 300)
-    bp = 10 ** logbp
     use_gamma_ray_opacity = False
+    kwargs['use_relativistic_blackbody'] = False
+
+    time_temp = np.geomspace(1e-4, 1e7, 300) #in source frame
+    dl = cosmo.luminosity_distance(redshift).cgs.value
     magnetar_luminosity = basic_magnetar(time=time_temp, p0=p0, bp=bp, mass_ns=mass_ns, theta_pb=theta_pb)
     output = _general_metzger_magnetar_driven_kilonova_model(time=time_temp, mej=mej, vej=vej, beta=beta, kappa=kappa_r,
                                                              magnetar_luminosity=magnetar_luminosity,
                                                              use_gamma_ray_opacity=use_gamma_ray_opacity,
-                                                             thermalisation_efficiency=thermalisation_efficiency,**kwargs)
-    dl = cosmo.luminosity_distance(redshift).cgs.value
-
-    # interpolate properties onto observation times
-    temp_func = interp1d(time_temp, y=output.temperature)
-    rad_func = interp1d(time_temp, y=output.r_photosphere)
-    # convert to source frame time and frequency
-    time = time * day_to_s
-    frequency, time = calc_kcorrected_properties(frequency=frequency, redshift=redshift, time=time)
-
-    temp = temp_func(time)
-    photosphere = rad_func(time)
-
-    flux_density = blackbody_to_flux_density(temperature=temp, r_photosphere=photosphere,
-                                             dl=dl, frequency=frequency)
-
+                                                             thermalisation_efficiency=thermalisation_efficiency,
+                                                             **kwargs)
+    time_obs = time
     if kwargs['output_format'] == 'flux_density':
-        return flux_density.to(uu.mJy).value
-    elif kwargs['output_format'] == 'magnitude':
-        return flux_density.to(uu.ABmag).value
+        return _process_flux_density(dl=dl, output=output, redshift=redshift,
+                                     time=time, time_temp=time_temp, **kwargs)
+    else:
+        return _processing_other_formats(dl=dl, output=output, redshift=redshift,
+                                         time_obs=time_obs, time_temp=time_temp, **kwargs)
 
 @citation_wrapper('https://ui.adsabs.harvard.edu/abs/2022arXiv220514159S/abstract')
 def general_metzger_magnetar_driven(time, redshift, mej, vej, beta, kappa_r, l0,
@@ -746,35 +788,31 @@ def general_metzger_magnetar_driven(time, redshift, mej, vej, beta, kappa_r, l0,
     :param pair_cascade_switch: whether to account for pair cascade losses, default is True
     :param magnetar_heating: whether magnetar heats all layers or just the bottom layer. default first layer only
     :param vmax: maximum initial velocity of mass layers, default is 0.7c
-    :return: flux_density or magnitude
+    :param frequency: Required if output_format is 'flux_density'.
+        frequency to calculate - Must be same length as time array or a single number).
+    :param bands: Required if output_format is 'magnitude' or 'flux'.
+    :param output_format: 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
+    :return: set by output format - 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
     """
-    frequency = kwargs['frequency']
-    time_temp = np.geomspace(1e-4, 1e7, 300)
     use_gamma_ray_opacity = False
+    kwargs['use_relativistic_blackbody'] = False
+
+    time_temp = np.geomspace(1e-4, 1e7, 300) #in source frame
+    dl = cosmo.luminosity_distance(redshift).cgs.value
     magnetar_luminosity = magnetar_only(time=time_temp, l0=l0, tau=tau_sd, nn=nn)
     output = _general_metzger_magnetar_driven_kilonova_model(time=time_temp, mej=mej, vej=vej, beta=beta, kappa=kappa_r,
                                                              magnetar_luminosity=magnetar_luminosity,
                                                              use_gamma_ray_opacity=use_gamma_ray_opacity,
-                                                             thermalisation_efficiency=thermalisation_efficiency,**kwargs)
-    dl = cosmo.luminosity_distance(redshift).cgs.value
-
-    # interpolate properties onto observation times
-    temp_func = interp1d(time_temp, y=output.temperature)
-    rad_func = interp1d(time_temp, y=output.r_photosphere)
-    # convert to source frame time and frequency
-    time = time * day_to_s
-    frequency, time = calc_kcorrected_properties(frequency=frequency, redshift=redshift, time=time)
-
-    temp = temp_func(time)
-    photosphere = rad_func(time)
-
-    flux_density = blackbody_to_flux_density(temperature=temp, r_photosphere=photosphere,
-                                             dl=dl, frequency=frequency)
-
+                                                             thermalisation_efficiency=thermalisation_efficiency,
+                                                             **kwargs)
+    time_obs = time
     if kwargs['output_format'] == 'flux_density':
-        return flux_density.to(uu.mJy).value
-    elif kwargs['output_format'] == 'magnitude':
-        return flux_density.to(uu.ABmag).value
+        return _process_flux_density(dl=dl, output=output, redshift=redshift,
+                                     time=time, time_temp=time_temp, **kwargs)
+    else:
+        return _processing_other_formats(dl=dl, output=output, redshift=redshift,
+                                         time_obs=time_obs, time_temp=time_temp, **kwargs)
+
 
 @citation_wrapper('https://ui.adsabs.harvard.edu/abs/2022arXiv220514159S/abstract')
 def general_metzger_magnetar_driven_thermalisation(time, redshift, mej, vej, beta, kappa_r, l0,
@@ -797,35 +835,29 @@ def general_metzger_magnetar_driven_thermalisation(time, redshift, mej, vej, bet
     :param pair_cascade_switch: whether to account for pair cascade losses, default is True
     :param magnetar_heating: whether magnetar heats all layers or just the bottom layer. default first layer only
     :param vmax: maximum initial velocity of mass layers, default is 0.7c
-    :return: flux_density or magnitude
+    :param frequency: Required if output_format is 'flux_density'.
+        frequency to calculate - Must be same length as time array or a single number).
+    :param bands: Required if output_format is 'magnitude' or 'flux'.
+    :param output_format: 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
+    :return: set by output format - 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
     """
-    frequency = kwargs['frequency']
-    time_temp = np.geomspace(1e-4, 1e7, 300)
+    kwargs['use_relativistic_blackbody'] = False
     use_gamma_ray_opacity = True
+
+    time_temp = np.geomspace(1e-4, 1e7, 300) #in source frame
+    dl = cosmo.luminosity_distance(redshift).cgs.value
     magnetar_luminosity = magnetar_only(time=time_temp, l0=l0, tau=tau_sd, nn=nn)
     output = _general_metzger_magnetar_driven_kilonova_model(time=time_temp, mej=mej, vej=vej, beta=beta, kappa=kappa_r,
                                                              magnetar_luminosity=magnetar_luminosity,
                                                              use_gamma_ray_opacity=use_gamma_ray_opacity,
                                                              kappa_gamma=kappa_gamma, **kwargs)
-    dl = cosmo.luminosity_distance(redshift).cgs.value
-
-    # interpolate properties onto observation times
-    temp_func = interp1d(time_temp, y=output.temperature)
-    rad_func = interp1d(time_temp, y=output.r_photosphere)
-    # convert to source frame time and frequency
-    time = time * day_to_s
-    frequency, time = calc_kcorrected_properties(frequency=frequency, redshift=redshift, time=time)
-
-    temp = temp_func(time)
-    photosphere = rad_func(time)
-
-    flux_density = blackbody_to_flux_density(temperature=temp, r_photosphere=photosphere,
-                                             dl=dl, frequency=frequency)
-
+    time_obs = time
     if kwargs['output_format'] == 'flux_density':
-        return flux_density.to(uu.mJy).value
-    elif kwargs['output_format'] == 'magnitude':
-        return flux_density.to(uu.ABmag).value
+        return _process_flux_density(dl=dl, output=output, redshift=redshift,
+                                     time=time, time_temp=time_temp, **kwargs)
+    else:
+        return _processing_other_formats(dl=dl, output=output, redshift=redshift,
+                                         time_obs=time_obs, time_temp=time_temp, **kwargs)
 
 @citation_wrapper('https://ui.adsabs.harvard.edu/abs/2022arXiv220514159S/abstract')
 def general_metzger_magnetar_driven_evolution(time, redshift, mej, vej, beta, kappa_r, logbint,
@@ -851,37 +883,31 @@ def general_metzger_magnetar_driven_evolution(time, redshift, mej, vej, beta, ka
     :param pair_cascade_switch: whether to account for pair cascade losses, default is True
     :param magnetar_heating: whether magnetar heats all layers or just the bottom layer. default first layer only
     :param vmax: maximum initial velocity of mass layers, default is 0.7c
-    :return: flux_density or magnitude
+    :param frequency: Required if output_format is 'flux_density'.
+        frequency to calculate - Must be same length as time array or a single number).
+    :param bands: Required if output_format is 'magnitude' or 'flux'.
+    :param output_format: 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
+    :return: set by output format - 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
     """
-    frequency = kwargs['frequency']
-    time_temp = np.geomspace(1e-4, 1e7, 500)
     use_gamma_ray_opacity = True
+    kwargs['use_relativistic_blackbody'] = False
+
+    time_temp = np.geomspace(1e-4, 1e7, 500) #in source frame
     bint = 10 ** logbint
     bext = 10 ** logbext
     radius = radius * km_cgs
     moi = 10 ** logmoi
+    dl = cosmo.luminosity_distance(redshift).cgs.value
     output = _evolving_gw_and_em_magnetar(time=time_temp, bint=bint, bext=bext, p0=p0, chi0=chi0, radius=radius, moi=moi)
     magnetar_luminosity = output.Edot_d
     output = _general_metzger_magnetar_driven_kilonova_model(time=time_temp, mej=mej, vej=vej, beta=beta, kappa=kappa_r,
                                                              magnetar_luminosity=magnetar_luminosity,
                                                              use_gamma_ray_opacity=use_gamma_ray_opacity,
                                                              kappa_gamma=kappa_gamma, **kwargs)
-    dl = cosmo.luminosity_distance(redshift).cgs.value
-
-    # interpolate properties onto observation times
-    temp_func = interp1d(time_temp, y=output.temperature)
-    rad_func = interp1d(time_temp, y=output.r_photosphere)
-    # convert to source frame time and frequency
-    time = time * day_to_s
-    frequency, time = calc_kcorrected_properties(frequency=frequency, redshift=redshift, time=time)
-
-    temp = temp_func(time)
-    photosphere = rad_func(time)
-
-    flux_density = blackbody_to_flux_density(temperature=temp, r_photosphere=photosphere,
-                                             dl=dl, frequency=frequency)
-
+    time_obs = time
     if kwargs['output_format'] == 'flux_density':
-        return flux_density.to(uu.mJy).value
-    elif kwargs['output_format'] == 'magnitude':
-        return flux_density.to(uu.ABmag).value
+        return _process_flux_density(dl=dl, output=output, redshift=redshift,
+                                     time=time, time_temp=time_temp, **kwargs)
+    else:
+        return _processing_other_formats(dl=dl, output=output, redshift=redshift,
+                                         time_obs=time_obs, time_temp=time_temp, **kwargs)
