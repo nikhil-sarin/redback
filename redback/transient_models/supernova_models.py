@@ -236,22 +236,39 @@ def arnett(time, redshift, f_nickel, mej, **kwargs):
     kwargs['interaction_process'] = kwargs.get("interaction_process", ip.Diffusion)
     kwargs['photosphere'] = kwargs.get("photosphere", photosphere.TemperatureFloor)
     kwargs['sed'] = kwargs.get("sed", sed.Blackbody)
-
-    frequency = kwargs['frequency']
-    frequency, time = calc_kcorrected_properties(frequency=frequency, redshift=redshift, time=time)
     dl = cosmo.luminosity_distance(redshift).cgs.value
 
-    lbol = arnett_bolometric(time=time, f_nickel=f_nickel, mej=mej, **kwargs)
-    photo = kwargs['photosphere'](time=time, luminosity=lbol, **kwargs)
-    sed_1 = kwargs['sed'](temperature=photo.photosphere_temperature, r_photosphere=photo.r_photosphere,
-                frequency=frequency, luminosity_distance=dl)
-
-    flux_density = sed_1.flux_density
-
     if kwargs['output_format'] == 'flux_density':
+        frequency = kwargs['frequency']
+        frequency, time = calc_kcorrected_properties(frequency=frequency, redshift=redshift, time=time)
+        lbol = arnett_bolometric(time=time, f_nickel=f_nickel, mej=mej, **kwargs)
+        photo = kwargs['photosphere'](time=time, luminosity=lbol, **kwargs)
+        sed_1 = kwargs['sed'](temperature=photo.photosphere_temperature, r_photosphere=photo.r_photosphere,
+                    frequency=frequency, luminosity_distance=dl)
+        flux_density = sed_1.flux_density
         return flux_density.to(uu.mJy).value
-    elif kwargs['output_format'] == 'magnitude':
-        return flux_density.to(uu.ABmag).value
+    else:
+        time_obs = time
+        frequency_observer_frame = kwargs.get('frequency_array', np.geomspace(100, 20000, 100))
+        time_temp = np.geomspace(0.1, 300, 200) # in days
+        time_observer_frame = time_temp * (1. + redshift)
+        frequency, time = calc_kcorrected_properties(frequency=lambda_to_nu(frequency_observer_frame),
+                                                     redshift=redshift, time=time_observer_frame)
+        lbol = arnett_bolometric(time=time, f_nickel=f_nickel, mej=mej, **kwargs)
+        photo = kwargs['photosphere'](time=time, luminosity=lbol, **kwargs)
+        sed_1 = kwargs['sed'](temperature=photo.photosphere_temperature, r_photosphere=photo.r_photosphere,
+                              frequency=frequency[:,None], luminosity_distance=dl)
+        fmjy = sed_1.flux_density.T
+        spectra = fmjy.to(uu.mJy).to(uu.erg / uu.cm ** 2 / uu.s / uu.Angstrom,
+                                     equivalencies=uu.spectral_density(wav=frequency_observer_frame * uu.Angstrom))
+        if kwargs['output_format'] == 'spectra':
+            return namedtuple('output', ['time', 'frequency', 'spectra'])(time=time_observer_frame,
+                                                                          frequency=frequency_observer_frame,
+                                                                          spectra=spectra)
+        else:
+            return sed.get_correct_output_format_from_spectra(time=time_obs, time_eval=time_observer_frame,
+                                                          spectra=spectra, frequency_array=frequency_observer_frame,
+                                                          **kwargs)
 
 @citation_wrapper('redback')
 def shock_cooling_and_arnett(time, redshift, log10_mass, log10_radius, log10_energy,
