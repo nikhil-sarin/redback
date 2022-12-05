@@ -1016,31 +1016,58 @@ def csm_nickel(time, redshift, mej, f_nickel, csm_mass, ek, eta, rho, kappa, r0,
     :param r0: radius of csm shell in AU
     :param kwargs: kappa_gamma, temperature_floor, and any kwarg to
                 change any other input physics/parameters from default.
-    :return: flux_density or magnitude depending on output_format kwarg
+    :param frequency: Required if output_format is 'flux_density'.
+        frequency to calculate - Must be same length as time array or a single number).
+    :param bands: Required if output_format is 'magnitude' or 'flux'.
+    :param output_format: 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
+    :return: set by output format - 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
     """
     frequency = kwargs['frequency']
     frequency, time = calc_kcorrected_properties(frequency=frequency, redshift=redshift, time=time)
     dl = cosmo.luminosity_distance(redshift).cgs.value
-
     vej = np.sqrt(2.0 * ek / (mej * solar_mass)) / km_cgs
     kwargs['vej'] = vej
-    nickel_lbol = arnett_bolometric(time=time, f_nickel=f_nickel,
-                                    mej=mej, interaction_process=ip.Diffusion, **kwargs)
-    csm_lbol = csm_interaction_bolometric(time=time, mej=mej, csm_mass=csm_mass, eta=eta,
-                                      rho=rho, kappa=kappa, r0=r0, interaction_process=ip.CSMDiffusion, **kwargs)
-    lbol = nickel_lbol + csm_lbol
-
-    photo = photosphere.TemperatureFloor(time=time, luminosity=lbol, vej=vej, **kwargs)
-
-    sed_1 = sed.Blackbody(temperature=photo.photosphere_temperature, r_photosphere=photo.r_photosphere,
-                frequency=frequency, luminosity_distance=dl)
-
-    flux_density = sed_1.flux_density
 
     if kwargs['output_format'] == 'flux_density':
+        nickel_lbol = arnett_bolometric(time=time, f_nickel=f_nickel,
+                                        mej=mej, interaction_process=ip.Diffusion, **kwargs)
+        csm_lbol = csm_interaction_bolometric(time=time, mej=mej, csm_mass=csm_mass, eta=eta,
+                                          rho=rho, kappa=kappa, r0=r0, interaction_process=ip.CSMDiffusion, **kwargs)
+        lbol = nickel_lbol + csm_lbol
+
+        photo = photosphere.TemperatureFloor(time=time, luminosity=lbol, vej=vej, **kwargs)
+
+        sed_1 = sed.Blackbody(temperature=photo.photosphere_temperature, r_photosphere=photo.r_photosphere,
+                    frequency=frequency, luminosity_distance=dl)
+
+        flux_density = sed_1.flux_density
         return flux_density.to(uu.mJy).value
-    elif kwargs['output_format'] == 'magnitude':
-        return flux_density.to(uu.ABmag).value
+    else:
+        time_obs = time
+        frequency_observer_frame = kwargs.get('frequency_array', np.geomspace(100, 20000, 100))
+        time_temp = np.geomspace(0.1, 300, 200)  # in days
+        time_observer_frame = time_temp * (1. + redshift)
+        frequency, time = calc_kcorrected_properties(frequency=lambda_to_nu(frequency_observer_frame),
+                                                     redshift=redshift, time=time_observer_frame)
+        nickel_lbol = arnett_bolometric(time=time, f_nickel=f_nickel,
+                                        mej=mej, interaction_process=ip.Diffusion, **kwargs)
+        csm_lbol = csm_interaction_bolometric(time=time, mej=mej, csm_mass=csm_mass, eta=eta,
+                                          rho=rho, kappa=kappa, r0=r0, interaction_process=ip.CSMDiffusion, **kwargs)
+        lbol = nickel_lbol + csm_lbol
+        photo = photosphere.TemperatureFloor(time=time, luminosity=lbol, vej=vej, **kwargs)
+        sed_1 = sed.Blackbody(temperature=photo.photosphere_temperature, r_photosphere=photo.r_photosphere,
+                              frequency=frequency[:,None], luminosity_distance=dl)
+        fmjy = sed_1.flux_density.T
+        spectra = fmjy.to(uu.mJy).to(uu.erg / uu.cm ** 2 / uu.s / uu.Angstrom,
+                                     equivalencies=uu.spectral_density(wav=frequency_observer_frame * uu.Angstrom))
+        if kwargs['output_format'] == 'spectra':
+            return namedtuple('output', ['time', 'frequency', 'spectra'])(time=time_observer_frame,
+                                                                          frequency=frequency_observer_frame,
+                                                                          spectra=spectra)
+        else:
+            return sed.get_correct_output_format_from_spectra(time=time_obs, time_eval=time_observer_frame,
+                                                              spectra=spectra, frequency_array=frequency_observer_frame,
+                                                              **kwargs)
 
 
 @citation_wrapper('https://ui.adsabs.harvard.edu/abs/2018ApJS..236....6G/abstract')
