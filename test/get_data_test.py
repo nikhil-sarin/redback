@@ -1,3 +1,4 @@
+import io
 import os.path
 import shutil
 import unittest
@@ -6,6 +7,7 @@ from unittest.mock import MagicMock, PropertyMock
 
 import numpy as np
 import pandas as pd
+import requests
 
 import redback
 
@@ -608,7 +610,7 @@ class TestLasairDataGetter(unittest.TestCase):
         self.assertEqual(expected_processed_file_path, self.getter.processed_file_path)
 
     def test_url(self):
-        expected = f"https://lasair.roe.ac.uk/object/{self.transient}/json/"
+        expected = f"https://lasair.roe.ac.uk/object/{self.transient}/"
         self.assertEqual(expected, self.getter.url)
 
     @mock.patch("os.path.isfile")
@@ -630,10 +632,75 @@ class TestLasairDataGetter(unittest.TestCase):
 
     @mock.patch("os.path.isfile")
     @mock.patch("requests.get")
-    @mock.patch("urllib.request.urlretrieve")
-    def test_collect_data(self, urlretrieve, get, isfile):
+    @mock.patch("pandas.read_html")
+    def test_collect_data(self, read, get, isfile):
         isfile.return_value = False
         get.return_value = MagicMock()
         get.return_value.__setattr__('text', '')
         self.getter.collect_data()
-        urlretrieve.assert_called_with(url=self.getter.url, filename=self.getter.raw_file_path)
+        read.assert_called_with(self.getter.url)
+
+class TestFinkDataGetter(unittest.TestCase):
+
+    @classmethod
+    def setUpClass(cls) -> None:
+        _delete_downloaded_files()
+
+    @classmethod
+    def tearDownClass(cls) -> None:
+        _delete_downloaded_files()
+
+    def setUp(self) -> None:
+        self.transient = "ZTF22abdjqlm"
+        self.transient_type = "supernova"
+        self.getter = redback.get_data.FinkDataGetter(
+            transient=self.transient, transient_type=self.transient_type)
+
+    def tearDown(self) -> None:
+        shutil.rmtree("supernova", ignore_errors=True)
+        del self.transient
+        del self.transient_type
+        del self.getter
+
+    def test_directory_path(self):
+        expected_directory_path, expected_raw_file_path, expected_processed_file_path = \
+            redback.get_data.directory.fink_directory_structure(
+                transient_type=self.transient_type, transient=self.transient)
+        self.assertEqual(expected_directory_path, self.getter.directory_path)
+        self.assertEqual(expected_raw_file_path, self.getter.raw_file_path)
+        self.assertEqual(expected_processed_file_path, self.getter.processed_file_path)
+
+    def test_url(self):
+        expected = "https://fink-portal.org/api/v1/objects"
+        self.assertEqual(expected, self.getter.url)
+
+    def test_object_id(self):
+        expected = self.transient
+        self.assertEqual(expected, self.getter.objectId)
+
+    @mock.patch("os.path.isfile")
+    def test_collect_data_rawfile_exists(self, isfile):
+        isfile.return_value = True
+        redback.utils.logger.warning = MagicMock()
+        self.getter.collect_data()
+        isfile.assert_called_once()
+        redback.utils.logger.warning.assert_called_once()
+
+    @mock.patch("os.path.isfile")
+    @mock.patch("pandas.read_csv")
+    def test_collect_data_no_lightcurve_available(self, get, isfile):
+        isfile.return_value = False
+        get.return_value = MagicMock()
+        get.return_value.__setattr__('len', 0)
+        with self.assertRaises(ValueError):
+            self.getter.collect_data()
+
+    @mock.patch("os.path.isfile")
+    @mock.patch("requests.post")
+    def test_collect_data(self, post, isfile):
+        isfile.return_value = False
+        post.return_value = MagicMock()
+        post.return_value.__setattr__('content', bytearray(b'0    0.3193\nName: i:sigmagap, dtype: float64'))
+        json = {'objectId': self.getter.objectId, 'output-format': 'csv', 'withupperlim': 'True'}
+        self.getter.collect_data()
+        post.assert_called_with(url=self.getter.url, json=json)
