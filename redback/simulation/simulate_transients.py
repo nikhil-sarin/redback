@@ -5,6 +5,7 @@ from sncosmo import TimeSeriesSource, Model, get_bandpass
 import simsurvey
 import redback
 import pandas as pd
+from redback.utils import logger
 from collections import namedtuple
 import astropy.units as uu
 
@@ -13,7 +14,8 @@ class SimulateOpticalTransient(object):
     """
     Simulate a single optical transient from a given observation dictionary
     """
-    def __init__(self, model, pointings_database='rubin_baseline_nexp1_v1_7_10yrs.tar.gz', **kwargs):
+    def __init__(self, model, parameters, pointings_database=None, survey='Rubin_10yr_baseline',
+                 min_dec=None,max_dec=None, dec_dist=None, start_mjd=None, end_mjd=None, buffer_days=100, **kwargs):
         """
         :param model: str of redback model
         :param parameters:s
@@ -23,14 +25,32 @@ class SimulateOpticalTransient(object):
             self.model = redback.model_library.all_models_dict[model]
         elif callable(model):
             self.model = model
+            logger.info('Using custom model. Making a SNCosmo wrapper for this model')
+            self._sncosmo_function_wrapper = self._sncosmo_function_wrapper()
         else:
             raise ValueError("The user needs to specify model as either a string or function.")
 
-        self.pointing_database = pointings_database
+        if survey is not None:
+            self.pointing_database = self._survey_to_table_name_lookup(survey)
+            logger.info(f"Using {survey} as the pointing database.")
+        else:
+            self.pointing_database = pointings_database
+            if isinstance(survey, pd.DataFrame):
+                logger.info(f"Using the supplied {pointings_database} as the pointing database.")
+            else:
+                raise ValueError("The user needs to specify survey as either a string or a "
+                                 "pointings_databse pandas DataFrame.")
+
+        self.buffer_days = buffer_days
+        self.parameters = parameters
+        self.min_dec = min_dec
+        self.max_dec = max_dec
+        self.dec_dist = dec_dist
+        self.start_mjd = start_mjd
+        self.end_mjd = end_mjd
 
     @property
     def _initialise_from_pointings(self):
-        pointing_database = self.pointing_database
         df = pd.read_csv(self.pointing_database, compression='gzip')
         min_dec = np.min(df['_dec'])
         max_dec = np.max(df['_dec'])
@@ -39,10 +59,17 @@ class SimulateOpticalTransient(object):
                                                    size=1)- 1) - np.pi / 2)
         start_mjd = np.min(df['expMJD'])
         end_mjd = np.max(df['expMJD'])
-        return min_dec, max_dec, dec_dist, start_mjd, end_mjd
+        pointing_df = df
+        return self.min_dec, max_dec, dec_dist, start_mjd, end_mjd, pointing_df
 
-    def _make_sncosmo_wrapper(self):
-        pass
+    def _make_sncosmo_wrapper(self,**kwargs):
+        model_kwargs = {}
+        model_kwargs['output_format'] = 'sncosmo_source'
+        time = np.linspace(0, 100, 1000)
+        full_kwargs = self.parameters.copy()
+        full_kwargs.update(model_kwargs)
+        source = self.model(time, **full_kwargs)
+        return Model(source=source)
 
     def _sncosmo_function_wrapper(self, model, energy_unit_scale, energy_unit_base, parameters, wavelengths, dense_times, **kwargs):
         """
@@ -74,22 +101,49 @@ class SimulateOpticalTransient(object):
         sncosmo_model = Model(source=source)
         return sncosmo_model
 
+
+
+    def _initialise_from_parameters(self):
+        self.RA = self.parameters.get("RA", np.random.uniform(0, 2*np.pi))
+        self.DEC = self.parameters.get("DEC", np.random.uniform(-np.pi/2, np.pi/2))
+        self.mjd = self.parameters.get("mjd", np.random.uniform((self.start_mjd - self.buffer_days), (self.end_mjd)))
+        pass
+
     def _make_observations(self):
         pass
 
-    @classmethod
-    def simulate_transient(self, parameters, buffer_days=100, survey='Rubin', **kwargs):
-        if isinstance(survey, str):
-            # load the correspondiong file
-        if isinstance(survey, pd.DataFrame):
-            # initialise from the datafile.
-        self.RA = parameters.get("RA", np.random.uniform(0, 2*np.pi))
-        self.DEC = parameters.get("DEC", np.random.uniform(-np.pi/2, np.pi/2))
-        self.mjd = parameters.get("mjd", np.random.uniform((self.start_mjd - buffer_days), (self.end_mjd)))
-        #
-        #make observations
-        #save the file to disk
+    def _save_transient(self):
         pass
+
+    def _survey_to_table_name_lookup(self, survey):
+        survey_to_table = {'Rubin_10yr_baseline': 'rubin_baseline_nexp1_v1_7_10yrs.tar.gz',
+                           'Rubin_10yr_deep': 'rubin_deep_nexp1_v1_7_10yrs.tar.gz',
+                           'Rubin_10yr_wfd': 'rubin_wfd_nexp1_v1_7_10yrs.tar.gz',
+                           'Rubin_10yr_dcr': 'rubin_dcr_nexp1_v1_7_10yrs.tar.gz',
+                           'ZTF_deep': 'ztf_deep_nexp1_v1_7_10yrs.tar.gz',
+                           'ZTF_wfd': 'ztf_wfd_nexp1_v1_7_10yrs.tar.gz'}
+        return survey_to_table[survey]
+
+    # @classmethod
+    # def simulate_transient(cls, model, parameters, buffer_days=100, survey='Rubin_10yr_baseline', **kwargs):
+    #     if isinstance(survey, str):
+    #         # load the corresponding file
+    #         table = cls._survey_to_table_name_lookup(survey)
+    #         simtransient = cls(model, pointings_database=pointings_database, **kwargs)
+    #
+    #     if isinstance(survey, pd.DataFrame):
+    #         # initialise from the datafile.
+    #     self.RA = parameters.get("RA", np.random.uniform(0, 2*np.pi))
+    #     self.DEC = parameters.get("DEC", np.random.uniform(-np.pi/2, np.pi/2))
+    #     self.mjd = parameters.get("mjd", np.random.uniform((self.start_mjd - buffer_days), (self.end_mjd)))
+    #     #
+    #     #make observations
+    #     data = self._make_observations()
+    #
+    #     #save the file to disk
+    #     self._save_transient()
+    #     logger.info("Transient simulated and saved to disk.")
+    #     return data
 
     @classmethod
     def simulate_transient_population(self, dataframe, outdir):
@@ -100,6 +154,9 @@ class SimulateOpticalTransient(object):
         :param outdir: output directory where the simulated observations will be saved
         :return:
         """
+        RA =
+        DEC =
+        mjd =
         pass
 
 def make_pointing_table_from_something():
