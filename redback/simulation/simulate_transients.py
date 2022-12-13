@@ -6,6 +6,7 @@ import simsurvey
 import redback
 import pandas as pd
 from redback.utils import logger
+from itertools import repeat
 from collections import namedtuple
 import astropy.units as uu
 
@@ -160,12 +161,40 @@ class SimulateOpticalTransient(object):
     #     return data
 
 
-def make_pointing_table_from_something():
+        :param dataframe: pandas dataframe of parameters to make simulated observations for
+        :param outdir: output directory where the simulated observations will be saved
+        :return:
+        """
+        RA =
+        DEC =
+        mjd =
+        pass
+
+
+def make_pointing_table_from_something(ra, dec, num_obs, average_cadence, cadence_scatter, limiting_magnitudes):
     """
     Makes a pandas dataframe of pointings from specified settings.
-    :return:
+
+    :param float: ra
+    :param float: dec
+    :param dict: num_obs
+    :param dict: average_cadence
+    :param dict: cadence_scatter
+    :param dict: limiting_magnitudes
+
+    :return dataframe: pandas dataframe of the mock pointings needed to simulate observations for
+    given transient.
     """
-    pass
+    pointings_dataframe = pd.DataFrame(columns=['expMJD', '_ra', '_dec', 'filter', 'fiveSigmaDepth'])
+    for band in average_cadence.keys():
+        expMJD = initMJD + np.cumsum(np.random.normal(loc=average_cadence[band], scale=cadence_scatter[band], size=num_obs[band]))
+        filters = list(zip(repeat(band, num_obs[band])))
+        limiting_mag = list(zip(repeat(limiting_magnitudes[band], num_obs[band])))
+        ras = list(zip(repeat(ra, num_obs[band])))
+        decs = list(zip(repeat(dec, num_obs[band])))
+        band_pointings_dataframe = pd.DataFrame.from_dict({'expMJD': expMJD, '_ra': ras, '_dec': decs, 'filter': filters, 'fiveSigmaDepth': limiting_mag})
+        pointings_dataframe = pd.concat([pointings_dataframe, band_pointings_dataframe])
+    return pointings_dataframe
 
 class SimulateFullOpticalSurvey(SimulateOpticalTransient):
     """
