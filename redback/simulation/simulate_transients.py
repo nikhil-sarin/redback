@@ -124,7 +124,7 @@ class SimulateOpticalTransient(object):
     def simulate_transient_population(cls, model, parameters, pointings_database=None, survey='Rubin_10yr_baseline',
                            buffer_days=100, population=True, **kwargs):
         return cls(model, parameters, pointings_database=pointings_database, survey=survey,
-                   buffer_days=buffer_days, population=True, **kwargs)
+                   buffer_days=buffer_days, population=population, **kwargs)
 
     # @classmethod
     # def simulate_transient(cls, model, parameters, buffer_days=100, survey='Rubin_10yr_baseline', **kwargs):
