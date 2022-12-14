@@ -88,38 +88,15 @@ class SimulateOpticalTransient(object):
         Function to wrap redback models into sncosmo model format for added functionality.
         """
         self.sncosmo_kwargs['max_time'] = self.sncosmo_kwargs.get('max_time', 100)
-        self.parameters['frequency_observer_frame'] = self.parameters.get('frequency_observer_frame',
-                                                                          np.geomspace(100,2000,100))
+        self.parameters['wavelength_observer_frame'] = self.parameters.get('wavelength_observer_frame',
+                                                                          np.geomspace(100,20000,100))
         time = self.sncosmo_kwargs.get('dense_times', np.linspace(0, 200, 200))
         fmjy = self.model(time, **self.parameters)
-        fmjy.to(uu.mJy).to(uu.erg / uu.cm ** 2 / uu.s / uu.Angstrom,
-                          equivalencies=uu.spectral_density(wav=self.parameters['frequency_observer_frame'] * uu.Angstrom))
-
-        # # Setup case structure based on transient type to determine end time
-        # if dense_times is None:
-        #     transient_type = model_function.transient_type
-        #     if transient_type == "KNe":
-        #         max_time = 10.0
-        #     elif transient_type == "SNe":
-        #         max_time = 100.0
-        #     elif transient_type == "TDE":
-        #         max_time = 50.0
-        #     elif transient_type == "Afterglow":
-        #         max_time = 1000.0
-        #     dense_times = np.linspace(0.001, max_time, num=1000)
-
-        # if energy_unit_scale == 'frequency':
-        #     energy_delimiter = (wavelengths * u.Angstrom).to(energy_unit_base).value
-        # else:
-        #     energy_delimiter = wavelengths
-
-        # may want to also have dense wavelengths so that bandpass fluxes are estimated correctly
-        redshift = parameters.pop("z")
-
-        model_output = model_function(dense_times, redshift, parameters, f"{energy_unit_scale}"=energy_delimiter, output_format='flux_density', kwargs)
-        source = TimeSeriesSource(dense_times, wavelengths, model_output)
-        sncosmo_model = Model(source=source)
-        return sncosmo_model
+        spectra = fmjy.to(uu.mJy).to(uu.erg / uu.cm ** 2 / uu.s / uu.Angstrom,
+                equivalencies=uu.spectral_density(wav=self.parameters['wavelength_observer_frame'] * uu.Angstrom))
+        source = TimeSeriesSource(phase=time, wave=self.parameters['wavelength_observer_frame'],
+                                  flux=spectra)
+        return Model(source=source, **self.sncosmo_kwargs)
 
     def _survey_to_table_name_lookup(self, survey):
         survey_to_table = {'Rubin_10yr_baseline': 'rubin_baseline_nexp1_v1_7_10yrs.tar.gz',
@@ -131,7 +108,7 @@ class SimulateOpticalTransient(object):
         return survey_to_table[survey]
 
     def _make_observations(self):
-        pass
+
 
     def _save_transient(self):
         pass
