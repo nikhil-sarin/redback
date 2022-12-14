@@ -117,7 +117,7 @@ class SimulateOpticalTransient(object):
                            'ZTF_wfd': 'ztf_wfd_nexp1_v1_7_10yrs.tar.gz'}
         return survey_to_table[survey]
 
-    def _make_observations(self, sncosmo_model, overlapping_database):
+    def _make_observation_single(self, sncosmo_model, overlapping_database):
         times = overlapping_database['expMJD'].values - sncosmo_model.mintime()
         filters = overlapping_database['filter']
         limiting_magnitudes = overlapping_database['fiveSigmaDepth'].values
@@ -140,7 +140,18 @@ class SimulateOpticalTransient(object):
         observation_dataframe['time (days)'] = times
         return observation_dataframe
 
-    def _find_overlaps(self, survey_fov=None):
+    def _make_observations(self, sncosmo_model):
+        if self.population:
+            overlapping_indices = self._find_sky_overlaps(survey_fov_rad=9.6)
+            overlapping_database_iter = iter(self.pointings_database.iloc(iter(overlapping_indices)))
+        else:
+            self._make_observation_single(self.pointing_database)
+
+    def _convert_circular_fov_to_radius(self):
+        radius = np.sqrt(survey_fov*((np.pi/180.0)**2.0)/np.pi)
+        return radius
+
+    def _find_sky_overlaps(self, survey_fov_rad=None):
         """
         Makes a pandas dataframe of pointings from specified settings.
 
@@ -158,21 +169,20 @@ class SimulateOpticalTransient(object):
         transient_sky_pos = (parameters.pop['ra'], parameters.pop['dec'])
         transient_sky_pos = transient_sky_pos * (np.pi / 180.)
         pointings_sky_pos = pointings_sky_pos * (np.pi / 180.)
-        survey_fov = survey_fov * (np.pi / 180.)
+        survey_fov_rad = survey_fov_rad * (np.pi / 180.)
 
-        # Convert 2D RA/DEC to 3D cartesian coordinates
-        Y1 = np.transpose(np.vstack([np.cos(transient_sky_pos[:, 0]) * np.cos(transient_sky_pos[:, 1]),
+        transient_sky_pos_3D = np.vstack([np.cos(transient_sky_pos[:, 0]) * np.cos(transient_sky_pos[:, 1]),
                                      np.sin(transient_sky_pos[:, 0]) * np.cos(transient_sky_pos[:, 1]),
-                                     np.sin(transient_sky_pos[:, 1])]))
-        Y2 = np.transpose(np.vstack([np.cos(pointings_sky_pos[:, 0]) * np.cos(pointings_sky_pos[:, 1]),
+                                     np.sin(transient_sky_pos[:, 1])]).T
+        pointings_sky_pos_3D = np.vstack([np.cos(pointings_sky_pos[:, 0]) * np.cos(pointings_sky_pos[:, 1]),
                                      np.sin(pointings_sky_pos[:, 0]) * np.cos(pointings_sky_pos[:, 1]),
-                                     np.sin(pointings_sky_pos[:, 1])]))
+                                     np.sin(pointings_sky_pos[:, 1])]).T
 
         # law of cosines to compute 3D distance
-        max_y = np.sqrt(2 - 2 * np.cos(survey_fov))
-        survey_tree = KDTree(Y1)
-        overlap_indices = survey_tree.query_ball_point(Y2, max_y)
-
+        max_3D_dist = np.sqrt(2 - 2 * np.cos(survey_fov_rad))
+        survey_tree = KDTree(transient_sky_pos_3D)
+        overlap_indices = survey_tree.query_ball_point(pointings_sky_pos_3D, max_3D_dist)
+        return overlap_indices
 
 
 
