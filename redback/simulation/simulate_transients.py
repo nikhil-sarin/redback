@@ -16,15 +16,15 @@ class SimulateOpticalTransient(object):
     Simulate a single optical transient from a given observation dictionary
     """
     def __init__(self, model, parameters, pointings_database=None, survey='Rubin_10yr_baseline',
-                 min_dec=None,max_dec=None, start_mjd=None, end_mjd=None, buffer_days=100,
+                 min_dec=None,max_dec=None, start_mjd=None, end_mjd=None, sncosmo_kwargs=None, buffer_days=100,
                  population=False, **kwargs):
         if isinstance(model, str):
             self.model = redback.model_library.all_models_dict[model]
-            self.sncosmo_model = self._make_sncosmo_wrapper_for_redback_model(**kwargs)
+            self.sncosmo_model = self._make_sncosmo_wrapper_for_redback_model()
         elif callable(model):
             self.model = model
             logger.info('Using custom model. Making a SNCosmo wrapper for this model')
-            self.sncosmo_model = self._make_sncosmo_wrapper_for_user_model(**kwargs)
+            self.sncosmo_model = self._make_sncosmo_wrapper_for_user_model()
         else:
             raise ValueError("The user needs to specify model as either a string or function.")
 
@@ -44,6 +44,7 @@ class SimulateOpticalTransient(object):
         self.buffer_days = buffer_days
         self.population = population
         self.parameters = parameters
+        self.sncosmo_kwargs = sncosmo_kwargs
         self.min_dec = min_dec
         self.max_dec = max_dec
         self.start_mjd = start_mjd
@@ -73,36 +74,44 @@ class SimulateOpticalTransient(object):
         parameters['MJD'] = parameters.get("MJD", np.random.uniform(self.start_mjd, self.end_mjd, size=size))
         return parameters
 
-    def _make_sncosmo_wrapper_for_redback_model(self,**kwargs):
+    def _make_sncosmo_wrapper_for_redback_model(self):
         model_kwargs = {}
         model_kwargs['output_format'] = 'sncosmo_source'
-        time = np.linspace(0, 100, 1000)
+        time = self.sncosmo_kwargs.get('dense_times', np.linspace(0, 200, 200))
         full_kwargs = self.parameters.copy()
         full_kwargs.update(model_kwargs)
         source = self.model(time, **full_kwargs)
-        return Model(source=source)
+        return Model(source=source, **self.sncosmo_kwargs)
 
-    def _make_sncosmo_wrapper_for_user_model(self, model, energy_unit_scale, energy_unit_base, parameters, wavelengths, dense_times, **kwargs):
+    def _make_sncosmo_wrapper_for_user_model(self):
         """
         Function to wrap redback models into sncosmo model format for added functionality.
         """
-        # Setup case structure based on transient type to determine end time
-        if dense_times is None:
-            transient_type = model_function.transient_type
-            if transient_type == "KNe":
-                max_time = 10.0
-            elif transient_type == "SNe":
-                max_time = 100.0
-            elif transient_type == "TDE":
-                max_time = 50.0
-            elif transient_type == "Afterglow":
-                max_time = 1000.0
-            dense_times = np.linspace(0.001, max_time, num=1000)
+        self.sncosmo_kwargs['max_time'] = self.sncosmo_kwargs.get('max_time', 100)
+        self.parameters['frequency_observer_frame'] = self.parameters.get('frequency_observer_frame',
+                                                                          np.geomspace(100,2000,100))
+        time = self.sncosmo_kwargs.get('dense_times', np.linspace(0, 200, 200))
+        fmjy = self.model(time, **self.parameters)
+        fmjy.to(uu.mJy).to(uu.erg / uu.cm ** 2 / uu.s / uu.Angstrom,
+                          equivalencies=uu.spectral_density(wav=self.parameters['frequency_observer_frame'] * uu.Angstrom))
 
-        if energy_unit_scale == 'frequency':
-            energy_delimiter = (wavelengths * u.Angstrom).to(energy_unit_base).value
-        else:
-            energy_delimiter = wavelengths
+        # # Setup case structure based on transient type to determine end time
+        # if dense_times is None:
+        #     transient_type = model_function.transient_type
+        #     if transient_type == "KNe":
+        #         max_time = 10.0
+        #     elif transient_type == "SNe":
+        #         max_time = 100.0
+        #     elif transient_type == "TDE":
+        #         max_time = 50.0
+        #     elif transient_type == "Afterglow":
+        #         max_time = 1000.0
+        #     dense_times = np.linspace(0.001, max_time, num=1000)
+
+        # if energy_unit_scale == 'frequency':
+        #     energy_delimiter = (wavelengths * u.Angstrom).to(energy_unit_base).value
+        # else:
+        #     energy_delimiter = wavelengths
 
         # may want to also have dense wavelengths so that bandpass fluxes are estimated correctly
         redshift = parameters.pop("z")
