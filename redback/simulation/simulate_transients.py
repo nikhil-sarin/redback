@@ -76,8 +76,9 @@ class SimulateOpticalTransient(object):
 
     def _make_sncosmo_wrapper_for_redback_model(self):
         model_kwargs = {}
+        self.sncosmo_kwargs['max_time'] = self.sncosmo_kwargs.get('max_time', 100)
         model_kwargs['output_format'] = 'sncosmo_source'
-        time = self.sncosmo_kwargs.get('dense_times', np.linspace(0, 200, 200))
+        time = self.sncosmo_kwargs.get('dense_times', np.linspace(0, self.sncosmo_kwargs['max_time'], 200))
         full_kwargs = self.parameters.copy()
         full_kwargs.update(model_kwargs)
         source = self.model(time, **full_kwargs)
@@ -90,7 +91,7 @@ class SimulateOpticalTransient(object):
         self.sncosmo_kwargs['max_time'] = self.sncosmo_kwargs.get('max_time', 100)
         self.parameters['wavelength_observer_frame'] = self.parameters.get('wavelength_observer_frame',
                                                                           np.geomspace(100,20000,100))
-        time = self.sncosmo_kwargs.get('dense_times', np.linspace(0, 200, 200))
+        time = self.sncosmo_kwargs.get('dense_times', np.linspace(0, self.sncosmo_kwargs['max_time'], 200))
         fmjy = self.model(time, **self.parameters)
         spectra = fmjy.to(uu.mJy).to(uu.erg / uu.cm ** 2 / uu.s / uu.Angstrom,
                 equivalencies=uu.spectral_density(wav=self.parameters['wavelength_observer_frame'] * uu.Angstrom))
