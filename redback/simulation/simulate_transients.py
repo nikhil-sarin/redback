@@ -160,18 +160,13 @@ class SimulateOpticalTransient(object):
     #     logger.info("Transient simulated and saved to disk.")
     #     return data
 
+        #
+        # :param dataframe: pandas dataframe of parameters to make simulated observations for
+        # :param outdir: output directory where the simulated observations will be saved
+        # :return:
+        # """
 
-        :param dataframe: pandas dataframe of parameters to make simulated observations for
-        :param outdir: output directory where the simulated observations will be saved
-        :return:
-        """
-        RA =
-        DEC =
-        mjd =
-        pass
-
-
-def make_pointing_table_from_something(ra, dec, num_obs, average_cadence, cadence_scatter, limiting_magnitudes):
+def make_pointing_table_from_average_cadence(ra, dec, num_obs, average_cadence, cadence_scatter, limiting_magnitudes, **kwargs):
     """
     Makes a pandas dataframe of pointings from specified settings.
 
@@ -186,6 +181,7 @@ def make_pointing_table_from_something(ra, dec, num_obs, average_cadence, cadenc
     given transient.
     """
     pointings_dataframe = pd.DataFrame(columns=['expMJD', '_ra', '_dec', 'filter', 'fiveSigmaDepth'])
+    initMJD = kwargs.get("initMJD", 59580)
     for band in average_cadence.keys():
         expMJD = initMJD + np.cumsum(np.random.normal(loc=average_cadence[band], scale=cadence_scatter[band], size=num_obs[band]))
         filters = list(zip(repeat(band, num_obs[band])))
