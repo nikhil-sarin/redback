@@ -280,6 +280,34 @@ def calc_vegamag_from_flux_density(fluxdensity, zeropoint):
     magnitude = -2.5 * np.log10(fluxdensity / zeropoint)
     return magnitude
 
+
+def bandflux_error_from_limiting_mag(fiveSigmaDepth, bandflux_ref):
+    """
+    Function to compute the error associated with the flux measurement of the
+    transient source, computed based on the observation databse determined
+    five-sigma depth.
+
+    Parameters:
+    -----------
+        fiveSigmaDepth: float
+            The magnitude at which an exposure would be recorded as having
+            an SNR of 5 for this observation.
+        bandflux_ref: float
+            The total flux that would be transmitted through the chosen
+            bandfilter given the chosen reference system.
+    Returns:
+    --------
+        bandflux_error: float
+            The error associated with the computed bandflux.
+    """
+    # Compute the integrated bandflux error
+    # Note this is trivial since the five_sigma_depth incorporates the
+    # integrated time of the exposures.
+    Flux_five_sigma = bandflux_ref * np.power(10.0, -0.4 * fiveSigmaDepth)
+    bandflux_error = Flux_five_sigma / 5.0
+    return bandflux_error
+
+
 def convert_absolute_mag_to_apparent(magnitude, distance):
     """
     Convert absolute magnitude to apparent
@@ -333,6 +361,7 @@ def calc_flux_error_from_magnitude(magnitude, magnitude_error, reference_flux):
     flux_err = ((dfdm * magnitude_error) ** 2) ** 0.5
     return flux_err
 
+
 def bands_to_zeropoint(bands):
     """
     Bands to zero point
@@ -343,6 +372,7 @@ def bands_to_zeropoint(bands):
     reference_flux = bands_to_reference_flux(bands)
     zeropoint = 10**(reference_flux/-2.5)
     return zeropoint
+
 
 def bandpass_magnitude_to_flux(magnitude, bands):
     """
@@ -357,6 +387,33 @@ def bandpass_magnitude_to_flux(magnitude, bands):
     flux = maggi * reference_flux
     return flux
 
+
+def magnitude_error_from_flux_error(bandflux, bandflux_error):
+    """
+    Function to propagate the flux error to the mag system.
+
+    Parameters:
+    -----------
+        bandflux: float
+            The total flux transmitted through the bandfilter and recorded by
+            the detector.
+        bandflux_error: float
+            The error on the flux measurement from the measured background
+            noise, in this case, the five sigma depth.
+
+    Outputs:
+    --------
+        magnitude_error: float-scalar
+            The flux error propagated into the magnitude system.
+    """
+    # Compute the per-band magnitude errors
+    if bandflux == np.nan or abs(bandflux) <= 1.0e-70:
+        return np.nan
+    else:
+        magnitude_error = abs(-2.5 / (bandflux * np.log(10))) * bandflux_error
+    return magnitude_error
+
+
 def bandpass_flux_to_magnitude(flux, bands):
     """
     Convert flux to magnitude
@@ -369,6 +426,7 @@ def bandpass_flux_to_magnitude(flux, bands):
     maggi = flux / reference_flux
     magnitude = -2.5 * np.log10(maggi)
     return magnitude
+
 
 def bands_to_reference_flux(bands):
     """
@@ -393,6 +451,7 @@ def bands_to_reference_flux(bands):
             logger.info(e)
             raise KeyError(f"Band {band} is not defined in filters.csv!")
     return np.array(res)
+
 
 def bands_to_frequency(bands):
     """

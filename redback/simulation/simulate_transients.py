@@ -9,6 +9,7 @@ from redback.utils import logger
 from itertools import repeat
 from collections import namedtuple
 import astropy.units as uu
+from scipy.spatial import KDTree
 
 
 class SimulateOpticalTransient(object):
@@ -39,7 +40,7 @@ class SimulateOpticalTransient(object):
                 logger.info(f"Using the supplied as the pointing database.")
             else:
                 raise ValueError("The user needs to specify survey as either a string or a "
-                                 "pointings_databse pandas DataFrame.")
+                                 "pointings_database pandas DataFrame.")
 
         self.buffer_days = buffer_days
         self.population = population
@@ -51,8 +52,16 @@ class SimulateOpticalTransient(object):
         self.end_mjd = end_mjd
 
     @property
+    def _get_unique_reference_fluxes(self):
+        unique_bands = self.pointing_database.filters.unique()
+        redback.utils.bands_to_reference_flux
+
+
+    @property
     def _initialise_from_pointings(self):
         df = self.pointing_database
+
+        bandflux_errors = redback.utils.bandflux_error_from_limiting_mag(limiting_magnitudes, reference_flux)
         min_dec = np.min(df['_dec'])
         max_dec = np.max(df['_dec'])
         start_mjd = np.min(df['expMJD'])
@@ -108,7 +117,63 @@ class SimulateOpticalTransient(object):
                            'ZTF_wfd': 'ztf_wfd_nexp1_v1_7_10yrs.tar.gz'}
         return survey_to_table[survey]
 
-    def _make_observations(self):
+    def _make_observations(self, sncosmo_model, overlapping_database):
+        times = overlapping_database['expMJD'].values - sncosmo_model.mintime()
+        filters = overlapping_database['filter']
+        limiting_magnitudes = overlapping_database['fiveSigmaDepth'].values
+
+        flux = sncosmo_model.bandflux(times, filters)
+        # what can be preprocessed
+        observed_flux = np.random.normal(loc=flux, scale=bandflux_errors)
+        magnitudes = redback.utils.bandpass_flux_to_magnitude(observed_flux, filters)
+        magnitude_errs = redback.utils.magnitude_error_from_flux_error(flux, bandflux_errors)
+        observation_dataframe = pd.DataFrame(columns=['event', 'time', 'magnitude', 'e_magnitude', 'band', 'system', 'flux_density(mjy)', 'flux_density_error', 'flux(erg/cm2/s)', 'flux_error', 'time (days)'])
+        observation_dataframe['time'] = times + sncosmo_model.mintime()
+        observation_dataframe['magnitude'] = magnitudes
+        observation_dataframe['e_magnitude'] = magnitude_errs
+        observation_dataframe['band'] = filters
+        observation_dataframe['system'] = 'AB'
+        observation_dataframe['flux_density(mjy)'] =
+        observation_dataframe['flux_density_error'] =
+        observation_dataframe['flux(erg/cm2/s)'] = observed_flux
+        observation_dataframe['flux_error'] = bandflux_errors
+        observation_dataframe['time (days)'] = times
+        return observation_dataframe
+
+    def _find_overlaps(self, survey_fov=None):
+        """
+        Makes a pandas dataframe of pointings from specified settings.
+
+        :param float: ra
+        :param float: dec
+        :param dict: num_obs
+        :param dict: average_cadence
+        :param dict: cadence_scatter
+        :param dict: limiting_magnitudes
+
+        :return dataframe: pandas dataframe of the mock pointings needed to simulate observations for
+        given transient.
+        """
+        pointings_sky_pos = self.pointings_database[['_ra', '_dec']].to_numpy()
+        transient_sky_pos = (parameters.pop['ra'], parameters.pop['dec'])
+        transient_sky_pos = transient_sky_pos * (np.pi / 180.)
+        pointings_sky_pos = pointings_sky_pos * (np.pi / 180.)
+        survey_fov = survey_fov * (np.pi / 180.)
+
+        # Convert 2D RA/DEC to 3D cartesian coordinates
+        Y1 = np.transpose(np.vstack([np.cos(transient_sky_pos[:, 0]) * np.cos(transient_sky_pos[:, 1]),
+                                     np.sin(transient_sky_pos[:, 0]) * np.cos(transient_sky_pos[:, 1]),
+                                     np.sin(transient_sky_pos[:, 1])]))
+        Y2 = np.transpose(np.vstack([np.cos(pointings_sky_pos[:, 0]) * np.cos(pointings_sky_pos[:, 1]),
+                                     np.sin(pointings_sky_pos[:, 0]) * np.cos(pointings_sky_pos[:, 1]),
+                                     np.sin(pointings_sky_pos[:, 1])]))
+
+        # law of cosines to compute 3D distance
+        max_y = np.sqrt(2 - 2 * np.cos(survey_fov))
+        survey_tree = KDTree(Y1)
+        overlap_indices = survey_tree.query_ball_point(Y2, max_y)
+
+
 
 
     def _save_transient(self):
@@ -117,12 +182,38 @@ class SimulateOpticalTransient(object):
     @classmethod
     def simulate_transient(cls, model, parameters, pointings_database=None, survey='Rubin_10yr_baseline',
                            buffer_days=100, population=False, **kwargs):
+        """
+        Makes a pandas dataframe of pointings from specified settings.
+
+        :param float: ra
+        :param float: dec
+        :param dict: num_obs
+        :param dict: average_cadence
+        :param dict: cadence_scatter
+        :param dict: limiting_magnitudes
+
+        :return dataframe: pandas dataframe of the mock pointings needed to simulate observations for
+        given transient.
+        """
         return cls(model, parameters, pointings_database=pointings_database, survey=survey,
                    buffer_days=buffer_days, population=population, **kwargs)
 
     @classmethod
     def simulate_transient_population(cls, model, parameters, pointings_database=None, survey='Rubin_10yr_baseline',
                            buffer_days=100, population=True, **kwargs):
+        """
+        Makes a pandas dataframe of pointings from specified settings.
+
+        :param float: ra
+        :param float: dec
+        :param dict: num_obs
+        :param dict: average_cadence
+        :param dict: cadence_scatter
+        :param dict: limiting_magnitudes
+
+        :return dataframe: pandas dataframe of the mock pointings needed to simulate observations for
+        given transient.
+        """
         return cls(model, parameters, pointings_database=pointings_database, survey=survey,
                    buffer_days=buffer_days, population=population, **kwargs)
 
