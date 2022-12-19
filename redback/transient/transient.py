@@ -136,6 +136,7 @@ class Transient(object):
         self.set_bands_and_frequency(bands=bands, frequency=frequency)
         self.system = system
         self.active_bands = active_bands
+        self.sncosmo_bands = redback.utils.sncosmo_bandname_from_band(self.bands)
         self.data_mode = data_mode
         self.redshift = redshift
         self.name = name
@@ -143,7 +144,6 @@ class Transient(object):
         self.optical_data = optical_data
 
         self.meta_data = None
-
         self.photon_index = photon_index
         self.directory_structure = redback.get_data.directory.DirectoryStructure(
             directory_path=".", raw_file_path=".", processed_file_path=".")

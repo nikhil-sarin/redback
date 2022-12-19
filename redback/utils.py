@@ -26,6 +26,30 @@ plt.style.use(filename)
 logger = logging.getLogger('redback')
 _bilby_logger = logging.getLogger('bilby')
 
+def sncosmo_bandname_from_band(bands):
+    """
+    Convert redback data band names to sncosmo compatible band names
+
+    :param bands: List of bands.
+    :type bands: list[str]
+    :return: An array of sncosmo compatible bandnames associated with the given bands.
+    :rtype: np.ndarray
+    """
+    if bands is None:
+        bands = []
+    if isinstance(bands, str):
+        bands = [bands]
+    df = pd.read_csv(f"{dirname}/tables/filters.csv")
+    bands_to_flux = {band: wavelength for band, wavelength in zip(df['bands'], df['sncosmo_name'])}
+    res = []
+    for band in bands:
+        try:
+            res.append(bands_to_flux[band])
+        except KeyError as e:
+            logger.info(e)
+            raise KeyError(f"Band {band} is not defined in filters.csv!")
+    return np.array(res)
+
 def check_kwargs_validity(kwargs):
     if 'output_format' not in kwargs.keys():
         raise ValueError("output_format must be specified")
