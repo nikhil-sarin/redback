@@ -136,6 +136,7 @@ class Transient(object):
         self.set_bands_and_frequency(bands=bands, frequency=frequency)
         self.system = system
         self.active_bands = active_bands
+        self.sncosmo_bands = redback.utils.sncosmo_bandname_from_band(self.bands)
         self.data_mode = data_mode
         self.redshift = redshift
         self.name = name
@@ -143,7 +144,6 @@ class Transient(object):
         self.optical_data = optical_data
 
         self.meta_data = None
-
         self.photon_index = photon_index
         self.directory_structure = redback.get_data.directory.DirectoryStructure(
             directory_path=".", raw_file_path=".", processed_file_path=".")
@@ -396,6 +396,14 @@ class Transient(object):
         return self.frequency[self.filtered_indices]
 
     @property
+    def filtered_sncosmo_bands(self) -> np.array:
+        """
+        :return: The sncosmo bands only associated with the active bands.
+        :rtype: np.ndarray
+        """
+        return self.sncosmo_bands[self.filtered_indices]
+
+    @property
     def filtered_bands(self) -> np.array:
         """
         :return: The band names only associated with the active bands.
@@ -434,11 +442,11 @@ class Transient(object):
         return [b in self.active_bands for b in self.bands]
 
     def get_filtered_data(self) -> tuple:
-        """Used to filter flux density and photometry data, so we only use data that is using the active bands.
+        """Used to filter flux density, photometry or integrated flux data, so we only use data that is using the active bands.
         :return: A tuple with the filtered data. Format is (x, x_err, y, y_err)
         :rtype: tuple
         """
-        if self.flux_density_data or self.magnitude_data:
+        if any([self.flux_data, self.magnitude_data, self.flux_density_data]):
             filtered_x = self.x[self.filtered_indices]
             try:
                 filtered_x_err = self.x_err[self.filtered_indices]
@@ -448,7 +456,7 @@ class Transient(object):
             filtered_y_err = self.y_err[self.filtered_indices]
             return filtered_x, filtered_x_err, filtered_y, filtered_y_err
         else:
-            raise ValueError(f"Transient needs to be in flux density or magnitude data mode, "
+            raise ValueError(f"Transient needs to be in flux density, magnitude or flux data mode, "
                              f"but is in {self.data_mode} instead.")
 
     @property
