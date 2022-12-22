@@ -1,5 +1,11 @@
 # All notable changes will be documented in this file
 
+## [0.3.1] 2022-12-22
+Version 0.3.1 release of redback
+
+### Changed
+- Fitting compatibility with `SNCosmo` filter definitions.
+
 ## [0.3.0] 2022-12-05
 Version 0.3.0 release of redback
 
