@@ -51,6 +51,9 @@ def sncosmo_bandname_from_band(bands):
     return np.array(res)
 
 def check_kwargs_validity(kwargs):
+    if kwargs == None:
+        logger.info("No kwargs passed to function")
+        return kwargs
     if 'output_format' not in kwargs.keys():
         raise ValueError("output_format must be specified")
     else:

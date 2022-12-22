@@ -95,7 +95,7 @@ def _fit_grb(transient, model, outdir, label, likelihood=None, sampler='dynesty'
             prior['alpha_1'] = bilby.prior.Gaussian(mu=-(transient.photon_index + 1), sigma=0.1,
                                                     latex_label=r'$\alpha_{1}$')
 
-    if transient.flux_density_data or transient.magnitude_data:
+    if any([transient.flux_data, transient.magnitude_data, transient.flux_density_data]):
         x, x_err, y, y_err = transient.get_filtered_data()
     else:
         x, x_err, y, y_err = transient.x, transient.x_err, transient.y, transient.y_err
@@ -133,7 +133,7 @@ def _fit_grb(transient, model, outdir, label, likelihood=None, sampler='dynesty'
 def _fit_optical_transient(transient, model, outdir, label, likelihood=None, sampler='dynesty', nlive=3000, prior=None,
                            walks=1000, resume=True, save_format='json', model_kwargs=None, plot=True, **kwargs):
 
-    if transient.flux_density_data or transient.magnitude_data:
+    if any([transient.flux_data, transient.magnitude_data, transient.flux_density_data]):
         x, x_err, y, y_err = transient.get_filtered_data()
     else:
         x, x_err, y, y_err = transient.x, transient.x_err, transient.y, transient.y_err
