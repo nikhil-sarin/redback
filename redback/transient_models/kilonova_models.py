@@ -630,22 +630,22 @@ def one_component_kilonova_model(time, redshift, mej, vej, kappa, **kwargs):
         return flux_density.to(uu.mJy).value
 
     else:
-        frequency_observer_frame = kwargs.get('frequency_array', np.geomspace(100, 20000, 100))
+        lambda_observer_frame = kwargs.get('frequency_array', np.geomspace(100, 60000, 200))
         time_observer_frame = time_temp * (1. + redshift)
-        frequency, time = calc_kcorrected_properties(frequency=lambda_to_nu(frequency_observer_frame),
+        frequency, time = calc_kcorrected_properties(frequency=lambda_to_nu(lambda_observer_frame),
                                                      redshift=redshift, time=time_observer_frame)
         fmjy = blackbody_to_flux_density(temperature=temperature,
                                          r_photosphere=r_photosphere, frequency=frequency[:, None], dl=dl)
         fmjy = fmjy.T
         spectra = fmjy.to(uu.mJy).to(uu.erg / uu.cm ** 2 / uu.s / uu.Angstrom,
-                                     equivalencies=uu.spectral_density(wav=frequency_observer_frame * uu.Angstrom))
+                                     equivalencies=uu.spectral_density(wav=lambda_observer_frame * uu.Angstrom))
         if kwargs['output_format'] == 'spectra':
-            return namedtuple('output', ['time', 'frequency', 'spectra'])(time=time_observer_frame,
-                                                                           frequency=frequency_observer_frame,
+            return namedtuple('output', ['time', 'lambdas', 'spectra'])(time=time_observer_frame,
+                                                                           lambdas=lambda_observer_frame,
                                                                            spectra=spectra)
         else:
             return get_correct_output_format_from_spectra(time=time_obs, time_eval=time_observer_frame/day_to_s,
-                                                          spectra=spectra, frequency_array=frequency_observer_frame,
+                                                          spectra=spectra, frequency_array=lambda_observer_frame,
                                                           **kwargs)
 
 def _one_component_kilonova_model(time, mej, vej, kappa, **kwargs):
