@@ -109,6 +109,7 @@ def two_layer_stratified_kilonova(time, redshift, mej, vej_1, vej_2, kappa, beta
     frequency to calculate - Must be same length as time array or a single number).
     :param bands: Required if output_format is 'magnitude' or 'flux'.
     :param output_format: 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
+    :param lambda_array: Optional argument to set your desired wavelength array (in Angstroms) to evaluate the SED on.
     :return: set by output format - 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
     """
     velocity_array = np.array([vej_1, vej_2])
@@ -132,6 +133,7 @@ def _kilonova_hr(time, redshift, mej, velocity_array, kappa_array, beta, **kwarg
     frequency to calculate - Must be same length as time array or a single number).
     :param bands: Required if output_format is 'magnitude' or 'flux'.
     :param output_format: 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
+    :param lambda_array: Optional argument to set your desired wavelength array (in Angstroms) to evaluate the SED on.
     :return: set by output format - 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
     """
     dl = cosmo.luminosity_distance(redshift).cgs.value
@@ -149,23 +151,23 @@ def _kilonova_hr(time, redshift, mej, velocity_array, kappa_array, beta, **kwarg
                                                  dl=dl, frequency=frequency)
         return flux_density.to(uu.mJy).value
     else:
-        frequency_observer_frame = kwargs.get('frequency_array', np.geomspace(100, 20000, 100))
+        lambda_observer_frame = kwargs.get('lambda_array', np.geomspace(100, 60000, 200))
         time_observer_frame = np.geomspace(0.03, 10, 100) * day_to_s
-        frequency, time = calc_kcorrected_properties(frequency=lambda_to_nu(frequency_observer_frame),
+        frequency, time = calc_kcorrected_properties(frequency=lambda_to_nu(lambda_observer_frame),
                                                      redshift=redshift, time=time_observer_frame)
         _, temperature, r_photosphere = _kilonova_hr_sourceframe(time, mej, velocity_array, kappa_array, beta)
         fmjy = blackbody_to_flux_density(temperature=temperature,
                                          r_photosphere=r_photosphere, frequency=frequency[:, None], dl=dl)
         fmjy = fmjy.T
         spectra = fmjy.to(uu.mJy).to(uu.erg / uu.cm ** 2 / uu.s / uu.Angstrom,
-                                     equivalencies=uu.spectral_density(wav=frequency_observer_frame * uu.Angstrom))
+                                     equivalencies=uu.spectral_density(wav=lambda_observer_frame * uu.Angstrom))
         if kwargs['output_format'] == 'spectra':
-            return namedtuple('output', ['time', 'frequency', 'spectra'])(time=time_observer_frame,
-                                                                          frequency=frequency_observer_frame,
+            return namedtuple('output', ['time', 'lambdas', 'spectra'])(time=time_observer_frame,
+                                                                          lambdas=lambda_observer_frame,
                                                                           spectra=spectra)
         else:
             return get_correct_output_format_from_spectra(time=time_obs, time_eval=time_observer_frame / day_to_s,
-                                                          spectra=spectra, frequency_array=frequency_observer_frame,
+                                                          spectra=spectra, frequency_array=lambda_observer_frame,
                                                           **kwargs)
 
 
@@ -221,6 +223,7 @@ def three_component_kilonova_model(time, redshift, mej_1, vej_1, temperature_flo
     frequency to calculate - Must be same length as time array or a single number).
     :param bands: Required if output_format is 'magnitude' or 'flux'.
     :param output_format: 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
+    :param lambda_array: Optional argument to set your desired wavelength array (in Angstroms) to evaluate the SED on.
     :return: set by output format - 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
     """
     dl = cosmo.luminosity_distance(redshift).cgs.value
@@ -259,9 +262,9 @@ def three_component_kilonova_model(time, redshift, mej_1, vej_1, temperature_flo
         return ff.to(uu.mJy).value
 
     else:
-        frequency_observer_frame = kwargs.get('frequency_array', np.geomspace(100, 20000, 100))
+        lambda_observer_frame = kwargs.get('lambda_array', np.geomspace(100, 60000, 200))
         time_observer_frame = time_temp * (1. + redshift)
-        frequency, time = calc_kcorrected_properties(frequency=lambda_to_nu(frequency_observer_frame),
+        frequency, time = calc_kcorrected_properties(frequency=lambda_to_nu(lambda_observer_frame),
                                                      redshift=redshift, time=time_observer_frame)
         full_spec = np.zeros((len(frequency), len(time)))
         for x in range(3):
@@ -273,18 +276,18 @@ def three_component_kilonova_model(time, redshift, mej_1, vej_1, temperature_flo
                                              r_photosphere=r_photosphere, frequency=frequency[:, None], dl=dl)
             fmjy = fmjy.T
             spectra = fmjy.to(uu.mJy).to(uu.erg / uu.cm ** 2 / uu.s / uu.Angstrom,
-                                         equivalencies=uu.spectral_density(wav=frequency_observer_frame * uu.Angstrom))
+                                         equivalencies=uu.spectral_density(wav=lambda_observer_frame * uu.Angstrom))
             units = spectra.unit
             full_spec += spectra.value
 
         full_spec = full_spec * units
         if kwargs['output_format'] == 'spectra':
-            return namedtuple('output', ['time', 'frequency', 'spectra'])(time=time_observer_frame,
-                                                                          frequency=frequency_observer_frame,
+            return namedtuple('output', ['time', 'lambdas', 'spectra'])(time=time_observer_frame,
+                                                                          lambdas=lambda_observer_frame,
                                                                           spectra=full_spec)
         else:
             return get_correct_output_format_from_spectra(time=time_obs, time_eval=time_observer_frame / day_to_s,
-                                                          spectra=full_spec, frequency_array=frequency_observer_frame,
+                                                          spectra=full_spec, frequency_array=lambda_observer_frame,
                                                           **kwargs)
 
 
@@ -307,6 +310,7 @@ def two_component_kilonova_model(time, redshift, mej_1, vej_1, temperature_floor
     frequency to calculate - Must be same length as time array or a single number).
     :param bands: Required if output_format is 'magnitude' or 'flux'.
     :param output_format: 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
+    :param lambda_array: Optional argument to set your desired wavelength array (in Angstroms) to evaluate the SED on.
     :return: set by output format - 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
     """
     dl = cosmo.luminosity_distance(redshift).cgs.value
@@ -345,9 +349,9 @@ def two_component_kilonova_model(time, redshift, mej_1, vej_1, temperature_floor
         return ff.to(uu.mJy).value
 
     else:
-        frequency_observer_frame = kwargs.get('frequency_array', np.geomspace(100, 20000, 100))
+        lambda_observer_frame = kwargs.get('lambda_array', np.geomspace(100, 60000, 200))
         time_observer_frame = time_temp * (1. + redshift)
-        frequency, time = calc_kcorrected_properties(frequency=lambda_to_nu(frequency_observer_frame),
+        frequency, time = calc_kcorrected_properties(frequency=lambda_to_nu(lambda_observer_frame),
                                                      redshift=redshift, time=time_observer_frame)
         full_spec = np.zeros((len(frequency), len(time)))
 
@@ -360,18 +364,18 @@ def two_component_kilonova_model(time, redshift, mej_1, vej_1, temperature_floor
                                              r_photosphere=r_photosphere, frequency=frequency[:, None], dl=dl)
             fmjy = fmjy.T
             spectra = fmjy.to(uu.mJy).to(uu.erg / uu.cm ** 2 / uu.s / uu.Angstrom,
-                                         equivalencies=uu.spectral_density(wav=frequency_observer_frame * uu.Angstrom))
+                                         equivalencies=uu.spectral_density(wav=lambda_observer_frame * uu.Angstrom))
             units = spectra.unit
             full_spec += spectra.value
 
         full_spec = full_spec * units
         if kwargs['output_format'] == 'spectra':
-            return namedtuple('output', ['time', 'frequency', 'spectra'])(time=time_observer_frame,
-                                                                           frequency=frequency_observer_frame,
+            return namedtuple('output', ['time', 'lambdas', 'spectra'])(time=time_observer_frame,
+                                                                           lambdas=lambda_observer_frame,
                                                                            spectra=full_spec)
         else:
             return get_correct_output_format_from_spectra(time=time_obs, time_eval=time_observer_frame/day_to_s,
-                                                          spectra=full_spec, frequency_array=frequency_observer_frame,
+                                                          spectra=full_spec, frequency_array=lambda_observer_frame,
                                                           **kwargs)
 
 @citation_wrapper('redback')
@@ -393,6 +397,7 @@ def one_component_ejecta_relation(time, redshift, mass_1, mass_2,
     frequency to calculate - Must be same length as time array or a single number).
     :param bands: Required if output_format is 'magnitude' or 'flux'.
     :param output_format: 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
+    :param lambda_array: Optional argument to set your desired wavelength array (in Angstroms) to evaluate the SED on.
     :return: set by output format - 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
     """
     ejecta_relation = kwargs.get('ejecta_relation', ejr.OneComponentBNSNoProjection)
@@ -421,6 +426,7 @@ def one_component_ejecta_relation_projection(time, redshift, mass_1, mass_2,
     frequency to calculate - Must be same length as time array or a single number).
     :param bands: Required if output_format is 'magnitude' or 'flux'.
     :param output_format: 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
+    :param lambda_array: Optional argument to set your desired wavelength array (in Angstroms) to evaluate the SED on.
     :return: set by output format - 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
     """
     ejecta_relation = kwargs.get('ejecta_relation', ejr.OneComponentBNSProjection)
@@ -457,6 +463,7 @@ def two_component_bns_ejecta_relation(time, redshift, mass_1, mass_2,
     frequency to calculate - Must be same length as time array or a single number).
     :param bands: Required if output_format is 'magnitude' or 'flux'.
     :param output_format: 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
+    :param lambda_array: Optional argument to set your desired wavelength array (in Angstroms) to evaluate the SED on.
     :return: set by output format - 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
     """
     ejecta_relation = kwargs.get('ejecta_relation', ejr.TwoComponentBNS)
@@ -500,6 +507,7 @@ def polytrope_eos_two_component_bns(time, redshift, mass_1, mass_2,  log_p, gamm
     frequency to calculate - Must be same length as time array or a single number).
     :param bands: Required if output_format is 'magnitude' or 'flux'.
     :param output_format: 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
+    :param lambda_array: Optional argument to set your desired wavelength array (in Angstroms) to evaluate the SED on.
     :return: set by output format - 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
     """
     central_pressure = np.logspace(np.log10(4e32), np.log10(2.5e35), 70)
@@ -542,6 +550,7 @@ def one_component_nsbh_ejecta_relation(time, redshift, mass_bh, mass_ns,
     frequency to calculate - Must be same length as time array or a single number).
     :param bands: Required if output_format is 'magnitude' or 'flux'.
     :param output_format: 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
+    :param lambda_array: Optional argument to set your desired wavelength array (in Angstroms) to evaluate the SED on.
     :return: set by output format - 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
     """
     ejecta_relation = kwargs.get('ejecta_relation', ejr.OneComponentNSBH)
@@ -576,6 +585,7 @@ def two_component_nsbh_ejecta_relation(time, redshift,  mass_bh, mass_ns,
     frequency to calculate - Must be same length as time array or a single number).
     :param bands: Required if output_format is 'magnitude' or 'flux'.
     :param output_format: 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
+    :param lambda_array: Optional argument to set your desired wavelength array (in Angstroms) to evaluate the SED on.
     :return: set by output format - 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
     """
     ejecta_relation = kwargs.get('ejecta_relation', ejr.TwoComponentNSBH)
@@ -605,6 +615,7 @@ def one_component_kilonova_model(time, redshift, mej, vej, kappa, **kwargs):
     frequency to calculate - Must be same length as time array or a single number).
     :param bands: Required if output_format is 'magnitude' or 'flux'.
     :param output_format: 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
+    :param lambda_array: Optional argument to set your desired wavelength array (in Angstroms) to evaluate the SED on.
     :return: set by output format - 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
     """
     dl = cosmo.luminosity_distance(redshift).cgs.value
@@ -630,7 +641,7 @@ def one_component_kilonova_model(time, redshift, mej, vej, kappa, **kwargs):
         return flux_density.to(uu.mJy).value
 
     else:
-        lambda_observer_frame = kwargs.get('frequency_array', np.geomspace(100, 60000, 200))
+        lambda_observer_frame = kwargs.get('lambda_array', np.geomspace(100, 60000, 200))
         time_observer_frame = time_temp * (1. + redshift)
         frequency, time = calc_kcorrected_properties(frequency=lambda_to_nu(lambda_observer_frame),
                                                      redshift=redshift, time=time_observer_frame)
@@ -705,6 +716,7 @@ def metzger_kilonova_model(time, redshift, mej, vej, beta, kappa, **kwargs):
     frequency to calculate - Must be same length as time array or a single number).
     :param bands: Required if output_format is 'magnitude' or 'flux'.
     :param output_format: 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
+    :param lambda_array: Optional argument to set your desired wavelength array (in Angstroms) to evaluate the SED on.
     :return: set by output format - 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
     """
     dl = cosmo.luminosity_distance(redshift).cgs.value
@@ -731,22 +743,22 @@ def metzger_kilonova_model(time, redshift, mej, vej, beta, kappa, **kwargs):
         return flux_density.to(uu.mJy).value
 
     else:
-        frequency_observer_frame = kwargs.get('frequency_array', np.geomspace(100, 20000, 100))
+        lambda_observer_frame = kwargs.get('lambda_array', np.geomspace(100, 60000, 200))
         time_observer_frame = time_temp * (1. + redshift)
-        frequency, time = calc_kcorrected_properties(frequency=lambda_to_nu(frequency_observer_frame),
+        frequency, time = calc_kcorrected_properties(frequency=lambda_to_nu(lambda_observer_frame),
                                                      redshift=redshift, time=time_observer_frame)
         fmjy = blackbody_to_flux_density(temperature=temperature,
                                          r_photosphere=r_photosphere, frequency=frequency[:, None], dl=dl)
         fmjy = fmjy.T
         spectra = fmjy.to(uu.mJy).to(uu.erg / uu.cm ** 2 / uu.s / uu.Angstrom,
-                                     equivalencies=uu.spectral_density(wav=frequency_observer_frame * uu.Angstrom))
+                                     equivalencies=uu.spectral_density(wav=lambda_observer_frame * uu.Angstrom))
         if kwargs['output_format'] == 'spectra':
-            return namedtuple('output', ['time', 'frequency', 'spectra'])(time=time_observer_frame,
-                                                                          frequency=frequency_observer_frame,
-                                                                          spectra=spectra)
+            return namedtuple('output', ['time', 'lambdas', 'spectra'])(time=time_observer_frame,
+                                                                           lambdas=lambda_observer_frame,
+                                                                           spectra=spectra)
         else:
             return get_correct_output_format_from_spectra(time=time_obs, time_eval=time_observer_frame / day_to_s,
-                                                          spectra=spectra, frequency_array=frequency_observer_frame,
+                                                          spectra=spectra, frequency_array=lambda_observer_frame,
                                                           **kwargs)
 
 
