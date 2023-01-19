@@ -14,7 +14,8 @@ extinction_model_functions = {'supernova':extinction_models.extinction_with_supe
                               'kilonova':extinction_models.extinction_with_kilonova_base_model,
                               'afterglow':extinction_models.extinction_with_afterglow_base_model,
                               'tde':extinction_models.extinction_with_tde_base_model,
-                              'magnetar_driven':extinction_models.extinction_with_magnetar_driven_base_model}
+                              'magnetar_driven':extinction_models.extinction_with_magnetar_driven_base_model,
+                              'shock_powered':extinction_models.extinction_with_shock_powered_base_model}
 
 @citation_wrapper('redback')
 def t0_base_model(time, t0, **kwargs):
@@ -30,7 +31,14 @@ def t0_base_model(time, t0, **kwargs):
     t0 = Time(t0, format='mjd')
     time = Time(np.asarray(time, dtype=float), format='mjd')
     time = (time - t0).to(uu.day).value
-    output = function(time, **kwargs)
+    transient_time = time[time >= 0.01]
+    bad_time = time[time <= 0.01]
+    output_real = function(transient_time, **kwargs)
+    if kwargs['output_format'] == 'magnitude':
+        output_fake = np.zeros(len(bad_time)) + 5000
+    else:
+        output_fake = np.zeros(len(bad_time))
+    output = np.concatenate((output_fake, output_real))
     return output
 
 
@@ -49,8 +57,15 @@ def _t0_with_extinction(time, t0, av, model_type='supernova', **kwargs):
     t0 = Time(t0, format='mjd')
     time = Time(np.asarray(time, dtype=float), format='mjd')
     time = (time - t0).to(uu.day).value
+    transient_time = time[time >= 0.01]
+    bad_time = time[time <= 0.01]
+    output_real = function(transient_time, av=av, **kwargs)
+    if kwargs['output_format'] == 'magnitude':
+        output_fake = np.zeros(len(bad_time)) + 5000
+    else:
+        output_fake = np.zeros(len(bad_time))
     output.time = time
-    output.observable = function(time, av=av, **kwargs)
+    output.observable = np.concatenate((output_fake, output_real))
     return output
 
 @citation_wrapper('redback')
@@ -116,6 +131,19 @@ def t0_magnetar_driven_extinction(time, t0, av, **kwargs):
     :return: flux_density or magnitude depending on kwargs['output_format']
     """
     summary = _t0_with_extinction(time=time, t0=t0, av=av, model_type='magnetar_driven', **kwargs)
+    return summary.observable
+
+@citation_wrapper('redback')
+def t0_shock_powered_extinction(time, t0, av, **kwargs):
+    """
+    :param time: time in mjd
+    :param t0: start time in mjd
+    :param av: absolute mag extinction
+    :param kwargs: Must be all the parameters required by the base_model specified using kwargs['base_model']
+        and r_v, default is 3.1
+    :return: flux or magnitude depending on kwargs['output_format']
+    """
+    summary = _t0_with_extinction(time=time, t0=t0, av=av, model_type='shock_powered', **kwargs)
     return summary.observable
 
 @citation_wrapper('https://ui.adsabs.harvard.edu/abs/2021arXiv210601556S/abstract')
