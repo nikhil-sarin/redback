@@ -158,7 +158,7 @@ def sn_exponential_powerlaw(time, redshift, lbol_0, alpha_1, alpha_2, tpeak_d, *
     else:
         time_obs = time
         lambda_observer_frame = kwargs.get('lambda_array', np.geomspace(100, 60000, 100))
-        time_temp = np.geomspace(0.1, 300, 200) # in days
+        time_temp = np.geomspace(0.1, 3000, 300) # in days
         time_observer_frame = time_temp * (1. + redshift)
         frequency, time = calc_kcorrected_properties(frequency=lambda_to_nu(lambda_observer_frame),
                                                      redshift=redshift, time=time_observer_frame)
@@ -256,7 +256,7 @@ def arnett(time, redshift, f_nickel, mej, **kwargs):
     else:
         time_obs = time
         lambda_observer_frame = kwargs.get('lambda_array', np.geomspace(100, 60000, 100))
-        time_temp = np.geomspace(0.1, 300, 200) # in days
+        time_temp = np.geomspace(0.1, 3000, 300) # in days
         time_observer_frame = time_temp * (1. + redshift)
         frequency, time = calc_kcorrected_properties(frequency=lambda_to_nu(lambda_observer_frame),
                                                      redshift=redshift, time=time_observer_frame)
@@ -336,7 +336,7 @@ def shock_cooling_and_arnett(time, redshift, log10_mass, log10_radius, log10_ene
     else:
         time_obs = time
         lambda_observer_frame = kwargs.get('lambda_array', np.geomspace(100, 60000, 100))
-        time_temp = np.geomspace(0.1, 300, 200)  # in days
+        time_temp = np.geomspace(0.1, 3000, 300)  # in days
         time_observer_frame = time_temp * (1. + redshift)
         frequency, time = calc_kcorrected_properties(frequency=lambda_to_nu(lambda_observer_frame),
                                                      redshift=redshift, time=time_observer_frame)
@@ -422,7 +422,7 @@ def basic_magnetar_powered(time, redshift, p0, bp, mass_ns, theta_pb,**kwargs):
     else:
         time_obs = time
         lambda_observer_frame = kwargs.get('lambda_array', np.geomspace(100, 60000, 100))
-        time_temp = np.geomspace(0.1, 300, 200) # in days
+        time_temp = np.geomspace(0.1, 3000, 300) # in days
         time_observer_frame = time_temp * (1. + redshift)
         frequency, time = calc_kcorrected_properties(frequency=lambda_to_nu(lambda_observer_frame),
                                                      redshift=redshift, time=time_observer_frame)
@@ -509,7 +509,7 @@ def slsn(time, redshift, p0, bp, mass_ns, theta_pb,**kwargs):
     else:
         time_obs = time
         lambda_observer_frame = kwargs.get('lambda_array', np.geomspace(100, 60000, 100))
-        time_temp = np.geomspace(0.1, 300, 200)  # in days
+        time_temp = np.geomspace(0.1, 3000, 300)  # in days
         time_observer_frame = time_temp * (1. + redshift)
         frequency, time = calc_kcorrected_properties(frequency=lambda_to_nu(lambda_observer_frame),
                                                      redshift=redshift, time=time_observer_frame)
@@ -589,7 +589,7 @@ def magnetar_nickel(time, redshift, f_nickel, mej, p0, bp, mass_ns, theta_pb, **
     else:
         time_obs = time
         lambda_observer_frame = kwargs.get('lambda_array', np.geomspace(100, 60000, 100))
-        time_temp = np.geomspace(0.1, 300, 200)  # in days
+        time_temp = np.geomspace(0.1, 3000, 300)  # in days
         time_observer_frame = time_temp * (1. + redshift)
         frequency, time = calc_kcorrected_properties(frequency=lambda_to_nu(lambda_observer_frame),
                                                      redshift=redshift, time=time_observer_frame)
@@ -726,7 +726,7 @@ def homologous_expansion_supernova_model(time, redshift, mej, ek, **kwargs):
     else:
         time_obs = time
         lambda_observer_frame = kwargs.get('lambda_array', np.geomspace(100, 60000, 100))
-        time_temp = np.geomspace(0.1, 300, 200)  # in days
+        time_temp = np.geomspace(0.1, 3000, 300)  # in days
         time_observer_frame = time_temp * (1. + redshift)
         frequency, time = calc_kcorrected_properties(frequency=lambda_to_nu(lambda_observer_frame),
                                                      redshift=redshift, time=time_observer_frame)
@@ -790,7 +790,7 @@ def thin_shell_supernova_model(time, redshift, mej, ek, **kwargs):
     else:
         time_obs = time
         lambda_observer_frame = kwargs.get('lambda_array', np.geomspace(100, 60000, 100))
-        time_temp = np.geomspace(0.1, 300, 200)  # in days
+        time_temp = np.geomspace(0.1, 3000, 300)  # in days
         time_observer_frame = time_temp * (1. + redshift)
         frequency, time = calc_kcorrected_properties(frequency=lambda_to_nu(lambda_observer_frame),
                                                      redshift=redshift, time=time_observer_frame)
@@ -987,7 +987,7 @@ def csm_interaction(time, redshift, mej, csm_mass, vej, eta, rho, kappa, r0, **k
     else:
         time_obs = time
         lambda_observer_frame = kwargs.get('lambda_array', np.geomspace(100, 60000, 100))
-        time_temp = np.geomspace(0.1, 300, 200)  # in days
+        time_temp = np.geomspace(0.1, 3000, 300)  # in days
         time_observer_frame = time_temp * (1. + redshift)
         frequency, time = calc_kcorrected_properties(frequency=lambda_to_nu(lambda_observer_frame),
                                                      redshift=redshift, time=time_observer_frame)
@@ -1055,7 +1055,7 @@ def csm_nickel(time, redshift, mej, f_nickel, csm_mass, ek, eta, rho, kappa, r0,
     else:
         time_obs = time
         lambda_observer_frame = kwargs.get('lambda_array', np.geomspace(100, 60000, 100))
-        time_temp = np.geomspace(0.1, 300, 200)  # in days
+        time_temp = np.geomspace(0.1, 3000, 300)  # in days
         time_observer_frame = time_temp * (1. + redshift)
         frequency, time = calc_kcorrected_properties(frequency=lambda_to_nu(lambda_observer_frame),
                                                      redshift=redshift, time=time_observer_frame)
@@ -1118,7 +1118,7 @@ def type_1a(time, redshift, f_nickel, mej, **kwargs):
     else:
         time_obs = time
         lambdas_observer_frame = kwargs.get('lambda_array', np.geomspace(100, 60000, 100))
-        time_temp = np.geomspace(0.1, 300, 200)  # in days
+        time_temp = np.geomspace(0.1, 3000, 300)  # in days
         time_observer_frame = time_temp * (1. + redshift)
         frequency, time = calc_kcorrected_properties(frequency=lambda_to_nu(lambdas_observer_frame),
                                                      redshift=redshift, time=time_observer_frame)
@@ -1146,7 +1146,7 @@ def type_1a(time, redshift, f_nickel, mej, **kwargs):
 
 
 @citation_wrapper('https://ui.adsabs.harvard.edu/abs/2018ApJS..236....6G/abstract')
-def type_1c(time, redshift, f_nickel, mej, **kwargs):
+def type_1c(time, redshift, f_nickel, mej, pp, **kwargs):
     """
     A nickel powered explosion with synchrotron and blackbody SED's for SNe 1C.
 
@@ -1154,7 +1154,8 @@ def type_1c(time, redshift, f_nickel, mej, **kwargs):
     :param redshift: source redshift
     :param f_nickel: fraction of nickel mass
     :param mej: ejecta mass in solar masses
-    :param kwargs: kappa, kappa_gamma, vej (km/s), temperature_floor (K), pp, nu_max (default is 1e9 Hz)
+    :param pp: power law index for synchrotron
+    :param kwargs: kappa, kappa_gamma, vej (km/s), temperature_floor (K), nu_max (default is 1e9 Hz)
             source_radius (default is 1e13), f0: synchrotron normalisation (default is 1e-26).
     :param frequency: Required if output_format is 'flux_density'.
     frequency to calculate - Must be same length as time array or a single number).
@@ -1163,8 +1164,8 @@ def type_1c(time, redshift, f_nickel, mej, **kwargs):
     :param lambda_array: Optional argument to set your desired wavelength array (in Angstroms) to evaluate the SED on.
     :return: set by output format - 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
     """
-    pp = kwargs['pp']
     nu_max = kwargs.get('nu_max', 1e9)
+    f0 = kwargs.get('f0', 1e-26)
     dl = cosmo.luminosity_distance(redshift).cgs.value
 
     if kwargs['output_format'] == 'flux_density':
@@ -1176,13 +1177,13 @@ def type_1c(time, redshift, f_nickel, mej, **kwargs):
         photo = photosphere.TemperatureFloor(time=time, luminosity=lbol, **kwargs)
         sed_1 = sed.Blackbody(temperature=photo.photosphere_temperature,
                               r_photosphere=photo.r_photosphere,frequency=frequency, luminosity_distance=dl)
-        sed_2 = sed.Synchrotron(frequency=frequency, luminosity_distance=dl, pp=pp, nu_max=nu_max, **kwargs)
+        sed_2 = sed.Synchrotron(frequency=frequency, luminosity_distance=dl, pp=pp, nu_max=nu_max,f0=f0)
         flux_density = sed_1.flux_density + sed_2.flux_density
         return flux_density.to(uu.mJy).value
     else:
         time_obs = time
         lambda_observer_frame = kwargs.get('lambda_array', np.geomspace(100, 60000, 100))
-        time_temp = np.geomspace(0.1, 300, 200)  # in days
+        time_temp = np.geomspace(0.1, 3000, 300)  # in days
         time_observer_frame = time_temp * (1. + redshift)
         frequency, time = calc_kcorrected_properties(frequency=lambda_to_nu(lambda_observer_frame),
                                                      redshift=redshift, time=time_observer_frame)
@@ -1191,7 +1192,7 @@ def type_1c(time, redshift, f_nickel, mej, **kwargs):
         photo = photosphere.TemperatureFloor(time=time, luminosity=lbol, **kwargs)
         sed_1 = sed.Blackbody(temperature=photo.photosphere_temperature,
                               r_photosphere=photo.r_photosphere,frequency=frequency[:,None], luminosity_distance=dl)
-        sed_2 = sed.Synchrotron(frequency=frequency, luminosity_distance=dl, pp=pp, nu_max=nu_max, **kwargs)
+        sed_2 = sed.Synchrotron(frequency=frequency[:, None], luminosity_distance=dl, pp=pp, nu_max=nu_max, f0=f0)
         flux_density = sed_1.flux_density + sed_2.flux_density
         fmjy = flux_density.T
         spectra = fmjy.to(uu.mJy).to(uu.erg / uu.cm ** 2 / uu.s / uu.Angstrom,
@@ -1265,7 +1266,7 @@ def general_magnetar_slsn(time, redshift, l0, tsd, nn, ** kwargs):
     else:
         time_obs = time
         lambda_observer_frame = kwargs.get('lambda_array', np.geomspace(100, 60000, 100))
-        time_temp = np.geomspace(0.1, 300, 200)  # in days
+        time_temp = np.geomspace(0.1, 3000, 300)  # in days
         time_observer_frame = time_temp * (1. + redshift)
         frequency, time = calc_kcorrected_properties(frequency=lambda_to_nu(lambda_observer_frame),
                                                      redshift=redshift, time=time_observer_frame)

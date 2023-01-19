@@ -222,6 +222,8 @@ class Synchrotron(_SED):
 
     def _set_sed(self):
         self.sed = np.zeros(len(self.frequency))
+        if self.frequency.ndim == 2:
+            self.sed = np.zeros((len(self.frequency), 1))
         self.sed[self.mask] = \
             self.f0 * self.source_radius**2 * (self.frequency[self.mask]/self.nu_max) ** 2.5 \
             * angstrom_cgs / speed_of_light * self.frequency[self.mask] ** 2
