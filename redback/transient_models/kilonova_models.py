@@ -167,7 +167,7 @@ def _kilonova_hr(time, redshift, mej, velocity_array, kappa_array, beta, **kwarg
                                                                           spectra=spectra)
         else:
             return get_correct_output_format_from_spectra(time=time_obs, time_eval=time_observer_frame / day_to_s,
-                                                          spectra=spectra, frequency_array=lambda_observer_frame,
+                                                          spectra=spectra, lambda_array=lambda_observer_frame,
                                                           **kwargs)
 
 
@@ -287,7 +287,7 @@ def three_component_kilonova_model(time, redshift, mej_1, vej_1, temperature_flo
                                                                           spectra=full_spec)
         else:
             return get_correct_output_format_from_spectra(time=time_obs, time_eval=time_observer_frame / day_to_s,
-                                                          spectra=full_spec, frequency_array=lambda_observer_frame,
+                                                          spectra=full_spec, lambda_array=lambda_observer_frame,
                                                           **kwargs)
 
 
@@ -375,7 +375,7 @@ def two_component_kilonova_model(time, redshift, mej_1, vej_1, temperature_floor
                                                                            spectra=full_spec)
         else:
             return get_correct_output_format_from_spectra(time=time_obs, time_eval=time_observer_frame/day_to_s,
-                                                          spectra=full_spec, frequency_array=lambda_observer_frame,
+                                                          spectra=full_spec, lambda_array=lambda_observer_frame,
                                                           **kwargs)
 
 @citation_wrapper('redback')
@@ -656,7 +656,7 @@ def one_component_kilonova_model(time, redshift, mej, vej, kappa, **kwargs):
                                                                            spectra=spectra)
         else:
             return get_correct_output_format_from_spectra(time=time_obs, time_eval=time_observer_frame/day_to_s,
-                                                          spectra=spectra, frequency_array=lambda_observer_frame,
+                                                          spectra=spectra, lambda_array=lambda_observer_frame,
                                                           **kwargs)
 
 def _one_component_kilonova_model(time, mej, vej, kappa, **kwargs):
@@ -758,7 +758,7 @@ def metzger_kilonova_model(time, redshift, mej, vej, beta, kappa, **kwargs):
                                                                            spectra=spectra)
         else:
             return get_correct_output_format_from_spectra(time=time_obs, time_eval=time_observer_frame / day_to_s,
-                                                          spectra=spectra, frequency_array=lambda_observer_frame,
+                                                          spectra=spectra, lambda_array=lambda_observer_frame,
                                                           **kwargs)
 
 
