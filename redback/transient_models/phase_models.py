@@ -32,7 +32,7 @@ def t0_base_model(time, t0, **kwargs):
     time = Time(np.asarray(time, dtype=float), format='mjd')
     time = (time - t0).to(uu.day).value
     transient_time = time[time >= 0.01]
-    bad_time = time[time <= 0.01]
+    bad_time = time[time < 0.01]
     output_real = function(transient_time, **kwargs)
     if kwargs['output_format'] == 'magnitude':
         output_fake = np.zeros(len(bad_time)) + 5000
@@ -58,7 +58,7 @@ def _t0_with_extinction(time, t0, av, model_type='supernova', **kwargs):
     time = Time(np.asarray(time, dtype=float), format='mjd')
     time = (time - t0).to(uu.day).value
     transient_time = time[time >= 0.01]
-    bad_time = time[time <= 0.01]
+    bad_time = time[time < 0.01]
     output_real = function(transient_time, av=av, **kwargs)
     if kwargs['output_format'] == 'magnitude':
         output_fake = np.zeros(len(bad_time)) + 5000
