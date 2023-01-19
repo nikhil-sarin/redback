@@ -71,8 +71,8 @@ def _mosfit_bns(time, mass_1, mass_2, lambda_s, kappa_red, kappa_blue,
     raise NotImplementedError("This model is not yet implemented.")
 
 @citation_wrapper('https://ui.adsabs.harvard.edu/abs/2021MNRAS.505.3016N/abstract')
-def mosfit_bns(time, redshift, mass_1, mass_2, lambda_s, kappa_red, kappa_blue,
-               mtov, epsilon, alpha, cos_theta_open, **kwargs):
+def nicholl_bns(time, redshift, mass_1, mass_2, lambda_s, kappa_red, kappa_blue,
+                mtov, epsilon, alpha, cos_theta_open, **kwargs):
     raise NotImplementedError("This model is not yet implemented.")
 
 @citation_wrapper('https://ui.adsabs.harvard.edu/abs/2017ApJ...851L..21V/abstract')
@@ -90,6 +90,15 @@ def mosfit_kilonova():
 @citation_wrapper("redback,https://ui.adsabs.harvard.edu/abs/2020ApJ...891..152H/abstract")
 def power_law_stratified_kilonova(time, redshift, mej, vmin, vmax, alpha,
                                   kappa_min, kappa_max, beta, **kwargs):
+    raise NotImplementedError("This model is not yet implemented.")
+
+def bulla_bns_kilonova(time, redshift, mej, vej, kappa, **kwargs):
+    raise NotImplementedError("This model is not yet implemented.")
+
+def bulla_nsbh_kilonova(time, redshift, mej, vej, kappa, **kwargs):
+    raise NotImplementedError("This model is not yet implemented.")
+
+def kasen_bns_kilonova(time, redshift, mej, vej, kappa, **kwargs):
     raise NotImplementedError("This model is not yet implemented.")
 
 @citation_wrapper('https://ui.adsabs.harvard.edu/abs/2020ApJ...891..152H/abstract')
