@@ -92,15 +92,148 @@ def power_law_stratified_kilonova(time, redshift, mej, vmin, vmax, alpha,
                                   kappa_min, kappa_max, beta, **kwargs):
     raise NotImplementedError("This model is not yet implemented.")
 
-def bulla_bns_kilonova(time, redshift, mej, vej, kappa, **kwargs):
-    raise NotImplementedError("This model is not yet implemented.")
+@citation_wrapper('https://ui.adsabs.harvard.edu/abs/2022MNRAS.516.1137L/abstract')
+def bulla_bns_kilonova(time, redshift, mej_dyn, mej_disk, phi, costheta_obs, **kwargs):
+    """
+    Kilonovanet model based on Bulla BNS merger simulations
 
-def bulla_nsbh_kilonova(time, redshift, mej, vej, kappa, **kwargs):
-    raise NotImplementedError("This model is not yet implemented.")
+    :param time: time in days in observer frame
+    :param redshift: redshift
+    :param mej_dyn: dynamical mass of ejecta in solar masses
+    :param mej_disk: disk mass of ejecta in solar masses
+    :param phi: half-opening angle of the lanthanide-rich tidal dynamical ejecta in degrees
+    :param costheta_obs: cosine of the observers viewing angle
+    :param kwargs: Additional keyword arguments
+    :param frequency: Required if output_format is 'flux_density'.
+    frequency to calculate - Must be same length as time array or a single number).
+    :param bands: Required if output_format is 'magnitude' or 'flux'.
+    :param output_format: 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
+    :return: set by output format - 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
+    """
+    from redback_surrogates.kilonovamodels import bulla_bns_kilonovanet_spectra as function
 
-def kasen_bns_kilonova(time, redshift, mej, vej, kappa, **kwargs):
-    raise NotImplementedError("This model is not yet implemented.")
+    dl = cosmo.luminosity_distance(redshift).cgs.value
 
+    if kwargs['output_format'] == 'flux_density':
+        frequency = kwargs['frequency']
+        time, frequency = calc_kcorrected_properties(frequency=frequency, time=time, redshift=redshift)
+        output = function(time_source_frame=time, redshift=redshift, mej_dyn=mej_dyn,
+                          mej_disk=mej_disk, phi=phi, costheta_obs=costheta_obs)
+        spectra = output.spectra / (4 * np.pi * dl ** 2)  # to erg/s/cm^2/Angstrom
+        spectra = spectra * uu.erg / (uu.s * uu.cm ** 2 * uu.Angstrom)
+        fmjy = spectra.to(uu.mJy).value
+        nu_array = lambda_to_nu(output.lambas)
+        fmjy_func = interp1d(nu_array, fmjy)
+        return fmjy_func(frequency)
+    else:
+        time_source_frame = np.linspace(0.1, 20, 200)
+        output = function(time_source_frame=time_source_frame, redshift=redshift, mej_dyn=mej_dyn,
+                          mej_disk=mej_disk, phi=phi, costheta_obs=costheta_obs)
+        if kwargs['output_format'] == 'spectra':
+            return output
+        else:
+            time_observer_frame = output.time
+            lambda_observer_frame = output.lambdas
+            spectra = output.spectra / (4 * np.pi * dl ** 2) # to erg/s/cm^2/Angstrom
+            spectra = spectra * uu.erg / (uu.s * uu.cm ** 2 * uu.Angstrom)
+            time_obs = time
+            return get_correct_output_format_from_spectra(time=time_obs, time_eval=time_observer_frame / day_to_s,
+                                                   spectra=spectra, lambda_array=lambda_observer_frame,
+                                                   **kwargs)
+
+@citation_wrapper('https://ui.adsabs.harvard.edu/abs/2022MNRAS.516.1137L/abstract')
+def bulla_nsbh_kilonova(time, redshift, mej_dyn, mej_disk, costheta_obs, **kwargs):
+    """
+    Kilonovanet model based on Bulla NSBH merger simulations
+
+    :param time: time in observer frame in days
+    :param redshift: redshift
+    :param mej_dyn: dynamical mass of ejecta in solar masses
+    :param mej_disk: disk mass of ejecta in solar masses
+    :param costheta_obs: cosine of the observers viewing angle
+    :param kwargs: Additional keyword arguments
+    :param frequency: Required if output_format is 'flux_density'.
+    frequency to calculate - Must be same length as time array or a single number).
+    :param bands: Required if output_format is 'magnitude' or 'flux'.
+    :param output_format: 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
+    :return: set by output format - 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
+    """
+    from redback_surrogates.kilonovamodels import bulla_nsbh_kilonovanet_spectra as function
+
+    dl = cosmo.luminosity_distance(redshift).cgs.value
+
+    if kwargs['output_format'] == 'flux_density':
+        frequency = kwargs['frequency']
+        time, frequency = calc_kcorrected_properties(frequency=frequency, time=time, redshift=redshift)
+        output = function(time_source_frame=time, redshift=redshift, mej_dyn=mej_dyn,
+                          mej_disk=mej_disk, costheta_obs=costheta_obs)
+        spectra = output.spectra / (4 * np.pi * dl ** 2)  # to erg/s/cm^2/Angstrom
+        spectra = spectra * uu.erg / (uu.s * uu.cm ** 2 * uu.Angstrom)
+        fmjy = spectra.to(uu.mJy).value
+        nu_array = lambda_to_nu(output.lambas)
+        fmjy_func = interp1d(nu_array, fmjy)
+        return fmjy_func(frequency)
+    else:
+        time_source_frame = np.linspace(0.1, 20, 200)
+        output = function(time_source_frame=time_source_frame, redshift=redshift, mej_dyn=mej_dyn,
+                          mej_disk=mej_disk, costheta_obs=costheta_obs)
+        if kwargs['output_format'] == 'spectra':
+            return output
+        else:
+            time_observer_frame = output.time
+            lambda_observer_frame = output.lambdas
+            spectra = output.spectra / (4 * np.pi * dl ** 2) # to erg/s/cm^2/Angstrom
+            spectra = spectra * uu.erg / (uu.s * uu.cm ** 2 * uu.Angstrom)
+            time_obs = time
+            return get_correct_output_format_from_spectra(time=time_obs, time_eval=time_observer_frame / day_to_s,
+                                                   spectra=spectra, lambda_array=lambda_observer_frame,
+                                                   **kwargs)
+
+@citation_wrapper('https://ui.adsabs.harvard.edu/abs/2022MNRAS.516.1137L/abstract')
+def kasen_bns_kilonova(time, redshift, mej, vej, chi, **kwargs):
+    """
+    Kilonovanet model based on Kasen BNS simulations
+
+    :param time: time in days in observer frame
+    :param redshift: redshift
+    :param mej: ejecta mass in solar masses
+    :param vej: ejecta velocity in units of c
+    :param chi: lanthanide fraction
+    :param kwargs: Additional keyword arguments
+    :param frequency: Required if output_format is 'flux_density'.
+    frequency to calculate - Must be same length as time array or a single number).
+    :param bands: Required if output_format is 'magnitude' or 'flux'.
+    :param output_format: 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
+    :return: set by output format - 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
+    """
+    from redback_surrogates.kilonovamodels import kasen_bns_kilonovanet_spectra as function
+
+    dl = cosmo.luminosity_distance(redshift).cgs.value
+
+    if kwargs['output_format'] == 'flux_density':
+        frequency = kwargs['frequency']
+        time, frequency = calc_kcorrected_properties(frequency=frequency, time=time, redshift=redshift)
+        output = function(time_source_frame=time,redshift=redshift, mej=mej, vej=vej, chi=chi)
+        spectra = output.spectra / (4 * np.pi * dl ** 2) # to erg/s/cm^2/Angstrom
+        spectra = spectra * uu.erg / (uu.s * uu.cm ** 2 * uu.Angstrom)
+        fmjy = spectra.to(uu.mJy).value
+        nu_array = lambda_to_nu(output.lambas)
+        fmjy_func = interp1d(nu_array, fmjy)
+        return fmjy_func(frequency)
+    else:
+        time_source_frame = np.linspace(0.1, 20, 200)
+        output = function(time_source_frame=time_source_frame, redshift=redshift, mej=mej, vej=vej, chi=chi)
+        if kwargs['output_format'] == 'spectra':
+            return output
+        else:
+            time_observer_frame = output.time
+            lambda_observer_frame = output.lambdas
+            spectra = output.spectra / (4 * np.pi * dl ** 2) # to erg/s/cm^2/Angstrom
+            spectra = spectra * uu.erg / (uu.s * uu.cm ** 2 * uu.Angstrom)
+            time_obs = time
+            return get_correct_output_format_from_spectra(time=time_obs, time_eval=time_observer_frame / day_to_s,
+                                                   spectra=spectra, lambda_array=lambda_observer_frame,
+                                                   **kwargs)
 @citation_wrapper('https://ui.adsabs.harvard.edu/abs/2020ApJ...891..152H/abstract')
 def two_layer_stratified_kilonova(time, redshift, mej, vej_1, vej_2, kappa, beta, **kwargs):
     """
@@ -178,7 +311,6 @@ def _kilonova_hr(time, redshift, mej, velocity_array, kappa_array, beta, **kwarg
             return get_correct_output_format_from_spectra(time=time_obs, time_eval=time_observer_frame / day_to_s,
                                                           spectra=spectra, lambda_array=lambda_observer_frame,
                                                           **kwargs)
-
 
 def _kilonova_hr_sourceframe(time, mej, velocity_array, kappa_array, beta):
     """
