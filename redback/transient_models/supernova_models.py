@@ -1090,7 +1090,12 @@ def type_1a(time, redshift, f_nickel, mej, **kwargs):
     :param f_nickel: fraction of nickel mass
     :param mej: ejecta mass in solar masses
     :param kwargs: kappa, kappa_gamma, vej (km/s),
-                    temperature_floor (K), Cutoff_wavelength (default is 3000 Angstrom)
+    temperature_floor (K), cutoff_wavelength (default is 3000 Angstrom)
+    :param line_wavelength: line wavelength in angstrom, default is 7.5e3 Angstrom in observer frame
+    :param line_width: line width in angstrom, default is 500
+    :param line_time: line time, default is 50
+    :param line_duration: line duration, default is 25
+    :param line_amplitude: line amplitude, default is 0.3
     :param frequency: Required if output_format is 'flux_density'.
     frequency to calculate - Must be same length as time array or a single number).
     :param bands: Required if output_format is 'magnitude' or 'flux'.
@@ -1100,6 +1105,11 @@ def type_1a(time, redshift, f_nickel, mej, **kwargs):
     """
     dl = cosmo.luminosity_distance(redshift).cgs.value
     cutoff_wavelength = kwargs.get('cutoff_wavelength', 3000)
+    line_wavelength = kwargs.get('line_wavelength',7.5e3)
+    line_width = kwargs.get('line_width', 500)
+    line_time = kwargs.get('line_time', 50)
+    line_duration = kwargs.get('line_duration', 25)
+    line_amplitude = kwargs.get('line_amplitude', 0.3)
 
     if kwargs['output_format'] == 'flux_density':
         frequency = kwargs['frequency']
@@ -1112,7 +1122,9 @@ def type_1a(time, redshift, f_nickel, mej, **kwargs):
                                     r_photosphere=photo.r_photosphere,frequency=frequency, luminosity_distance=dl,
                                     cutoff_wavelength=cutoff_wavelength)
         sed_2 = sed.Line(time=time, luminosity=lbol, frequency=frequency, luminosity_distance=dl,
-                         sed=sed_1, **kwargs)
+                         sed=sed_1, line_wavelength=line_wavelength,
+                         line_width=line_width, line_time=line_time,
+                         line_duration=line_duration, line_amplitude=line_amplitude)
         flux_density = sed_2.flux_density
         return flux_density.to(uu.mJy).value
     else:
@@ -1131,7 +1143,9 @@ def type_1a(time, redshift, f_nickel, mej, **kwargs):
                                r_photosphere=photo.r_photosphere, frequency=frequency[ii],
                                luminosity_distance=dl, cutoff_wavelength=cutoff_wavelength, luminosity=lbol)
             sed_2 = sed.Line(time=time, luminosity=lbol, frequency=frequency[ii], luminosity_distance=dl,
-                         sed=ss, **kwargs)
+                             sed=ss, line_wavelength=line_wavelength,
+                             line_width=line_width, line_time=line_time,
+                             line_duration=line_duration, line_amplitude=line_amplitude)
             full_sed[:,ii] = sed_2.flux_density.to(uu.mJy).value
         spectra = (full_sed * uu.mJy).to(uu.erg / uu.cm ** 2 / uu.s / uu.Angstrom,
                                          equivalencies=uu.spectral_density(wav=lambdas_observer_frame * uu.Angstrom))
