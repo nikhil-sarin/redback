@@ -195,6 +195,7 @@ def metzger_tde(time, redshift,  mbh_6, stellar_mass, eta, alpha, beta, **kwargs
         frequency to calculate - Must be same length as time array or a single number).
     :param bands: Required if output_format is 'magnitude' or 'flux'.
     :param output_format: 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
+    :param lambda_array: Optional argument to set your desired wavelength array (in Angstroms) to evaluate the SED on.
     :return: set by output format - 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
     """
     output = _metzger_tde(mbh_6, stellar_mass, eta, alpha, beta, **kwargs)
@@ -221,25 +222,25 @@ def metzger_tde(time, redshift,  mbh_6, stellar_mass, eta, alpha, beta, **kwargs
                                                  dl=dl, frequency=frequency)
         return flux_density.to(uu.mJy).value
     else:
-        frequency_observer_frame = kwargs.get('frequency_array', np.geomspace(100, 20000, 100))
+        lambda_observer_frame = kwargs.get('lambda_array', np.geomspace(100, 60000, 100))
         time_observer_frame = output.time_since_fb * (1. + redshift)
 
-        frequency, time = calc_kcorrected_properties(frequency=lambda_to_nu(frequency_observer_frame),
+        frequency, time = calc_kcorrected_properties(frequency=lambda_to_nu(lambda_observer_frame),
                                                      redshift=redshift, time=time_observer_frame)
         fmjy = sed.blackbody_to_flux_density(temperature=output.photosphere_temperature,
                                              r_photosphere=output.photosphere_radius,
                                              frequency=frequency[:, None], dl=dl)
         fmjy = fmjy.T
         spectra = fmjy.to(uu.mJy).to(uu.erg / uu.cm ** 2 / uu.s / uu.Angstrom,
-                                     equivalencies=uu.spectral_density(wav=frequency_observer_frame * uu.Angstrom))
+                                     equivalencies=uu.spectral_density(wav=lambda_observer_frame * uu.Angstrom))
         if kwargs['output_format'] == 'spectra':
-            return namedtuple('output', ['time', 'frequency', 'spectra'])(time=time_observer_frame,
-                                                                          frequency=frequency_observer_frame,
+            return namedtuple('output', ['time', 'lambdas', 'spectra'])(time=time_observer_frame,
+                                                                          lambdas=lambda_observer_frame,
                                                                           spectra=spectra)
         else:
             return sed.get_correct_output_format_from_spectra(time=time_obs, time_eval=time_observer_frame / cc.day_to_s,
-                                                          spectra=spectra, frequency_array=frequency_observer_frame,
-                                                          **kwargs)
+                                                              spectra=spectra, lambda_array=lambda_observer_frame,
+                                                              **kwargs)
 
 @citation_wrapper('redback,https://ui.adsabs.harvard.edu/abs/2022arXiv220707136M/abstract')
 def gaussianrise_metzger_tde(time, redshift, peak_time, sigma, mbh_6, stellar_mass, eta, alpha, beta, **kwargs):
@@ -258,6 +259,7 @@ def gaussianrise_metzger_tde(time, redshift, peak_time, sigma, mbh_6, stellar_ma
         frequency to calculate - Must be same length as time array or a single number).
     :param bands: Required if output_format is 'magnitude' or 'flux'.
     :param output_format: 'flux_density', 'magnitude', 'flux'
+    :param lambda_array: Optional argument to set your desired wavelength array (in Angstroms) to evaluate the SED on.
     :return: set by output format - 'flux_density', 'magnitude', 'flux'
     """
     binding_energy_const = kwargs.get('binding_energy_const', 0.8)
@@ -377,6 +379,7 @@ def tde_analytical(time, redshift, l0, t_0, **kwargs):
         frequency to calculate - Must be same length as time array or a single number).
     :param bands: Required if output_format is 'magnitude' or 'flux'.
     :param output_format: 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
+    :param lambda_array: Optional argument to set your desired wavelength array (in Angstroms) to evaluate the SED on.
     :return: set by output format - 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
     """
     kwargs['interaction_process'] = kwargs.get("interaction_process", ip.Diffusion)
@@ -398,10 +401,10 @@ def tde_analytical(time, redshift, l0, t_0, **kwargs):
         return flux_density.to(uu.mJy).value
     else:
         time_obs = time
-        frequency_observer_frame = kwargs.get('frequency_array', np.geomspace(100, 20000, 100))
+        lambda_observer_frame = kwargs.get('lambda_array', np.geomspace(100, 60000, 100))
         time_temp = np.geomspace(0.1, 300, 200) # in days
         time_observer_frame = time_temp * (1. + redshift)
-        frequency, time = calc_kcorrected_properties(frequency=lambda_to_nu(frequency_observer_frame),
+        frequency, time = calc_kcorrected_properties(frequency=lambda_to_nu(lambda_observer_frame),
                                                      redshift=redshift, time=time_observer_frame)
         lbol = tde_analytical_bolometric(time=time, l0=l0, t_0=t_0, **kwargs)
         photo = kwargs['photosphere'](time=time, luminosity=lbol, **kwargs)
@@ -412,15 +415,15 @@ def tde_analytical(time, redshift, l0, t_0, **kwargs):
                                 luminosity_distance=dl, cutoff_wavelength=cutoff_wavelength, luminosity=lbol)
             full_sed[:, ii] = ss.flux_density.to(uu.mJy).value
         spectra = (full_sed * uu.mJy).to(uu.erg / uu.cm ** 2 / uu.s / uu.Angstrom,
-                                     equivalencies=uu.spectral_density(wav=frequency_observer_frame * uu.Angstrom))
+                                     equivalencies=uu.spectral_density(wav=lambda_observer_frame * uu.Angstrom))
         if kwargs['output_format'] == 'spectra':
-            return namedtuple('output', ['time', 'frequency', 'spectra'])(time=time_observer_frame,
-                                                                           frequency=frequency_observer_frame,
+            return namedtuple('output', ['time', 'lambdas', 'spectra'])(time=time_observer_frame,
+                                                                           lambdas=lambda_observer_frame,
                                                                            spectra=spectra)
         else:
             return sed.get_correct_output_format_from_spectra(time=time_obs, time_eval=time_observer_frame,
-                                                          spectra=spectra, frequency_array=frequency_observer_frame,
-                                                          **kwargs)
+                                                              spectra=spectra, lambda_array=lambda_observer_frame,
+                                                              **kwargs)
 
 @citation_wrapper('https://ui.adsabs.harvard.edu/abs/2019ApJ...872..151M/abstract')
 def tde_semianalytical():
