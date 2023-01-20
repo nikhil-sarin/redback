@@ -951,7 +951,7 @@ def general_magnetar_slsn(time, redshift, l0, tsd, nn, ** kwargs):
         
 def general_magnetar_driven_supernova_bolometric(time, mej, E_sn, ejecta_radius, kappa, n_ism, l0, tau_sd, nn,
                kappa_gamma, **kwargs):   
-     """
+    """
     :param time: time in observer frame in days
     :param mej: ejecta mass in solar units
     :param E_sn: supernova explosion energy
@@ -975,7 +975,6 @@ def general_magnetar_driven_supernova_bolometric(time, mej, E_sn, ejecta_radius,
     pair_cascade_switch = kwargs.get('pair_cascade_switch', False)
     time_temp = np.geomspace(1e-4, 1e9, 3000, endpoint=True)
     magnetar_luminosity = magnetar_only(time=time_temp, l0=l0, tau=tau_sd, nn=nn)
-    #magnetar_luminosity = basic_magnetar(time=time_temp, p0=p0, bp=bp, mass_ns=mass_ns, theta_pb=theta_pb)
     beta = np.sqrt(E_sn / (0.5 * mej * solar_mass)) / speed_of_light
     
     output = _ejecta_dynamics_and_interaction(time=time_temp, mej=mej,
@@ -984,24 +983,22 @@ def general_magnetar_driven_supernova_bolometric(time, mej, E_sn, ejecta_radius,
                                               kappa_gamma=kappa_gamma, pair_cascade_switch=pair_cascade_switch,
                                               use_gamma_ray_opacity=True, use_r_process=False, **kwargs)
     vej = velocity_from_lorentz_factor(output.lorentz_factor)/km_cgs 
-    kwargs['vej'] = vej                                      
-    photo = _photosphere(time=time_temp/day_to_s, luminosity=output.bolometric_luminosity, **kwargs)                                          
+    kwargs['vej'] = vej                                                                             
     lbol_func = interp1d(time_temp, y=output.bolometric_luminosity)
     vej_func = interp1d(time_temp, y=vej)
     # convert to source frame time and frequency
     time = time * day_to_s
     
-    rad = rad_func(time)
     lbol = lbol_func(time)
     v_ej = vej_func(time)
     
-    dynamics_output = namedtuple('dynamics_output', ['v_ej', 'radius', 'tau', 'time', 'kinetic_energy', 'erad_total',
+    dynamics_output = namedtuple('dynamics_output', ['v_ej', 'tau', 'time', 'bolometric_luminosity', 'kinetic_energy', 'erad_total',
                                                      'thermalisation_efficiency', 'magnetar_luminosity', 'erot_total'])
 
     dynamics_output.v_ej = vej
-    dynamics_output.radius = rad
     dynamics_output.tau = output.tau
     dynamics_output.time = output.time
+    dynamics_output.bolometric_luminosity = output.bolometric_luminosity #lbol
     dynamics_output.kinetic_energy = output.kinetic_energy #0.5*mej*solar_mass*(v_ej*km_cgs)**2
     dynamics_output.erad_total = np.trapz(lbol, x=time)
     dynamics_output.thermalisation_efficiency = output.thermalisation_efficiency #on time_temp
@@ -1047,7 +1044,6 @@ def general_magnetar_driven_supernova(time, redshift, mej, E_sn, ejecta_radius, 
     time_temp = np.geomspace(1e-4, 1e9, 3000, endpoint=True)
     dl = cosmo.luminosity_distance(redshift).cgs.value
     magnetar_luminosity = magnetar_only(time=time_temp, l0=l0, tau=tau_sd, nn=nn)
-    #magnetar_luminosity = basic_magnetar(time=time_temp, p0=p0, bp=bp, mass_ns=mass_ns, theta_pb=theta_pb)
     beta = np.sqrt(E_sn / (0.5 * mej * solar_mass)) / speed_of_light
     
     _photosphere = kwargs.get("photosphere", photosphere.TemperatureFloor)

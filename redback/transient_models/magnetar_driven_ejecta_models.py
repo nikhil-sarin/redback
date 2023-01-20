@@ -93,7 +93,7 @@ def _ejecta_dynamics_and_interaction(time, mej, beta, ejecta_radius, kappa, n_is
 
         emitted_luminosity = comoving_emitted_luminosity * doppler_factor_temp ** 2
 
-        vej = ((1 / gamma) ** 2 + 1) ** 0.5 * speed_of_light
+        vej = (1 - (1 / gamma) ** 2) ** 0.5 * speed_of_light
 
         if use_gamma_ray_opacity:
             kappa_gamma = kwargs["kappa_gamma"]
