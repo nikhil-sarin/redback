@@ -16,7 +16,65 @@ from scipy.integrate import cumtrapz
 import redback.ejecta_relations as ejr
 
 @citation_wrapper('https://ui.adsabs.harvard.edu/abs/2021MNRAS.505.3016N/abstract')
-def mosfit_bns():
+def _mosfit_bns(time, mass_1, mass_2, lambda_s, kappa_red, kappa_blue,
+               mtov, epsilon, alpha, cos_theta_open, **kwargs):
+
+    a = 0.07550
+    b = np.array([[-2.235, 0.8474], [10.45, -3.251], [-15.70, 13.61]])
+    c = np.array([[-2.048, 0.5976], [7.941, 0.5658], [-7.360, -1.320]])
+    n_ave = 0.743
+
+    fq = (1 - (mass_2 / mass_1) ** (10. / (3 - n_ave))) / (1 + (mass_2 / mass_1) ** (10. / (3 - n_ave)))
+
+    nume = a
+    denom = a
+
+    for i in np.arange(3):
+        for j in np.arange(2):
+            nume += b[i, j] * (mass_2 / mass_1) ** (j + 1) * lambda_s ** (-(i + 1) / 5)
+
+    for i in np.arange(3):
+        for j in np.arange(2):
+            denom += c[i, j] * (mass_2 / mass_1) ** (j + 1) * lambda_s ** (-(i + 1) / 5)
+
+    lambda_a = lambda_s * fq * nume / denom
+    lambda_1 = lambda_s - lambda_a
+    lambda_2 = lambda_s + lambda_a
+    m_total = mass_1 + mass_2
+
+    binary_lambda =  16./13 * ((mass_1 + 12*mass_2) * mass_1**4 * lambda_1 +
+                (mass_2 + 12*mass_1) * mass_2**4 * lambda_2) / m_total**5
+    mchirp = (mass_1 * mass_2)**(3./5) / m_total**(1./5)
+    remnant_radius = 11.2 * mchirp * (binary_lambda/800)**(1./6.)
+
+    compactness_1 = 0.360 - 0.0355 * np.log(lambda_1) + 0.000705 * np.log(lambda_1) ** 2
+    compactness_2 = 0.360 - 0.0355 * np.log(lambda_2) + 0.000705 * np.log(lambda_2) ** 2
+
+    radius_1 = (graviational_constant * mass_1 * solar_mass / (compactness_1 * speed_of_light ** 2)) / 1e5
+    radius_2 = (graviational_constant * mass_2 * solar_mass / (compactness_2 * speed_of_light ** 2)) / 1e5
+
+    # Baryonic masses, Gao 2019
+    mass_baryonic_1 = mass_1 + 0.08 * mass_1 ** 2
+    mass_baryonic_2 = mass_2 + 0.08 * mass_2 ** 2
+
+    a_1 = -1.35695
+    b_1 = 6.11252
+    c_1 = -49.43355
+    d_1 = 16.1144
+    n = -2.5484
+    dynamical_ejecta = 1e-3 * (a_1 * ((mass_2 / mass_1) ** (1 / 3) * (1 - 2 * compactness_1) / compactness_2 * mass_baryonic_1 +
+                            (mass_1 / mass_2) ** (1 / 3) * (1 - 2 * compactness_2) / compactness_2 * mass_baryonic_2) +
+                     b_1 * ((mass_2 / mass_1) ** n * mass_baryonic_1 + (mass_1 / mass_2) ** n * mass_baryonic_2) +
+                     c_1 * (mass_baryonic_1 - mass_1 + mass_baryonic_2 - mass_2) + d_1)
+
+    if dynamical_ejecta < 0:
+        dynamical_ejecta = 0
+
+    pass
+
+@citation_wrapper('https://ui.adsabs.harvard.edu/abs/2021MNRAS.505.3016N/abstract')
+def mosfit_bns(time, redshift, mass_1, mass_2, lambda_s, kappa_red, kappa_blue,
+               mtov, epsilon, alpha, cos_theta_open, **kwargs):
     pass
 
 @citation_wrapper('https://ui.adsabs.harvard.edu/abs/2017ApJ...851L..21V/abstract')
@@ -24,10 +82,14 @@ def mosfit_rprocess():
     pass
 
 @citation_wrapper('https://ui.adsabs.harvard.edu/abs/2017ApJ...851L..21V/abstract')
+def _mosfit_kilonova_one_component(time, mej, vej, kappa, ):
+    pass
+
+@citation_wrapper('https://ui.adsabs.harvard.edu/abs/2017ApJ...851L..21V/abstract')
 def mosfit_kilonova():
     pass
 
-@citation_wrapper('https://ui.adsabs.harvard.edu/abs/2020ApJ...891..152H/abstract')
+@citation_wrapper('redback')
 def power_law_stratified_kilonova(time, redshift, mej, vmin, vmax, alpha,
                                   kappa_min, kappa_max, beta, **kwargs):
     pass
@@ -39,7 +101,6 @@ def two_layer_stratified_kilonova(time, redshift, mej, vej_1, vej_2, kappa, beta
 
     :param time: observer frame time in days
     :param redshift: redshift
-    :param frequency: frequency to calculate - Must be same length as time array or a single number
     :param mej: ejecta mass in solar masses
     :param vej_1: velocity of inner shell in c
     :param vej_2: velocity of outer shell in c
@@ -83,7 +144,6 @@ def _kilonova_hr(time, redshift, mej, velocity_array, kappa_array, beta, **kwarg
         return flux_density.to(uu.mJy).value
     elif kwargs['output_format'] == 'magnitude':
         return flux_density.to(uu.ABmag).value
-
 
 
 def _kilonova_hr_sourceframe(time, mej, velocity_array, kappa_array, beta):

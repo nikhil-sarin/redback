@@ -4,6 +4,7 @@ import sqlite3
 from typing import Union
 import urllib
 import urllib.request
+import ssl
 
 import astropy.units as uu
 import numpy as np
@@ -80,6 +81,7 @@ class OpenDataGetter(DataGetter):
         logger.info(f"Retrieved data for {self.transient}.")
         urllib.request.urlretrieve(url=self.metadata_url, filename=self.metadata_path)
         logger.info(f"Metadata for {self.transient} added.")
+
 
     def convert_raw_data_to_csv(self) -> Union[pd.DataFrame, None]:
         """Converts the raw data into processed data and saves it into the processed file path.
