@@ -568,7 +568,7 @@ class MagnitudePlotter(Plotter):
         return axes
 
     def _check_valid_multiband_data_mode(self) -> bool:
-        if self.transient.luminosity_data or self.transient.flux_data:
+        if self.transient.luminosity_data:
             redback.utils.logger.warning(
                 f"Plotting multiband lightcurve/data not possible for {self.transient.data_mode}. Returning.")
             return False
@@ -705,3 +705,10 @@ class MagnitudePlotter(Plotter):
 
 class FluxDensityPlotter(MagnitudePlotter):
     pass
+
+class IntegratedFluxOpticalPlotter(MagnitudePlotter):
+    pass
+
+class SpectraPlotter(Plotter):
+    pass
+

@@ -15,7 +15,7 @@ class Supernova(OpticalTransient):
             flux_density: np.ndarray = None, flux_density_err: np.ndarray = None, magnitude: np.ndarray = None,
             magnitude_err: np.ndarray = None, redshift: float = np.nan, photon_index: float = np.nan,
             bands: np.ndarray = None, system: np.ndarray = None, active_bands: Union[np.ndarray, str] = 'all',
-            use_phase_model: bool = False, **kwargs: None) -> None:
+            use_phase_model: bool = False, optical_data:bool = True, **kwargs: None) -> None:
         """
         This is a general constructor for the Supernova class. Note that you only need to give data corresponding to
         the data mode you are using. For luminosity data provide times in the rest frame, if using a phase model
@@ -57,6 +57,8 @@ class Supernova(OpticalTransient):
         :type redshift: float
         :param photon_index: Photon index value. Will be read from the metadata table if not given.
         :type photon_index: float
+        :param optical_data: Whether we are fitting optical data, useful for plotting.
+        :type optical_data: bool, optional
         :param use_phase_model: Whether we are using a phase model.
         :type use_phase_model: bool
         :param frequency: Array of band frequencies in photometry data.

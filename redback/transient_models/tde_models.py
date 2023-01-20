@@ -297,7 +297,10 @@ def tde_analytical_bolometric(time, l0, t_0, **kwargs):
     _interaction_process = kwargs.get("interaction_process", ip.Diffusion)
     lbol = _analytic_fallback(time=time, l0=l0, t_0=t_0)
     if _interaction_process is not None:
-        interaction_class = _interaction_process(time=time, luminosity=lbol, **kwargs)
+        dense_resolution = kwargs.get("dense_resolution", 1000)
+        dense_times = np.linspace(0, time[-1] + 100, dense_resolution)
+        dense_lbols = _analytic_fallback(time=dense_times, l0=l0, t_0=t_0)
+        interaction_class = _interaction_process(time=time, dense_times=dense_times, luminosity=dense_lbols, **kwargs)
         lbol = interaction_class.new_luminosity
     return lbol
 

@@ -17,7 +17,9 @@ import redback.get_data.directory
 import redback.get_data.utils
 from redback.get_data.getter import DataGetter
 import redback.redback_errors
-from redback.utils import logger, calc_flux_density_from_ABmag, calc_flux_density_error
+from redback.utils import logger, calc_flux_density_from_ABmag, \
+    calc_flux_density_error_from_monochromatic_magnitude, bandpass_magnitude_to_flux, bands_to_reference_flux, \
+    calc_flux_error_from_magnitude
 
 dirname = os.path.dirname(__file__)
 
@@ -106,10 +108,13 @@ class OpenDataGetter(DataGetter):
         data = data[data['system'] == 'AB']
         logger.info('Keeping only AB magnitude data')
         data['flux_density(mjy)'] = calc_flux_density_from_ABmag(data['magnitude'].values).value
-        data['flux_density_error'] = calc_flux_density_error(magnitude=data['magnitude'].values,
-                                                             magnitude_error=data['e_magnitude'].values,
-                                                             reference_flux=3631,
-                                                             magnitude_system='AB')
+        data['flux_density_error'] = calc_flux_density_error_from_monochromatic_magnitude(
+            magnitude=data['magnitude'].values, magnitude_error=data['e_magnitude'].values, reference_flux=3631,
+            magnitude_system='AB')
+        data['flux(erg/cm2/s)'] = bandpass_magnitude_to_flux(data['magnitude'].values, data['band'].values)
+        data['flux_error'] = calc_flux_error_from_magnitude(magnitude=data['magnitude'].values,
+                                        magnitude_error=data['e_magnitude'].values,
+                                        reference_flux=bands_to_reference_flux(data['band'].values))
         data['band'] = [b.replace("'", "") for b in data["band"]]
         metadata = pd.read_csv(f"{self.directory_path}{self.transient}_metadata.csv")
         metadata.replace(r'^\s+$', np.nan, regex=True)

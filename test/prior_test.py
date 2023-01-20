@@ -74,5 +74,6 @@ class TestCornerPlotPriorSamples(unittest.TestCase):
 
     def test_plot_priors(self):
         for f in self.prior_files:
+            print(f)
             res = self.get_result(file=f)
             res.plot_corner()
