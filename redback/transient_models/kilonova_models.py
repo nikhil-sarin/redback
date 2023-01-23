@@ -6,16 +6,18 @@ from scipy.interpolate import interp1d
 from astropy.cosmology import Planck18 as cosmo  # noqa
 from scipy.integrate import cumtrapz
 from collections import namedtuple
+from redback.photosphere import TemperatureFloor
+from redback.interaction_processes import Diffusion, AsphericalDiffusion
 
 from redback.utils import calc_kcorrected_properties, interpolated_barnes_and_kasen_thermalisation_efficiency, \
     electron_fraction_from_kappa, citation_wrapper, lambda_to_nu
 from redback.eos import PiecewisePolytrope
-from redback.sed import blackbody_to_flux_density, get_correct_output_format_from_spectra
+from redback.sed import blackbody_to_flux_density, get_correct_output_format_from_spectra, Blackbody
 from redback.constants import *
 import redback.ejecta_relations as ejr
 
 @citation_wrapper('https://ui.adsabs.harvard.edu/abs/2021MNRAS.505.3016N/abstract')
-def _mosfit_bns(time, mass_1, mass_2, lambda_s, kappa_red, kappa_blue,
+def _nicholl_bns(time, mass_1, mass_2, lambda_s, kappa_red, kappa_blue,
                mtov, epsilon, alpha, cos_theta_open, **kwargs):
     a = 0.07550
     b = np.array([[-2.235, 0.8474], [10.45, -3.251], [-15.70, 13.61]])
@@ -76,16 +78,70 @@ def nicholl_bns(time, redshift, mass_1, mass_2, lambda_s, kappa_red, kappa_blue,
     raise NotImplementedError("This model is not yet implemented.")
 
 @citation_wrapper('https://ui.adsabs.harvard.edu/abs/2017ApJ...851L..21V/abstract')
-def mosfit_rprocess():
+def mosfit_rprocess(time, redshift, mej, vej, kappa, kappa_gamma, temperature_floor, **kwargs):
+    dl = cosmo.luminosity_distance(redshift).cgs.value
+    dense_resolution = kwargs.get('dense_resolution', 300)
+    time_temp = np.geomspace(1e-4, 3e6, dense_resolution)  # in source frame
+    time_obs = time
+    lbols = _mosfit_kilonova_one_component_lbol(time=time_temp,
+                                                mej=mej, vej=vej)
+    interaction_class = Diffusion(time=time_temp, dense_times=time_temp, luminosity=lbols,
+                                  kappa=kappa, kappa_gamma=kappa_gamma, mej=mej, vej=vej)
+    lbols = interaction_class.new_luminosity
+    photo = TemperatureFloor(time=time_temp, luminosity=lbols, vej=vej,
+                             temperature_floor=temperature_floor)
+
+    if kwargs['output_format'] == 'flux_density':
+        time = time_obs * day_to_s
+        frequency = kwargs['frequency']
+        # interpolate properties onto observation times
+        temp_func = interp1d(time_temp, y=photo.photosphere_temperature)
+        rad_func = interp1d(time_temp, y=photo.r_photosphere)
+        # convert to source frame time and frequency
+        frequency, time = calc_kcorrected_properties(frequency=frequency, redshift=redshift, time=time)
+        temp = temp_func(time)
+        photosphere = rad_func(time)
+        flux_density = blackbody_to_flux_density(temperature=temp, r_photosphere=photosphere,
+                                                 dl=dl, frequency=frequency)
+        return flux_density.to(uu.mJy).value
+    else:
+        lambda_observer_frame = kwargs.get('lambda_array', np.geomspace(100, 60000, 200))
+        time_observer_frame = time_temp * (1. + redshift)
+        frequency, time = calc_kcorrected_properties(frequency=lambda_to_nu(lambda_observer_frame),
+                                                     redshift=redshift, time=time_observer_frame)
+        fmjy = blackbody_to_flux_density(temperature=photo.photosphere_temperature,
+                                         r_photosphere=photo.r_photosphere, frequency=frequency[:, None], dl=dl)
+        fmjy = fmjy.T
+        spectra = fmjy.to(uu.mJy).to(uu.erg / uu.cm ** 2 / uu.s / uu.Angstrom,
+                                     equivalencies=uu.spectral_density(wav=lambda_observer_frame * uu.Angstrom))
+        if kwargs['output_format'] == 'spectra':
+            return namedtuple('output', ['time', 'lambdas', 'spectra'])(time=time_observer_frame,
+                                                                        lambdas=lambda_observer_frame,
+                                                                        spectra=spectra)
+        else:
+            return get_correct_output_format_from_spectra(time=time_obs, time_eval=time_observer_frame / day_to_s,
+                                                          spectra=spectra, lambda_array=lambda_observer_frame,
+                                                          **kwargs)
+
+@citation_wrapper('https://ui.adsabs.harvard.edu/abs/2017ApJ...851L..21V/abstract')
+def mosfit_kilonova(time, redshift, mej, vej, kappa, kappa_gamma, temperature_floor, **kwargs):
     raise NotImplementedError("This model is not yet implemented.")
 
 @citation_wrapper('https://ui.adsabs.harvard.edu/abs/2017ApJ...851L..21V/abstract')
-def _mosfit_kilonova_one_component(time, mej, vej, kappa, ):
-    pass
+def _mosfit_kilonova_one_component_lbol(time, mej, vej):
+    tdays = time/day_to_s
 
-@citation_wrapper('https://ui.adsabs.harvard.edu/abs/2017ApJ...851L..21V/abstract')
-def mosfit_kilonova():
-    raise NotImplementedError("This model is not yet implemented.")
+    # set up kilonova physics
+    av, bv, dv = interpolated_barnes_and_kasen_thermalisation_efficiency(mej, vej)
+    # thermalisation from Barnes+16
+    e_th = 0.36 * (np.exp(-av * tdays) + np.log1p(2.0 * bv * tdays ** dv) / (2.0 * bv * tdays ** dv))
+    t0 = 1.3 #seconds
+    sig = 0.11  #seconds
+
+    m0 = mej * solar_mass
+    lum_in = 4.0e18 * (m0) * (0.5 - np.arctan((time - t0) / sig) / np.pi)**1.3
+    lbol = lum_in * e_th
+    return lbol
 
 @citation_wrapper("redback,https://ui.adsabs.harvard.edu/abs/2020ApJ...891..152H/abstract")
 def power_law_stratified_kilonova(time, redshift, mej, vmin, vmax, alpha,
