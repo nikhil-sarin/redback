@@ -79,6 +79,26 @@ def nicholl_bns(time, redshift, mass_1, mass_2, lambda_s, kappa_red, kappa_blue,
 
 @citation_wrapper('https://ui.adsabs.harvard.edu/abs/2017ApJ...851L..21V/abstract')
 def mosfit_rprocess(time, redshift, mej, vej, kappa, kappa_gamma, temperature_floor, **kwargs):
+    """
+    A single component kilonova model that *should* be exactly the same as mosfit's r-process model.
+    Effectively the only difference to the redback one_component model is the inclusion of gamma-ray opacity in diffusion.
+
+    :param time: observer frame time in days
+    :param redshift: redshift
+    :param mej: ejecta mass in solar masses of first component
+    :param vej: minimum initial velocity of first component
+    :param kappa: gray opacity of first component
+    :param temperature_floor: floor temperature of first component
+    :param kappa_gamma: gamma-ray opacity
+    :param kwargs: Additional keyword arguments
+    :param frequency: Required if output_format is 'flux_density'.
+    frequency to calculate - Must be same length as time array or a single number).
+    :param bands: Required if output_format is 'magnitude' or 'flux'.
+    :param output_format: 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
+    :param lambda_array: Optional argument to set your desired wavelength array (in Angstroms) to evaluate the SED on.
+    :param dense_resolution: resolution of the grid that the model is actually evaluated on, default is 300
+    :return: set by output format - 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
+    """
     dl = cosmo.luminosity_distance(redshift).cgs.value
     dense_resolution = kwargs.get('dense_resolution', 300)
     time_temp = np.geomspace(1e-4, 3e6, dense_resolution)  # in source frame
@@ -124,8 +144,101 @@ def mosfit_rprocess(time, redshift, mej, vej, kappa, kappa_gamma, temperature_fl
                                                           **kwargs)
 
 @citation_wrapper('https://ui.adsabs.harvard.edu/abs/2017ApJ...851L..21V/abstract')
-def mosfit_kilonova(time, redshift, mej, vej, kappa, kappa_gamma, temperature_floor, **kwargs):
-    raise NotImplementedError("This model is not yet implemented.")
+def mosfit_kilonova(time, redshift, mej_1, vej_1, temperature_floor_1, kappa_1,
+                    mej_2, vej_2, temperature_floor_2, kappa_2,
+                    mej_3, vej_3, temperature_floor_3, kappa_3, kappa_gamma, **kwargs):
+    """
+    A three component kilonova model that *should* be exactly the same as mosfit's kilonova model or Villar et al. 2017.
+    Effectively the only difference to the redback three_component model is the inclusion of gamma-ray opacity in diffusion.
+    Note: Villar et al. fix the kappa's of each component to get the desired red/blue/purple components. This is not done here.
+
+    :param time: observer frame time in days
+    :param redshift: redshift
+    :param mej_1: ejecta mass in solar masses of first component
+    :param vej_1: minimum initial velocity of first component
+    :param kappa_1: gray opacity of first component
+    :param temperature_floor_1: floor temperature of first component
+    :param mej_2: ejecta mass in solar masses of second component
+    :param vej_2: minimum initial velocity of second component
+    :param temperature_floor_2: floor temperature of second component
+    :param kappa_2: gray opacity of second component
+    :param mej_3: ejecta mass in solar masses of third component
+    :param vej_3: minimum initial velocity of third component
+    :param temperature_floor_3: floor temperature of third component
+    :param kappa_3: gray opacity of third component
+    :param kappa_gamma: gamma-ray opacity
+    :param kwargs: Additional keyword arguments
+    :param frequency: Required if output_format is 'flux_density'.
+    frequency to calculate - Must be same length as time array or a single number).
+    :param bands: Required if output_format is 'magnitude' or 'flux'.
+    :param output_format: 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
+    :param lambda_array: Optional argument to set your desired wavelength array (in Angstroms) to evaluate the SED on.
+    :param dense_resolution: resolution of the grid that the model is actually evaluated on, default is 300
+    :return: set by output format - 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
+    """
+    dl = cosmo.luminosity_distance(redshift).cgs.value
+    dense_resolution = kwargs.get('dense_resolution', 300)
+    time_temp = np.geomspace(1e-4, 3e6, dense_resolution)  # in source frame
+    time_obs = time
+    mej = [mej_1, mej_2, mej_3]
+    vej = [vej_1, vej_2, vej_3]
+    temperature_floor = [temperature_floor_1, temperature_floor_2, temperature_floor_3]
+    kappa = [kappa_1, kappa_2, kappa_3]
+    if kwargs['output_format'] == 'flux_density':
+        time = time_obs * day_to_s
+        frequency = kwargs['frequency']
+        frequency, time = calc_kcorrected_properties(frequency=frequency, redshift=redshift, time=time)
+
+        ff = np.zeros(len(time))
+        for x in range(3):
+            lbols = _mosfit_kilonova_one_component_lbol(time=time_temp,
+                                                        mej=mej[x], vej=vej[x])
+            interaction_class = Diffusion(time=time_temp, dense_times=time_temp, luminosity=lbols,
+                                          kappa=kappa, kappa_gamma=kappa_gamma, mej=mej, vej=vej)
+            lbols = interaction_class.new_luminosity
+            photo = TemperatureFloor(time=time_temp, luminosity=lbols, vej=vej[x],
+                                     temperature_floor=temperature_floor[x])
+            temp_func = interp1d(time_temp, y=photo.photosphere_temperature)
+            rad_func = interp1d(time_temp, y=photo.r_photosphere)
+            # convert to source frame time and frequency
+            temp = temp_func(time)
+            photosphere = rad_func(time)
+            flux_density = blackbody_to_flux_density(temperature=temp, r_photosphere=photosphere,
+                                                     dl=dl, frequency=frequency)
+            units = flux_density.unit
+            ff += flux_density.value
+        ff = ff * units
+        return ff.to(uu.mJy).value
+    else:
+        lambda_observer_frame = kwargs.get('lambda_array', np.geomspace(100, 60000, 200))
+        time_observer_frame = time_temp * (1. + redshift)
+        frequency, time = calc_kcorrected_properties(frequency=lambda_to_nu(lambda_observer_frame),
+                                                     redshift=redshift, time=time_observer_frame)
+        full_spec = np.zeros((len(frequency), len(time)))
+        for x in range(3):
+            lbols = _mosfit_kilonova_one_component_lbol(time=time_temp,
+                                                        mej=mej[x], vej=vej[x])
+            interaction_class = Diffusion(time=time_temp, dense_times=time_temp, luminosity=lbols,
+                                          kappa=kappa, kappa_gamma=kappa_gamma, mej=mej, vej=vej)
+            lbols = interaction_class.new_luminosity
+            photo = TemperatureFloor(time=time_temp, luminosity=lbols, vej=vej[x],
+                                     temperature_floor=temperature_floor[x])
+            fmjy = blackbody_to_flux_density(temperature=photo.photosphere_temperature,
+                                             r_photosphere=photo.r_photosphere, frequency=frequency[:, None], dl=dl).T
+            spectra = fmjy.to(uu.mJy).to(uu.erg / uu.cm ** 2 / uu.s / uu.Angstrom,
+                                         equivalencies=uu.spectral_density(wav=lambda_observer_frame * uu.Angstrom))
+            units = spectra.unit
+            full_spec += spectra.value
+
+        full_spec = full_spec * units
+        if kwargs['output_format'] == 'spectra':
+            return namedtuple('output', ['time', 'lambdas', 'spectra'])(time=time_observer_frame,
+                                                                        lambdas=lambda_observer_frame,
+                                                                        spectra=full_spec)
+        else:
+            return get_correct_output_format_from_spectra(time=time_obs, time_eval=time_observer_frame / day_to_s,
+                                                          spectra=full_spec, lambda_array=lambda_observer_frame,
+                                                          **kwargs)
 
 @citation_wrapper('https://ui.adsabs.harvard.edu/abs/2017ApJ...851L..21V/abstract')
 def _mosfit_kilonova_one_component_lbol(time, mej, vej):
