@@ -1,4 +1,4 @@
-p0 = Uniform(0.7e-3, 0.1, 'p0', latex_label = r'$P_{0} [s]$')
+p0 = Uniform(0.7e-3, 1, 'p0', latex_label = r'$P_{0} [s]$')
 mu0 = Uniform(1e-3, 10, 'mu0', latex_label = r'$\mu_{0} [10^{33} G cm^{3}]$')
 muinf = Uniform(1e-3, 10, 'muinf', latex_label = r'$\mu_{\inf} [10^{33} G cm^3]$')
 sinalpha0 = Uniform(1e-3, 0.99, 'sinalpha0', latex_label = r'$\sin\\alpha_{0}$')

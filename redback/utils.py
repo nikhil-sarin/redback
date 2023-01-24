@@ -26,6 +26,56 @@ plt.style.use(filename)
 logger = logging.getLogger('redback')
 _bilby_logger = logging.getLogger('bilby')
 
+def sncosmo_bandname_from_band(bands):
+    """
+    Convert redback data band names to sncosmo compatible band names
+
+    :param bands: List of bands.
+    :type bands: list[str]
+    :return: An array of sncosmo compatible bandnames associated with the given bands.
+    :rtype: np.ndarray
+    """
+    if bands is None:
+        bands = []
+    if isinstance(bands, str):
+        bands = [bands]
+    df = pd.read_csv(f"{dirname}/tables/filters.csv")
+    bands_to_flux = {band: wavelength for band, wavelength in zip(df['bands'], df['sncosmo_name'])}
+    res = []
+    for band in bands:
+        try:
+            res.append(bands_to_flux[band])
+        except KeyError as e:
+            logger.info(e)
+            raise KeyError(f"Band {band} is not defined in filters.csv!")
+    return np.array(res)
+
+def check_kwargs_validity(kwargs):
+    if kwargs == None:
+        logger.info("No kwargs passed to function")
+        return kwargs
+    if 'output_format' not in kwargs.keys():
+        raise ValueError("output_format must be specified")
+    else:
+        output_format = kwargs['output_format']
+    match = ['frequency', 'bands']
+    if any(x in kwargs.keys() for x in match):
+        pass
+    else:
+        raise ValueError("frequency or bands must be specified in model_kwargs")
+
+    if output_format == 'flux_density':
+        if 'frequency' not in kwargs.keys():
+            kwargs['frequency'] = redback.utils.bands_to_frequency(kwargs['bands'])
+
+    if output_format in ['flux', 'magnitude']:
+        if 'bands' not in kwargs.keys():
+            kwargs['bands'] = redback.utils.frequency_to_bandname(kwargs['frequency'])
+
+    if output_format == 'spectra':
+        kwargs['frequency_array'] = kwargs.get('frequency_array', np.linspace(100, 20000, 100))
+    return kwargs
+
 def citation_wrapper(r):
     """
     Wrapper for citation function to allow functions to have a citation attribute
@@ -222,7 +272,7 @@ def calc_flux_density_from_ABmag(magnitudes):
     :param magnitudes:
     :return: flux density
     """
-    return (magnitudes * uu.mJy).to(uu.ABmag)
+    return (magnitudes * uu.ABmag).to(uu.mJy)
 
 def calc_ABmag_from_flux_density(fluxdensity):
     """
@@ -323,11 +373,11 @@ def bands_to_zeropoint(bands):
 
 def bandpass_magnitude_to_flux(magnitude, bands):
     """
-    Convert magnitude to flux density
+    Convert magnitude to flux
 
     :param magnitude: magnitude
     :param bands: bandpass
-    :return: flux density
+    :return: flux
     """
     reference_flux = bands_to_reference_flux(bands)
     maggi = 10.0**(magnitude / (-2.5))
@@ -336,9 +386,9 @@ def bandpass_magnitude_to_flux(magnitude, bands):
 
 def bandpass_flux_to_magnitude(flux, bands):
     """
-    Convert flux density to magnitude
+    Convert flux to magnitude
 
-    :param flux: flux density
+    :param flux: flux
     :param bands: bandpass
     :return: magnitude
     """
@@ -358,6 +408,8 @@ def bands_to_reference_flux(bands):
     """
     if bands is None:
         bands = []
+    if isinstance(bands, str):
+        bands = [bands]
     df = pd.read_csv(f"{dirname}/tables/filters.csv")
     bands_to_flux = {band: wavelength for band, wavelength in zip(df['bands'], df['reference_flux'])}
     res = []

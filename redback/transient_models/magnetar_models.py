@@ -172,7 +172,7 @@ def gw_magnetar(time, a_1, alpha_1, fgw0, tau, nn, log_ii, **kwargs):
 def basic_magnetar(time, p0, bp, mass_ns, theta_pb, **kwargs):
     """
     :param time: time in seconds in source frame
-    :param p0: initial spin period in milli seconds
+    :param p0: initial spin period in milliseconds
     :param bp: polar magnetic field strength in 10^14 Gauss
     :param mass_ns: mass of neutron star in solar masses
     :param theta_pb: angle between spin and magnetic field axes in radians

@@ -515,6 +515,7 @@ class TestAfterglow(unittest.TestCase):
         self.assertIsNone(filtered_x_err)
 
     def test_get_filtered_data_illegal_data_mode(self):
+        self.sgrb.data_mode = "luminosity"
         with self.assertRaises(ValueError):
             self.sgrb.get_filtered_data()
 
