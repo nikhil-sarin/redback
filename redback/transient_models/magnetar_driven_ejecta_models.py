@@ -124,12 +124,13 @@ def _ejecta_dynamics_and_interaction(time, mej, beta, ejecta_radius, kappa, n_is
 
     dynamics_output = namedtuple('dynamics_output', ['lorentz_factor', 'bolometric_luminosity', 'comoving_temperature',
                                                      'radius', 'doppler_factor', 'tau', 'time', 'kinetic_energy',
-                                                     'erad_total', 'thermalisation_efficiency'])
+                                                     'erad_total', 'thermalisation_efficiency', 'r_photosphere'])
 
     dynamics_output.lorentz_factor = lorentz_factor
     dynamics_output.bolometric_luminosity = bolometric_luminosity
     dynamics_output.comoving_temperature = np.array(comoving_temperature)
     dynamics_output.radius = radius
+    dynamics_output.r_photosphere = radius
     dynamics_output.doppler_factor = np.array(doppler_factor)
     dynamics_output.tau = tau
     dynamics_output.time = time
