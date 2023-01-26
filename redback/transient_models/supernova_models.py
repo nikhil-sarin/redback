@@ -1273,6 +1273,7 @@ def general_magnetar_slsn(time, redshift, l0, tsd, nn, ** kwargs):
                                                           spectra=spectra, frequency_array=frequency_observer_frame,
                                                           **kwargs)
 
+@citation_wrapper('Omand and Sarin (in prep)')
 def general_magnetar_driven_supernova_bolometric(time, mej, E_sn, ejecta_radius, kappa, n_ism, l0, tau_sd, nn,
                kappa_gamma, **kwargs):   
     """
@@ -1311,8 +1312,7 @@ def general_magnetar_driven_supernova_bolometric(time, mej, E_sn, ejecta_radius,
     lbol_func = interp1d(time_temp, y=output.bolometric_luminosity)
     vej_func = interp1d(time_temp, y=vej)
     # convert to source frame time and frequency
-    time = time * day_to_s
-    
+    time = time * day_to_s    
     lbol = lbol_func(time)
     v_ej = vej_func(time)
     
@@ -1334,6 +1334,7 @@ def general_magnetar_driven_supernova_bolometric(time, mej, E_sn, ejecta_radius,
     elif kwargs['output_format'] == 'dynamics_output':    
         return dynamics_output
 
+@citation_wrapper('Omand and Sarin (in prep)')
 def general_magnetar_driven_supernova(time, redshift, mej, E_sn, ejecta_radius, kappa, n_ism, l0, tau_sd, nn,
                kappa_gamma, **kwargs):
     """
@@ -1390,8 +1391,8 @@ def general_magnetar_driven_supernova(time, redshift, mej, E_sn, ejecta_radius, 
     
     else:
         time_obs = time
-        frequency_observer_frame = kwargs.get('frequency_array', np.geomspace(100, 20000, 1000)
-        time_temp = np.geomspace(1e-4, 1e8, 1000) #in days
+        frequency_observer_frame = kwargs.get('frequency_array', np.geomspace(100, 60000, 200))
+        time_temp = np.geomspace(1e1, 1e8, 1000) #in days
         time_observer_frame = time_temp * (1. + redshift)
         frequency, time = calc_kcorrected_properties(frequency=lambda_to_nu(frequency_observer_frame),
                                               redshift=redshift, time=time_observer_frame)
@@ -1403,67 +1404,41 @@ def general_magnetar_driven_supernova(time, redshift, mej, E_sn, ejecta_radius, 
                                               kappa_gamma=kappa_gamma, pair_cascade_switch=pair_cascade_switch,
                                               use_gamma_ray_opacity=True, use_r_process=False, **kwargs)
         vej = velocity_from_lorentz_factor(output.lorentz_factor)/km_cgs 
-        kwargs['vej'] = vej  
-        photo = kwargs['photosphere'](time=time_temp, luminosity=output.bolometric_luminosity, **kwargs)    
-        sed_1 = kwargs['sed'](time=time_temp, luminosity=output.bolometric_luminosity, temperature=photo.photosphere_temperature,
-    	                                      r_photosphere=photo.r_photosphere, frequency=frequency, luminosity_distance=dl,
-                                              cutoff_wavelength=cutoff_wavelength)     
-        fmjy = sed_1.flux_density.T
-        spectra = fmjy.to(uu.mJy).to(uu.erg / uu.cm ** 2 / uu.s / uu.Angstrom,
-                                              equivalencies=uu.spectral_density(wav=frequency_observer_frame * uu.Angstrom))
-        if kwargs['output_format'] == 'spectra':
-            return namedtuple('output', ['time', 'frequency', 'spectra'])(time=time_observer_frame,
+        kwargs['vej'] = vej
+        photo = kwargs['photosphere'](time=time_temp, luminosity=output.bolometric_luminosity, **kwargs)
+        if kwargs['output_format'] == 'dynamics_output':                                      
+            erot_total = np.trapz(magnetar_luminosity, x=time_temp)
+            erad_total = np.trapz(output.bolometric_luminosity, x=time_temp)          
+            dynamics_output = namedtuple('dynamics_output', ['time', 'bolometric_luminosity', 'photosphere_temperature',
+                                                     'radius', 'tau', 'kinetic_energy', 'erad_total', 'thermalisation_efficiency', 
+                                                     'v_ej', 'magnetar_luminosity', 'erot_total', 'r_photosphere'])
+            dynamics_output.time = output.time                                                                    
+            dynamics_output.bolometric_luminosity = output.bolometric_luminosity
+            dynamics_output.comoving_temperature = photo.photosphere_temperature
+            dynamics_output.radius = output.radius
+            dynamics_output.tau = output.tau
+            dynamics_output.kinetic_energy = output.kinetic_energy
+            dynamics_output.erad_total = erad_total
+            dynamics_output.thermalisation_efficiency = output.thermalisation_efficiency                                        
+            dynamics_output.v_ej = vej
+            dynamics_output.magnetar_luminosity = magnetar_luminosity
+            dynamics_output.erot_total = erot_total
+            dynamics_output.r_photosphere = photo.r_photosphere                   
+            return dynamics_output
+        else: 
+            full_sed = np.zeros((len(time), len(frequency)))
+            for ii in range(len(frequency)):
+                ss = kwargs['sed'](time=time_temp, temperature=photo.photosphere_temperature,
+                               r_photosphere=photo.r_photosphere, frequency=frequency[ii],
+                               luminosity_distance=dl, cutoff_wavelength=cutoff_wavelength, luminosity=output.bolometric_luminosity)
+                full_sed[:, ii] = ss.flux_density.to(uu.mJy).value
+            spectra = (full_sed * uu.mJy).to(uu.erg / uu.cm ** 2 / uu.s / uu.Angstrom,
+                                        equivalencies=uu.spectral_density(wav=frequency_observer_frame * uu.Angstrom))
+            if kwargs['output_format'] == 'spectra':
+                return namedtuple('output', ['time', 'frequency', 'spectra'])(time=time_observer_frame,
                                                                           frequency=frequency_observer_frame,
                                                                           spectra=spectra)   
-        elif kwargs['output_format'] == 'dynamics_output':
-            return namedtuple('dynamics_output', ['time', 'v_ej', 'bolometric_luminosity', 'comoving_temperature',
-                                                     'tau', 'kinetic_energy', 'erad_total', 'thermalisation_efficiency',
-                                                     'magnetar_luminosity', 'erot_total', 'r_photosphere'])(time = time_observer_frame,
-                                                     v_ej = vej, bolometric_luminosity = output.bolometric_luminosity, comoving_temperature = photo.photosphere_temperature,
-                                                     tau = output.tau, kinetic_energy = output.kinetic_energy, erad_total = np.trapz(output.bolometric_luminosity, x = time_temp),
-                                                     thermalisation_efficiency = output.thermalisation_efficiency, magnetar_luminosity = magnetar_luminosity,
-                                                     erot_total = np.trapz(magnetar_luminosity, x=time_temp), r_photosphere = photo.r_photosphere)
-        else:
-            return sed.get_correct_output_format_from_spectra(time=time_obs, time_eval=time_observer_frame/day_to_s,
+            else:
+                return sed.get_correct_output_format_from_spectra(time=time_obs, time_eval=time_observer_frame/day_to_s,
                                                      spectra=spectra, frequency_array=frequency_observer_frame,
-                                                     **kwargs)
-                                          
-    #temp_func = interp1d(time_temp*day_to_s, y=photo.photosphere_temperature)
-    #rad_func = interp1d(time_temp*day_to_s, y=photo.r_photosphere)
-    #lbol_func = interp1d(time_temp*day_to_s, y=output.bolometric_luminosity)
-    #vej_func = interp1d(time_temp*day_to_s, y=vej)
-    # convert to source frame time and frequency
-    #time = time * day_to_s
-    
-    
-    
-    #temp = temp_func(time)
-    #rad = rad_func(time)
-    #lbol = lbol_func(time)
-    #v_ej = vej_func(time)
-    
-    
-    
-    #dynamics_output = namedtuple('dynamics_output', ['flux_density', 'magnitude', 'v_ej', 'bolometric_luminosity', 'comoving_temperature',
-    #                                                 'tau', 'time', 'kinetic_energy', 'erad_total',
-    #                                                 'thermalisation_efficiency', 'magnetar_luminosity', 'erot_total','r_photosphere'])
-    #dynamics_output.flux_density = flux_density.to(uu.mJy).value
-    #dynamics_output.magnitude = flux_density.to(uu.ABmag).value
-    #dynamics_output.v_ej = vej
-    #dynamics_output.bolometric_luminosity =  #lbol
-    #dynamics_output.comoving_temperature = photo.photosphere_temperature
-    #dynamics_output.tau = output.tau
-    #dynamics_output.time = output.time
-    #dynamics_output.kinetic_energy = output.kinetic_energy #0.5*mej*solar_mass*(v_ej*km_cgs)**2
-    #dynamics_output.erad_total = np.trapz(output.bolometric_luminosity, x=time_temp)
-    #dynamics_output.thermalisation_efficiency = output.thermalisation_efficiency #on time_temp
-    #dynamics_output.magnetar_luminosity = magnetar_luminosity  #on time_temp
-    #dynamics_output.erot_total = np.trapz(magnetar_luminosity, x=time_temp)
-    #dynamics_output.r_photosphere = photo.r_photosphere
-
-    #if kwargs['output_format'] == 'flux_density':
-    #    return flux_density.to(uu.mJy).value
-    #elif kwargs['output_format'] == 'dynamics_output':    
-    #    return dynamics_output
-    #elif 
-
+                                                     **kwargs)                                         
