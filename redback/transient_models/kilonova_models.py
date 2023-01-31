@@ -17,12 +17,40 @@ from redback.constants import *
 import redback.ejecta_relations as ejr
 
 @citation_wrapper('https://ui.adsabs.harvard.edu/abs/2021MNRAS.505.3016N/abstract')
-def _nicholl_bns(time, mass_1, mass_2, lambda_s, kappa_red, kappa_blue,
-               mtov, epsilon, alpha, cos_theta_open, **kwargs):
+def _nicholl_bns_get_quantities(mass_1, mass_2, lambda_s, kappa_red, kappa_blue,
+               mtov, epsilon, alpha, cos_theta_open, cos_theta, **kwargs):
+    """
+    Calculates quantities for the Nicholl et al. 2021 BNS model
+
+    :param mass_1: Mass of primary in solar masses
+    :param mass_2: Mass of secondary in solar masses
+    :param lambda_s: Symmetric tidal deformability i.e, lambda_s = lambda_1 + lambda_2
+    :param kappa_red: opacity of the red ejecta
+    :param kappa_blue: opacity of the blue ejecta
+    :param mtov: Tolman Oppenheimer-Volkoff mass in solar masses
+    :param epsilon: fraction of disk that gets unbound/ejected
+    :param alpha: Enhancement of blue ejecta by NS surface winds if mtotal < prompt collapse,
+                can turn off by setting alpha=1
+    :param cos_theta_open: Opening angle of shocked cocoon
+    :param cos_theta: Viewing angle of observer
+    :param kwargs: Additional keyword arguments
+    :param dynamical_ejecta_error: Error in dynamical ejecta mass, default is 1 i.e., no error in fitting formula
+    :param disk_ejecta_error: Error in disk ejecta mass, default is 1 i.e., no error in fitting formula
+    :return: Namedtuple with 'mejecta_blue', 'mejecta_red', 'mejecta_purple',
+            'vejecta_blue', 'vejecta_red', 'vejecta_purple',
+            'vejecta_mean', 'kappa_mean', 'mejecta_dyn',
+            'mejecta_total', 'kappa_purple', 'radius_1', 'radius_2',
+            'binary_lambda', 'remnant_radius', 'area_blue', 'area_blue_ref',
+            'area_red', 'area_red_ref' properties
+    """
+    ckm = 3e10/1e5
     a = 0.07550
     b = np.array([[-2.235, 0.8474], [10.45, -3.251], [-15.70, 13.61]])
     c = np.array([[-2.048, 0.5976], [7.941, 0.5658], [-7.360, -1.320]])
     n_ave = 0.743
+    dynamical_ejecta_error = kwargs.get('dynamical_ejecta_error', 1.0)
+    disk_ejecta_error = kwargs.get('disk_ejecta_error', 1.0)
+    theta_open = np.arccos(cos_theta_open)
 
     fq = (1 - (mass_2 / mass_1) ** (10. / (3 - n_ave))) / (1 + (mass_2 / mass_1) ** (10. / (3 - n_ave)))
 
@@ -62,15 +90,222 @@ def _nicholl_bns(time, mass_1, mass_2, lambda_s, kappa_red, kappa_blue,
     c_1 = -49.43355
     d_1 = 16.1144
     n = -2.5484
-    dynamical_ejecta = 1e-3 * (a_1 * ((mass_2 / mass_1) ** (1 / 3) * (1 - 2 * compactness_1) / compactness_2 * mass_baryonic_1 +
+    dynamical_ejecta_mass = 1e-3 * (a_1 * ((mass_2 / mass_1) ** (1 / 3) * (1 - 2 * compactness_1) / compactness_2 * mass_baryonic_1 +
                             (mass_1 / mass_2) ** (1 / 3) * (1 - 2 * compactness_2) / compactness_2 * mass_baryonic_2) +
                      b_1 * ((mass_2 / mass_1) ** n * mass_baryonic_1 + (mass_1 / mass_2) ** n * mass_baryonic_2) +
                      c_1 * (mass_baryonic_1 - mass_1 + mass_baryonic_2 - mass_2) + d_1)
 
-    if dynamical_ejecta < 0:
-        dynamical_ejecta = 0
+    if dynamical_ejecta_mass < 0:
+        dynamical_ejecta_mass = 0
 
-    raise NotImplementedError("This model is not yet implemented.")
+    dynamical_ejecta_mass *= dynamical_ejecta_error
+
+    a_4 = 14.8609
+    b_4 = -28.6148
+    c_4 = 13.9597
+
+    # fraction can't exceed 100%
+    f_red = min([a_4 * (mass_1 / mass_2) ** 2 + b_4 * (mass_1 / mass_2) + c_4, 1])
+
+    mejecta_red = dynamical_ejecta_mass * f_red
+    mejecta_blue = dynamical_ejecta_mass * (1 - f_red)
+
+    # Velocity of dynamical ejecta
+    a_2 = -0.219479
+    b_2 = 0.444836
+    c_2 = -2.67385
+
+    vdynp = a_2 * ((mass_1 / mass_2) * (1 + c_2 * compactness_1) + (mass_2 / mass_1) * (1 + c_2 * compactness_2)) + b_2
+
+    a_3 = -0.315585
+    b_3 = 0.63808
+    c_3 = -1.00757
+
+    vdynz = a_3 * ((mass_1 / mass_2) * (1 + c_3 * compactness_1) + (mass_2 / mass_1) * (1 + c_3 * compactness_2)) + b_3
+
+    dynamical_ejecta_velocity = np.sqrt(vdynp ** 2 + vdynz ** 2)
+
+    # average velocity over angular ranges (< and > theta_open)
+
+    theta1 = np.arange(0, theta_open, 0.01)
+    theta2 = np.arange(theta_open, np.pi / 2, 0.01)
+
+    vtheta1 = np.sqrt((vdynz * np.cos(theta1)) ** 2 + (vdynp * np.sin(theta1)) ** 2)
+    vtheta2 = np.sqrt((vdynz * np.cos(theta2)) ** 2 + (vdynp * np.sin(theta2)) ** 2)
+
+    atheta1 = 2 * np.pi * np.sin(theta1)
+    atheta2 = 2 * np.pi * np.sin(theta2)
+
+    vejecta_blue = np.trapz(vtheta1 * atheta1, x=theta1) / np.trapz(atheta1, x=theta1)
+    vejecta_red = np.trapz(vtheta2 * atheta2, x=theta2) / np.trapz(atheta2, x=theta2)
+
+    vejecta_red *= ckm
+    vejecta_blue *= ckm
+
+    # Bauswein 2013, cut-off for prompt collapse to BH
+    prompt_threshold_mass = (2.38 - 3.606 * mtov / remnant_radius) * mtov
+
+    if m_total < prompt_threshold_mass:
+        mejecta_blue /= alpha
+
+    # Now compute disk ejecta following Coughlin+ 2019
+
+    a_5 = -31.335
+    b_5 = -0.9760
+    c_5 = 1.0474
+    d_5 = 0.05957
+
+    logMdisk = np.max([-3, a_5 * (1 + b_5 * np.tanh((c_5 - m_total / prompt_threshold_mass) / d_5))])
+
+    disk_mass = 10 ** logMdisk
+
+    disk_mass *= disk_ejecta_error
+
+    disk_ejecta_mass = disk_mass * epsilon
+
+    mejecta_purple = disk_ejecta_mass
+
+    # Fit for disk velocity using Metzger and Fernandez
+    vdisk_max = 0.15
+    vdisk_min = 0.03
+    vfit = np.polyfit([mtov, prompt_threshold_mass], [vdisk_max, vdisk_min], deg=1)
+
+    # Get average opacity of 'purple' (disk) component
+    # Mass-averaged Ye as a function of remnant lifetime from Lippuner 2017
+    # Lifetime related to Mtot using Metzger handbook table 3
+    if m_total < mtov:
+        # stable NS
+        Ye = 0.38
+        vdisk = vdisk_max
+    elif m_total < 1.2 * mtov:
+        # long-lived (>>100 ms) NS remnant Ye = 0.34-0.38,
+        # smooth interpolation
+        Yfit = np.polyfit([mtov, 1.2 * mtov], [0.38, 0.34], deg=1)
+        Ye = Yfit[0] * m_total + Yfit[1]
+        vdisk = vfit[0] * m_total + vfit[1]
+    elif m_total < prompt_threshold_mass:
+        # short-lived (hypermassive) NS, Ye = 0.25-0.34, smooth interpolation
+        Yfit = np.polyfit([1.2 * mtov, prompt_threshold_mass], [0.34, 0.25], deg=1)
+        Ye = Yfit[0] * m_total + Yfit[1]
+        vdisk = vfit[0] * m_total + vfit[1]
+    else:
+        # prompt collapse to BH, disk is red
+        Ye = 0.25
+        vdisk = vdisk_min
+
+    # Convert Ye to opacity using Tanaka et al 2019 for Ye >= 0.25:
+    a_6 = 2112.0
+    b_6 = -2238.9
+    c_6 = 742.35
+    d_6 = -73.14
+
+    kappa_purple = a_6 * Ye ** 3 + b_6 * Ye ** 2 + c_6 * Ye + d_6
+
+    vejecta_purple = vdisk * ckm
+
+    vejecta_mean = (mejecta_purple * vejecta_purple + vejecta_red * mejecta_red +
+                    vejecta_blue * mejecta_blue) / (mejecta_purple + mejecta_red + mejecta_blue)
+
+    kappa_mean = (mejecta_purple * kappa_purple + kappa_red * mejecta_red +
+                  kappa_blue * mejecta_blue) / (mejecta_purple + mejecta_red + mejecta_blue)
+
+    # Viewing angle and lanthanide-poor opening angle correction from Darbha and Kasen 2020
+    ct = (1 - cos_theta_open**2)**0.5
+
+    if cos_theta_open > ct:
+        area_projected_top = np.pi * ct * cos_theta
+    else:
+        theta_p = np.arccos(cos_theta_open /
+                            (1 - cos_theta ** 2) ** 0.5)
+        theta_d = np.arctan(np.sin(theta_p) / cos_theta_open *
+                            (1 - cos_theta ** 2) ** 0.5 / np.abs(cos_theta))
+        area_projected_top = (theta_p - np.sin(theta_p) * np.cos(theta_p)) - (ct *
+                                                                     cos_theta * (theta_d - np.sin(theta_d) * np.cos(
+                            theta_d) - np.pi))
+
+    minus_cos_theta = -1 * cos_theta
+
+    if minus_cos_theta < -1 * ct:
+        area_projected_bottom = 0
+    else:
+        theta_p2 = np.arccos(cos_theta_open /
+                             (1 - minus_cos_theta ** 2) ** 0.5)
+        theta_d2 = np.arctan(np.sin(theta_p2) / cos_theta_open *
+                             (1 - minus_cos_theta ** 2) ** 0.5 / np.abs(minus_cos_theta))
+
+        Aproj_bot1 = (theta_p2 - np.sin(theta_p2) * np.cos(theta_p2)) + (ct *
+                                                                         minus_cos_theta * (theta_d2 - np.sin(
+                    theta_d2) * np.cos(theta_d2)))
+        area_projected_bottom = np.max([Aproj_bot1, 0])
+
+    area_projected = area_projected_top + area_projected_bottom
+
+    # Compute reference areas for this opening angle to scale luminosity
+
+    cos_theta_ref = 0.5
+
+    if cos_theta_ref > ct:
+        area_ref_top = np.pi * ct * cos_theta_ref
+    else:
+        theta_p_ref = np.arccos(cos_theta_open /
+                                (1 - cos_theta_ref ** 2) ** 0.5)
+        theta_d_ref = np.arctan(np.sin(theta_p_ref) / cos_theta_open *
+                                (1 - cos_theta_ref ** 2) ** 0.5 / np.abs(cos_theta_ref))
+        area_ref_top = (theta_p_ref - np.sin(theta_p_ref) *
+                    np.cos(theta_p_ref)) - (ct * cos_theta_ref *
+                                            (theta_d_ref - np.sin(theta_d_ref) *
+                                             np.cos(theta_d_ref) - np.pi))
+
+    minus_cos_theta_ref = -1 * cos_theta_ref
+
+    if minus_cos_theta_ref < -1 * ct:
+        area_ref_bottom = 0
+    else:
+        theta_p2_ref = np.arccos(cos_theta_open /
+                                 (1 - minus_cos_theta_ref ** 2) ** 0.5)
+        theta_d2_ref = np.arctan(np.sin(theta_p2_ref) /
+                                 cos_theta_open * (1 - minus_cos_theta_ref ** 2) ** 0.5 /
+                                 np.abs(minus_cos_theta_ref))
+
+        area_ref_bottom = (theta_p2_ref - np.sin(theta_p2_ref) *
+                    np.cos(theta_p2_ref)) + (ct * minus_cos_theta_ref *
+                                             (theta_d2_ref - np.sin(theta_d2_ref) *
+                                              np.cos(theta_d2_ref)))
+
+    area_ref = area_ref_top + area_ref_bottom
+
+    area_blue = area_projected
+    area_blue_ref = area_ref
+
+    area_red = np.pi - area_blue
+    area_red_ref = np.pi - area_blue_ref
+
+    output = namedtuple('output', ['mejecta_blue', 'mejecta_red', 'mejecta_purple',
+                                   'vejecta_blue', 'vejecta_red', 'vejecta_purple',
+                                   'vejecta_mean', 'kappa_mean', 'mejecta_dyn',
+                                   'mejecta_total', 'kappa_purple', 'radius_1', 'radius_2',
+                                   'binary_lambda', 'remnant_radius', 'area_blue', 'area_blue_ref',
+                                   'area_red', 'area_red_ref'])
+    output.mejecta_blue = mejecta_blue
+    output.mejecta_red = mejecta_red
+    output.mejecta_purple = mejecta_purple
+    output.vejecta_blue = vejecta_blue
+    output.vejecta_red = vejecta_red
+    output.vejecta_purple = vejecta_purple
+    output.vejecta_mean = vejecta_mean
+    output.kappa_mean = kappa_mean
+    output.mejecta_dyn = dynamical_ejecta_mass
+    output.mejecta_total = dynamical_ejecta_mass + mejecta_purple
+    output.kappa_purple = kappa_purple
+    output.radius_1 = radius_1
+    output.radius_2 = radius_2
+    output.binary_lambda = binary_lambda
+    output.remnant_radius = remnant_radius
+    output.area_blue = area_blue
+    output.area_blue_ref = area_blue_ref
+    output.area_red = area_red
+    output.area_red_ref = area_red_ref
+    raise output
 
 @citation_wrapper('https://ui.adsabs.harvard.edu/abs/2021MNRAS.505.3016N/abstract')
 def nicholl_bns(time, redshift, mass_1, mass_2, lambda_s, kappa_red, kappa_blue,
