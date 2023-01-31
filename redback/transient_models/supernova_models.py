@@ -1274,33 +1274,31 @@ def general_magnetar_slsn(time, redshift, l0, tsd, nn, ** kwargs):
                                                           **kwargs)
 
 @citation_wrapper('Omand and Sarin (in prep)')
-def general_magnetar_driven_supernova_bolometric(time, mej, E_sn, ejecta_radius, kappa, n_ism, l0, tau_sd, nn,
-               kappa_gamma, **kwargs):   
+def general_magnetar_driven_supernova_bolometric(time, mej, E_sn, kappa, l0, tau_sd, nn, kappa_gamma, **kwargs):   
     """
     :param time: time in observer frame in days
     :param mej: ejecta mass in solar units
     :param E_sn: supernova explosion energy
-    :param ejecta_radius: initial ejecta radius
     :param kappa: opacity
-    :param n_ism: ism number density
     :param l0: initial magnetar X-ray luminosity (Is this not the spin-down luminosity?)
     :param tau_sd: magnetar spin down damping timescale (days? seconds?)
     :param nn: braking index
     :param kappa_gamma: gamma-ray opacity used to calculate magnetar thermalisation efficiency
-    # Add comments for other mag model if used
     :param kwargs: Additional parameters - Must be all the kwargs required by the specific interaction_process  used
              e.g., for Diffusion: kappa, kappa_gamma, vej (km/s)
     :param pair_cascade_switch: whether to account for pair cascade losses, default is True
     :param ejecta albedo: ejecta albedo; default is 0.5
     :param pair_cascade_fraction: fraction of magnetar luminosity lost to pair cascades; default is 0.05
-    # :param output_format: whether to output flux density or AB magnitude
-    :param f_nickel: Ni^56 mass in solar units
+    :param output_format: whether to output flux density or AB magnitude
+    :param f_nickel: Ni^56 mass as a fraction of ejecta mass
     :return: bolometric luminsoity or dynamics output
     """              
     pair_cascade_switch = kwargs.get('pair_cascade_switch', False)
     time_temp = np.geomspace(1e-4, 1e9, 3000, endpoint=True)
     magnetar_luminosity = magnetar_only(time=time_temp, l0=l0, tau=tau_sd, nn=nn)
     beta = np.sqrt(E_sn / (0.5 * mej * solar_mass)) / speed_of_light
+    ejecta_radius = 1.0e11
+    n_ism = 1.0e-5
     
     output = _ejecta_dynamics_and_interaction(time=time_temp, mej=mej,
                                               beta=beta, ejecta_radius=ejecta_radius,
@@ -1335,8 +1333,7 @@ def general_magnetar_driven_supernova_bolometric(time, mej, E_sn, ejecta_radius,
         return dynamics_output
 
 @citation_wrapper('Omand and Sarin (in prep)')
-def general_magnetar_driven_supernova(time, redshift, mej, E_sn, ejecta_radius, kappa, n_ism, l0, tau_sd, nn,
-               kappa_gamma, **kwargs):
+def general_magnetar_driven_supernova(time, redshift, mej, E_sn, kappa, l0, tau_sd, nn, kappa_gamma, **kwargs):
     """
     :param time: time in observer frame in days
     :param redshift: redshift
@@ -1349,16 +1346,15 @@ def general_magnetar_driven_supernova(time, redshift, mej, E_sn, ejecta_radius, 
     :param tau_sd: magnetar spin down damping timescale (in seconds)
     :param nn: braking index
     :param kappa_gamma: gamma-ray opacity used to calculate magnetar thermalisation efficiency
-    # Add comments for other mag model if used
     :param kwargs: Additional parameters - Must be all the kwargs required by the specific interaction_process, photosphere, sed methods used
              e.g., for Diffusion and TemperatureFloor: kappa, kappa_gamma, vej (km/s), temperature_floor
              and CutoffBlackbody: cutoff_wavelength, default is 3000 Angstrom
     :param pair_cascade_switch: whether to account for pair cascade losses, default is True
     :param ejecta albedo: ejecta albedo; default is 0.5
     :param pair_cascade_fraction: fraction of magnetar luminosity lost to pair cascades; default is 0.05
-    # :param output_format: whether to output flux density or AB magnitude
+    :param output_format: whether to output flux density or AB magnitude
     :param frequency: (frequency to calculate - Must be same length as time array or a single number)
-    :param f_nickel: Ni^56 mass in solar units
+    :param f_nickel: Ni^56 mass as a fraction of ejecta mass
     :param photosphere: Default is TemperatureFloor.
             kwargs must have vej or relevant parameters if using different photosphere model
     :param sed: Default is CutoffBlackbody.
@@ -1369,6 +1365,8 @@ def general_magnetar_driven_supernova(time, redshift, mej, E_sn, ejecta_radius, 
     cutoff_wavelength = kwargs.get('cutoff_wavelength', 3000)
     dl = cosmo.luminosity_distance(redshift).cgs.value
     pair_cascade_switch = kwargs.get('pair_cascade_switch', False)
+    ejecta_radius = 1.0e11
+    n_ism = 1.0e-5
     
     if kwargs['output_format'] == 'flux_density':
         frequency = kwargs['frequency']
