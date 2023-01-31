@@ -48,6 +48,32 @@ def _shock_cooling(time, mass, radius, energy, **kwargs):
     output.temperature = temperature
     return output
 
+@citation_wrapper('https://ui.adsabs.harvard.edu/abs/2021MNRAS.505.3016N/abstract')
+def _shocked_cocoon(time, kappa, mejecta, vejecta, cos_theta_cocoon, shocked_fraction, nn, tshock):
+    """
+    Shocked cocoon model from Nicholl et al. 2021
+
+    :param time: time in source frame in seconds
+    :param kappa: opacity
+    :param mejecta: ejecta in solar masses
+    :param vejecta: ejecta velocity in
+    :param cos_theta_cocoon: cosine of the cocoon opening angle
+    :param shocked_fraction: fraction of the ejecta that is shocked
+    :param nn: ejecta power law density profile
+    :param tshock: time of shock in source frame in seconds
+    :return: luminosity
+    """
+    rshock = speed_of_light * tshock
+    mshocked = shocked_fraction * mejecta
+    theta = np.arccos(cos_theta_cocoon)
+    diffusion_constant = solar_mass / (4 * np.pi * speed_of_light * km_cgs)
+    taudiff = np.sqrt(diffusion_constant * kappa * mshocked / vejecta) / day_to_s
+    num = speed_of_light / km_cgs
+    tthin = taudiff * (num / vejecta)**0.5
+    l0 = (theta**2/2)**(1./3.) * (mshocked * solar_mass * vejecta * km_cgs * rshock / (taudiff * day_to_s))**2
+    lbol = l0 * (time / taudiff)**-(4/(nn+2)) * (1 + np.tanh(tthin-time))/2.
+    return lbol
+
 @citation_wrapper('https://ui.adsabs.harvard.edu/abs/2021ApJ...909..209P/abstract')
 def shock_cooling_bolometric(time, log10_mass, log10_radius, log10_energy, **kwargs):
     """
