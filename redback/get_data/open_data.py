@@ -148,8 +148,8 @@ class OpenDataGetter(DataGetter):
                 time_of_event = self.get_t0_from_grb()
             else:
                 logger.warning('No time of event in metadata.')
-                logger.warning('Temporarily using the first data point as a start time')
-                time_of_event = data['time'].iloc[0]
+                logger.warning('Temporarily using 0.1d before the first data point as a start time')
+                time_of_event = data['time'].iloc[0] - 0.1
         return Time(time_of_event, format='mjd')
 
     def get_t0_from_grb(self) -> float:
