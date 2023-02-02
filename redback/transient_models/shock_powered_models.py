@@ -53,7 +53,7 @@ def _shocked_cocoon(time, kappa, mejecta, vejecta, cos_theta_cocoon, shocked_fra
     """
     Shocked cocoon model from Nicholl et al. 2021
 
-    :param time: time in source frame in seconds
+    :param time: time in source frame in days
     :param kappa: opacity
     :param mejecta: ejecta in solar masses
     :param vejecta: ejecta velocity in
@@ -72,7 +72,12 @@ def _shocked_cocoon(time, kappa, mejecta, vejecta, cos_theta_cocoon, shocked_fra
     tthin = taudiff * (num / vejecta)**0.5
     l0 = (theta**2/2)**(1./3.) * (mshocked * solar_mass * vejecta * km_cgs * rshock / (taudiff * day_to_s))**2
     lbol = l0 * (time / taudiff)**-(4/(nn+2)) * (1 + np.tanh(tthin-time))/2.
-    return lbol
+    output = namedtuple('output', ['lbol', 'tthin', 'taudiff','mshocked'])
+    output.lbol = lbol
+    output.tthin = tthin
+    output.taudiff = taudiff
+    output.mshocked = mshocked
+    return output
 
 @citation_wrapper('https://ui.adsabs.harvard.edu/abs/2021ApJ...909..209P/abstract')
 def shock_cooling_bolometric(time, log10_mass, log10_radius, log10_energy, **kwargs):
