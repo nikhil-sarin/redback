@@ -6,7 +6,7 @@ from scipy.interpolate import interp1d
 from astropy.cosmology import Planck18 as cosmo  # noqa
 from scipy.integrate import cumtrapz
 from collections import namedtuple
-from redback.photosphere import TemperatureFloor
+from redback.photosphere import TemperatureFloor, CocoonPhotosphere
 from redback.interaction_processes import Diffusion, AsphericalDiffusion
 
 from redback.utils import calc_kcorrected_properties, interpolated_barnes_and_kasen_thermalisation_efficiency, \
@@ -18,7 +18,7 @@ import redback.ejecta_relations as ejr
 
 @citation_wrapper('https://ui.adsabs.harvard.edu/abs/2021MNRAS.505.3016N/abstract')
 def _nicholl_bns_get_quantities(mass_1, mass_2, lambda_s, kappa_red, kappa_blue,
-               mtov, epsilon, alpha, cos_theta_open, cos_theta, **kwargs):
+                                mtov, epsilon, alpha, cos_theta_cocoon, cos_theta, **kwargs):
     """
     Calculates quantities for the Nicholl et al. 2021 BNS model
 
@@ -31,7 +31,7 @@ def _nicholl_bns_get_quantities(mass_1, mass_2, lambda_s, kappa_red, kappa_blue,
     :param epsilon: fraction of disk that gets unbound/ejected
     :param alpha: Enhancement of blue ejecta by NS surface winds if mtotal < prompt collapse,
                 can turn off by setting alpha=1
-    :param cos_theta_open: Opening angle of shocked cocoon
+    :param cos_theta_cocoon: Opening angle of shocked cocoon
     :param cos_theta: Viewing angle of observer
     :param kwargs: Additional keyword arguments
     :param dynamical_ejecta_error: Error in dynamical ejecta mass, default is 1 i.e., no error in fitting formula
@@ -50,7 +50,7 @@ def _nicholl_bns_get_quantities(mass_1, mass_2, lambda_s, kappa_red, kappa_blue,
     n_ave = 0.743
     dynamical_ejecta_error = kwargs.get('dynamical_ejecta_error', 1.0)
     disk_ejecta_error = kwargs.get('disk_ejecta_error', 1.0)
-    theta_open = np.arccos(cos_theta_open)
+    theta_open = np.arccos(cos_theta_cocoon)
 
     fq = (1 - (mass_2 / mass_1) ** (10. / (3 - n_ave))) / (1 + (mass_2 / mass_1) ** (10. / (3 - n_ave)))
 
@@ -210,14 +210,14 @@ def _nicholl_bns_get_quantities(mass_1, mass_2, lambda_s, kappa_red, kappa_blue,
                   kappa_blue * mejecta_blue) / (mejecta_purple + mejecta_red + mejecta_blue)
 
     # Viewing angle and lanthanide-poor opening angle correction from Darbha and Kasen 2020
-    ct = (1 - cos_theta_open**2)**0.5
+    ct = (1 - cos_theta_cocoon ** 2) ** 0.5
 
-    if cos_theta_open > ct:
+    if cos_theta_cocoon > ct:
         area_projected_top = np.pi * ct * cos_theta
     else:
-        theta_p = np.arccos(cos_theta_open /
+        theta_p = np.arccos(cos_theta_cocoon /
                             (1 - cos_theta ** 2) ** 0.5)
-        theta_d = np.arctan(np.sin(theta_p) / cos_theta_open *
+        theta_d = np.arctan(np.sin(theta_p) / cos_theta_cocoon *
                             (1 - cos_theta ** 2) ** 0.5 / np.abs(cos_theta))
         area_projected_top = (theta_p - np.sin(theta_p) * np.cos(theta_p)) - (ct *
                                                                      cos_theta * (theta_d - np.sin(theta_d) * np.cos(
@@ -228,9 +228,9 @@ def _nicholl_bns_get_quantities(mass_1, mass_2, lambda_s, kappa_red, kappa_blue,
     if minus_cos_theta < -1 * ct:
         area_projected_bottom = 0
     else:
-        theta_p2 = np.arccos(cos_theta_open /
+        theta_p2 = np.arccos(cos_theta_cocoon /
                              (1 - minus_cos_theta ** 2) ** 0.5)
-        theta_d2 = np.arctan(np.sin(theta_p2) / cos_theta_open *
+        theta_d2 = np.arctan(np.sin(theta_p2) / cos_theta_cocoon *
                              (1 - minus_cos_theta ** 2) ** 0.5 / np.abs(minus_cos_theta))
 
         Aproj_bot1 = (theta_p2 - np.sin(theta_p2) * np.cos(theta_p2)) + (ct *
@@ -247,9 +247,9 @@ def _nicholl_bns_get_quantities(mass_1, mass_2, lambda_s, kappa_red, kappa_blue,
     if cos_theta_ref > ct:
         area_ref_top = np.pi * ct * cos_theta_ref
     else:
-        theta_p_ref = np.arccos(cos_theta_open /
+        theta_p_ref = np.arccos(cos_theta_cocoon /
                                 (1 - cos_theta_ref ** 2) ** 0.5)
-        theta_d_ref = np.arctan(np.sin(theta_p_ref) / cos_theta_open *
+        theta_d_ref = np.arctan(np.sin(theta_p_ref) / cos_theta_cocoon *
                                 (1 - cos_theta_ref ** 2) ** 0.5 / np.abs(cos_theta_ref))
         area_ref_top = (theta_p_ref - np.sin(theta_p_ref) *
                     np.cos(theta_p_ref)) - (ct * cos_theta_ref *
@@ -261,10 +261,10 @@ def _nicholl_bns_get_quantities(mass_1, mass_2, lambda_s, kappa_red, kappa_blue,
     if minus_cos_theta_ref < -1 * ct:
         area_ref_bottom = 0
     else:
-        theta_p2_ref = np.arccos(cos_theta_open /
+        theta_p2_ref = np.arccos(cos_theta_cocoon /
                                  (1 - minus_cos_theta_ref ** 2) ** 0.5)
         theta_d2_ref = np.arctan(np.sin(theta_p2_ref) /
-                                 cos_theta_open * (1 - minus_cos_theta_ref ** 2) ** 0.5 /
+                                 cos_theta_cocoon * (1 - minus_cos_theta_ref ** 2) ** 0.5 /
                                  np.abs(minus_cos_theta_ref))
 
         area_ref_bottom = (theta_p2_ref - np.sin(theta_p2_ref) *
@@ -309,8 +309,140 @@ def _nicholl_bns_get_quantities(mass_1, mass_2, lambda_s, kappa_red, kappa_blue,
 
 @citation_wrapper('https://ui.adsabs.harvard.edu/abs/2021MNRAS.505.3016N/abstract')
 def nicholl_bns(time, redshift, mass_1, mass_2, lambda_s, kappa_red, kappa_blue,
-                mtov, epsilon, alpha, cos_theta_open, **kwargs):
-    raise NotImplementedError("This model is not yet implemented.")
+                mtov, epsilon, alpha, cos_theta, cos_theta_cocoon, temperature_floor_1,
+                temperature_floor_2, temperature_floor_3, **kwargs):
+    """
+    Kilonova model from Nicholl et al. 2021, inclides three kilonova components
+    + shock heating from cocoon + disk winds from remnant
+
+    :param time:
+    :param redshift:
+    :param mass_1: Mass of primary in solar masses
+    :param mass_2: Mass of secondary in solar masses
+    :param lambda_s: Symmetric tidal deformability i.e, lambda_s = lambda_1 + lambda_2
+    :param kappa_red: opacity of the red ejecta
+    :param kappa_blue: opacity of the blue ejecta
+    :param mtov: Tolman Oppenheimer-Volkoff mass in solar masses
+    :param epsilon: fraction of disk that gets unbound/ejected
+    :param alpha: Enhancement of blue ejecta by NS surface winds if mtotal < prompt collapse,
+                can turn off by setting alpha=1
+    :param cos_theta: Viewing angle of observer
+    :param cos_theta_cocoon: Opening angle of shocked cocoon
+    :param temperature_floor_1: Temperature floor of first (blue) component
+    :param temperature_floor_2: Temperature floor of second (purple) component
+    :param temperature_floor_3: Temperature floor of third (red) component
+    :param kwargs: Additional keyword arguments
+    :param dynamical_ejecta_error: Error in dynamical ejecta mass, default is 1 i.e., no error in fitting formula
+    :param disk_ejecta_error: Error in disk ejecta mass, default is 1 i.e., no error in fitting formula
+    :param frequency: Required if output_format is 'flux_density'.
+    frequency to calculate - Must be same length as time array or a single number).
+    :param bands: Required if output_format is 'magnitude' or 'flux'.
+    :param output_format: 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
+    :param lambda_array: Optional argument to set your desired wavelength array (in Angstroms) to evaluate the SED on.
+    :param dense_resolution: resolution of the grid that the model is actually evaluated on, default is 300
+    :return: set by output format - 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
+    """
+    from redback.transient_models.shock_powered_models import _shocked_cocoon
+
+    dl = cosmo.luminosity_distance(redshift).cgs.value
+    dense_resolution = kwargs.get('dense_resolution', 100)
+    time_temp = np.geomspace(0.1, 30, dense_resolution)  # in source frame and days
+    kappa_gamma = kwargs.get('kappa_gamma', 10)
+
+    if np.max(time) > 20: # in source frame and days
+        time_temp = np.geomspace(0.1, np.max(time) + 5, dense_resolution)
+
+    time_obs = time
+    shocked_fraction = kwargs.get('shocked_fraction', 0.2)
+    nn = kwargs.get('nn', 1)
+    tshock = kwargs.get('tshock', 1.7)
+
+    output = _nicholl_bns_get_quantities(mass_1=mass_1, mass_2=mass_2, lambda_s=lambda_s,
+                                         kappa_red=kappa_red, kappa_blue=kappa_blue, mtov=mtov,
+                                         epsilon=epsilon, alpha=alpha, cos_theta_cocoon=cos_theta_cocoon,
+                                         cos_theta=cos_theta, **kwargs)
+    cocoon_output = _shocked_cocoon(time=time_temp, kappa=kappa_blue, mejecta=output.mejecta_blue,
+                                  vejecta=output.vejecta_blue, cos_theta_cocoon=cos_theta_cocoon,
+                                  shocked_fraction=shocked_fraction, nn=nn, tshock=tshock)
+    cocoon_photo = CocoonPhotosphere(time=time_temp, luminosity=cocoon_output.lbol,
+                                     tau_diff=cocoon_output.tau_diff, t_thin=cocoon_output.t_thin,
+                                     vej=cocoon_output.vejecta_blue, nn=nn)
+    mejs = [output.mejecta_blue, output.mejecta_purple, output.mejecta_red]
+    vejs = [output.vejecta_blue, output.vejecta_purple, output.vejecta_red]
+    area_projs = [output.area_blue, output.area_blue, output.area_red]
+    area_refs = [output.area_blue_ref, output.area_blue_ref, output.area_red_ref]
+    temperature_floors = [temperature_floor_1, temperature_floor_2, temperature_floor_3]
+    kappas = [kappa_blue, output.kappa_purple, kappa_red]
+
+    if kwargs['output_format'] == 'flux_density':
+        frequency = kwargs['frequency']
+        # interpolate properties onto observation times
+        temp_func = interp1d(time_temp, y=cocoon_photo.photosphere_temperature)
+        rad_func = interp1d(time_temp, y=cocoon_photo.r_photosphere)
+        # convert to source frame time and frequency
+        frequency, time = calc_kcorrected_properties(frequency=frequency, redshift=redshift, time=time)
+        temp = temp_func(time_obs)
+        photosphere = rad_func(time_obs)
+        flux_density = blackbody_to_flux_density(temperature=temp, r_photosphere=photosphere,
+                                                 dl=dl, frequency=frequency)
+        ff = flux_density.value
+        for x in range(3):
+            lbols = _mosfit_kilonova_one_component_lbol(time=time_temp*day_to_s, mej=mejs[x], vej=vejs[x])
+            interaction_class = AsphericalDiffusion(time=time_temp*day_to_s, dense_times=time_temp*day_to_s,
+                                                    luminosity=lbols, kappa=kappas[x], kappa_gamma=kappa_gamma,
+                                                    mej=mejs[x], vej=vejs[x], area_projection=area_projs[x],
+                                                    area_reference=area_refs[x])
+            lbols = interaction_class.new_luminosity
+            photo = TemperatureFloor(time=time_temp*day_to_s, luminosity=lbols,
+                                     temperature_floor=temperature_floors[x], vej=vejs[x])
+            temp_func = interp1d(time_temp, y=photo.photosphere_temperature)
+            rad_func = interp1d(time_temp, y=photo.r_photosphere)
+            temp = temp_func(time)
+            photosphere = rad_func(time)
+            flux_density = blackbody_to_flux_density(temperature=temp, r_photosphere=photosphere,
+                                                     dl=dl, frequency=frequency)
+            units = flux_density.unit
+            ff += flux_density.value
+        ff = ff * units
+        return ff.to(uu.mJy).value
+    else:
+        lambda_observer_frame = kwargs.get('lambda_array', np.geomspace(100, 60000, 200))
+        time_observer_frame = time_temp * (1. + redshift) #in days
+        frequency, time = calc_kcorrected_properties(frequency=lambda_to_nu(lambda_observer_frame),
+                                                     redshift=redshift, time=time_observer_frame)
+        fmjy = blackbody_to_flux_density(temperature=cocoon_photo.photosphere_temperature,
+                                         r_photosphere=cocoon_photo.r_photosphere,dl=dl,
+                                         frequency=frequency[:,None]).T
+        cocoon_spectra = fmjy.to(uu.mJy).to(uu.erg / uu.cm ** 2 / uu.s / uu.Angstrom,
+                                         equivalencies=uu.spectral_density(wav=lambda_observer_frame * uu.Angstrom)).T
+        full_spec = cocoon_spectra.value
+        for x in range(3):
+            lbols = _mosfit_kilonova_one_component_lbol(time=time_temp*day_to_s, mej=mejs[x], vej=vejs[x])
+            interaction_class = AsphericalDiffusion(time=time_temp*day_to_s, dense_times=time_temp*day_to_s,
+                                                    luminosity=lbols, kappa=kappas[x], kappa_gamma=kappa_gamma,
+                                                    mej=mejs[x], vej=vejs[x], area_projection=area_projs[x],
+                                                    area_reference=area_refs[x])
+            lbols = interaction_class.new_luminosity
+            photo = TemperatureFloor(time=time_temp*day_to_s, luminosity=lbols,
+                                     temperature_floor=temperature_floors[x], vej=vejs[x])
+            fmjy = blackbody_to_flux_density(temperature=photo.photosphere_temperature,
+                                              r_photosphere=photo.r_photosphere, dl=dl,
+                                              frequency=frequency[:,None]).T
+            spectra = fmjy.to(uu.mJy).to(uu.erg / uu.cm ** 2 / uu.s / uu.Angstrom,
+                                         equivalencies=uu.spectral_density(wav=lambda_observer_frame * uu.Angstrom))
+            units = spectra.unit
+            full_spec += spectra.value
+
+        full_spec = full_spec * units
+        if kwargs['output_format'] == 'spectra':
+            return namedtuple('output', ['time', 'lambdas', 'spectra'])(time=time_observer_frame,
+                                                                        lambdas=lambda_observer_frame,
+                                                                        spectra=full_spec)
+        else:
+            return get_correct_output_format_from_spectra(time=time_obs, time_eval=time_observer_frame,
+                                                          spectra=full_spec, lambda_array=lambda_observer_frame,
+                                                          **kwargs)
+
 
 @citation_wrapper('https://ui.adsabs.harvard.edu/abs/2017ApJ...851L..21V/abstract')
 def mosfit_rprocess(time, redshift, mej, vej, kappa, kappa_gamma, temperature_floor, **kwargs):
@@ -429,7 +561,7 @@ def mosfit_kilonova(time, redshift, mej_1, vej_1, temperature_floor_1, kappa_1,
             lbols = _mosfit_kilonova_one_component_lbol(time=time_temp,
                                                         mej=mej[x], vej=vej[x])
             interaction_class = Diffusion(time=time_temp, dense_times=time_temp, luminosity=lbols,
-                                          kappa=kappa, kappa_gamma=kappa_gamma, mej=mej, vej=vej)
+                                          kappa=kappa[x], kappa_gamma=kappa_gamma, mej=mej[x], vej=vej[x])
             lbols = interaction_class.new_luminosity
             photo = TemperatureFloor(time=time_temp, luminosity=lbols, vej=vej[x],
                                      temperature_floor=temperature_floor[x])
@@ -454,7 +586,7 @@ def mosfit_kilonova(time, redshift, mej_1, vej_1, temperature_floor_1, kappa_1,
             lbols = _mosfit_kilonova_one_component_lbol(time=time_temp,
                                                         mej=mej[x], vej=vej[x])
             interaction_class = Diffusion(time=time_temp, dense_times=time_temp, luminosity=lbols,
-                                          kappa=kappa, kappa_gamma=kappa_gamma, mej=mej, vej=vej)
+                                          kappa=kappa[x], kappa_gamma=kappa_gamma, mej=mej[x], vej=vej[x])
             lbols = interaction_class.new_luminosity
             photo = TemperatureFloor(time=time_temp, luminosity=lbols, vej=vej[x],
                                      temperature_floor=temperature_floor[x])
