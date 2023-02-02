@@ -334,6 +334,10 @@ def nicholl_bns(time, redshift, mass_1, mass_2, lambda_s, kappa_red, kappa_blue,
     :param kwargs: Additional keyword arguments
     :param dynamical_ejecta_error: Error in dynamical ejecta mass, default is 1 i.e., no error in fitting formula
     :param disk_ejecta_error: Error in disk ejecta mass, default is 1 i.e., no error in fitting formula
+    :param shocked_fraction: Fraction of ejecta that is shocked by jet, default is 0.2 i.e., 20% of blue ejecta is shocked.
+    Use 0. if you want to turn off cocoon emission.
+    :param nn: ejecta power law density profile, default is 1.
+    :param tshock: time for shock in source frame in seconds, default is 1.7s (see Nicholl et al. 2021)
     :param frequency: Required if output_format is 'flux_density'.
     frequency to calculate - Must be same length as time array or a single number).
     :param bands: Required if output_format is 'magnitude' or 'flux'.
