@@ -10,4 +10,4 @@ temperature_floor_2 = LogUniform(100, 6000, 'temperature_floor_2', latex_label =
 mej_3 = Uniform(1e-4, 0.1, 'mej_2', latex_label = r'$M_{\mathrm{ej}-2} [M_{\odot}]$')
 vej_3 = Uniform(0.1, 0.7, 'vej_2', latex_label = r'$v_{\mathrm{ej}-2} [c]$')
 kappa_3 = Uniform(1, 30, 'kappa_2', latex_label = r'$\kappa_{2}$')
-temperature_floor_3 = LogUniform(100, 6000, 'temperature_floor_2', latex_label = r'$T_{\mathrm{floor}-2}$')
+temperature_floor_3 = LogUniform(100, 6000, 'temperature_floor_2', latex_label = r'$T_{\mathrm{floor}-3}$')
