@@ -35,9 +35,9 @@ class CocoonPhotosphere(object):
         self.t_thin = t_thin
         self.r_photosphere = np.array([])
         self.photosphere_temperature = np.array([])
-        self.calculate_photosphere_properties()
         self.vej = vej
         self.nn = nn
+        self.calculate_photosphere_properties()
 
     @property
     def set_vphoto(self):

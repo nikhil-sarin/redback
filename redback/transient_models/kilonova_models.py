@@ -41,7 +41,7 @@ def _nicholl_bns_get_quantities(mass_1, mass_2, lambda_s, kappa_red, kappa_blue,
             'vejecta_mean', 'kappa_mean', 'mejecta_dyn',
             'mejecta_total', 'kappa_purple', 'radius_1', 'radius_2',
             'binary_lambda', 'remnant_radius', 'area_blue', 'area_blue_ref',
-            'area_red', 'area_red_ref' properties
+            'area_red', 'area_red_ref' properties. Masses in solar masses and velocities in units of c
     """
     ckm = 3e10/1e5
     a = 0.07550
@@ -139,8 +139,8 @@ def _nicholl_bns_get_quantities(mass_1, mass_2, lambda_s, kappa_red, kappa_blue,
     vejecta_blue = np.trapz(vtheta1 * atheta1, x=theta1) / np.trapz(atheta1, x=theta1)
     vejecta_red = np.trapz(vtheta2 * atheta2, x=theta2) / np.trapz(atheta2, x=theta2)
 
-    vejecta_red *= ckm
-    vejecta_blue *= ckm
+    # vejecta_red *= ckm
+    # vejecta_blue *= ckm
 
     # Bauswein 2013, cut-off for prompt collapse to BH
     prompt_threshold_mass = (2.38 - 3.606 * mtov / remnant_radius) * mtov
@@ -201,7 +201,7 @@ def _nicholl_bns_get_quantities(mass_1, mass_2, lambda_s, kappa_red, kappa_blue,
 
     kappa_purple = a_6 * Ye ** 3 + b_6 * Ye ** 2 + c_6 * Ye + d_6
 
-    vejecta_purple = vdisk * ckm
+    vejecta_purple = vdisk
 
     vejecta_mean = (mejecta_purple * vejecta_purple + vejecta_red * mejecta_red +
                     vejecta_blue * mejecta_blue) / (mejecta_purple + mejecta_red + mejecta_blue)
@@ -305,7 +305,7 @@ def _nicholl_bns_get_quantities(mass_1, mass_2, lambda_s, kappa_red, kappa_blue,
     output.area_blue_ref = area_blue_ref
     output.area_red = area_red
     output.area_red_ref = area_red_ref
-    raise output
+    return output
 
 @citation_wrapper('https://ui.adsabs.harvard.edu/abs/2021MNRAS.505.3016N/abstract')
 def nicholl_bns(time, redshift, mass_1, mass_2, lambda_s, kappa_red, kappa_blue,
@@ -315,8 +315,8 @@ def nicholl_bns(time, redshift, mass_1, mass_2, lambda_s, kappa_red, kappa_blue,
     Kilonova model from Nicholl et al. 2021, inclides three kilonova components
     + shock heating from cocoon + disk winds from remnant
 
-    :param time:
-    :param redshift:
+    :param time: time in days in observer frame
+    :param redshift: redshift
     :param mass_1: Mass of primary in solar masses
     :param mass_2: Mass of secondary in solar masses
     :param lambda_s: Symmetric tidal deformability i.e, lambda_s = lambda_1 + lambda_2
@@ -346,7 +346,7 @@ def nicholl_bns(time, redshift, mass_1, mass_2, lambda_s, kappa_red, kappa_blue,
     :param dense_resolution: resolution of the grid that the model is actually evaluated on, default is 300
     :return: set by output format - 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
     """
-    from redback.transient_models.shock_powered_models import _shocked_cocoon
+    from redback.transient_models.shock_powered_models import _shocked_cocoon_nicholl
 
     dl = cosmo.luminosity_distance(redshift).cgs.value
     dense_resolution = kwargs.get('dense_resolution', 100)
@@ -365,12 +365,12 @@ def nicholl_bns(time, redshift, mass_1, mass_2, lambda_s, kappa_red, kappa_blue,
                                          kappa_red=kappa_red, kappa_blue=kappa_blue, mtov=mtov,
                                          epsilon=epsilon, alpha=alpha, cos_theta_cocoon=cos_theta_cocoon,
                                          cos_theta=cos_theta, **kwargs)
-    cocoon_output = _shocked_cocoon(time=time_temp, kappa=kappa_blue, mejecta=output.mejecta_blue,
+    cocoon_output = _shocked_cocoon_nicholl(time=time_temp, kappa=kappa_blue, mejecta=output.mejecta_blue,
                                   vejecta=output.vejecta_blue, cos_theta_cocoon=cos_theta_cocoon,
                                   shocked_fraction=shocked_fraction, nn=nn, tshock=tshock)
     cocoon_photo = CocoonPhotosphere(time=time_temp, luminosity=cocoon_output.lbol,
-                                     tau_diff=cocoon_output.tau_diff, t_thin=cocoon_output.t_thin,
-                                     vej=cocoon_output.vejecta_blue, nn=nn)
+                                     tau_diff=cocoon_output.taudiff, t_thin=cocoon_output.tthin,
+                                     vej=output.vejecta_blue, nn=nn)
     mejs = [output.mejecta_blue, output.mejecta_purple, output.mejecta_red]
     vejs = [output.vejecta_blue, output.vejecta_purple, output.vejecta_red]
     area_projs = [output.area_blue, output.area_blue, output.area_red]
@@ -418,7 +418,7 @@ def nicholl_bns(time, redshift, mass_1, mass_2, lambda_s, kappa_red, kappa_blue,
                                          r_photosphere=cocoon_photo.r_photosphere,dl=dl,
                                          frequency=frequency[:,None]).T
         cocoon_spectra = fmjy.to(uu.mJy).to(uu.erg / uu.cm ** 2 / uu.s / uu.Angstrom,
-                                         equivalencies=uu.spectral_density(wav=lambda_observer_frame * uu.Angstrom)).T
+                                         equivalencies=uu.spectral_density(wav=lambda_observer_frame * uu.Angstrom))
         full_spec = cocoon_spectra.value
         for x in range(3):
             lbols = _mosfit_kilonova_one_component_lbol(time=time_temp*day_to_s, mej=mejs[x], vej=vejs[x])
@@ -431,7 +431,8 @@ def nicholl_bns(time, redshift, mass_1, mass_2, lambda_s, kappa_red, kappa_blue,
                                      temperature_floor=temperature_floors[x], vej=vejs[x])
             fmjy = blackbody_to_flux_density(temperature=photo.photosphere_temperature,
                                               r_photosphere=photo.r_photosphere, dl=dl,
-                                              frequency=frequency[:,None]).T
+                                              frequency=frequency[:, None])
+            fmjy = fmjy.T
             spectra = fmjy.to(uu.mJy).to(uu.erg / uu.cm ** 2 / uu.s / uu.Angstrom,
                                          equivalencies=uu.spectral_density(wav=lambda_observer_frame * uu.Angstrom))
             units = spectra.unit
@@ -613,6 +614,13 @@ def mosfit_kilonova(time, redshift, mej_1, vej_1, temperature_floor_1, kappa_1,
 
 @citation_wrapper('https://ui.adsabs.harvard.edu/abs/2017ApJ...851L..21V/abstract')
 def _mosfit_kilonova_one_component_lbol(time, mej, vej):
+    """
+
+    :param time: time in seconds in source frame
+    :param mej: mass in solar masses
+    :param vej: velocity in units of c
+    :return: lbol in erg/s
+    """
     tdays = time/day_to_s
 
     # set up kilonova physics
