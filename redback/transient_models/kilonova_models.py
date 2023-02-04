@@ -636,9 +636,41 @@ def _mosfit_kilonova_one_component_lbol(time, mej, vej):
     return lbol
 
 @citation_wrapper("redback,https://ui.adsabs.harvard.edu/abs/2020ApJ...891..152H/abstract")
-def power_law_stratified_kilonova(time, redshift, mej, vmin, vmax, alpha,
-                                  kappa_min, kappa_max, beta, **kwargs):
-    raise NotImplementedError("This model is not yet implemented.")
+def power_law_stratified_kilonova(time, redshift, mej, voffset, v0, alpha,
+                                  kappa_offset, kappa_0, zeta, beta, **kwargs):
+    """
+    Assumes a power law distribution of ejecta velocities
+    and a power law distribution of kappa corresponding to the ejecta velocity layers for a total of 10 "shells"
+    and calculates the kilonova light curve, using kilonova heating rate.
+    Velocity distribution is flipped so that faster material is the outermost layer as expected for homologous expansion.
+
+    Must be used with a constraint to avoid prior draws that predict nonsensical luminosities. Or a sensible prior.
+
+    :param time: time in days in observer frame
+    :param redshift: redshift
+    :param mej: total ejecta mass in solar masses
+    :param voffset: minimum ejecta velocity in units of c
+    :param v0: velocity normalization in units of c of the power law
+    :param alpha: power-law index of the velocity distribution i.e., vel = (xs/v0)^-alpha + voffset.
+    :param kappa_offset: minimum kappa value
+    :param kappa_0: kappa normalization
+    :param zeta: power law index of the kappa distribution i.e., kappa = (xs/kappa_0)^-zeta + kappa_offset
+    :param beta: power law index of density profile
+    :param kwargs: Additional keyword arguments
+    :param frequency: Required if output_format is 'flux_density'.
+    frequency to calculate - Must be same length as time array or a single number).
+    :param bands: Required if output_format is 'magnitude' or 'flux'.
+    :param output_format: 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
+    :param lambda_array: Optional argument to set your desired wavelength array (in Angstroms) to evaluate the SED on.
+    :return: set by output format - 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
+    """
+    xs = np.linspace(0.2, 0.5, 10)
+    velocity_array = np.flip(xs/v0) ** -alpha + voffset
+    xs = np.linspace(0.2, 0.5, 9)
+    kappa_array = (xs/kappa_0) ** -zeta + kappa_offset
+    output = _kilonova_hr(time=time, redshift=redshift, mej=mej, velocity_array=velocity_array,
+                          kappa_array=kappa_array, beta=beta, **kwargs)
+    return output
 
 @citation_wrapper('https://ui.adsabs.harvard.edu/abs/2022MNRAS.516.1137L/abstract')
 def bulla_bns_kilonova(time, redshift, mej_dyn, mej_disk, phi, costheta_obs, **kwargs):
