@@ -38,7 +38,7 @@ def sncosmo_models(time, redshift, model_kwargs, **kwargs):
     :param magnitude_system: Mag system; default ab
     :param host_extinction: Boolean for whether there is host extinction or not. Default True
             if used adds an extra parameter ebv which must also be in kwargs; host galaxy E(B-V). Set to 0.1 by default
-    :return: flux_density or magnitude depending on output_format kwarg
+    :return: set by output format - 'flux_density', 'magnitude', 'flux', 'sncosmo_source'
     """
     import sncosmo
     cosmology = kwargs.get('cosmology', cosmo)
