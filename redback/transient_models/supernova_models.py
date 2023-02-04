@@ -41,18 +41,13 @@ def sncosmo_models(time, redshift, model_kwargs, **kwargs):
     :return: flux_density or magnitude depending on output_format kwarg
     """
     import sncosmo
-    frequency = kwargs['frequency']
-
-    if (len(frequency) != 1 or len(frequency) == len(time)):
-        raise ValueError('frequency array must be of length 1 or same size as time array')
-
     cosmology = kwargs.get('cosmology', cosmo)
     peak_time = kwargs.get('peak_time', 0)
     peak_abs_mag = kwargs.get('peak_abs_mag', -19)
     peak_abs_mag_band = kwargs.get('peak_abs_mag_band', 'standard::b')
     model_name = kwargs.get('sncosmo_model', 'salt2')
     host_extinction = kwargs.get('host_extinction', True)
-    mw_extinction = kwargs.get('mw_extinction',True)
+    mw_extinction = kwargs.get('mw_extinction', True)
     magsystem = kwargs.get('magnitude_system', 'ab')
 
     model = sncosmo.Model(source=model_name)
@@ -68,27 +63,40 @@ def sncosmo_models(time, redshift, model_kwargs, **kwargs):
         model.add_effect(sncosmo.F99Dust(), 'mw', 'obs')
 
     model.set_source_peakabsmag(peak_abs_mag, band=peak_abs_mag_band, magsys=magsystem, cosmo=cosmology)
-    unique_frequency = np.sort(np.unique(frequency))
-    angstroms = nu_to_lambda(unique_frequency)
-
-    _flux = model.flux(time, angstroms)
-
-    if len(frequency) > 1:
-        _flux = pd.DataFrame(_flux)
-        _flux.columns = unique_frequency
-        _flux = np.array([_flux[freq].iloc[i] for i, freq in enumerate(frequency)])
-
-    units = uu.erg / uu.s / uu.Hz / uu.cm ** 2.
-    _flux = _flux * nu_to_lambda(frequency)
-    _flux = _flux / frequency
-    _flux = _flux << units
-
-    flux_density = _flux.to(uu.mJy).flatten()
 
     if kwargs['output_format'] == 'flux_density':
-        return flux_density.value
+        frequency = kwargs['frequency']
+
+        if (len(frequency) != 1 or len(frequency) == len(time)):
+            raise ValueError('frequency array must be of length 1 or same size as time array')
+        unique_frequency = np.sort(np.unique(frequency))
+        angstroms = nu_to_lambda(unique_frequency)
+
+        _flux = model.flux(time, angstroms)
+
+        if len(frequency) > 1:
+            _flux = pd.DataFrame(_flux)
+            _flux.columns = unique_frequency
+            _flux = np.array([_flux[freq].iloc[i] for i, freq in enumerate(frequency)])
+
+        units = uu.erg / uu.s / uu.Hz / uu.cm ** 2.
+        _flux = _flux * nu_to_lambda(frequency)
+        _flux = _flux / frequency
+        _flux = _flux << units
+
+        flux_density = _flux.to(uu.mJy).flatten()
+        return flux_density
+
+    if kwargs['output_format'] == 'flux':
+        bands = kwargs['bands']
+        magnitude = model.bandmag(phase=time, band=bands, magsys='ab')
+        return sed.bandpass_magnitude_to_flux(magnitude=magnitude, bands=bands)
     elif kwargs['output_format'] == 'magnitude':
-        return flux_density.to(uu.ABmag).value
+        bands = kwargs['bands']
+        magnitude = model.bandmag(phase=time, band=bands, magsys='ab')
+        return magnitude
+    elif kwargs['output_format'] == 'sncosmo_source':
+        return model
 
 @citation_wrapper('redback')
 def exponential_powerlaw_bolometric(time, lbol_0, alpha_1, alpha_2, tpeak_d, **kwargs):
