@@ -4,6 +4,54 @@ from typing import Any, Union
 import numpy as np
 from redback.constants import *
 
+class CocoonPhotosphere(object):
+
+    DIFFUSION_CONSTANT = solar_mass / (4*np.pi*speed_of_light*km_cgs)
+    RADIUS_CONSTANT = km_cgs * day_to_s
+    STEF_CONSTANT = 4 * np.pi * sigma_sb
+    reference = 'https://ui.adsabs.harvard.edu/abs/2021MNRAS.505.3016N/abstract'
+    def __init__(self, time: np.ndarray, luminosity: np.ndarray, tau_diff: float,
+                 t_thin: float, vej:np.ndarray, nn: Union[float, int], **kwargs: None) -> None:
+        """
+        Cocoon Photosphere
+
+        :param time: source frame time in days
+        :type time: numpy.ndarray
+        :param luminosity: luminosity in ergs/s
+        :type luminosity: numpy.ndarray
+        :param tau_diff: diffusion time in days
+        :type tau_diff: float
+        :param t_thin: time to become optically thin in days
+        :type t_thin: float
+        :param vej: ejecta velocity
+        :type vej: numpy.ndarray
+        :param nn: density power law index
+        :type nn: Union[float, int]
+        :param kwargs: Additional keyword arguments
+        """
+        self.time = time
+        self.luminosity = luminosity
+        self.tau_diff = tau_diff
+        self.t_thin = t_thin
+        self.r_photosphere = np.array([])
+        self.photosphere_temperature = np.array([])
+        self.vej = vej
+        self.nn = nn
+        self.calculate_photosphere_properties()
+
+    @property
+    def set_vphoto(self):
+        return self.vej * (self.time / self.t_thin) ** (-2./(self.nn + 3))
+    def calculate_r_photosphere(self) -> None:
+        self.r_photosphere = self.RADIUS_CONSTANT * self.set_vphoto * self.time
+
+    def calculate_photosphere_temperature(self) -> None:
+        self.photosphere_temperature = (self.luminosity / (self.STEF_CONSTANT * self.r_photosphere ** 2))**(0.25)
+
+    def calculate_photosphere_properties(self) -> tuple:
+        self.calculate_r_photosphere()
+        self.calculate_photosphere_temperature()
+        return self.photosphere_temperature, self.r_photosphere
 
 class TemperatureFloor(object):
 

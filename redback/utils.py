@@ -716,3 +716,12 @@ def electron_fraction_from_kappa(kappa):
     kappa_func = interp1d(kappa_array, y=ye_array)
     electron_fraction = kappa_func(kappa)
     return electron_fraction
+
+def velocity_from_lorentz_factor(gamma):
+    """
+    Calculate velocity from lorentz factor
+
+    :param gamma: lorentz factor
+    :return: velocity in cgs
+    """
+    return speed_of_light * np.sqrt(1 - 1 / gamma ** 2)
