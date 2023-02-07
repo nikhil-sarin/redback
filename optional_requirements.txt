@@ -5,4 +5,4 @@ sherpa
 PyQt5
 lalsuite
 kilonova-heating-rate
-redback_surrogates
+redback-surrogates
