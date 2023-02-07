@@ -2,7 +2,7 @@ import numpy as np
 import pandas as pd
 
 from astropy.table import Table, Column
-from scipy.interpolate import interp1d
+from scipy.interpolate import interp1d, RegularGridInterpolator
 from astropy.cosmology import Planck18 as cosmo  # noqa
 from scipy.integrate import cumtrapz
 from collections import namedtuple
@@ -696,15 +696,18 @@ def bulla_bns_kilonova(time, redshift, mej_dyn, mej_disk, phi, costheta_obs, **k
 
     if kwargs['output_format'] == 'flux_density':
         frequency = kwargs['frequency']
-        time, frequency = calc_kcorrected_properties(frequency=frequency, time=time, redshift=redshift)
+        frequency, time = calc_kcorrected_properties(frequency=frequency, time=time, redshift=redshift)
         output = function(time_source_frame=time, redshift=redshift, mej_dyn=mej_dyn,
                           mej_disk=mej_disk, phi=phi, costheta_obs=costheta_obs)
         spectra = output.spectra / (4 * np.pi * dl ** 2)  # to erg/s/cm^2/Angstrom
         spectra = spectra * uu.erg / (uu.s * uu.cm ** 2 * uu.Angstrom)
-        fmjy = spectra.to(uu.mJy).value
-        nu_array = lambda_to_nu(output.lambas)
-        fmjy_func = interp1d(nu_array, fmjy)
-        return fmjy_func(frequency)
+        fmjy = spectra.to(uu.mJy, equivalencies=uu.spectral_density(wav=output.lambdas * uu.Angstrom)).value
+        nu_array = lambda_to_nu(output.lambdas)
+        fmjy_func = RegularGridInterpolator((time, nu_array), fmjy, bounds_error=True)
+        if type(frequency) == float:
+            frequency = np.ones(len(time)) * frequency
+        points = np.array([time, frequency]).T
+        return fmjy_func(points)
     else:
         time_source_frame = np.linspace(0.1, 20, 200)
         output = function(time_source_frame=time_source_frame, redshift=redshift, mej_dyn=mej_dyn,
@@ -744,15 +747,18 @@ def bulla_nsbh_kilonova(time, redshift, mej_dyn, mej_disk, costheta_obs, **kwarg
 
     if kwargs['output_format'] == 'flux_density':
         frequency = kwargs['frequency']
-        time, frequency = calc_kcorrected_properties(frequency=frequency, time=time, redshift=redshift)
+        frequency, time = calc_kcorrected_properties(frequency=frequency, time=time, redshift=redshift)
         output = function(time_source_frame=time, redshift=redshift, mej_dyn=mej_dyn,
                           mej_disk=mej_disk, costheta_obs=costheta_obs)
         spectra = output.spectra / (4 * np.pi * dl ** 2)  # to erg/s/cm^2/Angstrom
         spectra = spectra * uu.erg / (uu.s * uu.cm ** 2 * uu.Angstrom)
-        fmjy = spectra.to(uu.mJy).value
-        nu_array = lambda_to_nu(output.lambas)
-        fmjy_func = interp1d(nu_array, fmjy)
-        return fmjy_func(frequency)
+        fmjy = spectra.to(uu.mJy, equivalencies=uu.spectral_density(wav=output.lambdas * uu.Angstrom)).value
+        nu_array = lambda_to_nu(output.lambdas)
+        fmjy_func = RegularGridInterpolator((time, nu_array), fmjy, bounds_error=True)
+        if type(frequency) == float:
+            frequency = np.ones(len(time)) * frequency
+        points = np.array([time, frequency]).T
+        return fmjy_func(points)
     else:
         time_source_frame = np.linspace(0.1, 20, 200)
         output = function(time_source_frame=time_source_frame, redshift=redshift, mej_dyn=mej_dyn,
@@ -792,14 +798,17 @@ def kasen_bns_kilonova(time, redshift, mej, vej, chi, **kwargs):
 
     if kwargs['output_format'] == 'flux_density':
         frequency = kwargs['frequency']
-        time, frequency = calc_kcorrected_properties(frequency=frequency, time=time, redshift=redshift)
+        frequency, time = calc_kcorrected_properties(frequency=frequency, time=time, redshift=redshift)
         output = function(time_source_frame=time,redshift=redshift, mej=mej, vej=vej, chi=chi)
         spectra = output.spectra / (4 * np.pi * dl ** 2) # to erg/s/cm^2/Angstrom
         spectra = spectra * uu.erg / (uu.s * uu.cm ** 2 * uu.Angstrom)
-        fmjy = spectra.to(uu.mJy).value
-        nu_array = lambda_to_nu(output.lambas)
-        fmjy_func = interp1d(nu_array, fmjy)
-        return fmjy_func(frequency)
+        fmjy = spectra.to(uu.mJy, equivalencies=uu.spectral_density(wav=output.lambdas * uu.Angstrom)).value
+        nu_array = lambda_to_nu(output.lambdas)
+        fmjy_func = RegularGridInterpolator((time, nu_array), fmjy, bounds_error=True)
+        if type(frequency) == float:
+            frequency = np.ones(len(time)) * frequency
+        points = np.array([time, frequency]).T
+        return fmjy_func(points)
     else:
         time_source_frame = np.linspace(0.1, 20, 200)
         output = function(time_source_frame=time_source_frame, redshift=redshift, mej=mej, vej=vej, chi=chi)

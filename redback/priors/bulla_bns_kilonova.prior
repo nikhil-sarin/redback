@@ -1,0 +1,5 @@
+redshift = Uniform(1e-3, 0.1, 'redshift', latex_label = r'$z$')
+mej_dyn = Uniform(0.001, 0.02, 'mej_dyn', latex_label = r'$M_{\mathrm{ej-dyn}} [M_{\odot}]$')
+mej_disk = Uniform(0.01, 0.13, 'mej_disk', latex_label = r'$M_{\mathrm{ej-disk}} [M_{\odot}]$')
+phi = Uniform(0,90, 'phi', latex_label = r'$\phi$')
+costheta_obs = Uniform(0,1, 'costheta_obs', latex_label = r'$\cos\theta_{\mathrm{obs}}$')
