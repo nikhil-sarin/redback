@@ -1,7 +1,11 @@
 from astropy.cosmology import Planck18 as cosmo  # noqa
 from inspect import isfunction
-from redback.utils import logger, citation_wrapper, calc_ABmag_from_flux_density
+from redback.utils import logger, citation_wrapper, calc_ABmag_from_flux_density, lambda_to_nu
 from redback.constants import day_to_s
+from redback.sed import get_correct_output_format_from_spectra
+import astropy.units as uu
+import numpy as np
+from collections import namedtuple
 try:
     import afterglowpy as afterglow
 
@@ -25,7 +29,7 @@ def cocoon(time, redshift, umax, umin, loge0, k, mej, logn0, p, logepse, logepsb
     """
     A cocoon afterglow model from afterglowpy
 
-    :param time: time in days in source frame
+    :param time: time in days in observer frame
     :param redshift: source redshift
     :param umax: initial outflow 4 velocity maximum
     :param umin: minimum outflow 4 velocity
@@ -38,14 +42,17 @@ def cocoon(time, redshift, umax, umin, loge0, k, mej, logn0, p, logepse, logepsb
     :param logepsb: log10 fraction of thermal energy in magnetic field
     :param ksin: fraction of electrons that get accelerated
     :param g0: initial lorentz factor
-    :param kwargs: spread: whether jet can spread, defaults to False
-            latres: latitudinal resolution for structured jets, defaults to 2
-            tres: time resolution of shock evolution, defaults to 100
-            spectype: whether to have inverse compton, defaults to 0, i.e., no inverse compton.
-            l0, ts, q: energy injection parameters, defaults to 0
-            change to 1 for including inverse compton emission.
-            output_format: Whether to output flux density or AB mag
-    :return: flux density or AB mag.
+    :param kwargs: Additional keyword arguments
+    :param spread: whether jet can spread, defaults to False
+    :param latres: latitudinal resolution for structured jets, defaults to 2
+    :param tres: time resolution of shock evolution, defaults to 100
+    :param spectype: whether to have inverse compton, defaults to 0, i.e., no inverse compton.
+    Change to 1 for including inverse compton emission.
+    :param l0, ts, q: energy injection parameters, defaults to 0
+    :param output_format: Whether to output flux density or AB mag
+    :param base_model: A string to indicate the type of jet model to use.
+    :return: flux density or AB mag. Note this is going to give the monochromatic magnitude at the effective frequency for the band.
+    For a proper calculation of the magntitude use the sed variant models.
     """
     time = time * day_to_s
     dl = cosmo.luminosity_distance(redshift).cgs.value
@@ -77,7 +84,7 @@ def kilonova_afterglow(time, redshift, umax, umin, loge0, k, mej, logn0, p, loge
     """
     A kilonova afterglow model from afterglowpy, similar to cocoon but with constraints.
 
-    :param time: time in days in source frame
+    :param time: time in days in observer frame
     :param redshift: source redshift
     :param umax: initial outflow 4 velocity maximum
     :param umin: minimum outflow 4 velocity
@@ -90,16 +97,18 @@ def kilonova_afterglow(time, redshift, umax, umin, loge0, k, mej, logn0, p, loge
     :param logepsb: log10 fraction of thermal energy in magnetic field
     :param ksin: fraction of electrons that get accelerated
     :param g0: initial lorentz factor
-    :param kwargs: spread: whether jet can spread, defaults to False
-            latres: latitudinal resolution for structured jets, defaults to 2
-            tres: time resolution of shock evolution, defaults to 100
-            spectype: whether to have inverse compton, defaults to 0, i.e., no inverse compton.
-            l0, ts, q: energy injection parameters, defaults to 0
-            change to 1 for including inverse compton emission.
-            output_format: Whether to output flux density or AB mag
-    :return: flux density or AB mag.
+    :param kwargs: Additional keyword arguments
+    :param spread: whether jet can spread, defaults to False
+    :param latres: latitudinal resolution for structured jets, defaults to 2
+    :param tres: time resolution of shock evolution, defaults to 100
+    :param spectype: whether to have inverse compton, defaults to 0, i.e., no inverse compton.
+    Change to 1 for including inverse compton emission.
+    :param l0, ts, q: energy injection parameters, defaults to 0
+    :param output_format: Whether to output flux density or AB mag
+    :param base_model: A string to indicate the type of jet model to use.
+    :return: flux density or AB mag. Note this is going to give the monochromatic magnitude at the effective frequency for the band.
+    For a proper calculation of the magntitude use the sed variant models.
     """
-
     output = cocoon(time=time, redshift=redshift, umax=umax, umin=umin, loge0=loge0,
                     k=k, mej=mej, logn0=logn0,p=p,logepse=logepse,logepsb=logepsb,
                     ksin=ksin, g0=g0, **kwargs)
@@ -110,7 +119,7 @@ def cone_afterglow(time, redshift, thv, loge0, thw, thc, logn0, p, logepse, loge
     """
     A cone afterglow model from afterglowpy
 
-    :param time: time in days in source frame
+    :param time: time in days in observer frame
     :param redshift: source redshift
     :param thv: viewing angle in radians
     :param loge0: log10 on axis isotropic equivalent energy
@@ -122,14 +131,17 @@ def cone_afterglow(time, redshift, thv, loge0, thw, thc, logn0, p, logepse, loge
     :param logepsb: log10 fraction of thermal energy in magnetic field
     :param ksin: fraction of electrons that get accelerated
     :param g0: initial lorentz factor
-    :param kwargs: spread: whether jet can spread, defaults to False
-            latres: latitudinal resolution for structured jets, defaults to 2
-            tres: time resolution of shock evolution, defaults to 100
-            spectype: whether to have inverse compton, defaults to 0, i.e., no inverse compton.
-            l0, ts, q: energy injection parameters, defaults to 0
-            change to 1 for including inverse compton emission.
-            output_format: Whether to output flux density or AB mag
-    :return: flux density or AB mag.
+    :param kwargs: Additional keyword arguments
+    :param spread: whether jet can spread, defaults to False
+    :param latres: latitudinal resolution for structured jets, defaults to 2
+    :param tres: time resolution of shock evolution, defaults to 100
+    :param spectype: whether to have inverse compton, defaults to 0, i.e., no inverse compton.
+    Change to 1 for including inverse compton emission.
+    :param l0, ts, q: energy injection parameters, defaults to 0
+    :param output_format: Whether to output flux density or AB mag
+    :param base_model: A string to indicate the type of jet model to use.
+    :return: flux density or AB mag. Note this is going to give the monochromatic magnitude at the effective frequency for the band.
+    For a proper calculation of the magntitude use the sed variant models.
     """
     time = time * day_to_s
     dl = cosmo.luminosity_distance(redshift).cgs.value
@@ -162,7 +174,7 @@ def gaussiancore(time, redshift, thv, loge0, thc, thw, logn0, p, logepse, logeps
     """
     A gaussiancore model from afterglowpy
 
-    :param time: time in days in source frame
+    :param time: time in days in observer frame
     :param redshift: source redshift
     :param thv: viewing angle in radians
     :param loge0: log10 on axis isotropic equivalent energy
@@ -174,14 +186,17 @@ def gaussiancore(time, redshift, thv, loge0, thc, thw, logn0, p, logepse, logeps
     :param logepsb: log10 fraction of thermal energy in magnetic field
     :param ksin: fraction of electrons that get accelerated
     :param g0: initial lorentz factor
-    :param kwargs: spread: whether jet can spread, defaults to False
-            latres: latitudinal resolution for structured jets, defaults to 2
-            tres: time resolution of shock evolution, defaults to 100
-            spectype: whether to have inverse compton, defaults to 0, i.e., no inverse compton.
-            l0, ts, q: energy injection parameters, defaults to 0
-            change to 1 for including inverse compton emission.
-            output_format: Whether to output flux density or AB mag
-    :return: flux density or AB mag.
+    :param kwargs: Additional keyword arguments
+    :param spread: whether jet can spread, defaults to False
+    :param latres: latitudinal resolution for structured jets, defaults to 2
+    :param tres: time resolution of shock evolution, defaults to 100
+    :param spectype: whether to have inverse compton, defaults to 0, i.e., no inverse compton.
+    Change to 1 for including inverse compton emission.
+    :param l0, ts, q: energy injection parameters, defaults to 0
+    :param output_format: Whether to output flux density or AB mag
+    :param base_model: A string to indicate the type of jet model to use.
+    :return: flux density or AB mag. Note this is going to give the monochromatic magnitude at the effective frequency for the band.
+    For a proper calculation of the magntitude use the sed variant models.
     """
     time = time * day_to_s
     dl = cosmo.luminosity_distance(redshift).cgs.value
@@ -215,7 +230,7 @@ def gaussian(time, redshift, thv, loge0, thw, thc, logn0, p, logepse, logepsb, k
     """
     A gaussian structured jet model from afterglowpy
 
-    :param time: time in days in source frame
+    :param time: time in days in observer frame
     :param redshift: source redshift
     :param thv: viewing angle in radians
     :param loge0: log10 on axis isotropic equivalent energy
@@ -227,14 +242,17 @@ def gaussian(time, redshift, thv, loge0, thw, thc, logn0, p, logepse, logepsb, k
     :param logepsb: log10 fraction of thermal energy in magnetic field
     :param ksin: fraction of electrons that get accelerated
     :param g0: initial lorentz factor
-    :param kwargs: spread: whether jet can spread, defaults to False
-            latres: latitudinal resolution for structured jets, defaults to 2
-            tres: time resolution of shock evolution, defaults to 100
-            spectype: whether to have inverse compton, defaults to 0, i.e., no inverse compton.
-            l0, ts, q: energy injection parameters, defaults to 0
-            change to 1 for including inverse compton emission.
-            output_format: Whether to output flux density or AB mag
-    :return: flux density or AB mag.
+    :param kwargs: Additional keyword arguments
+    :param spread: whether jet can spread, defaults to False
+    :param latres: latitudinal resolution for structured jets, defaults to 2
+    :param tres: time resolution of shock evolution, defaults to 100
+    :param spectype: whether to have inverse compton, defaults to 0, i.e., no inverse compton.
+    Change to 1 for including inverse compton emission.
+    :param l0, ts, q: energy injection parameters, defaults to 0
+    :param output_format: Whether to output flux density or AB mag
+    :param base_model: A string to indicate the type of jet model to use.
+    :return: flux density or AB mag. Note this is going to give the monochromatic magnitude at the effective frequency for the band.
+    For a proper calculation of the magntitude use the sed variant models.
     """
     time = time * day_to_s
     dl = cosmo.luminosity_distance(redshift).cgs.value
@@ -267,7 +285,7 @@ def smoothpowerlaw(time, redshift, thv, loge0, thw, thc, beta, logn0, p, logepse
     """
     A smoothpowerlaw structured jet model from afterglowpy
 
-    :param time: time in days in source frame
+    :param time: time in days in observer frame
     :param redshift: source redshift
     :param thv: viewing angle in radians
     :param loge0: log10 on axis isotropic equivalent energy
@@ -280,14 +298,17 @@ def smoothpowerlaw(time, redshift, thv, loge0, thw, thc, beta, logn0, p, logepse
     :param logepsb: log10 fraction of thermal energy in magnetic field
     :param ksin: fraction of electrons that get accelerated
     :param g0: initial lorentz factor
-    :param kwargs: spread: whether jet can spread, defaults to False
-            latres: latitudinal resolution for structured jets, defaults to 2
-            tres: time resolution of shock evolution, defaults to 100
-            spectype: whether to have inverse compton, defaults to 0, i.e., no inverse compton.
-            l0, ts, q: energy injection parameters, defaults to 0
-            change to 1 for including inverse compton emission.
-            output_format: Whether to output flux density or AB mag
-    :return: flux density or AB mag.
+    :param kwargs: Additional keyword arguments
+    :param spread: whether jet can spread, defaults to False
+    :param latres: latitudinal resolution for structured jets, defaults to 2
+    :param tres: time resolution of shock evolution, defaults to 100
+    :param spectype: whether to have inverse compton, defaults to 0, i.e., no inverse compton.
+    Change to 1 for including inverse compton emission.
+    :param l0, ts, q: energy injection parameters, defaults to 0
+    :param output_format: Whether to output flux density or AB mag
+    :param base_model: A string to indicate the type of jet model to use.
+    :return: flux density or AB mag. Note this is going to give the monochromatic magnitude at the effective frequency for the band.
+    For a proper calculation of the magntitude use the sed variant models.
     """
     time = time * day_to_s
     dl = cosmo.luminosity_distance(redshift).cgs.value
@@ -320,7 +341,7 @@ def powerlawcore(time, redshift, thv, loge0, thw, thc, beta, logn0, p, logepse, 
     """
     A power law with core structured jet model from afterglowpy
 
-    :param time: time in days in source frame
+    :param time: time in days in observer frame
     :param redshift: source redshift
     :param thv: viewing angle in radians
     :param loge0: log10 on axis isotropic equivalent energy
@@ -333,14 +354,16 @@ def powerlawcore(time, redshift, thv, loge0, thw, thc, beta, logn0, p, logepse, 
     :param logepsb: log10 fraction of thermal energy in magnetic field
     :param ksin: fraction of electrons that get accelerated
     :param g0: initial lorentz factor
-    :param kwargs: spread: whether jet can spread, defaults to False
-            latres: latitudinal resolution for structured jets, defaults to 2
-            tres: time resolution of shock evolution, defaults to 100
-            spectype: whether to have inverse compton, defaults to 0, i.e., no inverse compton.
-            l0, ts, q: energy injection parameters, defaults to 0
-            change to 1 for including inverse compton emission.
-            output_format: Whether to output flux density or AB mag
-    :return: flux density or AB mag.
+    :param kwargs: Additional keyword arguments
+    :param spread: whether jet can spread, defaults to False
+    :param latres: latitudinal resolution for structured jets, defaults to 2
+    :param tres: time resolution of shock evolution, defaults to 100
+    :param spectype: whether to have inverse compton, defaults to 0, i.e., no inverse compton.
+    Change to 1 for including inverse compton emission.
+    :param l0, ts, q: energy injection parameters, defaults to 0
+    :param output_format: Whether to output flux density or AB mag
+    :return: flux density or AB mag. Note this is going to give the monochromatic magnitude at the effective frequency for the band.
+    For a proper calculation of the magntitude use the sed variant models.
     """
     time = time * day_to_s
     dl = cosmo.luminosity_distance(redshift).cgs.value
@@ -374,7 +397,7 @@ def tophat(time, redshift, thv, loge0, thc, logn0, p, logepse, logepsb, ksin, g0
     """
     A tophat jet model from afterglowpy
 
-    :param time: time in days in source frame
+    :param time: time in days in observer frame
     :param redshift: source redshift
     :param thv: viewing angle in radians
     :param loge0: log10 on axis isotropic equivalent energy
@@ -386,14 +409,16 @@ def tophat(time, redshift, thv, loge0, thc, logn0, p, logepse, logepsb, ksin, g0
     :param logepsb: log10 fraction of thermal energy in magnetic field
     :param ksin: fraction of electrons that get accelerated
     :param g0: initial lorentz factor
-    :param kwargs: spread: whether jet can spread, defaults to False
-            latres: latitudinal resolution for structured jets, defaults to 2
-            tres: time resolution of shock evolution, defaults to 100
-            spectype: whether to have inverse compton, defaults to 0, i.e., no inverse compton.
-            l0, ts, q: energy injection parameters, defaults to 0
-            change to 1 for including inverse compton emission.
-            output_format: Whether to output flux density or AB mag
-    :return: flux density or AB mag.
+    :param kwargs: Additional keyword arguments
+    :param spread: whether jet can spread, defaults to False
+    :param latres: latitudinal resolution for structured jets, defaults to 2
+    :param tres: time resolution of shock evolution, defaults to 100
+    :param spectype: whether to have inverse compton, defaults to 0, i.e., no inverse compton.
+    Change to 1 for including inverse compton emission.
+    :param l0, ts, q: energy injection parameters, defaults to 0
+    :param output_format: Whether to output flux density or AB mag
+    :return: flux density or AB mag. Note this is going to give the monochromatic magnitude at the effective frequency for the band.
+    For a proper calculation of the magntitude use the sed variant models. assuming a monochromatic
     """
     time = time * day_to_s
     dl = cosmo.luminosity_distance(redshift).cgs.value
@@ -424,18 +449,18 @@ def tophat(time, redshift, thv, loge0, thc, logn0, p, logepse, logepsb, ksin, g0
 def afterglow_models_with_energy_injection(time, **kwargs):
     """
     A base class for afterglowpy models with energy injection.
-    :param time: time in days in source frame
-    :param kwargs: all kwargs used by the specific jet model.
-            l0: Fiducial luminosity for energy injection
-            q: temporal powerlaw index for energy injection
-            ts: fiducial timescale for energy injection in days
-            latres: latitudinal resolution for structured jets, defaults to 2
-            tres: time resolution of shock evolution, defaults to 100
-            spectype: whether to have inverse compton, defaults to 0, i.e., no inverse compton.
-            change to 1 for including inverse compton emission.
-            output_format: Whether to output flux density or AB mag
-            base_model: A string to indicate the type of jet model to use.
-    :return: flux density or AB mag.
+    :param time: time in days in observer frame
+    :param kwargs: Additional keyword arguments
+    :param spread: whether jet can spread, defaults to False
+    :param latres: latitudinal resolution for structured jets, defaults to 2
+    :param tres: time resolution of shock evolution, defaults to 100
+    :param spectype: whether to have inverse compton, defaults to 0, i.e., no inverse compton.
+    Change to 1 for including inverse compton emission.
+    :param l0, ts, q: energy injection parameters, defaults to 0
+    :param output_format: Whether to output flux density or AB mag
+    :param base_model: A string to indicate the type of jet model to use.
+    :return: flux density or AB mag. Note this is going to give the monochromatic magnitude at the effective frequency for the band.
+    For a proper calculation of the magntitude use the sed variant models.
     """
     from redback.model_library import modules_dict  # import model library in function to avoid circular dependency
     base_model = kwargs['base_model']
@@ -458,15 +483,17 @@ def afterglow_models_with_jet_spread(time, **kwargs):
     """
     A base class for afterglow models with jet spreading. Note, with these models you cannot sample in g0.
 
-    :param time: time in days in source frame
-    :param kwargs: all kwargs used by the specific jet model.
-            latres: latitudinal resolution for structured jets, defaults to 2
-            tres: time resolution of shock evolution, defaults to 100
-            spectype: whether to have inverse compton, defaults to 0, i.e., no inverse compton.
-            change to 1 for including inverse compton emission.
-            output_format: Whether to output flux density or AB mag
-            base_model: A string to indicate the type of jet model to use.
-    :return: flux density or AB mag.
+    :param time: time in days in observer frame
+    :param kwargs: Additional keyword arguments
+    :param latres: latitudinal resolution for structured jets, defaults to 2
+    :param tres: time resolution of shock evolution, defaults to 100
+    :param spectype: whether to have inverse compton, defaults to 0, i.e., no inverse compton.
+    Change to 1 for including inverse compton emission.
+    :param l0, ts, q: energy injection parameters, defaults to 0
+    :param output_format: Whether to output flux density or AB mag
+    :param base_model: A string to indicate the type of jet model to use.
+    :return: flux density or AB mag. Note this is going to give the monochromatic magnitude at the effective frequency for the band.
+    For a proper calculation of the magntitude use the sed variant models.
     """
     from redback.model_library import modules_dict  # import model library in function to avoid circular dependency
     base_model = kwargs['base_model']
@@ -483,4 +510,55 @@ def afterglow_models_with_jet_spread(time, **kwargs):
     kwargs.pop('g0')
     output = function(time, **kwargs)
     return output
+
+@citation_wrapper('https://ui.adsabs.harvard.edu/abs/2020ApJ...896..166R/abstract')
+def afterglow_models_sed(time, **kwargs):
+    """
+    A base class for afterglowpy models for bandpass magnitudes/flux/spectra/sncosmo source.
+
+    :param time: time in days in observer frame
+    :param kwargs: Additional keyword arguments, must be all parameters required by the base model and the following:
+    :param base_model: A string to indicate the type of jet model to use.
+    :param spread: whether jet can spread, defaults to False
+    :param latres: latitudinal resolution for structured jets, defaults to 2
+    :param tres: time resolution of shock evolution, defaults to 100
+    :param spectype: whether to have inverse compton, defaults to 0, i.e., no inverse compton.
+    Change to 1 for including inverse compton emission.
+    :param bands: Required if output_format is 'magnitude' or 'flux'.
+    :param output_format: 'magnitude', 'spectra', 'flux', 'sncosmo_source'
+    :param lambda_array: Optional argument to set your desired wavelength array (in Angstroms) to evaluate the SED on.
+    :return: set by output format - 'magnitude', 'spectra', 'flux', 'sncosmo_source'
+    """
+    from redback.model_library import modules_dict  # import model library in function to avoid circular dependency
+    base_model = kwargs['base_model']
+    if isfunction(base_model):
+        function = base_model
+    elif base_model not in jet_spreading_models:
+        logger.warning('{} is not implemented as a base model'.format(base_model))
+        raise ValueError('Please choose a different base model')
+    elif isinstance(base_model, str):
+        function = modules_dict['afterglow_models'][base_model]
+    else:
+        raise ValueError("Not a valid base model.")
+    temp_kwargs = kwargs.copy()
+    temp_kwargs['spread'] = kwargs.get('spread', False)
+    lambda_observer_frame = kwargs.get('lambda_array', np.geomspace(100, 60000, 150))
+    frequency = lambda_to_nu(lambda_observer_frame)
+    time_observer_frame = np.linspace(np.min(time), np.max(time), 200)
+    times_mesh, frequency_mesh = np.meshgrid(time_observer_frame, frequency)
+    temp_kwargs['frequency'] = frequency_mesh
+    temp_kwargs['output_format'] = 'flux_density'
+    output = function(times_mesh, **temp_kwargs).T
+    fmjy = output * uu.mJy
+    spectra = fmjy.to(uu.mJy).to(uu.erg / uu.cm ** 2 / uu.s / uu.Angstrom,
+                                 equivalencies=uu.spectral_density(wav=lambda_observer_frame * uu.Angstrom))
+    if kwargs['output_format'] == 'spectra':
+        return namedtuple('output', ['time', 'lambdas', 'spectra'])(time=time_observer_frame,
+                                                                    lambdas=lambda_observer_frame,
+                                                                    spectra=spectra)
+    else:
+        return get_correct_output_format_from_spectra(time=time, time_eval=time_observer_frame,
+                                                      spectra=spectra, lambda_array=lambda_observer_frame,
+                                                      **kwargs)
+
 

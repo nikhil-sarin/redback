@@ -3,3 +3,7 @@ sncosmo
 nestle
 sherpa
 PyQt5
+lalsuite
+kilonova-heating-rate
+redback-surrogates
+kilonovanet

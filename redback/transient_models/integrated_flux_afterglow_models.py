@@ -34,7 +34,7 @@ def integrated_flux_afterglowpy_base_model(time, **kwargs):
         raise ValueError("Not a valid base model.")
 
     frequency_bounds = kwargs['frequency']  # should be 2 numbers that serve as start and end point
-    nu_1d = np.linspace(frequency_bounds[0], frequency_bounds[1], 3)
+    nu_1d = np.linspace(frequency_bounds[0], frequency_bounds[1], kwargs['resolution'])
     tt, nu = np.meshgrid(time, nu_1d)  # meshgrid makes 2D t and n
     tt = tt.flatten()
     nu = nu.flatten()
