@@ -1373,14 +1373,14 @@ def general_magnetar_driven_supernova(time, redshift, mej, E_sn, kappa, l0, tau_
         frequency, time = calc_kcorrected_properties(frequency=frequency, redshift=redshift, time=time)
         magnetar_luminosity = magnetar_only(time=time*day_to_s, l0=l0, tau=tau_sd, nn=nn)
         beta = np.sqrt(E_sn / (0.5 * mej * solar_mass)) / speed_of_light
-        output = _ejecta_dynamics_and_interaction(time=time_temp*day_to_s, mej=mej,
+        output = _ejecta_dynamics_and_interaction(time=time*day_to_s, mej=mej,
                                               beta=beta, ejecta_radius=ejecta_radius,
                                               kappa=kappa, n_ism=n_ism, magnetar_luminosity=magnetar_luminosity,
                                               kappa_gamma=kappa_gamma, pair_cascade_switch=pair_cascade_switch,
                                               use_gamma_ray_opacity=True, use_r_process=False, **kwargs)
         vej = velocity_from_lorentz_factor(output.lorentz_factor)/km_cgs 
         kwargs['vej'] = vej                                      
-        photo = _kwargs['photosphere'](time=time, luminosity=output.bolometric_luminosity, **kwargs)    
+        photo = kwargs['photosphere'](time=time, luminosity=output.bolometric_luminosity, **kwargs)    
         sed_1 = kwargs['sed'](time=time, luminosity=output.bolometric_luminosity, temperature=photo.photosphere_temperature,
     	                                      r_photosphere=photo.r_photosphere, frequency=frequency, luminosity_distance=dl,
                                               cutoff_wavelength=cutoff_wavelength) 
@@ -1390,7 +1390,7 @@ def general_magnetar_driven_supernova(time, redshift, mej, E_sn, kappa, l0, tau_
     else:
         time_obs = time
         frequency_observer_frame = kwargs.get('frequency_array', np.geomspace(100, 60000, 200))
-        time_temp = np.geomspace(1e1, 1e8, 1000) #in days
+        time_temp = np.geomspace(1e1, 1e8, 1000) #in seconds
         time_observer_frame = time_temp * (1. + redshift)
         frequency, time = calc_kcorrected_properties(frequency=lambda_to_nu(frequency_observer_frame),
                                               redshift=redshift, time=time_observer_frame)
@@ -1403,7 +1403,7 @@ def general_magnetar_driven_supernova(time, redshift, mej, E_sn, kappa, l0, tau_
                                               use_gamma_ray_opacity=True, use_r_process=False, **kwargs)
         vej = velocity_from_lorentz_factor(output.lorentz_factor)/km_cgs 
         kwargs['vej'] = vej
-        photo = kwargs['photosphere'](time=time_temp, luminosity=output.bolometric_luminosity, **kwargs)
+        photo = kwargs['photosphere'](time=time_temp/day_to_s, luminosity=output.bolometric_luminosity, **kwargs)
         if kwargs['output_format'] == 'dynamics_output':                                      
             erot_total = np.trapz(magnetar_luminosity, x=time_temp)
             erad_total = np.trapz(output.bolometric_luminosity, x=time_temp)          
@@ -1426,7 +1426,7 @@ def general_magnetar_driven_supernova(time, redshift, mej, E_sn, kappa, l0, tau_
         else: 
             full_sed = np.zeros((len(time), len(frequency)))
             for ii in range(len(frequency)):
-                ss = kwargs['sed'](time=time_temp, temperature=photo.photosphere_temperature,
+                ss = kwargs['sed'](time=time_temp/day_to_s, temperature=photo.photosphere_temperature,
                                r_photosphere=photo.r_photosphere, frequency=frequency[ii],
                                luminosity_distance=dl, cutoff_wavelength=cutoff_wavelength, luminosity=output.bolometric_luminosity)
                 full_sed[:, ii] = ss.flux_density.to(uu.mJy).value
