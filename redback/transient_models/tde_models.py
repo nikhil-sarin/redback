@@ -263,12 +263,13 @@ def gaussianrise_metzger_tde(time, redshift, peak_time, sigma, mbh_6, stellar_ma
     :return: set by output format - 'flux_density', 'magnitude', 'flux'
     """
     binding_energy_const = kwargs.get('binding_energy_const', 0.8)
-    tfb = calc_tfb(binding_energy_const, mbh_6, stellar_mass)
+    tfb_sf = calc_tfb(binding_energy_const, mbh_6, stellar_mass)  # source frame
+    tfb_obf = tfb_sf * (1. + redshift)  # observer frame
     output = _metzger_tde(mbh_6, stellar_mass, eta, alpha, beta, **kwargs)
     dl = cosmo.luminosity_distance(redshift).cgs.value
 
-    # in source frame
-    f1 = pm.gaussian_rise(time=tfb, a_1=1, peak_time=peak_time * cc.day_to_s, sigma=sigma * cc.day_to_s)
+    # normalisation term in observer frame
+    f1 = pm.gaussian_rise(time=tfb_obf, a_1=1, peak_time=peak_time * cc.day_to_s, sigma=sigma * cc.day_to_s)
 
     if kwargs['output_format'] == 'flux_density':
         frequency = kwargs['frequency']
@@ -289,8 +290,8 @@ def gaussianrise_metzger_tde(time, redshift, peak_time, sigma, mbh_6, stellar_ma
         # build flux density function for each frequency
         flux_den_interp_func = {}
         for freq in unique_frequency:
-            tt_pre_fb = np.linspace(-100, (output.time_temp[0]/cc.day_to_s) - 0.001, 100) * cc.day_to_s
-            tt_post_fb = output.time_temp
+            tt_pre_fb = np.linspace(0, tfb_obf / cc.day_to_s, 50) * cc.day_to_s
+            tt_post_fb = output.time_temp * (1 + redshift)
             total_time = np.concatenate([tt_pre_fb, tt_post_fb])
             f1 = pm.gaussian_rise(time=tt_pre_fb, a_1=norm_dict[freq],
                                   peak_time=peak_time * cc.day_to_s, sigma=sigma * cc.day_to_s)
@@ -313,7 +314,7 @@ def gaussianrise_metzger_tde(time, redshift, peak_time, sigma, mbh_6, stellar_ma
 
         unique_bands = np.unique(bands)
 
-        f2 = metzger_tde(time=tfb / cc.day_to_s, redshift=redshift,
+        f2 = metzger_tde(time=tfb_obf / cc.day_to_s, redshift=redshift,
                             mbh_6=mbh_6, stellar_mass=stellar_mass, eta=eta, alpha=alpha, beta=beta,
                             **kwargs)
 
@@ -324,8 +325,8 @@ def gaussianrise_metzger_tde(time, redshift, peak_time, sigma, mbh_6, stellar_ma
 
         flux_den_interp_func = {}
         for band in unique_bands:
-            tt_pre_fb = np.linspace(-100, (output.time_temp[0]/cc.day_to_s) - 0.001, 100) * cc.day_to_s
-            tt_post_fb = output.time_temp
+            tt_pre_fb = np.linspace(0, tfb_obf / cc.day_to_s, 50) * cc.day_to_s
+            tt_post_fb = output.time_temp * (1 + redshift)
             total_time = np.concatenate([tt_pre_fb, tt_post_fb])
             f1 = pm.gaussian_rise(time=tt_pre_fb, a_1=norm_dict[band],
                                   peak_time=peak_time * cc.day_to_s, sigma=sigma * cc.day_to_s)
