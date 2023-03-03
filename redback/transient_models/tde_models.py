@@ -60,7 +60,7 @@ def _metzger_tde(mbh_6, stellar_mass, eta, alpha, beta, **kwargs):
     tfb = calc_tfb(binding_energy_const, mbh_6, stellar_mass)
     # Eddington luminosity of SMBH in units of 1e40 erg/s
     Ledd40 = 1.4e4 * mbh_6
-    time_temp = np.logspace(np.log10(1.0*tfb), np.log10(100*tfb), 500)
+    time_temp = np.logspace(np.log10(1.0*tfb), np.log10(1000*tfb), 1000)
     tdays = time_temp/cc.day_to_s
 
     #set up grids
@@ -274,7 +274,7 @@ def gaussianrise_metzger_tde_bolometric(time, peak_time, sigma, mbh_6, stellar_m
                           peak_time=peak_time * cc.day_to_s, sigma=sigma * cc.day_to_s)
     f2 = output.bolometric_luminosity
     full_lbol = np.concatenate([f1, f2])
-    lbol_func = interp1d(full_time, y=full_lbol)
+    lbol_func = interp1d(full_time, y=full_lbol, fill_value='extrapolate')
     return lbol_func(time*cc.day_to_s)
 
 @citation_wrapper('redback,https://ui.adsabs.harvard.edu/abs/2022arXiv220707136M/abstract')
