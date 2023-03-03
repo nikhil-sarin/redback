@@ -268,7 +268,7 @@ def gaussianrise_metzger_tde_bolometric(time, peak_time, sigma, mbh_6, stellar_m
 
     #evaluate giant array of bolometric luminosities
     tt_pre_fb = np.linspace(0, tfb_sf, 100)
-    tt_post_fb = output.time_since_fb
+    tt_post_fb = output.time_temp
     full_time = np.concatenate([tt_pre_fb, tt_post_fb])
     f1 = pm.gaussian_rise(time=tt_pre_fb, a_1=norm,
                           peak_time=peak_time * cc.day_to_s, sigma=sigma * cc.day_to_s)
