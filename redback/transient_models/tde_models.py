@@ -37,7 +37,7 @@ def _metzger_tde(mbh_6, stellar_mass, eta, alpha, beta, **kwargs):
     :param kwargs:
     :return: named tuple with bolometric luminosity, photosphere radius, temperature, and other parameters
     """
-    t0 = kwargs.get('t0', 1.0)
+    t_0_init = kwargs.get('t_0_init', 1.0)
     binding_energy_const = kwargs.get('binding_energy_const', 0.8)
     zeta = kwargs.get('zeta',2.0)
     hoverR = kwargs.get('hoverR', 0.3)
@@ -95,9 +95,9 @@ def _metzger_tde(mbh_6, stellar_mass, eta, alpha, beta, **kwargs):
 
     Mdotfb = (0.8 * Mstar / (3.0 * tfb)) * (time_temp / tfb) ** (-5. / 3.)
 
-    # ** initialize grid quantities at t = t0 [grid point 0] **
-    # initial envelope mass at t0
-    Me[0] = 0.1 * Mstar + (0.4 * Mstar) * (1.0 - t0 ** (-2. / 3.))
+    # ** initialize grid quantities at t = t_0_init [grid point 0] **
+    # initial envelope mass at t_0_init
+    Me[0] = 0.1 * Mstar + (0.4 * Mstar) * (1.0 - t_0_init ** (-2. / 3.))
     # initial envelope radius determined by energy of TDE process
     Rv[0] = (2. * Rt ** (2.0) / (5.0 * binding_energy_const * Rstar)) * (Me[0] / Mstar)
     # initial thermal energy of envelope
@@ -243,9 +243,45 @@ def metzger_tde(time, redshift,  mbh_6, stellar_mass, eta, alpha, beta, **kwargs
                                                               **kwargs)
 
 @citation_wrapper('redback,https://ui.adsabs.harvard.edu/abs/2022arXiv220707136M/abstract')
+def gaussianrise_metzger_tde_bolometric(time, peak_time, sigma, mbh_6, stellar_mass, eta, alpha, beta, **kwargs):
+    """
+    Full lightcurve, with gaussian rise till fallback time and then the metzger tde model,
+    bolometric version for fitting the bolometric lightcurve
+
+    :param time: time in source frame in days
+    :param mbh_6: mass of supermassive black hole in units of 10^6 solar mass
+    :param stellar_mass: stellar mass in units of solar masses
+    :param eta: SMBH feedback efficiency (typical range: etamin - 0.1)
+    :param alpha: disk viscosity
+    :param beta: TDE penetration factor (typical range: 1 - beta_max)
+    :param kwargs: Additional parameters
+    :return luminosity in ergs/s
+    """
+    output = _metzger_tde(mbh_6, stellar_mass, eta, alpha, beta, **kwargs)
+    kwargs['binding_energy_const'] = kwargs.get('binding_energy_const', 0.8)
+    tfb_sf = calc_tfb(kwargs['binding_energy_const'], mbh_6, stellar_mass)  # source frame
+    f1 = pm.gaussian_rise(time=tfb_sf, a_1=1, peak_time=peak_time * cc.day_to_s, sigma=sigma * cc.day_to_s)
+
+    # get normalisation
+    f2 = output.bolometric_luminosity[0]
+    norm = f2/f1
+
+    #evaluate giant array of bolometric luminosities
+    tt_pre_fb = np.linspace(0, tfb_sf, 100)
+    tt_post_fb = output.time_since_fb
+    full_time = np.concatenate([tt_pre_fb, tt_post_fb])
+    f1 = pm.gaussian_rise(time=tt_pre_fb, a_1=norm,
+                          peak_time=peak_time * cc.day_to_s, sigma=sigma * cc.day_to_s)
+    f2 = output.bolometric_luminosity
+    full_lbol = np.concatenate([f1, f2])
+    lbol_func = interp1d(full_time, y=full_lbol)
+    return lbol_func(time*cc.day_to_s)
+
+@citation_wrapper('redback,https://ui.adsabs.harvard.edu/abs/2022arXiv220707136M/abstract')
 def gaussianrise_metzger_tde(time, redshift, peak_time, sigma, mbh_6, stellar_mass, eta, alpha, beta, **kwargs):
     """
-    This model is only valid for time after circulation. Use the gaussianrise_metzgertde model for the full lightcurve
+    Full lightcurve, with gaussian rise till fallback time and then the metzger tde model,
+    photometric version where each band is fit/joint separately
 
     :param time: time in observer frame in days
     :param redshift: redshift
