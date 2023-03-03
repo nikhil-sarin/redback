@@ -36,6 +36,7 @@ class _FilePathGetter(object):
 class Plotter(object):
 
     capsize = KwargsAccessorWithDefault("capsize", 0.)
+    legend_location = KwargsAccessorWithDefault("legend_location", "best")
     color = KwargsAccessorWithDefault("color", "k")
     band_labels = KwargsAccessorWithDefault("band_labels", None)
     dpi = KwargsAccessorWithDefault("dpi", 300)
@@ -80,6 +81,7 @@ class Plotter(object):
         :param transient: An instance of `redback.transient.Transient`. Contains the data to be plotted.
         :param kwargs: Additional kwargs the plotter uses. -------
         :keyword capsize: Same as matplotlib capsize.
+        :keyword legend_location: Same as matplotlib legend location.
         :keyword color: Color of the data points.
         :keyword band_labels: List with the names of the bands.
         :keyword dpi: Same as matplotlib dpi.
@@ -518,7 +520,7 @@ class MagnitudePlotter(Plotter):
         ax.set_ylabel(self._ylabel, fontsize=self.fontsize_axes)
 
         ax.tick_params(axis='x', pad=self.x_axis_tick_params_pad)
-        ax.legend(ncol=2, loc='best')
+        ax.legend(ncol=2, loc=self.legend_location)
 
         self._save_and_show(filepath=self._data_plot_filepath, save=save, show=show)
         return ax
@@ -624,7 +626,7 @@ class MagnitudePlotter(Plotter):
 
             self._set_x_axis(axes[ii])
             self._set_y_axis_multiband_data(axes[ii], indices)
-            axes[ii].legend(ncol=2)
+            axes[ii].legend(ncol=2, loc=self.legend_location)
             axes[ii].tick_params(axis='both', which='major', pad=8)
             ii += 1
 
