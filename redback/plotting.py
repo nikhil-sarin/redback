@@ -176,8 +176,10 @@ class Plotter(object):
 
     @property
     def _y_err(self) -> np.ndarray:
-        return np.array([np.abs(self.transient.y_err[1, :]), self.transient.y_err[0, :]])
-
+        if self.transient.y_err.ndim > 1.:
+            return np.array([np.abs(self.transient.y_err[1, :]), self.transient.y_err[0, :]])
+        else:
+            return np.array([np.abs(self.transient.y_err)])
     @property
     def _lightcurve_plot_outdir(self) -> str:
         return self._get_outdir(join(self.transient.directory_structure.directory_path, self.model.__name__))
