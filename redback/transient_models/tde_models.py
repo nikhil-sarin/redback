@@ -56,7 +56,7 @@ def _metzger_tde(mbh_6, stellar_mass, eta, alpha, beta, **kwargs):
     tfb = calc_tfb(binding_energy_const, mbh_6, stellar_mass)
     # Eddington luminosity of SMBH in units of 1e40 erg/s
     Ledd40 = 1.4e4 * mbh_6
-    time_temp = np.logspace(np.log10(1.0*tfb), np.log10(100*tfb), 1000)
+    time_temp = np.logspace(np.log10(1.0*tfb), np.log10(5000*tfb), 5000)
     tdays = time_temp/cc.day_to_s
 
     #set up grids
@@ -152,7 +152,7 @@ def _metzger_tde(mbh_6, stellar_mass, eta, alpha, beta, **kwargs):
                                    'SMBH_accretion_rate', 'time_temp', 'nulnu',
                                    'time_since_fb','tfb', 'lnu', 'envelope_radius', 'envelope_mass',
                                    'rtidal', 'rcirc'])
-    constraint_1 = np.min(np.where(Rv < Rcirc/2.))
+    # constraint_1 = np.min(np.where(Rv < Rcirc/2.))
     constraint_1 = len(time_temp)
     constraint_2 = np.min(np.where(Me < 0.0))
     constraint = np.min([constraint_1, constraint_2])
