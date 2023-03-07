@@ -375,11 +375,11 @@ def gaussianrise_metzger_tde(time, redshift, peak_time, sigma_t, mbh_6, stellar_
         return output
 
 @citation_wrapper('redback')
-def tde_analytical_bolometric(time, l0, t_0, **kwargs):
+def tde_analytical_bolometric(time, l0, t_0_turn, **kwargs):
     """
     :param time: rest frame time in days
     :param l0: bolometric luminosity at 1 second in cgs
-    :param t_0: turn on time in days (after this time lbol decays as 5/3 powerlaw)
+    :param t_0_turn: turn on time in days (after this time lbol decays as 5/3 powerlaw)
     :param interaction_process: Default is Diffusion.
             Can also be None in which case the output is just the raw engine luminosity
     :param kwargs: Must be all the kwargs required by the specific interaction_process
@@ -387,21 +387,21 @@ def tde_analytical_bolometric(time, l0, t_0, **kwargs):
     :return: bolometric_luminosity
     """
     _interaction_process = kwargs.get("interaction_process", ip.Diffusion)
-    lbol = _analytic_fallback(time=time, l0=l0, t_0=t_0)
+    lbol = _analytic_fallback(time=time, l0=l0, t_0=t_0_turn)
     if _interaction_process is not None:
         dense_resolution = kwargs.get("dense_resolution", 1000)
         dense_times = np.linspace(0, time[-1] + 100, dense_resolution)
-        dense_lbols = _analytic_fallback(time=dense_times, l0=l0, t_0=t_0)
+        dense_lbols = _analytic_fallback(time=dense_times, l0=l0, t_0=t_0_turn)
         interaction_class = _interaction_process(time=time, dense_times=dense_times, luminosity=dense_lbols, **kwargs)
         lbol = interaction_class.new_luminosity
     return lbol
 
 @citation_wrapper('redback')
-def tde_analytical(time, redshift, l0, t_0, **kwargs):
+def tde_analytical(time, redshift, l0, t_0_turn, **kwargs):
     """
     :param time: observer frame time in days
     :param l0: bolometric luminosity at 1 second in cgs
-    :param t_0: turn on time in days (after this time lbol decays as 5/3 powerlaw)
+    :param t_0_turn: turn on time in days (after this time lbol decays as 5/3 powerlaw)
     :param kwargs: Must be all the kwargs required by the specific interaction_process
      e.g., for Diffusion TemperatureFloor: kappa, kappa_gamma, vej (km/s), temperature_floor
     :param interaction_process: Default is Diffusion.
@@ -424,7 +424,7 @@ def tde_analytical(time, redshift, l0, t_0, **kwargs):
     if kwargs['output_format'] == 'flux_density':
         frequency = kwargs['frequency']
         frequency, time = calc_kcorrected_properties(frequency=frequency, redshift=redshift, time=time)
-        lbol = tde_analytical_bolometric(time=time, l0=l0, t_0=t_0, **kwargs)
+        lbol = tde_analytical_bolometric(time=time, l0=l0, t_0_turn=t_0_turn, **kwargs)
         photo = kwargs['photosphere'](time=time, luminosity=lbol, **kwargs)
         sed_1 = kwargs['sed'](time=time, temperature=photo.photosphere_temperature, r_photosphere=photo.r_photosphere,
                      frequency=frequency, luminosity_distance=dl, cutoff_wavelength=cutoff_wavelength, luminosity=lbol)
@@ -439,7 +439,7 @@ def tde_analytical(time, redshift, l0, t_0, **kwargs):
         time_observer_frame = time_temp * (1. + redshift)
         frequency, time = calc_kcorrected_properties(frequency=lambda_to_nu(lambda_observer_frame),
                                                      redshift=redshift, time=time_observer_frame)
-        lbol = tde_analytical_bolometric(time=time, l0=l0, t_0=t_0, **kwargs)
+        lbol = tde_analytical_bolometric(time=time, l0=l0, t_0_turn=t_0_turn, **kwargs)
         photo = kwargs['photosphere'](time=time, luminosity=lbol, **kwargs)
         full_sed = np.zeros((len(time), len(frequency)))
         for ii in range(len(frequency)):

@@ -5,4 +5,4 @@ kappa_gamma = LogUniform(1e-4, 1e4, 'kappa_gamma', latex_label = r'$\kappa_{\gam
 temperature_floor = LogUniform(1e3,1e5,name = 'temperature_floor', latex_label = r'$T_{\mathrm{floor}}$ [k]')
 redshift = Uniform(0.01, 3, 'redshift', latex_label=r'$z$')
 l0 = LogUniform(1e51, 1e58, "l0", latex_label="$l_0$")
-t_0 = LogUniform(1e-4, 1e2, "t_0", latex_label="$t_0$")
+t_0_turn = LogUniform(1e-4, 1e2, "t_0_turn", latex_label="$t_{0 t}$")
