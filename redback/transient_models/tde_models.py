@@ -256,7 +256,7 @@ def gaussianrise_metzger_tde_bolometric(time, peak_time, sigma_t, mbh_6, stellar
     output = _metzger_tde(mbh_6, stellar_mass, eta, alpha, beta, **kwargs)
     kwargs['binding_energy_const'] = kwargs.get('binding_energy_const', 0.8)
     tfb_sf = calc_tfb(kwargs['binding_energy_const'], mbh_6, stellar_mass)  # source frame
-    f1 = pm.gaussian_rise(time=tfb_sf, a_1=1, peak_time=peak_time * cc.day_to_s, sigma=sigma_t * cc.day_to_s)
+    f1 = pm.gaussian_rise(time=tfb_sf, a_1=1, peak_time=peak_time * cc.day_to_s, sigma_t=sigma_t * cc.day_to_s)
 
     # get normalisation
     f2 = output.bolometric_luminosity[0]
@@ -267,7 +267,7 @@ def gaussianrise_metzger_tde_bolometric(time, peak_time, sigma_t, mbh_6, stellar
     tt_post_fb = output.time_temp
     full_time = np.concatenate([tt_pre_fb, tt_post_fb])
     f1 = pm.gaussian_rise(time=tt_pre_fb, a_1=norm,
-                          peak_time=peak_time * cc.day_to_s, sigma=sigma_t * cc.day_to_s)
+                          peak_time=peak_time * cc.day_to_s, sigma_t=sigma_t * cc.day_to_s)
     f2 = output.bolometric_luminosity
     full_lbol = np.concatenate([f1, f2])
     lbol_func = interp1d(full_time, y=full_lbol, fill_value='extrapolate')
@@ -301,7 +301,7 @@ def gaussianrise_metzger_tde(time, redshift, peak_time, sigma_t, mbh_6, stellar_
     dl = cosmo.luminosity_distance(redshift).cgs.value
 
     # normalisation term in observer frame
-    f1 = pm.gaussian_rise(time=tfb_obf, a_1=1, peak_time=peak_time * cc.day_to_s, sigma=sigma_t * cc.day_to_s)
+    f1 = pm.gaussian_rise(time=tfb_obf, a_1=1, peak_time=peak_time * cc.day_to_s, sigma_t=sigma_t * cc.day_to_s)
 
     if kwargs['output_format'] == 'flux_density':
         frequency = kwargs['frequency']
@@ -326,7 +326,7 @@ def gaussianrise_metzger_tde(time, redshift, peak_time, sigma_t, mbh_6, stellar_
             tt_post_fb = output.time_temp * (1 + redshift)
             total_time = np.concatenate([tt_pre_fb, tt_post_fb])
             f1 = pm.gaussian_rise(time=tt_pre_fb, a_1=norm_dict[freq],
-                                  peak_time=peak_time * cc.day_to_s, sigma=sigma_t * cc.day_to_s)
+                                  peak_time=peak_time * cc.day_to_s, sigma_t=sigma_t * cc.day_to_s)
             f2 = sed.blackbody_to_flux_density(temperature=output.photosphere_temperature,
                                                r_photosphere=output.photosphere_radius,
                                                dl=dl, frequency=freq).to(uu.mJy)
@@ -361,7 +361,7 @@ def gaussianrise_metzger_tde(time, redshift, peak_time, sigma_t, mbh_6, stellar_
             tt_post_fb = output.time_temp * (1 + redshift)
             total_time = np.concatenate([tt_pre_fb, tt_post_fb])
             f1 = pm.gaussian_rise(time=tt_pre_fb, a_1=norm_dict[band],
-                                  peak_time=peak_time * cc.day_to_s, sigma=sigma_t * cc.day_to_s)
+                                  peak_time=peak_time * cc.day_to_s, sigma_t=sigma_t * cc.day_to_s)
             f2 = metzger_tde(time=tt_post_fb / cc.day_to_s, redshift=redshift,
                                 mbh_6=mbh_6, stellar_mass=stellar_mass, eta=eta, alpha=alpha, beta=beta,
                                 **kwargs)

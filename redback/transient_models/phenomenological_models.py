@@ -1,7 +1,7 @@
 import numpy as np
 
-def gaussian_rise(time, a_1, peak_time, sigma):
-    total = a_1 * np.exp(-(time - peak_time)**2./(2*sigma**2))
+def gaussian_rise(time, a_1, peak_time, sigma_t):
+    total = a_1 * np.exp(-(time - peak_time)**2. / (2 * sigma_t ** 2))
     return total
 
 def exponential_powerlaw(time, a_1, alpha_1, alpha_2, tpeak, **kwargs):
