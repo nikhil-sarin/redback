@@ -27,12 +27,14 @@ def t0_base_model(time, t0, **kwargs):
     """
     from redback.model_library import all_models_dict  # import model library in function to avoid circular dependency
     base_model = kwargs['base_model']
+    if 'peak_time_mjd' in kwargs:
+        kwargs['peak_time'] = kwargs['peak_time_mjd'] - t0
     function = all_models_dict[base_model]
     t0 = Time(t0, format='mjd')
     time = Time(np.asarray(time, dtype=float), format='mjd')
     time = (time - t0).to(uu.day).value
-    transient_time = time[time >= 0.01]
-    bad_time = time[time < 0.01]
+    transient_time = time[time >= 0.0]
+    bad_time = time[time < 0.0]
     output_real = function(transient_time, **kwargs)
     if kwargs['output_format'] == 'magnitude':
         output_fake = np.zeros(len(bad_time)) + 5000
@@ -57,8 +59,8 @@ def _t0_with_extinction(time, t0, av, model_type='supernova', **kwargs):
     t0 = Time(t0, format='mjd')
     time = Time(np.asarray(time, dtype=float), format='mjd')
     time = (time - t0).to(uu.day).value
-    transient_time = time[time >= 0.01]
-    bad_time = time[time < 0.01]
+    transient_time = time[time >= 0.0]
+    bad_time = time[time < 0.0]
     output_real = function(transient_time, av=av, **kwargs)
     if kwargs['output_format'] == 'magnitude':
         output_fake = np.zeros(len(bad_time)) + 5000
@@ -117,6 +119,8 @@ def t0_tde_extinction(time, t0, av, **kwargs):
         and r_v, default is 3.1
     :return: flux_density or magnitude depending on kwargs['output_format']
     """
+    if 'peak_time_mjd' in kwargs:
+        kwargs['peak_time'] = kwargs['peak_time_mjd'] - t0
     summary = _t0_with_extinction(time=time, t0=t0, av=av, model_type='tde', **kwargs)
     return summary.observable
 

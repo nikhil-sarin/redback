@@ -26,7 +26,7 @@ extinction_kilonova_base_models = ['nicholl_bns', 'mosfit_rprocess', 'mosfit_kil
                                    'one_component_ejecta_relation_projection', 'two_component_bns_ejecta_relation',
                                    'polytrope_eos_two_component_bns', 'one_component_nsbh_ejecta_relation',
                                    'two_component_nsbh_ejecta_relation','metzger_kilonova_model']
-extinction_tde_base_models = ['tde_analytical', 'tde_semianalytical']
+extinction_tde_base_models = ['tde_analytical', 'tde_semianalytical', 'gaussianrise_metzger_tde']
 extinction_magnetar_driven_base_models = ['basic_mergernova', 'general_mergernova', 'general_mergernova_thermalisation',
                                           'general_mergernova_evolution', 'metzger_magnetar_driven_kilonova_model',
                                           'general_metzger_magnetar_driven', 'general_magnetar_driven_thermalisation',
@@ -100,6 +100,8 @@ def _evaluate_extinction_model(time, av, model_type, **kwargs):
     base_model = kwargs['base_model']
     if kwargs['output_format'] == 'flux_density':
         frequency = kwargs['frequency']
+        if isinstance(frequency, float):
+            frequency = np.ones(len(time)) * frequency
         temp_kwargs = kwargs.copy()
         temp_kwargs['output_format'] = 'flux_density'
         function = _get_correct_function(base_model=base_model, model_type=model_type)

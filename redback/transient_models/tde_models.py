@@ -41,10 +41,6 @@ def _metzger_tde(mbh_6, stellar_mass, eta, alpha, beta, **kwargs):
     binding_energy_const = kwargs.get('binding_energy_const', 0.8)
     zeta = kwargs.get('zeta',2.0)
     hoverR = kwargs.get('hoverR', 0.3)
-    # minimum value of SMBH feedback efficiency
-    etamin = 0.01 * (stellar_mass ** (-7. / 15.) * mbh_6 ** (2. / 3.))
-    # maximum TDE penetration factor before star is swallowed whole by SMBH
-    beta_max = 12. * (stellar_mass ** (7. / 15.)) * (mbh_6 ** (-2. / 3.))
 
     # gravitational radius
     Rg = cc.graviational_constant * mbh_6 * 1.0e6 * (cc.solar_mass / cc.speed_of_light ** (2.0))
@@ -60,7 +56,7 @@ def _metzger_tde(mbh_6, stellar_mass, eta, alpha, beta, **kwargs):
     tfb = calc_tfb(binding_energy_const, mbh_6, stellar_mass)
     # Eddington luminosity of SMBH in units of 1e40 erg/s
     Ledd40 = 1.4e4 * mbh_6
-    time_temp = np.logspace(np.log10(1.0*tfb), np.log10(1000*tfb), 1000)
+    time_temp = np.logspace(np.log10(1.0*tfb), np.log10(5000*tfb), 1000)
     tdays = time_temp/cc.day_to_s
 
     #set up grids
@@ -243,7 +239,7 @@ def metzger_tde(time, redshift,  mbh_6, stellar_mass, eta, alpha, beta, **kwargs
                                                               **kwargs)
 
 @citation_wrapper('redback,https://ui.adsabs.harvard.edu/abs/2022arXiv220707136M/abstract')
-def gaussianrise_metzger_tde_bolometric(time, peak_time, sigma, mbh_6, stellar_mass, eta, alpha, beta, **kwargs):
+def gaussianrise_metzger_tde_bolometric(time, peak_time, sigma_t, mbh_6, stellar_mass, eta, alpha, beta, **kwargs):
     """
     Full lightcurve, with gaussian rise till fallback time and then the metzger tde model,
     bolometric version for fitting the bolometric lightcurve
@@ -260,7 +256,7 @@ def gaussianrise_metzger_tde_bolometric(time, peak_time, sigma, mbh_6, stellar_m
     output = _metzger_tde(mbh_6, stellar_mass, eta, alpha, beta, **kwargs)
     kwargs['binding_energy_const'] = kwargs.get('binding_energy_const', 0.8)
     tfb_sf = calc_tfb(kwargs['binding_energy_const'], mbh_6, stellar_mass)  # source frame
-    f1 = pm.gaussian_rise(time=tfb_sf, a_1=1, peak_time=peak_time * cc.day_to_s, sigma=sigma * cc.day_to_s)
+    f1 = pm.gaussian_rise(time=tfb_sf, a_1=1, peak_time=peak_time * cc.day_to_s, sigma=sigma_t * cc.day_to_s)
 
     # get normalisation
     f2 = output.bolometric_luminosity[0]
@@ -271,14 +267,14 @@ def gaussianrise_metzger_tde_bolometric(time, peak_time, sigma, mbh_6, stellar_m
     tt_post_fb = output.time_temp
     full_time = np.concatenate([tt_pre_fb, tt_post_fb])
     f1 = pm.gaussian_rise(time=tt_pre_fb, a_1=norm,
-                          peak_time=peak_time * cc.day_to_s, sigma=sigma * cc.day_to_s)
+                          peak_time=peak_time * cc.day_to_s, sigma=sigma_t * cc.day_to_s)
     f2 = output.bolometric_luminosity
     full_lbol = np.concatenate([f1, f2])
     lbol_func = interp1d(full_time, y=full_lbol, fill_value='extrapolate')
     return lbol_func(time*cc.day_to_s)
 
 @citation_wrapper('redback,https://ui.adsabs.harvard.edu/abs/2022arXiv220707136M/abstract')
-def gaussianrise_metzger_tde(time, redshift, peak_time, sigma, mbh_6, stellar_mass, eta, alpha, beta, **kwargs):
+def gaussianrise_metzger_tde(time, redshift, peak_time, sigma_t, mbh_6, stellar_mass, eta, alpha, beta, **kwargs):
     """
     Full lightcurve, with gaussian rise till fallback time and then the metzger tde model,
     photometric version where each band is fit/joint separately
@@ -305,7 +301,7 @@ def gaussianrise_metzger_tde(time, redshift, peak_time, sigma, mbh_6, stellar_ma
     dl = cosmo.luminosity_distance(redshift).cgs.value
 
     # normalisation term in observer frame
-    f1 = pm.gaussian_rise(time=tfb_obf, a_1=1, peak_time=peak_time * cc.day_to_s, sigma=sigma * cc.day_to_s)
+    f1 = pm.gaussian_rise(time=tfb_obf, a_1=1, peak_time=peak_time * cc.day_to_s, sigma=sigma_t * cc.day_to_s)
 
     if kwargs['output_format'] == 'flux_density':
         frequency = kwargs['frequency']
@@ -326,16 +322,16 @@ def gaussianrise_metzger_tde(time, redshift, peak_time, sigma, mbh_6, stellar_ma
         # build flux density function for each frequency
         flux_den_interp_func = {}
         for freq in unique_frequency:
-            tt_pre_fb = np.linspace(0, tfb_obf / cc.day_to_s, 50) * cc.day_to_s
+            tt_pre_fb = np.linspace(0, tfb_obf / cc.day_to_s, 200) * cc.day_to_s
             tt_post_fb = output.time_temp * (1 + redshift)
             total_time = np.concatenate([tt_pre_fb, tt_post_fb])
             f1 = pm.gaussian_rise(time=tt_pre_fb, a_1=norm_dict[freq],
-                                  peak_time=peak_time * cc.day_to_s, sigma=sigma * cc.day_to_s)
+                                  peak_time=peak_time * cc.day_to_s, sigma=sigma_t * cc.day_to_s)
             f2 = sed.blackbody_to_flux_density(temperature=output.photosphere_temperature,
                                                r_photosphere=output.photosphere_radius,
                                                dl=dl, frequency=freq).to(uu.mJy)
             flux_den = np.concatenate([f1, f2.value])
-            flux_den_interp_func[freq] = interp1d(total_time, flux_den)
+            flux_den_interp_func[freq] = interp1d(total_time, flux_den, fill_value='extrapolate')
 
         # interpolate onto actual observed frequency and time values
         flux_density = []
@@ -365,12 +361,12 @@ def gaussianrise_metzger_tde(time, redshift, peak_time, sigma, mbh_6, stellar_ma
             tt_post_fb = output.time_temp * (1 + redshift)
             total_time = np.concatenate([tt_pre_fb, tt_post_fb])
             f1 = pm.gaussian_rise(time=tt_pre_fb, a_1=norm_dict[band],
-                                  peak_time=peak_time * cc.day_to_s, sigma=sigma * cc.day_to_s)
+                                  peak_time=peak_time * cc.day_to_s, sigma=sigma_t * cc.day_to_s)
             f2 = metzger_tde(time=tt_post_fb / cc.day_to_s, redshift=redshift,
                                 mbh_6=mbh_6, stellar_mass=stellar_mass, eta=eta, alpha=alpha, beta=beta,
                                 **kwargs)
             flux_den = np.concatenate([f1, f2])
-            flux_den_interp_func[band] = interp1d(total_time, flux_den)
+            flux_den_interp_func[band] = interp1d(total_time, flux_den, fill_value='extrapolate')
 
         # interpolate onto actual observed band and time values
         output = []
