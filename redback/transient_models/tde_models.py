@@ -49,14 +49,14 @@ def _metzger_tde(mbh_6, stellar_mass, eta, alpha, beta, **kwargs):
     # stellar radius in cgs
     Rstar = stellar_mass ** (0.8) * cc.solar_radius
     # tidal radius
-    Rt = Rstar * (mbh_6 * 1.0e6 / stellar_mass) ** (1. / 3.)
+    Rt = Rstar * (mbh_6*1.0e6 /stellar_mass) ** (1./3.)
     # circularization radius
-    Rcirc = 2.0 * Rt / beta
+    Rcirc = 2.0*Rt/beta
     # fall-back time of most tightly bound debris
     tfb = calc_tfb(binding_energy_const, mbh_6, stellar_mass)
     # Eddington luminosity of SMBH in units of 1e40 erg/s
     Ledd40 = 1.4e4 * mbh_6
-    time_temp = np.logspace(np.log10(1.0*tfb), np.log10(5000*tfb), 1000)
+    time_temp = np.logspace(np.log10(1.0*tfb), np.log10(100*tfb), 1000)
     tdays = time_temp/cc.day_to_s
 
     #set up grids
@@ -93,9 +93,9 @@ def _metzger_tde(mbh_6, stellar_mass, eta, alpha, beta, **kwargs):
 
     # ** initialize grid quantities at t = t_0_init [grid point 0] **
     # initial envelope mass at t_0_init
-    Me[0] = 0.1 * Mstar + (0.4 * Mstar) * (1.0 - t_0_init ** (-2. / 3.))
+    Me[0] = 0.1 * Mstar + (0.4 * Mstar) * (1.0 - t_0_init**(-2. / 3.))
     # initial envelope radius determined by energy of TDE process
-    Rv[0] = (2. * Rt ** (2.0) / (5.0 * binding_energy_const * Rstar)) * (Me[0] / Mstar)
+    Rv[0] = (2. * Rt**(2.0)/(5.0 * binding_energy_const * Rstar)) * (Me[0]/Mstar)
     # initial thermal energy of envelope
     Ee40[0] = ((2.0 * cc.graviational_constant * mbh_6 * 1.0e6 * Me[0]) / (5.0 * Rv[0])) * 2.0e-7
     # initial characteristic optical depth
@@ -105,7 +105,7 @@ def _metzger_tde(mbh_6, stellar_mass, eta, alpha, beta, **kwargs):
     # initial fallback stream accretion radius
     Racc[0] = zeta * Rv[0]
     # initial fallback accretion heating rate in 1e40 erg/s
-    Edotfb40[0] = (cc.graviational_constant * mbh_6 * 1.0e6 * Mdotfb[0] / Racc[0]) * (2.0e-7)
+    Edotfb40[0] = (cc.graviational_constant * mbh_6 * 1.0e6 * Mdotfb[0]/Racc[0]) * (2.0e-7)
     # initial luminosity of envelope
     Lrad[0] = Ledd40 + Edotfb40[0]
     # initial SMBH accretion timescale in s
@@ -119,8 +119,7 @@ def _metzger_tde(mbh_6, stellar_mass, eta, alpha, beta, **kwargs):
     Teff[0] = 1.0e10 * ((Ledd40 + Edotfb40[0]) / (4.0 * np.pi * cc.sigma_sb * Rph[0] ** (2.0))) ** (0.25)
 
     t = time_temp
-    for ii in range(len(time_temp) - 1):
-        ii = ii + 1
+    for ii in range(1, len(time_temp)):
         Me[ii] = Me[ii - 1] - (MdotBH[ii - 1] - Mdotfb[ii - 1]) * (t[ii] - t[ii - 1])
         # update envelope energy due to SMBH heating + radiative losses
         Ee40[ii] = Ee40[ii - 1] + (Ledd40 - Edotbh40[ii - 1]) * (t[ii] - t[ii - 1])
@@ -151,9 +150,11 @@ def _metzger_tde(mbh_6, stellar_mass, eta, alpha, beta, **kwargs):
     output = namedtuple('output', ['bolometric_luminosity', 'photosphere_temperature',
                                    'photosphere_radius', 'lum_xray', 'accretion_radius',
                                    'SMBH_accretion_rate', 'time_temp', 'nulnu',
-                                   'time_since_fb','tfb', 'lnu'])
-    constraint_1 = np.min(np.where(Rv <= Rcirc / 2.))
-    constraint_2 = np.min(np.where(Me <= 0.0))
+                                   'time_since_fb','tfb', 'lnu', 'envelope_radius', 'envelope_mass',
+                                   'rtidal', 'rcirc'])
+    constraint_1 = np.min(np.where(Rv < Rcirc/2.))
+    constraint_1 = len(time_temp)
+    constraint_2 = np.min(np.where(Me < 0.0))
     constraint = np.min([constraint_1, constraint_2])
     nu = 6.0e14
     expon = 1. / (np.exp(cc.planck * nu / (cc.boltzmann_constant * Teff)) - 1.0)
@@ -165,6 +166,10 @@ def _metzger_tde(mbh_6, stellar_mass, eta, alpha, beta, **kwargs):
     output.bolometric_luminosity = Lrad[:constraint] * 1e40
     output.photosphere_temperature = Teff[:constraint]
     output.photosphere_radius = Rph[:constraint]
+    output.envelope_radius = Rv[:constraint]
+    output.envelope_mass = Me[:constraint]
+    output.rcirc = Rcirc
+    output.rtidal = Rt
     output.lum_xray = LX40[:constraint]
     output.accretion_radius = Racc[:constraint]
     output.SMBH_accretion_rate = MdotBH[:constraint]
