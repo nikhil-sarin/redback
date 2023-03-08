@@ -237,7 +237,7 @@ class GaussianLikelihoodQuadratureNoiseNonDetections(GaussianLikelihoodQuadratur
         :type sigma_i: Union[float, None, np.ndarray]
         :param function:
             The python function to fit to the data. Note, this must take the
-            dependent variable as its first argument. The other arguments are
+            dependent variable as its first argument. The other arguments
             will require a prior and will be sampled over (unless a fixed
             value is given).
         :type function: callable
