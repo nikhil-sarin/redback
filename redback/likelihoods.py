@@ -101,7 +101,7 @@ class GaussianLikelihood(_RedbackLikelihood):
         :return: The log-likelihood.
         :rtype: float
         """
-        return self._gaussian_log_likelihood(res=self.residual, sigma=self.sigma)
+        return np.nan_to_num(self._gaussian_log_likelihood(res=self.residual, sigma=self.sigma))
 
     @staticmethod
     def _gaussian_log_likelihood(res: np.ndarray, sigma: Union[float, np.ndarray]) -> Any:
@@ -371,7 +371,7 @@ class PoissonLikelihood(_RedbackLikelihood):
         rate = self.function(self.time, **self.parameters, **self.kwargs) + self.background_rate
         if not self.integrated_rate_function:
             rate *= self.dt
-        return self._poisson_log_likelihood(rate=rate)
+        return np.nan_to_num(self._poisson_log_likelihood(rate=rate))
 
     def _poisson_log_likelihood(self, rate: Union[float, np.ndarray]) -> Any:
         return np.sum(-rate + self.counts * np.log(rate) - gammaln(self.counts + 1))
