@@ -50,7 +50,6 @@ def cocoon(time, redshift, umax, umin, loge0, k, mej, logn0, p, logepse, logepsb
     Change to 1 for including inverse compton emission.
     :param l0, ts, q: energy injection parameters, defaults to 0
     :param output_format: Whether to output flux density or AB mag
-    :param base_model: A string to indicate the type of jet model to use.
     :return: flux density or AB mag. Note this is going to give the monochromatic magnitude at the effective frequency for the band.
     For a proper calculation of the magntitude use the sed variant models.
     """
@@ -105,7 +104,6 @@ def kilonova_afterglow(time, redshift, umax, umin, loge0, k, mej, logn0, p, loge
     Change to 1 for including inverse compton emission.
     :param l0, ts, q: energy injection parameters, defaults to 0
     :param output_format: Whether to output flux density or AB mag
-    :param base_model: A string to indicate the type of jet model to use.
     :return: flux density or AB mag. Note this is going to give the monochromatic magnitude at the effective frequency for the band.
     For a proper calculation of the magntitude use the sed variant models.
     """
@@ -194,7 +192,6 @@ def gaussiancore(time, redshift, thv, loge0, thc, thw, logn0, p, logepse, logeps
     Change to 1 for including inverse compton emission.
     :param l0, ts, q: energy injection parameters, defaults to 0
     :param output_format: Whether to output flux density or AB mag
-    :param base_model: A string to indicate the type of jet model to use.
     :return: flux density or AB mag. Note this is going to give the monochromatic magnitude at the effective frequency for the band.
     For a proper calculation of the magntitude use the sed variant models.
     """
@@ -250,7 +247,6 @@ def gaussian(time, redshift, thv, loge0, thw, thc, logn0, p, logepse, logepsb, k
     Change to 1 for including inverse compton emission.
     :param l0, ts, q: energy injection parameters, defaults to 0
     :param output_format: Whether to output flux density or AB mag
-    :param base_model: A string to indicate the type of jet model to use.
     :return: flux density or AB mag. Note this is going to give the monochromatic magnitude at the effective frequency for the band.
     For a proper calculation of the magntitude use the sed variant models.
     """
@@ -306,7 +302,6 @@ def smoothpowerlaw(time, redshift, thv, loge0, thw, thc, beta, logn0, p, logepse
     Change to 1 for including inverse compton emission.
     :param l0, ts, q: energy injection parameters, defaults to 0
     :param output_format: Whether to output flux density or AB mag
-    :param base_model: A string to indicate the type of jet model to use.
     :return: flux density or AB mag. Note this is going to give the monochromatic magnitude at the effective frequency for the band.
     For a proper calculation of the magntitude use the sed variant models.
     """
