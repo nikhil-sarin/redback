@@ -5,4 +5,3 @@ ek = LogUniform(1e48, 1e52, 'ek', latex_label = r'$E_{\mathrm{k}} [erg]$')
 kappa = Uniform(0.05, 2, 'kappa', latex_label = r'$\kappa$')
 kappa_gamma = LogUniform(1e-4, 1e4, 'kappa_gamma', latex_label = r'$\kappa_{\gamma}$')
 temperature_floor = LogUniform(1e3,1e5,name = 'temperature_floor', latex_label = r'$T_{\mathrm{floor}}$ [k]')
-base_model = 'arnett_bolometric'
