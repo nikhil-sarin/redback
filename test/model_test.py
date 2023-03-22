@@ -1,6 +1,7 @@
 import unittest
 from os import listdir
 from os.path import dirname
+from unittest import mock
 
 import bilby
 import numpy as np
@@ -287,3 +288,110 @@ class TestExtinctionModelsMagnitude(unittest.TestCase):
             else:
                 ys = np.ones(len(times))
             self.assertEqual(len(times), len(ys))
+
+class TestHomologousExpansion(unittest.TestCase):
+    def setUp(self):
+        self.time = np.array([1, 2, 3])
+        self.base_model = 'arnett_bolometric'
+
+    def tearDown(self) -> None:
+        pass
+
+    def get_prior(self):
+        prior_dict = redback.priors.get_priors(self.base_model)
+        return prior_dict
+
+    def test_base_model(self):
+        with mock.patch('redback.transient_models.supernova_models.homologous_expansion_supernova_model') as m:
+            kwargs = dict(frequency=2e14, bands='ztfg')
+            prior = self.get_prior()
+            kwargs['output_format'] = 'flux_density'
+            prior.pop('vej')
+            prior['ek'] =  bilby.core.prior.LogUniform(1e50, 1e51, 'ek')
+            prior['redshift'] = 0.075
+            prior['temperature_floor'] = bilby.core.prior.LogUniform(1e3,1e5,name = 'temperature_floor')
+            function = redback.transient_models.supernova_models.homologous_expansion_supernova_model
+            m.base_model = self.base_model
+            sample = prior.sample()
+            actual = function(self.time, base_model=self.base_model, **sample, **kwargs)
+            m.assert_called_with(self.time, base_model=self.base_model, **sample, **kwargs)
+
+    def test_fluxdensity_output(self):
+        kwargs = dict(frequency=2e14, bands='ztfg')
+        prior = self.get_prior()
+        kwargs['base_model'] = self.base_model
+        kwargs['output_format'] = 'flux_density'
+        function = redback.model_library.all_models_dict['homologous_expansion_supernova_model']
+        prior.pop('vej')
+        prior['ek'] =  bilby.core.prior.LogUniform(1e50, 1e51, 'ek')
+        prior['redshift'] = 0.075
+        prior['temperature_floor'] = bilby.core.prior.LogUniform(1e3,1e5,name = 'temperature_floor')
+        ys = function(self.time, **prior.sample(), **kwargs)
+        self.assertEqual(len(self.time), len(ys))
+
+    def test_magnitude_output(self):
+        kwargs = dict(frequency=2e14, bands='ztfg')
+        prior = self.get_prior()
+        kwargs['base_model'] = self.base_model
+        kwargs['output_format'] = 'magnitude'
+        function = redback.model_library.all_models_dict['homologous_expansion_supernova_model']
+        prior.pop('vej')
+        prior['ek'] =  bilby.core.prior.LogUniform(1e50, 1e51, 'ek')
+        prior['redshift'] = 0.075
+        prior['temperature_floor'] = bilby.core.prior.LogUniform(1e3,1e5,name = 'temperature_floor')
+        ys = function(self.time, **prior.sample(), **kwargs)
+        self.assertEqual(len(self.time), len(ys))
+
+class TestThinShellExpansion(unittest.TestCase):
+    def setUp(self):
+        self.time = np.array([1, 2, 3])
+        self.base_model = 'arnett_bolometric'
+
+    def tearDown(self) -> None:
+        pass
+
+    def get_prior(self):
+        prior_dict = redback.priors.get_priors(self.base_model)
+        return prior_dict
+
+    def test_base_model(self):
+        with mock.patch('redback.transient_models.supernova_models.thin_shell_supernova_model') as m:
+            kwargs = dict(frequency=2e14, bands='ztfg')
+            prior = self.get_prior()
+            kwargs['output_format'] = 'flux_density'
+            prior.pop('vej')
+            prior['ek'] =  bilby.core.prior.LogUniform(1e50, 1e51, 'ek')
+            prior['redshift'] = 0.075
+            prior['temperature_floor'] = bilby.core.prior.LogUniform(1e3,1e5,name = 'temperature_floor')
+            function = redback.transient_models.supernova_models.thin_shell_supernova_model
+            m.base_model = self.base_model
+            sample = prior.sample()
+            actual = function(self.time, base_model=self.base_model, **sample, **kwargs)
+            m.assert_called_with(self.time, base_model=self.base_model, **sample, **kwargs)
+
+    def test_fluxdensity_output(self):
+        kwargs = dict(frequency=2e14, bands='ztfg')
+        prior = self.get_prior()
+        kwargs['base_model'] = self.base_model
+        kwargs['output_format'] = 'flux_density'
+        function = redback.model_library.all_models_dict['thin_shell_supernova_model']
+        prior.pop('vej')
+        prior['ek'] =  bilby.core.prior.LogUniform(1e50, 1e51, 'ek')
+        prior['redshift'] = 0.075
+        prior['temperature_floor'] = bilby.core.prior.LogUniform(1e3,1e5,name = 'temperature_floor')
+        ys = function(self.time, **prior.sample(), **kwargs)
+        self.assertEqual(len(self.time), len(ys))
+
+    def test_magnitude_output(self):
+        kwargs = dict(frequency=2e14, bands='ztfg')
+        prior = self.get_prior()
+        kwargs['base_model'] = self.base_model
+        kwargs['output_format'] = 'magnitude'
+        function = redback.model_library.all_models_dict['thin_shell_supernova_model']
+        prior.pop('vej')
+        prior['ek'] =  bilby.core.prior.LogUniform(1e50, 1e51, 'ek')
+        prior['redshift'] = 0.075
+        prior['temperature_floor'] = bilby.core.prior.LogUniform(1e3,1e5,name = 'temperature_floor')
+        ys = function(self.time, **prior.sample(), **kwargs)
+        self.assertEqual(len(self.time), len(ys))
+

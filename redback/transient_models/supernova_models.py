@@ -650,11 +650,12 @@ def homologous_expansion_supernova_model_bolometric(time, mej, ek, **kwargs):
     v_ejecta = np.sqrt(10.0 * ek / (3.0 * mej * solar_mass)) / km_cgs
     kwargs['vej'] = v_ejecta
     kwargs['mej'] = mej
-
     kwargs['interaction_process'] = kwargs.get("interaction_process", ip.Diffusion)
     lbol = function(time, **kwargs)
-    return lbol
-
+    if kwargs['output_format'] in ['spectra', 'flux', 'flux_density', 'magnitude']:
+        return lbol, kwargs
+    else:
+        return lbol
 @citation_wrapper('redback')
 def thin_shell_supernova_model_bolometric(time, mej, ek, **kwargs):
     """
@@ -687,7 +688,10 @@ def thin_shell_supernova_model_bolometric(time, mej, ek, **kwargs):
 
     kwargs['interaction_process'] = kwargs.get("interaction_process", ip.Diffusion)
     lbol = function(time, **kwargs)
-    return lbol
+    if kwargs['output_format'] in ['spectra', 'flux', 'flux_density', 'magnitude']:
+        return lbol, kwargs
+    else:
+        return lbol
 
 
 @citation_wrapper('redback')
@@ -722,8 +726,7 @@ def homologous_expansion_supernova_model(time, redshift, mej, ek, **kwargs):
     if kwargs['output_format'] == 'flux_density':
         frequency = kwargs['frequency']
         frequency, time = calc_kcorrected_properties(frequency=frequency, redshift=redshift, time=time)
-
-        lbol = homologous_expansion_supernova_model_bolometric(time=time, mej=mej, ek=ek, **kwargs)
+        lbol, kwargs = homologous_expansion_supernova_model_bolometric(time=time, mej=mej, ek=ek, **kwargs)
         photo = kwargs['photosphere'] (time=time, luminosity=lbol, **kwargs)
 
         sed_1 = kwargs['sed'](temperature=photo.photosphere_temperature, r_photosphere=photo.r_photosphere,
@@ -738,7 +741,7 @@ def homologous_expansion_supernova_model(time, redshift, mej, ek, **kwargs):
         time_observer_frame = time_temp * (1. + redshift)
         frequency, time = calc_kcorrected_properties(frequency=lambda_to_nu(lambda_observer_frame),
                                                      redshift=redshift, time=time_observer_frame)
-        lbol = homologous_expansion_supernova_model_bolometric(time=time, mej=mej, ek=ek, **kwargs)
+        lbol, kwargs = homologous_expansion_supernova_model_bolometric(time=time, mej=mej, ek=ek, **kwargs)
         photo = kwargs['photosphere'](time=time, luminosity=lbol, **kwargs)
 
         sed_1 = kwargs['sed'](temperature=photo.photosphere_temperature, r_photosphere=photo.r_photosphere,
@@ -787,7 +790,7 @@ def thin_shell_supernova_model(time, redshift, mej, ek, **kwargs):
     if kwargs['output_format'] == 'flux_density':
         frequency = kwargs['frequency']
         frequency, time = calc_kcorrected_properties(frequency=frequency, redshift=redshift, time=time)
-        lbol = thin_shell_supernova_model_bolometric(time=time, mej=mej, ek=ek, **kwargs)
+        lbol, kwargs = thin_shell_supernova_model_bolometric(time=time, mej=mej, ek=ek, **kwargs)
         photo = kwargs['photosphere'](time=time, luminosity=lbol, **kwargs)
         sed_1 = kwargs['sed'](temperature=photo.photosphere_temperature, r_photosphere=photo.r_photosphere,
                     frequency=frequency, luminosity_distance=dl)
@@ -802,7 +805,7 @@ def thin_shell_supernova_model(time, redshift, mej, ek, **kwargs):
         time_observer_frame = time_temp * (1. + redshift)
         frequency, time = calc_kcorrected_properties(frequency=lambda_to_nu(lambda_observer_frame),
                                                      redshift=redshift, time=time_observer_frame)
-        lbol = thin_shell_supernova_model_bolometric(time=time, mej=mej, ek=ek, **kwargs)
+        lbol, kwargs = thin_shell_supernova_model_bolometric(time=time, mej=mej, ek=ek, **kwargs)
         photo = kwargs['photosphere'](time=time, luminosity=lbol, **kwargs)
         sed_1 = kwargs['sed'](temperature=photo.photosphere_temperature, r_photosphere=photo.r_photosphere,
                               frequency=frequency[:,None], luminosity_distance=dl)
