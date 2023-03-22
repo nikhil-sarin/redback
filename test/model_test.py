@@ -310,7 +310,7 @@ class TestHomologousExpansion(unittest.TestCase):
             prior['ek'] =  bilby.core.prior.LogUniform(1e50, 1e51, 'ek')
             prior['redshift'] = 0.075
             prior['temperature_floor'] = bilby.core.prior.LogUniform(1e3,1e5,name = 'temperature_floor')
-            function = redback.transient_models.supernova_models.homologous_expansion_supernova_model
+            function = redback.transient_models.supernova_models.homologous_expansion_supernova
             m.base_model = self.base_model
             sample = prior.sample()
             actual = function(self.time, base_model=self.base_model, **sample, **kwargs)
@@ -363,7 +363,7 @@ class TestThinShellExpansion(unittest.TestCase):
             prior['ek'] =  bilby.core.prior.LogUniform(1e50, 1e51, 'ek')
             prior['redshift'] = 0.075
             prior['temperature_floor'] = bilby.core.prior.LogUniform(1e3,1e5,name = 'temperature_floor')
-            function = redback.transient_models.supernova_models.thin_shell_supernova_model
+            function = redback.transient_models.supernova_models.thin_shell_supernova
             m.base_model = self.base_model
             sample = prior.sample()
             actual = function(self.time, base_model=self.base_model, **sample, **kwargs)
