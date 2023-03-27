@@ -3,7 +3,7 @@ import numpy as np
 import bilby
 from os import listdir
 from os.path import dirname
-from bilby.core.prior import Constraint
+from bilby.core.prior import Constraint, Uniform, LogUniform
 import pandas as pd
 from pathlib import Path
 from shutil import rmtree
@@ -93,7 +93,26 @@ class TestConstraints(unittest.TestCase):
         pass
 
     def test_gaussianrise_tde_constraints(self):
-        pass
+        priors = bilby.prior.PriorDict(conversion_function=redback.constraints.gaussianrise_tde_constraints)
+        _prior = redback.priors.get_priors(model='gaussianrise_tde')
+        priors.update(_prior)
+        priors['peak_time'] = Uniform(20, 60, name='peak_time', latex_label=r'$t_{\mathrm{peak}}$~[days]')
+        priors['sigma_t'] = Uniform(5, 10, name='sigma_t', latex_label=r'$\sigma$~[days]')
+        priors['mbh_6'] = Uniform(0.3, 20, name='mbh_6', latex_label=r'$M_{\mathrm{BH}}~[10^{6}~M_{\odot}]$')
+        priors['stellar_mass'] = Uniform(0.3, 5, name='stellar_mass', latex_label=r'$M_{\mathrm{star}} [M_{\odot}]$')
+        priors['eta'] = LogUniform(1e-3, 0.1, name='eta', latex_label=r'$\eta$')
+        priors['alpha'] = LogUniform(1e-2, 1e-1, name='alpha', latex_label=r'$\alpha$')
+        priors['beta'] = Uniform(1, 30, name='beta', latex_label=r'$\beta$')
+        priors['eta_low'] = Constraint(0, 0.1)
+        priors['beta_high'] = Constraint(0, 1)
+        priors['tfb_max'] = Constraint(0, 100)
+        samples = pd.DataFrame(priors.sample(1000))
+        ms = samples['stellar_mass']
+        mbh6 = samples['mbh_6']
+        etamin = 0.01 * (ms ** (-7. / 15.)) * (mbh6 ** (2. / 3.))
+        betamax = 12. * (ms ** (7. / 15.)) * (mbh6 ** (-2. / 3.))
+        self.assertTrue(np.all(samples['eta'].values >= etamin))
+        self.assertTrue(np.all(samples['beta'].values <= betamax))
 
     def test_nuclear_burning_constraints(self):
         priors = bilby.prior.PriorDict(conversion_function=redback.constraints.nuclear_burning_constraints)
