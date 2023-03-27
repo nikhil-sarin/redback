@@ -7,7 +7,7 @@ from collections import namedtuple
 import astropy.units as uu # noqa
 import astropy.constants as cc # noqa
 from redback.utils import calc_kcorrected_properties, interpolated_barnes_and_kasen_thermalisation_efficiency, \
-    electron_fraction_from_kappa, citation_wrapper, lambda_to_nu
+    electron_fraction_from_kappa, citation_wrapper, lambda_to_nu, velocity_from_lorentz_factor
 from redback.sed import blackbody_to_flux_density, get_correct_output_format_from_spectra
 
 def _ejecta_dynamics_and_interaction(time, mej, beta, ejecta_radius, kappa, n_ism,
@@ -82,7 +82,7 @@ def _ejecta_dynamics_and_interaction(time, mej, beta, ejecta_radius, kappa, n_is
 
         emitted_luminosity = comoving_emitted_luminosity * doppler_factor_temp ** 2
 
-        vej = ((1 / gamma) ** 2 + 1) ** 0.5 * speed_of_light
+        vej = velocity_from_lorentz_factor(gamma)
 
         if use_gamma_ray_opacity:
             kappa_gamma = kwargs["kappa_gamma"]
@@ -124,7 +124,7 @@ def _ejecta_dynamics_and_interaction(time, mej, beta, ejecta_radius, kappa, n_is
 
     dynamics_output = namedtuple('dynamics_output', ['lorentz_factor', 'bolometric_luminosity', 'comoving_temperature',
                                                      'radius', 'doppler_factor', 'tau', 'time', 'kinetic_energy',
-                                                     'erad_total', 'thermalisation_efficiency'])
+                                                     'erad_total', 'thermalisation_efficiency', 'r_photosphere'])
 
     dynamics_output.lorentz_factor = lorentz_factor
     dynamics_output.bolometric_luminosity = bolometric_luminosity
@@ -193,11 +193,12 @@ def _processing_other_formats(dl, output, redshift, time_obs, time_temp, **kwarg
     :param time_obs: observed time array in days
     :param time_temp: temporary time array in seconds where output is evaluated
     :param kwargs: extra arguments
+    :param lambda_array: Optional argument to set your desired wavelength array (in Angstroms) to evaluate the SED on.
     :return: returns the correct output format
     """
-    frequency_observer_frame = kwargs.get('frequency_array', np.geomspace(100, 20000, 100))
+    lambda_observer_frame = kwargs.get('lambda_array', np.geomspace(100, 60000, 100))
     time_observer_frame = time_temp * (1. + redshift)
-    frequency, time = calc_kcorrected_properties(frequency=lambda_to_nu(frequency_observer_frame),
+    frequency, time = calc_kcorrected_properties(frequency=lambda_to_nu(lambda_observer_frame),
                                                  redshift=redshift, time=time_observer_frame)
     if kwargs['use_relativistic_blackbody']:
         fmjy = _comoving_blackbody_to_flux_density(dl=dl, frequency=frequency[:, None], radius=output.radius,
@@ -209,14 +210,14 @@ def _processing_other_formats(dl, output, redshift, time_obs, time_temp, **kwarg
 
     fmjy = fmjy.T
     spectra = fmjy.to(uu.mJy).to(uu.erg / uu.cm ** 2 / uu.s / uu.Angstrom,
-                                 equivalencies=uu.spectral_density(wav=frequency_observer_frame * uu.Angstrom))
+                                 equivalencies=uu.spectral_density(wav=lambda_observer_frame * uu.Angstrom))
     if kwargs['output_format'] == 'spectra':
-        return namedtuple('output', ['time', 'frequency', 'spectra'])(time=time_observer_frame,
-                                                                      frequency=frequency_observer_frame,
+        return namedtuple('output', ['time', 'lambdas', 'spectra'])(time=time_observer_frame,
+                                                                      lambdas=lambda_observer_frame,
                                                                       spectra=spectra)
     else:
         return get_correct_output_format_from_spectra(time=time_obs, time_eval=time_observer_frame / day_to_s,
-                                                      spectra=spectra, frequency_array=frequency_observer_frame,
+                                                      spectra=spectra, lambda_array=lambda_observer_frame,
                                                       **kwargs)
 
 def _process_flux_density(dl, output, redshift, time, time_temp, **kwargs):
@@ -274,6 +275,7 @@ def basic_mergernova(time, redshift, mej, beta, ejecta_radius, kappa, n_ism, p0,
         frequency to calculate - Must be same length as time array or a single number).
     :param bands: Required if output_format is 'magnitude' or 'flux'.
     :param output_format: 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
+    :param lambda_array: Optional argument to set your desired wavelength array (in Angstroms) to evaluate the SED on.
     :return: set by output format - 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
     """
     pair_cascade_switch = kwargs.get('pair_cascade_switch', False)
@@ -321,6 +323,7 @@ def general_mergernova(time, redshift, mej, beta, ejecta_radius, kappa, n_ism, l
         frequency to calculate - Must be same length as time array or a single number).
     :param bands: Required if output_format is 'magnitude' or 'flux'.
     :param output_format: 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
+    :param lambda_array: Optional argument to set your desired wavelength array (in Angstroms) to evaluate the SED on.
     :return: set by output format - 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
     """
     pair_cascade_switch = kwargs.get('pair_cascade_switch', True)
@@ -368,6 +371,7 @@ def general_mergernova_thermalisation(time, redshift, mej, beta, ejecta_radius, 
         frequency to calculate - Must be same length as time array or a single number).
     :param bands: Required if output_format is 'magnitude' or 'flux'.
     :param output_format: 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
+    :param lambda_array: Optional argument to set your desired wavelength array (in Angstroms) to evaluate the SED on.
     :return: set by output format - 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
     """
     pair_cascade_switch = kwargs.get('pair_cascade_switch', True)
@@ -416,6 +420,7 @@ def general_mergernova_evolution(time, redshift, mej, beta, ejecta_radius, kappa
         frequency to calculate - Must be same length as time array or a single number).
     :param bands: Required if output_format is 'magnitude' or 'flux'.
     :param output_format: 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
+    :param lambda_array: Optional argument to set your desired wavelength array (in Angstroms) to evaluate the SED on.
     :return: set by output format - 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
     """
     pair_cascade_switch = kwargs.get('pair_cascade_switch', True)
@@ -746,6 +751,7 @@ def metzger_magnetar_driven_kilonova_model(time, redshift, mej, vej, beta, kappa
         frequency to calculate - Must be same length as time array or a single number).
     :param bands: Required if output_format is 'magnitude' or 'flux'.
     :param output_format: 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
+    :param lambda_array: Optional argument to set your desired wavelength array (in Angstroms) to evaluate the SED on.
     :return: set by output format - 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
     """
     use_gamma_ray_opacity = False
@@ -792,6 +798,7 @@ def general_metzger_magnetar_driven(time, redshift, mej, vej, beta, kappa_r, l0,
         frequency to calculate - Must be same length as time array or a single number).
     :param bands: Required if output_format is 'magnitude' or 'flux'.
     :param output_format: 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
+    :param lambda_array: Optional argument to set your desired wavelength array (in Angstroms) to evaluate the SED on.
     :return: set by output format - 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
     """
     use_gamma_ray_opacity = False
@@ -839,6 +846,7 @@ def general_metzger_magnetar_driven_thermalisation(time, redshift, mej, vej, bet
         frequency to calculate - Must be same length as time array or a single number).
     :param bands: Required if output_format is 'magnitude' or 'flux'.
     :param output_format: 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
+    :param lambda_array: Optional argument to set your desired wavelength array (in Angstroms) to evaluate the SED on.
     :return: set by output format - 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
     """
     kwargs['use_relativistic_blackbody'] = False
@@ -887,6 +895,7 @@ def general_metzger_magnetar_driven_evolution(time, redshift, mej, vej, beta, ka
         frequency to calculate - Must be same length as time array or a single number).
     :param bands: Required if output_format is 'magnitude' or 'flux'.
     :param output_format: 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
+    :param lambda_array: Optional argument to set your desired wavelength array (in Angstroms) to evaluate the SED on.
     :return: set by output format - 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
     """
     use_gamma_ray_opacity = True

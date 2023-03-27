@@ -26,7 +26,34 @@ plt.style.use(filename)
 logger = logging.getLogger('redback')
 _bilby_logger = logging.getLogger('bilby')
 
+def sncosmo_bandname_from_band(bands):
+    """
+    Convert redback data band names to sncosmo compatible band names
+
+    :param bands: List of bands.
+    :type bands: list[str]
+    :return: An array of sncosmo compatible bandnames associated with the given bands.
+    :rtype: np.ndarray
+    """
+    if bands is None:
+        bands = []
+    if isinstance(bands, str):
+        bands = [bands]
+    df = pd.read_csv(f"{dirname}/tables/filters.csv")
+    bands_to_flux = {band: wavelength for band, wavelength in zip(df['bands'], df['sncosmo_name'])}
+    res = []
+    for band in bands:
+        try:
+            res.append(bands_to_flux[band])
+        except KeyError as e:
+            logger.info(e)
+            raise KeyError(f"Band {band} is not defined in filters.csv!")
+    return np.array(res)
+
 def check_kwargs_validity(kwargs):
+    if kwargs == None:
+        logger.info("No kwargs passed to function")
+        return kwargs
     if 'output_format' not in kwargs.keys():
         raise ValueError("output_format must be specified")
     else:
@@ -748,3 +775,12 @@ def electron_fraction_from_kappa(kappa):
     kappa_func = interp1d(kappa_array, y=ye_array)
     electron_fraction = kappa_func(kappa)
     return electron_fraction
+
+def velocity_from_lorentz_factor(gamma):
+    """
+    Calculate velocity from lorentz factor
+
+    :param gamma: lorentz factor
+    :return: velocity in cgs
+    """
+    return speed_of_light * np.sqrt(1 - 1 / gamma ** 2)

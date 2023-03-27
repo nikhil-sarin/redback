@@ -1,5 +1,31 @@
 # All notable changes will be documented in this file
 
+## [0.4.0] 2023-02-07
+Version 0.4.0 release of redback
+
+### Added
+- New models for type 1A 
+- type 1c supernovae model 
+- mosfit r-process model
+- mosfit kilonova model
+- Nicholl BNS model 
+- Power law stratified kilonova 
+- Redback surrogate models for Bulla BNS, NSBH and Kasen BNS simulations
+- Interface with redback surrogates
+
+### Changed
+- Phase models explicitly output 0 for t < t0 
+- Extinction models now work with new SNCosmo style interface
+- Updated shock powered models 
+- Updated default frequency array for spectra, and added option to change it as a keyword argument
+- Cleaner interface to fit models in magnitude/flux space
+
+## [0.3.1] 2022-12-22
+Version 0.3.1 release of redback
+
+### Changed
+- Fitting compatibility with `SNCosmo` filter definitions.
+
 ## [0.3.0] 2022-12-05
 Version 0.3.0 release of redback
 

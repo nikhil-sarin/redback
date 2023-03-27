@@ -107,7 +107,7 @@ class FinkDataGetter(DataGetter):
                                         reference_flux=bands_to_reference_flux(processed_data['band'].values))
         processed_data = processed_data.sort_values(by="time")
 
-        time_of_event = min(processed_data["time"])
+        time_of_event = min(processed_data["time"]) - 0.1
         time_of_event = Time(time_of_event, format='mjd')
 
         tt = Time(np.asarray(processed_data["time"], dtype=float), format='mjd')

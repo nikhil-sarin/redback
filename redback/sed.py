@@ -222,6 +222,8 @@ class Synchrotron(_SED):
 
     def _set_sed(self):
         self.sed = np.zeros(len(self.frequency))
+        if self.frequency.ndim == 2:
+            self.sed = np.zeros((len(self.frequency), 1))
         self.sed[self.mask] = \
             self.f0 * self.source_radius**2 * (self.frequency[self.mask]/self.nu_max) ** 2.5 \
             * angstrom_cgs / speed_of_light * self.frequency[self.mask] ** 2
@@ -289,7 +291,7 @@ class Line(_SED):
         amp_new = np.exp(-0.5 * ((self.wavelength - self.line_wavelength) / self.line_width) ** 2)
         self.sed += amplitude * amp_new
 
-def get_correct_output_format_from_spectra(time, time_eval, spectra, frequency_array, **kwargs):
+def get_correct_output_format_from_spectra(time, time_eval, spectra, lambda_array, **kwargs):
     """
     Use SNcosmo to get the bandpass flux or magnitude in AB from spectra at given times.
 
@@ -297,12 +299,12 @@ def get_correct_output_format_from_spectra(time, time_eval, spectra, frequency_a
     :param time_eval: times in observer frame where spectra are evaluated. A densely sampled array for accuracy
     :param bands: band array - must be same length as time array or a single band
     :param spectra: spectra in mJy evaluated at all times and frequencies; shape (len(times), len(frequency_array))
-    :param frequency_array: frequency array in Angstrom in observer frame
+    :param lambda_array: wavelenth array in Angstrom in observer frame
     :param kwargs: Additional parameters
     :param output_format: 'flux', 'magnitude', 'sncosmo_source', 'flux_density'
     :return: flux, magnitude or SNcosmo TimeSeries Source depending on output format kwarg
     """
-    source = TimeSeriesSource(phase=time_eval, wave=frequency_array, flux=spectra)
+    source = TimeSeriesSource(phase=time_eval, wave=lambda_array, flux=spectra)
     if kwargs['output_format'] == 'flux':
         bands = kwargs['bands']
         magnitude = source.bandmag(phase=time, band=bands, magsys='ab')

@@ -28,7 +28,7 @@ Redback is a software package for end-to-end interpretation and parameter estima
 ### Contributing 
 Redback is currently in alpha with a paper in preparation. 
 If you are interested in contributing please join the redback 
-[slack](https://join.slack.com/t/redback-group/shared_invite/zt-17cuuf8zl-U1tQcqYC6tajcNrNJwEiKw)
+[slack](https://join.slack.com/t/redback-group/shared_invite/zt-1l0x9kzbn-Wf3rkvX2q~yAHGBfM9jmFA)
 and email [Nikhil Sarin](mailto:nikhil.sarin@su.se?subject=Contributing%20to%20redback). 
 All contributors at the alpha stage will be invited to be co-authors of the first paper.
 

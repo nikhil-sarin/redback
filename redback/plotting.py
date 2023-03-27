@@ -546,8 +546,10 @@ class MagnitudePlotter(Plotter):
         times = self._get_times(axes)
 
         for band, color in zip(self.transient.active_bands, self.transient.get_colors(self.transient.active_bands)):
+            sn_cosmo_band = redback.utils.sncosmo_bandname_from_band([band])
+            self._model_kwargs["bands"] = [sn_cosmo_band[0] for _ in range(len(times))]
             frequency = redback.utils.bands_to_frequency([band])
-            self._model_kwargs["frequency"] = np.ones(len(times)) * frequency
+            self._model_kwargs['frequency'] = np.ones(len(times)) * frequency
             if self.plot_max_likelihood:
                 ys = self.model(times, **self._max_like_params, **self._model_kwargs)
                 axes.plot(times - self._reference_mjd_date, ys, color=color, alpha=0.65, lw=2)
