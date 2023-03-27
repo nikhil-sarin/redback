@@ -167,14 +167,25 @@ class TestConstraints(unittest.TestCase):
                 2.0 * (5.0 - delta) * (nn - 5.0) * Esn) ** ((nn - 3.) / 2.0) / (
                        (3.0 - delta) * (nn - 3.0) * mej) ** ((nn - 5.0) / 2.0))
 
-        tshock = ((radius_csm - r0) / Bf / (AA * g_n / qq) ** (
-                1. / (nn - eta))) ** ((nn - eta) / (nn - 3))
-        diffusion_time = np.sqrt(2. * kappa * mass_csm_threshold / (vej * 13.7 * 3.e10))
+        # tshock = ((radius_csm - r0) / Bf / (AA * g_n / qq) ** (
+        #         1. / (nn - eta))) ** ((nn - eta) / (nn - 3))
+        # diffusion_time = np.sqrt(2. * kappa * mass_csm_threshold / (vej * 13.7 * 3.e10))
         self.assertTrue(np.all(r_photosphere <= radius_csm))
         self.assertTrue(np.all(r_photosphere >= r0))
 
     def test_piecewise_polytrope_eos_constraints(self):
-        pass
+        priors = bilby.prior.PriorDict(conversion_function=redback.constraints.piecewise_polytrope_eos_constraints)
+        _prior = redback.priors.get_priors(model='polytrope_eos_two_component_bns')
+        priors.update(_prior)
+        priors['maximum_eos_mass'] = Constraint(1.5, 5)
+        priors['maximum_speed_of_sound'] = Constraint(0, 1.15)
+        samples = priors.sample(100)
+        max_mass = redback.constraints.calc_max_mass(**samples)
+        print(max_mass)
+        cs = redback.constraints.calc_speed_of_sound(**samples)
+        self.assertTrue(np.all(max_mass >= 1.5))
+        self.assertTrue(np.all(max_mass <= 5))
+        self.assertTrue(np.all(cs <= 1.15))
 
     def test_metzger_tde_constraints(self):
         pass
