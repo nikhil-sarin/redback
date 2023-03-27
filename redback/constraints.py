@@ -87,7 +87,7 @@ def nuclear_burning_constraints(parameters):
     converted_parameters = parameters.copy()
     mej = parameters['mej'] * solar_mass
     vej = parameters['vej'] * km_cgs
-    fnickel = parameters['fnickel']
+    fnickel = parameters['f_nickel']
     kinetic_energy = 0.5 * mej * (vej / 2.0) ** 2
     excess_constant = -(56.0 / 4.0 * 2.4249 - 53.9037) / proton_mass * mev_cgs
     emax = excess_constant * mej * fnickel
@@ -107,7 +107,7 @@ def simple_fallback_constraints(parameters):
     vej = parameters['vej'] * km_cgs
     kappa = parameters['kappa']
     l0 = parameters['l0']
-    t0 = parameters['t_0']
+    t0 = parameters['t_0_turn']
     kinetic_energy = 0.5 * mej * vej**2
     tnebula =  np.sqrt(3 * kappa * mej / (4 * np.pi * vej ** 2)) / 86400
     e_fallback = l0 * 5./2./(t0 * day_to_s)**(2./3.)
@@ -134,8 +134,8 @@ def csm_constraints(parameters):
     kappa = parameters['kappa']
     r0 = parameters['r0']
     vej = parameters['vej']
-    nn = parameters.get('nn', 12)
-    delta = parameters.get('delta', 1)
+    nn = parameters.get('nn', np.ones(len(mej)) * 12.)
+    delta = parameters.get('delta', np.ones(len(mej)))
     eta = parameters['eta']
     rho = parameters['rho']
 
@@ -145,9 +145,12 @@ def csm_constraints(parameters):
     vej = vej * km_cgs
     Esn = 3. * vej ** 2 * mej / 10.
 
-    csm_properties = get_csm_properties(nn, eta)
-    AA = csm_properties.AA
-    Bf = csm_properties.Bf
+    AA = np.zeros(len(mej))
+    Bf = np.zeros(len(mej))
+    for x in range(len(mej)):
+        csm_properties = get_csm_properties(nn[x], eta[x])
+        AA[x] = csm_properties.AA
+        Bf[x] = csm_properties.Bf
     qq = rho * r0 ** eta
     # outer CSM shell radius
     radius_csm = ((3.0 - eta) / (4.0 * np.pi * qq) * csm_mass + r0 ** (3.0 - eta)) ** (
