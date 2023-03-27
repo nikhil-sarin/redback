@@ -2,7 +2,6 @@ import numpy as np
 from typing import Union
 import regex as re
 from sncosmo import TimeSeriesSource, Model, get_bandpass
-import simsurvey
 import redback
 import pandas as pd
 from redback.utils import logger
@@ -17,13 +16,13 @@ class SimulateOpticalTransient(object):
     Simulate a single optical transient from a given observation dictionary
     """
     def __init__(self, model, parameters, pointings_database=None, survey='Rubin_10yr_baseline',
-                 min_dec=None,max_dec=None, start_mjd=None, end_mjd=None, sncosmo_kwargs=None, buffer_days=100,
+                 min_dec=None,max_dec=None, start_mjd=None, end_mjd=None, sncosmo_kwargs=None, buffer_days=1, obs_buffer=5.0, end_transient_time=1000,
                  population=False, model_kwargs=None, **kwargs):
         if isinstance(model, str):
             self.model = redback.model_library.all_models_dict[model]
             model_kwargs['output_format'] = 'sncosmo_source'
             _time_array = np.linspace(0.1, 3000.0, 10)
-            self.sncosmo_model = self.model(_time_array, **model_kwargs)
+            self.sncosmo_model = self.model(_time_array, **parameters, **model_kwargs)
         elif callable(model):
             self.model = model
             logger.info('Using custom model. Making a SNCosmo wrapper for this model')
@@ -32,13 +31,13 @@ class SimulateOpticalTransient(object):
             raise ValueError("The user needs to specify model as either a string or function.")
 
         if survey is not None:
-            self.pointing_database_name = self._survey_to_table_name_lookup(survey)
-            self.pointing_database = pd.read_csv(self.pointing_database_name, compression='gzip')
-            logger.info(f"Using {self.pointing_database_name} as the pointing database corresponding to {survey}.")
+            self.pointings_database_name = self._survey_to_table_name_lookup(survey)
+            self.pointings_database = pd.read_csv(self.pointings_database_name, compression='gzip')
+            logger.info(f"Using {self.pointings_database_name} as the pointing database corresponding to {survey}.")
         else:
-            self.pointing_database = pointings_database
-            self.pointing_database_name = 'user_defined'
-            if isinstance(survey, pd.DataFrame):
+            self.pointings_database = pointings_database
+            self.pointings_database_name = 'user_defined'
+            if isinstance(self.pointings_database, pd.DataFrame):
                 logger.info(f"Using the supplied as the pointing database.")
             else:
                 raise ValueError("The user needs to specify survey as either a string or a "
@@ -50,23 +49,23 @@ class SimulateOpticalTransient(object):
         self.sncosmo_kwargs = sncosmo_kwargs
         self.min_dec = min_dec
         self.max_dec = max_dec
-        self.start_mjd = start_mjd
-        self.end_mjd = end_mjd
-
+        self.start_mjd_survey = start_mjd
+        self.end_mjd_survey = end_mjd
+        self.obs_buffer = obs_buffer
+        self.end_transient_time = self.parameters['t0_mjd_transient'] + end_transient_time
+        #self.parameters = self._update_parameters()
         observations = self._make_observations()
         self.observations = observations
 
 
-    @property
     def _get_unique_reference_fluxes(self):
-        unique_bands = self.pointing_database.filters.unique()
+        unique_bands = self.pointings_database.filters.unique()
         ref_flux = redback.utils.bands_to_reference_flux(unique_bands)
         return ref_flux
 
     @property
     def _initialise_from_pointings(self):
-        df = self.pointing_database
-
+        df = self.pointings_database
         bandflux_errors = redback.utils.bandflux_error_from_limiting_mag(limiting_magnitudes, reference_flux)
         min_dec = np.min(df['_dec'])
         max_dec = np.max(df['_dec'])
@@ -74,7 +73,6 @@ class SimulateOpticalTransient(object):
         end_mjd = np.max(df['expMJD'])
         return min_dec, max_dec, start_mjd, end_mjd
 
-    @property
     def _update_parameters(self):
         parameters = self.parameters
         if self.population:
@@ -84,9 +82,9 @@ class SimulateOpticalTransient(object):
         dec_dist = (np.arccos(2* np.random.uniform(low=(1 - np.sin(self.min_dec)) / 2,
                                                    high=(1 - np.sin(self.max_dec)) / 2,
                                                    size=size)- 1) - np.pi / 2)
-        parameters['RA'] = parameters.get("RA", np.random.uniform(0, 2*np.pi, size=size))
-        parameters['DEC'] = parameters.get("DEC", dec_dist)
-        parameters['MJD'] = parameters.get("MJD", np.random.uniform(self.start_mjd, self.end_mjd, size=size))
+        parameters['ra'] = parameters.get("ra", np.random.uniform(0, 2*np.pi, size=size))
+        parameters['dec'] = parameters.get("dec", dec_dist)
+        parameters['t0_mjd_transient'] = parameters.get("MJD", np.random.uniform(self.start_mjd_survey, self.end_mjd_survey, size=size))
         return parameters
 
     def _make_sncosmo_wrapper_for_redback_model(self):
@@ -124,47 +122,60 @@ class SimulateOpticalTransient(object):
         return survey_to_table[survey]
 
     def _make_observation_single(self, overlapping_database):
-        times = overlapping_database['expMJD'].values - self.sncosmo_model.mintime()
-        filters = overlapping_database['filter']
-        limiting_magnitudes = overlapping_database['fiveSigmaDepth'].values
+        times = overlapping_database['expMJD'].values - self.parameters['t0_mjd_transient'] - self.buffer_days
+        print(times)
+        filters = overlapping_database['filter'].values
 
-        flux = self.sncosmo_model.bandflux(times, filters)
+        flux = self.sncosmo_model.bandflux(phase=times, band=filters)
+        ref_flux = redback.utils.bands_to_reference_flux(filters)
+
+        bandflux_errors = redback.utils.bandflux_error_from_limiting_mag(overlapping_database['fiveSigmaDepth'].values, ref_flux)
         # what can be preprocessed
+        print(flux)
         observed_flux = np.random.normal(loc=flux, scale=bandflux_errors)
         magnitudes = redback.utils.bandpass_flux_to_magnitude(observed_flux, filters)
         magnitude_errs = redback.utils.magnitude_error_from_flux_error(flux, bandflux_errors)
-        observation_dataframe = pd.DataFrame(columns=['event', 'time', 'magnitude', 'e_magnitude', 'band', 'system', 'flux_density(mjy)', 'flux_density_error', 'flux(erg/cm2/s)', 'flux_error', 'time (days)'])
-        observation_dataframe['time'] = times + self.sncosmo_model.mintime()
+        print(magnitudes)
+        observation_dataframe = pd.DataFrame()
+        observation_dataframe['time'] = overlapping_database['expMJD'].values
         observation_dataframe['magnitude'] = magnitudes
         observation_dataframe['e_magnitude'] = magnitude_errs
         observation_dataframe['band'] = filters
         observation_dataframe['system'] = 'AB'
-        observation_dataframe['flux_density(mjy)'] = 'TODO'
-        observation_dataframe['flux_density_error'] = 'TODO'
+        observation_dataframe['flux_density(mjy)'] = 0
+        observation_dataframe['flux_density_error'] = 0
         observation_dataframe['flux(erg/cm2/s)'] = observed_flux
         observation_dataframe['flux_error'] = bandflux_errors
         observation_dataframe['time (days)'] = times
         return observation_dataframe
 
     def _make_observations(self):
-        overlapping_sky_indices = self._find_sky_overlaps(survey_fov_rad=9.6) # need to update for dynamic FOV rad for different surveys TODO
-        overlapping_time_indices = self._find_time_overlaps(obs_buffer)
+        overlapping_sky_indices = self._find_sky_overlaps(survey_fov_rad=9.6)
+        overlapping_time_indices = self._find_time_overlaps(self.obs_buffer)
 
-        time_space_overlap = set(overlapping_sky_indices).intersection(overlapping_time_indices)
+        if self.population:
+            space_set = set(overlapping_sky_indices)
+        else:
+            space_set = set(overlapping_sky_indices[0])
 
-        overlapping_database_iter = self.pointings_database.iloc(time_space_overlap)
+        time_set = set(overlapping_time_indices)
+
+        time_space_overlap = list(space_set.intersection(time_set))
+
+        overlapping_database_iter = self.pointings_database.iloc[time_space_overlap]
 
         dataframe = self._make_observation_single(overlapping_database_iter)
+        return dataframe
 
 
     def _convert_circular_fov_to_radius(self):
         radius = np.sqrt(survey_fov*((np.pi/180.0)**2.0)/np.pi)
         return radius
 
-    def _find_time_overlaps(self, obs_buffer)
-        pointing_times = self.pointings_database[['expMJD']].to_numpy()
-        time_indices = np.where(np.logical_and(pointing_times >= self.start_mjd - obs_buffer, pointing_times <= self.end_mjd))
-        return time_indices
+    def _find_time_overlaps(self, obs_buffer):
+        pointing_times = self.pointings_database[['expMJD']].values.flatten()
+        time_indices = np.where(np.logical_and(pointing_times >= self.parameters['t0_mjd_transient'] - obs_buffer, pointing_times <= self.end_transient_time))
+        return time_indices[0]
 
 
     def _find_sky_overlaps(self, survey_fov_rad=None):
@@ -181,23 +192,16 @@ class SimulateOpticalTransient(object):
         :return dataframe: pandas dataframe of the mock pointings needed to simulate observations for
         given transient.
         """
-        pointings_sky_pos = self.pointings_database[['_ra', '_dec']].to_numpy()
-        transient_sky_pos = (parameters.pop['ra'], parameters.pop['dec'])
-        transient_sky_pos = transient_sky_pos * (np.pi / 180.)
-        pointings_sky_pos = pointings_sky_pos * (np.pi / 180.)
+        pointings_sky_pos = np.column_stack((np.deg2rad(self.pointings_database['_ra'].values), np.deg2rad(self.pointings_database['_dec'].values)))
+        transient_sky_pos = np.column_stack((np.deg2rad(self.parameters['ra']), np.deg2rad(self.parameters['dec'])))
         survey_fov_rad = survey_fov_rad * (np.pi / 180.)
 
-        transient_sky_pos_3D = np.vstack([np.cos(transient_sky_pos[:, 0]) * np.cos(transient_sky_pos[:, 1]),
-                                     np.sin(transient_sky_pos[:, 0]) * np.cos(transient_sky_pos[:, 1]),
-                                     np.sin(transient_sky_pos[:, 1])]).T
-        pointings_sky_pos_3D = np.vstack([np.cos(pointings_sky_pos[:, 0]) * np.cos(pointings_sky_pos[:, 1]),
-                                     np.sin(pointings_sky_pos[:, 0]) * np.cos(pointings_sky_pos[:, 1]),
-                                     np.sin(pointings_sky_pos[:, 1])]).T
-
+        transient_sky_pos_3D = np.vstack([np.cos(transient_sky_pos[:,0]) * np.cos(transient_sky_pos[:,1]), np.sin(transient_sky_pos[:,0]) * np.cos(transient_sky_pos[:,1]), np.sin(transient_sky_pos[:,1])]).T
+        pointings_sky_pos_3D = np.vstack([np.cos(pointings_sky_pos[:, 0]) * np.cos(pointings_sky_pos[:,1]), np.sin(pointings_sky_pos[:,0]) * np.cos(pointings_sky_pos[:,1]), np.sin(pointings_sky_pos[:,1])]).T
         # law of cosines to compute 3D distance
         max_3D_dist = np.sqrt(2 - 2 * np.cos(survey_fov_rad))
-        survey_tree = KDTree(transient_sky_pos_3D)
-        overlap_indices = survey_tree.query_ball_point(pointings_sky_pos_3D, max_3D_dist)
+        survey_tree = KDTree(pointings_sky_pos_3D)
+        overlap_indices = survey_tree.query_ball_point(transient_sky_pos_3D, max_3D_dist)
         return overlap_indices
 
 
@@ -207,7 +211,7 @@ class SimulateOpticalTransient(object):
 
     @classmethod
     def simulate_transient(cls, model, parameters, pointings_database=None, survey='Rubin_10yr_baseline',
-                           buffer_days=100, population=False, **kwargs):
+                           buffer_days=100, population=False, model_kwargs=None, **kwargs):
         """
         Makes a pandas dataframe of pointings from specified settings.
 
@@ -222,7 +226,7 @@ class SimulateOpticalTransient(object):
         given transient.
         """
         return cls(model, parameters, pointings_database=pointings_database, survey=survey,
-                   buffer_days=buffer_days, population=population, **kwargs)
+                   buffer_days=buffer_days, population=population, model_kwargs=model_kwargs, **kwargs)
 
     @classmethod
     def simulate_transient_population(cls, model, parameters, pointings_database=None, survey='Rubin_10yr_baseline',
@@ -284,16 +288,17 @@ def make_pointing_table_from_average_cadence(ra, dec, num_obs, average_cadence, 
     :return dataframe: pandas dataframe of the mock pointings needed to simulate observations for
     given transient.
     """
-    pointings_dataframe = pd.DataFrame(columns=['expMJD', '_ra', '_dec', 'filter', 'fiveSigmaDepth'])
     initMJD = kwargs.get("initMJD", 59580)
+    df_list = []
     for band in average_cadence.keys():
         expMJD = initMJD + np.cumsum(np.random.normal(loc=average_cadence[band], scale=cadence_scatter[band], size=num_obs[band]))
-        filters = list(zip(repeat(band, num_obs[band])))
-        limiting_mag = list(zip(repeat(limiting_magnitudes[band], num_obs[band])))
-        ras = list(zip(repeat(ra, num_obs[band])))
-        decs = list(zip(repeat(dec, num_obs[band])))
+        filters = list(repeat(band, num_obs[band]))
+        limiting_mag = list(repeat(limiting_magnitudes[band], num_obs[band]))
+        ras = np.ones(num_obs[band])*ra
+        decs = np.ones(num_obs[band])*dec
         band_pointings_dataframe = pd.DataFrame.from_dict({'expMJD': expMJD, '_ra': ras, '_dec': decs, 'filter': filters, 'fiveSigmaDepth': limiting_mag})
-        pointings_dataframe = pd.concat([pointings_dataframe, band_pointings_dataframe])
+        df_list.append(band_pointings_dataframe)
+    pointings_dataframe = pd.concat(df_list)
     return pointings_dataframe
 
 class SimulateFullOpticalSurvey(SimulateOpticalTransient):

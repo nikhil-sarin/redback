@@ -434,10 +434,10 @@ def magnitude_error_from_flux_error(bandflux, bandflux_error):
             The flux error propagated into the magnitude system.
     """
     # Compute the per-band magnitude errors
-    if bandflux == np.nan or abs(bandflux) <= 1.0e-70:
-        return np.nan
-    else:
-        magnitude_error = abs(-2.5 / (bandflux * np.log(10))) * bandflux_error
+    mask1 = bandflux == np.nan
+    mask2 = abs(bandflux) <= 1.0e-70
+    magnitude_error = abs(-2.5 / (bandflux * np.log(10))) * bandflux_error
+    magnitude_error[mask1 | mask2] = np.nan
     return magnitude_error
 
 
