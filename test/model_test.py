@@ -302,7 +302,7 @@ class TestHomologousExpansion(unittest.TestCase):
         return prior_dict
 
     def test_base_model(self):
-        with mock.patch('redback.transient_models.supernova_models.homologous_expansion_supernova_model') as m:
+        with mock.patch('redback.transient_models.supernova_models.homologous_expansion_supernova') as m:
             kwargs = dict(frequency=2e14, bands='ztfg')
             prior = self.get_prior()
             kwargs['output_format'] = 'flux_density'
@@ -321,7 +321,7 @@ class TestHomologousExpansion(unittest.TestCase):
         prior = self.get_prior()
         kwargs['base_model'] = self.base_model
         kwargs['output_format'] = 'flux_density'
-        function = redback.model_library.all_models_dict['homologous_expansion_supernova_model']
+        function = redback.model_library.all_models_dict['homologous_expansion_supernova']
         prior.pop('vej')
         prior['ek'] =  bilby.core.prior.LogUniform(1e50, 1e51, 'ek')
         prior['redshift'] = 0.075
@@ -334,7 +334,7 @@ class TestHomologousExpansion(unittest.TestCase):
         prior = self.get_prior()
         kwargs['base_model'] = self.base_model
         kwargs['output_format'] = 'magnitude'
-        function = redback.model_library.all_models_dict['homologous_expansion_supernova_model']
+        function = redback.model_library.all_models_dict['homologous_expansion_supernova']
         prior.pop('vej')
         prior['ek'] =  bilby.core.prior.LogUniform(1e50, 1e51, 'ek')
         prior['redshift'] = 0.075
@@ -355,7 +355,7 @@ class TestThinShellExpansion(unittest.TestCase):
         return prior_dict
 
     def test_base_model(self):
-        with mock.patch('redback.transient_models.supernova_models.thin_shell_supernova_model') as m:
+        with mock.patch('redback.transient_models.supernova_models.thin_shell_supernova') as m:
             kwargs = dict(frequency=2e14, bands='ztfg')
             prior = self.get_prior()
             kwargs['output_format'] = 'flux_density'
@@ -374,7 +374,7 @@ class TestThinShellExpansion(unittest.TestCase):
         prior = self.get_prior()
         kwargs['base_model'] = self.base_model
         kwargs['output_format'] = 'flux_density'
-        function = redback.model_library.all_models_dict['thin_shell_supernova_model']
+        function = redback.model_library.all_models_dict['thin_shell_supernova']
         prior.pop('vej')
         prior['ek'] =  bilby.core.prior.LogUniform(1e50, 1e51, 'ek')
         prior['redshift'] = 0.075
@@ -387,7 +387,7 @@ class TestThinShellExpansion(unittest.TestCase):
         prior = self.get_prior()
         kwargs['base_model'] = self.base_model
         kwargs['output_format'] = 'magnitude'
-        function = redback.model_library.all_models_dict['thin_shell_supernova_model']
+        function = redback.model_library.all_models_dict['thin_shell_supernova']
         prior.pop('vej')
         prior['ek'] =  bilby.core.prior.LogUniform(1e50, 1e51, 'ek')
         prior['redshift'] = 0.075
