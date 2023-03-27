@@ -53,11 +53,15 @@ class SimulateOpticalTransient(object):
         self.start_mjd = start_mjd
         self.end_mjd = end_mjd
 
+        observations = self._make_observations()
+        self.observations = observations
+
+
     @property
     def _get_unique_reference_fluxes(self):
         unique_bands = self.pointing_database.filters.unique()
-        redback.utils.bands_to_reference_flux
-
+        ref_flux = redback.utils.bands_to_reference_flux(unique_bands)
+        return ref_flux
 
     @property
     def _initialise_from_pointings(self):
@@ -119,39 +123,49 @@ class SimulateOpticalTransient(object):
                            'ZTF_wfd': 'ztf_wfd_nexp1_v1_7_10yrs.tar.gz'}
         return survey_to_table[survey]
 
-    def _make_observation_single(self, sncosmo_model, overlapping_database):
-        times = overlapping_database['expMJD'].values - sncosmo_model.mintime()
+    def _make_observation_single(self, overlapping_database):
+        times = overlapping_database['expMJD'].values - self.sncosmo_model.mintime()
         filters = overlapping_database['filter']
         limiting_magnitudes = overlapping_database['fiveSigmaDepth'].values
 
-        flux = sncosmo_model.bandflux(times, filters)
+        flux = self.sncosmo_model.bandflux(times, filters)
         # what can be preprocessed
         observed_flux = np.random.normal(loc=flux, scale=bandflux_errors)
         magnitudes = redback.utils.bandpass_flux_to_magnitude(observed_flux, filters)
         magnitude_errs = redback.utils.magnitude_error_from_flux_error(flux, bandflux_errors)
         observation_dataframe = pd.DataFrame(columns=['event', 'time', 'magnitude', 'e_magnitude', 'band', 'system', 'flux_density(mjy)', 'flux_density_error', 'flux(erg/cm2/s)', 'flux_error', 'time (days)'])
-        observation_dataframe['time'] = times + sncosmo_model.mintime()
+        observation_dataframe['time'] = times + self.sncosmo_model.mintime()
         observation_dataframe['magnitude'] = magnitudes
         observation_dataframe['e_magnitude'] = magnitude_errs
         observation_dataframe['band'] = filters
         observation_dataframe['system'] = 'AB'
-        observation_dataframe['flux_density(mjy)'] =
-        observation_dataframe['flux_density_error'] =
+        observation_dataframe['flux_density(mjy)'] = 'TODO'
+        observation_dataframe['flux_density_error'] = 'TODO'
         observation_dataframe['flux(erg/cm2/s)'] = observed_flux
         observation_dataframe['flux_error'] = bandflux_errors
         observation_dataframe['time (days)'] = times
         return observation_dataframe
 
-    def _make_observations(self, sncosmo_model):
-        if self.population:
-            overlapping_indices = self._find_sky_overlaps(survey_fov_rad=9.6)
-            overlapping_database_iter = iter(self.pointings_database.iloc(iter(overlapping_indices)))
-        else:
-            self._make_observation_single(self.pointing_database)
+    def _make_observations(self):
+        overlapping_sky_indices = self._find_sky_overlaps(survey_fov_rad=9.6) # need to update for dynamic FOV rad for different surveys TODO
+        overlapping_time_indices = self._find_time_overlaps(obs_buffer)
+
+        time_space_overlap = set(overlapping_sky_indices).intersection(overlapping_time_indices)
+
+        overlapping_database_iter = self.pointings_database.iloc(time_space_overlap)
+
+        dataframe = self._make_observation_single(overlapping_database_iter)
+
 
     def _convert_circular_fov_to_radius(self):
         radius = np.sqrt(survey_fov*((np.pi/180.0)**2.0)/np.pi)
         return radius
+
+    def _find_time_overlaps(self, obs_buffer)
+        pointing_times = self.pointings_database[['expMJD']].to_numpy()
+        time_indices = np.where(np.logical_and(pointing_times >= self.start_mjd - obs_buffer, pointing_times <= self.end_mjd))
+        return time_indices
+
 
     def _find_sky_overlaps(self, survey_fov_rad=None):
         """
@@ -189,7 +203,7 @@ class SimulateOpticalTransient(object):
 
 
     def _save_transient(self):
-        pass
+        self.observations.to_csv()
 
     @classmethod
     def simulate_transient(cls, model, parameters, pointings_database=None, survey='Rubin_10yr_baseline',
