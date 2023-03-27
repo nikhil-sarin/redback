@@ -1,6 +1,7 @@
 import numpy as np
 import redback.eos as eos
 from redback.constants import *
+from redback.utils import calc_tfb
 
 def slsn_constraint(parameters):
     """
@@ -75,6 +76,23 @@ def tde_constraints(parameters):
     mass_bh = parameters['mass_bh']
     schwarzchild_radius = (2 * graviational_constant * mass_bh * solar_mass /(speed_of_light**2))
     converted_parameters['disruption_radius'] = rp - schwarzchild_radius
+    return converted_parameters
+
+def gaussianrise_tde_constraints(parameters):
+    """
+    Constraint on beta, eta and peak time for gaussian rise TDE model
+    :param parameters: dictionary of parameters
+    :return: converted_parameters dictionary where the violated samples are thrown out
+    """
+    converted_parameters = parameters.copy()
+    ms = parameters['stellar_mass']
+    mbh6 = parameters['mbh_6']
+    etamin = 0.01*(ms**(-7./15.))*(mbh6**(2./3.))
+    betamax = 12.*(ms**(7./15.))*(mbh6**(-2./3.))
+    tfb = calc_tfb(binding_energy_const=0.8, mbh_6=mbh6,stellar_mass=ms)/86400
+    converted_parameters['eta_low'] = converted_parameters['eta'] - etamin
+    converted_parameters['beta_high'] = betamax - converted_parameters['beta']
+    converted_parameters['tfb_max'] = converted_parameters['peak_time'] - tfb
     return converted_parameters
 
 def nuclear_burning_constraints(parameters):

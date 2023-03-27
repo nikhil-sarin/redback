@@ -89,7 +89,10 @@ class TestConstraints(unittest.TestCase):
         samples['ek'] = 0.5 * mej * vej**2
         self.assertTrue(np.all(samples['erot'].values >= samples['ek'].values))
 
-    def test_tde_constraints(selfs):
+    def test_tde_constraints(self):
+        pass
+
+    def test_gaussianrise_tde_constraints(self):
         pass
 
     def test_nuclear_burning_constraints(self):
