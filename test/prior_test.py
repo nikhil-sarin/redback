@@ -131,8 +131,8 @@ class TestConstraints(unittest.TestCase):
         _prior = redback.priors.get_priors(model='csm_interaction')
         priors.update(_prior)
         # priors['shock_time'] = Constraint(0, 400)
-        # priors['photosphere_constraint_1'] = Constraint(0, 1e53)
-        # priors['photosphere_constraint_2'] = Constraint(0, 1e53)
+        priors['photosphere_constraint_1'] = Constraint(0, 1e13)
+        priors['photosphere_constraint_2'] = Constraint(0, 1e13)
         samples = pd.DataFrame(priors.sample(1000))
         mej = samples['mej'].values * redback.constants.solar_mass
         csm_mass = samples['csm_mass'].values * redback.constants.solar_mass
@@ -170,7 +170,8 @@ class TestConstraints(unittest.TestCase):
         tshock = ((radius_csm - r0) / Bf / (AA * g_n / qq) ** (
                 1. / (nn - eta))) ** ((nn - eta) / (nn - 3))
         diffusion_time = np.sqrt(2. * kappa * mass_csm_threshold / (vej * 13.7 * 3.e10))
-        pass
+        self.assertTrue(np.all(r_photosphere <= radius_csm))
+        self.assertTrue(np.all(r_photosphere >= r0))
 
     def test_piecewise_polytrope_eos_constraints(self):
         pass

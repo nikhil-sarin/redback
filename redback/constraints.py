@@ -172,7 +172,7 @@ def csm_constraints(parameters):
 
     diffusion_time = np.sqrt(2. * kappa * mass_csm_threshold /(vej * 13.7 * 3.e10))
     # ensure shock crossing time is greater than diffusion time
-    converted_parameters['shock_time'] = tshock - diffusion_time
+    # converted_parameters['shock_time'] = tshock - diffusion_time
     # ensure photospheric radius is within the csm i.e., r_photo < radius_csm and r_photo > r0
     converted_parameters['photosphere_constraint_1'] = radius_csm - r_photosphere
     converted_parameters['photosphere_constraint_2'] = r_photosphere - r0
