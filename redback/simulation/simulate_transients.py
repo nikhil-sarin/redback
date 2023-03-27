@@ -18,10 +18,12 @@ class SimulateOpticalTransient(object):
     """
     def __init__(self, model, parameters, pointings_database=None, survey='Rubin_10yr_baseline',
                  min_dec=None,max_dec=None, start_mjd=None, end_mjd=None, sncosmo_kwargs=None, buffer_days=100,
-                 population=False, **kwargs):
+                 population=False, model_kwargs=None, **kwargs):
         if isinstance(model, str):
             self.model = redback.model_library.all_models_dict[model]
-            self.sncosmo_model = self._make_sncosmo_wrapper_for_redback_model()
+            model_kwargs['output_format'] = 'sncosmo_source'
+            _time_array = np.linspace(0.1, 3000.0, 10)
+            self.sncosmo_model = self.model(_time_array, **model_kwargs)
         elif callable(model):
             self.model = model
             logger.info('Using custom model. Making a SNCosmo wrapper for this model')
