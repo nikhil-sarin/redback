@@ -61,7 +61,7 @@ class GaussianLikelihood(_RedbackLikelihood):
         :type sigma: Union[float, None, np.ndarray]
         :param function:
             The python function to fit to the data. Note, this must take the
-            dependent variable as its first argument. The other arguments are
+            dependent variable as its first argument. The other arguments
             will require a prior and will be sampled over (unless a fixed
             value is given).
         :type function: callable
@@ -72,6 +72,8 @@ class GaussianLikelihood(_RedbackLikelihood):
         self._noise_log_likelihood = None
         super().__init__(x=x, y=y, function=function, kwargs=kwargs)
         self.sigma = sigma
+        if self.sigma is None:
+            self.parameters['sigma'] = None
 
     @property
     def sigma(self) -> Union[float, None, np.ndarray]:
@@ -79,9 +81,14 @@ class GaussianLikelihood(_RedbackLikelihood):
 
     @sigma.setter
     def sigma(self, sigma: Union[float, None, np.ndarray]) -> None:
-        self._sigma = sigma
         if sigma is None:
-            self.parameters['sigma'] = None
+            self._sigma = sigma
+        elif isinstance(sigma, float) or isinstance(sigma, int):
+            self._sigma = sigma
+        elif len(sigma) == self.n:
+            self._sigma = sigma
+        else:
+            raise ValueError('Sigma must be either float or array-like x.')
 
     @property
     def residual(self) -> np.ndarray:
@@ -186,7 +193,7 @@ class GaussianLikelihoodQuadratureNoise(GaussianLikelihood):
         :type sigma_i: Union[float, None, np.ndarray]
         :param function:
             The python function to fit to the data. Note, this must take the
-            dependent variable as its first argument. The other arguments are
+            dependent variable as its first argument. The other arguments
             will require a prior and will be sampled over (unless a fixed
             value is given).
         :type function: callable
@@ -195,7 +202,7 @@ class GaussianLikelihoodQuadratureNoise(GaussianLikelihood):
         """
         self.sigma_i = sigma_i
         # These lines of code infer the parameters from the provided function
-        super().__init__(x=x, y=y, sigma=None, function=function, kwargs=kwargs)
+        super().__init__(x=x, y=y, sigma=sigma_i, function=function, kwargs=kwargs)
 
     @property
     def full_sigma(self) -> Union[float, np.ndarray]:
