@@ -1070,9 +1070,9 @@ def csm_nickel(time, redshift, mej, f_nickel, csm_mass, ek, eta, rho, kappa, r0,
         frequency, time = calc_kcorrected_properties(frequency=lambda_to_nu(lambda_observer_frame),
                                                      redshift=redshift, time=time_observer_frame)
         nickel_lbol = arnett_bolometric(time=time, f_nickel=f_nickel,
-                                        mej=mej, interaction_process=ip.Diffusion, **kwargs)
+                                        mej=mej, interaction_process=ip.Diffusion,kappa=kappa, vej=vej, **kwargs)
         csm_lbol = csm_interaction_bolometric(time=time, mej=mej, csm_mass=csm_mass, eta=eta,
-                                          rho=rho, kappa=kappa, r0=r0, interaction_process=ip.CSMDiffusion, **kwargs)
+                                          rho=rho, kappa=kappa, r0=r0, vej=vej, interaction_process=ip.CSMDiffusion, **kwargs)
         lbol = nickel_lbol + csm_lbol
         photo = photosphere.TemperatureFloor(time=time, luminosity=lbol, vej=vej, **kwargs)
         sed_1 = sed.Blackbody(temperature=photo.photosphere_temperature, r_photosphere=photo.r_photosphere,

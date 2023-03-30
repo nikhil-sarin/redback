@@ -74,7 +74,7 @@ def tde_constraints(parameters):
     converted_parameters = parameters.copy()
     rp = parameters['pericenter_radius']
     mass_bh = parameters['mass_bh']
-    schwarzchild_radius = (2 * graviational_constant * mass_bh * solar_mass /(speed_of_light**2))
+    schwarzchild_radius = (2 * graviational_constant * mass_bh * solar_mass /(speed_of_light**2))/au_cgs
     converted_parameters['disruption_radius'] = rp - schwarzchild_radius
     return converted_parameters
 

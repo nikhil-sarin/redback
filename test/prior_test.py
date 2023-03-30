@@ -90,7 +90,15 @@ class TestConstraints(unittest.TestCase):
         self.assertTrue(np.all(samples['erot'].values >= samples['ek'].values))
 
     def test_tde_constraints(self):
-        pass
+        priors = bilby.prior.PriorDict(conversion_function=redback.constraints.tde_constraints)
+        priors['pericenter_radius'] = Uniform(0.1, 100, name='pericenter_radius', latex_label=r'$r_{\mathrm{p}}$~[AU]')
+        priors['mass_bh'] = Uniform(1e5, 5e8, name='mass_bh', latex_label=r'$M_{\mathrm{BH}}$~[M$_{\odot}$]')
+        priors['disruption_radius'] = Constraint(0, 500)
+        samples = pd.DataFrame(priors.sample(1000))
+        mass_bh = samples['mass_bh']
+        sch_rad = (2 * redback.constants.graviational_constant * mass_bh * redback.constants.solar_mass /
+                   (redback.constants.speed_of_light**2)).values / redback.constants.au_cgs
+        self.assertTrue(np.all(samples['pericenter_radius'].values >= sch_rad))
 
     def test_gaussianrise_tde_constraints(self):
         priors = bilby.prior.PriorDict(conversion_function=redback.constraints.gaussianrise_tde_constraints)
@@ -208,9 +216,6 @@ class TestConstraints(unittest.TestCase):
         self.assertTrue(np.all(max_mass >= 1.5))
         self.assertTrue(np.all(max_mass <= 5))
         self.assertTrue(np.all(cs <= 1.15))
-
-    def test_metzger_tde_constraints(self):
-        pass
 
 
 class TestCornerPlotPriorSamples(unittest.TestCase):

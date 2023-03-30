@@ -35,6 +35,8 @@ def t0_base_model(time, t0, **kwargs):
     time = (time - t0).to(uu.day).value
     transient_time = time[time >= 0.0]
     bad_time = time[time < 0.0]
+    if kwargs['base_model'] in ['thin_shell_supernova', 'homologous_expansion_supernova']:
+        kwargs['base_model'] = kwargs.get('submodel', 'arnett_bolometric')
     output_real = function(transient_time, **kwargs)
     if kwargs['output_format'] == 'magnitude':
         output_fake = np.zeros(len(bad_time)) + 5000
