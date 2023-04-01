@@ -111,6 +111,7 @@ class TestConstraints(unittest.TestCase):
         priors['eta'] = LogUniform(1e-3, 0.1, name='eta', latex_label=r'$\eta$')
         priors['alpha'] = LogUniform(1e-2, 1e-1, name='alpha', latex_label=r'$\alpha$')
         priors['beta'] = Uniform(1, 30, name='beta', latex_label=r'$\beta$')
+        priors['redshift'] = 0.01
         priors['eta_low'] = Constraint(0, 0.1)
         priors['beta_high'] = Constraint(0, 1)
         priors['tfb_max'] = Constraint(0, 100)
@@ -119,8 +120,11 @@ class TestConstraints(unittest.TestCase):
         mbh6 = samples['mbh_6']
         etamin = 0.01 * (ms ** (-7. / 15.)) * (mbh6 ** (2. / 3.))
         betamax = 12. * (ms ** (7. / 15.)) * (mbh6 ** (-2. / 3.))
+        tfb = redback.utils.calc_tfb(binding_energy_const=0.8, mbh_6=mbh6, stellar_mass=ms) / 86400
+        tfb_obs = tfb * (1 + samples['redshift'])
         self.assertTrue(np.all(samples['eta'].values >= etamin))
         self.assertTrue(np.all(samples['beta'].values <= betamax))
+        self.assertTrue(np.all(tfb_obs >= samples['peak_time']))
 
     def test_nuclear_burning_constraints(self):
         priors = bilby.prior.PriorDict(conversion_function=redback.constraints.nuclear_burning_constraints)

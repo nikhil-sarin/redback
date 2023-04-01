@@ -90,9 +90,10 @@ def gaussianrise_tde_constraints(parameters):
     etamin = 0.01*(ms**(-7./15.))*(mbh6**(2./3.))
     betamax = 12.*(ms**(7./15.))*(mbh6**(-2./3.))
     tfb = calc_tfb(binding_energy_const=0.8, mbh_6=mbh6,stellar_mass=ms)/86400
+    tfb_obs = tfb * (1 + parameters['redshift'])
     converted_parameters['eta_low'] = converted_parameters['eta'] - etamin
     converted_parameters['beta_high'] = betamax - converted_parameters['beta']
-    converted_parameters['tfb_max'] = converted_parameters['peak_time'] - tfb
+    converted_parameters['tfb_max'] = tfb_obs - converted_parameters['peak_time']
     return converted_parameters
 
 def nuclear_burning_constraints(parameters):
