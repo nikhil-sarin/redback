@@ -228,6 +228,56 @@ class GaussianLikelihoodQuadratureNoise(GaussianLikelihood):
         """
         return self._gaussian_log_likelihood(res=self.residual, sigma=self.full_sigma)
 
+class GaussianLikelihoodWhiteNoise(GaussianLikelihood):
+    def __init__(
+            self, x: np.ndarray, y: np.ndarray, sigma_i: Union[float, None, np.ndarray],
+            function: callable, kwargs: dict = None) -> None:
+        """
+        A white noise Gaussian likelihood - the parameters are inferred from the
+        arguments of function
+
+        :type x: np.ndarray
+        :param y: The y values.
+        :type y: np.ndarray
+        :param sigma_i: The standard deviation of the noise. This is part of the full noise.
+                        The sigma used in the likelihood is sigma = sigma_i^2 + sigma^2
+        :type sigma_i: Union[float, None, np.ndarray]
+        :param function:
+            The python function to fit to the data. Note, this must take the
+            dependent variable as its first argument. The other arguments
+            will require a prior and will be sampled over (unless a fixed
+            value is given).
+        :type function: callable
+        :param kwargs: Any additional keywords for 'function'.
+        :type kwargs: dict
+        """
+        self.sigma_i = sigma_i
+        # These lines of code infer the parameters from the provided function
+        super().__init__(x=x, y=y, sigma=sigma_i, function=function, kwargs=kwargs)
+
+    @property
+    def full_sigma(self) -> Union[float, np.ndarray]:
+        """
+        :return: The standard deviation of the full noise
+        :rtype: Union[float, np.ndarray]
+        """
+        return self.sigma_i ** 2. + self.sigma ** 2.
+
+    def noise_log_likelihood(self) -> float:
+        """
+        :return: The noise log-likelihood, i.e. the log-likelihood assuming the signal is just noise.
+        :rtype: float
+        """
+        if self._noise_log_likelihood is None:
+            self._noise_log_likelihood = self._gaussian_log_likelihood(res=self.y, sigma=self.full_sigma)
+        return self._noise_log_likelihood
+
+    def log_likelihood(self) -> float:
+        """
+        :return: The log-likelihood.
+        :rtype: float
+        """
+        return self._gaussian_log_likelihood(res=self.residual, sigma=self.full_sigma)
 
 class GaussianLikelihoodQuadratureNoiseNonDetections(GaussianLikelihoodQuadratureNoise):
     def __init__(
