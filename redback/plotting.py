@@ -646,10 +646,10 @@ class MagnitudePlotter(Plotter):
     @staticmethod
     def _get_multiband_plot_label(band: str, freq: float) -> str:
         if isinstance(band, str):
-            if 1e10 < float(freq) < 1e15:
+            if 1e10 < float(freq) < 1e16:
                 label = band
             else:
-                label = freq
+                label = f"{freq:.2e}"
         else:
             label = f"{band:.2e}"
         return label
