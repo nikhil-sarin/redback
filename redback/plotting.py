@@ -82,6 +82,7 @@ class Plotter(object):
         :param transient: An instance of `redback.transient.Transient`. Contains the data to be plotted.
         :param kwargs: Additional kwargs the plotter uses. -------
         :keyword capsize: Same as matplotlib capsize.
+        :keyword bands_to_plot: List of bands to plot in plot lightcurve and multiband lightcurve. Default is active bands.
         :keyword legend_location: Same as matplotlib legend location.
         :keyword legend_cols: Same as matplotlib legend columns.
         :keyword color: Color of the data points.
@@ -397,6 +398,10 @@ class MagnitudePlotter(Plotter):
         return self.kwargs.get("ylabel", self.transient.ylabel)
 
     @property
+    def _get_bands_to_plot(self) -> list[str]:
+        return self.kwargs.get("bands_to_plot", self.transient.active_bands)
+
+    @property
     def _xlim_low(self) -> float:
         if self.transient.use_phase_model:
             default = (self.transient.x[0] - self._reference_mjd_date) * self.xlim_low_phase_model_multiplier
@@ -553,8 +558,9 @@ class MagnitudePlotter(Plotter):
         axes.set_yscale('log')
 
         times = self._get_times(axes)
+        bands_to_plot = self._get_bands_to_plot
 
-        for band, color in zip(self.transient.active_bands, self.transient.get_colors(self.transient.active_bands)):
+        for band, color in zip(bands_to_plot, self.transient.get_colors(bands_to_plot)):
             sn_cosmo_band = redback.utils.sncosmo_bandname_from_band([band])
             self._model_kwargs["bands"] = [sn_cosmo_band[0] for _ in range(len(times))]
             frequency = redback.utils.bands_to_frequency([band])
@@ -657,6 +663,8 @@ class MagnitudePlotter(Plotter):
     @property
     def _filters(self) -> list[str]:
         filters = self.kwargs.get("filters", self.transient.active_bands)
+        if 'bands_to_plot' in self.kwargs:
+            filters = self.kwargs['bands_to_plot']
         if filters is None:
             return self.transient.active_bands
         elif str(filters) == 'default':
