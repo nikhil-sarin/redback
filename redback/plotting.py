@@ -142,6 +142,9 @@ class Plotter(object):
             times = np.linspace(self._xlim_low, self._xlim_high, 200)
         else:
             times = np.exp(np.linspace(np.log(self._xlim_low), np.log(self._xlim_high), 200))
+
+        if self.transient.use_phase_model:
+            times = times + self._reference_mjd_date
         return times
 
     @property
@@ -562,7 +565,6 @@ class MagnitudePlotter(Plotter):
 
             random_ys_list = [self.model(times, **random_params, **self._model_kwargs)
                               for random_params in self._get_random_parameters()]
-
             if self.uncertainty_mode == "random_models":
                 for ys in random_ys_list:
                     axes.plot(times - self._reference_mjd_date, ys, color='red', alpha=0.05, lw=2, zorder=-1)
