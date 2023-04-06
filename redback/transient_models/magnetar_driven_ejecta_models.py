@@ -80,7 +80,7 @@ def _ejecta_dynamics_and_interaction(time, mej, beta, ejecta_radius, kappa, n_is
             comoving_radiative_luminosity = (4 * 10 ** 49 * (mej / (2 * 10 ** 33) * 10 ** 2) * rad_denom ** 1.3)
         else:
             f_nickel = kwargs.get('f_nickel',0)
-            nickel_mass = f_nickel * mej
+            nickel_mass = f_nickel * mej / solar_mass
             comoving_radiative_luminosity = nickel_mass * (ni56_lum*np.exp(-comoving_time/ni56_life) + co56_lum * np.exp(-comoving_time/co56_life))
         tau_temp = kappa * (mej / comoving_volume) * (ejecta_radius / gamma)
 

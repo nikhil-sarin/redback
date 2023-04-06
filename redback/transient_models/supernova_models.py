@@ -1403,35 +1403,45 @@ def general_magnetar_driven_supernova(time, redshift, mej, E_sn, kappa, l0, tau_
     pair_cascade_switch = kwargs.get('pair_cascade_switch', False)
     ejecta_radius = 1.0e11
     n_ism = 1.0e-5
+    #print(kwargs)
     
     if kwargs['output_format'] == 'flux_density':
         frequency = kwargs['frequency']
+        time_temp = np.geomspace(1e-1, 1e8, 1000)
         frequency, time = calc_kcorrected_properties(frequency=frequency, redshift=redshift, time=time)
-        magnetar_luminosity = magnetar_only(time=time*day_to_s, l0=l0, tau=tau_sd, nn=nn)
+        magnetar_luminosity = magnetar_only(time=time_temp, l0=l0, tau=tau_sd, nn=nn)
         beta = np.sqrt(E_sn / (0.5 * mej * solar_mass)) / speed_of_light
-        output = _ejecta_dynamics_and_interaction(time=time*day_to_s, mej=mej,
+        output = _ejecta_dynamics_and_interaction(time=time_temp, mej=mej,
                                               beta=beta, ejecta_radius=ejecta_radius,
                                               kappa=kappa, n_ism=n_ism, magnetar_luminosity=magnetar_luminosity,
                                               kappa_gamma=kappa_gamma, pair_cascade_switch=pair_cascade_switch,
                                               use_gamma_ray_opacity=True, use_r_process=False, **kwargs)
+        #print(output.lorentz_factor, output.bolometric_luminosity)                                      
         vej = velocity_from_lorentz_factor(output.lorentz_factor)/km_cgs 
         kwargs['vej'] = vej                                      
-        photo = kwargs['photosphere'](time=time, luminosity=output.bolometric_luminosity, **kwargs)    
-        sed_1 = kwargs['sed'](time=time, luminosity=output.bolometric_luminosity, temperature=photo.photosphere_temperature,
-    	                                      r_photosphere=photo.r_photosphere, frequency=frequency, luminosity_distance=dl,
+        photo = kwargs['photosphere'](time=time_temp/day_to_s, luminosity=output.bolometric_luminosity, **kwargs)  
+        temp_func = interp1d(time_temp/day_to_s, y=photo.photosphere_temperature)
+        rad_func = interp1d(time_temp/day_to_s, y=photo.r_photosphere)
+        bol_func = interp1d(time_temp/day_to_s, y=output.bolometric_luminosity)
+        temp = temp_func(time)
+        rad = rad_func(time)  
+        lbol = bol_func(time)
+        sed_1 = kwargs['sed'](time=time, luminosity=lbol, temperature=temp,
+    	                                      r_photosphere=rad, frequency=frequency, luminosity_distance=dl,
                                               cutoff_wavelength=cutoff_wavelength) 
         flux_density = sed_1.flux_density
-        return flux_density.to(uu.mJy).value
+        return flux_density.to(uu.mJy).value      
     
     else:
         time_obs = time
-        frequency_observer_frame = kwargs.get('frequency_array', np.geomspace(100, 60000, 200))
-        time_temp = np.geomspace(1e1, 1e8, 1000) #in seconds
+        lambda_observer_frame = kwargs.get('lambda_array', np.geomspace(100, 60000, 200))
+        time_temp = np.geomspace(1e-1, 1e8, 1000) #in seconds
         time_observer_frame = time_temp * (1. + redshift)
-        frequency, time = calc_kcorrected_properties(frequency=lambda_to_nu(frequency_observer_frame),
+        frequency, time = calc_kcorrected_properties(frequency=lambda_to_nu(lambda_observer_frame),
                                               redshift=redshift, time=time_observer_frame)
         magnetar_luminosity = magnetar_only(time=time_temp, l0=l0, tau=tau_sd, nn=nn)
         beta = np.sqrt(E_sn / (0.5 * mej * solar_mass)) / speed_of_light
+        #print(mej, beta, ejecta_radius, kappa, n_ism, magnetar_luminosity, kappa_gamma)
         output = _ejecta_dynamics_and_interaction(time=time_temp, mej=mej,
                                               beta=beta, ejecta_radius=ejecta_radius,
                                               kappa=kappa, n_ism=n_ism, magnetar_luminosity=magnetar_luminosity,
@@ -1440,6 +1450,9 @@ def general_magnetar_driven_supernova(time, redshift, mej, E_sn, kappa, l0, tau_
         vej = velocity_from_lorentz_factor(output.lorentz_factor)/km_cgs 
         kwargs['vej'] = vej
         photo = kwargs['photosphere'](time=time_temp/day_to_s, luminosity=output.bolometric_luminosity, **kwargs)
+        #print(output.bolometric_luminosity)
+        #print(output.bolometric_luminosity, output.radius, output.tau, vej)
+        #print(output.bolometric_luminosity, output.radius, photo.photosphere_temperature, photo.r_photosphere)
         if kwargs['output_format'] == 'dynamics_output':                                      
             erot_total = np.trapz(magnetar_luminosity, x=time_temp)
             erad_total = np.trapz(output.bolometric_luminosity, x=time_temp)          
@@ -1467,12 +1480,15 @@ def general_magnetar_driven_supernova(time, redshift, mej, E_sn, kappa, l0, tau_
                                luminosity_distance=dl, cutoff_wavelength=cutoff_wavelength, luminosity=output.bolometric_luminosity)
                 full_sed[:, ii] = ss.flux_density.to(uu.mJy).value
             spectra = (full_sed * uu.mJy).to(uu.erg / uu.cm ** 2 / uu.s / uu.Angstrom,
-                                        equivalencies=uu.spectral_density(wav=frequency_observer_frame * uu.Angstrom))
+                                        equivalencies=uu.spectral_density(wav=lambda_observer_frame * uu.Angstrom))
             if kwargs['output_format'] == 'spectra':
-                return namedtuple('output', ['time', 'frequency', 'spectra'])(time=time_observer_frame,
-                                                                          frequency=frequency_observer_frame,
+                return namedtuple('output', ['time', 'lambdas', 'spectra'])(time=time_observer_frame,
+                                                                          lambdas=lambda_observer_frame,
                                                                           spectra=spectra)   
             else:
+                #print(sed.get_correct_output_format_from_spectra(time=time_obs, time_eval=time_observer_frame/day_to_s,
+                #                                     spectra=spectra, lambda_array=lambda_observer_frame,
+                #                                     **kwargs)) 
                 return sed.get_correct_output_format_from_spectra(time=time_obs, time_eval=time_observer_frame/day_to_s,
-                                                     spectra=spectra, frequency_array=frequency_observer_frame,
+                                                     spectra=spectra, lambda_array=lambda_observer_frame,
                                                      **kwargs)                                         

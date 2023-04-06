@@ -73,6 +73,7 @@ class GaussianLikelihood(_RedbackLikelihood):
         super().__init__(x=x, y=y, function=function, kwargs=kwargs)
         self.sigma = sigma
 
+
     @property
     def sigma(self) -> Union[float, None, np.ndarray]:
         return self.parameters.get('sigma', self._sigma)

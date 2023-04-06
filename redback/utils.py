@@ -723,8 +723,7 @@ def lorentz_factor_from_velocity(velocity):
     :param velocity: velocity in cm/s
     :return: Lorentz factor
     """
-    lorentz_factor = 1 / np.sqrt(1 - (velocity / speed_of_light)**2 )
-    return lorentz_factor
+    return 1 / np.sqrt(1 - (velocity / speed_of_light)**2 )
     
 def velocity_from_lorentz_factor(lorentz_factor):
     """
@@ -732,5 +731,4 @@ def velocity_from_lorentz_factor(lorentz_factor):
     :param Lorentz_factor: relativistic Lorentz factor
     :return: velocity in cm/s
     """
-    velocity = 
     return speed_of_light * np.sqrt(1 - 1 / lorentz_factor ** 2)
