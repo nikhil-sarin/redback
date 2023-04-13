@@ -261,7 +261,7 @@ class GaussianLikelihoodWhiteNoise(GaussianLikelihood):
         :return: The standard deviation of the full noise
         :rtype: Union[float, np.ndarray]
         """
-        return self.sigma_i ** 2. + self.sigma ** 2.
+        return self.sigma_i + self.sigma
 
     def noise_log_likelihood(self) -> float:
         """
