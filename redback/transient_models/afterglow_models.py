@@ -537,9 +537,9 @@ def afterglow_models_sed(time, **kwargs):
         raise ValueError("Not a valid base model.")
     temp_kwargs = kwargs.copy()
     temp_kwargs['spread'] = kwargs.get('spread', False)
-    lambda_observer_frame = kwargs.get('lambda_array', np.geomspace(100, 60000, 150))
+    lambda_observer_frame = kwargs.get('lambda_array', np.geomspace(100, 60000, 200))
     frequency = lambda_to_nu(lambda_observer_frame)
-    time_observer_frame = np.linspace(np.min(time), np.max(time), 200)
+    time_observer_frame = np.linspace(0, np.max(time), 300)
     times_mesh, frequency_mesh = np.meshgrid(time_observer_frame, frequency)
     temp_kwargs['frequency'] = frequency_mesh
     temp_kwargs['output_format'] = 'flux_density'
