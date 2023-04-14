@@ -1,5 +1,16 @@
 # All notable changes will be documented in this file
 
+## [0.5.0] 2023-04-14
+Version 0.5.0 release of redback
+
+### Added
+- A lot of unit tests
+- All models with different output formats are tested for whether they can be evaluated, plotted for random draws from the prior
+
+### Changed
+- Interfaces for Fink and Lasair.
+- Plotting options e.g., what bands to plot, labels 
+
 ## [0.4.0] 2023-02-07
 Version 0.4.0 release of redback
 
