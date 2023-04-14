@@ -865,7 +865,7 @@ class OpticalTransient(Transient):
     def _set_data(self) -> None:
         """Sets the metadata from the event table."""
         try:
-            meta_data = pd.read_csv(self.event_table, error_bad_lines=False, delimiter=',', dtype='str')
+            meta_data = pd.read_csv(self.event_table, on_bad_lines='skip', delimiter=',', dtype='str')
         except FileNotFoundError as e:
             redback.utils.logger.warning(e)
             redback.utils.logger.warning("Setting metadata to None")
