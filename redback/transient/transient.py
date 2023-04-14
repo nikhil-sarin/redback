@@ -135,9 +135,9 @@ class Transient(object):
         self._bands = None
         self.set_bands_and_frequency(bands=bands, frequency=frequency)
         self.system = system
-        self.active_bands = active_bands
-        self.sncosmo_bands = redback.utils.sncosmo_bandname_from_band(self.bands)
         self.data_mode = data_mode
+        self.active_bands = active_bands
+        self.sncosmo_bands = redback.utils.sncosmo_bandname_from_band(self.bands, warning_style='soft')
         self.redshift = redshift
         self.name = name
         self.use_phase_model = use_phase_model
@@ -350,7 +350,7 @@ class Transient(object):
 
         :param bands: The bands, e.g. ['g', 'i'].
         :type bands: Union[None, list, np.ndarray]
-        :param frequency: The frequencies associated with the bands.
+        :param frequency: The frequencies associated with the bands i.e., the effective frequency.
         :type frequency: Union[None, list, np.ndarray]
         """
         if (bands is None and frequency is None) or (bands is not None and frequency is not None):
@@ -865,7 +865,7 @@ class OpticalTransient(Transient):
     def _set_data(self) -> None:
         """Sets the metadata from the event table."""
         try:
-            meta_data = pd.read_csv(self.event_table, error_bad_lines=False, delimiter=',', dtype='str')
+            meta_data = pd.read_csv(self.event_table, on_bad_lines='skip', delimiter=',', dtype='str')
         except FileNotFoundError as e:
             redback.utils.logger.warning(e)
             redback.utils.logger.warning("Setting metadata to None")

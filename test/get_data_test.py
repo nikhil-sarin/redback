@@ -610,7 +610,7 @@ class TestLasairDataGetter(unittest.TestCase):
         self.assertEqual(expected_processed_file_path, self.getter.processed_file_path)
 
     def test_url(self):
-        expected = f"https://lasair.roe.ac.uk/object/{self.transient}/"
+        expected = f"https://lasair-ztf.lsst.ac.uk/objects/{self.transient}"
         self.assertEqual(expected, self.getter.url)
 
     @mock.patch("os.path.isfile")
@@ -626,7 +626,7 @@ class TestLasairDataGetter(unittest.TestCase):
     def test_collect_data_no_lightcurve_available(self, get, isfile):
         isfile.return_value = False
         get.return_value = MagicMock()
-        get.return_value.__setattr__('text', 'does not exist')
+        get.return_value.__setattr__('text', 'not in database')
         with self.assertRaises(ValueError):
             self.getter.collect_data()
 

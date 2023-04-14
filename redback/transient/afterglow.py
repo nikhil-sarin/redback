@@ -239,7 +239,7 @@ class Afterglow(Transient):
     def _set_data(self) -> None:
         """Loads data from the meta data table and sets it to the respective attribute."""
         try:
-            meta_data = pd.read_csv(self.event_table, header=0, error_bad_lines=False, delimiter='\t', dtype='str')
+            meta_data = pd.read_csv(self.event_table, header=0, on_bad_lines='skip', delimiter='\t', dtype='str')
             meta_data['BAT Photon Index (15-150 keV) (PL = simple power-law, CPL = cutoff power-law)'] = meta_data[
                 'BAT Photon Index (15-150 keV) (PL = simple power-law, CPL = cutoff power-law)'].fillna(0)
             self.meta_data = meta_data
