@@ -87,6 +87,8 @@ class GaussianLikelihood(_RedbackLikelihood):
             self._sigma = sigma
         elif len(sigma) == self.n:
             self._sigma = sigma
+        elif sigma.shape == ((2, len(self.x))):
+            self._sigma = sigma
         else:
             raise ValueError('Sigma must be either float or array-like x.')
 
