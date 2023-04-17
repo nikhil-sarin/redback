@@ -1415,7 +1415,7 @@ def general_magnetar_driven_supernova(time, redshift, mej, E_sn, kappa, l0, tau_
                                               beta=beta, ejecta_radius=ejecta_radius,
                                               kappa=kappa, n_ism=n_ism, magnetar_luminosity=magnetar_luminosity,
                                               kappa_gamma=kappa_gamma, pair_cascade_switch=pair_cascade_switch,
-                                              use_gamma_ray_opacity=True, use_r_process=False, **kwargs)
+                                              use_gamma_ray_opacity=True, use_r_process=False, **kwargs)                                             
         #print(output.lorentz_factor, output.bolometric_luminosity)                                      
         vej = velocity_from_lorentz_factor(output.lorentz_factor)/km_cgs 
         kwargs['vej'] = vej                                      
