@@ -61,7 +61,7 @@ class GaussianLikelihood(_RedbackLikelihood):
         :type sigma: Union[float, None, np.ndarray]
         :param function:
             The python function to fit to the data. Note, this must take the
-            dependent variable as its first argument. The other arguments are
+            dependent variable as its first argument. The other arguments
             will require a prior and will be sampled over (unless a fixed
             value is given).
         :type function: callable
@@ -72,6 +72,8 @@ class GaussianLikelihood(_RedbackLikelihood):
         self._noise_log_likelihood = None
         super().__init__(x=x, y=y, function=function, kwargs=kwargs)
         self.sigma = sigma
+        if self.sigma is None:
+            self.parameters['sigma'] = None
 
 
     @property
@@ -80,9 +82,16 @@ class GaussianLikelihood(_RedbackLikelihood):
 
     @sigma.setter
     def sigma(self, sigma: Union[float, None, np.ndarray]) -> None:
-        self._sigma = sigma
         if sigma is None:
-            self.parameters['sigma'] = None
+            self._sigma = sigma
+        elif isinstance(sigma, float) or isinstance(sigma, int):
+            self._sigma = sigma
+        elif len(sigma) == self.n:
+            self._sigma = sigma
+        elif sigma.shape == ((2, len(self.x))):
+            self._sigma = sigma
+        else:
+            raise ValueError('Sigma must be either float or array-like x.')
 
     @property
     def residual(self) -> np.ndarray:
@@ -102,7 +111,7 @@ class GaussianLikelihood(_RedbackLikelihood):
         :return: The log-likelihood.
         :rtype: float
         """
-        return self._gaussian_log_likelihood(res=self.residual, sigma=self.sigma)
+        return np.nan_to_num(self._gaussian_log_likelihood(res=self.residual, sigma=self.sigma))
 
     @staticmethod
     def _gaussian_log_likelihood(res: np.ndarray, sigma: Union[float, np.ndarray]) -> Any:
@@ -187,7 +196,7 @@ class GaussianLikelihoodQuadratureNoise(GaussianLikelihood):
         :type sigma_i: Union[float, None, np.ndarray]
         :param function:
             The python function to fit to the data. Note, this must take the
-            dependent variable as its first argument. The other arguments are
+            dependent variable as its first argument. The other arguments
             will require a prior and will be sampled over (unless a fixed
             value is given).
         :type function: callable
@@ -196,7 +205,7 @@ class GaussianLikelihoodQuadratureNoise(GaussianLikelihood):
         """
         self.sigma_i = sigma_i
         # These lines of code infer the parameters from the provided function
-        super().__init__(x=x, y=y, sigma=None, function=function, kwargs=kwargs)
+        super().__init__(x=x, y=y, sigma=sigma_i, function=function, kwargs=kwargs)
 
     @property
     def full_sigma(self) -> Union[float, np.ndarray]:
@@ -222,6 +231,56 @@ class GaussianLikelihoodQuadratureNoise(GaussianLikelihood):
         """
         return self._gaussian_log_likelihood(res=self.residual, sigma=self.full_sigma)
 
+class GaussianLikelihoodWhiteNoise(GaussianLikelihood):
+    def __init__(
+            self, x: np.ndarray, y: np.ndarray, sigma_i: Union[float, None, np.ndarray],
+            function: callable, kwargs: dict = None) -> None:
+        """
+        A white noise Gaussian likelihood - the parameters are inferred from the
+        arguments of function
+
+        :type x: np.ndarray
+        :param y: The y values.
+        :type y: np.ndarray
+        :param sigma_i: The standard deviation of the noise. This is part of the full noise.
+                        The sigma used in the likelihood is sigma = sigma_i^2 + sigma^2
+        :type sigma_i: Union[float, None, np.ndarray]
+        :param function:
+            The python function to fit to the data. Note, this must take the
+            dependent variable as its first argument. The other arguments
+            will require a prior and will be sampled over (unless a fixed
+            value is given).
+        :type function: callable
+        :param kwargs: Any additional keywords for 'function'.
+        :type kwargs: dict
+        """
+        self.sigma_i = sigma_i
+        # These lines of code infer the parameters from the provided function
+        super().__init__(x=x, y=y, sigma=sigma_i, function=function, kwargs=kwargs)
+
+    @property
+    def full_sigma(self) -> Union[float, np.ndarray]:
+        """
+        :return: The standard deviation of the full noise
+        :rtype: Union[float, np.ndarray]
+        """
+        return self.sigma_i + self.sigma
+
+    def noise_log_likelihood(self) -> float:
+        """
+        :return: The noise log-likelihood, i.e. the log-likelihood assuming the signal is just noise.
+        :rtype: float
+        """
+        if self._noise_log_likelihood is None:
+            self._noise_log_likelihood = self._gaussian_log_likelihood(res=self.y, sigma=self.full_sigma)
+        return self._noise_log_likelihood
+
+    def log_likelihood(self) -> float:
+        """
+        :return: The log-likelihood.
+        :rtype: float
+        """
+        return self._gaussian_log_likelihood(res=self.residual, sigma=self.full_sigma)
 
 class GaussianLikelihoodQuadratureNoiseNonDetections(GaussianLikelihoodQuadratureNoise):
     def __init__(
@@ -238,7 +297,7 @@ class GaussianLikelihoodQuadratureNoiseNonDetections(GaussianLikelihoodQuadratur
         :type sigma_i: Union[float, None, np.ndarray]
         :param function:
             The python function to fit to the data. Note, this must take the
-            dependent variable as its first argument. The other arguments are
+            dependent variable as its first argument. The other arguments
             will require a prior and will be sampled over (unless a fixed
             value is given).
         :type function: callable
@@ -372,7 +431,7 @@ class PoissonLikelihood(_RedbackLikelihood):
         rate = self.function(self.time, **self.parameters, **self.kwargs) + self.background_rate
         if not self.integrated_rate_function:
             rate *= self.dt
-        return self._poisson_log_likelihood(rate=rate)
+        return np.nan_to_num(self._poisson_log_likelihood(rate=rate))
 
     def _poisson_log_likelihood(self, rate: Union[float, np.ndarray]) -> Any:
         return np.sum(-rate + self.counts * np.log(rate) - gammaln(self.counts + 1))

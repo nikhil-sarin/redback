@@ -1,4 +1,3 @@
-redshift = Uniform(1e-6, 3, 'redshift', latex_label = r'$z$')
 peak_time = LogUniform(0.1,60, name='peak_time', latex_label = r'$t_{\mathrm{peak}}$~[days]')
 sigma_t = LogUniform(10,60, name='sigma_t', latex_label = r'$\sigma$~[days]')
 mbh_6 = LogUniform(0.01, 20, name='mbh_6', latex_label = r'$M_{\mathrm{BH}}~[10^{6}~M_{\odot}]$')

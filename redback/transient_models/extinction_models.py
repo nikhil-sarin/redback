@@ -3,7 +3,7 @@ import numpy as np
 
 import redback.utils
 from redback.transient_models.fireball_models import predeceleration
-from redback.utils import logger, calc_ABmag_from_flux_density, citation_wrapper
+from redback.utils import logger, calc_ABmag_from_flux_density, citation_wrapper, lambda_to_nu
 import astropy.units as uu
 import redback.sed as sed
 from redback.constants import day_to_s
@@ -26,12 +26,12 @@ extinction_kilonova_base_models = ['nicholl_bns', 'mosfit_rprocess', 'mosfit_kil
                                    'one_component_ejecta_relation_projection', 'two_component_bns_ejecta_relation',
                                    'polytrope_eos_two_component_bns', 'one_component_nsbh_ejecta_relation',
                                    'two_component_nsbh_ejecta_relation','metzger_kilonova_model']
-extinction_tde_base_models = ['tde_analytical', 'tde_semianalytical']
+extinction_tde_base_models = ['tde_analytical', 'tde_semianalytical', 'gaussianrise_metzger_tde']
 extinction_magnetar_driven_base_models = ['basic_mergernova', 'general_mergernova', 'general_mergernova_thermalisation',
                                           'general_mergernova_evolution', 'metzger_magnetar_driven_kilonova_model',
                                           'general_metzger_magnetar_driven', 'general_magnetar_driven_thermalisation',
                                           'general_metzger_magnetar_driven_evolution']
-extinction_shock_powered_base_models = ['shocked_cocoon']
+extinction_shock_powered_base_models = ['shocked_cocoon', 'shock_cooling']
 
 extinction_model_library = {'kilonova': extinction_kilonova_base_models,
                             'supernova': extinction_supernova_base_models,
@@ -71,17 +71,15 @@ def _get_correct_function(base_model, model_type=None):
 
     return function
 
-def _perform_extinction(flux_density, frequency, av, r_v):
+def _perform_extinction(flux_density, angstroms, av, r_v):
     """
     :param flux_density: flux density in mjy outputted by the model
-    :param frequency: frequency in Hz
+    :param angstroms: wavelength in angstroms
     :param av: absolute mag extinction
     :param r_v: extinction parameter
     :return: flux
     """
     import extinction  # noqa
-    # convert to angstrom
-    angstroms = redback.utils.nu_to_lambda(frequency)
     mag_extinction = extinction.fitzpatrick99(angstroms, av, r_v=r_v)
     flux_density = extinction.apply(mag_extinction, flux_density)
     return flux_density
@@ -98,14 +96,18 @@ def _evaluate_extinction_model(time, av, model_type, **kwargs):
     :return: set by kwargs['output_format'] - 'flux_density', 'magnitude', 'flux' with extinction applied
     """
     base_model = kwargs['base_model']
+    if kwargs['base_model'] in ['thin_shell_supernova', 'homologous_expansion_supernova']:
+        kwargs['base_model'] = kwargs.get('submodel', 'arnett_bolometric')
     if kwargs['output_format'] == 'flux_density':
         frequency = kwargs['frequency']
+        if isinstance(frequency, float):
+            frequency = np.ones(len(time)) * frequency
         temp_kwargs = kwargs.copy()
         temp_kwargs['output_format'] = 'flux_density'
         function = _get_correct_function(base_model=base_model, model_type=model_type)
         flux_density = function(time, **temp_kwargs)
         r_v = kwargs.get('r_v', 3.1)
-        flux_density = _perform_extinction(flux_density=flux_density, frequency=frequency, av=av, r_v=r_v)
+        flux_density = _perform_extinction(flux_density=flux_density, angstroms=frequency, av=av, r_v=r_v)
         return flux_density
     else:
         temp_kwargs = kwargs.copy()
@@ -114,12 +116,12 @@ def _evaluate_extinction_model(time, av, model_type, **kwargs):
         function = _get_correct_function(base_model=base_model, model_type=model_type)
         spectra_tuple = function(time, **temp_kwargs)
         flux_density = spectra_tuple.spectra
-        frequency = spectra_tuple.frequency
+        lambdas = spectra_tuple.lambdas
         time_observer_frame = spectra_tuple.time
         r_v = kwargs.get('r_v', 3.1)
-        flux_density = _perform_extinction(flux_density=flux_density, frequency=frequency, av=av, r_v=r_v)
+        flux_density = _perform_extinction(flux_density=flux_density, angstroms=lambdas, av=av, r_v=r_v)
         return sed.get_correct_output_format_from_spectra(time=time_obs, time_eval=time_observer_frame/day_to_s,
-                                                              spectra=flux_density, frequency_array=spectra_tuple.frequency,
+                                                              spectra=flux_density, lambda_array=spectra_tuple.lambdas,
                                                               **kwargs)
 
 @citation_wrapper('redback')

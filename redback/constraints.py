@@ -1,6 +1,7 @@
 import numpy as np
 import redback.eos as eos
 from redback.constants import *
+from redback.utils import calc_tfb
 
 def slsn_constraint(parameters):
     """
@@ -73,8 +74,26 @@ def tde_constraints(parameters):
     converted_parameters = parameters.copy()
     rp = parameters['pericenter_radius']
     mass_bh = parameters['mass_bh']
-    schwarzchild_radius = (2 * graviational_constant * mass_bh * solar_mass /(speed_of_light**2))
+    schwarzchild_radius = (2 * graviational_constant * mass_bh * solar_mass /(speed_of_light**2))/au_cgs
     converted_parameters['disruption_radius'] = rp - schwarzchild_radius
+    return converted_parameters
+
+def gaussianrise_tde_constraints(parameters):
+    """
+    Constraint on beta, eta and peak time for gaussian rise TDE model
+    :param parameters: dictionary of parameters
+    :return: converted_parameters dictionary where the violated samples are thrown out
+    """
+    converted_parameters = parameters.copy()
+    ms = parameters['stellar_mass']
+    mbh6 = parameters['mbh_6']
+    etamin = 0.01*(ms**(-7./15.))*(mbh6**(2./3.))
+    betamax = 12.*(ms**(7./15.))*(mbh6**(-2./3.))
+    tfb = calc_tfb(binding_energy_const=0.8, mbh_6=mbh6,stellar_mass=ms)/86400
+    tfb_obs = tfb * (1 + parameters['redshift'])
+    converted_parameters['eta_low'] = converted_parameters['eta'] - etamin
+    converted_parameters['beta_high'] = betamax - converted_parameters['beta']
+    converted_parameters['tfb_max'] = tfb_obs - converted_parameters['peak_time']
     return converted_parameters
 
 def nuclear_burning_constraints(parameters):
@@ -87,7 +106,7 @@ def nuclear_burning_constraints(parameters):
     converted_parameters = parameters.copy()
     mej = parameters['mej'] * solar_mass
     vej = parameters['vej'] * km_cgs
-    fnickel = parameters['fnickel']
+    fnickel = parameters['f_nickel']
     kinetic_energy = 0.5 * mej * (vej / 2.0) ** 2
     excess_constant = -(56.0 / 4.0 * 2.4249 - 53.9037) / proton_mass * mev_cgs
     emax = excess_constant * mej * fnickel
@@ -107,7 +126,7 @@ def simple_fallback_constraints(parameters):
     vej = parameters['vej'] * km_cgs
     kappa = parameters['kappa']
     l0 = parameters['l0']
-    t0 = parameters['t_0']
+    t0 = parameters['t_0_turn']
     kinetic_energy = 0.5 * mej * vej**2
     tnebula =  np.sqrt(3 * kappa * mej / (4 * np.pi * vej ** 2)) / 86400
     e_fallback = l0 * 5./2./(t0 * day_to_s)**(2./3.)
@@ -134,8 +153,8 @@ def csm_constraints(parameters):
     kappa = parameters['kappa']
     r0 = parameters['r0']
     vej = parameters['vej']
-    nn = parameters.get('nn', 12)
-    delta = parameters.get('delta', 1)
+    nn = parameters.get('nn', np.ones(len(mej)) * 12.)
+    delta = parameters.get('delta', np.ones(len(mej)))
     eta = parameters['eta']
     rho = parameters['rho']
 
@@ -145,9 +164,12 @@ def csm_constraints(parameters):
     vej = vej * km_cgs
     Esn = 3. * vej ** 2 * mej / 10.
 
-    csm_properties = get_csm_properties(nn, eta)
-    AA = csm_properties.AA
-    Bf = csm_properties.Bf
+    AA = np.zeros(len(mej))
+    Bf = np.zeros(len(mej))
+    for x in range(len(mej)):
+        csm_properties = get_csm_properties(nn[x], eta[x])
+        AA[x] = csm_properties.AA
+        Bf[x] = csm_properties.Bf
     qq = rho * r0 ** eta
     # outer CSM shell radius
     radius_csm = ((3.0 - eta) / (4.0 * np.pi * qq) * csm_mass + r0 ** (3.0 - eta)) ** (
@@ -169,7 +191,7 @@ def csm_constraints(parameters):
 
     diffusion_time = np.sqrt(2. * kappa * mass_csm_threshold /(vej * 13.7 * 3.e10))
     # ensure shock crossing time is greater than diffusion time
-    converted_parameters['shock_time'] = tshock - diffusion_time
+    # converted_parameters['shock_time'] = tshock - diffusion_time
     # ensure photospheric radius is within the csm i.e., r_photo < radius_csm and r_photo > r0
     converted_parameters['photosphere_constraint_1'] = radius_csm - r_photosphere
     converted_parameters['photosphere_constraint_2'] = r_photosphere - r0

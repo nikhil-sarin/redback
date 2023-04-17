@@ -586,7 +586,7 @@ def mosfit_kilonova(time, redshift, mej_1, vej_1, temperature_floor_1, kappa_1,
         time_observer_frame = time_temp * (1. + redshift)
         frequency, time = calc_kcorrected_properties(frequency=lambda_to_nu(lambda_observer_frame),
                                                      redshift=redshift, time=time_observer_frame)
-        full_spec = np.zeros((len(frequency), len(time)))
+        full_spec = np.zeros((len(time), len(frequency)))
         for x in range(3):
             lbols = _mosfit_kilonova_one_component_lbol(time=time_temp,
                                                         mej=mej[x], vej=vej[x])
@@ -887,8 +887,8 @@ def _kilonova_hr(time, redshift, mej, velocity_array, kappa_array, beta, **kwarg
         frequency, time = calc_kcorrected_properties(frequency=lambda_to_nu(lambda_observer_frame),
                                                      redshift=redshift, time=time_observer_frame)
         _, temperature, r_photosphere = _kilonova_hr_sourceframe(time, mej, velocity_array, kappa_array, beta)
-        fmjy = blackbody_to_flux_density(temperature=temperature,
-                                         r_photosphere=r_photosphere, frequency=frequency[:, None], dl=dl)
+        fmjy = blackbody_to_flux_density(temperature=temperature.value,
+                                         r_photosphere=r_photosphere.value, frequency=frequency[:, None], dl=dl)
         fmjy = fmjy.T
         spectra = fmjy.to(uu.mJy).to(uu.erg / uu.cm ** 2 / uu.s / uu.Angstrom,
                                      equivalencies=uu.spectral_density(wav=lambda_observer_frame * uu.Angstrom))
@@ -996,7 +996,7 @@ def three_component_kilonova_model(time, redshift, mej_1, vej_1, temperature_flo
         time_observer_frame = time_temp * (1. + redshift)
         frequency, time = calc_kcorrected_properties(frequency=lambda_to_nu(lambda_observer_frame),
                                                      redshift=redshift, time=time_observer_frame)
-        full_spec = np.zeros((len(frequency), len(time)))
+        full_spec = np.zeros((len(time), len(frequency)))
         for x in range(3):
             temp_kwargs = {}
             temp_kwargs['temperature_floor'] = temperature_floor[x]
@@ -1083,7 +1083,7 @@ def two_component_kilonova_model(time, redshift, mej_1, vej_1, temperature_floor
         time_observer_frame = time_temp * (1. + redshift)
         frequency, time = calc_kcorrected_properties(frequency=lambda_to_nu(lambda_observer_frame),
                                                      redshift=redshift, time=time_observer_frame)
-        full_spec = np.zeros((len(frequency), len(time)))
+        full_spec = np.zeros((len(time), len(frequency)))
 
         for x in range(2):
             temp_kwargs = {}

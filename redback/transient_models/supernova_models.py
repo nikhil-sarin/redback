@@ -638,7 +638,7 @@ def homologous_expansion_supernova_model_bolometric(time, mej, ek, **kwargs):
     :return: bolometric_luminosity
     """
     from redback.model_library import modules_dict  # import model library in function to avoid circular dependency
-    base_model = kwargs['base_model']
+    base_model = kwargs.get('base_model', 'arnett_bolometric')
     if isfunction(base_model):
         function = base_model
     elif base_model not in homologous_expansion_models:
@@ -651,11 +651,12 @@ def homologous_expansion_supernova_model_bolometric(time, mej, ek, **kwargs):
     v_ejecta = np.sqrt(10.0 * ek / (3.0 * mej * solar_mass)) / km_cgs
     kwargs['vej'] = v_ejecta
     kwargs['mej'] = mej
-
     kwargs['interaction_process'] = kwargs.get("interaction_process", ip.Diffusion)
     lbol = function(time, **kwargs)
-    return lbol
-
+    if kwargs['output_format'] in ['spectra', 'flux', 'flux_density', 'magnitude']:
+        return lbol, kwargs
+    else:
+        return lbol
 @citation_wrapper('redback')
 def thin_shell_supernova_model_bolometric(time, mej, ek, **kwargs):
     """
@@ -672,7 +673,7 @@ def thin_shell_supernova_model_bolometric(time, mej, ek, **kwargs):
     :return: bolometric_luminosity
     """
     from redback.model_library import modules_dict  # import model library in function to avoid circular dependency
-    base_model = kwargs['base_model']
+    base_model = kwargs.get('base_model', 'arnett_bolometric')
     if isfunction(base_model):
         function = base_model
     elif base_model not in homologous_expansion_models:
@@ -688,11 +689,14 @@ def thin_shell_supernova_model_bolometric(time, mej, ek, **kwargs):
 
     kwargs['interaction_process'] = kwargs.get("interaction_process", ip.Diffusion)
     lbol = function(time, **kwargs)
-    return lbol
+    if kwargs['output_format'] in ['spectra', 'flux', 'flux_density', 'magnitude']:
+        return lbol, kwargs
+    else:
+        return lbol
 
 
 @citation_wrapper('redback')
-def homologous_expansion_supernova_model(time, redshift, mej, ek, **kwargs):
+def homologous_expansion_supernova(time, redshift, mej, ek, **kwargs):
     """
     Assumes homologous expansion to transform kinetic energy to ejecta velocity
 
@@ -723,8 +727,7 @@ def homologous_expansion_supernova_model(time, redshift, mej, ek, **kwargs):
     if kwargs['output_format'] == 'flux_density':
         frequency = kwargs['frequency']
         frequency, time = calc_kcorrected_properties(frequency=frequency, redshift=redshift, time=time)
-
-        lbol = homologous_expansion_supernova_model_bolometric(time=time, mej=mej, ek=ek, **kwargs)
+        lbol, kwargs = homologous_expansion_supernova_model_bolometric(time=time, mej=mej, ek=ek, **kwargs)
         photo = kwargs['photosphere'] (time=time, luminosity=lbol, **kwargs)
 
         sed_1 = kwargs['sed'](temperature=photo.photosphere_temperature, r_photosphere=photo.r_photosphere,
@@ -739,7 +742,7 @@ def homologous_expansion_supernova_model(time, redshift, mej, ek, **kwargs):
         time_observer_frame = time_temp * (1. + redshift)
         frequency, time = calc_kcorrected_properties(frequency=lambda_to_nu(lambda_observer_frame),
                                                      redshift=redshift, time=time_observer_frame)
-        lbol = homologous_expansion_supernova_model_bolometric(time=time, mej=mej, ek=ek, **kwargs)
+        lbol, kwargs = homologous_expansion_supernova_model_bolometric(time=time, mej=mej, ek=ek, **kwargs)
         photo = kwargs['photosphere'](time=time, luminosity=lbol, **kwargs)
 
         sed_1 = kwargs['sed'](temperature=photo.photosphere_temperature, r_photosphere=photo.r_photosphere,
@@ -757,7 +760,7 @@ def homologous_expansion_supernova_model(time, redshift, mej, ek, **kwargs):
                                                               **kwargs)
 
 @citation_wrapper('redback')
-def thin_shell_supernova_model(time, redshift, mej, ek, **kwargs):
+def thin_shell_supernova(time, redshift, mej, ek, **kwargs):
     """
     Assumes thin shell ejecta to transform kinetic energy into ejecta velocity
 
@@ -788,7 +791,7 @@ def thin_shell_supernova_model(time, redshift, mej, ek, **kwargs):
     if kwargs['output_format'] == 'flux_density':
         frequency = kwargs['frequency']
         frequency, time = calc_kcorrected_properties(frequency=frequency, redshift=redshift, time=time)
-        lbol = thin_shell_supernova_model_bolometric(time=time, mej=mej, ek=ek, **kwargs)
+        lbol, kwargs = thin_shell_supernova_model_bolometric(time=time, mej=mej, ek=ek, **kwargs)
         photo = kwargs['photosphere'](time=time, luminosity=lbol, **kwargs)
         sed_1 = kwargs['sed'](temperature=photo.photosphere_temperature, r_photosphere=photo.r_photosphere,
                     frequency=frequency, luminosity_distance=dl)
@@ -803,7 +806,7 @@ def thin_shell_supernova_model(time, redshift, mej, ek, **kwargs):
         time_observer_frame = time_temp * (1. + redshift)
         frequency, time = calc_kcorrected_properties(frequency=lambda_to_nu(lambda_observer_frame),
                                                      redshift=redshift, time=time_observer_frame)
-        lbol = thin_shell_supernova_model_bolometric(time=time, mej=mej, ek=ek, **kwargs)
+        lbol, kwargs = thin_shell_supernova_model_bolometric(time=time, mej=mej, ek=ek, **kwargs)
         photo = kwargs['photosphere'](time=time, luminosity=lbol, **kwargs)
         sed_1 = kwargs['sed'](temperature=photo.photosphere_temperature, r_photosphere=photo.r_photosphere,
                               frequency=frequency[:,None], luminosity_distance=dl)
@@ -1045,13 +1048,12 @@ def csm_nickel(time, redshift, mej, f_nickel, csm_mass, ek, eta, rho, kappa, r0,
     frequency, time = calc_kcorrected_properties(frequency=frequency, redshift=redshift, time=time)
     dl = cosmo.luminosity_distance(redshift).cgs.value
     vej = np.sqrt(2.0 * ek / (mej * solar_mass)) / km_cgs
-    kwargs['vej'] = vej
 
     if kwargs['output_format'] == 'flux_density':
         nickel_lbol = arnett_bolometric(time=time, f_nickel=f_nickel,
-                                        mej=mej, interaction_process=ip.Diffusion, **kwargs)
+                                        mej=mej, interaction_process=ip.Diffusion, kappa=kappa, vej=vej, **kwargs)
         csm_lbol = csm_interaction_bolometric(time=time, mej=mej, csm_mass=csm_mass, eta=eta,
-                                          rho=rho, kappa=kappa, r0=r0, interaction_process=ip.CSMDiffusion, **kwargs)
+                                          rho=rho, kappa=kappa, r0=r0, vej=vej, interaction_process=ip.CSMDiffusion, **kwargs)
         lbol = nickel_lbol + csm_lbol
 
         photo = photosphere.TemperatureFloor(time=time, luminosity=lbol, vej=vej, **kwargs)
@@ -1069,9 +1071,9 @@ def csm_nickel(time, redshift, mej, f_nickel, csm_mass, ek, eta, rho, kappa, r0,
         frequency, time = calc_kcorrected_properties(frequency=lambda_to_nu(lambda_observer_frame),
                                                      redshift=redshift, time=time_observer_frame)
         nickel_lbol = arnett_bolometric(time=time, f_nickel=f_nickel,
-                                        mej=mej, interaction_process=ip.Diffusion, **kwargs)
+                                        mej=mej, interaction_process=ip.Diffusion,kappa=kappa, vej=vej, **kwargs)
         csm_lbol = csm_interaction_bolometric(time=time, mej=mej, csm_mass=csm_mass, eta=eta,
-                                          rho=rho, kappa=kappa, r0=r0, interaction_process=ip.CSMDiffusion, **kwargs)
+                                          rho=rho, kappa=kappa, r0=r0, vej=vej, interaction_process=ip.CSMDiffusion, **kwargs)
         lbol = nickel_lbol + csm_lbol
         photo = photosphere.TemperatureFloor(time=time, luminosity=lbol, vej=vej, **kwargs)
         sed_1 = sed.Blackbody(temperature=photo.photosphere_temperature, r_photosphere=photo.r_photosphere,
@@ -1246,7 +1248,11 @@ def general_magnetar_slsn_bolometric(time, l0, tsd, nn, **kwargs):
 
     lbol = magnetar_only(time=time * day_to_s, l0=l0, tau=tsd * day_to_s, nn=nn)
     if _interaction_process is not None:
-        interaction_class = _interaction_process(time=time, luminosity=lbol, **kwargs)
+        dense_resolution = kwargs.get("dense_resolution", 1000)
+        dense_times = np.linspace(0, time[-1]+100, dense_resolution)
+        dense_lbols = magnetar_only(time=dense_times * day_to_s, l0=l0, tau=tsd * day_to_s, nn=nn)
+        interaction_class = _interaction_process(time=time, dense_times=dense_times,
+                                                 luminosity=dense_lbols,**kwargs)
         lbol = interaction_class.new_luminosity
     return lbol
 
