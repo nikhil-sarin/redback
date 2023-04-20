@@ -80,6 +80,8 @@ def _perform_extinction(flux_density, angstroms, av, r_v):
     :return: flux
     """
     import extinction  # noqa
+    if isinstance(angstroms, float):
+        angstroms = np.array([angstroms])
     mag_extinction = extinction.fitzpatrick99(angstroms, av, r_v=r_v)
     flux_density = extinction.apply(mag_extinction, flux_density)
     return flux_density
@@ -100,6 +102,7 @@ def _evaluate_extinction_model(time, av, model_type, **kwargs):
         kwargs['base_model'] = kwargs.get('submodel', 'arnett_bolometric')
     if kwargs['output_format'] == 'flux_density':
         frequency = kwargs['frequency']
+        angstroms = redback.utils.nu_to_lambda(frequency)
         if isinstance(frequency, float):
             frequency = np.ones(len(time)) * frequency
         temp_kwargs = kwargs.copy()
@@ -107,7 +110,7 @@ def _evaluate_extinction_model(time, av, model_type, **kwargs):
         function = _get_correct_function(base_model=base_model, model_type=model_type)
         flux_density = function(time, **temp_kwargs)
         r_v = kwargs.get('r_v', 3.1)
-        flux_density = _perform_extinction(flux_density=flux_density, angstroms=frequency, av=av, r_v=r_v)
+        flux_density = _perform_extinction(flux_density=flux_density, angstroms=angstroms, av=av, r_v=r_v)
         return flux_density
     else:
         temp_kwargs = kwargs.copy()
@@ -119,7 +122,7 @@ def _evaluate_extinction_model(time, av, model_type, **kwargs):
         lambdas = spectra_tuple.lambdas
         time_observer_frame = spectra_tuple.time
         r_v = kwargs.get('r_v', 3.1)
-        flux_density = _perform_extinction(flux_density=flux_density, angstroms=lambdas, av=av, r_v=r_v)     
+        flux_density = _perform_extinction(flux_density=flux_density, angstroms=lambdas, av=av, r_v=r_v)
         return sed.get_correct_output_format_from_spectra(time=time_obs, time_eval=time_observer_frame,
                                                               spectra=flux_density, lambda_array=spectra_tuple.lambdas,
                                                               **kwargs)
