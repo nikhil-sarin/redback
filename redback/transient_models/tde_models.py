@@ -351,9 +351,11 @@ def gaussianrise_metzger_tde(time, redshift, peak_time, sigma_t, mbh_6, stellar_
             bands = [str(bands) for x in range(len(time))]
 
         unique_bands = np.unique(bands)
+        temp_kwargs = kwargs.copy()
+        temp_kwargs['bands'] = unique_bands
         f2 = metzger_tde(time=0., redshift=redshift,
                             mbh_6=mbh_6, stellar_mass=stellar_mass, eta=eta, alpha=alpha, beta=beta,
-                            **kwargs)
+                            **temp_kwargs)
         if kwargs['output_format'] == 'magnitude':
             # make the normalisation in fmjy to avoid magnitude normalisation problems
             _f2mjy = calc_flux_density_from_ABmag(f2).value
@@ -374,9 +376,11 @@ def gaussianrise_metzger_tde(time, redshift, peak_time, sigma_t, mbh_6, stellar_
                                   peak_time=peak_time * cc.day_to_s, sigma_t=sigma_t * cc.day_to_s)
             if kwargs['output_format'] == 'magnitude':
                 f1 = calc_ABmag_from_flux_density(f1).value
+            temp_kwargs = kwargs.copy()
+            temp_kwargs['bands'] = band
             f2 = metzger_tde(time=output.time_since_fb/cc.day_to_s, redshift=redshift,
                                 mbh_6=mbh_6, stellar_mass=stellar_mass, eta=eta, alpha=alpha, beta=beta,
-                                **kwargs)
+                                **temp_kwargs)
             flux_den = np.concatenate([f1, f2])
             flux_den_interp_func[band] = interp1d(total_time, flux_den, fill_value='extrapolate')
 
@@ -384,7 +388,7 @@ def gaussianrise_metzger_tde(time, redshift, peak_time, sigma_t, mbh_6, stellar_
         output = []
         for freq, tt in zip(bands, time):
             output.append(flux_den_interp_func[freq](tt * cc.day_to_s))
-        return output
+        return np.array(output)
 
 @citation_wrapper('redback')
 def tde_analytical_bolometric(time, l0, t_0_turn, **kwargs):
