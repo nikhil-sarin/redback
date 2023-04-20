@@ -1413,7 +1413,7 @@ def general_magnetar_driven_supernova(time, redshift, mej, E_sn, kappa, l0, tau_
     
     if kwargs['output_format'] == 'flux_density':
         frequency = kwargs['frequency']
-        time_temp = np.geomspace(1e-1, 1e8, 1000)
+        time_temp = np.geomspace(1e0, 1e8, 2000)
         frequency, time = calc_kcorrected_properties(frequency=frequency, redshift=redshift, time=time)
         magnetar_luminosity = magnetar_only(time=time_temp, l0=l0, tau=tau_sd, nn=nn)
         beta = np.sqrt(E_sn / (0.5 * mej * solar_mass)) / speed_of_light
@@ -1441,7 +1441,7 @@ def general_magnetar_driven_supernova(time, redshift, mej, E_sn, kappa, l0, tau_
     else:
         time_obs = time
         lambda_observer_frame = kwargs.get('lambda_array', np.geomspace(100, 60000, 200))
-        time_temp = np.geomspace(1e-1, 1e8, 1000) #in seconds
+        time_temp = np.geomspace(1e0, 1e8, 2000) #in seconds
         time_observer_frame = time_temp * (1. + redshift)
         frequency, time = calc_kcorrected_properties(frequency=lambda_to_nu(lambda_observer_frame),
                                               redshift=redshift, time=time_observer_frame)
@@ -1491,7 +1491,7 @@ def general_magnetar_driven_supernova(time, redshift, mej, E_sn, kappa, l0, tau_
                 return namedtuple('output', ['time', 'lambdas', 'spectra'])(time=time_observer_frame,
                                                                           lambdas=lambda_observer_frame,
                                                                           spectra=spectra)   
-            else:
+            else: 
                 #print(sed.get_correct_output_format_from_spectra(time=time_obs, time_eval=time_observer_frame/day_to_s,
                 #                                     spectra=spectra, lambda_array=lambda_observer_frame,
                 #                                     **kwargs)) 
