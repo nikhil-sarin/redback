@@ -4,7 +4,7 @@ with open("README.md", "r", encoding="utf-8") as fh:
     long_description = fh.read()
 
 setup(name='redback',
-      version='0.4.0',
+      version='0.5.0',
       description='A Bayesian inference pipeline for electromagnetic transients',
       long_description=long_description,
       long_description_content_type="text/markdown",

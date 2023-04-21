@@ -36,6 +36,8 @@ class _FilePathGetter(object):
 class Plotter(object):
 
     capsize = KwargsAccessorWithDefault("capsize", 0.)
+    legend_location = KwargsAccessorWithDefault("legend_location", "best")
+    legend_cols = KwargsAccessorWithDefault("legend_cols", 2)
     color = KwargsAccessorWithDefault("color", "k")
     band_labels = KwargsAccessorWithDefault("band_labels", None)
     dpi = KwargsAccessorWithDefault("dpi", 300)
@@ -80,6 +82,9 @@ class Plotter(object):
         :param transient: An instance of `redback.transient.Transient`. Contains the data to be plotted.
         :param kwargs: Additional kwargs the plotter uses. -------
         :keyword capsize: Same as matplotlib capsize.
+        :keyword bands_to_plot: List of bands to plot in plot lightcurve and multiband lightcurve. Default is active bands.
+        :keyword legend_location: Same as matplotlib legend location.
+        :keyword legend_cols: Same as matplotlib legend columns.
         :keyword color: Color of the data points.
         :keyword band_labels: List with the names of the bands.
         :keyword dpi: Same as matplotlib dpi.
@@ -138,6 +143,9 @@ class Plotter(object):
             times = np.linspace(self._xlim_low, self._xlim_high, 200)
         else:
             times = np.exp(np.linspace(np.log(self._xlim_low), np.log(self._xlim_high), 200))
+
+        if self.transient.use_phase_model:
+            times = times + self._reference_mjd_date
         return times
 
     @property
@@ -174,8 +182,10 @@ class Plotter(object):
 
     @property
     def _y_err(self) -> np.ndarray:
-        return np.array([np.abs(self.transient.y_err[1, :]), self.transient.y_err[0, :]])
-
+        if self.transient.y_err.ndim > 1.:
+            return np.array([np.abs(self.transient.y_err[1, :]), self.transient.y_err[0, :]])
+        else:
+            return np.array([np.abs(self.transient.y_err)])
     @property
     def _lightcurve_plot_outdir(self) -> str:
         return self._get_outdir(join(self.transient.directory_structure.directory_path, self.model.__name__))
@@ -388,6 +398,10 @@ class MagnitudePlotter(Plotter):
         return self.kwargs.get("ylabel", self.transient.ylabel)
 
     @property
+    def _get_bands_to_plot(self) -> list[str]:
+        return self.kwargs.get("bands_to_plot", self.transient.active_bands)
+
+    @property
     def _xlim_low(self) -> float:
         if self.transient.use_phase_model:
             default = (self.transient.x[0] - self._reference_mjd_date) * self.xlim_low_phase_model_multiplier
@@ -518,7 +532,7 @@ class MagnitudePlotter(Plotter):
         ax.set_ylabel(self._ylabel, fontsize=self.fontsize_axes)
 
         ax.tick_params(axis='x', pad=self.x_axis_tick_params_pad)
-        ax.legend(ncol=2, loc='best')
+        ax.legend(ncol=self.legend_cols, loc=self.legend_location)
 
         self._save_and_show(filepath=self._data_plot_filepath, save=save, show=show)
         return ax
@@ -544,8 +558,9 @@ class MagnitudePlotter(Plotter):
         axes.set_yscale('log')
 
         times = self._get_times(axes)
+        bands_to_plot = self._get_bands_to_plot
 
-        for band, color in zip(self.transient.active_bands, self.transient.get_colors(self.transient.active_bands)):
+        for band, color in zip(bands_to_plot, self.transient.get_colors(bands_to_plot)):
             sn_cosmo_band = redback.utils.sncosmo_bandname_from_band([band])
             self._model_kwargs["bands"] = [sn_cosmo_band[0] for _ in range(len(times))]
             frequency = redback.utils.bands_to_frequency([band])
@@ -556,7 +571,6 @@ class MagnitudePlotter(Plotter):
 
             random_ys_list = [self.model(times, **random_params, **self._model_kwargs)
                               for random_params in self._get_random_parameters()]
-
             if self.uncertainty_mode == "random_models":
                 for ys in random_ys_list:
                     axes.plot(times - self._reference_mjd_date, ys, color='red', alpha=0.05, lw=2, zorder=-1)
@@ -624,7 +638,7 @@ class MagnitudePlotter(Plotter):
 
             self._set_x_axis(axes[ii])
             self._set_y_axis_multiband_data(axes[ii], indices)
-            axes[ii].legend(ncol=2)
+            axes[ii].legend(ncol=self.legend_cols, loc=self.legend_location)
             axes[ii].tick_params(axis='both', which='major', pad=8)
             ii += 1
 
@@ -638,10 +652,10 @@ class MagnitudePlotter(Plotter):
     @staticmethod
     def _get_multiband_plot_label(band: str, freq: float) -> str:
         if isinstance(band, str):
-            if 1e10 < float(freq) < 1e15:
+            if 1e10 < float(freq) < 1e16:
                 label = band
             else:
-                label = freq
+                label = f"{freq:.2e}"
         else:
             label = f"{band:.2e}"
         return label
@@ -649,6 +663,8 @@ class MagnitudePlotter(Plotter):
     @property
     def _filters(self) -> list[str]:
         filters = self.kwargs.get("filters", self.transient.active_bands)
+        if 'bands_to_plot' in self.kwargs:
+            filters = self.kwargs['bands_to_plot']
         if filters is None:
             return self.transient.active_bands
         elif str(filters) == 'default':

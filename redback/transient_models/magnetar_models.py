@@ -403,7 +403,7 @@ def _integral_mdr(time, t0, kappa, a, **kwargs):
     return first - second
 
 @citation_wrapper('https://ui.adsabs.harvard.edu/abs/2020MNRAS.499.5986S/abstract')
-def piecewise_radiative_losses(time, a_1, alpha_1, l0, tau, nn, kappa, t0, **kwargs):
+def piecewise_radiative_losses(time, a_1, alpha_1, l0, tau, nn, kappa, t0_s, **kwargs):
     """
     Assumes smoothness and continuity between the prompt and magnetar term by fixing e0 variable
 
@@ -414,17 +414,17 @@ def piecewise_radiative_losses(time, a_1, alpha_1, l0, tau, nn, kappa, t0, **kwa
     :param tau: spin-down damping timescale
     :param nn: braking index
     :param kappa: radiative efficiency
-    :param t0: time for radiative losses to start in seconds
+    :param t0_s: time for radiative losses to start in seconds
     :param kwargs: key word arguments for handling plotting/other functionality
     :return: luminosity
     """
-    pl_time = np.where(time <= t0)
-    magnetar_time = np.where(time > t0)
-    e0 = (a_1 * t0 ** alpha_1 * t0) / kappa
+    pl_time = np.where(time <= t0_s)
+    magnetar_time = np.where(time > t0_s)
+    e0 = (a_1 * t0_s ** alpha_1 * t0_s) / kappa
     pl = one_component_fireball_model(time[pl_time], a_1, alpha_1)
 
-    loss_term = e0 * (t0 / time[magnetar_time]) ** kappa
-    integ = _integral_general(time[magnetar_time], t0, kappa, tau, nn)
+    loss_term = e0 * (t0_s / time[magnetar_time]) ** kappa
+    integ = _integral_general(time[magnetar_time], t0_s, kappa, tau, nn)
     energy_loss_total = ((l0 / (time[magnetar_time] ** kappa)) * integ) + loss_term
 
     lum = (kappa * energy_loss_total / time[magnetar_time])
@@ -432,7 +432,7 @@ def piecewise_radiative_losses(time, a_1, alpha_1, l0, tau, nn, kappa, t0, **kwa
     return np.concatenate((pl, lum))
 
 @citation_wrapper('https://ui.adsabs.harvard.edu/abs/2020MNRAS.499.5986S/abstract')
-def radiative_losses(time, a_1, alpha_1, l0, tau, nn, kappa, t0, log_e0, **kwargs):
+def radiative_losses(time, a_1, alpha_1, l0, tau, nn, kappa, t0_s, log_e0, **kwargs):
     """
     radiative losses model with a step function, indicating the magnetar term turns on at T0
 
@@ -443,23 +443,23 @@ def radiative_losses(time, a_1, alpha_1, l0, tau, nn, kappa, t0, log_e0, **kwarg
     :param tau: spin-down damping timescale
     :param nn: braking index
     :param kappa: radiative efficiency
-    :param t0: time for radiative losses to start in seconds
+    :param t0_s: time for radiative losses to start in seconds
     :param log_e0: log10 E0 to connect curvature effect energy with transition point energy, captures flares
     :param kwargs: key word arguments for handling plotting/other functionality
     :return: luminosity
     """
     e0 = 10 ** log_e0
     pl = one_component_fireball_model(time, a_1, alpha_1)
-    loss_term = e0 * (t0 / time) ** kappa
-    integ = _integral_general(time, t0, kappa, tau, nn)
+    loss_term = e0 * (t0_s / time) ** kappa
+    integ = _integral_general(time, t0_s, kappa, tau, nn)
     energy_loss_total = ((l0 / (time ** kappa)) * integ) + loss_term
     lum = (kappa * energy_loss_total / time)
-    total = pl + np.heaviside(time - t0, 1) * lum
+    total = pl + np.heaviside(time - t0_s, 1) * lum
 
     return total
 
 @citation_wrapper('https://ui.adsabs.harvard.edu/abs/2020MNRAS.499.5986S/abstract')
-def radiative_only(time, l0, tau, nn, kappa, t0, log_e0, **kwargs):
+def radiative_only(time, l0, tau, nn, kappa, t0_s, log_e0, **kwargs):
     """
     radiative losses model only
 
@@ -468,7 +468,7 @@ def radiative_only(time, l0, tau, nn, kappa, t0, log_e0, **kwargs):
     :param tau: spin-down damping timescale
     :param nn: braking index
     :param kappa: radiative efficiency
-    :param t0: time for radiative losses to start in seconds
+    :param t0_s: time for radiative losses to start in seconds
     :param log_e0: log10 E0 to connect curvature effect energy smoothly with transition point energy
     :param kwargs: key word arguments for handling plotting/other functionality
     :return: luminosity
@@ -476,16 +476,16 @@ def radiative_only(time, l0, tau, nn, kappa, t0, log_e0, **kwargs):
     :return:
     """
     e0 = 10 ** log_e0
-    loss_term = e0 * (t0 / time) ** kappa
-    integ = _integral_general(time, t0, kappa, tau, nn)
+    loss_term = e0 * (t0_s / time) ** kappa
+    integ = _integral_general(time, t0_s, kappa, tau, nn)
     energy_loss_total = ((l0 / (time ** kappa)) * integ) + loss_term
     lum = (kappa * energy_loss_total / time)
-    total = np.heaviside(time - t0, 1) * lum
+    total = np.heaviside(time - t0_s, 1) * lum
 
     return total
 
 @citation_wrapper('https://ui.adsabs.harvard.edu/abs/2020MNRAS.499.5986S/abstract')
-def radiative_losses_smoothness(time, a_1, alpha_1, l0, tau, nn, kappa, t0, log_e0, **kwargs):
+def radiative_losses_smoothness(time, a_1, alpha_1, l0, tau, nn, kappa, t0_s, log_e0, **kwargs):
     """
     radiative losses model with a step function, indicating the magnetar term turns on at T0
 
@@ -496,7 +496,7 @@ def radiative_losses_smoothness(time, a_1, alpha_1, l0, tau, nn, kappa, t0, log_
     :param tau: spin-down damping timescale
     :param nn: braking index
     :param kappa: radiative efficiency
-    :param t0: time for radiative losses to start in seconds
+    :param t0_s: time for radiative losses to start in seconds
     :param log_e0: log10 E0 to connect curvature effect energy smoothly with transition point energy
     :param kwargs: key word arguments for handling plotting/other functionality
     :return: luminosity
@@ -504,19 +504,19 @@ def radiative_losses_smoothness(time, a_1, alpha_1, l0, tau, nn, kappa, t0, log_
     """
     pl = one_component_fireball_model(time, a_1, alpha_1)
     e0 = 10 ** log_e0
-    e0_def = (a_1 * t0 ** alpha_1 * t0) / kappa
+    e0_def = (a_1 * t0_s ** alpha_1 * t0_s) / kappa
     e0_use = np.min([e0, e0_def])
-    loss_term = e0_use * (t0 / time) ** kappa
-    integ = _integral_general(time, t0, kappa, tau, nn)
+    loss_term = e0_use * (t0_s / time) ** kappa
+    integ = _integral_general(time, t0_s, kappa, tau, nn)
 
     energy_loss_total = ((l0 / (time ** kappa)) * integ) + loss_term
     lum = (kappa * energy_loss_total / time)
-    total = pl + np.heaviside(time - t0, 1) * lum
+    total = pl + np.heaviside(time - t0_s, 1) * lum
 
     return total
 
 @citation_wrapper('https://ui.adsabs.harvard.edu/abs/2011A%26A...526A.121D/abstract')
-def radiative_losses_mdr(time, a_1, alpha_1, l0, tau, kappa, log_e0, t0, **kwargs):
+def radiative_losses_mdr(time, a_1, alpha_1, l0, tau, kappa, log_e0, t0_s, **kwargs):
     """
     radiative losses model for vacuum dipole radiation
 
@@ -526,7 +526,7 @@ def radiative_losses_mdr(time, a_1, alpha_1, l0, tau, kappa, log_e0, t0, **kwarg
     :param l0: initial luminosity parameter
     :param tau: spin-down damping timescale
     :param kappa: radiative efficiency
-    :param t0: time for radiative losses to start in seconds
+    :param t0_s: time for radiative losses to start in seconds
     :param log_e0: log10 E0 to connect curvature effect energy smoothly with transition point energy
     :param kwargs: key word arguments for handling plotting/other functionality
     :return: luminosity
@@ -534,16 +534,16 @@ def radiative_losses_mdr(time, a_1, alpha_1, l0, tau, kappa, log_e0, t0, **kwarg
     a = 1. / tau
     e0 = 10 ** log_e0
     pl = one_component_fireball_model(time, a_1, alpha_1)
-    loss_term = e0 * (t0 / time) ** kappa
-    integ = _integral_mdr(time, t0, kappa, a)
+    loss_term = e0 * (t0_s / time) ** kappa
+    integ = _integral_mdr(time, t0_s, kappa, a)
     energy_loss_total = ((l0 / (time ** kappa)) * integ) + loss_term
 
     lightcurve = (kappa * energy_loss_total / time)
 
-    return np.heaviside(time - t0, 1) * lightcurve + pl
+    return np.heaviside(time - t0_s, 1) * lightcurve + pl
 
 @citation_wrapper('https://ui.adsabs.harvard.edu/abs/2020MNRAS.499.5986S/abstract')
-def collapsing_radiative_losses(time, a_1, alpha_1, l0, tau, nn, tcol, kappa, t0, log_e0, **kwargs):
+def collapsing_radiative_losses(time, a_1, alpha_1, l0, tau, nn, tcol, kappa, t0_s, log_e0, **kwargs):
     """
     radiative losses model with collapse time
 
@@ -555,7 +555,7 @@ def collapsing_radiative_losses(time, a_1, alpha_1, l0, tau, nn, tcol, kappa, t0
     :param nn: braking index
     :param tcol: collapse time in seconds
     :param kappa: radiative efficiency
-    :param t0: time for radiative losses to start in seconds
+    :param t0_s: time for radiative losses to start in seconds
     :param log_e0: log10 E0 to connect curvature effect energy smoothly with transition point energy
     :param kwargs: key word arguments for handling plotting/other functionality
     :return: luminosity
@@ -563,11 +563,11 @@ def collapsing_radiative_losses(time, a_1, alpha_1, l0, tau, nn, tcol, kappa, t0
     """
     e0 = 10 ** log_e0
     pl = one_component_fireball_model(time, a_1, alpha_1)
-    loss_term = e0 * (t0 / time) ** kappa
-    integ = _integral_general_collapsing(time, t0, kappa, tau, nn, tcol)
+    loss_term = e0 * (t0_s / time) ** kappa
+    integ = _integral_general_collapsing(time, t0_s, kappa, tau, nn, tcol)
     energy_loss_total = ((l0 / (time ** kappa)) * integ) + loss_term
     lum = (kappa * energy_loss_total / time)
-    total = pl + np.heaviside(time - t0, 1) * lum
+    total = pl + np.heaviside(time - t0_s, 1) * lum
 
     return total
 

@@ -44,15 +44,15 @@ class LasairDataGetter(DataGetter):
         :return: The lasair raw data url.
         :rtype: str
         """
-        return f"https://lasair.roe.ac.uk/object/{self.transient}/"
+        return f"https://lasair-ztf.lsst.ac.uk/objects/{self.transient}"
 
     def collect_data(self) -> None:
-        """Downloads the data from astrocats and saves it into the raw file path."""
+        """Downloads the data from Lasair website and saves it into the raw file path."""
         if os.path.isfile(self.raw_file_path):
             logger.warning('The raw data file already exists.')
             return None
 
-        if 'does not exist' in requests.get(self.url).text:
+        if 'not in database' in requests.get(self.url).text:
             raise ValueError(
                 f"Transient {self.transient} does not exist in the catalog. "
                 f"Are you sure you are using the right alias?")
@@ -83,7 +83,7 @@ class LasairDataGetter(DataGetter):
             return pd.read_csv(self.processed_file_path)
 
         raw_data = pd.read_csv(self.raw_file_path)
-        raw_data = raw_data[raw_data['status'] != 'non-detection']
+        raw_data = raw_data[raw_data['difference flux status'] != 'limit']
         lasair_to_general_bands = {"g": "ztfg", "r": "ztfr", "i":'ztfi'}
         processed_data = pd.DataFrame()
 

@@ -26,12 +26,13 @@ plt.style.use(filename)
 logger = logging.getLogger('redback')
 _bilby_logger = logging.getLogger('bilby')
 
-def sncosmo_bandname_from_band(bands):
+def sncosmo_bandname_from_band(bands, warning_style='soft'):
     """
     Convert redback data band names to sncosmo compatible band names
 
     :param bands: List of bands.
     :type bands: list[str]
+    :param warning_style: How to handle warnings. 'soft' will raise a warning, 'hard' will raise an error.
     :return: An array of sncosmo compatible bandnames associated with the given bands.
     :rtype: np.ndarray
     """
@@ -47,7 +48,11 @@ def sncosmo_bandname_from_band(bands):
             res.append(bands_to_flux[band])
         except KeyError as e:
             logger.info(e)
-            raise KeyError(f"Band {band} is not defined in filters.csv!")
+            if warning_style == 'hard':
+                raise KeyError(f"Band {band} is not defined in filters.csv!")
+            else:
+                logger.info(f"Band {band} is not defined in filters.csv!")
+                res.append('r')
     return np.array(res)
 
 def check_kwargs_validity(kwargs):

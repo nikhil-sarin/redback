@@ -2,7 +2,8 @@ import numpy as np
 import redback.interaction_processes as ip
 import redback.sed as sed
 import redback.photosphere as photosphere
-from redback.utils import calc_kcorrected_properties, citation_wrapper, calc_tfb, lambda_to_nu
+from redback.utils import calc_kcorrected_properties, citation_wrapper, calc_tfb, lambda_to_nu, \
+    calc_ABmag_from_flux_density, calc_flux_density_from_ABmag
 import redback.constants as cc
 import redback.transient_models.phenomenological_models as pm
 
@@ -37,14 +38,10 @@ def _metzger_tde(mbh_6, stellar_mass, eta, alpha, beta, **kwargs):
     :param kwargs:
     :return: named tuple with bolometric luminosity, photosphere radius, temperature, and other parameters
     """
-    t0 = kwargs.get('t0', 1.0)
+    t_0_init = kwargs.get('t_0_init', 1.0)
     binding_energy_const = kwargs.get('binding_energy_const', 0.8)
     zeta = kwargs.get('zeta',2.0)
     hoverR = kwargs.get('hoverR', 0.3)
-    # minimum value of SMBH feedback efficiency
-    etamin = 0.01 * (stellar_mass ** (-7. / 15.) * mbh_6 ** (2. / 3.))
-    # maximum TDE penetration factor before star is swallowed whole by SMBH
-    beta_max = 12. * (stellar_mass ** (7. / 15.)) * (mbh_6 ** (-2. / 3.))
 
     # gravitational radius
     Rg = cc.graviational_constant * mbh_6 * 1.0e6 * (cc.solar_mass / cc.speed_of_light ** (2.0))
@@ -53,14 +50,14 @@ def _metzger_tde(mbh_6, stellar_mass, eta, alpha, beta, **kwargs):
     # stellar radius in cgs
     Rstar = stellar_mass ** (0.8) * cc.solar_radius
     # tidal radius
-    Rt = Rstar * (mbh_6 * 1.0e6 / stellar_mass) ** (1. / 3.)
+    Rt = Rstar * (mbh_6*1.0e6 /stellar_mass) ** (1./3.)
     # circularization radius
-    Rcirc = 2.0 * Rt / beta
+    Rcirc = 2.0*Rt/beta
     # fall-back time of most tightly bound debris
     tfb = calc_tfb(binding_energy_const, mbh_6, stellar_mass)
     # Eddington luminosity of SMBH in units of 1e40 erg/s
     Ledd40 = 1.4e4 * mbh_6
-    time_temp = np.logspace(np.log10(1.0*tfb), np.log10(100*tfb), 500)
+    time_temp = np.logspace(np.log10(1.0*tfb), np.log10(5000*tfb), 5000)
     tdays = time_temp/cc.day_to_s
 
     #set up grids
@@ -95,11 +92,11 @@ def _metzger_tde(mbh_6, stellar_mass, eta, alpha, beta, **kwargs):
 
     Mdotfb = (0.8 * Mstar / (3.0 * tfb)) * (time_temp / tfb) ** (-5. / 3.)
 
-    # ** initialize grid quantities at t = t0 [grid point 0] **
-    # initial envelope mass at t0
-    Me[0] = 0.1 * Mstar + (0.4 * Mstar) * (1.0 - t0 ** (-2. / 3.))
+    # ** initialize grid quantities at t = t_0_init [grid point 0] **
+    # initial envelope mass at t_0_init
+    Me[0] = 0.1 * Mstar + (0.4 * Mstar) * (1.0 - t_0_init**(-2. / 3.))
     # initial envelope radius determined by energy of TDE process
-    Rv[0] = (2. * Rt ** (2.0) / (5.0 * binding_energy_const * Rstar)) * (Me[0] / Mstar)
+    Rv[0] = (2. * Rt**(2.0)/(5.0 * binding_energy_const * Rstar)) * (Me[0]/Mstar)
     # initial thermal energy of envelope
     Ee40[0] = ((2.0 * cc.graviational_constant * mbh_6 * 1.0e6 * Me[0]) / (5.0 * Rv[0])) * 2.0e-7
     # initial characteristic optical depth
@@ -109,7 +106,7 @@ def _metzger_tde(mbh_6, stellar_mass, eta, alpha, beta, **kwargs):
     # initial fallback stream accretion radius
     Racc[0] = zeta * Rv[0]
     # initial fallback accretion heating rate in 1e40 erg/s
-    Edotfb40[0] = (cc.graviational_constant * mbh_6 * 1.0e6 * Mdotfb[0] / Racc[0]) * (2.0e-7)
+    Edotfb40[0] = (cc.graviational_constant * mbh_6 * 1.0e6 * Mdotfb[0]/Racc[0]) * (2.0e-7)
     # initial luminosity of envelope
     Lrad[0] = Ledd40 + Edotfb40[0]
     # initial SMBH accretion timescale in s
@@ -123,8 +120,7 @@ def _metzger_tde(mbh_6, stellar_mass, eta, alpha, beta, **kwargs):
     Teff[0] = 1.0e10 * ((Ledd40 + Edotfb40[0]) / (4.0 * np.pi * cc.sigma_sb * Rph[0] ** (2.0))) ** (0.25)
 
     t = time_temp
-    for ii in range(len(time_temp) - 1):
-        ii = ii + 1
+    for ii in range(1, len(time_temp)):
         Me[ii] = Me[ii - 1] - (MdotBH[ii - 1] - Mdotfb[ii - 1]) * (t[ii] - t[ii - 1])
         # update envelope energy due to SMBH heating + radiative losses
         Ee40[ii] = Ee40[ii - 1] + (Ledd40 - Edotbh40[ii - 1]) * (t[ii] - t[ii - 1])
@@ -155,9 +151,11 @@ def _metzger_tde(mbh_6, stellar_mass, eta, alpha, beta, **kwargs):
     output = namedtuple('output', ['bolometric_luminosity', 'photosphere_temperature',
                                    'photosphere_radius', 'lum_xray', 'accretion_radius',
                                    'SMBH_accretion_rate', 'time_temp', 'nulnu',
-                                   'time_since_fb','tfb', 'lnu'])
-    constraint_1 = np.min(np.where(Rv <= Rcirc / 2.))
-    constraint_2 = np.min(np.where(Me <= 0.0))
+                                   'time_since_fb','tfb', 'lnu', 'envelope_radius', 'envelope_mass',
+                                   'rtidal', 'rcirc'])
+    # constraint_1 = np.min(np.where(Rv < Rcirc/2.))
+    constraint_1 = len(time_temp)
+    constraint_2 = np.min(np.where(Me < 0.0))
     constraint = np.min([constraint_1, constraint_2])
     nu = 6.0e14
     expon = 1. / (np.exp(cc.planck * nu / (cc.boltzmann_constant * Teff)) - 1.0)
@@ -169,6 +167,10 @@ def _metzger_tde(mbh_6, stellar_mass, eta, alpha, beta, **kwargs):
     output.bolometric_luminosity = Lrad[:constraint] * 1e40
     output.photosphere_temperature = Teff[:constraint]
     output.photosphere_radius = Rph[:constraint]
+    output.envelope_radius = Rv[:constraint]
+    output.envelope_mass = Me[:constraint]
+    output.rcirc = Rcirc
+    output.rtidal = Rt
     output.lum_xray = LX40[:constraint]
     output.accretion_radius = Racc[:constraint]
     output.SMBH_accretion_rate = MdotBH[:constraint]
@@ -242,10 +244,46 @@ def metzger_tde(time, redshift,  mbh_6, stellar_mass, eta, alpha, beta, **kwargs
                                                               spectra=spectra, lambda_array=lambda_observer_frame,
                                                               **kwargs)
 
-@citation_wrapper('redback,https://ui.adsabs.harvard.edu/abs/2022arXiv220707136M/abstract')
-def gaussianrise_metzger_tde(time, redshift, peak_time, sigma, mbh_6, stellar_mass, eta, alpha, beta, **kwargs):
+@citation_wrapper('Sarin and Metzger in prep,https://ui.adsabs.harvard.edu/abs/2022arXiv220707136M/abstract')
+def gaussianrise_metzger_tde_bolometric(time, peak_time, sigma_t, mbh_6, stellar_mass, eta, alpha, beta, **kwargs):
     """
-    This model is only valid for time after circulation. Use the gaussianrise_metzgertde model for the full lightcurve
+    Full lightcurve, with gaussian rise till fallback time and then the metzger tde model,
+    bolometric version for fitting the bolometric lightcurve
+
+    :param time: time in source frame in days
+    :param mbh_6: mass of supermassive black hole in units of 10^6 solar mass
+    :param stellar_mass: stellar mass in units of solar masses
+    :param eta: SMBH feedback efficiency (typical range: etamin - 0.1)
+    :param alpha: disk viscosity
+    :param beta: TDE penetration factor (typical range: 1 - beta_max)
+    :param kwargs: Additional parameters
+    :return luminosity in ergs/s
+    """
+    output = _metzger_tde(mbh_6, stellar_mass, eta, alpha, beta, **kwargs)
+    kwargs['binding_energy_const'] = kwargs.get('binding_energy_const', 0.8)
+    tfb_sf = calc_tfb(kwargs['binding_energy_const'], mbh_6, stellar_mass)  # source frame
+    f1 = pm.gaussian_rise(time=tfb_sf, a_1=1, peak_time=peak_time * cc.day_to_s, sigma_t=sigma_t * cc.day_to_s)
+
+    # get normalisation
+    f2 = output.bolometric_luminosity[0]
+    norm = f2/f1
+
+    #evaluate giant array of bolometric luminosities
+    tt_pre_fb = np.linspace(0, tfb_sf, 100)
+    tt_post_fb = output.time_temp
+    full_time = np.concatenate([tt_pre_fb, tt_post_fb])
+    f1 = pm.gaussian_rise(time=tt_pre_fb, a_1=norm,
+                          peak_time=peak_time * cc.day_to_s, sigma_t=sigma_t * cc.day_to_s)
+    f2 = output.bolometric_luminosity
+    full_lbol = np.concatenate([f1, f2])
+    lbol_func = interp1d(full_time, y=full_lbol, fill_value='extrapolate')
+    return lbol_func(time*cc.day_to_s)
+
+@citation_wrapper('Sarin and Metzger in prep,https://ui.adsabs.harvard.edu/abs/2022arXiv220707136M/abstract')
+def gaussianrise_metzger_tde(time, redshift, peak_time, sigma_t, mbh_6, stellar_mass, eta, alpha, beta, **kwargs):
+    """
+    Full lightcurve, with gaussian rise till fallback time and then the metzger tde model,
+    photometric version where each band is fit/joint separately
 
     :param time: time in observer frame in days
     :param redshift: redshift
@@ -263,12 +301,13 @@ def gaussianrise_metzger_tde(time, redshift, peak_time, sigma, mbh_6, stellar_ma
     :return: set by output format - 'flux_density', 'magnitude', 'flux'
     """
     binding_energy_const = kwargs.get('binding_energy_const', 0.8)
-    tfb = calc_tfb(binding_energy_const, mbh_6, stellar_mass)
+    tfb_sf = calc_tfb(binding_energy_const, mbh_6, stellar_mass)  # source frame
+    tfb_obf = tfb_sf * (1. + redshift)  # observer frame
     output = _metzger_tde(mbh_6, stellar_mass, eta, alpha, beta, **kwargs)
     dl = cosmo.luminosity_distance(redshift).cgs.value
 
-    # in source frame
-    f1 = pm.gaussian_rise(time=tfb, a_1=1, peak_time=peak_time * cc.day_to_s, sigma=sigma * cc.day_to_s)
+    # normalisation term in observer frame
+    f1 = pm.gaussian_rise(time=tfb_obf, a_1=1, peak_time=peak_time * cc.day_to_s, sigma_t=sigma_t * cc.day_to_s)
 
     if kwargs['output_format'] == 'flux_density':
         frequency = kwargs['frequency']
@@ -289,16 +328,16 @@ def gaussianrise_metzger_tde(time, redshift, peak_time, sigma, mbh_6, stellar_ma
         # build flux density function for each frequency
         flux_den_interp_func = {}
         for freq in unique_frequency:
-            tt_pre_fb = np.linspace(-100, (output.time_temp[0]/cc.day_to_s) - 0.001, 100) * cc.day_to_s
-            tt_post_fb = output.time_temp
+            tt_pre_fb = np.linspace(0, tfb_obf / cc.day_to_s, 200) * cc.day_to_s
+            tt_post_fb = output.time_temp * (1 + redshift)
             total_time = np.concatenate([tt_pre_fb, tt_post_fb])
             f1 = pm.gaussian_rise(time=tt_pre_fb, a_1=norm_dict[freq],
-                                  peak_time=peak_time * cc.day_to_s, sigma=sigma * cc.day_to_s)
+                                  peak_time=peak_time * cc.day_to_s, sigma_t=sigma_t * cc.day_to_s)
             f2 = sed.blackbody_to_flux_density(temperature=output.photosphere_temperature,
                                                r_photosphere=output.photosphere_radius,
                                                dl=dl, frequency=freq).to(uu.mJy)
             flux_den = np.concatenate([f1, f2.value])
-            flux_den_interp_func[freq] = interp1d(total_time, flux_den)
+            flux_den_interp_func[freq] = interp1d(total_time, flux_den, fill_value='extrapolate')
 
         # interpolate onto actual observed frequency and time values
         flux_density = []
@@ -312,41 +351,51 @@ def gaussianrise_metzger_tde(time, redshift, peak_time, sigma, mbh_6, stellar_ma
             bands = [str(bands) for x in range(len(time))]
 
         unique_bands = np.unique(bands)
-
-        f2 = metzger_tde(time=tfb / cc.day_to_s, redshift=redshift,
+        temp_kwargs = kwargs.copy()
+        temp_kwargs['bands'] = unique_bands
+        f2 = metzger_tde(time=0., redshift=redshift,
                             mbh_6=mbh_6, stellar_mass=stellar_mass, eta=eta, alpha=alpha, beta=beta,
-                            **kwargs)
+                            **temp_kwargs)
+        if kwargs['output_format'] == 'magnitude':
+            # make the normalisation in fmjy to avoid magnitude normalisation problems
+            _f2mjy = calc_flux_density_from_ABmag(f2).value
+            norms = _f2mjy / f1
+        else:
+            norms = f2 / f1
 
-        norms = f2 / f1
         if isinstance(norms, float):
             norms = np.ones(len(time)) * norms
         norm_dict = dict(zip(unique_bands, norms))
 
         flux_den_interp_func = {}
         for band in unique_bands:
-            tt_pre_fb = np.linspace(-100, (output.time_temp[0]/cc.day_to_s) - 0.001, 100) * cc.day_to_s
-            tt_post_fb = output.time_temp
+            tt_pre_fb = np.linspace(0, tfb_obf / cc.day_to_s, 100) * cc.day_to_s
+            tt_post_fb = output.time_temp * (1 + redshift)
             total_time = np.concatenate([tt_pre_fb, tt_post_fb])
             f1 = pm.gaussian_rise(time=tt_pre_fb, a_1=norm_dict[band],
-                                  peak_time=peak_time * cc.day_to_s, sigma=sigma * cc.day_to_s)
-            f2 = metzger_tde(time=tt_post_fb / cc.day_to_s, redshift=redshift,
+                                  peak_time=peak_time * cc.day_to_s, sigma_t=sigma_t * cc.day_to_s)
+            if kwargs['output_format'] == 'magnitude':
+                f1 = calc_ABmag_from_flux_density(f1).value
+            temp_kwargs = kwargs.copy()
+            temp_kwargs['bands'] = band
+            f2 = metzger_tde(time=output.time_since_fb/cc.day_to_s, redshift=redshift,
                                 mbh_6=mbh_6, stellar_mass=stellar_mass, eta=eta, alpha=alpha, beta=beta,
-                                **kwargs)
+                                **temp_kwargs)
             flux_den = np.concatenate([f1, f2])
-            flux_den_interp_func[band] = interp1d(total_time, flux_den)
+            flux_den_interp_func[band] = interp1d(total_time, flux_den, fill_value='extrapolate')
 
         # interpolate onto actual observed band and time values
         output = []
         for freq, tt in zip(bands, time):
             output.append(flux_den_interp_func[freq](tt * cc.day_to_s))
-        return output
+        return np.array(output)
 
 @citation_wrapper('redback')
-def tde_analytical_bolometric(time, l0, t_0, **kwargs):
+def tde_analytical_bolometric(time, l0, t_0_turn, **kwargs):
     """
     :param time: rest frame time in days
     :param l0: bolometric luminosity at 1 second in cgs
-    :param t_0: turn on time in days (after this time lbol decays as 5/3 powerlaw)
+    :param t_0_turn: turn on time in days (after this time lbol decays as 5/3 powerlaw)
     :param interaction_process: Default is Diffusion.
             Can also be None in which case the output is just the raw engine luminosity
     :param kwargs: Must be all the kwargs required by the specific interaction_process
@@ -354,21 +403,21 @@ def tde_analytical_bolometric(time, l0, t_0, **kwargs):
     :return: bolometric_luminosity
     """
     _interaction_process = kwargs.get("interaction_process", ip.Diffusion)
-    lbol = _analytic_fallback(time=time, l0=l0, t_0=t_0)
+    lbol = _analytic_fallback(time=time, l0=l0, t_0=t_0_turn)
     if _interaction_process is not None:
         dense_resolution = kwargs.get("dense_resolution", 1000)
         dense_times = np.linspace(0, time[-1] + 100, dense_resolution)
-        dense_lbols = _analytic_fallback(time=dense_times, l0=l0, t_0=t_0)
+        dense_lbols = _analytic_fallback(time=dense_times, l0=l0, t_0=t_0_turn)
         interaction_class = _interaction_process(time=time, dense_times=dense_times, luminosity=dense_lbols, **kwargs)
         lbol = interaction_class.new_luminosity
     return lbol
 
 @citation_wrapper('redback')
-def tde_analytical(time, redshift, l0, t_0, **kwargs):
+def tde_analytical(time, redshift, l0, t_0_turn, **kwargs):
     """
     :param time: observer frame time in days
     :param l0: bolometric luminosity at 1 second in cgs
-    :param t_0: turn on time in days (after this time lbol decays as 5/3 powerlaw)
+    :param t_0_turn: turn on time in days (after this time lbol decays as 5/3 powerlaw)
     :param kwargs: Must be all the kwargs required by the specific interaction_process
      e.g., for Diffusion TemperatureFloor: kappa, kappa_gamma, vej (km/s), temperature_floor
     :param interaction_process: Default is Diffusion.
@@ -391,7 +440,7 @@ def tde_analytical(time, redshift, l0, t_0, **kwargs):
     if kwargs['output_format'] == 'flux_density':
         frequency = kwargs['frequency']
         frequency, time = calc_kcorrected_properties(frequency=frequency, redshift=redshift, time=time)
-        lbol = tde_analytical_bolometric(time=time, l0=l0, t_0=t_0, **kwargs)
+        lbol = tde_analytical_bolometric(time=time, l0=l0, t_0_turn=t_0_turn, **kwargs)
         photo = kwargs['photosphere'](time=time, luminosity=lbol, **kwargs)
         sed_1 = kwargs['sed'](time=time, temperature=photo.photosphere_temperature, r_photosphere=photo.r_photosphere,
                      frequency=frequency, luminosity_distance=dl, cutoff_wavelength=cutoff_wavelength, luminosity=lbol)
@@ -406,7 +455,7 @@ def tde_analytical(time, redshift, l0, t_0, **kwargs):
         time_observer_frame = time_temp * (1. + redshift)
         frequency, time = calc_kcorrected_properties(frequency=lambda_to_nu(lambda_observer_frame),
                                                      redshift=redshift, time=time_observer_frame)
-        lbol = tde_analytical_bolometric(time=time, l0=l0, t_0=t_0, **kwargs)
+        lbol = tde_analytical_bolometric(time=time, l0=l0, t_0_turn=t_0_turn, **kwargs)
         photo = kwargs['photosphere'](time=time, luminosity=lbol, **kwargs)
         full_sed = np.zeros((len(time), len(frequency)))
         for ii in range(len(frequency)):

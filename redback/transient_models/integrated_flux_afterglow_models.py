@@ -22,6 +22,7 @@ def integrated_flux_afterglowpy_base_model(time, **kwargs):
     """
     from ..model_library import modules_dict  # import model library in function to avoid circular dependency
     base_model = kwargs['base_model']
+    kwargs['resolution'] = kwargs.get('resolution',50)
 
     if isfunction(base_model):
         function = base_model
@@ -39,6 +40,7 @@ def integrated_flux_afterglowpy_base_model(time, **kwargs):
     tt = tt.flatten()
     nu = nu.flatten()
     kwargs['frequency'] = nu
+    kwargs['output_format'] = 'flux_density'
     flux_density = function(tt, **kwargs)
     lightcurve_at_nu = flux_density.reshape(len(nu_1d), len(time))
     prefactor = 1e-26
