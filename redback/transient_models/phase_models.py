@@ -37,9 +37,14 @@ def t0_base_model(time, t0, **kwargs):
     bad_time = time[time < 0.0]
     if kwargs['base_model'] in ['thin_shell_supernova', 'homologous_expansion_supernova']:
         kwargs['base_model'] = kwargs.get('submodel', 'arnett_bolometric')
-    output_real = function(transient_time, **kwargs)
+    temp_kwargs = kwargs.copy()
+    if 'frequency' in temp_kwargs:
+        temp_kwargs['frequency'] = kwargs['frequency'][time >= 0.0]
+    if 'bands' in temp_kwargs:
+        temp_kwargs['bands'] = kwargs['bands'][time >= 0.0]
+    output_real = function(transient_time, **temp_kwargs)
     if kwargs['output_format'] == 'magnitude':
-        output_fake = np.zeros(len(bad_time)) + 5000
+        output_fake = np.zeros(len(bad_time)) + 1000
     else:
         output_fake = np.zeros(len(bad_time))
     output = np.concatenate((output_fake, output_real))

@@ -49,9 +49,13 @@ class SimulateOpticalTransient(object):
         self.sncosmo_kwargs = sncosmo_kwargs
         self.obs_buffer = obs_buffer
         self.end_transient_time = self.parameters['t0_mjd_transient'] + end_transient_time
-        #self.parameters = self._update_parameters()
-        observations = self._make_observations()
-        self.observations = observations
+        self.observations = self._make_observations()
+        self.inference_observations = self._make_inference_dataframe()
+
+    def _make_inference_dataframe(self):
+        df = self.observations
+        df = df[df.detected != 0]
+        return df
 
     @property
     def min_dec(self):
@@ -78,19 +82,19 @@ class SimulateOpticalTransient(object):
         ref_flux = redback.utils.bands_to_reference_flux(unique_bands)
         return ref_flux
 
-    def _update_parameters(self):
-        parameters = self.parameters
-        if self.population:
-            size = len(parameters)
-        else:
-            size = 1
-        dec_dist = (np.arccos(2* np.random.uniform(low=(1 - np.sin(self.min_dec)) / 2,
-                                                   high=(1 - np.sin(self.max_dec)) / 2,
-                                                   size=size)- 1) - np.pi / 2)
-        parameters['ra'] = parameters.get("ra", np.random.uniform(0, 2*np.pi, size=size))
-        parameters['dec'] = parameters.get("dec", dec_dist)
-        parameters['t0_mjd_transient'] = parameters.get("MJD", np.random.uniform(self.start_mjd_survey, self.end_mjd_survey, size=size))
-        return parameters
+    # def _update_parameters(self):
+    #     parameters = self.parameters
+    #     if self.population:
+    #         size = len(parameters)
+    #     else:
+    #         size = 1
+    #     dec_dist = (np.arccos(2* np.random.uniform(low=(1 - np.sin(self.min_dec)) / 2,
+    #                                                high=(1 - np.sin(self.max_dec)) / 2,
+    #                                                size=size)- 1) - np.pi / 2)
+    #     parameters['ra'] = parameters.get("ra", np.random.uniform(0, 2*np.pi, size=size))
+    #     parameters['dec'] = parameters.get("dec", dec_dist)
+    #     parameters['t0_mjd_transient'] = parameters.get("MJD", np.random.uniform(self.start_mjd_survey, self.end_mjd_survey, size=size))
+    #     return parameters
 
     def _make_sncosmo_wrapper_for_redback_model(self):
         model_kwargs = {}
@@ -137,9 +141,9 @@ class SimulateOpticalTransient(object):
         # what can be preprocessed
         observed_flux = np.random.normal(loc=flux, scale=bandflux_errors)
         magnitudes = redback.utils.bandpass_flux_to_magnitude(observed_flux, filters)
-        # print('fluxtomag', magnitudes)
         magnitude_errs = redback.utils.magnitude_error_from_flux_error(flux, bandflux_errors)
         flux_density = calc_flux_density_from_ABmag(magnitude).value
+
         observation_dataframe = pd.DataFrame()
         observation_dataframe['time'] = overlapping_database['expMJD'].values
         observation_dataframe['magnitude'] = magnitudes
@@ -152,6 +156,11 @@ class SimulateOpticalTransient(object):
         observation_dataframe['flux(erg/cm2/s)'] = observed_flux
         observation_dataframe['flux_error'] = bandflux_errors
         observation_dataframe['time (days)'] = times
+        mask = (observation_dataframe['time (days)'] <= 0.) | (np.isnan(observation_dataframe['magnitude']))
+        detected = np.ones(len(observation_dataframe))
+        detected[mask] = 0
+        observation_dataframe['detected'] = detected
+        observation_dataframe['limiting_magnitude'] = overlapping_database['fiveSigmaDepth'].values
         return observation_dataframe
 
     def _make_observations(self):
