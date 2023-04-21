@@ -299,6 +299,7 @@ def make_pointing_table_from_average_cadence(ra, dec, num_obs, average_cadence, 
         band_pointings_dataframe = pd.DataFrame.from_dict({'expMJD': expMJD, '_ra': ras, '_dec': decs, 'filter': filters, 'fiveSigmaDepth': limiting_mag})
         df_list.append(band_pointings_dataframe)
     pointings_dataframe = pd.concat(df_list)
+    pointings_dataframe.sort_values('expMJD', inplace=True)
     return pointings_dataframe
 
 class SimulateFullOpticalSurvey(SimulateOpticalTransient):
