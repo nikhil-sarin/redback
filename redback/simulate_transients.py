@@ -4,7 +4,7 @@ import regex as re
 from sncosmo import TimeSeriesSource, Model, get_bandpass
 import redback
 import pandas as pd
-from redback.utils import logger
+from redback.utils import logger, calc_flux_density_error_from_monochromatic_magnitude, calc_flux_density_from_ABmag
 from itertools import repeat
 from collections import namedtuple
 import astropy.units as uu
@@ -16,8 +16,8 @@ class SimulateOpticalTransient(object):
     Simulate a single optical transient from a given observation dictionary
     """
     def __init__(self, model, parameters, pointings_database=None, survey='Rubin_10yr_baseline',
-                 min_dec=None,max_dec=None, start_mjd=None, end_mjd=None, sncosmo_kwargs=None, buffer_days=1, obs_buffer=5.0, end_transient_time=1000,
-                 population=False, model_kwargs=None, **kwargs):
+                 sncosmo_kwargs=None, buffer_days=1,
+                 obs_buffer=5.0, end_transient_time=1000, population=False, model_kwargs=None, **kwargs):
         if isinstance(model, str):
             self.model = redback.model_library.all_models_dict[model]
             model_kwargs['output_format'] = 'sncosmo_source'
@@ -47,31 +47,36 @@ class SimulateOpticalTransient(object):
         self.population = population
         self.parameters = parameters
         self.sncosmo_kwargs = sncosmo_kwargs
-        self.min_dec = min_dec
-        self.max_dec = max_dec
-        self.start_mjd_survey = start_mjd
-        self.end_mjd_survey = end_mjd
         self.obs_buffer = obs_buffer
         self.end_transient_time = self.parameters['t0_mjd_transient'] + end_transient_time
         #self.parameters = self._update_parameters()
         observations = self._make_observations()
         self.observations = observations
 
+    @property
+    def min_dec(self):
+        df = self.pointings_database
+        return np.min(df['_dec'])
+
+    @property
+    def max_dec(self):
+        df = self.pointings_database
+        return np.max(df['_dec'])
+
+    @property
+    def start_mjd(self):
+        df = self.pointings_database
+        return np.min(df['expMJD'])
+
+    @property
+    def end_mjd(self):
+        df = self.pointings_database
+        return np.max(df['expMJD'])
 
     def _get_unique_reference_fluxes(self):
         unique_bands = self.pointings_database.filters.unique()
         ref_flux = redback.utils.bands_to_reference_flux(unique_bands)
         return ref_flux
-
-    @property
-    def _initialise_from_pointings(self):
-        df = self.pointings_database
-        bandflux_errors = redback.utils.bandflux_error_from_limiting_mag(limiting_magnitudes, reference_flux)
-        min_dec = np.min(df['_dec'])
-        max_dec = np.max(df['_dec'])
-        start_mjd = np.min(df['expMJD'])
-        end_mjd = np.max(df['expMJD'])
-        return min_dec, max_dec, start_mjd, end_mjd
 
     def _update_parameters(self):
         parameters = self.parameters
@@ -122,28 +127,28 @@ class SimulateOpticalTransient(object):
         return survey_to_table[survey]
 
     def _make_observation_single(self, overlapping_database):
-        times = overlapping_database['expMJD'].values - self.parameters['t0_mjd_transient'] - self.buffer_days
-        print(times)
+        times = overlapping_database['expMJD'].values - self.parameters['t0_mjd_transient']
         filters = overlapping_database['filter'].values
-
-        flux = self.sncosmo_model.bandflux(phase=times, band=filters)
+        magnitude = self.sncosmo_model.bandmag(phase=times, band=filters, magsys='AB')
+        flux = redback.utils.bandpass_magnitude_to_flux(magnitude=magnitude, bands=filters)
         ref_flux = redback.utils.bands_to_reference_flux(filters)
-
-        bandflux_errors = redback.utils.bandflux_error_from_limiting_mag(overlapping_database['fiveSigmaDepth'].values, ref_flux)
+        bandflux_errors = redback.utils.bandflux_error_from_limiting_mag(overlapping_database['fiveSigmaDepth'].values,
+                                                                         ref_flux)
         # what can be preprocessed
-        print(flux)
         observed_flux = np.random.normal(loc=flux, scale=bandflux_errors)
         magnitudes = redback.utils.bandpass_flux_to_magnitude(observed_flux, filters)
+        # print('fluxtomag', magnitudes)
         magnitude_errs = redback.utils.magnitude_error_from_flux_error(flux, bandflux_errors)
-        print(magnitudes)
+        flux_density = calc_flux_density_from_ABmag(magnitude).value
         observation_dataframe = pd.DataFrame()
         observation_dataframe['time'] = overlapping_database['expMJD'].values
         observation_dataframe['magnitude'] = magnitudes
         observation_dataframe['e_magnitude'] = magnitude_errs
         observation_dataframe['band'] = filters
         observation_dataframe['system'] = 'AB'
-        observation_dataframe['flux_density(mjy)'] = 0
-        observation_dataframe['flux_density_error'] = 0
+        observation_dataframe['flux_density(mjy)'] = flux_density
+        observation_dataframe['flux_density_error'] = calc_flux_density_error_from_monochromatic_magnitude(
+            magnitude=magnitude, magnitude_error=magnitude_errs, reference_flux=3631)
         observation_dataframe['flux(erg/cm2/s)'] = observed_flux
         observation_dataframe['flux_error'] = bandflux_errors
         observation_dataframe['time (days)'] = times
