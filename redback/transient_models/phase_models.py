@@ -39,9 +39,11 @@ def t0_base_model(time, t0, **kwargs):
         kwargs['base_model'] = kwargs.get('submodel', 'arnett_bolometric')
     temp_kwargs = kwargs.copy()
     if 'frequency' in temp_kwargs:
-        temp_kwargs['frequency'] = kwargs['frequency'][time >= 0.0]
+        if isinstance(temp_kwargs['frequency'], np.ndarray):
+            temp_kwargs['frequency'] = kwargs['frequency'][time >= 0.0]
     if 'bands' in temp_kwargs:
-        temp_kwargs['bands'] = kwargs['bands'][time >= 0.0]
+        if isinstance(temp_kwargs['bands'], np.ndarray):
+            temp_kwargs['bands'] = kwargs['bands'][time >= 0.0]
     output_real = function(transient_time, **temp_kwargs)
     if kwargs['output_format'] == 'magnitude':
         output_fake = np.zeros(len(bad_time)) + 1000
