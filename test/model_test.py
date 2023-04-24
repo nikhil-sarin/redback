@@ -115,7 +115,7 @@ class TestFluxOutput(unittest.TestCase):
         kwargs = dict(frequency=2e14, bands='ztfg')
         times = np.array([1, 2, 3])
         valid_models = ['arnett', 'one_component_kilonova_model', 'slsn',
-                        'tde_analytical', 'basic_mergernova']
+                        'tde_analytical', 'basic_mergernova', 'csm_nickel']
         for f in self.prior_files:
             model_name = f.replace(".prior", "")
             if model_name in valid_models:
