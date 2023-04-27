@@ -103,20 +103,6 @@ class SimulateOpticalTransient(object):
         ref_flux = redback.utils.bands_to_reference_flux(unique_bands)
         return ref_flux
 
-    # def _update_parameters(self):
-    #     parameters = self.parameters
-    #     if self.population:
-    #         size = len(parameters)
-    #     else:
-    #         size = 1
-    #     dec_dist = (np.arccos(2* np.random.uniform(low=(1 - np.sin(self.min_dec)) / 2,
-    #                                                high=(1 - np.sin(self.max_dec)) / 2,
-    #                                                size=size)- 1) - np.pi / 2)
-    #     parameters['ra'] = parameters.get("ra", np.random.uniform(0, 2*np.pi, size=size))
-    #     parameters['dec'] = parameters.get("dec", dec_dist)
-    #     parameters['t0_mjd_transient'] = parameters.get("MJD", np.random.uniform(self.start_mjd_survey, self.end_mjd_survey, size=size))
-    #     return parameters
-
     def _make_sncosmo_wrapper_for_redback_model(self):
         model_kwargs = {}
         self.sncosmo_kwargs['max_time'] = self.sncosmo_kwargs.get('max_time', 100)
@@ -133,7 +119,7 @@ class SimulateOpticalTransient(object):
         """
         self.sncosmo_kwargs['max_time'] = self.sncosmo_kwargs.get('max_time', 100)
         self.parameters['wavelength_observer_frame'] = self.parameters.get('wavelength_observer_frame',
-                                                                          np.geomspace(100,20000,100))
+                                                                          np.geomspace(100,60000,100))
         time = self.sncosmo_kwargs.get('dense_times', np.linspace(0, self.sncosmo_kwargs['max_time'], 200))
         fmjy = self.model(time, **self.parameters)
         spectra = fmjy.to(uu.mJy).to(uu.erg / uu.cm ** 2 / uu.s / uu.Angstrom,
@@ -178,7 +164,7 @@ class SimulateOpticalTransient(object):
         observation_dataframe['time (days)'] = times
         mask = (observation_dataframe['time (days)'] <= 0.) | (np.isnan(observation_dataframe['magnitude']))
         snr = observed_flux/bandflux_errors
-        mask_snr = snr < 3.
+        mask_snr = snr < 8.
         detected = np.ones(len(observation_dataframe))
         detected[mask] = 0
         detected[mask_snr] = 0
@@ -187,26 +173,26 @@ class SimulateOpticalTransient(object):
         return observation_dataframe
 
     def _make_observations(self):
-        overlapping_sky_indices = self._find_sky_overlaps(survey_fov_rad=9.6)
+        overlapping_sky_indices = self._find_sky_overlaps(survey_fov_sqdeg=9.6)
         overlapping_time_indices = self._find_time_overlaps(self.obs_buffer)
 
         if self.population:
             space_set = set(overlapping_sky_indices)
         else:
-            space_set = set(overlapping_sky_indices[0])
+            space_set = set(overlapping_sky_indices)
 
         time_set = set(overlapping_time_indices)
 
         time_space_overlap = list(space_set.intersection(time_set))
 
         overlapping_database_iter = self.pointings_database.iloc[time_space_overlap]
-
+        overlapping_database_iter = overlapping_database_iter.sort_values(by=['expMJD'])
         dataframe = self._make_observation_single(overlapping_database_iter)
         return dataframe
 
 
-    def _convert_circular_fov_to_radius(self):
-        radius = np.sqrt(survey_fov*((np.pi/180.0)**2.0)/np.pi)
+    def _convert_circular_fov_to_radius(self, survey_fov_sqdeg):
+        radius = np.sqrt(survey_fov_sqdeg*((np.pi/180.0)**2.0)/np.pi)
         return radius
 
     def _find_time_overlaps(self, obs_buffer):
@@ -218,7 +204,7 @@ class SimulateOpticalTransient(object):
         return time_indices[0]
 
 
-    def _find_sky_overlaps(self, survey_fov_rad=None):
+    def _find_sky_overlaps(self, survey_fov_sqdeg=None):
         """
         Makes a pandas dataframe of pointings from specified settings.
 
@@ -232,16 +218,16 @@ class SimulateOpticalTransient(object):
         :return dataframe: pandas dataframe of the mock pointings needed to simulate observations for
         given transient.
         """
-        pointings_sky_pos = np.column_stack((np.deg2rad(self.pointings_database['_ra'].values), np.deg2rad(self.pointings_database['_dec'].values)))
-        transient_sky_pos = np.column_stack((np.deg2rad(self.parameters['ra'].values), np.deg2rad(self.parameters['dec'].values)))
-        survey_fov_rad = survey_fov_rad * (np.pi / 180.)
+        pointings_sky_pos = np.column_stack((self.pointings_database['_ra'].values, self.pointings_database['_dec'].values))
+        transient_sky_pos = np.column_stack((self.parameters['ra'].values, self.parameters['dec'].values))
+        survey_fov_radius = self._convert_circular_fov_to_radius(survey_fov_sqdeg=survey_fov_sqdeg)
 
         transient_sky_pos_3D = np.vstack([np.cos(transient_sky_pos[:,0]) * np.cos(transient_sky_pos[:,1]), np.sin(transient_sky_pos[:,0]) * np.cos(transient_sky_pos[:,1]), np.sin(transient_sky_pos[:,1])]).T
         pointings_sky_pos_3D = np.vstack([np.cos(pointings_sky_pos[:, 0]) * np.cos(pointings_sky_pos[:,1]), np.sin(pointings_sky_pos[:,0]) * np.cos(pointings_sky_pos[:,1]), np.sin(pointings_sky_pos[:,1])]).T
         # law of cosines to compute 3D distance
-        max_3D_dist = np.sqrt(2 - 2 * np.cos(survey_fov_rad))
+        max_3D_dist = np.sqrt(2. - 2. * np.cos(survey_fov_radius))
         survey_tree = KDTree(pointings_sky_pos_3D)
-        overlap_indices = survey_tree.query_ball_point(transient_sky_pos_3D, max_3D_dist)
+        overlap_indices = survey_tree.query_ball_point(x=transient_sky_pos_3D.T.flatten(), r=max_3D_dist)
         return overlap_indices
 
 
