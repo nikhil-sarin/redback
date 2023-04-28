@@ -375,23 +375,28 @@ class SimulateOpticalTransient(object):
         """
         Save the transient observations to a csv file.
         This will save the full observational dataframe including non-detections etc.
-        This will save the data to a folder called 'simulated' with the name of the transient.
+        This will save the data to a folder called 'simulated'
+        with the name of the transient and a csv file of the injection parameters
 
         :param name: name to save transient.
         """
         bilby.utils.check_directory_exists_and_if_not_mkdir('simulated')
         path = 'simulated/' + name + '.csv'
+        injection_path = 'simulated/' + name + '_injection_parameters.csv'
         self.observations.to_csv(path, index=False)
+        self.parameters.to_csv(injection_path, index=False)
 
     def save_transient_population(self, transient_names):
         """
         Save the transient population to a csv file.
         This will save the full observational dataframe including non-detections etc.
-        This will save the data to a folder called 'simulated' with the name of the transient.
+        This will save the data to a folder called 'simulated'
+        with the name of the transient and a csv file of the injection parameters
 
         :param transient_names: list of transient names.
         """
         bilby.utils.check_directory_exists_and_if_not_mkdir('simulated')
+        self.pararameters.to_csv('simulated/injection_parameters.csv', index=False)
         for ii, transient_name in enumerate(transient_names):
             transient = self.list_of_observations[ii]
             transient.to_csv('simulated/' + transient_name + '.csv', index=False)

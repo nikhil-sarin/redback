@@ -47,6 +47,8 @@ kn_sim = SimulateOpticalTransient.simulate_transient(model='one_component_kilono
 print(kn_sim.observations)
 
 # We can also save the observations to a file using the save_transient method.
+# This will save the observations to a csv file in a 'simulated' directory alongside the csv file
+# specifying the injection parameters.
 kn_sim.save_transient(name='my_kilonova')
 
 # # We can now load the data into a transient object for plotting and other tasks such as inference.
