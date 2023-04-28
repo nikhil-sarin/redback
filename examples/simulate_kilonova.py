@@ -41,7 +41,8 @@ parameters['dec'] = 1.5
 # We now simulate a kilonova using the SimulateOpticalTransient class.
 kn_sim = SimulateOpticalTransient.simulate_transient(model='one_component_kilonova_model',
                                        parameters=parameters, pointings_database=pointings,
-                                       survey=None, model_kwargs=model_kwargs, end_transient_time=10.)
+                                       survey=None, model_kwargs=model_kwargs,
+                                        end_transient_time=10., snr_threshold=5.0)
 
 # We can print the observations that were simulated to see what the data looks like. 
 print(kn_sim.observations)
@@ -51,6 +52,7 @@ print(kn_sim.observations)
 # specifying the injection parameters.
 kn_sim.save_transient(name='my_kilonova')
 
-# # We can now load the data into a transient object for plotting and other tasks such as inference.
+# We can now load the data into a transient object for plotting and other tasks such as inference.
+# Note that this will only the 'detected' data points. The user can add the non-detections back in if they wish.
 kn_object = redback.transient.Kilonova.from_simulated_optical_data(name='my_kilonova', data_mode='magnitude')
 kn_object.plot_data()

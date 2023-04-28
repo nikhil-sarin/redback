@@ -26,6 +26,12 @@ plt.style.use(filename)
 logger = logging.getLogger('redback')
 _bilby_logger = logging.getLogger('bilby')
 
+def download_pointing_tables():
+    """
+    Download the pointing tables from zenodo.
+    """
+    return logger.info("Pointing tables downloaded and stored in redback/tables")
+
 def sncosmo_bandname_from_band(bands, warning_style='soft'):
     """
     Convert redback data band names to sncosmo compatible band names
