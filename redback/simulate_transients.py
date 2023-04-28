@@ -10,6 +10,7 @@ from collections import namedtuple
 import astropy.units as uu
 from scipy.spatial import KDTree
 import os
+import bilby
 datadir = os.path.join(os.path.dirname(redback.__file__), 'tables')
 
 
@@ -370,26 +371,30 @@ class SimulateOpticalTransient(object):
         dataframe = self._make_observation_single(overlapping_database_iter)
         return dataframe
 
-    def save_transient(self, path):
+    def save_transient(self, name):
         """
         Save the transient observations to a csv file.
-        This will save the full observational dataframe including non-detections etc
+        This will save the full observational dataframe including non-detections etc.
+        This will save the data to a folder called 'simulated' with the name of the transient.
 
-        :param path: path to save transient. Must be the full path including the name of the transient
+        :param name: name to save transient.
         """
-        self.observations.to_csv(path)
+        bilby.utils.check_directory_exists_and_if_not_mkdir('simulated')
+        path = 'simulated/' + name + '.csv'
+        self.observations.to_csv(path, index=False)
 
-    def save_transient_population(self, path, transient_names):
+    def save_transient_population(self, transient_names):
         """
         Save the transient population to a csv file.
-        This will save the full observational dataframe including non-detections etc
+        This will save the full observational dataframe including non-detections etc.
+        This will save the data to a folder called 'simulated' with the name of the transient.
 
-        :param path: path to save transients. Transients will be saved to this location with the name of the transient
-        :param transient_names: list of transient names
+        :param transient_names: list of transient names.
         """
+        bilby.utils.check_directory_exists_and_if_not_mkdir('simulated')
         for ii, transient_name in enumerate(transient_names):
             transient = self.list_of_observations[ii]
-            transient.to_csv(path + transient_name + '.csv')
+            transient.to_csv('simulated/' + transient_name + '.csv', index=False)
 
 def make_pointing_table_from_average_cadence(ra, dec, num_obs, average_cadence, cadence_scatter, limiting_magnitudes, **kwargs):
     """
