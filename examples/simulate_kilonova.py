@@ -1,10 +1,6 @@
 # This example will show how to simulate a kilonova with a user-generated pointings table
-
-import numpy as np
 import redback
-import matplotlib.pyplot as plt
 from redback.simulate_transients import SimulateOpticalTransient
-from redback.model_library import all_models_dict
 
 
 # We first set up a table that contains the pointings of the telescope. 
@@ -54,8 +50,5 @@ print(kn_sim.observations)
 kn_sim.save_transient(name='my_kilonova')
 
 # # We can now load the data into a transient object for plotting and other tasks such as inference.
-# kn_object = redback.transient.Kilonova.from_simulated_data(name='230421', data_mode='magnitude',
-#                                                            time=kn_sim.inference_observations['time (days)'].values,magnitude=kn_sim.inference_observations['magnitude'].values,
-#     magnitude_err=kn_sim.inference_observations['e_magnitude'].values, bands=kn_sim.inference_observations['band'].values)
-# ax = kn_object.plot_data()
-# plt.show()
+kn_object = redback.transient.Kilonova.from_simulated_optical_data(name='my_kilonova', data_mode='magnitude')
+kn_object.plot_data()
