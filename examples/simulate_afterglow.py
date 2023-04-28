@@ -10,7 +10,7 @@ average_cadence = {'lsstg': 1.5, 'lsstr': 5.0, 'lssti': 2.5}
 cadence_scatter = {'lsstg': 0.5, 'lsstr':0.5, 'lssti':0.5}
 limiting_magnitudes = {'lsstg': 25.0, 'lsstr': 24.5, 'lssti': 23.0}
 pointings = redback.simulate_transients.make_pointing_table_from_average_cadence(
-    ra=2.0, dec=1.0, num_obs=num_obs, average_cadence=average_cadence,
+    ra=1.0, dec=1.5, num_obs=num_obs, average_cadence=average_cadence,
     cadence_scatter=cadence_scatter, limiting_magnitudes=limiting_magnitudes, initMJD=59581.0)
 print(pointings)
 model_kwargs = {'base_model':'gaussiancore', 'spread':False}
@@ -37,7 +37,7 @@ print(mag)
 
 AG_instance = SimulateOpticalTransient(model='one_component_kilonova_model',
                                        parameters=parameters, pointings_database=pointings,
-                                       survey=None, model_kwargs=model_kwargs, end_transient_time=100.)
+                                       survey=None, model_kwargs=model_kwargs, end_transient_time=10.)
 print(AG_instance.observations)
 afterglow = redback.transient.Afterglow(
     name='230421', data_mode='magnitude', time=AG_instance.inference_observations['time (days)'].values,
