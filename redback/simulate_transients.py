@@ -84,6 +84,71 @@ class SimulateOpticalTransient(object):
             self.observations = self._make_observations()
             self.inference_observations = self._make_inference_dataframe()
 
+    @classmethod
+    def simulate_transient(cls, model, parameters, pointings_database=None,
+                 survey='Rubin_10yr_baseline',sncosmo_kwargs=None, buffer_days=1, obs_buffer=5.0, survey_fov_sqdeg=9.6,
+                 snr_threshold=5, end_transient_time=1000, model_kwargs=None, **kwargs):
+        """
+        Constructor method to build simulated transient object for a single transient.
+
+        :param model: String corresponding to redback model or a python function that can evaluate an SED.
+        :param parameters: Dictionary of parameters describing a single transient or a transient population.
+        This can either include RA and DEC or it is randomly drawn from the pointing database.
+        Must include t0_mjd_transient or t0.
+        :param pointings_database: A pandas DataFrame containing the pointings of the survey.
+        :param survey: String corresponding to the survey name. This is used to look up the pointings database.
+        Set to LSST 10 year baseline 3.0 by default.
+        :param sncosmo_kwargs: Any kwargs to be passed to SNcosmo.
+        SNcosmo is used to evaluate the bandpass magnitudes in different bands.
+        :param buffer_days: A buffer in days to add to the start of the transient
+        to allow for non-detections to be placed. Default is 1 day
+        :param obs_buffer: A observation buffer in days to add to the start of the transient
+        to allow for non-detections. Default is 5 days
+        :param survey_fov_sqdeg: Survey field of view. Default is 9.6 sqdeg for Rubin.
+        :param snr_threshold: SNR threshold for detection. Default is 5.
+        :param end_transient_time: End time of the transient in days. Default is 1000 days.
+        Note that SNCosmo will extrapolate past when the transient model evaluates the SED so these should really be the same.
+        :param model_kwargs: Dictionary of kwargs to be passed to the model.
+        :param kwargs: Dictionary of additional kwargs
+
+        """
+        return cls(model=model, parameters=parameters, pointings_database=pointings_database, survey=survey,
+                   sncosmo_kwargs=sncosmo_kwargs, buffer_days=buffer_days, obs_buffer=obs_buffer,
+                   survey_fov_sqdeg=survey_fov_sqdeg, snr_threshold=snr_threshold, end_transient_time=end_transient_time,
+                   population=False, model_kwargs=model_kwargs, **kwargs)
+
+    @classmethod
+    def simulate_transient_population(cls, model, parameters, pointings_database=None,
+                 survey='Rubin_10yr_baseline',sncosmo_kwargs=None, buffer_days=1, obs_buffer=5.0, survey_fov_sqdeg=9.6,
+                 snr_threshold=5, end_transient_time=1000, model_kwargs=None, **kwargs):
+        """
+        Constructor method to build simulated transient object for a single transient.
+
+        :param model: String corresponding to redback model or a python function that can evaluate an SED.
+        :param parameters: Dictionary of parameters describing a single transient or a transient population.
+        This can either include RA and DEC or it is randomly drawn from the pointing database.
+        Must include t0_mjd_transient or t0.
+        :param pointings_database: A pandas DataFrame containing the pointings of the survey.
+        :param survey: String corresponding to the survey name. This is used to look up the pointings database.
+        Set to LSST 10 year baseline 3.0 by default.
+        :param sncosmo_kwargs: Any kwargs to be passed to SNcosmo.
+        SNcosmo is used to evaluate the bandpass magnitudes in different bands.
+        :param buffer_days: A buffer in days to add to the start of the transient
+        to allow for non-detections to be placed. Default is 1 day
+        :param obs_buffer: A observation buffer in days to add to the start of the transient
+        to allow for non-detections. Default is 5 days
+        :param survey_fov_sqdeg: Survey field of view. Default is 9.6 sqdeg for Rubin.
+        :param snr_threshold: SNR threshold for detection. Default is 5.
+        :param end_transient_time: End time of the transient in days. Default is 1000 days.
+        Note that SNCosmo will extrapolate past when the transient model evaluates the SED so these should really be the same.
+        :param model_kwargs: Dictionary of kwargs to be passed to the model.
+        :param kwargs: Dictionary of additional kwargs
+        """
+        return cls(model=model, parameters=parameters, pointings_database=pointings_database, survey=survey,
+                   sncosmo_kwargs=sncosmo_kwargs, buffer_days=buffer_days, obs_buffer=obs_buffer,
+                   survey_fov_sqdeg=survey_fov_sqdeg, snr_threshold=snr_threshold, end_transient_time=end_transient_time,
+                   population=False, model_kwargs=model_kwargs, **kwargs)
+
     def _make_inference_dataframe(self):
         """
         Make a dataframe that can be used for inference.
@@ -96,7 +161,7 @@ class SimulateOpticalTransient(object):
         return df
 
     @property
-    def _convert_circular_fov_to_radius(self):
+    def survey_radius(self):
         """
         Convert the circular field of view to a radius in radians.
         :return: survey_radius in radians
@@ -227,12 +292,15 @@ class SimulateOpticalTransient(object):
         """
         pointings_sky_pos = np.column_stack((self.pointings_database['_ra'].values, self.pointings_database['_dec'].values))
         transient_sky_pos = np.column_stack((self.parameters['ra'].values, self.parameters['dec'].values))
-        survey_fov_radius = self._convert_circular_fov_to_radius(survey_fov_sqdeg=self.survey_fov_sqdeg)
 
-        transient_sky_pos_3D = np.vstack([np.cos(transient_sky_pos[:,0]) * np.cos(transient_sky_pos[:,1]), np.sin(transient_sky_pos[:,0]) * np.cos(transient_sky_pos[:,1]), np.sin(transient_sky_pos[:,1])]).T
-        pointings_sky_pos_3D = np.vstack([np.cos(pointings_sky_pos[:, 0]) * np.cos(pointings_sky_pos[:,1]), np.sin(pointings_sky_pos[:,0]) * np.cos(pointings_sky_pos[:,1]), np.sin(pointings_sky_pos[:,1])]).T
+        transient_sky_pos_3D = np.vstack([np.cos(transient_sky_pos[:,0]) * np.cos(transient_sky_pos[:,1]),
+                                          np.sin(transient_sky_pos[:,0]) * np.cos(transient_sky_pos[:,1]),
+                                          np.sin(transient_sky_pos[:,1])]).T
+        pointings_sky_pos_3D = np.vstack([np.cos(pointings_sky_pos[:, 0]) * np.cos(pointings_sky_pos[:,1]),
+                                          np.sin(pointings_sky_pos[:,0]) * np.cos(pointings_sky_pos[:,1]),
+                                          np.sin(pointings_sky_pos[:,1])]).T
         # law of cosines to compute 3D distance
-        max_3D_dist = np.sqrt(2. - 2. * np.cos(survey_fov_radius))
+        max_3D_dist = np.sqrt(2. - 2. * np.cos(self.survey_radius))
         survey_tree = KDTree(pointings_sky_pos_3D)
         overlap_indices = survey_tree.query_ball_point(x=transient_sky_pos_3D.T.flatten(), r=max_3D_dist)
         return overlap_indices
@@ -322,44 +390,6 @@ class SimulateOpticalTransient(object):
         for ii, transient_name in enumerate(transient_names):
             transient = self.list_of_observations[ii]
             transient.to_csv(path + transient_name + '.csv')
-
-    @classmethod
-    def simulate_transient(cls, model, parameters, pointings_database=None, survey='Rubin_10yr_baseline',
-                           buffer_days=100, population=False, model_kwargs=None, **kwargs):
-        """
-        Makes a pandas dataframe of pointings from specified settings.
-
-        :param float: ra
-        :param float: dec
-        :param dict: num_obs
-        :param dict: average_cadence
-        :param dict: cadence_scatter
-        :param dict: limiting_magnitudes
-
-        :return dataframe: pandas dataframe of the mock pointings needed to simulate observations for
-        given transient.
-        """
-        return cls(model, parameters, pointings_database=pointings_database, survey=survey,
-                   buffer_days=buffer_days, population=population, model_kwargs=model_kwargs, **kwargs)
-
-    @classmethod
-    def simulate_transient_population(cls, model, parameters, pointings_database=None, survey='Rubin_10yr_baseline',
-                           buffer_days=100, population=True, **kwargs):
-        """
-        Makes a pandas dataframe of pointings from specified settings.
-
-        :param float: ra
-        :param float: dec
-        :param dict: num_obs
-        :param dict: average_cadence
-        :param dict: cadence_scatter
-        :param dict: limiting_magnitudes
-
-        :return dataframe: pandas dataframe of the mock pointings needed to simulate observations for
-        given transient.
-        """
-        return cls(model, parameters, pointings_database=pointings_database, survey=survey,
-                   buffer_days=buffer_days, population=population, **kwargs)
 
 def make_pointing_table_from_average_cadence(ra, dec, num_obs, average_cadence, cadence_scatter, limiting_magnitudes, **kwargs):
     """
