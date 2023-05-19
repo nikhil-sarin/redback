@@ -14,6 +14,7 @@ from inspect import isfunction
 import astropy.units as uu
 from collections import namedtuple
 from scipy.interpolate import interp1d
+import ipdb
 
 homologous_expansion_models = ['exponential_powerlaw_bolometric', 'arnett_bolometric',
                                'basic_magnetar_powered_bolometric','slsn_bolometric',
@@ -499,7 +500,7 @@ def slsn(time, redshift, p0, bp, mass_ns, theta_pb,**kwargs):
     """
     kwargs['interaction_process'] = kwargs.get("interaction_process", ip.Diffusion)
     kwargs['photosphere'] = kwargs.get("photosphere", photosphere.TemperatureFloor)
-    kwargs['sed'] = kwargs.get("sed", sed.CutoffBlackbody)
+    kwargs['sed'] = kwargs.get("sed", sed.CutoffBlackbody)   
     cutoff_wavelength = kwargs.get('cutoff_wavelength', 3000)
     dl = cosmo.luminosity_distance(redshift).cgs.value
 
@@ -525,11 +526,12 @@ def slsn(time, redshift, p0, bp, mass_ns, theta_pb,**kwargs):
         lbol = slsn_bolometric(time=time, p0=p0, bp=bp, mass_ns=mass_ns, theta_pb=theta_pb, **kwargs)
         photo = kwargs['photosphere'](time=time, luminosity=lbol, **kwargs)
         full_sed = np.zeros((len(time), len(frequency)))
+        #ipdb.set_trace()
         for ii in range(len(frequency)):
             ss = kwargs['sed'](time=time, temperature=photo.photosphere_temperature,
                                r_photosphere=photo.r_photosphere, frequency=frequency[ii],
                                luminosity_distance=dl, cutoff_wavelength=cutoff_wavelength, luminosity=lbol)
-            full_sed[:, ii] = ss.flux_density.to(uu.mJy).value
+            full_sed[:, ii] = ss.flux_density.to(uu.mJy).value            
         spectra = (full_sed * uu.mJy).to(uu.erg / uu.cm ** 2 / uu.s / uu.Angstrom,
                                          equivalencies=uu.spectral_density(wav=lambda_observer_frame * uu.Angstrom))
         if kwargs['output_format'] == 'spectra':
@@ -1440,7 +1442,7 @@ def general_magnetar_driven_supernova(time, redshift, mej, E_sn, kappa, l0, tau_
     
     else:
         time_obs = time
-        lambda_observer_frame = kwargs.get('lambda_array', np.geomspace(100, 60000, 200))
+        lambda_observer_frame = kwargs.get('lambda_array', np.geomspace(500, 60000, 200))
         time_temp = np.geomspace(1e0, 1e8, 2000) #in seconds
         time_observer_frame = time_temp * (1. + redshift)
         frequency, time = calc_kcorrected_properties(frequency=lambda_to_nu(lambda_observer_frame),
@@ -1480,11 +1482,12 @@ def general_magnetar_driven_supernova(time, redshift, mej, E_sn, kappa, l0, tau_
             return dynamics_output
         else: 
             full_sed = np.zeros((len(time), len(frequency)))
-            for ii in range(len(frequency)):
-                ss = kwargs['sed'](time=time_temp/day_to_s, temperature=photo.photosphere_temperature,
-                               r_photosphere=photo.r_photosphere, frequency=frequency[ii],
-                               luminosity_distance=dl, cutoff_wavelength=cutoff_wavelength, luminosity=output.bolometric_luminosity)
-                full_sed[:, ii] = ss.flux_density.to(uu.mJy).value
+            #for ii in range(len(frequency)):
+            ss = kwargs['sed'](time=time_temp/day_to_s, temperature=photo.photosphere_temperature,
+                           r_photosphere=photo.r_photosphere, frequency=frequency,
+                           luminosity_distance=dl, cutoff_wavelength=cutoff_wavelength, luminosity=output.bolometric_luminosity)
+            full_sed = ss.flux_density.to(uu.mJy).value
+            #ipdb.set_trace()
             spectra = (full_sed * uu.mJy).to(uu.erg / uu.cm ** 2 / uu.s / uu.Angstrom,
                                         equivalencies=uu.spectral_density(wav=lambda_observer_frame * uu.Angstrom))
             if kwargs['output_format'] == 'spectra':

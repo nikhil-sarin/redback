@@ -5,6 +5,7 @@ from sncosmo import TimeSeriesSource
 
 from redback.constants import *
 from redback.utils import nu_to_lambda, bandpass_magnitude_to_flux, citation_wrapper, lambda_to_nu
+import ipdb
 
 
 def blackbody_to_flux_density(temperature, r_photosphere, dl, frequency):
@@ -95,16 +96,17 @@ class CutoffBlackbody(_SED):
         self.temperature = temperature
         self.r_photosphere = r_photosphere
         self.cutoff_wavelength = cutoff_wavelength * angstrom_cgs
+        self.frequency1d = self.frequency 
 
         self.norms = None
 
-        self.sed = np.zeros(len(self.time))
+        self.sed = np.zeros((len(self.time),len(self.frequency1d)))
         self.calculate_flux_density()
+        #ipdb.set_trace()
 
     @property
-    def wavelength(self):
-        if len(self.frequency) == 1:
-            self.frequency = np.ones(len(self.time)) * self.frequency
+    def wavelength(self):       
+        self.frequency = np.ones((len(self.time),len(self.frequency1d))) * self.frequency1d
         wavelength = nu_to_lambda(self.frequency) * angstrom_cgs
         return wavelength
 
@@ -117,6 +119,8 @@ class CutoffBlackbody(_SED):
         return self.X_CONST * np.array(range(1, 11))
 
     def _set_sed(self):
+        self.r_photosphere = np.ones((len(self.r_photosphere),len(self.frequency1d))) * self.r_photosphere.reshape(-1, 1)
+        self.temperature = np.ones((len(self.temperature),len(self.frequency1d))) * self.temperature.reshape(-1, 1)
         self.sed[self.mask] = \
             self.FLUX_CONST * (self.r_photosphere[self.mask]**2 / self.cutoff_wavelength /
                                self.wavelength[self.mask] ** 4) \
@@ -125,7 +129,7 @@ class CutoffBlackbody(_SED):
             self.FLUX_CONST * (self.r_photosphere[~self.mask]**2 / self.wavelength[~self.mask]**5) \
             / np.expm1(self.X_CONST / self.wavelength[~self.mask] / self.temperature[~self.mask])
         # Apply renormalisation
-        self.sed *= self.norms[np.searchsorted(self.unique_times, self.time)]
+        self.sed *= self.norms[np.searchsorted(self.unique_times, self.time)].reshape(-1, 1)
 
     def _set_norm(self):
         self.norms = self.luminosity[self.uniq_is] / \
