@@ -4,7 +4,7 @@ import numpy as np
 import redback
 
 
-sampler = 'dynesty'
+sampler = 'nestle'
 # lots of different models implemented, including
 # afterglow/magnetar varieties/n_dimensional_fireball/shapelets/band function/kilonova/SNe/TDE
 model = 'one_component_kilonova_model'
@@ -17,7 +17,7 @@ kilonova = redback.kilonova.Kilonova.from_open_access_catalogue(
     name=kne, data_mode="flux_density", active_bands=np.array(["g", "i"]))
 kilonova.plot_data(show=False)
 fig, axes = plt.subplots(3, 2, sharex=True, sharey=True, figsize=(12, 8))
-kilonova.plot_multiband(figure=fig, axes=axes, filters=["g", "r", "i", "z", "y", "J"], plot_show=False)
+kilonova.plot_multiband(figure=fig, axes=axes, filters=["g", "r", "i", "z", "y", "J"], show=False)
 
 # use default priors
 priors = redback.priors.get_priors(model=model)
@@ -28,6 +28,6 @@ result = redback.fit_model(transient=kilonova, model=model, sampler=sampler, mod
                            prior=priors, sample='rslice', nlive=1000, resume=True)
 result.plot_corner()
 # returns a Kilonova result object
-result.plot_lightcurve(plot_show=False)
+result.plot_lightcurve(show=True)
 # Even though we only fit the 'g' band, we can still plot the fit for different bands.
-result.plot_multiband_lightcurve(filters=["g", "r", "i", "z", "y", "J"], plot_show=False)
+result.plot_multiband_lightcurve(filters=["g", "r", "i", "z", "y", "J"], show=True)
