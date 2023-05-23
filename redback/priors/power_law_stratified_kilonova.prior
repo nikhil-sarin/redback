@@ -1,5 +1,5 @@
 redshift = Uniform(1e-3, 0.1, 'redshift', latex_label = r'$z$')
-mej = Uniform(1e-4, 0.1, 'mej', latex_label = r'$M_{\mathrm{ej}} [M_{\odot}]$')
+mej = Uniform(1e-2, 0.05, 'mej', latex_label = r'$M_{\mathrm{ej}} [M_{\odot}]$')
 voffset = Uniform(0.1, 0.4, 'voffset', latex_label = r'$v_{\mathrm{offset}}$')
 v0 = DeltaFunction(0.1, 'v0', latex_label = r'$v_0$')
 alpha = Uniform(0.5, 8, 'alpha', latex_label = r'$\\alpha$')
