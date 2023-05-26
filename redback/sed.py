@@ -71,8 +71,8 @@ class CutoffBlackbody(_SED):
     reference = "https://ui.adsabs.harvard.edu/abs/2017ApJ...850...55N/abstract"
 
     def __init__(self, time: np.ndarray, temperature: np.ndarray, luminosity: np.ndarray, r_photosphere: np.ndarray,
-                 frequency: Union[float, np.ndarray], luminosity_distance: float, cutoff_wavelength: float,
-                 **kwargs: None) -> None:
+                frequency: Union[float, np.ndarray], luminosity_distance: float, cutoff_wavelength: float,
+                **kwargs: None) -> None:
         """
         Blackbody SED with a cutoff
 
@@ -96,17 +96,16 @@ class CutoffBlackbody(_SED):
         self.temperature = temperature
         self.r_photosphere = r_photosphere
         self.cutoff_wavelength = cutoff_wavelength * angstrom_cgs
-        self.frequency1d = self.frequency 
 
         self.norms = None
 
-        self.sed = np.zeros((len(self.time),len(self.frequency1d)))
+        self.sed = np.zeros(len(self.time))
         self.calculate_flux_density()
-        #ipdb.set_trace()
 
     @property
-    def wavelength(self):       
-        self.frequency = np.ones((len(self.time),len(self.frequency1d))) * self.frequency1d
+    def wavelength(self):
+        if len(self.frequency) == 1:
+            self.frequency = np.ones(len(self.time)) * self.frequency
         wavelength = nu_to_lambda(self.frequency) * angstrom_cgs
         return wavelength
 
@@ -119,8 +118,6 @@ class CutoffBlackbody(_SED):
         return self.X_CONST * np.array(range(1, 11))
 
     def _set_sed(self):
-        self.r_photosphere = np.ones((len(self.r_photosphere),len(self.frequency1d))) * self.r_photosphere.reshape(-1, 1)
-        self.temperature = np.ones((len(self.temperature),len(self.frequency1d))) * self.temperature.reshape(-1, 1)
         self.sed[self.mask] = \
             self.FLUX_CONST * (self.r_photosphere[self.mask]**2 / self.cutoff_wavelength /
                                self.wavelength[self.mask] ** 4) \
@@ -129,12 +126,12 @@ class CutoffBlackbody(_SED):
             self.FLUX_CONST * (self.r_photosphere[~self.mask]**2 / self.wavelength[~self.mask]**5) \
             / np.expm1(self.X_CONST / self.wavelength[~self.mask] / self.temperature[~self.mask])
         # Apply renormalisation
-        self.sed *= self.norms[np.searchsorted(self.unique_times, self.time)].reshape(-1, 1)
+        self.sed *= self.norms[np.searchsorted(self.unique_times, self.time)]
 
     def _set_norm(self):
         self.norms = self.luminosity[self.uniq_is] / \
                      (self.FLUX_CONST / angstrom_cgs * self.r_photosphere[self.uniq_is] ** 2 * self.temperature[
-                         self.uniq_is])
+                     self.uniq_is])
 
         tp = self.temperature[self.uniq_is].reshape(len(self.unique_times), 1)
         tp2 = tp ** 2
@@ -143,7 +140,7 @@ class CutoffBlackbody(_SED):
         c1 = np.exp(-self.nxcs / (self.cutoff_wavelength * tp))
 
         term_1 = \
-             c1 * (self.nxcs ** 2 + 2 * (self.nxcs * self.cutoff_wavelength * tp + self.cutoff_wavelength ** 2 * tp2)) \
+            c1 * (self.nxcs ** 2 + 2 * (self.nxcs * self.cutoff_wavelength * tp + self.cutoff_wavelength ** 2 * tp2)) \
             / (self.nxcs ** 3 * self.cutoff_wavelength ** 3)
         term_2 = \
             (6 * tp3 - c1 *
@@ -157,6 +154,7 @@ class CutoffBlackbody(_SED):
         self._set_norm()
         self._set_sed()
         return self.flux_density
+
 
 
 class Blackbody(object):

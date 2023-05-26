@@ -1435,7 +1435,7 @@ def general_magnetar_driven_supernova(time, redshift, mej, E_sn, kappa, l0, tau_
         rad = rad_func(time)  
         lbol = bol_func(time)
         sed_1 = kwargs['sed'](time=time, luminosity=lbol, temperature=temp,
-    	                                      r_photosphere=rad, frequency=frequency, luminosity_distance=dl,
+                                              r_photosphere=rad, frequency=frequency, luminosity_distance=dl,
                                               cutoff_wavelength=cutoff_wavelength) 
         flux_density = sed_1.flux_density
         return flux_density.to(uu.mJy).value      
