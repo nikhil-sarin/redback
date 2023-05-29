@@ -64,6 +64,7 @@ class Plotter(object):
 
     fontsize_axes = KwargsAccessorWithDefault("fontsize_axes", 18)
     fontsize_figure = KwargsAccessorWithDefault("fontsize_figure", 30)
+    fontsize_legend = KwargsAccessorWithDefault("fontsize_legend", 18)
     hspace = KwargsAccessorWithDefault("hspace", 0.04)
     wspace = KwargsAccessorWithDefault("wspace", 0.15)
 
@@ -107,6 +108,7 @@ class Plotter(object):
         :keyword horizontalalignment: Horizontal alignment of the annotation. Default is 'right'
         :keyword annotation_size: `size` argument of of `ax.annotate`.
         :keyword fontsize_axes: Font size of the x and y labels.
+        :keyword fontsize_legend: Font size of the legend.
         :keyword fontsize_figure: Font size of the figure. Relevant for multiband plots.
                                   Used on `supxlabel` and `supylabel`.
         :keyword hspace: Argument for `subplots_adjust`, sets horizontal spacing between panels.
@@ -534,7 +536,7 @@ class MagnitudePlotter(Plotter):
         ax.set_ylabel(self._ylabel, fontsize=self.fontsize_axes)
 
         ax.tick_params(axis='x', pad=self.x_axis_tick_params_pad)
-        ax.legend(ncol=self.legend_cols, loc=self.legend_location)
+        ax.legend(ncol=self.legend_cols, loc=self.legend_location, fontsize=self.fontsize_legend)
 
         self._save_and_show(filepath=self._data_plot_filepath, save=save, show=show)
         return ax
@@ -641,7 +643,7 @@ class MagnitudePlotter(Plotter):
 
             self._set_x_axis(axes[ii])
             self._set_y_axis_multiband_data(axes[ii], indices)
-            axes[ii].legend(ncol=self.legend_cols, loc=self.legend_location)
+            axes[ii].legend(ncol=self.legend_cols, loc=self.legend_location, fontsize=self.fontsize_legend)
             axes[ii].tick_params(axis='both', which='major', pad=8)
             ii += 1
 
