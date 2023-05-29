@@ -70,6 +70,7 @@ class Plotter(object):
     plot_others = KwargsAccessorWithDefault("plot_others", True)
     random_models = KwargsAccessorWithDefault("random_models", 100)
     uncertainty_mode = KwargsAccessorWithDefault("uncertainty_mode", "random_models")
+    credible_interval_level = KwargsAccessorWithDefault("credible_interval_level", 0.9)
     plot_max_likelihood = KwargsAccessorWithDefault("plot_max_likelihood", True)
 
     xlim_high_multiplier = 2.0
@@ -115,6 +116,7 @@ class Plotter(object):
         :keyword uncertainty_mode: 'random_models': Plot random draws from the available parameter sets.
                                    'credible_intervals': Plot a credible interval that is calculated based
                                    on the available parameter sets.
+        :keyword credible_interval_level: 0.9: Plot the 90% credible interval.
         :keyword xlim_high_multiplier: Adjust the maximum xlim based on available x values.
         :keyword xlim_low_multiplier: Adjust the minimum xlim based on available x values.
         :keyword ylim_high_multiplier: Adjust the maximum ylim based on available x values.
@@ -575,7 +577,8 @@ class MagnitudePlotter(Plotter):
                 for ys in random_ys_list:
                     axes.plot(times - self._reference_mjd_date, ys, color='red', alpha=0.05, lw=2, zorder=-1)
             elif self.uncertainty_mode == "credible_intervals":
-                lower_bound, upper_bound, _ = redback.utils.calc_credible_intervals(samples=random_ys_list)
+                lower_bound, upper_bound, _ = redback.utils.calc_credible_intervals(samples=random_ys_list,
+                                                                                    interval=self.credible_interval_level)
                 axes.fill_between(
                     times - self._reference_mjd_date, lower_bound, upper_bound,
                     alpha=self.uncertainty_band_alpha, color=color)
