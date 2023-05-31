@@ -176,7 +176,7 @@ def _metzger_tde(mbh_6, stellar_mass, eta, alpha, beta, **kwargs):
     output.SMBH_accretion_rate = MdotBH[:constraint]
     output.time_temp = time_temp[:constraint]
     output.time_since_fb = output.time_temp - output.time_temp[0]
-    output.termination_time = output.time_since_fb[constraint]
+    output.termination_time = time_temp[constraint] - tfb
     output.tfb = tfb
     output.nulnu = nuLnu40[:constraint] * 1e40
     return output
