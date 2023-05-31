@@ -152,7 +152,7 @@ def _metzger_tde(mbh_6, stellar_mass, eta, alpha, beta, **kwargs):
                                    'photosphere_radius', 'lum_xray', 'accretion_radius',
                                    'SMBH_accretion_rate', 'time_temp', 'nulnu',
                                    'time_since_fb','tfb', 'lnu', 'envelope_radius', 'envelope_mass',
-                                   'rtidal', 'rcirc'])
+                                   'rtidal', 'rcirc', 'termination_time'])
     # constraint_1 = np.min(np.where(Rv < Rcirc/2.))
     constraint_1 = len(time_temp)
     constraint_2 = np.min(np.where(Me < 0.0))
@@ -176,6 +176,7 @@ def _metzger_tde(mbh_6, stellar_mass, eta, alpha, beta, **kwargs):
     output.SMBH_accretion_rate = MdotBH[:constraint]
     output.time_temp = time_temp[:constraint]
     output.time_since_fb = output.time_temp - output.time_temp[0]
+    output.termination_time = output.time_since_fb[:constraint]
     output.tfb = tfb
     output.nulnu = nuLnu40[:constraint] * 1e40
     return output
