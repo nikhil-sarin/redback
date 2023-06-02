@@ -1,12 +1,9 @@
 import numpy as np
-from typing import Union
-import regex as re
 from sncosmo import TimeSeriesSource, Model, get_bandpass
 import redback
 import pandas as pd
 from redback.utils import logger, calc_flux_density_error_from_monochromatic_magnitude, calc_flux_density_from_ABmag
 from itertools import repeat
-from collections import namedtuple
 import astropy.units as uu
 from scipy.spatial import KDTree
 import os
@@ -27,7 +24,8 @@ class SimulateOpticalTransient(object):
         Must include t0_mjd_transient or t0.
         :param pointings_database: A pandas DataFrame containing the pointings of the survey.
         :param survey: String corresponding to the survey name. This is used to look up the pointings database.
-        Set to LSST 10 year baseline 3.0 by default.
+        Set to LSST 10 year baseline 3.0 by default. If None, the user must supply a pointings_database.
+        Implemented surveys currently include a Rubin 10 year baseline 3.0 as 'Rubin_10yr_baseline, and ZTF as 'ztf'.
         :param sncosmo_kwargs: Any kwargs to be passed to SNcosmo.
         SNcosmo is used to evaluate the bandpass magnitudes in different bands.
         :param buffer_days: A buffer in days to add to the start of the transient
@@ -35,6 +33,7 @@ class SimulateOpticalTransient(object):
         :param obs_buffer: A observation buffer in days to add to the start of the transient
         to allow for non-detections. Default is 5 days
         :param survey_fov_sqdeg: Survey field of view. Default is 9.6 sqdeg for Rubin.
+        36" for ZTF as a circular approximation to the square FOV of ZTF.
         :param snr_threshold: SNR threshold for detection. Default is 5.
         :param end_transient_time: End time of the transient in days. Default is 1000 days.
         Note that SNCosmo will extrapolate past when the transient model evaluates the SED so these should really be the same.
@@ -119,6 +118,69 @@ class SimulateOpticalTransient(object):
                    population=False, model_kwargs=model_kwargs, **kwargs)
 
     @classmethod
+    def simulate_transient_in_rubin(cls, model, parameters, pointings_database=None,
+                 survey='Rubin_10yr_baseline',sncosmo_kwargs=None, buffer_days=1, obs_buffer=5.0,
+                snr_threshold=5, end_transient_time=1000, model_kwargs=None, **kwargs):
+        """
+        Constructor method to build simulated transient object for a single transient with Rubin.
+
+        :param model: String corresponding to redback model or a python function that can evaluate an SED.
+        :param parameters: Dictionary of parameters describing a single transient or a transient population.
+        This can either include RA and DEC or it is randomly drawn from the pointing database.
+        Must include t0_mjd_transient or t0.
+        :param pointings_database: A pandas DataFrame containing the pointings of the survey.
+        :param survey: String corresponding to the survey name. This is used to look up the pointings database.
+        Set to LSST 10 year baseline 3.0 by default.
+        :param sncosmo_kwargs: Any kwargs to be passed to SNcosmo.
+        SNcosmo is used to evaluate the bandpass magnitudes in different bands.
+        :param buffer_days: A buffer in days to add to the start of the transient
+        to allow for non-detections to be placed. Default is 1 day
+        :param obs_buffer: A observation buffer in days to add to the start of the transient
+        to allow for non-detections. Default is 5 days
+        :param snr_threshold: SNR threshold for detection. Default is 5.
+        :param end_transient_time: End time of the transient in days. Default is 1000 days.
+        Note that SNCosmo will extrapolate past when the transient model evaluates the SED so these should really be the same.
+        :param model_kwargs: Dictionary of kwargs to be passed to the model.
+        :param kwargs: Dictionary of additional kwargs
+
+        """
+        return cls(model=model, parameters=parameters, pointings_database=pointings_database, survey=survey,
+                   sncosmo_kwargs=sncosmo_kwargs, buffer_days=buffer_days, obs_buffer=obs_buffer,
+                   survey_fov_sqdeg=9.6, snr_threshold=snr_threshold, end_transient_time=end_transient_time,
+                   population=False, model_kwargs=model_kwargs, **kwargs)
+
+    @classmethod
+    def simulate_transient_in_ztf(cls, model, parameters, pointings_database=None,
+                 survey='ztf',sncosmo_kwargs=None, buffer_days=1, obs_buffer=5.0,
+                  snr_threshold=5, end_transient_time=1000, model_kwargs=None, **kwargs):
+        """
+        Constructor method to build simulated transient object for a single transient with ZTF.
+
+        :param model: String corresponding to redback model or a python function that can evaluate an SED.
+        :param parameters: Dictionary of parameters describing a single transient or a transient population.
+        This can either include RA and DEC or it is randomly drawn from the pointing database.
+        Must include t0_mjd_transient or t0.
+        :param pointings_database: A pandas DataFrame containing the pointings of the survey.
+        :param survey: String corresponding to the survey name. This is used to look up the pointings database.
+        :param sncosmo_kwargs: Any kwargs to be passed to SNcosmo.
+        SNcosmo is used to evaluate the bandpass magnitudes in different bands.
+        :param buffer_days: A buffer in days to add to the start of the transient
+        to allow for non-detections to be placed. Default is 1 day
+        :param obs_buffer: A observation buffer in days to add to the start of the transient
+        to allow for non-detections. Default is 5 days
+        :param snr_threshold: SNR threshold for detection. Default is 5.
+        :param end_transient_time: End time of the transient in days. Default is 1000 days.
+        Note that SNCosmo will extrapolate past when the transient model evaluates the SED so these should really be the same.
+        :param model_kwargs: Dictionary of kwargs to be passed to the model.
+        :param kwargs: Dictionary of additional kwargs
+
+        """
+        return cls(model=model, parameters=parameters, pointings_database=pointings_database, survey=survey,
+                   sncosmo_kwargs=sncosmo_kwargs, buffer_days=buffer_days, obs_buffer=obs_buffer,
+                   survey_fov_sqdeg=36, snr_threshold=snr_threshold, end_transient_time=end_transient_time,
+                   population=False, model_kwargs=model_kwargs, **kwargs)
+
+    @classmethod
     def simulate_transient_population(cls, model, parameters, pointings_database=None,
                  survey='Rubin_10yr_baseline',sncosmo_kwargs=None, buffer_days=1, obs_buffer=5.0, survey_fov_sqdeg=9.6,
                  snr_threshold=5, end_transient_time=1000, model_kwargs=None, **kwargs):
@@ -148,6 +210,67 @@ class SimulateOpticalTransient(object):
         return cls(model=model, parameters=parameters, pointings_database=pointings_database, survey=survey,
                    sncosmo_kwargs=sncosmo_kwargs, buffer_days=buffer_days, obs_buffer=obs_buffer,
                    survey_fov_sqdeg=survey_fov_sqdeg, snr_threshold=snr_threshold, end_transient_time=end_transient_time,
+                   population=False, model_kwargs=model_kwargs, **kwargs)
+
+    @classmethod
+    def simulate_transient_population_in_rubin(cls, model, parameters, pointings_database=None,
+                 survey='Rubin_10yr_baseline',sncosmo_kwargs=None, buffer_days=1, obs_buffer=5.0,
+                 snr_threshold=5, end_transient_time=1000, model_kwargs=None, **kwargs):
+        """
+        Constructor method to build simulated transient object for a single transient.
+
+        :param model: String corresponding to redback model or a python function that can evaluate an SED.
+        :param parameters: Dictionary of parameters describing a single transient or a transient population.
+        This can either include RA and DEC or it is randomly drawn from the pointing database.
+        Must include t0_mjd_transient or t0.
+        :param pointings_database: A pandas DataFrame containing the pointings of the survey.
+        :param survey: String corresponding to the survey name. This is used to look up the pointings database.
+        Set to LSST 10 year baseline 3.0 by default.
+        :param sncosmo_kwargs: Any kwargs to be passed to SNcosmo.
+        SNcosmo is used to evaluate the bandpass magnitudes in different bands.
+        :param buffer_days: A buffer in days to add to the start of the transient
+        to allow for non-detections to be placed. Default is 1 day
+        :param obs_buffer: A observation buffer in days to add to the start of the transient
+        to allow for non-detections. Default is 5 days
+        :param snr_threshold: SNR threshold for detection. Default is 5.
+        :param end_transient_time: End time of the transient in days. Default is 1000 days.
+        Note that SNCosmo will extrapolate past when the transient model evaluates the SED so these should really be the same.
+        :param model_kwargs: Dictionary of kwargs to be passed to the model.
+        :param kwargs: Dictionary of additional kwargs
+        """
+        return cls(model=model, parameters=parameters, pointings_database=pointings_database, survey=survey,
+                   sncosmo_kwargs=sncosmo_kwargs, buffer_days=buffer_days, obs_buffer=obs_buffer,
+                   survey_fov_sqdeg=9.6, snr_threshold=snr_threshold, end_transient_time=end_transient_time,
+                   population=False, model_kwargs=model_kwargs, **kwargs)
+
+    @classmethod
+    def simulate_transient_population_in_ztf(cls, model, parameters, pointings_database=None,
+                 survey='ztf',sncosmo_kwargs=None, buffer_days=1, obs_buffer=5.0,
+                 snr_threshold=5, end_transient_time=1000, model_kwargs=None, **kwargs):
+        """
+        Constructor method to build simulated transient object for a single transient.
+
+        :param model: String corresponding to redback model or a python function that can evaluate an SED.
+        :param parameters: Dictionary of parameters describing a single transient or a transient population.
+        This can either include RA and DEC or it is randomly drawn from the pointing database.
+        Must include t0_mjd_transient or t0.
+        :param pointings_database: A pandas DataFrame containing the pointings of the survey.
+        :param survey: String corresponding to the survey name. This is used to look up the pointings database.
+        :param sncosmo_kwargs: Any kwargs to be passed to SNcosmo.
+        SNcosmo is used to evaluate the bandpass magnitudes in different bands.
+        :param buffer_days: A buffer in days to add to the start of the transient
+        to allow for non-detections to be placed. Default is 1 day
+        :param obs_buffer: A observation buffer in days to add to the start of the transient
+        to allow for non-detections. Default is 5 days
+        :param snr_threshold: SNR threshold for detection. Default is 5.
+        :param end_transient_time: End time of the transient in days. Default is 1000 days.
+        Note that SNCosmo will extrapolate past when the transient model evaluates the SED so these should really be the same.
+        :param model_kwargs: Dictionary of kwargs to be passed to the model.
+        :param kwargs: Dictionary of additional kwargs
+        """
+        return cls(model=model, parameters=parameters, pointings_database=pointings_database, survey=survey,
+                   sncosmo_kwargs=sncosmo_kwargs, buffer_days=buffer_days, obs_buffer=obs_buffer,
+                   survey_fov_sqdeg=36, snr_threshold=snr_threshold, end_transient_time=end_transient_time,
                    population=False, model_kwargs=model_kwargs, **kwargs)
 
     def _make_inference_dataframe(self):
@@ -269,8 +392,8 @@ class SimulateOpticalTransient(object):
         survey_to_table = {'Rubin_10yr_baseline': 'rubin_baseline_v3.0_10yrs.tar.gz',
                            'Rubin_10yr_morez': 'rubin_morez.tar.gz',
                            'Rubin_10yr_lessweight': 'rubin_lessweight.tar.gz',
-                           'ZTF_deep': 'ztf_deep_nexp1_v1_7_10yrs.tar.gz',
-                           'ZTF_wfd': 'ztf_wfd_nexp1_v1_7_10yrs.tar.gz'}
+                           'ztf': 'ztf.tar.gz',
+                           'roman': 'roman.tar.gz'}
         return survey_to_table[survey]
 
     def _find_time_overlaps(self):
