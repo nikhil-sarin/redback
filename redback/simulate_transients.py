@@ -210,7 +210,7 @@ class SimulateOpticalTransient(object):
         return cls(model=model, parameters=parameters, pointings_database=pointings_database, survey=survey,
                    sncosmo_kwargs=sncosmo_kwargs, buffer_days=buffer_days, obs_buffer=obs_buffer,
                    survey_fov_sqdeg=survey_fov_sqdeg, snr_threshold=snr_threshold, end_transient_time=end_transient_time,
-                   population=False, model_kwargs=model_kwargs, **kwargs)
+                   population=True, model_kwargs=model_kwargs, **kwargs)
 
     @classmethod
     def simulate_transient_population_in_rubin(cls, model, parameters, pointings_database=None,
@@ -241,7 +241,7 @@ class SimulateOpticalTransient(object):
         return cls(model=model, parameters=parameters, pointings_database=pointings_database, survey=survey,
                    sncosmo_kwargs=sncosmo_kwargs, buffer_days=buffer_days, obs_buffer=obs_buffer,
                    survey_fov_sqdeg=9.6, snr_threshold=snr_threshold, end_transient_time=end_transient_time,
-                   population=False, model_kwargs=model_kwargs, **kwargs)
+                   population=True, model_kwargs=model_kwargs, **kwargs)
 
     @classmethod
     def simulate_transient_population_in_ztf(cls, model, parameters, pointings_database=None,
@@ -271,7 +271,7 @@ class SimulateOpticalTransient(object):
         return cls(model=model, parameters=parameters, pointings_database=pointings_database, survey=survey,
                    sncosmo_kwargs=sncosmo_kwargs, buffer_days=buffer_days, obs_buffer=obs_buffer,
                    survey_fov_sqdeg=36, snr_threshold=snr_threshold, end_transient_time=end_transient_time,
-                   population=False, model_kwargs=model_kwargs, **kwargs)
+                   population=True, model_kwargs=model_kwargs, **kwargs)
 
     def _make_inference_dataframe(self):
         """

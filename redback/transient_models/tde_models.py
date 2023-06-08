@@ -152,11 +152,13 @@ def _metzger_tde(mbh_6, stellar_mass, eta, alpha, beta, **kwargs):
                                    'photosphere_radius', 'lum_xray', 'accretion_radius',
                                    'SMBH_accretion_rate', 'time_temp', 'nulnu',
                                    'time_since_fb','tfb', 'lnu', 'envelope_radius', 'envelope_mass',
-                                   'rtidal', 'rcirc', 'termination_time'])
+                                   'rtidal', 'rcirc', 'termination_time', 'termination_time_id'])
     # constraint_1 = np.min(np.where(Rv < Rcirc/2.))
     constraint_1 = len(time_temp)
     constraint_2 = np.min(np.where(Me < 0.0))
     constraint = np.min([constraint_1, constraint_2])
+    constraint_1 = np.min(np.where(Rv < Rcirc/2.))
+    termination_time_id = np.min([constraint_1, constraint_2])
     nu = 6.0e14
     expon = 1. / (np.exp(cc.planck * nu / (cc.boltzmann_constant * Teff)) - 1.0)
     nuLnu40 = (8.0*np.pi ** (2.0) * Rph ** (2.0) / cc.speed_of_light ** (2.0))
@@ -176,7 +178,8 @@ def _metzger_tde(mbh_6, stellar_mass, eta, alpha, beta, **kwargs):
     output.SMBH_accretion_rate = MdotBH[:constraint]
     output.time_temp = time_temp[:constraint]
     output.time_since_fb = output.time_temp - output.time_temp[0]
-    output.termination_time = time_temp[constraint] - tfb
+    output.termination_time = time_temp[termination_time_id] - tfb
+    output.termination_time_id = termination_time_id
     output.tfb = tfb
     output.nulnu = nuLnu40[:constraint] * 1e40
     return output

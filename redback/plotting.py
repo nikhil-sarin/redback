@@ -120,6 +120,8 @@ class Plotter(object):
         :keyword uncertainty_mode: 'random_models': Plot random draws from the available parameter sets.
                                    'credible_intervals': Plot a credible interval that is calculated based
                                    on the available parameter sets.
+        :keyword reference_mjd_date: Date to use as reference point for the x axis.
+                                    Default is the first date in the data.
         :keyword credible_interval_level: 0.9: Plot the 90% credible interval.
         :keyword xlim_high_multiplier: Adjust the maximum xlim based on available x values.
         :keyword xlim_low_multiplier: Adjust the minimum xlim based on available x values.
