@@ -1349,7 +1349,7 @@ def one_component_kilonova_model(time, redshift, mej, vej, kappa, **kwargs):
     :return: set by output format - 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
     """
     dl = cosmo.luminosity_distance(redshift).cgs.value
-    time_temp = np.geomspace(1e-4, 3e6, 300) # in source frame
+    time_temp = np.geomspace(1e-2, 3e6, 300) # in source frame
     time_obs = time
     _, temperature, r_photosphere = _one_component_kilonova_model(time_temp, mej, vej, kappa, **kwargs)
 
