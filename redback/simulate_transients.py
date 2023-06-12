@@ -13,8 +13,9 @@ datadir = os.path.join(os.path.dirname(redback.__file__), 'tables')
 
 class SimulateOpticalTransient(object):
     def __init__(self, model, parameters, pointings_database=None,
-                 survey='Rubin_10yr_baseline',sncosmo_kwargs=None, buffer_days=1, obs_buffer=5.0, survey_fov_sqdeg=9.6,
-                 snr_threshold=5, end_transient_time=1000, population=False, model_kwargs=None, **kwargs):
+                 survey='Rubin_10yr_baseline',sncosmo_kwargs=None, buffer_days=1, obs_buffer=5.0,
+                 survey_fov_sqdeg=9.6,snr_threshold=5, end_transient_time=1000, add_source_noise=False,
+                 population=False, model_kwargs=None, **kwargs):
         """
         Simulate an optical transient or transient population for an optical Survey like Rubin, ZTF, Roman etc
 
@@ -37,10 +38,15 @@ class SimulateOpticalTransient(object):
         :param snr_threshold: SNR threshold for detection. Default is 5.
         :param end_transient_time: End time of the transient in days. Default is 1000 days.
         Note that SNCosmo will extrapolate past when the transient model evaluates the SED so these should really be the same.
+        :param add_source_noise: Boolean. If True, add an extra noise in quadrature to the limiting mag noise.
+        The factor is a multiple of the model flux i.e. noise = (skynoise**2 + (model_flux*source_noise)**2)**0.5
         :param population: Boolean. If True, the parameters are assumed to be for a population of transients.
         :param model_kwargs: Dictionary of kwargs to be passed to the model.
         :param kwargs: Dictionary of additional kwargs
+        :param source_noise: Float. Factor to multiply the model flux by to add an extra noise
+        in quadrature to the limiting mag noise. Default value is 0.02, disabled by default.
         """
+        self.add_source_noise = add_source_noise
         if isinstance(model, str):
             self.model = redback.model_library.all_models_dict[model]
             model_kwargs['output_format'] = 'sncosmo_source'
@@ -70,6 +76,7 @@ class SimulateOpticalTransient(object):
         self.survey_fov_sqdeg = survey_fov_sqdeg
         self.snr_threshold = snr_threshold
         self.population = population
+        self.source_noise_factor = kwargs.get('source_noise', 0.02)
         if population:
             self.parameters = pd.DataFrame(parameters)
         else:
@@ -87,7 +94,7 @@ class SimulateOpticalTransient(object):
     @classmethod
     def simulate_transient(cls, model, parameters, pointings_database=None,
                  survey='Rubin_10yr_baseline',sncosmo_kwargs=None, buffer_days=1, obs_buffer=5.0, survey_fov_sqdeg=9.6,
-                 snr_threshold=5, end_transient_time=1000, model_kwargs=None, **kwargs):
+                 snr_threshold=5, end_transient_time=1000, add_source_noise=False, model_kwargs=None, **kwargs):
         """
         Constructor method to build simulated transient object for a single transient.
 
@@ -108,19 +115,24 @@ class SimulateOpticalTransient(object):
         :param snr_threshold: SNR threshold for detection. Default is 5.
         :param end_transient_time: End time of the transient in days. Default is 1000 days.
         Note that SNCosmo will extrapolate past when the transient model evaluates the SED so these should really be the same.
+        :param add_source_noise: Boolean. If True, add an extra noise in quadrature to the limiting mag noise.
+        The factor is a multiple of the model flux i.e. noise = (skynoise**2 + (model_flux*source_noise)**2)**0.5
+        :param population: Boolean. If True, the parameters are assumed to be for a population of transients.
         :param model_kwargs: Dictionary of kwargs to be passed to the model.
         :param kwargs: Dictionary of additional kwargs
-
+        :param source_noise: Float. Factor to multiply the model flux by to add an extra noise
+        in quadrature to the limiting mag noise. Default value is 0.02, disabled by default.
         """
         return cls(model=model, parameters=parameters, pointings_database=pointings_database, survey=survey,
                    sncosmo_kwargs=sncosmo_kwargs, buffer_days=buffer_days, obs_buffer=obs_buffer,
-                   survey_fov_sqdeg=survey_fov_sqdeg, snr_threshold=snr_threshold, end_transient_time=end_transient_time,
+                   survey_fov_sqdeg=survey_fov_sqdeg, snr_threshold=snr_threshold,
+                   end_transient_time=end_transient_time, add_source_noise=add_source_noise,
                    population=False, model_kwargs=model_kwargs, **kwargs)
 
     @classmethod
     def simulate_transient_in_rubin(cls, model, parameters, pointings_database=None,
                  survey='Rubin_10yr_baseline',sncosmo_kwargs=None, buffer_days=1, obs_buffer=5.0,
-                snr_threshold=5, end_transient_time=1000, model_kwargs=None, **kwargs):
+                snr_threshold=5, end_transient_time=1000, add_source_noise=False, model_kwargs=None, **kwargs):
         """
         Constructor method to build simulated transient object for a single transient with Rubin.
 
@@ -140,19 +152,23 @@ class SimulateOpticalTransient(object):
         :param snr_threshold: SNR threshold for detection. Default is 5.
         :param end_transient_time: End time of the transient in days. Default is 1000 days.
         Note that SNCosmo will extrapolate past when the transient model evaluates the SED so these should really be the same.
+        :param add_source_noise: Boolean. If True, add an extra noise in quadrature to the limiting mag noise.
+        The factor is a multiple of the model flux i.e. noise = (skynoise**2 + (model_flux*source_noise)**2)**0.5
         :param model_kwargs: Dictionary of kwargs to be passed to the model.
         :param kwargs: Dictionary of additional kwargs
-
+        :param source_noise: Float. Factor to multiply the model flux by to add an extra noise
+        in quadrature to the limiting mag noise. Default value is 0.02, disabled by default.
         """
         return cls(model=model, parameters=parameters, pointings_database=pointings_database, survey=survey,
                    sncosmo_kwargs=sncosmo_kwargs, buffer_days=buffer_days, obs_buffer=obs_buffer,
-                   survey_fov_sqdeg=9.6, snr_threshold=snr_threshold, end_transient_time=end_transient_time,
+                   survey_fov_sqdeg=9.6, snr_threshold=snr_threshold,
+                   end_transient_time=end_transient_time, add_source_noise=add_source_noise,
                    population=False, model_kwargs=model_kwargs, **kwargs)
 
     @classmethod
     def simulate_transient_in_ztf(cls, model, parameters, pointings_database=None,
                  survey='ztf',sncosmo_kwargs=None, buffer_days=1, obs_buffer=5.0,
-                  snr_threshold=5, end_transient_time=1000, model_kwargs=None, **kwargs):
+                  snr_threshold=5, end_transient_time=1000, add_source_noise=False, model_kwargs=None, **kwargs):
         """
         Constructor method to build simulated transient object for a single transient with ZTF.
 
@@ -171,19 +187,23 @@ class SimulateOpticalTransient(object):
         :param snr_threshold: SNR threshold for detection. Default is 5.
         :param end_transient_time: End time of the transient in days. Default is 1000 days.
         Note that SNCosmo will extrapolate past when the transient model evaluates the SED so these should really be the same.
+        :param add_source_noise: Boolean. If True, add an extra noise in quadrature to the limiting mag noise.
+        The factor is a multiple of the model flux i.e. noise = (skynoise**2 + (model_flux*source_noise)**2)**0.5
         :param model_kwargs: Dictionary of kwargs to be passed to the model.
         :param kwargs: Dictionary of additional kwargs
-
+        :param source_noise: Float. Factor to multiply the model flux by to add an extra noise
+        in quadrature to the limiting mag noise. Default value is 0.02, disabled by default.
         """
         return cls(model=model, parameters=parameters, pointings_database=pointings_database, survey=survey,
                    sncosmo_kwargs=sncosmo_kwargs, buffer_days=buffer_days, obs_buffer=obs_buffer,
-                   survey_fov_sqdeg=36, snr_threshold=snr_threshold, end_transient_time=end_transient_time,
+                   survey_fov_sqdeg=36., snr_threshold=snr_threshold,
+                   end_transient_time=end_transient_time,add_source_noise=add_source_noise,
                    population=False, model_kwargs=model_kwargs, **kwargs)
 
     @classmethod
     def simulate_transient_population(cls, model, parameters, pointings_database=None,
                  survey='Rubin_10yr_baseline',sncosmo_kwargs=None, buffer_days=1, obs_buffer=5.0, survey_fov_sqdeg=9.6,
-                 snr_threshold=5, end_transient_time=1000, model_kwargs=None, **kwargs):
+                 snr_threshold=5, end_transient_time=1000, add_source_noise=False, model_kwargs=None, **kwargs):
         """
         Constructor method to build simulated transient object for a single transient.
 
@@ -204,18 +224,23 @@ class SimulateOpticalTransient(object):
         :param snr_threshold: SNR threshold for detection. Default is 5.
         :param end_transient_time: End time of the transient in days. Default is 1000 days.
         Note that SNCosmo will extrapolate past when the transient model evaluates the SED so these should really be the same.
+        :param add_source_noise: Boolean. If True, add an extra noise in quadrature to the limiting mag noise.
+        The factor is a multiple of the model flux i.e. noise = (skynoise**2 + (model_flux*source_noise)**2)**0.5
         :param model_kwargs: Dictionary of kwargs to be passed to the model.
         :param kwargs: Dictionary of additional kwargs
+        :param source_noise: Float. Factor to multiply the model flux by to add an extra noise
+        in quadrature to the limiting mag noise. Default value is 0.02, disabled by default.
         """
         return cls(model=model, parameters=parameters, pointings_database=pointings_database, survey=survey,
                    sncosmo_kwargs=sncosmo_kwargs, buffer_days=buffer_days, obs_buffer=obs_buffer,
-                   survey_fov_sqdeg=survey_fov_sqdeg, snr_threshold=snr_threshold, end_transient_time=end_transient_time,
+                   survey_fov_sqdeg=survey_fov_sqdeg, snr_threshold=snr_threshold,
+                   end_transient_time=end_transient_time, add_source_noise=add_source_noise,
                    population=True, model_kwargs=model_kwargs, **kwargs)
 
     @classmethod
     def simulate_transient_population_in_rubin(cls, model, parameters, pointings_database=None,
                  survey='Rubin_10yr_baseline',sncosmo_kwargs=None, buffer_days=1, obs_buffer=5.0,
-                 snr_threshold=5, end_transient_time=1000, model_kwargs=None, **kwargs):
+                 snr_threshold=5, end_transient_time=1000, add_source_noise=False, model_kwargs=None, **kwargs):
         """
         Constructor method to build simulated transient object for a single transient.
 
@@ -234,19 +259,23 @@ class SimulateOpticalTransient(object):
         to allow for non-detections. Default is 5 days
         :param snr_threshold: SNR threshold for detection. Default is 5.
         :param end_transient_time: End time of the transient in days. Default is 1000 days.
-        Note that SNCosmo will extrapolate past when the transient model evaluates the SED so these should really be the same.
+        :param add_source_noise: Boolean. If True, add an extra noise in quadrature to the limiting mag noise.
+        The factor is a multiple of the model flux i.e. noise = (skynoise**2 + (model_flux*source_noise)**2)**0.5
         :param model_kwargs: Dictionary of kwargs to be passed to the model.
         :param kwargs: Dictionary of additional kwargs
+        :param source_noise: Float. Factor to multiply the model flux by to add an extra noise
+        in quadrature to the limiting mag noise. Default value is 0.02, disabled by default.
         """
         return cls(model=model, parameters=parameters, pointings_database=pointings_database, survey=survey,
                    sncosmo_kwargs=sncosmo_kwargs, buffer_days=buffer_days, obs_buffer=obs_buffer,
-                   survey_fov_sqdeg=9.6, snr_threshold=snr_threshold, end_transient_time=end_transient_time,
+                   survey_fov_sqdeg=9.6, snr_threshold=snr_threshold,
+                   end_transient_time=end_transient_time,add_source_noise=add_source_noise,
                    population=True, model_kwargs=model_kwargs, **kwargs)
 
     @classmethod
     def simulate_transient_population_in_ztf(cls, model, parameters, pointings_database=None,
                  survey='ztf',sncosmo_kwargs=None, buffer_days=1, obs_buffer=5.0,
-                 snr_threshold=5, end_transient_time=1000, model_kwargs=None, **kwargs):
+                 snr_threshold=5, end_transient_time=1000, add_source_noise=False, model_kwargs=None, **kwargs):
         """
         Constructor method to build simulated transient object for a single transient.
 
@@ -265,12 +294,17 @@ class SimulateOpticalTransient(object):
         :param snr_threshold: SNR threshold for detection. Default is 5.
         :param end_transient_time: End time of the transient in days. Default is 1000 days.
         Note that SNCosmo will extrapolate past when the transient model evaluates the SED so these should really be the same.
+        :param add_source_noise: Boolean. If True, add an extra noise in quadrature to the limiting mag noise.
+        The factor is a multiple of the model flux i.e. noise = (skynoise**2 + (model_flux*source_noise)**2)**0.5
         :param model_kwargs: Dictionary of kwargs to be passed to the model.
         :param kwargs: Dictionary of additional kwargs
+        :param source_noise: Float. Factor to multiply the model flux by to add an extra noise
+        in quadrature to the limiting mag noise. Default value is 0.02, disabled by default.
         """
         return cls(model=model, parameters=parameters, pointings_database=pointings_database, survey=survey,
                    sncosmo_kwargs=sncosmo_kwargs, buffer_days=buffer_days, obs_buffer=obs_buffer,
-                   survey_fov_sqdeg=36, snr_threshold=snr_threshold, end_transient_time=end_transient_time,
+                   survey_fov_sqdeg=36., snr_threshold=snr_threshold,
+                   end_transient_time=end_transient_time, add_source_noise=add_source_noise,
                    population=True, model_kwargs=model_kwargs, **kwargs)
 
     def _make_inference_dataframe(self):
@@ -290,7 +324,9 @@ class SimulateOpticalTransient(object):
         Convert the circular field of view to a radius in radians.
         :return: survey_radius in radians
         """
-        survey_radius = np.sqrt(self.survey_fov_sqdeg*((np.pi/180.0)**2.0)/np.pi)
+        survey_fov_sqrad = self.survey_fov_sqdeg*(np.pi/180.0)
+        survey_radius = np.sqrt(survey_fov_sqrad/np.pi)
+        # survey_radius = np.sqrt(self.survey_fov_sqdeg*((np.pi/180.0)**2.0)/np.pi)
         return survey_radius
 
     @property
@@ -444,6 +480,8 @@ class SimulateOpticalTransient(object):
         ref_flux = redback.utils.bands_to_reference_flux(filters)
         bandflux_errors = redback.utils.bandflux_error_from_limiting_mag(overlapping_database['fiveSigmaDepth'].values,
                                                                          ref_flux)
+        if self.add_source_noise:
+            bandflux_errors = np.sqrt(bandflux_errors**2 + self.source_noise_factor*flux**2)
         # what can be preprocessed
         observed_flux = np.random.normal(loc=flux, scale=bandflux_errors)
         magnitudes = redback.utils.bandpass_flux_to_magnitude(observed_flux, filters)
