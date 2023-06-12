@@ -46,12 +46,32 @@ class SimulateOpticalTransient(object):
         :param source_noise: Float. Factor to multiply the model flux by to add an extra noise
         in quadrature to the limiting mag noise. Default value is 0.02, disabled by default.
         """
+
+        self.buffer_days = buffer_days
+        self.survey_fov_sqdeg = survey_fov_sqdeg
+        self.snr_threshold = snr_threshold
+        self.population = population
+        self.source_noise_factor = kwargs.get('source_noise', 0.02)
+        if population:
+            self.parameters = pd.DataFrame(parameters)
+        else:
+            self.parameters = pd.DataFrame(parameters, index=[0])
+        self.sncosmo_kwargs = sncosmo_kwargs
+        self.obs_buffer = obs_buffer
+        self.end_transient_time = self.t0_transient + end_transient_time
         self.add_source_noise = add_source_noise
+
         if isinstance(model, str):
             self.model = redback.model_library.all_models_dict[model]
             model_kwargs['output_format'] = 'sncosmo_source'
             _time_array = np.linspace(0.1, 3000.0, 10)
-            self.sncosmo_model = self.model(_time_array, **parameters, **model_kwargs)
+            if self.population:
+                self.all_sncosmo_models = []
+                for x in range(len(self.parameters)):
+                    sncosmomodel = self.model(_time_array, **self.parameters.iloc[x], **model_kwargs)
+                    self.all_sncosmo_models.append(sncosmomodel)
+            else:
+                self.sncosmo_model = self.model(_time_array, **parameters, **model_kwargs)
         elif callable(model):
             self.model = model
             logger.info('Using custom model. Making a SNCosmo wrapper for this model')
@@ -72,23 +92,15 @@ class SimulateOpticalTransient(object):
                 raise ValueError("The user needs to specify survey as either a string or a "
                                  "pointings_database pandas DataFrame.")
 
-        self.buffer_days = buffer_days
-        self.survey_fov_sqdeg = survey_fov_sqdeg
-        self.snr_threshold = snr_threshold
-        self.population = population
-        self.source_noise_factor = kwargs.get('source_noise', 0.02)
+        self.parameters['ra'] = self.RA
+        self.parameters['dec'] = self.DEC
+
         if population:
-            self.parameters = pd.DataFrame(parameters)
-        else:
-            self.parameters = pd.DataFrame(parameters, index=[0])
-        self.sncosmo_kwargs = sncosmo_kwargs
-        self.obs_buffer = obs_buffer
-        self.end_transient_time = self.t0_transient + end_transient_time
-        if population:
-            self.list_of_observations = self._make_observations()
+            self.list_of_observations = self._make_observations_for_population()
             self.list_of_inference_observations = self._make_inference_dataframe()
         else:
             self.observations = self._make_observations()
+            self.inference_observations = self._make_inference_dataframe()
             self.inference_observations = self._make_inference_dataframe()
 
     @classmethod
@@ -314,9 +326,19 @@ class SimulateOpticalTransient(object):
 
         :return:
         """
-        df = self.observations
-        df = df[df.detected != 0]
-        return df
+        if self.population:
+            all_data = self.list_of_observations
+            events = len(self.parameters)
+            dfs = []
+            for x in range(events):
+                df = all_data[x]
+                df = df[df.detected != 0]
+                dfs.append(df)
+            return dfs
+        else:
+            df = self.observations
+            df = df[df.detected != 0]
+            return df
 
     @property
     def survey_radius(self):
@@ -345,9 +367,9 @@ class SimulateOpticalTransient(object):
         :return: The RA of the transient in radians. Draw randomly from the pointings database if not supplied.
         """
         if 'ra' in self.parameters:
-            RA = self.parameters['ra']
+            RA = self.parameters['ra'].values
         else:
-            RA = self.pointings_database['_ra'].sample(len(self.parameters))
+            RA = self.pointings_database['_ra'].sample(len(self.parameters)).values
         return RA
 
     @property
@@ -356,9 +378,9 @@ class SimulateOpticalTransient(object):
         :return: The DEC of the transient in radians. Draw randomly from the pointings database if not supplied.
         """
         if 'dec' in self.parameters:
-            dec = self.parameters['dec']
+            dec = self.parameters['dec'].values
         else:
-            dec = self.pointings_database['_dec'].sample(len(self.parameters))
+            dec = self.pointings_database['_dec'].sample(len(self.parameters)).values
         return dec
 
     @property
@@ -439,11 +461,18 @@ class SimulateOpticalTransient(object):
         :return: indices of the pointings database that overlap with the transient.
         """
         pointing_times = self.pointings_database[['expMJD']].values.flatten()
-        condition_1 = pointing_times >= self.t0_transient.values - self.obs_buffer
-        condition_2 = pointing_times <= self.end_transient_time.values
+        if self.population:
+            condition_1 = pointing_times >= self.t0_transient.values[:, None] - self.obs_buffer
+            condition_2 = pointing_times <= self.end_transient_time.values[:, None]
+        else:
+            condition_1 = pointing_times >= self.t0_transient.values - self.obs_buffer
+            condition_2 = pointing_times <= self.end_transient_time.values
         mask = np.logical_and(condition_1, condition_2)
-        time_indices = np.where(mask)
-        return time_indices[0]
+        if self.population:
+            return mask
+        else:
+            time_indices = np.where(mask)
+            return time_indices[0]
 
 
     def _find_sky_overlaps(self):
@@ -462,20 +491,23 @@ class SimulateOpticalTransient(object):
         # law of cosines to compute 3D distance
         max_3D_dist = np.sqrt(2. - 2. * np.cos(self.survey_radius))
         survey_tree = KDTree(pointings_sky_pos_3D)
-        overlap_indices = survey_tree.query_ball_point(x=transient_sky_pos_3D.T.flatten(), r=max_3D_dist)
+        if self.population:
+            overlap_indices = survey_tree.query_ball_point(x=transient_sky_pos_3D, r=max_3D_dist)
+        else:
+            overlap_indices = survey_tree.query_ball_point(x=transient_sky_pos_3D.T.flatten(), r=max_3D_dist)
         return overlap_indices
 
 
-    def _make_observation_single(self, overlapping_database):
+    def _make_observation_single(self, overlapping_database, t0_transient, sncosmo_model):
         """
         Calculate properties of the transient at the overlapping pointings for a single transient.
 
         :param overlapping_database:
         :return: Dataframe of observations including non-detections/upper limits
         """
-        times = overlapping_database['expMJD'].values - self.t0_transient.values
+        times = overlapping_database['expMJD'].values - t0_transient
         filters = overlapping_database['filter'].values
-        magnitude = self.sncosmo_model.bandmag(phase=times, band=filters, magsys='AB')
+        magnitude = sncosmo_model.bandmag(phase=times, band=filters, magsys='AB')
         flux = redback.utils.bandpass_magnitude_to_flux(magnitude=magnitude, bands=filters)
         ref_flux = redback.utils.bands_to_reference_flux(filters)
         bandflux_errors = redback.utils.bandflux_error_from_limiting_mag(overlapping_database['fiveSigmaDepth'].values,
@@ -512,37 +544,61 @@ class SimulateOpticalTransient(object):
 
     def _make_observations(self):
         """
-        Calculate properties of the transient at the overlapping pointings for a single transient or transient population.
+        Calculate properties of the transient at the overlapping pointings for a single transient.
         :return: Dataframe of observations including non-detections/upper limits
         """
         overlapping_sky_indices = self._find_sky_overlaps()
         overlapping_time_indices = self._find_time_overlaps()
 
-        if self.population:
-            space_set = set(overlapping_sky_indices)
-        else:
-            space_set = set(overlapping_sky_indices)
-
+        space_set = set(overlapping_sky_indices)
         time_set = set(overlapping_time_indices)
-
         time_space_overlap = list(space_set.intersection(time_set))
-
         overlapping_database_iter = self.pointings_database.iloc[time_space_overlap]
         overlapping_database_iter = overlapping_database_iter.sort_values(by=['expMJD'])
-        dataframe = self._make_observation_single(overlapping_database_iter)
+        dataframe = self._make_observation_single(overlapping_database_iter,
+                                                  t0_transient=self.t0_transient.values,
+                                                  sncosmo_model=self.sncosmo_model)
         return dataframe
 
-    def save_transient_population(self, transient_names):
+    def _make_observations_for_population(self):
+        """
+        Calculate properties of the transient at the overlapping pointings for a transient population.
+        :return: Dataframe of observations including non-detections/upper limits
+        """
+        dfs = []
+        overlapping_sky_indices = self._find_sky_overlaps()
+        time_mask = self._find_time_overlaps()
+        for x in range(len(self.parameters)):
+            overlapping_time_indices = np.where(time_mask[x])[0]
+            space_set = set(overlapping_sky_indices[x])
+            time_set = set(overlapping_time_indices)
+            time_space_overlap = list(space_set.intersection(time_set))
+            overlapping_database_iter = self.pointings_database.iloc[time_space_overlap]
+            overlapping_database_iter = overlapping_database_iter.sort_values(by=['expMJD'])
+            dataframe = self._make_observation_single(overlapping_database_iter,
+                                                      t0_transient=self.t0_transient.iloc[x],
+                                                      sncosmo_model=self.all_sncosmo_models[x])
+            dfs.append(dataframe)
+        return dfs
+
+
+    def save_transient_population(self, transient_names=None, **kwargs):
         """
         Save the transient population to a csv file.
         This will save the full observational dataframe including non-detections etc.
         This will save the data to a folder called 'simulated'
         with the name of the transient and a csv file of the injection parameters
 
-        :param transient_names: list of transient names.
+        :param transient_names: list of transient names. Default is None which will label transients as event_0, etc
+        :param kwargs: kwargs for the save_transient function
+        :param injection_file_path: path to save the injection file
+        :return: None
         """
+        injection_file_name = kwargs.get('injection_file_path', 'simulated/population_injection_parameters.csv')
+        if transient_names is None:
+            transient_names = ['event_' + str(x) for x in range(len(self.list_of_observations))]
         bilby.utils.check_directory_exists_and_if_not_mkdir('simulated')
-        self.pararameters.to_csv('simulated/injection_parameters.csv', index=False)
+        self.parameters.to_csv(injection_file_name, index=False)
         for ii, transient_name in enumerate(transient_names):
             transient = self.list_of_observations[ii]
             transient.to_csv('simulated/' + transient_name + '.csv', index=False)
