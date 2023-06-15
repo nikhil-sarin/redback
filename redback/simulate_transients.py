@@ -13,7 +13,7 @@ datadir = os.path.join(os.path.dirname(redback.__file__), 'tables')
 
 class SimulateOpticalTransient(object):
     def __init__(self, model, parameters, pointings_database=None,
-                 survey='Rubin_10yr_baseline',sncosmo_kwargs=None, buffer_days=1, obs_buffer=5.0,
+                 survey='Rubin_10yr_baseline',sncosmo_kwargs=None, obs_buffer=5.0,
                  survey_fov_sqdeg=9.6,snr_threshold=5, end_transient_time=1000, add_source_noise=False,
                  population=False, model_kwargs=None, **kwargs):
         """
@@ -29,8 +29,6 @@ class SimulateOpticalTransient(object):
         Implemented surveys currently include a Rubin 10 year baseline 3.0 as 'Rubin_10yr_baseline, and ZTF as 'ztf'.
         :param sncosmo_kwargs: Any kwargs to be passed to SNcosmo.
         SNcosmo is used to evaluate the bandpass magnitudes in different bands.
-        :param buffer_days: A buffer in days to add to the start of the transient
-        to allow for non-detections to be placed. Default is 1 day
         :param obs_buffer: A observation buffer in days to add to the start of the transient
         to allow for non-detections. Default is 5 days
         :param survey_fov_sqdeg: Survey field of view. Default is 9.6 sqdeg for Rubin.
@@ -47,7 +45,6 @@ class SimulateOpticalTransient(object):
         in quadrature to the limiting mag noise. Default value is 0.02, disabled by default.
         """
 
-        self.buffer_days = buffer_days
         self.survey_fov_sqdeg = survey_fov_sqdeg
         self.snr_threshold = snr_threshold
         self.population = population
@@ -105,7 +102,7 @@ class SimulateOpticalTransient(object):
 
     @classmethod
     def simulate_transient(cls, model, parameters, pointings_database=None,
-                 survey='Rubin_10yr_baseline',sncosmo_kwargs=None, buffer_days=1, obs_buffer=5.0, survey_fov_sqdeg=9.6,
+                 survey='Rubin_10yr_baseline',sncosmo_kwargs=None, obs_buffer=5.0, survey_fov_sqdeg=9.6,
                  snr_threshold=5, end_transient_time=1000, add_source_noise=False, model_kwargs=None, **kwargs):
         """
         Constructor method to build simulated transient object for a single transient.
@@ -119,8 +116,6 @@ class SimulateOpticalTransient(object):
         Set to LSST 10 year baseline 3.0 by default.
         :param sncosmo_kwargs: Any kwargs to be passed to SNcosmo.
         SNcosmo is used to evaluate the bandpass magnitudes in different bands.
-        :param buffer_days: A buffer in days to add to the start of the transient
-        to allow for non-detections to be placed. Default is 1 day
         :param obs_buffer: A observation buffer in days to add to the start of the transient
         to allow for non-detections. Default is 5 days
         :param survey_fov_sqdeg: Survey field of view. Default is 9.6 sqdeg for Rubin.
@@ -136,14 +131,14 @@ class SimulateOpticalTransient(object):
         in quadrature to the limiting mag noise. Default value is 0.02, disabled by default.
         """
         return cls(model=model, parameters=parameters, pointings_database=pointings_database, survey=survey,
-                   sncosmo_kwargs=sncosmo_kwargs, buffer_days=buffer_days, obs_buffer=obs_buffer,
+                   sncosmo_kwargs=sncosmo_kwargs, obs_buffer=obs_buffer,
                    survey_fov_sqdeg=survey_fov_sqdeg, snr_threshold=snr_threshold,
                    end_transient_time=end_transient_time, add_source_noise=add_source_noise,
                    population=False, model_kwargs=model_kwargs, **kwargs)
 
     @classmethod
     def simulate_transient_in_rubin(cls, model, parameters, pointings_database=None,
-                 survey='Rubin_10yr_baseline',sncosmo_kwargs=None, buffer_days=1, obs_buffer=5.0,
+                 survey='Rubin_10yr_baseline',sncosmo_kwargs=None, obs_buffer=5.0,
                 snr_threshold=5, end_transient_time=1000, add_source_noise=False, model_kwargs=None, **kwargs):
         """
         Constructor method to build simulated transient object for a single transient with Rubin.
@@ -157,8 +152,6 @@ class SimulateOpticalTransient(object):
         Set to LSST 10 year baseline 3.0 by default.
         :param sncosmo_kwargs: Any kwargs to be passed to SNcosmo.
         SNcosmo is used to evaluate the bandpass magnitudes in different bands.
-        :param buffer_days: A buffer in days to add to the start of the transient
-        to allow for non-detections to be placed. Default is 1 day
         :param obs_buffer: A observation buffer in days to add to the start of the transient
         to allow for non-detections. Default is 5 days
         :param snr_threshold: SNR threshold for detection. Default is 5.
@@ -172,14 +165,14 @@ class SimulateOpticalTransient(object):
         in quadrature to the limiting mag noise. Default value is 0.02, disabled by default.
         """
         return cls(model=model, parameters=parameters, pointings_database=pointings_database, survey=survey,
-                   sncosmo_kwargs=sncosmo_kwargs, buffer_days=buffer_days, obs_buffer=obs_buffer,
+                   sncosmo_kwargs=sncosmo_kwargs, obs_buffer=obs_buffer,
                    survey_fov_sqdeg=9.6, snr_threshold=snr_threshold,
                    end_transient_time=end_transient_time, add_source_noise=add_source_noise,
                    population=False, model_kwargs=model_kwargs, **kwargs)
 
     @classmethod
     def simulate_transient_in_ztf(cls, model, parameters, pointings_database=None,
-                 survey='ztf',sncosmo_kwargs=None, buffer_days=1, obs_buffer=5.0,
+                 survey='ztf',sncosmo_kwargs=None, obs_buffer=5.0,
                   snr_threshold=5, end_transient_time=1000, add_source_noise=False, model_kwargs=None, **kwargs):
         """
         Constructor method to build simulated transient object for a single transient with ZTF.
@@ -192,8 +185,6 @@ class SimulateOpticalTransient(object):
         :param survey: String corresponding to the survey name. This is used to look up the pointings database.
         :param sncosmo_kwargs: Any kwargs to be passed to SNcosmo.
         SNcosmo is used to evaluate the bandpass magnitudes in different bands.
-        :param buffer_days: A buffer in days to add to the start of the transient
-        to allow for non-detections to be placed. Default is 1 day
         :param obs_buffer: A observation buffer in days to add to the start of the transient
         to allow for non-detections. Default is 5 days
         :param snr_threshold: SNR threshold for detection. Default is 5.
@@ -207,14 +198,14 @@ class SimulateOpticalTransient(object):
         in quadrature to the limiting mag noise. Default value is 0.02, disabled by default.
         """
         return cls(model=model, parameters=parameters, pointings_database=pointings_database, survey=survey,
-                   sncosmo_kwargs=sncosmo_kwargs, buffer_days=buffer_days, obs_buffer=obs_buffer,
+                   sncosmo_kwargs=sncosmo_kwargs, obs_buffer=obs_buffer,
                    survey_fov_sqdeg=36., snr_threshold=snr_threshold,
                    end_transient_time=end_transient_time,add_source_noise=add_source_noise,
                    population=False, model_kwargs=model_kwargs, **kwargs)
 
     @classmethod
     def simulate_transient_population(cls, model, parameters, pointings_database=None,
-                 survey='Rubin_10yr_baseline',sncosmo_kwargs=None, buffer_days=1, obs_buffer=5.0, survey_fov_sqdeg=9.6,
+                 survey='Rubin_10yr_baseline',sncosmo_kwargs=None,obs_buffer=5.0, survey_fov_sqdeg=9.6,
                  snr_threshold=5, end_transient_time=1000, add_source_noise=False, model_kwargs=None, **kwargs):
         """
         Constructor method to build simulated transient object for a single transient.
@@ -228,8 +219,6 @@ class SimulateOpticalTransient(object):
         Set to LSST 10 year baseline 3.0 by default.
         :param sncosmo_kwargs: Any kwargs to be passed to SNcosmo.
         SNcosmo is used to evaluate the bandpass magnitudes in different bands.
-        :param buffer_days: A buffer in days to add to the start of the transient
-        to allow for non-detections to be placed. Default is 1 day
         :param obs_buffer: A observation buffer in days to add to the start of the transient
         to allow for non-detections. Default is 5 days
         :param survey_fov_sqdeg: Survey field of view. Default is 9.6 sqdeg for Rubin.
@@ -244,14 +233,14 @@ class SimulateOpticalTransient(object):
         in quadrature to the limiting mag noise. Default value is 0.02, disabled by default.
         """
         return cls(model=model, parameters=parameters, pointings_database=pointings_database, survey=survey,
-                   sncosmo_kwargs=sncosmo_kwargs, buffer_days=buffer_days, obs_buffer=obs_buffer,
+                   sncosmo_kwargs=sncosmo_kwargs, obs_buffer=obs_buffer,
                    survey_fov_sqdeg=survey_fov_sqdeg, snr_threshold=snr_threshold,
                    end_transient_time=end_transient_time, add_source_noise=add_source_noise,
                    population=True, model_kwargs=model_kwargs, **kwargs)
 
     @classmethod
     def simulate_transient_population_in_rubin(cls, model, parameters, pointings_database=None,
-                 survey='Rubin_10yr_baseline',sncosmo_kwargs=None, buffer_days=1, obs_buffer=5.0,
+                 survey='Rubin_10yr_baseline',sncosmo_kwargs=None, obs_buffer=5.0,
                  snr_threshold=5, end_transient_time=1000, add_source_noise=False, model_kwargs=None, **kwargs):
         """
         Constructor method to build simulated transient object for a single transient.
@@ -265,8 +254,6 @@ class SimulateOpticalTransient(object):
         Set to LSST 10 year baseline 3.0 by default.
         :param sncosmo_kwargs: Any kwargs to be passed to SNcosmo.
         SNcosmo is used to evaluate the bandpass magnitudes in different bands.
-        :param buffer_days: A buffer in days to add to the start of the transient
-        to allow for non-detections to be placed. Default is 1 day
         :param obs_buffer: A observation buffer in days to add to the start of the transient
         to allow for non-detections. Default is 5 days
         :param snr_threshold: SNR threshold for detection. Default is 5.
@@ -279,14 +266,14 @@ class SimulateOpticalTransient(object):
         in quadrature to the limiting mag noise. Default value is 0.02, disabled by default.
         """
         return cls(model=model, parameters=parameters, pointings_database=pointings_database, survey=survey,
-                   sncosmo_kwargs=sncosmo_kwargs, buffer_days=buffer_days, obs_buffer=obs_buffer,
+                   sncosmo_kwargs=sncosmo_kwargs, obs_buffer=obs_buffer,
                    survey_fov_sqdeg=9.6, snr_threshold=snr_threshold,
                    end_transient_time=end_transient_time,add_source_noise=add_source_noise,
                    population=True, model_kwargs=model_kwargs, **kwargs)
 
     @classmethod
     def simulate_transient_population_in_ztf(cls, model, parameters, pointings_database=None,
-                 survey='ztf',sncosmo_kwargs=None, buffer_days=1, obs_buffer=5.0,
+                 survey='ztf',sncosmo_kwargs=None, obs_buffer=5.0,
                  snr_threshold=5, end_transient_time=1000, add_source_noise=False, model_kwargs=None, **kwargs):
         """
         Constructor method to build simulated transient object for a single transient.
@@ -299,8 +286,6 @@ class SimulateOpticalTransient(object):
         :param survey: String corresponding to the survey name. This is used to look up the pointings database.
         :param sncosmo_kwargs: Any kwargs to be passed to SNcosmo.
         SNcosmo is used to evaluate the bandpass magnitudes in different bands.
-        :param buffer_days: A buffer in days to add to the start of the transient
-        to allow for non-detections to be placed. Default is 1 day
         :param obs_buffer: A observation buffer in days to add to the start of the transient
         to allow for non-detections. Default is 5 days
         :param snr_threshold: SNR threshold for detection. Default is 5.
@@ -314,7 +299,7 @@ class SimulateOpticalTransient(object):
         in quadrature to the limiting mag noise. Default value is 0.02, disabled by default.
         """
         return cls(model=model, parameters=parameters, pointings_database=pointings_database, survey=survey,
-                   sncosmo_kwargs=sncosmo_kwargs, buffer_days=buffer_days, obs_buffer=obs_buffer,
+                   sncosmo_kwargs=sncosmo_kwargs, obs_buffer=obs_buffer,
                    survey_fov_sqdeg=36., snr_threshold=snr_threshold,
                    end_transient_time=end_transient_time, add_source_noise=add_source_noise,
                    population=True, model_kwargs=model_kwargs, **kwargs)
@@ -647,15 +632,35 @@ def make_pointing_table_from_average_cadence(ra, dec, num_obs, average_cadence, 
     return pointings_dataframe
 
 class SimulateFullOpticalSurvey(SimulateOpticalTransient):
-    """
-    Do SimSurvey or SNANA
-    """
-    def __init__(self, model, parameters, pointings_database=None, survey='Rubin_10yr_baseline',
-                 min_dec=None,max_dec=None, start_mjd=None, end_mjd=None, buffer_days=100,
-                 population=False, **kwargs):
+    def __init__(self, model, prior, pointings_database=None,
+                 survey='Rubin_10yr_baseline',sncosmo_kwargs=None, obs_buffer=5.0, survey_fov_sqdeg=9.6,
+                 snr_threshold=5, end_transient_time=1000, add_source_noise=False, model_kwargs=None, **kwargs):
+        """
+        Simulate a full optical survey. This requires a rate and a prior for the population.
+        The rate is used to draw events in a period of time, placing them isotropically on the sky and uniform in comoving volume.
+        The prior is used to draw the parameters of the individual events. We can then simulate observations of all these events and understand the rate of detections etc.
+
+        :param model: String corresponding to redback model or a python function that can evaluate an SED.
+        :param prior: A redback prior corresponding to the model.
+        :param pointings_database: A pandas DataFrame containing the pointings of the survey.
+        :param survey: String corresponding to the survey name. This is used to look up the pointings database.
+        :param sncosmo_kwargs: Any kwargs to be passed to SNcosmo.
+        SNcosmo is used to evaluate the bandpass magnitudes in different bands.
+        :param obs_buffer: A observation buffer in days to add to the start of the transient
+        to allow for non-detections. Default is 5 days
+        :param snr_threshold: SNR threshold for detection. Default is 5.
+        :param end_transient_time: End time of the transient in days. Default is 1000 days.
+        Note that SNCosmo will extrapolate past when the transient model evaluates the SED so these should really be the same.
+        :param add_source_noise: Boolean. If True, add an extra noise in quadrature to the limiting mag noise.
+        The factor is a multiple of the model flux i.e. noise = (skynoise**2 + (model_flux*source_noise)**2)**0.5
+        :param model_kwargs: Dictionary of kwargs to be passed to the model.
+        :param kwargs: Dictionary of additional kwargs
+        :param source_noise: Float. Factor to multiply the model flux by to add an extra noise
+        in quadrature to the limiting mag noise. Default value is 0.02, disabled by default.
+        """
         super().__init__(model=model, parameters=parameters, pointings_database=pointings_database, survey=survey,
-                 min_dec=min_dec,max_dec=max_dec, start_mjd=start_mjd, end_mjd=end_mjd, buffer_days=buffer_days,
-                 population=population, **kwargs)
+                 min_dec=min_dec,max_dec=max_dec, start_mjd=start_mjd, end_mjd=end_mjd,
+                 population=True, **kwargs)
 
     def _draw_parameters(self):
         pass
