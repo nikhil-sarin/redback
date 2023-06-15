@@ -8,6 +8,7 @@ import astropy.units as uu
 from scipy.spatial import KDTree
 import os
 import bilby
+from astropy.cosmology import Planck18 as cosmo
 datadir = os.path.join(os.path.dirname(redback.__file__), 'tables')
 
 
@@ -632,16 +633,23 @@ def make_pointing_table_from_average_cadence(ra, dec, num_obs, average_cadence, 
     return pointings_dataframe
 
 class SimulateFullOpticalSurvey(SimulateOpticalTransient):
-    def __init__(self, model, prior, pointings_database=None,
+    def __init__(self, model, prior, rate, survey_start_date, survey_duration, pointings_database=None,
                  survey='Rubin_10yr_baseline',sncosmo_kwargs=None, obs_buffer=5.0, survey_fov_sqdeg=9.6,
                  snr_threshold=5, end_transient_time=1000, add_source_noise=False, model_kwargs=None, **kwargs):
         """
         Simulate a full optical survey. This requires a rate and a prior for the population.
         The rate is used to draw events in a period of time, placing them isotropically on the sky and uniform in comoving volume.
-        The prior is used to draw the parameters of the individual events. We can then simulate observations of all these events and understand the rate of detections etc.
+        The prior is used to draw the parameters of the individual events.
+        We can then simulate observations of all these events and understand the rate of detections etc.
 
         :param model: String corresponding to redback model or a python function that can evaluate an SED.
         :param prior: A redback prior corresponding to the model.
+        The prior on the redshift is forced to be uniform in comoving volume. With maximum what the user sets in their prior.
+        :param rate: Rate of the population in Gpc^-3 yr^-1
+        :param survey_start_date: Start date of the survey in MJD.
+        :param survey_duration: Duration of the survey in years.
+        This can be set arbitrarily high if one wants to look at detection efficiencies.
+        Or to a real number if wanting to look at a volume/flux limited survey.
         :param pointings_database: A pandas DataFrame containing the pointings of the survey.
         :param survey: String corresponding to the survey name. This is used to look up the pointings database.
         :param sncosmo_kwargs: Any kwargs to be passed to SNcosmo.
@@ -655,12 +663,35 @@ class SimulateFullOpticalSurvey(SimulateOpticalTransient):
         The factor is a multiple of the model flux i.e. noise = (skynoise**2 + (model_flux*source_noise)**2)**0.5
         :param model_kwargs: Dictionary of kwargs to be passed to the model.
         :param kwargs: Dictionary of additional kwargs
+        :param cosmology: Cosmology to use. Default is Planck18.
+        Users can pass their own cosmology class here as long as it works like astropy.cosmology.
+        Users should ensure they use the same cosmology in the model. Or deliberately choose not to.
         :param source_noise: Float. Factor to multiply the model flux by to add an extra noise
         in quadrature to the limiting mag noise. Default value is 0.02, disabled by default.
         """
-        super().__init__(model=model, parameters=parameters, pointings_database=pointings_database, survey=survey,
-                 min_dec=min_dec,max_dec=max_dec, start_mjd=start_mjd, end_mjd=end_mjd,
-                 population=True, **kwargs)
+        self.rate = rate * uu.Gpc**-3 * uu.yr**-1
+        self.prior = prior
+        self.survey_start_date = survey_start_date
+        self.survey_duration = survey_duration * uu.yr
+        cosmology = kwargs.get('cosmology',cosmo)
+        self.horizon_redshift = self.prior['redshift'].maximum
+        self.horizon_distance = cosmology.luminosity_distance(self.horizon_redshift).to(uu.Mpc)
+        self.prior['redshift'] = bilby.gw.prior.UniformSourceFrame(minimum=0, maximum=self.horizon_redshift,
+                                                                   name='redshift', cosmology='Planck18')
+        parameters = prior.sample(self.event_number)
+        parameters['t0_mjd_transient'] = get_event_times()
+        super().__init__(model=model, parameters=parameters, pointings_database=pointings_database,
+                         survey=survey, sncosmo_kwargs=sncosmo_kwargs,
+                         obs_buffer=obs_buffer,survey_fov_sqdeg=survey_fov_sqdeg,
+                         snr_threshold=snr_threshold, end_transient_time=end_transient_time,
+                         add_source_noise=add_source_noise,
+                         population=True, model_kwargs=model_kwargs, **kwargs)
+    @property
+    def event_number(self):
+        events = 4./3. * np.pi * self.rate * self.horizon_distance.to(uu.Gpc)**3 * self.survey_duration
+        return int(events.value)
 
-    def _draw_parameters(self):
-        pass
+    def get_event_times(self):
+        time_window = [self.survey_start_date, self.survey_start_date + self.survey_duration.to(uu.day).value]
+        rate_per_second = 0.
+        return t0_mjd
