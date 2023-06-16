@@ -102,9 +102,9 @@ def _evaluate_extinction_model(time, av, model_type, **kwargs):
         kwargs['base_model'] = kwargs.get('submodel', 'arnett_bolometric')
     if kwargs['output_format'] == 'flux_density':
         frequency = kwargs['frequency']
-        angstroms = redback.utils.nu_to_lambda(frequency)
         if isinstance(frequency, float):
             frequency = np.ones(len(time)) * frequency
+        angstroms = redback.utils.nu_to_lambda(frequency)
         temp_kwargs = kwargs.copy()
         temp_kwargs['output_format'] = 'flux_density'
         function = _get_correct_function(base_model=base_model, model_type=model_type)

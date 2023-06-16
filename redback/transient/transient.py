@@ -180,7 +180,7 @@ class Transient(object):
     def from_lasair_data(
             cls, name: str, data_mode: str = "magnitude", active_bands: Union[np.ndarray, str] = 'all',
             use_phase_model: bool = False) -> Transient:
-        """Constructor method to built object from Open Access Catalogue.
+        """Constructor method to built object from LASAIR data.
 
         :param name: Name of the transient.
         :type name: str
@@ -202,6 +202,42 @@ class Transient(object):
         directory_structure = redback.get_data.directory.lasair_directory_structure(
             transient=name, transient_type=transient_type)
         df = pd.read_csv(directory_structure.processed_file_path)
+        time_days = np.array(df["time (days)"])
+        time_mjd = np.array(df["time"])
+        magnitude = np.array(df["magnitude"])
+        magnitude_err = np.array(df["e_magnitude"])
+        bands = np.array(df["band"])
+        flux = np.array(df["flux(erg/cm2/s)"])
+        flux_err = np.array(df["flux_error"])
+        flux_density = np.array(df["flux_density(mjy)"])
+        flux_density_err = np.array(df["flux_density_error"])
+        return cls(name=name, data_mode=data_mode, time=time_days, time_err=None, time_mjd=time_mjd,
+                   flux_density=flux_density, flux_density_err=flux_density_err, magnitude=magnitude,
+                   magnitude_err=magnitude_err, flux=flux, flux_err=flux_err, bands=bands, active_bands=active_bands,
+                   use_phase_model=use_phase_model, optical_data=True)
+
+    @classmethod
+    def from_simulated_optical_data(
+            cls, name: str, data_mode: str = "magnitude", active_bands: Union[np.ndarray, str] = 'all',
+            use_phase_model: bool = False) -> Transient:
+        """Constructor method to built object from SimulatedOpticalTransient.
+
+        :param name: Name of the transient.
+        :type name: str
+        :param data_mode: Data mode used. Must be from `OpticalTransient.DATA_MODES`. Default is magnitude.
+        :type data_mode: str, optional
+        :param active_bands: Sets active bands based on array given.
+                             If argument is 'all', all unique bands in `self.bands` will be used.
+        :type active_bands: Union[np.ndarray, str]
+        :param use_phase_model: Whether to use a phase model.
+        :type use_phase_model: bool, optional
+
+        :return: A class instance.
+        :rtype: OpticalTransient
+        """
+        path = "simulated/" + name + ".csv"
+        df = pd.read_csv(path)
+        df = df[df.detected != 0]
         time_days = np.array(df["time (days)"])
         time_mjd = np.array(df["time"])
         magnitude = np.array(df["magnitude"])

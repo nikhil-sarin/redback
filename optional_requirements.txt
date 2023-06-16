@@ -7,3 +7,4 @@ lalsuite
 kilonova-heating-rate
 redback-surrogates
 kilonovanet
+regex
