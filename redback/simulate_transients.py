@@ -8,6 +8,7 @@ import astropy.units as uu
 from scipy.spatial import KDTree
 import os
 import bilby
+import random
 from astropy.cosmology import Planck18 as cosmo
 datadir = os.path.join(os.path.dirname(redback.__file__), 'tables')
 
@@ -676,22 +677,77 @@ class SimulateFullOpticalSurvey(SimulateOpticalTransient):
         cosmology = kwargs.get('cosmology',cosmo)
         self.horizon_redshift = self.prior['redshift'].maximum
         self.horizon_distance = cosmology.luminosity_distance(self.horizon_redshift).to(uu.Mpc)
+        self.number_of_events = np.random.poisson(self.rate_per_sec * self.survey_duration_seconds)
         self.prior['redshift'] = bilby.gw.prior.UniformSourceFrame(minimum=0, maximum=self.horizon_redshift,
                                                                    name='redshift', cosmology='Planck18')
-        parameters = prior.sample(self.event_number)
-        parameters['t0_mjd_transient'] = get_event_times()
+        self.prior['ra'] = bilby.core.prior.Uniform(minimum=0, maximum=2*np.pi, name='ra', latex_label='$\\mathrm{RA}$',
+                                   unit=None, boundary='periodic')
+        self.prior['dec'] = bilby.core.prior.Cosine(minimum=-np.pi/2, maximum=np.pi/2., name='dec',
+                                  latex_label='$\\mathrm{DEC}$', unit=None, boundary=None)
+        parameters = prior.sample(self.number_of_events)
+        _ra = self.prior['ra'].sample(self.number_of_events)
+        _dec = self.prior['dec'].sample(self.number_of_events)
+        _event_times = self.get_event_times()
+        parameters['ra'] = _ra
+        parameters['dec'] = _dec
+        parameters['t0_mjd_transient'] = _event_times
         super().__init__(model=model, parameters=parameters, pointings_database=pointings_database,
                          survey=survey, sncosmo_kwargs=sncosmo_kwargs,
                          obs_buffer=obs_buffer,survey_fov_sqdeg=survey_fov_sqdeg,
                          snr_threshold=snr_threshold, end_transient_time=end_transient_time,
                          add_source_noise=add_source_noise,
                          population=True, model_kwargs=model_kwargs, **kwargs)
+
     @property
-    def event_number(self):
-        events = 4./3. * np.pi * self.rate * self.horizon_distance.to(uu.Gpc)**3 * self.survey_duration
-        return int(events.value)
+    def rate_per_sec(self):
+        rate_per_year = self.rate * self.horizon_distance.to(uu.Gpc)**3 * 4./3. * np.pi
+        return rate_per_year.to(uu.s**-1)
+
+    @property
+    def survey_duration_seconds(self):
+        return self.survey_duration.to(uu.s)
+
+    @property
+    def time_window(self):
+        time_window = [self.survey_start_date, self.survey_start_date + self.survey_duration.to(uu.day).value]
+        return time_window
 
     def get_event_times(self):
-        time_window = [self.survey_start_date, self.survey_start_date + self.survey_duration.to(uu.day).value]
-        rate_per_second = 0.
-        return t0_mjd
+        if self.number_of_events == 1:
+            event_id = random.random() * self.survey_duration_seconds.to(uu.day).value + self.survey_start_date
+        elif self.number_of_events > 1:
+            event_id = []
+            for j in range(self.number_of_events):
+                event_id.append(random.random())
+            event_id.sort()
+            event_id = np.array(event_id)
+            for j in range(self.number_of_events):
+                event_id[j] *= self.survey_duration_seconds.to(uu.day).value
+                event_id[j] += self.survey_start_date
+        else:
+            event_id = [self.survey_start_date]
+        return event_id
+
+    def save_survey(self, survey=None, **kwargs):
+        """
+        Save the transient population to a csv file.
+        This will save the full observational dataframe including non-detections etc.
+        This will save the data to a folder called 'simulated'
+        with the name of the transient and a csv file of the injection parameters
+
+        :param transient_names: list of transient names. Default is None which will label transients as event_0, etc
+        :param kwargs: kwargs for the save_transient function
+        :param injection_file_path: path to save the injection file
+        :return: None
+        """
+        injection_file_name = kwargs.get('injection_file_path', 'simulated_survey/population_injection_parameters.csv')
+        if survey is None:
+            survey_name = 'survey'
+        else:
+            survey_name = survey
+        transient_names = [survey_name + '_event_' + str(x) for x in range(len(self.list_of_observations))]
+        bilby.utils.check_directory_exists_and_if_not_mkdir('simulated_survey')
+        self.parameters.to_csv(injection_file_name, index=False)
+        for ii, transient_name in enumerate(transient_names):
+            transient = self.list_of_observations[ii]
+            transient.to_csv('simulated_survey/' + transient_name + '.csv', index=False)
