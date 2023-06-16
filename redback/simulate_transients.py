@@ -12,6 +12,71 @@ import random
 from astropy.cosmology import Planck18 as cosmo
 datadir = os.path.join(os.path.dirname(redback.__file__), 'tables')
 
+class SimulateGenericTransient(object):
+    def __init__(self, model, parameters, times, model_kwargs, data_points,
+                 seed=1234, multiwavelength_transient=False, noise_term=0.2):
+        """
+        A generic interface to simulating transients
+
+        :param model: String corresponding to redback model
+        :param parameters: Dictionary of parameters describing a single transient
+        :param times: Time values that the model is evaluated from
+        :param model_kwargs: Additional keyword arguments, must include all the keyword arguments required by the model.
+        Refer to the model documentation for details
+        :param data_points: Number of data points to randomly sample. This will randomly sample data_points in time and in bands or frequency.
+        :param seed: random seed for reproducibility
+        :param multiwavelength_transient: Boolean. If True, the model is assumed to be a transient
+        which has multiple bands/frequency and the data points are sampled in bands/frequency as well,
+        rather than just corresponding to one wavelength/filter.
+        This also allows the same time value to be sampled multiple times.
+        :param noise_term: Float. Factor which is multiplied by the model flux/magnitude to give the sigma.
+        """
+        self.model = redback.model_library.all_models_dict[model]
+        self.parameters = parameters
+        self.all_times = times
+        self.model_kwargs = model_kwargs
+        self.multiwavelength_transient = multiwavelength_transient
+        self.data_points = data_points
+        self.seed = seed
+        self.random_state = np.random.RandomState(seed=self.seed)
+        self.noise_term = noise_term
+        random.seed(self.seed)
+
+        if multiwavelength_transient:
+            self.all_bands = self.model_kwargs.get('bands', None)
+            self.all_frequency = self.model_kwargs.get('frequency', None)
+            if self.all_bands is None and self.all_frequency is None:
+                raise ValueError('Must supply either bands or frequency to sample data points for an optical transient')
+            if self.all_bands is not None and self.all_frequency is None:
+                self.subset_bands = random.choices(self.all_bands, k=self.data_points)
+            if self.all_bands is None and self.all_frequency is not None:
+                self.subset_frequency = random.choices(self.all_frequency, k=self.data_points)
+            self.replacement = True
+            # allow times to be chosen repeatedly
+        else:
+            # allow times to be chosen only once.
+            self.replacement = False
+        self.subset_times = np.sort(np.random.choice(self.all_times, size=self.data_points, replace=self.replacement))
+
+        injection_kwargs = self.parameters.copy()
+        if 'bands' in model_kwargs.keys():
+            injection_kwargs['bands'] = self.subset_bands
+            injection_kwargs['output_format'] = 'magnitude'
+        if 'frequency' in model_kwargs.keys():
+            injection_kwargs['frequency'] = self.subset_frequency
+            injection_kwargs['output_format'] = 'flux_density'
+
+        true_output = self.model(self.subset_times, **injection_kwargs)
+        data = pd.DataFrame()
+        data['time'] = self.subset_times
+        if 'bands' in model_kwargs.keys():
+            data['band'] = self.subset_bands
+        if 'frequency' in model_kwargs.keys():
+            data['frequency'] = self.subset_frequency
+        data['true_output'] = true_output
+        data['output'] = np.random.normal(true_output, self.noise_term * true_output)
+        data['output_error'] = self.noise_term * true_output
+        self.data = data
 
 class SimulateOpticalTransient(object):
     def __init__(self, model, parameters, pointings_database=None,
