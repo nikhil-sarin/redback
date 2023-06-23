@@ -12,6 +12,24 @@ See the :code:`bilby` `API <https://lscsoft.docs.ligo.org/bilby/api/bilby.core.r
 The result file is by default saved to the `transient/transient_name/model/`, but the user can of course change this.
 It is by default saved in a `json` format, which can be changed to 'hdf5' for more compression.
 
+Fitting your favourite transient
+-------------------------
+
+
+Changing the likelihood used for fitting
+-------------------------
+Some advanced users may wish to change the default likelihood used in :code:`redback` to another likelihood implemented in :code:`redback` or use a likelihood.
+For example, you may want to fit an additional noise source. Or fit non-detections. Or fit with errors in time etc.
+
+Changing the likelihood used can be done easily by
+
+.. code:: python
+
+    import redback
+    transient = redback.transient.Transient(transient_name, data_mode, filters)
+    likelihood = redback.likelihood.Likelihood(transient, model)
+    result = redback.run_sampler(likelihood, priors, sampler, outdir=outdir, label=label)
+
 Plotting lightcurves and corner plots
 -------------------------
 
@@ -46,7 +64,7 @@ Other properties such as the evidence etc are also stored.
 These posteriors and properties can be used for further analysis such as different diagnostic plots,
 model selection, reweighting or hierarchical inference.
 
-We will soon implement a :code:`redback.analysis` object which will enable users to easily make plots for diagnostic for specific models/transients.
+The :code:`redback.analysis` object enables users to easily make plots for diagnostics or further plots for specific models/transients.
 
 Loading a result file
 -------------------------

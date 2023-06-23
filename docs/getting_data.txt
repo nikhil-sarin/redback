@@ -3,10 +3,11 @@ Get data
 ============
 
 Redback provides a simple interface to getting data from the open access, Swift, and BATSE catalogs, in different formats.
-We will soon add an interface to get data from the Zwicky Transient Facility, and LASAIR.
+We will soon add an interface to get data from the Zwicky Transient Facility, LASAIR and FINK Broker.
 
 - Swift: Prompt, X-ray afterglow [counts, flux, flux density]
 - Open access catalog: Supernova, kilonova, tidal disruption event [photometry]
+- FINK and LASAIR Broker: Supernova, kilonova, tidal disruption event or other transient [photometry]
 - BATSE: Prompt [count rate]
 
 For example, downloading the X-ray afterglow of GRB 070809 is as simple as

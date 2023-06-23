@@ -2,8 +2,14 @@
 Examples
 ============
 
-We provide several different examples so users can get a more practical grasp of how to use :code:`redback`.
+We provide several different examples so users can get a more practical grasp of how to use :code:`redback`. Some examples are listed below:
 
+- `Getting data` <>`_
+- `Simulating single transient in ZTF <>`_
+- `Sampling with constraint priors` <>`_
+- `Modifying models <>`_
+- `Joint Afterglow and Gravitational-wave analysis <>`_
+- `Gaussian process with a base model <>`_
 - `broadband_afterglow_private_data_example <https://github.com/nikhil-sarin/redback/blob/master/examples/broadband_afterglow_private_data_example.py>`_
 - `fit_your_own_model_example <https://github.com/nikhil-sarin/redback/blob/master/examples/fit_your_own_model_example.py>`_
 - `kilonova_example <https://github.com/nikhil-sarin/redback/blob/master/examples/kilonova_example.py>`_
@@ -15,12 +21,4 @@ We provide several different examples so users can get a more practical grasp of
 - `SN2011kl_sample_in_t0_example <https://github.com/nikhil-sarin/redback/blob/master/examples/SN2011kl_sample_in_t0_example.py>`_
 
 We have also written a more tutorial style `jupyter notebook <https://github.com/nikhil-sarin/redback/blob/master/examples/RedbackTutorial.ipynb>`_
-demonstrating the bulk of the functionality of :code:`redback`.
-
-Coming soon:
-
-- Sampling with constraint priors
-- Simulating a population with :code:`redback`
-- Creating and sampling with new ejecta relations; modifying models
-- Joint likelihood analysis
-- Gaussian process with a :code:`redback` base model using `tinygp <https://tinygp.readthedocs.io/en/latest/index.html>`_
+demonstrating the bulk of the functionality of :code:`redback`. There are many more examples in the `examples <>`_ folder of the repository. Please check it out!

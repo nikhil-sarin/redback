@@ -24,7 +24,7 @@ More advanced likelihoods
 - Gaussian likelihood with non detections - A general Gaussian likelihood with a upper limits on some data points
 - Gaussian likelihood with non detections and quadrature noise - Same as above but with an additional noise source added in quadrature
 
-Use your own likelihood
+Write your own likelihood
 -------------------------
 
 If you don't like the likelihoods implemented in redback, you can write your own, subclassing the redback likelihood for example,

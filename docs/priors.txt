@@ -59,3 +59,4 @@ For example,
 Then define our priors on all other parameters in the normal way.
 
 You can implement your own constraints by following the constraint templates and :code:`bilby` `documentation <https://lscsoft.docs.ligo.org/bilby/prior.html>`_.
+We note that the default priors do not have constraints active.
