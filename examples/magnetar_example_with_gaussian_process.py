@@ -26,6 +26,9 @@ afterglow.analytical_flux_to_luminosity()
 
 # use default priors
 priors = redback.priors.get_priors(model=model)
+
+# Now set up the GP likelihood. This will put a GP kernel on top of the evolving_magnetar model.
+# And then give an estimate of the GP parameters as well.
 mean_model = EvolvingMagnetar(**priors.sample())
 for k, v in priors.copy().items():
     priors[f"mean:{k}"] = v
@@ -44,8 +47,7 @@ print(likelihood.parameters)
 
 # Call redback.fit_model to run the sampler and obtain GRB result object
 result = redback.fit_model(model=model, likelihood=likelihood, sampler='dynesty', nlive=400, transient=afterglow,
-                           prior=priors, sample='rslice', resume=True)
+                           prior=priors, sample='rslice', resume=False, clean=True)
 
 result.plot_corner()
-result.plot_lightcurve(random_models=100)
-result.plot_residual()
+# result.plot_lightcurve(random_models=100)
