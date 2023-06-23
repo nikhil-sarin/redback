@@ -4,9 +4,10 @@ Examples
 
 We provide several different examples so users can get a more practical grasp of how to use :code:`redback`. Some examples are listed below:
 
-- `Getting data` <>`_
+- `Getting data <>`_
+- `Creating transient objects <>`_
 - `Simulating single transient in ZTF <>`_
-- `Sampling with constraint priors` <>`_
+- `Sampling with constraint priors <>`_
 - `Modifying models <>`_
 - `Joint Afterglow and Gravitational-wave analysis <>`_
 - `Gaussian process with a base model <>`_
