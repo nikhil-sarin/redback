@@ -139,4 +139,4 @@ We can again plot the data and multiband data
 These transient objects provide the interface to fit and interpret many types of electromagnetic transients.
 In particular, broadband afterglows, kilonovae, prompt gamma-ray burst, supernovae, tidal disruption events,
 magnetar powered transients, millisecond magnetars or any other generic electromagnetic transient. A more general example which shows the different ways to create transient objects in :code:`redback` is available
-`here <https://github.com/nikhil-sarin/redback/blob/more_v0.6stuff/examples/creating_transient_objects.py>`_.
+`here <https://github.com/nikhil-sarin/redback/blob/examples/creating_transient_objects.py>`_.

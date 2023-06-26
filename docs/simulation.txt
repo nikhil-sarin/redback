@@ -1,0 +1,10 @@
+============
+Simulation
+============
+
+A key aspect of inference workflows is testing the pipeline on synthetic data.
+This hugely beneficial in verifying both the inference methodology but for transients it is also useful in understanding selection effects, and the role of survey settings.
+In :code:`redback`, we provide 3 different ways to simulate data as part of the simulation module.
+Although, we emphasize that as all the models are callable functions, the user can bypass these to create their own synthetic data.
+
+In particular the 3 methods are .

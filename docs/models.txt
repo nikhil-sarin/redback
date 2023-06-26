@@ -189,13 +189,17 @@ For a specific model, users can see the extra keyword arguments by looking at th
 And can allow for more flexibility in the models while keeping the interface of the function simple for the end user.
 
 For several models we also allow users to output the light curve in different formats.
-For example, users can output the light curve in `flux_density` or `magnitude` by passing in the keyword argument `output_format`.
+For example, users can output the light curve in `flux_density` or `magnitude` by passing in those via the keyword argument `output_format`.
 Or `spectra` itself which will output a multidimensional array of the spectra at each time.
 Or `sncosmo_source` which will output the sncosmo source object for the model and the users can then use this to make their own plots or look at model with an SNCosmo interface.
 
 We note that for afterglow models we generally assume the magnitude conversion is a simple conversion from flux density to magnitude, ignoring the affect of the full spectrum.
 This can be done in the proper way for the `afterglow_sed` model variants.
-While for other transient models, the magnitude/flux values are calculated using the full bandpass/spectrum, while the flux_density output is at the effective frequency of the filter.
+While for other transient models, the magnitude/flux values are calculated using the full bandpass/spectrum.
+The flux_density output for all models is the flux density at the effective frequency of the filter.
+
+Redback assumes flux_density is always in mJy, luminosity is always in erg/s, and magnitude is always in AB mag.
+Flux is always in erg/s/cm^2.
 
 
 

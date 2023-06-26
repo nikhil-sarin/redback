@@ -44,4 +44,4 @@ Private data or simulated data
 We do not have to use data from the above catalogs for fitting. Redback can be used on private data or simulated data.
 This is described in more detail in the transient or simulation documentation.
 
-A general example which shows the API for downloading data from any of the above catalogs is available `here <https://github.com/nikhil-sarin/redback/blob/more_v0.6stuff/examples/getting_data_with_redback.py>`_.
+A general example which shows the API for downloading data from any of the above catalogs is available `here <https://github.com/nikhil-sarin/redback/blob/examples/getting_data_with_redback.py>`_.
