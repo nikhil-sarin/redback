@@ -1,5 +1,4 @@
 numpy
-wheel
 setuptools
 pandas
 scipy
@@ -14,4 +13,3 @@ lxml
 sphinx-rtd-theme
 sphinx-tabs
 bilby
-bilby.cython>=0.3.0
