@@ -1,4 +1,5 @@
 numpy
+wheel
 setuptools
 pandas
 scipy
