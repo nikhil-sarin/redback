@@ -56,7 +56,17 @@ For example,
     priors['erot_constraint'] = Constraint(minimum=0, maximum=100)
     priors['t_nebula_min'] = Constraint(minimum=0, maximum=100)
 
-Then define our priors on all other parameters in the normal way.
+Then define our priors on all other parameters in the normal way. You can then check whether the constraints are set up correctly by sampling from the prior via
+
+.. code:: python
+
+    priors.sample(1000)
 
 You can implement your own constraints by following the constraint templates and :code:`bilby` `documentation <https://lscsoft.docs.ligo.org/bilby/prior.html>`_.
-We note that the default priors do not have constraints active.
+We note that the default priors do not have constraints active so analysis with constraints must construct the prior dictionary as above.
+This new prior dictionary can be updated to include the default prior via
+
+.. code:: python
+
+    model = 'slsn'
+    priors.update(redback.priors.get_priors(model=model))

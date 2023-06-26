@@ -40,15 +40,16 @@ Data modes
 The data modes available for each transient are
 
 - Afterglow: luminosity, flux, flux_density, magnitude
-- Kilonova: flux_density, magnitude, luminosity
+- Kilonova: flux_density, magnitude, flux
 - Prompt: counts, time tagged events
-- Supernova: flux_density, magnitude, luminosity
-- TDE: flux_density, magnitude, luminosity
+- Supernova: flux_density, magnitude, luminosity, flux
+- TDE: flux_density, magnitude, luminosity, flux
 
 Loading catalog data
 -------------------------
 
-Loading and creating a transient object is simple.
+In :code:`redback`, we provide several class methods for loading data and creating a transient object.
+For example loading and creating a transient object for data from the open access catalog is as simple as,
 
 .. code:: python
 
@@ -73,11 +74,8 @@ We can use this transient object to create plots of the data.
 Here the first `plot_data` will plot the data with all bands on one plot. While the second will plot all filters in the list in separate panels.
 We have also passed kwargs here (in this case empty) but can be populated with other keyword arguments to pass to matplotlib.
 We have also passed in a `fig` and `axes` to set up the plot in the specific way we wanted.
-We note that if no figure/axes/filters
-are passed then redback will use the defaults.
+We note that if no figure/axes/filters are passed then redback will use the defaults. More plotting documentation is available `here <https://redback.readthedocs.io/en/latest/plotting.html>`_.
 
-A user can create a different plot_data and plot_multiband functions and pass them in when constructing the class.
-We describe this functionality through an example `here <https://github.com/nikhil-sarin/redback/blob/master/examples/>`_.
 
 Other transient objects can be constructed in a similar manner to the kilonova object.
 
@@ -109,8 +107,9 @@ In this scenario, a user can still create the :code:`redback.transient` object a
 
 We demonstrate this with data loaded from a pandas dataframe in the example
 `here <https://github.com/nikhil-sarin/redback/blob/master/examples/broadband_afterglow_private_data_example.py>`_.
+An example to load the simulated data from :code:`redback` simulation module is shown `here <https://github.com/nikhil-sarin/redback/blob/more_v0.6stuff/examples/simulate_kilonova.py>`_`
 
-Specifically, to create your own transient object, you pass in the time/flux/frequencies/bands to the transient object of relevance.
+In general, you can ignore the class methods and to create your own transient object by passing in the different attributes (time/flux/frequencies/bands) to the transient object of relevance.
 
 For example,
 
@@ -137,6 +136,7 @@ We can again plot the data and multiband data
     afterglow.plot_multiband()
 
 
-These transient objects provide the interface to fit and interpret many different types of electromagnetic transients.
+These transient objects provide the interface to fit and interpret many types of electromagnetic transients.
 In particular, broadband afterglows, kilonovae, prompt gamma-ray burst, supernovae, tidal disruption events,
-magnetar powered transients, millisecond magnetars or any other generic electromagnetic transient.
+magnetar powered transients, millisecond magnetars or any other generic electromagnetic transient. A more general example which shows the different ways to create transient objects in :code:`redback` is available
+`here <https://github.com/nikhil-sarin/redback/blob/more_v0.6stuff/examples/creating_transient_objects.py>`_.

@@ -2,8 +2,8 @@
 Get data
 ============
 
-Redback provides a simple interface to getting data from the open access, Swift, and BATSE catalogs, in different formats.
-We will soon add an interface to get data from the Zwicky Transient Facility, LASAIR and FINK Broker.
+:code:`redback` provides a simple interface to getting data from the open access, Swift, and BATSE catalogs, in different formats.
+We also provide simple interfaces to get data from the FINK and LASAIR brokers, as well as the open access catalog. The different APIs to get data implemented in
 
 - Swift: Prompt, X-ray afterglow [counts, flux, flux density]
 - Open access catalog: Supernova, kilonova, tidal disruption event [photometry]
@@ -41,15 +41,7 @@ Users can also provide this metadata themselves.
 Private data or simulated data
 -------------------------
 
-We do not have to use data from the above catalogs for fitting.
-Redback can be used on private data or on simulated data.
-You can see this in the documentation `here <https://redback.readthedocs.io/en/latest/transients.html>`_.
-We have also written an example demonstrating this `here <https://github.com/nikhil-sarin/redback/blob/master/examples/broadband_afterglow_private_data_example.py>`_ as well.
+We do not have to use data from the above catalogs for fitting. Redback can be used on private data or simulated data.
+This is described in more detail in the transient or simulation documentation.
 
-
-Simulating your own data
--------------------------
-
-We will soon add an automated interace to simulating data in specific bands/frequencies/flux/luminosity using the in built :code:`redback` models.
-For now, users can use any :code:`redback` model as functions, pass in parameters or a dictionary of parameters, and create their own simulated data.
-See `Models documentation <https://redback.readthedocs.io/en/latest/models.html>`_.
+A general example which shows the API for downloading data from any of the above catalogs is available `here <https://github.com/nikhil-sarin/redback/blob/more_v0.6stuff/examples/getting_data_with_redback.py>`_.

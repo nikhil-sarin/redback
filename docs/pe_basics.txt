@@ -24,7 +24,7 @@ More advanced fitting functionality
 -------------------------
 
 - The likelihood is by default set by the type of transient/data used, the more advanced users can provide their own or use more complicated likelihoods implemented in :code:`redback`.
-- Modify the physics of a transient model by passing in different class constructors.
+- Modify the physics of a transient model by passing in different class constructors (dependency injections).
 - Place constraints on priors if necessary.
 - Joint analysis.
 - Reweighting.

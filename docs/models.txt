@@ -6,7 +6,7 @@ In :code:`redback` we have already implemented a lot of different models, which 
 These models range from phenomenological, to analytical, semi-analytical to numerical surrogates built with machine learning techniques.
 Implementing a new model is probably the easiest way to contribute to redback!
 
-Specifically, some of models already included are as follows.
+Specifically, some models already included are as follows.
 For a full up to date list of models implemented in :code:`redback`, look at the `API <https://redback.readthedocs.io/en/latest/>`_
 
 - Afterglow models: Can output in flux density/magnitude
@@ -146,16 +146,18 @@ Users can also use the prior objects to get a simulation of the light curves pre
 
 Remember that the priors are simply a dictionary so users could also just pass a dictionary/dataframe they created themselves as well.
 
-Users could also sample a lot of different draws from the prior at once (in the above we randomly drew a 100 samples) and then loop through them to simulate a population.
+Users could also sample a lot of different draws from the prior at once (in the above we randomly drew 100 samples) and then loop through them to simulate a population.
 Remember that we can also place arbitrary constraints on the priors to make a really specific population/simulation.
 For example, we could make a constraint that all priors in the population were brighter than 24th mag at peak or something else.
 Almost any time of constraint is possible, as long as it can be written mathematically. Please look at prior documentation for more details on constraints.
+We could also use the :code:`redback` `simulation` module to simulate realistic lightcurves of these drawn parameters in a real survey.
+Helping capture selection effects in even more detail.
 
 Modifying :code:`redback` models
 -------------------------
 
 A lot of the physics in different :code:`redback` models is set by default.
-However, several different pieces of physics in various models can be changed by either passing your own function/class (see `dependency injections <https://redback.readthedocs.io/en/latest/dependency_injections.html>`_),
+However, several pieces of physics in various models can be changed by either passing your own function/class (see `dependency injections <https://redback.readthedocs.io/en/latest/dependency_injections.html>`_),
 by switching the default argument with something else already implemented in redback, or changing a keyword argument.
 
 The specific physics that can be changed:
@@ -176,7 +178,24 @@ We encourage users to add more of these physics switches, which is another easy 
 
 Extra kwargs and output formats in :code:`redback` models
 -------------------------
+All :code:`redback` models have a set of extra keyword arguments that can be passed to the function.
+For a specific model, users can see the extra keyword arguments by looking at the docstring of the function. These extra variables are passed in as a dictionary via
 
+.. code:: python
+
+    extra_kwargs = {'key1': value1, 'key2': value2}
+    function(time, **extra_kwargs)
+
+And can allow for more flexibility in the models while keeping the interface of the function simple for the end user.
+
+For several models we also allow users to output the light curve in different formats.
+For example, users can output the light curve in `flux_density` or `magnitude` by passing in the keyword argument `output_format`.
+Or `spectra` itself which will output a multidimensional array of the spectra at each time.
+Or `sncosmo_source` which will output the sncosmo source object for the model and the users can then use this to make their own plots or look at model with an SNCosmo interface.
+
+We note that for afterglow models we generally assume the magnitude conversion is a simple conversion from flux density to magnitude, ignoring the affect of the full spectrum.
+This can be done in the proper way for the `afterglow_sed` model variants.
+While for other transient models, the magnitude/flux values are calculated using the full bandpass/spectrum, while the flux_density output is at the effective frequency of the filter.
 
 
 
