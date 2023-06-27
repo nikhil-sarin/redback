@@ -2,7 +2,7 @@
 Examples
 ============
 
-We provide several different examples so users can get a more practical grasp of how to use :code:`redback`. Some examples are listed below:
+We provide several examples so users can get a more practical grasp of how to use :code:`redback`. Some examples are listed below:
 
 - `Getting data <https://github.com/nikhil-sarin/redback/blob/master/examples/getting_data_with_redback.py>`_
 - `Creating transient objects <https://github.com/nikhil-sarin/redback/blob/master/examples/creating_transient_objects.py>`_

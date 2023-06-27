@@ -1,3 +1,18 @@
 ============
 Joint likelihood
 ============
+
+Sometimes we may wish to analyse multiple datasets simultaneously.
+For example, we may have two datasets, each containing a set of light curves that for whatever reason are expected to share parameters.
+In this case, we may wish to fit the two datasets simultaneously, so that the shared parameters are constrained by both datasets.
+We note that the datasets must be independent, i.e. they must not share any data.
+Of course this can be extended to arbitrarily many datasets.
+
+A classic example, which is common in this field is analysing EM data alongside GW data for a binary neutron star merger.
+Thanks to the interface with :code:`bilby` this is easily achievable with :code`bilby` doing the gravitational-wave part of the analysis and :code:`redback` doing the EM part of the analysis.
+
+We provide a simplified example of jointly fitting an afterglow and the gravitational waves from a binary neutron star merger in the examples.
+We note that this framework can also be used to jointly analyse multiple data types from the same source, for example, the optical photometry of a kilonova and a radio afterglow.
+
+We note that in the practice, this is often done with a single likelihood by approximating the magnitude data as a flux density.
+
