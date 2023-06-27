@@ -10,14 +10,14 @@ Although, we emphasize that as all the models are callable functions, the user c
 In particular the 3 methods are:
 
 - SimulateGenericTransient: This is a generic transient model that can be used to simulate any transient model and is suited to producing more ToO style of observations.
-The user specifies a large array of times and observations filters (if simulating photometry) and the method will sample randomly in those times and filters to create synthetic data with noise consistent with user input.
+  The user specifies a large array of times and observations filters (if simulating photometry) and the method will sample randomly in those times and filters to create synthetic data with noise consistent with user input.
 - SimulateOpticalTransient: This is specific class to simulate transients in an optical survey.
-Users can either generate a table of pointings. Which is a table that specifies a list of telescope pointings (what time/filter/limiting magnitude/cadence).
-Or use official tables corresponding to the LSST survey with Vera Rubin and the ZTF survey, which are provided within :code:`redback`.
-This class also has specific class methods to simulate single events and populations in either survey.
+  Users can either generate a table of pointings. Which is a table that specifies a list of telescope pointings (what time/filter/limiting magnitude/cadence).
+  Or use official tables corresponding to the LSST survey with Vera Rubin and the ZTF survey, which are provided within :code:`redback`.
+  This class also has specific class methods to simulate single events and populations in either survey.
 - SimulateFullOpticalSurvey: Simulate a full survey. In this method, the user will provide a rate, a prior corresponding to the population, a survey duration etc.
-The class will then draw sources following the rate, place them isotropically in the sky and uniform in comoving volume and simulate the survey.
-All observations are saved in a table, which can be probed to understand the detection rate/non-detections etc.
+  The class will then draw sources following the rate, place them isotropically in the sky and uniform in comoving volume and simulate the survey.
+  All observations are saved in a table, which can be probed to understand the detection rate/non-detections etc.
 
 Use simulated data to test the inference pipeline
 -------------------------
@@ -34,17 +34,17 @@ Where `my_kilonova` is a previously simulated kilonova.
 
 We have written several examples to demonstrate the different simulation methods of :code:`redback`. Specifically,
 
-- `Simulate basic transient <https://github.com/nikhil-sarin/redback/blob/master/examples/simulate_basic_transient.py>`_
-Which shows how to use the SimulateGenericTransient class.
-- `Simulate kilonova <https://github.com/nikhil-sarin/redback/blob/master/examples/simulate_kilonova.py>`_
-Which shows how to use the SimulateOpticalTransient class to simulate a kilonova using a user constructed table of pointings.
-- `Simulate single transient in rubin <https://github.com/nikhil-sarin/redback/blob/master/examples/simulate_single_transient_in_rubin.py>`_
-Which shows how to use the SimulateOpticalTransient class to simulate a kilonova in Rubin.
-- `Simulate single transient in ztf <https://github.com/nikhil-sarin/redback/blob/master/examples/simulate_single_transient_in_ztf.py>`_
-Which shows how to use the SimulateOpticalTransient class to simulate a kilonova in ZTF.
-- `Simulate kilonova population <https://github.com/nikhil-sarin/redback/blob/master/examples/simulate_kilonova_population.py>`_
-Which shows how to use the SimulateOpticalTransient class to simulate a population of kilonovae in Rubin.
-- `Simulate survey <https://github.com/nikhil-sarin/redback/blob/master/examples/simulate_survey.py>`_
-Which shows how to use the SimulateFullOpticalSurvey class to simulate a full survey.
+- `Simulate basic transient <https://github.com/nikhil-sarin/redback/blob/master/examples/simulate_basic_transient.py>`_:
+  Which shows how to use the SimulateGenericTransient class.
+- `Simulate kilonova <https://github.com/nikhil-sarin/redback/blob/master/examples/simulate_kilonova.py>`_:
+  Which shows how to use the SimulateOpticalTransient class to simulate a kilonova using a user constructed table of pointings.
+- `Simulate single transient in rubin <https://github.com/nikhil-sarin/redback/blob/master/examples/simulate_single_transient_in_rubin.py>`_:
+  Which shows how to use the SimulateOpticalTransient class to simulate a kilonova in Rubin.
+- `Simulate single transient in ztf <https://github.com/nikhil-sarin/redback/blob/master/examples/simulate_single_transient_in_ztf.py>`_:
+  Which shows how to use the SimulateOpticalTransient class to simulate a kilonova in ZTF.
+- `Simulate kilonova population <https://github.com/nikhil-sarin/redback/blob/master/examples/simulate_kilonova_population.py>`_:
+  Which shows how to use the SimulateOpticalTransient class to simulate a population of kilonovae in Rubin.
+- `Simulate survey <https://github.com/nikhil-sarin/redback/blob/master/examples/simulate_survey.py>`_:
+  Which shows how to use the SimulateFullOpticalSurvey class to simulate a full survey.
 
 We note that although above examples are mostly written for kilonovae. All :code:`redback` models can be used by the simulation classes.

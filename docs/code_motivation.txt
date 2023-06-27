@@ -17,11 +17,11 @@ How :code:`redback` can be useful to you
 - The user can then fit one of the models implemented in redback. Or fit their own model. Models for several types of electromagnetic transients are implemented and range from simple analytical models to numerical surrogates.
 - All models are implemented as functions and can be used to simulate populations, without needing to provide data. This way redback can be used simply as a tool to simulate realistic populations, no need to actually fit anything.
 - Simulate realistic transient lightcurves for Rubin LSST Survey using the latest cadence tables and for ZTF. Or make your own survey.
-Simulate single transients or populations or simulate a full survey including non-detections and realistic cadences and noise.
+  Simulate single transients or populations or simulate a full survey including non-detections and realistic cadences and noise.
 - Redback uses `Bilby <https://lscsoft.docs.ligo.org/bilby/index.html>`_ under the hood for sampling.
   Can easily switch samplers/likelihoods etc. By default the choice is made depending on the data.
 - Fitting returns a homogenous result object, with functionality to plot fitted lightcurves and the posterior/evidence/credible intervals etc.
-   You can use the result object for hierarchical inference or importance sampling etc.
+  You can use the result object for hierarchical inference or importance sampling etc.
 
 Advantages of the interface to :code:`bilby`
 -------------------------

@@ -9,7 +9,7 @@ We provide several examples so users can get a more practical grasp of how to us
 - `Simulate single transient in ztf <https://github.com/nikhil-sarin/redback/blob/master/examples/simulate_single_transient_in_ztf.py>`_
 - `Using models as a function <https://github.com/nikhil-sarin/redback/blob/master/examples/Using_models_as_function.py>`_
 - `Modifying models <>`_
-- `Fitting with homologous expansion <https://github.com/nikhil-sarin/redback/blob/master/examples/supernova_homologous_expansion_example.py>`_`
+- `Fitting with homologous expansion <https://github.com/nikhil-sarin/redback/blob/master/examples/supernova_homologous_expansion_example.py>`_
 - `Joint Afterglow and Gravitational-wave analysis <https://github.com/nikhil-sarin/redback/blob/master/examples/joint_em_gw_example.py>`_
 - `Gaussian process with a base model <https://github.com/nikhil-sarin/redback/blob/master/examples/magnetar_example_with_gaussian_process.py>`_
 - `broadband_afterglow_private_data_example <https://github.com/nikhil-sarin/redback/blob/master/examples/broadband_afterglow_private_data_example.py>`_
@@ -23,4 +23,5 @@ We provide several examples so users can get a more practical grasp of how to us
 - `SN2011kl_sample_in_t0_example <https://github.com/nikhil-sarin/redback/blob/master/examples/SN2011kl_sample_in_t0_example.py>`_
 
 We have also written a more tutorial style `jupyter notebook <https://github.com/nikhil-sarin/redback/blob/master/examples/RedbackTutorial.ipynb>`_
-demonstrating the bulk of the functionality of :code:`redback`. There are many more examples in the `examples <>`_ folder of the repository. Please check it out!
+demonstrating the bulk of the functionality of :code:`redback`. There are many more examples in the `examples <https://github.com/nikhil-sarin/redback/blob/master/examples>`_ folder of the repository.
+Please check it out!

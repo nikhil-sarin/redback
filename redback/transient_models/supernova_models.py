@@ -630,8 +630,8 @@ def homologous_expansion_supernova_model_bolometric(time, mej, ek, **kwargs):
     :param mej: ejecta mass in solar masses
     :param ek: kinetic energy in ergs
     :param kwargs: Must be all the kwargs required by the specific interaction_process
-             e.g., for Diffusion: kappa, kappa_gamma, vej (km/s), temperature_floor
-            'base model' from homologous_expansion_models list
+        e.g., for Diffusion: kappa, kappa_gamma, vej (km/s), temperature_floor
+        'base model' from homologous_expansion_models list
     :param interaction_process: Default is Diffusion.
         Can also be None in which case the output is just the raw engine luminosity, or another interaction process.
     :return: bolometric_luminosity
@@ -704,8 +704,8 @@ def homologous_expansion_supernova(time, redshift, mej, ek, **kwargs):
     :param mej: ejecta mass in solar masses
     :param ek: kinetic energy in ergs
     :param kwargs: Must be all the kwargs required by the specific interaction_process, photosphere, sed methods used
-             e.g., for Diffusion and TemperatureFloor: kappa, kappa_gamma, vej (km/s), temperature_floor
-         'base model' from homologous_expansion_models list
+        e.g., for Diffusion and TemperatureFloor: kappa, kappa_gamma, vej (km/s), temperature_floor
+        'base model' from homologous_expansion_models list
     :param interaction_process: Default is Diffusion.
             Can also be None in which case the output is just the raw engine luminosity, or another interaction process.
     :param photosphere: Default is TemperatureFloor.
@@ -1100,14 +1100,14 @@ def type_1a(time, redshift, f_nickel, mej, **kwargs):
     :param f_nickel: fraction of nickel mass
     :param mej: ejecta mass in solar masses
     :param kwargs: kappa, kappa_gamma, vej (km/s),
-    temperature_floor (K), cutoff_wavelength (default is 3000 Angstrom)
+        temperature_floor (K), cutoff_wavelength (default is 3000 Angstrom)
     :param line_wavelength: line wavelength in angstrom, default is 7.5e3 Angstrom in observer frame
     :param line_width: line width in angstrom, default is 500
     :param line_time: line time, default is 50
     :param line_duration: line duration, default is 25
     :param line_amplitude: line amplitude, default is 0.3
     :param frequency: Required if output_format is 'flux_density'.
-    frequency to calculate - Must be same length as time array or a single number).
+        frequency to calculate - Must be same length as time array or a single number).
     :param bands: Required if output_format is 'magnitude' or 'flux'.
     :param output_format: 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
     :param lambda_array: Optional argument to set your desired wavelength array (in Angstroms) to evaluate the SED on.
@@ -1180,9 +1180,9 @@ def type_1c(time, redshift, f_nickel, mej, pp, **kwargs):
     :param mej: ejecta mass in solar masses
     :param pp: power law index for synchrotron
     :param kwargs: kappa, kappa_gamma, vej (km/s), temperature_floor (K), nu_max (default is 1e9 Hz)
-            source_radius (default is 1e13), f0: synchrotron normalisation (default is 1e-26).
+        source_radius (default is 1e13), f0: synchrotron normalisation (default is 1e-26).
     :param frequency: Required if output_format is 'flux_density'.
-    frequency to calculate - Must be same length as time array or a single number).
+        frequency to calculate - Must be same length as time array or a single number).
     :param bands: Required if output_format is 'magnitude' or 'flux'.
     :param output_format: 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
     :param lambda_array: Optional argument to set your desired wavelength array (in Angstroms) to evaluate the SED on.
@@ -1271,7 +1271,7 @@ def general_magnetar_slsn(time, redshift, l0, tsd, nn, ** kwargs):
             kwargs must have vej or relevant parameters if using different photosphere model
     :param sed: Default is blackbody.
     :param frequency: Required if output_format is 'flux_density'.
-    frequency to calculate - Must be same length as time array or a single number).
+        frequency to calculate - Must be same length as time array or a single number).
     :param bands: Required if output_format is 'magnitude' or 'flux'.
     :param output_format: 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
     :param lambda_array: Optional argument to set your desired wavelength array (in Angstroms) to evaluate the SED on.

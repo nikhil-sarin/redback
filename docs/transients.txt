@@ -107,7 +107,7 @@ In this scenario, a user can still create the :code:`redback.transient` object a
 
 We demonstrate this with data loaded from a pandas dataframe in the example
 `here <https://github.com/nikhil-sarin/redback/blob/master/examples/broadband_afterglow_private_data_example.py>`_.
-An example to load the simulated data from :code:`redback` simulation module is shown `here <https://github.com/nikhil-sarin/redback/blob/more_v0.6stuff/examples/simulate_kilonova.py>`_`
+An example to load the simulated data from :code:`redback` simulation module is shown `here <https://github.com/nikhil-sarin/redback/blob/master/examples/simulate_kilonova.py>`_.
 
 In general, you can ignore the class methods and to create your own transient object by passing in the different attributes (time/flux/frequencies/bands) to the transient object of relevance.
 

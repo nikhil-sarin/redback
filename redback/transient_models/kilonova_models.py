@@ -335,11 +335,11 @@ def nicholl_bns(time, redshift, mass_1, mass_2, lambda_s, kappa_red, kappa_blue,
     :param dynamical_ejecta_error: Error in dynamical ejecta mass, default is 1 i.e., no error in fitting formula
     :param disk_ejecta_error: Error in disk ejecta mass, default is 1 i.e., no error in fitting formula
     :param shocked_fraction: Fraction of ejecta that is shocked by jet, default is 0.2 i.e., 20% of blue ejecta is shocked.
-    Use 0. if you want to turn off cocoon emission.
+        Use 0. if you want to turn off cocoon emission.
     :param nn: ejecta power law density profile, default is 1.
     :param tshock: time for shock in source frame in seconds, default is 1.7s (see Nicholl et al. 2021)
     :param frequency: Required if output_format is 'flux_density'.
-    frequency to calculate - Must be same length as time array or a single number).
+        frequency to calculate - Must be same length as time array or a single number).
     :param bands: Required if output_format is 'magnitude' or 'flux'.
     :param output_format: 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
     :param lambda_array: Optional argument to set your desired wavelength array (in Angstroms) to evaluate the SED on.
@@ -464,7 +464,7 @@ def mosfit_rprocess(time, redshift, mej, vej, kappa, kappa_gamma, temperature_fl
     :param kappa_gamma: gamma-ray opacity
     :param kwargs: Additional keyword arguments
     :param frequency: Required if output_format is 'flux_density'.
-    frequency to calculate - Must be same length as time array or a single number).
+        frequency to calculate - Must be same length as time array or a single number).
     :param bands: Required if output_format is 'magnitude' or 'flux'.
     :param output_format: 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
     :param lambda_array: Optional argument to set your desired wavelength array (in Angstroms) to evaluate the SED on.
@@ -541,7 +541,7 @@ def mosfit_kilonova(time, redshift, mej_1, vej_1, temperature_floor_1, kappa_1,
     :param kappa_gamma: gamma-ray opacity
     :param kwargs: Additional keyword arguments
     :param frequency: Required if output_format is 'flux_density'.
-    frequency to calculate - Must be same length as time array or a single number).
+        frequency to calculate - Must be same length as time array or a single number).
     :param bands: Required if output_format is 'magnitude' or 'flux'.
     :param output_format: 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
     :param lambda_array: Optional argument to set your desired wavelength array (in Angstroms) to evaluate the SED on.
@@ -658,7 +658,7 @@ def power_law_stratified_kilonova(time, redshift, mej, voffset, v0, alpha,
     :param beta: power law index of density profile
     :param kwargs: Additional keyword arguments
     :param frequency: Required if output_format is 'flux_density'.
-    frequency to calculate - Must be same length as time array or a single number).
+        frequency to calculate - Must be same length as time array or a single number).
     :param bands: Required if output_format is 'magnitude' or 'flux'.
     :param output_format: 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
     :param lambda_array: Optional argument to set your desired wavelength array (in Angstroms) to evaluate the SED on.
@@ -685,7 +685,7 @@ def bulla_bns_kilonova(time, redshift, mej_dyn, mej_disk, phi, costheta_obs, **k
     :param costheta_obs: cosine of the observers viewing angle
     :param kwargs: Additional keyword arguments
     :param frequency: Required if output_format is 'flux_density'.
-    frequency to calculate - Must be same length as time array or a single number).
+        frequency to calculate - Must be same length as time array or a single number).
     :param bands: Required if output_format is 'magnitude' or 'flux'.
     :param output_format: 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
     :return: set by output format - 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
@@ -736,7 +736,7 @@ def bulla_nsbh_kilonova(time, redshift, mej_dyn, mej_disk, costheta_obs, **kwarg
     :param costheta_obs: cosine of the observers viewing angle
     :param kwargs: Additional keyword arguments
     :param frequency: Required if output_format is 'flux_density'.
-    frequency to calculate - Must be same length as time array or a single number).
+        frequency to calculate - Must be same length as time array or a single number).
     :param bands: Required if output_format is 'magnitude' or 'flux'.
     :param output_format: 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
     :return: set by output format - 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
@@ -787,7 +787,7 @@ def kasen_bns_kilonova(time, redshift, mej, vej, chi, **kwargs):
     :param chi: lanthanide fraction
     :param kwargs: Additional keyword arguments
     :param frequency: Required if output_format is 'flux_density'.
-    frequency to calculate - Must be same length as time array or a single number).
+        frequency to calculate - Must be same length as time array or a single number).
     :param bands: Required if output_format is 'magnitude' or 'flux'.
     :param output_format: 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
     :return: set by output format - 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
@@ -837,7 +837,7 @@ def two_layer_stratified_kilonova(time, redshift, mej, vej_1, vej_2, kappa, beta
     :param beta: power law index of density profile
     :param kwargs: Additional keyword arguments
     :param frequency: Required if output_format is 'flux_density'.
-    frequency to calculate - Must be same length as time array or a single number).
+        frequency to calculate - Must be same length as time array or a single number).
     :param bands: Required if output_format is 'magnitude' or 'flux'.
     :param output_format: 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
     :param lambda_array: Optional argument to set your desired wavelength array (in Angstroms) to evaluate the SED on.
@@ -861,7 +861,7 @@ def _kilonova_hr(time, redshift, mej, velocity_array, kappa_array, beta, **kwarg
     :param beta: power law index of density profile
     :param kwargs: Additional keyword arguments
     :param frequency: Required if output_format is 'flux_density'.
-    frequency to calculate - Must be same length as time array or a single number).
+        frequency to calculate - Must be same length as time array or a single number).
     :param bands: Required if output_format is 'magnitude' or 'flux'.
     :param output_format: 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
     :param lambda_array: Optional argument to set your desired wavelength array (in Angstroms) to evaluate the SED on.
@@ -950,7 +950,7 @@ def three_component_kilonova_model(time, redshift, mej_1, vej_1, temperature_flo
     :param kappa_3: gray opacity of third component
     :param kwargs: Additional keyword arguments
     :param frequency: Required if output_format is 'flux_density'.
-    frequency to calculate - Must be same length as time array or a single number).
+        frequency to calculate - Must be same length as time array or a single number).
     :param bands: Required if output_format is 'magnitude' or 'flux'.
     :param output_format: 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
     :param lambda_array: Optional argument to set your desired wavelength array (in Angstroms) to evaluate the SED on.
@@ -1037,7 +1037,7 @@ def two_component_kilonova_model(time, redshift, mej_1, vej_1, temperature_floor
     :param kappa_2: gray opacity of second component
     :param kwargs: Additional keyword arguments
     :param frequency: Required if output_format is 'flux_density'.
-    frequency to calculate - Must be same length as time array or a single number).
+        frequency to calculate - Must be same length as time array or a single number).
     :param bands: Required if output_format is 'magnitude' or 'flux'.
     :param output_format: 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
     :param lambda_array: Optional argument to set your desired wavelength array (in Angstroms) to evaluate the SED on.
@@ -1124,7 +1124,7 @@ def one_component_ejecta_relation(time, redshift, mass_1, mass_2,
     :param kwargs: Additional keyword arguments
     :param temperature_floor: Temperature floor in K (default 4000)
     :param frequency: Required if output_format is 'flux_density'.
-    frequency to calculate - Must be same length as time array or a single number).
+        frequency to calculate - Must be same length as time array or a single number).
     :param bands: Required if output_format is 'magnitude' or 'flux'.
     :param output_format: 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
     :param lambda_array: Optional argument to set your desired wavelength array (in Angstroms) to evaluate the SED on.
@@ -1153,7 +1153,7 @@ def one_component_ejecta_relation_projection(time, redshift, mass_1, mass_2,
     :param kwargs: Additional keyword arguments
     :param temperature_floor: Temperature floor in K (default 4000)
     :param frequency: Required if output_format is 'flux_density'.
-    frequency to calculate - Must be same length as time array or a single number).
+        frequency to calculate - Must be same length as time array or a single number).
     :param bands: Required if output_format is 'magnitude' or 'flux'.
     :param output_format: 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
     :param lambda_array: Optional argument to set your desired wavelength array (in Angstroms) to evaluate the SED on.
@@ -1190,7 +1190,7 @@ def two_component_bns_ejecta_relation(time, redshift, mass_1, mass_2,
     :param ejecta_relation: a class that relates the instrinsic parameters to the kilonova parameters
             default is TwoComponentBNS
     :param frequency: Required if output_format is 'flux_density'.
-    frequency to calculate - Must be same length as time array or a single number).
+        frequency to calculate - Must be same length as time array or a single number).
     :param bands: Required if output_format is 'magnitude' or 'flux'.
     :param output_format: 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
     :param lambda_array: Optional argument to set your desired wavelength array (in Angstroms) to evaluate the SED on.
@@ -1234,7 +1234,7 @@ def polytrope_eos_two_component_bns(time, redshift, mass_1, mass_2,  log_p, gamm
     :param ejecta_relation: a class that relates the instrinsic parameters to the kilonova parameters
             default is TwoComponentBNS
     :param frequency: Required if output_format is 'flux_density'.
-    frequency to calculate - Must be same length as time array or a single number).
+        frequency to calculate - Must be same length as time array or a single number).
     :param bands: Required if output_format is 'magnitude' or 'flux'.
     :param output_format: 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
     :param lambda_array: Optional argument to set your desired wavelength array (in Angstroms) to evaluate the SED on.
@@ -1277,7 +1277,7 @@ def one_component_nsbh_ejecta_relation(time, redshift, mass_bh, mass_ns,
     :param ejecta_relation: a class that relates the instrinsic parameters to the kilonova parameters
             default is OneComponentNSBH
     :param frequency: Required if output_format is 'flux_density'.
-    frequency to calculate - Must be same length as time array or a single number).
+        frequency to calculate - Must be same length as time array or a single number).
     :param bands: Required if output_format is 'magnitude' or 'flux'.
     :param output_format: 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
     :param lambda_array: Optional argument to set your desired wavelength array (in Angstroms) to evaluate the SED on.
@@ -1312,7 +1312,7 @@ def two_component_nsbh_ejecta_relation(time, redshift,  mass_bh, mass_ns,
     :param ejecta_relation: a class that relates the instrinsic parameters to the kilonova parameters
             default is TwoComponentNSBH
     :param frequency: Required if output_format is 'flux_density'.
-    frequency to calculate - Must be same length as time array or a single number).
+        frequency to calculate - Must be same length as time array or a single number).
     :param bands: Required if output_format is 'magnitude' or 'flux'.
     :param output_format: 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
     :param lambda_array: Optional argument to set your desired wavelength array (in Angstroms) to evaluate the SED on.
@@ -1342,7 +1342,7 @@ def one_component_kilonova_model(time, redshift, mej, vej, kappa, **kwargs):
     :param kwargs: Additional keyword arguments
     :param temperature_floor: Temperature floor in K (default 4000)
     :param frequency: Required if output_format is 'flux_density'.
-    frequency to calculate - Must be same length as time array or a single number).
+        frequency to calculate - Must be same length as time array or a single number).
     :param bands: Required if output_format is 'magnitude' or 'flux'.
     :param output_format: 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
     :param lambda_array: Optional argument to set your desired wavelength array (in Angstroms) to evaluate the SED on.
@@ -1443,7 +1443,7 @@ def metzger_kilonova_model(time, redshift, mej, vej, beta, kappa, **kwargs):
     :param kwargs: Additional keyword arguments
     :param neutron_precursor_switch: Whether to include neutron precursor emission
     :param frequency: Required if output_format is 'flux_density'.
-    frequency to calculate - Must be same length as time array or a single number).
+        frequency to calculate - Must be same length as time array or a single number).
     :param bands: Required if output_format is 'magnitude' or 'flux'.
     :param output_format: 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
     :param lambda_array: Optional argument to set your desired wavelength array (in Angstroms) to evaluate the SED on.

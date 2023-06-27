@@ -55,8 +55,8 @@ def integrated_flux_rate_model(time, **kwargs):
 
     :param time: time in days
     :param kwargs:all kwargs required by model + frequency: an array of two frequencies to integrate over.
-    + prefactor an array of values same size as time array
-    or float which calculates the effective Ei/area for the specific time bin.
+        + prefactor an array of values same size as time array
+        or float which calculates the effective Ei/area for the specific time bin.
     :return: counts
     """
     prefactor = kwargs.get('prefactor', 1)

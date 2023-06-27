@@ -7,19 +7,14 @@ These functions are implemented in the :code:`redback.plotting` module and avail
 
 In particular, the five main plots are:
 
-- plot_data
-Which plots all the data in one panel.
-- plot_multiband_data
-Which plots the data in multiple panels, one panel per band.
-- plot_corner
-Which plots the corner plot of the result.
-- plot_lightcurve
-Which plots the lightcurve from the result on top of the plot_data.
-By default this plots the 100 randomly drawn lightcurves from the posterior.
-Alongside the maximum likelihood lightcurve.
-- plot_multiband_lightcurve
-Which plots the lightcurve from the result on top of the plot_multiband_data.
-By default this plots the 100 randomly drawn lightcurves from the posterior for each band in a panel.
+- plot_data: Which plots all the data in one panel.
+- plot_multiband_data: Which plots the data in multiple panels, one panel per band.
+- plot_corner: Which plots the corner plot of the result.
+- plot_lightcurve: Which plots the lightcurve from the result on top of the plot_data.
+  By default this plots the 100 randomly drawn lightcurves from the posterior.
+  Alongside the maximum likelihood lightcurve.
+- plot_multiband_lightcurve: Which plots the lightcurve from the result on top of the plot_multiband_data.
+  By default this plots the 100 randomly drawn lightcurves from the posterior for each band in a panel.
 
 Using dependency injections, we can completely change the behaviour of plotting.
 However, we don't think this is necessary as almost all aesthetic and functional changes can simply be modified using matplotlib and kwargs.

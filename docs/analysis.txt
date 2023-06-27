@@ -15,7 +15,7 @@ For example, if we wanted to plot a some specific parameters on top of the plot_
 
     from redback import analysis
 
-    analysis.nplot_lightcurve(transient, parameters, model, model_kwargs=None)
+    analysis.plot_lightcurve(transient, parameters, model, model_kwargs=None)
 
 Here
 
