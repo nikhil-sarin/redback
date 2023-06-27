@@ -3,7 +3,7 @@ Contributing
 ============
 
 Redback is currently in alpha with a paper in preparation.
-If you are interested in contributing please join the :code:`redback` `slack <https://join.slack.com/t/slack-23u4492/shared_invite/zt-14y9q1qmo-VRmc8ZxHzB3u~dB3Wi6pjw>`_.
+If you are interested in contributing please join the :code:`redback` `slack <https://join.slack.com/t/redback-group/shared_invite/zt-1xl34px4n-xzRTkd7N4Z3AC_5p4JeDvQ>`_.
 All contributors at the alpha stage will be invited to be co-authors of the first paper.
 
 To make contributions to :code:`redback`,
