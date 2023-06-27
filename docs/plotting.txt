@@ -1,3 +1,42 @@
 ============
 Plotting
 ============
+
+:code:`redback` provides a few plotting functions to help you visualize your results/data.
+These functions are implemented in the :code:`redback.plotting` module and available as methods in the :code:`transient` and :code:`result` class.
+
+In particular, the five main plots are:
+
+- plot_data
+Which plots all the data in one panel.
+- plot_multiband_data
+Which plots the data in multiple panels, one panel per band.
+- plot_corner
+Which plots the corner plot of the result.
+- plot_lightcurve
+Which plots the lightcurve from the result on top of the plot_data.
+By default this plots the 100 randomly drawn lightcurves from the posterior.
+Alongside the maximum likelihood lightcurve.
+- plot_multiband_lightcurve
+Which plots the lightcurve from the result on top of the plot_multiband_data.
+By default this plots the 100 randomly drawn lightcurves from the posterior for each band in a panel.
+
+Using dependency injections, we can completely change the behaviour of plotting.
+However, we don't think this is necessary as almost all aesthetic and functional changes can simply be modified using matplotlib and kwargs.
+
+For example, all plotting methods have the functionality to return the matplotlib axes.
+The matplotlib axes can be used to change the labels/xscale/limits if so desired.
+We can also pass several kwargs directly to the plotting function.
+Such as a dictionary to replace the default colours that are plotted to one of your choice.
+
+.. code:: python
+
+    ax = result.plot_data(show=False, band_colors={'r':'red', 'g':'green'})
+    ax.set_xlabel("Modified Julian Date")
+    ax.set_ylabel("Flux")
+    ax.set_xscale('log')
+
+We note that many of these properties can also be modified by passing in the relevant kwargs to the plotting function.
+Please look at the Plotting API for more details on kwargs that can be passed in and plotting functionality that can be modified.
+
+Of course, thanks to the modularity, one can also call the model themselves and format the data how they want to and plot how they wish to.
