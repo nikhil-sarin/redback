@@ -703,7 +703,7 @@ def bulla_bns_kilonova(time, redshift, mej_dyn, mej_disk, phi, costheta_obs, **k
         spectra = spectra * uu.erg / (uu.s * uu.cm ** 2 * uu.Angstrom)
         fmjy = spectra.to(uu.mJy, equivalencies=uu.spectral_density(wav=output.lambdas * uu.Angstrom)).value
         nu_array = lambda_to_nu(output.lambdas)
-        fmjy_func = RegularGridInterpolator((time, nu_array), fmjy, bounds_error=True)
+        fmjy_func = RegularGridInterpolator((np.unique(time), nu_array), fmjy, bounds_error=False)
         if type(frequency) == float:
             frequency = np.ones(len(time)) * frequency
         points = np.array([time, frequency]).T
@@ -754,7 +754,7 @@ def bulla_nsbh_kilonova(time, redshift, mej_dyn, mej_disk, costheta_obs, **kwarg
         spectra = spectra * uu.erg / (uu.s * uu.cm ** 2 * uu.Angstrom)
         fmjy = spectra.to(uu.mJy, equivalencies=uu.spectral_density(wav=output.lambdas * uu.Angstrom)).value
         nu_array = lambda_to_nu(output.lambdas)
-        fmjy_func = RegularGridInterpolator((time, nu_array), fmjy, bounds_error=True)
+        fmjy_func = RegularGridInterpolator((np.unique(time), nu_array), fmjy, bounds_error=False)
         if type(frequency) == float:
             frequency = np.ones(len(time)) * frequency
         points = np.array([time, frequency]).T
@@ -804,7 +804,7 @@ def kasen_bns_kilonova(time, redshift, mej, vej, chi, **kwargs):
         spectra = spectra * uu.erg / (uu.s * uu.cm ** 2 * uu.Angstrom)
         fmjy = spectra.to(uu.mJy, equivalencies=uu.spectral_density(wav=output.lambdas * uu.Angstrom)).value
         nu_array = lambda_to_nu(output.lambdas)
-        fmjy_func = RegularGridInterpolator((time, nu_array), fmjy, bounds_error=True)
+        fmjy_func = RegularGridInterpolator((np.unique(time), nu_array), fmjy, bounds_error=False)
         if type(frequency) == float:
             frequency = np.ones(len(time)) * frequency
         points = np.array([time, frequency]).T
