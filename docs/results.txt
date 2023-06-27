@@ -15,6 +15,14 @@ It is by default saved in a `json` format, which can be changed to 'hdf5' for mo
 Fitting your favourite transient
 -------------------------
 
+The interface to fit is simple. Once a user has defined a transient object, a model object and a prior object,
+the user can fit the data via,
+
+.. code:: python
+
+    result = redback.fit_model(transient, model, priors)
+
+The more advanced user can change things such as the sampler/likelihood etc
 
 Changing the likelihood used for fitting
 -------------------------
@@ -28,7 +36,7 @@ Changing the likelihood used can be done easily by
     import redback
     transient = redback.transient.Transient(transient_name, data_mode, filters)
     likelihood = redback.likelihood.Likelihood(transient, model)
-    result = redback.run_sampler(likelihood, priors, sampler, outdir=outdir, label=label)
+    result = redback.fit_model(likelihood, priors, sampler, outdir=outdir, label=label)
 
 Plotting lightcurves and corner plots
 -------------------------
