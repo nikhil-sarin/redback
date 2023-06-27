@@ -4,13 +4,14 @@ Examples
 
 We provide several different examples so users can get a more practical grasp of how to use :code:`redback`. Some examples are listed below:
 
-- `Getting data <>`_
-- `Creating transient objects <>`_
-- `Simulating single transient in ZTF <>`_
-- `Sampling with constraint priors <>`_
+- `Getting data <https://github.com/nikhil-sarin/redback/blob/master/examples/getting_data_with_redback.py>`_
+- `Creating transient objects <https://github.com/nikhil-sarin/redback/blob/master/examples/creating_transient_objects.py>`_
+- `Simulate single transient in ztf <https://github.com/nikhil-sarin/redback/blob/master/examples/simulate_single_transient_in_ztf.py>`_
+- `Using models as a function <https://github.com/nikhil-sarin/redback/blob/master/examples/Using_models_as_function.py>`_
 - `Modifying models <>`_
-- `Joint Afterglow and Gravitational-wave analysis <>`_
-- `Gaussian process with a base model <>`_
+- `Fitting with homologous expansion <https://github.com/nikhil-sarin/redback/blob/master/examples/supernova_homologous_expansion_example.py>`_`
+- `Joint Afterglow and Gravitational-wave analysis <https://github.com/nikhil-sarin/redback/blob/master/examples/joint_em_gw_example.py>`_
+- `Gaussian process with a base model <https://github.com/nikhil-sarin/redback/blob/master/examples/magnetar_example_with_gaussian_process.py>`_
 - `broadband_afterglow_private_data_example <https://github.com/nikhil-sarin/redback/blob/master/examples/broadband_afterglow_private_data_example.py>`_
 - `fit_your_own_model_example <https://github.com/nikhil-sarin/redback/blob/master/examples/fit_your_own_model_example.py>`_
 - `kilonova_example <https://github.com/nikhil-sarin/redback/blob/master/examples/kilonova_example.py>`_
