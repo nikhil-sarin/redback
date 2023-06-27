@@ -70,3 +70,12 @@ This new prior dictionary can be updated to include the default prior via
 
     model = 'slsn'
     priors.update(redback.priors.get_priors(model=model))
+
+Adding sigma to the prior
+-------------------------
+
+One can also add a sigma to the prior by using the :code:`sigma` keyword in the prior dictionary.
+For the default :code:`redback` likelihood, this will overwrite the sigma in the data and estimate a constant sigma.
+For other likelihoods, this may be added in quadrature to the y_err from the data.
+Or be a systematic offset proportional to the model that is added in quadrature to the measured noise.
+Please look at the likelihood documentation for more details.

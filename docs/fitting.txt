@@ -44,6 +44,9 @@ A full up to date list of samplers can be found in the `bilby documentation <htt
 This page also provides guidance on how to install these samplers, while the bilby `API <https://lscsoft.docs.ligo.org/bilby/api/bilby.core.sampler.html>`_
 provides information on the sampler settings for each sampler.
 
+Fitting with redback
+---------------
+
 In redback, having created a transient object, specified a model, priors, fitting is done in a single line.
 
 .. code:: python
@@ -63,6 +66,20 @@ Here
 - data_mode: type of data to fit.
 - kwargs: Additional keyword arguments to pass to fit_grb, such as the likelihood, or things required by the sampler, label of the result file, directory where results are saved to etc.
 
-We note that some samplers have multiprocessing,
-which you can see how to use `here <https://lscsoft.docs.ligo.org/bilby/api/bilby.core.sampler.run_sampler.html>`_.
+Fitting with your own/different likelihood
+---------------
+
+For users which wish to change the likelihood, we provide an easy way to do this.
+Many likelihoods are implemented but we can also write our own likelihood.
+Once written this likelihood can be passed to the fit_model function as follows:
+
+.. code:: python
+
+    result = redback.fit_model(name='GRB', model=model, sampler='dynesty',
+                               nlive=200, transient=afterglow, prior=priors,
+                               data_mode='luminosity', likelihood=likelihood, **kwargs)
+
+Please look at the documentation for how to use the likelihoods correctly.
+
+We note that some samplers have multiprocessing, which you can see how to use `here <https://lscsoft.docs.ligo.org/bilby/api/bilby.core.sampler.run_sampler.html>`_.
 We will soon implement some `GPU` models and :code:`parallel bilby` functionality for more rapid inference workflows.
