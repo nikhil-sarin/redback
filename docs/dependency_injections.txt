@@ -27,8 +27,8 @@ that provides a link from the intrinsic binary neutron star parameters to the pr
             self.lambda_1 = lambda_1
             self.lambda_2 = lambda_2
             self.reference = 'No, I really just made this up'
-            self.ejecta_mass = self.calculate_ejecta_mass()
-            self.ejecta_velocity = self.calculate_ejecta_velocity()
+            self.ejecta_mass = self.calculate_ejecta_mass
+            self.ejecta_velocity = self.calculate_ejecta_velocity
 
         @property
         def calculate_ejecta_velocity(self):
@@ -43,7 +43,7 @@ that provides a link from the intrinsic binary neutron star parameters to the pr
             c1 = calc_compactness_from_lambda(self.lambda_1)
             c2 = calc_compactness_from_lambda(self.lambda_2)
 
-            log10_mej = (self.mass_1 * (self.mass_2 / self.mass_1)**c1
+            log10_mej = self.mass_1 * (self.mass_2 / self.mass_1)**c1
 
             mej = 10 ** log10_mej
             return mej
