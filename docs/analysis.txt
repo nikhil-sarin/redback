@@ -1,0 +1,28 @@
+============
+Analysis
+============
+
+Sometimes, we wish to do further analysis after we fit.
+Or before fitting get a understanding of the priors to set, develop a new model, plot the spectrum etc.
+In :code:`redback` we have a :code:`Analysis` class that can be used to do this.
+
+This class provides wrappers around the plot_lightcurve/plot_multiband_lightcurve functions in :code:`redback.plotting`
+and provides a :code:`plot_spectrum` function and some additional diagnostic/supplementary plots that are specific to certain models.
+
+For example, if we wanted to plot a some specific parameters on top of the plot_lightcurve plot, we can do the following:
+
+.. code:: python
+
+    from redback import analysis
+
+    analysis.plot_lightcurve(transient, parameters, model, model_kwargs=None)
+
+Here
+
+- transient is the transient object.
+- Parameters is a dictionary or pandas dataframe containing the parameters we wish to plot.
+- model is the model we wish to plot. This can be a string or a function.
+- model_kwargs is a dictionary of keyword arguments to pass to the model function.
+
+
+Please look at the API for the other methods available in the :code:`Analysis` class.

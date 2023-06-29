@@ -47,11 +47,11 @@ def cocoon(time, redshift, umax, umin, loge0, k, mej, logn0, p, logepse, logepsb
     :param latres: latitudinal resolution for structured jets, defaults to 2
     :param tres: time resolution of shock evolution, defaults to 100
     :param spectype: whether to have inverse compton, defaults to 0, i.e., no inverse compton.
-    Change to 1 for including inverse compton emission.
+        Change to 1 for including inverse compton emission.
     :param l0, ts, q: energy injection parameters, defaults to 0
     :param output_format: Whether to output flux density or AB mag
     :return: flux density or AB mag. Note this is going to give the monochromatic magnitude at the effective frequency for the band.
-    For a proper calculation of the magntitude use the sed variant models.
+        For a proper calculation of the magntitude use the sed variant models.
     """
     time = time * day_to_s
     dl = cosmo.luminosity_distance(redshift).cgs.value
@@ -101,11 +101,11 @@ def kilonova_afterglow(time, redshift, umax, umin, loge0, k, mej, logn0, p, loge
     :param latres: latitudinal resolution for structured jets, defaults to 2
     :param tres: time resolution of shock evolution, defaults to 100
     :param spectype: whether to have inverse compton, defaults to 0, i.e., no inverse compton.
-    Change to 1 for including inverse compton emission.
+        Change to 1 for including inverse compton emission.
     :param l0, ts, q: energy injection parameters, defaults to 0
     :param output_format: Whether to output flux density or AB mag
     :return: flux density or AB mag. Note this is going to give the monochromatic magnitude at the effective frequency for the band.
-    For a proper calculation of the magntitude use the sed variant models.
+        For a proper calculation of the magntitude use the sed variant models.
     """
     output = cocoon(time=time, redshift=redshift, umax=umax, umin=umin, loge0=loge0,
                     k=k, mej=mej, logn0=logn0,p=p,logepse=logepse,logepsb=logepsb,
@@ -134,12 +134,12 @@ def cone_afterglow(time, redshift, thv, loge0, thw, thc, logn0, p, logepse, loge
     :param latres: latitudinal resolution for structured jets, defaults to 2
     :param tres: time resolution of shock evolution, defaults to 100
     :param spectype: whether to have inverse compton, defaults to 0, i.e., no inverse compton.
-    Change to 1 for including inverse compton emission.
+        Change to 1 for including inverse compton emission.
     :param l0, ts, q: energy injection parameters, defaults to 0
     :param output_format: Whether to output flux density or AB mag
     :param base_model: A string to indicate the type of jet model to use.
     :return: flux density or AB mag. Note this is going to give the monochromatic magnitude at the effective frequency for the band.
-    For a proper calculation of the magntitude use the sed variant models.
+        For a proper calculation of the magntitude use the sed variant models.
     """
     time = time * day_to_s
     dl = cosmo.luminosity_distance(redshift).cgs.value
@@ -189,11 +189,11 @@ def gaussiancore(time, redshift, thv, loge0, thc, thw, logn0, p, logepse, logeps
     :param latres: latitudinal resolution for structured jets, defaults to 2
     :param tres: time resolution of shock evolution, defaults to 100
     :param spectype: whether to have inverse compton, defaults to 0, i.e., no inverse compton.
-    Change to 1 for including inverse compton emission.
+        Change to 1 for including inverse compton emission.
     :param l0, ts, q: energy injection parameters, defaults to 0
     :param output_format: Whether to output flux density or AB mag
     :return: flux density or AB mag. Note this is going to give the monochromatic magnitude at the effective frequency for the band.
-    For a proper calculation of the magntitude use the sed variant models.
+        For a proper calculation of the magntitude use the sed variant models.
     """
     time = time * day_to_s
     dl = cosmo.luminosity_distance(redshift).cgs.value
@@ -244,11 +244,11 @@ def gaussian(time, redshift, thv, loge0, thw, thc, logn0, p, logepse, logepsb, k
     :param latres: latitudinal resolution for structured jets, defaults to 2
     :param tres: time resolution of shock evolution, defaults to 100
     :param spectype: whether to have inverse compton, defaults to 0, i.e., no inverse compton.
-    Change to 1 for including inverse compton emission.
+        Change to 1 for including inverse compton emission.
     :param l0, ts, q: energy injection parameters, defaults to 0
     :param output_format: Whether to output flux density or AB mag
     :return: flux density or AB mag. Note this is going to give the monochromatic magnitude at the effective frequency for the band.
-    For a proper calculation of the magntitude use the sed variant models.
+        For a proper calculation of the magntitude use the sed variant models.
     """
     time = time * day_to_s
     dl = cosmo.luminosity_distance(redshift).cgs.value
@@ -299,11 +299,11 @@ def smoothpowerlaw(time, redshift, thv, loge0, thw, thc, beta, logn0, p, logepse
     :param latres: latitudinal resolution for structured jets, defaults to 2
     :param tres: time resolution of shock evolution, defaults to 100
     :param spectype: whether to have inverse compton, defaults to 0, i.e., no inverse compton.
-    Change to 1 for including inverse compton emission.
+        Change to 1 for including inverse compton emission.
     :param l0, ts, q: energy injection parameters, defaults to 0
     :param output_format: Whether to output flux density or AB mag
     :return: flux density or AB mag. Note this is going to give the monochromatic magnitude at the effective frequency for the band.
-    For a proper calculation of the magntitude use the sed variant models.
+        For a proper calculation of the magntitude use the sed variant models.
     """
     time = time * day_to_s
     dl = cosmo.luminosity_distance(redshift).cgs.value
@@ -354,11 +354,11 @@ def powerlawcore(time, redshift, thv, loge0, thw, thc, beta, logn0, p, logepse, 
     :param latres: latitudinal resolution for structured jets, defaults to 2
     :param tres: time resolution of shock evolution, defaults to 100
     :param spectype: whether to have inverse compton, defaults to 0, i.e., no inverse compton.
-    Change to 1 for including inverse compton emission.
+        Change to 1 for including inverse compton emission.
     :param l0, ts, q: energy injection parameters, defaults to 0
     :param output_format: Whether to output flux density or AB mag
     :return: flux density or AB mag. Note this is going to give the monochromatic magnitude at the effective frequency for the band.
-    For a proper calculation of the magntitude use the sed variant models.
+        For a proper calculation of the magntitude use the sed variant models.
     """
     time = time * day_to_s
     dl = cosmo.luminosity_distance(redshift).cgs.value
@@ -409,11 +409,11 @@ def tophat(time, redshift, thv, loge0, thc, logn0, p, logepse, logepsb, ksin, g0
     :param latres: latitudinal resolution for structured jets, defaults to 2
     :param tres: time resolution of shock evolution, defaults to 100
     :param spectype: whether to have inverse compton, defaults to 0, i.e., no inverse compton.
-    Change to 1 for including inverse compton emission.
+        Change to 1 for including inverse compton emission.
     :param l0, ts, q: energy injection parameters, defaults to 0
     :param output_format: Whether to output flux density or AB mag
     :return: flux density or AB mag. Note this is going to give the monochromatic magnitude at the effective frequency for the band.
-    For a proper calculation of the magntitude use the sed variant models. assuming a monochromatic
+        For a proper calculation of the magntitude use the sed variant models. assuming a monochromatic
     """
     time = time * day_to_s
     dl = cosmo.luminosity_distance(redshift).cgs.value
@@ -444,18 +444,19 @@ def tophat(time, redshift, thv, loge0, thc, logn0, p, logepse, logepsb, ksin, g0
 def afterglow_models_with_energy_injection(time, **kwargs):
     """
     A base class for afterglowpy models with energy injection.
+
     :param time: time in days in observer frame
     :param kwargs: Additional keyword arguments
     :param spread: whether jet can spread, defaults to False
     :param latres: latitudinal resolution for structured jets, defaults to 2
     :param tres: time resolution of shock evolution, defaults to 100
     :param spectype: whether to have inverse compton, defaults to 0, i.e., no inverse compton.
-    Change to 1 for including inverse compton emission.
+        Change to 1 for including inverse compton emission.
     :param l0, ts, q: energy injection parameters, defaults to 0
     :param output_format: Whether to output flux density or AB mag
     :param base_model: A string to indicate the type of jet model to use.
     :return: flux density or AB mag. Note this is going to give the monochromatic magnitude at the effective frequency for the band.
-    For a proper calculation of the magntitude use the sed variant models.
+        For a proper calculation of the magntitude use the sed variant models.
     """
     from redback.model_library import modules_dict  # import model library in function to avoid circular dependency
     base_model = kwargs['base_model']
@@ -483,12 +484,12 @@ def afterglow_models_with_jet_spread(time, **kwargs):
     :param latres: latitudinal resolution for structured jets, defaults to 2
     :param tres: time resolution of shock evolution, defaults to 100
     :param spectype: whether to have inverse compton, defaults to 0, i.e., no inverse compton.
-    Change to 1 for including inverse compton emission.
+        Change to 1 for including inverse compton emission.
     :param l0, ts, q: energy injection parameters, defaults to 0
     :param output_format: Whether to output flux density or AB mag
     :param base_model: A string to indicate the type of jet model to use.
     :return: flux density or AB mag. Note this is going to give the monochromatic magnitude at the effective frequency for the band.
-    For a proper calculation of the magntitude use the sed variant models.
+        For a proper calculation of the magntitude use the sed variant models.
     """
     from redback.model_library import modules_dict  # import model library in function to avoid circular dependency
     base_model = kwargs['base_model']
@@ -518,7 +519,7 @@ def afterglow_models_sed(time, **kwargs):
     :param latres: latitudinal resolution for structured jets, defaults to 2
     :param tres: time resolution of shock evolution, defaults to 100
     :param spectype: whether to have inverse compton, defaults to 0, i.e., no inverse compton.
-    Change to 1 for including inverse compton emission.
+        Change to 1 for including inverse compton emission.
     :param bands: Required if output_format is 'magnitude' or 'flux'.
     :param output_format: 'magnitude', 'spectra', 'flux', 'sncosmo_source'
     :param lambda_array: Optional argument to set your desired wavelength array (in Angstroms) to evaluate the SED on.

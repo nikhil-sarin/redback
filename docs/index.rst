@@ -15,9 +15,13 @@ Welcome to REDBACK's documentation!
    getting_data
    transients
    models
+   simulation
    dependency_injections
+   plotting
+   analysis
    fitting
    results
+   joint_likelihood
    examples
    acknowledgements
    contributing
@@ -47,5 +51,6 @@ API:
    sampler
    result
    sed
+   simulate_transients
    photosphere
    likelihoods

@@ -26,6 +26,9 @@ afterglow.analytical_flux_to_luminosity()
 
 # use default priors
 priors = redback.priors.get_priors(model=model)
+
+# Now set up the GP likelihood. This will put a S harmonic oscilator kernel on top of the evolving_magnetar model.
+# And then give an estimate of the GP parameters as well.
 mean_model = EvolvingMagnetar(**priors.sample())
 for k, v in priors.copy().items():
     priors[f"mean:{k}"] = v
@@ -33,8 +36,11 @@ for k, v in priors.copy().items():
 priors["kernel:log_S0"] = bilby.prior.Uniform(-5.0, 10, name="log_S0")
 priors["kernel:log_Q"] = bilby.prior.Uniform(np.log(np.sqrt(2)), 10, name="log_Q")
 priors["kernel:log_omega0"] = bilby.prior.Uniform(-np.log(afterglow.x[-1] - afterglow.x[0]), 10, name="log_omega0")
+# priors["kernel:log_S0"] = bilby.prior.Uniform(-1000.0, 50, name="log_S0")
+# priors["kernel:log_Q"] = bilby.prior.Uniform(-1000, 0, name="log_Q")
+# priors["kernel:log_omega0"] = bilby.prior.Uniform(-1000, 1e50, name="log_omega0")
 
-kernel = celerite.terms.SHOTerm(log_S0=0.0, log_Q=0.0, log_omega0=0.0)
+kernel = celerite.terms.SHOTerm(log_S0=100, log_Q=100, log_omega0=100.0)
 
 likelihood = bilby.likelihood.CeleriteLikelihood(
     kernel=kernel, mean_model=mean_model, t=afterglow.x, y=afterglow.y, yerr=afterglow.y_err[0])
@@ -43,9 +49,13 @@ likelihood.parameters = priors.sample()
 print(likelihood.parameters)
 
 # Call redback.fit_model to run the sampler and obtain GRB result object
-result = redback.fit_model(model=model, likelihood=likelihood, sampler='dynesty', nlive=400, transient=afterglow,
-                           prior=priors, sample='rslice', resume=True)
-
+result = redback.fit_model(model=model, likelihood=likelihood, sampler='dynesty', nlive=100, transient=afterglow,
+                           prior=priors, sample='rslice', resume=False, clean=True, plot=False)
 result.plot_corner()
+
+# Before plotting the lightcurve we need to transform the posterior samples back to their original keys.
+for key in result.posterior.keys():
+    if key.startswith("mean:"):
+        new_key = key.replace("mean:", "")
+        result.posterior[new_key] = result.posterior[key]
 result.plot_lightcurve(random_models=100)
-result.plot_residual()

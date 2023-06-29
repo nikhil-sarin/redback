@@ -159,6 +159,7 @@ def extinction_with_supernova_base_model(time, av, **kwargs):
 def extinction_with_kilonova_base_model(time, av, **kwargs):
     """
     Extinction with models implemented in kilonova_models
+
     :param time: time in observer frame in days
     :param av: absolute mag extinction
     :param kwargs: Must be all the parameters required by the base_model specified using kwargs['base_model']
