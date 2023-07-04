@@ -1482,11 +1482,11 @@ def general_magnetar_driven_supernova(time, redshift, mej, E_sn, kappa, l0, tau_
             return dynamics_output
         else: 
             full_sed = np.zeros((len(time), len(frequency)))
-            #for ii in range(len(frequency)):
-            ss = kwargs['sed'](time=time_temp/day_to_s, temperature=photo.photosphere_temperature,
-                           r_photosphere=photo.r_photosphere, frequency=frequency,
-                           luminosity_distance=dl, cutoff_wavelength=cutoff_wavelength, luminosity=output.bolometric_luminosity)
-            full_sed = ss.flux_density.to(uu.mJy).value
+            for ii in range(len(frequency)):
+                ss = kwargs['sed'](time=time_temp/day_to_s, temperature=photo.photosphere_temperature,
+                               r_photosphere=photo.r_photosphere, frequency=frequency[ii],
+                               luminosity_distance=dl, cutoff_wavelength=cutoff_wavelength, luminosity=output.bolometric_luminosity)
+                full_sed[:, ii] = ss.flux_density.to(uu.mJy).value
             #ipdb.set_trace()
             spectra = (full_sed * uu.mJy).to(uu.erg / uu.cm ** 2 / uu.s / uu.Angstrom,
                                         equivalencies=uu.spectral_density(wav=lambda_observer_frame * uu.Angstrom))
