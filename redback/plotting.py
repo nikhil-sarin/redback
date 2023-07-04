@@ -11,8 +11,6 @@ import pandas as pd
 import redback
 from redback.utils import KwargsAccessorWithDefault
 
-import ipdb
-
 class _FilenameGetter(object):
     def __init__(self, suffix: str) -> None:
         self.suffix = suffix
@@ -583,7 +581,6 @@ class MagnitudePlotter(Plotter):
             frequency = redback.utils.bands_to_frequency([band])
             self._model_kwargs['frequency'] = np.ones(len(times)) * frequency
             if self.plot_max_likelihood:
-                ipdb.set_trace()
                 ys = self.model(times, **self._max_like_params, **self._model_kwargs)
                 if band in self.band_scaling:
                     if self.band_scaling.get("type") == '*':
@@ -597,17 +594,19 @@ class MagnitudePlotter(Plotter):
                               for random_params in self._get_random_parameters()]
             if self.uncertainty_mode == "random_models":
                 for ys in random_ys_list:
-                    if self.band_scaling.get("type") == '*':
-                        axes.plot(times - self._reference_mjd_date, ys * self.band_scaling.get(band), color='red', alpha=0.05, lw=2, zorder=-1)
-                    elif self.band_scaling.get("type") == '+':
-                        axes.plot(times - self._reference_mjd_date, ys + self.band_scaling.get(band), color='red', alpha=0.05, lw=2, zorder=-1)
+                    if band in self.band_scaling:
+                        if self.band_scaling.get("type") == '*':
+                            axes.plot(times - self._reference_mjd_date, ys * self.band_scaling.get(band), color='red', alpha=0.05, lw=2, zorder=-1)
+                        elif self.band_scaling.get("type") == '+':
+                            axes.plot(times - self._reference_mjd_date, ys + self.band_scaling.get(band), color='red', alpha=0.05, lw=2, zorder=-1)
                     else:
                         axes.plot(times - self._reference_mjd_date, ys, color='red', alpha=0.05, lw=2, zorder=-1)
             elif self.uncertainty_mode == "credible_intervals":
-                if self.band_scaling.get("type") == '*':
-                    lower_bound, upper_bound, _ = redback.utils.calc_credible_intervals(samples=np.array(random_ys_list) * self.band_scaling.get(band))
-                elif self.band_scaling.get("type") == '+':
-                    lower_bound, upper_bound, _ = redback.utils.calc_credible_intervals(samples=np.array(random_ys_list) + self.band_scaling.get(band))
+                if band in self.band_scaling:
+                    if self.band_scaling.get("type") == '*':
+                        lower_bound, upper_bound, _ = redback.utils.calc_credible_intervals(samples=np.array(random_ys_list) * self.band_scaling.get(band))
+                    elif self.band_scaling.get("type") == '+':
+                        lower_bound, upper_bound, _ = redback.utils.calc_credible_intervals(samples=np.array(random_ys_list) + self.band_scaling.get(band))
                 else:
                     lower_bound, upper_bound, _ = redback.utils.calc_credible_intervals(samples=np.array(random_ys_list))
                 axes.fill_between(
