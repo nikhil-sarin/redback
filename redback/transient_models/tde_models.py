@@ -153,11 +153,13 @@ def _metzger_tde(mbh_6, stellar_mass, eta, alpha, beta, **kwargs):
                                    'SMBH_accretion_rate', 'time_temp', 'nulnu',
                                    'time_since_fb','tfb', 'lnu', 'envelope_radius', 'envelope_mass',
                                    'rtidal', 'rcirc', 'termination_time', 'termination_time_id'])
-    # constraint_1 = np.min(np.where(Rv < Rcirc/2.))
-    constraint_1 = len(time_temp)
-    constraint_2 = np.min(np.where(Me < 0.0))
+    try:
+        constraint_1 = np.min(np.where(Rv < Rcirc/2.))
+        constraint_2 = np.min(np.where(Me < 0.0))
+    except ValueError:
+        constraint_1 = len(time_temp)
+        constraint_2 = len(time_temp)
     constraint = np.min([constraint_1, constraint_2])
-    constraint_1 = np.min(np.where(Rv < Rcirc/2.))
     termination_time_id = np.min([constraint_1, constraint_2])
     nu = 6.0e14
     expon = 1. / (np.exp(cc.planck * nu / (cc.boltzmann_constant * Teff)) - 1.0)
