@@ -161,6 +161,12 @@ def _metzger_tde(mbh_6, stellar_mass, eta, alpha, beta, **kwargs):
         constraint_2 = len(time_temp)
     constraint = np.min([constraint_1, constraint_2])
     termination_time_id = np.min([constraint_1, constraint_2])
+    # constraint_1 = np.min(np.where(Rv < Rcirc/2.))
+    # constraint_1 = len(time_temp)
+    # constraint_2 = np.min(np.where(Me < 0.0))
+    # constraint = np.min([constraint_1, constraint_2])
+    # constraint_1 = np.min(np.where(Rv < Rcirc / 2.))
+    # termination_time_id = np.min([constraint_1, constraint_2])
     nu = 6.0e14
     expon = 1. / (np.exp(cc.planck * nu / (cc.boltzmann_constant * Teff)) - 1.0)
     nuLnu40 = (8.0*np.pi ** (2.0) * Rph ** (2.0) / cc.speed_of_light ** (2.0))
@@ -180,7 +186,10 @@ def _metzger_tde(mbh_6, stellar_mass, eta, alpha, beta, **kwargs):
     output.SMBH_accretion_rate = MdotBH[:constraint]
     output.time_temp = time_temp[:constraint]
     output.time_since_fb = output.time_temp - output.time_temp[0]
-    output.termination_time = time_temp[termination_time_id] - tfb
+    if constraint == len(time_temp):
+        output.termination_time = time_temp[-1] - tfb
+    else:
+        output.termination_time = time_temp[termination_time_id] - tfb
     output.termination_time_id = termination_time_id
     output.tfb = tfb
     output.nulnu = nuLnu40[:constraint] * 1e40
