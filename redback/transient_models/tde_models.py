@@ -283,11 +283,12 @@ def gaussianrise_metzger_tde_bolometric(time, peak_time, sigma_t, mbh_6, stellar
     lbol_func = interp1d(full_time, y=full_lbol, fill_value='extrapolate')
     return lbol_func(time*cc.day_to_s)
 
+
 @citation_wrapper('Sarin and Metzger in prep,https://ui.adsabs.harvard.edu/abs/2022arXiv220707136M/abstract')
 def gaussianrise_metzger_tde(time, redshift, peak_time, sigma_t, mbh_6, stellar_mass, eta, alpha, beta, **kwargs):
     """
     Full lightcurve, with gaussian rise till fallback time and then the metzger tde model,
-    photometric version where each band is fit/joint separately
+    photometric version where each band is fit/joined separately
 
     :param time: time in observer frame in days
     :param redshift: redshift
@@ -297,6 +298,8 @@ def gaussianrise_metzger_tde(time, redshift, peak_time, sigma_t, mbh_6, stellar_
     :param alpha: disk viscosity
     :param beta: TDE penetration factor (typical range: 1 - beta_max)
     :param kwargs: Additional parameters
+    :param xi: Optional argument (default set to one) to change the point where lightcurve switches from Gaussian rise to cooling envelope.
+        stitching_point = xi * tfb (where tfb is fallback time). So a xi=1 means the stitching point is at fallback time.
     :param frequency: Required if output_format is 'flux_density'.
         frequency to calculate - Must be same length as time array or a single number).
     :param bands: Required if output_format is 'magnitude' or 'flux'.
@@ -307,11 +310,13 @@ def gaussianrise_metzger_tde(time, redshift, peak_time, sigma_t, mbh_6, stellar_
     binding_energy_const = kwargs.get('binding_energy_const', 0.8)
     tfb_sf = calc_tfb(binding_energy_const, mbh_6, stellar_mass)  # source frame
     tfb_obf = tfb_sf * (1. + redshift)  # observer frame
+    xi = kwargs.get('xi', 1.)
     output = _metzger_tde(mbh_6, stellar_mass, eta, alpha, beta, **kwargs)
     dl = cosmo.luminosity_distance(redshift).cgs.value
+    stitching_point = xi * tfb_obf
 
     # normalisation term in observer frame
-    f1 = pm.gaussian_rise(time=tfb_obf, a_1=1, peak_time=peak_time * cc.day_to_s, sigma_t=sigma_t * cc.day_to_s)
+    f1 = pm.gaussian_rise(time=stitching_point, a_1=1., peak_time=peak_time * cc.day_to_s, sigma_t=sigma_t * cc.day_to_s)
 
     if kwargs['output_format'] == 'flux_density':
         frequency = kwargs['frequency']
@@ -332,8 +337,8 @@ def gaussianrise_metzger_tde(time, redshift, peak_time, sigma_t, mbh_6, stellar_
         # build flux density function for each frequency
         flux_den_interp_func = {}
         for freq in unique_frequency:
-            tt_pre_fb = np.linspace(0, tfb_obf / cc.day_to_s, 200) * cc.day_to_s
-            tt_post_fb = output.time_temp * (1 + redshift)
+            tt_pre_fb = np.linspace(0, stitching_point / cc.day_to_s, 200) * cc.day_to_s
+            tt_post_fb = xi * (output.time_temp * (1 + redshift))
             total_time = np.concatenate([tt_pre_fb, tt_post_fb])
             f1 = pm.gaussian_rise(time=tt_pre_fb, a_1=norm_dict[freq],
                                   peak_time=peak_time * cc.day_to_s, sigma_t=sigma_t * cc.day_to_s)
@@ -358,8 +363,8 @@ def gaussianrise_metzger_tde(time, redshift, peak_time, sigma_t, mbh_6, stellar_
         temp_kwargs = kwargs.copy()
         temp_kwargs['bands'] = unique_bands
         f2 = metzger_tde(time=0., redshift=redshift,
-                            mbh_6=mbh_6, stellar_mass=stellar_mass, eta=eta, alpha=alpha, beta=beta,
-                            **temp_kwargs)
+                         mbh_6=mbh_6, stellar_mass=stellar_mass, eta=eta, alpha=alpha, beta=beta,
+                         **temp_kwargs)
         if kwargs['output_format'] == 'magnitude':
             # make the normalisation in fmjy to avoid magnitude normalisation problems
             _f2mjy = calc_flux_density_from_ABmag(f2).value
@@ -373,7 +378,7 @@ def gaussianrise_metzger_tde(time, redshift, peak_time, sigma_t, mbh_6, stellar_
 
         flux_den_interp_func = {}
         for band in unique_bands:
-            tt_pre_fb = np.linspace(0, tfb_obf / cc.day_to_s, 100) * cc.day_to_s
+            tt_pre_fb = np.linspace(0, stitching_point / cc.day_to_s, 100) * cc.day_to_s
             tt_post_fb = output.time_temp * (1 + redshift)
             total_time = np.concatenate([tt_pre_fb, tt_post_fb])
             f1 = pm.gaussian_rise(time=tt_pre_fb, a_1=norm_dict[band],
@@ -382,9 +387,9 @@ def gaussianrise_metzger_tde(time, redshift, peak_time, sigma_t, mbh_6, stellar_
                 f1 = calc_ABmag_from_flux_density(f1).value
             temp_kwargs = kwargs.copy()
             temp_kwargs['bands'] = band
-            f2 = metzger_tde(time=output.time_since_fb/cc.day_to_s, redshift=redshift,
-                                mbh_6=mbh_6, stellar_mass=stellar_mass, eta=eta, alpha=alpha, beta=beta,
-                                **temp_kwargs)
+            f2 = metzger_tde(time=output.time_since_fb / cc.day_to_s, redshift=redshift,
+                             mbh_6=mbh_6, stellar_mass=stellar_mass, eta=eta, alpha=alpha, beta=beta,
+                             **temp_kwargs)
             flux_den = np.concatenate([f1, f2])
             flux_den_interp_func[band] = interp1d(total_time, flux_den, fill_value='extrapolate')
 
