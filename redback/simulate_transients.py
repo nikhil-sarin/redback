@@ -50,9 +50,9 @@ class SimulateGenericTransient(object):
             if self.all_bands is None and self.all_frequency is None:
                 raise ValueError('Must supply either bands or frequency to sample data points for an optical transient')
             if self.all_bands is not None and self.all_frequency is None:
-                self.subset_bands = random.choices(self.all_bands, k=self.data_points)
+                self.subset_bands = np.array(random.choices(self.all_bands, k=self.data_points))
             if self.all_bands is None and self.all_frequency is not None:
-                self.subset_frequency = random.choices(self.all_frequency, k=self.data_points)
+                self.subset_frequency = np.array(random.choices(self.all_frequency, k=self.data_points))
             self.replacement = True
             # allow times to be chosen repeatedly
         else:
