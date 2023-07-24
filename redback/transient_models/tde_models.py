@@ -202,10 +202,12 @@ def metzger_tde(time, redshift,  mbh_6, stellar_mass, eta, alpha, beta, **kwargs
     :param bands: Required if output_format is 'magnitude' or 'flux'.
     :param output_format: 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
     :param lambda_array: Optional argument to set your desired wavelength array (in Angstroms) to evaluate the SED on.
+    :param cosmology: Cosmology to use for luminosity distance calculation. Defaults to Planck18. Must be a astropy.cosmology object.
     :return: set by output format - 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
     """
     output = _metzger_tde(mbh_6, stellar_mass, eta, alpha, beta, **kwargs)
-    dl = cosmo.luminosity_distance(redshift).cgs.value
+    cosmology = kwargs.get('cosmology', cosmo)
+    dl = cosmology.luminosity_distance(redshift).cgs.value
     time_obs = time
 
     if kwargs['output_format'] == 'flux_density':
@@ -302,13 +304,15 @@ def gaussianrise_metzger_tde(time, redshift, peak_time, sigma_t, mbh_6, stellar_
     :param bands: Required if output_format is 'magnitude' or 'flux'.
     :param output_format: 'flux_density', 'magnitude', 'flux'
     :param lambda_array: Optional argument to set your desired wavelength array (in Angstroms) to evaluate the SED on.
+    :param cosmology: Cosmology to use for luminosity distance calculation. Defaults to Planck18. Must be a astropy.cosmology object.
     :return: set by output format - 'flux_density', 'magnitude', 'flux'
     """
     binding_energy_const = kwargs.get('binding_energy_const', 0.8)
     tfb_sf = calc_tfb(binding_energy_const, mbh_6, stellar_mass)  # source frame
     tfb_obf = tfb_sf * (1. + redshift)  # observer frame
     output = _metzger_tde(mbh_6, stellar_mass, eta, alpha, beta, **kwargs)
-    dl = cosmo.luminosity_distance(redshift).cgs.value
+    cosmology = kwargs.get('cosmology', cosmo)
+    dl = cosmology.luminosity_distance(redshift).cgs.value
 
     # normalisation term in observer frame
     f1 = pm.gaussian_rise(time=tfb_obf, a_1=1, peak_time=peak_time * cc.day_to_s, sigma_t=sigma_t * cc.day_to_s)
@@ -433,13 +437,15 @@ def tde_analytical(time, redshift, l0, t_0_turn, **kwargs):
     :param bands: Required if output_format is 'magnitude' or 'flux'.
     :param output_format: 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
     :param lambda_array: Optional argument to set your desired wavelength array (in Angstroms) to evaluate the SED on.
+    :param cosmology: Cosmology to use for luminosity distance calculation. Defaults to Planck18. Must be a astropy.cosmology object.
     :return: set by output format - 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
     """
     kwargs['interaction_process'] = kwargs.get("interaction_process", ip.Diffusion)
     kwargs['photosphere'] = kwargs.get("photosphere", photosphere.TemperatureFloor)
     kwargs['sed'] = kwargs.get("sed", sed.CutoffBlackbody)
     cutoff_wavelength = kwargs.get('cutoff_wavelength', 3000)
-    dl = cosmo.luminosity_distance(redshift).cgs.value
+    cosmology = kwargs.get('cosmology', cosmo)
+    dl = cosmology.luminosity_distance(redshift).cgs.value
 
     if kwargs['output_format'] == 'flux_density':
         frequency = kwargs['frequency']
