@@ -120,12 +120,14 @@ def shock_cooling(time, redshift, log10_mass, log10_radius, log10_energy, **kwar
     :param bands: Required if output_format is 'magnitude' or 'flux'.
     :param output_format: 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
     :param lambda_array: Optional argument to set your desired wavelength array (in Angstroms) to evaluate the SED on.
+    :param cosmology: Cosmology to use for luminosity distance calculation. Defaults to Planck18. Must be a astropy.cosmology object.
     :return: set by output format - 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
     """
     mass = 10 ** log10_mass
     radius = 10 ** log10_radius
     energy = 10 ** log10_energy
-    dl = cosmo.luminosity_distance(redshift).cgs.value
+    cosmology = kwargs.get('cosmology', cosmo)
+    dl = cosmology.luminosity_distance(redshift).cgs.value
     time_obs = time
 
     if kwargs['output_format'] == 'flux_density':
@@ -401,6 +403,8 @@ def thermal_synchrotron_fluxdensity(time, redshift, logn0, v0, logr0, eta, logep
     :param wind_slope: slope for ism density scaling (nism = n0 * (r/r0)**(-wind_slope)). Default is 2
     :param mu: mean molecular weight, default is 0.62
     :param mu_e: mean molecular weight per electron, default is 1.18
+    :param kwargs: extra parameters to change physics and other settings
+    :param cosmology: Cosmology to use for luminosity distance calculation. Defaults to Planck18. Must be a astropy.cosmology object.
     :return: flux density
     """
     frequency = kwargs['frequency']
@@ -408,7 +412,8 @@ def thermal_synchrotron_fluxdensity(time, redshift, logn0, v0, logr0, eta, logep
     new_kwargs = kwargs.copy()
     new_kwargs['frequency'] = frequency
     time = time * day_to_s
-    dl = cosmo.luminosity_distance(redshift).cgs.value
+    cosmology = kwargs.get('cosmology', cosmo)
+    dl = cosmology.luminosity_distance(redshift).cgs.value
     lnu = thermal_synchrotron_lnu(time,logn0, v0, logr0, eta, logepse, logepsb, xi, p,**new_kwargs)
     flux_density = lnu / (4.0 * np.pi * dl**2)
     return flux_density
@@ -486,9 +491,11 @@ def shocked_cocoon(time, redshift, mej, vej, eta, tshock, shocked_fraction, cos_
     :param bands: Required if output_format is 'magnitude' or 'flux'.
     :param output_format: 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
     :param lambda_array: Optional argument to set your desired wavelength array (in Angstroms) to evaluate the SED on.
+    :param cosmology: Cosmology to use for luminosity distance calculation. Defaults to Planck18. Must be a astropy.cosmology object.
     :return: set by output format - 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
     """
-    dl = cosmo.luminosity_distance(redshift).cgs.value
+    cosmology = kwargs.get('cosmology', cosmo)
+    dl = cosmology.luminosity_distance(redshift).cgs.value
     time_obs = time
 
     if kwargs['output_format'] == 'flux_density':
