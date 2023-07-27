@@ -161,12 +161,6 @@ def _metzger_tde(mbh_6, stellar_mass, eta, alpha, beta, **kwargs):
         constraint_2 = len(time_temp)
     constraint = np.min([constraint_1, constraint_2])
     termination_time_id = np.min([constraint_1, constraint_2])
-    # constraint_1 = np.min(np.where(Rv < Rcirc/2.))
-    # constraint_1 = len(time_temp)
-    # constraint_2 = np.min(np.where(Me < 0.0))
-    # constraint = np.min([constraint_1, constraint_2])
-    # constraint_1 = np.min(np.where(Rv < Rcirc / 2.))
-    # termination_time_id = np.min([constraint_1, constraint_2])
     nu = 6.0e14
     expon = 1. / (np.exp(cc.planck * nu / (cc.boltzmann_constant * Teff)) - 1.0)
     nuLnu40 = (8.0*np.pi ** (2.0) * Rph ** (2.0) / cc.speed_of_light ** (2.0))
