@@ -28,7 +28,7 @@ def _analytic_fallback(time, l0, t_0):
 def _semianalytical_fallback():
     pass
 
-def _metzger_tde(mbh_6, stellar_mass, eta, alpha, beta, **kwargs):
+def _cooling_envelope(mbh_6, stellar_mass, eta, alpha, beta, **kwargs):
     """
     :param mbh_6: mass of supermassive black hole in units of 10^6 solar mass
     :param stellar_mass: stellar mass in units of solar masses
@@ -189,8 +189,8 @@ def _metzger_tde(mbh_6, stellar_mass, eta, alpha, beta, **kwargs):
     output.nulnu = nuLnu40[:constraint] * 1e40
     return output
 
-@citation_wrapper('https://ui.adsabs.harvard.edu/abs/2022arXiv220707136M/abstract')
-def metzger_tde(time, redshift,  mbh_6, stellar_mass, eta, alpha, beta, **kwargs):
+@citation_wrapper('https://arxiv.org/abs/2307.15121,https://ui.adsabs.harvard.edu/abs/2022arXiv220707136M/abstract')
+def cooling_envelope(time, redshift, mbh_6, stellar_mass, eta, alpha, beta, **kwargs):
     """
     This model is only valid for time after circulation. Use the gaussianrise_metzgertde model for the full lightcurve
 
@@ -209,7 +209,7 @@ def metzger_tde(time, redshift,  mbh_6, stellar_mass, eta, alpha, beta, **kwargs
     :param lambda_array: Optional argument to set your desired wavelength array (in Angstroms) to evaluate the SED on.
     :return: set by output format - 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
     """
-    output = _metzger_tde(mbh_6, stellar_mass, eta, alpha, beta, **kwargs)
+    output = _cooling_envelope(mbh_6, stellar_mass, eta, alpha, beta, **kwargs)
     dl = cosmo.luminosity_distance(redshift).cgs.value
     time_obs = time
 
@@ -253,8 +253,8 @@ def metzger_tde(time, redshift,  mbh_6, stellar_mass, eta, alpha, beta, **kwargs
                                                               spectra=spectra, lambda_array=lambda_observer_frame,
                                                               **kwargs)
 
-@citation_wrapper('Sarin and Metzger in prep,https://ui.adsabs.harvard.edu/abs/2022arXiv220707136M/abstract')
-def gaussianrise_metzger_tde_bolometric(time, peak_time, sigma_t, mbh_6, stellar_mass, eta, alpha, beta, **kwargs):
+@citation_wrapper('https://arxiv.org/abs/2307.15121,https://ui.adsabs.harvard.edu/abs/2022arXiv220707136M/abstract')
+def gaussianrise_cooling_envelope_bolometric(time, peak_time, sigma_t, mbh_6, stellar_mass, eta, alpha, beta, **kwargs):
     """
     Full lightcurve, with gaussian rise till fallback time and then the metzger tde model,
     bolometric version for fitting the bolometric lightcurve
@@ -268,7 +268,7 @@ def gaussianrise_metzger_tde_bolometric(time, peak_time, sigma_t, mbh_6, stellar
     :param kwargs: Additional parameters
     :return luminosity in ergs/s
     """
-    output = _metzger_tde(mbh_6, stellar_mass, eta, alpha, beta, **kwargs)
+    output = _cooling_envelope(mbh_6, stellar_mass, eta, alpha, beta, **kwargs)
     kwargs['binding_energy_const'] = kwargs.get('binding_energy_const', 0.8)
     tfb_sf = calc_tfb(kwargs['binding_energy_const'], mbh_6, stellar_mass)  # source frame
     f1 = pm.gaussian_rise(time=tfb_sf, a_1=1, peak_time=peak_time * cc.day_to_s, sigma_t=sigma_t * cc.day_to_s)
@@ -289,8 +289,8 @@ def gaussianrise_metzger_tde_bolometric(time, peak_time, sigma_t, mbh_6, stellar
     return lbol_func(time*cc.day_to_s)
 
 
-@citation_wrapper('Sarin and Metzger in prep,https://ui.adsabs.harvard.edu/abs/2022arXiv220707136M/abstract')
-def gaussianrise_metzger_tde(time, redshift, peak_time, sigma_t, mbh_6, stellar_mass, eta, alpha, beta, **kwargs):
+@citation_wrapper('https://arxiv.org/abs/2307.15121,https://ui.adsabs.harvard.edu/abs/2022arXiv220707136M/abstract')
+def gaussianrise_cooling_envelope(time, redshift, peak_time, sigma_t, mbh_6, stellar_mass, eta, alpha, beta, **kwargs):
     """
     Full lightcurve, with gaussian rise till fallback time and then the metzger tde model,
     photometric version where each band is fit/joined separately
@@ -316,7 +316,7 @@ def gaussianrise_metzger_tde(time, redshift, peak_time, sigma_t, mbh_6, stellar_
     tfb_sf = calc_tfb(binding_energy_const, mbh_6, stellar_mass)  # source frame
     tfb_obf = tfb_sf * (1. + redshift)  # observer frame
     xi = kwargs.get('xi', 1.)
-    output = _metzger_tde(mbh_6, stellar_mass, eta, alpha, beta, **kwargs)
+    output = _cooling_envelope(mbh_6, stellar_mass, eta, alpha, beta, **kwargs)
     dl = cosmo.luminosity_distance(redshift).cgs.value
     stitching_point = xi * tfb_obf
 
@@ -367,9 +367,9 @@ def gaussianrise_metzger_tde(time, redshift, peak_time, sigma_t, mbh_6, stellar_
         unique_bands = np.unique(bands)
         temp_kwargs = kwargs.copy()
         temp_kwargs['bands'] = unique_bands
-        f2 = metzger_tde(time=0., redshift=redshift,
-                         mbh_6=mbh_6, stellar_mass=stellar_mass, eta=eta, alpha=alpha, beta=beta,
-                         **temp_kwargs)
+        f2 = cooling_envelope(time=0., redshift=redshift,
+                              mbh_6=mbh_6, stellar_mass=stellar_mass, eta=eta, alpha=alpha, beta=beta,
+                              **temp_kwargs)
         if kwargs['output_format'] == 'magnitude':
             # make the normalisation in fmjy to avoid magnitude normalisation problems
             _f2mjy = calc_flux_density_from_ABmag(f2).value
@@ -392,9 +392,9 @@ def gaussianrise_metzger_tde(time, redshift, peak_time, sigma_t, mbh_6, stellar_
                 f1 = calc_ABmag_from_flux_density(f1).value
             temp_kwargs = kwargs.copy()
             temp_kwargs['bands'] = band
-            f2 = metzger_tde(time=output.time_since_fb / cc.day_to_s, redshift=redshift,
-                             mbh_6=mbh_6, stellar_mass=stellar_mass, eta=eta, alpha=alpha, beta=beta,
-                             **temp_kwargs)
+            f2 = cooling_envelope(time=output.time_since_fb / cc.day_to_s, redshift=redshift,
+                                  mbh_6=mbh_6, stellar_mass=stellar_mass, eta=eta, alpha=alpha, beta=beta,
+                                  **temp_kwargs)
             flux_den = np.concatenate([f1, f2])
             flux_den_interp_func[band] = interp1d(total_time, flux_den, fill_value='extrapolate')
 
