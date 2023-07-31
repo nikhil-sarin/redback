@@ -189,7 +189,7 @@ def _metzger_tde(mbh_6, stellar_mass, eta, alpha, beta, **kwargs):
     output.nulnu = nuLnu40[:constraint] * 1e40
     return output
 
-@citation_wrapper('https://ui.adsabs.harvard.edu/abs/2022arXiv220707136M/abstract')
+@citation_wrapper('https://arxiv.org/abs/2307.15121, https://ui.adsabs.harvard.edu/abs/2022arXiv220707136M/abstract')
 def metzger_tde(time, redshift,  mbh_6, stellar_mass, eta, alpha, beta, **kwargs):
     """
     This model is only valid for time after circulation. Use the gaussianrise_metzgertde model for the full lightcurve
@@ -253,7 +253,7 @@ def metzger_tde(time, redshift,  mbh_6, stellar_mass, eta, alpha, beta, **kwargs
                                                               spectra=spectra, lambda_array=lambda_observer_frame,
                                                               **kwargs)
 
-@citation_wrapper('Sarin and Metzger in prep,https://ui.adsabs.harvard.edu/abs/2022arXiv220707136M/abstract')
+@citation_wrapper('https://arxiv.org/abs/2307.15121,https://ui.adsabs.harvard.edu/abs/2022arXiv220707136M/abstract')
 def gaussianrise_metzger_tde_bolometric(time, peak_time, sigma_t, mbh_6, stellar_mass, eta, alpha, beta, **kwargs):
     """
     Full lightcurve, with gaussian rise till fallback time and then the metzger tde model,
@@ -289,7 +289,7 @@ def gaussianrise_metzger_tde_bolometric(time, peak_time, sigma_t, mbh_6, stellar
     return lbol_func(time*cc.day_to_s)
 
 
-@citation_wrapper('Sarin and Metzger in prep,https://ui.adsabs.harvard.edu/abs/2022arXiv220707136M/abstract')
+@citation_wrapper('https://arxiv.org/abs/2307.15121,https://ui.adsabs.harvard.edu/abs/2022arXiv220707136M/abstract')
 def gaussianrise_metzger_tde(time, redshift, peak_time, sigma_t, mbh_6, stellar_mass, eta, alpha, beta, **kwargs):
     """
     Full lightcurve, with gaussian rise till fallback time and then the metzger tde model,
