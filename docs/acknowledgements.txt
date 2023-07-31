@@ -57,14 +57,14 @@ We recommend the following text for citing :code:`redback` in a scientific publi
 
 For using :code:`redback` to fit transients:
 
-- We fit the transient using the open source software package \texttt{Redback}~\cite{sarin_redback},
+- We fit the transient using the open source software package {\sc Redback}~\cite{sarin_redback},
   with the {model_name}~\citep{model reference} model using the {sampler} sampler~\citep{sampler reference} wrapped with bilby~\citep{Ashton+2019}.
 
 For using :code:`redback` to simulate transients:
 
-- We simulate transients using the open source software package \texttt{Redback}~\cite{sarin_redback}, with the {model_name}~\citep{model reference} model.
+- We simulate transients using the open source software package {\sc Redback}~\cite{sarin_redback}, with the {model_name}~\citep{model reference} model.
 
 For using :code:`redback` to download transient data:
 
-- We download and process this data using the API provided by the open source software package \texttt{Redback}~\cite{sarin_redback}.
+- We download and process this data using the API provided by the open source software package {\sc Redback}~\cite{sarin_redback}.
 
