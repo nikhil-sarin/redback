@@ -145,12 +145,14 @@ def sn_exponential_powerlaw(time, redshift, lbol_0, alpha_1, alpha_2, tpeak_d, *
     :param bands: Required if output_format is 'magnitude' or 'flux'.
     :param output_format: 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
     :param lambda_array: Optional argument to set your desired wavelength array (in Angstroms) to evaluate the SED on.
+    :param cosmology: Cosmology to use for luminosity distance calculation. Defaults to Planck18. Must be a astropy.cosmology object.
     :return: set by output format - 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
     """
     kwargs['interaction_process'] = kwargs.get("interaction_process", ip.Diffusion)
     kwargs['photosphere'] = kwargs.get("photosphere", photosphere.TemperatureFloor)
     kwargs['sed'] = kwargs.get("sed", sed.Blackbody)
-    dl = cosmo.luminosity_distance(redshift).cgs.value
+    cosmology = kwargs.get('cosmology', cosmo)
+    dl = cosmology.luminosity_distance(redshift).cgs.value
 
     if kwargs['output_format'] == 'flux_density':
         frequency = kwargs['frequency']
@@ -245,12 +247,14 @@ def arnett(time, redshift, f_nickel, mej, **kwargs):
     :param bands: Required if output_format is 'magnitude' or 'flux'.
     :param output_format: 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
     :param lambda_array: Optional argument to set your desired wavelength array (in Angstroms) to evaluate the SED on.
+    :param cosmology: Cosmology to use for luminosity distance calculation. Defaults to Planck18. Must be a astropy.cosmology object.
     :return: set by output format - 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
     """
     kwargs['interaction_process'] = kwargs.get("interaction_process", ip.Diffusion)
     kwargs['photosphere'] = kwargs.get("photosphere", photosphere.TemperatureFloor)
     kwargs['sed'] = kwargs.get("sed", sed.Blackbody)
-    dl = cosmo.luminosity_distance(redshift).cgs.value
+    cosmology = kwargs.get('cosmology', cosmo)
+    dl = cosmology.luminosity_distance(redshift).cgs.value
 
     if kwargs['output_format'] == 'flux_density':
         frequency = kwargs['frequency']
@@ -309,12 +313,14 @@ def shock_cooling_and_arnett(time, redshift, log10_mass, log10_radius, log10_ene
     :param bands: Required if output_format is 'magnitude' or 'flux'.
     :param output_format: 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
     :param lambda_array: Optional argument to set your desired wavelength array (in Angstroms) to evaluate the SED on.
+    :param cosmology: Cosmology to use for luminosity distance calculation. Defaults to Planck18. Must be a astropy.cosmology object.
     :return: set by output format - 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
     """
     kwargs['interaction_process'] = kwargs.get("interaction_process", ip.Diffusion)
     kwargs['photosphere'] = kwargs.get("photosphere", photosphere.TemperatureFloor)
     kwargs['sed'] = kwargs.get("sed", sed.Blackbody)
-    dl = cosmo.luminosity_distance(redshift).cgs.value
+    cosmology = kwargs.get('cosmology', cosmo)
+    dl = cosmology.luminosity_distance(redshift).cgs.value
     mass = 10 ** log10_mass
     radius = 10 ** log10_radius
     energy = 10 ** log10_energy
@@ -411,12 +417,14 @@ def basic_magnetar_powered(time, redshift, p0, bp, mass_ns, theta_pb,**kwargs):
     :param bands: Required if output_format is 'magnitude' or 'flux'.
     :param output_format: 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
     :param lambda_array: Optional argument to set your desired wavelength array (in Angstroms) to evaluate the SED on.
+    :param cosmology: Cosmology to use for luminosity distance calculation. Defaults to Planck18. Must be a astropy.cosmology object.
     :return: set by output format - 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
     """
     kwargs['interaction_process'] = kwargs.get("interaction_process", ip.Diffusion)
     kwargs['photosphere'] = kwargs.get("photosphere", photosphere.TemperatureFloor)
     kwargs['sed'] = kwargs.get("sed", sed.Blackbody)
-    dl = cosmo.luminosity_distance(redshift).cgs.value
+    cosmology = kwargs.get('cosmology', cosmo)
+    dl = cosmology.luminosity_distance(redshift).cgs.value
 
     if kwargs['output_format'] == 'flux_density':
         frequency = kwargs['frequency']
@@ -494,13 +502,15 @@ def slsn(time, redshift, p0, bp, mass_ns, theta_pb,**kwargs):
     :param bands: Required if output_format is 'magnitude' or 'flux'.
     :param output_format: 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
     :param lambda_array: Optional argument to set your desired wavelength array (in Angstroms) to evaluate the SED on.
+    :param cosmology: Cosmology to use for luminosity distance calculation. Defaults to Planck18. Must be a astropy.cosmology object.
     :return: set by output format - 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
     """
     kwargs['interaction_process'] = kwargs.get("interaction_process", ip.Diffusion)
     kwargs['photosphere'] = kwargs.get("photosphere", photosphere.TemperatureFloor)
     kwargs['sed'] = kwargs.get("sed", sed.CutoffBlackbody)
     cutoff_wavelength = kwargs.get('cutoff_wavelength', 3000)
-    dl = cosmo.luminosity_distance(redshift).cgs.value
+    cosmology = kwargs.get('cosmology', cosmo)
+    dl = cosmology.luminosity_distance(redshift).cgs.value
 
     if kwargs['output_format'] == 'flux_density':
         frequency = kwargs['frequency']
@@ -564,12 +574,14 @@ def magnetar_nickel(time, redshift, f_nickel, mej, p0, bp, mass_ns, theta_pb, **
     :param bands: Required if output_format is 'magnitude' or 'flux'.
     :param output_format: 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
     :param lambda_array: Optional argument to set your desired wavelength array (in Angstroms) to evaluate the SED on.
+    :param cosmology: Cosmology to use for luminosity distance calculation. Defaults to Planck18. Must be a astropy.cosmology object.
     :return: set by output format - 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
     """
     kwargs['interaction_process'] = kwargs.get("interaction_process", ip.Diffusion)
     kwargs['photosphere'] = kwargs.get("photosphere", photosphere.TemperatureFloor)
     kwargs['sed'] = kwargs.get("sed", sed.Blackbody)
-    dl = cosmo.luminosity_distance(redshift).cgs.value
+    cosmology = kwargs.get('cosmology', cosmo)
+    dl = cosmology.luminosity_distance(redshift).cgs.value
 
     if kwargs['output_format'] == 'flux_density':
         frequency = kwargs['frequency']
@@ -716,12 +728,14 @@ def homologous_expansion_supernova(time, redshift, mej, ek, **kwargs):
     :param bands: Required if output_format is 'magnitude' or 'flux'.
     :param output_format: 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
     :param lambda_array: Optional argument to set your desired wavelength array (in Angstroms) to evaluate the SED on.
+    :param cosmology: Cosmology to use for luminosity distance calculation. Defaults to Planck18. Must be a astropy.cosmology object.
     :return: set by output format - 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
     """
     kwargs['interaction_process'] = kwargs.get("interaction_process", ip.Diffusion)
     kwargs['photosphere'] = kwargs.get("photosphere", photosphere.TemperatureFloor)
     kwargs['sed'] = kwargs.get("sed", sed.Blackbody)
-    dl = cosmo.luminosity_distance(redshift).cgs.value
+    cosmology = kwargs.get('cosmology', cosmo)
+    dl = cosmology.luminosity_distance(redshift).cgs.value
 
     if kwargs['output_format'] == 'flux_density':
         frequency = kwargs['frequency']
@@ -780,12 +794,14 @@ def thin_shell_supernova(time, redshift, mej, ek, **kwargs):
     :param bands: Required if output_format is 'magnitude' or 'flux'.
     :param output_format: 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
     :param lambda_array: Optional argument to set your desired wavelength array (in Angstroms) to evaluate the SED on.
+    :param cosmology: Cosmology to use for luminosity distance calculation. Defaults to Planck18. Must be a astropy.cosmology object.
     :return: set by output format - 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
     """
     kwargs['interaction_process'] = kwargs.get("interaction_process", ip.Diffusion)
     kwargs['photosphere'] = kwargs.get("photosphere", photosphere.TemperatureFloor)
     kwargs['sed'] = kwargs.get("sed", sed.Blackbody)
-    dl = cosmo.luminosity_distance(redshift).cgs.value
+    cosmology = kwargs.get('cosmology', cosmo)
+    dl = cosmology.luminosity_distance(redshift).cgs.value
 
     if kwargs['output_format'] == 'flux_density':
         frequency = kwargs['frequency']
@@ -974,12 +990,14 @@ def csm_interaction(time, redshift, mej, csm_mass, vej, eta, rho, kappa, r0, **k
     :param bands: Required if output_format is 'magnitude' or 'flux'.
     :param output_format: 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
     :param lambda_array: Optional argument to set your desired wavelength array (in Angstroms) to evaluate the SED on.
+    :param cosmology: Cosmology to use for luminosity distance calculation. Defaults to Planck18. Must be a astropy.cosmology object.
     :return: set by output format - 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
     """
     kwargs['interaction_process'] = kwargs.get("interaction_process", ip.CSMDiffusion)
     kwargs['photosphere'] = kwargs.get("photosphere", photosphere.TemperatureFloor)
     kwargs['sed'] = kwargs.get("sed", sed.Blackbody)
-    dl = cosmo.luminosity_distance(redshift).cgs.value
+    cosmology = kwargs.get('cosmology', cosmo)
+    dl = cosmology.luminosity_distance(redshift).cgs.value
 
     if kwargs['output_format'] == 'flux_density':
         frequency = kwargs['frequency']
@@ -1041,9 +1059,11 @@ def csm_nickel(time, redshift, mej, f_nickel, csm_mass, ek, eta, rho, kappa, r0,
     :param bands: Required if output_format is 'magnitude' or 'flux'.
     :param output_format: 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
     :param lambda_array: Optional argument to set your desired wavelength array (in Angstroms) to evaluate the SED on.
+    :param cosmology: Cosmology to use for luminosity distance calculation. Defaults to Planck18. Must be a astropy.cosmology object.
     :return: set by output format - 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
     """
-    dl = cosmo.luminosity_distance(redshift).cgs.value
+    cosmology = kwargs.get('cosmology', cosmo)
+    dl = cosmology.luminosity_distance(redshift).cgs.value
     vej = np.sqrt(2.0 * ek / (mej * solar_mass)) / km_cgs
 
     if kwargs['output_format'] == 'flux_density':
@@ -1111,9 +1131,11 @@ def type_1a(time, redshift, f_nickel, mej, **kwargs):
     :param bands: Required if output_format is 'magnitude' or 'flux'.
     :param output_format: 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
     :param lambda_array: Optional argument to set your desired wavelength array (in Angstroms) to evaluate the SED on.
+    :param cosmology: Cosmology to use for luminosity distance calculation. Defaults to Planck18. Must be a astropy.cosmology object.
     :return: set by output format - 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
     """
-    dl = cosmo.luminosity_distance(redshift).cgs.value
+    cosmology = kwargs.get('cosmology', cosmo)
+    dl = cosmology.luminosity_distance(redshift).cgs.value
     cutoff_wavelength = kwargs.get('cutoff_wavelength', 3000)
     line_wavelength = kwargs.get('line_wavelength',7.5e3)
     line_width = kwargs.get('line_width', 500)
@@ -1186,11 +1208,13 @@ def type_1c(time, redshift, f_nickel, mej, pp, **kwargs):
     :param bands: Required if output_format is 'magnitude' or 'flux'.
     :param output_format: 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
     :param lambda_array: Optional argument to set your desired wavelength array (in Angstroms) to evaluate the SED on.
+    :param cosmology: Cosmology to use for luminosity distance calculation. Defaults to Planck18. Must be a astropy.cosmology object.
     :return: set by output format - 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
     """
     nu_max = kwargs.get('nu_max', 1e9)
     f0 = kwargs.get('f0', 1e-26)
-    dl = cosmo.luminosity_distance(redshift).cgs.value
+    cosmology = kwargs.get('cosmology', cosmo)
+    dl = cosmology.luminosity_distance(redshift).cgs.value
 
     if kwargs['output_format'] == 'flux_density':
         frequency = kwargs['frequency']
@@ -1275,12 +1299,14 @@ def general_magnetar_slsn(time, redshift, l0, tsd, nn, ** kwargs):
     :param bands: Required if output_format is 'magnitude' or 'flux'.
     :param output_format: 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
     :param lambda_array: Optional argument to set your desired wavelength array (in Angstroms) to evaluate the SED on.
+    :param cosmology: Cosmology to use for luminosity distance calculation. Defaults to Planck18. Must be a astropy.cosmology object.
     :return: set by output format - 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
     """
     kwargs['interaction_process'] = kwargs.get("interaction_process", ip.Diffusion)
     kwargs['photosphere'] = kwargs.get("photosphere", photosphere.TemperatureFloor)
     kwargs['sed'] = kwargs.get("sed", sed.Blackbody)
-    dl = cosmo.luminosity_distance(redshift).cgs.value
+    cosmology = kwargs.get('cosmology', cosmo)
+    dl = cosmology.luminosity_distance(redshift).cgs.value
 
     if kwargs['output_format'] == 'flux_density':
         frequency = kwargs['frequency']

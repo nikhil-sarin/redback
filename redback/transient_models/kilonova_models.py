@@ -344,11 +344,12 @@ def nicholl_bns(time, redshift, mass_1, mass_2, lambda_s, kappa_red, kappa_blue,
     :param output_format: 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
     :param lambda_array: Optional argument to set your desired wavelength array (in Angstroms) to evaluate the SED on.
     :param dense_resolution: resolution of the grid that the model is actually evaluated on, default is 300
+    :param cosmology: Cosmology to use for luminosity distance calculation. Defaults to Planck18. Must be a astropy.cosmology object.
     :return: set by output format - 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
     """
     from redback.transient_models.shock_powered_models import _shocked_cocoon_nicholl
-
-    dl = cosmo.luminosity_distance(redshift).cgs.value
+    cosmology = kwargs.get('cosmology', cosmo)
+    dl = cosmology.luminosity_distance(redshift).cgs.value
     dense_resolution = kwargs.get('dense_resolution', 100)
     time_temp = np.geomspace(0.1, 30, dense_resolution)  # in source frame and days
     kappa_gamma = kwargs.get('kappa_gamma', 10)
@@ -469,11 +470,13 @@ def mosfit_rprocess(time, redshift, mej, vej, kappa, kappa_gamma, temperature_fl
     :param output_format: 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
     :param lambda_array: Optional argument to set your desired wavelength array (in Angstroms) to evaluate the SED on.
     :param dense_resolution: resolution of the grid that the model is actually evaluated on, default is 300
+    :param cosmology: Cosmology to use for luminosity distance calculation. Defaults to Planck18. Must be a astropy.cosmology object.
     :return: set by output format - 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
     """
-    dl = cosmo.luminosity_distance(redshift).cgs.value
+    cosmology = kwargs.get('cosmology', cosmo)
+    dl = cosmology.luminosity_distance(redshift).cgs.value
     dense_resolution = kwargs.get('dense_resolution', 300)
-    time_temp = np.geomspace(1e-2, 3e6, dense_resolution) # in source frame
+    time_temp = np.geomspace(1e-2, 5e6, dense_resolution) # in source frame
     time_obs = time
     lbols = _mosfit_kilonova_one_component_lbol(time=time_temp,
                                                 mej=mej, vej=vej)
@@ -546,11 +549,13 @@ def mosfit_kilonova(time, redshift, mej_1, vej_1, temperature_floor_1, kappa_1,
     :param output_format: 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
     :param lambda_array: Optional argument to set your desired wavelength array (in Angstroms) to evaluate the SED on.
     :param dense_resolution: resolution of the grid that the model is actually evaluated on, default is 300
+    :param cosmology: Cosmology to use for luminosity distance calculation. Defaults to Planck18. Must be a astropy.cosmology object.
     :return: set by output format - 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
     """
-    dl = cosmo.luminosity_distance(redshift).cgs.value
+    cosmology = kwargs.get('cosmology', cosmo)
+    dl = cosmology.luminosity_distance(redshift).cgs.value
     dense_resolution = kwargs.get('dense_resolution', 300)
-    time_temp = np.geomspace(1e-2, 3e6, dense_resolution)  # in source frame
+    time_temp = np.geomspace(1e-2, 5e6, dense_resolution)  # in source frame
     time_obs = time
     mej = [mej_1, mej_2, mej_3]
     vej = [vej_1, vej_2, vej_3]
@@ -662,6 +667,7 @@ def power_law_stratified_kilonova(time, redshift, mej, voffset, v0, alpha,
     :param bands: Required if output_format is 'magnitude' or 'flux'.
     :param output_format: 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
     :param lambda_array: Optional argument to set your desired wavelength array (in Angstroms) to evaluate the SED on.
+    :param cosmology: Cosmology to use for luminosity distance calculation. Defaults to Planck18. Must be a astropy.cosmology object.
     :return: set by output format - 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
     """
     xs = np.linspace(0.2, 0.5, 10)
@@ -688,11 +694,13 @@ def bulla_bns_kilonova(time, redshift, mej_dyn, mej_disk, phi, costheta_obs, **k
         frequency to calculate - Must be same length as time array or a single number).
     :param bands: Required if output_format is 'magnitude' or 'flux'.
     :param output_format: 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
+    :param cosmology: Cosmology to use for luminosity distance calculation. Defaults to Planck18. Must be a astropy.cosmology object.
     :return: set by output format - 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
     """
     from redback_surrogates.kilonovamodels import bulla_bns_kilonovanet_spectra as function
 
-    dl = cosmo.luminosity_distance(redshift).cgs.value
+    cosmology = kwargs.get('cosmology', cosmo)
+    dl = cosmology.luminosity_distance(redshift).cgs.value
 
     if kwargs['output_format'] == 'flux_density':
         frequency = kwargs['frequency']
@@ -739,11 +747,13 @@ def bulla_nsbh_kilonova(time, redshift, mej_dyn, mej_disk, costheta_obs, **kwarg
         frequency to calculate - Must be same length as time array or a single number).
     :param bands: Required if output_format is 'magnitude' or 'flux'.
     :param output_format: 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
+    :param cosmology: Cosmology to use for luminosity distance calculation. Defaults to Planck18. Must be a astropy.cosmology object.
     :return: set by output format - 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
     """
     from redback_surrogates.kilonovamodels import bulla_nsbh_kilonovanet_spectra as function
 
-    dl = cosmo.luminosity_distance(redshift).cgs.value
+    cosmology = kwargs.get('cosmology', cosmo)
+    dl = cosmology.luminosity_distance(redshift).cgs.value
 
     if kwargs['output_format'] == 'flux_density':
         frequency = kwargs['frequency']
@@ -790,11 +800,13 @@ def kasen_bns_kilonova(time, redshift, mej, vej, chi, **kwargs):
         frequency to calculate - Must be same length as time array or a single number).
     :param bands: Required if output_format is 'magnitude' or 'flux'.
     :param output_format: 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
+    :param cosmology: Cosmology to use for luminosity distance calculation. Defaults to Planck18. Must be a astropy.cosmology object.
     :return: set by output format - 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
     """
     from redback_surrogates.kilonovamodels import kasen_bns_kilonovanet_spectra as function
 
-    dl = cosmo.luminosity_distance(redshift).cgs.value
+    cosmology = kwargs.get('cosmology', cosmo)
+    dl = cosmology.luminosity_distance(redshift).cgs.value
 
     if kwargs['output_format'] == 'flux_density':
         frequency = kwargs['frequency']
@@ -841,6 +853,7 @@ def two_layer_stratified_kilonova(time, redshift, mej, vej_1, vej_2, kappa, beta
     :param bands: Required if output_format is 'magnitude' or 'flux'.
     :param output_format: 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
     :param lambda_array: Optional argument to set your desired wavelength array (in Angstroms) to evaluate the SED on.
+    :param cosmology: Cosmology to use for luminosity distance calculation. Defaults to Planck18. Must be a astropy.cosmology object.
     :return: set by output format - 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
     """
     velocity_array = np.array([vej_1, vej_2])
@@ -865,9 +878,11 @@ def _kilonova_hr(time, redshift, mej, velocity_array, kappa_array, beta, **kwarg
     :param bands: Required if output_format is 'magnitude' or 'flux'.
     :param output_format: 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
     :param lambda_array: Optional argument to set your desired wavelength array (in Angstroms) to evaluate the SED on.
+    :param cosmology: Cosmology to use for luminosity distance calculation. Defaults to Planck18. Must be a astropy.cosmology object.
     :return: set by output format - 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
     """
-    dl = cosmo.luminosity_distance(redshift).cgs.value
+    cosmology = kwargs.get('cosmology', cosmo)
+    dl = cosmology.luminosity_distance(redshift).cgs.value
     time_obs = time
 
     if kwargs['output_format'] == 'flux_density':
@@ -954,10 +969,12 @@ def three_component_kilonova_model(time, redshift, mej_1, vej_1, temperature_flo
     :param bands: Required if output_format is 'magnitude' or 'flux'.
     :param output_format: 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
     :param lambda_array: Optional argument to set your desired wavelength array (in Angstroms) to evaluate the SED on.
+    :param cosmology: Cosmology to use for luminosity distance calculation. Defaults to Planck18. Must be a astropy.cosmology object.
     :return: set by output format - 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
     """
-    dl = cosmo.luminosity_distance(redshift).cgs.value
-    time_temp = np.geomspace(1e-2, 3e6, 300) # in source frame
+    cosmology = kwargs.get('cosmology', cosmo)
+    dl = cosmology.luminosity_distance(redshift).cgs.value
+    time_temp = np.geomspace(1e-2, 5e6, 300) # in source frame
     time_obs = time
 
     mej = [mej_1, mej_2, mej_3]
@@ -1041,10 +1058,12 @@ def two_component_kilonova_model(time, redshift, mej_1, vej_1, temperature_floor
     :param bands: Required if output_format is 'magnitude' or 'flux'.
     :param output_format: 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
     :param lambda_array: Optional argument to set your desired wavelength array (in Angstroms) to evaluate the SED on.
+    :param cosmology: Cosmology to use for luminosity distance calculation. Defaults to Planck18. Must be a astropy.cosmology object.
     :return: set by output format - 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
     """
-    dl = cosmo.luminosity_distance(redshift).cgs.value
-    time_temp = np.geomspace(1e-2, 3e6, 300) # in source frame
+    cosmology = kwargs.get('cosmology', cosmo)
+    dl = cosmology.luminosity_distance(redshift).cgs.value
+    time_temp = np.geomspace(1e-2, 5e6, 300) # in source frame
     time_obs = time
 
     mej = [mej_1, mej_2]
@@ -1128,6 +1147,7 @@ def one_component_ejecta_relation(time, redshift, mass_1, mass_2,
     :param bands: Required if output_format is 'magnitude' or 'flux'.
     :param output_format: 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
     :param lambda_array: Optional argument to set your desired wavelength array (in Angstroms) to evaluate the SED on.
+    :param cosmology: Cosmology to use for luminosity distance calculation. Defaults to Planck18. Must be a astropy.cosmology object.
     :return: set by output format - 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
     """
     ejecta_relation = kwargs.get('ejecta_relation', ejr.OneComponentBNSNoProjection)
@@ -1157,6 +1177,7 @@ def one_component_ejecta_relation_projection(time, redshift, mass_1, mass_2,
     :param bands: Required if output_format is 'magnitude' or 'flux'.
     :param output_format: 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
     :param lambda_array: Optional argument to set your desired wavelength array (in Angstroms) to evaluate the SED on.
+    :param cosmology: Cosmology to use for luminosity distance calculation. Defaults to Planck18. Must be a astropy.cosmology object.
     :return: set by output format - 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
     """
     ejecta_relation = kwargs.get('ejecta_relation', ejr.OneComponentBNSProjection)
@@ -1194,6 +1215,7 @@ def two_component_bns_ejecta_relation(time, redshift, mass_1, mass_2,
     :param bands: Required if output_format is 'magnitude' or 'flux'.
     :param output_format: 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
     :param lambda_array: Optional argument to set your desired wavelength array (in Angstroms) to evaluate the SED on.
+    :param cosmology: Cosmology to use for luminosity distance calculation. Defaults to Planck18. Must be a astropy.cosmology object.
     :return: set by output format - 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
     """
     ejecta_relation = kwargs.get('ejecta_relation', ejr.TwoComponentBNS)
@@ -1238,6 +1260,7 @@ def polytrope_eos_two_component_bns(time, redshift, mass_1, mass_2,  log_p, gamm
     :param bands: Required if output_format is 'magnitude' or 'flux'.
     :param output_format: 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
     :param lambda_array: Optional argument to set your desired wavelength array (in Angstroms) to evaluate the SED on.
+    :param cosmology: Cosmology to use for luminosity distance calculation. Defaults to Planck18. Must be a astropy.cosmology object.
     :return: set by output format - 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
     """
     central_pressure = np.logspace(np.log10(4e32), np.log10(2.5e35), 70)
@@ -1281,6 +1304,7 @@ def one_component_nsbh_ejecta_relation(time, redshift, mass_bh, mass_ns,
     :param bands: Required if output_format is 'magnitude' or 'flux'.
     :param output_format: 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
     :param lambda_array: Optional argument to set your desired wavelength array (in Angstroms) to evaluate the SED on.
+    :param cosmology: Cosmology to use for luminosity distance calculation. Defaults to Planck18. Must be a astropy.cosmology object.
     :return: set by output format - 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
     """
     ejecta_relation = kwargs.get('ejecta_relation', ejr.OneComponentNSBH)
@@ -1316,6 +1340,7 @@ def two_component_nsbh_ejecta_relation(time, redshift,  mass_bh, mass_ns,
     :param bands: Required if output_format is 'magnitude' or 'flux'.
     :param output_format: 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
     :param lambda_array: Optional argument to set your desired wavelength array (in Angstroms) to evaluate the SED on.
+    :param cosmology: Cosmology to use for luminosity distance calculation. Defaults to Planck18. Must be a astropy.cosmology object.
     :return: set by output format - 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
     """
     ejecta_relation = kwargs.get('ejecta_relation', ejr.TwoComponentNSBH)
@@ -1346,10 +1371,12 @@ def one_component_kilonova_model(time, redshift, mej, vej, kappa, **kwargs):
     :param bands: Required if output_format is 'magnitude' or 'flux'.
     :param output_format: 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
     :param lambda_array: Optional argument to set your desired wavelength array (in Angstroms) to evaluate the SED on.
+    :param cosmology: Cosmology to use for luminosity distance calculation. Defaults to Planck18. Must be a astropy.cosmology object.
     :return: set by output format - 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
     """
-    dl = cosmo.luminosity_distance(redshift).cgs.value
-    time_temp = np.geomspace(1e-3, 3e6, 300) # in source frame
+    cosmology = kwargs.get('cosmology', cosmo)
+    dl = cosmology.luminosity_distance(redshift).cgs.value
+    time_temp = np.geomspace(1e-3, 5e6, 300) # in source frame
     time_obs = time
     _, temperature, r_photosphere = _one_component_kilonova_model(time_temp, mej, vej, kappa, **kwargs)
 
@@ -1447,9 +1474,11 @@ def metzger_kilonova_model(time, redshift, mej, vej, beta, kappa, **kwargs):
     :param bands: Required if output_format is 'magnitude' or 'flux'.
     :param output_format: 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
     :param lambda_array: Optional argument to set your desired wavelength array (in Angstroms) to evaluate the SED on.
+    :param cosmology: Cosmology to use for luminosity distance calculation. Defaults to Planck18. Must be a astropy.cosmology object.
     :return: set by output format - 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
     """
-    dl = cosmo.luminosity_distance(redshift).cgs.value
+    cosmology = kwargs.get('cosmology', cosmo)
+    dl = cosmology.luminosity_distance(redshift).cgs.value
     time_temp = np.geomspace(1e-4, 1e7, 300) # in source frame
     time_obs = time
     bolometric_luminosity, temperature, r_photosphere = _metzger_kilonova_model(time_temp, mej, vej, beta,

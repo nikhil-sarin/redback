@@ -207,6 +207,7 @@ def cooling_envelope(time, redshift, mbh_6, stellar_mass, eta, alpha, beta, **kw
     :param bands: Required if output_format is 'magnitude' or 'flux'.
     :param output_format: 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
     :param lambda_array: Optional argument to set your desired wavelength array (in Angstroms) to evaluate the SED on.
+    :param cosmology: Cosmology to use for luminosity distance calculation. Defaults to Planck18. Must be a astropy.cosmology object.
     :return: set by output format - 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
     """
     output = _cooling_envelope(mbh_6, stellar_mass, eta, alpha, beta, **kwargs)
@@ -293,7 +294,7 @@ def gaussianrise_cooling_envelope_bolometric(time, peak_time, sigma_t, mbh_6, st
 def gaussianrise_cooling_envelope(time, redshift, peak_time, sigma_t, mbh_6, stellar_mass, eta, alpha, beta, **kwargs):
     """
     Full lightcurve, with gaussian rise till fallback time and then the metzger tde model,
-    photometric version where each band is fit/joined separately
+    photometric version where each band is fit/joint separately
 
     :param time: time in observer frame in days
     :param redshift: redshift
@@ -310,6 +311,7 @@ def gaussianrise_cooling_envelope(time, redshift, peak_time, sigma_t, mbh_6, ste
     :param bands: Required if output_format is 'magnitude' or 'flux'.
     :param output_format: 'flux_density', 'magnitude', 'flux'
     :param lambda_array: Optional argument to set your desired wavelength array (in Angstroms) to evaluate the SED on.
+    :param cosmology: Cosmology to use for luminosity distance calculation. Defaults to Planck18. Must be a astropy.cosmology object.
     :return: set by output format - 'flux_density', 'magnitude', 'flux'
     """
     binding_energy_const = kwargs.get('binding_energy_const', 0.8)
