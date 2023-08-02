@@ -519,8 +519,12 @@ class MagnitudePlotter(Plotter):
         for indices, band in zip(self.transient.list_of_band_indices, self.transient.unique_bands):
             if band in self._filters:
                 color = self._colors[list(self._filters).index(band)]
+                #ipdb.set_trace()
                 if band_label_generator is None:
-                    label = band
+                    if band in self.band_scaling:
+                        label = band + ' ' + self.band_scaling.get("type") + ' ' + str(self.band_scaling.get(band))
+                    else:
+                        label = band    
                 else:
                     label = next(band_label_generator)
             elif self.plot_others:
@@ -595,7 +599,6 @@ class MagnitudePlotter(Plotter):
             frequency = redback.utils.bands_to_frequency([band])
             self._model_kwargs['frequency'] = np.ones(len(times)) * frequency
             if self.plot_max_likelihood:
-                #ipdb.set_trace()
                 ys = self.model(times, **self._max_like_params, **self._model_kwargs)
                 if band in self.band_scaling:
                     if self.band_scaling.get("type") == '*':
