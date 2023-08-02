@@ -512,7 +512,7 @@ class MagnitudePlotter(Plotter):
         ax = axes or plt.gca()
 
         band_label_generator = self.band_label_generator
-
+        
         for indices, band in zip(self.transient.list_of_band_indices, self.transient.unique_bands):
             if band in self._filters:
                 color = self._colors[list(self._filters).index(band)]
