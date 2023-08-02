@@ -11,8 +11,6 @@ import pandas as pd
 import redback
 from redback.utils import KwargsAccessorWithDefault
 
-import ipdb
-
 class _FilenameGetter(object):
     def __init__(self, suffix: str) -> None:
         self.suffix = suffix
@@ -519,7 +517,6 @@ class MagnitudePlotter(Plotter):
         for indices, band in zip(self.transient.list_of_band_indices, self.transient.unique_bands):
             if band in self._filters:
                 color = self._colors[list(self._filters).index(band)]
-                #ipdb.set_trace()
                 if band_label_generator is None:
                     if band in self.band_scaling:
                         label = band + ' ' + self.band_scaling.get("type") + ' ' + str(self.band_scaling.get(band))
@@ -595,7 +592,6 @@ class MagnitudePlotter(Plotter):
             if self.band_colors is not None:
                 color = self.band_colors[band]
             sn_cosmo_band = redback.utils.sncosmo_bandname_from_band([band])
-            self._model_kwargs["bands"] = [sn_cosmo_band[0] for _ in range(len(times))]
             frequency = redback.utils.bands_to_frequency([band])
             self._model_kwargs['frequency'] = np.ones(len(times)) * frequency
             if self.plot_max_likelihood:
