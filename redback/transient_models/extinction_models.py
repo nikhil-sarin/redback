@@ -83,9 +83,6 @@ def _perform_extinction(flux_density, angstroms, av, r_v):
     if isinstance(angstroms, float):
         angstroms = np.array([angstroms])
     mag_extinction = extinction.fitzpatrick99(angstroms, av, r_v=r_v)
-    #print(mag_extinction)
-    #if mag_extinction > 1000:
-     #   mag_extinction=0
     flux_density = extinction.apply(mag_extinction, flux_density)
     return flux_density
 
