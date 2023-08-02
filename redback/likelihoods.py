@@ -176,7 +176,7 @@ class GaussianLikelihoodUniformXErrors(GaussianLikelihood):
         :return: The log-likelihood.
         :rtype: float
         """
-        return self.log_likelihood_x() + self.log_likelihood_y()
+        return np.nan_to_num(self.log_likelihood_x() + self.log_likelihood_y())
 
 
 class GaussianLikelihoodQuadratureNoise(GaussianLikelihood):
@@ -228,21 +228,21 @@ class GaussianLikelihoodQuadratureNoise(GaussianLikelihood):
         :return: The log-likelihood.
         :rtype: float
         """
-        return self._gaussian_log_likelihood(res=self.residual, sigma=self.full_sigma)
+        return np.nan_to_num(self._gaussian_log_likelihood(res=self.residual, sigma=self.full_sigma))
 
-class GaussianLikelihoodWhiteNoise(GaussianLikelihood):
+class GaussianLikelihoodWithSystematicNoise(GaussianLikelihood):
     def __init__(
             self, x: np.ndarray, y: np.ndarray, sigma_i: Union[float, None, np.ndarray],
             function: callable, kwargs: dict = None) -> None:
         """
-        A white noise Gaussian likelihood - the parameters are inferred from the
+        A general Gaussian likelihood - the parameters are inferred from the
         arguments of function
 
         :type x: np.ndarray
         :param y: The y values.
         :type y: np.ndarray
         :param sigma_i: The standard deviation of the noise. This is part of the full noise.
-                        The sigma used in the likelihood is sigma = sigma_i^2 + sigma^2
+                        The sigma used in the likelihood is sigma = sqrt(sigma_i^2 + sigma^2)
         :type sigma_i: Union[float, None, np.ndarray]
         :param function:
             The python function to fit to the data. Note, this must take the
@@ -263,7 +263,8 @@ class GaussianLikelihoodWhiteNoise(GaussianLikelihood):
         :return: The standard deviation of the full noise
         :rtype: Union[float, np.ndarray]
         """
-        return self.sigma_i + self.sigma
+        model_y = self.function(self.x, **self.parameters, **self.kwargs)
+        return np.sqrt(self.sigma_i**2. + model_y**2*self.sigma**2.)
 
     def noise_log_likelihood(self) -> float:
         """
@@ -271,7 +272,7 @@ class GaussianLikelihoodWhiteNoise(GaussianLikelihood):
         :rtype: float
         """
         if self._noise_log_likelihood is None:
-            self._noise_log_likelihood = self._gaussian_log_likelihood(res=self.y, sigma=self.full_sigma)
+            self._noise_log_likelihood = self._gaussian_log_likelihood(res=self.y, sigma=self.sigma_i)
         return self._noise_log_likelihood
 
     def log_likelihood(self) -> float:
@@ -279,7 +280,7 @@ class GaussianLikelihoodWhiteNoise(GaussianLikelihood):
         :return: The log-likelihood.
         :rtype: float
         """
-        return self._gaussian_log_likelihood(res=self.residual, sigma=self.full_sigma)
+        return np.nan_to_num(self._gaussian_log_likelihood(res=self.residual, sigma=self.full_sigma))
 
 class GaussianLikelihoodQuadratureNoiseNonDetections(GaussianLikelihoodQuadratureNoise):
     def __init__(
@@ -336,7 +337,7 @@ class GaussianLikelihoodQuadratureNoiseNonDetections(GaussianLikelihoodQuadratur
         :return: The log-likelihood.
         :rtype: float
         """
-        return self.log_likelihood_y() + self.log_likelihood_upper_limit()
+        return np.nan_to_num(self.log_likelihood_y() + self.log_likelihood_upper_limit())
 
 
 class GRBGaussianLikelihood(GaussianLikelihood):

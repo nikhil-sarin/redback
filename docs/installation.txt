@@ -4,14 +4,6 @@ Installation
 
 .. tabs::
 
-   .. tab:: Conda
-
-      .. code-block:: console
-
-          $ conda install -c conda-forge redback
-
-      Supported python versions: 3.7+.
-
    .. tab:: Pip
 
       .. code-block:: console

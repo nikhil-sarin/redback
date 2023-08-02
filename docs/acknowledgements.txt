@@ -16,8 +16,6 @@ and the :code:`redback` paper (when it is out).
 Alongside this we request that you also cite the paper associated with the sampler you use.
 Furthermore, several models implemented in :code:`redback` are introduced in previous scientific publications.
 These scientific publications are easily accessible via :code:`model_name.citation` or as a reference in a class.
-For optical transients, we request that you also cite `SNCosmo <https://sncosmo.readthedocs.io/en/stable/index.html>`_ as that is used to convert redback
-spectra to magnitudes and other quantities.
 
 For example,
 
@@ -35,6 +33,9 @@ In several cases, the citation will be `redback`, in which case,
 only a citation to :code:`redback`, :code:`bilby`, and the sampler is necessary.
 Although we recommend periodically checking the citation in the latest :code:`redback` release.
 
+For optical transients, we request that you also cite `SNCosmo <https://sncosmo.readthedocs.io/en/stable/index.html>`_ as that is used to convert redback
+spectra to magnitudes and other quantities if you fit in magnitudes/flux.
+
 Using :code:`redback` to simulate transients
 -------------------------
 
@@ -47,3 +48,23 @@ Using :code:`redback` to download transient data
 
 If you use :code:`redback` to simply download and process data for different transients,
 please cite the :code:`redback` paper (when it is out).
+
+
+General citation text
+-------------------------
+
+We recommend the following text for citing :code:`redback` in a scientific publication:
+
+For using :code:`redback` to fit transients:
+
+- We fit the transient using the open source software package {\sc Redback}~\cite{sarin_redback},
+  with the {model_name}~\citep{model reference} model using the {sampler} sampler~\citep{sampler reference} wrapped with bilby~\citep{Ashton+2019}.
+
+For using :code:`redback` to simulate transients:
+
+- We simulate transients using the open source software package {\sc Redback}~\cite{sarin_redback}, with the {model_name}~\citep{model reference} model.
+
+For using :code:`redback` to download transient data:
+
+- We download and process this data using the API provided by the open source software package {\sc Redback}~\cite{sarin_redback}.
+

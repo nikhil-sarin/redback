@@ -37,6 +37,7 @@ class Plotter(object):
     capsize = KwargsAccessorWithDefault("capsize", 0.)
     legend_location = KwargsAccessorWithDefault("legend_location", "best")
     legend_cols = KwargsAccessorWithDefault("legend_cols", 2)
+    band_colors = KwargsAccessorWithDefault("band_colors", None)
     color = KwargsAccessorWithDefault("color", "k")
     band_labels = KwargsAccessorWithDefault("band_labels", None)
     band_scaling = KwargsAccessorWithDefault("band_scaling", {})
@@ -64,12 +65,14 @@ class Plotter(object):
 
     fontsize_axes = KwargsAccessorWithDefault("fontsize_axes", 18)
     fontsize_figure = KwargsAccessorWithDefault("fontsize_figure", 30)
+    fontsize_legend = KwargsAccessorWithDefault("fontsize_legend", 18)
     hspace = KwargsAccessorWithDefault("hspace", 0.04)
     wspace = KwargsAccessorWithDefault("wspace", 0.15)
 
     plot_others = KwargsAccessorWithDefault("plot_others", True)
     random_models = KwargsAccessorWithDefault("random_models", 100)
     uncertainty_mode = KwargsAccessorWithDefault("uncertainty_mode", "random_models")
+    credible_interval_level = KwargsAccessorWithDefault("credible_interval_level", 0.9)
     plot_max_likelihood = KwargsAccessorWithDefault("plot_max_likelihood", True)
 
     xlim_high_multiplier = KwargsAccessorWithDefault("xlim_high_multiplier", 2.0)
@@ -86,6 +89,7 @@ class Plotter(object):
         :keyword legend_location: Same as matplotlib legend location.
         :keyword legend_cols: Same as matplotlib legend columns.
         :keyword color: Color of the data points.
+        :keyword band_colors: A dictionary with the colors of the bands.
         :keyword band_labels: List with the names of the bands.
         :keyword band_scaling: Dict with the scaling for each band. First entry should be {type: '+' or 'x'} for different types.
         :keyword dpi: Same as matplotlib dpi.
@@ -107,6 +111,7 @@ class Plotter(object):
         :keyword horizontalalignment: Horizontal alignment of the annotation. Default is 'right'
         :keyword annotation_size: `size` argument of of `ax.annotate`.
         :keyword fontsize_axes: Font size of the x and y labels.
+        :keyword fontsize_legend: Font size of the legend.
         :keyword fontsize_figure: Font size of the figure. Relevant for multiband plots.
                                   Used on `supxlabel` and `supylabel`.
         :keyword hspace: Argument for `subplots_adjust`, sets horizontal spacing between panels.
@@ -116,6 +121,9 @@ class Plotter(object):
         :keyword uncertainty_mode: 'random_models': Plot random draws from the available parameter sets.
                                    'credible_intervals': Plot a credible interval that is calculated based
                                    on the available parameter sets.
+        :keyword reference_mjd_date: Date to use as reference point for the x axis.
+                                    Default is the first date in the data.
+        :keyword credible_interval_level: 0.9: Plot the 90% credible interval.
         :keyword xlim_high_multiplier: Adjust the maximum xlim based on available x values.
         :keyword xlim_low_multiplier: Adjust the minimum xlim based on available x values.
         :keyword ylim_high_multiplier: Adjust the maximum ylim based on available x values.
@@ -523,6 +531,8 @@ class MagnitudePlotter(Plotter):
                 continue
             if isinstance(label, float):
                 label = f"{label:.2e}"
+            if self.band_colors is not None:
+                color = self.band_colors[band]
             if band in self.band_scaling:
                 if self.band_scaling.get("type") == 'x':
                     ax.errorbar(
@@ -550,7 +560,7 @@ class MagnitudePlotter(Plotter):
         ax.set_ylabel(self._ylabel, fontsize=self.fontsize_axes)
 
         ax.tick_params(axis='x', pad=self.x_axis_tick_params_pad)
-        ax.legend(ncol=self.legend_cols, loc=self.legend_location)
+        ax.legend(ncol=self.legend_cols, loc=self.legend_location, fontsize=self.fontsize_legend)
 
         self._save_and_show(filepath=self._data_plot_filepath, save=save, show=show)
         return ax
@@ -579,9 +589,14 @@ class MagnitudePlotter(Plotter):
         bands_to_plot = self._get_bands_to_plot
 
         for band, color in zip(bands_to_plot, self.transient.get_colors(bands_to_plot)):
+            if self.band_colors is not None:
+                color = self.band_colors[band]
             sn_cosmo_band = redback.utils.sncosmo_bandname_from_band([band])
             self._model_kwargs["bands"] = [sn_cosmo_band[0] for _ in range(len(times))]
-            frequency = redback.utils.bands_to_frequency([band])
+            if isinstance(band, str):
+                frequency = redback.utils.bands_to_frequency([band])
+            else:
+                frequency = band
             self._model_kwargs['frequency'] = np.ones(len(times)) * frequency
             if self.plot_max_likelihood:
                 ys = self.model(times, **self._max_like_params, **self._model_kwargs)
@@ -661,6 +676,8 @@ class MagnitudePlotter(Plotter):
 
             x_err = self._get_x_err(indices)
             color = self._colors[list(self._filters).index(band)]
+            if self.band_colors is not None:
+                color = self.band_colors[band]
             if band_label_generator is None:
                 label = self._get_multiband_plot_label(band, freq)
             else:
@@ -674,7 +691,7 @@ class MagnitudePlotter(Plotter):
 
             self._set_x_axis(axes[ii])
             self._set_y_axis_multiband_data(axes[ii], indices)
-            axes[ii].legend(ncol=self.legend_cols, loc=self.legend_location)
+            axes[ii].legend(ncol=self.legend_cols, loc=self.legend_location, fontsize=self.fontsize_legend)
             axes[ii].tick_params(axis='both', which='major', pad=8)
             ii += 1
 
@@ -735,22 +752,26 @@ class MagnitudePlotter(Plotter):
                 continue
             new_model_kwargs = self._model_kwargs.copy()
             new_model_kwargs['frequency'] = freq
+            if self.band_colors is not None:
+                color = self.band_colors[band]
+            if self.band_colors is None:
+                color = self.max_likelihood_color
             if self.plot_max_likelihood:
                 ys = self.model(times, **self._max_like_params, **new_model_kwargs)
                 axes[ii].plot(
-                    times - self._reference_mjd_date, ys, color=self.max_likelihood_color,
+                    times - self._reference_mjd_date, ys, color=color,
                     alpha=self.max_likelihood_alpha, lw=self.linewidth)
             random_ys_list = [self.model(times, **random_params, **new_model_kwargs)
                               for random_params in self._get_random_parameters()]
             if self.uncertainty_mode == "random_models":
                 for random_ys in random_ys_list:
-                    axes[ii].plot(times - self._reference_mjd_date, random_ys, color=self.random_sample_color,
+                    axes[ii].plot(times - self._reference_mjd_date, random_ys, color=color,
                                   alpha=self.random_sample_alpha, lw=self.linewidth, zorder=self.zorder)
             elif self.uncertainty_mode == "credible_intervals":
                 lower_bound, upper_bound, _ = redback.utils.calc_credible_intervals(samples=random_ys_list)
                 axes[ii].fill_between(
                     times - self._reference_mjd_date, lower_bound, upper_bound,
-                    alpha=self.uncertainty_band_alpha, color=self.max_likelihood_color)
+                    alpha=self.uncertainty_band_alpha, color=color)
             ii += 1
 
         self._save_and_show(filepath=self._multiband_lightcurve_plot_filepath, save=save, show=show)

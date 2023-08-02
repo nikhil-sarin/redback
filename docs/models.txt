@@ -6,18 +6,18 @@ In :code:`redback` we have already implemented a lot of different models, which 
 These models range from phenomenological, to analytical, semi-analytical to numerical surrogates built with machine learning techniques.
 Implementing a new model is probably the easiest way to contribute to redback!
 
-Specifically, the models already included are
+Specifically, some models already included are as follows.
+For a full up to date list of models implemented in :code:`redback`, look at the `API <https://redback.readthedocs.io/en/latest/>`_
 
-- Afterglow models: Can output in flux density/magnitude/integrated flux/luminosity
+- Afterglow models: Can output in flux density/magnitude
 
     - Several structured jet models implemented in `afterglowpy <https://afterglowpy.readthedocs.io/en/latest/>`_.
     - Tophat jet implemented in `afterglowpy <https://afterglowpy.readthedocs.io/en/latest/>`_.
     - Cocoon
-    - Kilonova afterglow
-    - Surrogate built on top of `jetfit <https://github.com/NYU-CAL/JetFit>`_.
-    - Surrogate built on top of `boxfit <https://cosmo.nyu.edu/afterglowlibrary/index.html>`_.
+    - Several varieties of Kilonova afterglow models
+    - Several varieties of afterglow models from Gavin Lamb et al.+
 
-- Kilonova models: Can output in flux density/magnitude/
+- Kilonova models: Can output in flux density/magnitude/flux
 
     - One/two/three component kilonova models
     - two_layer_stratified_kilonova
@@ -34,7 +34,6 @@ Specifically, the models already included are
     - `Three component model <https://ui.adsabs.harvard.edu/abs/2017ApJ...851L..21V/abstract>`_ temperature floor and diffusion
     - `Metzger 2017 <https://ui.adsabs.harvard.edu/abs/2017LRR....20....3M/abstract>`_
     - Surrogates of several different numerical simulations
-    - All kilonova models in `gwemlightcurves <https://github.com/mcoughlin/gwemlightcurves>`_
 
 - Supernova models: Can output in flux density/magnitude/bolometric luminosity
 
@@ -54,7 +53,6 @@ Specifically, the models already included are
     - Shock cooling
     - Thermal synchrotron
     - Shocked cocoon
-    - CSM truncation shock
 
 - Magnetar driven ejecta models:
 
@@ -80,12 +78,14 @@ Specifically, the models already included are
 - Tidal disruption models
 
     - Simple analytic fallback
-    - `Surrogate from numerical simulation <https://ui.adsabs.harvard.edu/abs/2019ApJ...872..151M/abstract>`_
+    - Cooling envelope (Metzger 2022)
+    - Gaussian rise + cooling envelope (Sarin and Metzger 2023)
 
 - Phenomenological and fireball models
 
     - 1-6 component piecewise power law
     - exponential_powerlaw
+    - Gaussian rise
 
 We note that these models can output in `flux_density` or `magnitude` set by the keyword argument
 `output_format` or in integrated flux or luminosity using the appropriate luminosity/flux function.
@@ -98,9 +98,8 @@ Alongside these models we also include some general models which can many of the
 - Phase models
 - Phase + extinction models
 - Integrated flux afterglow models
-- Gaussian process base model: Will be soon implemented.
+- Gaussian process base model:
 
-For a full up to date list of models implemented in :code:`redback`, look at the `API <https://redback.readthedocs.io/en/latest/>`_
 
 Using :code:`redback` models as functions
 -------------------------
@@ -147,16 +146,18 @@ Users can also use the prior objects to get a simulation of the light curves pre
 
 Remember that the priors are simply a dictionary so users could also just pass a dictionary/dataframe they created themselves as well.
 
-Users could also sample a lot of different draws from the prior at once (in the above we randomly drew a 100 samples) and then loop through them to simulate a population.
+Users could also sample a lot of different draws from the prior at once (in the above we randomly drew 100 samples) and then loop through them to simulate a population.
 Remember that we can also place arbitrary constraints on the priors to make a really specific population/simulation.
 For example, we could make a constraint that all priors in the population were brighter than 24th mag at peak or something else.
-Almost any time of constraint is possible, as long as it can be written mathematically.
+Almost any time of constraint is possible, as long as it can be written mathematically. Please look at prior documentation for more details on constraints.
+We could also use the :code:`redback` `simulation` module to simulate realistic lightcurves of these drawn parameters in a real survey.
+Helping capture selection effects in even more detail.
 
 Modifying :code:`redback` models
 -------------------------
 
 A lot of the physics in different :code:`redback` models is set by default.
-However, several different pieces of physics in various models can be changed by either passing your own function/class (see next section),
+However, several pieces of physics in various models can be changed by either passing your own function/class (see `dependency injections <https://redback.readthedocs.io/en/latest/dependency_injections.html>`_),
 by switching the default argument with something else already implemented in redback, or changing a keyword argument.
 
 The specific physics that can be changed:
@@ -170,8 +171,36 @@ The specific physics that can be changed:
 - Different interaction process: See processes already implemented `here <https://github.com/nikhil-sarin/redback/blob/master/redback/interaction_processes.py>`_.
 - Different photosphere: See photospheres already implemented `here <https://github.com/nikhil-sarin/redback/blob/master/redback/photosphere.py>`_.
 - Different SED: See SED's already implemented `here <https://github.com/nikhil-sarin/redback/blob/master/redback/sed.py>`_.
+- Gamma-ray leakage
+- Engines with different energy injection rates
 
 We encourage users to add more of these physics switches, which is another easy way to contribute to :code:`redback`.
+
+Extra kwargs and output formats in :code:`redback` models
+-------------------------
+All :code:`redback` models have a set of extra keyword arguments that can be passed to the function.
+For a specific model, users can see the extra keyword arguments by looking at the docstring of the function. These extra variables are passed in as a dictionary via
+
+.. code:: python
+
+    extra_kwargs = {'key1': value1, 'key2': value2}
+    function(time, **extra_kwargs)
+
+And can allow for more flexibility in the models while keeping the interface of the function simple for the end user.
+
+For several models we also allow users to output the light curve in different formats.
+For example, users can output the light curve in `flux_density` or `magnitude` by passing in those via the keyword argument `output_format`.
+Or `spectra` itself which will output a multidimensional array of the spectra at each time.
+Or `sncosmo_source` which will output the sncosmo source object for the model and the users can then use this to make their own plots or look at model with an SNCosmo interface.
+
+We note that for afterglow models we generally assume the magnitude conversion is a simple conversion from flux density to magnitude, ignoring the affect of the full spectrum.
+This can be done in the proper way for the `afterglow_sed` model variants.
+While for other transient models, the magnitude/flux values are calculated using the full bandpass/spectrum.
+The flux_density output for all models is the flux density at the effective frequency of the filter.
+
+Redback assumes flux_density is always in mJy, luminosity is always in erg/s, and magnitude is always in AB mag.
+Flux is always in erg/s/cm^2.
+
 
 
 
