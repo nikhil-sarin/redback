@@ -3,9 +3,10 @@ import redback.transient_models.extinction_models
 def tophat_and_twolayerstratified(time, redshift, av, thv, loge0, thc, logn0, p, logepse, logepsb, ksin, g0, mej, vej_1, vej_2, kappa, beta, **kwargs):
     
     """
-    function to combine the signals of a tophat afterglow and a two layer stratified kilonova using
+    function to combine the signals of a tophat afterglow and a two layer stratified kilonova with extinction
     
-    shared params: time, redshift, av, relevant kwargs
+    takes all params required by each individual model
+    params shared by models: time, redshift, av, relevant kwargs (do not pass to function twice)
     
     returns the combined signal as spcified by the 'output_format' kwarg
     """
@@ -25,9 +26,10 @@ def tophat_and_twolayerstratified(time, redshift, av, thv, loge0, thc, logn0, p,
 def tophat_and_twocomponent(time, redshift, av, thv, loge0, thc, logn0, p, logepse, logepsb, ksin, g0, mej_1, vej_1, temperature_floor_1, kappa_1, mej_2, vej_2, temperature_floor_2, kappa_2, **kwargs):
     
     """
-    function to combine the signals of a tophat afterglow and a two component kilonova 
+    function to combine the signals of a tophat afterglow and a two component kilonova with extinction
     
-    shared params: time, redshift, av, relevant kwargs
+    takes all params required by each individual model
+    params shared by models: time, redshift, av, relevant kwargs (do not pass to function twice)
     
     returns the combined signal as spcified by the 'output_format' kwarg
     """
@@ -47,9 +49,10 @@ def tophat_and_twocomponent(time, redshift, av, thv, loge0, thc, logn0, p, logep
 def tophat_and_arnett(time, av, redshift, thv, loge0, thc, logn0, p, logepse, logepsb, ksin, g0, f_nickel, mej, **kwargs):
     
     """
-    function to combine the signals of a tophat afterglow and an arnett supernova
+    function to combine the signals of a tophat afterglow and an arnett supernova with extinction
     
-    shared params: time, redshift, av, relevant kwargs
+    takes all params required by each individual model
+    params shared by models: time, redshift, av, relevant kwargs (do not pass to function twice)
     
     returns the combined signal as spcified by the 'output_format' kwarg
     """
