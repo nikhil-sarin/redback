@@ -1,4 +1,5 @@
 redshift = Uniform(0.01, 3, 'redshift', latex_label=r'$z$')
+av=  Uniform(0, 2, 'av', latex_label=r'$av$')
 thv = Sine(name='thv', maximum=np.pi/2, latex_label=r'$\\theta_{\mathrm{observer}}$')
 loge0 = Uniform(44, 54, 'loge0', latex_label=r'$\log_{10} E_{0}$')
 thc = Uniform(0.01, 0.1, 'thc', latex_label=r'$\\theta_{\mathrm{core}}$')
