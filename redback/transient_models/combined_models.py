@@ -1,9 +1,10 @@
 import redback.transient_models.extinction_models
-
+import matplotlib as mpl
+mpl.rcParams.update(mpl.rcParamsDefault)
 def tophat_and_twolayerstratified(time, redshift, av, thv, loge0, thc, logn0, p, logepse, logepsb, ksin, g0, mej, vej_1, vej_2, kappa, beta, **kwargs):
     
     """
-    function to combine the signals of a tophat afterglow and a two layer stratified kilonova with extinction
+    function to combine the flux density signals of a tophat afterglow and a two layer stratified kilonova with extinction
     
     :param time: time in days in observer frame
     :param redshift: source redshift
@@ -31,21 +32,18 @@ def tophat_and_twolayerstratified(time, redshift, av, thv, loge0, thc, logn0, p,
     :param spectype: whether to have inverse compton, defaults to 0, i.e., no inverse compton.
         Change to 1 for including inverse compton emission.
     :param l0, ts, q: energy injection parameters, defaults to 0
-    :param frequency: Required if output_format is 'flux_density'.
-        frequency to calculate - Must be same length as time array or a single number
-    :param bands: Required if output_format is 'magnitude'
-    :param output_format: only takes 'flux_density' or 'magnitude'
-    :param lambda_array: Optional argument to set your desired wavelength array (in Angstroms) to evaluate the SED on.
-    :return: set by output format - 'flux_density' or 'magnitude' with extinction added
+    :param frequency: frequency to calculate - Must be same length as time array or a single number
+    :return: flux density signal with extinction added
     
     """
-    
+    kwargs['output_format']='flux_density'
+    kwargs['base_model']='tophat'
     afterglow = redback.transient_models.extinction_models.extinction_with_afterglow_base_model(time=time, redshift=redshift, av=av,
-        base_model='tophat',  thv=thv, loge0=loge0 , thc= thc, logn0=logn0, p=p, logepse=logepse, logepsb=logepsb, ksin=ksin, g0=g0,
+         thv=thv, loge0=loge0 , thc= thc, logn0=logn0, p=p, logepse=logepse, logepsb=logepsb, ksin=ksin, g0=g0,
         **kwargs)
- 
+    kwargs['base_model']='two_layer_stratified_kilonova'
     kilonova = redback.transient_models.extinction_models.extinction_with_kilonova_base_model(time=time, redshift=redshift, av=av,
-        base_model='two_layer_stratified_kilonova',  mej=mej, vej_1=vej_1, vej_2=vej_2, kappa=kappa, beta=beta, **kwargs)
+          mej=mej, vej_1=vej_1, vej_2=vej_2, kappa=kappa, beta=beta, **kwargs)
     
     combined = afterglow+kilonova
     return combined
@@ -54,7 +52,7 @@ def tophat_and_twolayerstratified(time, redshift, av, thv, loge0, thc, logn0, p,
 def tophat_and_twocomponent(time, redshift, av, thv, loge0, thc, logn0, p, logepse, logepsb, ksin, g0, mej_1, vej_1, temperature_floor_1, kappa_1, mej_2, vej_2, temperature_floor_2, kappa_2, **kwargs):
     
     """
-    function to combine the signals of a tophat afterglow and a two component kilonova with extinction added
+    function to combine the flux density signals of a tophat afterglow and a two component kilonova with extinction added
     
     :param time: time in days in observer frame
     :param redshift: source redshift
@@ -85,20 +83,18 @@ def tophat_and_twocomponent(time, redshift, av, thv, loge0, thc, logn0, p, logep
     :param spectype: whether to have inverse compton, defaults to 0, i.e., no inverse compton.
         Change to 1 for including inverse compton emission.
     :param l0, ts, q: energy injection parameters, defaults to 0
-    :param frequency: Required if output_format is 'flux_density'.
-        frequency to calculate - Must be same length as time array or a single number
-    :param bands: Required if output_format is 'magnitude'
-    :param output_format: only takes 'flux_density' or 'magnitude'
-    :param lambda_array: Optional argument to set your desired wavelength array (in Angstroms) to evaluate the SED on.
-    :return: set by output format - 'flux_density' or 'magnitude' with extinction added
+    :param frequency: frequency to calculate - Must be same length as time array or a single number
+    :return: flux density signal with extinction added
     """
     
+    kwargs['output_format']='flux_density'
+    kwargs['base_model']='tophat'
     afterglow = redback.transient_models.extinction_models.extinction_with_afterglow_base_model(time=time, redshift=redshift, av=av,
-        base_model='tophat',  thv=thv, loge0=loge0 , thc= thc, logn0=logn0, p=p, logepse=logepse, logepsb=logepsb, ksin=ksin, g0=g0,
+          thv=thv, loge0=loge0 , thc= thc, logn0=logn0, p=p, logepse=logepse, logepsb=logepsb, ksin=ksin, g0=g0,
         **kwargs)
-    
+    kwargs['base_model']='two_component_kilonova_model'
     kilonova = redback.transient_models.extinction_models.extinction_with_kilonova_base_model(time=time, redshift=redshift, av=av,
-        base_model='two_component_kilonova_model',  mej_1=mej_1, vej_1=vej_2, temperature_floor_1=temperature_floor_1, kappa_1=kappa_1,             mej_2=mej_2, vej_2=vej_2, temperature_floor_2=temperature_floor_2, kappa_2=kappa_2, **kwargs)
+          mej_1=mej_1, vej_1=vej_2, temperature_floor_1=temperature_floor_1, kappa_1=kappa_1,             mej_2=mej_2, vej_2=vej_2, temperature_floor_2=temperature_floor_2, kappa_2=kappa_2, **kwargs)
     
     combined = afterglow + kilonova
     return combined
@@ -107,7 +103,7 @@ def tophat_and_twocomponent(time, redshift, av, thv, loge0, thc, logn0, p, logep
 def tophat_and_arnett(time, av, redshift, thv, loge0, thc, logn0, p, logepse, logepsb, ksin, g0, f_nickel, mej, **kwargs):
     
     """
-    function to combine the signals of a tophat afterglow and an arnett supernova with extinction added
+    function to combine the flux density signals of a tophat afterglow and an arnett supernova with extinction added
     
     :param time: time in days in observer frame
     :param redshift: source redshift
@@ -139,20 +135,18 @@ def tophat_and_arnett(time, av, redshift, thv, loge0, thc, logn0, p, logepse, lo
     :param photosphere: Default is TemperatureFloor.
             kwargs must have vej or relevant parameters if using different photosphere model
     :param sed: Default is blackbody.
-    :param frequency: Required if output_format is 'flux_density'.
-        frequency to calculate - Must be same length as time array or a single number
-    :param bands: Required if output_format is 'magnitude'
-    :param output_format: only takes 'flux_density' or 'magnitude'
-    :param lambda_array: Optional argument to set your desired wavelength array (in Angstroms) to evaluate the SED on.
-    :return: set by output format - 'flux_density' or 'magnitude' with extinction added
+    :param frequency: frequency to calculate - Must be same length as time array or a single number
+    :return: flux density with extinction added
     """
     
+    kwargs['output_format']='flux_density'
+    kwargs['base_model']='tophat'
     afterglow = redback.transient_models.extinction_models.extinction_with_afterglow_base_model(time=time, redshift=redshift, av=av,
-        base_model='tophat',  thv=thv, loge0=loge0 , thc= thc, logn0=logn0, p=p, logepse=logepse, logepsb=logepsb, ksin=ksin, g0=g0,
+         thv=thv, loge0=loge0 , thc= thc, logn0=logn0, p=p, logepse=logepse, logepsb=logepsb, ksin=ksin, g0=g0,
         **kwargs)
-    
+    kwargs['base_model']='arnett'
     supernova = redback.transient_models.extinction_models.extinction_with_supernova_base_model(time=time, redshift=redshift, av=av,
-        base_model='arnett',  f_nickel=f_nickel, mej=mej, **kwargs)
+         f_nickel=f_nickel, mej=mej, **kwargs)
     
     combined = afterglow + supernova
     return combined
@@ -173,13 +167,14 @@ def afterglow_and_optical(time, redshift, av, model_type, afterglow_kwargs, opti
         for details.
     :param shared_kwargs: kwargs shared by models e.g. output_format, frequency, bands, r_v (extinction paramater defaults to 3.1)
     :return: set by shared_kwargs output format - 'flux_density' or 'magnitude' with extinction added
+        note that only afterglow_models_sed allow for magnitude outputs
     """
     
     afterglow_kwargs.update(shared_kwargs)
     optical_kwargs.update(shared_kwargs)
    
-    afterglow = redback.transient_models.extinction_models.extinction_with_afterglow_base_model(time=time, redshift=redshift, av=av,
-                                                                                         **afterglow_kwargs)
+    afterglow = redback.transient_models.extinction_models._evaluate_extinction_model(time=time, redshift=redshift, av=av,
+                                                                                   model_type='afterglow', **afterglow_kwargs)
     
     optical= redback.transient_models.extinction_models._evaluate_extinction_model(time=time, redshift=redshift, av=av,
                                                                    model_type=model_type, **optical_kwargs)

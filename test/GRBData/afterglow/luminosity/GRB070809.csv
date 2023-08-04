@@ -1,0 +1,5 @@
+Time in restframe [s],Pos. time err in restframe [s],Neg. time err in restframe [s],Luminosity [10^50 erg s^{-1}],Pos. luminosity err [10^50 erg s^{-1}],Neg. luminosity err [10^50 erg s^{-1}]
+0,1,1,2,3,3
+1,2,2,3,4,4
+2,3,3,4,5,5
+3,4,4,5,6,6

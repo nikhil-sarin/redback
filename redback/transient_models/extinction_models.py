@@ -102,6 +102,8 @@ def _evaluate_extinction_model(time, av, model_type, **kwargs):
     :return: set by kwargs['output_format'] - 'flux_density', 'magnitude', 'flux' with extinction applied
     """
     base_model = kwargs['base_model']
+    if model_type == 'afterglow' and base_model != 'afterglow_models_sed':
+        kwargs['output_format']= 'flux_density'
     if kwargs['base_model'] in ['thin_shell_supernova', 'homologous_expansion_supernova']:
         kwargs['base_model'] = kwargs.get('submodel', 'arnett_bolometric')
     if kwargs['output_format'] == 'flux_density':

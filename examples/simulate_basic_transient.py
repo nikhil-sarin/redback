@@ -3,6 +3,9 @@
 # Since Redback models are callable functions this is easy to do yourself, but this example shows how to do it using the SimulatedGenericTransient class which eases the process.
 import redback
 import numpy as np
+import matplotlib as mpl
+mpl.rcParams.update(mpl.rcParamsDefault)
+import matplotlib.pyplot as plt
 from redback.simulate_transients import SimulateGenericTransient
 # Let's set up the parameters of our model
 # We will use the one_component_kilonova_model implemented in redback but any optical model in Redback will work.
