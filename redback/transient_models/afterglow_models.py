@@ -34,6 +34,7 @@ class RedbackAfterglows():
         The afterglows are based on the method shown in Lamb, Mandel & Resmi 2018 and other papers.
         Script was originally written by En-Tzu Lin <entzulin@gapp.nthu.edu.tw> and Gavin Lamb <g.p.lamb@ljmu.ac.uk>
         and modified and implemented into redback by Nikhil Sarin <nsarin.astro@gmail.com>.
+        Includes wind-like mediums, expansion and multiple jet structures.
 
         :param k:
         :param n: ISM, ambient number density
@@ -52,8 +53,8 @@ class RedbackAfterglows():
         :param Dl: luminosity distance
         :param extra_structure: sets the index for power-law jet structure models,
             and the fractional contribution for the Double Gaussian (where s, a < 1 must be observed),
-            and the energy fraction (s) for two-component. Not used for tophat jets.
-        :param sheath_lorentz: Lorentz factor of sheath (a>1). Not used for tophat jets.
+            and the energy fraction (s) for two-component.
+        :param sheath_lorentz: Lorentz factor of sheath (a>1).
         :param method: Type of jet structure to use. Defaults to 'TH' for tophat jet.
             Other options are '2C', 'GJ', 'PL', 'PL2', 'DG'. Corresponding to two component, gaussian jet, powerlaw,
             alternative powerlaw and double Gaussian.
@@ -395,6 +396,63 @@ class RedbackAfterglows():
                 FF += np.interp(time[(freq == nu0[h])] / (1 + self.z), tobs[:, i], Flux[h, :, i])
             LC[(freq == nu0[h])] = FF
         return LC * (1 + self.z)
+
+@citation_wrapper('redback, https://ui.adsabs.harvard.edu/abs/2018MNRAS.481.2581L/abstract')
+def tophat_redback(time, redshift, thv, loge0, thc, logn0, p, logepse, logepsb, g0, xiN, **kwargs):
+    """
+    A tophat model implemented directly in redback. Based on Lamb, Mandel & Resmi 2018 and other work.
+    Look at the RedbackAfterglow class for more details/implementation.
+
+    :param time: time in days
+    :param redshift: source redshift
+    :param thv: observer viewing angle in radians
+    :param loge0: jet energy in \log_{10} ergs
+    :param thc: opening angle in radians
+    :param logn0: ism number density in \log_{10} cm^-3
+    :param p: electron power law index
+    :param logepse: partition fraction in electrons
+    :param logepsb: partition fraction in magnetic field
+    :param g0: initial lorentz factor
+    :param xiN: fraction of electrons that get accelerated. Defaults to 1.
+    :param kwargs: additional keyword arguments
+    :param res: resolution - set dynamically based on afterglow properties by default,
+            but can be set manually to a specific number.
+    :param steps: number of steps used to resolve Gamma and dm. Defaults to 250 but can be set manually.
+    :param k: power law index of density profile. Defaults to 0 for constant density.
+        Can be set to 2 for wind-like density profile.
+    :param expansion: 0 or 1 to dictate whether to include expansion effects. Defaults to 1
+    :param output_format: Whether to output flux density or AB mag
+    :param cosmology: Cosmology to use for luminosity distance calculation. Defaults to Planck18. Must be a astropy.cosmology object.
+    :return: flux density or AB mag. Note this is going to give the monochromatic magnitude at the effective frequency for the band.
+        For a proper calculation of the magntitude use the sed variant models.
+    """
+    frequency = kwargs['frequency']
+    if isinstance(frequency, float):
+        frequency = np.ones(len(time)) * frequency
+    k = kwargs.get('k', 0)
+    exp = kwargs.get('expansion', 1)
+    epse = 10 ** logepse
+    epsb = 10 ** logepsb
+    nism = 10 ** logn0
+    e0 = 10 ** loge0
+    time = time * day_to_s
+    cosmology = kwargs.get('cosmology', cosmo)
+    dl = cosmology.luminosity_distance(redshift).cgs.value
+    method = 'TH'
+    s, a = 0.01, 0.5
+
+    # Set resolution dynamically
+    sep = max(thv - thc, 0)
+    order = min(int((2 - 10 * sep) * thc * g0), 100)
+    default_res = max(10, order)
+    res = kwargs.get('res', default_res)
+    steps = kwargs.get('steps', 250)
+    ag_class = RedbackAfterglows(k=k, n=nism, epse=epse, epsb=epsb, g0=g0, ek=e0, thc=thc, thj=thc, tho=thv, p=p, exp=exp,
+                         time=time, freq=frequency, redshift=redshift, Dl=dl, method=method, extra_structure=s,
+                                 sheath_lorentz=a, res=res, xiN=xiN, steps=steps)
+    flux_density = ag_class.get_lightcurve()
+    fmjy = flux_density / 1e-26
+    return fmjy
 
 @citation_wrapper('https://ui.adsabs.harvard.edu/abs/2020ApJ...896..166R/abstract')
 def cocoon(time, redshift, umax, umin, loge0, k, mej, logn0, p, logepse, logepsb, ksin, g0, **kwargs):
