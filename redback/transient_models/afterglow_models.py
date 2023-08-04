@@ -26,8 +26,8 @@ jet_spreading_models = ['tophat', 'cocoon', 'gaussian',
                           'tophat']
 
 class RedbackAfterglows():
-    def __init__(self, k, n, epsb, epse, g0, ek, thc, thj, tho, p, exp, time, freq, redshift, Dl, extra_structure,
-                 sheath_lorentz, method='TH', res=100, steps=int(500), xiN=1):
+    def __init__(self, k, n, epsb, epse, g0, ek, thc, thj, tho, p, exp, time, freq, redshift, Dl,
+                 extra_structure_parameter_1,extra_structure_parameter_2, method='TH', res=100, steps=int(500), xiN=1):
         """
         A general class for afterglow models implemented directly in redback.
         This class is not meant to be used directly but instead via the interface for each specific model.
@@ -51,10 +51,18 @@ class RedbackAfterglows():
         :param freq: lightcurve frequencies
         :param redshift: source redshift
         :param Dl: luminosity distance
-        :param extra_structure: sets the index for power-law jet structure models,
-            and the fractional contribution for the Double Gaussian (where s, a < 1 must be observed),
-            and the energy fraction (s) for two-component.
-        :param sheath_lorentz: Lorentz factor of sheath (a>1).
+        :param extra_structure_parameter_1: Extra structure specific parameter #1.
+            Specifically, this parameter sets;
+            The index on energy for power-law jets.
+            The fractional energy contribution for the Double Gaussian (must be less than 1).
+            The energy fraction  for the outer sheath for two-component jets (must be less than 1).
+            Unused for tophat or Gaussian jets.
+        :param extra_structure_parameter_2: Extra structure specific parameter #2.
+            Specifically, this parameter sets;
+            The index on lorentz factor for power-law jets.
+            The lorentz factor for second Gaussian (must be less than 1).
+            The lorentz factor  for the outer sheath for two-component jets (must be less than 1).
+            Unused for tophat or Gaussian jets.
         :param method: Type of jet structure to use. Defaults to 'TH' for tophat jet.
             Other options are '2C', 'GJ', 'PL', 'PL2', 'DG'. Corresponding to two component, gaussian jet, powerlaw,
             alternative powerlaw and double Gaussian.
@@ -81,8 +89,8 @@ class RedbackAfterglows():
         self.z = redshift
         self.Dl = Dl
         self.method = method
-        self.s = extra_structure
-        self.a = sheath_lorentz
+        self.s = extra_structure_parameter_1
+        self.a = extra_structure_parameter_2
         self.res = res
         self.steps = steps
         self.xiN = xiN
@@ -407,8 +415,8 @@ def tophat_redback(time, redshift, thv, loge0, thc, logn0, p, logepse, logepsb, 
     :param redshift: source redshift
     :param thv: observer viewing angle in radians
     :param loge0: jet energy in \log_{10} ergs
-    :param thc: opening angle in radians
-    :param logn0: ism number density in \log_{10} cm^-3
+    :param thc: jet opening angle in radians
+    :param logn0: ism number density in \log_{10} cm^-3 or \log_{10} A* for wind-like density profile
     :param p: electron power law index
     :param logepse: partition fraction in electrons
     :param logepsb: partition fraction in magnetic field
@@ -448,11 +456,342 @@ def tophat_redback(time, redshift, thv, loge0, thc, logn0, p, logepse, logepsb, 
     res = kwargs.get('res', default_res)
     steps = kwargs.get('steps', 250)
     ag_class = RedbackAfterglows(k=k, n=nism, epse=epse, epsb=epsb, g0=g0, ek=e0, thc=thc, thj=thc, tho=thv, p=p, exp=exp,
-                         time=time, freq=frequency, redshift=redshift, Dl=dl, method=method, extra_structure=s,
-                                 sheath_lorentz=a, res=res, xiN=xiN, steps=steps)
+                                time=time, freq=frequency, redshift=redshift, Dl=dl, method=method,
+                                 extra_structure_parameter_1=s, extra_structure_parameter_2=a,
+                                 res=res, xiN=xiN, steps=steps)
     flux_density = ag_class.get_lightcurve()
     fmjy = flux_density / 1e-26
-    return fmjy
+    if kwargs['output_format'] == 'flux_density':
+        return fmjy
+    elif kwargs['output_format'] == 'magnitude':
+        return calc_ABmag_from_flux_density(fmjy).value
+
+@citation_wrapper('redback, https://ui.adsabs.harvard.edu/abs/2018MNRAS.481.2581L/abstract')
+def gaussian_redback(time, redshift, thv, loge0, thc, thj, logn0, p, logepse, logepsb, g0, xiN, **kwargs):
+    """
+    A Gaussian structure afterglow model implemented directly in redback. Based on Lamb, Mandel & Resmi 2018 and other work.
+    Look at the RedbackAfterglow class for more details/implementation.
+
+    :param time: time in days
+    :param redshift: source redshift
+    :param thv: observer viewing angle in radians
+    :param loge0: jet energy in \log_{10} ergs
+    :param thc: jet core size in radians
+    :param thj: jet edge in radians (thc < thj < pi/2)
+    :param logn0: ism number density in \log_{10} cm^-3 or \log_{10} A* for wind-like density profile
+    :param p: electron power law index
+    :param logepse: partition fraction in electrons
+    :param logepsb: partition fraction in magnetic field
+    :param g0: initial lorentz factor
+    :param xiN: fraction of electrons that get accelerated. Defaults to 1.
+    :param kwargs: additional keyword arguments
+    :param res: resolution - set dynamically based on afterglow properties by default,
+            but can be set manually to a specific number.
+    :param steps: number of steps used to resolve Gamma and dm. Defaults to 250 but can be set manually.
+    :param k: power law index of density profile. Defaults to 0 for constant density.
+        Can be set to 2 for wind-like density profile.
+    :param expansion: 0 or 1 to dictate whether to include expansion effects. Defaults to 1
+    :param output_format: Whether to output flux density or AB mag
+    :param cosmology: Cosmology to use for luminosity distance calculation. Defaults to Planck18. Must be a astropy.cosmology object.
+    :return: flux density or AB mag. Note this is going to give the monochromatic magnitude at the effective frequency for the band.
+        For a proper calculation of the magntitude use the sed variant models.
+    """
+    frequency = kwargs['frequency']
+    if isinstance(frequency, float):
+        frequency = np.ones(len(time)) * frequency
+    k = kwargs.get('k', 0)
+    exp = kwargs.get('expansion', 1)
+    epse = 10 ** logepse
+    epsb = 10 ** logepsb
+    nism = 10 ** logn0
+    e0 = 10 ** loge0
+    time = time * day_to_s
+    cosmology = kwargs.get('cosmology', cosmo)
+    dl = cosmology.luminosity_distance(redshift).cgs.value
+    method = 'GJ'
+    s, a = 0.01, 0.5
+
+    # Set resolution dynamically
+    sep = max(thv - thc, 0)
+    order = min(int((2 - 10 * sep) * thc * g0), 100)
+    default_res = max(10, order)
+    res = kwargs.get('res', default_res)
+    steps = kwargs.get('steps', 250)
+    ag_class = RedbackAfterglows(k=k, n=nism, epse=epse, epsb=epsb, g0=g0, ek=e0, thc=thc, thj=thj, tho=thv, p=p, exp=exp,
+                                time=time, freq=frequency, redshift=redshift, Dl=dl, method=method,
+                                 extra_structure_parameter_1=s, extra_structure_parameter_2=a,
+                                 res=res, xiN=xiN, steps=steps)
+    flux_density = ag_class.get_lightcurve()
+    fmjy = flux_density / 1e-26
+    if kwargs['output_format'] == 'flux_density':
+        return fmjy
+    elif kwargs['output_format'] == 'magnitude':
+        return calc_ABmag_from_flux_density(fmjy).value
+
+@citation_wrapper('redback, https://ui.adsabs.harvard.edu/abs/2018MNRAS.481.2581L/abstract')
+def twocomponent_redback(time, redshift, thv, loge0, thc, thj, logn0, p, logepse, logepsb, g0, xiN, **kwargs):
+    """
+    A two component model implemented directly in redback. Tophat till thc and then second component till thj.
+    Based on Lamb, Mandel & Resmi 2018 and other work.
+    Look at the RedbackAfterglow class for more details/implementation.
+
+    :param time: time in days
+    :param redshift: source redshift
+    :param thv: observer viewing angle in radians
+    :param loge0: jet energy in \log_{10} ergs
+    :param thc: jet core size in radians
+    :param thj: jet edge in radians (thc < thj < pi/2)
+    :param logn0: ism number density in \log_{10} cm^-3 or \log_{10} A* for wind-like density profile
+    :param p: electron power law index
+    :param logepse: partition fraction in electrons
+    :param logepsb: partition fraction in magnetic field
+    :param g0: initial lorentz factor
+    :param xiN: fraction of electrons that get accelerated. Defaults to 1.
+    :param kwargs: additional keyword arguments
+    :param res: resolution - set dynamically based on afterglow properties by default,
+            but can be set manually to a specific number.
+    :param steps: number of steps used to resolve Gamma and dm. Defaults to 250 but can be set manually.
+    :param k: power law index of density profile. Defaults to 0 for constant density.
+        Can be set to 2 for wind-like density profile.
+    :param expansion: 0 or 1 to dictate whether to include expansion effects. Defaults to 1
+    :param ss: Fraction of energy in the outer sheath of the jet. Defaults to 0.01
+    :param aa: Lorentz factor outside the core.
+    :param output_format: Whether to output flux density or AB mag
+    :param cosmology: Cosmology to use for luminosity distance calculation. Defaults to Planck18. Must be a astropy.cosmology object.
+    :return: flux density or AB mag. Note this is going to give the monochromatic magnitude at the effective frequency for the band.
+        For a proper calculation of the magntitude use the sed variant models.
+    """
+    frequency = kwargs['frequency']
+    if isinstance(frequency, float):
+        frequency = np.ones(len(time)) * frequency
+    k = kwargs.get('k', 0)
+    exp = kwargs.get('expansion', 1)
+    epse = 10 ** logepse
+    epsb = 10 ** logepsb
+    nism = 10 ** logn0
+    e0 = 10 ** loge0
+    time = time * day_to_s
+    cosmology = kwargs.get('cosmology', cosmo)
+    dl = cosmology.luminosity_distance(redshift).cgs.value
+    method = 'TH'
+    ss = kwargs.get('ss', 0.01)
+    aa = kwargs.get('aa', 0.5)
+
+    # Set resolution dynamically
+    sep = max(thv - thc, 0)
+    order = min(int((2 - 10 * sep) * thc * g0), 100)
+    default_res = max(10, order)
+    res = kwargs.get('res', default_res)
+    steps = kwargs.get('steps', 250)
+    ag_class = RedbackAfterglows(k=k, n=nism, epse=epse, epsb=epsb, g0=g0, ek=e0, thc=thc, thj=thj, tho=thv, p=p, exp=exp,
+                                 time=time, freq=frequency, redshift=redshift, Dl=dl, method=method,
+                                 extra_structure_parameter_1=ss, extra_structure_parameter_2=aa,
+                                 res=res, xiN=xiN, steps=steps)
+    flux_density = ag_class.get_lightcurve()
+    fmjy = flux_density / 1e-26
+    if kwargs['output_format'] == 'flux_density':
+        return fmjy
+    elif kwargs['output_format'] == 'magnitude':
+        return calc_ABmag_from_flux_density(fmjy).value
+
+@citation_wrapper('redback, https://ui.adsabs.harvard.edu/abs/2018MNRAS.481.2581L/abstract')
+def powerlaw_redback(time, redshift, thv, loge0, thc, thj, logn0, p, logepse, logepsb, g0, xiN, **kwargs):
+    """
+    A Classic powerlaw structured jet implemented directly in redback.
+    Tophat with powerlaw energy proportional to theta^ss and lorentz factor proportional to theta^aa outside core.
+    Based on Lamb, Mandel & Resmi 2018 and other work.
+    Look at the RedbackAfterglow class for more details/implementation.
+
+    :param time: time in days
+    :param redshift: source redshift
+    :param thv: observer viewing angle in radians
+    :param loge0: jet energy in \log_{10} ergs
+    :param thc: jet core size in radians
+    :param thj: jet edge in radians (thc < thj < pi/2)
+    :param logn0: ism number density in \log_{10} cm^-3 or \log_{10} A* for wind-like density profile
+    :param p: electron power law index
+    :param logepse: partition fraction in electrons
+    :param logepsb: partition fraction in magnetic field
+    :param g0: initial lorentz factor
+    :param xiN: fraction of electrons that get accelerated. Defaults to 1.
+    :param kwargs: additional keyword arguments
+    :param res: resolution - set dynamically based on afterglow properties by default,
+            but can be set manually to a specific number.
+    :param steps: number of steps used to resolve Gamma and dm. Defaults to 250 but can be set manually.
+    :param k: power law index of density profile. Defaults to 0 for constant density.
+        Can be set to 2 for wind-like density profile.
+    :param expansion: 0 or 1 to dictate whether to include expansion effects. Defaults to 1
+    :param ss: Index of energy outside core. Defaults to -3
+    :param aa: Index of Lorentz factor outside the core. Defaults to -3
+    :param output_format: Whether to output flux density or AB mag
+    :param cosmology: Cosmology to use for luminosity distance calculation. Defaults to Planck18. Must be a astropy.cosmology object.
+    :return: flux density or AB mag. Note this is going to give the monochromatic magnitude at the effective frequency for the band.
+        For a proper calculation of the magntitude use the sed variant models.
+    """
+    frequency = kwargs['frequency']
+    if isinstance(frequency, float):
+        frequency = np.ones(len(time)) * frequency
+    k = kwargs.get('k', 0)
+    exp = kwargs.get('expansion', 1)
+    epse = 10 ** logepse
+    epsb = 10 ** logepsb
+    nism = 10 ** logn0
+    e0 = 10 ** loge0
+    time = time * day_to_s
+    cosmology = kwargs.get('cosmology', cosmo)
+    dl = cosmology.luminosity_distance(redshift).cgs.value
+    method = 'PL'
+    ss = kwargs.get('ss', 3)
+    aa = kwargs.get('aa', -3)
+
+    # Set resolution dynamically
+    sep = max(thv - thc, 0)
+    order = min(int((2 - 10 * sep) * thc * g0), 100)
+    default_res = max(10, order)
+    res = kwargs.get('res', default_res)
+    steps = kwargs.get('steps', 250)
+    ag_class = RedbackAfterglows(k=k, n=nism, epse=epse, epsb=epsb, g0=g0, ek=e0, thc=thc, thj=thj, tho=thv, p=p, exp=exp,
+                                 time=time, freq=frequency, redshift=redshift, Dl=dl, method=method,
+                                 extra_structure_parameter_1=ss, extra_structure_parameter_2=aa,
+                                 res=res, xiN=xiN, steps=steps)
+    flux_density = ag_class.get_lightcurve()
+    fmjy = flux_density / 1e-26
+    if kwargs['output_format'] == 'flux_density':
+        return fmjy
+    elif kwargs['output_format'] == 'magnitude':
+        return calc_ABmag_from_flux_density(fmjy).value
+
+@citation_wrapper('redback, https://ui.adsabs.harvard.edu/abs/2018MNRAS.481.2581L/abstract')
+def alternativepowerlaw_redback(time, redshift, thv, loge0, thc, thj, logn0, p, logepse, logepsb, g0, xiN, **kwargs):
+    """
+    An alternative powerlaw structured jet implemented directly in redback. Profile follows (theta/thc^2)^0.5^(-s or -a).
+    Based on Lamb, Mandel & Resmi 2018 and other work.
+    Look at the RedbackAfterglow class for more details/implementation.
+
+    :param time: time in days
+    :param redshift: source redshift
+    :param thv: observer viewing angle in radians
+    :param loge0: jet energy in \log_{10} ergs
+    :param thc: jet core size in radians
+    :param thj: jet edge in radians (thc < thj < pi/2)
+    :param logn0: ism number density in \log_{10} cm^-3 or \log_{10} A* for wind-like density profile
+    :param p: electron power law index
+    :param logepse: partition fraction in electrons
+    :param logepsb: partition fraction in magnetic field
+    :param g0: initial lorentz factor
+    :param xiN: fraction of electrons that get accelerated. Defaults to 1.
+    :param kwargs: additional keyword arguments
+    :param res: resolution - set dynamically based on afterglow properties by default,
+            but can be set manually to a specific number.
+    :param steps: number of steps used to resolve Gamma and dm. Defaults to 250 but can be set manually.
+    :param k: power law index of density profile. Defaults to 0 for constant density.
+        Can be set to 2 for wind-like density profile.
+    :param expansion: 0 or 1 to dictate whether to include expansion effects. Defaults to 1
+    :param ss: Index of energy outside core. Defaults to 3
+    :param aa: Index of Lorentz factor outside the core. Defaults to 3
+    :param output_format: Whether to output flux density or AB mag
+    :param cosmology: Cosmology to use for luminosity distance calculation. Defaults to Planck18. Must be a astropy.cosmology object.
+    :return: flux density or AB mag. Note this is going to give the monochromatic magnitude at the effective frequency for the band.
+        For a proper calculation of the magntitude use the sed variant models.
+    """
+    frequency = kwargs['frequency']
+    if isinstance(frequency, float):
+        frequency = np.ones(len(time)) * frequency
+    k = kwargs.get('k', 0)
+    exp = kwargs.get('expansion', 1)
+    epse = 10 ** logepse
+    epsb = 10 ** logepsb
+    nism = 10 ** logn0
+    e0 = 10 ** loge0
+    time = time * day_to_s
+    cosmology = kwargs.get('cosmology', cosmo)
+    dl = cosmology.luminosity_distance(redshift).cgs.value
+    method = 'PL'
+    ss = kwargs.get('ss', 3)
+    aa = kwargs.get('aa', 3)
+
+    # Set resolution dynamically
+    sep = max(thv - thc, 0)
+    order = min(int((2 - 10 * sep) * thc * g0), 100)
+    default_res = max(10, order)
+    res = kwargs.get('res', default_res)
+    steps = kwargs.get('steps', 250)
+    ag_class = RedbackAfterglows(k=k, n=nism, epse=epse, epsb=epsb, g0=g0, ek=e0, thc=thc, thj=thj, tho=thv, p=p, exp=exp,
+                                 time=time, freq=frequency, redshift=redshift, Dl=dl, method=method,
+                                 extra_structure_parameter_1=ss, extra_structure_parameter_2=aa,
+                                 res=res, xiN=xiN, steps=steps)
+    flux_density = ag_class.get_lightcurve()
+    fmjy = flux_density / 1e-26
+    if kwargs['output_format'] == 'flux_density':
+        return fmjy
+    elif kwargs['output_format'] == 'magnitude':
+        return calc_ABmag_from_flux_density(fmjy).value
+
+@citation_wrapper('redback, https://ui.adsabs.harvard.edu/abs/2018MNRAS.481.2581L/abstract')
+def doublegaussian_redback(time, redshift, thv, loge0, thc, thj, logn0, p, logepse, logepsb, g0, xiN, **kwargs):
+    """
+    Double Gaussian structured jet implemented directly in redback.
+    Based on Lamb, Mandel & Resmi 2018 and other work.
+    Look at the RedbackAfterglow class for more details/implementation.
+
+    :param time: time in days
+    :param redshift: source redshift
+    :param thv: observer viewing angle in radians
+    :param loge0: jet energy in \log_{10} ergs
+    :param thc: jet core size in radians
+    :param thj: jet edge in radians (thc < thj < pi/2)
+    :param logn0: ism number density in \log_{10} cm^-3 or \log_{10} A* for wind-like density profile
+    :param p: electron power law index
+    :param logepse: partition fraction in electrons
+    :param logepsb: partition fraction in magnetic field
+    :param g0: initial lorentz factor
+    :param xiN: fraction of electrons that get accelerated. Defaults to 1.
+    :param kwargs: additional keyword arguments
+    :param res: resolution - set dynamically based on afterglow properties by default,
+            but can be set manually to a specific number.
+    :param steps: number of steps used to resolve Gamma and dm. Defaults to 250 but can be set manually.
+    :param k: power law index of density profile. Defaults to 0 for constant density.
+        Can be set to 2 for wind-like density profile.
+    :param expansion: 0 or 1 to dictate whether to include expansion effects. Defaults to 1
+    :param ss: Fractional contribution of energy to second Gaussian. Defaults to 0.1, must be less than 1.
+    :param aa: Lorentz factor for second Gaussian, must be less than 1.
+    :param output_format: Whether to output flux density or AB mag
+    :param cosmology: Cosmology to use for luminosity distance calculation. Defaults to Planck18. Must be a astropy.cosmology object.
+    :return: flux density or AB mag. Note this is going to give the monochromatic magnitude at the effective frequency for the band.
+        For a proper calculation of the magntitude use the sed variant models.
+    """
+    frequency = kwargs['frequency']
+    if isinstance(frequency, float):
+        frequency = np.ones(len(time)) * frequency
+    k = kwargs.get('k', 0)
+    exp = kwargs.get('expansion', 1)
+    epse = 10 ** logepse
+    epsb = 10 ** logepsb
+    nism = 10 ** logn0
+    e0 = 10 ** loge0
+    time = time * day_to_s
+    cosmology = kwargs.get('cosmology', cosmo)
+    dl = cosmology.luminosity_distance(redshift).cgs.value
+    method = 'PL'
+    ss = kwargs.get('ss', 0.1)
+    aa = kwargs.get('aa', 0.5)
+
+    # Set resolution dynamically
+    sep = max(thv - thc, 0)
+    order = min(int((2 - 10 * sep) * thc * g0), 100)
+    default_res = max(10, order)
+    res = kwargs.get('res', default_res)
+    steps = kwargs.get('steps', 250)
+    ag_class = RedbackAfterglows(k=k, n=nism, epse=epse, epsb=epsb, g0=g0, ek=e0, thc=thc, thj=thj, tho=thv, p=p, exp=exp,
+                                 time=time, freq=frequency, redshift=redshift, Dl=dl, method=method,
+                                 extra_structure_parameter_1=ss, extra_structure_parameter_2=aa,
+                                 res=res, xiN=xiN, steps=steps)
+    flux_density = ag_class.get_lightcurve()
+    fmjy = flux_density / 1e-26
+    if kwargs['output_format'] == 'flux_density':
+        return fmjy
+    elif kwargs['output_format'] == 'magnitude':
+        return calc_ABmag_from_flux_density(fmjy).value
 
 @citation_wrapper('https://ui.adsabs.harvard.edu/abs/2020ApJ...896..166R/abstract')
 def cocoon(time, redshift, umax, umin, loge0, k, mej, logn0, p, logepse, logepsb, ksin, g0, **kwargs):
