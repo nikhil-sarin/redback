@@ -15,7 +15,7 @@ For a full up to date list of models implemented in :code:`redback`, look at the
     - Tophat jet implemented in `afterglowpy <https://afterglowpy.readthedocs.io/en/latest/>`_.
     - Cocoon
     - Several varieties of Kilonova afterglow models e.g., Sarin et al. 2022, Nakar and Piran 2011
-    - Several varieties of afterglow models from Gavin Lamb et al.+
+    - Several varieties of afterglow models implemented directly in redback following Lamb et al. 2018 +++
 
 - Kilonova models: Can output in flux density/magnitude/flux
 
