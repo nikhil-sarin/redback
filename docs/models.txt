@@ -11,11 +11,11 @@ For a full up to date list of models implemented in :code:`redback`, look at the
 
 - Afterglow models: Can output in flux density/magnitude
 
-    - Several structured jet models implemented in `afterglowpy <https://afterglowpy.readthedocs.io/en/latest/>`_.
-    - Tophat jet implemented in `afterglowpy <https://afterglowpy.readthedocs.io/en/latest/>`_.
+    - Several varieties of afterglow models implemented directly in redback following Lamb et al. 2018 and other work.
+    - Several jet structures but with refreshed shocks.
+    - All structured jet models implemented in `afterglowpy <https://afterglowpy.readthedocs.io/en/latest/>`_. Must install afterglowpy to use these models.
     - Cocoon
-    - Several varieties of Kilonova afterglow models e.g., Sarin et al. 2022, Nakar and Piran 2011
-    - Several varieties of afterglow models implemented directly in redback following Lamb et al. 2018 +++
+    - Some varieties of Kilonova afterglow models e.g., Sarin et al. 2022, Nakar and Piran 2011
 
 - Kilonova models: Can output in flux density/magnitude/flux
 

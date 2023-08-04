@@ -6,6 +6,7 @@ from redback.sed import get_correct_output_format_from_spectra
 import astropy.units as uu
 import numpy as np
 from collections import namedtuple
+from scipy.special import erf
 try:
     import afterglowpy as afterglow
 
@@ -23,6 +24,377 @@ jet_spreading_models = ['tophat', 'cocoon', 'gaussian',
                           'gaussiancore', 'gaussian',
                           'smoothpowerlaw', 'powerlawcore',
                           'tophat']
+
+class RedbackAfterglows():
+    def __init__(self, k, n, epsb, epse, g0, ek, thc, thj, tho, p, exp, time, freq, redshift, Dl, extra_structure,
+                 sheath_lorentz, method='TH', res=100, steps=int(500), xiN=1):
+        """
+        A general class for afterglow models implemented directly in redback.
+        This class is not meant to be used directly but instead via the interface for each specific model.
+        The afterglows are based on the method shown in Lamb, Mandel & Resmi 2018 and other papers.
+        Script was originally written by En-Tzu Lin <entzulin@gapp.nthu.edu.tw> and Gavin Lamb <g.p.lamb@ljmu.ac.uk>
+        and modified and implemented into redback by Nikhil Sarin <nsarin.astro@gmail.com>.
+
+        :param k:
+        :param n: ISM, ambient number density
+        :param EB: magnetic fraction
+        :param Ee: electron fraction
+        :param G0: initial Lorentz factor
+        :param EK: kinetic energy
+        :param thc: core angle
+        :param thj: jet outer angle. For tophat jets thc=thj
+        :param tho: observers viewing angle
+        :param p: electron power-law index
+        :param exp: Boolean for whether to include sound speed expansion
+        :param time: lightcurve time steps
+        :param freq: lightcurve frequencies
+        :param redshift: source redshift
+        :param Dl: luminosity distance
+        :param extra_structure: sets the index for power-law jet structure models,
+            and the fractional contribution for the Double Gaussian (where s, a < 1 must be observed),
+            and the energy fraction (s) for two-component. Not used for tophat jets.
+        :param sheath_lorentz: Lorentz factor of sheath (a>1). Not used for tophat jets.
+        :param method: Type of jet structure to use. Defaults to 'TH' for tophat jet.
+            Other options are '2C', 'GJ', 'PL', 'PL2', 'DG'. Corresponding to two component, gaussian jet, powerlaw,
+            alternative powerlaw and double Gaussian.
+        :param res: resolution
+        :param steps: number of steps used to resolve Gamma and dm
+        :param XiN: fraction of electrons that get accelerated
+        """
+        self.k = k
+        if self.k == 0:
+            self.n = n
+        elif self.k == 2:
+            self.n = n * 3e35  # n \equiv A*
+        self.epsB = epsb
+        self.epse = epse
+        self.g0 = g0
+        self.ek = ek
+        self.thc = thc
+        self.thj = thj
+        self.tho = tho
+        self.p = p
+        self.exp = exp
+        self.t = time
+        self.freq = freq
+        self.z = redshift
+        self.Dl = Dl
+        self.method = method
+        self.s = extra_structure
+        self.a = sheath_lorentz
+        self.res = res
+        self.steps = steps
+        self.xiN = xiN
+
+        ### Set up physical constants
+        self.mp = 1.6726231e-24  # g, mass of proton
+        self.me = 9.1093897e-28  # g, mass of electron
+        self.cc = 2.99792453e10  # cm s^-1, speed of light
+        self.qe = 4.8032068e-10  # esu, electron charge
+        self.c2 = self.cc * self.cc
+        self.sigT = (self.qe * self.qe / (self.me * self.c2)) ** 2 * (8 * np.pi / 3)  # Thomson cross-section
+        self.fourpi = 4 * np.pi
+        self.is_expansion = self.exp
+
+    def calc_erf_numba(self, x):
+        return np.array([erf(i) for i in x])
+
+    def get_lightcurve(self):
+        if (self.k != 0) and (self.k != 2):
+            raise ValueError("k must either be 0 or 2")
+        if (self.p < 1.2) or (self.p > 3.4):
+            raise ValueError("p is out of range, 1.2 < p < 3.4")
+        # parameters p, x_p, and phi_p from Wijers & Galama 1999
+        pxf = np.array([[1.0, 3.0, 0.41], [1.2, 1.4, 0.44], [1.4, 1.1, 0.48], [1.6, 0.86, 0.53], [1.8, 0.725, 0.56],
+                        [2.0, 0.637, 0.59], [2.2, 0.579, 0.612], [2.5, 0.520, 0.630], [2.7, 0.487, 0.641],
+                        [3.0, 0.451, 0.659],
+                        [3.2, 0.434, 0.660], [3.4, 0.420, 0.675]])
+        xp = np.interp(self.p, pxf[:, 0], pxf[:, 1])  # dimensionless spectral peak
+        Fx = np.interp(self.p, pxf[:, 0], pxf[:, 2])  # dimensionless peak flux
+        nu0 = np.unique(self.freq)  # unique frequencies in the sample, if loading a data array for frequencies
+        nu = nu0 * (1 + self.z)  # rest frame frequency
+        nu = np.array(nu)
+        Omi, thi, phii, rotstep, latstep = self.get_segments(thj=self.thj, res=self.res)
+        Gs, Ei = self.get_structure(gamma=self.g0, en=self.ek,
+                                    thi=thi, thc=self.thc, method=self.method, s=self.s, a=self.a, thj=self.thj)
+        G, SM, ghat = self.get_gamma(G0=Gs, Eps=Ei, therm=0., steps=self.steps, n0=self.n, k=self.k)
+        Obsa = self.get_obsangle(phii=phii, thi=thi, tho=self.tho)
+        # calculate the afterglow flux
+        Flux, tobs = self.calc_afterglow(G=G, SM=SM, Dl=self.Dl, p=self.p, xp=xp, Fx=Fx,
+                                         EB=self.epsB, Ee=self.epse, Gs=Gs, Omi=Omi, Ei=Ei,
+                                         n=self.n, k=self.k, tho=self.tho, thi=thi, phii=phii,
+                                         thj=self.thj, ghat=ghat, rotstep=rotstep,
+                                         latstep=latstep, Obsa=Obsa, nu=nu,
+                                         steps=self.steps, XiN=self.xiN)
+        # sums all the flux at the same observer times
+        LC = self.calc_lightcurve(time=self.t, tobs=tobs, Flux=Flux,
+                                  nu_size=nu.size, thi_size=thi.size, phii_size=phii.size,
+                                  freq=self.freq, nu0=nu0)
+        return LC
+
+    def get_segments(self, thj, res):
+        ### parameter setting
+        latstep = 0.1  # lateral step from centre to edge - fixed angular width
+        rotstep = 2 * np.pi / res  # rotational step
+        Nrotstep = int(2 * np.pi / rotstep)  # interger number of rotational steps
+        LA = np.log10(thj)
+        LATS = np.linspace(LA - (res - 1) * latstep, LA, res)
+        ### calculations
+        thi = 10 ** (LATS - 0.5 * latstep)  # lateral angle to centre of segment
+        fac = np.hstack((np.ones(1), np.cos(10 ** LATS)))
+        fac = -np.diff(fac)
+        Omi = np.full(shape=Nrotstep, fill_value=rotstep) * fac.reshape(-1, 1)
+        Omi = Omi.ravel()
+        # the solid angle of each segment
+        phii = np.arange(0.5 * rotstep, Nrotstep * rotstep, rotstep)  # rotational angle to centre of each segment
+        return Omi, thi, phii, rotstep, latstep
+
+    def get_structure(self, gamma, en, thi, thc, method, s, a, thj):
+        if gamma == 1.0:
+            raise ValueError("Gamma must not equal 1!!!")
+        Gs = np.full(shape=thi.size, fill_value=gamma)
+        Ei = np.full(shape=thi.size, fill_value=en)
+        if method == "TH":  # Top-hat
+            thj_ = np.where(thc < thj, thc, thj)
+            fac = (self.calc_erf_numba(-(thi - thj_) * 1000.) * 0.5) + 0.5
+            Gs = (Gs - 1) * fac + 1.0000000000001
+            Ei *= fac
+        elif method == "Gaussian" or method == "GJ":  # Gaussian
+            fac = np.exp(-0.5 * (thi / thc) ** 2)
+            Gs = (Gs - 1) * fac + 1.0000000000001
+            Ei *= fac
+        elif method == "PL":  # Power-law
+            for i, thi_t in enumerate(thi):
+                if thi_t >= thc:
+                    fac_s = (thc / thi_t) ** (s)
+                    fac_a = (thc / thi_t) ** (a)
+                    Ei[i] *= fac_s
+                    Gs[i] = (Gs[i] - 1.) * fac_a + 1.000000000000001
+        elif method == "PL-alt" or method == "PL2":  # alternative powerlaw
+            fac = (1 + (thi / thc) ** 2) ** 0.5
+            Gs = 1.000000000001 + (Gs - 1) * fac ** (-a)
+            Ei *= fac ** (-s)
+        elif method == "Two-Component" or method == "2C":  # Two-Component
+            if a < 1:
+                raise ValueError("a must be > 1 for two-component model")
+            for i, thi_t in enumerate(thi):
+                if thi_t > thc:
+                    Gs[i] = a
+                    Ei[i] *= s
+        elif method == "Double-Gaussian" or method == "DG":  # Double Gaussian
+            if (a > 1) or (s > 1):
+                raise ValueError("a and s must be < 1 for double Gaussian model")
+            fac = self.double_gaussian_beam(thi, thc, thj, s, a)
+            Ei *= fac
+            fac_gs = self.double_gaussian_lf(thi, thc, thj, s, a)
+            Gs = (Gs - 1) * fac_gs + 1.0000000000001
+        else:  # default
+            pass
+        return Gs, Ei
+
+    def gaussian_beam(self, thi, thc):
+        return np.exp(-0.5 * (thi / thc) ** 2)
+
+    def double_gaussian_beam(self, thi, thc, thj, s, a):
+        return (1. - s) * self.gaussian_beam(thi, thc) + s * self.gaussian_beam(thi, thj)
+
+    def double_gaussian_lf(self, thi, thc, thj, s, a):
+        out = self.double_gaussian_beam(thi, thc, thj, s, a) / self.double_gaussian_beam(thi, thc, thj, s / a, a)
+        out[np.isnan(out)] = a
+        return out
+
+    def get_gamma(self, G0, Eps, therm, steps, n0, k):
+        ### parameter setting
+        Rmin = 1e10  # cm
+        Rmax = 1e24  # cm
+        Nmin = (self.fourpi / (3. - k)) * n0 * Rmin ** (3. - k)  # min number
+        Nmax = (self.fourpi / (3. - k)) * n0 * Rmax ** (3. - k)  # max number
+        dlogm = np.log10(Nmin * self.mp)
+        h = np.log10(Nmax / Nmin) / steps  # step size in dlog(m)
+        # constant factor
+        fac = -h * np.log(10)
+        M = Eps / (G0 * self.c2)  # explosion rest mass
+
+        ### 4th-order Runge-Kutta integration
+        def RK4(ghat, dm_rk4, G_rk4):
+            ghatm1 = ghat - 1.
+            dm_base10 = 10 ** dm_rk4
+            G_rk4_sq = G_rk4 * G_rk4
+            _G_rk4 = 1. / G_rk4
+            return fac * dm_base10 * (ghat * (G_rk4_sq - 1.) - ghatm1 * (G_rk4 - _G_rk4)) \
+                / (M + dm_base10 * (therm + (1. - therm) * (2. * ghat * G_rk4 - ghatm1 * (1 + 1. / G_rk4_sq))))
+
+        # arrays for the state at each step
+        state_G = np.empty(shape=(steps, G0.size))
+        state_dm = np.empty(shape=(steps, G0.size))
+        state_gH = np.empty(shape=(steps, G0.size))
+        # initial values
+        G = G0
+        dm = np.full(shape=G.size, fill_value=dlogm)
+        # main loop
+        for i in range(steps):
+            # store the G and dm
+            state_G[i] = G
+            state_dm[i] = dm
+            G2m1 = G * G - 1.0
+            G2m1_root = G2m1 ** 0.5
+            # temperature of shocked matter
+            theta = G2m1_root * (G2m1_root + 1.07 * G2m1) / (3. * (1 + G2m1_root + 1.07 * G2m1))
+            z = theta / (0.24 + theta)
+            # adiabatic index
+            ghat = ((((((
+                                1.07136 * z - 2.39332) * z + 2.32513) * z - 0.96583) * z + 0.18203) * z - 1.21937) * z + 5.) / 3.
+            # 4th order Runge Kutta to solve ODE from Pe'er 2012
+            F1 = RK4(ghat, dm, G)
+            F2 = RK4(ghat, dm + 0.5 * h, G + 0.5 * F1)
+            F3 = RK4(ghat, dm + 0.5 * h, G + 0.5 * F2)
+            F4 = RK4(ghat, dm + h, G + F3)
+            # update state
+            G = G + (F1 + 2. * (F2 + F3) + F4) / 6. + 1e-15
+            dm = dm + h
+            # store the ghat
+            state_gH[i] = ghat
+        return state_G.T, 10. ** state_dm.T, state_gH.T
+
+    def get_obsangle(self, phii, thi, tho):
+        phi = 0.0  # we assume rotational symmetry - phi is therefore arbitrary
+        sin_thi = np.sin(thi)
+        cos_thi = np.cos(thi)
+        f1 = np.sin(phi) * np.sin(tho) * np.sin(phii) * sin_thi.reshape(-1, 1)
+        f2 = np.cos(phi) * np.sin(tho) * np.cos(phii) * sin_thi.reshape(-1, 1)
+        Obsa = np.cos(tho) * cos_thi.reshape(-1, 1) + f2 + f1
+        Obsa = np.arccos(Obsa)
+        return Obsa.ravel()
+
+    def calc_afterglow_step1(self, G, dm, p, xp, Fx, EB, Ee, n, k, thi, ghat, rotstep, latstep, xiN):
+        rotstep = np.full(1, rotstep)
+        latstep = np.full(1, latstep)
+        Gm1 = G - 1.0
+        G2 = G * G
+        beta = (1 - 1. / G2) ** 0.5  # normalised velocity at each radial step
+        Ne = dm / self.mp  # number of swept up electrons
+        ### side-ways expansion
+        cs = (self.c2 * ghat * (ghat - 1) * Gm1 / (1 + ghat * Gm1)) ** 0.5  # sound speed
+        te = np.arcsin(cs / (self.cc * (G2 - 1.) ** 0.5))  # equivalent form for angle due to spreading
+        # prepare ex and OmG in this function
+        if self.is_expansion:
+            ex = te  # expansion
+            fac = np.exp(0.5 * latstep)
+            OmG = rotstep * (np.cos(thi / fac) - np.cos(ex + thi * fac))  # equivalent form for log spacing
+        else:
+            te = np.ones(te.size)  # no expansion
+            fac = np.exp(0.5 * latstep)
+            OmG = rotstep * (np.cos(thi / fac) - np.cos(thi * fac))  # equivalent form for log spacing
+        # prepare R
+        size = G.size
+        exponent = ((1 - np.cos(te[0])) / (1 - np.cos(te[:size]))) ** 0.5
+        R = ((3. - k) * Ne[:size] / (self.fourpi * n)) ** (1. / (3. - k))
+        R[1:] = np.diff(R) * exponent[1:size] ** (1. / (3. - k))
+        R = np.cumsum(R)
+
+        ""
+        n0 = n * R ** (-k)
+        ### forward shock
+        # parameters for synchrotron emission
+        B = (2 * self.fourpi * EB * n0 * self.mp * self.c2 * (
+                    (ghat * G + 1.) / (ghat - 1.)) * Gm1) ** 0.5  # magnetic field strength
+        gmm = (1.5 * self.fourpi * self.qe / (self.sigT * B)) ** (0.5)
+        if p > 2:
+            gp = (p - 2) / (p - 1)
+        elif p == 2:
+            gp = 1 / np.log(gmm / ((Ee / xiN) * Gm1 * (self.mp / self.me)))
+        if p >= 2:
+            gm = gp * (Ee / xiN) * Gm1 * (self.mp / self.me)
+        else:
+            gm = ((2 - p) / (p - 1) * (self.mp / self.me) * (Ee / xiN) * Gm1 * gmm ** (p - 2)) ** (1 / (p - 1))
+
+        nump = 3. * xp * gm * gm * self.qe * B / (
+                    self.fourpi * self.me * self.cc)  # characteristic synchrotron frequency co-moving
+        Pp = xiN * Fx * self.me * self.c2 * self.sigT * B / (
+                    3. * self.qe)  # 3.**0.5*q**3.*B/(me*c**2.)#  # synchrotron power per electron co-moving
+        KT = gm * self.me * self.c2
+        return beta, Ne, OmG, R, B, gm, nump, Pp, KT
+
+    def calc_afterglow_step2(self, Dl, Om0, rotstep, latstep, Obsa, beta, Ne, OmG, R, B, gm, nump, Pp, KT, G):
+        Dl2 = Dl * Dl
+        NO  = Om0 * Ne / self.fourpi   # initial electrons per segment
+        cos_Obsa = np.cos(Obsa)
+        if self.is_expansion:
+            Om   = np.maximum(Om0, OmG)  # solid angle at each step given expansion condition
+            thii = np.arccos(1. - Om / rotstep)
+        else:
+            Om   = OmG  # array for solid angle
+            thii = np.arccos(1. - Om / rotstep)
+        size = G.size
+        R_diff = np.diff(R,prepend=0)
+        dt = R_diff*(1./beta[:size]-np.cos(Obsa))/self.cc
+        dto = R_diff*(1./beta[:size]-1.)/self.cc
+        tobs = np.cumsum(dt)
+        tobso = np.cumsum(dto)
+        ""
+        ### forward shock
+        dop  = 1. / (G * (1. - beta * cos_Obsa))  # Doppler factor
+        # parameters for synchrotron emission
+        gc = 6. * np.pi * self.me * self.c / (G * self.sigT * B * B * tobso)  # gamma_c
+        nucp = 0.286 * 3. * gc * gc * self.q * B / (self.fourpi * self.me * self.c)  # cooling frequency co-moving
+        num = dop * nump  # observer frame synchrotron frequency
+        nuc = dop * nucp  # observer frame cooling frequency
+        # maximum synchrotron flux including emission area correction for 1/G > jet opening angle
+        Fmax = NO * Pp * dop * dop * dop / (self.fourpi * Dl2)
+        ### self-absorption
+        FBB = 2 * Om * np.cos(thii) * dop * KT * R * R / (self.c2 * Dl2)
+        return FBB, Fmax, nuc, num, tobs
+
+    def get_ag(self, FBB, nuc, num, nu1, Fmax, p):
+        Fluxt = np.zeros((num.size)) #array for flux at a given frequency with time
+        #Observed flux at each step
+        #Fast
+        F1 = (nuc < num) & (nu1 < nuc)
+        Fluxt[F1] = Fmax[F1] * (nu1/nuc[F1])**(1./3.)
+        F2 = (nuc < nu1) & (nuc < num)
+        Fluxt[F2] = Fmax[F2] * (nu1/nuc[F2])**(-1./2.)
+        F3 = (num < nu1) & (nuc < num)
+        Fluxt[F3] = Fmax[F3] * (num[F3]/nuc[F3])**(-1./2.)*(nu1/num[F3])**(-p/2.)
+        #Slow
+        S1 = (num < nuc) & (nu1 < num)
+        Fluxt[S1] = Fmax[S1] * (nu1/num[S1])**(1./3.)
+        S2 = (num < nu1) & (num < nuc)
+        Fluxt[S2] = Fmax[S2] * (nu1/num[S2])**(-(p-1.)/2.)
+        S3 = (nuc < nu1) & (num < nuc)
+        Fluxt[S3] = Fmax[S3] * (nuc[S3]/num[S3])**(-(p-1.)/2.)*(nu1/nuc[S3])**(-p/2.)
+        #SSA
+        FBB = FBB*nu1**2.*np.maximum(1,(nu1/num)**0.5)
+        Fluxt = np.minimum(FBB,Fluxt)
+        return Fluxt
+
+    def calc_afterglow(self, G, SM, Dl, p, xp, Fx, EB, Ee, Gs, Omi, Ei, n, k, tho, thi, phii, thj, ghat, rotstep,
+                       latstep, Obsa, nu, steps, XiN):
+        Flux = np.empty(shape=(nu.size, steps, thi.size * phii.size))
+        tobs = np.empty(shape=(steps, thi.size * phii.size))
+        kk = 0
+        for i in range(thi.size):
+            beta, Ne, OmG, R, B, gm, nump, Pp, KT = self.calc_afterglow_step1(G[i, :], SM[i, :], p, xp, Fx, EB, Ee, n, k,
+                                                                         thi[i], ghat[i, :], rotstep, latstep, XiN)
+            for j in range(phii.size):
+                FBB, Fmax, nuc, num, tobs[:, kk] = self.calc_afterglow_step2(Dl, Omi[kk], rotstep, latstep, Obsa[kk], beta,
+                                                                        Ne, OmG, R, B, gm, nump, Pp, KT, G[i, :])
+                if nu.size > 1:
+                    for h in range(0, nu.size):
+                        Flux[h, :, kk] = self.get_ag(FBB, nuc, num, nu[h], Fmax, p)
+                elif nu.size == 1:
+                    Flux[0, :, kk] = self.get_ag(FBB, nuc, num, nu, Fmax, p)
+                kk += 1
+        return Flux, tobs
+
+    def calc_lightcurve(self, time, tobs, Flux, nu_size, thi_size, phii_size, freq, nu0):
+        LC = np.zeros((freq.size))
+        # forward shock lightcurve at each observation time
+        for h in range(nu_size):
+            FF = np.zeros((len(time[(freq == nu0[h])])))
+            for i in range(thi_size * phii_size):
+                FF += np.interp(time[(freq == nu0[h])] / (1 + self.z), tobs[:, i], Flux[h, :, i])
+            LC[(freq == nu0[h])] = FF
+        return LC * (1 + self.z)
 
 @citation_wrapper('https://ui.adsabs.harvard.edu/abs/2020ApJ...896..166R/abstract')
 def cocoon(time, redshift, umax, umin, loge0, k, mej, logn0, p, logepse, logepsb, ksin, g0, **kwargs):
