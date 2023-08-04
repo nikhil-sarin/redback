@@ -25,6 +25,99 @@ jet_spreading_models = ['tophat', 'cocoon', 'gaussian',
                           'smoothpowerlaw', 'powerlawcore',
                           'tophat']
 
+class RedbackAfterglowsRefreshed():
+    def __init__(self, k, n, epsb, epse, g0, g1, ek, et, s1, thc, thj, tho, p, exp, time, freq, redshift, Dl,
+                 extra_structure_parameter_1, extra_structure_parameter_2,
+                 method='TH', res=100, steps=int(500), xiN=1):
+
+        """
+        A general class for refreshed afterglow models implemented directly in redback.
+        This class is not meant to be used directly but instead via the interface for each specific model.
+        The afterglows are based on the method shown in Lamb, Mandel & Resmi 2018 and other papers.
+        Script was originally written by En-Tzu Lin <entzulin@gapp.nthu.edu.tw> and Gavin Lamb <g.p.lamb@ljmu.ac.uk>
+        and modified and implemented into redback by Nikhil Sarin <nsarin.astro@gmail.com>.
+        Includes wind-like mediums, expansion and multiple jet structures.
+
+        :param k:
+        :param n: ISM, ambient number density
+        :param epsb: magnetic fraction
+        :param epse: electron fraction
+        :param g0: initial Lorentz factor
+        :param g1: second shell Lorentz factor
+        :param ek: kinetic energy
+        :param et: factor by which total kinetic energy is larger
+        :param s1: index for energy injection; typically between 0--10, some higher values, ~<30, are supported for some structures.
+            Values of ~10 are consistent with a discrete shock interaction, see Lamb, Levan & Tanvir 2020
+        :param thc: core angle
+        :param thj: jet outer angle. For tophat jets thc=thj
+        :param tho: observers viewing angle
+        :param p: electron power-law index
+        :param exp: Boolean for whether to include sound speed expansion
+        :param time: lightcurve time steps
+        :param freq: lightcurve frequencies
+        :param redshift: source redshift
+        :param Dl: luminosity distance
+        :param extra_structure_parameter_1: Extra structure specific parameter #1.
+            Specifically, this parameter sets;
+            The index on energy for power-law jets.
+            The fractional energy contribution for the Double Gaussian (must be less than 1).
+            The energy fraction  for the outer sheath for two-component jets (must be less than 1).
+            Unused for tophat or Gaussian jets.
+        :param extra_structure_parameter_2: Extra structure specific parameter #2.
+            Specifically, this parameter sets;
+            The index on lorentz factor for power-law jets.
+            The lorentz factor for second Gaussian (must be less than 1).
+            The lorentz factor  for the outer sheath for two-component jets (must be less than 1).
+            Unused for tophat or Gaussian jets.
+        :param method: Type of jet structure to use. Defaults to 'TH' for tophat jet.
+            Other options are '2C', 'GJ', 'PL', 'PL2', 'DG'. Corresponding to two component, gaussian jet, powerlaw,
+            alternative powerlaw and double Gaussian.
+        :param res: resolution
+        :param steps: number of steps used to resolve Gamma and dm
+        :param XiN: fraction of electrons that get accelerated
+        """
+
+        self.k = k
+        if self.k == 0:
+            self.n = n
+        elif self.k == 2:
+            self.n = n * 3e35  # n \equiv A*
+        self.epsB = epsb
+        self.epse = epse
+        self.g0 = g0
+        self.G1 = g1
+        self.ek = ek
+        self.Et = et
+        self.s1 = s1
+        self.thc = thc
+        self.thj = thj
+        self.tho = tho
+        self.p = p
+        self.exp = exp
+        self.t = time
+        self.freq = freq
+        self.z = redshift
+        self.Dl = Dl
+        self.method = method
+        self.s = extra_structure_parameter_1
+        self.a = extra_structure_parameter_2
+        self.res = res
+        self.steps = steps
+        self.xiN = xiN
+
+        ### Set up physical constants
+        self.mp = 1.6726231e-24  # g, mass of proton
+        self.me = 9.1093897e-28  # g, mass of electron
+        self.cc = 2.99792453e10  # cm s^-1, speed of light
+        self.qe = 4.8032068e-10  # esu, electron charge
+        self.c2 = self.cc * self.cc
+        self.sigT = (self.qe * self.qe / (self.me * self.c2)) ** 2 * (8 * np.pi / 3)  # Thomson cross-section
+        self.fourpi = 4 * np.pi
+        self.is_expansion = self.exp
+
+    def calc_erf_numba(self, x):
+        return np.array([erf(i) for i in x])
+
 class RedbackAfterglows():
     def __init__(self, k, n, epsb, epse, g0, ek, thc, thj, tho, p, exp, time, freq, redshift, Dl,
                  extra_structure_parameter_1,extra_structure_parameter_2, method='TH', res=100, steps=int(500), xiN=1):
@@ -38,10 +131,10 @@ class RedbackAfterglows():
 
         :param k:
         :param n: ISM, ambient number density
-        :param EB: magnetic fraction
-        :param Ee: electron fraction
-        :param G0: initial Lorentz factor
-        :param EK: kinetic energy
+        :param epsb: magnetic fraction
+        :param epse: electron fraction
+        :param g0: initial Lorentz factor
+        :param ek: kinetic energy
         :param thc: core angle
         :param thj: jet outer angle. For tophat jets thc=thj
         :param tho: observers viewing angle
