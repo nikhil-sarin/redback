@@ -14,7 +14,7 @@ For a full up to date list of models implemented in :code:`redback`, look at the
     - Several structured jet models implemented in `afterglowpy <https://afterglowpy.readthedocs.io/en/latest/>`_.
     - Tophat jet implemented in `afterglowpy <https://afterglowpy.readthedocs.io/en/latest/>`_.
     - Cocoon
-    - Several varieties of Kilonova afterglow models
+    - Several varieties of Kilonova afterglow models e.g., Sarin et al. 2022, Nakar and Piran 2011
     - Several varieties of afterglow models from Gavin Lamb et al.+
 
 - Kilonova models: Can output in flux density/magnitude/flux
@@ -33,7 +33,7 @@ For a full up to date list of models implemented in :code:`redback`, look at the
     - `Three component model <https://ui.adsabs.harvard.edu/abs/2017ApJ...848L..17C/abstract>`_ temperature floor
     - `Three component model <https://ui.adsabs.harvard.edu/abs/2017ApJ...851L..21V/abstract>`_ temperature floor and diffusion
     - `Metzger 2017 <https://ui.adsabs.harvard.edu/abs/2017LRR....20....3M/abstract>`_
-    - Surrogates of several different numerical simulations
+    - Surrogates of different numerical simulations
 
 - Supernova models: Can output in flux density/magnitude/bolometric luminosity
 
@@ -86,6 +86,13 @@ For a full up to date list of models implemented in :code:`redback`, look at the
     - 1-6 component piecewise power law
     - exponential_powerlaw
     - Gaussian rise
+
+- Combined models
+
+    - Interface to combine any optical transient and afterglow model
+    - Tophat + Stratified kilonova
+    - Tophat + Two component kilonova
+    - Tophat + Arnett
 
 We note that these models can output in `flux_density` or `magnitude` set by the keyword argument
 `output_format` or in integrated flux or luminosity using the appropriate luminosity/flux function.
