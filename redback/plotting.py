@@ -11,7 +11,6 @@ import pandas as pd
 import redback
 from redback.utils import KwargsAccessorWithDefault
 
-
 class _FilenameGetter(object):
     def __init__(self, suffix: str) -> None:
         self.suffix = suffix
@@ -41,6 +40,7 @@ class Plotter(object):
     band_colors = KwargsAccessorWithDefault("band_colors", None)
     color = KwargsAccessorWithDefault("color", "k")
     band_labels = KwargsAccessorWithDefault("band_labels", None)
+    band_scaling = KwargsAccessorWithDefault("band_scaling", {})
     dpi = KwargsAccessorWithDefault("dpi", 300)
     elinewidth = KwargsAccessorWithDefault("elinewidth", 2)
     errorbar_fmt = KwargsAccessorWithDefault("errorbar_fmt", "x")
@@ -75,10 +75,10 @@ class Plotter(object):
     credible_interval_level = KwargsAccessorWithDefault("credible_interval_level", 0.9)
     plot_max_likelihood = KwargsAccessorWithDefault("plot_max_likelihood", True)
 
-    xlim_high_multiplier = 2.0
-    xlim_low_multiplier = 0.5
-    ylim_high_multiplier = 2.0
-    ylim_low_multiplier = 0.5
+    xlim_high_multiplier = KwargsAccessorWithDefault("xlim_high_multiplier", 2.0)
+    xlim_low_multiplier = KwargsAccessorWithDefault("xlim_low_multiplier", 0.5)
+    ylim_high_multiplier = KwargsAccessorWithDefault("ylim_high_multiplier", 2.0)
+    ylim_low_multiplier = KwargsAccessorWithDefault("ylim_low_multiplier", 0.5)
 
     def __init__(self, transient: Union[redback.transient.Transient, None], **kwargs) -> None:
         """
@@ -91,6 +91,7 @@ class Plotter(object):
         :keyword color: Color of the data points.
         :keyword band_colors: A dictionary with the colors of the bands.
         :keyword band_labels: List with the names of the bands.
+        :keyword band_scaling: Dict with the scaling for each band. First entry should be {type: '+' or 'x'} for different types.
         :keyword dpi: Same as matplotlib dpi.
         :keyword elinewidth: same as matplotlib elinewidth
         :keyword errorbar_fmt: 'fmt' argument of `ax.errorbar`.
@@ -512,12 +513,15 @@ class MagnitudePlotter(Plotter):
         ax = axes or plt.gca()
 
         band_label_generator = self.band_label_generator
-        
+
         for indices, band in zip(self.transient.list_of_band_indices, self.transient.unique_bands):
             if band in self._filters:
                 color = self._colors[list(self._filters).index(band)]
                 if band_label_generator is None:
-                    label = band
+                    if band in self.band_scaling:
+                        label = str(self.band_scaling.get(band))  + ' ' + self.band_scaling.get("type") + ' ' + band 
+                    else:
+                        label = band   
                 else:
                     label = next(band_label_generator)
             elif self.plot_others:
@@ -529,11 +533,25 @@ class MagnitudePlotter(Plotter):
                 label = f"{label:.2e}"
             if self.band_colors is not None:
                 color = self.band_colors[band]
-            ax.errorbar(
-                self.transient.x[indices] - self._reference_mjd_date, self.transient.y[indices],
-                xerr=self._get_x_err(indices), yerr=self.transient.y_err[indices],
-                fmt=self.errorbar_fmt, ms=self.ms, color=color,
-                elinewidth=self.elinewidth, capsize=self.capsize, label=label)
+            if band in self.band_scaling:
+                if self.band_scaling.get("type") == 'x':
+                    ax.errorbar(
+                        self.transient.x[indices] - self._reference_mjd_date, self.transient.y[indices] * self.band_scaling.get(band),
+                        xerr=self._get_x_err(indices), yerr=self.transient.y_err[indices] * self.band_scaling.get(band),
+                        fmt=self.errorbar_fmt, ms=self.ms, color=color,
+                        elinewidth=self.elinewidth, capsize=self.capsize, label=label)
+                elif self.band_scaling.get("type") == '+':
+                    ax.errorbar(
+                        self.transient.x[indices] - self._reference_mjd_date, self.transient.y[indices] + self.band_scaling.get(band),
+                        xerr=self._get_x_err(indices), yerr=self.transient.y_err[indices] + self.band_scaling.get(band),
+                        fmt=self.errorbar_fmt, ms=self.ms, color=color,
+                        elinewidth=self.elinewidth, capsize=self.capsize, label=label)
+            else:
+                ax.errorbar(
+                    self.transient.x[indices] - self._reference_mjd_date, self.transient.y[indices],
+                    xerr=self._get_x_err(indices), yerr=self.transient.y_err[indices],
+                    fmt=self.errorbar_fmt, ms=self.ms, color=color,
+                    elinewidth=self.elinewidth, capsize=self.capsize, label=label)
 
         self._set_x_axis(axes=ax)
         self._set_y_axis_data(ax)
@@ -582,16 +600,33 @@ class MagnitudePlotter(Plotter):
             self._model_kwargs['frequency'] = np.ones(len(times)) * frequency
             if self.plot_max_likelihood:
                 ys = self.model(times, **self._max_like_params, **self._model_kwargs)
-                axes.plot(times - self._reference_mjd_date, ys, color=color, alpha=0.65, lw=2)
+                if band in self.band_scaling:
+                    if self.band_scaling.get("type") == 'x':
+                        axes.plot(times - self._reference_mjd_date, ys * self.band_scaling.get(band), color=color, alpha=0.65, lw=2)
+                    elif self.band_scaling.get("type") == '+':
+                        axes.plot(times - self._reference_mjd_date, ys + self.band_scaling.get(band), color=color, alpha=0.65, lw=2)
+                else:        
+                    axes.plot(times - self._reference_mjd_date, ys, color=color, alpha=0.65, lw=2)
 
             random_ys_list = [self.model(times, **random_params, **self._model_kwargs)
                               for random_params in self._get_random_parameters()]
             if self.uncertainty_mode == "random_models":
                 for ys in random_ys_list:
-                    axes.plot(times - self._reference_mjd_date, ys, color=color, alpha=0.05, lw=2, zorder=-1)
+                    if band in self.band_scaling:
+                        if self.band_scaling.get("type") == 'x':
+                            axes.plot(times - self._reference_mjd_date, ys * self.band_scaling.get(band), color='red', alpha=0.05, lw=2, zorder=-1)
+                        elif self.band_scaling.get("type") == '+':
+                            axes.plot(times - self._reference_mjd_date, ys + self.band_scaling.get(band), color='red', alpha=0.05, lw=2, zorder=-1)
+                    else:
+                        axes.plot(times - self._reference_mjd_date, ys, color='red', alpha=0.05, lw=2, zorder=-1)
             elif self.uncertainty_mode == "credible_intervals":
-                lower_bound, upper_bound, _ = redback.utils.calc_credible_intervals(samples=random_ys_list,
-                                                                                    interval=self.credible_interval_level)
+                if band in self.band_scaling:
+                    if self.band_scaling.get("type") == 'x':
+                        lower_bound, upper_bound, _ = redback.utils.calc_credible_intervals(samples=np.array(random_ys_list) * self.band_scaling.get(band))
+                    elif self.band_scaling.get("type") == '+':
+                        lower_bound, upper_bound, _ = redback.utils.calc_credible_intervals(samples=np.array(random_ys_list) + self.band_scaling.get(band))
+                else:
+                    lower_bound, upper_bound, _ = redback.utils.calc_credible_intervals(samples=np.array(random_ys_list))
                 axes.fill_between(
                     times - self._reference_mjd_date, lower_bound, upper_bound,
                     alpha=self.uncertainty_band_alpha, color=color)

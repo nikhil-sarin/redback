@@ -1,6 +1,4 @@
 import redback.transient_models.extinction_models
-import matplotlib as mpl
-mpl.rcParams.update(mpl.rcParamsDefault)
 def tophat_and_twolayerstratified(time, redshift, av, thv, loge0, thc, logn0, p, logepse, logepsb, ksin, g0, mej, vej_1, vej_2, kappa, beta, **kwargs):
     
     """
