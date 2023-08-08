@@ -1,7 +1,7 @@
 from astropy.cosmology import Planck18 as cosmo  # noqa
 from inspect import isfunction
 from redback.utils import logger, citation_wrapper, calc_ABmag_from_flux_density, lambda_to_nu
-from redback.constants import day_to_s
+from redback.constants import day_to_s, speed_of_light, solar_mass
 from redback.sed import get_correct_output_format_from_spectra
 import astropy.units as uu
 import numpy as np
@@ -563,6 +563,63 @@ class RedbackAfterglowsRefreshed(RedbackAfterglows):
                                   freq=self.freq, nu0=nu0)
         return LC
 
+
+def kilonova_afterglow_sarin():
+    if kwargs['output_format'] == 'flux_density':
+        return fmjy
+    elif kwargs['output_format'] == 'magnitude':
+        return calc_ABmag_from_flux_density(fmjy).value
+
+def kilonova_afterglow_nakarpiran(time, redshift, loge0, mej, logn0, logepse, logepsb, p, **kwargs):
+    """
+    A kilonova afterglow model based on Nakar & Piran 2011
+
+    :param time: time in days in the observer frame
+    :param redshift: source redshift
+    :param loge0: initial kinetic energy in erg of ejecta
+    :param mej: mass of ejecta in solar masses
+    :param logn0: log10 of the number density of the circumburst medium in cm^-3
+    :param logepse: log10 of the fraction of energy given to electrons
+    :param logepsb: log10 of the fraction of energy given to the magnetic field
+    :param p: electron power law index
+    :param kwargs: Additional keyword arguments
+    :param output_format: Whether to output flux density or AB mag
+    :param frequency: frequency in Hz for the flux density calculation
+    :param cosmology: Cosmology to use for luminosity distance calculation. Defaults to Planck18. Must be a astropy.cosmology object.
+    :return: flux density or AB mag. Note this is going to give the monochromatic magnitude at the effective frequency for the band.
+        For a proper calculation of the magntitude use the sed variant models.
+    :return:
+    """
+    Eej = 10 ** loge0
+    Mej = mej * solar_mass
+    Gamma0 = 1.0 + Eej / (Mej * speed_of_light ** 2)
+    vej = speed_of_light * (1.0 - Gamma0 ** (-2)) ** 0.5
+    cosmology = kwargs.get('cosmology', cosmo)
+    epsilon_e = 10 ** logepse
+    epsilon_B = 10 ** logepsb
+    n0 = 10 ** logn0
+    dl = cosmology.luminosity_distance(redshift).cgs.value
+
+    jy = 1e-23
+    t_dec = 30 * day_to_s * (Eej / 1e49) ** (1.0 / 3.0) * (n0 / 1e0) ** (-1.0 / 3.0) * (vej / speed_of_light) ** (-5.0 / 3.0)
+
+    fnu_dec_dict = {}
+    for freq in kwargs['frequency']:
+        fnu_dec_dict['freq'] = 0.3e-3 * jy * (Eej / 1e49) * n0 ** (0.25 * (p + 1)) * (epsilon_B / 1e-1) ** (0.25 * (p + 1)) * (
+                epsilon_e / 1e-1) ** (p - 1) * (vej / speed_of_light) ** (0.5 * (5 * p - 7)) * (freq / 1.4e9) ** (
+                          -0.5 * (p - 1)) * (dl / 1e27) ** (-2)
+    # define time array
+    t = np.logspace(-2, 2) * t_dec
+
+    # scale light-curve to times t< and t> peak time = t_dec (neglects self-absorption; assumes nu_a,nu_m<nu)
+    Fnu = Fnu_dec * (t / t_dec) ** 3
+    Fnu[t > t_dec] = Fnu_dec * (t[t > t_dec] / t_dec) ** (-0.3 * (5 * p - 7))
+
+    if kwargs['output_format'] == 'flux_density':
+        return fmjy
+    elif kwargs['output_format'] == 'magnitude':
+        return calc_ABmag_from_flux_density(fmjy).value
+
 @citation_wrapper('redback, https://ui.adsabs.harvard.edu/abs/2018MNRAS.481.2581L/abstract')
 def tophat_redback(time, redshift, thv, loge0, thc, logn0, p, logepse, logepsb, g0, xiN, **kwargs):
     """
@@ -588,6 +645,7 @@ def tophat_redback(time, redshift, thv, loge0, thc, logn0, p, logepse, logepsb, 
         Can be set to 2 for wind-like density profile.
     :param expansion: 0 or 1 to dictate whether to include expansion effects. Defaults to 1
     :param output_format: Whether to output flux density or AB mag
+    :param frequency: frequency in Hz for the flux density calculation
     :param cosmology: Cosmology to use for luminosity distance calculation. Defaults to Planck18. Must be a astropy.cosmology object.
     :return: flux density or AB mag. Note this is going to give the monochromatic magnitude at the effective frequency for the band.
         For a proper calculation of the magntitude use the sed variant models.
@@ -650,6 +708,7 @@ def gaussian_redback(time, redshift, thv, loge0, thc, thj, logn0, p, logepse, lo
         Can be set to 2 for wind-like density profile.
     :param expansion: 0 or 1 to dictate whether to include expansion effects. Defaults to 1
     :param output_format: Whether to output flux density or AB mag
+    :param frequency: frequency in Hz for the flux density calculation
     :param cosmology: Cosmology to use for luminosity distance calculation. Defaults to Planck18. Must be a astropy.cosmology object.
     :return: flux density or AB mag. Note this is going to give the monochromatic magnitude at the effective frequency for the band.
         For a proper calculation of the magntitude use the sed variant models.
@@ -715,6 +774,7 @@ def twocomponent_redback(time, redshift, thv, loge0, thc, thj, logn0, p, logepse
     :param ss: Fraction of energy in the outer sheath of the jet. Defaults to 0.01
     :param aa: Lorentz factor outside the core.
     :param output_format: Whether to output flux density or AB mag
+    :param frequency: frequency in Hz for the flux density calculation
     :param cosmology: Cosmology to use for luminosity distance calculation. Defaults to Planck18. Must be a astropy.cosmology object.
     :return: flux density or AB mag. Note this is going to give the monochromatic magnitude at the effective frequency for the band.
         For a proper calculation of the magntitude use the sed variant models.
@@ -782,6 +842,7 @@ def powerlaw_redback(time, redshift, thv, loge0, thc, thj, logn0, p, logepse, lo
     :param ss: Index of energy outside core. Defaults to -3
     :param aa: Index of Lorentz factor outside the core. Defaults to -3
     :param output_format: Whether to output flux density or AB mag
+    :param frequency: frequency in Hz for the flux density calculation
     :param cosmology: Cosmology to use for luminosity distance calculation. Defaults to Planck18. Must be a astropy.cosmology object.
     :return: flux density or AB mag. Note this is going to give the monochromatic magnitude at the effective frequency for the band.
         For a proper calculation of the magntitude use the sed variant models.
@@ -848,6 +909,7 @@ def alternativepowerlaw_redback(time, redshift, thv, loge0, thc, thj, logn0, p, 
     :param ss: Index of energy outside core. Defaults to 3
     :param aa: Index of Lorentz factor outside the core. Defaults to 3
     :param output_format: Whether to output flux density or AB mag
+    :param frequency: frequency in Hz for the flux density calculation
     :param cosmology: Cosmology to use for luminosity distance calculation. Defaults to Planck18. Must be a astropy.cosmology object.
     :return: flux density or AB mag. Note this is going to give the monochromatic magnitude at the effective frequency for the band.
         For a proper calculation of the magntitude use the sed variant models.
@@ -914,6 +976,7 @@ def doublegaussian_redback(time, redshift, thv, loge0, thc, thj, logn0, p, logep
     :param ss: Fractional contribution of energy to second Gaussian. Defaults to 0.1, must be less than 1.
     :param aa: Lorentz factor for second Gaussian, must be less than 1.
     :param output_format: Whether to output flux density or AB mag
+    :param frequency: frequency in Hz for the flux density calculation
     :param cosmology: Cosmology to use for luminosity distance calculation. Defaults to Planck18. Must be a astropy.cosmology object.
     :return: flux density or AB mag. Note this is going to give the monochromatic magnitude at the effective frequency for the band.
         For a proper calculation of the magntitude use the sed variant models.
@@ -981,6 +1044,7 @@ def tophat_redback_refreshed(time, redshift, thv, loge0, thc, g1, et, s1,
         Can be set to 2 for wind-like density profile.
     :param expansion: 0 or 1 to dictate whether to include expansion effects. Defaults to 1
     :param output_format: Whether to output flux density or AB mag
+    :param frequency: frequency in Hz for the flux density calculation
     :param cosmology: Cosmology to use for luminosity distance calculation. Defaults to Planck18. Must be a astropy.cosmology object.
     :return: flux density or AB mag. Note this is going to give the monochromatic magnitude at the effective frequency for the band.
         For a proper calculation of the magntitude use the sed variant models.
@@ -1049,6 +1113,7 @@ def gaussian_redback_refreshed(time, redshift, thv, loge0, thc, thj, g1, et, s1,
         Can be set to 2 for wind-like density profile.
     :param expansion: 0 or 1 to dictate whether to include expansion effects. Defaults to 1
     :param output_format: Whether to output flux density or AB mag
+    :param frequency: frequency in Hz for the flux density calculation
     :param cosmology: Cosmology to use for luminosity distance calculation. Defaults to Planck18. Must be a astropy.cosmology object.
     :return: flux density or AB mag. Note this is going to give the monochromatic magnitude at the effective frequency for the band.
         For a proper calculation of the magntitude use the sed variant models.
@@ -1120,6 +1185,7 @@ def twocomponent_redback_refreshed(time, redshift, thv, loge0, thc, thj, g1, et,
     :param ss: Fraction of energy in the outer sheath of the jet. Defaults to 0.01
     :param aa: Lorentz factor outside the core.
     :param output_format: Whether to output flux density or AB mag
+    :param frequency: frequency in Hz for the flux density calculation
     :param cosmology: Cosmology to use for luminosity distance calculation. Defaults to Planck18. Must be a astropy.cosmology object.
     :return: flux density or AB mag. Note this is going to give the monochromatic magnitude at the effective frequency for the band.
         For a proper calculation of the magntitude use the sed variant models.
@@ -1192,6 +1258,7 @@ def powerlaw_redback_refreshed(time, redshift, thv, loge0, thc, thj, g1, et, s1,
     :param ss: Index of energy outside core. Defaults to -3
     :param aa: Index of Lorentz factor outside the core. Defaults to -3
     :param output_format: Whether to output flux density or AB mag
+    :param frequency: frequency in Hz for the flux density calculation
     :param cosmology: Cosmology to use for luminosity distance calculation. Defaults to Planck18. Must be a astropy.cosmology object.
     :return: flux density or AB mag. Note this is going to give the monochromatic magnitude at the effective frequency for the band.
         For a proper calculation of the magntitude use the sed variant models.
@@ -1264,6 +1331,7 @@ def alternativepowerlaw_redback_refreshed(time, redshift, thv, loge0, thc, thj, 
     :param ss: Index of energy outside core. Defaults to 3
     :param aa: Index of Lorentz factor outside the core. Defaults to 3
     :param output_format: Whether to output flux density or AB mag
+    :param frequency: frequency in Hz for the flux density calculation
     :param cosmology: Cosmology to use for luminosity distance calculation. Defaults to Planck18. Must be a astropy.cosmology object.
     :return: flux density or AB mag. Note this is going to give the monochromatic magnitude at the effective frequency for the band.
         For a proper calculation of the magntitude use the sed variant models.
@@ -1336,6 +1404,7 @@ def doublegaussian_redback_refreshed(time, redshift, thv, loge0, thc, thj, g1, e
     :param ss: Fractional contribution of energy to second Gaussian. Defaults to 0.1, must be less than 1.
     :param aa: Lorentz factor for second Gaussian, must be less than 1.
     :param output_format: Whether to output flux density or AB mag
+    :param frequency: frequency in Hz for the flux density calculation
     :param cosmology: Cosmology to use for luminosity distance calculation. Defaults to Planck18. Must be a astropy.cosmology object.
     :return: flux density or AB mag. Note this is going to give the monochromatic magnitude at the effective frequency for the band.
         For a proper calculation of the magntitude use the sed variant models.
@@ -1400,6 +1469,7 @@ def cocoon(time, redshift, umax, umin, loge0, k, mej, logn0, p, logepse, logepsb
         Change to 1 for including inverse compton emission.
     :param l0, ts, q: energy injection parameters, defaults to 0
     :param output_format: Whether to output flux density or AB mag
+    :param frequency: frequency in Hz for the flux density calculation
     :param cosmology: Cosmology to use for luminosity distance calculation. Defaults to Planck18. Must be a astropy.cosmology object.
     :return: flux density or AB mag. Note this is going to give the monochromatic magnitude at the effective frequency for the band.
         For a proper calculation of the magntitude use the sed variant models.
@@ -1456,6 +1526,7 @@ def kilonova_afterglow(time, redshift, umax, umin, loge0, k, mej, logn0, p, loge
         Change to 1 for including inverse compton emission.
     :param l0, ts, q: energy injection parameters, defaults to 0
     :param output_format: Whether to output flux density or AB mag
+    :param frequency: frequency in Hz for the flux density calculation
     :param cosmology: Cosmology to use for luminosity distance calculation. Defaults to Planck18. Must be a astropy.cosmology object.
     :return: flux density or AB mag. Note this is going to give the monochromatic magnitude at the effective frequency for the band.
         For a proper calculation of the magntitude use the sed variant models.
@@ -1490,6 +1561,7 @@ def cone_afterglow(time, redshift, thv, loge0, thw, thc, logn0, p, logepse, loge
         Change to 1 for including inverse compton emission.
     :param l0, ts, q: energy injection parameters, defaults to 0
     :param output_format: Whether to output flux density or AB mag
+    :param frequency: frequency in Hz for the flux density calculation
     :param cosmology: Cosmology to use for luminosity distance calculation. Defaults to Planck18. Must be a astropy.cosmology object.
     :return: flux density or AB mag. Note this is going to give the monochromatic magnitude at the effective frequency for the band.
         For a proper calculation of the magntitude use the sed variant models.
@@ -1546,6 +1618,7 @@ def gaussiancore(time, redshift, thv, loge0, thc, thw, logn0, p, logepse, logeps
         Change to 1 for including inverse compton emission.
     :param l0, ts, q: energy injection parameters, defaults to 0
     :param output_format: Whether to output flux density or AB mag
+    :param frequency: frequency in Hz for the flux density calculation
     :param cosmology: Cosmology to use for luminosity distance calculation. Defaults to Planck18. Must be a astropy.cosmology object.
     :return: flux density or AB mag. Note this is going to give the monochromatic magnitude at the effective frequency for the band.
         For a proper calculation of the magntitude use the sed variant models.
@@ -1603,6 +1676,7 @@ def gaussian(time, redshift, thv, loge0, thw, thc, logn0, p, logepse, logepsb, k
         Change to 1 for including inverse compton emission.
     :param l0, ts, q: energy injection parameters, defaults to 0
     :param output_format: Whether to output flux density or AB mag
+    :param frequency: frequency in Hz for the flux density calculation
     :param cosmology: Cosmology to use for luminosity distance calculation. Defaults to Planck18. Must be a astropy.cosmology object.
     :return: flux density or AB mag. Note this is going to give the monochromatic magnitude at the effective frequency for the band.
         For a proper calculation of the magntitude use the sed variant models.
@@ -1660,6 +1734,7 @@ def smoothpowerlaw(time, redshift, thv, loge0, thw, thc, beta, logn0, p, logepse
         Change to 1 for including inverse compton emission.
     :param l0, ts, q: energy injection parameters, defaults to 0
     :param output_format: Whether to output flux density or AB mag
+    :param frequency: frequency in Hz for the flux density calculation
     :param cosmology: Cosmology to use for luminosity distance calculation. Defaults to Planck18. Must be a astropy.cosmology object.
     :return: flux density or AB mag. Note this is going to give the monochromatic magnitude at the effective frequency for the band.
         For a proper calculation of the magntitude use the sed variant models.
@@ -1717,6 +1792,7 @@ def powerlawcore(time, redshift, thv, loge0, thw, thc, beta, logn0, p, logepse, 
         Change to 1 for including inverse compton emission.
     :param l0, ts, q: energy injection parameters, defaults to 0
     :param output_format: Whether to output flux density or AB mag
+    :param frequency: frequency in Hz for the flux density calculation
     :param cosmology: Cosmology to use for luminosity distance calculation. Defaults to Planck18. Must be a astropy.cosmology object.
     :return: flux density or AB mag. Note this is going to give the monochromatic magnitude at the effective frequency for the band.
         For a proper calculation of the magntitude use the sed variant models.
@@ -1773,6 +1849,7 @@ def tophat(time, redshift, thv, loge0, thc, logn0, p, logepse, logepsb, ksin, g0
         Change to 1 for including inverse compton emission.
     :param l0, ts, q: energy injection parameters, defaults to 0
     :param output_format: Whether to output flux density or AB mag
+    :param frequency: frequency in Hz for the flux density calculation
     :param cosmology: Cosmology to use for luminosity distance calculation. Defaults to Planck18. Must be a astropy.cosmology object.
     :return: flux density or AB mag. Note this is going to give the monochromatic magnitude at the effective frequency for the band.
         For a proper calculation of the magntitude use the sed variant models. assuming a monochromatic
@@ -1817,6 +1894,7 @@ def afterglow_models_with_energy_injection(time, **kwargs):
         Change to 1 for including inverse compton emission.
     :param l0, ts, q: energy injection parameters, defaults to 0
     :param output_format: Whether to output flux density or AB mag
+    :param frequency: frequency in Hz for the flux density calculation
     :param base_model: A string to indicate the type of jet model to use.
     :return: flux density or AB mag. Note this is going to give the monochromatic magnitude at the effective frequency for the band.
         For a proper calculation of the magntitude use the sed variant models.
@@ -1850,6 +1928,7 @@ def afterglow_models_with_jet_spread(time, **kwargs):
         Change to 1 for including inverse compton emission.
     :param l0, ts, q: energy injection parameters, defaults to 0
     :param output_format: Whether to output flux density or AB mag
+    :param frequency: frequency in Hz for the flux density calculation
     :param base_model: A string to indicate the type of jet model to use.
     :return: flux density or AB mag. Note this is going to give the monochromatic magnitude at the effective frequency for the band.
         For a proper calculation of the magntitude use the sed variant models.
