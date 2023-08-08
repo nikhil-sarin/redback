@@ -1,7 +1,7 @@
 from astropy.cosmology import Planck18 as cosmo  # noqa
 from inspect import isfunction
 from redback.utils import logger, citation_wrapper, calc_ABmag_from_flux_density, lambda_to_nu
-from redback.constants import day_to_s, speed_of_light, solar_mass
+from redback.constants import day_to_s, speed_of_light, solar_mass, proton_mass, electron_mass, sigma_T
 from redback.sed import get_correct_output_format_from_spectra
 import astropy.units as uu
 import numpy as np
@@ -564,13 +564,218 @@ class RedbackAfterglowsRefreshed(RedbackAfterglows):
                                   freq=self.freq, nu0=nu0)
         return LC
 
+def _pnu_synchrotron(nu, B, gamma_m, gamma_c, Ne, p):
+    """
 
-def kilonova_afterglow_sarin():
+    :param nu: frequency in Hz
+    :param B: magnetic field in G
+    :param gamma_m: minimum Lorentz factor of electrons
+    :param gamma_c: electron Lorentz factor at which the cooling is important
+    :param Ne: Number of emitting electrons
+    :param p: power law index of the electron energy distribution
+    :return: Pnu
+    """
+    qe = 4.80320425e-10  # electron charge in CGS
+    Pnu_max = Ne * (electron_mass * speed_of_light ** 2 * sigma_T / (3.0 * qe)) * B
+    nu_m = qe * B * gamma_m ** 2 / (2.0 * np.pi * electron_mass * speed_of_light)
+    nu_c = qe * B * gamma_c ** 2 / (2.0 * np.pi * electron_mass * speed_of_light)
+
+    Pnu = np.zeros_like(gamma_m)
+
+    # slow cooling
+    cooling_msk = (nu_m <= nu_c)
+
+    msk = (nu < nu_m) * cooling_msk
+    Pnu[msk] = Pnu_max[msk] * (nu[msk] / nu_m[msk]) ** (1.0 / 3.0)
+    msk = (nu_m <= nu) * (nu <= nu_c) * cooling_msk
+    Pnu[msk] = Pnu_max[msk] * (nu[msk] / nu_m[msk]) ** (-0.5 * (p - 1.0))
+    msk = (nu_c < nu) * cooling_msk
+    Pnu[msk] = Pnu_max[msk] * (nu_c[msk] / nu_m[msk]) ** (-0.5 * (p - 1.0)) * (nu[msk] / nu_c[msk]) ** (-0.5 * p)
+
+    # fast cooling
+    cooling_msk = (nu_c < nu_m)
+
+    msk = (nu < nu_c) * cooling_msk
+    Pnu[msk] = Pnu_max[msk] * (nu[msk] / nu_c[msk]) ** (1.0 / 3.0)
+    msk = (nu_c <= nu) * (nu <= nu_m) * cooling_msk
+    Pnu[msk] = Pnu_max[msk] * (nu[msk] / nu_c[msk]) ** (-0.5)
+    msk = (nu_m < nu) * cooling_msk
+    Pnu[msk] = Pnu_max[msk] * (nu_m[msk] / nu_c[msk]) ** (-0.5) * (nu[msk] / nu_m[msk]) ** (-0.5 * p)
+
+    return Pnu
+
+def _get_kn_dynamics(n0, Eej, Mej):
+    """
+    Calculates blast-wave hydrodynamics. Based on Pe'er (2012) with a numerical correction
+    factor to ensure asymptotic convergence to Sedov-Taylor solution (see also Nava et al. 2013; Huang et al. 1999)
+
+    :param n0: ISM density in cm^-3
+    :param Eej: Ejecta energy in erg
+    :param Mej: ejecta mass in g
+    :return: Dynamical outputs - t, R, beta, Gamma, eden, tobs, beta_sh, Gamma_sh.
+    """
+    from scipy import integrate
+
+    # calculate initial Lorentz factor & velocity from mass and energy
+    Gamma0 = 1.0 + Eej / (Mej * speed_of_light ** 2)
+    v0 = speed_of_light * (1.0 - Gamma0 ** (-2)) ** 0.5
+
+    # characteristic, maximum, and starting times
+    tdec = (3 * Eej / (4 * np.pi * proton_mass * speed_of_light ** 2 * n0 * Gamma0 * (Gamma0 - 1.0) * v0 ** 3)) ** (1.0 / 3.0)
+    tmax = 1e3 * tdec
+    t0 = 1e-4 * tdec
+
+    # maximum numer of timesteps before abort
+    N = 100000
+    # maximal fractional difference in variables between timesteps
+    s = 0.002
+
+    # initiate variables
+    t = np.zeros(N)
+    R = np.zeros_like(t)
+    Gamma = np.zeros_like(t)
+    beta = np.zeros_like(t)
+    m = np.zeros_like(t)
+    Gamma_sh = np.zeros_like(t)
+    beta_sh = np.zeros_like(t)
+
+    t[0] = t0
+    Gamma[0] = Gamma0
+    beta[0] = v0 / speed_of_light
+    R[0] = v0 * t[0]
+    m[0] = (4.0 * np.pi / 3.0) * n0 * proton_mass * R[0] ** 3
+
+    g = (4.0 + Gamma[0] ** (-1)) / 3.0
+    Gamma_sh[0] = ((Gamma[0] + 1.0) * (g * (Gamma[0] - 1.0) + 1.0) ** 2 / (
+                g * (2.0 - g) * (Gamma[0] - 1.0) + 2.0)) ** 0.5
+    beta_sh[0] = (1.0 - Gamma_sh[0] ** (-2)) ** 0.5
+
+    # integrate equations
+    i = 0
+    while t[i] < tmax and i < N - 1:
+        # time derivative of variables (time is measured in lab frame)
+        Rdot = beta_sh[i] * speed_of_light
+        mdot = 4.0 * np.pi * n0 * proton_mass * R[i] ** 2 * Rdot
+        Gammadot = -mdot * (g * (Gamma[i] ** 2 - 1.0) - (g - 1.0) * Gamma[i] * beta[i] ** 2) / (
+                    Mej + m[i] * (2.0 * g * Gamma[i] - (g - 1.0) * (Gamma[i] ** (-2) + 1.0)))
+
+        # calculate next timestep based on allowed tollerance "s" (or exit condition)
+        dt = min(s * R[i] / Rdot, s * np.abs((Gamma[i] - 1.0) / Gammadot), s * m[i] / mdot, tmax - t[i])
+
+        # update variables
+        t[i + 1] = t[i] + dt
+        R[i + 1] = R[i] + dt * Rdot
+        Gamma[i + 1] = Gamma[i] + dt * Gammadot
+        m[i + 1] = m[i] + dt * mdot
+        beta[i + 1] = (1.0 - Gamma[i + 1] ** (-2)) ** 0.5
+        # effectiv adiabatic index, smoothly interpolating between 4/3 in the ultra-relativistic limit and 5/3 in the Newtonian regime
+        g = (4.0 + Gamma[i + 1] ** (-1)) / 3.0
+        Gamma_sh[i + 1] = ((Gamma[i + 1] + 1.0) * (g * (Gamma[i + 1] - 1.0) + 1.0) ** 2 / (
+                    g * (2.0 - g) * (Gamma[i + 1] - 1.0) + 2.0)) ** 0.5
+        beta_sh[i + 1] = (1.0 - Gamma_sh[i + 1] ** (-2)) ** 0.5
+        i += 1
+
+    # trim arrays to end at last point of iteration
+    i += 1
+    t = t[:i]
+    R = R[:i]
+    beta = beta[:i]
+    Gamma = Gamma[:i]
+    beta_sh = beta_sh[:i]
+    Gamma_sh = Gamma_sh[:i]
+
+    g = (4.0 + Gamma ** (-1)) / 3.0
+    # calculate post-shock thermal energy density (Blandford & McKee 1976).
+    # Assumes cold upstream matter: enthalpy = mass density * c^2
+    eden = (Gamma - 1.0) * ((g * Gamma + 1.0) / (g - 1.0)) * n0 * proton_mass * speed_of_light ** 2
+
+    # convert from lab frame to observer time. Approximate expression acounting for radial+azimuthal time-of-flight effect
+    # (eq. 26 from Nava et al. 2013; see also Waxman 1997)
+    tobs = R / (Gamma ** 2 * (1.0 + beta) * speed_of_light) + np.insert(
+        integrate.cumtrapz((1.0 - beta_sh) / beta_sh, x=R) / speed_of_light, 0, 0.0)
+
+    return t, R, beta, Gamma, eden, tobs, beta_sh, Gamma_sh
+
+@citation_wrapper('https://ui.adsabs.harvard.edu/abs/2022MNRAS.516.4949S/abstract')
+def kilonova_afterglow_sarin(time, redshift, loge0, mej, logn0, logepse, logepsb, p,
+                             **kwargs):
+    """
+    Calculate the afterglow emission from a kilonova remnant, following the model of Sarin et al. 2022.
+    This model was modified by Nikhil Sarin following code provided by Ben Margalit.
+
+    :param time: time in observer frame (days) in observer frame
+    :param redshift: source redshift
+    :param loge0: log10 of the initial kinetic energy of the ejecta (erg)
+    :param mej: ejecta mass (solar masses)
+    :param logn0: log10 of the circumburst density (cm^-3)
+    :param logepse: log10 of the fraction of shock energy given to electrons
+    :param logepsb: log10 of the fraction of shock energy given to magnetic field
+    :param p: power-law index of the electron energy distribution
+    :param kwargs: Additional keyword arguments
+    :param zeta_e: fraction of electrons participating in diffusive shock acceleration. Default is 1.
+    :param output_format: Whether to output flux density or AB mag
+    :param frequency: frequency in Hz for the flux density calculation
+    :param cosmology: Cosmology to use for luminosity distance calculation. Defaults to Planck18. Must be a astropy.cosmology object.
+    :return: flux density or AB mag. Note this is going to give the monochromatic magnitude at the effective frequency for the band.
+        For a proper calculation of the magntitude use the sed variant models.
+    """
+    Eej = 10 ** loge0
+    Mej = mej * solar_mass
+    cosmology = kwargs.get('cosmology', cosmo)
+    epsilon_e = 10 ** logepse
+    epsilon_B = 10 ** logepsb
+    n0 = 10 ** logn0
+    zeta_e = kwargs.get('zeta_e', 1.0)
+    qe = 4.803e-10
+
+    dl = cosmology.luminosity_distance(redshift).cgs.value
+    # calculate blast-wave dynamics
+    t, R, beta, Gamma, eden, tobs, beta_sh, Gamma_sh = _get_kn_dynamics(n0=n0, Eej=Eej, Mej=Mej)
+
+    # shock-amplified magnetic field, minimum & cooling Lorentz factors
+    B = (8.0 * np.pi * epsilon_B * eden) ** 0.5
+    gamma_m = 1.0 + (epsilon_e / zeta_e) * ((p - 2.0) / (p - 1.0)) * (proton_mass / electron_mass) * (Gamma - 1.0)
+    gamma_c = 6.0 * np.pi * electron_mass * speed_of_light / (sigma_T * Gamma * t * B ** 2)
+
+    # number of emitting electrons, where zeta_DN is an approximate smooth interpolation between the "standard"
+    # and deep-Newtonian regime discussed by Sironi & Giannios (2013)
+    zeta_DN = (gamma_m - 1.0) / gamma_m
+    Ne = zeta_DN * zeta_e * (4.0 * np.pi / 3.0) * R ** 3 * n0
+
+    # LOS approximation
+    mu = 1.0
+    blueshift = Gamma * (1.0 - beta * mu)
+
+    frequency = kwargs['frequency']
+    fnu_func = {}
+    for nu in frequency:
+        Fnu_opt_thin = _pnu_synchrotron(nu * blueshift * (1.0 + redshift), B, gamma_m, gamma_c, Ne, p) * (1.0 + redshift) / (
+                    4.0 * np.pi * dl ** 2 * blueshift)
+
+        # correct for synchrotron self-absorption (approximate treatment, correct up to factors of order unity)
+        Fnu_opt_thick = Gamma * (8 * np.pi ** 2 * (nu * blueshift * (1.0 + redshift)) ** 2 / speed_of_light ** 2) * R ** 2 * (
+                    1.0 / 3.0) * electron_mass * speed_of_light ** 2 * np.maximum(gamma_m, (
+                    2 * np.pi * electron_mass * speed_of_light * nu * blueshift * (1.0 + redshift) / (qe * B)) ** 0.5) * (1.0 + redshift) / (
+                                    4.0 * np.pi * dl ** 2 * blueshift)
+        # new prescription:
+        Fnu = Fnu_opt_thick * (1e0 - np.exp(-Fnu_opt_thin / Fnu_opt_thick))
+        # add brute-force optically-thin case to avoid roundoff error in 1e0-np.exp(-x) term (above) when x->0
+        Fnu[Fnu == 0.0] = Fnu_opt_thin[Fnu == 0.0]
+
+        fnu_func[nu] = interp1d(tobs/day_to_s, Fnu, bounds_error=False, fill_value='extrapolate')
+
+    # interpolate onto actual observed frequency and time values
+    flux_density = []
+    for freq, tt in zip(frequency, time):
+        flux_density.append(fnu_func[freq](tt))
+
+    fmjy = np.array(flux_density) / 1e-26
     if kwargs['output_format'] == 'flux_density':
         return fmjy
     elif kwargs['output_format'] == 'magnitude':
         return calc_ABmag_from_flux_density(fmjy).value
 
+@citation_wrapper('https://ui.adsabs.harvard.edu/abs/2011Natur.478...82N/abstract')
 def kilonova_afterglow_nakarpiran(time, redshift, loge0, mej, logn0, logepse, logepsb, p, **kwargs):
     """
     A kilonova afterglow model based on Nakar & Piran 2011
