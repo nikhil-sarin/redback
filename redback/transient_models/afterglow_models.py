@@ -697,7 +697,7 @@ def _get_kn_dynamics(n0, Eej, Mej):
     return t, R, beta, Gamma, eden, tobs, beta_sh, Gamma_sh
 
 @citation_wrapper('https://ui.adsabs.harvard.edu/abs/2022MNRAS.516.4949S/abstract')
-def kilonova_afterglow_sarin(time, redshift, loge0, mej, logn0, logepse, logepsb, p,
+def kilonova_afterglow_redback(time, redshift, loge0, mej, logn0, logepse, logepsb, p,
                              **kwargs):
     """
     Calculate the afterglow emission from a kilonova remnant, following the model of Sarin et al. 2022.
