@@ -25,99 +25,6 @@ jet_spreading_models = ['tophat', 'cocoon', 'gaussian',
                           'smoothpowerlaw', 'powerlawcore',
                           'tophat']
 
-class RedbackAfterglowsRefreshed():
-    def __init__(self, k, n, epsb, epse, g0, g1, ek, et, s1, thc, thj, tho, p, exp, time, freq, redshift, Dl,
-                 extra_structure_parameter_1, extra_structure_parameter_2,
-                 method='TH', res=100, steps=int(500), xiN=1):
-
-        """
-        A general class for refreshed afterglow models implemented directly in redback.
-        This class is not meant to be used directly but instead via the interface for each specific model.
-        The afterglows are based on the method shown in Lamb, Mandel & Resmi 2018 and other papers.
-        Script was originally written by En-Tzu Lin <entzulin@gapp.nthu.edu.tw> and Gavin Lamb <g.p.lamb@ljmu.ac.uk>
-        and modified and implemented into redback by Nikhil Sarin <nsarin.astro@gmail.com>.
-        Includes wind-like mediums, expansion and multiple jet structures.
-
-        :param k:
-        :param n: ISM, ambient number density
-        :param epsb: magnetic fraction
-        :param epse: electron fraction
-        :param g0: initial Lorentz factor
-        :param g1: second shell Lorentz factor
-        :param ek: kinetic energy
-        :param et: factor by which total kinetic energy is larger
-        :param s1: index for energy injection; typically between 0--10, some higher values, ~<30, are supported for some structures.
-            Values of ~10 are consistent with a discrete shock interaction, see Lamb, Levan & Tanvir 2020
-        :param thc: core angle
-        :param thj: jet outer angle. For tophat jets thc=thj
-        :param tho: observers viewing angle
-        :param p: electron power-law index
-        :param exp: Boolean for whether to include sound speed expansion
-        :param time: lightcurve time steps
-        :param freq: lightcurve frequencies
-        :param redshift: source redshift
-        :param Dl: luminosity distance
-        :param extra_structure_parameter_1: Extra structure specific parameter #1.
-            Specifically, this parameter sets;
-            The index on energy for power-law jets.
-            The fractional energy contribution for the Double Gaussian (must be less than 1).
-            The energy fraction  for the outer sheath for two-component jets (must be less than 1).
-            Unused for tophat or Gaussian jets.
-        :param extra_structure_parameter_2: Extra structure specific parameter #2.
-            Specifically, this parameter sets;
-            The index on lorentz factor for power-law jets.
-            The lorentz factor for second Gaussian (must be less than 1).
-            The lorentz factor  for the outer sheath for two-component jets (must be less than 1).
-            Unused for tophat or Gaussian jets.
-        :param method: Type of jet structure to use. Defaults to 'TH' for tophat jet.
-            Other options are '2C', 'GJ', 'PL', 'PL2', 'DG'. Corresponding to two component, gaussian jet, powerlaw,
-            alternative powerlaw and double Gaussian.
-        :param res: resolution
-        :param steps: number of steps used to resolve Gamma and dm
-        :param XiN: fraction of electrons that get accelerated
-        """
-
-        self.k = k
-        if self.k == 0:
-            self.n = n
-        elif self.k == 2:
-            self.n = n * 3e35  # n \equiv A*
-        self.epsB = epsb
-        self.epse = epse
-        self.g0 = g0
-        self.G1 = g1
-        self.ek = ek
-        self.Et = et
-        self.s1 = s1
-        self.thc = thc
-        self.thj = thj
-        self.tho = tho
-        self.p = p
-        self.exp = exp
-        self.t = time
-        self.freq = freq
-        self.z = redshift
-        self.Dl = Dl
-        self.method = method
-        self.s = extra_structure_parameter_1
-        self.a = extra_structure_parameter_2
-        self.res = res
-        self.steps = steps
-        self.xiN = xiN
-
-        ### Set up physical constants
-        self.mp = 1.6726231e-24  # g, mass of proton
-        self.me = 9.1093897e-28  # g, mass of electron
-        self.cc = 2.99792453e10  # cm s^-1, speed of light
-        self.qe = 4.8032068e-10  # esu, electron charge
-        self.c2 = self.cc * self.cc
-        self.sigT = (self.qe * self.qe / (self.me * self.c2)) ** 2 * (8 * np.pi / 3)  # Thomson cross-section
-        self.fourpi = 4 * np.pi
-        self.is_expansion = self.exp
-
-    def calc_erf_numba(self, x):
-        return np.array([erf(i) for i in x])
-
 class RedbackAfterglows():
     def __init__(self, k, n, epsb, epse, g0, ek, thc, thj, tho, p, exp, time, freq, redshift, Dl,
                  extra_structure_parameter_1,extra_structure_parameter_2, method='TH', res=100, steps=int(500), xiN=1):
@@ -497,6 +404,164 @@ class RedbackAfterglows():
                 FF += np.interp(time[(freq == nu0[h])] / (1 + self.z), tobs[:, i], Flux[h, :, i])
             LC[(freq == nu0[h])] = FF
         return LC * (1 + self.z)
+
+class RedbackAfterglowsRefreshed(RedbackAfterglows):
+    def __init__(self, k, n, epsb, epse, g0, g1, ek, et, s1, thc, thj, tho, p, exp, time, freq, redshift, Dl,
+                 extra_structure_parameter_1, extra_structure_parameter_2,
+                 method='TH', res=100, steps=int(500), xiN=1):
+
+        """
+        A general class for refreshed afterglow models implemented directly in redback.
+        This class is not meant to be used directly but instead via the interface for each specific model.
+        The afterglows are based on the method shown in Lamb, Mandel & Resmi 2018 and other papers.
+        Script was originally written by En-Tzu Lin <entzulin@gapp.nthu.edu.tw> and Gavin Lamb <g.p.lamb@ljmu.ac.uk>
+        and modified and implemented into redback by Nikhil Sarin <nsarin.astro@gmail.com>.
+        Includes wind-like mediums, expansion and multiple jet structures.
+
+        :param k:
+        :param n: ISM, ambient number density
+        :param epsb: magnetic fraction
+        :param epse: electron fraction
+        :param g0: initial Lorentz factor
+        :param g1: second shell Lorentz factor
+        :param ek: kinetic energy
+        :param et: factor by which total kinetic energy is larger
+        :param s1: index for energy injection; typically between 0--10, some higher values, ~<30, are supported for some structures.
+            Values of ~10 are consistent with a discrete shock interaction, see Lamb, Levan & Tanvir 2020
+        :param thc: core angle
+        :param thj: jet outer angle. For tophat jets thc=thj
+        :param tho: observers viewing angle
+        :param p: electron power-law index
+        :param exp: Boolean for whether to include sound speed expansion
+        :param time: lightcurve time steps
+        :param freq: lightcurve frequencies
+        :param redshift: source redshift
+        :param Dl: luminosity distance
+        :param extra_structure_parameter_1: Extra structure specific parameter #1.
+            Specifically, this parameter sets;
+            The index on energy for power-law jets.
+            The fractional energy contribution for the Double Gaussian (must be less than 1).
+            The energy fraction  for the outer sheath for two-component jets (must be less than 1).
+            Unused for tophat or Gaussian jets.
+        :param extra_structure_parameter_2: Extra structure specific parameter #2.
+            Specifically, this parameter sets;
+            The index on lorentz factor for power-law jets.
+            The lorentz factor for second Gaussian (must be less than 1).
+            The lorentz factor  for the outer sheath for two-component jets (must be less than 1).
+            Unused for tophat or Gaussian jets.
+        :param method: Type of jet structure to use. Defaults to 'TH' for tophat jet.
+            Other options are '2C', 'GJ', 'PL', 'PL2', 'DG'. Corresponding to two component, gaussian jet, powerlaw,
+            alternative powerlaw and double Gaussian.
+        :param res: resolution
+        :param steps: number of steps used to resolve Gamma and dm
+        :param XiN: fraction of electrons that get accelerated
+        """
+
+        super().__init__(k=k, n=n, epsb=epsb, epse=epse, g0=g0, ek=ek, thc=thc, thj=thj,
+                         tho=tho, p=p, exp=exp, time=time, freq=freq, redshift=redshift,
+                         Dl=Dl, extra_structure_parameter_1=extra_structure_parameter_1,
+                         extra_structure_parameter_2=extra_structure_parameter_2, method=method,
+                         res=res, steps=steps, xiN=xiN)
+        self.G1 = g1
+        self.Et = et
+        self.s1 = s1
+
+    def get_gamma_refreshed(self, G0, G1, Eps, Eps2, s1, therm, steps, n0, k):
+        Eps0 = Eps
+        # solves blastwave dynamics and gives the Lorentz factor and swept-up mass at each step
+        # Gamma0, blast energy per steradian, fraction thermal radiated
+        # therm = 0 for adiabatic solution
+        n = n0
+        Rmin = 1.e10  # cm
+        Rmax = 1.e24  # cm
+        Nmin = (self.fourpi / 3.) * n * Rmin ** (3 - k)  # min number
+        Nmax = (self.fourpi / 3.) * n * Rmax ** (3 - k)  # min number
+        # assumption is no sideways expansion - the radius is not determined by the O(4)RK only mass and Gamma
+        dlogm = np.log10(Nmin * self.mp)
+        h = (np.log10(Nmax) - np.log10(Nmin)) / steps  # step size in dlog(m)
+        G = np.ones(steps + 1)  # set up arrays
+        dm = np.zeros(steps)
+        G[0] = G0  # initial Gamma
+        dm[0] = dlogm  #
+        gH = np.zeros(steps)
+        M = Eps / (G0 * self.cc ** 2.)  # explosion rest mass
+        for i in range(0, steps, 1):
+            theta = ((G[i] ** 2. - 1) ** 0.5) / 3. * (((G[i] ** 2. - 1) ** 0.5 + 1.07 * (G[i] ** 2. - 1)) / (
+                        1 + (G[i] ** 2. - 1) ** 0.5 + 1.07 * (G[i] ** 2. - 1)))  # temperature of shocked matter
+            z = theta / (0.24 + theta)
+            ghat = (
+                               5 - 1.21937 * z + 0.18203 * z ** 2. - 0.96583 * z ** 3. + 2.32513 * z ** 4. - 2.39332 * z ** 5. + 1.07136 * z ** 6.) / 3.  # adiabatic index
+            dm[i] = (dlogm + i * h)
+            # 4th order Runge Kutta to solve ODE from Pe'er 2012
+            F1 = -1. * h * np.log(10) * (10. ** dm[i]) * (
+                        ghat * (G[i] ** 2. - 1) - (ghat - 1) * G[i] * (1 - G[i] ** -2.)) / (
+                             M + therm * (10. ** dm[i]) + (1. - therm) * 10. ** (dm[i]) * (
+                                 2. * ghat * G[i] - (ghat - 1) * (1 + G[i] ** -2.)))  #
+
+            F2 = -1. * h * np.log(10) * (10. ** (dm[i] + h / 2.)) * (
+                        ghat * ((G[i] + F1 / 2.) ** 2. - 1) - (ghat - 1) * (G[i] + F1 / 2.) * (
+                            1 - (G[i] + F1 / 2.) ** -2.)) / (
+                             M + therm * (10. ** (dm[i] + h / 2.)) + (1. - therm) * (10. ** (dm[i] + h / 2.)) * (
+                                 2. * ghat * (G[i] + F1 / 2.) - (ghat - 1) * (1 + (G[i] + F1 / 2.) ** -2.)))  #
+
+            F3 = -1. * h * np.log(10) * (10. ** (dm[i] + h / 2.)) * (
+                        ghat * ((G[i] + F2 / 2.) ** 2. - 1) - (ghat - 1) * (G[i] + F2 / 2.) * (
+                            1 - (G[i] + F2 / 2.) ** -2.)) / (
+                             M + therm * (10. ** (dm[i] + h / 2.)) + (1. - therm) * (10. ** (dm[i] + h / 2.)) * (
+                                 2. * ghat * (G[i] + F2 / 2.) - (ghat - 1) * (1 + (G[i] + F2 / 2.) ** -2.)))  #
+
+            F4 = -1. * h * np.log(10) * (10. ** (dm[i] + h)) * (
+                        ghat * ((G[i] + F3) ** 2. - 1) - (ghat - 1) * (G[i] + F3) * (1 - (G[i] + F3) ** -2.)) / (
+                             M + therm * (10. ** (dm[i] + h)) + (1. - therm) * (10. ** (dm[i] + h)) * (
+                                 2. * ghat * (G[i] + F3) - (ghat - 1) * (1 + (G[i] + F3) ** -2.)))  #
+            gH[i] = ghat
+            G[i + 1] = G[i] + (1. / 6.) * (F1 + 2. * F2 + 2. * F3 + F4)
+            if G[i + 1] <= G1:
+                Eps1 = Eps
+                Eps = min(Eps0 * ((G[i + 1] ** 2 - 1) ** 0.5 / (G1 ** 2 - 1) ** 0.5) ** -s1, Eps2)  #
+                M += (Eps - Eps1) / (G[i] * self.cc ** 2.)  # new explosion rest mass
+
+        return G, 10. ** dm, gH
+
+    def get_lightcurve(self):
+        if (self.k != 0) and (self.k != 2):
+            raise ValueError("k must either be 0 or 2")
+        if (self.p < 1.2) or (self.p > 3.4):
+            raise ValueError("p is out of range, 1.2 < p < 3.4")
+        # parameters p, x_p, and phi_p from Wijers & Galama 1999
+        pxf = np.array([[1.0, 3.0, 0.41], [1.2, 1.4, 0.44], [1.4, 1.1, 0.48], [1.6, 0.86, 0.53], [1.8, 0.725, 0.56],
+                        [2.0, 0.637, 0.59], [2.2, 0.579, 0.612], [2.5, 0.520, 0.630], [2.7, 0.487, 0.641],
+                        [3.0, 0.451, 0.659],
+                        [3.2, 0.434, 0.660], [3.4, 0.420, 0.675]])
+        xp = np.interp(self.p, pxf[:, 0], pxf[:, 1])  # dimensionless spectral peak
+        Fx = np.interp(self.p, pxf[:, 0], pxf[:, 2])  # dimensionless peak flux
+        nu0 = np.unique(self.freq)  # unique frequencies in the sample, if loading a data array for frequencies
+        nu = nu0 * (1 + self.z)  # rest frame frequency
+        nu = np.array(nu)
+        Omi, thi, phii, rotstep, latstep = self.get_segments(thj=self.thj, res=self.res)
+        Gs, Ei = self.get_structure(gamma=self.g0, en=self.ek,
+                                    thi=thi, thc=self.thc, method=self.method, s=self.s, a=self.a, thj=self.thj)
+        G = np.empty((thi.size, self.steps))
+        SM = np.empty((thi.size, self.steps))
+        ghat = np.empty((thi.size, self.steps))
+        for i in range(thi.size):
+            E2 = self.Et * Ei[i]
+            Gg, dM, gh = self.get_gamma_refreshed(Gs[i], self.G1, Ei[i], E2 * Ei[i] / self.ek, self.s1, 0.,
+                                        self.steps, self.n, self.k)
+            G[i, :], SM[i, :], ghat[i, :] = Gg[0:Gg.size - 1], dM[0:Gg.size - 1], gh[0:Gg.size - 1]
+        Obsa = self.get_obsangle(phii=phii, thi=thi, tho=self.tho)
+        # calculate the afterglow flux
+        Flux, tobs = self.calc_afterglow(G=G, SM=SM, Dl=self.Dl, p=self.p, xp=xp, Fx=Fx,
+                                         EB=self.epsB, Ee=self.epse, Gs=Gs, Omi=Omi, Ei=Ei,
+                                         n=self.n, k=self.k, tho=self.tho, thi=thi, phii=phii,
+                                         thj=self.thj, ghat=ghat, rotstep=rotstep,
+                                         latstep=latstep, Obsa=Obsa, nu=nu,
+                                         steps=self.steps, XiN=self.xiN)
+        # sums all the flux at the same observer times
+        LC = self.calc_lightcurve(time=self.t, tobs=tobs, Flux=Flux,
+                                  nu_size=nu.size, thi_size=thi.size, phii_size=phii.size,
+                                  freq=self.freq, nu0=nu0)
+        return LC
 
 @citation_wrapper('redback, https://ui.adsabs.harvard.edu/abs/2018MNRAS.481.2581L/abstract')
 def tophat_redback(time, redshift, thv, loge0, thc, logn0, p, logepse, logepsb, g0, xiN, **kwargs):
