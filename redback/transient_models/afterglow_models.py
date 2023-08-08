@@ -345,8 +345,8 @@ class RedbackAfterglows():
         ### forward shock
         dop  = 1. / (G * (1. - beta * cos_Obsa))  # Doppler factor
         # parameters for synchrotron emission
-        gc = 6. * np.pi * self.me * self.c / (G * self.sigT * B * B * tobso)  # gamma_c
-        nucp = 0.286 * 3. * gc * gc * self.q * B / (self.fourpi * self.me * self.c)  # cooling frequency co-moving
+        gc = 6. * np.pi * self.me * self.cc / (G * self.sigT * B * B * tobso)  # gamma_c
+        nucp = 0.286 * 3. * gc * gc * self.qe * B / (self.fourpi * self.me * self.cc)  # cooling frequency co-moving
         num = dop * nump  # observer frame synchrotron frequency
         nuc = dop * nucp  # observer frame cooling frequency
         # maximum synchrotron flux including emission area correction for 1/G > jet opening angle
@@ -747,6 +747,8 @@ def kilonova_afterglow_redback(time, redshift, loge0, mej, logn0, logepse, logep
     blueshift = Gamma * (1.0 - beta * mu)
 
     frequency = kwargs['frequency']
+    if isinstance(frequency, float):
+        frequency = np.ones(len(time)) * frequency
     fnu_func = {}
     for nu in frequency:
         Fnu_opt_thin = _pnu_synchrotron(nu * blueshift * (1.0 + redshift), B, gamma_m, gamma_c, Ne, p) * (1.0 + redshift) / (
@@ -813,6 +815,8 @@ def kilonova_afterglow_nakarpiran(time, redshift, loge0, mej, logn0, logepse, lo
     fnu_func = {}
     temp_time = np.linspace(0.1, 100, 200) * t_dec
     frequency = kwargs['frequency']
+    if isinstance(frequency, float):
+        frequency = np.ones(len(time)) * frequency
     for freq in frequency:
         # Eq. 11 in Nakar & Piran 2011 (in Mjy)
         fnu_dec_dict[freq] = 0.3 * (Eej / 1e49) * n0 ** (0.25 * (p + 1)) * (epsilon_B / 1e-1) ** (0.25 * (p + 1)) * (
@@ -984,7 +988,7 @@ def twocomponent_redback(time, redshift, thv, loge0, thc, thj, logn0, p, logepse
         Can be set to 2 for wind-like density profile.
     :param expansion: 0 or 1 to dictate whether to include expansion effects. Defaults to 1
     :param ss: Fraction of energy in the outer sheath of the jet. Defaults to 0.01
-    :param aa: Lorentz factor outside the core.
+    :param aa: Lorentz factor outside the core. Defaults to 4.
     :param output_format: Whether to output flux density or AB mag
     :param frequency: frequency in Hz for the flux density calculation
     :param cosmology: Cosmology to use for luminosity distance calculation. Defaults to Planck18. Must be a astropy.cosmology object.
@@ -1005,7 +1009,7 @@ def twocomponent_redback(time, redshift, thv, loge0, thc, thj, logn0, p, logepse
     dl = cosmology.luminosity_distance(redshift).cgs.value
     method = '2C'
     ss = kwargs.get('ss', 0.01)
-    aa = kwargs.get('aa', 0.5)
+    aa = kwargs.get('aa', 4)
 
     # Set resolution dynamically
     sep = max(thv - thc, 0)
@@ -1395,7 +1399,7 @@ def twocomponent_redback_refreshed(time, redshift, thv, loge0, thc, thj, g1, et,
         Can be set to 2 for wind-like density profile.
     :param expansion: 0 or 1 to dictate whether to include expansion effects. Defaults to 1
     :param ss: Fraction of energy in the outer sheath of the jet. Defaults to 0.01
-    :param aa: Lorentz factor outside the core.
+    :param aa: Lorentz factor outside the core. Defaults to 4.
     :param output_format: Whether to output flux density or AB mag
     :param frequency: frequency in Hz for the flux density calculation
     :param cosmology: Cosmology to use for luminosity distance calculation. Defaults to Planck18. Must be a astropy.cosmology object.
@@ -1416,7 +1420,7 @@ def twocomponent_redback_refreshed(time, redshift, thv, loge0, thc, thj, g1, et,
     dl = cosmology.luminosity_distance(redshift).cgs.value
     method = '2C'
     ss = kwargs.get('ss', 0.01)
-    aa = kwargs.get('aa', 0.5)
+    aa = kwargs.get('aa', 4.)
 
     # Set resolution dynamically
     sep = max(thv - thc, 0)
