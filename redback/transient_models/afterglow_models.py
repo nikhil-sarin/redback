@@ -7,6 +7,7 @@ import astropy.units as uu
 import numpy as np
 from collections import namedtuple
 from scipy.special import erf
+from scipy.interpolate import interp1d
 try:
     import afterglowpy as afterglow
 
@@ -600,25 +601,31 @@ def kilonova_afterglow_nakarpiran(time, redshift, loge0, mej, logn0, logepse, lo
     n0 = 10 ** logn0
     dl = cosmology.luminosity_distance(redshift).cgs.value
 
-    jy = 1e-23
-    t_dec = 30 * day_to_s * (Eej / 1e49) ** (1.0 / 3.0) * (n0 / 1e0) ** (-1.0 / 3.0) * (vej / speed_of_light) ** (-5.0 / 3.0)
+    # in days
+    t_dec = 30 * (Eej / 1e49) ** (1.0 / 3.0) * (n0 / 1e0) ** (-1.0 / 3.0) * (vej / speed_of_light) ** (-5.0 / 3.0)
 
     fnu_dec_dict = {}
-    for freq in kwargs['frequency']:
-        fnu_dec_dict['freq'] = 0.3e-3 * jy * (Eej / 1e49) * n0 ** (0.25 * (p + 1)) * (epsilon_B / 1e-1) ** (0.25 * (p + 1)) * (
+    fnu_func = {}
+    temp_time = np.linspace(0.1, 100, 200) * t_dec
+    frequency = kwargs['frequency']
+    for freq in frequency:
+        # Eq. 11 in Nakar & Piran 2011 (in Mjy)
+        fnu_dec_dict[freq] = 0.3 * (Eej / 1e49) * n0 ** (0.25 * (p + 1)) * (epsilon_B / 1e-1) ** (0.25 * (p + 1)) * (
                 epsilon_e / 1e-1) ** (p - 1) * (vej / speed_of_light) ** (0.5 * (5 * p - 7)) * (freq / 1.4e9) ** (
                           -0.5 * (p - 1)) * (dl / 1e27) ** (-2)
-    # define time array
-    t = np.logspace(-2, 2) * t_dec
+        fnu = fnu_dec_dict[freq] * (temp_time / t_dec) ** 3
+        fnu[temp_time > t_dec] = fnu_dec_dict[freq] * (temp_time[temp_time > t_dec] / t_dec) ** (-0.3 * (5 * p - 7))
+        fnu_func[freq] = interp1d(temp_time, fnu, bounds_error=False, fill_value='extrapolate')
 
-    # scale light-curve to times t< and t> peak time = t_dec (neglects self-absorption; assumes nu_a,nu_m<nu)
-    Fnu = Fnu_dec * (t / t_dec) ** 3
-    Fnu[t > t_dec] = Fnu_dec * (t[t > t_dec] / t_dec) ** (-0.3 * (5 * p - 7))
-
+    # interpolate onto actual observed frequency and time values
+    flux_density = []
+    for freq, tt in zip(frequency, time):
+        flux_density.append(fnu_func[freq](tt))
+    fmjy = flux_density * uu.mJy
     if kwargs['output_format'] == 'flux_density':
-        return fmjy
+        return fmjy.value
     elif kwargs['output_format'] == 'magnitude':
-        return calc_ABmag_from_flux_density(fmjy).value
+        return calc_ABmag_from_flux_density(fmjy.value).value
 
 @citation_wrapper('redback, https://ui.adsabs.harvard.edu/abs/2018MNRAS.481.2581L/abstract')
 def tophat_redback(time, redshift, thv, loge0, thc, logn0, p, logepse, logepsb, g0, xiN, **kwargs):
