@@ -1,7 +1,7 @@
 logn0 = Uniform(-5, 2, 'logn0', latex_label=r'$\log_{10}~n_{\mathrm{ism}} / {\mathrm{cm}}^{-3}$')
 v0 = Uniform(0.1, 0.7, 'vej', latex_label = r'$v_{0}~(c)$')
 logr0 = Uniform(14, 18, 'logr0', latex_label=r'$\log_{10}~R_{0} / \mathrm{cm}$')
-beta = Uniform(0.1, 0.9, '\\beta', latex_label=r'$\\beta$')
+eta = Uniform(0.1, 0.9, '\\eta', latex_label=r'$\\eta$')
 logepse = Uniform(-5, 0, 'logepse', latex_label=r'$\log_{10}~\\epsilon_{e}$')
 logepsb = Uniform(-5, 0, 'logepsb', latex_label=r'$\log_{10}~\\epsilon_{B}$')
 xi = Uniform(0.01, 1., 'xi', latex_label=r'$\\xi_{N}$')
