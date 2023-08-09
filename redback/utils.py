@@ -26,6 +26,18 @@ plt.style.use(filename)
 logger = logging.getLogger('redback')
 _bilby_logger = logging.getLogger('bilby')
 
+def find_nearest(array, value):
+    """
+    Find the nearest value in an array to a given value.
+
+    :param array: array to search
+    :param value: value to search for
+    :return: array element closest to value and index of that element
+    """
+    array = np.asarray(array)
+    idx = (np.abs(array - value)).argmin()
+    return array[idx], idx
+
 def download_pointing_tables():
     """
     Download the pointing tables from zenodo.
