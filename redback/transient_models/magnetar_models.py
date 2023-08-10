@@ -579,6 +579,7 @@ def luminosity_based_magnetar_models(time, photon_index, **kwargs):
     :param time: time in observers frame
     :param photon_index: photon index
     :param kwargs: all parameters for the model of choice.
+    :param cosmology: Cosmology to use for luminosity distance calculation. Defaults to Planck18. Must be a astropy.cosmology object.
     :return: luminosity/1e50 erg
     """
     from redback.model_library import modules_dict  # import model library in function to avoid circular dependency
@@ -594,7 +595,8 @@ def luminosity_based_magnetar_models(time, photon_index, **kwargs):
         raise ValueError("Not a valid base model.")
     redshift = kwargs['redshift']
     kcorr = (1 + redshift)**(photon_index - 2)
-    dl = cosmo.luminosity_distance(redshift).cgs.value
+    cosmology = kwargs.get('cosmology', cosmo)
+    dl = cosmology.luminosity_distance(redshift).cgs.value
     time = time / (1 + redshift)
     lum = function(time, **kwargs) * 1e50
     flux = lum / (4*np.pi*dl**2*kcorr)

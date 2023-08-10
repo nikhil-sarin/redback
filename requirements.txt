@@ -1,9 +1,8 @@
-setuptools
 numpy
+setuptools
 pandas
 scipy
 selenium==3.8.0
-bilby
 sncosmo
 matplotlib
 astropy
@@ -13,3 +12,4 @@ requests
 lxml
 sphinx-rtd-theme
 sphinx-tabs
+bilby

@@ -50,11 +50,13 @@ def cocoon(time, redshift, umax, umin, loge0, k, mej, logn0, p, logepse, logepsb
         Change to 1 for including inverse compton emission.
     :param l0, ts, q: energy injection parameters, defaults to 0
     :param output_format: Whether to output flux density or AB mag
+    :param cosmology: Cosmology to use for luminosity distance calculation. Defaults to Planck18. Must be a astropy.cosmology object.
     :return: flux density or AB mag. Note this is going to give the monochromatic magnitude at the effective frequency for the band.
         For a proper calculation of the magntitude use the sed variant models.
     """
     time = time * day_to_s
-    dl = cosmo.luminosity_distance(redshift).cgs.value
+    cosmology = kwargs.get('cosmology', cosmo)
+    dl = cosmology.luminosity_distance(redshift).cgs.value
     spread = kwargs.get('spread', False)
     latres = kwargs.get('latres', 2)
     tres = kwargs.get('tres', 100)
@@ -104,6 +106,7 @@ def kilonova_afterglow(time, redshift, umax, umin, loge0, k, mej, logn0, p, loge
         Change to 1 for including inverse compton emission.
     :param l0, ts, q: energy injection parameters, defaults to 0
     :param output_format: Whether to output flux density or AB mag
+    :param cosmology: Cosmology to use for luminosity distance calculation. Defaults to Planck18. Must be a astropy.cosmology object.
     :return: flux density or AB mag. Note this is going to give the monochromatic magnitude at the effective frequency for the band.
         For a proper calculation of the magntitude use the sed variant models.
     """
@@ -137,12 +140,13 @@ def cone_afterglow(time, redshift, thv, loge0, thw, thc, logn0, p, logepse, loge
         Change to 1 for including inverse compton emission.
     :param l0, ts, q: energy injection parameters, defaults to 0
     :param output_format: Whether to output flux density or AB mag
-    :param base_model: A string to indicate the type of jet model to use.
+    :param cosmology: Cosmology to use for luminosity distance calculation. Defaults to Planck18. Must be a astropy.cosmology object.
     :return: flux density or AB mag. Note this is going to give the monochromatic magnitude at the effective frequency for the band.
         For a proper calculation of the magntitude use the sed variant models.
     """
     time = time * day_to_s
-    dl = cosmo.luminosity_distance(redshift).cgs.value
+    cosmology = kwargs.get('cosmology', cosmo)
+    dl = cosmology.luminosity_distance(redshift).cgs.value
     spread = kwargs.get('spread', False)
     latres = kwargs.get('latres', 2)
     tres = kwargs.get('tres', 100)
@@ -192,11 +196,13 @@ def gaussiancore(time, redshift, thv, loge0, thc, thw, logn0, p, logepse, logeps
         Change to 1 for including inverse compton emission.
     :param l0, ts, q: energy injection parameters, defaults to 0
     :param output_format: Whether to output flux density or AB mag
+    :param cosmology: Cosmology to use for luminosity distance calculation. Defaults to Planck18. Must be a astropy.cosmology object.
     :return: flux density or AB mag. Note this is going to give the monochromatic magnitude at the effective frequency for the band.
         For a proper calculation of the magntitude use the sed variant models.
     """
     time = time * day_to_s
-    dl = cosmo.luminosity_distance(redshift).cgs.value
+    cosmology = kwargs.get('cosmology', cosmo)
+    dl = cosmology.luminosity_distance(redshift).cgs.value
     spread = kwargs.get('spread', False)
     latres = kwargs.get('latres', 2)
     tres = kwargs.get('tres', 100)
@@ -247,11 +253,13 @@ def gaussian(time, redshift, thv, loge0, thw, thc, logn0, p, logepse, logepsb, k
         Change to 1 for including inverse compton emission.
     :param l0, ts, q: energy injection parameters, defaults to 0
     :param output_format: Whether to output flux density or AB mag
+    :param cosmology: Cosmology to use for luminosity distance calculation. Defaults to Planck18. Must be a astropy.cosmology object.
     :return: flux density or AB mag. Note this is going to give the monochromatic magnitude at the effective frequency for the band.
         For a proper calculation of the magntitude use the sed variant models.
     """
     time = time * day_to_s
-    dl = cosmo.luminosity_distance(redshift).cgs.value
+    cosmology = kwargs.get('cosmology', cosmo)
+    dl = cosmology.luminosity_distance(redshift).cgs.value
     spread = kwargs.get('spread', False)
     latres = kwargs.get('latres', 2)
     tres = kwargs.get('tres', 100)
@@ -302,11 +310,13 @@ def smoothpowerlaw(time, redshift, thv, loge0, thw, thc, beta, logn0, p, logepse
         Change to 1 for including inverse compton emission.
     :param l0, ts, q: energy injection parameters, defaults to 0
     :param output_format: Whether to output flux density or AB mag
+    :param cosmology: Cosmology to use for luminosity distance calculation. Defaults to Planck18. Must be a astropy.cosmology object.
     :return: flux density or AB mag. Note this is going to give the monochromatic magnitude at the effective frequency for the band.
         For a proper calculation of the magntitude use the sed variant models.
     """
     time = time * day_to_s
-    dl = cosmo.luminosity_distance(redshift).cgs.value
+    cosmology = kwargs.get('cosmology', cosmo)
+    dl = cosmology.luminosity_distance(redshift).cgs.value
     spread = kwargs.get('spread', False)
     latres = kwargs.get('latres', 2)
     tres = kwargs.get('tres', 100)
@@ -357,11 +367,13 @@ def powerlawcore(time, redshift, thv, loge0, thw, thc, beta, logn0, p, logepse, 
         Change to 1 for including inverse compton emission.
     :param l0, ts, q: energy injection parameters, defaults to 0
     :param output_format: Whether to output flux density or AB mag
+    :param cosmology: Cosmology to use for luminosity distance calculation. Defaults to Planck18. Must be a astropy.cosmology object.
     :return: flux density or AB mag. Note this is going to give the monochromatic magnitude at the effective frequency for the band.
         For a proper calculation of the magntitude use the sed variant models.
     """
     time = time * day_to_s
-    dl = cosmo.luminosity_distance(redshift).cgs.value
+    cosmology = kwargs.get('cosmology', cosmo)
+    dl = cosmology.luminosity_distance(redshift).cgs.value
     spread = kwargs.get('spread', False)
     latres = kwargs.get('latres', 2)
     tres = kwargs.get('tres', 100)
@@ -397,7 +409,6 @@ def tophat(time, redshift, thv, loge0, thc, logn0, p, logepse, logepsb, ksin, g0
     :param thv: viewing angle in radians
     :param loge0: log10 on axis isotropic equivalent energy
     :param thc: half width of jet core/jet opening angle in radians
-    :param beta: index for power-law structure, theta^-b
     :param logn0: log10 number density of ISM in cm^-3
     :param p: electron distribution power law index. Must be greater than 2.
     :param logepse: log10 fraction of thermal energy in electrons
@@ -412,11 +423,13 @@ def tophat(time, redshift, thv, loge0, thc, logn0, p, logepse, logepsb, ksin, g0
         Change to 1 for including inverse compton emission.
     :param l0, ts, q: energy injection parameters, defaults to 0
     :param output_format: Whether to output flux density or AB mag
+    :param cosmology: Cosmology to use for luminosity distance calculation. Defaults to Planck18. Must be a astropy.cosmology object.
     :return: flux density or AB mag. Note this is going to give the monochromatic magnitude at the effective frequency for the band.
         For a proper calculation of the magntitude use the sed variant models. assuming a monochromatic
     """
     time = time * day_to_s
-    dl = cosmo.luminosity_distance(redshift).cgs.value
+    cosmology = kwargs.get('cosmology', cosmo)
+    dl = cosmology.luminosity_distance(redshift).cgs.value
     spread = kwargs.get('spread', False)
     latres = kwargs.get('latres', 2)
     tres = kwargs.get('tres', 100)

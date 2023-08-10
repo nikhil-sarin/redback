@@ -1,4 +1,4 @@
 redshift = Uniform(1e-3, 0.1, 'redshift', latex_label = r'$z$')
-mej = Uniform(1e-4, 0.1, 'mej', latex_label = r'$M_{\mathrm{ej}} [M_{\odot}]$')
-vej = Uniform(0.1, 0.5, 'vej', latex_label = r'$v_{\mathrm{ej}} [c]$')
-chi = Uniform(0,1, 'chi', latex_label = r'$\chi$')
+mej = Uniform(1e-4, 0.1, 'mej', latex_label = r'$M_{\mathrm{ej}}~(M_\odot)$')
+vej = Uniform(0.1, 0.5, 'vej', latex_label = r'$v_{\mathrm{ej}}~(c)$')
+chi = Uniform(0,1, 'chi', latex_label = r'$\\chi~({\mathrm{rad}})$')

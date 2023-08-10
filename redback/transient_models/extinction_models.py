@@ -80,9 +80,13 @@ def _perform_extinction(flux_density, angstroms, av, r_v):
     :return: flux
     """
     import extinction  # noqa
+    import numpy.ma as ma
     if isinstance(angstroms, float):
-        angstroms = np.array([angstroms])
+        angstroms = np.array([angstroms])    
     mag_extinction = extinction.fitzpatrick99(angstroms, av, r_v=r_v)
+    if av < 10:
+        mask= mag_extinction > 10
+        mag_extinction[mask]=0    
     flux_density = extinction.apply(mag_extinction, flux_density)
     return flux_density
 
@@ -222,6 +226,7 @@ def extinction_with_afterglow_base_model(time, av, **kwargs):
     :param kwargs: Must be all the parameters required by the base_model specified using kwargs['base_model']
         and r_v, default is 3.1
     :return: flux_density or magnitude depending on kwargs['output_format']
+        Note that only sed varient models can take magnitude as an output
     """
     output = _evaluate_extinction_model(time=time, av=av, model_type='afterglow', **kwargs)
     return output

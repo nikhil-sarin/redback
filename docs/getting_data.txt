@@ -31,6 +31,8 @@ In particular, the kilonova data will be saved to :code:`kilonova/at2017gfo/` an
 
 Please look at the API or the examples to see how we can get other data.
 
+Before working with UV/optical/IR data from the Open Access Catalogue, you need to check whether the data are in the AB or Vega system and whether any extinction correction was applied to the data on the Open Access Catalogue. By default, Redback assumes that the data is XXX.
+
 Basic processing and metadata
 -------------------------
 
@@ -45,3 +47,69 @@ We do not have to use data from the above catalogs for fitting. Redback can be u
 This is described in more detail in the transient or simulation documentation.
 
 A general example which shows the API for downloading data from any of the above catalogs is available `here <https://github.com/nikhil-sarin/redback/blob/examples/getting_data_with_redback.py>`_.
+
+
+Adding filters to Redback
+-------------------------
+
+Redback includes many filters that are a part of the SN Cosmo distribution. You can get a full list using the following command:
+
+.. code:: python
+
+    from redback import filters
+
+    filters.show_all_filters()
+
+We have implemented a few options to add additional filters. Note, SN Cosmo does not allow to permanently add a filter to its filter database. This means that you have add any non-default filter to Redback every time you start a new session. In the following we describe different methods of adding a filter.
+
+* Adding a filter from a text file
+
+.. code:: python
+
+    from redback import filters
+
+    fname        = 'Gemini_GMOS-N.u.dat'
+
+    # Unique filter label
+    filter_label = 'gmos-n::u'
+
+    # Label shown in the plotting
+    plot_label   = 'GMOS-N/u' 
+
+    # If you want to overwrite any existing entry
+
+    overwrite    = True
+
+    filters.add_filter_user(fname, filter_label, PLOT_LABEL=plot_label, OVERWRITE=overwrite)
+
+* Adding a filter using the Spanish Virtual Observatory
+
+The `Spanish Virtual Observatory (SVO) <http://svo2.cab.inta-csic.es/>`_ has an extensive repository of astronomical filters of many observatories and space telescopes. The developer version of `Astroquery <https://astroquery.readthedocs.io/en/latest/>`_ allows accessing the SVO in a very convenient way. It is straightforward to add a filter from the SVO to Redback.
+
+.. code:: python
+
+    from astroquery.svo_fps import SvoFps
+    from redback import filters
+
+    # We want to add GROND filters to Redback
+    filter_table  = SvoFps.get_filter_list(facility='La Silla', instrument='GROND')
+
+    # The table has many columns. The filter ID are stored in 'filterID'.
+    # We use this column to construct the filter label and the plot labels.
+
+    # Unique filter labels
+    filter_label = ['grond::' + x.split('/')[1].split('.')[1] for x in filter_table['filterID']]
+
+    # Plot labels
+    plot_label   = ['GROND/' + x.split('/')[1].split('.')[1] for x in filter_table['filterID']]
+
+    [filters.add_filter_svo(filter_table[ii], filter_label[ii], plot_label[ii]) for ii in range(len(filter_table))]
+
+We have pre-configured Redback to add a set of filters that are not a part of SN Cosmo distribution. The pre-configured list includes the Euclid Space Telescope, the GROND camera at the 2.2m MPG telescope, the EFOSC2/Gunn filters at 3.58m NTT telescope, the Spitzer Space Telescope and the WISE Space Telescope. To add them you need the developer version of `Astroquery <https://astroquery.readthedocs.io/en/latest/>`_.
+
+.. code:: python
+
+    from astroquery.svo_fps import SvoFps
+    from redback import filters
+
+    filters.add_common_filters()
