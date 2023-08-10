@@ -57,7 +57,8 @@ def plot_lightcurve(transient, parameters, model, model_kwargs=None):
     :return: plot_lightcurve
     """
     model, parameters, res = _setup_plotting_result(model, model_kwargs, parameters, transient)
-    return res.plot_lightcurve(model=model, random_models=len(parameters), plot_max_likelihood=False, save=False)
+    return res.plot_lightcurve(model=model, random_models=len(parameters), plot_max_likelihood=False,
+                               save=False, show=False)
 
 
 def plot_multiband_lightcurve(transient, parameters, model, model_kwargs=None):
@@ -71,7 +72,8 @@ def plot_multiband_lightcurve(transient, parameters, model, model_kwargs=None):
     :return: plot_multiband_lightcurve
     """
     model, parameters, res = _setup_plotting_result(model, model_kwargs, parameters, transient)
-    return res.plot_multiband_lightcurve(model=model, random_models=len(parameters), plot_max_likelihood=False, save=False)
+    return res.plot_multiband_lightcurve(model=model, random_models=len(parameters), plot_max_likelihood=False,
+                                         save=False, show=False)
 
 
 def plot_evolution_parameters(result, random_models=100):
