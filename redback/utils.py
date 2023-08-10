@@ -807,3 +807,20 @@ def velocity_from_lorentz_factor(gamma):
     :return: velocity in cgs
     """
     return speed_of_light * np.sqrt(1 - 1 / gamma ** 2)
+
+class user_cosmology():
+    """
+    Cosmology class similar to the Astropy cosmology class.
+    Needed if the user wants to provide a distance instead
+    of using the luminosity distance inferred from a particular
+    cosmology model.
+    """
+
+    def __init__(self, dl=0):
+        self.dl = 0
+
+    def set_luminosity_distance(cls, dl):
+        cls.dl  = dl
+    
+    def luminosity_distance(self, redshift):
+        return self.dl
