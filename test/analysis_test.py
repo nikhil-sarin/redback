@@ -92,7 +92,7 @@ class TestPlotDifferentBands(unittest.TestCase):
         times = np.array([1, 2, 3])
         yobs = np.array([1e-3, 1e-3, 1e-3])
         yerr = np.ones_like(yobs) * 1e-4
-        bands = np.array(['r', 'z', 'u'])
+        bands = np.array(['sdssr', 'sdssz', 'sdssu'])
         valid_models = ['arnett', 'one_component_kilonova_model', 'slsn',
                         'tde_analytical', 'basic_mergernova']
         for f in self.prior_files:
@@ -142,7 +142,7 @@ class TestMagnitudePlot(unittest.TestCase):
         times = np.array([1, 2, 3])
         yobs = np.array([1e-3, 1e-3, 1e-3])
         yerr = np.ones_like(yobs) * 1e-4
-        bands = np.array(['r', 'r', 'r'])
+        bands = np.array(['sdssr', 'sdssr', 'sdssr'])
         valid_models = ['arnett', 'one_component_kilonova_model', 'slsn',
                         'tde_analytical', 'basic_mergernova']
         for f in self.prior_files:
@@ -192,7 +192,7 @@ class TestFluxPlot(unittest.TestCase):
         times = np.array([1, 2, 3])
         yobs = np.array([1e-3, 1e-3, 1e-3])
         yerr = np.ones_like(yobs) * 1e-4
-        bands = np.array(['r', 'r', 'r'])
+        bands = np.array(['sdssr', 'sdssr', 'sdssr'])
         valid_models = ['arnett', 'one_component_kilonova_model', 'slsn',
                         'tde_analytical', 'basic_mergernova']
         for f in self.prior_files:
