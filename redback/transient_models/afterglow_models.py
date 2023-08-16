@@ -424,7 +424,7 @@ class RedbackAfterglowsRefreshed(RedbackAfterglows):
         :param epsb: magnetic fraction
         :param epse: electron fraction
         :param g0: initial Lorentz factor
-        :param g1: second shell Lorentz factor
+        :param g1: Lorentz factor of shell at start of energy injection
         :param ek: kinetic energy
         :param et: factor by which total kinetic energy is larger
         :param s1: index for energy injection; typically between 0--10, some higher values, ~<30, are supported for some structures.
@@ -1242,7 +1242,7 @@ def tophat_redback_refreshed(time, redshift, thv, loge0, thc, g1, et, s1,
     :param thv: observer viewing angle in radians
     :param loge0: jet energy in \log_{10} ergs
     :param thc: jet opening angle in radians
-    :param g1: second shell Lorentz factor
+    :param g1: Lorentz factor of shell at start of energy injection. 2 <= g1 < g0
     :param et: factor by which total kinetic energy is larger
     :param s1: index for energy injection; typically between 0--10, some higher values, ~<30, are supported for some structures.
         Values of ~10 are consistent with a discrete shock interaction, see Lamb, Levan & Tanvir 2020
@@ -1311,7 +1311,7 @@ def gaussian_redback_refreshed(time, redshift, thv, loge0, thc, thj, g1, et, s1,
     :param loge0: jet energy in \log_{10} ergs
     :param thc: jet core size in radians
     :param thj: jet edge in radians (thc < thj < pi/2)
-    :param g1: second shell Lorentz factor
+    :param g1: Lorentz factor of shell at start of energy injection. 2 <= g1 < g0
     :param et: factor by which total kinetic energy is larger
     :param s1: index for energy injection; typically between 0--10, some higher values, ~<30, are supported for some structures.
         Values of ~10 are consistent with a discrete shock interaction, see Lamb, Levan & Tanvir 2020
@@ -1381,7 +1381,7 @@ def twocomponent_redback_refreshed(time, redshift, thv, loge0, thc, thj, g1, et,
     :param loge0: jet energy in \log_{10} ergs
     :param thc: jet core size in radians
     :param thj: jet edge in radians (thc < thj < pi/2)
-    :param g1: second shell Lorentz factor
+    :param g1: Lorentz factor of shell at start of energy injection. 2 <= g1 < g0
     :param et: factor by which total kinetic energy is larger
     :param s1: index for energy injection; typically between 0--10, some higher values, ~<30, are supported for some structures.
         Values of ~10 are consistent with a discrete shock interaction, see Lamb, Levan & Tanvir 2020
@@ -1454,7 +1454,7 @@ def powerlaw_redback_refreshed(time, redshift, thv, loge0, thc, thj, g1, et, s1,
     :param loge0: jet energy in \log_{10} ergs
     :param thc: jet core size in radians
     :param thj: jet edge in radians (thc < thj < pi/2)
-    :param g1: second shell Lorentz factor
+    :param g1: Lorentz factor of shell at start of energy injection. 2 <= g1 < g0
     :param et: factor by which total kinetic energy is larger
     :param s1: index for energy injection; typically between 0--10, some higher values, ~<30, are supported for some structures.
         Values of ~10 are consistent with a discrete shock interaction, see Lamb, Levan & Tanvir 2020
@@ -1527,7 +1527,7 @@ def alternativepowerlaw_redback_refreshed(time, redshift, thv, loge0, thc, thj, 
     :param loge0: jet energy in \log_{10} ergs
     :param thc: jet core size in radians
     :param thj: jet edge in radians (thc < thj < pi/2)
-    :param g1: second shell Lorentz factor
+    :param g1: Lorentz factor of shell at start of energy injection. 2 <= g1 < g0
     :param et: factor by which total kinetic energy is larger
     :param s1: index for energy injection; typically between 0--10, some higher values, ~<30, are supported for some structures.
         Values of ~10 are consistent with a discrete shock interaction, see Lamb, Levan & Tanvir 2020
@@ -1600,7 +1600,7 @@ def doublegaussian_redback_refreshed(time, redshift, thv, loge0, thc, thj, g1, e
     :param loge0: jet energy in \log_{10} ergs
     :param thc: jet core size in radians
     :param thj: jet edge in radians (thc < thj < pi/2)
-    :param g1: second shell Lorentz factor
+    :param g1: Lorentz factor of shell at start of energy injection. 2 <= g1 < g0
     :param et: factor by which total kinetic energy is larger
     :param s1: index for energy injection; typically between 0--10, some higher values, ~<30, are supported for some structures.
         Values of ~10 are consistent with a discrete shock interaction, see Lamb, Levan & Tanvir 2020
