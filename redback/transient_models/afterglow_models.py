@@ -453,6 +453,38 @@ def tophat(time, redshift, thv, loge0, thc, logn0, p, logepse, logepsb, ksin, g0
     elif kwargs['output_format'] == 'magnitude':
         return calc_ABmag_from_flux_density(flux_density).value
 
+
+def tophat_from_emulator(time, thv, loge0, thc, logn0, p, logepse, logepsb, g0, **kwargs):
+    """
+    Evaluate a tophat afterglow model using an mpl regressor. Note that this model predicts for a fixed redshift = 0.01 and fixed ksin = 1.
+    This tophat model does not include all of the ususal kwargs
+
+    :param time: time in days in observer frame. Array should be in range 0.1 to 300 and better fits achieved with lower number of points
+    :param thv: viewing angle in radians
+    :param loge0: log10 on axis isotropic equivalent energy
+    :param thc: half width of jet core/jet opening angle in radians
+    :param logn0: log10 number density of ISM in cm^-3
+    :param p: electron distribution power law index. Must be greater than 2.
+    :param logepse: log10 fraction of thermal energy in electrons
+    :param logepsb: log10 fraction of thermal energy in magnetic field
+    :param g0: initial lorentz factor
+    :param kwargs: Additional keyword arguments
+    :param frequency: frequency of the band to view in
+    :param output_format: Whether to output flux density or AB mag, specified by 'flux_density' or 'magnitude'
+    :return: flux density or AB mag predicted by emulator. Note this is going to give the monochromatic magnitude at the effective frequency for the band.
+        For a proper calculation of the magntitude use the sed variant models
+    """
+    
+    from redback_surrogates.afterglowmodels import tophat_emulator as emulator
+    frequency= kwargs['frequency']
+    test_data= np.array([np.log10(thv) , loge0 , np.log10(thc), logn0, p, logepse, logepsb, np.log10(g0), np.log10(frequency)])
+    test_data.reshape(1,-1)
+    flux_density = emulator(new_time=time, test_data=test_data)
+    if kwargs['output_format'] == 'flux_density':
+        return flux_density
+    elif kwargs['output_format'] == 'magnitude':
+        return calc_ABmag_from_flux_density(flux_density).value
+
 @citation_wrapper('https://ui.adsabs.harvard.edu/abs/2020ApJ...896..166R/abstract')
 def afterglow_models_with_energy_injection(time, **kwargs):
     """
