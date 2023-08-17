@@ -752,6 +752,7 @@ class MagnitudePlotter(Plotter):
                 continue
             new_model_kwargs = self._model_kwargs.copy()
             new_model_kwargs['frequency'] = freq
+            new_model_kwargs['bands'] = band
             if self.band_colors is not None:
                 color = self.band_colors[band]
             if self.band_colors is None:

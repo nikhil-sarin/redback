@@ -4,8 +4,10 @@ import numpy as np
 import pandas as pd
 
 import redback.model_library
-from redback.utils import logger
+from redback.utils import logger, find_nearest
 from redback.result import RedbackResult
+from redback.constants import day_to_s
+import matplotlib
 
 
 def _setup_plotting_result(model, model_kwargs, parameters, transient):
@@ -55,7 +57,8 @@ def plot_lightcurve(transient, parameters, model, model_kwargs=None):
     :return: plot_lightcurve
     """
     model, parameters, res = _setup_plotting_result(model, model_kwargs, parameters, transient)
-    return res.plot_lightcurve(model=model, random_models=len(parameters), plot_max_likelihood=False, save=False)
+    return res.plot_lightcurve(model=model, random_models=len(parameters), plot_max_likelihood=False,
+                               save=False, show=False)
 
 
 def plot_multiband_lightcurve(transient, parameters, model, model_kwargs=None):
@@ -69,7 +72,8 @@ def plot_multiband_lightcurve(transient, parameters, model, model_kwargs=None):
     :return: plot_multiband_lightcurve
     """
     model, parameters, res = _setup_plotting_result(model, model_kwargs, parameters, transient)
-    return res.plot_multiband_lightcurve(model=model, random_models=len(parameters), plot_max_likelihood=False, save=False)
+    return res.plot_multiband_lightcurve(model=model, random_models=len(parameters), plot_max_likelihood=False,
+                                         save=False, show=False)
 
 
 def plot_evolution_parameters(result, random_models=100):
@@ -104,3 +108,46 @@ def plot_evolution_parameters(result, random_models=100):
         ax[x].set_xscale('log')
     fig.supxlabel(r"Time since burst [s]")
     return fig, ax
+
+def plot_spectrum(model, parameters, time_to_plot, axes=None, **kwargs):
+    """
+    Plot a spectrum for a given model and parameters
+
+    :param model: Model string for a redback model
+    :param parameters: dictionary of parameters/alongside model specific keyword arguments.
+        Must be one set of parameters. If you want to plot a posterior prediction of the spectrum,
+        call this function in a loop.
+    :param time_to_plot: Times to plot (in days) the spectrum at.
+        The spectrum plotted will be at the nearest neighbour to this value
+    :param axes: None or matplotlib axes object if you want to plot on an existing set of axes
+    :param kwargs: Additional keyword arguments used by this function.
+    :param colors_list: List of colors to use for each time to plot. Set randomly unless specified.
+    :return: matplotlib axes
+    """
+    function = redback.model_library.all_models_dict[model]
+    model_kwargs = {}
+    model_kwargs.update(parameters)
+    model_kwargs['output_format'] = 'spectra'
+    model_kwargs['bands'] = 'lsstg'
+    output = function(time_to_plot, **model_kwargs)
+    lambdas = output.lambdas
+    time_of_output = output.time/day_to_s
+
+    #extract spectrum at the times of interest.
+    spec = {}
+    for tt in time_to_plot:
+        _, idx = find_nearest(time_of_output, tt)
+        spec[tt] = output.spectra[idx]
+
+    if 'colors_list' in kwargs.keys():
+        colors_list = kwargs.pop('colors_list')
+    else:
+        colors_list = matplotlib.cm.tab20(range(len(time_to_plot)))
+
+    ax = axes or plt.gca()
+    for i, tt in enumerate(time_to_plot):
+        ax.semilogx(lambdas, spec[tt], color=colors_list[i], label=f"{tt:.1f} days")
+    ax.set_xlabel(r'Wavelength ($\mathrm{\AA}$)')
+    ax.set_ylabel(r'Flux ($10^{-17}$ erg s$^{-1}$ cm$^{-2}$ $\mathrm{\AA}$)')
+    ax.legend(loc='upper left')
+    return ax

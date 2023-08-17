@@ -1,0 +1,7 @@
+redshift = Uniform(0.01, 3, 'redshift', latex_label=r'$z$')
+loge0 = Uniform(45, 50, 'loge0', latex_label=r'$\log_{10} E_{i}$')
+mej = Uniform(1e-3, 0.07, 'mej', latex_label=r'Ejecta mass$M_{\odot}$')
+logn0 = Uniform(-5, 2, 'logn0', latex_label=r'$\log_{10} n_{\mathrm{ism}}$')
+logepse = Uniform(-5, 0, 'logepse', latex_label=r'$\log_{10} \epsilon_{e}$')
+logepsb = Uniform(-5, 0, 'logepsb', latex_label=r'$\log_{10} \epsilon_{B}$')
+p = Uniform(2, 3, 'p', latex_label=r'$p$')

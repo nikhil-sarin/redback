@@ -1,6 +1,6 @@
-from   astropy.io import ascii
-from   astropy import units as u
-from   astroquery.svo_fps import SvoFps
+from astropy.io import ascii
+from astropy import units as u
+from astroquery.svo_fps import SvoFps
 import numpy as np
 import redback
 import sncosmo
@@ -14,7 +14,7 @@ def add_to_database(LABEL, WAVELENGTH, ZEROFLUX, DATABASE, PLOT_LABEL):
     :return: None
     """
 
-    frequency    = 3.0e8 / WAVELENGTH
+    frequency = 3.0e8 / WAVELENGTH
 
     DATABASE.add_row([LABEL, frequency, WAVELENGTH*1e10, 'black', ZEROFLUX, LABEL, PLOT_LABEL])
 

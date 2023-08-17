@@ -34,7 +34,7 @@ We will also:
 import astropy.units as u
 import sncosmo
 
-from   astroquery.svo_fps import SvoFps
+from astroquery.svo_fps import SvoFps
 
 filter_list  = SvoFps.get_filter_list(facility='La Silla', instrument='GROND')
 filter_label = ['grond::' + x.split('/')[1].split('.')[1] for x in filter_list['filterID']]
@@ -217,7 +217,7 @@ result.plot_corner(show_titles=True, title_quantiles = [0.16, 0.5, 0.84])
 
 # Display the fit to each band
 
-fig=result.plot_multiband(show=False, random_models=100)
+fig=result.plot_multiband_lightcurve(show=False, random_models=100)
 
 fig[0].set_xscale('linear')
 fig[0].set_xlim(-200, 800)
