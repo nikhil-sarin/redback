@@ -144,19 +144,16 @@ class RedbackAfterglows():
 
     def get_segments(self, thj, res):
         ### parameter setting
-        latstep = 0.1  # lateral step from centre to edge - fixed angular width
-        rotstep = 2 * np.pi / res  # rotational step
-        Nrotstep = int(2 * np.pi / rotstep)  # interger number of rotational steps
-        LA = np.log10(thj)
-        LATS = np.linspace(LA - (res - 1) * latstep, LA, res)
-        ### calculations
-        thi = 10 ** (LATS - 0.5 * latstep)  # lateral angle to centre of segment
-        fac = np.hstack((np.ones(1), np.cos(10 ** LATS)))
-        fac = -np.diff(fac)
-        Omi = np.full(shape=Nrotstep, fill_value=rotstep) * fac.reshape(-1, 1)
-        Omi = Omi.ravel()
-        # the solid angle of each segment
-        phii = np.arange(0.5 * rotstep, Nrotstep * rotstep, rotstep)  # rotational angle to centre of each segment
+        latstep = thj/res #lateral step from centre to edge - fixed angular width
+        rotstep = 2.*np.pi/res #rotational step 
+        Nlatstep = int(res) #integer number of lateral steps
+        Nrotstep = int(2*np.pi/rotstep) #interger number of rotational steps
+        Omi = np.empty((Nlatstep*Nrotstep)) #defines an array for the solid angle of each segment
+        phi = np.linspace(rotstep,Nrotstep*rotstep,Nrotstep) #rotation angles from 0-2pi
+        for i in range(0,Nlatstep):
+            Omi[i*Nrotstep:(i+1)*Nrotstep] = (phi-(phi-rotstep))*(np.cos((i*latstep))-np.cos(((i+1)*latstep))) #defines the solid angle of each segment
+        thi = np.linspace(latstep-latstep/2.,Nlatstep*latstep-latstep/2.,Nlatstep) #lateral angle to centre of segment
+        phii = np.linspace(rotstep-rotstep/2.,Nrotstep*rotstep-rotstep/2.,Nrotstep)#rotational angle to centre of each segment
         return Omi, thi, phii, rotstep, latstep
 
     def get_structure(self, gamma, en, thi, thc, method, s, a, thj):
@@ -289,12 +286,12 @@ class RedbackAfterglows():
         # prepare ex and OmG in this function
         if self.is_expansion:
             ex = te  # expansion
-            fac = np.exp(0.5 * latstep)
-            OmG = rotstep * (np.cos(thi / fac) - np.cos(ex + thi * fac))  # equivalent form for log spacing
+            fac = 0.5 * latstep
+            OmG = rotstep * (np.cos(thi - fac) - np.cos(ex + thi + fac))  # equivalent form for linear spacing
         else:
             te = np.ones(te.size)  # no expansion
-            fac = np.exp(0.5 * latstep)
-            OmG = rotstep * (np.cos(thi / fac) - np.cos(thi * fac))  # equivalent form for log spacing
+            fac = 0.5 * latstep
+            OmG = rotstep * (np.cos(thi - fac) - np.cos(thi + fac))  # equivalent form for linear spacing
         # prepare R
         size = G.size
         exponent = ((1 - np.cos(te[0])) / (1 - np.cos(te[:size]))) ** 0.5
@@ -302,7 +299,6 @@ class RedbackAfterglows():
         R[1:] = np.diff(R) * exponent[1:size] ** (1. / (3. - k))
         R = np.cumsum(R)
 
-        ""
         n0 = n * R ** (-k)
         ### forward shock
         # parameters for synchrotron emission
