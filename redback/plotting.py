@@ -615,11 +615,11 @@ class MagnitudePlotter(Plotter):
                 ys = self.model(times, **self._max_like_params, **self._model_kwargs)
                 if band in self.band_scaling:
                     if self.band_scaling.get("type") == 'x':
-                        axes.plot(times - self._reference_mjd_date, ys * self.band_scaling.get(band), color=color_max, alpha=0.65, lw=self.linewidth)
+                        axes.plot(times - self._reference_mjd_date, ys * self.band_scaling.get(band), color=color_max, alpha=self.max_likelihood_alpha, lw=self.linewidth)
                     elif self.band_scaling.get("type") == '+':
-                        axes.plot(times - self._reference_mjd_date, ys + self.band_scaling.get(band), color=color_max, alpha=0.65, lw=self.linewidth)
+                        axes.plot(times - self._reference_mjd_date, ys + self.band_scaling.get(band), color=color_max, alpha=self.max_likelihood_alpha, lw=self.linewidth)
                 else:        
-                    axes.plot(times - self._reference_mjd_date, ys, color=color_max, alpha=0.65, lw=self.linewidth)
+                    axes.plot(times - self._reference_mjd_date, ys, color=color_max, alpha=self.max_likelihood_alpha, lw=self.linewidth)
 
             random_ys_list = [self.model(times, **random_params, **self._model_kwargs)
                               for random_params in self._get_random_parameters()]
@@ -627,11 +627,11 @@ class MagnitudePlotter(Plotter):
                 for ys in random_ys_list:
                     if band in self.band_scaling:
                         if self.band_scaling.get("type") == 'x':
-                            axes.plot(times - self._reference_mjd_date, ys * self.band_scaling.get(band), color=color_sample, alpha=0.05, lw=self.linewidth, zorder=-1)
+                            axes.plot(times - self._reference_mjd_date, ys * self.band_scaling.get(band), color=color_sample, alpha=self.random_sample_alpha, lw=self.linewidth, zorder=-1)
                         elif self.band_scaling.get("type") == '+':
-                            axes.plot(times - self._reference_mjd_date, ys + self.band_scaling.get(band), color=color_sample, alpha=0.05, lw=self.linewidth, zorder=-1)
+                            axes.plot(times - self._reference_mjd_date, ys + self.band_scaling.get(band), color=color_sample, alpha=self.random_sample_alpha, lw=self.linewidth, zorder=-1)
                     else:
-                        axes.plot(times - self._reference_mjd_date, ys, color=color_sample, alpha=0.05, lw=self.linewidth, zorder=-1)
+                        axes.plot(times - self._reference_mjd_date, ys, color=color_sample, alpha=self.random_sample_alpha, lw=self.linewidth, zorder=-1)
             elif self.uncertainty_mode == "credible_intervals":
                 if band in self.band_scaling:
                     if self.band_scaling.get("type") == 'x':
