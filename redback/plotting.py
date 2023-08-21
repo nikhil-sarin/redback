@@ -301,7 +301,7 @@ class IntegratedFluxPlotter(Plotter):
             self.transient.name, xy=self.xy, xycoords=self.xycoords,
             horizontalalignment=self.horizontalalignment, size=self.annotation_size)
 
-        ax.tick_params(axis='both', pad=self.axis_tick_params_pad, labelsize=self.fontsize_ticks)
+        ax.tick_params(axis='both', which='both', pad=self.axis_tick_params_pad, labelsize=self.fontsize_ticks)
 
         self._save_and_show(filepath=self._data_plot_filepath, save=save, show=show)
         return ax
@@ -376,7 +376,7 @@ class IntegratedFluxPlotter(Plotter):
             fmt=self.errorbar_fmt, c=self.color, ms=self.ms, elinewidth=self.elinewidth, capsize=self.capsize)
         axes[1].set_yscale("log")
         axes[1].set_ylabel("Residual", fontsize=self.fontsize_axes)
-        axes[1].tick_params(axis='both', pad=self.axis_tick_params_pad, labelsize=self.fontsize_ticks)
+        axes[1].tick_params(axis='both', which='both', pad=self.axis_tick_params_pad, labelsize=self.fontsize_ticks)
 
         self._save_and_show(filepath=self._residual_plot_filepath, save=save, show=show)
         return axes
@@ -564,7 +564,7 @@ class MagnitudePlotter(Plotter):
         ax.set_xlabel(self._xlabel, fontsize=self.fontsize_axes)
         ax.set_ylabel(self._ylabel, fontsize=self.fontsize_axes)
 
-        ax.tick_params(axis='both', pad=self.axis_tick_params_pad, labelsize=self.fontsize_ticks)
+        ax.tick_params(axis='both', which='both', pad=self.axis_tick_params_pad, labelsize=self.fontsize_ticks)
         ax.legend(ncol=self.legend_cols, loc=self.legend_location, fontsize=self.fontsize_legend)
 
         self._save_and_show(filepath=self._data_plot_filepath, save=save, show=show)
@@ -696,7 +696,7 @@ class MagnitudePlotter(Plotter):
             self._set_x_axis(axes[ii])
             self._set_y_axis_multiband_data(axes[ii], indices)
             axes[ii].legend(ncol=self.legend_cols, loc=self.legend_location, fontsize=self.fontsize_legend)
-            axes[ii].tick_params(axis='both', which='major', pad=self.axis_tick_params_pad, labelsize=self.fontsize_ticks)
+            axes[ii].tick_params(axis='both', which='both', pad=self.axis_tick_params_pad, labelsize=self.fontsize_ticks)
             ii += 1
 
         figure.supxlabel(self._xlabel, fontsize=self.fontsize_figure)
