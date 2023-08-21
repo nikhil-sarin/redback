@@ -75,6 +75,7 @@ class Plotter(object):
     uncertainty_mode = KwargsAccessorWithDefault("uncertainty_mode", "random_models")
     credible_interval_level = KwargsAccessorWithDefault("credible_interval_level", 0.9)
     plot_max_likelihood = KwargsAccessorWithDefault("plot_max_likelihood", True)
+    set_same_color_per_subplot = KwargsAccessorWithDefault("set_same_color_per_subplot", True)
 
     xlim_high_multiplier = KwargsAccessorWithDefault("xlim_high_multiplier", 2.0)
     xlim_low_multiplier = KwargsAccessorWithDefault("xlim_low_multiplier", 0.5)
@@ -126,6 +127,8 @@ class Plotter(object):
         :keyword reference_mjd_date: Date to use as reference point for the x axis.
                                     Default is the first date in the data.
         :keyword credible_interval_level: 0.9: Plot the 90% credible interval.
+        :keyword plot_max_likelihood: Plots the draw corresponding to the maximum likelihood. Default is 'True'.
+        :keyword set_same_color_per_subplot: Sets the lightcurve to be the same color as the data per subplot. Default is 'True'.
         :keyword xlim_high_multiplier: Adjust the maximum xlim based on available x values.
         :keyword xlim_low_multiplier: Adjust the minimum xlim based on available x values.
         :keyword ylim_high_multiplier: Adjust the maximum ylim based on available x values.
@@ -593,9 +596,14 @@ class MagnitudePlotter(Plotter):
         times = self._get_times(axes)
         bands_to_plot = self._get_bands_to_plot
 
+        color_max = self.max_likelihood_color
+        color_sample = self.random_sample_color
         for band, color in zip(bands_to_plot, self.transient.get_colors(bands_to_plot)):
-            if self.band_colors is not None:
-                color = self.band_colors[band]
+            if self.set_same_color_per_subplot is True:
+                if self.band_colors is not None:
+                    color = self.band_colors[band]
+                color_max = color
+                color_sample = color
             sn_cosmo_band = redback.utils.sncosmo_bandname_from_band([band])
             self._model_kwargs["bands"] = [sn_cosmo_band[0] for _ in range(len(times))]
             if isinstance(band, str):
@@ -607,11 +615,11 @@ class MagnitudePlotter(Plotter):
                 ys = self.model(times, **self._max_like_params, **self._model_kwargs)
                 if band in self.band_scaling:
                     if self.band_scaling.get("type") == 'x':
-                        axes.plot(times - self._reference_mjd_date, ys * self.band_scaling.get(band), color=color, alpha=0.65, lw=self.linewidth)
+                        axes.plot(times - self._reference_mjd_date, ys * self.band_scaling.get(band), color=color_max, alpha=0.65, lw=self.linewidth)
                     elif self.band_scaling.get("type") == '+':
-                        axes.plot(times - self._reference_mjd_date, ys + self.band_scaling.get(band), color=color, alpha=0.65, lw=self.linewidth)
+                        axes.plot(times - self._reference_mjd_date, ys + self.band_scaling.get(band), color=color_max, alpha=0.65, lw=self.linewidth)
                 else:        
-                    axes.plot(times - self._reference_mjd_date, ys, color=color, alpha=0.65, lw=self.linewidth)
+                    axes.plot(times - self._reference_mjd_date, ys, color=color_max, alpha=0.65, lw=self.linewidth)
 
             random_ys_list = [self.model(times, **random_params, **self._model_kwargs)
                               for random_params in self._get_random_parameters()]
@@ -619,11 +627,11 @@ class MagnitudePlotter(Plotter):
                 for ys in random_ys_list:
                     if band in self.band_scaling:
                         if self.band_scaling.get("type") == 'x':
-                            axes.plot(times - self._reference_mjd_date, ys * self.band_scaling.get(band), color='red', alpha=0.05, lw=self.linewidth, zorder=-1)
+                            axes.plot(times - self._reference_mjd_date, ys * self.band_scaling.get(band), color=color_sample, alpha=0.05, lw=self.linewidth, zorder=-1)
                         elif self.band_scaling.get("type") == '+':
-                            axes.plot(times - self._reference_mjd_date, ys + self.band_scaling.get(band), color='red', alpha=0.05, lw=self.linewidth, zorder=-1)
+                            axes.plot(times - self._reference_mjd_date, ys + self.band_scaling.get(band), color=color_sample, alpha=0.05, lw=self.linewidth, zorder=-1)
                     else:
-                        axes.plot(times - self._reference_mjd_date, ys, color='red', alpha=0.05, lw=self.linewidth, zorder=-1)
+                        axes.plot(times - self._reference_mjd_date, ys, color=color_sample, alpha=0.05, lw=self.linewidth, zorder=-1)
             elif self.uncertainty_mode == "credible_intervals":
                 if band in self.band_scaling:
                     if self.band_scaling.get("type") == 'x':
@@ -634,7 +642,7 @@ class MagnitudePlotter(Plotter):
                     lower_bound, upper_bound, _ = redback.utils.calc_credible_intervals(samples=np.array(random_ys_list))
                 axes.fill_between(
                     times - self._reference_mjd_date, lower_bound, upper_bound,
-                    alpha=self.uncertainty_band_alpha, color=color)
+                    alpha=self.uncertainty_band_alpha, color=color_sample)
 
         self._save_and_show(filepath=self._lightcurve_plot_filepath, save=save, show=show)
         return axes
@@ -753,32 +761,38 @@ class MagnitudePlotter(Plotter):
         times = self._get_times(axes)
 
         ii = 0
+        color_max = self.max_likelihood_color
+        color_sample = self.random_sample_color
         for band, freq in zip(self.transient.unique_bands, self.transient.unique_frequencies):
             if band not in self._filters:
                 continue
             new_model_kwargs = self._model_kwargs.copy()
             new_model_kwargs['frequency'] = freq
             new_model_kwargs['bands'] = band
-            if self.band_colors is not None:
-                color = self.band_colors[band]
-            if self.band_colors is None:
-                color = self.max_likelihood_color
+            
+            if self.set_same_color_per_subplot is True:
+                color = self._colors[list(self._filters).index(band)]
+                if self.band_colors is not None:
+                    color = self.band_colors[band]
+                color_max = color
+                color_sample = color
+
             if self.plot_max_likelihood:
                 ys = self.model(times, **self._max_like_params, **new_model_kwargs)
                 axes[ii].plot(
-                    times - self._reference_mjd_date, ys, color=color,
+                    times - self._reference_mjd_date, ys, color=color_max,
                     alpha=self.max_likelihood_alpha, lw=self.linewidth)
             random_ys_list = [self.model(times, **random_params, **new_model_kwargs)
                               for random_params in self._get_random_parameters()]
             if self.uncertainty_mode == "random_models":
                 for random_ys in random_ys_list:
-                    axes[ii].plot(times - self._reference_mjd_date, random_ys, color=color,
+                    axes[ii].plot(times - self._reference_mjd_date, random_ys, color=color_sample,
                                   alpha=self.random_sample_alpha, lw=self.linewidth, zorder=self.zorder)
             elif self.uncertainty_mode == "credible_intervals":
                 lower_bound, upper_bound, _ = redback.utils.calc_credible_intervals(samples=random_ys_list)
                 axes[ii].fill_between(
                     times - self._reference_mjd_date, lower_bound, upper_bound,
-                    alpha=self.uncertainty_band_alpha, color=color)
+                    alpha=self.uncertainty_band_alpha, color=color_sample)
             ii += 1
 
         self._save_and_show(filepath=self._multiband_lightcurve_plot_filepath, save=save, show=show)
