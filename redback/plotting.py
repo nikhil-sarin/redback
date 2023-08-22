@@ -91,7 +91,7 @@ class Plotter(object):
         :keyword color: Color of the data points.
         :keyword band_colors: A dictionary with the colors of the bands.
         :keyword band_labels: List with the names of the bands.
-        :keyword band_scaling: Dict with the scaling for each band. First entry should be {type: '+' or '*'} for different types.
+        :keyword band_scaling: Dict with the scaling for each band. First entry should be {type: '+' or 'x'} for different types.
         :keyword dpi: Same as matplotlib dpi.
         :keyword elinewidth: same as matplotlib elinewidth
         :keyword errorbar_fmt: 'fmt' argument of `ax.errorbar`.
@@ -519,9 +519,9 @@ class MagnitudePlotter(Plotter):
                 color = self._colors[list(self._filters).index(band)]
                 if band_label_generator is None:
                     if band in self.band_scaling:
-                        label = band + ' ' + self.band_scaling.get("type") + ' ' + str(self.band_scaling.get(band))
+                        label = str(self.band_scaling.get(band))  + ' ' + self.band_scaling.get("type") + ' ' + band 
                     else:
-                        label = band    
+                        label = band   
                 else:
                     label = next(band_label_generator)
             elif self.plot_others:
@@ -534,7 +534,7 @@ class MagnitudePlotter(Plotter):
             if self.band_colors is not None:
                 color = self.band_colors[band]
             if band in self.band_scaling:
-                if self.band_scaling.get("type") == '*':
+                if self.band_scaling.get("type") == 'x':
                     ax.errorbar(
                         self.transient.x[indices] - self._reference_mjd_date, self.transient.y[indices] * self.band_scaling.get(band),
                         xerr=self._get_x_err(indices), yerr=self.transient.y_err[indices] * self.band_scaling.get(band),
@@ -597,7 +597,7 @@ class MagnitudePlotter(Plotter):
             if self.plot_max_likelihood:
                 ys = self.model(times, **self._max_like_params, **self._model_kwargs)
                 if band in self.band_scaling:
-                    if self.band_scaling.get("type") == '*':
+                    if self.band_scaling.get("type") == 'x':
                         axes.plot(times - self._reference_mjd_date, ys * self.band_scaling.get(band), color=color, alpha=0.65, lw=2)
                     elif self.band_scaling.get("type") == '+':
                         axes.plot(times - self._reference_mjd_date, ys + self.band_scaling.get(band), color=color, alpha=0.65, lw=2)
@@ -609,7 +609,7 @@ class MagnitudePlotter(Plotter):
             if self.uncertainty_mode == "random_models":
                 for ys in random_ys_list:
                     if band in self.band_scaling:
-                        if self.band_scaling.get("type") == '*':
+                        if self.band_scaling.get("type") == 'x':
                             axes.plot(times - self._reference_mjd_date, ys * self.band_scaling.get(band), color='red', alpha=0.05, lw=2, zorder=-1)
                         elif self.band_scaling.get("type") == '+':
                             axes.plot(times - self._reference_mjd_date, ys + self.band_scaling.get(band), color='red', alpha=0.05, lw=2, zorder=-1)
@@ -617,7 +617,7 @@ class MagnitudePlotter(Plotter):
                         axes.plot(times - self._reference_mjd_date, ys, color='red', alpha=0.05, lw=2, zorder=-1)
             elif self.uncertainty_mode == "credible_intervals":
                 if band in self.band_scaling:
-                    if self.band_scaling.get("type") == '*':
+                    if self.band_scaling.get("type") == 'x':
                         lower_bound, upper_bound, _ = redback.utils.calc_credible_intervals(samples=np.array(random_ys_list) * self.band_scaling.get(band))
                     elif self.band_scaling.get("type") == '+':
                         lower_bound, upper_bound, _ = redback.utils.calc_credible_intervals(samples=np.array(random_ys_list) + self.band_scaling.get(band))
