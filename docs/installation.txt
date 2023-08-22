@@ -72,3 +72,8 @@ Or use pkg installer if you are on linux.
 .. code-block:: console
 
    $ sudo pkg install phantomjs
+
+phantomjs sometimes will not work with macOS or give a warning that it is no longer supported/verified.
+In the short term, you can locate the file in your finder and right click to open it. Doing so once will also the app to be used.
+In the longer term, we are determining a replacement to drop the phantomjs dependency to download swift data.
+Note phantomjs is not required for any other functionality of redback.
