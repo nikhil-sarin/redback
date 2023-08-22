@@ -453,7 +453,6 @@ def tophat(time, redshift, thv, loge0, thc, logn0, p, logepse, logepsb, ksin, g0
     elif kwargs['output_format'] == 'magnitude':
         return calc_ABmag_from_flux_density(flux_density).value
 
-import pandas as pd
 import os
 import sys
 cwd=os.getcwd()
@@ -482,9 +481,13 @@ def tophat_from_emulator(time, thv, loge0, thc, logn0, p, logepse, logepsb, g0, 
     """
     
     frequency= np.log10(kwargs['frequency'])
-    test_data= []
-    for f in frequency:
-        test_data.append([np.log10(thv) , loge0 , np.log10(thc), logn0, p, logepse, logepsb, np.log10(g0), f])
+    if isinstance(frequency, (int, float)) == True:
+        test_data= np.array([np.log10(thv) , loge0 , np.log10(thc), logn0, p, logepse, logepsb, np.log10(g0), frequency]).reshape(1,-1)
+    else:
+        test_data= []
+        for f in frequency:
+            test_data.append([np.log10(thv) , loge0 , np.log10(thc), logn0, p, logepse, logepsb, np.log10(g0), f])
+            
     flux_density = tophat_emulator(new_time=time, test_data=np.array(test_data))
     if kwargs['output_format'] == 'flux_density':
         return flux_density
