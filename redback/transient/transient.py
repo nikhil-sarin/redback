@@ -583,8 +583,8 @@ class Transient(object):
             nrows: int = None, figsize: tuple = None, filters: list = None, **kwargs: None) \
             -> matplotlib.axes.Axes:
         """
-        :param figure: Figure can be given if defaults are not satisfying
-        :param axes: Axes can be given if defaults are not satisfying
+        :param figure: Figure can be given if defaults are not satisfying.
+        :param axes: Axes can be given if defaults are not satisfying.
         :param filename: Name of the file to be plotted in.
         :param outdir: The directory in which to save the file in.
         :param save: Whether to save the plot. (Default value = True)
@@ -691,13 +691,15 @@ class Transient(object):
         return plotter.plot_residuals(axes=axes, save=save, show=show)
 
     def plot_multiband_lightcurve(
-            self, model: callable, filename: str = None, outdir: str = None, axes: matplotlib.axes.Axes = None,
+            self, model: callable, filename: str = None, outdir: str = None,
+            figure: matplotlib.figure.Figure = None, axes: matplotlib.axes.Axes = None,
             save: bool = True, show: bool = True, random_models: int = 100, posterior: pd.DataFrame = None,
             model_kwargs: dict = None, **kwargs: object) -> matplotlib.axes.Axes:
         """
         :param model: The model used to plot the lightcurve.
         :param filename: The output filename. Otherwise, use default which starts with the name
                          attribute and ends with *lightcurve.png.
+        :param figure: Figure can be given if defaults are not satisfying.
         :param axes: Axes to plot in if given.
         :param save:Whether to save the plot.
         :param show: Whether to show the plot.
@@ -727,7 +729,7 @@ class Transient(object):
                 posterior=posterior, model_kwargs=model_kwargs, random_models=random_models, **kwargs)
         else:
             return
-        return plotter.plot_multiband_lightcurve(axes=axes, save=save, show=show)
+        return plotter.plot_multiband_lightcurve(figure=figure, axes=axes, save=save, show=show)
 
     _formatted_kwargs_options = redback.plotting.Plotter.keyword_docstring
     plot_data.__doc__ = plot_data.__doc__.replace(
