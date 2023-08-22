@@ -91,6 +91,9 @@ class TestMagnitudeOutput(unittest.TestCase):
             model_name = f.replace(".prior", "")
             if model_name == 'trapped_magnetar':
                 kwargs['output_format'] = 'luminosity'
+            elif model_name in ['tophat_and_twocomponent', 'tophat_and_twolayerstratified',
+                                'tophat_and_arnett']:
+                pass
             else:
                 kwargs['output_format'] = 'magnitude'
             prior = self.get_prior(file=f)

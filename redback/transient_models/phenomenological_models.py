@@ -1,6 +1,13 @@
 import numpy as np
 
 def gaussian_rise(time, a_1, peak_time, sigma_t):
+    """
+    :param time: time array in whatver time units
+    :param a_1: gaussian rise amplitude scale
+    :param peak_time: peak time in whatever units
+    :param sigma_t: the sharpness of the Gaussian
+    :return: In whatever units set by a_1 
+    """
     total = a_1 * np.exp(-(time - peak_time)**2. / (2 * sigma_t ** 2))
     return total
 
@@ -26,7 +33,7 @@ def two_component_powerlaw(time, a_1, alpha_1,
     :param time: time array for power law
     :param a_1: power law decay amplitude
     :param alpha_1: power law decay exponent
-    :param delta_time_one: time between start and end of prompt emission
+    :param delta_time_one: time between start and end of first power law
     :param alpha_2: power law decay exponent for the second power law
     :return: In whatever units set by a_1
     """
@@ -52,7 +59,7 @@ def three_component_powerlaw(time, a_1, alpha_1,
     :param time: time array for power law
     :param a_1: power law decay amplitude
     :param alpha_1: power law decay exponent
-    :param delta_time_one: time between start and end of prompt emission
+    :param delta_time_one: time between start and end of first power law
     :param alpha_2: power law decay exponent for the second power law
     :param delta_time_two: time between first and second power laws
     :param alpha_3: power law decay exponent for third power law
@@ -84,7 +91,7 @@ def four_component_powerlaw(time, a_1, alpha_1, delta_time_one,
     :param time: time array for power law
     :param a_1: power law decay amplitude
     :param alpha_1: power law decay exponent
-    :param delta_time_one: time between start and end of prompt emission
+    :param delta_time_one: time between start and end of first power law
     :param alpha_2: power law decay exponent for the second power law
     :param delta_time_two: time between first and second power laws
     :param alpha_3: power law decay exponent for third power law
@@ -125,7 +132,7 @@ def five_component_powerlaw(time, a_1, alpha_1,
     :param time: time array for power law
     :param a_1: power law decay amplitude
     :param alpha_1: power law decay exponent
-    :param delta_time_one: time between start and end of prompt emission
+    :param delta_time_one: time between start and end of first power law
     :param alpha_2: power law decay exponent for the second power law
     :param delta_time_two: time between first and second power laws
     :param alpha_3: power law decay exponent for third power law
@@ -175,7 +182,7 @@ def six_component_powerlaw(time, a_1, alpha_1,
     :param time: time array for power law
     :param a_1: power law decay amplitude
     :param alpha_1: power law decay exponent
-    :param delta_time_one: time between start and end of prompt emission
+    :param delta_time_one: time between start and end of first power law
     :param alpha_2: power law decay exponent for the second power law
     :param delta_time_two: time between first and second power laws
     :param alpha_3: power law decay exponent for third power law

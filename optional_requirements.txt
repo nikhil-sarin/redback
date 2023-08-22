@@ -1,5 +1,4 @@
 gwemlightcurves
-sncosmo
 nestle
 sherpa
 PyQt5

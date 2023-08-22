@@ -27,8 +27,8 @@ that provides a link from the intrinsic binary neutron star parameters to the pr
             self.lambda_1 = lambda_1
             self.lambda_2 = lambda_2
             self.reference = 'No, I really just made this up'
-            self.ejecta_mass = self.calculate_ejecta_mass()
-            self.ejecta_velocity = self.calculate_ejecta_velocity()
+            self.ejecta_mass = self.calculate_ejecta_mass
+            self.ejecta_velocity = self.calculate_ejecta_velocity
 
         @property
         def calculate_ejecta_velocity(self):
@@ -43,7 +43,7 @@ that provides a link from the intrinsic binary neutron star parameters to the pr
             c1 = calc_compactness_from_lambda(self.lambda_1)
             c2 = calc_compactness_from_lambda(self.lambda_2)
 
-            log10_mej = (self.mass_1 * (self.mass_2 / self.mass_1)**c1
+            log10_mej = self.mass_1 * (self.mass_2 / self.mass_1)**c1
 
             mej = 10 ** log10_mej
             return mej
@@ -85,3 +85,21 @@ Modifying plot_lightcurve
 
 Similarly to how a user can modify a model, a user can also modify the plot_lightcurve and plot_multiband_lightcurve routines.
 We don't really recommend this for aesthetic things as they can be simply passed to the existing function, but a user can do this if they want to.
+
+
+Using your own cosmology
+-------------------------
+
+If a user works with a transient outside of the Hubble flow, redshift is not a useful measure of the distance. In such a case, the user could provide a known physical distance.
+
+.. code:: python
+
+    from astropy import units as u
+    from redback.util import user_cosmology
+
+    your_cosmology = user_cosmology()
+    your_cosmology.set_luminosity_distance(40*u.kpc)
+
+    # To use your cosmology in the fitting
+
+    model_kwargs = dict(cosmology = your_cosmology)

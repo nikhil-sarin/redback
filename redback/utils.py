@@ -26,6 +26,18 @@ plt.style.use(filename)
 logger = logging.getLogger('redback')
 _bilby_logger = logging.getLogger('bilby')
 
+def find_nearest(array, value):
+    """
+    Find the nearest value in an array to a given value.
+
+    :param array: array to search
+    :param value: value to search for
+    :return: array element closest to value and index of that element
+    """
+    array = np.asarray(array)
+    idx = (np.abs(array - value)).argmin()
+    return array[idx], idx
+
 def download_pointing_tables():
     """
     Download the pointing tables from zenodo.
@@ -803,3 +815,20 @@ def velocity_from_lorentz_factor(lorentz_factor):
     """
 
     return speed_of_light * np.sqrt(1 - 1 / lorentz_factor ** 2)
+
+class user_cosmology():
+    """
+    Cosmology class similar to the Astropy cosmology class.
+    Needed if the user wants to provide a distance instead
+    of using the luminosity distance inferred from a particular
+    cosmology model.
+    """
+
+    def __init__(self, dl=0):
+        self.dl = 0
+
+    def set_luminosity_distance(cls, dl):
+        cls.dl  = dl
+    
+    def luminosity_distance(self, redshift):
+        return self.dl

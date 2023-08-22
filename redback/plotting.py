@@ -46,7 +46,7 @@ class Plotter(object):
     errorbar_fmt = KwargsAccessorWithDefault("errorbar_fmt", "x")
     model = KwargsAccessorWithDefault("model", None)
     ms = KwargsAccessorWithDefault("ms", 1)
-    x_axis_tick_params_pad = KwargsAccessorWithDefault("x_axis_tick_params_pad", 10)
+    axis_tick_params_pad = KwargsAccessorWithDefault("axis_tick_params_pad", 10)
 
     max_likelihood_alpha = KwargsAccessorWithDefault("max_likelihood_alpha", 0.65)
     random_sample_alpha = KwargsAccessorWithDefault("random_sample_alpha", 0.05)
@@ -66,6 +66,7 @@ class Plotter(object):
     fontsize_axes = KwargsAccessorWithDefault("fontsize_axes", 18)
     fontsize_figure = KwargsAccessorWithDefault("fontsize_figure", 30)
     fontsize_legend = KwargsAccessorWithDefault("fontsize_legend", 18)
+    fontsize_ticks = KwargsAccessorWithDefault("fontsize_ticks", 16)
     hspace = KwargsAccessorWithDefault("hspace", 0.04)
     wspace = KwargsAccessorWithDefault("wspace", 0.15)
 
@@ -74,6 +75,7 @@ class Plotter(object):
     uncertainty_mode = KwargsAccessorWithDefault("uncertainty_mode", "random_models")
     credible_interval_level = KwargsAccessorWithDefault("credible_interval_level", 0.9)
     plot_max_likelihood = KwargsAccessorWithDefault("plot_max_likelihood", True)
+    set_same_color_per_subplot = KwargsAccessorWithDefault("set_same_color_per_subplot", True)
 
     xlim_high_multiplier = KwargsAccessorWithDefault("xlim_high_multiplier", 2.0)
     xlim_low_multiplier = KwargsAccessorWithDefault("xlim_low_multiplier", 0.5)
@@ -97,7 +99,7 @@ class Plotter(object):
         :keyword errorbar_fmt: 'fmt' argument of `ax.errorbar`.
         :keyword model: str or callable, the model to plot.
         :keyword ms: Same as matplotlib markersize.
-        :keyword x_axis_tick_params_pad: `pad` argument in calls to `ax.tick_params` when setting the x axis.
+        :keyword axis_tick_params_pad: `pad` argument in calls to `ax.tick_params` when setting the axes.
         :keyword max_likelihood_alpha: `alpha` argument, i.e. transparency, when plotting the max likelihood curve.
         :keyword random_sample_alpha: `alpha` argument, i.e. transparency, when plotting random sample curves.
         :keyword uncertainty_band_alpha: `alpha` argument, i.e. transparency, when plotting a credible band.
@@ -114,6 +116,7 @@ class Plotter(object):
         :keyword fontsize_legend: Font size of the legend.
         :keyword fontsize_figure: Font size of the figure. Relevant for multiband plots.
                                   Used on `supxlabel` and `supylabel`.
+        :keyword fontsize_ticks: Font size of the axis ticks.
         :keyword hspace: Argument for `subplots_adjust`, sets horizontal spacing between panels.
         :keyword wspace: Argument for `subplots_adjust`, sets horizontal spacing between panels.
         :keyword plot_others: Whether to plot additional bands in the data plot, all in the same colors
@@ -124,6 +127,8 @@ class Plotter(object):
         :keyword reference_mjd_date: Date to use as reference point for the x axis.
                                     Default is the first date in the data.
         :keyword credible_interval_level: 0.9: Plot the 90% credible interval.
+        :keyword plot_max_likelihood: Plots the draw corresponding to the maximum likelihood. Default is 'True'.
+        :keyword set_same_color_per_subplot: Sets the lightcurve to be the same color as the data per subplot. Default is 'True'.
         :keyword xlim_high_multiplier: Adjust the maximum xlim based on available x values.
         :keyword xlim_low_multiplier: Adjust the minimum xlim based on available x values.
         :keyword ylim_high_multiplier: Adjust the maximum ylim based on available x values.
@@ -299,7 +304,7 @@ class IntegratedFluxPlotter(Plotter):
             self.transient.name, xy=self.xy, xycoords=self.xycoords,
             horizontalalignment=self.horizontalalignment, size=self.annotation_size)
 
-        ax.tick_params(axis='x', pad=self.x_axis_tick_params_pad)
+        ax.tick_params(axis='both', which='both', pad=self.axis_tick_params_pad, labelsize=self.fontsize_ticks)
 
         self._save_and_show(filepath=self._data_plot_filepath, save=save, show=show)
         return ax
@@ -318,6 +323,7 @@ class IntegratedFluxPlotter(Plotter):
         :return: The axes with the plot.
         :rtype: matplotlib.axes.Axes
         """
+        
         axes = axes or plt.gca()
 
         axes = self.plot_data(axes=axes, save=False, show=False)
@@ -373,6 +379,8 @@ class IntegratedFluxPlotter(Plotter):
             fmt=self.errorbar_fmt, c=self.color, ms=self.ms, elinewidth=self.elinewidth, capsize=self.capsize)
         axes[1].set_yscale("log")
         axes[1].set_ylabel("Residual", fontsize=self.fontsize_axes)
+        axes[1].tick_params(axis='both', which='both', pad=self.axis_tick_params_pad, labelsize=self.fontsize_ticks)
+
         self._save_and_show(filepath=self._residual_plot_filepath, save=save, show=show)
         return axes
 
@@ -559,7 +567,7 @@ class MagnitudePlotter(Plotter):
         ax.set_xlabel(self._xlabel, fontsize=self.fontsize_axes)
         ax.set_ylabel(self._ylabel, fontsize=self.fontsize_axes)
 
-        ax.tick_params(axis='x', pad=self.x_axis_tick_params_pad)
+        ax.tick_params(axis='both', which='both', pad=self.axis_tick_params_pad, labelsize=self.fontsize_ticks)
         ax.legend(ncol=self.legend_cols, loc=self.legend_location, fontsize=self.fontsize_legend)
 
         self._save_and_show(filepath=self._data_plot_filepath, save=save, show=show)
@@ -588,21 +596,30 @@ class MagnitudePlotter(Plotter):
         times = self._get_times(axes)
         bands_to_plot = self._get_bands_to_plot
 
+        color_max = self.max_likelihood_color
+        color_sample = self.random_sample_color
         for band, color in zip(bands_to_plot, self.transient.get_colors(bands_to_plot)):
-            if self.band_colors is not None:
-                color = self.band_colors[band]
+            if self.set_same_color_per_subplot is True:
+                if self.band_colors is not None:
+                    color = self.band_colors[band]
+                color_max = color
+                color_sample = color
             sn_cosmo_band = redback.utils.sncosmo_bandname_from_band([band])
-            frequency = redback.utils.bands_to_frequency([band])
+            self._model_kwargs["bands"] = [sn_cosmo_band[0] for _ in range(len(times))]
+            if isinstance(band, str):
+                frequency = redback.utils.bands_to_frequency([band])
+            else:
+                frequency = band
             self._model_kwargs['frequency'] = np.ones(len(times)) * frequency
             if self.plot_max_likelihood:
                 ys = self.model(times, **self._max_like_params, **self._model_kwargs)
                 if band in self.band_scaling:
                     if self.band_scaling.get("type") == 'x':
-                        axes.plot(times - self._reference_mjd_date, ys * self.band_scaling.get(band), color=color, alpha=0.65, lw=2)
+                        axes.plot(times - self._reference_mjd_date, ys * self.band_scaling.get(band), color=color_max, alpha=self.max_likelihood_alpha, lw=self.linewidth)
                     elif self.band_scaling.get("type") == '+':
-                        axes.plot(times - self._reference_mjd_date, ys + self.band_scaling.get(band), color=color, alpha=0.65, lw=2)
+                        axes.plot(times - self._reference_mjd_date, ys + self.band_scaling.get(band), color=color_max, alpha=self.max_likelihood_alpha, lw=self.linewidth)
                 else:        
-                    axes.plot(times - self._reference_mjd_date, ys, color=color, alpha=0.65, lw=2)
+                    axes.plot(times - self._reference_mjd_date, ys, color=color_max, alpha=self.max_likelihood_alpha, lw=self.linewidth)
 
             random_ys_list = [self.model(times, **random_params, **self._model_kwargs)
                               for random_params in self._get_random_parameters()]
@@ -610,11 +627,11 @@ class MagnitudePlotter(Plotter):
                 for ys in random_ys_list:
                     if band in self.band_scaling:
                         if self.band_scaling.get("type") == 'x':
-                            axes.plot(times - self._reference_mjd_date, ys * self.band_scaling.get(band), color='red', alpha=0.05, lw=2, zorder=-1)
+                            axes.plot(times - self._reference_mjd_date, ys * self.band_scaling.get(band), color=color_sample, alpha=self.random_sample_alpha, lw=self.linewidth, zorder=-1)
                         elif self.band_scaling.get("type") == '+':
-                            axes.plot(times - self._reference_mjd_date, ys + self.band_scaling.get(band), color='red', alpha=0.05, lw=2, zorder=-1)
+                            axes.plot(times - self._reference_mjd_date, ys + self.band_scaling.get(band), color=color_sample, alpha=self.random_sample_alpha, lw=self.linewidth, zorder=-1)
                     else:
-                        axes.plot(times - self._reference_mjd_date, ys, color='red', alpha=0.05, lw=2, zorder=-1)
+                        axes.plot(times - self._reference_mjd_date, ys, color=color_sample, alpha=self.random_sample_alpha, lw=self.linewidth, zorder=-1)
             elif self.uncertainty_mode == "credible_intervals":
                 if band in self.band_scaling:
                     if self.band_scaling.get("type") == 'x':
@@ -625,7 +642,7 @@ class MagnitudePlotter(Plotter):
                     lower_bound, upper_bound, _ = redback.utils.calc_credible_intervals(samples=np.array(random_ys_list))
                 axes.fill_between(
                     times - self._reference_mjd_date, lower_bound, upper_bound,
-                    alpha=self.uncertainty_band_alpha, color=color)
+                    alpha=self.uncertainty_band_alpha, color=color_sample)
 
         self._save_and_show(filepath=self._lightcurve_plot_filepath, save=save, show=show)
         return axes
@@ -659,7 +676,6 @@ class MagnitudePlotter(Plotter):
 
         if figure is None or axes is None:
             figure, axes = plt.subplots(ncols=self.ncols, nrows=self._nrows, sharex='all', figsize=self._figsize)
-
         axes = axes.ravel()
 
         band_label_generator = self.band_label_generator
@@ -688,7 +704,7 @@ class MagnitudePlotter(Plotter):
             self._set_x_axis(axes[ii])
             self._set_y_axis_multiband_data(axes[ii], indices)
             axes[ii].legend(ncol=self.legend_cols, loc=self.legend_location, fontsize=self.fontsize_legend)
-            axes[ii].tick_params(axis='both', which='major', pad=8)
+            axes[ii].tick_params(axis='both', which='both', pad=self.axis_tick_params_pad, labelsize=self.fontsize_ticks)
             ii += 1
 
         figure.supxlabel(self._xlabel, fontsize=self.fontsize_figure)
@@ -721,9 +737,10 @@ class MagnitudePlotter(Plotter):
         return filters
 
     def plot_multiband_lightcurve(
-            self, axes: matplotlib.axes.Axes = None, save: bool = True, show: bool = True) -> matplotlib.axes.Axes:
+        self, figure: matplotlib.figure.Figure = None, axes: matplotlib.axes.Axes = None, save: bool = True, show: bool = True) -> matplotlib.axes.Axes:
         """Plots the Magnitude multiband lightcurve and returns Axes.
 
+        :param figure: Matplotlib figure to plot the data into.
         :param axes: Matplotlib axes to plot the data into. Useful for user specific modifications to the plot.
         :type axes: Union[matplotlib.axes.Axes, None], optional
         :param save: Whether to save the plot. (Default value = True)
@@ -737,37 +754,45 @@ class MagnitudePlotter(Plotter):
         if not self._check_valid_multiband_data_mode():
             return
 
-        axes = axes or plt.gca()
-        axes = self.plot_multiband(axes=axes, save=False, show=False)
+        if figure is None or axes is None:
+            figure, axes = plt.subplots(ncols=self.ncols, nrows=self._nrows, sharex='all', figsize=self._figsize)
 
+        axes = self.plot_multiband(figure=figure, axes=axes, save=False, show=False)
         times = self._get_times(axes)
 
         ii = 0
+        color_max = self.max_likelihood_color
+        color_sample = self.random_sample_color
         for band, freq in zip(self.transient.unique_bands, self.transient.unique_frequencies):
             if band not in self._filters:
                 continue
             new_model_kwargs = self._model_kwargs.copy()
             new_model_kwargs['frequency'] = freq
-            if self.band_colors is not None:
-                color = self.band_colors[band]
-            if self.band_colors is None:
-                color = self.max_likelihood_color
+            new_model_kwargs['bands'] = band
+            
+            if self.set_same_color_per_subplot is True:
+                color = self._colors[list(self._filters).index(band)]
+                if self.band_colors is not None:
+                    color = self.band_colors[band]
+                color_max = color
+                color_sample = color
+
             if self.plot_max_likelihood:
                 ys = self.model(times, **self._max_like_params, **new_model_kwargs)
                 axes[ii].plot(
-                    times - self._reference_mjd_date, ys, color=color,
+                    times - self._reference_mjd_date, ys, color=color_max,
                     alpha=self.max_likelihood_alpha, lw=self.linewidth)
             random_ys_list = [self.model(times, **random_params, **new_model_kwargs)
                               for random_params in self._get_random_parameters()]
             if self.uncertainty_mode == "random_models":
                 for random_ys in random_ys_list:
-                    axes[ii].plot(times - self._reference_mjd_date, random_ys, color=color,
+                    axes[ii].plot(times - self._reference_mjd_date, random_ys, color=color_sample,
                                   alpha=self.random_sample_alpha, lw=self.linewidth, zorder=self.zorder)
             elif self.uncertainty_mode == "credible_intervals":
                 lower_bound, upper_bound, _ = redback.utils.calc_credible_intervals(samples=random_ys_list)
                 axes[ii].fill_between(
                     times - self._reference_mjd_date, lower_bound, upper_bound,
-                    alpha=self.uncertainty_band_alpha, color=color)
+                    alpha=self.uncertainty_band_alpha, color=color_sample)
             ii += 1
 
         self._save_and_show(filepath=self._multiband_lightcurve_plot_filepath, save=save, show=show)

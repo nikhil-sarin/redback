@@ -177,7 +177,7 @@ class GaussianLikelihoodUniformXErrors(GaussianLikelihood):
         :return: The log-likelihood.
         :rtype: float
         """
-        return self.log_likelihood_x() + self.log_likelihood_y()
+        return np.nan_to_num(self.log_likelihood_x() + self.log_likelihood_y())
 
 
 class GaussianLikelihoodQuadratureNoise(GaussianLikelihood):
@@ -229,7 +229,7 @@ class GaussianLikelihoodQuadratureNoise(GaussianLikelihood):
         :return: The log-likelihood.
         :rtype: float
         """
-        return self._gaussian_log_likelihood(res=self.residual, sigma=self.full_sigma)
+        return np.nan_to_num(self._gaussian_log_likelihood(res=self.residual, sigma=self.full_sigma))
 
 class GaussianLikelihoodWithSystematicNoise(GaussianLikelihood):
     def __init__(
@@ -281,7 +281,7 @@ class GaussianLikelihoodWithSystematicNoise(GaussianLikelihood):
         :return: The log-likelihood.
         :rtype: float
         """
-        return self._gaussian_log_likelihood(res=self.residual, sigma=self.full_sigma)
+        return np.nan_to_num(self._gaussian_log_likelihood(res=self.residual, sigma=self.full_sigma))
 
 class GaussianLikelihoodQuadratureNoiseNonDetections(GaussianLikelihoodQuadratureNoise):
     def __init__(
@@ -338,7 +338,7 @@ class GaussianLikelihoodQuadratureNoiseNonDetections(GaussianLikelihoodQuadratur
         :return: The log-likelihood.
         :rtype: float
         """
-        return self.log_likelihood_y() + self.log_likelihood_upper_limit()
+        return np.nan_to_num(self.log_likelihood_y() + self.log_likelihood_upper_limit())
 
 
 class GRBGaussianLikelihood(GaussianLikelihood):

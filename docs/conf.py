@@ -23,6 +23,7 @@ author = 'Nikhil Sarin, Moritz Hübner'
 # The full version, including alpha/beta/rc tags
 release = 'alpha'
 autosummary_generate = True
+autodoc_mock_imports = ["bilby"]
 
 # The suffix(es) of source filenames.
 # You can specify multiple suffix as a list of string:

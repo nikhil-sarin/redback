@@ -1,0 +1,10 @@
+redshift = Uniform(1e-6, 3, 'redshift', latex_label = r'$z$')
+mbh_6 = LogUniform(0.01, 20, name='mbh_6', latex_label = r'$M_{\mathrm{BH}}~[10^{6}~M_{\odot}]$')
+stellar_mass = LogUniform(0.1, 10, name='stellar_mass', latex_label = r'$M_{\mathrm{star}} [M_{\odot}]$')
+eta = LogUniform(1e-4, 0.1, name='eta', latex_label=r'$\eta$')
+alpha = LogUniform(0.1, 1, name='alpha', latex_label=r'$\\alpha$')
+beta = Uniform(1, 5, name='beta', latex_label=r'$\\beta$')
+beta = 0.9
+eta = 0.1
+alpha = 0.1
+mbh_6 = 1
