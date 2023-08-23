@@ -48,7 +48,9 @@ likelihood = bilby.likelihood.CeleriteLikelihood(
 likelihood.parameters = priors.sample()
 print(likelihood.parameters)
 
-# Call redback.fit_model to run the sampler and obtain GRB result object
+# Call redback.fit_model to run the sampler and obtain GRB result object.
+# We will also change the transient name to change the label of any output files.
+afterglow.name = 'GRB070809_GP'
 result = redback.fit_model(model=model, likelihood=likelihood, sampler='dynesty', nlive=100, transient=afterglow,
                            prior=priors, sample='rslice', resume=False, clean=True, plot=False)
 result.plot_corner()
