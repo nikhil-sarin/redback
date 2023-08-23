@@ -2,9 +2,11 @@
 Acknowledgements
 ============
 
-The paper describing :code:`redback` is currently in preparation.
+The paper describing :code:`redback` is submitted.
 If you use :code:`redback` in a scientific publication before this paper is released,
-please acknowledge the :code:`redback` software, and cite the github page.
+please acknowledge the :code:`redback` software, and cite the github page. After the paper is released,
+please cite this paper instead. Some specific instances/examples of acknowledgements are given below.
+The main repository will be updated with the paper reference once it is released.
 
 Using :code:`redback` to fit transients
 -------------------------
@@ -33,8 +35,8 @@ In several cases, the citation will be `redback`, in which case,
 only a citation to :code:`redback`, :code:`bilby`, and the sampler is necessary.
 Although we recommend periodically checking the citation in the latest :code:`redback` release.
 
-For optical transients, we request that you also cite `SNCosmo <https://sncosmo.readthedocs.io/en/stable/index.html>`_ as that is used to convert redback
-spectra to magnitudes and other quantities if you fit in magnitudes/flux.
+For optical transients (if you fit in magnitudes/flux), we request that you also cite `SNCosmo <https://sncosmo.readthedocs.io/en/stable/index.html>`_ as that is used to convert redback
+spectra to magnitudes and integrated bandpass flux.
 
 Using :code:`redback` to simulate transients
 -------------------------

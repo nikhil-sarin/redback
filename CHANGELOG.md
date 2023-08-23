@@ -1,5 +1,25 @@
 # All notable changes will be documented in this file
 
+## [1.0.0] 2023-08-24
+Version 1.0.0 release of redback
+
+### Added
+- Simulation interface for generic transients or for Surveys such as ZTF and LSST
+- New TDE model (cooling envelope)
+- New magnetar driven model for SLSN/Ic-BL/Fbot
+- ~15 new afterglow models 
+- New kilonova afterglow models
+- Joint kilonova + afterglow models
+- Added ability to add filters to redback and SNcosmo
+- Plotting spectrum tools
+- Several new examples
+- Several new plotting options e.g., band scaling
+- Redback paper is submitted!
+
+### Changed
+- Plotting max likelihood and random sample colour to a 
+different colour to the data now requires an additional keyword argument 
+
 ## [0.5.0] 2023-04-14
 Version 0.5.0 release of redback
 
