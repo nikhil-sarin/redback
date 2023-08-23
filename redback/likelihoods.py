@@ -75,6 +75,7 @@ class GaussianLikelihood(_RedbackLikelihood):
         if self.sigma is None:
             self.parameters['sigma'] = None
 
+
     @property
     def sigma(self) -> Union[float, None, np.ndarray]:
         return self.parameters.get('sigma', self._sigma)
