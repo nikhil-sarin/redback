@@ -798,15 +798,23 @@ def electron_fraction_from_kappa(kappa):
     kappa_func = interp1d(kappa_array, y=ye_array)
     electron_fraction = kappa_func(kappa)
     return electron_fraction
-
-def velocity_from_lorentz_factor(gamma):
+    
+def lorentz_factor_from_velocity(velocity):
     """
-    Calculate velocity from lorentz factor
-
-    :param gamma: lorentz factor
-    :return: velocity in cgs
+    Calculates the Lorentz factor for a given velocity
+    :param velocity: velocity in cm/s
+    :return: Lorentz factor
     """
-    return speed_of_light * np.sqrt(1 - 1 / gamma ** 2)
+    return 1 / np.sqrt(1 - (velocity / speed_of_light)**2 )
+    
+def velocity_from_lorentz_factor(lorentz_factor):
+    """
+    Calculates the velocity for a given Lorentz factor 
+    :param Lorentz_factor: relativistic Lorentz factor
+    :return: velocity in cm/s
+    """
+
+    return speed_of_light * np.sqrt(1 - 1 / lorentz_factor ** 2)
 
 class user_cosmology():
     """

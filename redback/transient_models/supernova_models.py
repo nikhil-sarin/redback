@@ -2,17 +2,18 @@ import numpy as np
 import pandas as pd
 from redback.transient_models.phenomenological_models import exponential_powerlaw
 from redback.transient_models.magnetar_models import magnetar_only, basic_magnetar
+from redback.transient_models.magnetar_driven_ejecta_models import _ejecta_dynamics_and_interaction
 from redback.transient_models.shock_powered_models import _shock_cooling
 import redback.interaction_processes as ip
 import redback.sed as sed
 import redback.photosphere as photosphere
 from astropy.cosmology import Planck18 as cosmo  # noqa
-from redback.utils import calc_kcorrected_properties, citation_wrapper, logger, get_csm_properties, \
-    nu_to_lambda, lambda_to_nu
-from redback.constants import day_to_s, solar_mass, km_cgs, au_cgs
+from redback.utils import calc_kcorrected_properties, citation_wrapper, logger, get_csm_properties, nu_to_lambda, lambda_to_nu, velocity_from_lorentz_factor
+from redback.constants import day_to_s, solar_mass, km_cgs, au_cgs, speed_of_light
 from inspect import isfunction
 import astropy.units as uu
 from collections import namedtuple
+from scipy.interpolate import interp1d
 
 homologous_expansion_models = ['exponential_powerlaw_bolometric', 'arnett_bolometric',
                                'basic_magnetar_powered_bolometric','slsn_bolometric',
@@ -507,7 +508,7 @@ def slsn(time, redshift, p0, bp, mass_ns, theta_pb,**kwargs):
     """
     kwargs['interaction_process'] = kwargs.get("interaction_process", ip.Diffusion)
     kwargs['photosphere'] = kwargs.get("photosphere", photosphere.TemperatureFloor)
-    kwargs['sed'] = kwargs.get("sed", sed.CutoffBlackbody)
+    kwargs['sed'] = kwargs.get("sed", sed.CutoffBlackbody)   
     cutoff_wavelength = kwargs.get('cutoff_wavelength', 3000)
     cosmology = kwargs.get('cosmology', cosmo)
     dl = cosmology.luminosity_distance(redshift).cgs.value
@@ -538,7 +539,7 @@ def slsn(time, redshift, p0, bp, mass_ns, theta_pb,**kwargs):
             ss = kwargs['sed'](time=time, temperature=photo.photosphere_temperature,
                                r_photosphere=photo.r_photosphere, frequency=frequency[ii],
                                luminosity_distance=dl, cutoff_wavelength=cutoff_wavelength, luminosity=lbol)
-            full_sed[:, ii] = ss.flux_density.to(uu.mJy).value
+            full_sed[:, ii] = ss.flux_density.to(uu.mJy).value            
         spectra = (full_sed * uu.mJy).to(uu.erg / uu.cm ** 2 / uu.s / uu.Angstrom,
                                          equivalencies=uu.spectral_density(wav=lambda_observer_frame * uu.Angstrom))
         if kwargs['output_format'] == 'spectra':
@@ -1311,7 +1312,7 @@ def general_magnetar_slsn(time, redshift, l0, tsd, nn, ** kwargs):
     if kwargs['output_format'] == 'flux_density':
         frequency = kwargs['frequency']
         frequency, time = calc_kcorrected_properties(frequency=frequency, redshift=redshift, time=time)
-        lbol = general_magnetar_slsn_bolometric(time=time, l0=l0, tsd=tsd, nn=nn, ** kwargs)
+        lbol = general_magnetar_slsn_bolometric(time=time, l0=l0, tsd=tsd, nn=nn, **kwargs)
         photo = kwargs['photosphere'](time=time, luminosity=lbol, **kwargs)
         sed_1 = kwargs['sed'](temperature=photo.photosphere_temperature, r_photosphere=photo.r_photosphere,
                     frequency = frequency, luminosity_distance = dl)
@@ -1340,6 +1341,178 @@ def general_magnetar_slsn(time, redshift, l0, tsd, nn, ** kwargs):
                                                               spectra=spectra, lambda_array=lambda_observer_frame,
                                                               **kwargs)
 
+@citation_wrapper('Omand and Sarin (2023)')
+def general_magnetar_driven_supernova_bolometric(time, mej, E_sn, kappa, l0, tau_sd, nn, kappa_gamma, **kwargs):   
+    """
+    :param time: time in observer frame in days
+    :param mej: ejecta mass in solar units
+    :param E_sn: supernova explosion energy
+    :param kappa: opacity
+    :param l0: initial magnetar X-ray luminosity (Is this not the spin-down luminosity?)
+    :param tau_sd: magnetar spin down damping timescale (days? seconds?)
+    :param nn: braking index
+    :param kappa_gamma: gamma-ray opacity used to calculate magnetar thermalisation efficiency
+    :param kwargs: Additional parameters - Must be all the kwargs required by the specific interaction_process  used
+             e.g., for Diffusion: kappa, kappa_gamma, vej (km/s)
+    :param pair_cascade_switch: whether to account for pair cascade losses, default is True
+    :param ejecta albedo: ejecta albedo; default is 0.5
+    :param pair_cascade_fraction: fraction of magnetar luminosity lost to pair cascades; default is 0.05
+    :param output_format: whether to output flux density or AB magnitude
+    :param f_nickel: Ni^56 mass as a fraction of ejecta mass
+    :return: bolometric luminsoity or dynamics output
+    """              
+    pair_cascade_switch = kwargs.get('pair_cascade_switch', False)
+    time_temp = np.geomspace(1e0, 1e8, 2000)
+    magnetar_luminosity = magnetar_only(time=time_temp, l0=l0, tau=tau_sd, nn=nn)
+    beta = np.sqrt(E_sn / (0.5 * mej * solar_mass)) / speed_of_light
+    ejecta_radius = 1.0e11
+    n_ism = 1.0e-5
+    
+    output = _ejecta_dynamics_and_interaction(time=time_temp, mej=mej,
+                                              beta=beta, ejecta_radius=ejecta_radius,
+                                              kappa=kappa, n_ism=n_ism, magnetar_luminosity=magnetar_luminosity,
+                                              kappa_gamma=kappa_gamma, pair_cascade_switch=pair_cascade_switch,
+                                              use_gamma_ray_opacity=True, use_r_process=False, **kwargs)
+    vej = velocity_from_lorentz_factor(output.lorentz_factor)/km_cgs 
+    kwargs['vej'] = vej                                                                             
+    lbol_func = interp1d(time_temp, y=output.bolometric_luminosity)
+    vej_func = interp1d(time_temp, y=vej)
+    time = time * day_to_s    
+    lbol = lbol_func(time)
+    v_ej = vej_func(time)
+    erot_total = np.trapz(magnetar_luminosity, x=time_temp)
+    erad_total = np.trapz(output.bolometric_luminosity, x=time_temp) 
+    
+    dynamics_output = namedtuple('dynamics_output', ['v_ej', 'tau', 'time', 'bolometric_luminosity', 'kinetic_energy', 'erad_total',
+                                                     'thermalisation_efficiency', 'magnetar_luminosity', 'erot_total'])
 
+    dynamics_output.v_ej = v_ej
+    dynamics_output.tau = output.tau
+    dynamics_output.time = output.time
+    dynamics_output.bolometric_luminosity = output.bolometric_luminosity
+    dynamics_output.kinetic_energy = output.kinetic_energy 
+    dynamics_output.erad_total = np.trapz(lbol, x=time)
+    dynamics_output.thermalisation_efficiency = output.thermalisation_efficiency
+    dynamics_output.magnetar_luminosity = magnetar_luminosity 
+    dynamics_output.erot_total = np.trapz(magnetar_luminosity, x=time_temp)
 
+    if kwargs['output_format'] == 'dynamics_output':
+        return dynamics_output
+    else:
+        return lbol
 
+@citation_wrapper('Omand and Sarin (2023)')
+def general_magnetar_driven_supernova(time, redshift, mej, E_sn, kappa, l0, tau_sd, nn, kappa_gamma, **kwargs):
+    """
+    :param time: time in observer frame in days
+    :param redshift: redshift
+    :param mej: ejecta mass in solar units
+    :param E_sn: supernova explosion energy
+    :param ejecta_radius: initial ejecta radius
+    :param kappa: opacity
+    :param n_ism: ism number density
+    :param l0: initial magnetar spin-down luminosity (in erg/s)
+    :param tau_sd: magnetar spin down damping timescale (in seconds)
+    :param nn: braking index
+    :param kappa_gamma: gamma-ray opacity used to calculate magnetar thermalisation efficiency
+    :param kwargs: Additional parameters - Must be all the kwargs required by the specific interaction_process, photosphere, sed methods used
+             e.g., for Diffusion and TemperatureFloor: kappa, kappa_gamma, vej (km/s), temperature_floor
+             and CutoffBlackbody: cutoff_wavelength, default is 3000 Angstrom
+    :param pair_cascade_switch: whether to account for pair cascade losses, default is False
+    :param ejecta albedo: ejecta albedo; default is 0.5
+    :param pair_cascade_fraction: fraction of magnetar luminosity lost to pair cascades; default is 0.05
+    :param output_format: whether to output flux density or AB magnitude
+    :param frequency: (frequency to calculate - Must be same length as time array or a single number)
+    :param f_nickel: Ni^56 mass as a fraction of ejecta mass
+    :param photosphere: Default is TemperatureFloor.
+            kwargs must have vej or relevant parameters if using different photosphere model
+    :param sed: Default is CutoffBlackbody.
+    :return: flux density or AB magnitude or dynamics output
+    """
+    kwargs['photosphere'] = kwargs.get("photosphere", photosphere.TemperatureFloor)
+    kwargs['sed'] = kwargs.get("sed", sed.CutoffBlackbody)
+    cutoff_wavelength = kwargs.get('cutoff_wavelength', 3000)
+    dl = cosmo.luminosity_distance(redshift).cgs.value
+    pair_cascade_switch = kwargs.get('pair_cascade_switch', False)
+    ejecta_radius = 1.0e11
+    n_ism = 1.0e-5
+    
+    if kwargs['output_format'] == 'flux_density':
+        frequency = kwargs['frequency']
+        time_temp = np.geomspace(1e0, 1e8, 2000)
+        frequency, time = calc_kcorrected_properties(frequency=frequency, redshift=redshift, time=time)
+        magnetar_luminosity = magnetar_only(time=time_temp, l0=l0, tau=tau_sd, nn=nn)
+        beta = np.sqrt(E_sn / (0.5 * mej * solar_mass)) / speed_of_light
+        output = _ejecta_dynamics_and_interaction(time=time_temp, mej=mej,
+                                              beta=beta, ejecta_radius=ejecta_radius,
+                                              kappa=kappa, n_ism=n_ism, magnetar_luminosity=magnetar_luminosity,
+                                              kappa_gamma=kappa_gamma, pair_cascade_switch=pair_cascade_switch,
+                                              use_gamma_ray_opacity=True, use_r_process=False, **kwargs)                                                                                
+        vej = velocity_from_lorentz_factor(output.lorentz_factor)/km_cgs 
+        kwargs['vej'] = vej                                      
+        photo = kwargs['photosphere'](time=time_temp/day_to_s, luminosity=output.bolometric_luminosity, **kwargs)  
+        temp_func = interp1d(time_temp/day_to_s, y=photo.photosphere_temperature)
+        rad_func = interp1d(time_temp/day_to_s, y=photo.r_photosphere)
+        bol_func = interp1d(time_temp/day_to_s, y=output.bolometric_luminosity)
+        temp = temp_func(time)
+        rad = rad_func(time)  
+        lbol = bol_func(time)
+        sed_1 = kwargs['sed'](time=time, luminosity=lbol, temperature=temp,
+                                              r_photosphere=rad, frequency=frequency, luminosity_distance=dl,
+                                              cutoff_wavelength=cutoff_wavelength) 
+        flux_density = sed_1.flux_density
+        return flux_density.to(uu.mJy).value      
+    
+    else:
+        time_obs = time
+        lambda_observer_frame = kwargs.get('lambda_array', np.geomspace(500, 60000, 200))
+        time_temp = np.geomspace(1e0, 1e8, 2000)
+        time_observer_frame = time_temp * (1. + redshift)
+        frequency, time = calc_kcorrected_properties(frequency=lambda_to_nu(lambda_observer_frame),
+                                              redshift=redshift, time=time_observer_frame)
+        magnetar_luminosity = magnetar_only(time=time_temp, l0=l0, tau=tau_sd, nn=nn)
+        beta = np.sqrt(E_sn / (0.5 * mej * solar_mass)) / speed_of_light
+        output = _ejecta_dynamics_and_interaction(time=time_temp, mej=mej,
+                                              beta=beta, ejecta_radius=ejecta_radius,
+                                              kappa=kappa, n_ism=n_ism, magnetar_luminosity=magnetar_luminosity,
+                                              kappa_gamma=kappa_gamma, pair_cascade_switch=pair_cascade_switch,
+                                              use_gamma_ray_opacity=True, use_r_process=False, **kwargs)
+        vej = velocity_from_lorentz_factor(output.lorentz_factor)/km_cgs 
+        kwargs['vej'] = vej
+        photo = kwargs['photosphere'](time=time_temp/day_to_s, luminosity=output.bolometric_luminosity, **kwargs)
+        if kwargs['output_format'] == 'dynamics_output':                                      
+            erot_total = np.trapz(magnetar_luminosity, x=time_temp)
+            erad_total = np.trapz(output.bolometric_luminosity, x=time_temp)          
+            dynamics_output = namedtuple('dynamics_output', ['time', 'bolometric_luminosity', 'photosphere_temperature',
+                                                     'radius', 'tau', 'kinetic_energy', 'erad_total', 'thermalisation_efficiency', 
+                                                     'v_ej', 'magnetar_luminosity', 'erot_total', 'r_photosphere'])
+            dynamics_output.time = output.time                                                                    
+            dynamics_output.bolometric_luminosity = output.bolometric_luminosity
+            dynamics_output.comoving_temperature = photo.photosphere_temperature
+            dynamics_output.radius = output.radius
+            dynamics_output.tau = output.tau
+            dynamics_output.kinetic_energy = output.kinetic_energy
+            dynamics_output.erad_total = erad_total
+            dynamics_output.thermalisation_efficiency = output.thermalisation_efficiency                                        
+            dynamics_output.v_ej = vej
+            dynamics_output.magnetar_luminosity = magnetar_luminosity
+            dynamics_output.erot_total = erot_total
+            dynamics_output.r_photosphere = photo.r_photosphere                   
+            return dynamics_output
+        else: 
+            full_sed = np.zeros((len(time), len(frequency)))
+            for ii in range(len(frequency)):
+                ss = kwargs['sed'](time=time_temp/day_to_s, temperature=photo.photosphere_temperature,
+                               r_photosphere=photo.r_photosphere, frequency=frequency[ii],
+                               luminosity_distance=dl, cutoff_wavelength=cutoff_wavelength, luminosity=output.bolometric_luminosity)
+                full_sed[:, ii] = ss.flux_density.to(uu.mJy).value
+            spectra = (full_sed * uu.mJy).to(uu.erg / uu.cm ** 2 / uu.s / uu.Angstrom,
+                                        equivalencies=uu.spectral_density(wav=lambda_observer_frame * uu.Angstrom))
+            if kwargs['output_format'] == 'spectra':
+                return namedtuple('output', ['time', 'lambdas', 'spectra'])(time=time_observer_frame,
+                                                                          lambdas=lambda_observer_frame,
+                                                                          spectra=spectra)   
+            else: 
+                return sed.get_correct_output_format_from_spectra(time=time_obs, time_eval=time_observer_frame/day_to_s,
+                                                     spectra=spectra, lambda_array=lambda_observer_frame,
+                                                     **kwargs)                                         
