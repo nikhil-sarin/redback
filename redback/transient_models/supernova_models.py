@@ -14,7 +14,6 @@ from inspect import isfunction
 import astropy.units as uu
 from collections import namedtuple
 from scipy.interpolate import interp1d
-import ipdb
 
 homologous_expansion_models = ['exponential_powerlaw_bolometric', 'arnett_bolometric',
                                'basic_magnetar_powered_bolometric','slsn_bolometric',
@@ -536,7 +535,6 @@ def slsn(time, redshift, p0, bp, mass_ns, theta_pb,**kwargs):
         lbol = slsn_bolometric(time=time, p0=p0, bp=bp, mass_ns=mass_ns, theta_pb=theta_pb, **kwargs)
         photo = kwargs['photosphere'](time=time, luminosity=lbol, **kwargs)
         full_sed = np.zeros((len(time), len(frequency)))
-        #ipdb.set_trace()
         for ii in range(len(frequency)):
             ss = kwargs['sed'](time=time, temperature=photo.photosphere_temperature,
                                r_photosphere=photo.r_photosphere, frequency=frequency[ii],
