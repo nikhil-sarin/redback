@@ -6,6 +6,7 @@ from sncosmo import TimeSeriesSource
 from redback.constants import *
 from redback.utils import nu_to_lambda, bandpass_magnitude_to_flux, citation_wrapper, lambda_to_nu
 
+
 def blackbody_to_flux_density(temperature, r_photosphere, dl, frequency):
     """
     A general blackbody_to_flux_density formula
@@ -69,8 +70,8 @@ class CutoffBlackbody(_SED):
     reference = "https://ui.adsabs.harvard.edu/abs/2017ApJ...850...55N/abstract"
 
     def __init__(self, time: np.ndarray, temperature: np.ndarray, luminosity: np.ndarray, r_photosphere: np.ndarray,
-                frequency: Union[float, np.ndarray], luminosity_distance: float, cutoff_wavelength: float,
-                **kwargs: None) -> None:
+                 frequency: Union[float, np.ndarray], luminosity_distance: float, cutoff_wavelength: float,
+                 **kwargs: None) -> None:
         """
         Blackbody SED with a cutoff
 
@@ -129,7 +130,7 @@ class CutoffBlackbody(_SED):
     def _set_norm(self):
         self.norms = self.luminosity[self.uniq_is] / \
                      (self.FLUX_CONST / angstrom_cgs * self.r_photosphere[self.uniq_is] ** 2 * self.temperature[
-                     self.uniq_is])
+                         self.uniq_is])
 
         tp = self.temperature[self.uniq_is].reshape(len(self.unique_times), 1)
         tp2 = tp ** 2
@@ -138,7 +139,7 @@ class CutoffBlackbody(_SED):
         c1 = np.exp(-self.nxcs / (self.cutoff_wavelength * tp))
 
         term_1 = \
-            c1 * (self.nxcs ** 2 + 2 * (self.nxcs * self.cutoff_wavelength * tp + self.cutoff_wavelength ** 2 * tp2)) \
+             c1 * (self.nxcs ** 2 + 2 * (self.nxcs * self.cutoff_wavelength * tp + self.cutoff_wavelength ** 2 * tp2)) \
             / (self.nxcs ** 3 * self.cutoff_wavelength ** 3)
         term_2 = \
             (6 * tp3 - c1 *
@@ -152,7 +153,6 @@ class CutoffBlackbody(_SED):
         self._set_norm()
         self._set_sed()
         return self.flux_density
-
 
 
 class Blackbody(object):
