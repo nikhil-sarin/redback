@@ -1396,10 +1396,10 @@ def general_magnetar_driven_supernova_bolometric(time, mej, E_sn, kappa, l0, tau
     dynamics_output.magnetar_luminosity = magnetar_luminosity 
     dynamics_output.erot_total = np.trapz(magnetar_luminosity, x=time_temp)
 
-    if kwargs['output_format'] == 'lbol':
-        return lbol
-    elif kwargs['output_format'] == 'dynamics_output':    
+    if kwargs['output_format'] == 'dynamics_output':
         return dynamics_output
+    else:
+        return lbol
 
 @citation_wrapper('Omand and Sarin (2023)')
 def general_magnetar_driven_supernova(time, redshift, mej, E_sn, kappa, l0, tau_sd, nn, kappa_gamma, **kwargs):
