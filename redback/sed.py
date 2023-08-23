@@ -5,8 +5,6 @@ from sncosmo import TimeSeriesSource
 
 from redback.constants import *
 from redback.utils import nu_to_lambda, bandpass_magnitude_to_flux, citation_wrapper, lambda_to_nu
-import ipdb
-
 
 def blackbody_to_flux_density(temperature, r_photosphere, dl, frequency):
     """
