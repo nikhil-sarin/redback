@@ -10,7 +10,7 @@ we request that you first make an issue on :code:`redback` github `page <https:/
 This minimises the risk of double effort from different people contributing the same functionality.
 
 For all contributions to :code:`redback` we require a merge request system.
-We also request that you implement some form of a unit test/or example that can be used to test your feature.
+We also request that you implement some form of a unit test/or example that can be used to test your feature (if possible).
 The API documentation is automatically generated and this requires
 that every function/class you implement is well documented following the numpy or restructured text convention.
 
