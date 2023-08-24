@@ -12,7 +12,7 @@ extinction_afterglow_base_models = ['tophat', 'cocoon', 'gaussian',
                                     'kn_afterglow', 'cone_afterglow',
                                     'gaussiancore', 'gaussian',
                                     'smoothpowerlaw', 'powerlawcore',
-                                    'tophat','tophat_from_emulator']
+                                    'tophat','tophat_from_emulator','tophat_redback']
 extinction_integrated_flux_afterglow_models = extinction_afterglow_base_models
 extinction_supernova_base_models = ['sn_exponential_powerlaw', 'arnett', 'shock_cooling_and_arnett',
                                     'basic_magnetar_powered', 'slsn', 'magnetar_nickel',
