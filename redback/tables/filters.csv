@@ -212,7 +212,7 @@ f2100w,1.443e+13,207950.05,black,1.122e-07,f2100w,MIRI/F2100W
 f2300c,1.325e+13,226446.44,black,9.225e-08,f2300c,MIRI/F2300C
 f2550w,1.183e+13,253640.02,black,6.601e-08,f2550w,MIRI/F2550W
 G,4.799e+14,6251.50,black,1.321e-05,gaia::G,Gaia/G
-gaia::G,4.799e+14,6251.50,black,1.321e-05,gaia::G,Gaia/G
+gaia::g,4.799e+14,6251.50,black,1.321e-05,gaia::g,Gaia/G
 y',3.116e+14,9627.79,black,7.517e-07,ps1::y,PS1/y
 y,3.116e+14,9627.79,black,7.517e-07,ps1::y,PS1/y
 Y,3.116e+14,9627.79,black,7.517e-07,ps1::y,PS1/y
