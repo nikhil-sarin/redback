@@ -1,5 +1,12 @@
 # All notable changes will be documented in this file
 
+## [1.0.0] 2023-08-25
+Version 1.0.1 release of redback
+
+### Changed
+- Plotting behaviour for band scaling with magnitudes.
+- Added reference and citation to redback paper now on arXiv to documentation/tutorials/readme
+
 ## [1.0.0] 2023-08-24
 Version 1.0.0 release of redback
 
