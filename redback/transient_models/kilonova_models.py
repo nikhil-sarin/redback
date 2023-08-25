@@ -1284,7 +1284,7 @@ def polytrope_eos_two_component_bns(time, redshift, mass_1, mass_2,  log_p, gamm
 
 @citation_wrapper('redback')
 def one_component_nsbh_ejecta_relation(time, redshift, mass_bh, mass_ns,
-                                        chi_eff, lambda_ns, kappa, **kwargs):
+                                        chi_bh, lambda_ns, kappa, **kwargs):
     """
     One component NSBH model
 
@@ -1292,7 +1292,7 @@ def one_component_nsbh_ejecta_relation(time, redshift, mass_bh, mass_ns,
     :param redshift: redshift
     :param mass_bh: mass of black hole
     :param mass_2: mass of neutron star
-    :param chi_eff: effective spin of black hole
+    :param chi_bh: spin of black hole along z axis
     :param lambda_ns: tidal deformability of neutron star
     :param kappa: opacity
     :param kwargs: additional keyword arguments
@@ -1308,7 +1308,7 @@ def one_component_nsbh_ejecta_relation(time, redshift, mass_bh, mass_ns,
     :return: set by output format - 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
     """
     ejecta_relation = kwargs.get('ejecta_relation', ejr.OneComponentNSBH)
-    ejecta_relation = ejecta_relation(mass_bh=mass_bh, mass_ns=mass_ns, chi_eff=chi_eff, lambda_ns=lambda_ns)
+    ejecta_relation = ejecta_relation(mass_bh=mass_bh, mass_ns=mass_ns, chi_bh=chi_bh, lambda_ns=lambda_ns)
     mej = ejecta_relation.ejecta_mass
     vej = ejecta_relation.ejecta_velocity
     output = one_component_kilonova_model(time, redshift, mej, vej, kappa, **kwargs)
@@ -1316,7 +1316,7 @@ def one_component_nsbh_ejecta_relation(time, redshift, mass_bh, mass_ns,
 
 @citation_wrapper('redback')
 def two_component_nsbh_ejecta_relation(time, redshift,  mass_bh, mass_ns,
-                                        chi_eff, lambda_ns, zeta, vej_2, kappa_1, kappa_2, tf_1, tf_2, **kwargs):
+                                        chi_bh, lambda_ns, zeta, vej_2, kappa_1, kappa_2, tf_1, tf_2, **kwargs):
     """
     Two component NSBH model with dynamical and disk wind ejecta
 
@@ -1324,7 +1324,7 @@ def two_component_nsbh_ejecta_relation(time, redshift,  mass_bh, mass_ns,
     :param redshift: redshift
     :param mass_bh: mass of black hole
     :param mass_2: mass of neutron star
-    :param chi_eff: effective spin of black hole
+    :param chi_bh: spin of black hole along z axis
     :param lambda_ns: tidal deformability of neutron star
     :param zeta: fraction of disk that gets unbound
     :param vej_2: disk wind velocity in c
@@ -1344,7 +1344,7 @@ def two_component_nsbh_ejecta_relation(time, redshift,  mass_bh, mass_ns,
     :return: set by output format - 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
     """
     ejecta_relation = kwargs.get('ejecta_relation', ejr.TwoComponentNSBH)
-    ejecta_relation = ejecta_relation(mass_bh=mass_bh, mass_ns=mass_ns, chi_eff=chi_eff,
+    ejecta_relation = ejecta_relation(mass_bh=mass_bh, mass_ns=mass_ns, chi_bh=chi_bh,
                                       lambda_ns=lambda_ns, zeta=zeta)
     mej_1 = ejecta_relation.dynamical_mej
     mej_2 = ejecta_relation.disk_wind_mej

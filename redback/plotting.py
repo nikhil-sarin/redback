@@ -551,7 +551,7 @@ class MagnitudePlotter(Plotter):
                 elif self.band_scaling.get("type") == '+':
                     ax.errorbar(
                         self.transient.x[indices] - self._reference_mjd_date, self.transient.y[indices] + self.band_scaling.get(band),
-                        xerr=self._get_x_err(indices), yerr=self.transient.y_err[indices] + self.band_scaling.get(band),
+                        xerr=self._get_x_err(indices), yerr=self.transient.y_err[indices],
                         fmt=self.errorbar_fmt, ms=self.ms, color=color,
                         elinewidth=self.elinewidth, capsize=self.capsize, label=label)
             else:
