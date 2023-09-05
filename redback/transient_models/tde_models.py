@@ -449,7 +449,7 @@ def bpl_cooling_envelope(time, redshift, peak_time, alpha_1, alpha_2, mbh_6, ste
     stitching_point = xi * tfb_obf
 
     # normalisation term in observer frame
-    f1 = pm.exponential_powerlaw(time=stitching_point, a_1=1., peak_time=peak_time * cc.day_to_s,
+    f1 = pm.exponential_powerlaw(time=stitching_point, a_1=1., tpeak=peak_time * cc.day_to_s,
                                  alpha_1=alpha_1, alpha_2=alpha_2)
 
     if kwargs['output_format'] == 'flux_density':
@@ -475,7 +475,7 @@ def bpl_cooling_envelope(time, redshift, peak_time, alpha_1, alpha_2, mbh_6, ste
             tt_post_fb = xi * (output.time_temp * (1 + redshift))
             total_time = np.concatenate([tt_pre_fb, tt_post_fb])
             f1 = pm.exponential_powerlaw(time=tt_pre_fb, a_1=norm_dict[freq],
-                                         peak_time=peak_time * cc.day_to_s, alpha_1=alpha_1, alpha_2=alpha_2)
+                                         tpeak=peak_time * cc.day_to_s, alpha_1=alpha_1, alpha_2=alpha_2)
             f2 = sed.blackbody_to_flux_density(temperature=output.photosphere_temperature,
                                                r_photosphere=output.photosphere_radius,
                                                dl=dl, frequency=freq).to(uu.mJy)
@@ -516,7 +516,7 @@ def bpl_cooling_envelope(time, redshift, peak_time, alpha_1, alpha_2, mbh_6, ste
             tt_post_fb = output.time_temp * (1 + redshift)
             total_time = np.concatenate([tt_pre_fb, tt_post_fb])
             f1 = pm.exponential_powerlaw(time=tt_pre_fb, a_1=norm_dict[band],
-                                         peak_time=peak_time * cc.day_to_s, alpha_1=alpha_1, alpha_2=alpha_2)
+                                         tpeak=peak_time * cc.day_to_s, alpha_1=alpha_1, alpha_2=alpha_2)
             if kwargs['output_format'] == 'magnitude':
                 f1 = calc_ABmag_from_flux_density(f1).value
             temp_kwargs = kwargs.copy()
