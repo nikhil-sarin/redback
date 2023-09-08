@@ -32,7 +32,7 @@ extinction_kilonova_base_models = ['nicholl_bns', 'mosfit_rprocess', 'mosfit_kil
                                    'polytrope_eos_two_component_bns', 'one_component_nsbh_ejecta_relation',
                                    'two_component_nsbh_ejecta_relation','metzger_kilonova_model']
 extinction_tde_base_models = ['tde_analytical', 'tde_semianalytical', 'gaussianrise_cooling_envelope',
-                              'cooling_envelope']
+                              'cooling_envelope', 'bpl_cooling_envelope']
 extinction_magnetar_driven_base_models = ['basic_mergernova', 'general_mergernova', 'general_mergernova_thermalisation',
                                           'general_mergernova_evolution', 'metzger_magnetar_driven_kilonova_model',
                                           'general_metzger_magnetar_driven', 'general_magnetar_driven_thermalisation',
