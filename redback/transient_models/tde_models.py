@@ -262,6 +262,8 @@ def gaussianrise_cooling_envelope_bolometric(time, peak_time, sigma_t, mbh_6, st
     bolometric version for fitting the bolometric lightcurve
 
     :param time: time in source frame in days
+    :param peak_time: peak time in days
+    :param sigma_t: the sharpness of the Gaussian in days
     :param mbh_6: mass of supermassive black hole in units of 10^6 solar mass
     :param stellar_mass: stellar mass in units of solar masses
     :param eta: SMBH feedback efficiency (typical range: etamin - 0.1)
@@ -299,6 +301,8 @@ def gaussianrise_cooling_envelope(time, redshift, peak_time, sigma_t, mbh_6, ste
 
     :param time: time in observer frame in days
     :param redshift: redshift
+    :param peak_time: peak time in days
+    :param sigma_t: the sharpness of the Gaussian in days
     :param mbh_6: mass of supermassive black hole in units of 10^6 solar mass
     :param stellar_mass: stellar mass in units of solar masses
     :param eta: SMBH feedback efficiency (typical range: etamin - 0.1)
@@ -392,6 +396,127 @@ def gaussianrise_cooling_envelope(time, redshift, peak_time, sigma_t, mbh_6, ste
             total_time = np.concatenate([tt_pre_fb, tt_post_fb])
             f1 = pm.gaussian_rise(time=tt_pre_fb, a_1=norm_dict[band],
                                   peak_time=peak_time * cc.day_to_s, sigma_t=sigma_t * cc.day_to_s)
+            if kwargs['output_format'] == 'magnitude':
+                f1 = calc_ABmag_from_flux_density(f1).value
+            temp_kwargs = kwargs.copy()
+            temp_kwargs['bands'] = band
+            f2 = cooling_envelope(time=output.time_since_fb / cc.day_to_s, redshift=redshift,
+                                  mbh_6=mbh_6, stellar_mass=stellar_mass, eta=eta, alpha=alpha, beta=beta,
+                                  **temp_kwargs)
+            flux_den = np.concatenate([f1, f2])
+            flux_den_interp_func[band] = interp1d(total_time, flux_den, fill_value='extrapolate')
+
+        # interpolate onto actual observed band and time values
+        output = []
+        for freq, tt in zip(bands, time):
+            output.append(flux_den_interp_func[freq](tt * cc.day_to_s))
+        return np.array(output)
+
+@citation_wrapper('https://arxiv.org/abs/2307.15121,https://ui.adsabs.harvard.edu/abs/2022arXiv220707136M/abstract')
+def bpl_cooling_envelope(time, redshift, peak_time, alpha_1, alpha_2, mbh_6, stellar_mass, eta, alpha, beta, **kwargs):
+    """
+    Full lightcurve, with gaussian rise till fallback time and then the metzger tde model,
+    photometric version where each band is fit/joint separately
+
+    :param time: time in observer frame in days
+    :param redshift: redshift
+    :param peak_time: peak time in days
+    :param alpha_1: power law index for first power law
+    :param alpha_2: power law index for second power law (should be positive)
+    :param mbh_6: mass of supermassive black hole in units of 10^6 solar mass
+    :param stellar_mass: stellar mass in units of solar masses
+    :param eta: SMBH feedback efficiency (typical range: etamin - 0.1)
+    :param alpha: disk viscosity
+    :param beta: TDE penetration factor (typical range: 1 - beta_max)
+    :param kwargs: Additional parameters
+    :param xi: Optional argument (default set to one) to change the point where lightcurve switches from Gaussian rise to cooling envelope.
+        stitching_point = xi * tfb (where tfb is fallback time). So a xi=1 means the stitching point is at fallback time.
+    :param frequency: Required if output_format is 'flux_density'.
+        frequency to calculate - Must be same length as time array or a single number).
+    :param bands: Required if output_format is 'magnitude' or 'flux'.
+    :param output_format: 'flux_density', 'magnitude', 'flux'
+    :param lambda_array: Optional argument to set your desired wavelength array (in Angstroms) to evaluate the SED on.
+    :param cosmology: Cosmology to use for luminosity distance calculation. Defaults to Planck18. Must be a astropy.cosmology object.
+    :return: set by output format - 'flux_density', 'magnitude', 'flux'
+    """
+    binding_energy_const = kwargs.get('binding_energy_const', 0.8)
+    tfb_sf = calc_tfb(binding_energy_const, mbh_6, stellar_mass)  # source frame
+    tfb_obf = tfb_sf * (1. + redshift)  # observer frame
+    xi = kwargs.get('xi', 1.)
+    output = _cooling_envelope(mbh_6, stellar_mass, eta, alpha, beta, **kwargs)
+    cosmology = kwargs.get('cosmology', cosmo)
+    dl = cosmology.luminosity_distance(redshift).cgs.value
+    stitching_point = xi * tfb_obf
+
+    # normalisation term in observer frame
+    f1 = pm.exponential_powerlaw(time=stitching_point, a_1=1., tpeak=peak_time * cc.day_to_s,
+                                 alpha_1=alpha_1, alpha_2=alpha_2)
+
+    if kwargs['output_format'] == 'flux_density':
+        frequency = kwargs['frequency']
+        if isinstance(frequency, float):
+            frequency = np.ones(len(time)) * frequency
+
+        # convert to source frame time and frequency
+        frequency, time = calc_kcorrected_properties(frequency=frequency, redshift=redshift, time=time)
+        unique_frequency = np.sort(np.unique(frequency))
+
+        # source frame
+        f2 = sed.blackbody_to_flux_density(temperature=output.photosphere_temperature[0],
+                                           r_photosphere=output.photosphere_radius[0],
+                                           dl=dl, frequency=unique_frequency).to(uu.mJy)
+        norms = f2.value / f1
+        norm_dict = dict(zip(unique_frequency, norms))
+
+        # build flux density function for each frequency
+        flux_den_interp_func = {}
+        for freq in unique_frequency:
+            tt_pre_fb = np.linspace(0, stitching_point / cc.day_to_s, 200) * cc.day_to_s
+            tt_post_fb = xi * (output.time_temp * (1 + redshift))
+            total_time = np.concatenate([tt_pre_fb, tt_post_fb])
+            f1 = pm.exponential_powerlaw(time=tt_pre_fb, a_1=norm_dict[freq],
+                                         tpeak=peak_time * cc.day_to_s, alpha_1=alpha_1, alpha_2=alpha_2)
+            f2 = sed.blackbody_to_flux_density(temperature=output.photosphere_temperature,
+                                               r_photosphere=output.photosphere_radius,
+                                               dl=dl, frequency=freq).to(uu.mJy)
+            flux_den = np.concatenate([f1, f2.value])
+            flux_den_interp_func[freq] = interp1d(total_time, flux_den, fill_value='extrapolate')
+
+        # interpolate onto actual observed frequency and time values
+        flux_density = []
+        for freq, tt in zip(frequency, time):
+            flux_density.append(flux_den_interp_func[freq](tt * cc.day_to_s))
+        flux_density = flux_density * uu.mJy
+        return flux_density.to(uu.mJy).value
+    else:
+        bands = kwargs['bands']
+        if isinstance(bands, str):
+            bands = [str(bands) for x in range(len(time))]
+
+        unique_bands = np.unique(bands)
+        temp_kwargs = kwargs.copy()
+        temp_kwargs['bands'] = unique_bands
+        f2 = cooling_envelope(time=0., redshift=redshift,
+                              mbh_6=mbh_6, stellar_mass=stellar_mass, eta=eta, alpha=alpha, beta=beta,
+                              **temp_kwargs)
+        if kwargs['output_format'] == 'magnitude':
+            # make the normalisation in fmjy to avoid magnitude normalisation problems
+            _f2mjy = calc_flux_density_from_ABmag(f2).value
+            norms = _f2mjy / f1
+        else:
+            norms = f2 / f1
+
+        if isinstance(norms, float):
+            norms = np.ones(len(time)) * norms
+        norm_dict = dict(zip(unique_bands, norms))
+
+        flux_den_interp_func = {}
+        for band in unique_bands:
+            tt_pre_fb = np.linspace(0, stitching_point / cc.day_to_s, 100) * cc.day_to_s
+            tt_post_fb = output.time_temp * (1 + redshift)
+            total_time = np.concatenate([tt_pre_fb, tt_post_fb])
+            f1 = pm.exponential_powerlaw(time=tt_pre_fb, a_1=norm_dict[band],
+                                         tpeak=peak_time * cc.day_to_s, alpha_1=alpha_1, alpha_2=alpha_2)
             if kwargs['output_format'] == 'magnitude':
                 f1 = calc_ABmag_from_flux_density(f1).value
             temp_kwargs = kwargs.copy()
