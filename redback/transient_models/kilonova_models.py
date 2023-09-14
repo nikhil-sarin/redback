@@ -817,7 +817,7 @@ def kasen_bns_kilonova(time, redshift, mej, vej, chi, **kwargs):
         fmjy = spectra.to(uu.mJy, equivalencies=uu.spectral_density(wav=output.lambdas * uu.Angstrom)).value
         nu_array = lambda_to_nu(output.lambdas)
         fmjy_func = RegularGridInterpolator((np.unique(time), nu_array), fmjy, bounds_error=False)
-        if type(frequency) == float:
+        if type(frequency) == float or type(frequency) == np.float64:
             frequency = np.ones(len(time)) * frequency
         points = np.array([time, frequency]).T
         return fmjy_func(points)
@@ -890,6 +890,11 @@ def _kilonova_hr(time, redshift, mej, velocity_array, kappa_array, beta, **kwarg
         time = time * day_to_s
         # convert to source frame time and frequency
         frequency, time = calc_kcorrected_properties(frequency=frequency, redshift=redshift, time=time)
+        if (isinstance(frequency, (float, int)) == False):
+            radio_mask = frequency < 10e10
+            frequency[radio_mask]=1e-3
+        elif frequency < 10e10:
+            frequency =1e-3
 
         _, temperature, r_photosphere = _kilonova_hr_sourceframe(time, mej, velocity_array, kappa_array, beta)
 

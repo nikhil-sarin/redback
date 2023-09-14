@@ -20,7 +20,7 @@ extinction_supernova_base_models = ['sn_exponential_powerlaw', 'arnett', 'shock_
                                     'general_magnetar_slsn']
 extinction_kilonova_base_models = ['nicholl_bns', 'mosfit_rprocess', 'mosfit_kilonova',
                                    'power_law_stratified_kilonova','bulla_bns_kilonova',
-                                   'bulla_nsbh_kilonova', 'kasen_nsbh_kilonova','two_layer_stratified_kilonova',
+                                   'bulla_nsbh_kilonova', 'kasen_bns_kilonova','two_layer_stratified_kilonova',
                                    'three_component_kilonova_model', 'two_component_kilonova_model',
                                    'one_component_kilonova_model', 'one_component_ejecta_relation',
                                    'one_component_ejecta_relation_projection', 'two_component_bns_ejecta_relation',
