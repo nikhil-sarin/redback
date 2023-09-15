@@ -48,6 +48,9 @@ plot_label   = ['GROND/' + x.split('/')[1].split('.')[1] for x in filter_list['f
 
 data = pd.read_csv('example_data/SN2018ibb_photcat_REDBACK.ascii', sep=' ')
 
+# Redback works under the assumption that the data is sorted by time.
+data.sort_values(by='MJD', inplace=True)
+
 # Creating a Redback supernova object
 
 sn=redback.transient.Supernova(name            = 'SN2018ibb',

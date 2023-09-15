@@ -12,12 +12,19 @@ extinction_afterglow_base_models = ['tophat', 'cocoon', 'gaussian',
                                     'kn_afterglow', 'cone_afterglow',
                                     'gaussiancore', 'gaussian',
                                     'smoothpowerlaw', 'powerlawcore',
-                                    'tophat','tophat_from_emulator','tophat_redback']
+                                    'tophat','tophat_from_emulator',
+                                    'kilonova_afterglow_redback', 'kilonova_afterglow_nakarpiran',
+                                    'tophat_redback', 'gaussian_redback', 'twocomponent_redback',
+                                    'powerlaw_redback', 'alternativepowerlaw_redback', 'doublegaussian_redback',
+                                    'tophat_redback_refreshed', 'gaussian_redback_refreshed',
+                                    'twocomponent_redback_refreshed','powerlaw_redback_refreshed',
+                                    'alternativepowerlaw_redback_refreshed', 'doublegaussian_redback_refreshed']
+
 extinction_integrated_flux_afterglow_models = extinction_afterglow_base_models
 extinction_supernova_base_models = ['sn_exponential_powerlaw', 'arnett', 'shock_cooling_and_arnett',
                                     'basic_magnetar_powered', 'slsn', 'magnetar_nickel',
                                     'csm_interaction', 'csm_nickel', 'type_1a', 'type_1c',
-                                    'general_magnetar_slsn']
+                                    'general_magnetar_slsn','general_magnetar_driven_supernova']
 extinction_kilonova_base_models = ['nicholl_bns', 'mosfit_rprocess', 'mosfit_kilonova',
                                    'power_law_stratified_kilonova','bulla_bns_kilonova',
                                    'bulla_nsbh_kilonova', 'kasen_bns_kilonova','two_layer_stratified_kilonova',
@@ -26,7 +33,8 @@ extinction_kilonova_base_models = ['nicholl_bns', 'mosfit_rprocess', 'mosfit_kil
                                    'one_component_ejecta_relation_projection', 'two_component_bns_ejecta_relation',
                                    'polytrope_eos_two_component_bns', 'one_component_nsbh_ejecta_relation',
                                    'two_component_nsbh_ejecta_relation','metzger_kilonova_model']
-extinction_tde_base_models = ['tde_analytical', 'tde_semianalytical', 'gaussianrise_metzger_tde']
+extinction_tde_base_models = ['tde_analytical', 'tde_semianalytical', 'gaussianrise_cooling_envelope',
+                              'cooling_envelope', 'bpl_cooling_envelope']
 extinction_magnetar_driven_base_models = ['basic_mergernova', 'general_mergernova', 'general_mergernova_thermalisation',
                                           'general_mergernova_evolution', 'metzger_magnetar_driven_kilonova_model',
                                           'general_metzger_magnetar_driven', 'general_magnetar_driven_thermalisation',

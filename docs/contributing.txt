@@ -2,16 +2,15 @@
 Contributing
 ============
 
-Redback is currently in alpha with a paper in preparation.
-If you are interested in contributing please join the :code:`redback` `slack <https://join.slack.com/t/redback-group/shared_invite/zt-1xl34px4n-xzRTkd7N4Z3AC_5p4JeDvQ>`_.
-All contributors at the alpha stage will be invited to be co-authors of the first paper.
+Redback is currently at version 1.0, i.e., the version that accompanies the Redback paper.
+If you are interested in contributing please join the :code:`redback` `slack <https://join.slack.com/t/redback-group/shared_invite/zt-21rsoa26s-kibI8MiA1JiIKM0wCMp5rQ>`_.
 
 To make contributions to :code:`redback`,
 we request that you first make an issue on :code:`redback` github `page <https://github.com/nikhil-sarin/redback/issues>`_ describing what contribution you want to make.
 This minimises the risk of double effort from different people contributing the same functionality.
 
 For all contributions to :code:`redback` we require a merge request system.
-We also request that you implement some form of a unit test/or example that can be used to test your feature.
+We also request that you implement some form of a unit test/or example that can be used to test your feature (if possible).
 The API documentation is automatically generated and this requires
 that every function/class you implement is well documented following the numpy or restructured text convention.
 

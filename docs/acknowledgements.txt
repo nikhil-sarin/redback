@@ -2,16 +2,17 @@
 Acknowledgements
 ============
 
-The paper describing :code:`redback` is currently in preparation.
-If you use :code:`redback` in a scientific publication before this paper is released,
-please acknowledge the :code:`redback` software, and cite the github page.
+The paper describing :code:`redback` is submitted and available `here <https://ui.adsabs.harvard.edu/abs/2023arXiv230812806S/abstract>`_.
+If you use :code:`redback` in a scientific publication please cite this paper and mention it as a software used depending on the journal.
+Some specific instances/examples of acknowledgements are given below.
+The main repository includes a bibtex citation for the :code:`redback` paper.
 
 Using :code:`redback` to fit transients
 -------------------------
 
 If you use :code:`redback` to fit an electromagnetic transient,
 please cite the `Bilby paper <https://ui.adsabs.harvard.edu/#abs/2018arXiv181102042A/abstract>`_,
-and the :code:`redback` paper (when it is out).
+and the :code:`redback` paper.
 
 Alongside this we request that you also cite the paper associated with the sampler you use.
 Furthermore, several models implemented in :code:`redback` are introduced in previous scientific publications.
@@ -33,21 +34,21 @@ In several cases, the citation will be `redback`, in which case,
 only a citation to :code:`redback`, :code:`bilby`, and the sampler is necessary.
 Although we recommend periodically checking the citation in the latest :code:`redback` release.
 
-For optical transients, we request that you also cite `SNCosmo <https://sncosmo.readthedocs.io/en/stable/index.html>`_ as that is used to convert redback
-spectra to magnitudes and other quantities if you fit in magnitudes/flux.
+For optical transients (if you fit in magnitudes/flux), we request that you also cite `SNCosmo <https://sncosmo.readthedocs.io/en/stable/index.html>`_ as that is used to convert redback
+spectra to magnitudes and integrated bandpass flux.
 
 Using :code:`redback` to simulate transients
 -------------------------
 
 If you use the capability of :code:`redback` to simulate a population of transients,
-please cite the :code:`redback` paper (when it is out) and the paper for the model you use.
+please cite the :code:`redback` paper and the paper for the model you use.
 
 
 Using :code:`redback` to download transient data
 -------------------------
 
 If you use :code:`redback` to simply download and process data for different transients,
-please cite the :code:`redback` paper (when it is out).
+please cite the :code:`redback` paper.
 
 
 General citation text

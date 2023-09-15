@@ -288,7 +288,7 @@ class TwoComponentBNS(object):
 
 
 class TwoComponentNSBH(object):
-    def __init__(self, mass_bh, mass_ns, chi_eff, lambda_ns, zeta):
+    def __init__(self, mass_bh, mass_ns, chi_bh, lambda_ns, zeta):
         """
         Relations to connect intrinsic GW parameters to extrinsic kilonova parameters
         for a neutron star black hole merger with two components using relations from Kawaguchi et al. 2016.
@@ -296,14 +296,14 @@ class TwoComponentNSBH(object):
 
         :param mass_bh: mass of black hole
         :param mass_2: mass of neutron star
-        :param chi_eff: effective spin of black hole
+        :param chi_bh: spin of black hole along Z axis
         :param lambda_ns: tidal deformability of neutron star
         :param zeta: fraction of disk that gets unbound
         """
         self.mass_bh = mass_bh
         self.mass_ns = mass_ns
         self.mass_ratio = mass_bh/mass_ns
-        self.chi_eff = chi_eff
+        self.chi_bh = chi_bh
         self.lambda_ns = lambda_ns
         self.zeta = zeta
         self.reference = ['https://ui.adsabs.harvard.edu/abs/2016ApJ...825...52K/abstract',
@@ -320,7 +320,7 @@ class TwoComponentNSBH(object):
 
         :return: Normalized radius of the Innermost Stable Circular Orbit
         """
-        chi_bh = self.chi_eff
+        chi_bh = self.chi_bh
         z1 = 1 + (1 - chi_bh ** 2) ** (1 / 3) * (
                 (1 + chi_bh) ** (1 / 3) + (1 - chi_bh) ** (1 / 3))
         z2 = np.sqrt(3 * chi_bh ** 2 + z1 ** 2)
@@ -378,20 +378,20 @@ class TwoComponentNSBH(object):
         return mej_disk_wind
 
 class OneComponentNSBH(object):
-    def __init__(self, mass_bh, mass_ns, chi_eff, lambda_ns):
+    def __init__(self, mass_bh, mass_ns, chi_bh, lambda_ns):
         """
         Relations to connect intrinsic GW parameters to extrinsic kilonova parameters
         for a neutron star black hole merger with one component (zone) from Kawaguchi et al. 2016.
 
         :param mass_bh: mass of black hole
         :param mass_2: mass of neutron star
-        :param chi_eff: effective spin of black hole
+        :param chi_bh: spin of black hole along z axis
         :param lambda_ns: tidal deformability of neutron star
         """
         self.mass_bh = mass_bh
         self.mass_ns = mass_ns
         self.mass_ratio = mass_bh/mass_ns
-        self.chi_eff = chi_eff
+        self.chi_bh = chi_bh
         self.lambda_ns = lambda_ns
         self.reference = 'https://ui.adsabs.harvard.edu/abs/2016ApJ...825...52K/abstract'
         self.risco = self.isco_radius
@@ -405,7 +405,7 @@ class OneComponentNSBH(object):
 
         :return: isco radius
         """
-        chi = self.chi_eff
+        chi = self.chi_bh
         z1 = 1 + ((1 - chi * chi) ** (1 / 3.0)) * (((1 + chi) ** (1 / 3.0)) + (1 - chi) ** (1 / 3.0))
         z2 = (3 * chi * chi + z1 * z1) ** (1 / 2.0)
         risco = 3 + z2 - np.sign(chi) * ((3 - z1) * (3 + z1 + 2 * z2)) ** (1 / 2.0)

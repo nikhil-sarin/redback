@@ -63,6 +63,22 @@ def general_magnetar_powered_sn_constraints(parameters):
     # ensure rotational energy is greater than total output energy
     converted_parameters['erot_constraint'] = rotational_energy - kinetic_energy
     return converted_parameters
+    
+def general_magnetar_powered_supernova_constraints(parameters):
+    """
+    Constraint so that magnetar rotational energy is smaller than some number
+
+    :param parameters: dictionary of parameters
+    :return: converted_parameters dictionary where the violated samples are thrown out
+    """
+    converted_parameters = parameters.copy()
+    l0 = parameters['l0']
+    tau = parameters['tau_sd']
+    nn = parameters['nn']    
+    rotational_energy = (nn-1)*l0*tau/2.0
+    # ensure rotational energy is less than the maximum spin down energy
+    converted_parameters['erot_constraint'] = 1e53 - rotational_energy
+    return converted_parameters    
 
 def tde_constraints(parameters):
     """

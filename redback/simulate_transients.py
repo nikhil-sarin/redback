@@ -415,7 +415,7 @@ class SimulateOpticalTransient(object):
         Convert the circular field of view to a radius in radians.
         :return: survey_radius in radians
         """
-        survey_fov_sqrad = self.survey_fov_sqdeg*(np.pi/180.0)
+        survey_fov_sqrad = self.survey_fov_sqdeg*(np.pi/180.0)**2
         survey_radius = np.sqrt(survey_fov_sqrad/np.pi)
         # survey_radius = np.sqrt(self.survey_fov_sqdeg*((np.pi/180.0)**2.0)/np.pi)
         return survey_radius
