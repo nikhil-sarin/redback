@@ -44,20 +44,25 @@ class SimulateGenericTransient(object):
         self.noise_term = noise_term
         random.seed(self.seed)
 
-        if multiwavelength_transient:
-            self.all_bands = self.model_kwargs.get('bands', None)
-            self.all_frequency = self.model_kwargs.get('frequency', None)
-            if self.all_bands is None and self.all_frequency is None:
-                raise ValueError('Must supply either bands or frequency to sample data points for an optical transient')
-            if self.all_bands is not None and self.all_frequency is None:
-                self.subset_bands = np.array(random.choices(self.all_bands, k=self.data_points))
-            if self.all_bands is None and self.all_frequency is not None:
-                self.subset_frequency = np.array(random.choices(self.all_frequency, k=self.data_points))
-            self.replacement = True
-            # allow times to be chosen repeatedly
+        self.all_bands = self.model_kwargs.get('bands', None)
+        self.all_frequency = self.model_kwargs.get('frequency', None)
+        if self.all_bands is None and self.all_frequency is None:
+            raise ValueError('Must supply either bands or frequency to sample data points for an optical transient')
         else:
-            # allow times to be chosen only once.
-            self.replacement = False
+            if multiwavelength_transient:
+                if self.all_bands is not None and self.all_frequency is None:
+                    self.subset_bands = np.array(random.choices(self.all_bands, k=self.data_points))
+                if self.all_bands is None and self.all_frequency is not None:
+                    self.subset_frequency = np.array(random.choices(self.all_frequency, k=self.data_points))
+                self.replacement = True
+                # allow times to be chosen repeatedly
+            else:
+                if self.all_bands is not None and self.all_frequency is None:
+                    self.subset_bands = self.data_points * [self.all_bands]
+                if self.all_bands is None and self.all_frequency is not None:
+                    self.subset_frequency = np.ones(self.data_points) * self.all_frequency
+                # allow times to be chosen only once.
+                self.replacement = False
         self.subset_times = np.sort(np.random.choice(self.all_times, size=self.data_points, replace=self.replacement))
 
         injection_kwargs = self.parameters.copy()
