@@ -366,7 +366,7 @@ def gaussianrise_cooling_envelope(time, redshift, peak_time, sigma_t, mbh_6, ste
         for freq, tt in zip(frequency, time):
             flux_density.append(flux_den_interp_func[freq](tt * cc.day_to_s))
         flux_density = flux_density * uu.mJy
-        return flux_density.to(uu.mJy).value
+        return np.nan_to_num(flux_density.to(uu.mJy).value)
     else:
         bands = kwargs['bands']
         if isinstance(bands, str):
@@ -410,7 +410,7 @@ def gaussianrise_cooling_envelope(time, redshift, peak_time, sigma_t, mbh_6, ste
         output = []
         for freq, tt in zip(bands, time):
             output.append(flux_den_interp_func[freq](tt * cc.day_to_s))
-        return np.array(output)
+        return np.nan_to_num(np.array(output))
 
 @citation_wrapper('https://arxiv.org/abs/2307.15121,https://ui.adsabs.harvard.edu/abs/2022arXiv220707136M/abstract')
 def bpl_cooling_envelope(time, redshift, peak_time, alpha_1, alpha_2, mbh_6, stellar_mass, eta, alpha, beta, **kwargs):
@@ -487,7 +487,7 @@ def bpl_cooling_envelope(time, redshift, peak_time, alpha_1, alpha_2, mbh_6, ste
         for freq, tt in zip(frequency, time):
             flux_density.append(flux_den_interp_func[freq](tt * cc.day_to_s))
         flux_density = flux_density * uu.mJy
-        return flux_density.to(uu.mJy).value
+        return np.nan_to_num(flux_density.to(uu.mJy).value)
     else:
         bands = kwargs['bands']
         if isinstance(bands, str):
@@ -531,7 +531,7 @@ def bpl_cooling_envelope(time, redshift, peak_time, alpha_1, alpha_2, mbh_6, ste
         output = []
         for freq, tt in zip(bands, time):
             output.append(flux_den_interp_func[freq](tt * cc.day_to_s))
-        return np.array(output)
+        return np.nan_to_num(np.array(output))
 
 @citation_wrapper('redback')
 def tde_analytical_bolometric(time, l0, t_0_turn, **kwargs):
