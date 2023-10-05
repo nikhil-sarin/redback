@@ -889,6 +889,11 @@ def _kilonova_hr(time, redshift, mej, velocity_array, kappa_array, beta, **kwarg
         frequency = kwargs['frequency']
         time = time * day_to_s
         # convert to source frame time and frequency
+        if (isinstance(frequency, (float, int)) == False):
+            radio_mask = frequency < 10e10
+            frequency[radio_mask]=1e-3
+        elif frequency < 10e10:
+            frequency =1e-3
         frequency, time = calc_kcorrected_properties(frequency=frequency, redshift=redshift, time=time)
         if (isinstance(frequency, (float, int)) == False):
             radio_mask = frequency < 10e10
