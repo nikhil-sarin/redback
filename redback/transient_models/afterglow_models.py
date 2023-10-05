@@ -2097,7 +2097,7 @@ import sys
 cwd=os.getcwd()
 home=os.path.dirname(cwd)
 sys.path.insert(1, home+'/redback_surrogates')
-from redback_surrogates.afterglowmodels import tophat_emulator, tophat_emulator
+from redback_surrogates.afterglowmodels import tophat_emulator
 def tophat_from_emulator(time, thv, loge0, thc, logn0, p, logepse, logepsb, g0, **kwargs):
     """
     Evaluate a tophat afterglow model using an mpl regressor. Note that this model predicts for a fixed redshift = 0.01 and fixed ksin = 1.
