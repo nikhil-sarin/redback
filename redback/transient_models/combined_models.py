@@ -218,13 +218,12 @@ def afterglow_and_optical(time, redshift, av, model_type, afterglow_kwargs, opti
     
     afterglow_kwargs.update(shared_kwargs)
     optical_kwargs.update(shared_kwargs)
-   
+    
     afterglow = redback.transient_models.extinction_models._evaluate_extinction_model(time=time, redshift=redshift, av=av,
                                                                                    model_type='afterglow', **afterglow_kwargs)
-    
     optical= redback.transient_models.extinction_models._evaluate_extinction_model(time=time, redshift=redshift, av=av,
                                                                    model_type=model_type, **optical_kwargs)
-  
+    
     combined= afterglow + optical
     return combined
     
