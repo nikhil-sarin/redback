@@ -79,6 +79,7 @@ def tophatredback_and_twolayerstratified(time, redshift, av, thv, loge0, thc, lo
         Change to 1 for including inverse compton emission.
     :param l0, ts, q: energy injection parameters, defaults to 0
     :param frequency: frequency to calculate - Must be same length as time array or a single number
+    :param axis: specify whether to model an 'on' or 'off' axis afterglow
     :return: flux density signal with extinction added
     
     """

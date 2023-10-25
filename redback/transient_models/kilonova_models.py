@@ -940,8 +940,11 @@ def _kilonova_hr_sourceframe(time, mej, velocity_array, kappa_array, beta):
     mej = mej * uu.M_sun
     velocity_array = velocity_array * cc.c
     kappa_array = kappa_array * uu.cm**2 / uu.g
+    #print(time[0])
     time = time * uu.s
+    #print(time[0])
     time = time.to(uu.day)
+    #print(time[0])
     if time.value[0] < 0.02:
         raise ValueError("time in source frame must be larger than 0.02 days for this model")
 

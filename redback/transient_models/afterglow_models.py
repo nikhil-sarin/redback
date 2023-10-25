@@ -2097,7 +2097,7 @@ import sys
 cwd=os.getcwd()
 home=os.path.dirname(cwd)
 sys.path.insert(1, home+'/redback_surrogates')
-from redback_surrogates.afterglowmodels import tophat_emulator
+from redback_surrogates.afterglowmodels import onax_tophat_emulator, offax_tophat_emulator
 def tophat_from_emulator(time, thv, loge0, thc, logn0, p, logepse, logepsb, g0, **kwargs):
     """
     Evaluate a tophat afterglow model using an mpl regressor. Note that this model predicts for a fixed redshift = 0.01 and fixed ksin = 1.
@@ -2115,6 +2115,7 @@ def tophat_from_emulator(time, thv, loge0, thc, logn0, p, logepse, logepsb, g0, 
     :param kwargs: Additional keyword arguments
     :param frequency: frequency of the band to view in- single number or same length as time array
     :param output_format: Whether to output flux density or AB mag, specified by 'flux_density' or 'magnitude'
+    :param axis: specify whether to model an 'on' or 'off' axis afterglow
     :return: flux density or AB mag predicted by emulator. Note this is going to give the monochromatic magnitude at the effective frequency for the band.
         For a proper calculation of the magntitude use the sed variant models
     """
@@ -2126,8 +2127,10 @@ def tophat_from_emulator(time, thv, loge0, thc, logn0, p, logepse, logepsb, g0, 
         test_data= []
         for f in frequency:
             test_data.append([np.log10(thv) , loge0 , np.log10(thc), logn0, p, logepse, logepsb, np.log10(g0), f])
-            
-    flux_density = tophat_emulator(new_time=time, test_data=np.array(test_data))
+    if kwargs['axis'] == 'on':       
+        flux_density = onax_tophat_emulator(new_time=time, test_data=np.array(test_data))
+    elif kwargs['axis'] == 'off':
+        flux_density = offax_tophat_emulator(new_time=time, test_data=np.array(test_data))
     if kwargs['output_format'] == 'flux_density':
         return flux_density
     elif kwargs['output_format'] == 'magnitude':
