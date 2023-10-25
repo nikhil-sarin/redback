@@ -85,20 +85,21 @@ class SimulateGenericTransient(object):
         data['output_error'] = self.noise_term * true_output
         self.data = data
 
-        def save_transient(self, name):
-            """
-            Save the transient observations to a csv file.
-            This will save the full observational dataframe including non-detections etc.
-            This will save the data to a folder called 'simulated'
-            with the name of the transient and a csv file of the injection parameters
+    def save_transient(self, name):
+        """
+        Save the transient observations to a csv file.
+        This will save the full observational dataframe including non-detections etc.
+        This will save the data to a folder called 'simulated'
+        with the name of the transient and a csv file of the injection parameters
 
-            :param name: name to save transient.
-            """
-            bilby.utils.check_directory_exists_and_if_not_mkdir('simulated')
-            path = 'simulated/' + name + '.csv'
-            injection_path = 'simulated/' + name + '_injection_parameters.csv'
-            self.observations.to_csv(path, index=False)
-            self.parameters.to_csv(injection_path, index=False)
+        :param name: name to save transient.
+        """
+        bilby.utils.check_directory_exists_and_if_not_mkdir('simulated')
+        path = 'simulated/' + name + '.csv'
+        injection_path = 'simulated/' + name + '_injection_parameters.csv'
+        self.data.to_csv(path, index=False)
+        self.parameters=pd.DataFrame.from_dict(self.parameters)
+        self.parameters.to_csv(injection_path, index=False)
 
 class SimulateOpticalTransient(object):
     def __init__(self, model, parameters, pointings_database=None,
