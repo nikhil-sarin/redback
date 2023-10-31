@@ -2113,24 +2113,30 @@ def tophat_from_emulator(time, thv, loge0, thc, logn0, p, logepse, logepsb, g0, 
     :param logepsb: log10 fraction of thermal energy in magnetic field
     :param g0: initial lorentz factor
     :param kwargs: Additional keyword arguments
+    :param redshift: source redshift to be used in Planck18 cosmology calculations, default z=0.01
     :param frequency: frequency of the band to view in- single number or same length as time array
     :param output_format: Whether to output flux density or AB mag, specified by 'flux_density' or 'magnitude'
     :param axis: specify whether to model an 'on' or 'off' axis afterglow
     :return: flux density or AB mag predicted by emulator. Note this is going to give the monochromatic magnitude at the effective frequency for the band.
         For a proper calculation of the magntitude use the sed variant models
     """
-    
-    frequency= np.log10(kwargs['frequency'])
-    if isinstance(frequency, (int, float)) == True:
-        test_data= np.array([np.log10(thv) , loge0 , np.log10(thc), logn0, p, logepse, logepsb, np.log10(g0), frequency]).reshape(1,-1)
-    else:
-        test_data= []
-        for f in frequency:
-            test_data.append([np.log10(thv) , loge0 , np.log10(thc), logn0, p, logepse, logepsb, np.log10(g0), f])
+    z1=0.01
+    z2= kwargs.get('redshift', 0.01) 
+    frequency= kwargs['frequency']
+   
     if kwargs['axis'] == 'on':       
-        flux_density = onax_tophat_emulator(new_time=time, test_data=np.array(test_data))
+        flux_density = onax_tophat_emulator(new_time=time/(1+z2), thv=thv, loge0=loge0, thc=thc, logn0=logn0, p=p,
+                                            logepse=logepse, logepsb=logepsb, g0=g0,frequency=frequency)
     elif kwargs['axis'] == 'off':
-        flux_density = offax_tophat_emulator(new_time=time, test_data=np.array(test_data))
+        flux_density = offax_tophat_emulator(new_time=time/(1+z2), thv=thv, loge0=loge0, thc=thc, logn0=logn0, p=p,
+                                            logepse=logepse, logepsb=logepsb, g0=g0,frequency=frequency)
+        
+    #scaling flux density with redshift
+    dl1 = cosmo.luminosity_distance(z1)
+    dl2 = cosmo.luminosity_distance(z2)
+    scale_factor = ((dl1**2)*(1+z1)) / (dl2**2)
+    flux_density=flux_density*scale_factor
+    
     if kwargs['output_format'] == 'flux_density':
         return flux_density
     elif kwargs['output_format'] == 'magnitude':
