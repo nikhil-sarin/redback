@@ -895,7 +895,11 @@ def _kilonova_hr(time, redshift, mej, velocity_array, kappa_array, beta, **kwarg
             frequency[radio_mask]=10e50
         elif frequency < 10e10:
             frequency =10e50
+<<<<<<< HEAD
         
+=======
+
+>>>>>>> master
         _, temperature, r_photosphere = _kilonova_hr_sourceframe(time, mej, velocity_array, kappa_array, beta)
 
         flux_density = blackbody_to_flux_density(temperature=temperature.value, r_photosphere=r_photosphere.value,
