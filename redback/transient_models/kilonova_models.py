@@ -889,12 +889,12 @@ def _kilonova_hr(time, redshift, mej, velocity_array, kappa_array, beta, **kwarg
         frequency = kwargs['frequency']
         time = time * day_to_s
         # convert to source frame time and frequency
+        frequency, time = calc_kcorrected_properties(frequency=frequency, redshift=redshift, time=time)
         if (isinstance(frequency, (float, int)) == False):
             radio_mask = frequency < 10e10
-            frequency[radio_mask]=1e-3
+            frequency[radio_mask]=10e50
         elif frequency < 10e10:
-            frequency =1e-3
-        frequency, time = calc_kcorrected_properties(frequency=frequency, redshift=redshift, time=time)
+            frequency =10e50
 
         _, temperature, r_photosphere = _kilonova_hr_sourceframe(time, mej, velocity_array, kappa_array, beta)
 
