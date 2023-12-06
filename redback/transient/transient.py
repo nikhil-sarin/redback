@@ -424,6 +424,14 @@ class Transient(object):
         self.set_bands_and_frequency(bands=bands, frequency=self.frequency)
 
     @property
+    def redbackbandlabels(self) -> list:
+        """
+        :return: List of redback band labels.
+        :rtype: list
+        """
+        return redback.utils.bandname_to_labelname(self.bands)
+
+    @property
     def filtered_frequencies(self) -> np.array:
         """
         :return: The frequencies only associated with the active bands.
