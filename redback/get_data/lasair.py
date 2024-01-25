@@ -58,8 +58,8 @@ class LasairDataGetter(DataGetter):
                 f"Are you sure you are using the right alias?")
         data = pd.read_html(self.url)
         data = data[1]
-        data['diff_magnitude'] = [data['magpsf'].iloc[x].split(" ")[0] for x in range(len(data))]
-        data['diff_magnitude_error'] = [data['magpsf'].iloc[x].split(" ")[-1] for x in range(len(data))]
+        data['diff_magnitude'] = [data['unforced mag'].iloc[x].split(" ")[0] for x in range(len(data))]
+        data['diff_magnitude_error'] = [data['unforced mag'].iloc[x].split(" ")[-1] for x in range(len(data))]
 
         logger.warning('Using the difference magnitude to calculate quantities. '
                        'Reduce the data yourself if you would like to use a reference magnitude')
@@ -67,7 +67,6 @@ class LasairDataGetter(DataGetter):
         # Change the dataframe to the correct raw dataframe format
         del data['UTC']
         del data['images']
-        del data['magpsf']
         data.to_csv(self.raw_file_path, index=False)
         logger.info(f"Retrieved data for {self.transient}.")
 
@@ -83,7 +82,7 @@ class LasairDataGetter(DataGetter):
             return pd.read_csv(self.processed_file_path)
 
         raw_data = pd.read_csv(self.raw_file_path)
-        raw_data = raw_data[raw_data['difference flux status'] != 'limit']
+        raw_data = raw_data[raw_data['unforced mag status'] != 'limit']
         lasair_to_general_bands = {"g": "ztfg", "r": "ztfr", "i":'ztfi'}
         processed_data = pd.DataFrame()
 
