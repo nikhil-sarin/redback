@@ -155,7 +155,7 @@ def tophat_and_arnett(time, av, redshift, thv, loge0, thc, logn0, p, logepse, lo
     combined = afterglow + supernova
     return combined
 
-def afterglow_and_optical(time, redshift, av, model_type, afterglow_kwargs, optical_kwargs, **shared_kwargs):
+def afterglow_and_optical(time, redshift, av, **model_kwargs):
     
     """
     function to combine the signals of any afterglow and any other optical transient with extinction added
@@ -163,25 +163,31 @@ def afterglow_and_optical(time, redshift, av, model_type, afterglow_kwargs, opti
     :param time: time in days in observer frame
     :param redshift: source redshift
     :param av: absolute mag extinction
+    :param model_kwargs: kwargs shared by models e.g. output_format, frequency, bands, r_v (extinction paramater defaults to 3.1)
     :param model_type: specify type of optical transient model- 'supernova', 'tde', 'kilonova', 'magnetar_driven', 'shock_powered'
     :param afterglow_kwargs: dictionary of  parameters required by the afterglow transient model specified by 'base_model'
         and any additional keyword arguments. Refer to model documentation for details.
     :param optical_kwargs: dictionary of parameters required by the optical transient model specifed by 'base_model'
         and any additional keyword arguments. Note the base model must correspond to the given model type. Refer to model documentation
         for details.
-    :param shared_kwargs: kwargs shared by models e.g. output_format, frequency, bands, r_v (extinction paramater defaults to 3.1)
     :return: set by shared_kwargs output format - 'flux_density' or 'magnitude' with extinction added
         note that only afterglow_models_sed allow for magnitude outputs
     """
-    
-    afterglow_kwargs.update(shared_kwargs)
-    optical_kwargs.update(shared_kwargs)
-   
+
+    optical_kwargs = model_kwargs['optical_kwargs']
+    afterglow_kwargs = model_kwargs['afterglow_kwargs']
+
+    _afterglow_kwargs = afterglow_kwargs.copy()
+    _afterglow_kwargs.update(model_kwargs)
+    _afterglow_kwargs.pop('model_type')
+
+    _optical_kwargs = optical_kwargs.copy()
+    _optical_kwargs.update(model_kwargs)
+
     afterglow = em._evaluate_extinction_model(time=time, redshift=redshift, av=av,model_type='afterglow',
-                                              **afterglow_kwargs)
+                                              **_afterglow_kwargs)
     
-    optical = em._evaluate_extinction_model(time=time, redshift=redshift, av=av, model_type=model_type,
-                                            **optical_kwargs)
+    optical = em._evaluate_extinction_model(time=time, redshift=redshift, av=av, **_optical_kwargs)
 
     combined= afterglow + optical
     return combined
