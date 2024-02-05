@@ -89,12 +89,12 @@ def tophat_and_twocomponent(time, redshift, av, thv, loge0, thc, logn0,
     :return: flux density signal with extinction added
     """
     
-    kwargs['output_format']='flux_density'
-    kwargs['base_model']='tophat'
+    kwargs['output_format'] = 'flux_density'
+    kwargs['base_model'] = 'tophat'
     afterglow = em.extinction_with_afterglow_base_model(time=time, redshift=redshift, av=av,
           thv=thv, loge0=loge0, thc=thc, logn0=logn0, p=p, logepse=logepse, logepsb=logepsb, ksin=ksin, g0=g0,**kwargs)
 
-    kwargs['base_model']='two_component_kilonova_model'
+    kwargs['base_model'] = 'two_component_kilonova_model'
     kilonova = em.extinction_with_kilonova_base_model(time=time, redshift=redshift, av=av,
                                                       mej_1=mej_1, vej_1=vej_1, temperature_floor_1=temperature_floor_1,
                                                       kappa_1=kappa_1, mej_2=mej_2, vej_2=vej_2,
@@ -143,12 +143,12 @@ def tophat_and_arnett(time, av, redshift, thv, loge0, thc, logn0, p, logepse, lo
     :return: flux density with extinction added
     """
     
-    kwargs['output_format']='flux_density'
-    kwargs['base_model']='tophat'
+    kwargs['output_format'] = 'flux_density'
+    kwargs['base_model'] = 'tophat'
     afterglow = em.extinction_with_afterglow_base_model(time=time, redshift=redshift, av=av,
-         thv=thv, loge0=loge0 , thc= thc, logn0=logn0, p=p, logepse=logepse, logepsb=logepsb, ksin=ksin, g0=g0,
+         thv=thv, loge0=loge0, thc=thc, logn0=logn0, p=p, logepse=logepse, logepsb=logepsb, ksin=ksin, g0=g0,
         **kwargs)
-    kwargs['base_model']='arnett'
+    kwargs['base_model'] = 'arnett'
     supernova = em.extinction_with_supernova_base_model(time=time, redshift=redshift, av=av,
          f_nickel=f_nickel, mej=mej, **kwargs)
     
@@ -182,7 +182,7 @@ def afterglow_and_optical(time, redshift, av, model_type, afterglow_kwargs, opti
     
     optical = em._evaluate_extinction_model(time=time, redshift=redshift, av=av, model_type=model_type,
                                             **optical_kwargs)
-  
+
     combined= afterglow + optical
     return combined
     
