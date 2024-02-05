@@ -1,5 +1,7 @@
-import redback.transient_models.extinction_models
-def tophat_and_twolayerstratified(time, redshift, av, thv, loge0, thc, logn0, p, logepse, logepsb, ksin, g0, mej, vej_1, vej_2, kappa, beta, **kwargs):
+import redback.transient_models.extinction_models as em
+
+def tophat_and_twolayerstratified(time, redshift, av, thv, loge0, thc, logn0, p, logepse,
+                                  logepsb, ksin, g0, mej, vej_1, vej_2, kappa, beta, **kwargs):
     
     """
     function to combine the flux density signals of a tophat afterglow and a two layer stratified kilonova with extinction
@@ -36,18 +38,20 @@ def tophat_and_twolayerstratified(time, redshift, av, thv, loge0, thc, logn0, p,
     """
     kwargs['output_format']='flux_density'
     kwargs['base_model']='tophat'
-    afterglow = redback.transient_models.extinction_models.extinction_with_afterglow_base_model(time=time, redshift=redshift, av=av,
+    afterglow = em.extinction_with_afterglow_base_model(time=time, redshift=redshift, av=av,
          thv=thv, loge0=loge0 , thc= thc, logn0=logn0, p=p, logepse=logepse, logepsb=logepsb, ksin=ksin, g0=g0,
         **kwargs)
     kwargs['base_model']='two_layer_stratified_kilonova'
-    kilonova = redback.transient_models.extinction_models.extinction_with_kilonova_base_model(time=time, redshift=redshift, av=av,
+    kilonova = em.extinction_with_kilonova_base_model(time=time, redshift=redshift, av=av,
           mej=mej, vej_1=vej_1, vej_2=vej_2, kappa=kappa, beta=beta, **kwargs)
     
     combined = afterglow+kilonova
     return combined
 
 
-def tophat_and_twocomponent(time, redshift, av, thv, loge0, thc, logn0, p, logepse, logepsb, ksin, g0, mej_1, vej_1, temperature_floor_1, kappa_1, mej_2, vej_2, temperature_floor_2, kappa_2, **kwargs):
+def tophat_and_twocomponent(time, redshift, av, thv, loge0, thc, logn0,
+                            p, logepse, logepsb, ksin, g0, mej_1, vej_1,
+                            temperature_floor_1, kappa_1, mej_2, vej_2, temperature_floor_2, kappa_2, **kwargs):
     
     """
     function to combine the flux density signals of a tophat afterglow and a two component kilonova with extinction added
@@ -87,12 +91,14 @@ def tophat_and_twocomponent(time, redshift, av, thv, loge0, thc, logn0, p, logep
     
     kwargs['output_format']='flux_density'
     kwargs['base_model']='tophat'
-    afterglow = redback.transient_models.extinction_models.extinction_with_afterglow_base_model(time=time, redshift=redshift, av=av,
-          thv=thv, loge0=loge0 , thc= thc, logn0=logn0, p=p, logepse=logepse, logepsb=logepsb, ksin=ksin, g0=g0,
-        **kwargs)
+    afterglow = em.extinction_with_afterglow_base_model(time=time, redshift=redshift, av=av,
+          thv=thv, loge0=loge0, thc=thc, logn0=logn0, p=p, logepse=logepse, logepsb=logepsb, ksin=ksin, g0=g0,**kwargs)
+
     kwargs['base_model']='two_component_kilonova_model'
-    kilonova = redback.transient_models.extinction_models.extinction_with_kilonova_base_model(time=time, redshift=redshift, av=av,
-          mej_1=mej_1, vej_1=vej_2, temperature_floor_1=temperature_floor_1, kappa_1=kappa_1,             mej_2=mej_2, vej_2=vej_2, temperature_floor_2=temperature_floor_2, kappa_2=kappa_2, **kwargs)
+    kilonova = em.extinction_with_kilonova_base_model(time=time, redshift=redshift, av=av,
+                                                      mej_1=mej_1, vej_1=vej_1, temperature_floor_1=temperature_floor_1,
+                                                      kappa_1=kappa_1, mej_2=mej_2, vej_2=vej_2,
+                                                      temperature_floor_2=temperature_floor_2, kappa_2=kappa_2, **kwargs)
     
     combined = afterglow + kilonova
     return combined
@@ -139,11 +145,11 @@ def tophat_and_arnett(time, av, redshift, thv, loge0, thc, logn0, p, logepse, lo
     
     kwargs['output_format']='flux_density'
     kwargs['base_model']='tophat'
-    afterglow = redback.transient_models.extinction_models.extinction_with_afterglow_base_model(time=time, redshift=redshift, av=av,
+    afterglow = em.extinction_with_afterglow_base_model(time=time, redshift=redshift, av=av,
          thv=thv, loge0=loge0 , thc= thc, logn0=logn0, p=p, logepse=logepse, logepsb=logepsb, ksin=ksin, g0=g0,
         **kwargs)
     kwargs['base_model']='arnett'
-    supernova = redback.transient_models.extinction_models.extinction_with_supernova_base_model(time=time, redshift=redshift, av=av,
+    supernova = em.extinction_with_supernova_base_model(time=time, redshift=redshift, av=av,
          f_nickel=f_nickel, mej=mej, **kwargs)
     
     combined = afterglow + supernova
@@ -171,11 +177,11 @@ def afterglow_and_optical(time, redshift, av, model_type, afterglow_kwargs, opti
     afterglow_kwargs.update(shared_kwargs)
     optical_kwargs.update(shared_kwargs)
    
-    afterglow = redback.transient_models.extinction_models._evaluate_extinction_model(time=time, redshift=redshift, av=av,
-                                                                                   model_type='afterglow', **afterglow_kwargs)
+    afterglow = em._evaluate_extinction_model(time=time, redshift=redshift, av=av,model_type='afterglow',
+                                              **afterglow_kwargs)
     
-    optical= redback.transient_models.extinction_models._evaluate_extinction_model(time=time, redshift=redshift, av=av,
-                                                                   model_type=model_type, **optical_kwargs)
+    optical = em._evaluate_extinction_model(time=time, redshift=redshift, av=av, model_type=model_type,
+                                            **optical_kwargs)
   
     combined= afterglow + optical
     return combined
