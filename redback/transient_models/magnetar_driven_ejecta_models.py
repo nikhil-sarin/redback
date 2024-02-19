@@ -105,9 +105,9 @@ def _ejecta_dynamics_and_interaction(time, mej, beta, ejecta_radius, kappa, n_is
         drdt = (beta * speed_of_light) / (1 - beta)
         dswept_mass_dt = 4 * np.pi * ejecta_radius ** 2 * n_ism * proton_mass * drdt
         dedt = thermalisation_efficiency * mag_lum[
-            i] + doppler_factor_temp ** 2 * thermalisation_efficiency * comoving_radiative_luminosity - doppler_factor_temp ** 2 * comoving_emitted_luminosity
+            i] + doppler_factor_temp ** 2 * comoving_radiative_luminosity - doppler_factor_temp ** 2 * comoving_emitted_luminosity
         comoving_dinternal_energydt = thermalisation_efficiency * doppler_factor_temp ** (-2) * mag_lum[
-            i] + thermalisation_efficiency * comoving_radiative_luminosity - comoving_emitted_luminosity - comoving_pressure * comoving_dvdt
+            i] + comoving_radiative_luminosity - comoving_emitted_luminosity - comoving_pressure * comoving_dvdt
         dcomoving_volume_dt = comoving_dvdt * doppler_factor_temp
         dinternal_energy_dt = comoving_dinternal_energydt * doppler_factor_temp
         dgamma_dt = (dedt - gamma * doppler_factor_temp * comoving_dinternal_energydt - (
