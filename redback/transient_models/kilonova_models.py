@@ -10,7 +10,7 @@ from redback.photosphere import TemperatureFloor, CocoonPhotosphere
 from redback.interaction_processes import Diffusion, AsphericalDiffusion
 
 from redback.utils import calc_kcorrected_properties, interpolated_barnes_and_kasen_thermalisation_efficiency, \
-    electron_fraction_from_kappa, citation_wrapper, lambda_to_nu
+    electron_fraction_from_kappa, citation_wrapper, lambda_to_nu, get_heating_terms, kappa_from_electron_fraction
 from redback.eos import PiecewisePolytrope
 from redback.sed import blackbody_to_flux_density, get_correct_output_format_from_spectra, Blackbody
 from redback.constants import *
@@ -1419,6 +1419,206 @@ def one_component_kilonova_model(time, redshift, mej, vej, kappa, **kwargs):
         else:
             return get_correct_output_format_from_spectra(time=time_obs, time_eval=time_observer_frame/day_to_s,
                                                           spectra=spectra, lambda_array=lambda_observer_frame,
+                                                          **kwargs)
+
+
+def _calc_new_heating_rate(time, mej, electron_fraction, ejecta_velocity):
+    heating_terms = get_heating_terms(electron_fraction, ejecta_velocity)
+    # rescale
+    m0 = mej * solar_mass
+    c1 = np.exp(heating_terms.c1)
+    c2 = np.exp(heating_terms.c2)
+    c3 = np.exp(heating_terms.c3)
+    tau1 = 1e3*heating_terms.tau1
+    tau2 = 1e5*heating_terms.tau2
+    tau3 = 1e5*heating_terms.tau3
+    term1 = heating_terms.e0 * 1e18 * (0.5 - np.arctan((time - heating_terms.t0) / heating_terms.sig) / np.pi)**heating_terms.alp
+    term2 = (0.5 + np.arctan((time - heating_terms.t1)/heating_terms.sig1) / np.pi )**heating_terms.alp1
+    term3 = c1 * np.exp(-time/tau1)
+    term4 = c2 * np.exp(-time/tau2)
+    term5 = c3 * np.exp(-time/tau3)
+    lum_in = term1*term2 + term3 + term4 + term5
+    return lum_in*m0
+
+def _one_component_kilonova_rosswog_heatingrate(time, mej, vej, electron_fraction, **kwargs):
+    tdays = time/day_to_s
+    # set up kilonova physics
+    av, bv, dv = interpolated_barnes_and_kasen_thermalisation_efficiency(mej, vej)
+    # thermalisation from Barnes+16
+    e_th = 0.36 * (np.exp(-av * tdays) + np.log1p(2.0 * bv * tdays ** dv) / (2.0 * bv * tdays ** dv))
+    temperature_floor = kwargs.get('temperature_floor', 4000)  # kelvin
+    beta = 13.7
+
+    v0 = vej * speed_of_light
+    m0 = mej * solar_mass
+    kappa = kappa_from_electron_fraction(electron_fraction)
+    tdiff = np.sqrt(2.0 * kappa * (m0) / (beta * v0 * speed_of_light))
+
+    lum_in = _calc_new_heating_rate(time, mej, electron_fraction, vej)
+    integrand = lum_in * e_th * (time / tdiff) * np.exp(time ** 2 / tdiff ** 2)
+
+    bolometric_luminosity = np.zeros(len(time))
+    bolometric_luminosity[1:] = cumtrapz(integrand, time)
+    bolometric_luminosity[0] = bolometric_luminosity[1]
+    bolometric_luminosity = bolometric_luminosity * np.exp(-time ** 2 / tdiff ** 2) / tdiff
+
+    temperature = (bolometric_luminosity / (4.0 * np.pi * sigma_sb * v0 ** 2 * time ** 2)) ** 0.25
+    r_photosphere = (bolometric_luminosity / (4.0 * np.pi * sigma_sb * temperature_floor ** 4)) ** 0.5
+
+    # check temperature floor conditions
+    mask = temperature <= temperature_floor
+    temperature[mask] = temperature_floor
+    mask = np.logical_not(mask)
+    r_photosphere[mask] = v0 * time[mask]
+    return bolometric_luminosity, temperature, r_photosphere
+
+@citation_wrapper('redback')
+def one_comp_kne_rosswog_heatingrate(time, redshift, mej, vej, electron_fraction, **kwargs):
+    """
+    :param time: observer frame time in days
+    :param redshift: redshift
+    :param mej: ejecta mass in solar masses
+    :param vej: minimum initial velocity
+    :param kappa: gray opacity
+    :param kwargs: Additional keyword arguments
+    :param temperature_floor: Temperature floor in K (default 4000)
+    :param frequency: Required if output_format is 'flux_density'.
+        frequency to calculate - Must be same length as time array or a single number).
+    :param bands: Required if output_format is 'magnitude' or 'flux'.
+    :param output_format: 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
+    :param lambda_array: Optional argument to set your desired wavelength array (in Angstroms) to evaluate the SED on.
+    :param cosmology: Cosmology to use for luminosity distance calculation. Defaults to Planck18. Must be a astropy.cosmology object.
+    :return: set by output format - 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
+    """
+    cosmology = kwargs.get('cosmology', cosmo)
+    dl = cosmology.luminosity_distance(redshift).cgs.value
+    time_temp = np.geomspace(1e-3, 5e6, 300) # in source frame
+    time_obs = time
+    _, temperature, r_photosphere = _one_component_kilonova_rosswog_heatingrate(time_temp, mej, vej, electron_fraction, **kwargs)
+
+    if kwargs['output_format'] == 'flux_density':
+        time = time_obs * day_to_s
+        frequency = kwargs['frequency']
+        # interpolate properties onto observation times
+        temp_func = interp1d(time_temp, y=temperature)
+        rad_func = interp1d(time_temp, y=r_photosphere)
+        # convert to source frame time and frequency
+        frequency, time = calc_kcorrected_properties(frequency=frequency, redshift=redshift, time=time)
+
+        temp = temp_func(time)
+        photosphere = rad_func(time)
+
+        flux_density = blackbody_to_flux_density(temperature=temp, r_photosphere=photosphere,
+                                                 dl=dl, frequency=frequency)
+
+        return flux_density.to(uu.mJy).value
+
+    else:
+        lambda_observer_frame = kwargs.get('lambda_array', np.geomspace(100, 60000, 200))
+        time_observer_frame = time_temp * (1. + redshift)
+        frequency, time = calc_kcorrected_properties(frequency=lambda_to_nu(lambda_observer_frame),
+                                                     redshift=redshift, time=time_observer_frame)
+        fmjy = blackbody_to_flux_density(temperature=temperature,
+                                         r_photosphere=r_photosphere, frequency=frequency[:, None], dl=dl)
+        fmjy = fmjy.T
+        spectra = fmjy.to(uu.mJy).to(uu.erg / uu.cm ** 2 / uu.s / uu.Angstrom,
+                                     equivalencies=uu.spectral_density(wav=lambda_observer_frame * uu.Angstrom))
+        if kwargs['output_format'] == 'spectra':
+            return namedtuple('output', ['time', 'lambdas', 'spectra'])(time=time_observer_frame,
+                                                                           lambdas=lambda_observer_frame,
+                                                                           spectra=spectra)
+        else:
+            return get_correct_output_format_from_spectra(time=time_obs, time_eval=time_observer_frame/day_to_s,
+                                                          spectra=spectra, lambda_array=lambda_observer_frame,
+                                                          **kwargs)
+
+@citation_wrapper('redback')
+def two_comp_kne_rosswog_heatingrate(time, redshift, mej_1, vej_1, temperature_floor_1, ye_1,
+                                 mej_2, vej_2, temperature_floor_2, ye_2, **kwargs):
+    """
+    :param time: observer frame time in days
+    :param redshift: redshift
+    :param mej_1: ejecta mass in solar masses of first component
+    :param vej_1: minimum initial velocity of first component
+    :param kappa_1: gray opacity of first component
+    :param temperature_floor_1: floor temperature of first component
+    :param mej_2: ejecta mass in solar masses of second component
+    :param vej_2: minimum initial velocity of second component
+    :param temperature_floor_2: floor temperature of second component
+    :param kappa_2: gray opacity of second component
+    :param kwargs: Additional keyword arguments
+    :param frequency: Required if output_format is 'flux_density'.
+        frequency to calculate - Must be same length as time array or a single number).
+    :param bands: Required if output_format is 'magnitude' or 'flux'.
+    :param output_format: 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
+    :param lambda_array: Optional argument to set your desired wavelength array (in Angstroms) to evaluate the SED on.
+    :param cosmology: Cosmology to use for luminosity distance calculation. Defaults to Planck18. Must be a astropy.cosmology object.
+    :return: set by output format - 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
+    """
+    cosmology = kwargs.get('cosmology', cosmo)
+    dl = cosmology.luminosity_distance(redshift).cgs.value
+    time_temp = np.geomspace(1e-2, 5e6, 300) # in source frame
+    time_obs = time
+
+    mej = [mej_1, mej_2]
+    vej = [vej_1, vej_2]
+    temperature_floor = [temperature_floor_1, temperature_floor_2]
+    ye = [ye_1, ye_2]
+
+    if kwargs['output_format'] == 'flux_density':
+        time = time * day_to_s
+        frequency = kwargs['frequency']
+
+        # convert to source frame time and frequency
+        frequency, time = calc_kcorrected_properties(frequency=frequency, redshift=redshift, time=time)
+
+        ff = np.zeros(len(time))
+        for x in range(2):
+            temp_kwargs = {}
+            temp_kwargs['temperature_floor'] = temperature_floor[x]
+            _, temperature, r_photosphere = _one_component_kilonova_rosswog_heatingrate(time_temp, mej[x], vej[x], ye[x],
+                                                                          **temp_kwargs)
+            # interpolate properties onto observation times
+            temp_func = interp1d(time_temp, y=temperature)
+            rad_func = interp1d(time_temp, y=r_photosphere)
+            temp = temp_func(time)
+            photosphere = rad_func(time)
+            flux_density = blackbody_to_flux_density(temperature=temp, r_photosphere=photosphere,
+                                                     dl=dl, frequency=frequency)
+            units = flux_density.unit
+            ff += flux_density.value
+
+        ff = ff * units
+        return ff.to(uu.mJy).value
+
+    else:
+        lambda_observer_frame = kwargs.get('lambda_array', np.geomspace(100, 60000, 200))
+        time_observer_frame = time_temp * (1. + redshift)
+        frequency, time = calc_kcorrected_properties(frequency=lambda_to_nu(lambda_observer_frame),
+                                                     redshift=redshift, time=time_observer_frame)
+        full_spec = np.zeros((len(time), len(frequency)))
+
+        for x in range(2):
+            temp_kwargs = {}
+            temp_kwargs['temperature_floor'] = temperature_floor[x]
+            _, temperature, r_photosphere = _one_component_kilonova_rosswog_heatingrate(time_temp, mej[x], vej[x], ye[x],
+                                                                          **temp_kwargs)
+            fmjy = blackbody_to_flux_density(temperature=temperature,
+                                             r_photosphere=r_photosphere, frequency=frequency[:, None], dl=dl)
+            fmjy = fmjy.T
+            spectra = fmjy.to(uu.mJy).to(uu.erg / uu.cm ** 2 / uu.s / uu.Angstrom,
+                                         equivalencies=uu.spectral_density(wav=lambda_observer_frame * uu.Angstrom))
+            units = spectra.unit
+            full_spec += spectra.value
+
+        full_spec = full_spec * units
+        if kwargs['output_format'] == 'spectra':
+            return namedtuple('output', ['time', 'lambdas', 'spectra'])(time=time_observer_frame,
+                                                                           lambdas=lambda_observer_frame,
+                                                                           spectra=full_spec)
+        else:
+            return get_correct_output_format_from_spectra(time=time_obs, time_eval=time_observer_frame/day_to_s,
+                                                          spectra=full_spec, lambda_array=lambda_observer_frame,
                                                           **kwargs)
 
 def _one_component_kilonova_model(time, mej, vej, kappa, **kwargs):
