@@ -1065,9 +1065,9 @@ def kappa_from_electron_fraction(ye):
 
     kappa_array = np.array([1, 3, 5, 20, 30])
     ye_array = np.array([0.4,0.35,0.25,0.2, 0.1])
-    kappa_func = interp1d(kappa_array, y=ye_array)
-    electron_fraction = kappa_func(kappa)
-    return electron_fraction
+    func = interp1d(ye_array, y=kappa_array)
+    kappa = func(ye)
+    return kappa
     
 def lorentz_factor_from_velocity(velocity):
     """

@@ -1473,7 +1473,7 @@ def _one_component_kilonova_rosswog_heatingrate(time, mej, vej, electron_fractio
     return bolometric_luminosity, temperature, r_photosphere
 
 @citation_wrapper('redback')
-def one_comp_kne_rosswog_heatingrate(time, redshift, mej, vej, electron_fraction, **kwargs):
+def one_comp_kne_rosswog_heatingrate(time, redshift, mej, vej, ye, **kwargs):
     """
     :param time: observer frame time in days
     :param redshift: redshift
@@ -1494,7 +1494,7 @@ def one_comp_kne_rosswog_heatingrate(time, redshift, mej, vej, electron_fraction
     dl = cosmology.luminosity_distance(redshift).cgs.value
     time_temp = np.geomspace(1e-3, 5e6, 300) # in source frame
     time_obs = time
-    _, temperature, r_photosphere = _one_component_kilonova_rosswog_heatingrate(time_temp, mej, vej, electron_fraction, **kwargs)
+    _, temperature, r_photosphere = _one_component_kilonova_rosswog_heatingrate(time_temp, mej, vej, ye, **kwargs)
 
     if kwargs['output_format'] == 'flux_density':
         time = time_obs * day_to_s
