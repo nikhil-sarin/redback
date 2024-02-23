@@ -1062,10 +1062,9 @@ def kappa_from_electron_fraction(ye):
     :param ye: electron fraction
     :return: electron_fraction
     """
-
     kappa_array = np.array([1, 3, 5, 20, 30])
     ye_array = np.array([0.4,0.35,0.25,0.2, 0.1])
-    func = interp1d(ye_array, y=kappa_array)
+    func = interp1d(ye_array, y=kappa_array, fill_value='extrapolate')
     kappa = func(ye)
     return kappa
     
