@@ -57,7 +57,7 @@ class Afterglow(Transient):
         :type flux: np.ndarray, optional
         :type flux_err: np.ndarray, optional
         :param flux_err: Flux error values.
-        :param flux_density:Flux density values.
+        :param flux_density: Flux density values.
         :type flux_density: np.ndarray, optional
         :param flux_density_err: Flux density error values.
         :type flux_density_err: np.ndarray, optional
