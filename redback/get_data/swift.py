@@ -199,9 +199,9 @@ class SwiftDataGetter(GRBDataGetter):
         driver = fetch_driver()
         try:
             driver.get(self.grb_website)
-            driver.find_element_by_xpath("//select[@name='xrtsub']/option[text()='no']").click()
+            driver.find_element("xpath", "//select[@name='xrtsub']/option[text()='no']").click()
             time.sleep(20)
-            driver.find_element_by_id("xrt_DENSITY_makeDownload").click()
+            driver.find_element("id","xrt_DENSITY_makeDownload").click()
             time.sleep(20)
             grb_url = driver.current_url
             # scrape the data
@@ -227,19 +227,19 @@ class SwiftDataGetter(GRBDataGetter):
             # select option for BAT bin_size
             bat_binning = 'batxrtbin'
             if check_element(driver, bat_binning):
-                driver.find_element_by_xpath("//select[@name='batxrtbin']/option[text()='SNR 4']").click()
+                driver.find_element("xpath", "//select[@name='batxrtbin']/option[text()='SNR 4']").click()
             # select option for subplot
             subplot = "batxrtsub"
             if check_element(driver, subplot):
-                driver.find_element_by_xpath("//select[@name='batxrtsub']/option[text()='no']").click()
+                driver.find_element("xpath","//select[@name='batxrtsub']/option[text()='no']").click()
             # Select option for flux density
             flux_density1 = "batxrtband1"
             flux_density0 = "batxrtband0"
             if (check_element(driver, flux_density1)) and (check_element(driver, flux_density0)):
-                driver.find_element_by_xpath(".//*[@id='batxrtband1']").click()
-                driver.find_element_by_xpath(".//*[@id='batxrtband0']").click()
+                driver.find_element("xpath",".//*[@id='batxrtband1']").click()
+                driver.find_element("xpath",".//*[@id='batxrtband0']").click()
             # Generate data file
-            driver.find_element_by_xpath(".//*[@id='batxrt_XRTBAND_makeDownload']").click()
+            driver.find_element("xpath",".//*[@id='batxrt_XRTBAND_makeDownload']").click()
             time.sleep(20)
             grb_url = driver.current_url
             driver.quit()
