@@ -248,7 +248,7 @@ gaia::gbp,5.8712E+14,5109.71,black,9.421E-06,gaia::gbp,GAIA/Gbp
 gaia::g,4.8250E+14,6217.59,black,1.278E-05,gaia::g,GAIA/G
 gaia::grp,3.8615E+14,7769.02,black,5.472E-06,gaia::grp,GAIA/Grp
 gaia::grvs,3.4970E+14,8578.76,black,3.481E-07,gaia::grvs,GAIA/Grvs
-gotob,6.4895E+14,4622.88,black,3.771E-06,gotob,GOTO/B,735.14
-gotog,5.5819E+14,5374.54,black,3.255E-06,gotog,GOTO/G,857.73
-gotol,5.4311E+14,5523.78,black,8.027E-06,gotol,GOTO/L,2162.29
-gotor,4.6679E+14,6426.84,black,2.510E-06,gotor,GOTO/R,946.75
+gotob,6.4895E+14,4622.88,black,3.771E-06,gotob,GOTO/B
+gotog,5.5819E+14,5374.54,black,3.255E-06,gotog,GOTO/G
+gotol,5.4311E+14,5523.78,black,8.027E-06,gotol,GOTO/L
+gotor,4.6679E+14,6426.84,black,2.510E-06,gotor,GOTO/R
