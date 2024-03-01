@@ -238,3 +238,13 @@ euclid::VIS,4.223e+14,7103.37,black,7.577e-06,euclid::VIS,EUCLID/VIS
 efosc2::g,5.866e+14,5114.66,black,3.302e-06,efosc2::g,EFOSC2/g
 efosc2::r,4.493e+14,6677.40,black,2.342e-06,efosc2::r,EFOSC2/r
 efosc2::i,3.758e+14,7983.20,black,2.435e-06,efosc2::i,EFOSC2/i
+desg,6.2390E+14,4808.49,black,4.781E-06,desg,DES/g
+desr,4.6746E+14,6417.65,black,3.409E-06,desr,DES/r
+desi,3.8390E+14,7814.58,black,2.300E-06,desi,DES/i
+desz,3.2719E+14,9168.85,black,1.679E-06,desz,DES/z
+desy,3.0315E+14,9896.11,black,7.511E-07,desy,DES/y
+tess,3.8973E+14,7697.6,black,7.658E-06,tess,TESS
+gaia::gbp,5.8712E+14,5109.71,black,9.421E-06,gaia::gbp,GAIA/Gbp
+gaia::g,4.8250E+14,6217.59,black,1.278E-05,gaia::g,GAIA/G
+gaia::grp,3.8615E+14,7769.02,black,5.472E-06,gaia::grp,GAIA/Grp
+gaia::grvs,3.4970E+14,8578.76,black,3.481E-07,gaia::grvs,GAIA/Grvs
