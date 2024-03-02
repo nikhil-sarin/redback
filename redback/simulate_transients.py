@@ -98,7 +98,7 @@ class SimulateGenericTransient(object):
         path = 'simulated/' + name + '.csv'
         injection_path = 'simulated/' + name + '_injection_parameters.csv'
         self.data.to_csv(path, index=False)
-        self.parameters=pd.DataFrame.from_dict(self.parameters)
+        self.parameters=pd.DataFrame.from_dict([self.parameters])
         self.parameters.to_csv(injection_path, index=False)
 
 class SimulateOpticalTransient(object):
