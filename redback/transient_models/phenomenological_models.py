@@ -1,5 +1,18 @@
 import numpy as np
 
+def line_spectrum(wavelength, line_amp, cont_amp, x0):
+    """
+    A gaussian to add or subtract from a continuum spectrum to mimic absorption or emission lines
+
+    :param wavelength: wavelength array in whatever units
+    :param line_amp: line amplitude scale
+    :param cont_amp: Continuum amplitude scale
+    :param x0: Position of emission line
+    :return: spectrum in whatever units set by line_amp
+    """
+    spectrum = line_amp / cont_amp * np.exp(-(wavelength - x0) ** 2. / (2 * cont_amp ** 2) )
+    return spectrum
+
 def gaussian_rise(time, a_1, peak_time, sigma_t):
     """
     :param time: time array in whatver time units
