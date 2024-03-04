@@ -2119,12 +2119,12 @@ def tophat_from_emulator(time, redshift, thv, loge0, thc, logn0, p, logepse, log
     cwd=os.getcwd()
     home=os.path.dirname(cwd)
     sys.path.insert(1, home+'/redback_surrogates')
-    from redback_surrogates.afterglowmodels import tophat_emulator, emulator_test
+    from redback_surrogates.afterglowmodels import tophat_emulator
     
     z1=0.01
     z2= redshift
     frequency= np.log10(kwargs['frequency'])    
-    flux_density = emulator_test(new_time=time/(1+z2), thv=thv, loge0=loge0, thc=thc, logn0=logn0, p=p,
+    flux_density = tophat_emulator(new_time=time/(1+z2), thv=thv, loge0=loge0, thc=thc, logn0=logn0, p=p,
                                             logepse=logepse, logepsb=logepsb, g0=g0,frequency=frequency)
         
     #scaling flux density with redshift
