@@ -36,7 +36,7 @@ extinction_tde_base_models = ['tde_analytical', 'tde_semianalytical', 'gaussianr
                               'cooling_envelope', 'bpl_cooling_envelope']
 extinction_magnetar_driven_base_models = ['basic_mergernova', 'general_mergernova', 'general_mergernova_thermalisation',
                                           'general_mergernova_evolution', 'metzger_magnetar_driven_kilonova_model',
-                                          'general_metzger_magnetar_driven', 'general_magnetar_driven_thermalisation',
+                                          'general_metzger_magnetar_driven', 'general_metzger_magnetar_driven_thermalisation',
                                           'general_metzger_magnetar_driven_evolution']
 extinction_shock_powered_base_models = ['shocked_cocoon', 'shock_cooling']
 

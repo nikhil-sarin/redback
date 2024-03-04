@@ -374,7 +374,7 @@ def check_element(driver, id_number):
     checks that an element exists on a website, and provides an exception
     """
     try:
-        driver.find_element_by_id(id_number)
+        driver.find_element('id', id_number)
     except NoSuchElementException as e:
         print(e)
         return False
@@ -549,7 +549,10 @@ def frequency_to_bandname(frequency):
 
 def fetch_driver():
     # open the webdriver
-    return webdriver.PhantomJS()
+    options = webdriver.ChromeOptions()
+    options.add_argument("--headless=new")
+    driver = webdriver.Chrome(options=options)
+    return driver
 
 
 def calc_credible_intervals(samples, interval=0.9):
