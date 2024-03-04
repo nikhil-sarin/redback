@@ -141,7 +141,7 @@ def tophat_and_twocomponent(time, redshift, av, thv, loge0, thc, logn0, p, logep
         **kwargs)
     kwargs['base_model']='two_component_kilonova_model'
     kilonova = redback.transient_models.extinction_models.extinction_with_kilonova_base_model(time=time, redshift=redshift, av=av,
-          mej_1=mej_1, vej_1=vej_2, temperature_floor_1=temperature_floor_1, kappa_1=kappa_1,             mej_2=mej_2, vej_2=vej_2, temperature_floor_2=temperature_floor_2, kappa_2=kappa_2, **kwargs)
+          mej_1=mej_1, vej_1=vej_1, temperature_floor_1=temperature_floor_1, kappa_1=kappa_1,             mej_2=mej_2, vej_2=vej_2, temperature_floor_2=temperature_floor_2, kappa_2=kappa_2, **kwargs)
     
     combined = afterglow + kilonova
     return combined
