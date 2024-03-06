@@ -817,7 +817,7 @@ def kasen_bns_kilonova(time, redshift, mej, vej, chi, **kwargs):
         fmjy = spectra.to(uu.mJy, equivalencies=uu.spectral_density(wav=output.lambdas * uu.Angstrom)).value
         nu_array = lambda_to_nu(output.lambdas)
         fmjy_func = RegularGridInterpolator((np.unique(time), nu_array), fmjy, bounds_error=False)
-        if type(frequency) == float:
+        if type(frequency) == float or type(frequency) == np.float64:
             frequency = np.ones(len(time)) * frequency
         points = np.array([time, frequency]).T
         return fmjy_func(points)
