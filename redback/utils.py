@@ -44,7 +44,7 @@ def download_pointing_tables():
     """
     return logger.info("Pointing tables downloaded and stored in redback/tables")
 
-def sncosmo_bandname_from_band(bands, warning_style='soft'):
+def sncosmo_bandname_from_band(bands, warning_style='softest'):
     """
     Convert redback data band names to sncosmo compatible band names
 
@@ -65,11 +65,13 @@ def sncosmo_bandname_from_band(bands, warning_style='soft'):
         try:
             res.append(bands_to_flux[band])
         except KeyError as e:
-            logger.info(e)
             if warning_style == 'hard':
                 raise KeyError(f"Band {band} is not defined in filters.csv!")
-            else:
+            elif warning_style == 'soft':
+                logger.info(e)
                 logger.info(f"Band {band} is not defined in filters.csv!")
+                res.append('r')
+            else:
                 res.append('r')
     return np.array(res)
 

@@ -137,7 +137,7 @@ class Transient(object):
         self.system = system
         self.data_mode = data_mode
         self.active_bands = active_bands
-        self.sncosmo_bands = redback.utils.sncosmo_bandname_from_band(self.bands, warning_style='soft')
+        self.sncosmo_bands = redback.utils.sncosmo_bandname_from_band(self.bands)
         self.redshift = redshift
         self.name = name
         self.use_phase_model = use_phase_model

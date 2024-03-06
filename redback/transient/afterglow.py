@@ -244,7 +244,8 @@ class Afterglow(Transient):
                 'BAT Photon Index (15-150 keV) (PL = simple power-law, CPL = cutoff power-law)'].fillna(0)
             self.meta_data = meta_data
         except FileNotFoundError:
-            logger.warning("Meta data does not exist for this event.")
+            logger.info("Metadata does not exist for this event.")
+            logger.info("Setting metadata to None. This is not an error, but a warning that no metadata could be found online.")
             self.meta_data = None
 
     def _set_photon_index(self) -> None:
