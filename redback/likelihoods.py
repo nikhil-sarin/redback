@@ -6,7 +6,6 @@ from scipy.special import gammaln
 from redback.utils import logger
 from bilby.core.prior import DeltaFunction, Constraint
 
-
 class _RedbackLikelihood(bilby.Likelihood):
 
     def __init__(self, x: np.ndarray, y: np.ndarray, function: callable, kwargs: dict = None, priors=None,
@@ -86,8 +85,18 @@ class _RedbackLikelihood(bilby.Likelihood):
         self.parameters.update(self.get_parameter_dictionary_from_list(parameter_list))
         return -self.log_likelihood()
 
-    def find_maximum_likelihood_parameters(self, iterations=5, maximization_kwargs=None):
-        from scipy.optimize import differential_evolution
+    def find_maximum_likelihood_parameters(self, iterations=5, maximization_kwargs=None, method='Nelder-Mead',
+                                           break_threshold=1e-3):
+        """
+        Estimate the maximum likelihood
+
+        :param iterations: Iterations to run the minimizer for before stopping. Default is 5.
+        :param maximization_kwargs: Any extra keyword arguments passed to the scipy minimize function
+        :param method: Minimize method to use. Default is 'Nelder-Mead'
+        :param break_threshold: The threshold for the difference in log likelihood to break the loop. Default is 1e-3.
+        :return: Dictionary of maximum likelihood parameters
+        """
+        from scipy.optimize import minimize
         parameter_bounds = self.get_bounds_from_priors(self.priors)
         if self.priors is None:
             raise ValueError("Priors must be provided to use this functionality")
@@ -99,20 +108,19 @@ class _RedbackLikelihood(bilby.Likelihood):
         old_fiducial_ln_likelihood = self.log_likelihood()
         for it in range(iterations):
             logger.info(f"Optimizing fiducial parameters. Iteration : {it + 1}")
-            print(f"Optimizing fiducial parameters. Iteration : {it + 1}")
-            output = differential_evolution(
+            output = minimize(
                 self.lnlike_scipy_maximize,
-                bounds=parameter_bounds,
                 x0=updated_parameters_list,
-                **maximization_kwargs,
-            )
+                bounds=parameter_bounds,
+                method=method,
+                **maximization_kwargs,)
             updated_parameters_list = output['x']
             updated_parameters = self.get_parameter_dictionary_from_list(updated_parameters_list)
             self.parameters.update(updated_parameters)
             new_fiducial_ln_likelihood = self.log_likelihood_ratio()
             logger.info(f"Fiducial ln likelihood ratio: {new_fiducial_ln_likelihood:.2f}")
-            print(f"Fiducial ln likelihood ratio: {new_fiducial_ln_likelihood:.2f}")
-            if new_fiducial_ln_likelihood - old_fiducial_ln_likelihood < 0.1:
+            logger.info(f"Updated parameters: {updated_parameters}")
+            if new_fiducial_ln_likelihood - old_fiducial_ln_likelihood < break_threshold:
                 break
             old_fiducial_ln_likelihood = new_fiducial_ln_likelihood
         return updated_parameters
