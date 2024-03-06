@@ -118,7 +118,7 @@ class _RedbackLikelihood(bilby.Likelihood):
             updated_parameters = self.get_parameter_dictionary_from_list(updated_parameters_list)
             self.parameters.update(updated_parameters)
             new_fiducial_ln_likelihood = self.log_likelihood_ratio()
-            logger.info(f"Fiducial ln likelihood ratio: {new_fiducial_ln_likelihood:.2f}")
+            logger.info(f"Current lnlikelihood: {new_fiducial_ln_likelihood:.2f}")
             logger.info(f"Updated parameters: {updated_parameters}")
             if new_fiducial_ln_likelihood - old_fiducial_ln_likelihood < break_threshold:
                 break
