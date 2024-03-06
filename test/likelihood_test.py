@@ -1,3 +1,4 @@
+import bilby.core.prior
 import numpy as np
 import unittest
 from unittest import mock
@@ -312,3 +313,43 @@ class PoissonLikelihoodTest(unittest.TestCase):
         expected = -6 + np.log(9)
         actual = self.likelihood.log_likelihood()
         self.assertEqual(expected, actual)
+
+class MaximumLikelihoodTest(unittest.TestCase):
+    def setUp(self):
+        self.x = np.linspace(0, 10, 30)
+
+        def func(x, m, c, **kwargs):
+            return m*x + c
+
+        self.m = 2
+        self.c = 3
+        ytrue = func(self.x, self.m, self.c)
+        self.sigma = 1
+        noise = np.random.normal(0, self.sigma, len(self.x))
+        self.yobs = ytrue + noise
+        self.function = func
+        self.kwargs = dict(kwarg_1='test_kwarg')
+
+        priors = bilby.core.prior.PriorDict()
+        priors['m'] = bilby.core.prior.Uniform(minimum=0, maximum=10, name='m')
+        priors['c'] = bilby.core.prior.Uniform(minimum=0, maximum=10, name='c')
+        fid = priors.sample()
+
+        self.likelihood = likelihoods.GaussianLikelihood(
+            x=self.x, y=self.yobs, sigma=self.sigma, function=self.function, kwargs=self.kwargs, priors=priors,
+            fiducial_parameters=fid)
+
+    def tearDown(self):
+        del self.x
+        del self.yobs
+        del self.sigma
+        del self.function
+        del self.kwargs
+        del self.m
+        del self.c
+        del self.likelihood
+
+    def test_maximum_likelihood(self):
+        maxl_parameters = self.likelihood.find_maximum_likelihood_parameters()
+        self.assertAlmostEqual(maxl_parameters['m'], self.m, places=0)
+        self.assertAlmostEqual(maxl_parameters['c'], self.c, places=0)
