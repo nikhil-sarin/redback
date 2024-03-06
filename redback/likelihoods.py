@@ -3,11 +3,14 @@ from typing import Any, Union
 
 import bilby
 from scipy.special import gammaln
+from redback.utils import logger
+from bilby.core.prior import DeltaFunction, Constraint
 
 
 class _RedbackLikelihood(bilby.Likelihood):
 
-    def __init__(self, x: np.ndarray, y: np.ndarray, function: callable, kwargs: dict = None) -> None:
+    def __init__(self, x: np.ndarray, y: np.ndarray, function: callable, kwargs: dict = None, priors=None,
+                 fiducial_parameters=None) -> None:
         """
 
         :param x: The x values.
@@ -18,11 +21,19 @@ class _RedbackLikelihood(bilby.Likelihood):
         :type function: callable
         :param kwargs: Any additional keywords for 'function'.
         :type kwargs: Union[dict, None]
+        :param priors: The priors for the parameters. Default to None if not provided.
+        Only necessary if using maximum likelihood estimation functionality.
+        :type priors: Union[dict, None]
+        :param fiducial_parameters: The starting guesses for model parameters to
+        use in the optimization for maximum likelihood estimation. Default to None if not provided.
+        :type fiducial_parameters: Union[dict, None]
         """
         self.x = x
         self.y = y
         self.function = function
         self.kwargs = kwargs
+        self.priors = priors
+        self.fiducial_parameters = fiducial_parameters
 
         parameters = bilby.core.utils.introspection.infer_parameters_from_function(func=function)
         super().__init__(parameters=dict.fromkeys(parameters))
@@ -46,11 +57,72 @@ class _RedbackLikelihood(bilby.Likelihood):
         """
         return len(self.x)
 
+    @property
+    def parameters_to_be_updated(self):
+        if self.priors is None:
+            return None
+        else:
+            parameters_to_be_updated = [key for key in self.priors if not isinstance(
+                self.priors[key], (DeltaFunction, Constraint, float, int))]
+            return parameters_to_be_updated
+
+    def get_parameter_dictionary_from_list(self, parameter_list):
+        parameter_dictionary = dict(zip(self.parameters_to_be_updated, parameter_list))
+        excluded_parameter_keys = set(self.fiducial_parameters) - set(self.parameters_to_be_updated)
+        for key in excluded_parameter_keys:
+            parameter_dictionary[key] = self.fiducial_parameters[key]
+        return parameter_dictionary
+
+    def get_parameter_list_from_dictionary(self, parameter_dict):
+        return [parameter_dict[k] for k in self.parameters_to_be_updated]
+
+    def get_bounds_from_priors(self, priors):
+        bounds = []
+        for key in self.parameters_to_be_updated:
+            bounds.append([priors[key].minimum, priors[key].maximum])
+        return bounds
+
+    def lnlike_scipy_maximize(self, parameter_list):
+        self.parameters.update(self.get_parameter_dictionary_from_list(parameter_list))
+        return -self.log_likelihood()
+
+    def find_maximum_likelihood_parameters(self, iterations=5, maximization_kwargs=None):
+        from scipy.optimize import differential_evolution
+        parameter_bounds = self.get_bounds_from_priors(self.priors)
+        if self.priors is None:
+            raise ValueError("Priors must be provided to use this functionality")
+        if maximization_kwargs is None:
+            maximization_kwargs = dict()
+        self.parameters.update(self.fiducial_parameters)
+        self.parameters["fiducial"] = 0
+        updated_parameters_list = self.get_parameter_list_from_dictionary(self.fiducial_parameters)
+        old_fiducial_ln_likelihood = self.log_likelihood()
+        for it in range(iterations):
+            logger.info(f"Optimizing fiducial parameters. Iteration : {it + 1}")
+            print(f"Optimizing fiducial parameters. Iteration : {it + 1}")
+            output = differential_evolution(
+                self.lnlike_scipy_maximize,
+                bounds=parameter_bounds,
+                x0=updated_parameters_list,
+                **maximization_kwargs,
+            )
+            updated_parameters_list = output['x']
+            updated_parameters = self.get_parameter_dictionary_from_list(updated_parameters_list)
+            self.parameters.update(updated_parameters)
+            new_fiducial_ln_likelihood = self.log_likelihood_ratio()
+            logger.info(f"Fiducial ln likelihood ratio: {new_fiducial_ln_likelihood:.2f}")
+            print(f"Fiducial ln likelihood ratio: {new_fiducial_ln_likelihood:.2f}")
+            if new_fiducial_ln_likelihood - old_fiducial_ln_likelihood < 0.1:
+                break
+            old_fiducial_ln_likelihood = new_fiducial_ln_likelihood
+        return updated_parameters
+
 
 class GaussianLikelihood(_RedbackLikelihood):
     def __init__(
             self, x: np.ndarray, y: np.ndarray, sigma: Union[float, None, np.ndarray],
-            function: callable, kwargs: dict = None) -> None:
+            function: callable, kwargs: dict = None, priors=None,
+                 fiducial_parameters=None) -> None:
         """A general Gaussian likelihood - the parameters are inferred from the arguments of function.
 
         :param x: The x values.
@@ -67,10 +139,17 @@ class GaussianLikelihood(_RedbackLikelihood):
         :type function: callable
         :param kwargs: Any additional keywords for 'function'.
         :type kwargs: dict
+        :param priors: The priors for the parameters. Default to None if not provided.
+        Only necessary if using maximum likelihood estimation functionality.
+        :type priors: Union[dict, None]
+        :param fiducial_parameters: The starting guesses for model parameters to
+        use in the optimization for maximum likelihood estimation. Default to None if not provided.
+        :type fiducial_parameters: Union[dict, None]
         """
 
         self._noise_log_likelihood = None
-        super().__init__(x=x, y=y, function=function, kwargs=kwargs)
+        super().__init__(x=x, y=y, function=function, kwargs=kwargs, priors=priors,
+                         fiducial_parameters=fiducial_parameters)
         self.sigma = sigma
         if self.sigma is None:
             self.parameters['sigma'] = None
@@ -121,7 +200,8 @@ class GaussianLikelihood(_RedbackLikelihood):
 class GaussianLikelihoodUniformXErrors(GaussianLikelihood):
     def __init__(
             self, x: np.ndarray, y: np.ndarray, sigma: Union[float, None, np.ndarray],
-            bin_size: Union[float, None, np.ndarray], function: callable, kwargs: dict = None) -> None:
+            bin_size: Union[float, None, np.ndarray], function: callable, kwargs: dict = None, priors=None,
+                 fiducial_parameters=None) -> None:
         """A general Gaussian likelihood with uniform errors in x- the parameters are inferred from the
         arguments of function. Takes into account the X errors with a Uniform likelihood between the
         bin high and bin low values. Note that the prior for the true x values must be uniform in this range!
@@ -142,9 +222,16 @@ class GaussianLikelihoodUniformXErrors(GaussianLikelihood):
         :type function: callable
         :param kwargs: Any additional keywords for 'function'.
         :type kwargs: dict
+        :param priors: The priors for the parameters. Default to None if not provided.
+        Only necessary if using maximum likelihood estimation functionality.
+        :type priors: Union[dict, None]
+        :param fiducial_parameters: The starting guesses for model parameters to
+        use in the optimization for maximum likelihood estimation. Default to None if not provided.
+        :type fiducial_parameters: Union[dict, None]
         """
 
-        super().__init__(x=x, y=y, sigma=sigma, function=function, kwargs=kwargs)
+        super().__init__(x=x, y=y, sigma=sigma, function=function, kwargs=kwargs, priors=priors,
+                         fiducial_parameters=fiducial_parameters)
         self.xerr = bin_size * np.ones(self.n)
 
     def noise_log_likelihood(self) -> float:
@@ -183,7 +270,7 @@ class GaussianLikelihoodUniformXErrors(GaussianLikelihood):
 class GaussianLikelihoodQuadratureNoise(GaussianLikelihood):
     def __init__(
             self, x: np.ndarray, y: np.ndarray, sigma_i: Union[float, None, np.ndarray],
-            function: callable, kwargs: dict = None) -> None:
+            function: callable, kwargs: dict = None, priors=None, fiducial_parameters=None) -> None:
         """
         A general Gaussian likelihood - the parameters are inferred from the
         arguments of function
@@ -205,7 +292,8 @@ class GaussianLikelihoodQuadratureNoise(GaussianLikelihood):
         """
         self.sigma_i = sigma_i
         # These lines of code infer the parameters from the provided function
-        super().__init__(x=x, y=y, sigma=sigma_i, function=function, kwargs=kwargs)
+        super().__init__(x=x, y=y, sigma=sigma_i, function=function, kwargs=kwargs, priors=priors,
+                         fiducial_parameters=fiducial_parameters)
 
     @property
     def full_sigma(self) -> Union[float, np.ndarray]:
@@ -234,7 +322,7 @@ class GaussianLikelihoodQuadratureNoise(GaussianLikelihood):
 class GaussianLikelihoodWithSystematicNoise(GaussianLikelihood):
     def __init__(
             self, x: np.ndarray, y: np.ndarray, sigma_i: Union[float, None, np.ndarray],
-            function: callable, kwargs: dict = None) -> None:
+            function: callable, kwargs: dict = None, priors=None, fiducial_parameters=None) -> None:
         """
         A general Gaussian likelihood - the parameters are inferred from the
         arguments of function
@@ -253,10 +341,17 @@ class GaussianLikelihoodWithSystematicNoise(GaussianLikelihood):
         :type function: callable
         :param kwargs: Any additional keywords for 'function'.
         :type kwargs: dict
+        :param priors: The priors for the parameters. Default to None if not provided.
+        Only necessary if using maximum likelihood estimation functionality.
+        :type priors: Union[dict, None]
+        :param fiducial_parameters: The starting guesses for model parameters to
+        use in the optimization for maximum likelihood estimation. Default to None if not provided.
+        :type fiducial_parameters: Union[dict, None]
         """
         self.sigma_i = sigma_i
         # These lines of code infer the parameters from the provided function
-        super().__init__(x=x, y=y, sigma=sigma_i, function=function, kwargs=kwargs)
+        super().__init__(x=x, y=y, sigma=sigma_i, function=function, kwargs=kwargs, priors=priors,
+                         fiducial_parameters=fiducial_parameters)
 
     @property
     def full_sigma(self) -> Union[float, np.ndarray]:
@@ -286,7 +381,7 @@ class GaussianLikelihoodWithSystematicNoise(GaussianLikelihood):
 class GaussianLikelihoodQuadratureNoiseNonDetections(GaussianLikelihoodQuadratureNoise):
     def __init__(
             self, x: np.ndarray, y: np.ndarray, sigma_i: Union[float, np.ndarray], function: callable,
-            kwargs: dict = None, upperlimit_kwargs: dict = None) -> None:
+            kwargs: dict = None, upperlimit_kwargs: dict = None, priors=None, fiducial_parameters=None) -> None:
         """A general Gaussian likelihood - the parameters are inferred from the
         arguments of function. Takes into account non-detections with a Uniform likelihood for those points
 
@@ -304,8 +399,15 @@ class GaussianLikelihoodQuadratureNoiseNonDetections(GaussianLikelihoodQuadratur
         :type function: callable
         :param kwargs: Any additional keywords for 'function'.
         :type kwargs: dict
+        :param priors: The priors for the parameters. Default to None if not provided.
+        Only necessary if using maximum likelihood estimation functionality.
+        :type priors: Union[dict, None]
+        :param fiducial_parameters: The starting guesses for model parameters to
+        use in the optimization for maximum likelihood estimation. Default to None if not provided.
+        :type fiducial_parameters: Union[dict, None]
         """
-        super().__init__(x=x, y=y, sigma_i=sigma_i, function=function, kwargs=kwargs)
+        super().__init__(x=x, y=y, sigma_i=sigma_i, function=function, kwargs=kwargs, priors=priors,
+                         fiducial_parameters=fiducial_parameters)
         self.upperlimit_kwargs = upperlimit_kwargs
 
     @property
@@ -345,7 +447,7 @@ class GRBGaussianLikelihood(GaussianLikelihood):
 
     def __init__(
             self, x: np.ndarray, y: np.ndarray, sigma: Union[float, np.ndarray],
-            function: callable, kwargs: dict = None) -> None:
+            function: callable, kwargs: dict = None, priors=None, fiducial_parameters=None) -> None:
         """A general Gaussian likelihood - the parameters are inferred from the
         arguments of function.
 
@@ -363,14 +465,21 @@ class GRBGaussianLikelihood(GaussianLikelihood):
         :type function: callable
         :param kwargs: Any additional keywords for 'function'.
         :type kwargs: dict
+        :param priors: The priors for the parameters. Default to None if not provided.
+        Only necessary if using maximum likelihood estimation functionality.
+        :type priors: Union[dict, None]
+        :param fiducial_parameters: The starting guesses for model parameters to
+        use in the optimization for maximum likelihood estimation. Default to None if not provided.
+        :type fiducial_parameters: Union[dict, None]
         """
-        super().__init__(x=x, y=y, sigma=sigma, function=function, kwargs=kwargs)
+        super().__init__(x=x, y=y, sigma=sigma, function=function, kwargs=kwargs, priors=priors,
+                         fiducial_parameters=fiducial_parameters)
 
 
 class PoissonLikelihood(_RedbackLikelihood):
     def __init__(
             self, time: np.ndarray, counts: np.ndarray, function: callable, integrated_rate_function: bool = True,
-            dt: Union[float, np.ndarray] = None, kwargs: dict = None) -> None:
+            dt: Union[float, np.ndarray] = None, kwargs: dict = None, priors=None, fiducial_parameters=None) -> None:
         """
         :param time: The time values.
         :type time: np.ndarray
@@ -389,8 +498,15 @@ class PoissonLikelihood(_RedbackLikelihood):
         :type dt: Union[float, None, np.ndarray]
         :param kwargs: Any additional keywords for 'function'.
         :type kwargs: dict
+        :param priors: The priors for the parameters. Default to None if not provided.
+        Only necessary if using maximum likelihood estimation functionality.
+        :type priors: Union[dict, None]
+        :param fiducial_parameters: The starting guesses for model parameters to
+        use in the optimization for maximum likelihood estimation. Default to None if not provided.
+        :type fiducial_parameters: Union[dict, None]
         """
-        super(PoissonLikelihood, self).__init__(x=time, y=counts, function=function, kwargs=kwargs)
+        super(PoissonLikelihood, self).__init__(x=time, y=counts, function=function, kwargs=kwargs, priors=priors,
+                                               fiducial_parameters=fiducial_parameters)
         self.integrated_rate_function = integrated_rate_function
         self.dt = dt
         self.parameters['background_rate'] = 0
