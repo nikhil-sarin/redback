@@ -906,7 +906,7 @@ class OpticalTransient(Transient):
             meta_data = pd.read_csv(self.event_table, on_bad_lines='skip', delimiter=',', dtype='str')
         except FileNotFoundError as e:
             redback.utils.logger.warning(e)
-            redback.utils.logger.warning("Setting metadata to None")
+            redback.utils.logger.warning("Setting metadata to None. This is not an error, but a warning. That no metadata could be found online.")
             meta_data = None
         self.meta_data = meta_data
 
