@@ -9,6 +9,17 @@ from redback.utils import logger
 
 
 def get_priors(model, times=None, y=None, yerr=None, dt=None, **kwargs):
+    """
+    Get the prior for the given model. If the model is a prompt model, the times, y, and yerr must be provided.
+
+    :param model: String referring to a name of a model implemented in Redback.
+    :param times: Time array
+    :param y: Y values, arbitrary units
+    :param yerr: Error on y values, arbitrary units
+    :param dt: time interval
+    :param kwargs: Extra arguments to be passed to the prior function
+    :return: priors: PriorDict object
+    """
     prompt_prior_functions = dict(gaussian=get_gaussian_priors, skew_gaussian=get_skew_gaussian_priors,
                                   skew_exponential=get_skew_exponential_priors, fred=get_fred_priors,
                                   fred_extended=get_fred_extended_priors)
