@@ -1557,7 +1557,7 @@ def two_comp_kne_rosswog_heatingrate(time, redshift, mej_1, vej_1, temperature_f
     """
     cosmology = kwargs.get('cosmology', cosmo)
     dl = cosmology.luminosity_distance(redshift).cgs.value
-    time_temp = np.geomspace(1e-2, 5e6, 300) # in source frame
+    time_temp = np.geomspace(1e-2, 6e6, 300) # in source frame
     time_obs = time
 
     mej = [mej_1, mej_2]
