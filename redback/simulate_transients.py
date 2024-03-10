@@ -88,18 +88,21 @@ class SimulateGenericTransient(object):
         data['true_output'] = true_output
 
         if noise_type == 'gaussianmodel':
-            output = np.random.normal(true_output, self.noise_term * true_output)
+            noise = np.random.normal(0, self.noise_term * true_output, len(true_output))
+            output = true_output + noise
             output_error = self.noise_term * true_output
         elif noise_type == 'gaussian':
-            output = np.random.normal(true_output, self.noise_term)
+            noise = np.random.normal(0, self.noise_term, len(true_output))
+            output = true_output + noise
             output_error = self.noise_term
         else:
             logger.warning(f"noise_type {noise_type} not implemented.")
             raise ValueError('noise_type must be either gaussianmodel or gaussian')
 
         if extra_scatter > 0:
-            output = np.random.normal(output, extra_scatter)
-            output_error = np.sqrt(output_error**2 + extra_scatter**2)
+            extra_noise = np.random.normal(0, extra_scatter, len(true_output))
+            output = output + extra_noise
+            output_error = np.sqrt(output_error**2 + extra_noise**2)
 
         data['output'] = output
         data['output_error'] = output_error
