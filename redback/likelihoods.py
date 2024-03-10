@@ -329,7 +329,7 @@ class GaussianLikelihoodQuadratureNoise(GaussianLikelihood):
 
 class GaussianLikelihoodWithFractionalNoise(GaussianLikelihood):
     def __init__(
-            self, x: np.ndarray, y: np.ndarray, sigma: Union[float, None, np.ndarray],
+            self, x: np.ndarray, y: np.ndarray, sigma_i: Union[float, None, np.ndarray],
             function: callable, kwargs: dict = None, priors=None, fiducial_parameters=None) -> None:
         """
         A Gaussian likelihood with noise that is proportional to the model.
@@ -339,9 +339,9 @@ class GaussianLikelihoodWithFractionalNoise(GaussianLikelihood):
         :type x: np.ndarray
         :param y: The y values.
         :type y: np.ndarray
-        :param sigma: The standard deviation of the noise. This is part of the full noise.
+        :param sigma_i: The standard deviation of the noise. This is part of the full noise.
                         The sigma used in the likelihood is sigma = sqrt(sigma_i^2*model_y**2)
-        :type sigma: Union[float, None, np.ndarray]
+        :type sigma_i: Union[float, None, np.ndarray]
         :param function:
             The python function to fit to the data. Note, this must take the
             dependent variable as its first argument. The other arguments
@@ -357,9 +357,9 @@ class GaussianLikelihoodWithFractionalNoise(GaussianLikelihood):
         use in the optimization for maximum likelihood estimation. Default to None if not provided.
         :type fiducial_parameters: Union[dict, None]
         """
-        self.sigma = sigma
+        self.sigma_i = sigma_i
         # These lines of code infer the parameters from the provided function
-        super().__init__(x=x, y=y, sigma=sigma, function=function, kwargs=kwargs, priors=priors,
+        super().__init__(x=x, y=y, sigma=sigma_i, function=function, kwargs=kwargs, priors=priors,
                          fiducial_parameters=fiducial_parameters)
 
     @property
@@ -369,7 +369,7 @@ class GaussianLikelihoodWithFractionalNoise(GaussianLikelihood):
         :rtype: Union[float, np.ndarray]
         """
         model_y = self.function(self.x, **self.parameters, **self.kwargs)
-        return np.sqrt(self.sigma**2.*model_y**2)
+        return np.sqrt(self.sigma_i**2.*model_y**2)
 
     def noise_log_likelihood(self) -> float:
         """
@@ -377,7 +377,7 @@ class GaussianLikelihoodWithFractionalNoise(GaussianLikelihood):
         :rtype: float
         """
         if self._noise_log_likelihood is None:
-            self._noise_log_likelihood = self._gaussian_log_likelihood(res=self.y, sigma=self.sigma)
+            self._noise_log_likelihood = self._gaussian_log_likelihood(res=self.y, sigma=self.sigma_i)
         return self._noise_log_likelihood
 
     def log_likelihood(self) -> float:
