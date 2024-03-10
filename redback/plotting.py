@@ -789,7 +789,7 @@ class MagnitudePlotter(Plotter):
                     axes[ii].plot(times - self._reference_mjd_date, random_ys, color=color_sample,
                                   alpha=self.random_sample_alpha, lw=self.linewidth, zorder=self.zorder)
             elif self.uncertainty_mode == "credible_intervals":
-                lower_bound, upper_bound, _ = redback.utils.calc_credible_intervals(samples=random_ys_list)
+                lower_bound, upper_bound, _ = redback.utils.calc_credible_intervals(samples=random_ys_list, interval=self.credible_interval_level)
                 axes[ii].fill_between(
                     times - self._reference_mjd_date, lower_bound, upper_bound,
                     alpha=self.uncertainty_band_alpha, color=color_sample)
