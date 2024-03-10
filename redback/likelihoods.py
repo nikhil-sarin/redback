@@ -335,6 +335,7 @@ class GaussianLikelihoodWithFractionalNoise(GaussianLikelihood):
         A Gaussian likelihood with noise that is proportional to the model.
         The parameters are inferred from the arguments of function
 
+        :param x: The x values.
         :type x: np.ndarray
         :param y: The y values.
         :type y: np.ndarray
@@ -368,7 +369,7 @@ class GaussianLikelihoodWithFractionalNoise(GaussianLikelihood):
         :rtype: Union[float, np.ndarray]
         """
         model_y = self.function(self.x, **self.parameters, **self.kwargs)
-        return np.sqrt(self.sigma_i**2.*model_y**2)
+        return np.sqrt(self.sigma**2.*model_y**2)
 
     def noise_log_likelihood(self) -> float:
         """
@@ -394,6 +395,7 @@ class GaussianLikelihoodWithSystematicNoise(GaussianLikelihood):
         A Gaussian likelihood with a systematic noise term that is proportional to the model + some additive noise.
         The parameters are inferred from the arguments of function
 
+        :param x: The x values.
         :type x: np.ndarray
         :param y: The y values.
         :type y: np.ndarray
@@ -452,6 +454,7 @@ class GaussianLikelihoodQuadratureNoiseNonDetections(GaussianLikelihoodQuadratur
         """A general Gaussian likelihood - the parameters are inferred from the
         arguments of function. Takes into account non-detections with a Uniform likelihood for those points
 
+        :param x: The x values.
         :type x: np.ndarray
         :param y: The y values.
         :type y: np.ndarray
