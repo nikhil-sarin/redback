@@ -327,19 +327,78 @@ class GaussianLikelihoodQuadratureNoise(GaussianLikelihood):
         """
         return np.nan_to_num(self._gaussian_log_likelihood(res=self.residual, sigma=self.full_sigma))
 
+class GaussianLikelihoodWithFractionalNoise(GaussianLikelihood):
+    def __init__(
+            self, x: np.ndarray, y: np.ndarray, sigma: Union[float, None, np.ndarray],
+            function: callable, kwargs: dict = None, priors=None, fiducial_parameters=None) -> None:
+        """
+        A Gaussian likelihood with noise that is proportional to the model.
+        The parameters are inferred from the arguments of function
+
+        :type x: np.ndarray
+        :param y: The y values.
+        :type y: np.ndarray
+        :param sigma: The standard deviation of the noise. This is part of the full noise.
+                        The sigma used in the likelihood is sigma = sqrt(sigma_i^2*model_y**2)
+        :type sigma: Union[float, None, np.ndarray]
+        :param function:
+            The python function to fit to the data. Note, this must take the
+            dependent variable as its first argument. The other arguments
+            will require a prior and will be sampled over (unless a fixed
+            value is given).
+        :type function: callable
+        :param kwargs: Any additional keywords for 'function'.
+        :type kwargs: dict
+        :param priors: The priors for the parameters. Default to None if not provided.
+        Only necessary if using maximum likelihood estimation functionality.
+        :type priors: Union[dict, None]
+        :param fiducial_parameters: The starting guesses for model parameters to
+        use in the optimization for maximum likelihood estimation. Default to None if not provided.
+        :type fiducial_parameters: Union[dict, None]
+        """
+        self.sigma = sigma
+        # These lines of code infer the parameters from the provided function
+        super().__init__(x=x, y=y, sigma=sigma, function=function, kwargs=kwargs, priors=priors,
+                         fiducial_parameters=fiducial_parameters)
+
+    @property
+    def full_sigma(self) -> Union[float, np.ndarray]:
+        """
+        :return: The standard deviation of the full noise
+        :rtype: Union[float, np.ndarray]
+        """
+        model_y = self.function(self.x, **self.parameters, **self.kwargs)
+        return np.sqrt(self.sigma_i**2.*model_y**2)
+
+    def noise_log_likelihood(self) -> float:
+        """
+        :return: The noise log-likelihood, i.e. the log-likelihood assuming the signal is just noise.
+        :rtype: float
+        """
+        if self._noise_log_likelihood is None:
+            self._noise_log_likelihood = self._gaussian_log_likelihood(res=self.y, sigma=self.sigma)
+        return self._noise_log_likelihood
+
+    def log_likelihood(self) -> float:
+        """
+        :return: The log-likelihood.
+        :rtype: float
+        """
+        return np.nan_to_num(self._gaussian_log_likelihood(res=self.residual, sigma=self.full_sigma))
+
 class GaussianLikelihoodWithSystematicNoise(GaussianLikelihood):
     def __init__(
             self, x: np.ndarray, y: np.ndarray, sigma_i: Union[float, None, np.ndarray],
             function: callable, kwargs: dict = None, priors=None, fiducial_parameters=None) -> None:
         """
-        A general Gaussian likelihood - the parameters are inferred from the
-        arguments of function
+        A Gaussian likelihood with a systematic noise term that is proportional to the model + some additive noise.
+        The parameters are inferred from the arguments of function
 
         :type x: np.ndarray
         :param y: The y values.
         :type y: np.ndarray
         :param sigma_i: The standard deviation of the noise. This is part of the full noise.
-                        The sigma used in the likelihood is sigma = sqrt(sigma_i^2 + sigma^2)
+                        The sigma used in the likelihood is sigma = sqrt(sigma_i^2 + model_y**2*sigma^2)
         :type sigma_i: Union[float, None, np.ndarray]
         :param function:
             The python function to fit to the data. Note, this must take the
