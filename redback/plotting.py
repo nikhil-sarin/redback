@@ -346,7 +346,7 @@ class IntegratedFluxPlotter(Plotter):
                 axes.plot(times, ys, color=self.random_sample_color, alpha=self.random_sample_alpha, lw=self.linewidth,
                           zorder=self.zorder)
         elif self.uncertainty_mode == "credible_intervals":
-            lower_bound, upper_bound, _ = redback.utils.calc_credible_intervals(samples=random_ys_list)
+            lower_bound, upper_bound, _ = redback.utils.calc_credible_intervals(samples=random_ys_list, interval=self.credible_interval_level)
             axes.fill_between(
                 times, lower_bound, upper_bound, alpha=self.uncertainty_band_alpha, color=self.max_likelihood_color)
 
@@ -635,11 +635,11 @@ class MagnitudePlotter(Plotter):
             elif self.uncertainty_mode == "credible_intervals":
                 if band in self.band_scaling:
                     if self.band_scaling.get("type") == 'x':
-                        lower_bound, upper_bound, _ = redback.utils.calc_credible_intervals(samples=np.array(random_ys_list) * self.band_scaling.get(band))
+                        lower_bound, upper_bound, _ = redback.utils.calc_credible_intervals(samples=np.array(random_ys_list) * self.band_scaling.get(band), interval=self.credible_interval_level)
                     elif self.band_scaling.get("type") == '+':
-                        lower_bound, upper_bound, _ = redback.utils.calc_credible_intervals(samples=np.array(random_ys_list) + self.band_scaling.get(band))
+                        lower_bound, upper_bound, _ = redback.utils.calc_credible_intervals(samples=np.array(random_ys_list) + self.band_scaling.get(band), interval=self.credible_interval_level)
                 else:
-                    lower_bound, upper_bound, _ = redback.utils.calc_credible_intervals(samples=np.array(random_ys_list))
+                    lower_bound, upper_bound, _ = redback.utils.calc_credible_intervals(samples=np.array(random_ys_list), interval=self.credible_interval_level)
                 axes.fill_between(
                     times - self._reference_mjd_date, lower_bound, upper_bound,
                     alpha=self.uncertainty_band_alpha, color=color_sample)
