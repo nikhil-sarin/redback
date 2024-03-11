@@ -476,7 +476,7 @@ def mosfit_rprocess(time, redshift, mej, vej, kappa, kappa_gamma, temperature_fl
     cosmology = kwargs.get('cosmology', cosmo)
     dl = cosmology.luminosity_distance(redshift).cgs.value
     dense_resolution = kwargs.get('dense_resolution', 300)
-    time_temp = np.geomspace(1e-2, 5e6, dense_resolution) # in source frame
+    time_temp = np.geomspace(1e-2, 7e6, dense_resolution) # in source frame
     time_obs = time
     lbols = _mosfit_kilonova_one_component_lbol(time=time_temp,
                                                 mej=mej, vej=vej)
@@ -555,7 +555,7 @@ def mosfit_kilonova(time, redshift, mej_1, vej_1, temperature_floor_1, kappa_1,
     cosmology = kwargs.get('cosmology', cosmo)
     dl = cosmology.luminosity_distance(redshift).cgs.value
     dense_resolution = kwargs.get('dense_resolution', 300)
-    time_temp = np.geomspace(1e-2, 5e6, dense_resolution)  # in source frame
+    time_temp = np.geomspace(1e-2, 7e6, dense_resolution)  # in source frame
     time_obs = time
     mej = [mej_1, mej_2, mej_3]
     vej = [vej_1, vej_2, vej_3]
@@ -979,7 +979,7 @@ def three_component_kilonova_model(time, redshift, mej_1, vej_1, temperature_flo
     """
     cosmology = kwargs.get('cosmology', cosmo)
     dl = cosmology.luminosity_distance(redshift).cgs.value
-    time_temp = np.geomspace(1e-2, 5e6, 300) # in source frame
+    time_temp = np.geomspace(1e-2, 7e6, 300) # in source frame
     time_obs = time
 
     mej = [mej_1, mej_2, mej_3]
@@ -1068,7 +1068,7 @@ def two_component_kilonova_model(time, redshift, mej_1, vej_1, temperature_floor
     """
     cosmology = kwargs.get('cosmology', cosmo)
     dl = cosmology.luminosity_distance(redshift).cgs.value
-    time_temp = np.geomspace(1e-2, 5e6, 300) # in source frame
+    time_temp = np.geomspace(1e-2, 7e6, 300) # in source frame
     time_obs = time
 
     mej = [mej_1, mej_2]
@@ -1381,7 +1381,7 @@ def one_component_kilonova_model(time, redshift, mej, vej, kappa, **kwargs):
     """
     cosmology = kwargs.get('cosmology', cosmo)
     dl = cosmology.luminosity_distance(redshift).cgs.value
-    time_temp = np.geomspace(1e-3, 5e6, 300) # in source frame
+    time_temp = np.geomspace(1e-3, 7e6, 300) # in source frame
     time_obs = time
     _, temperature, r_photosphere = _one_component_kilonova_model(time_temp, mej, vej, kappa, **kwargs)
 
@@ -1492,7 +1492,7 @@ def one_comp_kne_rosswog_heatingrate(time, redshift, mej, vej, ye, **kwargs):
     """
     cosmology = kwargs.get('cosmology', cosmo)
     dl = cosmology.luminosity_distance(redshift).cgs.value
-    time_temp = np.geomspace(1e-3, 5e6, 300) # in source frame
+    time_temp = np.geomspace(1e-3, 7e6, 300) # in source frame
     time_obs = time
     _, temperature, r_photosphere = _one_component_kilonova_rosswog_heatingrate(time_temp, mej, vej, ye, **kwargs)
 
@@ -1557,7 +1557,7 @@ def two_comp_kne_rosswog_heatingrate(time, redshift, mej_1, vej_1, temperature_f
     """
     cosmology = kwargs.get('cosmology', cosmo)
     dl = cosmology.luminosity_distance(redshift).cgs.value
-    time_temp = np.geomspace(1e-2, 6e6, 300) # in source frame
+    time_temp = np.geomspace(1e-2, 7e6, 300) # in source frame
     time_obs = time
 
     mej = [mej_1, mej_2]
@@ -1684,7 +1684,7 @@ def metzger_kilonova_model(time, redshift, mej, vej, beta, kappa, **kwargs):
     """
     cosmology = kwargs.get('cosmology', cosmo)
     dl = cosmology.luminosity_distance(redshift).cgs.value
-    time_temp = np.geomspace(1e-4, 1e7, 300) # in source frame
+    time_temp = np.geomspace(1e-4, 7e6, 300) # in source frame
     time_obs = time
     bolometric_luminosity, temperature, r_photosphere = _metzger_kilonova_model(time_temp, mej, vej, beta,
                                                                                 kappa, **kwargs)
