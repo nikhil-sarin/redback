@@ -304,6 +304,11 @@ def get_correct_output_format_from_spectra(time, time_eval, spectra, lambda_arra
     :param output_format: 'flux', 'magnitude', 'sncosmo_source', 'flux_density'
     :return: flux, magnitude or SNcosmo TimeSeries Source depending on output format kwarg
     """
+    # clean up spectrum to remove nonsensical values before creating sncosmo source
+    spectra = np.nan_to_num(spectra)
+    spectra[spectra.value == np.nan_to_num(np.inf)] = 1e-30 * np.mean(spectra[10])
+    spectra[spectra.value == 0.] = 1e-30 * np.mean(spectra[10])
+
     source = TimeSeriesSource(phase=time_eval, wave=lambda_array, flux=spectra)
     if kwargs['output_format'] == 'flux':
         bands = kwargs['bands']
