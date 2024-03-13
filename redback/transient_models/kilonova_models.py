@@ -1422,8 +1422,21 @@ def one_component_kilonova_model(time, redshift, mej, vej, kappa, **kwargs):
                                                           **kwargs)
 
 
-def _calc_new_heating_rate(time, mej, electron_fraction, ejecta_velocity):
+def _calc_new_heating_rate(time, mej, electron_fraction, ejecta_velocity, **kwargs):
+    """
+    Heating rate prescription following Rosswog and Korobkin 2022
+
+    :param time: time in seconds
+    :param mej: ejecta mass in solar masses
+    :param electron_fraction: electron fraction
+    :param ejecta_velocity: ejecta velocity in c
+    :param kwargs: Additional keyword arguments
+    :param heating_rate_perturbation: A fudge factor for heating rate to account for uncertainties in the heating rate.
+    Default is 1.0 i.e., no perturbation.
+    :return: heating rate in erg/s
+    """
     heating_terms = get_heating_terms(electron_fraction, ejecta_velocity)
+    heating_rate_perturbation = kwargs.get('heating_rate_perturbation', 1.0)
     # rescale
     m0 = mej * solar_mass
     c1 = np.exp(heating_terms.c1)
@@ -1438,7 +1451,7 @@ def _calc_new_heating_rate(time, mej, electron_fraction, ejecta_velocity):
     term4 = c2 * np.exp(-time/tau2)
     term5 = c3 * np.exp(-time/tau3)
     lum_in = term1*term2 + term3 + term4 + term5
-    return lum_in*m0
+    return lum_in*m0 * heating_rate_perturbation
 
 def _one_component_kilonova_rosswog_heatingrate(time, mej, vej, electron_fraction, **kwargs):
     tdays = time/day_to_s
@@ -1454,7 +1467,7 @@ def _one_component_kilonova_rosswog_heatingrate(time, mej, vej, electron_fractio
     kappa = kappa_from_electron_fraction(electron_fraction)
     tdiff = np.sqrt(2.0 * kappa * (m0) / (beta * v0 * speed_of_light))
 
-    lum_in = _calc_new_heating_rate(time, mej, electron_fraction, vej)
+    lum_in = _calc_new_heating_rate(time, mej, electron_fraction, vej, **kwargs)
     integrand = lum_in * e_th * (time / tdiff) * np.exp(time ** 2 / tdiff ** 2)
 
     bolometric_luminosity = np.zeros(len(time))
@@ -1482,6 +1495,8 @@ def one_comp_kne_rosswog_heatingrate(time, redshift, mej, vej, ye, **kwargs):
     :param kappa: gray opacity
     :param kwargs: Additional keyword arguments
     :param temperature_floor: Temperature floor in K (default 4000)
+    :param heating_rate_perturbation: A fudge factor for heating rate to account for uncertainties in the heating rate.
+    Default is 1.0 i.e., no perturbation.
     :param frequency: Required if output_format is 'flux_density'.
         frequency to calculate - Must be same length as time array or a single number).
     :param bands: Required if output_format is 'magnitude' or 'flux'.
@@ -1547,6 +1562,8 @@ def two_comp_kne_rosswog_heatingrate(time, redshift, mej_1, vej_1, temperature_f
     :param temperature_floor_2: floor temperature of second component
     :param kappa_2: gray opacity of second component
     :param kwargs: Additional keyword arguments
+    :param heating_rate_perturbation: A fudge factor for heating rate to account for uncertainties in the heating rate.
+    Default is 1.0 i.e., no perturbation.
     :param frequency: Required if output_format is 'flux_density'.
         frequency to calculate - Must be same length as time array or a single number).
     :param bands: Required if output_format is 'magnitude' or 'flux'.
