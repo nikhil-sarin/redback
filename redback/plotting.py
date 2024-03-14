@@ -391,11 +391,11 @@ class LuminosityPlotter(IntegratedFluxPlotter):
 
 class MagnitudePlotter(Plotter):
 
-    xlim_low_phase_model_multiplier = 0.9
-    xlim_high_phase_model_multiplier = 1.1
-    xlim_high_multiplier = 1.2
-    ylim_low_magnitude_multiplier = 0.8
-    ylim_high_magnitude_multiplier = 1.2
+    xlim_low_phase_model_multiplier = KwargsAccessorWithDefault("xlim_low_multiplier", 0.9)
+    xlim_high_phase_model_multiplier = KwargsAccessorWithDefault("xlim_high_multiplier", 1.1)
+    xlim_high_multiplier = KwargsAccessorWithDefault("xlim_high_multiplier", 1.2)
+    ylim_low_magnitude_multiplier = KwargsAccessorWithDefault("ylim_low_multiplier", 0.8)
+    ylim_high_magnitude_multiplier = KwargsAccessorWithDefault("ylim_high_multiplier", 1.2)
     ncols = KwargsAccessorWithDefault("ncols", 2)
 
     @property
