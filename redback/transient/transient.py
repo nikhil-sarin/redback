@@ -137,7 +137,7 @@ class Transient(object):
         self.system = system
         self.data_mode = data_mode
         self.active_bands = active_bands
-        self.sncosmo_bands = redback.utils.sncosmo_bandname_from_band(self.bands, warning_style='soft')
+        self.sncosmo_bands = redback.utils.sncosmo_bandname_from_band(self.bands)
         self.redshift = redshift
         self.name = name
         self.use_phase_model = use_phase_model
@@ -906,7 +906,7 @@ class OpticalTransient(Transient):
             meta_data = pd.read_csv(self.event_table, on_bad_lines='skip', delimiter=',', dtype='str')
         except FileNotFoundError as e:
             redback.utils.logger.warning(e)
-            redback.utils.logger.warning("Setting metadata to None")
+            redback.utils.logger.warning("Setting metadata to None. This is not an error, but a warning that no metadata could be found online.")
             meta_data = None
         self.meta_data = meta_data
 

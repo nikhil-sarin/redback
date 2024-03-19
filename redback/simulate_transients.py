@@ -14,7 +14,7 @@ datadir = os.path.join(os.path.dirname(redback.__file__), 'tables')
 
 class SimulateGenericTransient(object):
     def __init__(self, model, parameters, times, model_kwargs, data_points,
-                 seed=1234, multiwavelength_transient=False, noise_term=0.2):
+                 seed=1234, multiwavelength_transient=False, noise_term=0.2, noise_type='gaussianmodel', extra_scatter=0.0):
         """
         A generic interface to simulating transients
 
@@ -31,7 +31,12 @@ class SimulateGenericTransient(object):
                 and the data points are sampled in bands/frequency as well,
                 rather than just corresponding to one wavelength/filter.
                 This also allows the same time value to be sampled multiple times.
-        :param noise_term: Float. Factor which is multiplied by the model flux/magnitude to give the sigma.
+        :param noise_type: String. Type of noise to add to the model.
+            Default is 'gaussianmodel' where sigma is noise_term * model.
+            Another option is 'gaussian' i.e., a simple Gaussian noise with sigma = noise_term.
+        :param noise_term: Float. Factor which is multiplied by the model flux/magnitude to give the sigma
+            or is sigma itself for 'gaussian' noise.
+        :param extra_scatter: Float. Sigma of normal added to output for additional scatter.
         """
         self.model = redback.model_library.all_models_dict[model]
         self.parameters = parameters
@@ -81,8 +86,26 @@ class SimulateGenericTransient(object):
         if 'frequency' in model_kwargs.keys():
             data['frequency'] = self.subset_frequency
         data['true_output'] = true_output
-        data['output'] = np.random.normal(true_output, self.noise_term * true_output)
-        data['output_error'] = self.noise_term * true_output
+
+        if noise_type == 'gaussianmodel':
+            noise = np.random.normal(0, self.noise_term * true_output, len(true_output))
+            output = true_output + noise
+            output_error = self.noise_term * true_output
+        elif noise_type == 'gaussian':
+            noise = np.random.normal(0, self.noise_term, len(true_output))
+            output = true_output + noise
+            output_error = self.noise_term
+        else:
+            logger.warning(f"noise_type {noise_type} not implemented.")
+            raise ValueError('noise_type must be either gaussianmodel or gaussian')
+
+        if extra_scatter > 0:
+            extra_noise = np.random.normal(0, extra_scatter, len(true_output))
+            output = output + extra_noise
+            output_error = np.sqrt(output_error**2 + extra_noise**2)
+
+        data['output'] = output
+        data['output_error'] = output_error
         self.data = data
 
     def save_transient(self, name):
@@ -98,7 +121,7 @@ class SimulateGenericTransient(object):
         path = 'simulated/' + name + '.csv'
         injection_path = 'simulated/' + name + '_injection_parameters.csv'
         self.data.to_csv(path, index=False)
-        self.parameters=pd.DataFrame.from_dict(self.parameters)
+        self.parameters=pd.DataFrame.from_dict([self.parameters])
         self.parameters.to_csv(injection_path, index=False)
 
 class SimulateOpticalTransient(object):
