@@ -1014,7 +1014,7 @@ def heatinggrids():
     interpolators.TAU3 = TAU3_interp
     return interpolators
 
-def get_heating_terms(ye, vel):
+def get_heating_terms(ye, vel, **kwargs):
     ints = heatinggrids()
     e0 = ints.E0([ye, vel])[0]
     alp = ints.ALP([ye, vel])[0]
@@ -1031,19 +1031,21 @@ def get_heating_terms(ye, vel):
     tau3 = ints.TAU3([ye, vel])[0]
     heating_terms = namedtuple('heating_terms', ['e0', 'alp', 't0', 'sig', 'alp1', 't1', 'sig1', 'c1',
                                                  'tau1', 'c2', 'tau2', 'c3', 'tau3'])
-    heating_terms.e0 = e0
-    heating_terms.alp = alp
-    heating_terms.t0 = t0
-    heating_terms.sig = sig
-    heating_terms.alp1 = alp1
-    heating_terms.t1 = t1
-    heating_terms.sig1 = sig1
-    heating_terms.c1 = c1
-    heating_terms.tau1 = tau1
-    heating_terms.c2 = c2
-    heating_terms.tau2 = tau2
-    heating_terms.c3 = c3
-    heating_terms.tau3 = tau3
+
+    heating_rate_fudge = kwargs.get('heating_rate_fudge', 1.0)
+    heating_terms.e0 = e0 * heating_rate_fudge
+    heating_terms.alp = alp * heating_rate_fudge
+    heating_terms.t0 = t0 * heating_rate_fudge
+    heating_terms.sig = sig * heating_rate_fudge
+    heating_terms.alp1 = alp1 * heating_rate_fudge
+    heating_terms.t1 = t1 * heating_rate_fudge
+    heating_terms.sig1 = sig1 * heating_rate_fudge
+    heating_terms.c1 = c1 * heating_rate_fudge
+    heating_terms.tau1 = tau1 * heating_rate_fudge
+    heating_terms.c2 = c2 * heating_rate_fudge
+    heating_terms.tau2 = tau2 * heating_rate_fudge
+    heating_terms.c3 = c3 * heating_rate_fudge
+    heating_terms.tau3 = tau3 * heating_rate_fudge
     return heating_terms
 
 def electron_fraction_from_kappa(kappa):
