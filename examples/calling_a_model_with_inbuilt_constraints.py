@@ -22,13 +22,12 @@ priors['vej'] = 5500
 priors['r0'] = 617
 priors['nn'] = 8.8
 priors['delta'] = 0.
-priors['rho'] = 19
+priors['rho'] = 1e-14
 priors['eta'] = 2
 priors['redshift'] = 0.16
 samples = pd.DataFrame(priors.sample(10))
 time = np.geomspace(0.01, 500, 500)
 redshift = 0.01
-
 
 for x in range(10):
     kwargs = samples.iloc[x]
@@ -36,7 +35,6 @@ for x in range(10):
     kwargs['bands'] = ['lsstg']
     # kwargs['interaction_process'] = None
     mag = function(time, **kwargs)
-    print(mag)
     # plt.loglog(time, mag)
     plt.plot(time, mag)
 plt.gca().invert_yaxis()
