@@ -874,11 +874,9 @@ def _csm_engine(time, mej, csm_mass, vej, eta, rho, kappa, r0, **kwargs):
     # scaling constant for CSM density profile
     qq = rho * r0 ** eta
     # outer CSM shell radius
-    radius_csm = ((3.0 - eta) / (4.0 * np.pi * qq) * csm_mass + r0 ** (3.0 - eta)) ** (
-            1.0 / (3.0 - eta))
+    radius_csm = ((3.0 - eta) / (4.0 * np.pi * qq) * csm_mass + r0 ** (3.0 - eta)) ** (1.0 / (3.0 - eta))
     # photosphere radius
-    r_photosphere = abs((-2.0 * (1.0 - eta) / (3.0 * kappa * qq) +
-                         radius_csm ** (1.0 - eta)) ** (1.0 / (1.0 - eta)))
+    r_photosphere = abs((-2.0 * (1.0 - eta) / (3.0 * kappa * qq) + radius_csm ** (1.0 - eta)) ** (1.0 / (1.0 - eta)))
 
     # mass of the optically thick CSM (tau > 2/3).
     mass_csm_threshold = np.abs(4.0 * np.pi * qq / (3.0 - eta) * (
@@ -904,20 +902,18 @@ def _csm_engine(time, mej, csm_mass, vej, eta, rho, kappa, r0, **kwargs):
               (3.0 - nn) * g_n)) ** (1.0 / (3.0 - nn))) ** (
                    (nn - eta) / (eta - 3.0))
 
-    mask_1 = t_FS - time * day_to_s > 0
-    mask_2 = t_RS - time * day_to_s > 0
+    mask_RS = t_RS - time * day_to_s > 0
+    mask_FS = t_FS - time * day_to_s > 0
 
-    lbol = efficiency * (2.0 * np.pi / (nn - eta) ** 3 * g_n ** ((5.0 - eta) / (nn - eta)) * qq **
-                         ((nn - 5.0) / (nn - eta)) * (nn - 3.0) ** 2 * (nn - 5.0) * Bf ** (5.0 - eta) * AA **
-                         ((5.0 - eta) / (nn - eta)) * (time * day_to_s + ti) **
-                         ((2.0 * nn + 6.0 * eta - nn * eta - 15.) /
-                          (nn - eta)) + 2.0 * np.pi * (AA * g_n / qq) **
-                         ((5.0 - nn) / (nn - eta)) * Br ** (5.0 - nn) * g_n * ((3.0 - eta) / (nn - eta)) ** 3 * (
-                                     time * day_to_s + ti) **
-                         ((2.0 * nn + 6.0 * eta - nn * eta - 15.0) / (nn - eta)))
+    lbol_FS = 2.0 * np.pi / (nn - eta) ** 3 * g_n ** ((5.0 - eta) / (nn - eta)) * qq ** ((nn - 5.0) / (nn - eta)) \
+              * (nn - 3.0) ** 2 * (nn - 5.0) * Bf ** (5.0 - eta) * AA ** ((5.0 - eta) / (nn - eta)) * (time * day_to_s + ti) \
+              ** ((2.0 * nn + 6.0 * eta - nn * eta - 15.) / (nn - eta))
 
-    lbol[~mask_1] = 0
-    lbol[~mask_2] = 0
+    lbol_RS = 2.0 * np.pi * (AA * g_n / qq) ** ((5.0 - nn) / (nn - eta)) * Br ** (5.0 - nn) * g_n * ((3.0 - eta) / (nn - eta)) ** 3 * (time * day_to_s + ti) ** ((2.0 * nn + 6.0 * eta - nn * eta - 15.0) / (nn - eta))
+    lbol_FS[~mask_FS] = 0
+    lbol_RS[~mask_RS] = 0
+
+    lbol = efficiency * (lbol_FS + lbol_RS)
 
     csm_output = namedtuple('csm_output', ['lbol', 'r_photosphere', 'mass_csm_threshold'])
     csm_output.lbol = lbol
@@ -951,14 +947,15 @@ def csm_interaction_bolometric(time, mej, csm_mass, vej, eta, rho, kappa, r0, **
     csm_output = _csm_engine(time=time, mej=mej, csm_mass=csm_mass, vej=vej,
                              eta=eta, rho=rho, kappa=kappa, r0=r0, **kwargs)
     lbol = csm_output.lbol
-    r_photosphere = csm_output.r_photosphere
-    mass_csm_threshold = csm_output.mass_csm_threshold
 
     if _interaction_process is not None:
         dense_resolution = kwargs.get("dense_resolution", 1000)
         dense_times = np.linspace(0, time[-1]+100, dense_resolution)
-        dense_lbols = _csm_engine(time=dense_times, mej=mej, csm_mass=csm_mass, vej=vej,
-                             eta=eta, rho=rho, kappa=kappa, r0=r0, **kwargs).lbol
+        csm_output = _csm_engine(time=dense_times, mej=mej, csm_mass=csm_mass, vej=vej,
+                                 eta=eta, rho=rho, kappa=kappa, r0=r0, **kwargs)
+        dense_lbols = csm_output.lbol
+        r_photosphere = csm_output.r_photosphere
+        mass_csm_threshold = csm_output.mass_csm_threshold
         interaction_class = _interaction_process(time=time, dense_times=dense_times, luminosity=dense_lbols,
                                                 kappa=kappa, r_photosphere=r_photosphere,
                                                 mass_csm_threshold=mass_csm_threshold, csm_mass=csm_mass, **kwargs)
