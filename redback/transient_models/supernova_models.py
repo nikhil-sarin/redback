@@ -923,9 +923,7 @@ def _csm_engine(time, mej, csm_mass, vej, eta, rho, kappa, r0, **kwargs):
     return csm_output
 
 
-@citation_wrapper('https://ui.adsabs.harvard.edu/abs/2013ApJ...773...76C/abstract',
-                  'https://ui.adsabs.harvard.edu/abs/2017ApJ...849...70V/abstract',
-                  'https://ui.adsabs.harvard.edu/abs/2020RNAAS...4...16J/abstract')
+@citation_wrapper('https://ui.adsabs.harvard.edu/abs/2013ApJ...773...76C/abstract, https://ui.adsabs.harvard.edu/abs/2017ApJ...849...70V/abstract, https://ui.adsabs.harvard.edu/abs/2020RNAAS...4...16J/abstract')
 def csm_interaction_bolometric(time, mej, csm_mass, vej, eta, rho, kappa, r0, **kwargs):
     """
     :param time: time in days in source frame
@@ -966,9 +964,7 @@ def csm_interaction_bolometric(time, mej, csm_mass, vej, eta, rho, kappa, r0, **
     return lbol
 
 
-@citation_wrapper('https://ui.adsabs.harvard.edu/abs/2013ApJ...773...76C/abstract',
-                  'https://ui.adsabs.harvard.edu/abs/2017ApJ...849...70V/abstract',
-                  'https://ui.adsabs.harvard.edu/abs/2020RNAAS...4...16J/abstract')
+@citation_wrapper('https://ui.adsabs.harvard.edu/abs/2013ApJ...773...76C/abstract, https://ui.adsabs.harvard.edu/abs/2017ApJ...849...70V/abstract, https://ui.adsabs.harvard.edu/abs/2020RNAAS...4...16J/abstract')
 def csm_interaction(time, redshift, mej, csm_mass, vej, eta, rho, kappa, r0, **kwargs):
     """
     :param time: time in days in observer frame
