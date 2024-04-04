@@ -909,7 +909,8 @@ def _csm_engine(time, mej, csm_mass, vej, eta, rho, kappa, r0, **kwargs):
               * (nn - 3.0) ** 2 * (nn - 5.0) * Bf ** (5.0 - eta) * AA ** ((5.0 - eta) / (nn - eta)) * (time * day_to_s + ti) \
               ** ((2.0 * nn + 6.0 * eta - nn * eta - 15.) / (nn - eta))
 
-    lbol_RS = 2.0 * np.pi * (AA * g_n / qq) ** ((5.0 - nn) / (nn - eta)) * Br ** (5.0 - nn) * g_n * ((3.0 - eta) / (nn - eta)) ** 3 * (time * day_to_s + ti) ** ((2.0 * nn + 6.0 * eta - nn * eta - 15.0) / (nn - eta))
+    lbol_RS = 2.0 * np.pi * (AA * g_n / qq) ** ((5.0 - nn) / (nn - eta)) * Br ** (5.0 - nn) * g_n * ((3.0 - eta) / (nn - eta)) \
+              ** 3 * (time * day_to_s + ti) ** ((2.0 * nn + 6.0 * eta - nn * eta - 15.0) / (nn - eta))
     lbol_FS[~mask_FS] = 0
     lbol_RS[~mask_RS] = 0
 
@@ -922,7 +923,9 @@ def _csm_engine(time, mej, csm_mass, vej, eta, rho, kappa, r0, **kwargs):
     return csm_output
 
 
-@citation_wrapper('redback')
+@citation_wrapper('https://ui.adsabs.harvard.edu/abs/2013ApJ...773...76C/abstract',
+                  'https://ui.adsabs.harvard.edu/abs/2017ApJ...849...70V/abstract',
+                  'https://ui.adsabs.harvard.edu/abs/2020RNAAS...4...16J/abstract')
 def csm_interaction_bolometric(time, mej, csm_mass, vej, eta, rho, kappa, r0, **kwargs):
     """
     :param time: time in days in source frame
@@ -950,7 +953,7 @@ def csm_interaction_bolometric(time, mej, csm_mass, vej, eta, rho, kappa, r0, **
 
     if _interaction_process is not None:
         dense_resolution = kwargs.get("dense_resolution", 1000)
-        dense_times = np.linspace(0, time[-1]+100, dense_resolution)
+        dense_times = np.geomspace(0.1, time[-1]+100, dense_resolution)
         csm_output = _csm_engine(time=dense_times, mej=mej, csm_mass=csm_mass, vej=vej,
                                  eta=eta, rho=rho, kappa=kappa, r0=r0, **kwargs)
         dense_lbols = csm_output.lbol
@@ -963,7 +966,9 @@ def csm_interaction_bolometric(time, mej, csm_mass, vej, eta, rho, kappa, r0, **
     return lbol
 
 
-@citation_wrapper('https://ui.adsabs.harvard.edu/abs/2013ApJ...773...76C/abstract')
+@citation_wrapper('https://ui.adsabs.harvard.edu/abs/2013ApJ...773...76C/abstract',
+                  'https://ui.adsabs.harvard.edu/abs/2017ApJ...849...70V/abstract',
+                  'https://ui.adsabs.harvard.edu/abs/2020RNAAS...4...16J/abstract')
 def csm_interaction(time, redshift, mej, csm_mass, vej, eta, rho, kappa, r0, **kwargs):
     """
     :param time: time in days in observer frame
@@ -1014,7 +1019,7 @@ def csm_interaction(time, redshift, mej, csm_mass, vej, eta, rho, kappa, r0, **k
     else:
         time_obs = time
         lambda_observer_frame = kwargs.get('lambda_array', np.geomspace(100, 60000, 100))
-        time_temp = np.geomspace(0.1, 3000, 300)  # in days
+        time_temp = np.linspace(0.1, 500, 300)  # in days
         time_observer_frame = time_temp * (1. + redshift)
         frequency, time = calc_kcorrected_properties(frequency=lambda_to_nu(lambda_observer_frame),
                                                      redshift=redshift, time=time_observer_frame)

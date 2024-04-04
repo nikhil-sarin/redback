@@ -169,8 +169,12 @@ def csm_constraints(parameters):
     kappa = parameters['kappa']
     r0 = parameters['r0']
     vej = parameters['vej']
-    nn = parameters.get('nn', np.ones(len(mej)) * 12.)
-    delta = parameters.get('delta', np.ones(len(mej)))
+    if hasattr(parameters['mej'], "__len__"):
+        nn = parameters.get('nn', np.ones(len(mej)) * 8.)
+        delta = parameters.get('delta', np.ones(len(mej)))
+    else:
+        nn = parameters.get('nn', 12.)
+        delta = parameters.get('delta', 0.)
     eta = parameters['eta']
     rho = parameters['rho']
 
@@ -180,12 +184,21 @@ def csm_constraints(parameters):
     vej = vej * km_cgs
     Esn = 3. * vej ** 2 * mej / 10.
 
-    AA = np.zeros(len(mej))
-    Bf = np.zeros(len(mej))
-    for x in range(len(mej)):
-        csm_properties = get_csm_properties(nn[x], eta[x])
-        AA[x] = csm_properties.AA
-        Bf[x] = csm_properties.Bf
+    if hasattr(parameters['mej'], "__len__"):
+        AA = np.zeros(len(mej))
+        Bf = np.zeros(len(mej))
+        Br = np.zeros(len(mej))
+        for x in range(len(mej)):
+            csm_properties = get_csm_properties(nn[x], eta[x])
+            AA[x] = csm_properties.AA
+            Bf[x] = csm_properties.Bf
+            Br[x] = csm_properties.Br
+    else:
+        csm_properties = get_csm_properties(nn, eta)
+        AA = csm_properties.AA
+        Bf = csm_properties.Bf
+        Br = csm_properties.Br
+
     qq = rho * r0 ** eta
     # outer CSM shell radius
     radius_csm = ((3.0 - eta) / (4.0 * np.pi * qq) * csm_mass + r0 ** (3.0 - eta)) ** (
@@ -207,10 +220,11 @@ def csm_constraints(parameters):
 
     diffusion_time = np.sqrt(2. * kappa * mass_csm_threshold /(vej * 13.7 * 3.e10))
     # ensure shock crossing time is greater than diffusion time
-    # converted_parameters['shock_time'] = tshock - diffusion_time
+    converted_parameters['shock_time'] = diffusion_time/tshock
     # ensure photospheric radius is within the csm i.e., r_photo < radius_csm and r_photo > r0
-    converted_parameters['photosphere_constraint_1'] = radius_csm - r_photosphere
-    converted_parameters['photosphere_constraint_2'] = r_photosphere - r0
+    converted_parameters['photosphere_constraint_1'] = r_photosphere/radius_csm
+    converted_parameters['photosphere_constraint_2'] = r0/r_photosphere
+    # converted_parameters['lbol_end'] = 1e30/lbol[:,-1]
     return converted_parameters
 
 def piecewise_polytrope_eos_constraints(parameters):
