@@ -165,8 +165,6 @@ class CSMDiffusion(object):
         # photosphere radius
         r_photosphere = self.r_photosphere
 
-        tau_diff = (self.kappa * self.csm_mass) / (13.8 * speed_of_light * r_photosphere) / day_to_s
-
         # mass of the optically thick CSM (tau > 2/3).
         mass_csm_threshold = self.mass_csm_threshold
 
@@ -180,7 +178,7 @@ class CSMDiffusion(object):
         lu = len(uniq_times)
 
         num = int(round(timesteps / 2.0))
-        lsp = np.logspace(np.log10(tau_diff /self.dense_times[-1]) + minimum_log_spacing, 0, num)
+        lsp = np.logspace(np.log10(t0 /self.dense_times[-1]) + minimum_log_spacing, 0, num)
         xm = np.unique(np.concatenate((lsp, 1 - lsp)))
 
         int_times = tb + (uniq_times.reshape(lu, 1) - tb) * xm
@@ -192,7 +190,6 @@ class CSMDiffusion(object):
 
         uniq_lums = np.trapz(int_args, int_times, axis=1)
         uniq_lums *= np.exp(-int_tes/t0)/t0
-        uniq_lums[np.isnan(uniq_lums)] = 0.0
         new_lums = uniq_lums[np.searchsorted(uniq_times, self.time)]
         return new_lums
 
