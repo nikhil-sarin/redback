@@ -2114,11 +2114,7 @@ def tophat_from_emulator(time, redshift, thv, loge0, thc, logn0, p, logepse, log
     :return: flux density or AB mag predicted by emulator. Note this is going to give the monochromatic magnitude at the effective frequency for the band.
         For a proper calculation of the magntitude use the sed variant models
     """
-    import os
-    import sys
-    cwd=os.getcwd()
-    home=os.path.dirname(cwd)
-    sys.path.insert(1, home+'/redback_surrogates')
+
     from redback_surrogates.afterglowmodels import tophat_emulator
     
     z1=0.01

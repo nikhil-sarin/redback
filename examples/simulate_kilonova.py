@@ -2,6 +2,7 @@
 import redback
 from redback.simulate_transients import SimulateOpticalTransient
 
+
 # We first set up a table that contains the pointings of the telescope. 
 # This requires setting the number of observations in each filter, average cadence, the cadence scatter, 
 # and the limiting magnitudes for each filter.
