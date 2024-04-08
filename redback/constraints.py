@@ -187,17 +187,14 @@ def csm_constraints(parameters):
     if hasattr(parameters['mej'], "__len__"):
         AA = np.zeros(len(mej))
         Bf = np.zeros(len(mej))
-        Br = np.zeros(len(mej))
         for x in range(len(mej)):
             csm_properties = get_csm_properties(nn[x], eta[x])
             AA[x] = csm_properties.AA
             Bf[x] = csm_properties.Bf
-            Br[x] = csm_properties.Br
     else:
         csm_properties = get_csm_properties(nn, eta)
         AA = csm_properties.AA
         Bf = csm_properties.Bf
-        Br = csm_properties.Br
 
     qq = rho * r0 ** eta
     # outer CSM shell radius
@@ -216,15 +213,14 @@ def csm_constraints(parameters):
                    (3.0 - delta) * (nn - 3.0) * mej) ** ((nn - 5.0) / 2.0))
 
     tshock = ((radius_csm - r0) / Bf / (AA * g_n / qq) ** (
-                       1. / (nn - eta))) ** ((nn - eta) /(nn - 3))
+                       1. / (nn - eta))) ** ((nn - eta) / (nn - 3))
 
-    diffusion_time = np.sqrt(2. * kappa * mass_csm_threshold /(vej * 13.7 * 3.e10))
+    diffusion_time = np.sqrt(2. * kappa * mass_csm_threshold / (vej * 13.7 * 3.e10))
     # ensure shock crossing time is greater than diffusion time
     converted_parameters['shock_time'] = diffusion_time/tshock
     # ensure photospheric radius is within the csm i.e., r_photo < radius_csm and r_photo > r0
     converted_parameters['photosphere_constraint_1'] = r_photosphere/radius_csm
     converted_parameters['photosphere_constraint_2'] = r0/r_photosphere
-    # converted_parameters['lbol_end'] = 1e30/lbol[:,-1]
     return converted_parameters
 
 def piecewise_polytrope_eos_constraints(parameters):

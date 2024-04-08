@@ -192,7 +192,7 @@ class CSMDiffusion(object):
 
         uniq_lums = np.trapz(int_args, int_times, axis=1)
         uniq_lums *= np.exp(-int_tes/t0)/t0
-
+        uniq_lums[np.isnan(uniq_lums)] = 0.0
         new_lums = uniq_lums[np.searchsorted(uniq_times, self.time)]
         return new_lums
 

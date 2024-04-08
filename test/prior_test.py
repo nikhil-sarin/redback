@@ -164,17 +164,17 @@ class TestConstraints(unittest.TestCase):
         priors = bilby.prior.PriorDict(conversion_function=redback.constraints.csm_constraints)
         _prior = redback.priors.get_priors(model='csm_interaction')
         priors.update(_prior)
-        # priors['shock_time'] = Constraint(0, 400)
-        priors['photosphere_constraint_1'] = Constraint(0, 1e13)
-        priors['photosphere_constraint_2'] = Constraint(0, 1e13)
-        samples = pd.DataFrame(priors.sample(1000))
+        priors['shock_time'] = Constraint(0, 0.5)
+        priors['photosphere_constraint_1'] = Constraint(0, 1)
+        priors['photosphere_constraint_2'] = Constraint(0, 1)
+        samples = pd.DataFrame(priors.sample(100))
         mej = samples['mej'].values * redback.constants.solar_mass
         csm_mass = samples['csm_mass'].values * redback.constants.solar_mass
         kappa = samples['kappa'].values
         r0 = samples['r0'].values * redback.constants.au_cgs
         vej = samples['vej'].values * redback.constants.km_cgs
-        nn = np.ones(1000) * 12
-        delta = np.ones(1000)
+        nn = np.ones(len(samples)) * 12
+        delta = np.ones(len(samples))
         eta = samples['eta'].values
         rho = samples['rho'].values
         Esn = 3. * vej**2 * mej / 10.
@@ -201,9 +201,12 @@ class TestConstraints(unittest.TestCase):
                 2.0 * (5.0 - delta) * (nn - 5.0) * Esn) ** ((nn - 3.) / 2.0) / (
                        (3.0 - delta) * (nn - 3.0) * mej) ** ((nn - 5.0) / 2.0))
 
-        # tshock = ((radius_csm - r0) / Bf / (AA * g_n / qq) ** (
-        #         1. / (nn - eta))) ** ((nn - eta) / (nn - 3))
-        # diffusion_time = np.sqrt(2. * kappa * mass_csm_threshold / (vej * 13.7 * 3.e10))
+        tshock = ((radius_csm - r0) / Bf / (AA * g_n / qq) ** (
+                1. / (nn - eta))) ** ((nn - eta) / (nn - 3))
+
+        diffusion_time = np.sqrt(2. * kappa * mass_csm_threshold / (vej * 13.7 * 3.e10))
+
+        self.assertTrue(np.all(diffusion_time <= tshock))
         self.assertTrue(np.all(r_photosphere <= radius_csm))
         self.assertTrue(np.all(r_photosphere >= r0))
 
