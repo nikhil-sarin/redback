@@ -596,7 +596,7 @@ def tde_analytical(time, redshift, l0, t_0_turn, **kwargs):
     else:
         time_obs = time
         lambda_observer_frame = kwargs.get('lambda_array', np.geomspace(100, 60000, 100))
-        time_temp = np.geomspace(0.1, 300, 200) # in days
+        time_temp = np.geomspace(0.1, 1000, 300) # in days
         time_observer_frame = time_temp * (1. + redshift)
         frequency, time = calc_kcorrected_properties(frequency=lambda_to_nu(lambda_observer_frame),
                                                      redshift=redshift, time=time_observer_frame)
