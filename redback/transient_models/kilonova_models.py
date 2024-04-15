@@ -1445,7 +1445,7 @@ def _calc_new_heating_rate(time, mej, electron_fraction, ejecta_velocity, **kwar
     tau1 = 1e3*heating_terms.tau1
     tau2 = 1e5*heating_terms.tau2
     tau3 = 1e5*heating_terms.tau3
-    term1 = heating_terms.e0 * 1e18 * (0.5 - np.arctan((time - heating_terms.t0) / heating_terms.sig) / np.pi)**heating_terms.alp
+    term1 = 10.**(heating_terms.e0+18) * (0.5 - np.arctan((time - heating_terms.t0) / heating_terms.sig) / np.pi)**heating_terms.alp
     term2 = (0.5 + np.arctan((time - heating_terms.t1)/heating_terms.sig1) / np.pi )**heating_terms.alp1
     term3 = c1 * np.exp(-time/tau1)
     term4 = c2 * np.exp(-time/tau2)

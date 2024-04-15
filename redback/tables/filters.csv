@@ -245,7 +245,7 @@ desz,3.272e+14,9168.85,black,1.679e-06,desz,DES/z
 desy,3.032e+14,9896.11,black,7.511e-07,desy,DES/y
 tess,3.897e+14,7697.60,black,7.658e-06,tess,TESS
 gaia::gbp,5.871e+14,5109.71,black,9.421e-06,gaia::gbp,GAIA/Gbp
-gaia::g,4.825e+14,6217.59,black,1.278e-05,gaia::g,GAIA/G
+gaia::g,4.83e+14,6217.59,black,1.278e-05,gaia::g,GAIA/G
 gaia::grp,3.862e+14,7769.02,black,5.472e-06,gaia::grp,GAIA/Grp
 gaia::grvs,3.497e+14,8578.76,black,3.481e-07,gaia::grvs,GAIA/Grvs
 gotob,6.490e+14,4622.88,black,3.771e-06,gotob,GOTO/B
