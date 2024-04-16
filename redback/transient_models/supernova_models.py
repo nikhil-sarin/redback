@@ -33,23 +33,22 @@ def sncosmo_models(time, redshift, model_kwargs, **kwargs):
     :param sncosmo_model: String of the SNcosmo model to use.
     :param peak_time: SNe peak time in days
     :param cosmology: astropy cosmology object by default set to Planck18
-    :param peak_abs_mag: SNe peak absolute magnitude default set to -19
-    :param peak_abs_mag_band: Band corresponding to the peak abs mag limit, default to standard::b. Must be in SNCosmo
     :param mw_extinction: Boolean for whether there is MW extinction or not. Default True
-    :param magnitude_system: Mag system; default ab
     :param host_extinction: Boolean for whether there is host extinction or not. Default True
             if used adds an extra parameter ebv which must also be in kwargs; host galaxy E(B-V). Set to 0.1 by default
+    :param use_set_peak_magnitude: Boolean for whether to set the peak magnitude or not. Default False,
+        if True the following keyword arguments also apply. Else the brightness is set by the model_kwargs.
+    :param peak_abs_mag: SNe peak absolute magnitude default set to -19
+    :param peak_abs_mag_band: Band corresponding to the peak abs mag limit, default to standard::b. Must be in SNCosmo
+    :param magnitude_system: Mag system; default ab
     :return: set by output format - 'flux_density', 'magnitude', 'flux', 'sncosmo_source'
     """
     import sncosmo
-    cosmology = kwargs.get('cosmology', cosmo)
     peak_time = kwargs.get('peak_time', 0)
-    peak_abs_mag = kwargs.get('peak_abs_mag', -19)
-    peak_abs_mag_band = kwargs.get('peak_abs_mag_band', 'standard::b')
+    cosmology = kwargs.get('cosmology', cosmo)
     model_name = kwargs.get('sncosmo_model', 'salt2')
     host_extinction = kwargs.get('host_extinction', True)
     mw_extinction = kwargs.get('mw_extinction', True)
-    magsystem = kwargs.get('magnitude_system', 'ab')
 
     model = sncosmo.Model(source=model_name)
     model.set(z=redshift)
@@ -63,13 +62,21 @@ def sncosmo_models(time, redshift, model_kwargs, **kwargs):
     if mw_extinction:
         model.add_effect(sncosmo.F99Dust(), 'mw', 'obs')
 
-    model.set_source_peakabsmag(peak_abs_mag, band=peak_abs_mag_band, magsys=magsystem, cosmo=cosmology)
+    if kwargs['use_set_peak_magnitude']:
+        peak_abs_mag = kwargs.get('peak_abs_mag', -19)
+        peak_abs_mag_band = kwargs.get('peak_abs_mag_band', 'standard::b')
+        magsystem = kwargs.get('magnitude_system', 'ab')
+        model.set_source_peakabsmag(peak_abs_mag, band=peak_abs_mag_band, magsys=magsystem, cosmo=cosmology)
 
     if kwargs['output_format'] == 'flux_density':
         frequency = kwargs['frequency']
 
+        if isinstance(frequency, float):
+            frequency = np.array([frequency])
+
         if (len(frequency) != 1 or len(frequency) == len(time)):
             raise ValueError('frequency array must be of length 1 or same size as time array')
+
         unique_frequency = np.sort(np.unique(frequency))
         angstroms = nu_to_lambda(unique_frequency)
 
@@ -90,11 +97,11 @@ def sncosmo_models(time, redshift, model_kwargs, **kwargs):
 
     if kwargs['output_format'] == 'flux':
         bands = kwargs['bands']
-        magnitude = model.bandmag(phase=time, band=bands, magsys='ab')
+        magnitude = model.bandmag(time=time, band=bands, magsys='ab')
         return sed.bandpass_magnitude_to_flux(magnitude=magnitude, bands=bands)
     elif kwargs['output_format'] == 'magnitude':
         bands = kwargs['bands']
-        magnitude = model.bandmag(phase=time, band=bands, magsys='ab')
+        magnitude = model.bandmag(time=time, band=bands, magsys='ab')
         return magnitude
     elif kwargs['output_format'] == 'sncosmo_source':
         return model
