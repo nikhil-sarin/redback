@@ -92,7 +92,7 @@ class TestMagnitudeOutput(unittest.TestCase):
             if model_name == 'trapped_magnetar':
                 kwargs['output_format'] = 'luminosity'
             elif model_name in ['tophat_and_twocomponent', 'tophat_and_twolayerstratified',
-                                'tophat_and_arnett']:
+                                'tophat_and_arnett', 'tophatredback_and_twolayerstratified']:
                 pass
             else:
                 kwargs['output_format'] = 'magnitude'
