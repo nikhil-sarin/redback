@@ -21,7 +21,7 @@ homologous_expansion_models = ['exponential_powerlaw_bolometric', 'arnett_bolome
                                'type_1c_bolometric','type_1a_bolometric']
 
 @citation_wrapper('https://zenodo.org/record/6363879#.YkQn3y8RoeY')
-def sncosmo_models(time, redshift, model_kwargs, **kwargs):
+def sncosmo_models(time, redshift, model_kwargs=None, **kwargs):
     """
     A wrapper to SNCosmo models
 
@@ -49,11 +49,20 @@ def sncosmo_models(time, redshift, model_kwargs, **kwargs):
     model_name = kwargs.get('sncosmo_model', 'salt2')
     host_extinction = kwargs.get('host_extinction', True)
     mw_extinction = kwargs.get('mw_extinction', True)
+    use_set_peak_magnitude = kwargs.get('use_set_peak_magnitude', False)
 
     model = sncosmo.Model(source=model_name)
     model.set(z=redshift)
     model.set(t0=peak_time)
-    model.update(model_kwargs)
+
+    if model_kwargs == None:
+        _model_kwargs = {}
+        for x in kwargs['model_kwarg_names']:
+            _model_kwargs[x] = kwargs[x]
+    else:
+        _model_kwargs = model_kwargs
+
+    model.update(_model_kwargs)
 
     if host_extinction:
         ebv = kwargs.get('ebv', 0.1)
@@ -62,7 +71,7 @@ def sncosmo_models(time, redshift, model_kwargs, **kwargs):
     if mw_extinction:
         model.add_effect(sncosmo.F99Dust(), 'mw', 'obs')
 
-    if kwargs['use_set_peak_magnitude']:
+    if use_set_peak_magnitude:
         peak_abs_mag = kwargs.get('peak_abs_mag', -19)
         peak_abs_mag_band = kwargs.get('peak_abs_mag_band', 'standard::b')
         magsystem = kwargs.get('magnitude_system', 'ab')
