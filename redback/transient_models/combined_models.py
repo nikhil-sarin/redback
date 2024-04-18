@@ -1,5 +1,7 @@
 import redback.transient_models.extinction_models as em
+from redback.utils import citation_wrapper
 
+@citation_wrapper('https://ui.adsabs.harvard.edu/abs/2020ApJ...896..166R/abstract, https://ui.adsabs.harvard.edu/abs/2020ApJ...891..152H/abstract')
 def tophat_and_twolayerstratified(time, redshift, av, thv, loge0, thc, logn0, p, logepse,
                                   logepsb, ksin, g0, mej, vej_1, vej_2, kappa, beta, **kwargs):
     
@@ -48,7 +50,7 @@ def tophat_and_twolayerstratified(time, redshift, av, thv, loge0, thc, logn0, p,
     combined = afterglow+kilonova
     return combined
 
-
+@citation_wrapper('https://ui.adsabs.harvard.edu/abs/2020ApJ...896..166R/abstract, redback')
 def tophat_and_twocomponent(time, redshift, av, thv, loge0, thc, logn0,
                             p, logepse, logepsb, ksin, g0, mej_1, vej_1,
                             temperature_floor_1, kappa_1, mej_2, vej_2, temperature_floor_2, kappa_2, **kwargs):
@@ -103,7 +105,7 @@ def tophat_and_twocomponent(time, redshift, av, thv, loge0, thc, logn0,
     combined = afterglow + kilonova
     return combined
 
-
+@citation_wrapper('https://ui.adsabs.harvard.edu/abs/2020ApJ...896..166R/abstract, https://ui.adsabs.harvard.edu/abs/1982ApJ...253..785A/abstract')
 def tophat_and_arnett(time, av, redshift, thv, loge0, thc, logn0, p, logepse, logepsb, ksin, g0, f_nickel, mej, **kwargs):
     
     """
@@ -155,6 +157,7 @@ def tophat_and_arnett(time, av, redshift, thv, loge0, thc, logn0, p, logepse, lo
     combined = afterglow + supernova
     return combined
 
+@citation_wrapper('redback, and any citations for the specific model you use')
 def afterglow_and_optical(time, redshift, av, **model_kwargs):
     
     """

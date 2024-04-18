@@ -27,7 +27,7 @@ For example,
 
     citation = kilonova_models.one_component_kilonova_model.citation
 
-Here citation will be a url to the NASA ads page for the paper describing the model.
+Here citation will be a url or a series of urls to the NASA ads page for the paper describing the model.
 If you use a specific model or build upon it, we request that you also cite the paper for the model.
 
 In several cases, the citation will be `redback`, in which case,
@@ -67,5 +67,5 @@ For using :code:`redback` to simulate transients:
 
 For using :code:`redback` to download transient data:
 
-- We download and process this data using the API provided by the open source software package {\sc Redback}~\cite{sarin_redback}.
+- We download and process this data using the API provided for {name of data source}~\citep{citation to the source} by the open source software package {\sc Redback}~\cite{sarin_redback}.
 

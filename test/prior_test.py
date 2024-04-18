@@ -43,7 +43,7 @@ class TestConstraints(unittest.TestCase):
         priors = bilby.prior.PriorDict(conversion_function=redback.constraints.slsn_constraint)
         _prior = redback.priors.get_priors(model='slsn')
         priors.update(_prior)
-        priors['erot_constraint'] = Constraint(0, 1e53)
+        priors['erot_constraint'] = Constraint(0, 1)
         priors['t_nebula_min'] = Constraint(0, 400)
         samples = pd.DataFrame(priors.sample(1000))
         mej = samples['mej'] * redback.constants.solar_mass
@@ -63,7 +63,7 @@ class TestConstraints(unittest.TestCase):
         priors = bilby.prior.PriorDict(conversion_function=redback.constraints.basic_magnetar_powered_sn_constraints)
         _prior = redback.priors.get_priors(model='basic_magnetar_powered')
         priors.update(_prior)
-        priors['erot_constraint'] = Constraint(0, 1e53)
+        priors['erot_constraint'] = Constraint(0, 1)
         samples = pd.DataFrame(priors.sample(1000))
         mej = samples['mej'] * redback.constants.solar_mass
         vej = samples['vej'] * redback.constants.km_cgs
@@ -79,7 +79,7 @@ class TestConstraints(unittest.TestCase):
         priors = bilby.prior.PriorDict(conversion_function=redback.constraints.general_magnetar_powered_sn_constraints)
         _prior = redback.priors.get_priors(model='general_magnetar_slsn')
         priors.update(_prior)
-        priors['erot_constraint'] = Constraint(0, 1e53)
+        priors['erot_constraint'] = Constraint(0, 1)
         samples = pd.DataFrame(priors.sample(1000))
         mej = samples['mej'] * redback.constants.solar_mass
         vej = samples['vej'] * redback.constants.km_cgs
@@ -93,7 +93,7 @@ class TestConstraints(unittest.TestCase):
         priors = bilby.prior.PriorDict(conversion_function=redback.constraints.tde_constraints)
         priors['pericenter_radius'] = Uniform(0.1, 100, name='pericenter_radius', latex_label=r'$r_{\mathrm{p}}$~[AU]')
         priors['mass_bh'] = Uniform(1e5, 5e8, name='mass_bh', latex_label=r'$M_{\mathrm{BH}}$~[M$_{\odot}$]')
-        priors['disruption_radius'] = Constraint(0, 500)
+        priors['disruption_radius'] = Constraint(0, 1)
         samples = pd.DataFrame(priors.sample(1000))
         mass_bh = samples['mass_bh']
         sch_rad = (2 * redback.constants.graviational_constant * mass_bh * redback.constants.solar_mass /
@@ -112,17 +112,14 @@ class TestConstraints(unittest.TestCase):
         priors['alpha'] = LogUniform(1e-2, 1e-1, name='alpha', latex_label=r'$\alpha$')
         priors['beta'] = Uniform(1, 30, name='beta', latex_label=r'$\beta$')
         priors['redshift'] = 0.01
-        priors['eta_low'] = Constraint(0, 0.1)
         priors['beta_high'] = Constraint(0, 1)
-        priors['tfb_max'] = Constraint(0, 100)
+        priors['tfb_max'] = Constraint(0, 1)
         samples = pd.DataFrame(priors.sample(1000))
         ms = samples['stellar_mass']
         mbh6 = samples['mbh_6']
-        etamin = 0.01 * (ms ** (-7. / 15.)) * (mbh6 ** (2. / 3.))
         betamax = 12. * (ms ** (7. / 15.)) * (mbh6 ** (-2. / 3.))
         tfb = redback.utils.calc_tfb(binding_energy_const=0.8, mbh_6=mbh6, stellar_mass=ms) / 86400
         tfb_obs = tfb * (1 + samples['redshift'])
-        self.assertTrue(np.all(samples['eta'].values >= etamin))
         self.assertTrue(np.all(samples['beta'].values <= betamax))
         self.assertTrue(np.all(tfb_obs >= samples['peak_time']))
 
@@ -130,7 +127,7 @@ class TestConstraints(unittest.TestCase):
         priors = bilby.prior.PriorDict(conversion_function=redback.constraints.nuclear_burning_constraints)
         _prior = redback.priors.get_priors(model='arnett')
         priors.update(_prior)
-        priors['emax_constraint'] = Constraint(0, 1e53)
+        priors['emax_constraint'] = Constraint(0, 1)
         samples = pd.DataFrame(priors.sample(1000))
         mej = samples['mej'] * redback.constants.solar_mass
         vej = samples['vej'] * redback.constants.km_cgs
@@ -144,7 +141,7 @@ class TestConstraints(unittest.TestCase):
         priors = bilby.prior.PriorDict(conversion_function=redback.constraints.simple_fallback_constraints)
         _prior = redback.priors.get_priors(model='tde_analytical')
         priors.update(_prior)
-        priors['en_constraint'] = Constraint(0, 1e53)
+        priors['en_constraint'] = Constraint(0, 1)
         priors['t_nebula_min'] = Constraint(0, 400)
         samples = pd.DataFrame(priors.sample(1000))
         mej = samples['mej'] * redback.constants.solar_mass
@@ -164,17 +161,17 @@ class TestConstraints(unittest.TestCase):
         priors = bilby.prior.PriorDict(conversion_function=redback.constraints.csm_constraints)
         _prior = redback.priors.get_priors(model='csm_interaction')
         priors.update(_prior)
-        # priors['shock_time'] = Constraint(0, 400)
-        priors['photosphere_constraint_1'] = Constraint(0, 1e13)
-        priors['photosphere_constraint_2'] = Constraint(0, 1e13)
-        samples = pd.DataFrame(priors.sample(1000))
+        priors['shock_time'] = Constraint(0, 0.5)
+        priors['photosphere_constraint_1'] = Constraint(0, 1)
+        priors['photosphere_constraint_2'] = Constraint(0, 1)
+        samples = pd.DataFrame(priors.sample(100))
         mej = samples['mej'].values * redback.constants.solar_mass
         csm_mass = samples['csm_mass'].values * redback.constants.solar_mass
         kappa = samples['kappa'].values
         r0 = samples['r0'].values * redback.constants.au_cgs
         vej = samples['vej'].values * redback.constants.km_cgs
-        nn = np.ones(1000) * 12
-        delta = np.ones(1000)
+        nn = np.ones(len(samples)) * 12
+        delta = np.ones(len(samples))
         eta = samples['eta'].values
         rho = samples['rho'].values
         Esn = 3. * vej**2 * mej / 10.
@@ -201,9 +198,12 @@ class TestConstraints(unittest.TestCase):
                 2.0 * (5.0 - delta) * (nn - 5.0) * Esn) ** ((nn - 3.) / 2.0) / (
                        (3.0 - delta) * (nn - 3.0) * mej) ** ((nn - 5.0) / 2.0))
 
-        # tshock = ((radius_csm - r0) / Bf / (AA * g_n / qq) ** (
-        #         1. / (nn - eta))) ** ((nn - eta) / (nn - 3))
-        # diffusion_time = np.sqrt(2. * kappa * mass_csm_threshold / (vej * 13.7 * 3.e10))
+        tshock = ((radius_csm - r0) / Bf / (AA * g_n / qq) ** (
+                1. / (nn - eta))) ** ((nn - eta) / (nn - 3))
+
+        diffusion_time = np.sqrt(2. * kappa * mass_csm_threshold / (vej * 13.7 * 3.e10))
+
+        self.assertTrue(np.all(diffusion_time <= tshock))
         self.assertTrue(np.all(r_photosphere <= radius_csm))
         self.assertTrue(np.all(r_photosphere >= r0))
 

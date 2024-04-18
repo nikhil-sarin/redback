@@ -6,6 +6,193 @@ from sncosmo import TimeSeriesSource
 from redback.constants import *
 from redback.utils import nu_to_lambda, bandpass_magnitude_to_flux
 
+def _bandflux_single_redback(model, band, time_or_phase):
+    """
+
+    Synthetic photometry of a model through a single bandpass
+
+    :param model: Source object
+    :param band: Bandpass
+    :param time_or_phase: Time or phase numpy array
+    :return: bandflux through the bandpass
+    """
+    from sncosmo.utils import integration_grid
+    HC_ERG_AA = 1.9864458571489284e-08 # planck * speed_of_light in AA/s
+    MODEL_BANDFLUX_SPACING = 5.0  # Angstroms
+
+    if (band.minwave() < model.minwave() or band.maxwave() > model.maxwave()):
+        raise ValueError('bandpass {0!r:s} [{1:.6g}, .., {2:.6g}] '
+                         'outside spectral range [{3:.6g}, .., {4:.6g}]'
+                         .format(band.name, band.minwave(), band.maxwave(),
+                                 model.minwave(), model.maxwave()))
+
+        # Set up wavelength grid. Spacing (dwave) evenly divides the bandpass,
+        # closest to 5 angstroms without going over.
+    wave, dwave = integration_grid(band.minwave(), band.maxwave(),
+                                   MODEL_BANDFLUX_SPACING)
+    trans = band(wave)
+    f = model._flux(time_or_phase, wave)
+    f = np.abs(f)
+    return np.sum(wave * trans * f, axis=1) * dwave / HC_ERG_AA
+
+
+def _bandflux_redback(model, band, time_or_phase, zp, zpsys):
+    """
+    Support function for bandflux in Source and Model. Follows SNCOSMO
+
+    This is necessary to have outside because ``phase`` is used in Source
+    and ``time`` is used in Model, and we want the method signatures to
+    have the right variable name.
+    """
+    from sncosmo.magsystems import get_magsystem
+    from sncosmo.bandpasses import get_bandpass
+
+    if zp is not None and zpsys is None:
+        raise ValueError('zpsys must be given if zp is not None')
+
+    # broadcast arrays
+    if zp is None:
+        time_or_phase, band = np.broadcast_arrays(time_or_phase, band)
+    else:
+        time_or_phase, band, zp, zpsys = \
+            np.broadcast_arrays(time_or_phase, band, zp, zpsys)
+
+    # Convert all to 1-d arrays.
+    ndim = time_or_phase.ndim  # Save input ndim for return val.
+    time_or_phase = np.atleast_1d(time_or_phase)
+    band = np.atleast_1d(band)
+    if zp is not None:
+        zp = np.atleast_1d(zp)
+        zpsys = np.atleast_1d(zpsys)
+
+    # initialize output arrays
+    bandflux = np.zeros(time_or_phase.shape, dtype=float)
+
+    # Loop over unique bands.
+    for b in set(band):
+        mask = band == b
+        b = get_bandpass(b)
+
+        fsum = _bandflux_single_redback(model, b, time_or_phase[mask])
+
+        if zp is not None:
+            zpnorm = 10. ** (0.4 * zp[mask])
+            bandzpsys = zpsys[mask]
+            for ms in set(bandzpsys):
+                mask2 = bandzpsys == ms
+                ms = get_magsystem(ms)
+                zpnorm[mask2] = zpnorm[mask2] / ms.zpbandflux(b)
+            fsum *= zpnorm
+
+        bandflux[mask] = fsum
+
+    if ndim == 0:
+        return bandflux[0]
+    return bandflux
+
+def _bandmag_redback(model, band, magsys, time_or_phase):
+    """
+    Support function for bandflux in Source and Model.
+    This is necessary to have outside the models because ``phase`` is used in
+    Source and ``time`` is used in Model.
+    """
+    from sncosmo.magsystems import get_magsystem
+
+    bandflux = _bandflux_redback(model, band, time_or_phase, None, None)
+    band, magsys, bandflux = np.broadcast_arrays(band, magsys, bandflux)
+    return_scalar = (band.ndim == 0)
+    band = band.ravel()
+    magsys = magsys.ravel()
+    bandflux = bandflux.ravel()
+
+    result = np.empty(bandflux.shape, dtype=float)
+    for i, (b, ms, f) in enumerate(zip(band, magsys, bandflux)):
+        ms = get_magsystem(ms)
+        zpf = ms.zpbandflux(b)
+        result[i] = -2.5 * np.log10(f / zpf)
+
+    if return_scalar:
+        return result[0]
+    return result
+
+class RedbackTimeSeriesSource(TimeSeriesSource):
+        def __init__(self, phase, wave, flux, **kwargs):
+            """
+            RedbackTimeSeriesSource is a subclass of sncosmo.TimeSeriesSource that adds the ability to return the
+            flux density at a given time and wavelength, and changes
+            the behaviour of the _flux method to better handle models with very low flux values.
+
+            :param phase: phase/time array
+            :param wave: wavelength array in Angstrom
+            :param spectra: spectra in erg/cm^2/s/A evaluated at all times and frequencies; shape (len(times), len(frequency_array))
+            :param kwargs: additional arguments
+            """
+            super(RedbackTimeSeriesSource, self).__init__(phase=phase, wave=wave, flux=flux, **kwargs)
+
+        def get_flux_density(self, time, wavelength):
+            """
+            Get the flux density at a given time and wavelength.
+
+            :param time: time in days
+            :param wavelength: wavelength in Angstrom
+            :return: flux density in erg/cm^2/s/A
+            """
+            return self._flux(time, wavelength)
+
+        def bandflux(self, band, phase, zp=None, zpsys=None):
+            """
+            Flux through the given bandpass(es) at the given phase(s).
+
+            Default return value is flux in photons / s / cm^2. If zp and zpsys
+            are given, flux(es) are scaled to the requested zeropoints.
+
+            Parameters
+            ----------
+            band : str or list_like
+                Name(s) of bandpass(es) in registry.
+            phase : float or list_like, optional
+                Phase(s) in days. Default is `None`, which corresponds to the full
+                native phase sampling of the model.
+            zp : float or list_like, optional
+                If given, zeropoint to scale flux to (must also supply ``zpsys``).
+                If not given, flux is not scaled.
+            zpsys : str or list_like, optional
+                Name of a magnitude system in the registry, specifying the system
+                that ``zp`` is in.
+
+            Returns
+            -------
+            bandflux : float or `~numpy.ndarray`
+                Flux in photons / s /cm^2, unless `zp` and `zpsys` are
+                given, in which case flux is scaled so that it corresponds
+                to the requested zeropoint. Return value is `float` if all
+                input parameters are scalars, `~numpy.ndarray` otherwise.
+            """
+            return _bandflux_redback(self, band, phase, zp, zpsys)
+
+        def bandmag(self, band, magsys, phase):
+            """Magnitude at the given phase(s) through the given
+            bandpass(es), and for the given magnitude system(s).
+
+            Parameters
+            ----------
+            band : str or list_like
+                Name(s) of bandpass in registry.
+            magsys : str or list_like
+                Name(s) of `~sncosmo.MagSystem` in registry.
+            phase : float or list_like
+                Phase(s) in days.
+
+            Returns
+            -------
+            mag : float or `~numpy.ndarray`
+                Magnitude for each item in band, magsys, phase.
+                The return value is a float if all parameters are not iterables.
+                The return value is an `~numpy.ndarray` if any are iterable.
+            """
+            return _bandmag_redback(self, band, magsys, phase)
+
+
 
 def blackbody_to_flux_density(temperature, r_photosphere, dl, frequency):
     """
@@ -298,7 +485,7 @@ def get_correct_output_format_from_spectra(time, time_eval, spectra, lambda_arra
     :param time: times in observer frame in days to evaluate the model on
     :param time_eval: times in observer frame where spectra are evaluated. A densely sampled array for accuracy
     :param bands: band array - must be same length as time array or a single band
-    :param spectra: spectra in mJy evaluated at all times and frequencies; shape (len(times), len(frequency_array))
+    :param spectra: spectra in erg/cm^2/s/A evaluated at all times and frequencies; shape (len(times), len(frequency_array))
     :param lambda_array: wavelenth array in Angstrom in observer frame
     :param kwargs: Additional parameters
     :param output_format: 'flux', 'magnitude', 'sncosmo_source', 'flux_density'
@@ -306,10 +493,10 @@ def get_correct_output_format_from_spectra(time, time_eval, spectra, lambda_arra
     """
     # clean up spectrum to remove nonsensical values before creating sncosmo source
     spectra = np.nan_to_num(spectra)
-    spectra[spectra.value == np.nan_to_num(np.inf)] = 1e-30 * np.mean(spectra[10])
-    spectra[spectra.value == 0.] = 1e-30 * np.mean(spectra[10])
+    spectra[spectra.value == np.nan_to_num(np.inf)] = 1e-30 * np.mean(spectra[5])
+    spectra[spectra.value == 0.] = 1e-30 * np.mean(spectra[5])
 
-    source = TimeSeriesSource(phase=time_eval, wave=lambda_array, flux=spectra)
+    source = RedbackTimeSeriesSource(phase=time_eval, wave=lambda_array, flux=spectra)
     if kwargs['output_format'] == 'flux':
         bands = kwargs['bands']
         magnitude = source.bandmag(phase=time, band=bands, magsys='ab')

@@ -1431,11 +1431,12 @@ def _calc_new_heating_rate(time, mej, electron_fraction, ejecta_velocity, **kwar
     :param electron_fraction: electron fraction
     :param ejecta_velocity: ejecta velocity in c
     :param kwargs: Additional keyword arguments
-    :param heating_rate_perturbation: A fudge factor for heating rate to account for uncertainties in the heating rate.
+    :param heating_rate_perturbation: A fudge factor for heating rate to account for uncertainties in the heating rate. Default is 1.0 i.e., no perturbation.
+    :param heating_rate_fudge: A fudge factor for each of the terms in the heating rate. Default to 1. i.e., no uncertainty
     Default is 1.0 i.e., no perturbation.
     :return: heating rate in erg/s
     """
-    heating_terms = get_heating_terms(electron_fraction, ejecta_velocity)
+    heating_terms = get_heating_terms(electron_fraction, ejecta_velocity, **kwargs)
     heating_rate_perturbation = kwargs.get('heating_rate_perturbation', 1.0)
     # rescale
     m0 = mej * solar_mass
@@ -1445,7 +1446,7 @@ def _calc_new_heating_rate(time, mej, electron_fraction, ejecta_velocity, **kwar
     tau1 = 1e3*heating_terms.tau1
     tau2 = 1e5*heating_terms.tau2
     tau3 = 1e5*heating_terms.tau3
-    term1 = heating_terms.e0 * 1e18 * (0.5 - np.arctan((time - heating_terms.t0) / heating_terms.sig) / np.pi)**heating_terms.alp
+    term1 = 10.**(heating_terms.e0+18) * (0.5 - np.arctan((time - heating_terms.t0) / heating_terms.sig) / np.pi)**heating_terms.alp
     term2 = (0.5 + np.arctan((time - heating_terms.t1)/heating_terms.sig1) / np.pi )**heating_terms.alp1
     term3 = c1 * np.exp(-time/tau1)
     term4 = c2 * np.exp(-time/tau2)
@@ -1497,6 +1498,7 @@ def one_comp_kne_rosswog_heatingrate(time, redshift, mej, vej, ye, **kwargs):
     :param temperature_floor: Temperature floor in K (default 4000)
     :param heating_rate_perturbation: A fudge factor for heating rate to account for uncertainties in the heating rate.
     Default is 1.0 i.e., no perturbation.
+    :param heating_rate_fudge: A fudge factor for each of the terms in the heating rate. Default to 1. i.e., no uncertainty
     :param frequency: Required if output_format is 'flux_density'.
         frequency to calculate - Must be same length as time array or a single number).
     :param bands: Required if output_format is 'magnitude' or 'flux'.
@@ -1564,6 +1566,7 @@ def two_comp_kne_rosswog_heatingrate(time, redshift, mej_1, vej_1, temperature_f
     :param kwargs: Additional keyword arguments
     :param heating_rate_perturbation: A fudge factor for heating rate to account for uncertainties in the heating rate.
     Default is 1.0 i.e., no perturbation.
+    :param heating_rate_fudge: A fudge factor for each of the terms in the heating rate. Default to 1. i.e., no uncertainty
     :param frequency: Required if output_format is 'flux_density'.
         frequency to calculate - Must be same length as time array or a single number).
     :param bands: Required if output_format is 'magnitude' or 'flux'.
@@ -1592,6 +1595,10 @@ def two_comp_kne_rosswog_heatingrate(time, redshift, mej_1, vej_1, temperature_f
         ff = np.zeros(len(time))
         for x in range(2):
             temp_kwargs = {}
+            if 'heating_rate_fudge' in kwargs:
+                temp_kwargs['heating_rate_fudge'] = kwargs['heating_rate_fudge']
+            if 'heating_rate_perturbation' in kwargs:
+                temp_kwargs['heating_rate_perturbation'] = kwargs['heating_rate_perturbation']
             temp_kwargs['temperature_floor'] = temperature_floor[x]
             _, temperature, r_photosphere = _one_component_kilonova_rosswog_heatingrate(time_temp, mej[x], vej[x], ye[x],
                                                                           **temp_kwargs)
@@ -1617,6 +1624,10 @@ def two_comp_kne_rosswog_heatingrate(time, redshift, mej_1, vej_1, temperature_f
 
         for x in range(2):
             temp_kwargs = {}
+            if 'heating_rate_fudge' in kwargs:
+                temp_kwargs['heating_rate_fudge'] = kwargs['heating_rate_fudge']
+            if 'heating_rate_perturbation' in kwargs:
+                temp_kwargs['heating_rate_perturbation'] = kwargs['heating_rate_perturbation']
             temp_kwargs['temperature_floor'] = temperature_floor[x]
             _, temperature, r_photosphere = _one_component_kilonova_rosswog_heatingrate(time_temp, mej[x], vej[x], ye[x],
                                                                           **temp_kwargs)

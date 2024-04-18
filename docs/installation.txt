@@ -79,7 +79,7 @@ Note phantomjs is not required for any other functionality of redback.
 
 Phantomjs is now replaced with ChromeDriver through selenium.
 
-Install :code:`chromedriver` and :code:`selenium
+Install :code:`chromedriver` and :code:`selenium`
 -------------------------
 
 In you want to use :code:`redback` functionality to download Swift data you now need to have Google Chrome installed and update selenium.
