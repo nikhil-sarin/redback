@@ -1,5 +1,26 @@
 # All notable changes will be documented in this file
 
+## [1.0.2] 2024-04-18
+Version 1.0.2 release of redback
+
+### Added
+- Tophat_redback surrogate model
+- New SNCosmo fitting and lightcurve generation example
+- New ToO simulations example 
+- New heating rate for kilonova following Rosswog and Korobkin 2022c
+- New kilonova models using Rosswog and Korobkin 2022c heating rate prescription 
+- Fractional error likelihood. 
+- Phenomenological model for emission/absorption lines in spectrum.
+
+### Changed
+- Changed inbuilt constraints to be easier for end users to define in priors
+- Logger now outputs info as standard
+- Maximum likelihood estimation for all likelihoods
+- Bugfix for SNCosmo source when evaluating magnitudes with spectrum that go to zero. 
+- Update simulation interface for changing noise types.  
+- Fix CSM prior and logic for forward and reverse shock masks. 
+- LASAIR API
+
 ## [1.0.0] 2023-08-25
 Version 1.0.1 release of redback
 
