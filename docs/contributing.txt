@@ -25,3 +25,4 @@ General help/dev sessions
 
 We currently run a biweekly zoom call for general help and development sessions.
 These include general tutorials for using redback, Bayesian inference, and dicussion of features, issues, and new features.
+Please join the redback slack for more information.

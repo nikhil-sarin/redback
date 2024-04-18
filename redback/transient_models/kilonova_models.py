@@ -1486,7 +1486,7 @@ def _one_component_kilonova_rosswog_heatingrate(time, mej, vej, electron_fractio
     r_photosphere[mask] = v0 * time[mask]
     return bolometric_luminosity, temperature, r_photosphere
 
-@citation_wrapper('redback')
+@citation_wrapper('https://ui.adsabs.harvard.edu/abs/2024arXiv240407271S/abstract, https://ui.adsabs.harvard.edu/abs/2024AnP...53600306R/abstract')
 def one_comp_kne_rosswog_heatingrate(time, redshift, mej, vej, ye, **kwargs):
     """
     :param time: observer frame time in days
@@ -1549,7 +1549,7 @@ def one_comp_kne_rosswog_heatingrate(time, redshift, mej, vej, ye, **kwargs):
                                                           spectra=spectra, lambda_array=lambda_observer_frame,
                                                           **kwargs)
 
-@citation_wrapper('redback')
+@citation_wrapper('https://ui.adsabs.harvard.edu/abs/2024arXiv240407271S/abstract, https://ui.adsabs.harvard.edu/abs/2024AnP...53600306R/abstract')
 def two_comp_kne_rosswog_heatingrate(time, redshift, mej_1, vej_1, temperature_floor_1, ye_1,
                                  mej_2, vej_2, temperature_floor_2, ye_2, **kwargs):
     """

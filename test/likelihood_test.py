@@ -316,7 +316,7 @@ class PoissonLikelihoodTest(unittest.TestCase):
 
 class MaximumLikelihoodTest(unittest.TestCase):
     def setUp(self):
-        self.x = np.linspace(0, 10, 30)
+        self.x = np.linspace(0, 10, 50)
 
         def func(x, m, c, **kwargs):
             return m*x + c
@@ -324,7 +324,7 @@ class MaximumLikelihoodTest(unittest.TestCase):
         self.m = 2
         self.c = 3
         ytrue = func(self.x, self.m, self.c)
-        self.sigma = 1
+        self.sigma = 0.2
         noise = np.random.normal(0, self.sigma, len(self.x))
         self.yobs = ytrue + noise
         self.function = func
