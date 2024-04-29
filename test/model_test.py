@@ -36,8 +36,14 @@ class TestModels(unittest.TestCase):
             else:
                 kwargs['output_format'] = 'flux_density'
             prior = self.get_prior(file=f)
+            sample = prior.sample()
+            if model_name == 'polytrope_eos_two_component_bns':
+                sample['gamma_1'] = 4.04
+                sample['gamma_2'] = 2.159
+                sample['gamma_3'] = 3.688
+                sample['log_p'] = 33.72
             function = redback.model_library.all_models_dict[model_name]
-            ys = function(times, **prior.sample(), **kwargs)
+            ys = function(times, **sample, **kwargs)
             self.assertEqual(len(times), len(ys))
 
 class TestPhaseModels(unittest.TestCase):
@@ -67,7 +73,13 @@ class TestPhaseModels(unittest.TestCase):
             function = redback.model_library.all_models_dict['t0_base_model']
             kwargs['base_model'] = model_name
             kwargs['t0'] = 55855
-            ys = function(times, **prior.sample(), **kwargs)
+            sample = prior.sample()
+            if model_name == 'polytrope_eos_two_component_bns':
+                sample['gamma_1'] = 4.04
+                sample['gamma_2'] = 2.159
+                sample['gamma_3'] = 3.688
+                sample['log_p'] = 33.72
+            ys = function(times, **sample, **kwargs)
             self.assertEqual(len(times), len(ys))
 
 class TestMagnitudeOutput(unittest.TestCase):
@@ -97,8 +109,14 @@ class TestMagnitudeOutput(unittest.TestCase):
             else:
                 kwargs['output_format'] = 'magnitude'
             prior = self.get_prior(file=f)
+            sample = prior.sample()
+            if model_name == 'polytrope_eos_two_component_bns':
+                sample['gamma_1'] = 4.04
+                sample['gamma_2'] = 2.159
+                sample['gamma_3'] = 3.688
+                sample['log_p'] = 33.72
             function = redback.model_library.all_models_dict[model_name]
-            ys = function(times, **prior.sample(), **kwargs)
+            ys = function(times, **sample, **kwargs)
             self.assertEqual(len(times), len(ys))
 
 class TestFluxOutput(unittest.TestCase):
@@ -125,8 +143,14 @@ class TestFluxOutput(unittest.TestCase):
                 print(f)
                 kwargs['output_format'] = 'flux'
                 prior = self.get_prior(file=f)
+                sample = prior.sample()
+                if model_name == 'polytrope_eos_two_component_bns':
+                    sample['gamma_1'] = 4.04
+                    sample['gamma_2'] = 2.159
+                    sample['gamma_3'] = 3.688
+                    sample['log_p'] = 33.72
                 function = redback.model_library.all_models_dict[model_name]
-                ys = function(times, **prior.sample(), **kwargs)
+                ys = function(times, **sample, **kwargs)
             else:
                 ys = np.ones(len(times))
             self.assertEqual(len(times), len(ys))
@@ -155,8 +179,14 @@ class TestIntegratedFluxModelFlux(unittest.TestCase):
                 print(f)
                 prior = self.get_prior(file=f)
                 kwargs['base_model'] = model_name
+                sample = prior.sample()
+                if model_name == 'polytrope_eos_two_component_bns':
+                    sample['gamma_1'] = 4.04
+                    sample['gamma_2'] = 2.159
+                    sample['gamma_3'] = 3.688
+                    sample['log_p'] = 33.72
                 function = redback.model_library.all_models_dict['integrated_flux_afterglowpy_base_model']
-                ys = function(times, **prior.sample(), **kwargs)
+                ys = function(times, **sample, **kwargs)
             else:
                 ys = np.ones(len(times))
             self.assertEqual(len(times), len(ys))
