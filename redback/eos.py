@@ -78,6 +78,7 @@ class PiecewisePolytrope(object):
         radius, mass, k2 = lalsim.SimNeutronStarTOVODEIntegrate(central_pressure, polytrope)
 
         Lambda = (2 / 3) * k2 * (cc.c.si.value ** 2 * radius / (cc.G.si.value * mass)) ** 5
+        mass = mass / cc.M_sun.si.value
         return mass, Lambda
 
     def lambda_array_of_central_pressure(self, central_pressure_array, maximum_mass_lower_limit=2.01):
