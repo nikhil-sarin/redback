@@ -1,10 +1,123 @@
 import numpy as np
 from collections import namedtuple
 from scipy import special
+from scipy.interpolate import interp1d
 from redback.constants import *
 import redback.sed as sed
 from astropy.cosmology import Planck18 as cosmo  # noqa
 from redback.utils import calc_kcorrected_properties, citation_wrapper, lambda_to_nu
+
+@citation_wrapper('https://ui.adsabs.harvard.edu/abs/2022ApJ...933..238M/abstract')
+def _csm_shock_breakout(time, e0, tdyn, tshell, beta, kappa, mass, **kwargs):
+    """
+    Dense CSM shock breakout and cooling model From Margalit 2022
+
+    :param time: time in seconds
+    :param e0: initial internal energy in ergs
+    :param tdyn: dynamical time in s
+    :param tshell: shell crossing time in s
+    :param beta: velocity ratio (beta < 1)
+    :param kappa: opacity in cm^2/g
+    :param mass: mass of CSM shell in solar masses
+    :return: namedtuple with lbol, r_photosphere, and temperature
+    """
+    v0 = 1e9
+    velocity = v0/beta
+    tda = (3 * kappa * mass / (4 * np.pi * speed_of_light * velocity))**0.5 / day_to_s
+    # tda = 11.8
+
+    term1 = ((tdyn + tshell + time) ** 3 - (tdyn + beta * time) ** 3) ** (2 / 3)
+    term2 = ((tdyn + tshell) ** 3 - tdyn ** 3) ** (1 / 3)
+    term3 = (1 + (1 - beta) * time / tshell) ** (
+                -3 * (tdyn / tda) ** 2 * ((1 - beta - beta * tshell / tdyn) ** 2) / (1 - beta) ** 3)
+    term4 = np.exp(-time * ((1 - beta ** 3) * time + (2 - 4 * beta * (beta + 1)) * tshell + 6 * (1 - beta ** 2) * tdyn) / (
+                2 * (1 - beta) ** 2 * tda ** 2))
+
+    lbol = e0 * term1 / (tda ** 2 * (tshell + (1 - beta) * time) ** 2) * term2 * term3 * term4
+
+    volume = 4./3. * np.pi * velocity**3 * ((tdyn + tshell + time)**3 - (tdyn + beta*time)**3)
+    radius = velocity * day_to_s * (tdyn + tshell + time)
+    rphotosphere = radius - 2*volume/(3*kappa*mass)
+    teff = (lbol / (4 * np.pi * rphotosphere ** 2 * sigma_sb)) ** 0.25
+    output = namedtuple('output', ['lbol', 'r_photosphere', 'temperature', 'time_temp'])
+    output.lbol = lbol
+    output.r_photosphere = rphotosphere
+    output.temperature = teff
+    output.time_temp = time
+    return output
+
+@citation_wrapper('https://ui.adsabs.harvard.edu/abs/2022ApJ...933..238M/abstract')
+def csm_shock_breakout(time, redshift, loge0, tdyn, tshell, beta, kappa, mass, **kwargs):
+    """
+    Dense CSM shock breakout and cooling model From Margalit 2022
+
+    :param time: time in days
+    :param redshift: redshift
+    :param loge0: log10 e0 in ergs
+    :param tdyn: dynamical time in s
+    :param tshell: shell crossing time in s
+    :param beta: velocity ratio in c (beta < 1)
+    :param kappa: opacity in cm^2/g
+    :param mass: CSM mass
+    :param kwargs: Additional parameters required by model
+    :param frequency: Required if output_format is 'flux_density'.
+        frequency to calculate - Must be same length as time array or a single number).
+    :param bands: Required if output_format is 'magnitude' or 'flux'.
+    :param output_format: 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
+    :param lambda_array: Optional argument to set your desired wavelength array (in Angstroms) to evaluate the SED on.
+    :param cosmology: Cosmology to use for luminosity distance calculation. Defaults to Planck18. Must be a astropy.cosmology object.
+    :return: set by output format - 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
+    :return:
+    """
+    e0 = 10 ** loge0
+    mass = mass * solar_mass
+    cosmology = kwargs.get('cosmology', cosmo)
+    dl = cosmology.luminosity_distance(redshift).cgs.value
+    time_temp = np.geomspace(1e-2, 20, 300) #days
+    time_obs = time
+    outputs = _csm_shock_breakout(time_temp, e0=e0, tdyn=tdyn,
+                                  tshell=tshell, beta=beta,
+                                  kappa=kappa, mass=mass, **kwargs)
+    if kwargs['output_format'] == 'namedtuple':
+        return outputs
+    elif kwargs['output_format'] == 'luminosity':
+        func = interp1d(time_temp, outputs.lbol)
+        return func(time*day_to_s)
+    elif kwargs['output_format'] == 'flux_density':
+        time = time_obs * day_to_s
+        frequency = kwargs['frequency']
+        # interpolate properties onto observation times
+        temp_func = interp1d(time_temp, y=outputs.temperature)
+        rad_func = interp1d(time_temp, y=outputs.r_photosphere)
+        # convert to source frame time and frequency
+        frequency, time = calc_kcorrected_properties(frequency=frequency, redshift=redshift, time=time)
+
+        temp = temp_func(time)
+        photosphere = rad_func(time)
+
+        flux_density = sed.blackbody_to_flux_density(temperature=temp, r_photosphere=photosphere,
+                                                 dl=dl, frequency=frequency)
+
+        return flux_density.to(uu.mJy).value
+    else:
+        lambda_observer_frame = kwargs.get('lambda_array', np.geomspace(100, 60000, 200))
+        time_observer_frame = time_temp * (1. + redshift)
+        frequency, time = calc_kcorrected_properties(frequency=lambda_to_nu(lambda_observer_frame),
+                                                     redshift=redshift, time=time_observer_frame)
+        fmjy = sed.blackbody_to_flux_density(temperature=outputs.temperature,
+                                         r_photosphere=outputs.r_photosphere, frequency=frequency[:, None], dl=dl)
+        fmjy = fmjy.T
+        spectra = fmjy.to(uu.mJy).to(uu.erg / uu.cm ** 2 / uu.s / uu.Angstrom,
+                                     equivalencies=uu.spectral_density(wav=lambda_observer_frame * uu.Angstrom))
+        if kwargs['output_format'] == 'spectra':
+            return namedtuple('output', ['time', 'lambdas', 'spectra'])(time=time_observer_frame,
+                                                                           lambdas=lambda_observer_frame,
+                                                                           spectra=spectra)
+        else:
+            return sed.get_correct_output_format_from_spectra(time=time_obs, time_eval=time_observer_frame,
+                                                          spectra=spectra, lambda_array=lambda_observer_frame,
+                                                          **kwargs)
+
 
 @citation_wrapper('https://ui.adsabs.harvard.edu/abs/2021ApJ...909..209P/abstract')
 def _shock_cooling(time, mass, radius, energy, **kwargs):
