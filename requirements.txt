@@ -13,3 +13,4 @@ lxml
 sphinx-rtd-theme
 sphinx-tabs
 bilby
+regex

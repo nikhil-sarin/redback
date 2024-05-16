@@ -1,9 +1,8 @@
-gwemlightcurves
 nestle
 sherpa
+scikit-learn
 PyQt5
 lalsuite
 kilonova-heating-rate
 redback-surrogates
 kilonovanet
-regex

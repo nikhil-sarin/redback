@@ -3,7 +3,7 @@ Contributing
 ============
 
 Redback is currently at version 1.0, i.e., the version that accompanies the Redback paper.
-If you are interested in contributing please join the :code:`redback` `slack <https://join.slack.com/t/redback-group/shared_invite/zt-21rsoa26s-kibI8MiA1JiIKM0wCMp5rQ>`_.
+If you are interested in contributing please join the :code:`redback` `slack <https://join.slack.com/t/redback-group/shared_invite/zt-2iw55kwao-Myp5uIzJLO~ApKQIIt3KMQ>`_.
 This invite link may be out of date, so please contact the authors if you are unable to join.
 
 To make contributions to :code:`redback`,
@@ -24,5 +24,5 @@ General help/dev sessions
 -------------------------
 
 We currently run a biweekly zoom call for general help and development sessions.
-These include general tutorials for using redback, Bayesian inference, and dicussion of features, issues, and new features.
+These include general tutorials for using redback, Bayesian inference, and discussion of features, issues, and new feature requests.
 Please join the redback slack for more information.
