@@ -87,7 +87,6 @@ def _perform_extinction(flux_density, angstroms, av, r_v):
     :return: flux
     """
     import extinction  # noqa
-    import numpy.ma as ma
     if isinstance(angstroms, float):
         angstroms = np.array([angstroms])    
     mag_extinction = extinction.fitzpatrick99(angstroms, av, r_v=r_v)

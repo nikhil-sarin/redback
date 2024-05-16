@@ -1,4 +1,6 @@
 import redback.transient_models.extinction_models as em
+import redback.transient_models as tm
+from redback.model_library import all_models_dict
 from redback.utils import citation_wrapper
 
 @citation_wrapper('https://ui.adsabs.harvard.edu/abs/2020ApJ...896..166R/abstract, https://ui.adsabs.harvard.edu/abs/2020ApJ...891..152H/abstract')
@@ -38,16 +40,15 @@ def tophat_and_twolayerstratified(time, redshift, av, thv, loge0, thc, logn0, p,
     :return: flux density signal with extinction added
     
     """
-    kwargs['output_format']='flux_density'
-    kwargs['base_model']='tophat'
-    afterglow = em.extinction_with_afterglow_base_model(time=time, redshift=redshift, av=av,
-         thv=thv, loge0=loge0 , thc= thc, logn0=logn0, p=p, logepse=logepse, logepsb=logepsb, ksin=ksin, g0=g0,
-        **kwargs)
-    kwargs['base_model']='two_layer_stratified_kilonova'
-    kilonova = em.extinction_with_kilonova_base_model(time=time, redshift=redshift, av=av,
-          mej=mej, vej_1=vej_1, vej_2=vej_2, kappa=kappa, beta=beta, **kwargs)
-    
+    kwargs['output_format'] = 'flux_density'
+    afterglow = tm.afterglow_models.tophat(time=time, redshift=redshift, thv=thv, loge0=loge0, thc=thc, logn0=logn0,
+                                           p=p, logepse=logepse, logepsb=logepsb, ksin=ksin, g0=g0, **kwargs)
+    kilonova = tm.kilonova_models.two_layer_stratified_kilonova(time=time, redshift=redshift, mej=mej, vej_1=vej_1,
+                                                                vej_2=vej_2, kappa=kappa, beta=beta, **kwargs)
     combined = afterglow+kilonova
+    r_v = kwargs.get('r_v', 3.1)
+    # correct for extinction
+    combined = em._perform_extinction(flux_density=combined, av=av, r_v=r_v)
     return combined
 
 @citation_wrapper('https://ui.adsabs.harvard.edu/abs/2020ApJ...896..166R/abstract, redback')
@@ -92,17 +93,17 @@ def tophat_and_twocomponent(time, redshift, av, thv, loge0, thc, logn0,
     """
     
     kwargs['output_format'] = 'flux_density'
-    kwargs['base_model'] = 'tophat'
-    afterglow = em.extinction_with_afterglow_base_model(time=time, redshift=redshift, av=av,
-          thv=thv, loge0=loge0, thc=thc, logn0=logn0, p=p, logepse=logepse, logepsb=logepsb, ksin=ksin, g0=g0,**kwargs)
-
-    kwargs['base_model'] = 'two_component_kilonova_model'
-    kilonova = em.extinction_with_kilonova_base_model(time=time, redshift=redshift, av=av,
+    afterglow = tm.afterglow_models.tophat(time=time, redshift=redshift, thv=thv, loge0=loge0, thc=thc, logn0=logn0,
+                                           p=p, logepse=logepse, logepsb=logepsb, ksin=ksin, g0=g0, **kwargs)
+    kilonova = tm.kilonova_models.two_component_kilonova_model(time=time, redshift=redshift, av=av,
                                                       mej_1=mej_1, vej_1=vej_1, temperature_floor_1=temperature_floor_1,
                                                       kappa_1=kappa_1, mej_2=mej_2, vej_2=vej_2,
                                                       temperature_floor_2=temperature_floor_2, kappa_2=kappa_2, **kwargs)
     
     combined = afterglow + kilonova
+    r_v = kwargs.get('r_v', 3.1)
+    # correct for extinction
+    combined = em._perform_extinction(flux_density=combined, av=av, r_v=r_v)
     return combined
 
 @citation_wrapper('https://ui.adsabs.harvard.edu/abs/2020ApJ...896..166R/abstract, https://ui.adsabs.harvard.edu/abs/1982ApJ...253..785A/abstract')
@@ -146,15 +147,14 @@ def tophat_and_arnett(time, av, redshift, thv, loge0, thc, logn0, p, logepse, lo
     """
     
     kwargs['output_format'] = 'flux_density'
-    kwargs['base_model'] = 'tophat'
-    afterglow = em.extinction_with_afterglow_base_model(time=time, redshift=redshift, av=av,
-         thv=thv, loge0=loge0, thc=thc, logn0=logn0, p=p, logepse=logepse, logepsb=logepsb, ksin=ksin, g0=g0,
-        **kwargs)
+    afterglow = tm.afterglow_models.tophat(time=time, redshift=redshift, thv=thv, loge0=loge0, thc=thc, logn0=logn0,
+                                           p=p, logepse=logepse, logepsb=logepsb, ksin=ksin, g0=g0, **kwargs)
     kwargs['base_model'] = 'arnett'
-    supernova = em.extinction_with_supernova_base_model(time=time, redshift=redshift, av=av,
-         f_nickel=f_nickel, mej=mej, **kwargs)
-    
+    supernova = tm.supernova_models.arnett(time=time, redshift=redshift, f_nickel=f_nickel, mej=mej, **kwargs)
     combined = afterglow + supernova
+    r_v = kwargs.get('r_v', 3.1)
+    # correct for extinction
+    combined = em._perform_extinction(flux_density=combined, av=av, r_v=r_v)
     return combined
 
 @citation_wrapper('redback, and any citations for the specific model you use')
@@ -166,15 +166,13 @@ def afterglow_and_optical(time, redshift, av, **model_kwargs):
     :param time: time in days in observer frame
     :param redshift: source redshift
     :param av: absolute mag extinction
-    :param model_kwargs: kwargs shared by models e.g. output_format, frequency, bands, r_v (extinction paramater defaults to 3.1)
-    :param model_type: specify type of optical transient model- 'supernova', 'tde', 'kilonova', 'magnetar_driven', 'shock_powered'
+    :param model_kwargs: kwargs shared by models frequency and r_v (extinction paramater defaults to 3.1)
     :param afterglow_kwargs: dictionary of  parameters required by the afterglow transient model specified by 'base_model'
         and any additional keyword arguments. Refer to model documentation for details.
     :param optical_kwargs: dictionary of parameters required by the optical transient model specifed by 'base_model'
         and any additional keyword arguments. Note the base model must correspond to the given model type. Refer to model documentation
         for details.
-    :return: set by shared_kwargs output format - 'flux_density' or 'magnitude' with extinction added
-        note that only afterglow_models_sed allow for magnitude outputs
+    :return: flux density signal with extinction added
     """
 
     optical_kwargs = model_kwargs['optical_kwargs']
@@ -182,16 +180,19 @@ def afterglow_and_optical(time, redshift, av, **model_kwargs):
 
     _afterglow_kwargs = afterglow_kwargs.copy()
     _afterglow_kwargs.update(model_kwargs)
-    _afterglow_kwargs.pop('model_type')
 
     _optical_kwargs = optical_kwargs.copy()
     _optical_kwargs.update(model_kwargs)
 
-    afterglow = em._evaluate_extinction_model(time=time, redshift=redshift, av=av,model_type='afterglow',
-                                              **_afterglow_kwargs)
-    
-    optical = em._evaluate_extinction_model(time=time, redshift=redshift, av=av, **_optical_kwargs)
+    afterglow_function = all_models_dict[_afterglow_kwargs['base_model']]
+    afterglow = afterglow_function(time=time, redshift=redshift, output_format='flux_density', **_afterglow_kwargs)
 
-    combined= afterglow + optical
+    optical_function = all_models_dict[_optical_kwargs['base_model']]
+    optical = optical_function(time=time, redshift=redshift, output_format='flux_density', **_optical_kwargs)
+
+    combined = afterglow + optical
+    r_v = model_kwargs.get('r_v', 3.1)
+    # correct for extinction
+    combined = em._perform_extinction(flux_density=combined, av=av, r_v=r_v)
     return combined
     
