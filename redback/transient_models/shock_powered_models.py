@@ -528,7 +528,8 @@ def thermal_synchrotron_fluxdensity(time, redshift, logn0, v0, logr0, eta, logep
     cosmology = kwargs.get('cosmology', cosmo)
     dl = cosmology.luminosity_distance(redshift).cgs.value
     lnu = thermal_synchrotron_lnu(time,logn0, v0, logr0, eta, logepse, logepsb, xi, p,**new_kwargs)
-    flux_density = lnu / (4.0 * np.pi * dl**2)
+    # flux_density = lnu / ((4.0 * np.pi * dl**2)/(1e-26))
+    flux_density = lnu/(4.0*np.pi*dl**2)/(1e-26)
     return flux_density
 
 @citation_wrapper('https://ui.adsabs.harvard.edu/abs/2018ApJ...855..103P/abstract')
