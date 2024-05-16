@@ -1,6 +1,6 @@
 import redback.transient_models.extinction_models as em
 import redback.transient_models as tm
-from redback.model_library import all_models_dict
+from redback.utils import nu_to_lambda
 from redback.utils import citation_wrapper
 
 @citation_wrapper('https://ui.adsabs.harvard.edu/abs/2020ApJ...896..166R/abstract, https://ui.adsabs.harvard.edu/abs/2020ApJ...891..152H/abstract')
@@ -48,7 +48,8 @@ def tophat_and_twolayerstratified(time, redshift, av, thv, loge0, thc, logn0, p,
     combined = afterglow+kilonova
     r_v = kwargs.get('r_v', 3.1)
     # correct for extinction
-    combined = em._perform_extinction(flux_density=combined, av=av, r_v=r_v)
+    angstroms = nu_to_lambda(kwargs['frequency'])
+    combined = em._perform_extinction(flux_density=combined, angstroms=angstroms, av=av, r_v=r_v)
     return combined
 
 @citation_wrapper('https://ui.adsabs.harvard.edu/abs/2020ApJ...896..166R/abstract, redback')
@@ -103,7 +104,8 @@ def tophat_and_twocomponent(time, redshift, av, thv, loge0, thc, logn0,
     combined = afterglow + kilonova
     r_v = kwargs.get('r_v', 3.1)
     # correct for extinction
-    combined = em._perform_extinction(flux_density=combined, av=av, r_v=r_v)
+    angstroms = nu_to_lambda(kwargs['frequency'])
+    combined = em._perform_extinction(flux_density=combined, angstroms=angstroms, av=av, r_v=r_v)
     return combined
 
 @citation_wrapper('https://ui.adsabs.harvard.edu/abs/2020ApJ...896..166R/abstract, https://ui.adsabs.harvard.edu/abs/1982ApJ...253..785A/abstract')
@@ -154,12 +156,12 @@ def tophat_and_arnett(time, av, redshift, thv, loge0, thc, logn0, p, logepse, lo
     combined = afterglow + supernova
     r_v = kwargs.get('r_v', 3.1)
     # correct for extinction
-    combined = em._perform_extinction(flux_density=combined, av=av, r_v=r_v)
+    angstroms = nu_to_lambda(kwargs['frequency'])
+    combined = em._perform_extinction(flux_density=combined, angstroms=angstroms, av=av, r_v=r_v)
     return combined
 
 @citation_wrapper('redback, and any citations for the specific model you use')
 def afterglow_and_optical(time, redshift, av, **model_kwargs):
-    
     """
     function to combine the signals of any afterglow and any other optical transient with extinction added
     
@@ -175,6 +177,7 @@ def afterglow_and_optical(time, redshift, av, **model_kwargs):
     :return: flux density signal with extinction added
     """
 
+    from redback.model_library import all_models_dict
     optical_kwargs = model_kwargs['optical_kwargs']
     afterglow_kwargs = model_kwargs['afterglow_kwargs']
 
@@ -193,6 +196,7 @@ def afterglow_and_optical(time, redshift, av, **model_kwargs):
     combined = afterglow + optical
     r_v = model_kwargs.get('r_v', 3.1)
     # correct for extinction
-    combined = em._perform_extinction(flux_density=combined, av=av, r_v=r_v)
+    angstroms = nu_to_lambda(model_kwargs['frequency'])
+    combined = em._perform_extinction(flux_density=combined, angstroms=angstroms, av=av, r_v=r_v)
     return combined
     
