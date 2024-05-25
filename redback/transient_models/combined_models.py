@@ -180,6 +180,7 @@ def afterglow_and_optical(time, redshift, av, **model_kwargs):
     from redback.model_library import all_models_dict
     optical_kwargs = model_kwargs['optical_kwargs']
     afterglow_kwargs = model_kwargs['afterglow_kwargs']
+    model_kwargs['output_format']= model_kwargs.get('output_format', 'flux_density')
 
     _afterglow_kwargs = afterglow_kwargs.copy()
     _afterglow_kwargs.update(model_kwargs)
@@ -188,10 +189,10 @@ def afterglow_and_optical(time, redshift, av, **model_kwargs):
     _optical_kwargs.update(model_kwargs)
 
     afterglow_function = all_models_dict[_afterglow_kwargs['base_model']]
-    afterglow = afterglow_function(time=time, redshift=redshift, output_format='flux_density', **_afterglow_kwargs)
+    afterglow = afterglow_function(time=time, redshift=redshift,  **_afterglow_kwargs)
 
     optical_function = all_models_dict[_optical_kwargs['base_model']]
-    optical = optical_function(time=time, redshift=redshift, output_format='flux_density', **_optical_kwargs)
+    optical = optical_function(time=time, redshift=redshift, **_optical_kwargs)
 
     combined = afterglow + optical
     r_v = model_kwargs.get('r_v', 3.1)
