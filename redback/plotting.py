@@ -346,7 +346,7 @@ class IntegratedFluxPlotter(Plotter):
                 axes.plot(times, ys, color=self.random_sample_color, alpha=self.random_sample_alpha, lw=self.linewidth,
                           zorder=self.zorder)
         elif self.uncertainty_mode == "credible_intervals":
-            lower_bound, upper_bound, _ = redback.utils.calc_credible_intervals(samples=random_ys_list)
+            lower_bound, upper_bound, _ = redback.utils.calc_credible_intervals(samples=random_ys_list, interval=self.credible_interval_level)
             axes.fill_between(
                 times, lower_bound, upper_bound, alpha=self.uncertainty_band_alpha, color=self.max_likelihood_color)
 
@@ -391,11 +391,11 @@ class LuminosityPlotter(IntegratedFluxPlotter):
 
 class MagnitudePlotter(Plotter):
 
-    xlim_low_phase_model_multiplier = 0.9
-    xlim_high_phase_model_multiplier = 1.1
-    xlim_high_multiplier = 1.2
-    ylim_low_magnitude_multiplier = 0.8
-    ylim_high_magnitude_multiplier = 1.2
+    xlim_low_phase_model_multiplier = KwargsAccessorWithDefault("xlim_low_multiplier", 0.9)
+    xlim_high_phase_model_multiplier = KwargsAccessorWithDefault("xlim_high_multiplier", 1.1)
+    xlim_high_multiplier = KwargsAccessorWithDefault("xlim_high_multiplier", 1.2)
+    ylim_low_magnitude_multiplier = KwargsAccessorWithDefault("ylim_low_multiplier", 0.8)
+    ylim_high_magnitude_multiplier = KwargsAccessorWithDefault("ylim_high_multiplier", 1.2)
     ncols = KwargsAccessorWithDefault("ncols", 2)
 
     @property
@@ -551,7 +551,7 @@ class MagnitudePlotter(Plotter):
                 elif self.band_scaling.get("type") == '+':
                     ax.errorbar(
                         self.transient.x[indices] - self._reference_mjd_date, self.transient.y[indices] + self.band_scaling.get(band),
-                        xerr=self._get_x_err(indices), yerr=self.transient.y_err[indices] + self.band_scaling.get(band),
+                        xerr=self._get_x_err(indices), yerr=self.transient.y_err[indices],
                         fmt=self.errorbar_fmt, ms=self.ms, color=color,
                         elinewidth=self.elinewidth, capsize=self.capsize, label=label)
             else:
@@ -635,11 +635,11 @@ class MagnitudePlotter(Plotter):
             elif self.uncertainty_mode == "credible_intervals":
                 if band in self.band_scaling:
                     if self.band_scaling.get("type") == 'x':
-                        lower_bound, upper_bound, _ = redback.utils.calc_credible_intervals(samples=np.array(random_ys_list) * self.band_scaling.get(band))
+                        lower_bound, upper_bound, _ = redback.utils.calc_credible_intervals(samples=np.array(random_ys_list) * self.band_scaling.get(band), interval=self.credible_interval_level)
                     elif self.band_scaling.get("type") == '+':
-                        lower_bound, upper_bound, _ = redback.utils.calc_credible_intervals(samples=np.array(random_ys_list) + self.band_scaling.get(band))
+                        lower_bound, upper_bound, _ = redback.utils.calc_credible_intervals(samples=np.array(random_ys_list) + self.band_scaling.get(band), interval=self.credible_interval_level)
                 else:
-                    lower_bound, upper_bound, _ = redback.utils.calc_credible_intervals(samples=np.array(random_ys_list))
+                    lower_bound, upper_bound, _ = redback.utils.calc_credible_intervals(samples=np.array(random_ys_list), interval=self.credible_interval_level)
                 axes.fill_between(
                     times - self._reference_mjd_date, lower_bound, upper_bound,
                     alpha=self.uncertainty_band_alpha, color=color_sample)
@@ -789,7 +789,7 @@ class MagnitudePlotter(Plotter):
                     axes[ii].plot(times - self._reference_mjd_date, random_ys, color=color_sample,
                                   alpha=self.random_sample_alpha, lw=self.linewidth, zorder=self.zorder)
             elif self.uncertainty_mode == "credible_intervals":
-                lower_bound, upper_bound, _ = redback.utils.calc_credible_intervals(samples=random_ys_list)
+                lower_bound, upper_bound, _ = redback.utils.calc_credible_intervals(samples=random_ys_list, interval=self.credible_interval_level)
                 axes[ii].fill_between(
                     times - self._reference_mjd_date, lower_bound, upper_bound,
                     alpha=self.uncertainty_band_alpha, color=color_sample)

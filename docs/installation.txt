@@ -56,7 +56,7 @@ You are now ready to use redback. Please check out the `examples <https://github
 Install :code:`phantomjs`
 -------------------------
 
-If you want to use :code:`redback` functionality to download Swift data you need to install phantomjs.
+In previous releases of :code:`redback` if you wanted to use :code:`redback` functionality to download Swift data you needed to install phantomjs.
 Installing phantomjs essentially requires that you first download the phantomjs file for your operating system from
 the `website <https://phantomjs.org/download.html>`_. Then create a softlink or export the path to the bin file;
 see discussion on `stackoverflow <https://stackoverflow.com/questions/36993962/installing-phantomjs-on-mac>`_.
@@ -72,3 +72,36 @@ Or use pkg installer if you are on linux.
 .. code-block:: console
 
    $ sudo pkg install phantomjs
+
+phantomjs sometimes will not work with macOS or give a warning that it is no longer supported/verified.
+In the short term, you can locate the file in your finder and right click to open it. Doing so once will allow the app to be used.
+Note phantomjs is not required for any other functionality of redback.
+
+Phantomjs is now replaced with ChromeDriver through selenium.
+
+Install :code:`chromedriver` and :code:`selenium`
+-------------------------
+
+In you want to use :code:`redback` functionality to download Swift data you now need to have Google Chrome installed and update selenium.
+:code:`redback` is tested with Selenium 4.18.1 so please make sure you have this version or higher.
+
+To test if your selenium/chrome installation is ready.
+Please try the following code block.
+
+.. code-block:: console
+
+    $ python
+    >>> from selenium import webdriver
+    >>> driver = webdriver.Chrome()
+    >>> driver.get("https://www.youtube.com/watch?v=dQw4w9WgXcQ")
+
+If a page opens, then you are ready to start using :code:`redback` to download Swift data.
+
+If nothing happens, you may need to install the ChromeDriver separately. You can do this via brew on MacOS
+
+.. code-block:: console
+
+    $ brew install --cask chromedriver
+
+And on Linux and Windows you can download the ChromeDriver and add it to your path from the official chromedriver webpage.
+Note you do not have to do this ideally, as the ChromeDriver is included in the latest selenium package.

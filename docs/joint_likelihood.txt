@@ -13,6 +13,6 @@ Thanks to the interface with :code:`bilby` this is easily achievable with :code`
 
 We provide a simplified example of jointly fitting an afterglow and the gravitational waves from a binary neutron star merger in the examples.
 We note that this framework can also be used to jointly analyse multiple data types from the same source, for example, the optical photometry of a kilonova and a radio afterglow.
+We note that in practice, this is often done with a single likelihood by approximating the magnitude data as a flux density.
 
-We note that in the practice, this is often done with a single likelihood by approximating the magnitude data as a flux density.
-
+Another more general example, is jointly fitting the spectrum and photometry.

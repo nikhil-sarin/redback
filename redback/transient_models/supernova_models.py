@@ -21,7 +21,7 @@ homologous_expansion_models = ['exponential_powerlaw_bolometric', 'arnett_bolome
                                'type_1c_bolometric','type_1a_bolometric']
 
 @citation_wrapper('https://zenodo.org/record/6363879#.YkQn3y8RoeY')
-def sncosmo_models(time, redshift, model_kwargs, **kwargs):
+def sncosmo_models(time, redshift, model_kwargs=None, **kwargs):
     """
     A wrapper to SNCosmo models
 
@@ -33,28 +33,36 @@ def sncosmo_models(time, redshift, model_kwargs, **kwargs):
     :param sncosmo_model: String of the SNcosmo model to use.
     :param peak_time: SNe peak time in days
     :param cosmology: astropy cosmology object by default set to Planck18
-    :param peak_abs_mag: SNe peak absolute magnitude default set to -19
-    :param peak_abs_mag_band: Band corresponding to the peak abs mag limit, default to standard::b. Must be in SNCosmo
     :param mw_extinction: Boolean for whether there is MW extinction or not. Default True
-    :param magnitude_system: Mag system; default ab
     :param host_extinction: Boolean for whether there is host extinction or not. Default True
             if used adds an extra parameter ebv which must also be in kwargs; host galaxy E(B-V). Set to 0.1 by default
+    :param use_set_peak_magnitude: Boolean for whether to set the peak magnitude or not. Default False,
+        if True the following keyword arguments also apply. Else the brightness is set by the model_kwargs.
+    :param peak_abs_mag: SNe peak absolute magnitude default set to -19
+    :param peak_abs_mag_band: Band corresponding to the peak abs mag limit, default to standard::b. Must be in SNCosmo
+    :param magnitude_system: Mag system; default ab
     :return: set by output format - 'flux_density', 'magnitude', 'flux', 'sncosmo_source'
     """
     import sncosmo
-    cosmology = kwargs.get('cosmology', cosmo)
     peak_time = kwargs.get('peak_time', 0)
-    peak_abs_mag = kwargs.get('peak_abs_mag', -19)
-    peak_abs_mag_band = kwargs.get('peak_abs_mag_band', 'standard::b')
+    cosmology = kwargs.get('cosmology', cosmo)
     model_name = kwargs.get('sncosmo_model', 'salt2')
     host_extinction = kwargs.get('host_extinction', True)
     mw_extinction = kwargs.get('mw_extinction', True)
-    magsystem = kwargs.get('magnitude_system', 'ab')
+    use_set_peak_magnitude = kwargs.get('use_set_peak_magnitude', False)
 
     model = sncosmo.Model(source=model_name)
     model.set(z=redshift)
     model.set(t0=peak_time)
-    model.update(model_kwargs)
+
+    if model_kwargs == None:
+        _model_kwargs = {}
+        for x in kwargs['model_kwarg_names']:
+            _model_kwargs[x] = kwargs[x]
+    else:
+        _model_kwargs = model_kwargs
+
+    model.update(_model_kwargs)
 
     if host_extinction:
         ebv = kwargs.get('ebv', 0.1)
@@ -63,13 +71,21 @@ def sncosmo_models(time, redshift, model_kwargs, **kwargs):
     if mw_extinction:
         model.add_effect(sncosmo.F99Dust(), 'mw', 'obs')
 
-    model.set_source_peakabsmag(peak_abs_mag, band=peak_abs_mag_band, magsys=magsystem, cosmo=cosmology)
+    if use_set_peak_magnitude:
+        peak_abs_mag = kwargs.get('peak_abs_mag', -19)
+        peak_abs_mag_band = kwargs.get('peak_abs_mag_band', 'standard::b')
+        magsystem = kwargs.get('magnitude_system', 'ab')
+        model.set_source_peakabsmag(peak_abs_mag, band=peak_abs_mag_band, magsys=magsystem, cosmo=cosmology)
 
     if kwargs['output_format'] == 'flux_density':
         frequency = kwargs['frequency']
 
+        if isinstance(frequency, float):
+            frequency = np.array([frequency])
+
         if (len(frequency) != 1 or len(frequency) == len(time)):
             raise ValueError('frequency array must be of length 1 or same size as time array')
+
         unique_frequency = np.sort(np.unique(frequency))
         angstroms = nu_to_lambda(unique_frequency)
 
@@ -90,11 +106,11 @@ def sncosmo_models(time, redshift, model_kwargs, **kwargs):
 
     if kwargs['output_format'] == 'flux':
         bands = kwargs['bands']
-        magnitude = model.bandmag(phase=time, band=bands, magsys='ab')
+        magnitude = model.bandmag(time=time, band=bands, magsys='ab')
         return sed.bandpass_magnitude_to_flux(magnitude=magnitude, bands=bands)
     elif kwargs['output_format'] == 'magnitude':
         bands = kwargs['bands']
-        magnitude = model.bandmag(phase=time, band=bands, magsys='ab')
+        magnitude = model.bandmag(time=time, band=bands, magsys='ab')
         return magnitude
     elif kwargs['output_format'] == 'sncosmo_source':
         return model
@@ -874,11 +890,9 @@ def _csm_engine(time, mej, csm_mass, vej, eta, rho, kappa, r0, **kwargs):
     # scaling constant for CSM density profile
     qq = rho * r0 ** eta
     # outer CSM shell radius
-    radius_csm = ((3.0 - eta) / (4.0 * np.pi * qq) * csm_mass + r0 ** (3.0 - eta)) ** (
-            1.0 / (3.0 - eta))
+    radius_csm = ((3.0 - eta) / (4.0 * np.pi * qq) * csm_mass + r0 ** (3.0 - eta)) ** (1.0 / (3.0 - eta))
     # photosphere radius
-    r_photosphere = abs((-2.0 * (1.0 - eta) / (3.0 * kappa * qq) +
-                         radius_csm ** (1.0 - eta)) ** (1.0 / (1.0 - eta)))
+    r_photosphere = abs((-2.0 * (1.0 - eta) / (3.0 * kappa * qq) + radius_csm ** (1.0 - eta)) ** (1.0 / (1.0 - eta)))
 
     # mass of the optically thick CSM (tau > 2/3).
     mass_csm_threshold = np.abs(4.0 * np.pi * qq / (3.0 - eta) * (
@@ -904,20 +918,19 @@ def _csm_engine(time, mej, csm_mass, vej, eta, rho, kappa, r0, **kwargs):
               (3.0 - nn) * g_n)) ** (1.0 / (3.0 - nn))) ** (
                    (nn - eta) / (eta - 3.0))
 
-    mask_1 = t_FS - time * day_to_s > 0
-    mask_2 = t_RS - time * day_to_s > 0
+    mask_RS = t_RS - time * day_to_s > 0
+    mask_FS = t_FS - time * day_to_s > 0
 
-    lbol = efficiency * (2.0 * np.pi / (nn - eta) ** 3 * g_n ** ((5.0 - eta) / (nn - eta)) * qq **
-                         ((nn - 5.0) / (nn - eta)) * (nn - 3.0) ** 2 * (nn - 5.0) * Bf ** (5.0 - eta) * AA **
-                         ((5.0 - eta) / (nn - eta)) * (time * day_to_s + ti) **
-                         ((2.0 * nn + 6.0 * eta - nn * eta - 15.) /
-                          (nn - eta)) + 2.0 * np.pi * (AA * g_n / qq) **
-                         ((5.0 - nn) / (nn - eta)) * Br ** (5.0 - nn) * g_n * ((3.0 - eta) / (nn - eta)) ** 3 * (
-                                     time * day_to_s + ti) **
-                         ((2.0 * nn + 6.0 * eta - nn * eta - 15.0) / (nn - eta)))
+    lbol_FS = 2.0 * np.pi / (nn - eta) ** 3 * g_n ** ((5.0 - eta) / (nn - eta)) * qq ** ((nn - 5.0) / (nn - eta)) \
+              * (nn - 3.0) ** 2 * (nn - 5.0) * Bf ** (5.0 - eta) * AA ** ((5.0 - eta) / (nn - eta)) * (time * day_to_s + ti) \
+              ** ((2.0 * nn + 6.0 * eta - nn * eta - 15.) / (nn - eta))
 
-    lbol[~mask_1] = 0
-    lbol[~mask_2] = 0
+    lbol_RS = 2.0 * np.pi * (AA * g_n / qq) ** ((5.0 - nn) / (nn - eta)) * Br ** (5.0 - nn) * g_n * ((3.0 - eta) / (nn - eta)) \
+              ** 3 * (time * day_to_s + ti) ** ((2.0 * nn + 6.0 * eta - nn * eta - 15.0) / (nn - eta))
+    lbol_FS[~mask_FS] = 0
+    lbol_RS[~mask_RS] = 0
+
+    lbol = efficiency * (lbol_FS + lbol_RS)
 
     csm_output = namedtuple('csm_output', ['lbol', 'r_photosphere', 'mass_csm_threshold'])
     csm_output.lbol = lbol
@@ -926,7 +939,7 @@ def _csm_engine(time, mej, csm_mass, vej, eta, rho, kappa, r0, **kwargs):
     return csm_output
 
 
-@citation_wrapper('redback')
+@citation_wrapper('https://ui.adsabs.harvard.edu/abs/2013ApJ...773...76C/abstract, https://ui.adsabs.harvard.edu/abs/2017ApJ...849...70V/abstract, https://ui.adsabs.harvard.edu/abs/2020RNAAS...4...16J/abstract')
 def csm_interaction_bolometric(time, mej, csm_mass, vej, eta, rho, kappa, r0, **kwargs):
     """
     :param time: time in days in source frame
@@ -951,14 +964,15 @@ def csm_interaction_bolometric(time, mej, csm_mass, vej, eta, rho, kappa, r0, **
     csm_output = _csm_engine(time=time, mej=mej, csm_mass=csm_mass, vej=vej,
                              eta=eta, rho=rho, kappa=kappa, r0=r0, **kwargs)
     lbol = csm_output.lbol
-    r_photosphere = csm_output.r_photosphere
-    mass_csm_threshold = csm_output.mass_csm_threshold
 
     if _interaction_process is not None:
         dense_resolution = kwargs.get("dense_resolution", 1000)
-        dense_times = np.linspace(0, time[-1]+100, dense_resolution)
-        dense_lbols = _csm_engine(time=dense_times, mej=mej, csm_mass=csm_mass, vej=vej,
-                             eta=eta, rho=rho, kappa=kappa, r0=r0, **kwargs).lbol
+        dense_times = np.geomspace(0.1, time[-1]+100, dense_resolution)
+        csm_output = _csm_engine(time=dense_times, mej=mej, csm_mass=csm_mass, vej=vej,
+                                 eta=eta, rho=rho, kappa=kappa, r0=r0, **kwargs)
+        dense_lbols = csm_output.lbol
+        r_photosphere = csm_output.r_photosphere
+        mass_csm_threshold = csm_output.mass_csm_threshold
         interaction_class = _interaction_process(time=time, dense_times=dense_times, luminosity=dense_lbols,
                                                 kappa=kappa, r_photosphere=r_photosphere,
                                                 mass_csm_threshold=mass_csm_threshold, csm_mass=csm_mass, **kwargs)
@@ -966,7 +980,7 @@ def csm_interaction_bolometric(time, mej, csm_mass, vej, eta, rho, kappa, r0, **
     return lbol
 
 
-@citation_wrapper('https://ui.adsabs.harvard.edu/abs/2013ApJ...773...76C/abstract')
+@citation_wrapper('https://ui.adsabs.harvard.edu/abs/2013ApJ...773...76C/abstract, https://ui.adsabs.harvard.edu/abs/2017ApJ...849...70V/abstract, https://ui.adsabs.harvard.edu/abs/2020RNAAS...4...16J/abstract')
 def csm_interaction(time, redshift, mej, csm_mass, vej, eta, rho, kappa, r0, **kwargs):
     """
     :param time: time in days in observer frame
@@ -1017,7 +1031,7 @@ def csm_interaction(time, redshift, mej, csm_mass, vej, eta, rho, kappa, r0, **k
     else:
         time_obs = time
         lambda_observer_frame = kwargs.get('lambda_array', np.geomspace(100, 60000, 100))
-        time_temp = np.geomspace(0.1, 3000, 300)  # in days
+        time_temp = np.linspace(0.1, 500, 300)  # in days
         time_observer_frame = time_temp * (1. + redshift)
         frequency, time = calc_kcorrected_properties(frequency=lambda_to_nu(lambda_observer_frame),
                                                      redshift=redshift, time=time_observer_frame)

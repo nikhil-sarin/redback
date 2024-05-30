@@ -2,7 +2,7 @@
 ![Python package](https://github.com/nikhil-sarin/redback/workflows/Python%20application/badge.svg)
 [![Coverage Status](https://coveralls.io/repos/github/nikhil-sarin/redback/badge.svg?branch=master)](https://coveralls.io/github/nikhil-sarin/redback?branch=master)
 ![PyPI](https://img.shields.io/pypi/v/redback)
-![PyPI - Downloads](https://img.shields.io/pypi/dm/redback)
+[![arXiv](https://img.shields.io/badge/arXiv-2308.12806-00ff00.svg)](https://arxiv.org/abs/2308.12806)
 # Redback
 Introducing REDBACK, a bayesian inference software package for fitting electromagnetic transients
 
@@ -28,13 +28,14 @@ Simulate single transients or populations or simulate a full survey including no
 - Redback uses [Bilby](https://lscsoft.docs.ligo.org/bilby/index.html) under the hood for sampling. Can easily switch samplers/likelihoods etc. By default the choice is made depending on the data.
 - Fitting returns a homogenous result object, with functionality to plot fitted lightcurves and the posterior/evidence. Or importance sample etc.
 
-### Contributing 
-Redback is currently in alpha with a paper in preparation. 
+### Contributing
 If you are interested in contributing please join the redback 
-[slack](https://join.slack.com/t/redback-group/shared_invite/zt-1xl34px4n-xzRTkd7N4Z3AC_5p4JeDvQ)
-and email [Nikhil Sarin](mailto:nikhil.sarin@su.se?subject=Contributing%20to%20redback). 
-All contributors at the alpha stage will be invited to be co-authors of the first paper.
+[slack](https://join.slack.com/t/redback-group/shared_invite/zt-2iw55kwao-Myp5uIzJLO~ApKQIIt3KMQ)
+and email [Nikhil Sarin](mailto:nikhil.sarin@su.se?subject=Contributing%20to%20redback).
 
 To make changes to redback, we require users to use a merge request system. 
 
-
+### User/Dev calls
+We have regular calls for users and developers. 
+These include tutorials on specific redback functionality as well as discussions of new features/feature requests, 
+and Q/A. Please join the slack to get details of these calls.

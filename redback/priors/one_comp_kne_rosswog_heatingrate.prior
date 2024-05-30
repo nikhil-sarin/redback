@@ -1,0 +1,5 @@
+redshift = Uniform(1e-6, 0.1, 'redshift', latex_label = r'$z$')
+mej = Uniform(1e-2, 0.05, 'mej', latex_label = r'$M_{\mathrm{ej} }~(M_\odot)$')
+vej = Uniform(0.05, 0.3, 'vej', latex_label = r'$v_{\mathrm{ej}}~(c)$')
+ye = Uniform(0.05, 0.4, 'ye', latex_label = r'$Y_{e}$')
+temperature_floor = LogUniform(100, 6000, 'temperature_floor', latex_label = r'$T_{\mathrm{floor}}~(\mathrm{K})$')

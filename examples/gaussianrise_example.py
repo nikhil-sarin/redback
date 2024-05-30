@@ -37,7 +37,7 @@ prior['beta_high'] = Constraint(0,1)
 prior['redshift'] = 0.075
 
 # With the prior now set up. We can now fit the model.
-base_model = 'gaussianrise_metzger_tde'
+base_model = 'gaussianrise_cooling_envelope'
 model_kwargs = dict(frequency=tde.filtered_frequencies, output_format='flux_density')
 sampler = 'nestle'
 

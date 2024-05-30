@@ -33,6 +33,7 @@ For a full up to date list of models implemented in :code:`redback`, look at the
     - `Three component model <https://ui.adsabs.harvard.edu/abs/2017ApJ...851L..21V/abstract>`_ temperature floor and diffusion
     - `Metzger 2017 <https://ui.adsabs.harvard.edu/abs/2017LRR....20....3M/abstract>`_
     - Surrogates of different numerical simulations
+    - Lots more...
 
 - Supernova models: Can output in flux density/magnitude/bolometric luminosity
 
@@ -46,6 +47,7 @@ For a full up to date list of models implemented in :code:`redback`, look at the
     - exponential powerlaw
     - SNcosmo
     - Shock cooling + Arnett
+    - Every model provided by `SNcosmo <https://sncosmo.readthedocs.io/en/stable/index.html>`_
 
 - Shock models: Can output in flux density/magnitude/bolometric luminosity
 
@@ -78,13 +80,15 @@ For a full up to date list of models implemented in :code:`redback`, look at the
 
     - Simple analytic fallback
     - Cooling envelope (Metzger 2022)
-    - Gaussian rise + cooling envelope (Sarin and Metzger 2023)
+    - Gaussian rise + cooling envelope (Sarin and Metzger 2024)
+    - Broken power law + cooling envelope (Sarin and Metzger 2024)
 
 - Phenomenological and fireball models
 
     - 1-6 component piecewise power law
     - exponential_powerlaw
     - Gaussian rise
+    - Several more
 
 - Combined models
 
@@ -179,6 +183,7 @@ The specific physics that can be changed:
 - Different SED: See SED's already implemented `here <https://github.com/nikhil-sarin/redback/blob/master/redback/sed.py>`_.
 - Gamma-ray leakage
 - Engines with different energy injection rates
+- Several more things. Please look at the model documentation for more details.
 
 We encourage users to add more of these physics switches, which is another easy way to contribute to :code:`redback`.
 
@@ -204,7 +209,7 @@ This can be done in the proper way for the `afterglow_sed` model variants.
 While for other transient models, the magnitude/flux values are calculated using the full bandpass/spectrum.
 The flux_density output for all models is the flux density at the effective frequency of the filter.
 
-Redback assumes flux_density is always in mJy, luminosity is always in erg/s, and magnitude is always in AB mag.
+Redback assumes flux_density is always in mJy, luminosity is always in erg/s with some models returning the output in 1e50 erg/s (for numerical stability), and magnitude is always in AB mag.
 Flux is always in erg/s/cm^2.
 
 

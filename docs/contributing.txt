@@ -2,16 +2,16 @@
 Contributing
 ============
 
-Redback is currently in alpha with a paper in preparation.
-If you are interested in contributing please join the :code:`redback` `slack <https://join.slack.com/t/redback-group/shared_invite/zt-1xl34px4n-xzRTkd7N4Z3AC_5p4JeDvQ>`_.
-All contributors at the alpha stage will be invited to be co-authors of the first paper.
+Redback is currently at version 1.0, i.e., the version that accompanies the Redback paper.
+If you are interested in contributing please join the :code:`redback` `slack <https://join.slack.com/t/redback-group/shared_invite/zt-2iw55kwao-Myp5uIzJLO~ApKQIIt3KMQ>`_.
+This invite link may be out of date, so please contact the authors if you are unable to join.
 
 To make contributions to :code:`redback`,
-we request that you first make an issue on :code:`redback` github `page <https://github.com/nikhil-sarin/redback/issues>`_ describing what contribution you want to make.
+we request that you first suggest the contribution you want to make via slack or via an issue on :code:`redback` github `page <https://github.com/nikhil-sarin/redback/issues>`_.
 This minimises the risk of double effort from different people contributing the same functionality.
 
-For all contributions to :code:`redback` we require a merge request system.
-We also request that you implement some form of a unit test/or example that can be used to test your feature.
+For all contributions to :code:`redback` we require a merge request system. So users should have a fork of redback.
+We also request that you implement some form of a unit test/or example that can be used to test your feature (if possible).
 The API documentation is automatically generated and this requires
 that every function/class you implement is well documented following the numpy or restructured text convention.
 
@@ -19,3 +19,10 @@ Before your request is merged, one of the core developers will look through your
 This is to ensure that the software remains consistent and easily maintainable.
 
 For more general tips, we recommend the guide to contributing for :code:`bilby` `here <https://github.com/lscsoft/bilby/blob/master/CONTRIBUTING.md>`_.
+
+General help/dev sessions
+-------------------------
+
+We currently run a biweekly zoom call for general help and development sessions.
+These include general tutorials for using redback, Bayesian inference, and discussion of features, issues, and new feature requests.
+Please join the redback slack for more information.

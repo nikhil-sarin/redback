@@ -2,7 +2,7 @@ numpy
 setuptools
 pandas
 scipy
-selenium==3.8.0
+selenium
 sncosmo
 matplotlib
 astropy
@@ -13,3 +13,4 @@ lxml
 sphinx-rtd-theme
 sphinx-tabs
 bilby
+regex
