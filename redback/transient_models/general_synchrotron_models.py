@@ -7,8 +7,6 @@ from redback.constants import day_to_s, solar_mass, km_cgs, au_cgs, speed_of_lig
 from scipy import integrate
 from scipy.interpolate import interp1d
 
-import ipdb
-
 def _calc_free_free_abs(frequency, Y_fe, Zbar, mej, radius_2darray, F_nu_2darray):
     """
     :param frequency: frequency to calculate
