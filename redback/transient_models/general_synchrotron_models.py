@@ -40,7 +40,10 @@ def _calc_compton_scat(frequency, Y_e, mej, radius_2darray, F_nu_2darray):
     sigkn2 = np.log(1.0 + 2.0*x)/(2.0*x)
     sigkn3 = (1.0 + 3.0*x)/(1.0 + 2.0*x)**2
     sig_kn = (3.0/4.0) * sigma_T * (sigknpre*sigkn1 + sigkn2 - sigkn3)
-    sig_kn[msk] = sigma_T
+    if (np.size(sig_kn) > 1):
+        sig_kn[msk] = sigma_T
+    elif ((np.size(sig_kn) == 1) and (msk == True)):
+        sig_kn = sigma_T   
     kappa_comp = sig_kn * Y_e / proton_mass
     tau_comp = 3.0 * kappa_comp * mej * solar_mass / (4.0 * np.pi * radius_2darray**2)
     F_nu_2darray = F_nu_2darray * np.exp(-tau_comp)
