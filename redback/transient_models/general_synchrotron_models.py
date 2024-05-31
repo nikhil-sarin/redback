@@ -7,6 +7,8 @@ from redback.constants import day_to_s, solar_mass, km_cgs, au_cgs, speed_of_lig
 from scipy import integrate
 from scipy.interpolate import interp1d
 
+import ipdb
+
 def _calc_free_free_abs(frequency, Y_fe, Zbar, mej, radius_2darray, F_nu_2darray):
     """
     :param frequency: frequency to calculate
@@ -18,7 +20,7 @@ def _calc_free_free_abs(frequency, Y_fe, Zbar, mej, radius_2darray, F_nu_2darray
     :return: absorbed flux density
     """
     n_e = mej * solar_mass * 3 / (4 * np.pi * radius_2darray**3) * Y_fe / proton_mass
-    tau_ff = 8.4e-28 * n_e**2 * radius_2darray * Zbar**2 * (frequency_array / 1.0e10) ** -2.1
+    tau_ff = 8.4e-28 * n_e**2 * radius_2darray * Zbar**2 * (frequency / 1.0e10) ** -2.1
     F_nu_2darray = F_nu_2darray * np.exp(-tau_ff)
     
     return F_nu_2darray
@@ -94,7 +96,10 @@ def pwn(time, redshift, mej, l0, tau_sd, nn, eps_b, gamma_b, **kwargs):
     #get parameter values or use defaults
     E_sn = kwargs.get('E_sn', 1.0e51)
     kappa = kwargs.get('kappa', 0.1)
+    if 'kappa' in kwargs:
+        del kwargs['kappa']
     kappa_gamma = kwargs.get('kappa_gamma', 0.01)
+    kwargs['kappa_gamma'] = kappa_gamma
     q1 = kwargs.get('q1',1.5)
     q2 = kwargs.get('q2',2.5)
     Zbar = kwargs.get('Zbar',8.0)
@@ -102,27 +107,29 @@ def pwn(time, redshift, mej, l0, tau_sd, nn, eps_b, gamma_b, **kwargs):
     Y_fe = kwargs.get('Y_fe',0.0625)
     
     ejecta_radius = 1.0e11
-    epse=1.0-epsb
+    epse=1.0-eps_b
     n_ism = 1.0e-5
     dl = cosmo.luminosity_distance(redshift).cgs.value
     pair_cascade_switch = kwargs.get('pair_cascade_switch', False)
+    use_r_process = kwargs.get('use_r_process', False)
     nu_M=3.8e22*np.ones(2500)
 
     #initial values and dynamics
     time_temp = np.geomspace(1e0, 1e10, 2500)
-    frequency, t = calc_kcorrected_properties(frequency=frequency, redshift=redshift, time=t)
+    frequency = kwargs['frequency']
+    frequency, time = calc_kcorrected_properties(frequency=frequency, redshift=redshift, time=time)
     magnetar_luminosity = magnetar_only(time=time_temp, l0=l0, tau=tau_sd, nn=nn)
     v_init = np.sqrt(E_sn / (0.5 * mej * solar_mass)) / speed_of_light
     output = _ejecta_dynamics_and_interaction(time=time_temp, mej=mej,
                                           beta=v_init, ejecta_radius=ejecta_radius,
                                           kappa=kappa, n_ism=n_ism, magnetar_luminosity=magnetar_luminosity,
-                                          kappa_gamma=kappa_gamma, pair_cascade_switch=pair_cascade_switch,
-                                          use_gamma_ray_opacity=True, use_r_process=False, **kwargs)                                                                                
+                                          pair_cascade_switch=pair_cascade_switch,
+                                          use_gamma_ray_opacity=True, **kwargs)                                                                                
     vej = velocity_from_lorentz_factor(output.lorentz_factor)/km_cgs 
 
     #calculating synchrotron quantites
     int_lsd = integrate.cumtrapz(magnetar_luminosity, time_temp,initial=0)
-    B_nb = np.sqrt(6.0 * epsb * int_lsd / output.radius**3)
+    B_nb = np.sqrt(6.0 * eps_b * int_lsd / output.radius**3)
     B_nb[0] = B_nb[1]
     nu_b = 3.0 / 4.0 / np.pi * gamma_b**2 * qe * B_nb / electron_mass / speed_of_light
     nu_0 = np.minimum(nu_M, nu_b)
@@ -161,7 +168,7 @@ def pwn(time, redshift, mej, l0, tau_sd, nn, eps_b, gamma_b, **kwargs):
     #interpolate for each time
     fnu_func = {}
     fnu_func = interp1d(time_temp/day_to_s, y=F_nu.T)
-    fnu = np.diag(fnu_func(t))   
+    fnu = np.diag(fnu_func(time))   
     fmjy = np.array(fnu) / 1.0e-26       
     
     return fmjy
