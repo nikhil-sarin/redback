@@ -141,11 +141,11 @@ def pwn(time, redshift, mej, l0, tau_sd, nn, eps_b, gamma_b, **kwargs):
     #making arrays to vectorize properly
     freq_arr = np.tile(frequency, (2500,1))
     F_nu_0_arr = np.tile(F_nu_0, (np.size(frequency),1))
-    nu_0_arr = np.tile(nu_0, (np.size((frequency),1))
-    F_nu_ssa_arr = np.tile(F_nu_ssa, (np.size((frequency),1))
-    nu_ssa_arr = np.tile(nu_ssa, (np.size((frequency),1))
-    r_arr = np.tile(output.radius, (np.size((frequency),1))
-    nu_b_arr = np.tile(nu_b, (np.size((frequency),1))
+    nu_0_arr = np.tile(nu_0, (np.size(frequency),1))
+    F_nu_ssa_arr = np.tile(F_nu_ssa, (np.size(frequency),1))
+    nu_ssa_arr = np.tile(nu_ssa, (np.size(frequency),1))
+    r_arr = np.tile(output.radius, (np.size(frequency),1))
+    nu_b_arr = np.tile(nu_b, (np.size(frequency),1))
 
     #calculate synchtron light curves for each desired frequency
     F_nu = F_nu_0_arr.T * (frequency / nu_0_arr.T) ** (1-beta1)
