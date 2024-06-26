@@ -3,6 +3,7 @@ from __future__ import annotations
 import os
 from os.path import join
 from typing import Union
+import re
 
 import numpy as np
 import pandas as pd
@@ -306,9 +307,13 @@ class Afterglow(Transient):
         :return: The cleaned string converted into a float.
         :rtype: float
         """
-        for r in ["PL", "CPL", ",", "C", "~", " ", 'Gemini:emission', '()']:
-            string = string.replace(r, "")
-        return float(string)
+        try:
+            for r in ["PL", "CPL", ",", "C", "~", " ", 'Gemini:emission', '()']:
+                string = string.replace(r, "")
+                new_float = float(string)
+        except ValueError:
+            new_float = float(re.findall("\d+\.\d+", string)[0])
+        return new_float
 
     def analytical_flux_to_luminosity(self) -> None:
         """Converts flux to luminosity using the analytical method."""
