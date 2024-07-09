@@ -1440,8 +1440,9 @@ def _calc_new_heating_rate(time, mej, electron_fraction, ejecta_velocity, **kwar
     heating_rate_perturbation = kwargs.get('heating_rate_perturbation', 1.0)
     # rescale
     m0 = mej * solar_mass
-    lum_in = _calculate_rosswogkorobkin24_qdot(time, ejecta_velocity, electron_fraction)
-    return lum_in*m0 * heating_rate_perturbation
+    qdot_in = _calculate_rosswogkorobkin24_qdot(time, ejecta_velocity, electron_fraction)
+    lum_in = qdot_in * m0
+    return lum_in * heating_rate_perturbation
 
 def _calculate_rosswogkorobkin24_qdot_formula(time_array, e0, alp, t0, sig, alp1,
                             t1, sig1, c1, tau1, c2, tau2, c3, tau3):
