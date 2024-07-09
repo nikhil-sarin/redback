@@ -20,7 +20,7 @@ def get_priors(model, times=None, y=None, yerr=None, dt=None, **kwargs):
     :param kwargs: Extra arguments to be passed to the prior function
     :return: priors: PriorDict object
     """
-    prompt_prior_functions = dict(gaussian=get_gaussian_priors, skew_gaussian=get_skew_gaussian_priors,
+    prompt_prior_functions = dict(gaussian_prompt=get_gaussian_priors, skew_gaussian=get_skew_gaussian_priors,
                                   skew_exponential=get_skew_exponential_priors, fred=get_fred_priors,
                                   fred_extended=get_fred_extended_priors)
 
