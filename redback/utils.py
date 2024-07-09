@@ -772,14 +772,17 @@ def interpolated_barnes_and_kasen_thermalisation_efficiency(mej, vej):
     :param vej: initial ejecta velocity as a fraction of speed of light
     :return: av, bv, dv constants in the thermalisation efficiency equation Eq 25 in Metzger 2017
     """
-    v_array = np.array([0.1, 0.2, 0.3])
-    mass_array = np.array([1.0e-3, 5.0e-3, 1.0e-2, 5.0e-2])
-    a_array = np.asarray([[2.01, 4.52, 8.16], [0.81, 1.9, 3.2],
-                     [0.56, 1.31, 2.19], [.27, .55, .95]])
-    b_array = np.asarray([[0.28, 0.62, 1.19], [0.19, 0.28, 0.45],
-                     [0.17, 0.21, 0.31], [0.10, 0.13, 0.15]])
-    d_array = np.asarray([[1.12, 1.39, 1.52], [0.86, 1.21, 1.39],
-                     [0.74, 1.13, 1.32], [0.6, 0.9, 1.13]])
+    v_array = np.asarray([0.1, 0.2, 0.3, 0.4])
+    mass_array = np.asarray([1.e-3, 5.e-3, 1.e-2, 5.e-2, 1.e-1])
+    a_array = np.asarray([[2.01, 4.52, 8.16, 16.3], [0.81, 1.9, 3.2, 5.0],
+                              [0.56, 1.31, 2.19, 3.0], [.27, .55, .95, 2.0],
+                              [0.20, 0.39, 0.65, 0.9]])
+    b_array = np.asarray([[0.28, 0.62, 1.19, 2.4], [0.19, 0.28, 0.45, 0.65],
+                              [0.17, 0.21, 0.31, 0.45], [0.10, 0.13, 0.15, 0.17],
+                              [0.06, 0.11, 0.12, 0.12]])
+    d_array = np.asarray([[1.12, 1.39, 1.52, 1.65], [0.86, 1.21, 1.39, 1.5],
+                              [0.74, 1.13, 1.32, 1.4], [0.6, 0.9, 1.13, 1.25],
+                              [0.63, 0.79, 1.04, 1.5]])
     a_func = RegularGridInterpolator((mass_array, v_array), a_array, bounds_error=False, fill_value=None)
     b_func = RegularGridInterpolator((mass_array, v_array), b_array, bounds_error=False, fill_value=None)
     d_func = RegularGridInterpolator((mass_array, v_array), d_array, bounds_error=False, fill_value=None)
