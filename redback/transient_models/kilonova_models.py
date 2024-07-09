@@ -4,7 +4,7 @@ import pandas as pd
 from astropy.table import Table, Column
 from scipy.interpolate import interp1d, RegularGridInterpolator
 from astropy.cosmology import Planck18 as cosmo  # noqa
-from scipy.integrate import cumtrapz
+from scipy.integrate import cumulative_trapezoid
 from collections import namedtuple
 from redback.photosphere import TemperatureFloor, CocoonPhotosphere
 from redback.interaction_processes import Diffusion, AsphericalDiffusion
@@ -1479,7 +1479,7 @@ def _one_component_kilonova_rosswog_heatingrate(time, mej, vej, electron_fractio
     integrand = lum_in * e_th * (time / tdiff) * np.exp(time ** 2 / tdiff ** 2)
 
     bolometric_luminosity = np.zeros(len(time))
-    bolometric_luminosity[1:] = cumtrapz(integrand, time)
+    bolometric_luminosity[1:] = cumulative_trapezoid(integrand, time)
     bolometric_luminosity[0] = bolometric_luminosity[1]
     bolometric_luminosity = bolometric_luminosity * np.exp(-time ** 2 / tdiff ** 2) / tdiff
 
@@ -1684,7 +1684,7 @@ def _one_component_kilonova_model(time, mej, vej, kappa, **kwargs):
     lum_in = 4.0e18 * (m0) * (0.5 - np.arctan((time - t0) / sig) / np.pi)**1.3
     integrand = lum_in * e_th * (time/tdiff) * np.exp(time**2/tdiff**2)
     bolometric_luminosity = np.zeros(len(time))
-    bolometric_luminosity[1:] = cumtrapz(integrand, time)
+    bolometric_luminosity[1:] = cumulative_trapezoid(integrand, time)
     bolometric_luminosity[0] = bolometric_luminosity[1]
     bolometric_luminosity = bolometric_luminosity * np.exp(-time**2/tdiff**2) / tdiff
 
