@@ -392,6 +392,7 @@ def nicholl_bns(time, redshift, mass_1, mass_2, lambda_s, kappa_red, kappa_blue,
         flux_density = blackbody_to_flux_density(temperature=temp, r_photosphere=photosphere,
                                                  dl=dl, frequency=frequency)
         ff = flux_density.value
+        ff = np.nan_to_num(ff)
         for x in range(3):
             lbols = _mosfit_kilonova_one_component_lbol(time=time_temp*day_to_s, mej=mejs[x], vej=vejs[x])
             interaction_class = AsphericalDiffusion(time=time_temp*day_to_s, dense_times=time_temp*day_to_s,
@@ -399,6 +400,7 @@ def nicholl_bns(time, redshift, mass_1, mass_2, lambda_s, kappa_red, kappa_blue,
                                                     mej=mejs[x], vej=vejs[x], area_projection=area_projs[x],
                                                     area_reference=area_refs[x])
             lbols = interaction_class.new_luminosity
+            lbols = np.nan_to_num(lbols)
             photo = TemperatureFloor(time=time_temp*day_to_s, luminosity=lbols,
                                      temperature_floor=temperature_floors[x], vej=vejs[x])
             temp_func = interp1d(time_temp, y=photo.photosphere_temperature)
@@ -407,6 +409,7 @@ def nicholl_bns(time, redshift, mass_1, mass_2, lambda_s, kappa_red, kappa_blue,
             photosphere = rad_func(time)
             flux_density = blackbody_to_flux_density(temperature=temp, r_photosphere=photosphere,
                                                      dl=dl, frequency=frequency)
+            flux_density = np.nan_to_num(flux_density)
             units = flux_density.unit
             ff += flux_density.value
         ff = ff * units
@@ -421,6 +424,7 @@ def nicholl_bns(time, redshift, mass_1, mass_2, lambda_s, kappa_red, kappa_blue,
                                          frequency=frequency[:,None]).T
         cocoon_spectra = fmjy.to(uu.mJy).to(uu.erg / uu.cm ** 2 / uu.s / uu.Angstrom,
                                          equivalencies=uu.spectral_density(wav=lambda_observer_frame * uu.Angstrom))
+        cocoon_spectra = np.nan_to_num(cocoon_spectra)
         full_spec = cocoon_spectra.value
         for x in range(3):
             lbols = _mosfit_kilonova_one_component_lbol(time=time_temp*day_to_s, mej=mejs[x], vej=vejs[x])
@@ -437,6 +441,7 @@ def nicholl_bns(time, redshift, mass_1, mass_2, lambda_s, kappa_red, kappa_blue,
             fmjy = fmjy.T
             spectra = fmjy.to(uu.mJy).to(uu.erg / uu.cm ** 2 / uu.s / uu.Angstrom,
                                          equivalencies=uu.spectral_density(wav=lambda_observer_frame * uu.Angstrom))
+            spectra = np.nan_to_num(spectra)
             units = spectra.unit
             full_spec += spectra.value
 
