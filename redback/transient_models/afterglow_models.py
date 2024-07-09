@@ -688,7 +688,7 @@ def _get_kn_dynamics(n0, Eej, Mej):
     # convert from lab frame to observer time. Approximate expression acounting for radial+azimuthal time-of-flight effect
     # (eq. 26 from Nava et al. 2013; see also Waxman 1997)
     tobs = R / (Gamma ** 2 * (1.0 + beta) * speed_of_light) + np.insert(
-        integrate.cumtrapz((1.0 - beta_sh) / beta_sh, x=R) / speed_of_light, 0, 0.0)
+        integrate.cumulative_trapezoid((1.0 - beta_sh) / beta_sh, x=R) / speed_of_light, 0, 0.0)
 
     return t, R, beta, Gamma, eden, tobs, beta_sh, Gamma_sh
 

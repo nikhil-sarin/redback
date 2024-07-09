@@ -1052,6 +1052,19 @@ def get_heating_terms(ye, vel, **kwargs):
     heating_terms.tau3 = tau3 * heating_rate_fudge
     return heating_terms
 
+def _calculate_rosswogkorobkin24_qdot(time_array, ejecta_velocity, electron_fraction):
+    import pickle
+    import os
+    dirname = os.path.dirname(__file__)
+    with open(f"{dirname}/tables/qdot_rosswogkorobkin24.pck", 'rb') as file_handle:
+        qdot_object = pickle.load(file_handle)
+    steps = len(time_array)
+    _ej_velocity = np.repeat(ejecta_velocity, steps)
+    _ye = np.repeat(electron_fraction, steps)
+    full_array = np.array([_ej_velocity, _ye, time_array]).T
+    lum_in = qdot_object(full_array)
+    return lum_in
+
 def electron_fraction_from_kappa(kappa):
     """
     Uses interpolation from Tanaka+19 to calculate
@@ -1060,8 +1073,8 @@ def electron_fraction_from_kappa(kappa):
     :return: electron_fraction
     """
 
-    kappa_array = np.array([1, 3, 5, 20, 30])
-    ye_array = np.array([0.4,0.35,0.25,0.2, 0.1])
+    kappa_array = np.array([35, 32.2, 22.3, 5.60, 5.36, 3.30, 0.96, 0.5])
+    ye_array = np.array([0.10, 0.15, 0.2, 0.25, 0.30, 0.35, 0.4, 0.5])
     kappa_func = interp1d(kappa_array, y=ye_array, fill_value='extrapolate')
     electron_fraction = kappa_func(kappa)
     return electron_fraction
@@ -1073,8 +1086,8 @@ def kappa_from_electron_fraction(ye):
     :param ye: electron fraction
     :return: electron_fraction
     """
-    kappa_array = np.array([1, 3, 5, 20, 30])
-    ye_array = np.array([0.4,0.35,0.25,0.2, 0.1])
+    kappa_array = np.array([35, 32.2, 22.3, 5.60, 5.36, 3.30, 0.96, 0.5])
+    ye_array = np.array([0.10, 0.15, 0.2, 0.25, 0.30, 0.35, 0.4, 0.5])
     func = interp1d(ye_array, y=kappa_array, fill_value='extrapolate')
     kappa = func(ye)
     return kappa

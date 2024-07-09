@@ -6,7 +6,7 @@ import redback
 sampler = 'dynesty'
 # lots of different models implemented, including
 # afterglow/magnetar varieties/n_dimensional_fireball/shapelets/band function/kilonova/SNe/TDE
-model = 'mergernova'
+model = 'general_mergernova'
 
 kne = 'at2017gfo'
 # gets the magnitude data for AT2017gfo, the KN associated with GW170817

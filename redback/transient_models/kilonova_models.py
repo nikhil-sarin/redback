@@ -4,13 +4,14 @@ import pandas as pd
 from astropy.table import Table, Column
 from scipy.interpolate import interp1d, RegularGridInterpolator
 from astropy.cosmology import Planck18 as cosmo  # noqa
-from scipy.integrate import cumtrapz
+from scipy.integrate import cumulative_trapezoid
 from collections import namedtuple
 from redback.photosphere import TemperatureFloor, CocoonPhotosphere
 from redback.interaction_processes import Diffusion, AsphericalDiffusion
 
 from redback.utils import calc_kcorrected_properties, interpolated_barnes_and_kasen_thermalisation_efficiency, \
-    electron_fraction_from_kappa, citation_wrapper, lambda_to_nu, get_heating_terms, kappa_from_electron_fraction
+    electron_fraction_from_kappa, citation_wrapper, lambda_to_nu, _calculate_rosswogkorobkin24_qdot, \
+    kappa_from_electron_fraction
 from redback.eos import PiecewisePolytrope
 from redback.sed import blackbody_to_flux_density, get_correct_output_format_from_spectra, Blackbody
 from redback.constants import *
@@ -1429,7 +1430,7 @@ def one_component_kilonova_model(time, redshift, mej, vej, kappa, **kwargs):
 
 def _calc_new_heating_rate(time, mej, electron_fraction, ejecta_velocity, **kwargs):
     """
-    Heating rate prescription following Rosswog and Korobkin 2022
+    Heating rate prescription following Rosswog and Korobkin 2024
 
     :param time: time in seconds
     :param mej: ejecta mass in solar masses
@@ -1441,23 +1442,29 @@ def _calc_new_heating_rate(time, mej, electron_fraction, ejecta_velocity, **kwar
     Default is 1.0 i.e., no perturbation.
     :return: heating rate in erg/s
     """
-    heating_terms = get_heating_terms(electron_fraction, ejecta_velocity, **kwargs)
     heating_rate_perturbation = kwargs.get('heating_rate_perturbation', 1.0)
     # rescale
     m0 = mej * solar_mass
-    c1 = np.exp(heating_terms.c1)
-    c2 = np.exp(heating_terms.c2)
-    c3 = np.exp(heating_terms.c3)
-    tau1 = 1e3*heating_terms.tau1
-    tau2 = 1e5*heating_terms.tau2
-    tau3 = 1e5*heating_terms.tau3
-    term1 = 10.**(heating_terms.e0+18) * (0.5 - np.arctan((time - heating_terms.t0) / heating_terms.sig) / np.pi)**heating_terms.alp
-    term2 = (0.5 + np.arctan((time - heating_terms.t1)/heating_terms.sig1) / np.pi )**heating_terms.alp1
-    term3 = c1 * np.exp(-time/tau1)
-    term4 = c2 * np.exp(-time/tau2)
-    term5 = c3 * np.exp(-time/tau3)
-    lum_in = term1*term2 + term3 + term4 + term5
-    return lum_in*m0 * heating_rate_perturbation
+    qdot_in = _calculate_rosswogkorobkin24_qdot(time, ejecta_velocity, electron_fraction)
+    lum_in = qdot_in * m0
+    return lum_in * heating_rate_perturbation
+
+def _calculate_rosswogkorobkin24_qdot_formula(time_array, e0, alp, t0, sig, alp1,
+                            t1, sig1, c1, tau1, c2, tau2, c3, tau3):
+    time = time_array
+    c1 = np.exp(c1)
+    c2 = np.exp(c2)
+    c3 = np.exp(c3)
+    tau1 = 1e3 * tau1
+    tau2 = 1e5 * tau2
+    tau3 = 1e5 * tau3
+    term1 = 10. ** (e0 + 18) * (0.5 - np.arctan((time - t0) / sig) / np.pi) ** alp
+    term2 = (0.5 + np.arctan((time - t1) / sig1) / np.pi) ** alp1
+    term3 = c1 * np.exp(-time / tau1)
+    term4 = c2 * np.exp(-time / tau2)
+    term5 = c3 * np.exp(-time / tau3)
+    lum_in = term1 * term2 + term3 + term4 + term5
+    return lum_in
 
 def _one_component_kilonova_rosswog_heatingrate(time, mej, vej, electron_fraction, **kwargs):
     tdays = time/day_to_s
@@ -1477,7 +1484,7 @@ def _one_component_kilonova_rosswog_heatingrate(time, mej, vej, electron_fractio
     integrand = lum_in * e_th * (time / tdiff) * np.exp(time ** 2 / tdiff ** 2)
 
     bolometric_luminosity = np.zeros(len(time))
-    bolometric_luminosity[1:] = cumtrapz(integrand, time)
+    bolometric_luminosity[1:] = cumulative_trapezoid(integrand, time)
     bolometric_luminosity[0] = bolometric_luminosity[1]
     bolometric_luminosity = bolometric_luminosity * np.exp(-time ** 2 / tdiff ** 2) / tdiff
 
@@ -1682,7 +1689,7 @@ def _one_component_kilonova_model(time, mej, vej, kappa, **kwargs):
     lum_in = 4.0e18 * (m0) * (0.5 - np.arctan((time - t0) / sig) / np.pi)**1.3
     integrand = lum_in * e_th * (time/tdiff) * np.exp(time**2/tdiff**2)
     bolometric_luminosity = np.zeros(len(time))
-    bolometric_luminosity[1:] = cumtrapz(integrand, time)
+    bolometric_luminosity[1:] = cumulative_trapezoid(integrand, time)
     bolometric_luminosity[0] = bolometric_luminosity[1]
     bolometric_luminosity = bolometric_luminosity * np.exp(-time**2/tdiff**2) / tdiff
 

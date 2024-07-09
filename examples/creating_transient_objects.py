@@ -12,6 +12,7 @@ import pandas as pd
 
 # Let's load the data from the open access catalogue/FINK which have the same data structure.
 # So the OAC class method works for both.
+# Note you will need to have the data downloaded for this to work.
 
 name = 'ZTF22abdjqlm'
 supernova = redback.supernova.Supernova.from_open_access_catalogue(name=name,
