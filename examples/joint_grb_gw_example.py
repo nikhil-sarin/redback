@@ -167,7 +167,7 @@ label = 'emgw'
 outdir = 'joint_analysis'
 clean = True
 all_injection_parameters = dict(grb_injection_parameters, **gw_injection_parameters)
-result = bilby.run_sampler(joint_likelihood, priors=priors_emgw, label=label, sampler='pymultinest', nlive=nlive,
+result = bilby.run_sampler(joint_likelihood, priors=priors_emgw, label=label, sampler='dynesty', nlive=nlive,
                             outdir=outdir, plot=True, use_ratio=False, walks = walks, resume=True, clean=clean,
                                injection_parameters = all_injection_parameters)
 result.plot_corner(smooth=1.2)
@@ -200,7 +200,7 @@ em_priors['mass_1'] = gw_priors['mass_1']
 em_priors['mass_2'] = gw_priors['mass_2']
 em_priors['theta_jn'] = gw_priors['theta_jn']
 em_result = redback.fit_model(model=grb_afterglow_model, transient=sim_afterglow, prior=em_priors, plot=False,
-                              sampler='pymultinest', outdir=outdir, label='afterglow_only',
+                              sampler='dynesty', outdir=outdir, label='afterglow_only',
                               injection_parameters=all_injection_parameters, resume=True, clean=clean,
                               model_kwargs=afterglow_kwargs)
 redback.analysis.plot_lightcurve(transient=sim_afterglow, parameters=em_result.posterior.sample(100),
@@ -208,6 +208,6 @@ redback.analysis.plot_lightcurve(transient=sim_afterglow, parameters=em_result.p
 em_result.plot_corner(smooth=1.2)
 
 # Now the GW.
-gw_result = bilby.run_sampler(GW_likelihood, priors=gw_priors, label='gw_only', sampler='pymultinest', nlive=nlive,
+gw_result = bilby.run_sampler(GW_likelihood, priors=gw_priors, label='gw_only', sampler='dynesty', nlive=nlive,
                               outdir=outdir, injection_parameters=all_injection_parameters, resume=True, clean=clean)
 gw_result.plot_corner(smooth=1.2)
