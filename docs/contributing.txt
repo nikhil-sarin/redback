@@ -3,7 +3,7 @@ Contributing
 ============
 
 Redback is currently at version 1.0, i.e., the version that accompanies the Redback paper.
-If you are interested in contributing please join the :code:`redback` `slack <https://join.slack.com/t/redback-group/shared_invite/zt-2iw55kwao-Myp5uIzJLO~ApKQIIt3KMQ>`_.
+If you are interested in contributing please join the :code:`redback` `slack <https://join.slack.com/t/redback-group/shared_invite/zt-2503mmkaq-EMEAgz7i3mY0pg1o~VUdqw>`_.
 This invite link may be out of date, so please contact the authors if you are unable to join.
 
 To make contributions to :code:`redback`,

@@ -4,7 +4,7 @@ from astropy.cosmology import Planck18 as cosmo  # noqa
 import scipy.special as ss
 from collections import namedtuple
 from scipy.interpolate import interp1d
-from scipy.integrate import quad, cumtrapz
+from scipy.integrate import quad, cumulative_trapezoid as cumtrapz
 from inspect import isfunction
 from redback.utils import logger, citation_wrapper
 
