@@ -118,7 +118,7 @@ def pwn(time, redshift, mej, l0, tau_sd, nn, eps_b, gamma_b, **kwargs):
     #initial values and dynamics
     time_temp = np.geomspace(1e0, 1e10, 2500)
     frequency = kwargs['frequency']
-    if (len(frequency) == 1):
+    if (np.size(frequency) == 1):
         frequency = np.ones(len(time))*frequency
     frequency, time = calc_kcorrected_properties(frequency=frequency, redshift=redshift, time=time)
     magnetar_luminosity = magnetar_only(time=time_temp, l0=l0, tau=tau_sd, nn=nn)
