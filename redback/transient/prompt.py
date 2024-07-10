@@ -8,7 +8,7 @@ import pandas as pd
 from typing import Union
 
 from redback.get_data.utils import get_batse_trigger_from_grb
-from redback.get_data.directory import swift_prompt_directory_structure
+from redback.get_data.directory import swift_prompt_directory_structure, batse_prompt_directory_structure
 from redback.transient.transient import Transient
 
 dirname = os.path.dirname(__file__)
@@ -61,7 +61,12 @@ class PromptTimeSeries(Transient):
         self.channels = channels
         self.instrument = instrument
         self._set_data()
-        self.directory_structure = swift_prompt_directory_structure(grb=self.name, bin_size=self.bin_size)
+        if self.instrument == "batse":
+            self.directory_structure = batse_prompt_directory_structure(grb=self.name)
+        elif self.instrument == "swift":
+            self.directory_structure = swift_prompt_directory_structure(grb=self.name, bin_size=self.bin_size)
+        else:
+            raise ValueError("Instrument must be either 'batse' or 'swift'.")
 
     @classmethod
     def from_batse_grb_name(
@@ -95,8 +100,9 @@ class PromptTimeSeries(Transient):
         :rtype tuple:
         """
         name = f"GRB{name.lstrip('GRB')}"
-        directory_structure = swift_prompt_directory_structure(grb=name)
-        _time_series_data = np.genfromtxt(directory_structure.processed_file_path, delimiter=",")[1:]
+        directory_structure = batse_prompt_directory_structure(grb=name)
+        path = directory_structure.directory_path + name.lstrip('GRB') + '_BATSE_lc.csv'
+        _time_series_data = np.genfromtxt(path, delimiter=",")[1:]
 
         bin_left = _time_series_data[:, 0]
         bin_right = _time_series_data[:, 1]
@@ -150,6 +156,8 @@ class PromptTimeSeries(Transient):
         :type kwargs: None
         """
         plt.step(self.time, self.counts / self.bin_size)
+        plt.ylabel('Counts')
+        plt.xlabel('Time')
         plt.show()
         plt.clf()
 
@@ -177,6 +185,8 @@ class PromptTimeSeries(Transient):
         plt.clf()
         plt.step(self.time, self.counts / self.bin_size)
         plt.plot(self.time, model(self.time, **dict(posterior.iloc[-1])))
+        plt.ylabel('Counts')
+        plt.xlabel('Time')
         plt.show()
         plt.clf()
 

@@ -180,11 +180,6 @@ class TestIntegratedFluxModelFlux(unittest.TestCase):
                 prior = self.get_prior(file=f)
                 kwargs['base_model'] = model_name
                 sample = prior.sample()
-                if model_name == 'polytrope_eos_two_component_bns':
-                    sample['gamma_1'] = 4.04
-                    sample['gamma_2'] = 2.159
-                    sample['gamma_3'] = 3.688
-                    sample['log_p'] = 33.72
                 function = redback.model_library.all_models_dict['integrated_flux_afterglowpy_base_model']
                 ys = function(times, **sample, **kwargs)
             else:

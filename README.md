@@ -30,7 +30,7 @@ Simulate single transients or populations or simulate a full survey including no
 
 ### Contributing
 If you are interested in contributing please join the redback 
-[slack](https://join.slack.com/t/redback-group/shared_invite/zt-2iw55kwao-Myp5uIzJLO~ApKQIIt3KMQ)
+[slack](https://join.slack.com/t/redback-group/shared_invite/zt-2503mmkaq-EMEAgz7i3mY0pg1o~VUdqw)
 and email [Nikhil Sarin](mailto:nikhil.sarin@su.se?subject=Contributing%20to%20redback).
 
 To make changes to redback, we require users to use a merge request system. 
