@@ -134,7 +134,7 @@ def pwn(time, redshift, mej, l0, tau_sd, nn, eps_b, gamma_b, **kwargs):
     vej = velocity_from_lorentz_factor(output.lorentz_factor)/km_cgs 
 
     #calculating synchrotron quantites
-    int_lsd = integrate.cumtrapz(magnetar_luminosity, time_temp,initial=0)
+    int_lsd = integrate.cumulative_trapezoid(magnetar_luminosity, time_temp,initial=0)
     B_nb = np.sqrt(6.0 * eps_b * int_lsd / output.radius**3)
     B_nb[0] = B_nb[1]
     nu_b = 3.0 / 4.0 / np.pi * gamma_b**2 * qe * B_nb / electron_mass / speed_of_light
