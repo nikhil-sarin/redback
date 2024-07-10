@@ -60,7 +60,7 @@ def _calc_photoelectric_abs(frequency, Zbar, mej, radius_2darray, F_nu_2darray):
     :return: absorbed flux density
     """
     msk = (frequency > 2.42e15)
-    kappa_pe = 2.37 * Zbar**3 * (frequency/2.42e18)**-3
+    kappa_pe = 2.37 * (Zbar/6.0)**3 * (frequency/2.42e18)**-3
     tau_pe = 3.0 * kappa_pe * mej * solar_mass / (4.0 * np.pi * radius_2darray**2)
     F_nu_2darray[:,msk] = F_nu_2darray[:,msk] * np.exp(-tau_pe[:,msk])
     
@@ -118,6 +118,8 @@ def pwn(time, redshift, mej, l0, tau_sd, nn, eps_b, gamma_b, **kwargs):
     #initial values and dynamics
     time_temp = np.geomspace(1e0, 1e10, 2500)
     frequency = kwargs['frequency']
+    if (len(frequency) == 1):
+        frequency = np.ones(len(time))*frequency
     frequency, time = calc_kcorrected_properties(frequency=frequency, redshift=redshift, time=time)
     magnetar_luminosity = magnetar_only(time=time_temp, l0=l0, tau=tau_sd, nn=nn)
     v_init = np.sqrt(E_sn / (0.5 * mej * solar_mass)) / speed_of_light
@@ -163,7 +165,7 @@ def pwn(time, redshift, mej, l0, tau_sd, nn, eps_b, gamma_b, **kwargs):
         
     F_nu = _calc_free_free_abs(frequency, Y_fe, Zbar, mej, r_arr.T, F_nu)
     F_nu = _calc_compton_scat(frequency, Y_e, mej, r_arr.T, F_nu) 
-    if (np.max(frequency) < 2.42e15):
+    if (np.max(frequency) > 2.42e15):
         F_nu = _calc_photoelectric_abs(frequency, Zbar, mej, r_arr.T, F_nu)
 
     #interpolate for each time
