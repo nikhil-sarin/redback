@@ -367,8 +367,8 @@ def nicholl_bns(time, redshift, mass_1, mass_2, lambda_s, kappa_red, kappa_blue,
 
     output = _nicholl_bns_get_quantities(mass_1=mass_1, mass_2=mass_2, lambda_s=lambda_s,
                                          kappa_red=kappa_red, kappa_blue=kappa_blue, mtov=mtov,
-                                         epsilon=epsilon, alpha=alpha, cos_theta_cocoon=cos_theta_cocoon,
-                                         cos_theta_open=cos_theta_open, cos_theta=cos_theta, **kwargs)
+                                         epsilon=epsilon, alpha=alpha, cos_theta_open=cos_theta_open, 
+                                         cos_theta=cos_theta, **kwargs)
     cocoon_output = _shocked_cocoon_nicholl(time=time_temp, kappa=kappa_blue, mejecta=output.mejecta_blue,
                                   vejecta=output.vejecta_blue*ckm, cos_theta_cocoon=cos_theta_cocoon,
                                   shocked_fraction=shocked_fraction, nn=nn, tshock=tshock)
