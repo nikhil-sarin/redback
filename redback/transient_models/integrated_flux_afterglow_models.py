@@ -1,7 +1,7 @@
 from inspect import isfunction
 import numpy as np
 
-from scipy.integrate import simps
+from scipy.integrate import simpson
 
 from redback.utils import logger, citation_wrapper
 
@@ -45,7 +45,7 @@ def integrated_flux_afterglowpy_base_model(time, **kwargs):
     lightcurve_at_nu = flux_density.reshape(len(nu_1d), len(time))
     prefactor = 1e-26
     lightcurve_at_nu = prefactor * lightcurve_at_nu
-    integrated_flux = simps(lightcurve_at_nu, axis=0, x=nu_1d)
+    integrated_flux = simpson(np.array(lightcurve_at_nu), axis=0, x=nu_1d)
     return integrated_flux
 
 @citation_wrapper('https://ui.adsabs.harvard.edu/abs/2021arXiv210510108S/abstract')

@@ -772,14 +772,17 @@ def interpolated_barnes_and_kasen_thermalisation_efficiency(mej, vej):
     :param vej: initial ejecta velocity as a fraction of speed of light
     :return: av, bv, dv constants in the thermalisation efficiency equation Eq 25 in Metzger 2017
     """
-    v_array = np.array([0.1, 0.2, 0.3])
-    mass_array = np.array([1.0e-3, 5.0e-3, 1.0e-2, 5.0e-2])
-    a_array = np.asarray([[2.01, 4.52, 8.16], [0.81, 1.9, 3.2],
-                     [0.56, 1.31, 2.19], [.27, .55, .95]])
-    b_array = np.asarray([[0.28, 0.62, 1.19], [0.19, 0.28, 0.45],
-                     [0.17, 0.21, 0.31], [0.10, 0.13, 0.15]])
-    d_array = np.asarray([[1.12, 1.39, 1.52], [0.86, 1.21, 1.39],
-                     [0.74, 1.13, 1.32], [0.6, 0.9, 1.13]])
+    v_array = np.asarray([0.1, 0.2, 0.3, 0.4])
+    mass_array = np.asarray([1.e-3, 5.e-3, 1.e-2, 5.e-2, 1.e-1])
+    a_array = np.asarray([[2.01, 4.52, 8.16, 16.3], [0.81, 1.9, 3.2, 5.0],
+                              [0.56, 1.31, 2.19, 3.0], [.27, .55, .95, 2.0],
+                              [0.20, 0.39, 0.65, 0.9]])
+    b_array = np.asarray([[0.28, 0.62, 1.19, 2.4], [0.19, 0.28, 0.45, 0.65],
+                              [0.17, 0.21, 0.31, 0.45], [0.10, 0.13, 0.15, 0.17],
+                              [0.06, 0.11, 0.12, 0.12]])
+    d_array = np.asarray([[1.12, 1.39, 1.52, 1.65], [0.86, 1.21, 1.39, 1.5],
+                              [0.74, 1.13, 1.32, 1.4], [0.6, 0.9, 1.13, 1.25],
+                              [0.63, 0.79, 1.04, 1.5]])
     a_func = RegularGridInterpolator((mass_array, v_array), a_array, bounds_error=False, fill_value=None)
     b_func = RegularGridInterpolator((mass_array, v_array), b_array, bounds_error=False, fill_value=None)
     d_func = RegularGridInterpolator((mass_array, v_array), d_array, bounds_error=False, fill_value=None)
@@ -1049,6 +1052,19 @@ def get_heating_terms(ye, vel, **kwargs):
     heating_terms.tau3 = tau3 * heating_rate_fudge
     return heating_terms
 
+def _calculate_rosswogkorobkin24_qdot(time_array, ejecta_velocity, electron_fraction):
+    import pickle
+    import os
+    dirname = os.path.dirname(__file__)
+    with open(f"{dirname}/tables/qdot_rosswogkorobkin24.pck", 'rb') as file_handle:
+        qdot_object = pickle.load(file_handle)
+    steps = len(time_array)
+    _ej_velocity = np.repeat(ejecta_velocity, steps)
+    _ye = np.repeat(electron_fraction, steps)
+    full_array = np.array([_ej_velocity, _ye, time_array]).T
+    lum_in = qdot_object(full_array)
+    return lum_in
+
 def electron_fraction_from_kappa(kappa):
     """
     Uses interpolation from Tanaka+19 to calculate
@@ -1057,8 +1073,8 @@ def electron_fraction_from_kappa(kappa):
     :return: electron_fraction
     """
 
-    kappa_array = np.array([1, 3, 5, 20, 30])
-    ye_array = np.array([0.4,0.35,0.25,0.2, 0.1])
+    kappa_array = np.array([35, 32.2, 22.3, 5.60, 5.36, 3.30, 0.96, 0.5])
+    ye_array = np.array([0.10, 0.15, 0.2, 0.25, 0.30, 0.35, 0.4, 0.5])
     kappa_func = interp1d(kappa_array, y=ye_array, fill_value='extrapolate')
     electron_fraction = kappa_func(kappa)
     return electron_fraction
@@ -1070,8 +1086,8 @@ def kappa_from_electron_fraction(ye):
     :param ye: electron fraction
     :return: electron_fraction
     """
-    kappa_array = np.array([1, 3, 5, 20, 30])
-    ye_array = np.array([0.4,0.35,0.25,0.2, 0.1])
+    kappa_array = np.array([35, 32.2, 22.3, 5.60, 5.36, 3.30, 0.96, 0.5])
+    ye_array = np.array([0.10, 0.15, 0.2, 0.25, 0.30, 0.35, 0.4, 0.5])
     func = interp1d(ye_array, y=kappa_array, fill_value='extrapolate')
     kappa = func(ye)
     return kappa

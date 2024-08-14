@@ -33,7 +33,7 @@ priors['redshift'] = 0.677
 # we use bilby prior objects for this
 # let's set t0 as a Gaussian around the first observation with sigma = 0.5 - There are many other priors to choose from.
 # This also demonstates how one can change the latex labels etc
-priors['t0'] = Gaussian(data['time'][0], sigma=0.5, name='t0', latex_label=r'$T_{\rm{0}}$')
+priors['t0'] = Uniform(supernova.x[0] - 10, supernova.x[0] - 0.05, name='t0', latex_label=r'$T_{\rm{0}}$')
 
 # We also need a prior on A_v i.e., the total mag extinction.
 # Just use uniform prior for now.

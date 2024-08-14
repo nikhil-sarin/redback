@@ -1,18 +1,10 @@
-import numpy as np
-
-import bilby
 import redback
 
-import matplotlib.pyplot as plt
-import matplotlib
-matplotlib.rcParams.update(matplotlib.rcParamsDefault)
-matplotlib.use("Qt5Agg")
-
 sampler = 'dynesty'
-model = 'gaussian'
+model = 'gaussian_prompt'
 name = '910505'
 
-redback.get_data.get_prompt_data_from_batse(grb=name)
+data = redback.get_data.get_prompt_data_from_batse(grb=name)
 prompt = redback.transient.prompt.PromptTimeSeries.from_batse_grb_name(name=name)
 
 # use default priors

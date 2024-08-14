@@ -12,7 +12,7 @@ np.random.seed(1346)
 prior = redback.priors.get_priors(model='one_component_kilonova_model')
 
 # Let's change the redshift prior to ensure we get some bright kilonovae.
-prior['redshift'] = bilby.core.prior.Uniform(0.002, 0.005, 'redshift', latex_label='$z$')
+prior['redshift'] = bilby.core.prior.Uniform(0.0001, 0.002, 'redshift', latex_label='$z$')
 # We can now sample from the prior to get a set of parameters for a kilonova. Let's sample 5 events.
 events = 5
 parameters = prior.sample(events)
@@ -30,7 +30,7 @@ print(parameters)
 kn_sim = SimulateOpticalTransient.simulate_transient_population_in_rubin(model='one_component_kilonova_model',
                                                                         survey='Rubin_10yr_baseline',
                                                                         parameters=parameters, model_kwargs={},
-                                                                        end_transient_time=10., snr_threshold=5.)
+                                                                        end_transient_time=20., snr_threshold=5.)
 # We can print the observations that were simulated to see what the data looks like.
 print(kn_sim.list_of_inference_observations)
 
@@ -49,8 +49,17 @@ for i in range(events):
     objects.append(kne)
 
 # Now we can plot the light curves. We can use the redback plot_data method for this but put the transients on one figure.
-fig, ax = plt.subplots(1, 5, figsize=(20, 5), sharey=True)
+fig, ax = plt.subplots(1, 2, figsize=(20, 5), sharey=True)
+
+plotax = 0
 for i, obj in enumerate(objects):
-    obj.plot_data(axes=ax[i], data_mode='magnitude', show=False)
+    # Check to ensure there were actually some detections for this transient.
+    if obj.x.shape == (0,):
+        pass
+    else:
+        obj.plot_data(axes=ax[plotax], data_mode='magnitude', show=False)
+        plotax += 1
+    if plotax == 2:
+        break
 plt.ylim(24,18)
 plt.show()
