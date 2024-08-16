@@ -3,6 +3,14 @@ from setuptools import setup
 with open("README.md", "r", encoding="utf-8") as fh:
     long_description = fh.read()
 
+requirement_path = f"requirements.txt"
+with open(requirement_path) as f:
+    install_requires = list(f.read().splitlines())
+
+optional_requirement_path = f"optional_requirements.txt"
+with open(optional_requirement_path) as f:
+    optional_install_requires = list(f.read().splitlines())
+
 setup(name='redback',
       version='1.0.2',
       description='A Bayesian inference pipeline for electromagnetic transients',
@@ -15,6 +23,8 @@ setup(name='redback',
       packages=['redback', 'redback.get_data', 'redback.transient', 'redback.transient_models'],
       package_dir={'redback': 'redback', },
       package_data={'redback': ['priors/*', 'tables/*', 'plot_styles/*']},
+      install_requires=install_requires,
+      extras_require={'all': optional_install_requires},
       python_requires=">=3.7",
       classifiers=[
         "Programming Language :: Python :: 3",
