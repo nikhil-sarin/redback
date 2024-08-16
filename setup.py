@@ -3,14 +3,6 @@ from setuptools import setup
 with open("README.md", "r", encoding="utf-8") as fh:
     long_description = fh.read()
 
-requirement_path = f"requirements.txt"
-with open(requirement_path) as f:
-    install_requires = list(f.read().splitlines())
-
-optional_requirement_path = f"optional_requirements.txt"
-with open(optional_requirement_path) as f:
-    optional_install_requires = list(f.read().splitlines())
-
 setup(
     name='redback',
     version='1.0.2',
