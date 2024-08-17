@@ -43,7 +43,8 @@ setup(
             "lalsuite",
             "kilonova-heating-rate",
             "redback-surrogates",
-            "kilonovanet"
+            "kilonovanet",
+            "astroquery"
         ]
     },
     python_requires=">=3.7",
