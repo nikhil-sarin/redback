@@ -619,6 +619,453 @@ def tde_analytical(time, redshift, l0, t_0_turn, **kwargs):
                                                               spectra=spectra, lambda_array=lambda_observer_frame,
                                                               **kwargs)
 
-@citation_wrapper('https://ui.adsabs.harvard.edu/abs/2019ApJ...872..151M/abstract')
-def tde_semianalytical():
-    raise NotImplementedError("This model is not yet implemented.")
+def _initialize_mosfit_tde_model():
+    """
+    Initializtion function to load/process data.
+
+    Loads and interpolates tde simulation data. Simulation data is
+    from Guillochon 2013 and can be found on astrocrash.net.
+
+    :return: Named tuple with several outputs
+    """
+
+    import os
+    dirname = os.path.dirname(__file__)
+    data_dir = f"{dirname}/../tables/guillochon_tde_data"
+    G_cgs = cc.graviational_constant
+    Mhbase = 1.0e6 * cc.solar_mass
+
+    gammas = ['4-3', '5-3']
+
+    beta_slope = {gammas[0]: [], gammas[1]: []}
+    beta_yinter = {gammas[0]: [], gammas[1]: []}
+    sim_beta = {gammas[0]: [], gammas[1]: []}
+    mapped_time = {gammas[0]: [], gammas[1]: []}
+    premaptime = {gammas[0]: [], gammas[1]: []}
+    premapdmdt = {gammas[0]: [], gammas[1]: []}
+
+    for g in gammas:
+        dmdedir = os.path.join(data_dir, g)
+
+        sim_beta_files = os.listdir(dmdedir)
+        simbeta = [float(b[:-4]) for b in sim_beta_files]
+        sortedindices = np.argsort(simbeta)
+        simbeta = [simbeta[i] for i in sortedindices]
+        sim_beta_files = [sim_beta_files[i] for i in sortedindices]
+        sim_beta[g].extend(simbeta)
+
+        time = {}
+        dmdt = {}
+        ipeak = {}
+        _mapped_time = {}
+
+        e, d = np.loadtxt(os.path.join(dmdedir, sim_beta_files[0]))
+        ebound = e[e < 0]
+        dmdebound = d[e < 0]
+
+        if min(dmdebound) < 0:
+            print('beta, gamma, negative dmde bound:', sim_beta[g], g, dmdebound[dmdebound < 0])
+
+        dedt = (1.0 / 3.0) * (-2.0 * ebound) ** (5.0 / 2.0) / (2.0 * np.pi * G_cgs * Mhbase)
+        time['lo'] = np.log10((2.0 * np.pi * G_cgs * Mhbase) * (-2.0 * ebound) ** (-3.0 / 2.0))
+        dmdt['lo'] = np.log10(dmdebound * dedt)
+
+        ipeak['lo'] = np.argmax(dmdt['lo'])
+
+        time['lo'] = np.array([time['lo'][:ipeak['lo']], time['lo'][ipeak['lo']:]], dtype=object)
+        dmdt['lo'] = np.array([dmdt['lo'][:ipeak['lo']], dmdt['lo'][ipeak['lo']:]], dtype=object)
+
+        premaptime[g].append(np.copy(time['lo']))
+        premapdmdt[g].append(np.copy(dmdt['lo']))
+
+        for i in range(1, len(sim_beta[g])):
+            e, d = np.loadtxt(os.path.join(dmdedir, sim_beta_files[i]))
+            ebound = e[e < 0]
+            dmdebound = d[e < 0]
+
+            if min(dmdebound) < 0:
+                print('beta, gamma, negative dmde bound:', sim_beta[g], g, dmdebound[dmdebound < 0])
+
+            dedt = (1.0 / 3.0) * (-2.0 * ebound) ** (5.0 / 2.0) / (2.0 * np.pi * G_cgs * Mhbase)
+            time['hi'] = np.log10((2.0 * np.pi * G_cgs * Mhbase) * (-2.0 * ebound) ** (-3.0 / 2.0))
+            dmdt['hi'] = np.log10(dmdebound * dedt)
+
+            ipeak['hi'] = np.argmax(dmdt['hi'])
+
+            time['hi'] = np.array([time['hi'][:ipeak['hi']], time['hi'][ipeak['hi']:]], dtype=object)
+            dmdt['hi'] = np.array([dmdt['hi'][:ipeak['hi']], dmdt['hi'][ipeak['hi']:]], dtype=object)
+
+            premapdmdt[g].append(np.copy(dmdt['hi']))
+            premaptime[g].append(np.copy(time['hi']))
+
+            _mapped_time['hi'] = []
+            _mapped_time['lo'] = []
+
+            beta_slope[g].append([])
+            beta_yinter[g].append([])
+            mapped_time[g].append([])
+
+            for j in [0, 1]:
+                if len(time['lo'][j]) < len(time['hi'][j]):
+                    interp = 'lo'
+                    nointerp = 'hi'
+                else:
+                    interp = 'hi'
+                    nointerp = 'lo'
+
+                _mapped_time[nointerp].append(
+                    1. / (time[nointerp][j][-1] - time[nointerp][j][0]) *
+                    (time[nointerp][j] - time[nointerp][j][0]))
+                _mapped_time[interp].append(
+                    1. / (time[interp][j][-1] - time[interp][j][0]) *
+                    (time[interp][j] - time[interp][j][0]))
+
+                _mapped_time[interp][j][0] = 0
+                _mapped_time[interp][j][-1] = 1
+                _mapped_time[nointerp][j][0] = 0
+                _mapped_time[nointerp][j][-1] = 1
+
+                func = interp1d(_mapped_time[interp][j], dmdt[interp][j])
+                dmdtinterp = func(_mapped_time[nointerp][j])
+
+                if interp == 'hi':
+                    slope = ((dmdtinterp - dmdt['lo'][j]) /
+                             (sim_beta[g][i] - sim_beta[g][i - 1]))
+                else:
+                    slope = ((dmdt['hi'][j] - dmdtinterp) /
+                             (sim_beta[g][i] - sim_beta[g][i - 1]))
+                beta_slope[g][-1].append(slope)
+
+                yinter1 = (dmdt[nointerp][j] - beta_slope[g][-1][j] *
+                           sim_beta[g][i - 1])
+                yinter2 = (dmdtinterp - beta_slope[g][-1][j] *
+                           sim_beta[g][i])
+                beta_yinter[g][-1].append((yinter1 + yinter2) / 2.0)
+                mapped_time[g][-1].append(
+                    np.array(_mapped_time[nointerp][j]))
+
+            time['lo'] = np.copy(time['hi'])
+            dmdt['lo'] = np.copy(dmdt['hi'])
+
+    outs = namedtuple('sim_outputs', ['beta_slope', 'beta_yinter', 'sim_beta', 'mapped_time',
+                                      'premaptime', 'premapdmdt'])
+    outs = outs(beta_slope=beta_slope, beta_yinter=beta_yinter, sim_beta=sim_beta,
+                mapped_time=mapped_time,premaptime=premaptime, premapdmdt=premapdmdt)
+    return outs
+
+
+def _tde_mosfit_engine(times, mbh6, mstar, b, efficiency, leddlimit, **kwargs):
+    """
+    Produces the processed outputs from simulation data for the TDE model.
+
+    :param times: A dense array of times in rest frame in days
+    :param mbh6: black hole mass in units of 10^6 solar masses
+    :param mstar: star mass in units of solar masses
+    :param b: Relates to beta and gamma values for the star that's disrupted
+    :param efficiency: efficiency of the BH
+    :param leddlimit: eddington limit for the BH
+    :param kwargs: Additional keyword arguments
+    :return: Named tuple with several outputs
+    """
+    beta_interp = True
+
+    outs = _initialize_mosfit_tde_model()
+    beta_slope = outs.beta_slope
+    beta_yinter = outs.beta_yinter
+    sim_beta = outs.sim_beta
+    mapped_time = outs.mapped_time
+    premaptime = outs.premaptime
+    premapdmdt = outs.premapdmdt
+
+    Mhbase = 1.0e6  # in units of Msolar, this is generic Mh used in astrocrash sims
+    Mstarbase = 1.0  # in units of Msolar
+    Rstarbase = 1.0  # in units of Rsolar
+    starmass = mstar
+
+    # Calculate beta values
+    if 0 <= b < 1:
+        beta43 = 0.6 + 1.25 * b
+        beta53 = 0.5 + 0.4 * b
+        betas = {'4-3': beta43, '5-3': beta53}
+    elif 1 <= b <= 2:
+        beta43 = 1.85 + 2.15 * (b - 1)
+        beta53 = 0.9 + 1.6 * (b - 1)
+        betas = {'4-3': beta43, '5-3': beta53}
+    else:
+        raise ValueError('b outside range, bmin = 0; bmax = 2')
+
+    # Determine gamma values
+    gamma_interp = False
+    if starmass <= 0.3 or starmass >= 22:
+        gammas = ['5-3']
+        beta = betas['5-3']
+    elif 1 <= starmass <= 15:
+        gammas = ['4-3']
+        beta = betas['4-3']
+    elif 0.3 < starmass < 1:
+        gamma_interp = True
+        gammas = ['4-3', '5-3']
+        gfrac = (starmass - 1.) / (0.3 - 1.)
+        beta = betas['5-3'] + (betas['4-3'] - betas['5-3']) * (1. - gfrac)
+    elif 15 < starmass < 22:
+        gamma_interp = True
+        gammas = ['4-3', '5-3']
+        gfrac = (starmass - 15.) / (22. - 15.)
+        beta = betas['5-3'] + (betas['4-3'] - betas['5-3']) * (1. - gfrac)
+
+    timedict = {}
+    dmdtdict = {}
+
+    sim_beta = outs.sim_beta
+    for g in gammas:
+        for i in range(len(sim_beta[g])):
+            if betas[g] == sim_beta[g][i]:
+                beta_interp = False
+                interp_index_low = i
+                break
+            if betas[g] < sim_beta[g][i]:
+                interp_index_high = i
+                interp_index_low = i - 1
+                beta_interp = True
+                break
+
+        if beta_interp:
+            dmdt = np.array([
+                beta_yinter[g][interp_index_low][0] + beta_slope[g][interp_index_low][0] * betas[g],
+                beta_yinter[g][interp_index_low][1] + beta_slope[g][interp_index_low][1] * betas[g]
+            ], dtype=object)
+
+            time = []
+            for i in [0, 1]:
+                time_betalo = (mapped_time[g][interp_index_low][i] * (
+                            premaptime[g][interp_index_low][i][-1] - premaptime[g][interp_index_low][i][0]) +
+                               premaptime[g][interp_index_low][i][0])
+                time_betahi = (mapped_time[g][interp_index_low][i] * (
+                            premaptime[g][interp_index_high][i][-1] - premaptime[g][interp_index_high][i][0]) +
+                               premaptime[g][interp_index_high][i][0])
+                time.append(time_betalo + (time_betahi - time_betalo) * (betas[g] - sim_beta[g][interp_index_low]) / (
+                            sim_beta[g][interp_index_high] - sim_beta[g][interp_index_low]))
+            time = np.array(time, dtype=object)
+
+            timedict[g] = time
+            dmdtdict[g] = dmdt
+        else:
+            timedict[g] = np.copy(premaptime[g][interp_index_low])
+            dmdtdict[g] = np.copy(premapdmdt[g][interp_index_low])
+
+    if gamma_interp:
+        mapped_time = {'4-3': [], '5-3': []}
+        time = []
+        dmdt = []
+        for j in [0, 1]:
+            if len(timedict['4-3'][j]) < len(timedict['5-3'][j]):
+                interp = '4-3'
+                nointerp = '5-3'
+            else:
+                interp = '5-3'
+                nointerp = '4-3'
+
+            mapped_time[nointerp].append(1. / (timedict[nointerp][j][-1] - timedict[nointerp][j][0]) * (
+                        timedict[nointerp][j] - timedict[nointerp][j][0]))
+            mapped_time[interp].append(1. / (timedict[interp][j][-1] - timedict[interp][j][0]) * (
+                        timedict[interp][j] - timedict[interp][j][0]))
+            mapped_time[interp][j][0] = 0
+            mapped_time[interp][j][-1] = 1
+            mapped_time[nointerp][j][0] = 0
+            mapped_time[nointerp][j][-1] = 1
+
+            func = interp1d(mapped_time[interp][j], dmdtdict[interp][j])
+            dmdtdict[interp][j] = func(mapped_time[nointerp][j])
+
+            if interp == '5-3':
+                time53 = (mapped_time['4-3'][j] * (timedict['5-3'][j][-1] - timedict['5-3'][j][0]) + timedict['5-3'][j][
+                    0])
+                time.extend(10 ** (timedict['4-3'][j] + (time53 - timedict['4-3'][j]) * gfrac))
+            else:
+                time43 = (mapped_time['5-3'][j] * (timedict['4-3'][j][-1] - timedict['4-3'][j][0]) + timedict['4-3'][j][
+                    0])
+                time.extend(10 ** (time43 + (timedict['5-3'][j] - time43) * gfrac))
+
+            dmdt.extend(10 ** (dmdtdict['4-3'][j] + (dmdtdict['5-3'][j] - dmdtdict['4-3'][j]) * gfrac))
+    else:
+        time = np.concatenate((timedict[g][0], timedict[g][1]))
+        time = 10 ** time
+        dmdt = np.concatenate((dmdtdict[g][0], dmdtdict[g][1]))
+        dmdt = 10 ** dmdt
+
+    time = np.array(time)
+    dmdt = np.array(dmdt)
+
+    Mh = mbh6 * 1.0e6
+
+    if starmass < 0.1:
+        Mstar_Tout = 0.1
+    else:
+        Mstar_Tout = starmass
+
+    Z = 0.0134
+    log10_Z_02 = np.log10(Z / 0.02)
+
+    Tout_theta = (
+                1.71535900 + 0.62246212 * log10_Z_02 - 0.92557761 * log10_Z_02 ** 2 - 1.16996966 * log10_Z_02 ** 3 - 0.30631491 * log10_Z_02 ** 4)
+    Tout_l = (
+                6.59778800 - 0.42450044 * log10_Z_02 - 12.13339427 * log10_Z_02 ** 2 - 10.73509484 * log10_Z_02 ** 3 - 2.51487077 * log10_Z_02 ** 4)
+    Tout_kpa = (
+                10.08855000 - 7.11727086 * log10_Z_02 - 31.67119479 * log10_Z_02 ** 2 - 24.24848322 * log10_Z_02 ** 3 - 5.33608972 * log10_Z_02 ** 4)
+    Tout_lbda = (
+                1.01249500 + 0.32699690 * log10_Z_02 - 0.00923418 * log10_Z_02 ** 2 - 0.03876858 * log10_Z_02 ** 3 - 0.00412750 * log10_Z_02 ** 4)
+    Tout_mu = (
+                0.07490166 + 0.02410413 * log10_Z_02 + 0.07233664 * log10_Z_02 ** 2 + 0.03040467 * log10_Z_02 ** 3 + 0.00197741 * log10_Z_02 ** 4)
+    Tout_nu = 0.01077422
+    Tout_eps = (
+                3.08223400 + 0.94472050 * log10_Z_02 - 2.15200882 * log10_Z_02 ** 2 - 2.49219496 * log10_Z_02 ** 3 - 0.63848738 * log10_Z_02 ** 4)
+    Tout_o = (
+                17.84778000 - 7.45345690 * log10_Z_02 - 48.9606685 * log10_Z_02 ** 2 - 40.05386135 * log10_Z_02 ** 3 - 9.09331816 * log10_Z_02 ** 4)
+    Tout_pi = (
+                0.00022582 - 0.00186899 * log10_Z_02 + 0.00388783 * log10_Z_02 ** 2 + 0.00142402 * log10_Z_02 ** 3 - 0.00007671 * log10_Z_02 ** 4)
+
+    Rstar = ((
+                         Tout_theta * Mstar_Tout ** 2.5 + Tout_l * Mstar_Tout ** 6.5 + Tout_kpa * Mstar_Tout ** 11 + Tout_lbda * Mstar_Tout ** 19 + Tout_mu * Mstar_Tout ** 19.5) / (
+                         Tout_nu + Tout_eps * Mstar_Tout ** 2 + Tout_o * Mstar_Tout ** 8.5 + Mstar_Tout ** 18.5 + Tout_pi * Mstar_Tout ** 19.5))
+
+    dmdt = (dmdt * np.sqrt(Mhbase / Mh) * (starmass / Mstarbase) ** 2.0 * (Rstarbase / Rstar) ** 1.5)
+    time = (time * np.sqrt(Mh / Mhbase) * (Mstarbase / starmass) * (Rstar / Rstarbase) ** 1.5)
+
+    DAY_CGS = 86400
+    time = time / DAY_CGS
+    tfallback = np.copy(time[0])
+
+    time = time - tfallback
+    tpeak = time[np.argmax(dmdt)]
+
+    timeinterpfunc = interp1d(time, dmdt)
+    lengthpretimes = len(np.where(times < time[0])[0])
+    lengthposttimes = len(np.where(times > time[-1])[0])
+
+    dmdt2 = timeinterpfunc(times[lengthpretimes:(len(times) - lengthposttimes)])
+    dmdt1 = np.zeros(lengthpretimes)
+    dmdt3 = np.zeros(lengthposttimes)
+
+    dmdtnew = np.append(dmdt1, dmdt2)
+    dmdtnew = np.append(dmdtnew, dmdt3)
+    dmdtnew[dmdtnew < 0] = 0
+
+    kappa_t = 0.2 * (1 + 0.74)
+    Ledd = (4 * np.pi * cc.graviational_constant * Mh * cc.solar_mass * cc.speed_of_light / kappa_t)
+
+    luminosities = (efficiency * dmdtnew * cc.speed_of_light * cc.speed_of_light)
+    luminosities = (luminosities * leddlimit * Ledd / (luminosities + leddlimit * Ledd))
+    luminosities = [0.0 if np.isnan(x) else x for x in luminosities]
+
+    ProcessedData = namedtuple('ProcessedData', [
+        'luminosities', 'Rstar', 'tpeak', 'beta', 'starmass', 'dmdt', 'Ledd', 'tfallback'])
+    ProcessedData = ProcessedData(luminosities=luminosities, Rstar=Rstar, tpeak=tpeak, beta=beta, starmass=starmass,
+                                  dmdt=dmdtnew, Ledd=Ledd, tfallback=float(tfallback))
+    return ProcessedData
+
+@citation_wrapper('https://ui.adsabs.harvard.edu/abs/2019ApJ...872..151M/abstract, https://ui.adsabs.harvard.edu/abs/2013ApJ...767...25G/abstract, https://ui.adsabs.harvard.edu/abs/2018ApJS..236....6G/abstract')
+def _tde_guillochon_all_outputs(time, mbh6, mstar, tvisc, bb, eta, leddlimit, **kwargs):
+    """
+    Identical to the Mosfit model following Guillochon+ 2013 apart from doing the fallback rate fudge in mosfit.
+
+    :param time: A dense array of times in rest frame in days
+    :param mbh6: black hole mass in units of 10^6 solar masses
+    :param mstar: star mass in units of solar masses
+    :param tvisc: viscous timescale in days
+    :param bb: Relates to beta and gamma values for the star that's disrupted
+    :param eta: efficiency of the BH
+    :param leddlimit: eddington limit for the BH
+    :param kwargs: Additional keyword arguments
+    :return: bolometric luminosity
+    """
+    _interaction_process = kwargs.get("interaction_process", ip.Viscous)
+    dense_resolution = kwargs.get("dense_resolution", 1000)
+    dense_times = np.linspace(0, time[-1] + 100, dense_resolution)
+    outs = _tde_mosfit_engine(times=dense_times, mbh6=mbh6, mstar=mstar, b=bb, efficiency=eta,
+                              leddlimit=leddlimit, **kwargs)
+    dense_lbols = outs.luminosities
+    interaction_class = _interaction_process(time=time, dense_times=dense_times, luminosity=dense_lbols, t_viscous=tvisc, **kwargs)
+    lbol = interaction_class.new_luminosity
+    return lbol, outs
+
+def tde_guillochon_bolometric(time, mbh6, mstar, tvisc, bb, eta, leddlimit, **kwargs):
+    """
+    Identical to the Mosfit model following Guillochon+ 2013 apart from doing the fallback rate fudge in mosfit.
+
+    :param time: A dense array of times in rest frame in days
+    :param mbh6: black hole mass in units of 10^6 solar masses
+    :param mstar: star mass in units of solar masses
+    :param tvisc: viscous timescale in days
+    :param bb: Relates to beta and gamma values for the star that's disrupted
+    :param eta: efficiency of the BH
+    :param leddlimit: eddington limit for the BH
+    :param kwargs: Additional keyword arguments
+    :return: bolometric luminosity
+    """
+    lbol, _ = _tde_guillochon_all_outputs(time=time, mbh6=mbh6, mstar=mstar, tvisc=tvisc, bb=bb, eta=eta,
+                                       leddlimit=leddlimit, **kwargs)
+    return lbol
+
+@citation_wrapper('https://ui.adsabs.harvard.edu/abs/2019ApJ...872..151M/abstract, https://ui.adsabs.harvard.edu/abs/2013ApJ...767...25G/abstract, https://ui.adsabs.harvard.edu/abs/2018ApJS..236....6G/abstract')
+def tde_guillochon(time, redshift, mbh6, mstar, tvisc, bb, eta, leddlimit, rph0, lphoto, **kwargs):
+    """
+    Identical to the Mosfit model following Guillochon+ 2013 apart from doing the fallback rate fudge in mosfit.
+
+    :param time: Times in observer frame in days
+    :param redshift: redshift of the transient
+    :param mbh6: black hole mass in units of 10^6 solar masses
+    :param mstar: star mass in units of solar masses
+    :param tvisc: viscous timescale in days
+    :param bb: Relates to beta and gamma values for the star that's disrupted
+    :param eta: efficiency of the BH
+    :param leddlimit: eddington limit for the BH
+    :param rph0: initial photosphere radius
+    :param lphoto: photosphere luminosity
+    :param kwargs: Additional keyword arguments
+    :return: set by output format - 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
+    """
+
+    kwargs['interaction_process'] = kwargs.get("interaction_process", ip.Viscous)
+    kwargs['photosphere'] = kwargs.get("photosphere", photosphere.TDEPhotosphere)
+    kwargs['sed'] = kwargs.get("sed", sed.Blackbody)
+    cosmology = kwargs.get('cosmology', cosmo)
+    dl = cosmology.luminosity_distance(redshift).cgs.value
+
+    if kwargs['output_format'] == 'flux_density':
+        frequency = kwargs['frequency']
+        frequency, time = calc_kcorrected_properties(frequency=frequency, redshift=redshift, time=time)
+        lbol, outs = _tde_guillochon_all_outputs(time=time, mbh6=mbh6, mstar=mstar, tvisc=tvisc, bb=bb, eta=eta,
+                                               leddlimit=leddlimit, **kwargs)
+        photo = kwargs['photosphere'](time=time, luminosity=lbol, mass_bh=mbh6*1e6,
+                                      mass_star=mstar, star_radius=outs.Rstar,
+                                      tpeak=outs.tpeak, rph_0=rph0, lphoto=lphoto, beta=outs.beta, **kwargs)
+        sed_1 = kwargs['sed'](time=time, temperature=photo.photosphere_temperature, r_photosphere=photo.r_photosphere,
+                     frequency=frequency, luminosity_distance=dl)
+        flux_density = sed_1.flux_density
+        flux_density = np.nan_to_num(flux_density)
+        return flux_density.to(uu.mJy).value
+    else:
+        time_obs = time
+        lambda_observer_frame = kwargs.get('lambda_array', np.geomspace(100, 60000, 100))
+        time_temp = np.geomspace(0.1, 1000, 300)
+        time_observer_frame = time_temp * (1. + redshift)
+        frequency, time = calc_kcorrected_properties(frequency=lambda_to_nu(lambda_observer_frame),
+                                                     redshift=redshift, time=time_observer_frame)
+        lbol, outs = _tde_guillochon_all_outputs(time=time, mbh6=mbh6, mstar=mstar, tvisc=tvisc, bb=bb, eta=eta,
+                                               leddlimit=leddlimit, **kwargs)
+        photo = kwargs['photosphere'](time=time, luminosity=lbol, mass_bh=mbh6*1e6, mass_star=mstar,
+                                      star_radius=outs.Rstar, tpeak=outs.tpeak, rph_0=rph0, lphoto=lphoto,
+                                      beta=outs.beta,**kwargs)
+        sed_1 = kwargs['sed'](time=time, temperature=photo.photosphere_temperature, r_photosphere=photo.r_photosphere,
+                     frequency=frequency[:, None], luminosity_distance=dl)
+        fmjy = sed_1.flux_density.T
+        spectra = fmjy.to(uu.mJy).to(uu.erg / uu.cm ** 2 / uu.s / uu.Angstrom,
+                                     equivalencies=uu.spectral_density(wav=lambda_observer_frame * uu.Angstrom))
+        if kwargs['output_format'] == 'spectra':
+            return namedtuple('output', ['time', 'lambdas', 'spectra'])(time=time_observer_frame,
+                                                                          lambdas=lambda_observer_frame,
+                                                                          spectra=spectra)
+        else:
+            return sed.get_correct_output_format_from_spectra(time=time_obs, time_eval=time_observer_frame,
+                                                              spectra=spectra, lambda_array=lambda_observer_frame,
+                                                              **kwargs)
