@@ -28,3 +28,4 @@ python:
    install:
    - method: setuptools
      path: .
+   - requirements: requirements.txt
