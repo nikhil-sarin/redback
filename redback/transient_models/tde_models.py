@@ -964,7 +964,7 @@ def _tde_mosfit_engine(times, mbh6, mstar, b, efficiency, leddlimit, **kwargs):
     return ProcessedData
 
 @citation_wrapper('https://ui.adsabs.harvard.edu/abs/2019ApJ...872..151M/abstract, https://ui.adsabs.harvard.edu/abs/2013ApJ...767...25G/abstract, https://ui.adsabs.harvard.edu/abs/2018ApJS..236....6G/abstract')
-def _tde_guillochon_all_outputs(time, mbh6, mstar, tvisc, bb, eta, leddlimit, **kwargs):
+def _tde_fallback_all_outputs(time, mbh6, mstar, tvisc, bb, eta, leddlimit, **kwargs):
     """
     Identical to the Mosfit model following Guillochon+ 2013 apart from doing the fallback rate fudge in mosfit.
 
@@ -988,7 +988,7 @@ def _tde_guillochon_all_outputs(time, mbh6, mstar, tvisc, bb, eta, leddlimit, **
     lbol = interaction_class.new_luminosity
     return lbol, outs
 
-def tde_guillochon_bolometric(time, mbh6, mstar, tvisc, bb, eta, leddlimit, **kwargs):
+def tde_fallback_bolometric(time, mbh6, mstar, tvisc, bb, eta, leddlimit, **kwargs):
     """
     Identical to the Mosfit model following Guillochon+ 2013 apart from doing the fallback rate fudge in mosfit.
 
@@ -1002,12 +1002,12 @@ def tde_guillochon_bolometric(time, mbh6, mstar, tvisc, bb, eta, leddlimit, **kw
     :param kwargs: Additional keyword arguments
     :return: bolometric luminosity
     """
-    lbol, _ = _tde_guillochon_all_outputs(time=time, mbh6=mbh6, mstar=mstar, tvisc=tvisc, bb=bb, eta=eta,
+    lbol, _ = _tde_fallback_all_outputs(time=time, mbh6=mbh6, mstar=mstar, tvisc=tvisc, bb=bb, eta=eta,
                                        leddlimit=leddlimit, **kwargs)
     return lbol
 
 @citation_wrapper('https://ui.adsabs.harvard.edu/abs/2019ApJ...872..151M/abstract, https://ui.adsabs.harvard.edu/abs/2013ApJ...767...25G/abstract, https://ui.adsabs.harvard.edu/abs/2018ApJS..236....6G/abstract')
-def tde_guillochon(time, redshift, mbh6, mstar, tvisc, bb, eta, leddlimit, rph0, lphoto, **kwargs):
+def tde_fallback(time, redshift, mbh6, mstar, tvisc, bb, eta, leddlimit, rph0, lphoto, **kwargs):
     """
     Identical to the Mosfit model following Guillochon+ 2013 apart from doing the fallback rate fudge in mosfit.
 
@@ -1034,7 +1034,7 @@ def tde_guillochon(time, redshift, mbh6, mstar, tvisc, bb, eta, leddlimit, rph0,
     if kwargs['output_format'] == 'flux_density':
         frequency = kwargs['frequency']
         frequency, time = calc_kcorrected_properties(frequency=frequency, redshift=redshift, time=time)
-        lbol, outs = _tde_guillochon_all_outputs(time=time, mbh6=mbh6, mstar=mstar, tvisc=tvisc, bb=bb, eta=eta,
+        lbol, outs = _tde_fallback_all_outputs(time=time, mbh6=mbh6, mstar=mstar, tvisc=tvisc, bb=bb, eta=eta,
                                                leddlimit=leddlimit, **kwargs)
         photo = kwargs['photosphere'](time=time, luminosity=lbol, mass_bh=mbh6*1e6,
                                       mass_star=mstar, star_radius=outs.Rstar,
