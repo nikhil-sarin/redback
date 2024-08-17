@@ -964,7 +964,7 @@ def _tde_mosfit_engine(times, mbh6, mstar, b, efficiency, leddlimit, **kwargs):
     return ProcessedData
 
 @citation_wrapper('https://ui.adsabs.harvard.edu/abs/2019ApJ...872..151M/abstract, https://ui.adsabs.harvard.edu/abs/2013ApJ...767...25G/abstract, https://ui.adsabs.harvard.edu/abs/2018ApJS..236....6G/abstract')
-def tde_guillochon_bolometric(time, mbh6, mstar, tvisc, bb, eta, leddlimit, **kwargs):
+def _tde_guillochon_all_outputs(time, mbh6, mstar, tvisc, bb, eta, leddlimit, **kwargs):
     """
     Identical to the Mosfit model following Guillochon+ 2013 apart from doing the fallback rate fudge in mosfit.
 
@@ -986,14 +986,28 @@ def tde_guillochon_bolometric(time, mbh6, mstar, tvisc, bb, eta, leddlimit, **kw
     dense_lbols = outs.luminosities
     interaction_class = _interaction_process(time=time, dense_times=dense_times, luminosity=dense_lbols, t_viscous=tvisc, **kwargs)
     lbol = interaction_class.new_luminosity
-    if 'output_format' in kwargs:
-        return lbol, outs
-    else:
-        return lbol
+    return lbol, outs
 
+def tde_guillochon_bolometric(time, mbh6, mstar, tvisc, bb, eta, leddlimit, **kwargs):
+    """
+    Identical to the Mosfit model following Guillochon+ 2013 apart from doing the fallback rate fudge in mosfit.
+
+    :param time: A dense array of times in rest frame in days
+    :param mbh6: black hole mass in units of 10^6 solar masses
+    :param mstar: star mass in units of solar masses
+    :param tvisc: viscous timescale in days
+    :param bb: Relates to beta and gamma values for the star that's disrupted
+    :param eta: efficiency of the BH
+    :param leddlimit: eddington limit for the BH
+    :param kwargs: Additional keyword arguments
+    :return: bolometric luminosity
+    """
+    lbol, _ = _tde_guillochon_all_outputs(time=time, mbh6=mbh6, mstar=mstar, tvisc=tvisc, bb=bb, eta=eta,
+                                       leddlimit=leddlimit, **kwargs)
+    return lbol
 
 @citation_wrapper('https://ui.adsabs.harvard.edu/abs/2019ApJ...872..151M/abstract, https://ui.adsabs.harvard.edu/abs/2013ApJ...767...25G/abstract, https://ui.adsabs.harvard.edu/abs/2018ApJS..236....6G/abstract')
-def tde_guillochon(time, redshift, mbh6, mstar, tvisc, bb, eta, leddlimit, rph_0, lphoto, **kwargs):
+def tde_guillochon(time, redshift, mbh6, mstar, tvisc, bb, eta, leddlimit, rph0, lphoto, **kwargs):
     """
     Identical to the Mosfit model following Guillochon+ 2013 apart from doing the fallback rate fudge in mosfit.
 
@@ -1005,7 +1019,7 @@ def tde_guillochon(time, redshift, mbh6, mstar, tvisc, bb, eta, leddlimit, rph_0
     :param bb: Relates to beta and gamma values for the star that's disrupted
     :param eta: efficiency of the BH
     :param leddlimit: eddington limit for the BH
-    :param rph_0: initial photosphere radius
+    :param rph0: initial photosphere radius
     :param lphoto: photosphere luminosity
     :param kwargs: Additional keyword arguments
     :return: set by output format - 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
@@ -1020,11 +1034,11 @@ def tde_guillochon(time, redshift, mbh6, mstar, tvisc, bb, eta, leddlimit, rph_0
     if kwargs['output_format'] == 'flux_density':
         frequency = kwargs['frequency']
         frequency, time = calc_kcorrected_properties(frequency=frequency, redshift=redshift, time=time)
-        lbol, outs = tde_guillochon_bolometric(time=time, mbh6=mbh6, mstar=mstar, tvisc=tvisc, bb=bb, eta=eta,
+        lbol, outs = _tde_guillochon_all_outputs(time=time, mbh6=mbh6, mstar=mstar, tvisc=tvisc, bb=bb, eta=eta,
                                                leddlimit=leddlimit, **kwargs)
         photo = kwargs['photosphere'](time=time, luminosity=lbol, mass_bh=mbh6*1e6,
                                       mass_star=mstar, star_radius=outs.Rstar,
-                                      tpeak=outs.tpeak, rph_0=rph_0, lphoto=lphoto, beta=outs.beta, **kwargs)
+                                      tpeak=outs.tpeak, rph_0=rph0, lphoto=lphoto, beta=outs.beta, **kwargs)
         sed_1 = kwargs['sed'](time=time, temperature=photo.photosphere_temperature, r_photosphere=photo.r_photosphere,
                      frequency=frequency, luminosity_distance=dl)
         flux_density = sed_1.flux_density
@@ -1037,10 +1051,10 @@ def tde_guillochon(time, redshift, mbh6, mstar, tvisc, bb, eta, leddlimit, rph_0
         time_observer_frame = time_temp * (1. + redshift)
         frequency, time = calc_kcorrected_properties(frequency=lambda_to_nu(lambda_observer_frame),
                                                      redshift=redshift, time=time_observer_frame)
-        lbol, outs = tde_guillochon_bolometric(time=time, mbh6=mbh6, mstar=mstar, tvisc=tvisc, bb=bb, eta=eta,
+        lbol, outs = _tde_guillochon_all_outputs(time=time, mbh6=mbh6, mstar=mstar, tvisc=tvisc, bb=bb, eta=eta,
                                                leddlimit=leddlimit, **kwargs)
         photo = kwargs['photosphere'](time=time, luminosity=lbol, mass_bh=mbh6*1e6, mass_star=mstar,
-                                      star_radius=outs.Rstar, tpeak=outs.tpeak, rph_0=rph_0, lphoto=lphoto,
+                                      star_radius=outs.Rstar, tpeak=outs.tpeak, rph_0=rph0, lphoto=lphoto,
                                       beta=outs.beta,**kwargs)
         sed_1 = kwargs['sed'](time=time, temperature=photo.photosphere_temperature, r_photosphere=photo.r_photosphere,
                      frequency=frequency[:, None], luminosity_distance=dl)
