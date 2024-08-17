@@ -619,6 +619,9 @@ def tde_analytical(time, redshift, l0, t_0_turn, **kwargs):
                                                               spectra=spectra, lambda_array=lambda_observer_frame,
                                                               **kwargs)
 
-@citation_wrapper('https://ui.adsabs.harvard.edu/abs/2019ApJ...872..151M/abstract')
-def tde_semianalytical():
+def _tde_mosfit_engine(time, mbh6):
+    pass
+
+@citation_wrapper('https://ui.adsabs.harvard.edu/abs/2019ApJ...872..151M/abstract, https://ui.adsabs.harvard.edu/abs/2013ApJ...767...25G/abstract, https://ui.adsabs.harvard.edu/abs/2018ApJS..236....6G/abstract')
+def tde_semianalytical(time, redshift, ):
     raise NotImplementedError("This model is not yet implemented.")
