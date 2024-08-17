@@ -1051,7 +1051,7 @@ def tde_fallback(time, redshift, mbh6, mstar, tvisc, bb, eta, leddlimit, rph0, l
         time_observer_frame = time_temp * (1. + redshift)
         frequency, time = calc_kcorrected_properties(frequency=lambda_to_nu(lambda_observer_frame),
                                                      redshift=redshift, time=time_observer_frame)
-        lbol, outs = _tde_guillochon_all_outputs(time=time, mbh6=mbh6, mstar=mstar, tvisc=tvisc, bb=bb, eta=eta,
+        lbol, outs = _tde_fallback_all_outputs(time=time, mbh6=mbh6, mstar=mstar, tvisc=tvisc, bb=bb, eta=eta,
                                                leddlimit=leddlimit, **kwargs)
         photo = kwargs['photosphere'](time=time, luminosity=lbol, mass_bh=mbh6*1e6, mass_star=mstar,
                                       star_radius=outs.Rstar, tpeak=outs.tpeak, rph_0=rph0, lphoto=lphoto,
