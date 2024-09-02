@@ -183,7 +183,7 @@ def sn_fallback(time, redshift, logl1, tr, **kwargs):
         time_observer_frame = time_temp * (1. + redshift)
         frequency, time = calc_kcorrected_properties(frequency=lambda_to_nu(lambda_observer_frame),
                                                      redshift=redshift, time=time_observer_frame)
-        lbol = fallback_lbol(time=time, logl1=logl1, tr=tr, **kwargs)
+        lbol = fallback_lbol(time=time, logl1=logl1, tr=tr)
         photo = kwargs['photosphere'](time=time, luminosity=lbol, **kwargs)
         sed_1 = kwargs['sed'](temperature=photo.photosphere_temperature, r_photosphere=photo.r_photosphere,
                               frequency=frequency[:,None], luminosity_distance=dl)
@@ -194,6 +194,10 @@ def sn_fallback(time, redshift, logl1, tr, **kwargs):
             return namedtuple('output', ['time', 'lambdas', 'spectra'])(time=time_observer_frame,
                                                                           lambdas=lambda_observer_frame,
                                                                           spectra=spectra)
+        else:
+            return sed.get_correct_output_format_from_spectra(time=time_obs, time_eval=time_observer_frame,
+                                                              spectra=spectra, lambda_array=lambda_observer_frame,
+                                                              **kwargs)
 
 @citation_wrapper('https://ui.adsabs.harvard.edu/abs/2018ApJS..236....6G/abstract')
 def sn_exponential_powerlaw(time, redshift, lbol_0, alpha_1, alpha_2, tpeak_d, **kwargs):
