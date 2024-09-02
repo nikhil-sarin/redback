@@ -23,7 +23,7 @@ extinction_integrated_flux_afterglow_models = extinction_afterglow_base_models
 extinction_supernova_base_models = ['sn_exponential_powerlaw', 'arnett', 'shock_cooling_and_arnett',
                                     'basic_magnetar_powered', 'slsn', 'magnetar_nickel',
                                     'csm_interaction', 'csm_nickel', 'type_1a', 'type_1c',
-                                    'general_magnetar_slsn','general_magnetar_driven_supernova']
+                                    'general_magnetar_slsn','general_magnetar_driven_supernova', 'sn_fallback']
 extinction_kilonova_base_models = ['nicholl_bns', 'mosfit_rprocess', 'mosfit_kilonova',
                                    'power_law_stratified_kilonova','bulla_bns_kilonova',
                                    'bulla_nsbh_kilonova', 'kasen_bns_kilonova','two_layer_stratified_kilonova',
