@@ -135,6 +135,7 @@ def _shock_cooling(time, mass, radius, energy, **kwargs):
     delta = kwargs.get('delta',1.1)
     kk_pow = (nn - 3) * (3 - delta) / (4 * np.pi * (nn - delta))
     kappa = 0.2
+    mass = mass * solar_mass
     vt = (((nn - 5) * (5 - delta) / ((nn - 3) * (3 - delta))) * (2 * energy / mass))**0.5
     td = ((3 * kappa * kk_pow * mass) / ((nn - 1) * vt * speed_of_light))**0.5
 
@@ -147,18 +148,17 @@ def _shock_cooling(time, mass, radius, energy, **kwargs):
 
     tph = np.sqrt(3 * kappa * kk_pow * mass / (2 * (nn - 1) * vt * vt))
     r_photosphere_pre_td = np.power(tph / time, 2 / (nn - 1)) * vt * time
-    r_photosphere_post_td = (np.power((delta - 1) / (nn - 1) * ((time / td) ** 2 - 1) + 1, -1 / (delta + 1))* vt * time)
-    r_photosphere = np.zeros(len(time))
-    r_photosphere[time < td] = r_photosphere_pre_td[time < td]
-    r_photosphere[time >= td] = r_photosphere_post_td[time >= td]
+    r_photosphere_post_td = (np.power((delta - 1) / (nn - 1) * ((time / td) ** 2 - 1) + 1, -1 / (delta + 1)) * vt * time)
+    r_photosphere = r_photosphere_pre_td + r_photosphere_post_td
 
     sigmaT4 = lbol / (4 * np.pi * r_photosphere**2)
     temperature = np.power(sigmaT4 / sigma_sb, 0.25)
 
-    output = namedtuple('output', ['lbol', 'r_photosphere', 'temperature'])
+    output = namedtuple('output', ['lbol', 'r_photosphere', 'temperature', 'td'])
     output.lbol = lbol
     output.r_photosphere = r_photosphere
     output.temperature = temperature
+    output.td = td
     return output
 
 @citation_wrapper('https://ui.adsabs.harvard.edu/abs/2021MNRAS.505.3016N/abstract')
@@ -251,7 +251,7 @@ def shock_cooling(time, redshift, log10_mass, log10_radius, log10_energy, **kwar
                                              dl=dl, frequency=frequency)
         return flux_density.to(uu.mJy).value
     else:
-        time_temp = np.linspace(1e-4, 50, 50)
+        time_temp = np.linspace(1e-2, 10, 100)
         lambda_observer_frame = kwargs.get('lambda_array', np.geomspace(100, 60000, 100))
 
         time_observer_frame = time_temp
@@ -268,7 +268,7 @@ def shock_cooling(time, redshift, log10_mass, log10_radius, log10_energy, **kwar
                                                                           lambdas=lambda_observer_frame,
                                                                           spectra=spectra)
         else:
-            return sed.get_correct_output_format_from_spectra(time=time_obs, time_eval=time_observer_frame / day_to_s,
+            return sed.get_correct_output_format_from_spectra(time=time_obs, time_eval=time_observer_frame,
                                                               spectra=spectra, lambda_array=lambda_observer_frame,
                                                               **kwargs)
 
