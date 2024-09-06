@@ -24,7 +24,7 @@ logepse = -1.0
 logepsb = -2.0
 g0 = 100
 xiN = 1.0
-
+# test
 time = np.logspace(2, 8, 100)/day_to_s
 fr_1ghz = 1e9 * np.ones(len(time))
 kwargs = {}
