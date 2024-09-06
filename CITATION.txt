@@ -1,16 +1,19 @@
 @ARTICLE{sarin_redback,
        author = {{Sarin}, Nikhil and {H{\"u}bner}, Moritz and {Omand}, Conor M.~B. and {Setzer}, Christian N. and et al.},
-        title = "{Redback: A Bayesian inference software package for electromagnetic transients}",
-      journal = {arXiv e-prints},
+        title = "{REDBACK: a Bayesian inference software package for electromagnetic transients}",
+      journal = {\mnras},
      keywords = {Astrophysics - High Energy Astrophysical Phenomena},
-         year = 2023,
-        month = aug,
-          eid = {arXiv:2308.12806},
-        pages = {arXiv:2308.12806},
+         year = 2024,
+        month = jun,
+       volume = {531},
+       number = {1},
+        pages = {1203-1227},
+          doi = {10.1093/mnras/stae1238},
 archivePrefix = {arXiv},
        eprint = {2308.12806},
  primaryClass = {astro-ph.HE},
-       adsurl = {https://ui.adsabs.harvard.edu/abs/2023arXiv230812806S},
+       adsurl = {https://ui.adsabs.harvard.edu/abs/2024MNRAS.531.1203S},
       adsnote = {Provided by the SAO/NASA Astrophysics Data System}
 }
+
 
