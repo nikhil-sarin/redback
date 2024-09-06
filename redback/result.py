@@ -7,7 +7,7 @@ import matplotlib
 
 import pandas as pd
 from bilby.core.result import Result
-from bilby.core.result import _determine_file_name # noqa
+from bilby.core.result import _determine_file_name  # noqa
 
 import redback.transient.transient
 from redback import model_library
@@ -162,12 +162,17 @@ class RedbackResult(Result):
         Detailed documentation appears below by running `print(plot_multiband.__doc__)` """
         return self.transient.plot_multiband(**kwargs)
 
-    plot_data.__doc__ = plot_data.__doc__ + redback.transient.Transient.plot_data.__doc__
-    plot_lightcurve.__doc__ = plot_lightcurve.__doc__ + redback.transient.Transient.plot_lightcurve.__doc__
-    plot_residual.__doc__ = plot_residual.__doc__ + redback.transient.Transient.plot_residual.__doc__
-    plot_multiband.__doc__ = plot_multiband.__doc__ + redback.transient.Transient.plot_multiband.__doc__
+    plot_data.__doc__ = plot_data.__doc__ + \
+        redback.transient.Transient.plot_data.__doc__
+    plot_lightcurve.__doc__ = plot_lightcurve.__doc__ + \
+        redback.transient.Transient.plot_lightcurve.__doc__
+    plot_residual.__doc__ = plot_residual.__doc__ + \
+        redback.transient.Transient.plot_residual.__doc__
+    plot_multiband.__doc__ = plot_multiband.__doc__ + \
+        redback.transient.Transient.plot_multiband.__doc__
     plot_multiband_lightcurve.__doc__ = \
-        plot_multiband_lightcurve.__doc__ + redback.transient.Transient.plot_multiband_lightcurve.__doc__
+        plot_multiband_lightcurve.__doc__ + \
+        redback.transient.Transient.plot_multiband_lightcurve.__doc__
 
 
 def read_in_result(
@@ -195,7 +200,8 @@ def read_in_result(
     # Get the actual extension (may differ from the default extension if the filename is given)
     extension = os.path.splitext(filename)[1].lstrip('.')
     if extension == 'gz':  # gzipped file
-        extension = os.path.splitext(os.path.splitext(filename)[0])[1].lstrip('.')
+        extension = os.path.splitext(os.path.splitext(filename)[0])[
+            1].lstrip('.')
 
     if 'json' in extension:
         result = RedbackResult.from_json(filename=filename)

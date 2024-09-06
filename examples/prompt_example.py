@@ -1,11 +1,14 @@
 import redback
+import matplotlib as mpl
+mpl.rcParams.update(mpl.rcParamsDefault)
 
 sampler = 'dynesty'
 model = 'gaussian_prompt'
 name = '910505'
 
 data = redback.get_data.get_prompt_data_from_batse(grb=name)
-prompt = redback.transient.prompt.PromptTimeSeries.from_batse_grb_name(name=name)
+prompt = redback.transient.prompt.PromptTimeSeries.from_batse_grb_name(
+    name=name)
 
 # use default priors
 priors = redback.priors.get_priors(model=model, times=prompt.time,

@@ -1,5 +1,11 @@
 import redback
-import bilby
+import matplotlib as mpl
+mpl.rcParams.update(mpl.rcParamsDefault)
+# import bilby
+# import latex
+# import matplotlib
+# matplotlib.use("macosx")
+
 
 # We implemented many models implemented, including
 # afterglow/magnetar varieties/n_dimensional_fireball/shapelets/band function/kilonova/SNe/TDE
@@ -40,3 +46,4 @@ result = redback.fit_model(model=model, sampler='dynesty', nlive=200, transient=
 
 result.plot_lightcurve(random_models=100)
 result.plot_residual()
+# plt.show()
