@@ -537,7 +537,7 @@ def _shocked_cocoon(time, mej, vej, eta, tshock, shocked_fraction, cos_theta_coc
     """
     :param time: source frame time in days
     :param mej: ejecta mass in solar masses
-    :param vej: ejecta mass in km/s
+    :param vej: ejecta mass in c
     :param eta: slope for ejecta density profile
     :param tshock: shock time in seconds
     :param shocked_fraction: fraction of ejecta mass shocked
@@ -545,8 +545,9 @@ def _shocked_cocoon(time, mej, vej, eta, tshock, shocked_fraction, cos_theta_coc
     :param kappa: opacity
     :return: namedtuple with lbol, r_photosphere, and temperature
     """
-    diff_const = solar_mass / (4*np.pi * speed_of_light * km_cgs)
     c_kms = speed_of_light / km_cgs
+    vej = vej * c_kms
+    diff_const = solar_mass / (4*np.pi * speed_of_light * km_cgs)
     rshock = tshock * speed_of_light
     shocked_mass = mej * shocked_fraction
     theta = np.arccos(cos_theta_cocoon)
@@ -623,7 +624,7 @@ def shocked_cocoon(time, redshift, mej, vej, eta, tshock, shocked_fraction, cos_
         return flux_density.to(uu.mJy).value
     else:
         lambda_observer_frame = kwargs.get('frequency_array', np.geomspace(100, 60000, 100))
-        time_temp = np.linspace(1e-4, 50, 30)
+        time_temp = np.linspace(1e-2, 10, 100)
         time_observer_frame = time_temp
         frequency, time = calc_kcorrected_properties(frequency=lambda_to_nu(lambda_observer_frame),
                                                      redshift=redshift, time=time_observer_frame)
@@ -640,7 +641,7 @@ def shocked_cocoon(time, redshift, mej, vej, eta, tshock, shocked_fraction, cos_
                                                                           lambdas=lambda_observer_frame,
                                                                           spectra=spectra)
         else:
-            return sed.get_correct_output_format_from_spectra(time=time_obs, time_eval=time_observer_frame / day_to_s,
+            return sed.get_correct_output_format_from_spectra(time=time_obs, time_eval=time_observer_frame,
                                                               spectra=spectra, lambda_array=lambda_observer_frame,
                                                               **kwargs)
 
