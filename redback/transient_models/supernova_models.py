@@ -107,11 +107,11 @@ def sncosmo_models(time, redshift, model_kwargs=None, **kwargs):
     if kwargs['output_format'] == 'flux':
         bands = kwargs['bands']
         magnitude = model.bandmag(time=time, band=bands, magsys='ab')
-        return sed.bandpass_magnitude_to_flux(magnitude=magnitude, bands=bands)
+        return np.nan_to_num(sed.bandpass_magnitude_to_flux(magnitude=magnitude, bands=bands))
     elif kwargs['output_format'] == 'magnitude':
         bands = kwargs['bands']
         magnitude = model.bandmag(time=time, band=bands, magsys='ab')
-        return magnitude
+        return np.nan_to_num(magnitude)
     elif kwargs['output_format'] == 'sncosmo_source':
         return model
 
