@@ -12,13 +12,13 @@ def _csm_shock_breakout(time, e0, tdyn, tshell, beta, kappa, mass, **kwargs):
     """
     Dense CSM shock breakout and cooling model From Margalit 2022
 
-    :param time: time in seconds
+    :param time: time in days
     :param e0: initial internal energy in ergs
     :param tdyn: dynamical time in s
     :param tshell: shell crossing time in s
     :param beta: velocity ratio (beta < 1)
     :param kappa: opacity in cm^2/g
-    :param mass: mass of CSM shell in solar masses
+    :param mass: mass of CSM shell in g
     :return: namedtuple with lbol, r_photosphere, and temperature
     """
     v0 = 1e9
@@ -73,7 +73,7 @@ def csm_shock_breakout(time, redshift, loge0, tdyn, tshell, beta, kappa, mass, *
     mass = mass * solar_mass
     cosmology = kwargs.get('cosmology', cosmo)
     dl = cosmology.luminosity_distance(redshift).cgs.value
-    time_temp = np.geomspace(1e-2, 20, 300) #days
+    time_temp = np.geomspace(1e-2, 40, 300) #days
     time_obs = time
     outputs = _csm_shock_breakout(time_temp, e0=e0, tdyn=tdyn,
                                   tshell=tshell, beta=beta,
@@ -82,7 +82,7 @@ def csm_shock_breakout(time, redshift, loge0, tdyn, tshell, beta, kappa, mass, *
         return outputs
     elif kwargs['output_format'] == 'luminosity':
         func = interp1d(time_temp, outputs.lbol)
-        return func(time*day_to_s)
+        return func(time)
     elif kwargs['output_format'] == 'flux_density':
         time = time_obs * day_to_s
         frequency = kwargs['frequency']
