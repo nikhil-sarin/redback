@@ -8,23 +8,30 @@ from astropy.cosmology import Planck18 as cosmo  # noqa
 from redback.utils import calc_kcorrected_properties, citation_wrapper, lambda_to_nu
 
 @citation_wrapper('https://ui.adsabs.harvard.edu/abs/2022ApJ...933..238M/abstract')
-def _csm_shock_breakout(time, e0, tdyn, tshell, beta, kappa, csm_mass, **kwargs):
+def _csm_shock_breakout(time, csm_mass, v_min, beta, kappa, shell_radius, shell_width_ratio, **kwargs):
     """
     Dense CSM shock breakout and cooling model From Margalit 2022
 
     :param time: time in days
-    :param e0: initial internal energy in ergs
-    :param tdyn: dynamical time in d
-    :param tshell: shell crossing time in d
-    :param beta: velocity ratio (beta < 1)
-    :param kappa: opacity in cm^2/g
     :param csm_mass: mass of CSM shell in g
+    :param v_min: minimum velocity in km/s
+    :param beta: velocity ratio in c (beta < 1)
+    :param kappa: opacity in cm^2/g
+    :param shell_radius: radius of shell in 10^14 cm
+    :param shell_width_ratio: shell width ratio (deltaR/R0)
     :return: namedtuple with lbol, r_photosphere, and temperature
     """
-    v0 = 1e9
+    v0 = v_min * 1e5
+    e0 = 0.5 * csm_mass * v0**2
+    shell_radius *= 1e14
+    shell_width = shell_width_ratio * shell_radius
+    tdyn = shell_radius / v0
+    tshell = shell_width / v0
+    time = time * day_to_s
+
     velocity = v0/beta
-    tda = (3 * kappa * csm_mass / (4 * np.pi * speed_of_light * velocity)) ** 0.5 / day_to_s
-    # tda = 11.8
+
+    tda = (3 * kappa * csm_mass / (4 * np.pi * speed_of_light * velocity)) ** 0.5
 
     term1 = ((tdyn + tshell + time) ** 3 - (tdyn + beta * time) ** 3) ** (2 / 3)
     term2 = ((tdyn + tshell) ** 3 - tdyn ** 3) ** (1 / 3)
@@ -36,18 +43,25 @@ def _csm_shock_breakout(time, e0, tdyn, tshell, beta, kappa, csm_mass, **kwargs)
     lbol = e0 * term1 / (tda ** 2 * (tshell + (1 - beta) * time) ** 2) * term2 * term3 * term4
 
     volume = 4./3. * np.pi * velocity**3 * ((tdyn + tshell + time)**3 - (tdyn + beta*time)**3)
-    radius = velocity * day_to_s * (tdyn + tshell + time)
+    radius = velocity * (tdyn + tshell + time)
     rphotosphere = radius - 2*volume/(3 * kappa * csm_mass)
     teff = (lbol / (4 * np.pi * rphotosphere ** 2 * sigma_sb)) ** 0.25
-    output = namedtuple('output', ['lbol', 'r_photosphere', 'temperature', 'time_temp'])
+    output = namedtuple('output', ['lbol', 'r_photosphere', 'temperature', 'time_temp',
+                                   'tdyn', 'tshell', 'e0', 'tda', 'velocity'])
     output.lbol = lbol
     output.r_photosphere = rphotosphere
     output.temperature = teff
+    output.tdyn = tdyn
+    output.tshell = tshell
+    output.e0 = e0
+    output.tda = tda
+    output.velocity = velocity
     output.time_temp = time
     return output
 
+
 @citation_wrapper('https://ui.adsabs.harvard.edu/abs/2022ApJ...933..238M/abstract')
-def csm_shock_breakout(time, redshift, loge0, tdyn, tshell, beta, kappa, csm_mass, **kwargs):
+def csm_shock_breakout(time, redshift, csm_mass, v_min, beta, kappa, shell_radius, shell_width_ratio, **kwargs):
     """
     Dense CSM shock breakout and cooling model From Margalit 2022
 
@@ -69,22 +83,21 @@ def csm_shock_breakout(time, redshift, loge0, tdyn, tshell, beta, kappa, csm_mas
     :return: set by output format - 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
     :return:
     """
-    e0 = 10 ** loge0
     csm_mass = csm_mass * solar_mass
     cosmology = kwargs.get('cosmology', cosmo)
     dl = cosmology.luminosity_distance(redshift).cgs.value
     time_temp = np.geomspace(1e-2, 40, 300) #days
     time_obs = time
-    outputs = _csm_shock_breakout(time_temp, e0=e0, tdyn=tdyn,
-                                  tshell=tshell, beta=beta,
-                                  kappa=kappa, csm_mass=csm_mass, **kwargs)
+    outputs = _csm_shock_breakout(time_temp, v_min=v_min, beta=beta,
+                                  kappa=kappa, csm_mass=csm_mass, shell_radius=shell_radius,
+                                  shell_width_ratio=shell_width_ratio, **kwargs)
     if kwargs['output_format'] == 'namedtuple':
         return outputs
     elif kwargs['output_format'] == 'luminosity':
         func = interp1d(time_temp, outputs.lbol)
         return func(time)
     elif kwargs['output_format'] == 'flux_density':
-        time = time_obs * day_to_s
+        time = time_obs
         frequency = kwargs['frequency']
         # interpolate properties onto observation times
         temp_func = interp1d(time_temp, y=outputs.temperature)
