@@ -67,12 +67,12 @@ def csm_shock_breakout(time, redshift, csm_mass, v_min, beta, kappa, shell_radiu
 
     :param time: time in days
     :param redshift: redshift
-    :param loge0: log10 e0 in ergs
-    :param tdyn: dynamical time in d
-    :param tshell: shell crossing time in d
+    :param csm_mass: mass of CSM shell in solar masses
+    :param v_min: minimum velocity in km/s
     :param beta: velocity ratio in c (beta < 1)
     :param kappa: opacity in cm^2/g
-    :param csm_mass: CSM mass
+    :param shell_radius: radius of shell in 10^14 cm
+    :param shell_width_ratio: shell width ratio (deltaR/R0)
     :param kwargs: Additional parameters required by model
     :param frequency: Required if output_format is 'flux_density'.
         frequency to calculate - Must be same length as time array or a single number).
