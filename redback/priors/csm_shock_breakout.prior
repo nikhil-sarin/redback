@@ -4,4 +4,4 @@ v_min = LogUniform(1e3, 1e5, 'vej', latex_label = r'$v_{\mathrm{ej}}~(\mathrm{km
 beta = Uniform(0.1, 0.5, 'beta', latex_label=r'$\\beta$')
 kappa = Uniform(0.05, 2, 'kappa', latex_label = r'$\\kappa~(\mathrm{cm}^{2}/\mathrm{g})$')
 shell_radius = Uniform(1e-2, 1e2, 'shell_radius', latex_label=r'$R_{\mathrm{shell}}~(10^{14}~\mathrm{cm})$')
-shell_width_ratio = Uniform(0.1, 0.9, 'shell_width_ratio', latex_label=r'$\Delta R_{\mathrm{shell}}/R_{\mathrm{shell}}$')
+shell_width_ratio = Uniform(0.1, 0.9, 'shell_width_ratio', latex_label=r'$\\Delta~R_{\mathrm{shell}}/R_{\mathrm{shell}}$')
