@@ -8,23 +8,30 @@ from astropy.cosmology import Planck18 as cosmo  # noqa
 from redback.utils import calc_kcorrected_properties, citation_wrapper, lambda_to_nu
 
 @citation_wrapper('https://ui.adsabs.harvard.edu/abs/2022ApJ...933..238M/abstract')
-def _csm_shock_breakout(time, e0, tdyn, tshell, beta, kappa, mass, **kwargs):
+def _csm_shock_breakout(time, csm_mass, v_min, beta, kappa, shell_radius, shell_width_ratio, **kwargs):
     """
     Dense CSM shock breakout and cooling model From Margalit 2022
 
-    :param time: time in seconds
-    :param e0: initial internal energy in ergs
-    :param tdyn: dynamical time in s
-    :param tshell: shell crossing time in s
-    :param beta: velocity ratio (beta < 1)
+    :param time: time in days
+    :param csm_mass: mass of CSM shell in g
+    :param v_min: minimum velocity in km/s
+    :param beta: velocity ratio in c (beta < 1)
     :param kappa: opacity in cm^2/g
-    :param mass: mass of CSM shell in solar masses
+    :param shell_radius: radius of shell in 10^14 cm
+    :param shell_width_ratio: shell width ratio (deltaR/R0)
     :return: namedtuple with lbol, r_photosphere, and temperature
     """
-    v0 = 1e9
+    v0 = v_min * 1e5
+    e0 = 0.5 * csm_mass * v0**2
+    shell_radius *= 1e14
+    shell_width = shell_width_ratio * shell_radius
+    tdyn = shell_radius / v0
+    tshell = shell_width / v0
+    time = time * day_to_s
+
     velocity = v0/beta
-    tda = (3 * kappa * mass / (4 * np.pi * speed_of_light * velocity))**0.5 / day_to_s
-    # tda = 11.8
+
+    tda = (3 * kappa * csm_mass / (4 * np.pi * speed_of_light * velocity)) ** 0.5
 
     term1 = ((tdyn + tshell + time) ** 3 - (tdyn + beta * time) ** 3) ** (2 / 3)
     term2 = ((tdyn + tshell) ** 3 - tdyn ** 3) ** (1 / 3)
@@ -36,29 +43,36 @@ def _csm_shock_breakout(time, e0, tdyn, tshell, beta, kappa, mass, **kwargs):
     lbol = e0 * term1 / (tda ** 2 * (tshell + (1 - beta) * time) ** 2) * term2 * term3 * term4
 
     volume = 4./3. * np.pi * velocity**3 * ((tdyn + tshell + time)**3 - (tdyn + beta*time)**3)
-    radius = velocity * day_to_s * (tdyn + tshell + time)
-    rphotosphere = radius - 2*volume/(3*kappa*mass)
+    radius = velocity * (tdyn + tshell + time)
+    rphotosphere = radius - 2*volume/(3 * kappa * csm_mass)
     teff = (lbol / (4 * np.pi * rphotosphere ** 2 * sigma_sb)) ** 0.25
-    output = namedtuple('output', ['lbol', 'r_photosphere', 'temperature', 'time_temp'])
+    output = namedtuple('output', ['lbol', 'r_photosphere', 'temperature', 'time_temp',
+                                   'tdyn', 'tshell', 'e0', 'tda', 'velocity'])
     output.lbol = lbol
     output.r_photosphere = rphotosphere
     output.temperature = teff
+    output.tdyn = tdyn
+    output.tshell = tshell
+    output.e0 = e0
+    output.tda = tda
+    output.velocity = velocity
     output.time_temp = time
     return output
 
+
 @citation_wrapper('https://ui.adsabs.harvard.edu/abs/2022ApJ...933..238M/abstract')
-def csm_shock_breakout(time, redshift, loge0, tdyn, tshell, beta, kappa, mass, **kwargs):
+def csm_shock_breakout(time, redshift, csm_mass, v_min, beta, kappa, shell_radius, shell_width_ratio, **kwargs):
     """
     Dense CSM shock breakout and cooling model From Margalit 2022
 
     :param time: time in days
     :param redshift: redshift
-    :param loge0: log10 e0 in ergs
-    :param tdyn: dynamical time in s
-    :param tshell: shell crossing time in s
+    :param csm_mass: mass of CSM shell in solar masses
+    :param v_min: minimum velocity in km/s
     :param beta: velocity ratio in c (beta < 1)
     :param kappa: opacity in cm^2/g
-    :param mass: CSM mass
+    :param shell_radius: radius of shell in 10^14 cm
+    :param shell_width_ratio: shell width ratio (deltaR/R0)
     :param kwargs: Additional parameters required by model
     :param frequency: Required if output_format is 'flux_density'.
         frequency to calculate - Must be same length as time array or a single number).
@@ -69,22 +83,21 @@ def csm_shock_breakout(time, redshift, loge0, tdyn, tshell, beta, kappa, mass, *
     :return: set by output format - 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
     :return:
     """
-    e0 = 10 ** loge0
-    mass = mass * solar_mass
+    csm_mass = csm_mass * solar_mass
     cosmology = kwargs.get('cosmology', cosmo)
     dl = cosmology.luminosity_distance(redshift).cgs.value
-    time_temp = np.geomspace(1e-2, 20, 300) #days
+    time_temp = np.geomspace(1e-2, 40, 300) #days
     time_obs = time
-    outputs = _csm_shock_breakout(time_temp, e0=e0, tdyn=tdyn,
-                                  tshell=tshell, beta=beta,
-                                  kappa=kappa, mass=mass, **kwargs)
+    outputs = _csm_shock_breakout(time_temp, v_min=v_min, beta=beta,
+                                  kappa=kappa, csm_mass=csm_mass, shell_radius=shell_radius,
+                                  shell_width_ratio=shell_width_ratio, **kwargs)
     if kwargs['output_format'] == 'namedtuple':
         return outputs
     elif kwargs['output_format'] == 'luminosity':
         func = interp1d(time_temp, outputs.lbol)
-        return func(time*day_to_s)
+        return func(time)
     elif kwargs['output_format'] == 'flux_density':
-        time = time_obs * day_to_s
+        time = time_obs
         frequency = kwargs['frequency']
         # interpolate properties onto observation times
         temp_func = interp1d(time_temp, y=outputs.temperature)
@@ -537,7 +550,7 @@ def _shocked_cocoon(time, mej, vej, eta, tshock, shocked_fraction, cos_theta_coc
     """
     :param time: source frame time in days
     :param mej: ejecta mass in solar masses
-    :param vej: ejecta mass in km/s
+    :param vej: ejecta mass in c
     :param eta: slope for ejecta density profile
     :param tshock: shock time in seconds
     :param shocked_fraction: fraction of ejecta mass shocked
@@ -545,8 +558,9 @@ def _shocked_cocoon(time, mej, vej, eta, tshock, shocked_fraction, cos_theta_coc
     :param kappa: opacity
     :return: namedtuple with lbol, r_photosphere, and temperature
     """
-    diff_const = solar_mass / (4*np.pi * speed_of_light * km_cgs)
     c_kms = speed_of_light / km_cgs
+    vej = vej * c_kms
+    diff_const = solar_mass / (4*np.pi * speed_of_light * km_cgs)
     rshock = tshock * speed_of_light
     shocked_mass = mej * shocked_fraction
     theta = np.arccos(cos_theta_cocoon)
@@ -623,7 +637,7 @@ def shocked_cocoon(time, redshift, mej, vej, eta, tshock, shocked_fraction, cos_
         return flux_density.to(uu.mJy).value
     else:
         lambda_observer_frame = kwargs.get('frequency_array', np.geomspace(100, 60000, 100))
-        time_temp = np.linspace(1e-4, 50, 30)
+        time_temp = np.linspace(1e-2, 10, 100)
         time_observer_frame = time_temp
         frequency, time = calc_kcorrected_properties(frequency=lambda_to_nu(lambda_observer_frame),
                                                      redshift=redshift, time=time_observer_frame)
@@ -640,7 +654,7 @@ def shocked_cocoon(time, redshift, mej, vej, eta, tshock, shocked_fraction, cos_
                                                                           lambdas=lambda_observer_frame,
                                                                           spectra=spectra)
         else:
-            return sed.get_correct_output_format_from_spectra(time=time_obs, time_eval=time_observer_frame / day_to_s,
+            return sed.get_correct_output_format_from_spectra(time=time_obs, time_eval=time_observer_frame,
                                                               spectra=spectra, lambda_array=lambda_observer_frame,
                                                               **kwargs)
 
