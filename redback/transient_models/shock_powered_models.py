@@ -550,7 +550,7 @@ def _shocked_cocoon(time, mej, vej, eta, tshock, shocked_fraction, cos_theta_coc
     """
     :param time: source frame time in days
     :param mej: ejecta mass in solar masses
-    :param vej: ejecta mass in c
+    :param vej: ejecta velocity in c
     :param eta: slope for ejecta density profile
     :param tshock: shock time in seconds
     :param shocked_fraction: fraction of ejecta mass shocked
@@ -607,7 +607,7 @@ def shocked_cocoon(time, redshift, mej, vej, eta, tshock, shocked_fraction, cos_
     :param time: observer frame time in days
     :param redshift: redshift
     :param mej: ejecta mass in solar masses
-    :param vej: ejecta mass in km/s
+    :param vej: ejecta velocity in c
     :param eta: slope for ejecta density profile
     :param tshock: shock time in seconds
     :param shocked_fraction: fraction of ejecta mass shocked
