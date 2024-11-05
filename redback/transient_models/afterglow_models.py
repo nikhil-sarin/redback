@@ -289,7 +289,7 @@ class RedbackAfterglows():
             fac = 0.5 * latstep
             OmG = rotstep * (np.cos(thi - fac) - np.cos(ex/self.res + thi + fac))  # equivalent form for linear spacing
         else:
-            te = np.ones(te.size)  # no expansion
+            ex = np.ones(te.size)  # no expansion
             fac = 0.5 * latstep
             OmG = rotstep * (np.cos(thi - fac) - np.cos(thi + fac))  # equivalent form for linear spacing
         # prepare R
