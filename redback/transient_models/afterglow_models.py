@@ -285,7 +285,7 @@ class RedbackAfterglows():
         te = np.arcsin(cs / (self.cc * (G2 - 1.) ** 0.5))  # equivalent form for angle due to spreading
         # prepare ex and OmG in this function
         if self.is_expansion:
-            ex = te / (G2 * latstep) # expansion
+            ex = te / (G2) # expansion
             fac = 0.5 * latstep
             OmG = rotstep * (np.cos(thi - fac) - np.cos(ex/self.res + thi + fac))  # equivalent form for linear spacing
         else:
@@ -294,7 +294,7 @@ class RedbackAfterglows():
             OmG = rotstep * (np.cos(thi - fac) - np.cos(thi + fac))  # equivalent form for linear spacing
         # prepare R
         size = G.size
-        exponent = ((1 - np.cos(te[0])) / (1 - np.cos(te[:size]))) ** (1/3)
+        exponent = ((1 - np.cos(latstep + ex[0])) / (1 - np.cos(latstep + ex[:size]))) ** (1/2)
         R = ((3. - k) * Ne[:size] / (self.fourpi * n)) ** (1. / (3. - k))
         R[1:] = np.diff(R) * exponent[1:size] ** (1. / (3. - k))
         R = np.cumsum(R)
