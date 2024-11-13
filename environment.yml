@@ -3,8 +3,10 @@ channels:
   - conda-forge
   - defaults
 dependencies:
-  - python=3.8
-  - numpy<1.26
+  - python=3.11
+  - cython
+  - numpy<2.0
+  - sncosmo=2.10.1
   - astropy
   - matplotlib
   - pandas
