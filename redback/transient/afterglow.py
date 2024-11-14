@@ -27,7 +27,8 @@ class Afterglow(Transient):
             flux_density_err: np.ndarray = None, magnitude: np.ndarray = None, magnitude_err: np.ndarray = None,
             redshift: float = np.nan, photon_index: float = np.nan, frequency: np.ndarray = None,
             bands: np.ndarray = None, system: np.ndarray = None, active_bands: Union[np.ndarray, str] = 'all',
-            use_phase_model: bool = False, optical_data: bool = False, **kwargs: None) -> None:
+            plotting_order: Union[np.ndarray, str] = None, use_phase_model: bool = False,
+            optical_data: bool = False, **kwargs: None) -> None:
 
         """
         This is a general constructor for the Afterglow class. Note that you only need to give data corresponding to
@@ -82,6 +83,8 @@ class Afterglow(Transient):
         :type bands: np.ndarray, optional
         :param active_bands: List or array of active bands to be used in the analysis. Use all available bands if 'all' is given.
         :type active_bands: Union[list, np.ndarray]
+        :param plotting_order: Order in which to plot the bands/and how unique bands are stored.
+        :type plotting_order: Union[np.ndarray, str], optional
         :param kwargs:
             Additional classes that can be customised to fulfil the truncation on flux to luminosity conversion:
             FluxToLuminosityConverter: Conversion class to convert fluxes to luminosities.
@@ -100,7 +103,8 @@ class Afterglow(Transient):
                          Lum50=Lum50, Lum50_err=Lum50_err, flux=flux, flux_err=flux_err, flux_density=flux_density,
                          flux_density_err=flux_density_err, use_phase_model=use_phase_model, optical_data=optical_data,
                          magnitude=magnitude, magnitude_err=magnitude_err, frequency=frequency, redshift=redshift,
-                         photon_index=photon_index, system=system, bands=bands, active_bands=active_bands, **kwargs)
+                         photon_index=photon_index, system=system, bands=bands, active_bands=active_bands,
+                         plotting_order=plotting_order, **kwargs)
         self._set_data()
         self._set_photon_index()
         self._set_t90()

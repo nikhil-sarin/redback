@@ -38,7 +38,7 @@ class Transient(object):
             ttes: np.ndarray = None, bin_size: float = None, redshift: float = np.nan, data_mode: str = None,
             name: str = '', photon_index: float = np.nan, use_phase_model: bool = False,
             optical_data: bool = False, frequency: np.ndarray = None, system: np.ndarray = None, bands: np.ndarray = None,
-            active_bands: Union[np.ndarray, str] = None, **kwargs: None) -> None:
+            active_bands: Union[np.ndarray, str] = None, plotting_order: Union[np.ndarray, str] = None, **kwargs: None) -> None:
         """This is a general constructor for the Transient class. Note that you only need to give data corresponding to
         the data mode you are using. For luminosity data provide times in the rest frame, if using a phase model
         provide time in MJD, else use the default time (observer frame).
@@ -98,6 +98,8 @@ class Transient(object):
         :param active_bands: List or array of active bands to be used in the analysis.
                              Use all available bands if 'all' is given.
         :type active_bands: Union[list, np.ndarray], optional
+        :param plotting_order: Order in which to plot the bands/and how unique bands are stored.
+        :type plotting_order: Union[np.ndarray, str], optional
         :param kwargs: Additional callables:
                        bands_to_frequency: Conversion function to convert a list of bands to frequencies.
                                            Use redback.utils.bands_to_frequency if not given.
@@ -142,6 +144,7 @@ class Transient(object):
         self.name = name
         self.use_phase_model = use_phase_model
         self.optical_data = optical_data
+        self.plotting_order = plotting_order
 
         self.meta_data = None
         self.photon_index = photon_index
@@ -179,7 +182,7 @@ class Transient(object):
     @classmethod
     def from_lasair_data(
             cls, name: str, data_mode: str = "magnitude", active_bands: Union[np.ndarray, str] = 'all',
-            use_phase_model: bool = False) -> Transient:
+            use_phase_model: bool = False, plotting_order: Union[np.ndarray, str] = None) -> Transient:
         """Constructor method to built object from LASAIR data.
 
         :param name: Name of the transient.
@@ -189,6 +192,8 @@ class Transient(object):
         :param active_bands: Sets active bands based on array given.
                              If argument is 'all', all unique bands in `self.bands` will be used.
         :type active_bands: Union[np.ndarray, str]
+        :param plotting_order: Order in which to plot the bands/and how unique bands are stored.
+        :type plotting_order: Union[np.ndarray, str], optional
         :param use_phase_model: Whether to use a phase model.
         :type use_phase_model: bool, optional
 
@@ -214,12 +219,12 @@ class Transient(object):
         return cls(name=name, data_mode=data_mode, time=time_days, time_err=None, time_mjd=time_mjd,
                    flux_density=flux_density, flux_density_err=flux_density_err, magnitude=magnitude,
                    magnitude_err=magnitude_err, flux=flux, flux_err=flux_err, bands=bands, active_bands=active_bands,
-                   use_phase_model=use_phase_model, optical_data=True)
+                   use_phase_model=use_phase_model, optical_data=True, plotting_order=plotting_order)
 
     @classmethod
     def from_simulated_optical_data(
             cls, name: str, data_mode: str = "magnitude", active_bands: Union[np.ndarray, str] = 'all',
-            use_phase_model: bool = False) -> Transient:
+            plotting_order: Union[np.ndarray, str] = None, use_phase_model: bool = False) -> Transient:
         """Constructor method to built object from SimulatedOpticalTransient.
 
         :param name: Name of the transient.
@@ -229,6 +234,8 @@ class Transient(object):
         :param active_bands: Sets active bands based on array given.
                              If argument is 'all', all unique bands in `self.bands` will be used.
         :type active_bands: Union[np.ndarray, str]
+        :param plotting_order: Order in which to plot the bands/and how unique bands are stored.
+        :type plotting_order: Union[np.ndarray, str], optional
         :param use_phase_model: Whether to use a phase model.
         :type use_phase_model: bool, optional
 
@@ -250,7 +257,7 @@ class Transient(object):
         return cls(name=name, data_mode=data_mode, time=time_days, time_err=None, time_mjd=time_mjd,
                    flux_density=flux_density, flux_density_err=flux_density_err, magnitude=magnitude,
                    magnitude_err=magnitude_err, flux=flux, flux_err=flux_err, bands=bands, active_bands=active_bands,
-                   use_phase_model=use_phase_model, optical_data=True)
+                   use_phase_model=use_phase_model, optical_data=True, plotting_order=plotting_order)
 
     @property
     def _time_attribute_name(self) -> str:
@@ -501,7 +508,10 @@ class Transient(object):
         :return: All bands that we get from the data, eliminating all duplicates.
         :rtype: np.ndarray
         """
-        return np.unique(self.bands)
+        if self.plotting_order is not None:
+            return self.plotting_order
+        else:
+            return np.unique(self.bands)
 
     @property
     def unique_frequencies(self) -> np.ndarray:
@@ -789,7 +799,8 @@ class OpticalTransient(Transient):
             flux_density_err: np.ndarray = None, magnitude: np.ndarray = None, magnitude_err: np.ndarray = None,
             redshift: float = np.nan, photon_index: float = np.nan, frequency: np.ndarray = None,
             bands: np.ndarray = None, system: np.ndarray = None, active_bands: Union[np.ndarray, str] = 'all',
-            use_phase_model: bool = False, optical_data:bool = True, **kwargs: None) -> None:
+            plotting_order: Union[np.ndarray, str] = None, use_phase_model: bool = False,
+            optical_data:bool = True, **kwargs: None) -> None:
         """This is a general constructor for the Transient class. Note that you only need to give data corresponding to
         the data mode you are using. For luminosity data provide times in the rest frame, if using a phase model
         provide time in MJD, else use the default time (observer frame).
@@ -839,6 +850,8 @@ class OpticalTransient(Transient):
         :param active_bands: List or array of active bands to be used in the analysis.
                              Use all available bands if 'all' is given.
         :type active_bands: Union[list, np.ndarray], optional
+        :param plotting_order: Order in which to plot the bands/and how unique bands are stored.
+        :type plotting_order: Union[np.ndarray, str], optional
         :param use_phase_model: Whether we are using a phase model.
         :type use_phase_model: bool, optional
         :param optical_data: Whether we are fitting optical data, useful for plotting.
@@ -855,14 +868,15 @@ class OpticalTransient(Transient):
                          flux=flux, flux_err=flux_err, redshift=redshift, photon_index=photon_index,
                          flux_density=flux_density, flux_density_err=flux_density_err, magnitude=magnitude,
                          magnitude_err=magnitude_err, data_mode=data_mode, name=name,
-                         use_phase_model=use_phase_model, optical_data=optical_data, system=system, bands=bands,
+                         use_phase_model=use_phase_model, optical_data=optical_data,
+                         system=system, bands=bands, plotting_order=plotting_order,
                          active_bands=active_bands, **kwargs)
         self.directory_structure = None
 
     @classmethod
     def from_open_access_catalogue(
             cls, name: str, data_mode: str = "magnitude", active_bands: Union[np.ndarray, str] = 'all',
-            use_phase_model: bool = False) -> OpticalTransient:
+            plotting_order: Union[np.ndarray, str] = None, use_phase_model: bool = False) -> OpticalTransient:
         """Constructor method to built object from Open Access Catalogue
 
         :param name: Name of the transient.
@@ -873,6 +887,8 @@ class OpticalTransient(Transient):
             Sets active bands based on array given.
             If argument is 'all', all unique bands in `self.bands` will be used.
         :type active_bands: Union[np.ndarray, str]
+        :param plotting_order: Order in which to plot the bands/and how unique bands are stored.
+        :type plotting_order: Union[np.ndarray, str], optional
         :param use_phase_model: Whether to use a phase model.
         :type use_phase_model: bool, optional
 
@@ -890,7 +906,8 @@ class OpticalTransient(Transient):
         return cls(name=name, data_mode=data_mode, time=time_days, time_err=None, time_mjd=time_mjd,
                    flux_density=flux_density, flux_density_err=flux_density_err, magnitude=magnitude,
                    magnitude_err=magnitude_err, bands=bands, system=system, active_bands=active_bands,
-                   use_phase_model=use_phase_model, optical_data=True, flux=flux, flux_err=flux_err)
+                   use_phase_model=use_phase_model, optical_data=True, flux=flux, flux_err=flux_err,
+                   plotting_order=plotting_order)
 
     @property
     def event_table(self) -> str:
