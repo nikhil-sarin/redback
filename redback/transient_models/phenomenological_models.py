@@ -1,5 +1,19 @@
 import numpy as np
 
+def fallback_lbol(time, logl1, tr):
+    """
+    :param time: time in seconds
+    :param logl1: luminosity scale in log 10 ergs
+    :param tr: transition time for flat luminosity to power-law decay
+    :return: lbol
+    """
+    l1 = 10**logl1
+    time = time * 86400
+    tr = tr * 86400
+    lbol = l1 * time**(-5./3.)
+    lbol[time < tr] = l1 * tr**(-5./3.)
+    return lbol
+
 def line_spectrum(wavelength, line_amp, cont_amp, x0):
     """
     A gaussian to add or subtract from a continuum spectrum to mimic absorption or emission lines
