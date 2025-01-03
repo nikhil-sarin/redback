@@ -12,6 +12,8 @@ from astropy.cosmology import Planck18 as cosmo  # noqa
 import astropy.units as uu
 from scipy.interpolate import interp1d
 
+import ipdb
+
 def _analytic_fallback(time, l0, t_0):
     """
     :param time: time in days
@@ -167,7 +169,8 @@ def _cooling_envelope(mbh_6, stellar_mass, eta, alpha, beta, **kwargs):
     nuLnu40 = nuLnu40 * ((cc.planck * nu) * (nu ** (2.0))) / 1.0e30
     nuLnu40 = nuLnu40 * expon
     nuLnu40 = nuLnu40 * (nu / 1.0e10)
-
+    ipdb.set_trace()
+    
     output.bolometric_luminosity = Lrad[:constraint] * 1e40
     output.photosphere_temperature = Teff[:constraint]
     output.photosphere_radius = Rph[:constraint]
@@ -359,13 +362,14 @@ def gaussianrise_cooling_envelope(time, redshift, peak_time, sigma_t, mbh_6, ste
                                                r_photosphere=output.photosphere_radius,
                                                dl=dl, frequency=freq).to(uu.mJy)
             flux_den = np.concatenate([f1, f2.value])
-            flux_den_interp_func[freq] = interp1d(total_time, flux_den, fill_value='extrapolate')
+            flux_den_interp_func[freq] = interp1d(total_time, flux_den, fill_value='extrapolate')   
 
         # interpolate onto actual observed frequency and time values
         flux_density = []
         for freq, tt in zip(frequency, time):
             flux_density.append(flux_den_interp_func[freq](tt * cc.day_to_s))
-        flux_density = flux_density * uu.mJy
+        flux_density = flux_density * uu.mJy            
+        #ipdb.set_trace()         
         return flux_density.to(uu.mJy).value
     else:
         bands = kwargs['bands']
@@ -618,7 +622,69 @@ def tde_analytical(time, redshift, l0, t_0_turn, **kwargs):
             return sed.get_correct_output_format_from_spectra(time=time_obs, time_eval=time_observer_frame,
                                                               spectra=spectra, lambda_array=lambda_observer_frame,
                                                               **kwargs)
-
+    
+@citation_wrapper('https://ui.adsabs.harvard.edu/abs/2024arXiv240815048M/abstract')   
+def fitted(time, redshift, log_mh, a_bh, m_disc, r0, tvi, t0, incl, **kwargs):
+    """
+    :param time: observer frame time in days
+    :param redshift: redshift
+    :param log_mh: log of the black hole mass (solar masses)
+    :param a_bh: black hole spin parameter (dimensionless)
+    :param m_disc: initial mass of disc ring (solar masses)
+    :param r0: initial radius of disc ring (gravitational radii)
+    :param tvi: viscous timescale of disc evolution (days)
+    :param t0: time of ring formation prior to t = 0 (days)
+    :param incl: disc-observer inclination angle (radians)    
+    :param kwargs: Must be all the kwargs required by the specific output_format 
+    :param output_format: 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'  
+    :param frequency: Required if output_format is 'flux_density'.
+        frequency to calculate - Must be same length as time array or a single number).
+    :param bands: Required if output_format is 'magnitude' or 'flux'.
+    :param cosmology: Cosmology to use for luminosity distance calculation. Defaults to Planck18. Must be a astropy.cosmology object.
+    :return: set by output format - 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
+    """
+    import fitted #user needs to have downloaded and compiled FitTeD in order to run this model
+    cosmology = kwargs.get('cosmology', cosmo)
+    dl = cosmology.luminosity_distance(redshift).cgs.value
+    ang = 180.0/np.pi*incl
+    m = fitted.models.GR_disc()
+    
+    if kwargs['output_format'] == 'flux_density':
+        frequency = kwargs['frequency']
+        frequency, time = calc_kcorrected_properties(frequency=frequency, redshift=redshift, time=time)
+        freqs_un = np.unique(frequency)
+        nulnus = np.zeros(len(time))
+        if len(freqs_un) == 1:
+            nulnus = m.model_UV(time, log_mh, a_bh, m_disc, r0, tvi, t0, ang, frequency)
+        else:
+            for i in range(0,len(freqs_un)):
+                inds = np.where(frequency == freqs_un[i])[0]
+                nulnus[inds] = m.model_UV([time[j] for j in inds], log_mh, a_bh, m_disc, r0, tvi, t0, ang, freqs_un[i])
+        flux_density = nulnus/(4.0 * np.pi * dl**2 * frequency)   
+        return flux_density/1.0e-26   
+    
+    else:
+        time_obs = time
+        lambda_observer_frame = kwargs.get('lambda_array', np.geomspace(100, 60000, 100))
+        time_temp = np.geomspace(0.1, 3000, 300) # in days
+        time_observer_frame = time_temp * (1. + redshift)
+        frequency, time = calc_kcorrected_properties(frequency=lambda_to_nu(lambda_observer_frame),
+                                                     redshift=redshift, time=time_observer_frame)
+        nulnus = m.model_SEDs(time, log_mh, a_bh, m_disc, r0, tvi, t0, ang, frequency)
+        #ipdb.set_trace()
+        flux_density = (nulnus/(4.0 * np.pi * dl**2 * frequency[:,np.newaxis] * 1.0e-26)) 
+        fmjy = flux_density.T           
+        spectra = (fmjy * uu.mJy).to(uu.erg / uu.cm ** 2 / uu.s / uu.Angstrom,
+                                     equivalencies=uu.spectral_density(wav=lambda_observer_frame * uu.Angstrom))                          
+        if kwargs['output_format'] == 'spectra':
+            return namedtuple('output', ['time', 'lambdas', 'spectra'])(time=time_observer_frame,
+                                                                          lambdas=lambda_observer_frame,
+                                                                          spectra=spectra)
+        else:
+            return sed.get_correct_output_format_from_spectra(time=time_obs, time_eval=time_observer_frame,
+                                                              spectra=spectra, lambda_array=lambda_observer_frame,
+                                                              **kwargs)
+                                                              
 @citation_wrapper('https://ui.adsabs.harvard.edu/abs/2019ApJ...872..151M/abstract')
 def tde_semianalytical():
-    raise NotImplementedError("This model is not yet implemented.")
+    raise NotImplementedError("This model is not yet implemented.")                                                             
