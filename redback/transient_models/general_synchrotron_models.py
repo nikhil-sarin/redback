@@ -68,6 +68,21 @@ def _calc_photoelectric_abs(frequency, Zbar, mej, radius_2darray, F_nu_2darray):
     F_nu_2darray[:,msk] = F_nu_2darray[:,msk] * np.exp(-tau_pe[:,msk])
     
     return F_nu_2darray
+    
+def _calc_optical_abs(frequency, kappa, mej, radius_2darray, F_nu_2darray):
+    """
+    :param frequency: frequency to calculate
+    :param kappa: thermalization opacity
+    :param mej: ejecta mass in solar units
+    :param radius_2darray: radius of the ejecta at each time
+    :param F_nu_2darray: unabsorbed flux density
+    :return: absorbed flux density
+    """
+    msk = np.logical_and((frequency < 2.42e15),(frequency > 2.42e13))
+    tau_opt = 3.0 * kappa * mej * solar_mass / (4.0 * np.pi * radius_2darray**2)
+    F_nu_2darray[:,msk] = F_nu_2darray[:,msk] * np.exp(-tau_opt[:,msk])
+    
+    return F_nu_2darray    
 
 @citation_wrapper('Omand et al. (2024)')
 def pwn(time, redshift, mej, l0, tau_sd, nn, eps_b, gamma_b, **kwargs):
@@ -82,7 +97,7 @@ def pwn(time, redshift, mej, l0, tau_sd, nn, eps_b, gamma_b, **kwargs):
     :param gamma_b: Lorentz factor of electrons at synchrotron break
     :param kwargs: Additional parameters - 
     :param E_sn: supernova explosion energy
-    :param kappa: opacity (used only in dynamics)
+    :param kappa: opacity (used only in dynamics and optical absorption)
     :param kappa_gamma: gamma-ray opacity used to calculate magnetar thermalisation efficiency (used only in dynamics)
     :param q1: low energy spectral index (must be < 2)
     :param q2: high energy spectral index (must be > 2)
@@ -167,7 +182,8 @@ def pwn(time, redshift, mej, l0, tau_sd, nn, eps_b, gamma_b, **kwargs):
         F_nu[msk] = F_nu_ssa_arr.T[msk] * (freq_arr[msk] / nu_ssa_arr.T[msk]) ** 2.5 
         
     F_nu = _calc_free_free_abs(frequency, Y_fe, Zbar, mej, r_arr.T, F_nu)
-    F_nu = _calc_compton_scat(frequency, Y_e, mej, r_arr.T, F_nu) 
+    F_nu = _calc_compton_scat(frequency, Y_e, mej, r_arr.T, F_nu)
+    F_nu = _calc_optical_abs(frequency, kappa, mej, r_arr.T, F_nu) 
     if (np.max(frequency) > 2.42e15):
         F_nu = _calc_photoelectric_abs(frequency, Zbar, mej, r_arr.T, F_nu)
 
