@@ -620,7 +620,6 @@ def tde_analytical(time, redshift, l0, t_0_turn, **kwargs):
             return sed.get_correct_output_format_from_spectra(time=time_obs, time_eval=time_observer_frame,
                                                               spectra=spectra, lambda_array=lambda_observer_frame,
                                                               **kwargs)
-<<<<<<< HEAD
     
 @citation_wrapper('https://ui.adsabs.harvard.edu/abs/2024arXiv240815048M/abstract')   
 def fitted(time, redshift, log_mh, a_bh, m_disc, r0, tvi, t0, incl, **kwargs):
