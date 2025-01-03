@@ -18,7 +18,7 @@ class SimulateGenericTransient(object):
         """
         A generic interface to simulating transients
 
-        :param model: String corresponding to redback model
+        :param model: String corresponding to redback model or a python function that can evaluate an SED.
         :param parameters: Dictionary of parameters describing a single transient
         :param times: Time values that the model is evaluated from
         :param model_kwargs: Additional keyword arguments, must include all the keyword arguments required by the model.
@@ -38,7 +38,10 @@ class SimulateGenericTransient(object):
             or is sigma itself for 'gaussian' noise.
         :param extra_scatter: Float. Sigma of normal added to output for additional scatter.
         """
-        self.model = redback.model_library.all_models_dict[model]
+        if model in redback.model_library.all_models_dict:
+            self.model = redback.model_library.all_models_dict[model]
+        else:
+            self.model = model    
         self.parameters = parameters
         self.all_times = times
         self.model_kwargs = model_kwargs

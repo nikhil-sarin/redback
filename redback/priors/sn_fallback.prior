@@ -1,0 +1,8 @@
+redshift = Uniform(1e-3,3,name='redshift', latex_label = r'$z$')
+logl1 = Uniform(51, 57, name='logl1', latex_label=r'$\log_{10}L_{1} [erg~s^{-1}]$')
+tr = LogUniform(1e-4, 100, name='tr', latex_label=r'T_{r} [day]')
+mej = LogUniform(1e-4, 100, 'mej', latex_label = r'$M_{\mathrm{ej}}~(M_\odot)$')
+vej = LogUniform(1e3, 1e5, 'vej', latex_label = r'$v_{\mathrm{ej}}~(\mathrm{km}/\mathrm{s})$')
+kappa = Uniform(0.05, 2, 'kappa', latex_label = r'$\\kappa~(\mathrm{cm}^{2}/\mathrm{g})$')
+kappa_gamma = LogUniform(1e-4, 1e4, 'kappa_gamma', latex_label = r'$\\kappa_{\\gamma}~(\mathrm{cm}^{2}/\mathrm{g})$')
+temperature_floor = LogUniform(1e3,1e5,name = 'temperature_floor', latex_label = r'$T_{\mathrm{floor}}~(\mathrm{K})$')
