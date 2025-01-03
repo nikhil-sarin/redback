@@ -167,7 +167,6 @@ def _cooling_envelope(mbh_6, stellar_mass, eta, alpha, beta, **kwargs):
     nuLnu40 = nuLnu40 * ((cc.planck * nu) * (nu ** (2.0))) / 1.0e30
     nuLnu40 = nuLnu40 * expon
     nuLnu40 = nuLnu40 * (nu / 1.0e10)
-    ipdb.set_trace()
     
     output.bolometric_luminosity = Lrad[:constraint] * 1e40
     output.photosphere_temperature = Teff[:constraint]
@@ -366,8 +365,7 @@ def gaussianrise_cooling_envelope(time, redshift, peak_time, sigma_t, mbh_6, ste
         flux_density = []
         for freq, tt in zip(frequency, time):
             flux_density.append(flux_den_interp_func[freq](tt * cc.day_to_s))
-        flux_density = flux_density * uu.mJy            
-        #ipdb.set_trace()         
+        flux_density = flux_density * uu.mJy                     
         return flux_density.to(uu.mJy).value
     else:
         bands = kwargs['bands']
@@ -669,7 +667,6 @@ def fitted(time, redshift, log_mh, a_bh, m_disc, r0, tvi, t0, incl, **kwargs):
         frequency, time = calc_kcorrected_properties(frequency=lambda_to_nu(lambda_observer_frame),
                                                      redshift=redshift, time=time_observer_frame)
         nulnus = m.model_SEDs(time, log_mh, a_bh, m_disc, r0, tvi, t0, ang, frequency)
-        #ipdb.set_trace()
         flux_density = (nulnus/(4.0 * np.pi * dl**2 * frequency[:,np.newaxis] * 1.0e-26)) 
         fmjy = flux_density.T           
         spectra = (fmjy * uu.mJy).to(uu.erg / uu.cm ** 2 / uu.s / uu.Angstrom,
