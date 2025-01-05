@@ -1,7 +1,7 @@
 redshift = Uniform(1e-6, 3, 'redshift', latex_label = r'$z$')
 log_mh = Uniform(0, 10, name='log_mh', latex_label = r'$\log(M_{\mathrm{BH}})~[M_{\odot}]$')
 a_bh = Uniform(-1, 1, name='a_bh', latex_label = r'$a_{\mathrm{BH}}$')
-m_disc = LogUniform(1e-3, 10, name='m_disc', latex_label=r'(M_{\mathrm{disc}})~[M_{\odot}])
+m_disc = LogUniform(1e-3, 10, name='m_disc', latex_label=r'$M_{\mathrm{disc}}~[M_\odot]$')
 r0 = LogUniform(2, 1e3, name='r0', latex_label=r'$r_0$ [days]')
 tvi = LogUniform(1, 1e4, name='tvi', latex_label=r'$t_{\mathrm{vi}}$ [days]')
 to = Uniform(-100, 365, name='to', latex_label = r'$t_0$ [days]')
