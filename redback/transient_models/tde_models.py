@@ -620,7 +620,7 @@ def tde_analytical(time, redshift, l0, t_0_turn, **kwargs):
                                                               **kwargs)
     
 @citation_wrapper('https://ui.adsabs.harvard.edu/abs/2024arXiv240815048M/abstract')   
-def fitted(time, redshift, log_mh, a_bh, m_disc, r0, tvi, t0, incl, **kwargs):
+def fitted(time, redshift, log_mh, a_bh, m_disc, r0, tvi, t_form, incl, **kwargs):
     """
     :param time: observer frame time in days
     :param redshift: redshift
@@ -629,7 +629,7 @@ def fitted(time, redshift, log_mh, a_bh, m_disc, r0, tvi, t0, incl, **kwargs):
     :param m_disc: initial mass of disc ring (solar masses)
     :param r0: initial radius of disc ring (gravitational radii)
     :param tvi: viscous timescale of disc evolution (days)
-    :param t0: time of ring formation prior to t = 0 (days)
+    :param t_form: time of ring formation prior to t = 0 (days)
     :param incl: disc-observer inclination angle (radians)    
     :param kwargs: Must be all the kwargs required by the specific output_format 
     :param output_format: 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'  
@@ -651,11 +651,11 @@ def fitted(time, redshift, log_mh, a_bh, m_disc, r0, tvi, t0, incl, **kwargs):
         freqs_un = np.unique(frequency)
         nulnus = np.zeros(len(time))
         if len(freqs_un) == 1:
-            nulnus = m.model_UV(time, log_mh, a_bh, m_disc, r0, tvi, t0, ang, frequency)
+            nulnus = m.model_UV(time, log_mh, a_bh, m_disc, r0, tvi, t_form, ang, frequency)
         else:
             for i in range(0,len(freqs_un)):
                 inds = np.where(frequency == freqs_un[i])[0]
-                nulnus[inds] = m.model_UV([time[j] for j in inds], log_mh, a_bh, m_disc, r0, tvi, t0, ang, freqs_un[i])
+                nulnus[inds] = m.model_UV([time[j] for j in inds], log_mh, a_bh, m_disc, r0, tvi, t_form, ang, freqs_un[i])
         flux_density = nulnus/(4.0 * np.pi * dl**2 * frequency)   
         return flux_density/1.0e-26   
     
@@ -666,7 +666,7 @@ def fitted(time, redshift, log_mh, a_bh, m_disc, r0, tvi, t0, incl, **kwargs):
         time_observer_frame = time_temp * (1. + redshift)
         frequency, time = calc_kcorrected_properties(frequency=lambda_to_nu(lambda_observer_frame),
                                                      redshift=redshift, time=time_observer_frame)
-        nulnus = m.model_SEDs(time, log_mh, a_bh, m_disc, r0, tvi, t0, ang, frequency)
+        nulnus = m.model_SEDs(time, log_mh, a_bh, m_disc, r0, tvi, t_form, ang, frequency)
         flux_density = (nulnus/(4.0 * np.pi * dl**2 * frequency[:,np.newaxis] * 1.0e-26)) 
         fmjy = flux_density.T           
         spectra = (fmjy * uu.mJy).to(uu.erg / uu.cm ** 2 / uu.s / uu.Angstrom,
