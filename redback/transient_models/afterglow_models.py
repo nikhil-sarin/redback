@@ -8,7 +8,6 @@ import numpy as np
 from collections import namedtuple
 from scipy.special import erf
 from scipy.interpolate import interp1d
-import ipdb
 try:
     import afterglowpy as afterglow
 
