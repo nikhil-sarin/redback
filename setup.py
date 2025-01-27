@@ -44,7 +44,9 @@ setup(
             "kilonova-heating-rate",
             "redback-surrogates",
             "kilonovanet",
-            "astroquery"
+            "astroquery",
+            "jetsimpy",
+            "fitted"
         ]
     },
     python_requires=">=3.7",
