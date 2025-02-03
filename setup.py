@@ -45,8 +45,6 @@ setup(
             "redback-surrogates",
             "kilonovanet",
             "astroquery",
-            "jetsimpy",
-            "fitted"
         ]
     },
     python_requires=">=3.7",
