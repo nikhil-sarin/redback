@@ -23,3 +23,9 @@ docs/api/*
 #setups from other programs
 .spyproject/*
 .ipynb_checkpoints
+
+#ignore a few priors
+redback/priors/fitted.prior
+redback/priors/jetsimpy_tophat.prior
+redback/priors/jetsimpy_gaussian.prior
+redback/priors/jetsimpy_powerlaw.prior
