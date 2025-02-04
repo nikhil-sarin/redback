@@ -69,6 +69,8 @@ class TestPhaseModels(unittest.TestCase):
             model_name = f.replace(".prior", "")
             if model_name == 'trapped_magnetar':
                 kwargs['output_format'] = 'luminosity'
+            elif model_name in ['fitted', 'jetsimpy_tophat', 'jetsimpy_gaussian', 'jetsimpy_powerlaw']:
+                pass
             else:
                 kwargs['output_format'] = 'flux_density'
             prior = self.get_prior(file=f)
