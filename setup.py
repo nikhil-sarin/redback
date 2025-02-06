@@ -17,7 +17,7 @@ setup(
     package_dir={'redback': 'redback', },
     package_data={'redback': ['priors/*', 'tables/*', 'plot_styles/*']},
     install_requires=[
-        "numpy",
+        "numpy<1.9",
         "setuptools",
         "pandas",
         "scipy==1.14.0",
@@ -47,7 +47,7 @@ setup(
             "astroquery"
         ]
     },
-    python_requires=">=3.8",
+    python_requires=">=3.10",
     classifiers=[
         "Programming Language :: Python :: 3",
         "License :: OSI Approved :: GNU General Public License v3 (GPLv3)",
