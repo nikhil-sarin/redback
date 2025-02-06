@@ -11,16 +11,16 @@ setup(
     long_description_content_type="text/markdown",
     url='https://github.com/nikhil-sarin/redback',
     author='Nikhil Sarin, Moritz Huebner',
-    author_email='nikhil.sarin@su.se',
+    author_email='nsarin.astro@gmail.com',
     license='GNU General Public License v3 (GPLv3)',
     packages=['redback', 'redback.get_data', 'redback.transient', 'redback.transient_models'],
     package_dir={'redback': 'redback', },
     package_data={'redback': ['priors/*', 'tables/*', 'plot_styles/*']},
     install_requires=[
-        "numpy<1.26",
+        "numpy",
         "setuptools",
         "pandas",
-        "scipy==1.13.1",
+        "scipy",
         "selenium",
         "sncosmo",
         "matplotlib",
@@ -47,7 +47,7 @@ setup(
             "astroquery"
         ]
     },
-    python_requires=">=3.7",
+    python_requires=">=3.8",
     classifiers=[
         "Programming Language :: Python :: 3",
         "License :: OSI Approved :: GNU General Public License v3 (GPLv3)",
