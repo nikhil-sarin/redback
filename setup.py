@@ -20,7 +20,7 @@ setup(
         "numpy",
         "setuptools",
         "pandas",
-        "scipy",
+        "scipy==1.14.1",
         "selenium",
         "sncosmo",
         "matplotlib",
@@ -31,7 +31,7 @@ setup(
         "lxml",
         "sphinx-rtd-theme",
         "sphinx-tabs",
-        "bilby",
+        "bilby==2.4.0",
         "regex",
     ],
     extras_require={
