@@ -353,12 +353,12 @@ def nicholl_bns(time, redshift, mass_1, mass_2, lambda_s, kappa_red, kappa_blue,
     cosmology = kwargs.get('cosmology', cosmo)
     dl = cosmology.luminosity_distance(redshift).cgs.value
     dense_resolution = kwargs.get('dense_resolution', 100)
-    time_temp = np.geomspace(0.1, 30, dense_resolution)  # in source frame and days
+    time_temp = np.geomspace(0.01, 30, dense_resolution)  # in source frame and days
     kappa_gamma = kwargs.get('kappa_gamma', 10)
     ckm = 3e10/1e5
 
     if np.max(time) > 20: # in source frame and days
-        time_temp = np.geomspace(0.1, np.max(time) + 5, dense_resolution)
+        time_temp = np.geomspace(0.01, np.max(time) + 5, dense_resolution)
 
     time_obs = time
     shocked_fraction = kwargs.get('shocked_fraction', 0.2)
@@ -370,7 +370,7 @@ def nicholl_bns(time, redshift, mass_1, mass_2, lambda_s, kappa_red, kappa_blue,
                                          epsilon=epsilon, alpha=alpha, cos_theta_open=cos_theta_open, 
                                          cos_theta=cos_theta, **kwargs)
     cocoon_output = _shocked_cocoon_nicholl(time=time_temp, kappa=kappa_blue, mejecta=output.mejecta_blue,
-                                  vejecta=output.vejecta_blue*ckm, cos_theta_cocoon=cos_theta_cocoon,
+                                  vejecta=output.vejecta_blue, cos_theta_cocoon=cos_theta_cocoon,
                                   shocked_fraction=shocked_fraction, nn=nn, tshock=tshock)
     cocoon_photo = CocoonPhotosphere(time=time_temp, luminosity=cocoon_output.lbol,
                                      tau_diff=cocoon_output.taudiff, t_thin=cocoon_output.tthin,
