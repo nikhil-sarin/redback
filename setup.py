@@ -20,7 +20,7 @@ setup(
         "numpy",
         "setuptools",
         "pandas",
-        "scipy==1.14.1",
+        "scipy==1.14.0",
         "selenium",
         "sncosmo",
         "matplotlib",
