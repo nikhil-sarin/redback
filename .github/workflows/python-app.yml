@@ -15,11 +15,11 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - uses: actions/checkout@v2
-    - name: Set up Python 3.9
-      uses: actions/setup-python@v2
+    - uses: actions/checkout@v4
+    - name: Set up Python 3.10.4
+      uses: actions/setup-python@v4
       with:
-        python-version: 3.9
+        python-version: 3.10.4
     - name: Install dependencies
       run: |
         sudo apt-get update
@@ -27,7 +27,6 @@ jobs:
         sudo apt-get install dvipng texlive-latex-extra texlive-fonts-recommended cm-super
         python -m pip install --upgrade pip
         pip install flake8 pytest
-        pip install numpy
         if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
         if [ -f optional_requirements.txt ]; then pip install -r optional_requirements.txt; fi
         pip install flake8 pytest pytest-cov coverage coverage-badge coveralls
@@ -37,7 +36,7 @@ jobs:
         coverage lcov
         coverage html
     - name: Archive production artifacts
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: HTML coverage upload
         path: |

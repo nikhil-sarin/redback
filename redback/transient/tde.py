@@ -15,7 +15,8 @@ class TDE(OpticalTransient):
             flux_density: np.ndarray = None, flux_density_err: np.ndarray = None, magnitude: np.ndarray = None,
             magnitude_err: np.ndarray = None, redshift: float = np.nan, photon_index: float = np.nan,
             bands: np.ndarray = None, system: np.ndarray = None, active_bands: Union[np.ndarray, str] = 'all',
-            use_phase_model: bool = False, optical_data:bool = True, **kwargs: None) -> None:
+            plotting_order: Union[np.ndarray, str] = None, use_phase_model: bool = False,
+            optical_data:bool = True, **kwargs: None) -> None:
         """
 
         :param name: Name of the transient.
@@ -66,6 +67,8 @@ class TDE(OpticalTransient):
         :type bands: np.ndarray, optional
         :param active_bands: List or array of active bands to be used in the analysis. Use all available bands if 'all' is given.
         :type active_bands: Union[list, np.ndarray]
+        :param plotting_order: Order in which to plot the bands/and how unique bands are stored.
+        :type plotting_order: Union[np.ndarray, str], optional
         :param kwargs: Additional callables:
                         bands_to_frequency: Conversion function to convert a list of bands to frequencies. Use
                         redback.utils.bands_to_frequency if not given.
@@ -77,7 +80,7 @@ class TDE(OpticalTransient):
                          magnitude=magnitude, magnitude_err=magnitude_err, data_mode=data_mode, name=name,
                          use_phase_model=use_phase_model, optical_data=optical_data, bands=bands,
                          system=system, active_bands=active_bands,redshift=redshift,
-                         photon_index=photon_index, **kwargs)
+                         photon_index=photon_index, plotting_order=plotting_order, **kwargs)
         self.directory_structure = redback.get_data.directory.open_access_directory_structure(
             transient=self.name, transient_type="tidal_disruption_event")
         self._set_data()
