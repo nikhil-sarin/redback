@@ -17,7 +17,7 @@ setup(
     package_dir={'redback': 'redback', },
     package_data={'redback': ['priors/*', 'tables/*', 'plot_styles/*']},
     install_requires=[
-        "numpy<1.8",
+        "numpy",
         "setuptools",
         "pandas",
         "scipy<1.14.0",
@@ -31,6 +31,7 @@ setup(
         "sphinx-tabs",
         "bilby",
         "regex",
+        "sncosmo",
     ],
     extras_require={
         'all': [
