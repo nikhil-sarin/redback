@@ -1669,7 +1669,6 @@ def csm_shock_and_arnett(time, redshift, mej, f_nickel, csm_mass, v_min, beta, s
         lbol = csm_shock_and_arnett_bolometric(time=time, mej=mej, f_nickel=f_nickel, csm_mass=csm_mass,
                                                v_min=v_min, beta=beta, shell_radius=shell_radius,
                                                shell_width_ratio=shell_width_ratio, kappa=kappa, **kwargs)
-        #######################################################################
         photo = photosphere.TemperatureFloor(time=time, luminosity=lbol, vej=v_min, **kwargs)
         sed_1 = sed.Blackbody(temperature=photo.photosphere_temperature, r_photosphere=photo.r_photosphere,
                               frequency=frequency[:, None], luminosity_distance=dl)
