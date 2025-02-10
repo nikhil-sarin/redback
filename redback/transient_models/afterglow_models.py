@@ -2113,4 +2113,108 @@ def afterglow_models_sed(time, **kwargs):
                                                       spectra=spectra, lambda_array=lambda_observer_frame,
                                                       **kwargs)
 
+@citation_wrapper('https://ui.adsabs.harvard.edu/abs/2024ApJS..273...17W/abstract')
+def jetsimpy_tophat(time, redshift, thv, loge0, thc, nism, A, p, logepse, logepsb, g0, **kwargs):
+    """
+    A tophat jet model from jetsimpy
+    :param time: time in days in observer frame
+    :param redshift: source redshift
+    :param thv: viewing angle in radians
+    :param loge0: log10 on axis isotropic equivalent energy
+    :param thc: half width of jet core/jet opening angle in radians
+    :param nism: number density of ISM in cm^-3 (ntot = A * (r / 1e17)^-2 + nism (cm^-3))
+    :param A: wind density scale (ntot = A * (r / 1e17)^-2 + nism (cm^-3))
+    :param p: electron distribution power law index.
+    :param logepse: log10 fraction of thermal energy in electrons
+    :param logepsb: log10 fraction of thermal energy in magnetic field
+    :param g0: initial lorentz factor
+    :param kwargs: Additional keyword arguments
+    :param output_format: Whether to output flux density or AB mag
+    :param frequency: frequency in Hz for the flux density calculation
+    :param cosmology: Cosmology to use for luminosity distance calculation. Defaults to Planck18. Must be a astropy.cosmology object.
+    :return: flux density or AB mag. Note this is going to give the monochromatic magnitude at the effective frequency for the band.
+    """
+    import jetsimpy #Can not use models unless jetsimpy is downloaded
+    time = time * day_to_s
+    cosmology = kwargs.get('cosmology', cosmo)
+    dl = cosmology.luminosity_distance(redshift).cgs.value
+    P = dict(Eiso = 10 ** loge0, lf = g0, theta_c = thc, n0 = nism, A = A, eps_e = 10 ** logepse, eps_b = 10 ** logepsb, p = p, theta_v = thv, d = dl*3.24078e-25, z = redshift) #make a param dict
+    if kwargs['output_format'] == 'flux_density':
+        frequency = kwargs['frequency']
+        flux_density = jetsimpy.FluxDensity_tophat(time, frequency, P)
+        return flux_density   
+    else:
+        frequency = bands_to_frequency(kwargs['bands'])       
+        flux_density = jetsimpy.FluxDensity_tophat(time, frequency, P)
+        return calc_ABmag_from_flux_density(flux_density).value
 
+@citation_wrapper('https://ui.adsabs.harvard.edu/abs/2024ApJS..273...17W/abstract')
+def jetsimpy_gaussian(time, redshift, thv, loge0, thc, nism, A, p, logepse, logepsb, g0, **kwargs):
+    """
+    A gaussian jet model from jetsimpy
+    :param time: time in days in observer frame
+    :param redshift: source redshift
+    :param thv: viewing angle in radians
+    :param loge0: log10 on axis isotropic equivalent energy
+    :param thc: half width of jet core/jet opening angle in radians
+    :param nism: number density of ISM in cm^-3 (ntot = A * (r / 1e17)^-2 + nism (cm^-3))
+    :param A: wind density scale (ntot = A * (r / 1e17)^-2 + nism (cm^-3))
+    :param p: electron distribution power law index.
+    :param logepse: log10 fraction of thermal energy in electrons
+    :param logepsb: log10 fraction of thermal energy in magnetic field
+    :param g0: initial lorentz factor
+    :param kwargs: Additional keyword arguments
+    :param output_format: Whether to output flux density or AB mag
+    :param frequency: frequency in Hz for the flux density calculation
+    :param cosmology: Cosmology to use for luminosity distance calculation. Defaults to Planck18. Must be a astropy.cosmology object.
+    :return: flux density or AB mag. Note this is going to give the monochromatic magnitude at the effective frequency for the band.
+    """
+    import jetsimpy #Can not use models unless jetsimpy is downloaded
+    time = time * day_to_s
+    cosmology = kwargs.get('cosmology', cosmo)
+    dl = cosmology.luminosity_distance(redshift).cgs.value
+    P = dict(Eiso = 10 ** loge0, lf = g0, theta_c = thc, n0 = nism, A = A, eps_e = 10 ** logepse, eps_b = 10 ** logepsb, p = p, theta_v = thv, d = dl*3.24078e-25, z = redshift) #make a param dict
+    if kwargs['output_format'] == 'flux_density':
+        frequency = kwargs['frequency']
+        flux_density = jetsimpy.FluxDensity_gaussian(time, frequency, P)
+        return flux_density   
+    else:
+        frequency = bands_to_frequency(kwargs['bands'])       
+        flux_density = jetsimpy.FluxDensity_gaussian(time, frequency, P)
+        return calc_ABmag_from_flux_density(flux_density).value
+
+@citation_wrapper('https://ui.adsabs.harvard.edu/abs/2024ApJS..273...17W/abstract')
+def jetsimpy_powerlaw(time, redshift, thv, loge0, thc, nism, A, p, logepse, logepsb, g0, s, **kwargs):
+    """
+    A power-law jet model from jetsimpy
+    :param time: time in days in observer frame
+    :param redshift: source redshift
+    :param thv: viewing angle in radians
+    :param loge0: log10 on axis isotropic equivalent energy
+    :param thc: half width of jet core/jet opening angle in radians
+    :param nism: number density of ISM in cm^-3 (ntot = A * (r / 1e17)^-2 + nism (cm^-3))
+    :param A: wind density scale (ntot = A * (r / 1e17)^-2 + nism (cm^-3))
+    :param p: electron distribution power law index.
+    :param logepse: log10 fraction of thermal energy in electrons
+    :param logepsb: log10 fraction of thermal energy in magnetic field
+    :param g0: initial lorentz factor
+    :param s: power-law jet slope
+    :param kwargs: Additional keyword arguments
+    :param output_format: Whether to output flux density or AB mag
+    :param frequency: frequency in Hz for the flux density calculation
+    :param cosmology: Cosmology to use for luminosity distance calculation. Defaults to Planck18. Must be a astropy.cosmology object.
+    :return: flux density or AB mag. Note this is going to give the monochromatic magnitude at the effective frequency for the band.
+    """
+    import jetsimpy #Can not use models unless jetsimpy is downloaded
+    time = time * day_to_s
+    cosmology = kwargs.get('cosmology', cosmo)
+    dl = cosmology.luminosity_distance(redshift).cgs.value
+    P = dict(Eiso = 10 ** loge0, lf = g0, theta_c = thc, n0 = nism, A = A, eps_e = 10 ** logepse, eps_b = 10 ** logepsb, p = p, theta_v = thv, d = dl*3.24078e-25, z = redshift, s = s) #make a param dict
+    if kwargs['output_format'] == 'flux_density':
+        frequency = kwargs['frequency']
+        flux_density = jetsimpy.FluxDensity_powerlaw(time, frequency, P)
+        return flux_density   
+    else:
+        frequency = bands_to_frequency(kwargs['bands'])       
+        flux_density = jetsimpy.FluxDensity_powerlaw(time, frequency, P)
+        return calc_ABmag_from_flux_density(flux_density).value
