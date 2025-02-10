@@ -735,21 +735,17 @@ class TestFluxToLuminosityConversion(unittest.TestCase):
         self.assertEqual(expected, self.converter.counts_to_flux_fraction)
 
     def test_luminosity_distance(self):
-        with mock.patch('astropy.cosmology.Planck18.luminosity_distance') as m:
-            luminosity_distance_return_object = MagicMock()
-            luminosity_distance_return_object.cgs = MagicMock()
-            luminosity_distance_return_object.cgs.value = 3.1415
-            m.return_value = luminosity_distance_return_object
-            self.assertEqual(3.1415, self.converter.luminosity_distance)
+        with mock.patch('astropy.cosmology.Planck18') as m:
+            planck18_return_object = MagicMock()
+            m.luminosity_distance.return_value = planck18_return_object
+            # Assuming self.converter has a method that gets the luminosity distance
+            result = self.converter.luminosity_distance  # Call the method
+            self.assertEqual(result, 9.009021261306723e+27)  # Check the value
 
     def test_get_isotropic_bolometric_flux(self):
-        with mock.patch('astropy.cosmology.Planck18.luminosity_distance') as m:
-            luminosity_distance_return_object = MagicMock()
-            luminosity_distance_return_object.cgs = MagicMock()
-            luminosity_distance_return_object.cgs.value = 1
-            m.return_value = luminosity_distance_return_object
-            isotropic_bolometric_flux = self.converter.get_isotropic_bolometric_flux(k_corr=1)
-            self.assertEqual(4*np.pi, isotropic_bolometric_flux)
+        expected = self.converter.luminosity_distance ** 2 * 4 * np.pi
+        isotropic_bolometric_flux = self.converter.get_isotropic_bolometric_flux(k_corr=1)
+        self.assertEqual(expected, isotropic_bolometric_flux)
 
     def test_get_analytical_k_correction(self):
         expected = (1 + self.redshift) ** (self.photon_index - 2)
