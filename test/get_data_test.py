@@ -671,7 +671,7 @@ class TestFinkDataGetter(unittest.TestCase):
         self.assertEqual(expected_processed_file_path, self.getter.processed_file_path)
 
     def test_url(self):
-        expected = "https://fink-portal.org/api/v1/objects"
+        expected = "https://api.fink-portal.org/api/v1/objects"
         self.assertEqual(expected, self.getter.url)
 
     def test_object_id(self):
