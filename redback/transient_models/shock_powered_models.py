@@ -59,13 +59,36 @@ def _csm_shock_breakout(time, csm_mass, v_min, beta, kappa, shell_radius, shell_
     output.time_temp = time
     return output
 
+@citation_wrapper('https://ui.adsabs.harvard.edu/abs/2022ApJ...933..238M/abstract')
+def csm_shock_breakout_bolometric(time, csm_mass, v_min, beta, kappa, shell_radius, shell_width_ratio, **kwargs):
+    """
+    Dense CSM shock breakout and cooling model From Margalit 2022
+
+    :param time: time in days in source frame
+    :param csm_mass: mass of CSM shell in solar masses
+    :param v_min: minimum velocity in km/s
+    :param beta: velocity ratio in c (beta < 1)
+    :param kappa: opacity in cm^2/g
+    :param shell_radius: radius of shell in 10^14 cm
+    :param shell_width_ratio: shell width ratio (deltaR/R0)
+    :param kwargs: Additional parameters required by model
+    :param cosmology: Cosmology to use for luminosity distance calculation. Defaults to Planck18. Must be a astropy.cosmology object.
+    :return: bolometric luminosity
+    """
+    csm_mass = csm_mass * solar_mass
+    time_temp = np.geomspace(1e-2, 40, 300)  # days
+    outputs = _csm_shock_breakout(time_temp, v_min=v_min, beta=beta,
+                                  kappa=kappa, csm_mass=csm_mass, shell_radius=shell_radius,
+                                  shell_width_ratio=shell_width_ratio, **kwargs)
+    func = interp1d(time_temp, outputs.lbol, fill_value='extrapolate')
+    return func(time)
 
 @citation_wrapper('https://ui.adsabs.harvard.edu/abs/2022ApJ...933..238M/abstract')
 def csm_shock_breakout(time, redshift, csm_mass, v_min, beta, kappa, shell_radius, shell_width_ratio, **kwargs):
     """
     Dense CSM shock breakout and cooling model From Margalit 2022
 
-    :param time: time in days
+    :param time: time in days in observer frame
     :param redshift: redshift
     :param csm_mass: mass of CSM shell in solar masses
     :param v_min: minimum velocity in km/s
@@ -93,9 +116,6 @@ def csm_shock_breakout(time, redshift, csm_mass, v_min, beta, kappa, shell_radiu
                                   shell_width_ratio=shell_width_ratio, **kwargs)
     if kwargs['output_format'] == 'namedtuple':
         return outputs
-    elif kwargs['output_format'] == 'luminosity':
-        func = interp1d(time_temp, outputs.lbol)
-        return func(time)
     elif kwargs['output_format'] == 'flux_density':
         time = time_obs
         frequency = kwargs['frequency']
