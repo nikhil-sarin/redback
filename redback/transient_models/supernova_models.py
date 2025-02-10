@@ -1608,14 +1608,12 @@ def csm_shock_and_arnett_bolometric(time, mej, f_nickel, csm_mass, v_min, beta, 
                 change any other input physics/parameters from default.
     :return: bolometric luminosity in erg/s
     """
-    from redback.transient_models.shock_powered_models import csm_shock_breakout
+    from redback.transient_models.shock_powered_models import csm_shock_breakout_bolometric
     nickel_lbol = arnett_bolometric(time=time, f_nickel=f_nickel,
                                     mej=mej, interaction_process=ip.Diffusion, kappa=kappa, vej=v_min, **kwargs)
-    temp_csm_kwargs = kwargs.copy()
-    temp_csm_kwargs['output_format'] = 'luminosity'
-    sbo_output = csm_shock_breakout(time=time, v_min=v_min, beta=beta,
+    sbo_output = csm_shock_breakout_bolometric(time=time, v_min=v_min, beta=beta,
                                     kappa=kappa, csm_mass=csm_mass, shell_radius=shell_radius,
-                                    shell_width_ratio=shell_width_ratio, **temp_csm_kwargs)
+                                    shell_width_ratio=shell_width_ratio, **kwargs)
     lbol = nickel_lbol + sbo_output
     return lbol
 
