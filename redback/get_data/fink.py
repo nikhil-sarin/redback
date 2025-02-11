@@ -45,7 +45,7 @@ class FinkDataGetter(DataGetter):
         :return: The fink raw data url.
         :rtype: str
         """
-        return "https://fink-portal.org/api/v1/objects"
+        return "https://api.fink-portal.org/api/v1/objects"
 
     @property
     def objectId(self) -> str:
