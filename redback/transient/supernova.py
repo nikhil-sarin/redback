@@ -15,7 +15,8 @@ class Supernova(OpticalTransient):
             flux_density: np.ndarray = None, flux_density_err: np.ndarray = None, magnitude: np.ndarray = None,
             magnitude_err: np.ndarray = None, redshift: float = np.nan, photon_index: float = np.nan,
             bands: np.ndarray = None, system: np.ndarray = None, active_bands: Union[np.ndarray, str] = 'all',
-            use_phase_model: bool = False, optical_data:bool = True, **kwargs: None) -> None:
+            plotting_order: Union[np.ndarray, str] = None, use_phase_model: bool = False,
+            optical_data:bool = True, **kwargs: None) -> None:
         """
         This is a general constructor for the Supernova class. Note that you only need to give data corresponding to
         the data mode you are using. For luminosity data provide times in the rest frame, if using a phase model
@@ -69,6 +70,8 @@ class Supernova(OpticalTransient):
         :type bands: np.ndarray, optional
         :param active_bands: List or array of active bands to be used in the analysis. Use all available bands if 'all' is given.
         :type active_bands: Union[list, np.ndarray]
+        :param plotting_order: Order in which to plot the bands/and how unique bands are stored.
+        :type plotting_order: Union[np.ndarray, str], optional
         :param kwargs: Additional callables:
                         bands_to_frequency: Conversion function to convert a list of bands to frequencies. Use
                         redback.utils.bands_to_frequency if not given.
@@ -80,7 +83,8 @@ class Supernova(OpticalTransient):
                          Lum50_err=Lum50_err, flux_density=flux_density, flux_density_err=flux_density_err,
                          magnitude=magnitude, magnitude_err=magnitude_err, data_mode=data_mode, name=name,
                          use_phase_model=use_phase_model, bands=bands, system=system, active_bands=active_bands,
-                         redshift=redshift, photon_index=photon_index, **kwargs)
+                         redshift=redshift, photon_index=photon_index, optical_data=optical_data,
+                         plotting_order=plotting_order, **kwargs)
         self.directory_structure = redback.get_data.directory.open_access_directory_structure(
             transient=name, transient_type="supernova")
         self._set_data()

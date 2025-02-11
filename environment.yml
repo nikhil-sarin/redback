@@ -4,6 +4,7 @@ channels:
   - defaults
 dependencies:
   - python=3.11
+  - setuptools
   - cython
   - numpy<2.0
   - sncosmo=2.10.1
