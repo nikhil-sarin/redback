@@ -1,4 +1,5 @@
 import numpy as np
+from redback.constants import speed_of_light_si
 
 def fallback_lbol(time, logl1, tr):
     """
@@ -26,6 +27,21 @@ def line_spectrum(wavelength, line_amp, cont_amp, x0):
     """
     spectrum = line_amp / cont_amp * np.exp(-(wavelength - x0) ** 2. / (2 * cont_amp ** 2) )
     return spectrum
+
+def line_spectrum_with_velocity_dispersion(angstroms, wavelength_center, line_strength, velocity_dispersion):
+    """
+    A Gaussian line profile with velocity dispersion
+
+    :param angstroms: wavelength array in angstroms or arbitrary units
+    :param wavelength_center: center of the line in angstroms
+    :param line_strength: line amplitude scale
+    :param velocity_dispersion: velocity in m/s
+    :return: spectrum in whatever units set by line_strength
+    """
+
+    # Calculate the Doppler shift for each wavelength using Gaussian profile
+    intensity = line_strength * np.exp(-0.5 * ((angstroms - wavelength_center) / wavelength_center * speed_of_light_si / velocity_dispersion) ** 2)
+    return intensity
 
 def gaussian_rise(time, a_1, peak_time, sigma_t):
     """
