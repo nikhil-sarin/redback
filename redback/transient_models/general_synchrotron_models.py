@@ -433,3 +433,86 @@ def thermal_synchrotron_fluxdensity(time, redshift, logn0, v0, logr0, eta, logep
     lnu = thermal_synchrotron_lnu(time,logn0, v0, logr0, eta, logepse, logepsb, xi, p,**new_kwargs)
     flux_density = lnu / (4.0 * np.pi * dl**2)
     return flux_density
+    
+@citation_wrapper('https://ui.adsabs.harvard.edu/abs/2022MNRAS.511.5328G/abstract')
+def tde_synchrotron(time, redshift, Mej, vej, logepse, logepsb, p, **kwargs):
+    """
+    :param time: time in observer frame in days
+    :param redshift: redshift
+    :param Mej: mass of the emitting region (solar masses)
+    :param vej: initial velocity of the outflow (km/s)
+    :param logepse: log10 epsilon_e; electron thermalisation efficiency
+    :param logepsb: log10 epsilon_b; magnetic field amplification efficiency
+    :param p: electron power law slope
+    :param kwargs: extra parameters to change physics/settings
+    :param frequency: frequency to calculate model on - Must be same length as time array or a single number)
+    :param geometry: geometry of the outflow.  Either "sphere" or "cone" is supported.
+    :param output_format: Whether to output light curves or physical parameters.
+    :param cosmology: Cosmology to use for luminosity distance calculation. Defaults to Planck18. Must be a astropy.cosmology object.
+    :return: flux density
+    """
+    frequency = kwargs['frequency']
+    geometry = kwargs.get('geometry', 'sphere')
+    cosmology = kwargs.get('cosmology', cosmo)
+    dl = cosmology.luminosity_distance(redshift).cgs.value
+    beta1 = 5.0 / 2.0
+    beta2 = (1.0 - p) / 2.0
+    s = 1.47 - (0.21 * p)
+    eps_e = 10.0 ** logepse
+    eps_b = 10.0 ** logepsb
+    if geometry == 'cone':
+        F_A = 0.13
+        F_V = 1.15
+    else:    
+        F_A = 1.0
+        F_V = 4.0/3.0
+
+    beta = vej * km_cgs / speed_of_light
+    E = Mej * solar_mass * (beta * speed_of_light) ** 2.0 / 2.0
+    R = time * day_to_s * beta * speed_of_light / ((1 - beta) * (1 + redshift))
+    eps = 11.0 * eps_b / (6.0 * eps_e)
+    R_eq = R / eps ** (1.0 / 17.0)
+    E_eq = E / ((11.0 / 17.0) * eps ** (-6.0 / 17.0) + (6.0 / 17.0) * eps ** (11.0 / 17.0))
+    chi_e = 2.0
+    xi = 1.0 + (1.0 / eps_e)
+    
+    R_prefac = (1e17 * (21.8 * 525.0 ** (p - 1.0)) ** (1.0 / (13.0 + 2.0 * p))
+            * chi_e ** ((2.0 - p) / (13.0 + 2.0 * p))
+            * xi ** (1.0 / (13.0 + 2.0 * p))
+            * (dl / 1.0e28) ** (2.0 * (p + 6.0) / (13.0 + 2.0 * p))
+            * (1.0 + redshift) ** (-(19.0 + 3.0 * p) / (13.0 + 2.0 * p))
+            * F_A ** (-(5.0 + p) / (13.0 + 2.0 * p))
+            * F_V ** (-1.0 / (13.0 + 2.0 * p))
+            * 4.0 ** (1.0 / (13.0 + 2.0 * p)))           
+    E_prefac = (1.3e48 * 21.8 ** ((-2.0 * (p + 1.0)) / (13.0 + 2.0 * p))
+            * (525 ** (p - 1.0) * chi_e ** (2.0 - p)) ** (11.0 / (13.0 + 2.0 * p))
+            * xi ** (11.0 / (13.0 + 2.0 * p))
+            * (dl / 1.0e28) ** (2.0 * (3.0 * p + 14.0) / (13.0 + 2.0 * p))
+            * (1.0 + redshift) ** ((-27.0 + 5.0 * p) / (13.0 + 2.0 * p))
+            * F_A ** (-(3.0 * (p + 1.0)) / (13.0 + 2.0 * p))
+            * F_V ** ((2.0 * (p + 1.0)) / (13.0 + 2.0 * p))
+            * 4.0 ** (11.0 / (13.0 + 2.0 * p)))
+            
+    Fvb = (E_prefac * R_eq / (R_prefac * E_eq)) ** ((2.0 * (p + 4.0)) / (13.0 + 2.0 * p))
+    vb = (R_prefac * Fvb ** ((p + 6.0) / (13.0 + 2.0 * p)) / R_eq) * 1.0e10
+    
+    if kwargs['output_format'] == 'physical_parameters':
+        physical_parameters = namedtuple('physical_parameters', ['E', 'R', 'N_e', 'n_e', 'B'])
+        gamma_m = 2.0
+        gamma_a = (525.0 * Fvb * (dl / 1.0e28) ** 2.0 * (1.0 + redshift) ** -3.0 
+                * (vb / 1.0e10) ** -2.0 / (F_A * (R / 1.0e17) ** 2.0))
+        N_e = (4.0e54 * Fvb ** 3.0 * (dl / 1.0e28) ** 6.0 * (vb / 1.0e10) ** -5.0
+                * (1.0 + redshift) ** -8.0 * F_A ** -2.0 * (R / 1.0e17) ** -4.0
+                * (gamma_m / gamma_a) ** (1.0 - p))
+        n_e = N_e / (4.0 /3.0 * np.pi * R ** 3.0)
+        B = (1.3e-2 * Fvb ** -2.0 * (dl / 1.0e28) ** -4.0 * (vb / 1.0e10) ** 5.0
+                * (1.0 + redshift) ** 7.0 * F_A ** 2.0 * (R / 1.0e17) ** 4.0)
+        physical_parameters.E = E
+        physical_parameters.R = R
+        physical_parameters.N_e = N_e
+        physical_parameters.n_e = n_e
+        physical_parameters.B = B    
+        return physical_parameters    
+    else:        
+        flux_density = Fvb * ((frequency / vb) ** (-beta1 * s) + (frequency / vb) ** (-beta2 * s)) ** (-1.0 / s)
+        return flux_density    
