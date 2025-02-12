@@ -1413,7 +1413,7 @@ def general_magnetar_slsn(time, redshift, l0, tsd, nn, ** kwargs):
                                                               spectra=spectra, lambda_array=lambda_observer_frame,
                                                               **kwargs)
 
-@citation_wrapper('Omand and Sarin (2023)')
+@citation_wrapper('https://ui.adsabs.harvard.edu/abs/2024MNRAS.527.6455O/abstract')
 def general_magnetar_driven_supernova_bolometric(time, mej, E_sn, kappa, l0, tau_sd, nn, kappa_gamma, **kwargs):   
     """
     :param time: time in observer frame in days
@@ -1473,7 +1473,7 @@ def general_magnetar_driven_supernova_bolometric(time, mej, E_sn, kappa, l0, tau
     else:
         return lbol
 
-@citation_wrapper('Omand and Sarin (2023)')
+@citation_wrapper('https://ui.adsabs.harvard.edu/abs/2024MNRAS.527.6455O/abstract')
 def general_magnetar_driven_supernova(time, redshift, mej, E_sn, kappa, l0, tau_sd, nn, kappa_gamma, **kwargs):
     """
     :param time: time in observer frame in days
