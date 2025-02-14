@@ -37,8 +37,8 @@ def villar_sne(time, aa, cc, t0, tau_rise, tau_fall, gamma, nu, **kwargs):
     mask2 = (time >= t0 + gamma)
     flux = np.zeros_like(time)
     norm = cc + (aa / (1 + np.exp(-(time - t0)/tau_rise)))
-    flux[mask1] = norm * (1 - (nu * ((time[mask1] - t0)/gamma)))
-    flux[mask2] = norm * ((1 - nu) * np.exp(-((time[mask2] - t0 - gamma)/tau_fall)))
+    flux[mask1] = norm[mask1] * (1 - (nu * ((time[mask1] - t0)/gamma)))
+    flux[mask2] = norm[mask2] * ((1 - nu) * np.exp(-((time[mask2] - t0 - gamma)/tau_fall)))
     return np.concatenate((flux[mask1], flux[mask2]))
 
 def fallback_lbol(time, logl1, tr, **kwargs):
