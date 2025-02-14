@@ -76,7 +76,7 @@ def csm_shock_breakout_bolometric(time, csm_mass, v_min, beta, kappa, shell_radi
     :return: bolometric luminosity
     """
     csm_mass = csm_mass * solar_mass
-    time_temp = np.geomspace(1e-2, 40, 300)  # days
+    time_temp = np.geomspace(1e-2, 200, 300)  # days
     outputs = _csm_shock_breakout(time_temp, v_min=v_min, beta=beta,
                                   kappa=kappa, csm_mass=csm_mass, shell_radius=shell_radius,
                                   shell_width_ratio=shell_width_ratio, **kwargs)
