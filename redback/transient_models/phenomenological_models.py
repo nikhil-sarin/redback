@@ -1,6 +1,47 @@
 import numpy as np
+from redback.utils import citation_wrapper
 
-def fallback_lbol(time, logl1, tr):
+@citation_wrapper('https://ui.adsabs.harvard.edu/abs/2009A%26A...499..653B/abstract')
+def bazin_sne(time, aa, bb, t0, tau_rise, tau_fall, **kwargs):
+    """
+    Bazin function for CCSN light curves
+
+    :param time: time array in arbitrary units
+    :param aa: Normalisation on the Bazin function
+    :param bb: Additive constant
+    :param t0: start time
+    :param tau_rise: exponential rise time
+    :param tau_fall: exponential fall time
+    :return: flux in units set by AA
+    """
+    flux = aa * np.exp(-((time - t0) / tau_fall) / (1 + np.exp(-(time - t0) / tau_rise))) + bb
+    return flux
+
+@citation_wrapper('https://ui.adsabs.harvard.edu/abs/2019ApJ...884...83V/abstract, https://ui.adsabs.harvard.edu/abs/1982ApJ...253..785A/abstract')
+def villar_sne(time, aa, cc, t0, tau_rise, tau_fall, gamma, nu, **kwargs):
+    """
+    Villar function for SN light curves
+
+    :param time: time array in arbitrary units
+    :param aa: normalisation on the Villar function, amplotude
+    :param cc: additive constant, baseline flux
+    :param t0: start time
+    :param tau_rise: exponential rise time
+    :param tau_fall: exponential fall time
+    :param gamma: plateau duration
+    :param nu: related to beta and between 0 an 1; nu = -beta/gamma / A
+    :param kwargs:
+    :return: flux in units set by AA
+    """
+    mask1 = time < t0 + gamma
+    mask2 = (time >= t0 + gamma)
+    flux = np.zeros_like(time)
+    norm = cc + (aa / (1 + np.exp(-(time - t0)/tau_rise)))
+    flux[mask1] = norm[mask1] * (1 - (nu * ((time[mask1] - t0)/gamma)))
+    flux[mask2] = norm[mask2] * ((1 - nu) * np.exp(-((time[mask2] - t0 - gamma)/tau_fall)))
+    return np.concatenate((flux[mask1], flux[mask2]))
+
+def fallback_lbol(time, logl1, tr, **kwargs):
     """
     :param time: time in seconds
     :param logl1: luminosity scale in log 10 ergs
@@ -14,7 +55,7 @@ def fallback_lbol(time, logl1, tr):
     lbol[time < tr] = l1 * tr**(-5./3.)
     return lbol
 
-def line_spectrum(wavelength, line_amp, cont_amp, x0):
+def line_spectrum(wavelength, line_amp, cont_amp, x0, **kwargs):
     """
     A gaussian to add or subtract from a continuum spectrum to mimic absorption or emission lines
 
@@ -27,7 +68,7 @@ def line_spectrum(wavelength, line_amp, cont_amp, x0):
     spectrum = line_amp / cont_amp * np.exp(-(wavelength - x0) ** 2. / (2 * cont_amp ** 2) )
     return spectrum
 
-def gaussian_rise(time, a_1, peak_time, sigma_t):
+def gaussian_rise(time, a_1, peak_time, sigma_t, **kwargs):
     """
     :param time: time array in whatver time units
     :param a_1: gaussian rise amplitude scale
