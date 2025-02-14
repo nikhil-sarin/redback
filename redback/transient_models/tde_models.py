@@ -12,8 +12,6 @@ from astropy.cosmology import Planck18 as cosmo  # noqa
 import astropy.units as uu
 from scipy.interpolate import interp1d
 
-import ipdb
-
 def _analytic_fallback(time, l0, t_0):
     """
     :param time: time in days
