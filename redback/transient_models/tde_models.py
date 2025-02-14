@@ -1216,7 +1216,7 @@ def fitted_pl_decay(time, redshift, log_mh, a_bh, m_disc, r0, tvi, t_form, incl,
 @citation_wrapper('https://ui.adsabs.harvard.edu/abs/2024arXiv240815048M/abstract')   
 def fitted_exp_decay(time, redshift, log_mh, a_bh, m_disc, r0, tvi, t_form, incl, log_L, t_decay, log_T, sigma, t_peak, **kwargs):
     """
-    An import of FitTeD to model the plateau phase, with a gaussian rise and power-law decay
+    An import of FitTeD to model the plateau phase, with a gaussian rise and exponential decay
     
     :param time: observer frame time in days
     :param redshift: redshift
