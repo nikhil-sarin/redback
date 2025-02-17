@@ -3,7 +3,7 @@ import redback.interaction_processes as ip
 import redback.sed as sed
 import redback.photosphere as photosphere
 from redback.utils import calc_kcorrected_properties, citation_wrapper, calc_tfb, lambda_to_nu, \
-    calc_ABmag_from_flux_density, calc_flux_density_from_ABmag
+    calc_ABmag_from_flux_density, calc_flux_density_from_ABmag, bands_to_frequency
 import redback.constants as cc
 import redback.transient_models.phenomenological_models as pm
 
