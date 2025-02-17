@@ -1351,7 +1351,8 @@ def _stream_stream_collision(mbh_6, mstar, c1, f, h_r, inc_tcool, del_omega):
     output.r_tidal = r_tidal
     output.debris_energy = Xi * epsilon
     return output
-    
+
+@citation_wrapper('https://ui.adsabs.harvard.edu/abs/2015ApJ...806..164P/abstract, https://ui.adsabs.harvard.edu/abs/2020ApJ...904...73R/abstract')    
 def stream_stream_tde_bolometric(time, mbh_6, mstar, c1, f, h_r, inc_tcool, del_omega, sigma_t, peak_time, **kwargs): 
     """
     A bolometric TDE model based on stream-stream collisions.  The early emission follows a gaussian rise.
@@ -1383,6 +1384,7 @@ def stream_stream_tde_bolometric(time, mbh_6, mstar, c1, f, h_r, inc_tcool, del_
     lbol_func = interp1d(full_time, y=full_lbol, fill_value='extrapolate')
     return lbol_func(time*cc.day_to_s)
 
+@citation_wrapper('https://ui.adsabs.harvard.edu/abs/2015ApJ...806..164P/abstract, https://ui.adsabs.harvard.edu/abs/2020ApJ...904...73R/abstract')
 def stream_stream_tde(time, redshift, mbh_6, mstar, c1, f, h_r, inc_tcool, del_omega, sigma_t, peak_time, **kwargs):
     """
     A TDE model based on stream-stream collisions.  The early emission follows a constant temperature gaussian rise.
