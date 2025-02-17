@@ -1069,3 +1069,225 @@ def tde_fallback(time, redshift, mbh6, mstar, tvisc, bb, eta, leddlimit, rph0, l
             return sed.get_correct_output_format_from_spectra(time=time_obs, time_eval=time_observer_frame,
                                                               spectra=spectra, lambda_array=lambda_observer_frame,
                                                               **kwargs)
+                                                              
+@citation_wrapper('https://ui.adsabs.harvard.edu/abs/2024arXiv240815048M/abstract')   
+def fitted(time, redshift, log_mh, a_bh, m_disc, r0, tvi, t_form, incl, **kwargs):
+    """
+    An import of FitTeD to model the plateau phase
+    
+    :param time: observer frame time in days
+    :param redshift: redshift
+    :param log_mh: log of the black hole mass (solar masses)
+    :param a_bh: black hole spin parameter (dimensionless)
+    :param m_disc: initial mass of disc ring (solar masses)
+    :param r0: initial radius of disc ring (gravitational radii)
+    :param tvi: viscous timescale of disc evolution (days)
+    :param t_form: time of ring formation prior to t = 0 (days)
+    :param incl: disc-observer inclination angle (radians)    
+    :param kwargs: Must be all the kwargs required by the specific output_format 
+    :param output_format: 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'  
+    :param frequency: Required if output_format is 'flux_density'.
+        frequency to calculate - Must be same length as time array or a single number).
+    :param bands: Required if output_format is 'magnitude' or 'flux'.
+    :param cosmology: Cosmology to use for luminosity distance calculation. Defaults to Planck18. Must be a astropy.cosmology object.
+    :return: set by output format - 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
+    """
+    import fitted #user needs to have downloaded and compiled FitTeD in order to run this model
+    cosmology = kwargs.get('cosmology', cosmo)
+    dl = cosmology.luminosity_distance(redshift).cgs.value
+    ang = 180.0/np.pi*incl
+    m = fitted.models.GR_disc()
+
+    if kwargs['output_format'] == 'flux_density':
+        frequency = kwargs['frequency']
+        frequency, time = calc_kcorrected_properties(frequency=frequency, redshift=redshift, time=time)
+        freqs_un = np.unique(frequency)
+        nulnus = np.zeros(len(time))
+        if len(freqs_un) == 1:
+            nulnus = m.model_UV(time, log_mh, a_bh, m_disc, r0, tvi, t_form, ang, frequency)
+        else:
+            for i in range(0,len(freqs_un)):
+                inds = np.where(frequency == freqs_un[i])[0]
+                nulnus[inds] = m.model_UV([time[j] for j in inds], log_mh, a_bh, m_disc, r0, tvi, t_form, ang, freqs_un[i])
+        flux_density = nulnus/(4.0 * np.pi * dl**2 * frequency)   
+        return flux_density/1.0e-26   
+
+    else:
+        time_obs = time
+        lambda_observer_frame = kwargs.get('lambda_array', np.geomspace(100, 60000, 100))
+        time_temp = np.geomspace(0.1, 3000, 300) # in days
+        time_observer_frame = time_temp * (1. + redshift)
+        frequency, time = calc_kcorrected_properties(frequency=lambda_to_nu(lambda_observer_frame),
+                                                     redshift=redshift, time=time_observer_frame)
+        nulnus = m.model_SEDs(time, log_mh, a_bh, m_disc, r0, tvi, t_form, ang, frequency)
+        flux_density = (nulnus/(4.0 * np.pi * dl**2 * frequency[:,np.newaxis] * 1.0e-26)) 
+        fmjy = flux_density.T           
+        spectra = (fmjy * uu.mJy).to(uu.erg / uu.cm ** 2 / uu.s / uu.Angstrom,
+                                     equivalencies=uu.spectral_density(wav=lambda_observer_frame * uu.Angstrom))  
+        if kwargs['output_format'] == 'spectra':
+            return namedtuple('output', ['time', 'lambdas', 'spectra'])(time=time_observer_frame,
+                                                                          lambdas=lambda_observer_frame,
+                                                                          spectra=spectra)
+        else:
+            return sed.get_correct_output_format_from_spectra(time=time_obs, time_eval=time_observer_frame,
+                                                              spectra=spectra, lambda_array=lambda_observer_frame,
+                                                              **kwargs)
+                                                              
+@citation_wrapper('https://ui.adsabs.harvard.edu/abs/2024arXiv240815048M/abstract')   
+def fitted_pl_decay(time, redshift, log_mh, a_bh, m_disc, r0, tvi, t_form, incl, log_L, t_decay, p, log_T, sigma, t_peak, **kwargs):
+    """
+    An import of FitTeD to model the plateau phase, with a gaussian rise and power-law decay
+    
+    :param time: observer frame time in days
+    :param redshift: redshift
+    :param log_mh: log of the black hole mass (solar masses)
+    :param a_bh: black hole spin parameter (dimensionless)
+    :param m_disc: initial mass of disc ring (solar masses)
+    :param r0: initial radius of disc ring (gravitational radii)
+    :param tvi: viscous timescale of disc evolution (days)
+    :param t_form: time of ring formation prior to t = 0 (days)
+    :param incl: disc-observer inclination angle (radians)    
+    :param log_L: single temperature blackbody amplitude for decay model (log_10 erg/s)
+    :param t_decay: fallback timescale (days)
+    :param p: power-law decay index
+    :param log_T: single temperature blackbody temperature for decay model (log_10 Kelvin)
+    :param sigma: gaussian rise timescale (days)
+    :param t_peak: time of light curve peak (days)
+    :param kwargs: Must be all the kwargs required by the specific output_format 
+    :param output_format: 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'  
+    :param frequency: Required if output_format is 'flux_density'.
+        frequency to calculate - Must be same length as time array or a single number).
+    :param bands: Required if output_format is 'magnitude' or 'flux'.
+    :param cosmology: Cosmology to use for luminosity distance calculation. Defaults to Planck18. Must be a astropy.cosmology object.
+    :return: set by output format - 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
+    """
+    import fitted #user needs to have downloaded and compiled FitTeD in order to run this model
+    cosmology = kwargs.get('cosmology', cosmo)
+    dl = cosmology.luminosity_distance(redshift).cgs.value
+    ang = 180.0/np.pi*incl
+    m = fitted.models.GR_disc(decay_type='pl', rise=True)
+
+    if kwargs['output_format'] == 'flux_density':
+        frequency = kwargs['frequency']
+        frequency, time = calc_kcorrected_properties(frequency=frequency, redshift=redshift, time=time)
+        freqs_un = np.unique(frequency)
+        
+        #initialize arrays
+        nulnus_plateau = np.zeros(len(time))
+        nulnus_risedecay = np.zeros(len(time))
+        
+        if len(freqs_un) == 1:
+            nulnus_plateau = m.model_UV(time, log_mh, a_bh, m_disc, r0, tvi, t_form, ang, frequency)
+            nulnus_risedecay = m.decay_model(time, log_L, tdecay, p, t_peak, log_T, v=freqs_un[0]) + m.rise_model(time, log_L, sigma, t_peak, log_T, v=freqs_un[0])
+        else:
+            for i in range(0,len(freqs_un)):
+                inds = np.where(frequency == freqs_un[i])[0]
+                nulnus[inds] = m.model_UV([time[j] for j in inds], log_mh, a_bh, m_disc, r0, tvi, t_form, ang, freqs_un[i])
+                nulnus_risedecay[inds] = m.decay_model([time[j] for j in inds], log_L, t_decay, p, t_peak, log_T, v=freqs_un[i]) + m.rise_model([time[j] for j in inds], log_L, sigma, t_peak, log_T, v=freqs_un[i])
+        nulnus = nulnus_plateau + nulnus_risedecay      
+        flux_density = nulnus/(4.0 * np.pi * dl**2 * frequency)   
+        return flux_density/1.0e-26   
+
+    else:
+        time_obs = time
+        lambda_observer_frame = kwargs.get('lambda_array', np.geomspace(100, 60000, 100))
+        time_temp = np.geomspace(0.1, 3000, 300) # in days
+        time_observer_frame = time_temp * (1. + redshift)
+        frequency, time = calc_kcorrected_properties(frequency=lambda_to_nu(lambda_observer_frame),
+                                                     redshift=redshift, time=time_observer_frame)
+        nulnus_plateau = m.model_SEDs(time, log_mh, a_bh, m_disc, r0, tvi, t_form, ang, frequency)
+        nulnus_risedecay = np.zeros((100, 300))
+        for i in range(0,len(frequency)):
+            nulnus_risedecay[i,:] = m.decay_model(time, log_L, t_decay, p, t_peak, log_T, v=frequency[i]) + m.rise_model(time, log_L, sigma, t_peak, log_T, v=frequency[i])
+        #ipdb.set_trace()    
+        flux_density = ((nulnus_risedecay + nulnus_plateau)/(4.0 * np.pi * dl**2 * frequency[:,np.newaxis] * 1.0e-26))  
+        fmjy = flux_density.T           
+        spectra = (fmjy * uu.mJy).to(uu.erg / uu.cm ** 2 / uu.s / uu.Angstrom,
+                                     equivalencies=uu.spectral_density(wav=lambda_observer_frame * uu.Angstrom))  
+        if kwargs['output_format'] == 'spectra':
+            return namedtuple('output', ['time', 'lambdas', 'spectra'])(time=time_observer_frame,
+                                                                          lambdas=lambda_observer_frame,
+                                                                          spectra=spectra)
+        else:
+            return sed.get_correct_output_format_from_spectra(time=time_obs, time_eval=time_observer_frame,
+                                                              spectra=spectra, lambda_array=lambda_observer_frame,
+                                                              **kwargs)  
+                                                              
+@citation_wrapper('https://ui.adsabs.harvard.edu/abs/2024arXiv240815048M/abstract')   
+def fitted_exp_decay(time, redshift, log_mh, a_bh, m_disc, r0, tvi, t_form, incl, log_L, t_decay, log_T, sigma, t_peak, **kwargs):
+    """
+    An import of FitTeD to model the plateau phase, with a gaussian rise and exponential decay
+    
+    :param time: observer frame time in days
+    :param redshift: redshift
+    :param log_mh: log of the black hole mass (solar masses)
+    :param a_bh: black hole spin parameter (dimensionless)
+    :param m_disc: initial mass of disc ring (solar masses)
+    :param r0: initial radius of disc ring (gravitational radii)
+    :param tvi: viscous timescale of disc evolution (days)
+    :param t_form: time of ring formation prior to t = 0 (days)
+    :param incl: disc-observer inclination angle (radians)    
+    :param log_L: single temperature blackbody amplitude for decay model (log_10 erg/s)
+    :param t_decay: fallback timescale (days)
+    :param log_T: single temperature blackbody temperature for decay model (log_10 Kelvin)
+    :param sigma: gaussian rise timescale (days)
+    :param t_peak: time of light curve peak (days)
+    :param kwargs: Must be all the kwargs required by the specific output_format 
+    :param output_format: 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'  
+    :param frequency: Required if output_format is 'flux_density'.
+        frequency to calculate - Must be same length as time array or a single number).
+    :param bands: Required if output_format is 'magnitude' or 'flux'.
+    :param cosmology: Cosmology to use for luminosity distance calculation. Defaults to Planck18. Must be a astropy.cosmology object.
+    :return: set by output format - 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
+    """
+    import fitted #user needs to have downloaded and compiled FitTeD in order to run this model
+    cosmology = kwargs.get('cosmology', cosmo)
+    dl = cosmology.luminosity_distance(redshift).cgs.value
+    ang = 180.0/np.pi*incl
+    m = fitted.models.GR_disc(decay_type='exp', rise=True)
+
+    if kwargs['output_format'] == 'flux_density':
+        frequency = kwargs['frequency']
+        frequency, time = calc_kcorrected_properties(frequency=frequency, redshift=redshift, time=time)
+        freqs_un = np.unique(frequency)
+        
+        #initialize arrays
+        nulnus_plateau = np.zeros(len(time))
+        nulnus_risedecay = np.zeros(len(time))
+        
+        if len(freqs_un) == 1:
+            nulnus_plateau = m.model_UV(time, log_mh, a_bh, m_disc, r0, tvi, t_form, ang, frequency)
+            nulnus_risedecay = m.decay_model(time, log_L, tdecay, p, t_peak, log_T, v=freqs_un[0]) + m.rise_model(time, log_L, sigma, t_peak, log_T, v=freqs_un[0])
+        else:
+            for i in range(0,len(freqs_un)):
+                inds = np.where(frequency == freqs_un[i])[0]
+                nulnus[inds] = m.model_UV([time[j] for j in inds], log_mh, a_bh, m_disc, r0, tvi, t_form, ang, freqs_un[i])
+                nulnus_risedecay[inds] = m.decay_model([time[j] for j in inds], log_L, t_decay, t_peak, log_T, v=freqs_un[i]) + m.rise_model([time[j] for j in inds], log_L, sigma, t_peak, log_T, v=freqs_un[i])
+        nulnus = nulnus_plateau + nulnus_risedecay      
+        flux_density = nulnus/(4.0 * np.pi * dl**2 * frequency)   
+        return flux_density/1.0e-26   
+
+    else:
+        time_obs = time
+        lambda_observer_frame = kwargs.get('lambda_array', np.geomspace(100, 60000, 100))
+        time_temp = np.geomspace(0.1, 3000, 300) # in days
+        time_observer_frame = time_temp * (1. + redshift)
+        frequency, time = calc_kcorrected_properties(frequency=lambda_to_nu(lambda_observer_frame),
+                                                     redshift=redshift, time=time_observer_frame)
+        nulnus_plateau = m.model_SEDs(time, log_mh, a_bh, m_disc, r0, tvi, t_form, ang, frequency)
+        nulnus_risedecay = np.zeros((100, 300))
+        for i in range(0,len(frequency)):
+            nulnus_risedecay[i,:] = m.decay_model(time, log_L, t_decay, t_peak, log_T, v=frequency[i]) + m.rise_model(time, log_L, sigma, t_peak, log_T, v=frequency[i])
+        #ipdb.set_trace()    
+        flux_density = ((nulnus_risedecay + nulnus_plateau)/(4.0 * np.pi * dl**2 * frequency[:,np.newaxis] * 1.0e-26))  
+        fmjy = flux_density.T           
+        spectra = (fmjy * uu.mJy).to(uu.erg / uu.cm ** 2 / uu.s / uu.Angstrom,
+                                     equivalencies=uu.spectral_density(wav=lambda_observer_frame * uu.Angstrom))  
+        if kwargs['output_format'] == 'spectra':
+            return namedtuple('output', ['time', 'lambdas', 'spectra'])(time=time_observer_frame,
+                                                                          lambdas=lambda_observer_frame,
+                                                                          spectra=spectra)
+        else:
+            return sed.get_correct_output_format_from_spectra(time=time_obs, time_eval=time_observer_frame,
+                                                              spectra=spectra, lambda_array=lambda_observer_frame,
+                                                              **kwargs)                                                                                                                                                                                                                                                      
