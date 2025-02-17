@@ -1174,18 +1174,20 @@ def fitted_pl_decay(time, redshift, log_mh, a_bh, m_disc, r0, tvi, t_form, incl,
         
         #initialize arrays
         nulnus_plateau = np.zeros(len(time))
-        nulnus_risedecay = np.zeros(len(time))
+        nulnus_rise = np.zeros(len(time))
+        nulnus_decay = np.zeros(len(time))
         
         if len(freqs_un) == 1:
             nulnus_plateau = m.model_UV(time, log_mh, a_bh, m_disc, r0, tvi, t_form, ang, frequency)
-            nulnus_risedecay = m.decay_model(time, log_L, tdecay, p, t_peak, log_T, v=freqs_un[0]) + m.rise_model(time, log_L, sigma, t_peak, log_T, v=freqs_un[0])
+            nulnus_decay = m.decay_model(time, log_L, tdecay, p, t_peak, log_T, v=freqs_un[0])
+            nulnus_rise = m.rise_model(time, log_L, sigma, t_peak, log_T, v=freqs_un[0])
         else:
             for i in range(0,len(freqs_un)):
                 inds = np.where(frequency == freqs_un[i])[0]
                 nulnus[inds] = m.model_UV([time[j] for j in inds], log_mh, a_bh, m_disc, r0, tvi, t_form, ang, freqs_un[i])
-                nulnus_risedecay[inds] = m.decay_model([time[j] for j in inds], log_L, t_decay, p, t_peak, log_T, v=freqs_un[i]) 
-                                             + m.rise_model([time[j] for j in inds], log_L, sigma, t_peak, log_T, v=freqs_un[i])
-        nulnus = nulnus_plateau + nulnus_risedecay      
+                nulnus_decay[inds] = m.decay_model([time[j] for j in inds], log_L, t_decay, p, t_peak, log_T, v=freqs_un[i]) 
+                nulnus_rise[inds] = m.rise_model([time[j] for j in inds], log_L, sigma, t_peak, log_T, v=freqs_un[i])                                             
+        nulnus = nulnus_plateau + nulnus_rise + nulnus_decay    
         flux_density = nulnus/(4.0 * np.pi * dl**2 * frequency)   
         return flux_density/1.0e-26   
 
@@ -1253,18 +1255,20 @@ def fitted_exp_decay(time, redshift, log_mh, a_bh, m_disc, r0, tvi, t_form, incl
         
         #initialize arrays
         nulnus_plateau = np.zeros(len(time))
-        nulnus_risedecay = np.zeros(len(time))
+        nulnus_rise = np.zeros(len(time))
+        nulnus_decay = np.zeros(len(time))
         
         if len(freqs_un) == 1:
             nulnus_plateau = m.model_UV(time, log_mh, a_bh, m_disc, r0, tvi, t_form, ang, frequency)
-            nulnus_risedecay = m.decay_model(time, log_L, tdecay, p, t_peak, log_T, v=freqs_un[0]) + m.rise_model(time, log_L, sigma, t_peak, log_T, v=freqs_un[0])
+            nulnus_decay = m.decay_model(time, log_L, tdecay, t_peak, log_T, v=freqs_un[0])
+            nulnus_rise = m.rise_model(time, log_L, sigma, t_peak, log_T, v=freqs_un[0])
         else:
             for i in range(0,len(freqs_un)):
                 inds = np.where(frequency == freqs_un[i])[0]
                 nulnus[inds] = m.model_UV([time[j] for j in inds], log_mh, a_bh, m_disc, r0, tvi, t_form, ang, freqs_un[i])
-                nulnus_risedecay[inds] = m.decay_model([time[j] for j in inds], log_L, t_decay, t_peak, log_T, v=freqs_un[i]) 
-                                          + m.rise_model([time[j] for j in inds], log_L, sigma, t_peak, log_T, v=freqs_un[i])
-        nulnus = nulnus_plateau + nulnus_risedecay      
+                nulnus_decay[inds] = m.decay_model([time[j] for j in inds], log_L, t_decay, t_peak, log_T, v=freqs_un[i]) 
+                nulnus_rise[inds] = m.rise_model([time[j] for j in inds], log_L, sigma, t_peak, log_T, v=freqs_un[i]) 
+        nulnus = nulnus_plateau + nulnus_rise + nulnus_decay        
         flux_density = nulnus/(4.0 * np.pi * dl**2 * frequency)   
         return flux_density/1.0e-26   
 
