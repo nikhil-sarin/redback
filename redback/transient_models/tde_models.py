@@ -3,7 +3,7 @@ import redback.interaction_processes as ip
 import redback.sed as sed
 import redback.photosphere as photosphere
 from redback.utils import calc_kcorrected_properties, citation_wrapper, calc_tfb, lambda_to_nu, \
-    calc_ABmag_from_flux_density, calc_flux_density_from_ABmag
+    calc_ABmag_from_flux_density, calc_flux_density_from_ABmag, bands_to_frequency
 import redback.constants as cc
 import redback.transient_models.phenomenological_models as pm
 
@@ -1174,17 +1174,20 @@ def fitted_pl_decay(time, redshift, log_mh, a_bh, m_disc, r0, tvi, t_form, incl,
         
         #initialize arrays
         nulnus_plateau = np.zeros(len(time))
-        nulnus_risedecay = np.zeros(len(time))
+        nulnus_rise = np.zeros(len(time))
+        nulnus_decay = np.zeros(len(time))
         
         if len(freqs_un) == 1:
             nulnus_plateau = m.model_UV(time, log_mh, a_bh, m_disc, r0, tvi, t_form, ang, frequency)
-            nulnus_risedecay = m.decay_model(time, log_L, tdecay, p, t_peak, log_T, v=freqs_un[0]) + m.rise_model(time, log_L, sigma, t_peak, log_T, v=freqs_un[0])
+            nulnus_decay = m.decay_model(time, log_L, tdecay, p, t_peak, log_T, v=freqs_un[0])
+            nulnus_rise = m.rise_model(time, log_L, sigma, t_peak, log_T, v=freqs_un[0])
         else:
             for i in range(0,len(freqs_un)):
                 inds = np.where(frequency == freqs_un[i])[0]
                 nulnus[inds] = m.model_UV([time[j] for j in inds], log_mh, a_bh, m_disc, r0, tvi, t_form, ang, freqs_un[i])
-                nulnus_risedecay[inds] = m.decay_model([time[j] for j in inds], log_L, t_decay, p, t_peak, log_T, v=freqs_un[i]) + m.rise_model([time[j] for j in inds], log_L, sigma, t_peak, log_T, v=freqs_un[i])
-        nulnus = nulnus_plateau + nulnus_risedecay      
+                nulnus_decay[inds] = m.decay_model([time[j] for j in inds], log_L, t_decay, p, t_peak, log_T, v=freqs_un[i]) 
+                nulnus_rise[inds] = m.rise_model([time[j] for j in inds], log_L, sigma, t_peak, log_T, v=freqs_un[i])                                             
+        nulnus = nulnus_plateau + nulnus_rise + nulnus_decay    
         flux_density = nulnus/(4.0 * np.pi * dl**2 * frequency)   
         return flux_density/1.0e-26   
 
@@ -1198,8 +1201,7 @@ def fitted_pl_decay(time, redshift, log_mh, a_bh, m_disc, r0, tvi, t_form, incl,
         nulnus_plateau = m.model_SEDs(time, log_mh, a_bh, m_disc, r0, tvi, t_form, ang, frequency)
         nulnus_risedecay = np.zeros((100, 300))
         for i in range(0,len(frequency)):
-            nulnus_risedecay[i,:] = m.decay_model(time, log_L, t_decay, p, t_peak, log_T, v=frequency[i]) + m.rise_model(time, log_L, sigma, t_peak, log_T, v=frequency[i])
-        #ipdb.set_trace()    
+            nulnus_risedecay[i,:] = m.decay_model(time, log_L, t_decay, p, t_peak, log_T, v=frequency[i]) + m.rise_model(time, log_L, sigma, t_peak, log_T, v=frequency[i])  
         flux_density = ((nulnus_risedecay + nulnus_plateau)/(4.0 * np.pi * dl**2 * frequency[:,np.newaxis] * 1.0e-26))  
         fmjy = flux_density.T           
         spectra = (fmjy * uu.mJy).to(uu.erg / uu.cm ** 2 / uu.s / uu.Angstrom,
@@ -1253,17 +1255,20 @@ def fitted_exp_decay(time, redshift, log_mh, a_bh, m_disc, r0, tvi, t_form, incl
         
         #initialize arrays
         nulnus_plateau = np.zeros(len(time))
-        nulnus_risedecay = np.zeros(len(time))
+        nulnus_rise = np.zeros(len(time))
+        nulnus_decay = np.zeros(len(time))
         
         if len(freqs_un) == 1:
             nulnus_plateau = m.model_UV(time, log_mh, a_bh, m_disc, r0, tvi, t_form, ang, frequency)
-            nulnus_risedecay = m.decay_model(time, log_L, tdecay, p, t_peak, log_T, v=freqs_un[0]) + m.rise_model(time, log_L, sigma, t_peak, log_T, v=freqs_un[0])
+            nulnus_decay = m.decay_model(time, log_L, tdecay, t_peak, log_T, v=freqs_un[0])
+            nulnus_rise = m.rise_model(time, log_L, sigma, t_peak, log_T, v=freqs_un[0])
         else:
             for i in range(0,len(freqs_un)):
                 inds = np.where(frequency == freqs_un[i])[0]
                 nulnus[inds] = m.model_UV([time[j] for j in inds], log_mh, a_bh, m_disc, r0, tvi, t_form, ang, freqs_un[i])
-                nulnus_risedecay[inds] = m.decay_model([time[j] for j in inds], log_L, t_decay, t_peak, log_T, v=freqs_un[i]) + m.rise_model([time[j] for j in inds], log_L, sigma, t_peak, log_T, v=freqs_un[i])
-        nulnus = nulnus_plateau + nulnus_risedecay      
+                nulnus_decay[inds] = m.decay_model([time[j] for j in inds], log_L, t_decay, t_peak, log_T, v=freqs_un[i]) 
+                nulnus_rise[inds] = m.rise_model([time[j] for j in inds], log_L, sigma, t_peak, log_T, v=freqs_un[i]) 
+        nulnus = nulnus_plateau + nulnus_rise + nulnus_decay        
         flux_density = nulnus/(4.0 * np.pi * dl**2 * frequency)   
         return flux_density/1.0e-26   
 
@@ -1277,8 +1282,7 @@ def fitted_exp_decay(time, redshift, log_mh, a_bh, m_disc, r0, tvi, t_form, incl
         nulnus_plateau = m.model_SEDs(time, log_mh, a_bh, m_disc, r0, tvi, t_form, ang, frequency)
         nulnus_risedecay = np.zeros((100, 300))
         for i in range(0,len(frequency)):
-            nulnus_risedecay[i,:] = m.decay_model(time, log_L, t_decay, t_peak, log_T, v=frequency[i]) + m.rise_model(time, log_L, sigma, t_peak, log_T, v=frequency[i])
-        #ipdb.set_trace()    
+            nulnus_risedecay[i,:] = m.decay_model(time, log_L, t_decay, t_peak, log_T, v=frequency[i]) + m.rise_model(time, log_L, sigma, t_peak, log_T, v=frequency[i])   
         flux_density = ((nulnus_risedecay + nulnus_plateau)/(4.0 * np.pi * dl**2 * frequency[:,np.newaxis] * 1.0e-26))  
         fmjy = flux_density.T           
         spectra = (fmjy * uu.mJy).to(uu.erg / uu.cm ** 2 / uu.s / uu.Angstrom,
@@ -1290,4 +1294,176 @@ def fitted_exp_decay(time, redshift, log_mh, a_bh, m_disc, r0, tvi, t_form, incl
         else:
             return sed.get_correct_output_format_from_spectra(time=time_obs, time_eval=time_observer_frame,
                                                               spectra=spectra, lambda_array=lambda_observer_frame,
-                                                              **kwargs)                                                                                                                                                                                                                                                      
+                                                              **kwargs)               
+
+@citation_wrapper('https://ui.adsabs.harvard.edu/abs/2015ApJ...806..164P/abstract, https://ui.adsabs.harvard.edu/abs/2020ApJ...904...73R/abstract')
+def _stream_stream_collision(mbh_6, mstar, c1, f, h_r, inc_tcool, del_omega):
+    """
+    A TDE model based on stream-stream collisions.  Used as input for the bolometric and broadband versions.
+    
+    :param mbh_6: black hole mass (10^6 solar masses)
+    :param mstar: mass of the disrupted star (solar masses)
+    :param c1: characteristic distance scale of the emission region in units of the apocenter distance of the most tightly bound debris
+    :param f: fraction of the bound mass within the semimajor axis of the most tightly bound debris at peak mass return time
+    :param h_r: aspect ratio used to calculate t_cool. This is only used when include_tcool_tdyn_ratio = 1
+    :param inc_tcool: if include_tcool_tdyn_ratio = 1, the luminosity is limited by the Eddington luminosity if t_cool / t_dyn < 1.0
+    :param del_omega: solid angle (in units of pi) of radiation from the emission region
+    :return: physical outputs
+    """
+    kappa = 0.34
+    t_ratio = 0.0
+    factor = 1.0
+    tcool = 0.0
+
+    rstar = 0.93 * mstar ** (8.0 / 9.0)
+    mstar_max = 15.0
+    Xi = (1.27 - 0.3 *(mbh_6)**0.242 )*((0.620 + np.exp((min(mstar_max,mstar) - 0.674)/0.212)) 
+            / (1.0 + 0.553 *np.exp((min(mstar,mstar_max) - 0.674)/0.212)))
+    r_tidal = (mbh_6 * 1e6/ mstar)**(1.0/3.0) * rstar * cc.solar_radius
+
+    epsilon = cc.graviational_constant * (mbh_6 * 1e6 * cc.solar_mass) * (rstar * cc.solar_radius) / r_tidal ** 2.0
+    a0 = cc.graviational_constant * (mbh_6 * 1e6 * cc.solar_mass)/ (Xi * epsilon)
+
+    t_dyn = np.pi / np.sqrt(2.0) * a0 ** 1.5 / np.sqrt(cc.graviational_constant * (mbh_6 * 1e6 * cc.solar_mass))
+    t_peak = (3.0/2.0)*t_dyn
+    mdotmax = mstar * cc.solar_mass / t_dyn / 3.0
+    factor_denom = del_omega * cc.sigma_sb * c1**2 * a0**2
+
+    if inc_tcool == 1:
+        semi = a0 / 2.0     #semimajor axis of the most bound debris
+        area = np.pi * ( c1 * semi ) **2 # emitting area
+        tau = kappa * (f * mstar * cc.solar_mass / 2.0) / area / 2.0  # the characteristic vertical optical depth to the midplane of a circular disk with radius ∼ semi. The first "/2.0" comes from the fact that we consider only the bound mass = mstar / 2. The second "/2.0" comes from the fact that the optical depth was integrated to the mid-plane.
+        tcool = tau * (h_r) * c1 * semi / cc.speed_of_light
+        t_ratio = tcool / t_dyn
+        factor = 2.0 / (1.0 + t_ratio)
+        factor_denom *= (1.0 + 2.0 * h_r) / 4.0
+    
+    t_output = np.linspace(t_peak, 1500*cc.day_to_s, 1000)    
+    Lmax = mdotmax * (Xi * epsilon) / c1    
+    Lobs = Lmax * (t_output / t_peak)**(-5.0/3.0) * factor
+    Tobs = (Lobs / factor_denom )**(1.0/4.0)
+    
+    output = namedtuple('output', ['bolometric_luminosity', 'photosphere_temperature',
+                                   'Smbh_6_accretion_rate_max', 'time_temp', 'cooling_time',
+                                   'dynamical_time', 'r_tidal','debris_energy'])
+    output.bolometric_luminosity = Lobs
+    output.photosphere_temperature = Tobs
+    output.Smbh_6_accretion_rate_max = mdotmax
+    output.time_temp = t_output
+    output.cooling_time = tcool
+    output.dynamical_time = t_dyn
+    output.r_tidal = r_tidal
+    output.debris_energy = Xi * epsilon
+    return output
+
+@citation_wrapper('https://ui.adsabs.harvard.edu/abs/2015ApJ...806..164P/abstract, https://ui.adsabs.harvard.edu/abs/2020ApJ...904...73R/abstract')    
+def stream_stream_tde_bolometric(time, mbh_6, mstar, c1, f, h_r, inc_tcool, del_omega, sigma_t, peak_time, **kwargs): 
+    """
+    A bolometric TDE model based on stream-stream collisions.  The early emission follows a gaussian rise.
+    
+    :param time: observer frame time in days
+    :param mbh_6: black hole mass (10^6 solar masses)
+    :param mstar: mass of the disrupted star (solar masses)
+    :param c1: characteristic distance scale of the emission region in units of the apocenter distance of the most tightly bound debris
+    :param f: fraction of the bound mass within the semimajor axis of the most tightly bound debris at peak mass return time
+    :param h_r: aspect ratio used to calculate t_cool. This is only used when include_tcool_tdyn_ratio = 1
+    :param inc_tcool: if include_tcool_tdyn_ratio = 1, the luminosity is limited by the Eddington luminosity if t_cool / t_dyn < 1.0
+    :param del_omega: solid angle (in units of pi) of radiation from the emission region
+    :param peak_time: peak time in days
+    :param sigma_t: the sharpness of the Gaussian in days
+    :return: bolometric luminosity         
+    """
+    output = _stream_stream_collision(mbh_6, mstar, c1, f, h_r, inc_tcool, del_omega)    
+    f1 = pm.gaussian_rise(time=output.time_temp[0] / cc.day_to_s, a_1=1, peak_time=peak_time, sigma_t=sigma_t)
+    norm = output.bolometric_luminosity[0] / f1
+
+    #evaluate giant array of bolometric luminosities
+    tt_pre_fb = np.linspace(0, output.time_temp[0], 100)
+    tt_post_fb = output.time_temp
+    full_time = np.concatenate([tt_pre_fb, tt_post_fb])
+    f1 = pm.gaussian_rise(time=tt_pre_fb, a_1=norm,
+                          peak_time=peak_time * cc.day_to_s, sigma_t=sigma_t * cc.day_to_s)
+    f2 = output.bolometric_luminosity
+    full_lbol = np.concatenate([f1, f2])
+    lbol_func = interp1d(full_time, y=full_lbol, fill_value='extrapolate')
+    return lbol_func(time*cc.day_to_s)
+
+@citation_wrapper('https://ui.adsabs.harvard.edu/abs/2015ApJ...806..164P/abstract, https://ui.adsabs.harvard.edu/abs/2020ApJ...904...73R/abstract')
+def stream_stream_tde(time, redshift, mbh_6, mstar, c1, f, h_r, inc_tcool, del_omega, sigma_t, peak_time, **kwargs):
+    """
+    A TDE model based on stream-stream collisions.  The early emission follows a constant temperature gaussian rise.
+    
+    :param time: observer frame time in days
+    :param redshift: redshift
+    :param mbh_6: black hole mass (10^6 solar masses)
+    :param mstar: mass of the disrupted star (solar masses)
+    :param c1: characteristic distance scale of the emission region in units of the apocenter distance of the most tightly bound debris
+    :param f: fraction of the bound mass within the semimajor axis of the most tightly bound debris at peak mass return time
+    :param h_r: aspect ratio used to calculate t_cool. This is only used when include_tcool_tdyn_ratio = 1
+    :param inc_tcool: if include_tcool_tdyn_ratio = 1, the luminosity is limited by the Eddington luminosity if t_cool / t_dyn < 1.0
+    :param del_omega: solid angle (in units of pi) of radiation from the emission region
+    :param peak_time: peak time in days
+    :param sigma_t: the sharpness of the Gaussian in days
+    :param kwargs: Must be all the kwargs required by the specific output_format 
+    :param output_format: 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'  
+    :param frequency: Required if output_format is 'flux_density'.
+        frequency to calculate - Must be same length as time array or a single number).
+    :param bands: Required if output_format is 'magnitude' or 'flux'.
+    :param cosmology: Cosmology to use for luminosity distance calculation. Defaults to Planck18. Must be a astropy.cosmology object.
+    :return: set by output format - 'flux_density' or 'magnitude'     
+    """
+
+    cosmology = kwargs.get('cosmology', cosmo)
+    dl = cosmology.luminosity_distance(redshift).cgs.value
+    output = _stream_stream_collision(mbh_6, mstar, c1, f, h_r, inc_tcool, del_omega)
+
+    #get bolometric and temperature info
+    f1 = pm.gaussian_rise(time=output.time_temp[0] / cc.day_to_s, a_1=1, peak_time=peak_time, sigma_t=sigma_t)
+    norm = output.bolometric_luminosity[0] / f1    
+    tt_pre_fb = np.linspace(0, output.time_temp[0], 100)
+    tt_post_fb = output.time_temp
+    full_time = np.concatenate([tt_pre_fb, tt_post_fb])
+    f1_src = pm.gaussian_rise(time=tt_pre_fb, a_1=norm,
+                          peak_time=peak_time * cc.day_to_s, sigma_t=sigma_t * cc.day_to_s)
+    f2_src = output.bolometric_luminosity
+    full_lbol = np.concatenate([f1_src, f2_src])
+    
+    temp1 = np.ones(100) * output.photosphere_temperature[0]
+    temp2 = output.photosphere_temperature
+    full_temp = np.concatenate([temp1, temp2])
+    r_eff = np.sqrt(full_lbol / (np.pi * cc.sigma_sb * full_temp**4.0))            
+        
+    if kwargs['output_format'] == 'flux_density':
+        frequency = kwargs['frequency']
+        if isinstance(frequency, float):
+            frequency = np.ones(len(time)) * frequency
+            
+    else:
+        bands = kwargs['bands']
+        if isinstance(bands, str):
+            bands = [str(bands) for x in range(len(time))]
+        frequency=bands_to_frequency(bands)           
+    
+    # convert to source frame time and frequency
+    frequency, time = calc_kcorrected_properties(frequency=frequency, redshift=redshift, time=time)
+    unique_frequency = np.sort(np.unique(frequency))
+
+    # build flux density function for each frequency
+    flux_den_interp_func = {}
+    total_time = full_time * (1 + redshift)
+    for freq in unique_frequency:           
+        flux_den = sed.blackbody_to_flux_density(temperature=full_temp,
+                                           r_photosphere=r_eff,
+                                           dl=dl, frequency=freq).to(uu.mJy)
+        flux_den_interp_func[freq] = interp1d(total_time, flux_den, fill_value='extrapolate')
+
+    # interpolate onto actual observed frequency and time values
+    flux_density = []
+    for freq, tt in zip(frequency, time):
+        flux_density.append(flux_den_interp_func[freq](tt * cc.day_to_s))
+    flux_density = flux_density * uu.mJy
+    
+    if kwargs['output_format'] == 'flux_density':    
+        return flux_density.to(uu.mJy).value        
+    else:            
+        return calc_ABmag_from_flux_density(flux_density.to(uu.mJy).value).value

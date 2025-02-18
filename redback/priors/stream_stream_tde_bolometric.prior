@@ -1,0 +1,9 @@
+peak_time = LogUniform(0.1,60, name='peak_time', latex_label = r'$t_{\mathrm{peak}}~(\mathrm{day})$')
+sigma_t = LogUniform(10,60, name='sigma_t', latex_label = r'$\\sigma~(\mathrm{day})$')
+mbh_6 = LogUniform(0.01, 20, name='mbh_6', latex_label = r'$M_{\mathrm{BH}}~(10^{6}~M_\odot)$')
+mstar = LogUniform(0.1, 10, name='stellar_mass', latex_label = r'$M_{\mathrm{star}}~(M_\odot)$')
+c1 = 1.0
+del_omega = 2.0
+f = 0.2
+h_r = 0.2
+inc_tcool = 1
