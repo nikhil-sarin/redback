@@ -10,6 +10,7 @@ import redback
 from redback.plotting import \
     LuminosityPlotter, FluxDensityPlotter, IntegratedFluxPlotter, MagnitudePlotter, IntegratedFluxOpticalPlotter
 from redback.model_library import all_models_dict
+from collections import namedtuple
 
 class Transient(object):
     DATA_MODES = ['luminosity', 'flux', 'flux_density', 'magnitude', 'counts', 'ttes']
@@ -708,18 +709,21 @@ class Transient(object):
         :param mean_model: Mean model to use in the GP fit. Can be a string to refer to a redback model, a callable, or None
         :param kernel: George GP to use. User must ensure this is set up correctly.
         :param prior: Prior to use when fitting with a mean model.
-        :param use_frequency: Whether to use the effective frequency in a 2D GP fit.
-        :return: george GP object.
+        :param use_frequency: Whether to use the effective frequency in a 2D GP fit. Cannot be used with most mean models.
+        :return: Named tuple with George GP object and additional useful data.
         """
         import george
         import george.kernels as kernels
         import scipy.optimize as op
         from bilby.core.likelihood import function_to_george_mean_model
 
+        output = namedtuple("gp_out", ["gp", "scaled_y", "y_scaler"])
         x, x_err, y, y_err = self.get_filtered_data()
         redback.utils.logger.info("Rescaling data for GP fitting.")
         gp_y_err = y_err / np.max(y)
         gp_y = y / np.max(y)
+        output.scaled_y = gp_y
+        output.y_scaler = np.max(y)
 
         def nll(p):
             gp.set_parameter_vector(p)
@@ -734,12 +738,15 @@ class Transient(object):
             redback.utils.logger.info("Using frequencies and time in the GP fit.")
             redback.utils.logger.info("Kernel used: " + str(kernel))
             redback.utils.logger.info("Ensure that the kernel is set up correctly for 2D GP.")
+            redback.utils.logger.info("You will be returned a single GP object with frequency as a parameter")
             freqs = self.filtered_frequencies
             X = np.column_stack((freqs, x))
         else:
             redback.utils.logger.info("Using time in the GP fit.")
             redback.utils.logger.info("Kernel used: " + str(kernel))
             redback.utils.logger.info("Ensure that the kernel is set up correctly for 1D GP.")
+            redback.utils.logger.info("You will be returned a GP object unique to a band/frequency"
+                                      "in the data if working with multiband data")
             X = x
 
         if mean_model is None:
@@ -776,7 +783,8 @@ class Transient(object):
             gp.set_parameter_vector(results.x)
             redback.utils.logger.info(f"GP final loglikelihood: {gp.log_likelihood(y)}")
             redback.utils.logger.info(f"GP final parameters: {gp.get_parameter_dict()}")
-        return gp
+        output.gp_dict = gp
+        return output
 
 
 
