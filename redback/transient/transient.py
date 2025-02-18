@@ -701,10 +701,20 @@ class Transient(object):
         return plotter.plot_residuals(axes=axes, save=save, show=show)
 
 
-    def fit_gp(self, mean_model, kernel, use_frequency=True):
+    def fit_gp(self, mean_model, kernel, prior=None, use_frequency=True):
+        """
+        Fit a GP to the data using george and scipy minimization.
+
+        :param mean_model: Mean model to use in the GP fit. Can be a string to refer to a redback model, a callable, or None
+        :param kernel: George GP to use. User must ensure this is set up correctly.
+        :param prior: Prior to use when fitting with a mean model.
+        :param use_frequency: Whether to use the effective frequency in a 2D GP fit.
+        :return: george GP object.
+        """
         import george
         import george.kernels as kernels
         import scipy.optimize as op
+        from bilby.core.likelihood import function_to_george_mean_model
 
         x, x_err, y, y_err = self.get_filtered_data()
         redback.utils.logger.info("Rescaling data for GP fitting.")
@@ -743,17 +753,26 @@ class Transient(object):
             redback.utils.logger.info(f"GP final parameters: {gp.get_parameter_dict()}")
         else:
             if isinstance(mean_model, str):
-                mean_model = all_models_dict[mean_model]
+                mean_model_func = all_models_dict[mean_model]
                 redback.utils.logger.info("Using inbuilt redback function {} as a mean model.".format(mean_model))
+                if prior is None:
+                    redback.utils.logger.warning("No prior given for mean model. Using default prior.")
+                    prior = redback.priors.get_priors(mean_model)
             else:
-                mean_model = mean_model
+                mean_model_func = mean_model
                 redback.utils.logger.info("Using user-defined python function as a mean model.")
 
+            if prior is None:
+                redback.utils.logger.warning("Prior must be specified for GP fit with a mean model")
+                raise ValueError("No prior specified")
+
             redback.utils.logger.info("Setting up GP version of mean model")
-            mean_model = bilby.core.likelihood.function_to_george_mean_model(mean_model)
-            gp = george.GP(kernel, mean=mean_model, fit_mean=True)
+            mean_model_class = function_to_george_mean_model(mean_model_func)
+            mm = mean_model_class(**prior.sample())
+            gp = george.GP(kernel, mean=mm, fit_mean=True)
+            gp.compute(X, gp_y_err)
             p0 = gp.get_parameter_vector()
-            results = op.minimize(nll, p0, jac=grad_nll)
+            results = op.minimize(nll, p0)
             gp.set_parameter_vector(results.x)
             redback.utils.logger.info(f"GP final loglikelihood: {gp.log_likelihood(y)}")
             redback.utils.logger.info(f"GP final parameters: {gp.get_parameter_dict()}")
