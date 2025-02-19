@@ -1,5 +1,39 @@
 # All notable changes will be documented in this file
 
+## [1.0.3] 2025-02-019
+Version 1.0.3 release of redback
+
+## What's Changed
+* fixed the lanthanide angle, vej units, and time conversion issues in 'nicholl_bns', 'mosfit_rprocess', and 'mosfit_kilonova' models by @Xiaofei13 in https://github.com/nikhil-sarin/redback/pull/223
+* Fix setup.py to install dependencies by @robertdstein in https://github.com/nikhil-sarin/redback/pull/225
+* Add astroquery as optional dependency by @robertdstein in https://github.com/nikhil-sarin/redback/pull/227
+* Rtd hotfix and misc by @nikhil-sarin in https://github.com/nikhil-sarin/redback/pull/229
+* Implementation of TDE model in mosfit following Guillochon+13 etc by @nikhil-sarin in https://github.com/nikhil-sarin/redback/pull/230
+* Rename model by @nikhil-sarin in https://github.com/nikhil-sarin/redback/pull/231
+* hotfix by @nikhil-sarin in https://github.com/nikhil-sarin/redback/pull/232
+* Fbots and etc by @nikhil-sarin in https://github.com/nikhil-sarin/redback/pull/233
+* fix output format error by @wfw23 in https://github.com/nikhil-sarin/redback/pull/214
+* BUGFIX: sncosmo models predicting nan magnitudes by @nikhil-sarin in https://github.com/nikhil-sarin/redback/pull/235
+* Csm cocoon and stuff by @nikhil-sarin in https://github.com/nikhil-sarin/redback/pull/236
+* Lateral spreading revision by @GPLamb in https://github.com/nikhil-sarin/redback/pull/243
+* ReadTheDocs-312 by @nikhil-sarin in https://github.com/nikhil-sarin/redback/pull/244
+* Change docstring/default prior  by @nikhil-sarin in https://github.com/nikhil-sarin/redback/pull/237
+* Deleted an extra ckm unit; changed the default start time in the rest… by @Xiaofei13 in https://github.com/nikhil-sarin/redback/pull/238
+* Get set for v1.03 by @nikhil-sarin in https://github.com/nikhil-sarin/redback/pull/241
+* Switch to the new Fink API URL by @JulienPeloton in https://github.com/nikhil-sarin/redback/pull/246
+* Sbo and arnett model by @nikhil-sarin in https://github.com/nikhil-sarin/redback/pull/248
+* Synchrotron + PWN by @conoromand in https://github.com/nikhil-sarin/redback/pull/247
+* Jetsimpy and TDE Synchrotron by @conoromand in https://github.com/nikhil-sarin/redback/pull/249
+* Change sbo arnett range + misc  by @nikhil-sarin in https://github.com/nikhil-sarin/redback/pull/250
+* Fitted by @conoromand in https://github.com/nikhil-sarin/redback/pull/251
+* Tdemass by @conoromand in https://github.com/nikhil-sarin/redback/pull/252
+
+## New Contributors
+* @robertdstein made their first contribution in https://github.com/nikhil-sarin/redback/pull/225
+* @JulienPeloton made their first contribution in https://github.com/nikhil-sarin/redback/pull/246
+
+**Full Changelog**: https://github.com/nikhil-sarin/redback/compare/V1.02...v1.03
+
 ## [1.0.2] 2024-04-18
 Version 1.0.2 release of redback
 
