@@ -4,18 +4,35 @@ from redback.utils import citation_wrapper
 @citation_wrapper('https://ui.adsabs.harvard.edu/abs/2009A%26A...499..653B/abstract')
 def bazin_sne(time, aa, bb, t0, tau_rise, tau_fall, **kwargs):
     """
-    Bazin function for CCSN light curves
+    Bazin function for CCSN light curves with vectorized inputs.
 
     :param time: time array in arbitrary units
-    :param aa: Normalisation on the Bazin function
-    :param bb: Additive constant
+    :param aa: array (or float) of normalisations, if array this is unique to each 'band'
+    :param bb: array (or float) of additive constants, if array this is unique to each 'band'
     :param t0: start time
     :param tau_rise: exponential rise time
     :param tau_fall: exponential fall time
-    :return: flux in units set by AA
+    :return: matrix of flux values in units set by AA
     """
-    flux = aa * np.exp(-((time - t0) / tau_fall) / (1 + np.exp(-(time - t0) / tau_rise))) + bb
-    return flux
+    if isinstance(aa, float):
+        aa_values = [aa]
+        bb_values = [bb]
+    else:
+        aa_values = aa
+        bb_values = bb
+
+    if len(aa_values) != len(bb_values):
+        raise ValueError("Length of aa_values and bb_values must be the same.")
+
+    # Compute flux for all aa and bb values
+    flux_matrix = np.array([
+        aa * (np.exp(-((time - t0) / tau_fall)) / (1 + np.exp(-(time - t0) / tau_rise))) + bb
+        for aa, bb in zip(aa_values, bb_values)
+    ])
+    if isinstance(aa, float):
+        return flux_matrix[0]
+    else:
+        return flux_matrix
 
 @citation_wrapper('https://ui.adsabs.harvard.edu/abs/2019ApJ...884...83V/abstract, https://ui.adsabs.harvard.edu/abs/1982ApJ...253..785A/abstract')
 def villar_sne(time, aa, cc, t0, tau_rise, tau_fall, gamma, nu, **kwargs):
@@ -25,7 +42,7 @@ def villar_sne(time, aa, cc, t0, tau_rise, tau_fall, gamma, nu, **kwargs):
     :param time: time array in arbitrary units
     :param aa: normalisation on the Villar function, amplotude
     :param cc: additive constant, baseline flux
-    :param t0: start time
+    :param t0: "start" time
     :param tau_rise: exponential rise time
     :param tau_fall: exponential fall time
     :param gamma: plateau duration
