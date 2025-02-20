@@ -33,6 +33,9 @@ class _FilePathGetter(object):
 
 
 class Plotter(object):
+    """
+    Base class for all lightcurve plotting classes in redback.
+    """
 
     capsize = KwargsAccessorWithDefault("capsize", 0.)
     legend_location = KwargsAccessorWithDefault("legend_location", "best")
