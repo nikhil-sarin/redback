@@ -15,6 +15,8 @@ For a full up to date list of models implemented in :code:`redback`, look at the
     - Several jet structures but with refreshed shocks and the suite of options available for the set of models above.
     - All structured jet models implemented in `afterglowpy <https://afterglowpy.readthedocs.io/en/latest/>`_. Must install afterglowpy to use these models.
     - Some varieties of Kilonova afterglow models e.g., Sarin et al. 2022, Nakar and Piran 2011
+    - Jetsimpy
+    - Several more...
 
 - Kilonova models: Can output in flux density/magnitude/flux
 
@@ -48,12 +50,14 @@ For a full up to date list of models implemented in :code:`redback`, look at the
     - SNcosmo
     - Shock cooling + Arnett
     - Every model provided by `SNcosmo <https://sncosmo.readthedocs.io/en/stable/index.html>`_
+    - Several more...
 
 - Shock models: Can output in flux density/magnitude/bolometric luminosity
 
     - Shock cooling
     - Thermal synchrotron
     - Shocked cocoon
+    - Several more ...
 
 - Magnetar driven ejecta models:
 
@@ -64,6 +68,7 @@ For a full up to date list of models implemented in :code:`redback`, look at the
     - General mergernova
     - Magnetic field mergernova
     - Magnetic field metzger driven kilonova
+    - Several more ...
 
 - Millisecond magnetar models
 
@@ -75,6 +80,7 @@ For a full up to date list of models implemented in :code:`redback`, look at the
     - magnetar with radiative losses
     - collapsing magnetar
     - piecewise magnetar
+    - Several more ...
 
 - Tidal disruption models
 
@@ -82,13 +88,16 @@ For a full up to date list of models implemented in :code:`redback`, look at the
     - Cooling envelope (Metzger 2022)
     - Gaussian rise + cooling envelope (Sarin and Metzger 2024)
     - Broken power law + cooling envelope (Sarin and Metzger 2024)
+    - Fitted
+    - TDEMass
+    - Mosfit TDE
 
 - Phenomenological and fireball models
 
     - 1-6 component piecewise power law
     - exponential_powerlaw
     - Gaussian rise
-    - Several more
+    - Several more ...
 
 - Combined models
 
@@ -97,8 +106,9 @@ For a full up to date list of models implemented in :code:`redback`, look at the
     - Tophat + Two component kilonova
     - Tophat + Arnett
 
-We note that these models can output in `flux_density` or `magnitude` set by the keyword argument
+We note that these models can output in `flux_density`, `magnitude`, or `spectrum` set by the keyword argument
 `output_format` or in integrated flux or luminosity using the appropriate luminosity/flux function.
+Please refer to the API docs for additional details.
 
 Alongside these models we also include some general models which can many of the above models as a `base_model`
 

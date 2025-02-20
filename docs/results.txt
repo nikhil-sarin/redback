@@ -86,3 +86,10 @@ We also provide functionality for loading in a result file.
 
 Here filepath is the path to file, the result file recreates the transient object exactly as it was used when fitted.
 This ensures users can keep their results consistent with the data_mode/filters etc of the transient they chose.
+
+Fitting spectrums
+-------------------------
+
+The above generally describes the interface for fitting lightcurves.
+Redback also provides functionality for fitting spectrums,
+which has an identical interface except the result object is a :code:`redback.spectrum_result` object, which has slightly behaviour.
