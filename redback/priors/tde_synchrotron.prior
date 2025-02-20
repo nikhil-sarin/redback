@@ -1,0 +1,6 @@
+redshift = Uniform(0.01, 3, 'redshift', latex_label=r'$z$')
+Mej = Uniform(0.1, 10, 'Mej', latex_label = r'$M_{\mathrm{ej}}~(M_\odot)$')
+vej = Uniform(1e3, 3e4, 'vej', latex_label = r'$v_{\mathrm{ej}}~(\mathrm{km}/\mathrm{s})$')
+logepse = Uniform(-5, 0, 'logepse', latex_label=r'$\log_{10}~\\epsilon_{e}$')
+logepsb = Uniform(-5, 0, 'logepsb', latex_label=r'$\log_{10}~\\epsilon_{B}$')
+p = Uniform(2, 3, 'p', latex_label=r'$p$')

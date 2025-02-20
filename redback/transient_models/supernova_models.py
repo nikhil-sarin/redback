@@ -363,7 +363,7 @@ def arnett(time, redshift, f_nickel, mej, **kwargs):
                                                               spectra=spectra, lambda_array=lambda_observer_frame,
                                                               **kwargs)
 
-@citation_wrapper('redback')
+@citation_wrapper('https://ui.adsabs.harvard.edu/abs/1982ApJ...253..785A/abstract')
 def shock_cooling_and_arnett(time, redshift, log10_mass, log10_radius, log10_energy,
                              f_nickel, mej, **kwargs):
     """
@@ -1413,7 +1413,7 @@ def general_magnetar_slsn(time, redshift, l0, tsd, nn, ** kwargs):
                                                               spectra=spectra, lambda_array=lambda_observer_frame,
                                                               **kwargs)
 
-@citation_wrapper('Omand and Sarin (2023)')
+@citation_wrapper('https://ui.adsabs.harvard.edu/abs/2024MNRAS.527.6455O/abstract')
 def general_magnetar_driven_supernova_bolometric(time, mej, E_sn, kappa, l0, tau_sd, nn, kappa_gamma, **kwargs):   
     """
     :param time: time in observer frame in days
@@ -1473,7 +1473,7 @@ def general_magnetar_driven_supernova_bolometric(time, mej, E_sn, kappa, l0, tau
     else:
         return lbol
 
-@citation_wrapper('Omand and Sarin (2023)')
+@citation_wrapper('https://ui.adsabs.harvard.edu/abs/2024MNRAS.527.6455O/abstract')
 def general_magnetar_driven_supernova(time, redshift, mej, E_sn, kappa, l0, tau_sd, nn, kappa_gamma, **kwargs):
     """
     :param time: time in observer frame in days
@@ -1590,6 +1590,8 @@ def general_magnetar_driven_supernova(time, redshift, mej, E_sn, kappa, l0, tau_
                                                      **kwargs)
 
 
+
+@citation_wrapper('https://ui.adsabs.harvard.edu/abs/2022ApJ...933..238M/abstract, https://ui.adsabs.harvard.edu/abs/1982ApJ...253..785A/abstract')
 def csm_shock_and_arnett_bolometric(time, mej, f_nickel, csm_mass, v_min, beta, shell_radius,
                                     shell_width_ratio, kappa, **kwargs):
     """
@@ -1618,6 +1620,7 @@ def csm_shock_and_arnett_bolometric(time, mej, f_nickel, csm_mass, v_min, beta, 
     return lbol
 
 
+@citation_wrapper('https://ui.adsabs.harvard.edu/abs/2022ApJ...933..238M/abstract, https://ui.adsabs.harvard.edu/abs/1982ApJ...253..785A/abstract')
 def csm_shock_and_arnett(time, redshift, mej, f_nickel, csm_mass, v_min, beta, shell_radius,
                shell_width_ratio, kappa, **kwargs):
     """

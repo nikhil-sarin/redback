@@ -18,7 +18,7 @@ class SimulateGenericTransient(object):
         """
         A generic interface to simulating transients
 
-        :param model: String corresponding to redback model
+        :param model: String corresponding to redback model or a python function that can evaluate an SED.
         :param parameters: Dictionary of parameters describing a single transient
         :param times: Time values that the model is evaluated from
         :param model_kwargs: Additional keyword arguments, must include all the keyword arguments required by the model.
@@ -35,10 +35,13 @@ class SimulateGenericTransient(object):
             Default is 'gaussianmodel' where sigma is noise_term * model.
             Another option is 'gaussian' i.e., a simple Gaussian noise with sigma = noise_term.
         :param noise_term: Float. Factor which is multiplied by the model flux/magnitude to give the sigma
-            or is sigma itself for 'gaussian' noise.
+            or is sigma itself for 'gaussian' noise. Or the SNR for 'SNRbased' noise.
         :param extra_scatter: Float. Sigma of normal added to output for additional scatter.
         """
-        self.model = redback.model_library.all_models_dict[model]
+        if model in redback.model_library.all_models_dict:
+            self.model = redback.model_library.all_models_dict[model]
+        else:
+            self.model = model 
         self.parameters = parameters
         self.all_times = times
         self.model_kwargs = model_kwargs
@@ -95,9 +98,13 @@ class SimulateGenericTransient(object):
             noise = np.random.normal(0, self.noise_term, len(true_output))
             output = true_output + noise
             output_error = self.noise_term
+        elif noise_type == 'SNRbased':
+            sigma = np.sqrt(true_output + np.min(true_output)/self.noise_term)
+            output_error = sigma
+            output = true_output + np.random.normal(0, sigma, len(true_output))
         else:
             logger.warning(f"noise_type {noise_type} not implemented.")
-            raise ValueError('noise_type must be either gaussianmodel or gaussian')
+            raise ValueError('noise_type must be either gaussianmodel, gaussian, or SNRBased')
 
         if extra_scatter > 0:
             extra_noise = np.random.normal(0, extra_scatter, len(true_output))
