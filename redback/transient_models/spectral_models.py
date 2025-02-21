@@ -5,7 +5,7 @@ from redback.utils import lambda_to_nu
 import redback.sed as sed
 import redback.transient_models.phenomenological_models as pm
 
-def get_blackbody_spectrum(angstrom, temperature, r_photosphere, distance):
+def _get_blackbody_spectrum(angstrom, temperature, r_photosphere, distance):
     """
     :param angstrom: wavelength array in angstroms
     :param temperature: temperature in Kelvin
@@ -20,7 +20,7 @@ def get_blackbody_spectrum(angstrom, temperature, r_photosphere, distance):
                                                   dl=distance)
     return flux_density.value
 
-def get_powerlaw_spectrum(angstrom, alpha, aa):
+def _get_powerlaw_spectrum(angstrom, alpha, aa):
     """
     :param angstrom: wavelength array in angstroms
     :param alpha: power law index
@@ -46,7 +46,7 @@ def powerlaw_spectrum_with_absorption_and_emission_lines(angstroms, alpha, aa, l
     :param v2: velocity of absorption line
     :return: flux in ergs/s/cm^2/angstrom
     """
-    flux = get_powerlaw_spectrum(angstrom=angstroms, alpha=alpha, aa=aa)
+    flux = _get_powerlaw_spectrum(angstrom=angstroms, alpha=alpha, aa=aa)
     fp1 = pm.line_spectrum_with_velocity_dispersion(angstroms, lc1, ls1, v1)
     fp2 = pm.line_spectrum_with_velocity_dispersion(angstroms, lc2, ls2, v2)
     return flux + fp1 - fp2
@@ -74,7 +74,7 @@ def blackbody_spectrum_with_absorption_and_emission_lines(angstroms, redshift,
     """
     cosmology = kwargs.get('cosmology', cosmo)
     dl = cosmology.luminosity_distance(redshift).cgs.value
-    flux = get_blackbody_spectrum(angstrom=angstroms, distance=dl,
+    flux = _get_blackbody_spectrum(angstrom=angstroms, distance=dl,
                                   r_photosphere=rph, temperature=temp)
     fp1 = pm.line_spectrum_with_velocity_dispersion(angstroms, lc1, ls1, v1)
     fp2 = pm.line_spectrum_with_velocity_dispersion(angstroms, lc2, ls2, v2)
