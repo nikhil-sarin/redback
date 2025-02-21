@@ -129,7 +129,8 @@ def pwn(time, redshift, mej, l0, tau_sd, nn, eps_b, gamma_b, **kwargs):
     ejecta_radius = 1.0e11
     epse=1.0-eps_b
     n_ism = 1.0e-5
-    dl = cosmo.luminosity_distance(redshift).cgs.value
+    cosmology = kwargs.get('cosmology', cosmo)
+    dl = cosmology.luminosity_distance(redshift).cgs.value
     pair_cascade_switch = kwargs.get('pair_cascade_switch', False)
     use_r_process = kwargs.get('use_r_process', False)
     nu_M=3.8e22*np.ones(2500)
@@ -516,3 +517,159 @@ def tde_synchrotron(time, redshift, Mej, vej, logepse, logepsb, p, **kwargs):
     else:        
         flux_density = Fvb * ((frequency / vb) ** (-beta1 * s) + (frequency / vb) ** (-beta2 * s)) ** (-1.0 / s)
         return flux_density    
+
+@citation_wrapper('https://ui.adsabs.harvard.edu/abs/2007ihea.book.....R/abstract, https://ui.adsabs.harvard.edu/abs/2017hsn..book..875C/abstract')
+def synchrotron_massloss(time, redshift, v_s, log_Mdot_vwind, logepsb, logepse, p, **kwargs):
+    """
+    :param time: time in observer frame in days
+    :param redshift: redshift
+    :param v_s: velocity of the shock (km/s)
+    :param log Mdot_vwind: log10 of the mass loss rate over wind velocity ((solar mass / year)/(km / s))
+    :param logepse: log10 epsilon_e; electron thermalisation efficiency
+    :param logepsb: log10 epsilon_b; magnetic field amplification efficiency
+    :param p: electron power law slope
+    :param kwargs: extra parameters to change physics/settings
+    :param frequency: frequency to calculate model on - Must be same length as time array or a single number)
+    :param cosmology: Cosmology to use for luminosity distance calculation. Defaults to Planck18. Must be a astropy.cosmology object.
+    :return: flux density
+    """
+    cosmology = kwargs.get('cosmology', cosmo)
+    dl = cosmology.luminosity_distance(redshift).cgs.value
+    frequency = kwargs['frequency']
+    if isinstance(frequency, float):
+        frequency = np.ones(len(time)) * frequency
+    frequency, time = calc_kcorrected_properties(frequency=frequency, redshift=redshift, time=time)   
+
+    eps_e = 10.0 ** logepse
+    eps_b = 10.0 ** logepsb
+    v_cgs = v_s * km_cgs
+    t_cgs = time * day_to_s
+    r_s = v_cgs * t_cgs
+    Mdot_vwind = 10.0 ** log_Mdot_vwind    
+    Md_vw_cgs = Mdot_vwind * solar_mass / (day_to_s * 365.24) / km_cgs #g/cm
+    nu_0 = 1.253e19
+   
+    rho_csm = Md_vw_cgs / (4.0 * np.pi * r_s ** 2.0)
+    u_b = eps_b * rho_csm * v_cgs ** 2.0
+    B = np.sqrt(8 * np.pi * u_b)
+    N_0 = 4.0 / 3.0 * np.pi * r_s ** 3.0 * eps_e * rho_csm / proton_mass
+    C_0 = 4.0 / 3.0 * N_0 * sigma_T * speed_of_light * u_b 
+    nu_L = qe * B / (2 * np.pi * electron_mass * speed_of_light)
+
+    L_nu = C_0 / (2.0 * nu_L) * (frequency / nu_L) ** ((1.0 - p) / 2.0) 
+    flux_density = L_nu / (4.0 * np.pi * dl**2) / 1.0e-26
+
+    Fv0 = C_0 / (2.0 * nu_L) / (4.0 * np.pi * dl**2)
+    beta = 1.0 - (1.0 - p) / 2.0
+    nu_ssa = (dl**2 * 3.0**1.5 * qe**0.5 * B**0.5 * Fv0 * nu_L**(beta - 1.0) / (4.0 * np.pi**1.5 * r_s**2 * speed_of_light**0.5 * electron_mass**1.5))**(2.0 / (2.0 * beta + 3.0))
+    Fv_ssa = Fv0 * (nu_ssa / nu_L) ** (1-beta)
+
+    if (np.min(frequency) < np.max(nu_ssa)):
+        msk = (frequency < nu_ssa)
+        flux_density[msk] = Fv_ssa[msk] * (frequency[msk] / nu_ssa[msk]) ** 2.5 / 1.0e-26 
+        
+    return flux_density    
+
+@citation_wrapper('https://ui.adsabs.harvard.edu/abs/2007ihea.book.....R/abstract, https://ui.adsabs.harvard.edu/abs/2017hsn..book..875C/abstract')    
+def synchrotron_ism(time, redshift, v_s, logn0, logepsb, logepse, p, **kwargs):  
+    """
+    :param time: time in observer frame in days
+    :param redshift: redshift
+    :param v_s: velocity of the shock (km/s)
+    :param logn0: log10 of the circumburst density (cm^-3)
+    :param logepse: log10 epsilon_e; electron thermalisation efficiency
+    :param logepsb: log10 epsilon_b; magnetic field amplification efficiency
+    :param p: electron power law slope
+    :param kwargs: extra parameters to change physics/settings
+    :param frequency: frequency to calculate model on - Must be same length as time array or a single number)
+    :param cosmology: Cosmology to use for luminosity distance calculation. Defaults to Planck18. Must be a astropy.cosmology object.
+    :return: flux density
+    """
+    cosmology = kwargs.get('cosmology', cosmo)
+    dl = cosmology.luminosity_distance(redshift).cgs.value
+    frequency = kwargs['frequency']
+    if isinstance(frequency, float):
+        frequency = np.ones(len(time)) * frequency
+    frequency, time = calc_kcorrected_properties(frequency=frequency, redshift=redshift, time=time)
+
+    n_ism = 10.0 ** logn0
+    eps_e = 10.0 ** logepse
+    eps_b = 10.0 ** logepsb
+    v_cgs = v_s * km_cgs
+    t_cgs = time * day_to_s
+    r_s = v_cgs * t_cgs
+    nu_0 = 1.253e19
+
+    rho_csm = proton_mass * n_ism
+    u_b = eps_b * rho_csm * v_cgs ** 2.0 
+    B = np.sqrt(8 * np.pi * u_b) 
+    N_0 = 4.0 / 3.0 * np.pi * r_s ** 3.0 * eps_e * n_ism 
+    C_0 = 4.0 / 3.0 * N_0 * sigma_T * speed_of_light * u_b 
+    nu_L = qe * B / (2 * np.pi * electron_mass * speed_of_light)
+
+    L_nu = C_0 / (2.0 * nu_L) * (frequency / nu_L) ** ((1.0 - p) / 2.0)
+    flux_density = L_nu / (4.0 * np.pi * dl**2) / 1.0e-26
+
+    Fv0 = C_0 / (2.0 * nu_L) / (4.0 * np.pi * dl**2)
+    beta = 1.0 - (1.0 - p) / 2.0
+    nu_ssa = (dl**2 * 3.0**1.5 * qe**0.5 * B**0.5 * Fv0 * nu_L**(beta - 1.0) / (4.0 * np.pi**1.5 * r_s**2 * speed_of_light**0.5 * electron_mass**1.5))**(2.0 / (2.0 * beta + 3.0))
+    Fv_ssa = Fv0 * (nu_ssa / nu_L) ** (1-beta)
+
+    if (np.min(frequency) < np.max(nu_ssa)):
+        msk = (frequency < nu_ssa)
+        flux_density[msk] = Fv_ssa[msk] * (frequency[msk] / nu_ssa[msk]) ** 2.5 / 1.0e-26 
+        
+    return flux_density   
+
+@citation_wrapper('https://ui.adsabs.harvard.edu/abs/2007ihea.book.....R/abstract, https://ui.adsabs.harvard.edu/abs/2017hsn..book..875C/abstract')    
+def synchrotron_pldensity(time, redshift, v_s, logA, s, logepsb, logepse, p, **kwargs):    
+    """
+    :param time: time in observer frame in days
+    :param redshift: redshift
+    :param v_s: velocity of the shock (km/s)
+    :param logA: log10 of the circumstellar material density at R=1e15 cm (cm^-3)
+    :param s: power law index of the circumstellar material density profile
+    :param logepse: log10 epsilon_e; electron thermalisation efficiency
+    :param logepsb: log10 epsilon_b; magnetic field amplification efficiency
+    :param p: electron power law slope
+    :param kwargs: extra parameters to change physics/settings
+    :param frequency: frequency to calculate model on - Must be same length as time array or a single number)
+    :param cosmology: Cosmology to use for luminosity distance calculation. Defaults to Planck18. Must be a astropy.cosmology object.
+    :return: flux density
+    """
+    cosmology = kwargs.get('cosmology', cosmo)
+    dl = cosmology.luminosity_distance(redshift).cgs.value
+    frequency = kwargs['frequency']
+    if isinstance(frequency, float):
+        frequency = np.ones(len(time)) * frequency
+    frequency, time = calc_kcorrected_properties(frequency=frequency, redshift=redshift, time=time)
+
+    A = 10.0 ** logA
+    eps_e = 10.0 ** logepse
+    eps_b = 10.0 ** logepsb
+    v_cgs = v_s * km_cgs
+    t_cgs = time * day_to_s
+    r_s = v_cgs * t_cgs
+    nu_0 = 1.253e19    
+
+    n_csm = A * (r_s / 1e15) **(-s)
+    rho_csm = n_csm * proton_mass
+    u_b = eps_b * rho_csm * v_cgs ** 2.0
+    B = np.sqrt(8 * np.pi * u_b) 
+    N_0 = 4.0 / 3.0 * np.pi * r_s ** 3.0 * eps_e * n_csm
+    C_0 = 4.0 / 3.0 * N_0 * sigma_T * speed_of_light * u_b
+    nu_L = qe * B / (2 * np.pi * electron_mass * speed_of_light)
+
+    L_nu = C_0 / (2.0 * nu_L) * (frequency / nu_L) ** ((1.0 - p) / 2.0)
+    flux_density = L_nu / (4.0 * np.pi * dl**2) / 1.0e-26
+
+    Fv0 = C_0 / (2.0 * nu_L) / (4.0 * np.pi * dl**2)
+    beta = 1.0 - (1.0 - p) / 2.0
+    nu_ssa = (dl**2 * 3.0**1.5 * qe**0.5 * B**0.5 * Fv0 * nu_L**(beta - 1.0) / (4.0 * np.pi**1.5 * r_s**2 * speed_of_light**0.5 * electron_mass**1.5))**(2.0 / (2.0 * beta + 3.0))
+    Fv_ssa = Fv0 * (nu_ssa / nu_L) ** (1-beta)
+
+    if (np.min(frequency) < np.max(nu_ssa)):
+        msk = (frequency < nu_ssa)
+        flux_density[msk] = Fv_ssa[msk] * (frequency[msk] / nu_ssa[msk]) ** 2.5 / 1.0e-26 
+        
+    return flux_density       

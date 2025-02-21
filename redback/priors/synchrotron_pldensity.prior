@@ -1,0 +1,7 @@
+redshift = Uniform(0.01, 3, 'redshift', latex_label=r'$z$')
+v_s = Uniform(1e3, 3e4, 'vej', latex_label = r'$v_{\mathrm{s}}~(\mathrm{km}/\mathrm{s})$')
+logA = Uniform(-5, 5, 'logA', latex_label=r'$A / {\mathrm{cm}}^{-3}$')
+s = Uniform(0, 2, 's', latex_label=r'$s$')
+logepse = Uniform(-5, 0, 'logepse', latex_label=r'$\log_{10}~\\epsilon_{e}$')
+logepsb = Uniform(-5, 0, 'logepsb', latex_label=r'$\log_{10}~\\epsilon_{B}$')
+p = Uniform(2, 3, 'p', latex_label=r'$p$')
