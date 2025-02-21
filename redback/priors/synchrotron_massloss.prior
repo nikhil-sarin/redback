@@ -1,0 +1,6 @@
+redshift = Uniform(0.01, 3, 'redshift', latex_label=r'$z$')
+v_s = Uniform(1e3, 3e4, 'vej', latex_label = r'$v_{\mathrm{s}}~(\mathrm{km}/\mathrm{s})$')
+log_Mdot_vwind = Uniform(-10, -4, 'log_Mdot_vwind', latex_label = r'$\dot{M}/u_{\mathrm{wind}}~(M_\odot \mathrm{s km year}^{-1})$')
+logepse = Uniform(-5, 0, 'logepse', latex_label=r'$\log_{10}~\\epsilon_{e}$')
+logepsb = Uniform(-5, 0, 'logepsb', latex_label=r'$\log_{10}~\\epsilon_{B}$')
+p = Uniform(2, 3, 'p', latex_label=r'$p$')
