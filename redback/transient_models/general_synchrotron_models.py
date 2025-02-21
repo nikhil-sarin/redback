@@ -622,7 +622,7 @@ def synchrotron_ism(time, redshift, v_s, logn0, logepsb, logepse, p, **kwargs):
     return flux_density   
 
 @citation_wrapper('https://ui.adsabs.harvard.edu/abs/2007ihea.book.....R/abstract, https://ui.adsabs.harvard.edu/abs/2017hsn..book..875C/abstract')    
-def synchrotron_pldensity(time, resdhift, v_s, logA, s, logepsb, logepse, p, **kwargs):    
+def synchrotron_pldensity(time, redshift, v_s, logA, s, logepsb, logepse, p, **kwargs):    
     """
     :param time: time in observer frame in days
     :param redshift: redshift
