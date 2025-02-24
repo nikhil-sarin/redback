@@ -33,6 +33,9 @@ class _FilePathGetter(object):
 
 
 class Plotter(object):
+    """
+    Base class for all lightcurve plotting classes in redback.
+    """
 
     capsize = KwargsAccessorWithDefault("capsize", 0.)
     legend_location = KwargsAccessorWithDefault("legend_location", "best")
@@ -254,6 +257,208 @@ class Plotter(object):
         directory_property="_data_plot_outdir", filename_property="_multiband_data_plot_filename")
     _multiband_lightcurve_plot_filepath = _FilePathGetter(
         directory_property="_lightcurve_plot_outdir", filename_property="_multiband_lightcurve_plot_filename")
+
+    def _save_and_show(self, filepath: str, save: bool, show: bool) -> None:
+        plt.tight_layout()
+        if save:
+            plt.savefig(filepath, dpi=self.dpi, bbox_inches=self.bbox_inches, transparent=False, facecolor='white')
+        if show:
+            plt.show()
+
+class SpecPlotter(object):
+    """
+    Base class for all lightcurve plotting classes in redback.
+    """
+
+    capsize = KwargsAccessorWithDefault("capsize", 0.)
+    elinewidth = KwargsAccessorWithDefault("elinewidth", 2)
+    errorbar_fmt = KwargsAccessorWithDefault("errorbar_fmt", "x")
+    legend_location = KwargsAccessorWithDefault("legend_location", "best")
+    legend_cols = KwargsAccessorWithDefault("legend_cols", 2)
+    color = KwargsAccessorWithDefault("color", "k")
+    dpi = KwargsAccessorWithDefault("dpi", 300)
+    model = KwargsAccessorWithDefault("model", None)
+    ms = KwargsAccessorWithDefault("ms", 1)
+    axis_tick_params_pad = KwargsAccessorWithDefault("axis_tick_params_pad", 10)
+
+    max_likelihood_alpha = KwargsAccessorWithDefault("max_likelihood_alpha", 0.65)
+    random_sample_alpha = KwargsAccessorWithDefault("random_sample_alpha", 0.05)
+    uncertainty_band_alpha = KwargsAccessorWithDefault("uncertainty_band_alpha", 0.4)
+    max_likelihood_color = KwargsAccessorWithDefault("max_likelihood_color", "blue")
+    random_sample_color = KwargsAccessorWithDefault("random_sample_color", "red")
+
+    bbox_inches = KwargsAccessorWithDefault("bbox_inches", "tight")
+    linewidth = KwargsAccessorWithDefault("linewidth", 2)
+    zorder = KwargsAccessorWithDefault("zorder", -1)
+    yscale = KwargsAccessorWithDefault("yscale", "linear")
+
+    xy = KwargsAccessorWithDefault("xy", (0.95, 0.9))
+    xycoords = KwargsAccessorWithDefault("xycoords", "axes fraction")
+    horizontalalignment = KwargsAccessorWithDefault("horizontalalignment", "right")
+    annotation_size = KwargsAccessorWithDefault("annotation_size", 20)
+
+    fontsize_axes = KwargsAccessorWithDefault("fontsize_axes", 18)
+    fontsize_figure = KwargsAccessorWithDefault("fontsize_figure", 30)
+    fontsize_legend = KwargsAccessorWithDefault("fontsize_legend", 18)
+    fontsize_ticks = KwargsAccessorWithDefault("fontsize_ticks", 16)
+    hspace = KwargsAccessorWithDefault("hspace", 0.04)
+    wspace = KwargsAccessorWithDefault("wspace", 0.15)
+
+    random_models = KwargsAccessorWithDefault("random_models", 100)
+    uncertainty_mode = KwargsAccessorWithDefault("uncertainty_mode", "random_models")
+    credible_interval_level = KwargsAccessorWithDefault("credible_interval_level", 0.9)
+    plot_max_likelihood = KwargsAccessorWithDefault("plot_max_likelihood", True)
+    set_same_color_per_subplot = KwargsAccessorWithDefault("set_same_color_per_subplot", True)
+
+    xlim_high_multiplier = KwargsAccessorWithDefault("xlim_high_multiplier", 1.05)
+    xlim_low_multiplier = KwargsAccessorWithDefault("xlim_low_multiplier", 0.9)
+    ylim_high_multiplier = KwargsAccessorWithDefault("ylim_high_multiplier", 1.1)
+    ylim_low_multiplier = KwargsAccessorWithDefault("ylim_low_multiplier", 0.5)
+
+    def __init__(self, spectrum: Union[redback.transient.Spectrum, None], **kwargs) -> None:
+        """
+        :param spectrum: An instance of `redback.transient.Spectrum`. Contains the data to be plotted.
+        :param kwargs: Additional kwargs the plotter uses. -------
+        :keyword capsize: Same as matplotlib capsize.
+        :keyword elinewidth: same as matplotlib elinewidth
+        :keyword errorbar_fmt: 'fmt' argument of `ax.errorbar`.
+        :keyword ms: Same as matplotlib markersize.
+        :keyword legend_location: Same as matplotlib legend location.
+        :keyword legend_cols: Same as matplotlib legend columns.
+        :keyword color: Color of the data points.
+        :keyword dpi: Same as matplotlib dpi.
+        :keyword model: str or callable, the model to plot.
+        :keyword ms: Same as matplotlib markersize.
+        :keyword axis_tick_params_pad: `pad` argument in calls to `ax.tick_params` when setting the axes.
+        :keyword max_likelihood_alpha: `alpha` argument, i.e. transparency, when plotting the max likelihood curve.
+        :keyword random_sample_alpha: `alpha` argument, i.e. transparency, when plotting random sample curves.
+        :keyword uncertainty_band_alpha: `alpha` argument, i.e. transparency, when plotting a credible band.
+        :keyword max_likelihood_color: Color of the maximum likelihood curve.
+        :keyword random_sample_color: Color of the random sample curves.
+        :keyword bbox_inches: Setting for saving plots. Default is 'tight'.
+        :keyword linewidth: Same as matplotlib linewidth
+        :keyword zorder: Same as matplotlib zorder
+        :keyword yscale: Same as matplotlib yscale, default is linear
+        :keyword xy: For `ax.annotate' x and y coordinates of the point to annotate.
+        :keyword xycoords: The coordinate system `xy` is given in. Default is 'axes fraction'
+        :keyword horizontalalignment: Horizontal alignment of the annotation. Default is 'right'
+        :keyword annotation_size: `size` argument of of `ax.annotate`.
+        :keyword fontsize_axes: Font size of the x and y labels.
+        :keyword fontsize_legend: Font size of the legend.
+        :keyword fontsize_figure: Font size of the figure. Relevant for multiband plots.
+                                  Used on `supxlabel` and `supylabel`.
+        :keyword fontsize_ticks: Font size of the axis ticks.
+        :keyword hspace: Argument for `subplots_adjust`, sets horizontal spacing between panels.
+        :keyword wspace: Argument for `subplots_adjust`, sets horizontal spacing between panels.
+        :keyword plot_others: Whether to plot additional bands in the data plot, all in the same colors
+        :keyword random_models: Number of random draws to use to calculate credible bands or to plot.
+        :keyword uncertainty_mode: 'random_models': Plot random draws from the available parameter sets.
+                                   'credible_intervals': Plot a credible interval that is calculated based
+                                   on the available parameter sets.
+        :keyword credible_interval_level: 0.9: Plot the 90% credible interval.
+        :keyword plot_max_likelihood: Plots the draw corresponding to the maximum likelihood. Default is 'True'.
+        :keyword set_same_color_per_subplot: Sets the lightcurve to be the same color as the data per subplot. Default is 'True'.
+        :keyword xlim_high_multiplier: Adjust the maximum xlim based on available x values.
+        :keyword xlim_low_multiplier: Adjust the minimum xlim based on available x values.
+        :keyword ylim_high_multiplier: Adjust the maximum ylim based on available x values.
+        :keyword ylim_low_multiplier: Adjust the minimum ylim based on available x values.
+        """
+        self.transient = spectrum
+        self.kwargs = kwargs or dict()
+        self._posterior_sorted = False
+
+    keyword_docstring = __init__.__doc__.split("-------")[1]
+
+    def _get_angstroms(self, axes: matplotlib.axes.Axes) -> np.ndarray:
+        """
+        :param axes: The axes used in the plotting procedure.
+        :type axes: matplotlib.axes.Axes
+
+        :return: Linearly or logarithmically scaled angtrom values depending on the y scale used in the plot.
+        :rtype: np.ndarray
+        """
+        if isinstance(axes, np.ndarray):
+            ax = axes[0]
+        else:
+            ax = axes
+
+        if ax.get_yscale() == 'linear':
+            angstroms = np.linspace(self._xlim_low, self._xlim_high, 200)
+        else:
+            angstroms = np.exp(np.linspace(np.log(self._xlim_low), np.log(self._xlim_high), 200))
+
+        return angstroms
+
+    @property
+    def _xlim_low(self) -> float:
+        default = self.xlim_low_multiplier * self.transient.angstroms[0]
+        if default == 0:
+            default += 1e-3
+        return self.kwargs.get("xlim_low", default)
+
+    @property
+    def _xlim_high(self) -> float:
+        default = self.xlim_high_multiplier * self.transient.angstroms[-1]
+        return self.kwargs.get("xlim_high", default)
+
+    @property
+    def _ylim_low(self) -> float:
+        default = self.ylim_low_multiplier * min(self.transient.flux_density)
+        return self.kwargs.get("ylim_low", default/1e-17)
+
+    @property
+    def _ylim_high(self) -> float:
+        default = self.ylim_high_multiplier * np.max(self.transient.flux_density)
+        return self.kwargs.get("ylim_high", default/1e-17)
+
+    @property
+    def _y_err(self) -> np.ndarray:
+            return np.array([np.abs(self.transient.y_err)])
+
+    @property
+    def _data_plot_outdir(self) -> str:
+        return self._get_outdir(self.transient.directory_structure.directory_path)
+
+    def _get_outdir(self, default: str) -> str:
+        return self._get_kwarg_with_default(kwarg="outdir", default=default)
+
+    def get_filename(self, default: str) -> str:
+        return self._get_kwarg_with_default(kwarg="filename", default=default)
+
+    def _get_kwarg_with_default(self, kwarg: str, default: Any) -> Any:
+        return self.kwargs.get(kwarg, default) or default
+
+    @property
+    def _model_kwargs(self) -> dict:
+        return self._get_kwarg_with_default("model_kwargs", dict())
+
+    @property
+    def _posterior(self) -> pd.DataFrame:
+        posterior = self.kwargs.get("posterior", pd.DataFrame())
+        if not self._posterior_sorted and posterior is not None:
+            posterior.sort_values(by='log_likelihood', inplace=True)
+            self._posterior_sorted = True
+        return posterior
+
+    @property
+    def _max_like_params(self) -> pd.core.series.Series:
+        return self._posterior.iloc[-1]
+
+    def _get_random_parameters(self) -> list[pd.core.series.Series]:
+        integers = np.arange(len(self._posterior))
+        indices = np.random.choice(integers, size=self.random_models)
+        return [self._posterior.iloc[idx] for idx in indices]
+
+    _data_plot_filename = _FilenameGetter(suffix="data")
+    _spectrum_ppd_plot_filename = _FilenameGetter(suffix="spectrum_ppd")
+    _residual_plot_filename = _FilenameGetter(suffix="residual")
+
+    _data_plot_filepath = _FilePathGetter(
+        directory_property="_data_plot_outdir", filename_property="_data_plot_filename")
+    _spectrum_ppd_plot_filepath = _FilePathGetter(
+        directory_property="_data_plot_outdir", filename_property="_spectrum_ppd_plot_filename")
+    _residual_plot_filepath = _FilePathGetter(
+        directory_property="_data_plot_outdir", filename_property="_residual_plot_filename")
 
     def _save_and_show(self, filepath: str, save: bool, show: bool) -> None:
         plt.tight_layout()
@@ -805,6 +1010,122 @@ class FluxDensityPlotter(MagnitudePlotter):
 class IntegratedFluxOpticalPlotter(MagnitudePlotter):
     pass
 
-class SpectraPlotter(Plotter):
-    pass
+class SpectrumPlotter(SpecPlotter):
+    @property
+    def _xlabel(self) -> str:
+        return self.transient.xlabel
 
+    @property
+    def _ylabel(self) -> str:
+        return self.transient.ylabel
+
+    def plot_data(
+            self, axes: matplotlib.axes.Axes = None, save: bool = True, show: bool = True) -> matplotlib.axes.Axes:
+        """Plots the spectrum data and returns Axes.
+
+        :param axes: Matplotlib axes to plot the data into. Useful for user specific modifications to the plot.
+        :type axes: Union[matplotlib.axes.Axes, None], optional
+        :param save: Whether to save the plot. (Default value = True)
+        :type save: bool
+        :param show: Whether to show the plot. (Default value = True)
+        :type show: bool
+
+        :return: The axes with the plot.
+        :rtype: matplotlib.axes.Axes
+        """
+        ax = axes or plt.gca()
+
+        if self.transient.plot_with_time_label:
+            label = self.transient.time
+        else:
+            label = self.transient.name
+        ax.plot(self.transient.angstroms, self.transient.flux_density/1e-17, color=self.color,
+                lw=self.linewidth)
+        ax.set_xscale('linear')
+        ax.set_yscale(self.yscale)
+
+        ax.set_xlim(self._xlim_low, self._xlim_high)
+        ax.set_ylim(self._ylim_low, self._ylim_high)
+        ax.set_xlabel(self._xlabel, fontsize=self.fontsize_axes)
+        ax.set_ylabel(self._ylabel, fontsize=self.fontsize_axes)
+
+        ax.annotate(
+            label, xy=self.xy, xycoords=self.xycoords,
+            horizontalalignment=self.horizontalalignment, size=self.annotation_size)
+
+        ax.tick_params(axis='both', which='both', pad=self.axis_tick_params_pad, labelsize=self.fontsize_ticks)
+
+        self._save_and_show(filepath=self._data_plot_filepath, save=save, show=show)
+        return ax
+
+    def plot_spectrum(
+            self, axes: matplotlib.axes.Axes = None, save: bool = True, show: bool = True) -> matplotlib.axes.Axes:
+        """Plots the spectrum data and the fit and returns Axes.
+
+        :param axes: Matplotlib axes to plot the lightcurve into. Useful for user specific modifications to the plot.
+        :type axes: Union[matplotlib.axes.Axes, None], optional
+        :param save: Whether to save the plot. (Default value = True)
+        :type save: bool
+        :param show: Whether to show the plot. (Default value = True)
+        :type show: bool
+
+        :return: The axes with the plot.
+        :rtype: matplotlib.axes.Axes
+        """
+
+        axes = axes or plt.gca()
+
+        axes = self.plot_data(axes=axes, save=False, show=False)
+        angstroms = self._get_angstroms(axes)
+
+        self._plot_spectrums(axes, angstroms)
+
+        self._save_and_show(filepath=self._spectrum_ppd_plot_filepath, save=save, show=show)
+        return axes
+
+    def _plot_spectrums(self, axes: matplotlib.axes.Axes, angstroms: np.ndarray) -> None:
+        if self.plot_max_likelihood:
+            ys = self.model(angstroms, **self._max_like_params, **self._model_kwargs)
+            axes.plot(angstroms, ys/1e-17, color=self.max_likelihood_color, alpha=self.max_likelihood_alpha,
+                      lw=self.linewidth)
+
+        random_ys_list = [self.model(angstroms, **random_params, **self._model_kwargs)
+                          for random_params in self._get_random_parameters()]
+        if self.uncertainty_mode == "random_models":
+            for ys in random_ys_list:
+                axes.plot(angstroms, ys/1e-17, color=self.random_sample_color, alpha=self.random_sample_alpha,
+                          lw=self.linewidth, zorder=self.zorder)
+        elif self.uncertainty_mode == "credible_intervals":
+            lower_bound, upper_bound, _ = redback.utils.calc_credible_intervals(samples=random_ys_list,
+                                                                                interval=self.credible_interval_level)
+            axes.fill_between(
+                angstroms, lower_bound/1e-17, upper_bound/1e-17, alpha=self.uncertainty_band_alpha, color=self.max_likelihood_color)
+
+    def plot_residuals(
+            self, axes: matplotlib.axes.Axes = None, save: bool = True, show: bool = True) -> matplotlib.axes.Axes:
+        """Plots the residual of the Integrated flux data returns Axes.
+
+        :param axes: Matplotlib axes to plot the lightcurve into. Useful for user specific modifications to the plot.
+        :param save: Whether to save the plot. (Default value = True)
+        :param show: Whether to show the plot. (Default value = True)
+
+        :return: The axes with the plot.
+        :rtype: matplotlib.axes.Axes
+        """
+        if axes is None:
+            fig, axes = plt.subplots(
+                nrows=2, ncols=1, sharex=True, sharey=False, figsize=(10, 8), gridspec_kw=dict(height_ratios=[2, 1]))
+
+        axes[0] = self.plot_spectrum(axes=axes[0], save=False, show=False)
+        axes[1].set_xlabel(axes[0].get_xlabel(), fontsize=self.fontsize_axes)
+        axes[0].set_xlabel("")
+        ys = self.model(self.transient.angstroms, **self._max_like_params, **self._model_kwargs)
+        axes[1].errorbar(
+            self.transient.angstroms, self.transient.flux_density - ys, yerr=self.transient.flux_density_err,
+            fmt=self.errorbar_fmt, c=self.color, ms=self.ms, elinewidth=self.elinewidth, capsize=self.capsize)
+        axes[1].set_yscale('linear')
+        axes[1].set_ylabel("Residual", fontsize=self.fontsize_axes)
+        axes[1].tick_params(axis='both', which='both', pad=self.axis_tick_params_pad, labelsize=self.fontsize_ticks)
+
+        self._save_and_show(filepath=self._residual_plot_filepath, save=save, show=show)
+        return axes

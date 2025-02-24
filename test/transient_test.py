@@ -10,6 +10,9 @@ import redback
 dirname = os.path.dirname(__file__)
 
 
+class TestSpectrum(unittest.TestCase):
+    pass
+
 class TestTransient(unittest.TestCase):
 
     def setUp(self) -> None:
