@@ -1,0 +1,5 @@
+aa = LogUniform(1e-15,1e15,name='aa', latex_label = r'$A$')
+bb = LogUniform(1e-15,1e15,name='bb', latex_label = r'$B$')
+t0 = Uniform(0,50,name='t0', latex_label = r'$t_0$')
+tau_rise = Uniform(0.01, 50, name='tau_rise', latex_label = r'$\\tau_{\\mathrm{rise}}$')
+tau_fall = Uniform(1, 300, name='tau_fall', latex_label = r'$\\tau_{\\mathrm{fall}}$')

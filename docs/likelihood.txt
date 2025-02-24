@@ -66,3 +66,9 @@ If you don't like the likelihoods implemented in redback, you can write your own
                res = self.y - self.function(self.x, **self.parameters, **self.kwargs)
                return -0.5 * (np.sum((res / self.sigma)**2)
                               + self.N*np.log(2*np.pi*self.sigma**2))
+
+Joint likelihoods
+-------------------------
+
+Any likelihood can be combined with another likelihood to form a joint likelihood. This is useful when you want to jointly fit two different types of data.
+For example, GW and EM data. Or GRB prompt and afterglow data. Or a spectrum and photometry of your favourite transient.

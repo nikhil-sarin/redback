@@ -1,0 +1,8 @@
+aa = LogUniform(1e-2, 1e2, name='aa', latex_label=r'$A$')
+alpha = Uniform(minimum=-5, maximum=5, name='alpha', latex_label=r'$\\alpha$')
+lc1 = Uniform(2000, 7000, name='lc1', latex_label=r'$\Lambda_{\mathrm{emission}}$')
+lc2 = Uniform(2000,7000, name='lc2', latex_label=r'$\Lambda_{\mathrm{absorption}}$')
+ls1 = LogUniform(1e-34, 1e-31, name='ls1', latex_label=r'line_stength$_{\mathrm{emission}}$')
+ls2 = LogUniform(1e-34, 1e-31, name='ls2', latex_label=r'line_stength$_{\mathrm{absorption}}$')
+v1 = Uniform(1e3, 1e4, name='v1', latex_label=r'$v_{\mathrm{emission}}$')
+v2 = Uniform(1e3, 1e4, name='v2', latex_label=r'$v_{\mathrm{absorption}}$')

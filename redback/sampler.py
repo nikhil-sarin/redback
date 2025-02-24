@@ -12,7 +12,7 @@ from redback.result import RedbackResult
 from redback.utils import logger
 from redback.transient.afterglow import Afterglow
 from redback.transient.prompt import PromptTimeSeries
-from redback.transient.transient import OpticalTransient, Transient
+from redback.transient.transient import OpticalTransient, Transient, Spectrum
 
 
 dirname = os.path.dirname(__file__)
@@ -58,7 +58,13 @@ def fit_model(
     Path(outdir).mkdir(parents=True, exist_ok=True)
     label = label or transient.name
 
-    if isinstance(transient, Afterglow):
+    if isinstance(transient, Spectrum):
+        return _fit_spectrum(transient=transient, model=model, outdir=outdir, label=label, sampler=sampler,
+                             nlive=nlive, prior=prior, walks=walks,
+                             resume=resume, save_format=save_format, model_kwargs=model_kwargs,
+                             plot=plot, **kwargs)
+
+    elif isinstance(transient, Afterglow):
         return _fit_grb(
             transient=transient, model=model, outdir=outdir, label=label, sampler=sampler, nlive=nlive, prior=prior,
             walks=walks, use_photon_index_prior=use_photon_index_prior, resume=resume, save_format=save_format,
@@ -82,7 +88,37 @@ def fit_model(
     else:
         raise ValueError(f'Source type {transient.__class__.__name__} not known')
 
+def _fit_spectrum(transient, model, outdir, label, likelihood=None, sampler='dynesty', nlive=3000, prior=None, walks=1000,
+                  resume=True, save_format='json', model_kwargs=None, plot=True, **kwargs):
+    x, y, y_err = transient.angstroms, transient.flux_density, transient.flux_density_err
+    likelihood = likelihood or GaussianLikelihood(x=x, y=y, sigma=y_err, function=model, kwargs=model_kwargs)
 
+    meta_data = dict(model=model.__name__, transient_type=transient.__class__.__name__.lower())
+    transient_kwargs = {k.lstrip("_"): v for k, v in transient.__dict__.items()}
+    meta_data.update(transient_kwargs)
+    model_kwargs = redback.utils.check_kwargs_validity(model_kwargs)
+    meta_data['model_kwargs'] = model_kwargs
+    nthreads = kwargs.get('nthreads', 1)
+
+    result = None
+    if not kwargs.get("clean", False):
+        try:
+            result = redback.result.read_in_result(
+                outdir=outdir, label=label, extension=kwargs.get("extension", "json"), gzip=kwargs.get("gzip", False))
+            plt.close('all')
+            return result
+        except Exception:
+            pass
+
+    result = result or bilby.run_sampler(
+        likelihood=likelihood, priors=prior, label=label, sampler=sampler, nlive=nlive,
+        outdir=outdir, plot=plot, use_ratio=False, walks=walks, resume=resume,
+        maxmcmc=10 * walks, result_class=RedbackResult, meta_data=meta_data,
+        nthreads=nthreads, save_bounds=False, nsteps=nlive, nwalkers=walks, save=save_format, **kwargs)
+    plt.close('all')
+    if plot:
+        result.plot_spectrum(model=model)
+    return result
 
 def _fit_grb(transient, model, outdir, label, likelihood=None, sampler='dynesty', nlive=3000, prior=None, walks=1000,
              use_photon_index_prior=False, resume=True, save_format='json', model_kwargs=None, plot=True, **kwargs):

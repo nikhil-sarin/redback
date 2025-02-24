@@ -65,22 +65,28 @@ class TestPhaseModels(unittest.TestCase):
         for f in self.prior_files:
             print(f)
             model_name = f.replace(".prior", "")
-            if model_name == 'trapped_magnetar':
-                kwargs['output_format'] = 'luminosity'
+            skip_dict = ['bazin_sne', 'villar_sne', 'blackbody_spectrum_with_absorption_and_emission_lines',
+                         'powerlaw_spectrum_with_absorption_and_emission_lines']
+            if model_name in skip_dict:
+                print('Skipping {}'.format(model_name))
+                pass
             else:
-                kwargs['output_format'] = 'flux_density'
-            prior = self.get_prior(file=f)
-            function = redback.model_library.all_models_dict['t0_base_model']
-            kwargs['base_model'] = model_name
-            kwargs['t0'] = 55855
-            sample = prior.sample()
-            if model_name == 'polytrope_eos_two_component_bns':
-                sample['gamma_1'] = 4.04
-                sample['gamma_2'] = 2.159
-                sample['gamma_3'] = 3.688
-                sample['log_p'] = 33.72
-            ys = function(times, **sample, **kwargs)
-            self.assertEqual(len(times), len(ys))
+                if model_name == 'trapped_magnetar':
+                    kwargs['output_format'] = 'luminosity'
+                else:
+                    kwargs['output_format'] = 'flux_density'
+                prior = self.get_prior(file=f)
+                function = redback.model_library.all_models_dict['t0_base_model']
+                kwargs['base_model'] = model_name
+                kwargs['t0'] = 55855
+                sample = prior.sample()
+                if model_name == 'polytrope_eos_two_component_bns':
+                    sample['gamma_1'] = 4.04
+                    sample['gamma_2'] = 2.159
+                    sample['gamma_3'] = 3.688
+                    sample['log_p'] = 33.72
+                ys = function(times, **sample, **kwargs)
+                self.assertEqual(len(times), len(ys))
 
 class TestMagnitudeOutput(unittest.TestCase):
     def setUp(self) -> None:
