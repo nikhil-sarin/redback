@@ -1,7 +1,7 @@
 import numpy as np
 from redback.transient_models.magnetar_models import magnetar_only, basic_magnetar
 from redback.transient_models.magnetar_driven_ejecta_models import _ejecta_dynamics_and_interaction
-from redback.transient_models.shock_powered_models import _emissivity_pl, _emissivity_thermal, _tau_nu
+from redback.transient_models.shock_powered_models import _emissivity_pl, _emissivity_thermal, _tau_nu, _c_j, _c_alpha, _g_theta, _low_freq_apl_correction, _low_freq_jpl_correction
 from redback.transient_models.afterglow_models import _get_kn_dynamics, _pnu_synchrotron
 from astropy.cosmology import Planck18 as cosmo
 from redback.utils import calc_kcorrected_properties, citation_wrapper, logger, get_csm_properties, nu_to_lambda, lambda_to_nu, velocity_from_lorentz_factor, calc_ABmag_from_flux_density
@@ -422,7 +422,7 @@ def thermal_synchrotron_fluxdensity(time, redshift, logn0, v0, logr0, eta, logep
     :param mu_e: mean molecular weight per electron, default is 1.18
     :param kwargs: extra parameters to change physics and other settings
     :param cosmology: Cosmology to use for luminosity distance calculation. Defaults to Planck18. Must be a astropy.cosmology object.
-    :return: flux density
+    :return: flux density in mJy
     """
     frequency = kwargs['frequency']
     frequency, time = calc_kcorrected_properties(frequency=frequency, redshift=redshift, time=time)
@@ -433,7 +433,7 @@ def thermal_synchrotron_fluxdensity(time, redshift, logn0, v0, logr0, eta, logep
     dl = cosmology.luminosity_distance(redshift).cgs.value
     lnu = thermal_synchrotron_lnu(time,logn0, v0, logr0, eta, logepse, logepsb, xi, p,**new_kwargs)
     flux_density = lnu / (4.0 * np.pi * dl**2)
-    return flux_density
+    return flux_density*1.0e26
     
 @citation_wrapper('https://ui.adsabs.harvard.edu/abs/2022MNRAS.511.5328G/abstract')
 def tde_synchrotron(time, redshift, Mej, vej, logepse, logepsb, p, **kwargs):
@@ -672,4 +672,136 @@ def synchrotron_pldensity(time, redshift, v_s, logA, s, logepsb, logepse, p, **k
         msk = (frequency < nu_ssa)
         flux_density[msk] = Fv_ssa[msk] * (frequency[msk] / nu_ssa[msk]) ** 2.5 / 1.0e-26 
         
-    return flux_density       
+    return flux_density
+
+@citation_wrapper('https://ui.adsabs.harvard.edu/abs/2024ApJ...977..134M/abstract, https://ui.adsabs.harvard.edu/abs/2021ApJ...923L..14M/abstract')     
+def thermal_synchrotron_v2_lnu(time, bG_sh, log_Mdot_vwind, n_ism, logepse, logepsb, xi, p, **kwargs):
+    """
+    :param time: time in source frame in days
+    :param bG_sh: Proper-velocity of the shock (bG_sh = Gamma_sh*beta_sh)
+    :param log Mdot_vwind: log10 of the mass loss rate over wind velocity ((solar mass / year)/(km / s))
+    :param n_ism: the circumburst density of the ISM (cm^-3)
+    :param logepse: log10 epsilon_e; electron thermalisation efficiency
+    :param logepsb: log10 epsilon_b; magnetic field amplification efficiency
+    :param xi: fraction of energy carried by power law electrons
+    :param p: electron power law slope
+    :param kwargs: extra parameters to change physics/settings
+    :param frequency: frequency to calculate model on - Must be same length as time array or a single number)
+    :param mu: mean molecular weight, default is 0.62
+    :param mu_e: mean molecular weight per electron, default is 1.18
+    :param ell_dec: Deceleration parameter defined in eq. (1) of MQ24, default is 1.0
+    :param f: Volume-filling factor defined in eq. (3) of MQ24, default is 3.0/16.0
+    :return: lnu
+    """
+    mu = kwargs.get('mu', 0.62)
+    mu_e = kwargs.get('mu_e', 1.18)
+    ell_dec = kwargs.get('ell_dec', 1.0)
+    f = kwargs.get('f', 3.0/16.0)
+    epsilon_T = 10**logepse
+    epsilon_B = 10**logepsb
+    frequency = kwargs['frequency']  
+    t = time * day_to_s
+    
+    Mdot_vwind = 10.0 ** log_Mdot_vwind    
+    Md_vw_cgs = Mdot_vwind * solar_mass / (day_to_s * 365.24) / km_cgs #g/cm   
+    
+    R = (1.0 + bG_sh**2)**0.5 * bG_sh * speed_of_light * ell_dec * t
+    bG = 0.5 * (bG_sh**2 - 2.0 + (bG_sh**4 + 5.0 * bG_sh**2 + 4.0)**0.5)**0.5
+    Gamma = (1.0 + bG**2)**0.5
+    
+    #total ISM number density is sum of wind and flat density component
+    Mdot_over_vw = 4.0 * np.pi * mu * proton_mass * R**2 * n_ism + Md_vw_cgs
+    n = Md_vw_cgs / (4.0 * np.pi * mu * proton_mass * R**2) + n_ism
+    
+    if Gamma==1:
+        # fix bG << 1 case where numerical accuracy fails
+        Theta = (2.0 / 3.0) * epsilon_T * (9.0 * mu * proton_mass / (32.0 * mu_e * electron_mass)) * ((16.0 / 9.0) * bG**2)
+        Gamma_minus_one = 0.5 * bG**2
+    else:
+        g = (4.0 + Gamma**(-1.0)) / 3.0
+        Theta0 = epsilon_T * ((Gamma - 1.0) * ((g * Gamma + 1.0) / (g - 1.0)) * mu * proton_mass)/(4.0 * Gamma * mu_e * electron_mass)
+        Theta = (5.0 * Theta0 - 6.0 + (25.0 * Theta0**2 + 180.0 * Theta0 + 36.0)**0.5) / 30.0
+        Gamma_minus_one = Gamma - 1.0
+    
+    # prefactor for the luminosity, eq. (B13); Note---with respect to eq. (B13), this definition omits f(Theta), which we instead absorb into I`(x) below.
+    L_tilde = ((4.0 * 2.0**0.5 * qe**3 * mu_e * epsilon_B**0.5 * f / (3.0**0.5 * mu * proton_mass * electron_mass * speed_of_light)) 
+                               * Mdot_over_vw**1.5 * Gamma**1.5 * Gamma_minus_one**0.5)
+                               
+    # prefactor for the optical-depth, eq. (B14); Note---with respect to eq. (B13), this definition omits f(Theta), which we instead absorb into I`(x) below.                           
+    tau_Theta = ((2.0**0.5 * qe * mu_e * f / (3.0**2.5 * mu * proton_mass * speed_of_light * epsilon_B**0.5))
+                               * Mdot_over_vw**0.5 * Theta**(-5.0) * Gamma**(-0.5) * Gamma_minus_one**(-0.5))                           
+                               
+    # post-shock magnetic field
+    B = (8.0 * epsilon_B * Mdot_over_vw * Gamma * Gamma_minus_one )**0.5 / ((1.0 + bG_sh**2)**0.5 *bG_sh * t)
+    # thermal synchrotron frequeny (in observer frame)
+    nu_T = 3.0 * Gamma * Theta**2 * qe * B / (4.0 * np.pi * electron_mass * speed_of_light)
+    x = frequency / nu_T
+    
+    aa = (6.0 + 15.0 * Theta) / (4.0 + 5.0 * Theta)
+    gamma_m = 1.0 + aa * Theta
+    
+    # the relative fraction of power-law to thermal electron energy densities
+    delta = xi/epsilon_T
+    # coefficient that multiplies power-law term in square-brackets in eq. (B10)
+    a = (8.0 * np.pi / 3.0**0.5) *_c_j(p) * delta * _g_theta(Theta, p=p)
+    # coefficient that multiplies power-law term in square-brackets in eq. (B11)
+    b = (3.0**1.5 / np.pi) *_c_alpha(p) * delta * _g_theta(Theta, p=p)    
+    
+    # include low-frequeny corrections to the coefficients `a` and `b` defied above (see e.g. low_freq_jpl_correction function for more information)
+    a_corr = _low_freq_jpl_correction(x, Theta, p)
+    b_corr = _low_freq_apl_correction(x, Theta, p) 
+      
+    # an estimate of the Lorentz factor above which electrons cool quickly
+    gamma_cool = 6.0 * np.pi * electron_mass * speed_of_light / (sigma_T * B**2 * Gamma * t)
+    # the Lorentz factor of thermal electrons contributing most to emission at frequency x
+    gamma_th = Theta * np.maximum(1.0, (2.0 * x)**(1.0 / 3.0))
+    # the Lorentz factor of power-law electrons contributing most to emission at frequency x
+    gamma_pl = np.maximum(gamma_m, Theta * x**0.5)
+    # correction terms for fast-cooling regime
+    cooling_correction_th = np.minimum(1.0, gamma_cool / gamma_th)
+    cooling_correction_pl = np.minimum(1.0, gamma_cool / gamma_pl)
+    
+    I_of_x = 4.0505 * x**(-1.0 / 6.0) * (1.0 + 0.40 * x**(-0.25) + 0.5316 * x**(-0.5)) * np.exp(-1.8899 * x**(1.0 / 3.0))
+    f_fun = 2.0 * Theta**2 / special.kn(2 , 1.0 / Theta)
+    I = I_of_x*f_fun
+    I[np.isnan(I)+np.isinf(I)] = 0.0
+    
+    # calculate the optical depth (eq. B11)
+    tau = tau_Theta *((I / x) * cooling_correction_th + b * x**(-0.5 * (p + 4.0)) * b_corr * cooling_correction_pl)
+    tau_fun = np.ones_like(tau)
+    tau_fun[tau > 1e-9] = (1.0 - np.exp(-tau[tau > 1e-9]) )/tau[tau > 1e-9]
+    
+    # calculate the specific luminosity (eq. B10)
+    L_nu = L_tilde * (x * I * cooling_correction_th + a * x**(-0.5*(p - 1.0)) * a_corr * cooling_correction_pl) * tau_fun    
+    return L_nu
+
+@citation_wrapper('https://ui.adsabs.harvard.edu/abs/2024ApJ...977..134M/abstract, https://ui.adsabs.harvard.edu/abs/2021ApJ...923L..14M/abstract')     
+def thermal_synchrotron_v2_fluxdensity(time, redshift, bG_sh, log_Mdot_vwind, n_ism, logepse, logepsb, xi, p, **kwargs):
+    """
+    :param time: time in source frame in days
+    :param redshift: redshift
+    :param bG_sh: Proper-velocity of the shock (bG_sh = Gamma_sh*beta_sh)
+    :param log Mdot_vwind: log10 of the mass loss rate over wind velocity ((solar mass / year)/(km / s))
+    :param n_ism: the circumburst density of the ISM (cm^-3)
+    :param logepse: log10 epsilon_e; electron thermalisation efficiency
+    :param logepsb: log10 epsilon_b; magnetic field amplification efficiency
+    :param xi: fraction of energy carried by power law electrons
+    :param p: electron power law slope
+    :param kwargs: extra parameters to change physics/settings
+    :param frequency: frequency to calculate model on - Must be same length as time array or a single number)
+    :param mu: mean molecular weight, default is 0.62
+    :param mu_e: mean molecular weight per electron, default is 1.18
+    :param ell_dec: Deceleration parameter defined in eq. (1) of MQ24, default is 1.0
+    :param f: Volume-filling factor defined in eq. (3) of MQ24, default is 3.0/16.0
+    :param cosmology: Cosmology to use for luminosity distance calculation. Defaults to Planck18. Must be a astropy.cosmology object.
+    :return: flux density in mJy
+    """
+    frequency = kwargs['frequency']
+    frequency, time = calc_kcorrected_properties(frequency=frequency, redshift=redshift, time=time)
+    new_kwargs = kwargs.copy()
+    new_kwargs['frequency'] = frequency
+    cosmology = kwargs.get('cosmology', cosmo)
+    dl = cosmology.luminosity_distance(redshift).cgs.value
+    lnu = thermal_synchrotron_v2_lnu(time, bG_sh, log_Mdot_vwind, n_ism, logepse, logepsb, xi, p, **new_kwargs)
+    flux_density = lnu / (4.0 * np.pi * dl**2)/1.0e-26
+    return flux_density           
