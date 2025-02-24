@@ -10,6 +10,7 @@ from scipy import integrate
 from scipy.interpolate import interp1d
 import astropy.units as uu
 from collections import namedtuple
+from scipy import special
 
 def _calc_free_free_abs(frequency, Y_fe, Zbar, mej, radius_2darray, F_nu_2darray):
     """
