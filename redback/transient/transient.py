@@ -13,7 +13,7 @@ from redback.plotting import \
 
 class Spectrum(object):
     def __init__(self, angstroms: np.ndarray, flux_density: np.ndarray, flux_density_err: np.ndarray,
-                 time: str = None, name: str = '') -> None:
+                 time: str = None, name: str = '', **kwargs) -> None:
         """
         A class to store spectral data.
 
@@ -34,6 +34,7 @@ class Spectrum(object):
         else:
             self.plot_with_time_label = True
         self.directory_structure = redback.get_data.directory.spectrum_directory_structure(transient=name)
+        self.data_mode = 'spectrum'
 
     @property
     def xlabel(self) -> str:
@@ -91,7 +92,7 @@ class Spectrum(object):
         :return: The axes.
         """
         plotter = SpectrumPlotter(
-            transient=self, model=model, filename=filename, outdir=outdir,
+            spectrum=self, model=model, filename=filename, outdir=outdir,
             posterior=posterior, model_kwargs=model_kwargs, random_models=random_models, **kwargs)
         return plotter.plot_spectrum(axes=axes, save=save, show=show)
 
@@ -114,8 +115,8 @@ class Spectrum(object):
         :return: The axes.
         """
         plotter = SpectrumPlotter(
-            transient=self, model=model, filename=filename, outdir=outdir,
-            posterior=posterior, model_kwargs=model_kwargs, random_models=random_models, **kwargs)
+            spectrum=self, model=model, filename=filename, outdir=outdir,
+            posterior=posterior, model_kwargs=model_kwargs, **kwargs)
         return plotter.plot_residuals(axes=axes, save=save, show=show)
 
 class Transient(object):

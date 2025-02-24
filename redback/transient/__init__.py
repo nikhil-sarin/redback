@@ -8,4 +8,4 @@ from redback.transient.transient import Transient, OpticalTransient, Spectrum
 
 TRANSIENT_DICT = dict(
     afterglow=Afterglow, lgrb=LGRB, sgrb=SGRB, kilonova=Kilonova, prompt=PromptTimeSeries, supernova=Supernova,
-    tde=TDE, transient=Transient)
+    tde=TDE, transient=Transient, spectrum=Spectrum)

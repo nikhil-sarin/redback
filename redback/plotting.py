@@ -458,7 +458,7 @@ class SpecPlotter(object):
     _spectrum_ppd_plot_filepath = _FilePathGetter(
         directory_property="_data_plot_outdir", filename_property="_spectrum_ppd_plot_filename")
     _residual_plot_filepath = _FilePathGetter(
-        directory_property="_lightcurve_plot_outdir", filename_property="_residual_plot_filename")
+        directory_property="_data_plot_outdir", filename_property="_residual_plot_filename")
 
     def _save_and_show(self, filepath: str, save: bool, show: bool) -> None:
         plt.tight_layout()
@@ -1116,14 +1116,14 @@ class SpectrumPlotter(SpecPlotter):
             fig, axes = plt.subplots(
                 nrows=2, ncols=1, sharex=True, sharey=False, figsize=(10, 8), gridspec_kw=dict(height_ratios=[2, 1]))
 
-        axes[0] = self.plot_lightcurve(axes=axes[0], save=False, show=False)
+        axes[0] = self.plot_spectrum(axes=axes[0], save=False, show=False)
         axes[1].set_xlabel(axes[0].get_xlabel(), fontsize=self.fontsize_axes)
         axes[0].set_xlabel("")
         ys = self.model(self.transient.angstroms, **self._max_like_params, **self._model_kwargs)
         axes[1].errorbar(
             self.transient.angstroms, self.transient.flux_density - ys, yerr=self.transient.flux_density_err,
             fmt=self.errorbar_fmt, c=self.color, ms=self.ms, elinewidth=self.elinewidth, capsize=self.capsize)
-        axes[1].set_yscale("log")
+        axes[1].set_yscale('linear')
         axes[1].set_ylabel("Residual", fontsize=self.fontsize_axes)
         axes[1].tick_params(axis='both', which='both', pad=self.axis_tick_params_pad, labelsize=self.fontsize_ticks)
 

@@ -136,6 +136,14 @@ class RedbackResult(Result):
         return self.transient.plot_lightcurve(model=model, posterior=self.posterior,
                                               model_kwargs=self.model_kwargs, **kwargs)
 
+    def plot_spectrum(self, model: Union[callable, str] = None, **kwargs: None) -> matplotlib.axes.Axes:
+        """ Reconstructs the transient and calls the specific `plot_spectrum` method.
+        Detailed documentation appears below by running `print(plot_spectrum.__doc__)` """
+        if model is None:
+            model = model_library.all_models_dict[self.model]
+        return self.transient.plot_spectrum(model=model, posterior=self.posterior,
+                                              model_kwargs=self.model_kwargs, **kwargs)
+
     def plot_residual(self, model: Union[callable, str] = None, **kwargs: None) -> matplotlib.axes.Axes:
         """Reconstructs the transient and calls the specific `plot_residual` method.
         Detailed documentation appears below by running `print(plot_residual.__doc__)` """
@@ -168,7 +176,7 @@ class RedbackResult(Result):
     plot_multiband.__doc__ = plot_multiband.__doc__ + redback.transient.Transient.plot_multiband.__doc__
     plot_multiband_lightcurve.__doc__ = \
         plot_multiband_lightcurve.__doc__ + redback.transient.Transient.plot_multiband_lightcurve.__doc__
-
+    plot_spectrum.__doc__ = plot_spectrum.__doc__ + redback.transient.Spectrum.plot_spectrum.__doc__
 
 def read_in_result(
         filename: str = None, outdir: str = None, label: str = None,
