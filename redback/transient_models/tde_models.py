@@ -1199,9 +1199,11 @@ def fitted_pl_decay(time, redshift, log_mh, a_bh, m_disc, r0, tvi, t_form, incl,
         frequency, time = calc_kcorrected_properties(frequency=lambda_to_nu(lambda_observer_frame),
                                                      redshift=redshift, time=time_observer_frame)
         nulnus_plateau = m.model_SEDs(time, log_mh, a_bh, m_disc, r0, tvi, t_form, ang, frequency)
-        nulnus_risedecay = np.zeros((100, 300))
-        for i in range(0,len(frequency)):
-            nulnus_risedecay[i,:] = m.decay_model(time, log_L, t_decay, p, t_peak, log_T, v=frequency[i]) + m.rise_model(time, log_L, sigma, t_peak, log_T, v=frequency[i])  
+
+        freq_0 = 6e14
+        l_e_amp = (model.decay_model(time, log_L, t_decay, t_peak, log_T, freq_0) + model.rise_model(time, log_L, sigma, t_peak, log_T, freq_0))
+        nulnus_risedecay = ((l_e_amp[:, None] * (frequency/freq_0)**4 * 
+                        (np.exp(cc.planck * freq_0/(cc.boltzmann_constant * 10**log_T)) - 1)/(np.exp(cc.planck * frequency/(cc.boltzmann_constant * 10**log_T)) - 1)).T)  
         flux_density = ((nulnus_risedecay + nulnus_plateau)/(4.0 * np.pi * dl**2 * frequency[:,np.newaxis] * 1.0e-26))  
         fmjy = flux_density.T           
         spectra = (fmjy * uu.mJy).to(uu.erg / uu.cm ** 2 / uu.s / uu.Angstrom,
@@ -1280,9 +1282,11 @@ def fitted_exp_decay(time, redshift, log_mh, a_bh, m_disc, r0, tvi, t_form, incl
         frequency, time = calc_kcorrected_properties(frequency=lambda_to_nu(lambda_observer_frame),
                                                      redshift=redshift, time=time_observer_frame)
         nulnus_plateau = m.model_SEDs(time, log_mh, a_bh, m_disc, r0, tvi, t_form, ang, frequency)
-        nulnus_risedecay = np.zeros((100, 300))
-        for i in range(0,len(frequency)):
-            nulnus_risedecay[i,:] = m.decay_model(time, log_L, t_decay, t_peak, log_T, v=frequency[i]) + m.rise_model(time, log_L, sigma, t_peak, log_T, v=frequency[i])   
+
+        freq_0 = 6e14
+        l_e_amp = (m.decay_model(time, log_L, t_decay, t_peak, log_T, freq_0) + m.rise_model(time, log_L, sigma, t_peak, log_T, freq_0))
+        nulnus_risedecay = ((l_e_amp[:, None] * (frequency/freq_0)**4 * 
+                        (np.exp(cc.planck * freq_0/(cc.boltzmann_constant * 10**log_T)) - 1)/(np.exp(cc.planck * frequency/(cc.boltzmann_constant * 10**log_T)) - 1)).T) 
         flux_density = ((nulnus_risedecay + nulnus_plateau)/(4.0 * np.pi * dl**2 * frequency[:,np.newaxis] * 1.0e-26))  
         fmjy = flux_density.T           
         spectra = (fmjy * uu.mJy).to(uu.erg / uu.cm ** 2 / uu.s / uu.Angstrom,
@@ -1378,11 +1382,10 @@ def stream_stream_tde_bolometric(time, mbh_6, mstar, c1, f, h_r, inc_tcool, del_
     norm = output.bolometric_luminosity[0] / f1
 
     #evaluate giant array of bolometric luminosities
-    tt_pre_fb = np.linspace(0, output.time_temp[0], 100)
+    tt_pre_fb = np.linspace(0, output.time_temp[0]-0.001, 100)
     tt_post_fb = output.time_temp
     full_time = np.concatenate([tt_pre_fb, tt_post_fb])
-    f1 = pm.gaussian_rise(time=tt_pre_fb, a_1=norm,
-                          peak_time=peak_time * cc.day_to_s, sigma_t=sigma_t * cc.day_to_s)
+    f1 = norm * np.exp(-(tt_pre_fb - (peak_time * cc.day_to_s))**2.0 / (2 * (sigma_t * cc.day_to_s) **2.0))
     f2 = output.bolometric_luminosity
     full_lbol = np.concatenate([f1, f2])
     lbol_func = interp1d(full_time, y=full_lbol, fill_value='extrapolate')
@@ -1420,7 +1423,7 @@ def stream_stream_tde(time, redshift, mbh_6, mstar, c1, f, h_r, inc_tcool, del_o
     #get bolometric and temperature info
     f1 = pm.gaussian_rise(time=output.time_temp[0] / cc.day_to_s, a_1=1, peak_time=peak_time, sigma_t=sigma_t)
     norm = output.bolometric_luminosity[0] / f1    
-    tt_pre_fb = np.linspace(0, output.time_temp[0], 100)
+    tt_pre_fb = np.linspace(0, output.time_temp[0]-0.001, 100)
     tt_post_fb = output.time_temp
     full_time = np.concatenate([tt_pre_fb, tt_post_fb])
     f1_src = pm.gaussian_rise(time=tt_pre_fb, a_1=norm,
@@ -1436,34 +1439,47 @@ def stream_stream_tde(time, redshift, mbh_6, mstar, c1, f, h_r, inc_tcool, del_o
     if kwargs['output_format'] == 'flux_density':
         frequency = kwargs['frequency']
         if isinstance(frequency, float):
-            frequency = np.ones(len(time)) * frequency
-            
-    else:
-        bands = kwargs['bands']
-        if isinstance(bands, str):
-            bands = [str(bands) for x in range(len(time))]
-        frequency=bands_to_frequency(bands)           
+            frequency = np.ones(len(time)) * frequency           
     
-    # convert to source frame time and frequency
-    frequency, time = calc_kcorrected_properties(frequency=frequency, redshift=redshift, time=time)
-    unique_frequency = np.sort(np.unique(frequency))
+        # convert to source frame time and frequency
+        frequency, time = calc_kcorrected_properties(frequency=frequency, redshift=redshift, time=time)
+        unique_frequency = np.sort(np.unique(frequency))
 
-    # build flux density function for each frequency
-    flux_den_interp_func = {}
-    total_time = full_time * (1 + redshift)
-    for freq in unique_frequency:           
-        flux_den = sed.blackbody_to_flux_density(temperature=full_temp,
+        # build flux density function for each frequency
+        flux_den_interp_func = {}
+        total_time = full_time * (1 + redshift)
+        for freq in unique_frequency:           
+            flux_den = sed.blackbody_to_flux_density(temperature=full_temp,
                                            r_photosphere=r_eff,
                                            dl=dl, frequency=freq).to(uu.mJy)
-        flux_den_interp_func[freq] = interp1d(total_time, flux_den, fill_value='extrapolate')
+            flux_den_interp_func[freq] = interp1d(total_time, flux_den, fill_value='extrapolate')
 
-    # interpolate onto actual observed frequency and time values
-    flux_density = []
-    for freq, tt in zip(frequency, time):
-        flux_density.append(flux_den_interp_func[freq](tt * cc.day_to_s))
-    flux_density = flux_density * uu.mJy
-    
-    if kwargs['output_format'] == 'flux_density':    
-        return flux_density.to(uu.mJy).value        
-    else:            
-        return calc_ABmag_from_flux_density(flux_density.to(uu.mJy).value).value
+        # interpolate onto actual observed frequency and time values
+        flux_density = []
+        for freq, tt in zip(frequency, time):
+            flux_density.append(flux_den_interp_func[freq](tt * cc.day_to_s))
+        flux_density = flux_density * uu.mJy
+        return flux_density.to(uu.mJy).value    
+        
+    else:
+        time_obs = time
+        lambda_observer_frame = kwargs.get('lambda_array', np.geomspace(100, 60000, 100))
+        time_observer_frame = full_time * (1. + redshift)
+        frequency, time = calc_kcorrected_properties(frequency=lambda_to_nu(lambda_observer_frame),
+                                                     redshift=redshift, time=time_observer_frame)
+        freq_0 = 6e14
+        flux_den = sed.blackbody_to_flux_density(temperature=full_temp,
+                            r_photosphere=r_eff,
+                            dl=dl, frequency=freq_0).to(uu.mJy)           
+        fmjy = ((flux_den[:, None] * (frequency/freq_0)**4 * 
+                        (np.exp(cc.planck * freq_0/(cc.boltzmann_constant * full_temp[:, None])) - 1) / (np.exp(cc.planck * frequency/(cc.boltzmann_constant * full_temp[:, None])) - 1)).T)                
+        spectra = fmjy.T.to(uu.erg / uu.cm ** 2 / uu.s / uu.Angstrom,
+                                     equivalencies=uu.spectral_density(wav=lambda_observer_frame * uu.Angstrom)) 
+        if kwargs['output_format'] == 'spectra':
+            return namedtuple('output', ['time', 'lambdas', 'spectra'])(time=time_observer_frame,
+                                                                          lambdas=lambda_observer_frame,
+                                                                          spectra=spectra)
+        else:
+            return sed.get_correct_output_format_from_spectra(time=time_obs, time_eval=time_observer_frame/cc.day_to_s,
+                                                              spectra=spectra, lambda_array=lambda_observer_frame,
+                                                              **kwargs) 
