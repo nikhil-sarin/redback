@@ -1178,8 +1178,8 @@ def fitted_pl_decay(time, redshift, log_mh, a_bh, m_disc, r0, tvi, t_form, incl,
         nulnus_decay = np.zeros(len(time))
         
         if len(freqs_un) == 1:
-            nulnus_plateau = m.model_UV(time, log_mh, a_bh, m_disc, r0, tvi, t_form, ang, frequency)
-            nulnus_decay = m.decay_model(time, log_L, tdecay, p, t_peak, log_T, v=freqs_un[0])
+            nulnus_plateau = m.model_UV(time, log_mh, a_bh, m_disc, r0, tvi, t_form, ang, v=freqs_un[0])
+            nulnus_decay = m.decay_model(time, log_L, t_decay, p, t_peak, log_T, v=freqs_un[0])
             nulnus_rise = m.rise_model(time, log_L, sigma, t_peak, log_T, v=freqs_un[0])
         else:
             for i in range(0,len(freqs_un)):
@@ -1261,8 +1261,8 @@ def fitted_exp_decay(time, redshift, log_mh, a_bh, m_disc, r0, tvi, t_form, incl
         nulnus_decay = np.zeros(len(time))
         
         if len(freqs_un) == 1:
-            nulnus_plateau = m.model_UV(time, log_mh, a_bh, m_disc, r0, tvi, t_form, ang, frequency)
-            nulnus_decay = m.decay_model(time, log_L, tdecay, t_peak, log_T, v=freqs_un[0])
+            nulnus_plateau = m.model_UV(time, log_mh, a_bh, m_disc, r0, tvi, t_form, ang, v=freqs_un[0])
+            nulnus_decay = m.decay_model(time, log_L, t_decay, t_peak, log_T, v=freqs_un[0])
             nulnus_rise = m.rise_model(time, log_L, sigma, t_peak, log_T, v=freqs_un[0])
         else:
             for i in range(0,len(freqs_un)):
