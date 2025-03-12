@@ -76,6 +76,12 @@ def sncosmo_bandname_from_band(bands, warning_style='softest'):
     return np.array(res)
 
 def check_kwargs_validity(kwargs):
+    """
+    Check the validity of the kwargs passed to a model
+
+    :param kwargs:
+    :return:
+    """
     if kwargs == None:
         logger.info("No kwargs passed to function")
         return kwargs
@@ -359,6 +365,27 @@ def bandflux_error_from_limiting_mag(fiveSigmaDepth, bandflux_ref):
     bandflux_error = Flux_five_sigma / 5.0
     return bandflux_error
 
+def convert_apparent_mag_to_absolute(app_magnitude, redshift, **kwargs):
+    """
+    Convert apparent magnitude to absolute magnitude assuming planck18 cosmology.
+
+    :param app_magnitude: AB/Vega apparent magnitude
+    :param redshift: redshift
+    :param kwargs: Additional kwargs
+    :param cosmology: Cosmology object if not using default
+    :return: absolute magnitude
+    """
+    from astropy.cosmology import Planck18
+    import astropy.units as uu
+
+    # Create a cosmology object
+    cosmo = kwargs.get('cosmology', Planck18)
+    # Calculate the luminosity distance in megaparsecs (pc)
+    luminosity_distance = cosmo.luminosity_distance(redshift).to(uu.pc).value
+
+    # Convert to absolute magnitude using the formula
+    absolute_magnitude = app_magnitude - 5 * np.log10(luminosity_distance) + 5
+    return absolute_magnitude
 
 def convert_absolute_mag_to_apparent(magnitude, distance):
     """
