@@ -97,7 +97,7 @@ def pwn(time, redshift, mej, l0, tau_sd, nn, eps_b, gamma_b, **kwargs):
     :param eps_b: magnetization of the PWN
     :param gamma_b: Lorentz factor of electrons at synchrotron break
     :param kwargs: Additional parameters - 
-    :param E_sn: supernova explosion energy
+    :param E_k: initial ejecta kinetic energy
     :param kappa: opacity (used only in dynamics and optical absorption)
     :param kappa_gamma: gamma-ray opacity used to calculate magnetar thermalisation efficiency (used only in dynamics)
     :param q1: low energy spectral index (must be < 2)
@@ -114,7 +114,7 @@ def pwn(time, redshift, mej, l0, tau_sd, nn, eps_b, gamma_b, **kwargs):
     :return: flux density or AB magnitude or dynamics output
     """
     #get parameter values or use defaults
-    E_sn = kwargs.get('E_sn', 1.0e51)
+    E_sn = kwargs.get('E_k', 1.0e51)
     kappa = kwargs.get('kappa', 0.1)
     if 'kappa' in kwargs:
         del kwargs['kappa']
