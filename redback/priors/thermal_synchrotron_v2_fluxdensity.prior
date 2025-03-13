@@ -1,0 +1,8 @@
+redshift = Uniform(0.01, 3, 'redshift', latex_label=r'$z$')
+bG_sh = Uniform(0.1, 10, 'bG_sh', latex_label=r'$\\Gamma\\beta$')
+log_Mdot_vwind = Uniform(-10, -4, 'log_Mdot_vwind', latex_label = r'$\dot{M}/u_{\mathrm{wind}}~(M_\odot \mathrm{s km year}^{-1})$')
+n_ism = Uniform(0, 10, 'n_ism', latex_label=r'$n_{\mathrm{ism}} / {\mathrm{cm}}^{-3}$')
+logepse = Uniform(-5, 0, 'logepse', latex_label=r'$\log_{10}~\\epsilon_{e}$')
+logepsb = Uniform(-5, 0, 'logepsb', latex_label=r'$\log_{10}~\\epsilon_{B}$')
+xi = Uniform(0.01, 1., 'xi', latex_label=r'$\\xi_{N}$')
+p = Uniform(2, 3, 'p', latex_label=r'$p$')
