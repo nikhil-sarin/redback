@@ -822,8 +822,11 @@ class Transient(object):
         :param use_frequency: Whether to use the effective frequency in a 2D GP fit. Cannot be used with most mean models.
         :return: Named tuple with George GP object and additional useful data.
         """
-        import george
-        import george.kernels as kernels
+        try:
+            import george
+            import george.kernels as kernels
+        except ImportError:
+            redback.utils.logger.warning("George must be installed to use GP fitting.")
         import scipy.optimize as op
         from bilby.core.likelihood import function_to_george_mean_model
 

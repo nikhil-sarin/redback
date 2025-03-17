@@ -38,6 +38,7 @@ setup(
         'all': [
             "nestle",
             "sherpa",
+            "george",
             "scikit-learn",
             "PyQt5",
             "lalsuite",
