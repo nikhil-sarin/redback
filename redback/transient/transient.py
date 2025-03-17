@@ -827,7 +827,10 @@ class Transient(object):
         import scipy.optimize as op
         from bilby.core.likelihood import function_to_george_mean_model
 
-        output = namedtuple("gp_out", ["gp", "scaled_y", "y_scaler"])
+        output = namedtuple("gp_out", ["gp", "scaled_y", "y_scaler", 'use_frequency', 'mean_model'])
+        output.use_frequency = use_frequency
+        output.mean_model = mean_model
+
         if self.data_mode == 'luminosity':
             x = self.time_rest_frame
             y = self.y
