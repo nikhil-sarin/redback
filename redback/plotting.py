@@ -43,7 +43,7 @@ class Plotter(object):
     band_scaling = KwargsAccessorWithDefault("band_scaling", {})
     dpi = KwargsAccessorWithDefault("dpi", 300)
     elinewidth = KwargsAccessorWithDefault("elinewidth", 2)
-    errorbar_fmt = KwargsAccessorWithDefault("errorbar_fmt", "x")
+    errorbar_fmt = KwargsAccessorWithDefault("errorbar_fmt", "-o")
     model = KwargsAccessorWithDefault("model", None)
     ms = KwargsAccessorWithDefault("ms", 1)
     axis_tick_params_pad = KwargsAccessorWithDefault("axis_tick_params_pad", 10)
