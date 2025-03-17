@@ -12,3 +12,4 @@ dependencies:
   - matplotlib
   - pandas
   - scipy
+  - george
