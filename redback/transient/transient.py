@@ -8,6 +8,116 @@ import pandas as pd
 
 import redback
 from redback.plotting import \
+    LuminosityPlotter, FluxDensityPlotter, IntegratedFluxPlotter, MagnitudePlotter, \
+     IntegratedFluxOpticalPlotter, SpectrumPlotter
+
+class Spectrum(object):
+    def __init__(self, angstroms: np.ndarray, flux_density: np.ndarray, flux_density_err: np.ndarray,
+                 time: str = None, name: str = '', **kwargs) -> None:
+        """
+        A class to store spectral data.
+
+        :param angstroms: Wavelength in angstroms.
+        :param flux_density: flux density in ergs/s/cm^2/angstrom.
+        :param flux_density_err: flux density error in ergs/s/cm^2/angstrom.
+        :param time: Time of the spectrum. Could be a phase or time since burst. Only used for plotting.
+        :param name: Name of the spectrum.
+        """
+
+        self.angstroms = angstroms
+        self.flux_density = flux_density
+        self.flux_density_err = flux_density_err
+        self.time = time
+        self.name = name
+        if self.time is None:
+            self.plot_with_time_label = False
+        else:
+            self.plot_with_time_label = True
+        self.directory_structure = redback.get_data.directory.spectrum_directory_structure(transient=name)
+        self.data_mode = 'spectrum'
+
+    @property
+    def xlabel(self) -> str:
+        """
+        :return: xlabel used in plotting functions
+        :rtype: str
+        """
+        return r'Wavelength [$\mathrm{\AA}$]'
+
+    @property
+    def ylabel(self) -> str:
+        """
+        :return: ylabel used in plotting functions
+        :rtype: str
+        """
+        return r'Flux ($10^{-17}$ erg s$^{-1}$ cm$^{-2}$ $\mathrm{\AA}$)'
+
+    def plot_data(self, axes: matplotlib.axes.Axes = None, filename: str = None, outdir: str = None, save: bool = True,
+            show: bool = True, color: str = 'k', **kwargs) -> matplotlib.axes.Axes:
+        """Plots the Transient data and returns Axes.
+
+        :param axes: Matplotlib axes to plot the lightcurve into. Useful for user specific modifications to the plot.
+        :param filename: Name of the file to be plotted in.
+        :param outdir: The directory in which to save the file in.
+        :param save: Whether to save the plot. (Default value = True)
+        :param show: Whether to show the plot. (Default value = True)
+        :param color: Color of the data.
+        :param kwargs: Additional keyword arguments to pass in the Plotter methods.
+        Available in the online documentation under at `redback.plotting.Plotter`.
+        `print(Transient.plot_data.__doc__)` to see all options!
+        :return: The axes with the plot.
+        """
+
+        plotter = SpectrumPlotter(spectrum=self, color=color, filename=filename, outdir=outdir, **kwargs)
+        return plotter.plot_data(axes=axes, save=save, show=show)
+
+    def plot_spectrum(
+            self, model: callable, filename: str = None, outdir: str = None, axes: matplotlib.axes.Axes = None,
+            save: bool = True, show: bool = True, random_models: int = 100, posterior: pd.DataFrame = None,
+            model_kwargs: dict = None, **kwargs: None) -> matplotlib.axes.Axes:
+        """
+        :param model: The model used to plot the lightcurve.
+        :param filename: The output filename. Otherwise, use default which starts with the name
+                         attribute and ends with *lightcurve.png.
+        :param axes: Axes to plot in if given.
+        :param save:Whether to save the plot.
+        :param show: Whether to show the plot.
+        :param random_models: Number of random posterior samples plotted faintly. (Default value = 100)
+        :param posterior: Posterior distribution to which to draw samples from. Is optional but must be given.
+        :param outdir: Out directory in which to save the plot. Default is the current working directory.
+        :param model_kwargs: Additional keyword arguments to be passed into the model.
+        :param kwargs: Additional keyword arguments to pass in the Plotter methods.
+        Available in the online documentation under at `redback.plotting.Plotter`.
+        `print(Transient.plot_lightcurve.__doc__)` to see all options!
+        :return: The axes.
+        """
+        plotter = SpectrumPlotter(
+            spectrum=self, model=model, filename=filename, outdir=outdir,
+            posterior=posterior, model_kwargs=model_kwargs, random_models=random_models, **kwargs)
+        return plotter.plot_spectrum(axes=axes, save=save, show=show)
+
+    def plot_residual(self, model: callable, filename: str = None, outdir: str = None, axes: matplotlib.axes.Axes = None,
+                      save: bool = True, show: bool = True, posterior: pd.DataFrame = None,
+                      model_kwargs: dict = None, **kwargs: None) -> matplotlib.axes.Axes:
+        """
+        :param model: The model used to plot the lightcurve.
+        :param filename: The output filename. Otherwise, use default which starts with the name
+                         attribute and ends with *lightcurve.png.
+        :param axes: Axes to plot in if given.
+        :param save:Whether to save the plot.
+        :param show: Whether to show the plot.
+        :param posterior: Posterior distribution to which to draw samples from. Is optional but must be given.
+        :param outdir: Out directory in which to save the plot. Default is the current working directory.
+        :param model_kwargs: Additional keyword arguments to be passed into the model.
+        :param kwargs: Additional keyword arguments to pass in the Plotter methods.
+        Available in the online documentation under at `redback.plotting.Plotter`.
+        `print(Transient.plot_residual.__doc__)` to see all options!
+        :return: The axes.
+        """
+        plotter = SpectrumPlotter(
+            spectrum=self, model=model, filename=filename, outdir=outdir,
+            posterior=posterior, model_kwargs=model_kwargs, **kwargs)
+        return plotter.plot_residuals(axes=axes, save=save, show=show)
     LuminosityPlotter, FluxDensityPlotter, IntegratedFluxPlotter, MagnitudePlotter, IntegratedFluxOpticalPlotter
 from redback.model_library import all_models_dict
 from collections import namedtuple

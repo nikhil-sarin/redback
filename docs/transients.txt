@@ -2,8 +2,8 @@
 Transients
 ============
 
-A transient in :code:`redback` is implemented as a :code:`redback.transient` object. This class implements the required functionality for fitting and all other analysis.
-It also provides a homogenous way to plot the data, or do any processing such as converting integrated flux to luminosity.
+A transient photometry in :code:`redback` is implemented as a :code:`redback.transient` object. This class implements the required functionality for fitting and all other analysis.
+It also provides a homogenous way to plot the data, or do any processing such as converting integrated flux to luminosity, fit a GP to the lightcurve, build a bolometric luminosity from photometry, etc
 
 General transient object
 -------------------------
@@ -29,7 +29,7 @@ These parent classes are inherited by some transient specific classes, which pro
 These classes come with additional functionality and lookup tables which provide metadata useful for further analysis, such as redshift, T90, start time, etc.
 They also allow other processing such as converting flux to luminosity.
 
-We provide two methods for converting integrated flux to luminosity, a simple analytical method, and a more involved method using `sherpa <https://sherpa.readthedocs.io/en/4.14.0/>`_.
+We provide two methods for converting integrated flux to luminosity for GRB afterglow data, a simple analytical method, and a more involved method using `sherpa <https://sherpa.readthedocs.io/en/4.14.0/>`_.
 
 For each of the transients we have different :code:`data_modes` which determines what data to fit, plot labels, type of likelihood to use etc.
 We note that the latter two can be changed by users if desired.
@@ -140,3 +140,11 @@ These transient objects provide the interface to fit and interpret many types of
 In particular, broadband afterglows, kilonovae, prompt gamma-ray burst, supernovae, tidal disruption events,
 magnetar powered transients, millisecond magnetars or any other generic electromagnetic transient. A more general example which shows the different ways to create transient objects in :code:`redback` is available
 `here <https://github.com/nikhil-sarin/redback/blob/examples/creating_transient_objects.py>`_.
+
+Spectrum object
+-------------------------
+
+:code:`redback` also provides a :code:`spectrum` object which can be used to load, plot, and fit spectral energy distributions.
+These are treated the same for all transients and are generic enough to describe any wavelength spectrum.
+The spectrums can be fit with any :code:`redback` model or any user defined model. And some examples are provided in the
+`examples <https://github.com/nikhil-sarin/redback/blob/examples/>`_ folder on the github repository.

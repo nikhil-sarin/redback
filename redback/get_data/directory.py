@@ -12,6 +12,24 @@ SWIFT_PROMPT_BIN_SIZES = ['1s', '2ms', '8ms', '16ms', '64ms', '256ms']
 DirectoryStructure = namedtuple("DirectoryStructure", ['directory_path', 'raw_file_path', 'processed_file_path'])
 
 
+def spectrum_directory_structure(transient: str) -> DirectoryStructure:
+    """Provides directory structure for any spectrum data.
+
+    :param transient: Name of the GRB, e.g. GRB123456.
+    :type transient: str
+
+    :return: The directory structure, with 'directory_path', 'raw_file_path', and 'processed_file_path'
+    :rtype: namedtuple
+    """
+    directory_path = f'spectrum/'
+    check_directory_exists_and_if_not_mkdir(directory_path)
+
+    raw_file_path = f"{directory_path}{transient}_rawdata.csv"
+    processed_file_path = f"{directory_path}{transient}.csv"
+
+    return DirectoryStructure(
+        directory_path=directory_path, raw_file_path=raw_file_path, processed_file_path=processed_file_path)
+
 def afterglow_directory_structure(grb: str, data_mode: str, instrument: str = 'BAT+XRT') -> DirectoryStructure:
     """Provides directory structure for Swift afterglow data.
 

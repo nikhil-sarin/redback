@@ -65,7 +65,9 @@ class TestPhaseModels(unittest.TestCase):
         for f in self.prior_files:
             print(f)
             model_name = f.replace(".prior", "")
-            if model_name in ['bazin_sne', 'villar_sne']:
+            skip_dict = ['bazin_sne', 'villar_sne', 'blackbody_spectrum_with_absorption_and_emission_lines',
+                         'powerlaw_spectrum_with_absorption_and_emission_lines']
+            if model_name in skip_dict:
                 print('Skipping {}'.format(model_name))
                 pass
             else:
