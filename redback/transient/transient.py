@@ -828,7 +828,15 @@ class Transient(object):
         from bilby.core.likelihood import function_to_george_mean_model
 
         output = namedtuple("gp_out", ["gp", "scaled_y", "y_scaler"])
-        x, x_err, y, y_err = self.get_filtered_data()
+        if self.data_mode == 'luminosity':
+            x = self.time_rest_frame
+            y = self.y
+            try:
+                y_err = np.max(self.y_err, axis=0)
+            except IndexError:
+                y_err = self.y_err
+        else:
+            x, x_err, y, y_err = self.get_filtered_data()
         redback.utils.logger.info("Rescaling data for GP fitting.")
         gp_y_err = y_err / np.max(y)
         gp_y = y / np.max(y)
@@ -863,7 +871,6 @@ class Transient(object):
             redback.utils.logger.info("Mean model not given, fitting GP with no mean model.")
             gp = george.GP(kernel)
             gp.compute(X, gp_y_err)
-            print(X.shape, gp_y_err.shape)
             p0 = gp.get_parameter_vector()
             results = op.minimize(nll, p0, jac=grad_nll)
             gp.set_parameter_vector(results.x)
@@ -924,8 +931,6 @@ class Transient(object):
                 redback.utils.logger.info(f"GP final parameters: {gp.get_parameter_dict()}")
                 output.gp = gp
         return output
-
-
 
     def plot_multiband_lightcurve(
             self, model: callable, filename: str = None, outdir: str = None,
