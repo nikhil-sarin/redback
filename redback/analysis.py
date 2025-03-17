@@ -4,7 +4,7 @@ import numpy as np
 import pandas as pd
 
 import redback.model_library
-from redback.utils import logger, find_nearest
+from redback.utils import logger, find_nearest, bands_to_frequency
 from redback.result import RedbackResult
 from redback.constants import day_to_s
 import matplotlib
@@ -150,4 +150,60 @@ def plot_spectrum(model, parameters, time_to_plot, axes=None, **kwargs):
     ax.set_xlabel(r'Wavelength ($\mathrm{\AA}$)')
     ax.set_ylabel(r'Flux ($10^{-17}$ erg s$^{-1}$ cm$^{-2}$ $\mathrm{\AA}$)')
     ax.legend(loc='upper left')
+    return ax
+
+def plot_gp_lightcurves(transient, gp_output, axes=None, band_colors=None):
+    """
+    Plot the Gaussian Process lightcurves
+
+    :param transient: A transient object
+    :param gp_output: The output of the fit_gp function
+    :param axes: axes, ideally you should be passing the axes from the plot_data methods
+    :param band_colors: a dictionary of band colors; again ideally you should be passing the band_colors from the plot_data methods
+    :return: axes object with the GP lightcurves plotted
+    """
+    ax = axes or plt.gca()
+
+    if transient.use_phase_model:
+        ref_date = transient.x[0]
+    else:
+        ref_date = 0
+
+    t_new = np.linspace(transient.x.min() - 10, transient.x.max() + 20, 100)
+
+    if transient.data_mode in ['flux_density', 'flux', 'magnitude']:
+        if band_colors is None:
+            band_colors = dict(zip(transient.unique_bands, plt.cm.tab20(range(len(transient.unique_bands)))))
+        else:
+            band_colors = band_colors
+        if gp_output.use_frequency:
+            for band in transient.unique_bands:
+                f_new = np.ones_like(t_new) * bands_to_frequency([band])
+                X_new = np.column_stack((f_new, t_new))
+                gp = gp_output.gp
+                y_pred, y_cov = gp.predict(gp_output.scaled_y, X_new, return_cov=True)
+                y_std = np.sqrt(np.diag(y_cov))
+                y_lower = y_pred - 0.5 * y_std
+                y_upper = y_pred + 0.5 * y_std
+                ax.plot(t_new - ref_date, y_pred * gp_output.y_scaler, color=band_colors[band])
+                ax.fill_between(t_new - ref_date, y_lower * gp_output.y_scaler, y_upper * gp_output.y_scaler, alpha=0.5,
+                                color=band_colors[band])
+        else:
+            for band in transient.unique_bands:
+                gp = gp_output.gp[band]
+                y_pred, y_cov = gp.predict(gp_output.scaled_y[band], t_new, return_cov=True)
+                y_std = np.sqrt(np.diag(y_cov))
+                y_lower = y_pred - 0.5 * y_std
+                y_upper = y_pred + 0.5 * y_std
+                ax.plot(t_new - ref_date, y_pred * gp_output.y_scaler, color=band_colors[band])
+                ax.fill_between(t_new - ref_date, y_lower * gp_output.y_scaler, y_upper * gp_output.y_scaler, alpha=0.5,
+                                color=band_colors[band])
+    else:
+        y_pred, y_cov = gp_output.gp.predict(gp_output.scaled_y, t_new, return_cov=True)
+        y_std = np.sqrt(np.diag(y_cov))
+        y_lower = y_pred - 0.5 * y_std
+        y_upper = y_pred + 0.5 * y_std
+
+        ax.plot(t_new, y_pred * gp_output.y_scaler, color='red')
+        ax.fill_between(t_new, y_lower * gp_output.y_scaler, y_upper * gp_output.y_scaler, alpha=0.5, color='red')
     return ax
