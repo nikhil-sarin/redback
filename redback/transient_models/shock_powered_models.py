@@ -23,13 +23,12 @@ def _csm_shock_breakout(time, csm_mass, v_min, beta, kappa, shell_radius, shell_
     """
     v0 = v_min * 1e5
     e0 = 0.5 * csm_mass * v0**2
+    velocity = v0/beta
     shell_radius *= 1e14
     shell_width = shell_width_ratio * shell_radius
-    tdyn = shell_radius / v0
-    tshell = shell_width / v0
+    tdyn = shell_radius / velocity
+    tshell = shell_width / velocity
     time = time * day_to_s
-
-    velocity = v0/beta
 
     tda = (3 * kappa * csm_mass / (4 * np.pi * speed_of_light * velocity)) ** 0.5
 
