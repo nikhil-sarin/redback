@@ -283,7 +283,7 @@ def shock_cooling(time, redshift, log10_mass, log10_radius, log10_energy, **kwar
                                              dl=dl, frequency=frequency)
         return flux_density.to(uu.mJy).value
     else:
-        time_temp = np.linspace(1e-2, 10, 100)
+        time_temp = np.linspace(1e-2, 60, 100)
         lambda_observer_frame = kwargs.get('lambda_array', np.geomspace(100, 60000, 100))
 
         time_observer_frame = time_temp
@@ -557,7 +557,7 @@ def shocked_cocoon(time, redshift, mej, vej, eta, tshock, shocked_fraction, cos_
         return flux_density.to(uu.mJy).value
     else:
         lambda_observer_frame = kwargs.get('frequency_array', np.geomspace(100, 60000, 100))
-        time_temp = np.linspace(1e-2, 10, 100)
+        time_temp = np.linspace(1e-2, 100, 100)
         time_observer_frame = time_temp
         frequency, time = calc_kcorrected_properties(frequency=lambda_to_nu(lambda_observer_frame),
                                                      redshift=redshift, time=time_observer_frame)
