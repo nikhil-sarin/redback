@@ -409,10 +409,11 @@ def shock_cooling_and_arnett(time, redshift, log10_mass, log10_radius, log10_ene
         lbol = lbol_1 + lbol_2
 
         if kwargs['interaction_process'] is not None:
-            dense_resolution = kwargs.get("dense_resolution", 1000)
-            dense_times = np.linspace(0, time[-1]+100, dense_resolution)
+            dense_resolution = kwargs.get("dense_resolution", 300)
+            dense_times = np.linspace(0.01, time[-1]+100, dense_resolution)
             dense_lbols = _nickelcobalt_engine(time=dense_times, f_nickel=f_nickel, mej=mej)
-            dense_lbols += _shock_cooling(dense_times * day_to_s, mass=mass, radius=radius, energy=energy, **kwargs).lbol
+            shock_cooling = _shock_cooling(dense_times * day_to_s, mass=mass, radius=radius, energy=energy, **kwargs).lbol
+            dense_lbols += shock_cooling
             interaction_class = kwargs['interaction_process'](time=time, dense_times=dense_times, luminosity=dense_lbols,
                                                               mej=mej, **kwargs)
             lbol = interaction_class.new_luminosity
@@ -1763,7 +1764,8 @@ def csm_shock_and_arnett_two_rphots(time, redshift, mej, f_nickel, csm_mass, v_m
 def shocked_cocoon_and_arnett(time, redshift, mej_c, vej_c, eta, tshock, shocked_fraction, cos_theta_cocoon, kappa,
                               mej, f_nickel, vej, **kwargs):
     """
-    Emission from a shocked cocoon and arnett model for radioactive decay
+    Emission from a shocked cocoon and arnett model for radioactive decay.
+    We assume two different photospheres here.
 
     :param time: Time in days in observer frame
     :param redshift: redshift
