@@ -158,9 +158,9 @@ def add_filter_user(FILE, LABEL, PLOT_LABEL=None, OVERWRITE=False):
 
         # Prettify output
 
-        database_filters['wavelength [Hz]'].info.format = '.03e'
-        database_filters['wavelength [Angstrom]'].info.format = '.02f'
-        database_filters['reference_flux'].info.format = '.03e'
+        database_filters['wavelength [Hz]'].info.format = '.05e'
+        database_filters['wavelength [Angstrom]'].info.format = '.05f'
+        database_filters['reference_flux'].info.format = '.05e'
 
         database_filters.write(redback_db_fname, overwrite=True, format='csv')
     
