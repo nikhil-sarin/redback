@@ -203,7 +203,7 @@ def blackbody_to_flux_density(temperature, r_photosphere, dl, frequency):
     :param dl: luminosity_distance in cm
     :param frequency: frequency to calculate in Hz - Must be same length as time array or a single number.
                       In source frame
-    :return: flux_density
+    :return: flux_density in erg/s/Hz/cm^2
     """
     # adding units back in to ensure dimensions are correct
     frequency = frequency * uu.Hz
