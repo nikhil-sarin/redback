@@ -185,6 +185,17 @@ def get_csm_properties(nn, eta):
     csm_properties.Br = Br
     return csm_properties
 
+
+def fnu_to_flambda(f_nu, wavelength_A):
+    """
+    Convert flux density from erg/s/cm^2/Hz to erg/s/cm^2/Angstrom.
+
+    :param f_nu: flux density in erg/s/cm^2/Hz
+    :param wavelength_A: wavelength in Angstrom
+    :return: flux density in erg/s/cm^2/Angstrom
+    """
+    return f_nu * speed_of_light * 1e8 / wavelength_A ** 2
+
 def lambda_to_nu(wavelength):
     """
     :param wavelength: wavelength in Angstrom
