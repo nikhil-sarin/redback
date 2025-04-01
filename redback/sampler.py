@@ -45,6 +45,7 @@ def fit_model(
     :return: Redback result object, transient specific data object
     """
     if isinstance(model, str):
+        modelname = model
         model = all_models_dict[model]
 
     if transient.data_mode in ["flux_density", "magnitude"]:
@@ -53,7 +54,11 @@ def fit_model(
                 f"Transient data mode {transient.data_mode} is inconsistent with "
                 f"output format {model_kwargs['output_format']}. These should be the same.")
 
-    prior = prior or bilby.prior.PriorDict(filename=f"{dirname}/Priors/{model}.prior")
+    if prior is None:
+        prior = bilby.prior.PriorDict(filename=f"{dirname}/priors/{modelname}.prior")
+        logger.warning(f"No prior given. Using default priors for {modelname}")
+    else:
+        prior = prior
     outdir = outdir or f"{transient.directory_structure.directory_path}/{model.__name__}"
     Path(outdir).mkdir(parents=True, exist_ok=True)
     label = label or transient.name
