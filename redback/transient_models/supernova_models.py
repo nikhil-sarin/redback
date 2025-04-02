@@ -448,6 +448,7 @@ def shock_cooling_and_arnett(time, redshift, log10_mass, log10_radius, log10_ene
                                                               spectra=spectra, lambda_array=lambda_observer_frame,
                                                               **kwargs)
 
+@citation_wrapper('https://academic.oup.com/mnras/article/522/2/2764/7086123#443111844, https://ui.adsabs.harvard.edu/abs/1982ApJ...253..785A/abstract')
 def shockcooling_morag_and_arnett_bolometric(time, v_shock, m_env, mej, f_rho, f_nickel, radius, kappa, **kwargs):
     """
     Assumes Shock cooling following Morag+ and arnett model for radioactive decay
@@ -472,6 +473,7 @@ def shockcooling_morag_and_arnett_bolometric(time, v_shock, m_env, mej, f_rho, f
     lbol = nickel_lbol + sbo_output
     return lbol
 
+@citation_wrapper('https://academic.oup.com/mnras/article/522/2/2764/7086123#443111844, https://ui.adsabs.harvard.edu/abs/1982ApJ...253..785A/abstract')
 def shockcooling_morag_and_arnett(time, redshift, v_shock, m_env, mej, f_rho, f_nickel, radius, kappa, **kwargs):
     """
     Assumes Shock cooling following Morag+ and arnett model for radioactive decay
@@ -531,6 +533,7 @@ def shockcooling_morag_and_arnett(time, redshift, v_shock, m_env, mej, f_rho, f_
                                                               spectra=spectra, lambda_array=lambda_observer_frame,
                                                               **kwargs)
 
+@citation_wrapper('https://iopscience.iop.org/article/10.3847/1538-4357/aa64df, https://ui.adsabs.harvard.edu/abs/1982ApJ...253..785A/abstract')
 def shockcooling_sapirwaxman_and_arnett_bolometric(time, v_shock, m_env, mej, f_rho, f_nickel, radius, kappa, **kwargs):
     """
     Assumes Shock cooling following Sapir and Waxman and arnett model for radioactive decay
@@ -557,6 +560,7 @@ def shockcooling_sapirwaxman_and_arnett_bolometric(time, v_shock, m_env, mej, f_
     lbol = nickel_lbol + sbo_output
     return lbol
 
+@citation_wrapper('https://iopscience.iop.org/article/10.3847/1538-4357/aa64df, https://ui.adsabs.harvard.edu/abs/1982ApJ...253..785A/abstract')
 def shockcooling_sapirwaxman_and_arnett(time, redshift, v_shock, m_env, mej, f_rho, f_nickel, radius, kappa, **kwargs):
     """
     Assumes Shock cooling following Sapir and Waxman and arnett model for radioactive decay
