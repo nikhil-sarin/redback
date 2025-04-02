@@ -186,6 +186,34 @@ def get_csm_properties(nn, eta):
     return csm_properties
 
 
+def abmag_to_flambda(mag, lam_eff):
+    """
+    Converts an AB magnitude to flux density in erg/s/cm^2/Å
+    using the effective wavelength for the band.
+
+    In the AB system, the flux density per unit frequency is:
+        f_nu = 10**(-0.4*(mag+48.6))  [erg/s/cm^2/Hz]
+    To obtain f_lambda [erg/s/cm^2/Å]:
+
+        f_lambda = f_nu * (c / λ^2) / 1e8,
+
+    where λ is the effective wavelength (in cm) and 1e8 converts from per cm to per Å.
+    """
+    # effective wavelength from Å to cm:
+    lam_eff_cm = lam_eff * 1e-8
+    f_nu = 10 ** (-0.4 * (mag + 48.6))
+    f_lambda = f_nu * (redback.constants.speed_of_light / lam_eff_cm ** 2) / 1e8
+    return f_lambda
+
+
+def flambda_err_from_mag_err(flux, mag_err):
+    """
+    Compute the error on the flux given an error on the magnitude.
+    Using error propagation for f = A*10^(-0.4*mag):
+         df/dmag = -0.4 ln(10)* f  =>  σ_f = 0.4 ln(10)* f * σ_mag.
+    """
+    return 0.4 * np.log(10) * flux * mag_err
+
 def fnu_to_flambda(f_nu, wavelength_A):
     """
     Convert flux density from erg/s/cm^2/Hz to erg/s/cm^2/Angstrom.
