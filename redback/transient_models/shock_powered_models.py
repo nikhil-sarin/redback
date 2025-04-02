@@ -146,8 +146,8 @@ def shockcooling_morag_bolometric(time, v_shock, m_env, f_rho_m, radius, kappa, 
     :param time: time in source frame in days
     :param v_shock: shock speed in km/s
     :param m_env: envelope mass in solar masses
-    :param f_rho_m: f_rho * M (with M in solar masses). Typically, of order unity
-    :param radius: star radius in units of 10^13 cm
+    :param f_rho_m: f_rho * M (with M in solar masses). f_rho is typically, of order unity
+    :param radius: star/envelope radius in units of 10^13 cm
     :param kappa: opacity in cm^2/g
     :param kwargs: Additional parameters required by model
     :return: bolometric luminosity in erg/s
@@ -170,8 +170,8 @@ def shockcooling_morag(time, redshift, v_shock, m_env, f_rho_m, radius, kappa, *
     :param redshift: redshift
     :param v_shock: shock speed in km/s
     :param m_env: envelope mass in solar masses
-    :param f_rho_m: f_rho * M (with M in solar masses). Typically, of order unity
-    :param radius: star radius in units of 10^13 cm
+    :param f_rho_m: f_rho * M (with M in solar masses). f_rho is typically, of order unity
+    :param radius: star/envelope radius in units of 10^13 cm
     :param kappa: opacity in cm^2/g
     :param kwargs: Additional parameters required by model
     :param time_temp: Optional argument to set your desired time array (in source frame days) to evaluate the model on.
@@ -384,8 +384,8 @@ def shockcooling_sapirandwaxman_bolometric(time, v_shock, m_env, f_rho_m, radius
     :param time: time in source frame in days
     :param v_shock: shock speed in km/s
     :param m_env: envelope mass in solar masses
-    :param f_rho_m: f_rho * M (with M in solar masses). Typically, of order unity
-    :param radius: star radius in units of 10^13 cm
+    :param f_rho_m: f_rho * M (with M in solar masses). f_rho is typically, of order unity
+    :param radius: star/envelope radius in units of 10^13 cm
     :param kappa: opacity in cm^2/g
     :param kwargs: Additional parameters required by model
     :param n: index of progenitor density profile, 1.5 (default) or 3.0
@@ -412,8 +412,8 @@ def shockcooling_sapirandwaxman(time, redshift, v_shock, m_env, f_rho_m, radius,
     :param redshift: redshift
     :param v_shock: shock speed in km/s
     :param m_env: envelope mass in solar masses
-    :param f_rho_m: f_rho * M (with M in solar masses). Typically, of order unity
-    :param radius: star radius in units of 10^13 cm
+    :param f_rho_m: f_rho * M (with M in solar masses). f_rho is typically, of order unity
+    :param radius: star/envelope radius in units of 10^13 cm
     :param kappa: opacity in cm^2/g
     :param kwargs: Additional parameters required by model
     :param time_temp: Optional argument to set your desired time array (in source frame days) to evaluate the model on.
