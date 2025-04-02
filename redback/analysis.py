@@ -207,3 +207,106 @@ def plot_gp_lightcurves(transient, gp_output, axes=None, band_colors=None):
         ax.plot(t_new, y_pred * gp_output.y_scaler, color='red')
         ax.fill_between(t_new, y_lower * gp_output.y_scaler, y_upper * gp_output.y_scaler, alpha=0.5, color='red')
     return ax
+
+def estimate_blackbody_temperature_and_radius(transient, window_duration=1, ignore_epoch_duration=0.5,
+                                              use_flux_density_approximation=True):
+    """
+    Estimate the temperature and radius as a function of time for any optical transient
+    """
+    logger.info("Using the blackbody SED to estimate temperature and radius time series")
+    if transient.data_mode in ['flux', 'luminosity']:
+        raise ValueError("This method only works for flux density or magnitude data modes")
+    if transient.data_mode in ['magnitude']:
+        if use_flux_density_approximation:
+            logger.warning("Using the flux density at effective wavelength approximation")
+            logger.warning("This approximation is not correct for bandpass magnitudes and fluxes and tends to "
+                           "effect radius estimation. Use with caution")
+            df = pd.DataFrame()
+            df['time'] = transient.x
+            df['band'] = transient.sncosmo_bands
+            df['mag'] = transient.y
+            df['mag_err'] = transient.y_err
+            df['epoch'] = (transient.x // window_duration).astype(int)
+
+            epoch_fits = []
+            for epoch, group in df.groupby('epoch'):
+                if group['band'].nunique() < 3:
+                    continue
+
+                # Use the average time as the epoch time.
+                t_epoch = group['time'].mean()
+                logger.info(f"Epoch Time: {t_epoch}")
+
+                if t_epoch < ignore_epoch_duration:
+                    logger.info('ignoring epochs before {} days'.format(ignore_epoch_duration))
+                    continue
+                else:
+                    # For each observation in the group, convert the mag to flux
+                    waves = []
+                    fluxes = []
+                    flux_errs = []
+                    for idx, row in group.iterrows():
+                        band = row['band']
+                        # Extract the scalar effective wavelength from the returned array
+                        lam_eff = redback.utils.nu_to_lambda(redback.utils.bands_to_frequency([band]))[0]
+                        f_lambda = redback.utils.abmag_to_flambda(row['mag'], lam_eff)
+                        # Propagate mag error into flux error:
+                        f_lambda_err = redback.utils.flux_err_from_mag_err(f_lambda, row['mag_err'])
+
+                        waves.append(lam_eff)  # should be scalar value in Å
+                        fluxes.append(f_lambda)
+                        flux_errs.append(f_lambda_err)
+
+                    # Convert lists to 1D numpy arrays.
+                    waves = np.array(waves).flatten()
+                    fluxes = np.array(fluxes).flatten()
+                    flux_errs = np.array(flux_errs).flatten()
+                    log_y_data = np.log(fluxes)
+                    log_y_err = flux_errs / fluxes
+
+                    # Set initial guesses (in log-space)
+                    # For example, if you expect T ~ 6000 K and R ~ 1e15 cm:
+                    initial_logT = np.log(6000)
+                    initial_logR = np.log(1e15)
+                    initial_guess = [initial_logT, initial_logR]
+
+                    # Perform the fit in log-space.
+                    popt, pcov = curve_fit(
+                        log_blackbody_model_logTR,
+                        waves,  # independent variable: wavelengths
+                        log_y_data,  # dependent variable: ln(flux)
+                        p0=initial_guess,
+                        sigma=log_y_err,
+                        maxfev=10000,
+                        absolute_sigma=True
+                    )
+
+                    # Extract the best-fit values for logT and logR.
+                    logT_best, logR_best = popt
+                    perr = np.sqrt(np.diag(pcov))
+                    err_logT, err_logR = perr
+
+                    # Convert the parameters back from log-space.
+                    T_fit = np.exp(logT_best)
+                    R_fit = np.exp(logR_best)
+
+                    # Propagate the uncertainties:
+                    # For T = exp(logT), dT/d(logT) = T, so the uncertainty becomes:
+                    T_err = T_fit * err_logT
+                    R_err = R_fit * err_logR
+
+                    epoch_fits.append({'time': t_epoch, 'T': T_fit, 'T_err': T_err,
+                                       'R': R_fit, 'R_err': R_err})
+
+                    # Convert epoch fits to a DataFrame.
+            df_bb = pd.DataFrame(epoch_fits)
+            # print("\nBlackbody fit results per epoch:")
+            print(df_bb)
+
+            t_data = df_bb['time'].values
+            T_data = df_bb['T'].values
+            T_err = df_bb['T_err'].values
+            R_data = df_bb['R'].values
+            R_err = df_bb['R_err'].values
+
+    pass
