@@ -141,7 +141,6 @@ def _shockcooling_morag(time, v_shock, m_env, f_rho_m, radius, kappa):
 def shockcooling_morag_bolometric(time, v_shock, m_env, f_rho_m, radius, kappa, **kwargs):
     """
     Bolometric lightcurve following the Morag, Sapir, & Waxman model.
-    Model output = 0 for times < min_time and times > max_time.
 
     :param time: time in source frame in days
     :param v_shock: shock speed in km/s
@@ -156,9 +155,6 @@ def shockcooling_morag_bolometric(time, v_shock, m_env, f_rho_m, radius, kappa, 
     radius = radius * 1e13
     output = _shockcooling_morag(time, v_shock, m_env, f_rho_m, radius, kappa)
     lum = output.luminosity
-    # turn luminosity at times < min_time to 0 and at times > max_time to a small number
-    lum = np.where(time < output.min_time, 0, lum)
-    lum = np.where(time > output.max_time, 0, lum)
     return lum
 
 @citation_wrapper('https://academic.oup.com/mnras/article/522/2/2764/7086123#443111844')
@@ -379,7 +375,6 @@ def _shockcooling_sapirandwaxman(time, v_shock, m_env, f_rho_m, radius, kappa, n
 def shockcooling_sapirandwaxman_bolometric(time, v_shock, m_env, f_rho_m, radius, kappa, **kwargs):
     """
     Bolometric lightcurve following the Sapir & Waxman (and Rabinak & Waxman) model.
-    Model output = 0 for times < min_time and times > max_time.
 
     :param time: time in source frame in days
     :param v_shock: shock speed in km/s
@@ -398,9 +393,6 @@ def shockcooling_sapirandwaxman_bolometric(time, v_shock, m_env, f_rho_m, radius
     radius = radius * 1e13
     output = _shockcooling_sapirandwaxman(time, v_shock, m_env, f_rho_m, radius, kappa, nn=n, RW=RW)
     lum = output.luminosity
-    # turn luminosity at times < min_time to 0 and at times > max_time to a small number
-    lum = np.where(time < output.min_time, 0, lum)
-    lum = np.where(time > output.max_time, 0, lum)
     return lum
 
 @citation_wrapper('https://iopscience.iop.org/article/10.3847/1538-4357/aa64df')
