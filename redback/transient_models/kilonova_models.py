@@ -1807,6 +1807,9 @@ def _metzger_kilonova_model(time, mej, vej, beta, kappa, **kwargs):
     vmax = kwargs.get('vmax', 0.7)
     vel = np.linspace(vmin, vmax, mass_len)
     m_array = mej * (vel/vmin)**(-beta)
+    total_mass = np.sum(m_array)
+    normalised_mass = m_array * (mej/ total_mass)
+    m_array = normalised_mass
     v_m = vel * speed_of_light
 
     # set up arrays
