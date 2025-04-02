@@ -1,7 +1,7 @@
 import numpy
 from astropy.cosmology import Planck18 as cosmo
 import redback.constants as cc
-from redback.utils import lambda_to_nu
+from redback.utils import lambda_to_nu, fnu_to_flambda
 import redback.sed as sed
 import redback.transient_models.phenomenological_models as pm
 
@@ -18,6 +18,7 @@ def _get_blackbody_spectrum(angstrom, temperature, r_photosphere, distance):
                                                   temperature=temperature,
                                                   r_photosphere=r_photosphere,
                                                   dl=distance)
+    flux_density = fnu_to_flambda(f_nu=flux_density, wavelength_A=angstrom)
     return flux_density.value
 
 def _get_powerlaw_spectrum(angstrom, alpha, aa):

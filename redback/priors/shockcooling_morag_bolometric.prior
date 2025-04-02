@@ -1,0 +1,5 @@
+v_shock = LogUniform(1e3, 5e4, 'vej', latex_label = r'$v_{\mathrm{ej}}~(\mathrm{km}/\mathrm{s})$')
+m_env = LogUniform(1e-3, 5, 'm_env', latex_label = r'$M_{\mathrm{env}}~(M_{\odot})$')
+f_rho_m = Uniform(0.01, 20, 'f_rho_m', latex_label = r'$f_{\\rho_{m}}$')
+radius =  LogUniform(1e-2, 10, 'radius', latex_label=r'$R_{\mathrm{star}}~(10^{13}~\mathrm{cm})$')
+kappa = Uniform(0.01, 1, 'kappa', latex_label = r'$\\kappa~(\mathrm{cm}^{2}/\mathrm{g})$')
