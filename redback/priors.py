@@ -40,12 +40,19 @@ def get_priors(model, times=None, y=None, yerr=None, dt=None, **kwargs):
         return priors
 
     priors = PriorDict()
+
+    if model in redback.model_library.base_models_dict:
+        logger.info(f'Setting up prior for base model {model}.')
+        logger.info(f'You will need to explicitly set a prior on t0 and or extinction if relevant')
+
     try:
         filename = os.path.join(os.path.dirname(__file__), 'priors', f'{model}.prior')
         priors.from_file(filename)
-    except FileNotFoundError as e:
-        logger.warning(e)
-        logger.warning('Returning empty PriorDict.')
+    except FileNotFoundError:
+        logger.warning(f'No prior file found for model {model}. '
+                    f'Perhaps you also want to set up the prior for the base model? '
+                    f'Or you may need to set up your prior explicitly.')
+        logger.info('Returning Empty PriorDict.')
     return priors
 
 

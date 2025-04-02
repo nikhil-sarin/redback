@@ -80,9 +80,9 @@ def add_filter_svo(FILTER, LABEL, PLOT_LABEL=None):
 
     # Prettify output
 
-    database_filters['wavelength [Hz]'].info.format = '.03e'
-    database_filters['wavelength [Angstrom]'].info.format = '.02f'
-    database_filters['reference_flux'].info.format = '.03e'
+    database_filters['wavelength [Hz]'].info.format = '.05e'
+    database_filters['wavelength [Angstrom]'].info.format = '.05f'
+    database_filters['reference_flux'].info.format = '.05e'
 
     database_filters.write(redback_db_fname, overwrite=True, format='csv')
 
@@ -158,9 +158,9 @@ def add_filter_user(FILE, LABEL, PLOT_LABEL=None, OVERWRITE=False):
 
         # Prettify output
 
-        database_filters['wavelength [Hz]'].info.format = '.03e'
-        database_filters['wavelength [Angstrom]'].info.format = '.02f'
-        database_filters['reference_flux'].info.format = '.03e'
+        database_filters['wavelength [Hz]'].info.format = '.05e'
+        database_filters['wavelength [Angstrom]'].info.format = '.05f'
+        database_filters['reference_flux'].info.format = '.05e'
 
         database_filters.write(redback_db_fname, overwrite=True, format='csv')
     
@@ -250,7 +250,7 @@ def add_common_filters():
 
 def show_all_filters():
 
-    redback_db_fname = path = redback.__path__[0] + '/tables/filters.csv'
+    redback_db_fname = redback.__path__[0] + '/tables/filters.csv'
     database_filters = ascii.read(redback_db_fname)
     
     return database_filters
