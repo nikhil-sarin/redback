@@ -7,6 +7,256 @@ import redback.sed as sed
 from astropy.cosmology import Planck18 as cosmo  # noqa
 from redback.utils import calc_kcorrected_properties, citation_wrapper, lambda_to_nu
 
+
+def _shock_cooling_sapirandwaxman(time, v_shock, m_env, f_rho_m, radius, kappa, nn=1.5, RW=False):
+    """
+    Calculate shock-cooling properties following the Sapir & Waxman (and Rabinak & Waxman) model
+
+    The model equations (with time t in days) are given as follows:
+
+    Pre-exponential luminosity:
+
+    .. math::
+       L_{RW} = L_0 \left[ \frac{t^2 \, v_{\mathrm{dim}}}{f_{\rho} \, \kappa_{\mathrm{dim}}}\right]^{-\epsilon_2}
+       v_{\mathrm{dim}}^2 \frac{R_{\mathrm{dim}}}{\kappa_{\mathrm{dim}}},
+
+    where
+
+    .. math::
+       v_{\mathrm{dim}} = \frac{v_s}{10^{8.5}\,\mathrm{cm/s}}, \quad
+       \kappa_{\mathrm{dim}} = \frac{\kappa}{0.34\,\mathrm{cm^2/g}}, \quad
+       R_{\mathrm{dim}} = \frac{R}{10^{13}\,\mathrm{cm}}.
+
+    The transparency timescale is defined as:
+
+    .. math::
+       t_{\mathrm{tr}} = 19.5 \, \left[\frac{\kappa_{\mathrm{dim}} \, M_{\mathrm{env}}}{v_{\mathrm{dim}}}\right]^{1/2}.
+
+    The full luminosity is then:
+
+    .. math::
+       L = L_{RW} \, A \, \exp\left[-\left(\frac{a\, t}{t_{\mathrm{tr}}}\right)^{\alpha}\right].
+
+    The photospheric temperature in eV is given by:
+
+    .. math::
+       T_{\mathrm{ph}} = T_0 \left[\frac{t^2 \, v_{\mathrm{dim}}^2}{f_{\rho} \, \kappa_{\mathrm{dim}}}\right]^{\epsilon_1}
+       \kappa_{\mathrm{dim}}^{-0.25} \, t^{-0.5} \, R_{\mathrm{dim}}^{0.25},
+
+    and a color correction:
+
+    .. math::
+       T_{\mathrm{col}} = T_{\mathrm{ph}} \; \times \; \text{(color correction factor)}.
+
+    Finally, converting from eV to Kelvin:
+
+    .. math::
+       T_{\mathrm{K}} = \frac{T_{\mathrm{col}}}{k_B}, \quad \text{with } k_B = 8.61733 \times 10^{-5}\,\mathrm{eV/K},
+
+    and the photospheric radius is derived using the Stefan–Boltzmann relation:
+
+    .. math::
+       R_{\mathrm{bb}} = \frac{\sqrt{L/(4\pi\sigma)}}{T_{\mathrm{K}}^2} \quad
+       \text{with } \sigma = 5.670374419 \times 10^{-5}\,\mathrm{erg\,s^{-1}\,cm^{-2}\,K^{-4}}.
+
+    :param time: Time (in days) at which to evaluate the model.
+    :type time: float or array-like
+    :param v_shock: Shock speed in cm/s.
+    :type v_shock: float
+    :param m_env: Envelope mass in solar masses.
+    :type m_env: float
+    :param f_rho_m: The product :math:`f_{\\rho} \, M` (with M in solar masses). Typically of order unity.
+    :type f_rho_m: float
+    :param radius: Progenitor radius in cm.
+    :type radius: float
+    :param kappa: Ejecta opacity in cm²/g (e.g., approximately 0.34 for pure electron scattering).
+    :type kappa: float
+    :param nn: The polytropic index of the progenitor. Must be either 1.5 (default) or 3.0.
+    :type nn: float, optional
+    :param RW: If True, use the simplified Rabinak & Waxman formulation (sets a = 0 and adjusts the temperature correction factor).
+    :type RW: bool, optional
+    :return: A named tuple with the following fields:
+             - **t_photosphere**: Color temperature in Kelvin,
+             - **r_photosphere**: Derived photospheric radius in cm,
+             - **luminosity**: Bolometric luminosity in erg/s.
+            - **min_time**: Minimum time for which the model is valid in days.
+            - **max_time**: Maximum time for which the model is valid in days.
+    :rtype: namedtuple
+    """
+    # Normalization constants
+    v_norm = 10 ** 8.5  # (cm/s) for shock speed normalization, roughly 3.16e8 cm/s.
+    kappa_norm = 0.34  # (cm²/g) fiducial opacity.
+    R_norm = 1e13  # (cm) normalization for progenitor radius.
+
+    # Set parameters based on the chosen polytropic index n.
+    if nn == 1.5:
+        AA = 0.94
+        a_val = 1.67
+        alpha = 0.8
+        epsilon_1 = 0.027
+        epsilon_2 = 0.086
+        L_0 = 2.0e42  # erg/s
+        T_0 = 1.61  # eV
+        Tph_to_Tcol = 1.1
+    elif nn == 3.0:
+        AA = 0.79
+        a_val = 4.57
+        alpha = 0.73
+        epsilon_1 = 0.016
+        epsilon_2 = 0.175
+        L_0 = 2.1e42  # erg/s
+        T_0 = 1.69  # eV
+        Tph_to_Tcol = 1.0
+    else:
+        raise ValueError("n can only be 1.5 or 3.0.")
+
+    if RW:
+        a_val = 0.0
+        Tph_to_Tcol = 1.2
+
+
+    # Convert absolute inputs to dimensionless units required by the model
+    v_dim = v_shock / v_norm  # Dimensionless shock speed.
+    kappa_dim = kappa / kappa_norm  # Dimensionless opacity.
+    R_dim = radius / R_norm  # Dimensionless progenitor radius.
+
+    # Pre-exponential luminosity
+    L_RW = L_0 * np.power(time ** 2 * v_dim / (f_rho_m * kappa_dim), -epsilon_2) \
+           * np.power(v_dim, 2) * R_dim / kappa_dim
+
+    # Transparency timescale in days
+    t_tr = 19.5 * np.power((kappa_dim * m_env / v_dim), 0.5)
+
+    # Full luminosity with exponential cutoff
+    lum = L_RW * AA * np.exp(-np.power(a_val * time / t_tr, alpha))
+
+    # Photospheric temperature in eV
+    T_ph = T_0 * np.power(time ** 2 * np.power(v_dim, 2) / (f_rho_m * kappa_dim), epsilon_1) \
+           * np.power(kappa_dim, -0.25) * np.power(time, -0.5) * np.power(R_dim, 0.25)
+    # Apply the color correction factor
+    T_col = T_ph * Tph_to_Tcol
+
+    # Convert temperature from eV to Kelvin
+    k_B = 8.61733e-5  # Boltzmann constant in eV/K
+    temperature_K = T_col / k_B
+
+    min_time = 0.2 * R_dim / v_dim * np.maximum(0.5, R_dim ** 0.4 * (f_rho_m * kappa) ** -0.2 * v_dim ** -0.7)
+    max_time = 7.4 * (R_dim / kappa_dim) ** 0.55
+    #
+    # # turn luminosity at times < min_time to 0 and at times > max_time to a small number
+    # lum = np.where(time < min_time, 1e4, lum)
+    # lum = np.where(time > max_time, 1e4, lum)
+
+    # Calculate the photospheric radius using the Stefan–Boltzmann law
+    sigma = sigma_sb  # Stefan–Boltzmann constant [erg s^-1 cm^-2 K^-4]
+    radius_cm = np.sqrt(lum / (4 * np.pi * sigma)) / (temperature_K ** 2)
+
+    ShockCoolingResult = namedtuple('ShockCoolingResult', ['t_photosphere', 'r_photosphere',
+                                                           'luminosity', 'min_time', 'max_time'])
+    return ShockCoolingResult(t_photosphere=temperature_K, r_photosphere=radius_cm, luminosity=lum,
+                              min_time=min_time, max_time=max_time)
+
+
+@citation_wrapper('https://iopscience.iop.org/article/10.3847/1538-4357/aa64df')
+def shockcooling_sapirandwaxman_bolometric(time, v_shock, m_env, f_rho_m, radius, kappa, **kwargs):
+    """
+    Bolometric lightcurve following the Sapir & Waxman (and Rabinak & Waxman) model.
+    Model output = 0 for times < min_time and times > max_time.
+
+    :param time: time in source frame in days
+    :param v_shock: shock speed in km/s
+    :param m_env: envelope mass in solar masses
+    :param f_rho_m: f_rho * M (with M in solar masses). Typically, of order unity
+    :param radius: star radius in units of 10^13 cm
+    :param kappa: opacity in cm^2/g
+    :param kwargs: Additional parameters required by model
+    :param n: index of progenitor density profile, 1.5 (default) or 3.0
+    :param RW: If True, use the simplified Rabinak & Waxman formulation (off by default)
+    :return: bolometric luminosity in erg/s
+    """
+    n = kwargs.get('n', 1.5)
+    v_shock = v_shock * 1e5
+    RW = kwargs.get('RW', False)
+    radius = radius * 1e13
+    output = _shock_cooling_sapirandwaxman(time, v_shock, m_env, f_rho_m, radius, kappa, nn=n, RW=RW)
+    lum = output.luminosity
+    # turn luminosity at times < min_time to 0 and at times > max_time to a small number
+    lum = np.where(time < output.min_time,0, lum)
+    lum = np.where(time > output.max_time,0, lum)
+    return lum
+
+@citation_wrapper('https://iopscience.iop.org/article/10.3847/1538-4357/aa64df')
+def shockcooling_sapirandwaxman(time, redshift, v_shock, m_env, f_rho_m, radius, kappa, **kwargs):
+    """
+    Lightcurve following the Sapir & Waxman (and Rabinak & Waxman) model
+
+    :param time: time in observer frame in days
+    :param redshift: redshift
+    :param v_shock: shock speed in km/s
+    :param m_env: envelope mass in solar masses
+    :param f_rho_m: f_rho * M (with M in solar masses). Typically, of order unity
+    :param radius: star radius in units of 10^13 cm
+    :param kappa: opacity in cm^2/g
+    :param kwargs: Additional parameters required by model
+    :param time_temp: Optional argument to set your desired time array (in source frame days) to evaluate the model on.
+    :param n: index of progenitor density profile, 1.5 (default) or 3.0
+    :param RW: If True, use the simplified Rabinak & Waxman formulation (off by default)
+    :param frequency: Required if output_format is 'flux_density'.
+        frequency to calculate - Must be same length as time array or a single number).
+    :param bands: Required if output_format is 'magnitude' or 'flux'.
+    :param output_format: 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
+    :param lambda_array: Optional argument to set your desired wavelength array (in Angstroms) to evaluate the SED on.
+    :param cosmology: Cosmology to use for luminosity distance calculation. Defaults to Planck18. Must be a astropy.cosmology object.
+    :return: set by output format - 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
+    """
+
+    n = kwargs.get('n', 1.5)
+    v_shock = v_shock * 1e5
+    RW = kwargs.get('RW', False)
+    radius = radius * 1e13
+    cosmology = kwargs.get('cosmology', cosmo)
+    dl = cosmology.luminosity_distance(redshift).cgs.value
+    time_temp = kwargs.get('time_temp', np.linspace(0.01, 60, 100))
+    time_obs = time
+    output = _shock_cooling_sapirandwaxman(time_temp, v_shock, m_env, f_rho_m, radius, kappa, nn=n, RW=RW)
+    if kwargs['output_format'] == 'namedtuple':
+        return output
+    elif kwargs['output_format'] == 'flux_density':
+        time = time_obs
+        frequency = kwargs['frequency']
+        # interpolate properties onto observation times
+        temp_func = interp1d(time_temp, y=output.t_photosphere)
+        rad_func = interp1d(time_temp, y=output.r_photosphere)
+        # convert to source frame time and frequency
+        frequency, time = calc_kcorrected_properties(frequency=frequency, redshift=redshift, time=time)
+
+        temp = temp_func(time)
+        photosphere = rad_func(time)
+
+        flux_density = sed.blackbody_to_flux_density(temperature=temp, r_photosphere=photosphere,
+                                                     dl=dl, frequency=frequency)
+
+        return flux_density.to(uu.mJy).value
+    else:
+        lambda_observer_frame = kwargs.get('lambda_array', np.geomspace(100, 60000, 200))
+        time_observer_frame = time_temp * (1. + redshift)
+        frequency, time = calc_kcorrected_properties(frequency=lambda_to_nu(lambda_observer_frame),
+                                                     redshift=redshift, time=time_observer_frame)
+        fmjy = sed.blackbody_to_flux_density(temperature=output.t_photosphere,
+                                             r_photosphere=output.r_photosphere, frequency=frequency[:, None], dl=dl)
+        fmjy = fmjy.T
+        spectra = fmjy.to(uu.mJy).to(uu.erg / uu.cm ** 2 / uu.s / uu.Angstrom,
+                                     equivalencies=uu.spectral_density(wav=lambda_observer_frame * uu.Angstrom))
+        if kwargs['output_format'] == 'spectra':
+            return namedtuple('output', ['time', 'lambdas', 'spectra'])(time=time_observer_frame,
+                                                                        lambdas=lambda_observer_frame,
+                                                                        spectra=spectra)
+        else:
+            return sed.get_correct_output_format_from_spectra(time=time_obs, time_eval=time_observer_frame,
+                                                              spectra=spectra, lambda_array=lambda_observer_frame,
+                                                              **kwargs)
+
+
 @citation_wrapper('https://ui.adsabs.harvard.edu/abs/2022ApJ...933..238M/abstract')
 def _csm_shock_breakout(time, csm_mass, v_min, beta, kappa, shell_radius, shell_width_ratio, **kwargs):
     """
@@ -71,7 +321,6 @@ def csm_shock_breakout_bolometric(time, csm_mass, v_min, beta, kappa, shell_radi
     :param shell_radius: radius of shell in 10^14 cm
     :param shell_width_ratio: shell width ratio (deltaR/R0)
     :param kwargs: Additional parameters required by model
-    :param cosmology: Cosmology to use for luminosity distance calculation. Defaults to Planck18. Must be a astropy.cosmology object.
     :return: bolometric luminosity
     """
     csm_mass = csm_mass * solar_mass
@@ -103,7 +352,6 @@ def csm_shock_breakout(time, redshift, csm_mass, v_min, beta, kappa, shell_radiu
     :param lambda_array: Optional argument to set your desired wavelength array (in Angstroms) to evaluate the SED on.
     :param cosmology: Cosmology to use for luminosity distance calculation. Defaults to Planck18. Must be a astropy.cosmology object.
     :return: set by output format - 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
-    :return:
     """
     csm_mass = csm_mass * solar_mass
     cosmology = kwargs.get('cosmology', cosmo)
@@ -580,4 +828,10 @@ def shocked_cocoon(time, redshift, mej, vej, eta, tshock, shocked_fraction, cos_
 
 @citation_wrapper('https://ui.adsabs.harvard.edu/abs/2022ApJ...928..122M/abstract')
 def csm_truncation_shock():
+    """
+    Multi-zone version of Margalit 2022 model for CSM shock breakout and cooling one zone model is implemented as
+    csm_shock_breakout
+
+    :return:
+    """
     raise NotImplementedError("This model is not yet implemented.")
