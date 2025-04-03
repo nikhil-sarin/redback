@@ -24,7 +24,8 @@ extinction_supernova_base_models = ['sn_exponential_powerlaw', 'arnett', 'shock_
                                     'basic_magnetar_powered', 'slsn', 'magnetar_nickel',
                                     'csm_interaction', 'csm_nickel', 'type_1a', 'type_1c',
                                     'general_magnetar_slsn','general_magnetar_driven_supernova', 'sn_fallback',
-                                    'csm_shock_and_arnett', 'shocked_cocoon_and_arnett', 'csm_shock_and_arnett_two_rphots']
+                                    'csm_shock_and_arnett', 'shocked_cocoon_and_arnett',
+                                    'csm_shock_and_arnett_two_rphots', 'nickelmixing']
 extinction_kilonova_base_models = ['nicholl_bns', 'mosfit_rprocess', 'mosfit_kilonova',
                                    'power_law_stratified_kilonova','bulla_bns_kilonova',
                                    'bulla_nsbh_kilonova', 'kasen_bns_kilonova','two_layer_stratified_kilonova',
