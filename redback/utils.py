@@ -14,10 +14,10 @@ from scipy.interpolate import RegularGridInterpolator, interp1d
 from scipy.stats import gaussian_kde
 from selenium import webdriver
 from selenium.common.exceptions import NoSuchElementException
+from astropy.cosmology import FlatLambdaCDM
 
 import redback
 from redback.constants import *
-
 
 dirname = os.path.dirname(__file__)
 filename = os.path.join(dirname, 'plot_styles/paper.mplstyle')
@@ -25,6 +25,7 @@ plt.style.use(filename)
 
 logger = logging.getLogger('redback')
 _bilby_logger = logging.getLogger('bilby')
+
 
 def find_nearest(array, value):
     """
@@ -38,11 +39,13 @@ def find_nearest(array, value):
     idx = (np.abs(array - value)).argmin()
     return array[idx], idx
 
+
 def download_pointing_tables():
     """
     Download the pointing tables from zenodo.
     """
     return logger.info("Pointing tables downloaded and stored in redback/tables")
+
 
 def sncosmo_bandname_from_band(bands, warning_style='softest'):
     """
@@ -74,6 +77,7 @@ def sncosmo_bandname_from_band(bands, warning_style='softest'):
             else:
                 res.append('r')
     return np.array(res)
+
 
 def check_kwargs_validity(kwargs):
     """
@@ -107,16 +111,20 @@ def check_kwargs_validity(kwargs):
         kwargs['frequency_array'] = kwargs.get('frequency_array', np.linspace(100, 20000, 100))
     return kwargs
 
+
 def citation_wrapper(r):
     """
     Wrapper for citation function to allow functions to have a citation attribute
     :param r: proxy argument
     :return: wrapped function
     """
+
     def wrapper(f):
         f.citation = r
         return f
+
     return wrapper
+
 
 def calc_tfb(binding_energy_const, mbh_6, stellar_mass):
     """
@@ -128,6 +136,7 @@ def calc_tfb(binding_energy_const, mbh_6, stellar_mass):
     """
     tfb = 58. * (3600. * 24.) * (mbh_6 ** (0.5)) * (stellar_mass ** (0.2)) * ((binding_energy_const / 0.8) ** (-1.5))
     return tfb
+
 
 def calculate_normalisation(unique_frequency, model_1, model_2, tref, model_1_dict, model_2_dict):
     """
@@ -146,15 +155,16 @@ def calculate_normalisation(unique_frequency, model_1, model_2, tref, model_1_di
     f1 = all_models_dict[model_1](time=tref, a_1=1, **model_1_dict)
     if unique_frequency == None:
         f2 = all_models_dict[model_2](time=tref, **model_2_dict)
-        norm = f2/f1
+        norm = f2 / f1
         normalisation = namedtuple('normalisation', ['bolometric_luminosity'])(norm)
     else:
         model_2_dict['frequency'] = unique_frequency
         f2 = all_models_dict[model_2](time=tref, **model_2_dict)
-        unique_norms = f2/f1
+        unique_norms = f2 / f1
         dd = dict(zip(unique_frequency, unique_norms))
         normalisation = namedtuple('normalisation', dd.keys())(*dd.values())
     return normalisation
+
 
 def get_csm_properties(nn, eta):
     """
@@ -196,6 +206,7 @@ def fnu_to_flambda(f_nu, wavelength_A):
     """
     return f_nu * speed_of_light * 1e8 / wavelength_A ** 2
 
+
 def lambda_to_nu(wavelength):
     """
     :param wavelength: wavelength in Angstrom
@@ -210,6 +221,7 @@ def nu_to_lambda(frequency):
     :return: wavelength in Angstrom
     """
     return 1.e10 * (speed_of_light_si / frequency)
+
 
 def calc_kcorrected_properties(frequency, redshift, time):
     """
@@ -290,6 +302,7 @@ def date_to_mjd(year, month, day):
     """
     return Time(dict(year=year, month=month, day=day), format="ymdhms").mjd
 
+
 def deceleration_timescale(e0, g0, n0):
     """
     Calculate the deceleration timescale for an afterglow
@@ -307,6 +320,7 @@ def deceleration_timescale(e0, g0, n0):
     t_peak = (num / denom) ** (1. / 3.)
     return t_peak
 
+
 def calc_flux_density_from_ABmag(magnitudes):
     """
     Calculate flux density from AB magnitude assuming monochromatic AB filter
@@ -315,6 +329,7 @@ def calc_flux_density_from_ABmag(magnitudes):
     :return: flux density
     """
     return (magnitudes * uu.ABmag).to(uu.mJy)
+
 
 def calc_ABmag_from_flux_density(fluxdensity):
     """
@@ -325,6 +340,7 @@ def calc_ABmag_from_flux_density(fluxdensity):
     """
     return (fluxdensity * uu.mJy).to(uu.ABmag)
 
+
 def calc_flux_density_from_vegamag(magnitudes, zeropoint):
     """
     Calculate flux density from Vega magnitude assuming Vega filter
@@ -334,8 +350,9 @@ def calc_flux_density_from_vegamag(magnitudes, zeropoint):
     :return: flux density in mJy
     """
     zeropoint = zeropoint * 1000
-    flux_density = zeropoint * 10 ** (magnitudes/-2.5)
+    flux_density = zeropoint * 10 ** (magnitudes / -2.5)
     return flux_density
+
 
 def calc_vegamag_from_flux_density(fluxdensity, zeropoint):
     """
@@ -376,6 +393,7 @@ def bandflux_error_from_limiting_mag(fiveSigmaDepth, bandflux_ref):
     bandflux_error = Flux_five_sigma / 5.0
     return bandflux_error
 
+
 def convert_apparent_mag_to_absolute(app_magnitude, redshift, **kwargs):
     """
     Convert apparent magnitude to absolute magnitude assuming planck18 cosmology.
@@ -397,6 +415,7 @@ def convert_apparent_mag_to_absolute(app_magnitude, redshift, **kwargs):
     # Convert to absolute magnitude using the formula
     absolute_magnitude = app_magnitude - 5 * np.log10(luminosity_distance) + 5
     return absolute_magnitude
+
 
 def convert_absolute_mag_to_apparent(magnitude, distance):
     """
@@ -420,7 +439,9 @@ def check_element(driver, id_number):
         return False
     return True
 
-def calc_flux_density_error_from_monochromatic_magnitude(magnitude, magnitude_error, reference_flux, magnitude_system='AB'):
+
+def calc_flux_density_error_from_monochromatic_magnitude(magnitude, magnitude_error, reference_flux,
+                                                         magnitude_system='AB'):
     """
     Calculate flux density error from magnitude error
 
@@ -436,6 +457,7 @@ def calc_flux_density_error_from_monochromatic_magnitude(magnitude, magnitude_er
     dfdm = 1000 * prefactor * reference_flux * np.exp(prefactor * magnitude)
     flux_err = ((dfdm * magnitude_error) ** 2) ** 0.5
     return flux_err
+
 
 def calc_flux_error_from_magnitude(magnitude, magnitude_error, reference_flux):
     """
@@ -460,7 +482,7 @@ def bands_to_zeropoint(bands):
     :return: zeropoint for magnitude to flux density calculation
     """
     reference_flux = bands_to_reference_flux(bands)
-    zeropoint = 10**(reference_flux/-2.5)
+    zeropoint = 10 ** (reference_flux / -2.5)
     return zeropoint
 
 
@@ -473,7 +495,7 @@ def bandpass_magnitude_to_flux(magnitude, bands):
     :return: flux
     """
     reference_flux = bands_to_reference_flux(bands)
-    maggi = 10.0**(magnitude / (-2.5))
+    maggi = 10.0 ** (magnitude / (-2.5))
     flux = maggi * reference_flux
     return flux
 
@@ -565,6 +587,7 @@ def bands_to_frequency(bands):
             raise KeyError(f"Band {band} is not defined in filters.csv!")
     return np.array(res)
 
+
 def frequency_to_bandname(frequency):
     """
     Converts a list of frequencies into an array corresponding band names
@@ -587,6 +610,7 @@ def frequency_to_bandname(frequency):
             raise KeyError(f"Wavelength {freq} is not defined in filters.csv!")
     return np.array(res)
 
+
 def fetch_driver():
     # open the webdriver
     options = webdriver.ChromeOptions()
@@ -605,8 +629,8 @@ def calc_credible_intervals(samples, interval=0.9):
     """
     if not 0 <= interval <= 1:
         raise ValueError
-    lower_bound = np.quantile(samples, 0.5 - interval/2, axis=0)
-    upper_bound = np.quantile(samples, 0.5 + interval/2, axis=0)
+    lower_bound = np.quantile(samples, 0.5 - interval / 2, axis=0)
+    upper_bound = np.quantile(samples, 0.5 + interval / 2, axis=0)
     median = np.quantile(samples, 0.5, axis=0)
     return lower_bound, upper_bound, median
 
@@ -738,7 +762,6 @@ def setup_logger(outdir='.', label=None, log_level='INFO'):
 
     logger.info(f'Running redback version: {redback.__version__}')
 
-
 class MetaDataAccessor(object):
     """
     Generic descriptor class that allows handy access of properties without long
@@ -758,6 +781,7 @@ class MetaDataAccessor(object):
 
     def __set__(self, instance, value):
         getattr(instance, self.container_instance_name)[self.property_name] = value
+
 
 
 class DataModeSwitch(object):
@@ -813,14 +837,14 @@ def interpolated_barnes_and_kasen_thermalisation_efficiency(mej, vej):
     v_array = np.asarray([0.1, 0.2, 0.3, 0.4])
     mass_array = np.asarray([1.e-3, 5.e-3, 1.e-2, 5.e-2, 1.e-1])
     a_array = np.asarray([[2.01, 4.52, 8.16, 16.3], [0.81, 1.9, 3.2, 5.0],
-                              [0.56, 1.31, 2.19, 3.0], [.27, .55, .95, 2.0],
-                              [0.20, 0.39, 0.65, 0.9]])
+                          [0.56, 1.31, 2.19, 3.0], [.27, .55, .95, 2.0],
+                          [0.20, 0.39, 0.65, 0.9]])
     b_array = np.asarray([[0.28, 0.62, 1.19, 2.4], [0.19, 0.28, 0.45, 0.65],
-                              [0.17, 0.21, 0.31, 0.45], [0.10, 0.13, 0.15, 0.17],
-                              [0.06, 0.11, 0.12, 0.12]])
+                          [0.17, 0.21, 0.31, 0.45], [0.10, 0.13, 0.15, 0.17],
+                          [0.06, 0.11, 0.12, 0.12]])
     d_array = np.asarray([[1.12, 1.39, 1.52, 1.65], [0.86, 1.21, 1.39, 1.5],
-                              [0.74, 1.13, 1.32, 1.4], [0.6, 0.9, 1.13, 1.25],
-                              [0.63, 0.79, 1.04, 1.5]])
+                          [0.74, 1.13, 1.32, 1.4], [0.6, 0.9, 1.13, 1.25],
+                          [0.63, 0.79, 1.04, 1.5]])
     a_func = RegularGridInterpolator((mass_array, v_array), a_array, bounds_error=False, fill_value=None)
     b_func = RegularGridInterpolator((mass_array, v_array), b_array, bounds_error=False, fill_value=None)
     d_func = RegularGridInterpolator((mass_array, v_array), d_array, bounds_error=False, fill_value=None)
@@ -1038,7 +1062,6 @@ def heatinggrids():
     C3_interp = RegularGridInterpolator((V_GRID, YE_GRID), C3_GRID, bounds_error=False, fill_value=None)
     TAU3_interp = RegularGridInterpolator((V_GRID, YE_GRID), TAU3_GRID, bounds_error=False, fill_value=None)
 
-
     interpolators = namedtuple('interpolators', ['E0', 'ALP', 'T0', 'SIG', 'ALP1', 'T1', 'SIG1',
                                                  'C1', 'TAU1', 'C2', 'TAU2', 'C3', 'TAU3'])
     interpolators.E0 = E0_interp
@@ -1055,6 +1078,7 @@ def heatinggrids():
     interpolators.C3 = C3_interp
     interpolators.TAU3 = TAU3_interp
     return interpolators
+
 
 def get_heating_terms(ye, vel, **kwargs):
     ints = heatinggrids()
@@ -1090,6 +1114,7 @@ def get_heating_terms(ye, vel, **kwargs):
     heating_terms.tau3 = tau3 * heating_rate_fudge
     return heating_terms
 
+
 def _calculate_rosswogkorobkin24_qdot(time_array, ejecta_velocity, electron_fraction):
     import pickle
     import os
@@ -1102,6 +1127,7 @@ def _calculate_rosswogkorobkin24_qdot(time_array, ejecta_velocity, electron_frac
     full_array = np.array([_ej_velocity, _ye, time_array]).T
     lum_in = qdot_object(full_array)
     return lum_in
+
 
 def electron_fraction_from_kappa(kappa):
     """
@@ -1117,6 +1143,7 @@ def electron_fraction_from_kappa(kappa):
     electron_fraction = kappa_func(kappa)
     return electron_fraction
 
+
 def kappa_from_electron_fraction(ye):
     """
     Uses interpolation from Tanaka+19 to calculate
@@ -1129,37 +1156,78 @@ def kappa_from_electron_fraction(ye):
     func = interp1d(ye_array, y=kappa_array, fill_value='extrapolate')
     kappa = func(ye)
     return kappa
-    
+
+
 def lorentz_factor_from_velocity(velocity):
     """
     Calculates the Lorentz factor for a given velocity
     :param velocity: velocity in cm/s
     :return: Lorentz factor
     """
-    return 1 / np.sqrt(1 - (velocity / speed_of_light)**2 )
-    
+    return 1 / np.sqrt(1 - (velocity / speed_of_light) ** 2)
+
+
 def velocity_from_lorentz_factor(lorentz_factor):
     """
-    Calculates the velocity for a given Lorentz factor 
+    Calculates the velocity for a given Lorentz factor
     :param Lorentz_factor: relativistic Lorentz factor
     :return: velocity in cm/s
     """
 
     return speed_of_light * np.sqrt(1 - 1 / lorentz_factor ** 2)
 
-class user_cosmology():
-    """
-    Cosmology class similar to the Astropy cosmology class.
-    Needed if the user wants to provide a distance instead
-    of using the luminosity distance inferred from a particular
-    cosmology model.
-    """
 
-    def __init__(self, dl=0):
-        self.dl = 0
+class UserCosmology(FlatLambdaCDM):
+    """
+    Dummy cosmology class that behaves like an Astropy cosmology,
+    except that the luminosity distance is fixed to the user‐specified value.
 
-    def set_luminosity_distance(cls, dl):
-        cls.dl  = dl
-    
+    Parameters
+    ----------
+    dl : astropy.units.Quantity
+        The luminosity distance to return (e.g., 100 * u.Mpc).
+    **kwargs
+        Additional keyword arguments for FlatLambdaCDM (e.g. H0, Om0) if needed.
+    """
+    def __init__(self, **kwargs):
+        self.dl = kwargs.pop("dl", None)
+
+        if 'H0' not in kwargs:
+            kwargs['H0'] = 70 * uu.km / uu.s / uu.Mpc
+        if 'Om0' not in kwargs:
+            kwargs['Om0'] = 0.3
+
+        # Initialize the parent FlatLambdaCDM class.
+        super().__init__(**kwargs)
+
+    def __repr__(self):
+        # Optionally, override __repr__ so that when printed the class appears as FlatLambdaCDM.
+        base_repr = super().__repr__()
+        return base_repr.replace(self.__class__.__name__, "FlatLambdaCDM", 1)
+
+    def set_luminosity_distance(self, dl):
+        """
+        Set (or update) the user-specified luminosity distance.
+
+        Parameters
+        ----------
+        dl : astropy.units.Quantity
+            The new luminosity distance.
+        """
+        self.dl = dl
+
     def luminosity_distance(self, redshift):
+        """
+        Return the user-specified luminosity distance, ignoring the redshift.
+
+        Parameters
+        ----------
+        redshift : float or array-like
+            Redshift (ignored).
+
+        Returns
+        -------
+        astropy.units.Quantity
+            The user-specified luminosity distance.
+        """
         return self.dl
