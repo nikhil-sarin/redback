@@ -281,6 +281,67 @@ def _nickelcobalt_engine(time, f_nickel, mej, **kwargs):
     lbol = nickel_mass * (ni56_lum*np.exp(-time/ni56_life) + co56_lum * np.exp(-time/co56_life))
     return lbol
 
+def _compute_mass_and_nickel(vmin, esn, mej, f_nickel, f_mixing, mass_len,
+                            vmax, delta=0.0, n=12.0):
+    """
+    Compute the mass and nickel distributions following a broken power-law
+    density profile inspired by Matzner & McKee (1999)
+
+    :param vmin: minimum velocity in km/s
+    :param esn: supernova explosion energy in foe
+    :param mej: total ejecta mass in solar masses
+    :param f_nickel: fraction of nickel mass
+    :param f_mixing: fraction of nickel mass that is mixed
+    :param mass_len: number of mass shells
+    :param vmax: maximum velocity in km/s
+    :param delta: inner density profile exponent (actual mass dist is 2 - delta)
+    :param n: outer density profile exponent (actual mass dist is 2 - n)
+    :return: vel in km/s, v_m in cm/s, m_array in solar masses, ni_array in solar masses (total nickel mass is f_nickel*mej)
+    """
+    # Create velocity grid in km/s and convert to cm/s.
+    vel = np.geomspace(vmin, vmax, mass_len) # km/s
+    v_m = vel * km_cgs # cgs
+
+    # Define a break velocity; use shock speed from Matzner & McKee (1999).
+    num = 2 * (5 - delta) * (n - 5) * esn * 1e51
+    denom = (3 - delta)*(n - 3) * mej * solar_mass
+    v_break = np.sqrt(num/denom) / km_cgs
+
+    # For a uniform grid, determine the velocity spacing.
+    dv = vel[1] - vel[0]
+
+    # Compute the unnormalized mass distribution using vectorized operations.
+    # For the inner part: (v/v_break)^(2 - delta)
+    # For the outer part: (v/v_break)^(2 - n)
+    m_array = np.where(vel <= v_break,
+                       (vel / v_break)**(2.0 - delta),
+                       (vel / v_break)**(2.0 - n))
+    # Multiply by the bin width.
+    m_array = m_array * dv
+    # Normalize the mass array so that the summed mass equals mej.
+    total_mass = np.sum(m_array)
+    m_array = mej * m_array / total_mass
+
+    # --- Compute the nickel distribution ---
+    # Total nickel mass.
+    ni_mass = f_nickel * mej
+    # Only the inner fraction of the shells receives nickel.
+    limiting_index = int(mass_len * f_mixing)
+    limiting_index = max(limiting_index, 1)
+    # Using the same inner profile for the nickel weight.
+    _ni_array = np.where(vel[:limiting_index] <= v_break,
+                       (vel[:limiting_index] / v_break)**(2.0 - delta),
+                       (vel[:limiting_index] / v_break)**(2.0 - n))
+    # old, if only considering nickel in the inner power-law shells.
+    # _ni_array = (vel[:limiting_index] / vel[0])**(2.0 - delta)
+
+    _ni_array = ni_mass * _ni_array / np.sum(_ni_array)
+    ni_array = np.zeros_like(vel)
+    ni_array[:limiting_index] = _ni_array
+
+    return vel, v_m, m_array, ni_array
+
+
 def _nickelmixing(time, mej, esn, beta, kappa, kappa_gamma, f_nickel, f_mixing,
                   temperature_floor, **kwargs):
     """
@@ -297,6 +358,12 @@ def _nickelmixing(time, mej, esn, beta, kappa, kappa_gamma, f_nickel, f_mixing,
     :param kwargs: Additional keyword arguments
     :param mass_len: number of mass shells, defaults to 200
     :param vmax: maximum velocity in km/s, defaults to 100000
+    :param vmin_frac: fraction of characteristic velocity that is the minimum velocity, defaults to 1.0
+    :param use_broken_powerlaw: whether to use a broken power-law for the mass and nickel distribution, defaults to True
+    :param delta: inner density profile exponent (actual mass dist is 2 - delta), defaults to 0.0
+        Only used if use_broken_powerlaw is True. And range is between 0-1
+    :param nn: outer density profile exponent (actual mass dist is 2 - n), defaults to 12.0.
+        Only used if use_broken_powerlaw is True. And range is between 8-12
     :return: bolometric_luminosity, temperature, photosphere_radius, time_array in days
     """
     tdays = time/day_to_s
@@ -305,24 +372,30 @@ def _nickelmixing(time, mej, esn, beta, kappa, kappa_gamma, f_nickel, f_mixing,
     ni_mass = f_nickel * mej
     vmin_frac = kwargs.get('vmin_frac', 1.0)
     vmin = vmin_frac * (2 * (esn*1e51)/(mej*solar_mass))**0.5 / 1e5
-
-    # Set up velocity array
     vmax = kwargs.get('vmax', 100000)
-    vel = np.geomspace(vmin, vmax, mass_len)
-    # arrays in cgs
-    v_m = vel * km_cgs
-
-    # Set up normalised mass and nickel mass arrays
-    m_array = mej * (vel/vmin)**(-beta)
-    total_mass = np.sum(m_array)
-    normalised_mass = m_array * (mej/ total_mass)
-    m_array = normalised_mass
-    limiting_index = int(mass_len * f_mixing)
-    limiting_index = np.max([limiting_index, 1])
-    _ni_array = (vel[:limiting_index] / vel[0]) ** (-beta)
-    _ni_array = ni_mass * _ni_array / (np.sum(_ni_array))
-    ni_array = np.zeros_like(vel)
-    ni_array[:limiting_index] = _ni_array
+    use_broken_powerlaw = kwargs.get('use_broken_powerlaw', False)
+    if use_broken_powerlaw:
+        delta = kwargs.get('delta', 1.0)
+        nn = kwargs.get('nn', 12.0)
+        vel, v_m, m_array, ni_array = _compute_mass_and_nickel(vmin=vmin, esn=esn, mej=mej,
+                                                               f_nickel=f_nickel, f_mixing=f_mixing,
+                                                               mass_len=mass_len, vmax=vmax, delta=delta, n=nn)
+    else:
+        # Set up velocity array
+        vel = np.linspace(vmin, vmax, mass_len)
+        # arrays in cgs
+        v_m = vel * km_cgs
+        # Set up normalised mass and nickel mass arrays
+        m_array = mej * (vel/vmin)**(-beta)
+        total_mass = np.sum(m_array)
+        normalised_mass = m_array * (mej/ total_mass)
+        m_array = normalised_mass
+        limiting_index = int(mass_len * f_mixing)
+        limiting_index = np.max([limiting_index, 1])
+        _ni_array = (vel[:limiting_index] / vel[0]) ** (-beta)
+        _ni_array = ni_mass * _ni_array / (np.sum(_ni_array))
+        ni_array = np.zeros_like(vel)
+        ni_array[:limiting_index] = _ni_array
 
     # set up edotr
     ni56_lum = 6.45e43
@@ -377,12 +450,16 @@ def _nickelmixing(time, mej, esn, beta, kappa, kappa_gamma, f_nickel, f_mixing,
     outputs = namedtuple('output', ['time_temp', 'lbol', 't_photosphere',
                                     'r_photosphere', 'tau', 'v_photosphere'])
     # remove first and last time step
-    outputs.tau = tau[:, 1:-1]
-    outputs.v_photosphere = v_photosphere[1:-1]
+    # outputs.tau = tau[:, 1:-1]
+    # outputs.v_photosphere = v_photosphere[1:-1]
     outputs.time_temp = time[1:-1]/day_to_s
     outputs.lbol = bolometric_luminosity[1:-1]
-    outputs.t_photosphere = temperature[1:-1]
-    outputs.r_photosphere = r_photosphere[1:-1]
+    # outputs.t_photosphere = temperature[1:-1]
+    # outputs.r_photosphere = r_photosphere[1:-1]
+    photo_mix = photosphere.TemperatureFloor(outputs.time_temp, luminosity=outputs.lbol, vej=vmin,
+                                             temperature_floor=temperature_floor)
+    outputs.t_photosphere = photo_mix.photosphere_temperature
+    outputs.r_photosphere = photo_mix.r_photosphere
     return outputs
 
 def nickelmixing_bolometric(time, mej, esn, beta, kappa, kappa_gamma, f_nickel, f_mixing,
