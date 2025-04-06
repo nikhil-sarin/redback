@@ -375,8 +375,11 @@ def _nickelmixing(time, mej, esn, kappa, kappa_gamma, f_nickel, f_mixing,
     vmin_frac = kwargs.get('vmin_frac', 1.0)
     vmin = vmin_frac * (2 * (esn * 1e51) / (mej * solar_mass)) ** 0.5 / 1e5
     vmax = kwargs.get('vmax', 100000)
+    # A fudge factor to account for the inaccurate radiative losses in the scheme
+    # and get right energetics when compared with the arnett model
+    lum_fudge = kwargs.get('lum_fudge', 0.2)
     use_broken_powerlaw = kwargs.get('use_broken_powerlaw', False)
-    use_gray_opacity = kwargs.get('use_gray_opacity', True)
+    use_gray_opacity = kwargs.get('use_gray_opacity', False)
 
     if use_gray_opacity:
         # logger.info("Using gray opacity.")
@@ -472,170 +475,43 @@ def _nickelmixing(time, mej, esn, kappa, kappa_gamma, f_nickel, f_mixing,
         # print(kappa_eff)
         td_v[:, ii] = (kappa_eff * m_array * solar_mass * 3) / \
                       (4 * np.pi * v_m * speed_of_light * time[ii] * beta)
-        # tau[:, ii] = (m_array * solar_mass * kappa_eff) / (4 * np.pi * (time[ii] * v_m) ** 2)
+        tau[:, ii] = (m_array * solar_mass * kappa_eff) / (4 * np.pi * (time[ii] * v_m) ** 2)
         leakage = 3 * kappa_gamma * m_array * solar_mass / (4 * np.pi * v_m ** 2)
         eth_v[:, ii] = 1 - np.exp(-leakage * time[ii] ** (-2))
         qdot_ni[:, ii] = ni_array * edotr[:, ii] * eth_v[:, ii]
         tlc_v[:, ii] = v_m * time[ii] / speed_of_light
+        # lum_rad[:, ii] = lum_fudge*energy_v[:, ii] / (td_v[:, ii] + tlc_v[:, ii])
         lum_rad[:, ii] = energy_v[:, ii] / (td_v[:, ii] + tlc_v[:, ii])
         # Euler integration update for energy in each shell
-        energy_v[:, ii + 1] = (qdot_ni[:, ii] - (energy_v[:, ii] / time[ii]) - lum_rad[:, ii]) * dt[ii] + energy_v[:,ii]
+        energy_v[:, ii + 1] = (qdot_ni[:, ii] - (1e-4*energy_v[:, ii] / time[ii]) - 0.1*lum_rad[:, ii]) * dt[ii] + energy_v[:,ii]
 
         # Determine the photospheric shell by finding where τ ≃ 1
-        # photosphere_index = np.argmin(np.abs(tau[:, ii] - 1))
-        # v_photosphere[ii] = v_m[photosphere_index]
-        # r_photosphere[ii] = v_photosphere[ii] * time[ii]
+        photosphere_index = np.argmin(np.abs(tau[:, ii] - 1))
+        v_photosphere[ii] = v_m[photosphere_index]
+        r_photosphere[ii] = v_photosphere[ii] * time[ii]
 
     # Final step for luminosity in the last time index
     lum_rad[:, -1] = energy_v[:, -1] / (td_v[:, -1] + tlc_v[:, -1])
     bolometric_luminosity = np.sum(lum_rad, axis=0)
 
     # # Compute the effective temperature from the global bolometric luminosity and photospheric radius
-    # temperature = (bolometric_luminosity / (4.0 * np.pi * (r_photosphere) ** 2 * sigma_sb)) ** 0.25
-    # # Apply a temperature floor
-    # mask = temperature < temperature_floor
-    # temperature[mask] = temperature_floor
-    # r_photosphere[mask] = np.sqrt(bolometric_luminosity[mask] / (4.0 * np.pi * temperature_floor ** 4 * sigma_sb))
+    temperature = (bolometric_luminosity / (4.0 * np.pi * (r_photosphere) ** 2 * sigma_sb)) ** 0.25
+    # Apply a temperature floor
+    mask = temperature < temperature_floor
+    temperature[mask] = temperature_floor
+    r_photosphere[mask] = np.sqrt(bolometric_luminosity[mask] / (4.0 * np.pi * temperature_floor ** 4 * sigma_sb))
 
     from collections import namedtuple
     outputs = namedtuple('output', ['time_temp', 'lbol', 't_photosphere',
                                     'r_photosphere', 'tau', 'v_photosphere', 'energy_v'])
-    # As an example, here we assume that photo_mix is created using a helper that
-    # uses the time and bolometric luminosity arrays to compute a refined photospheric temperature.
-    # (Replace with your actual call if different.)
     outputs.time_temp = time[1:-1] / day_to_s
     outputs.lbol = bolometric_luminosity[1:-1]
-    # outputs.t_photosphere = temperature[1:-1]
-    # outputs.r_photosphere = r_photosphere[1:-1]
-    photo_mix = photosphere.TemperatureFloor(outputs.time_temp, luminosity=outputs.lbol,
-                                             vej=vmin, temperature_floor=temperature_floor)
-    outputs.t_photosphere = photo_mix.photosphere_temperature
-    outputs.r_photosphere = photo_mix.r_photosphere
-    # outputs.tau = tau[:, 1:-1]
-    # outputs.energy_v = energy_v[:, 1:-1]
-    # outputs.v_photosphere = v_photosphere[1:-1]
+    outputs.t_photosphere = temperature[1:-1]
+    outputs.r_photosphere = r_photosphere[1:-1]
+    outputs.tau = tau[:, 1:-1]
+    outputs.energy_v = energy_v[:, 1:-1]
+    outputs.v_photosphere = v_photosphere[1:-1]
     return outputs
-
-
-# def _nickelmixing(time, mej, esn, beta, kappa, kappa_gamma, f_nickel, f_mixing,
-#                   temperature_floor, **kwargs):
-#     """
-#     :param time: time array to evaluate model on in source frame in seconds
-#     :param redshift: redshift
-#     :param mej: ejecta mass in solar masses
-#     :param esn: explosion energy in foe
-#     :param beta: velocity power law slope (M=v^-beta)
-#     :param kappa: gray opacity
-#     :param kappa_gamma: gamma-ray opacity
-#     :param f_nickel: fraction of total ejecta mass that is nickel
-#     :param f_mixing: fraction of nickel mass that is mixed, a low value puts all the nickel in the first shell.
-#     :param temperature_floor: temperature floor in K, photosphere starts to recede when temperature reaches this value
-#     :param kwargs: Additional keyword arguments
-#     :param mass_len: number of mass shells, defaults to 200
-#     :param vmax: maximum velocity in km/s, defaults to 100000
-#     :param vmin_frac: fraction of characteristic velocity that is the minimum velocity, defaults to 1.0
-#     :param use_broken_powerlaw: whether to use a broken power-law for the mass and nickel distribution, defaults to True
-#     :param delta: inner density profile exponent (actual mass dist is 2 - delta), defaults to 0.0
-#         Only used if use_broken_powerlaw is True. And range is between 0-1
-#     :param nn: outer density profile exponent (actual mass dist is 2 - n), defaults to 12.0.
-#         Only used if use_broken_powerlaw is True. And range is between 8-12
-#     :return: bolometric_luminosity, temperature, photosphere_radius, time_array in days
-#     """
-#     tdays = time/day_to_s
-#     time_len = len(time)
-#     mass_len = int(kwargs.get('mass_len', 200))
-#     ni_mass = f_nickel * mej
-#     vmin_frac = kwargs.get('vmin_frac', 1.0)
-#     vmin = vmin_frac * (2 * (esn*1e51)/(mej*solar_mass))**0.5 / 1e5
-#     vmax = kwargs.get('vmax', 100000)
-#     use_broken_powerlaw = kwargs.get('use_broken_powerlaw', False)
-#     if use_broken_powerlaw:
-#         delta = kwargs.get('delta', 1.0)
-#         nn = kwargs.get('nn', 12.0)
-#         vel, v_m, m_array, ni_array = _compute_mass_and_nickel(vmin=vmin, esn=esn, mej=mej,
-#                                                                f_nickel=f_nickel, f_mixing=f_mixing,
-#                                                                mass_len=mass_len, vmax=vmax, delta=delta, n=nn)
-#     else:
-#         # Set up velocity array
-#         vel = np.linspace(vmin, vmax, mass_len)
-#         # arrays in cgs
-#         v_m = vel * km_cgs
-#         # Set up normalised mass and nickel mass arrays
-#         m_array = mej * (vel/vmin)**(-beta)
-#         total_mass = np.sum(m_array)
-#         normalised_mass = m_array * (mej/ total_mass)
-#         m_array = normalised_mass
-#         limiting_index = int(mass_len * f_mixing)
-#         limiting_index = np.max([limiting_index, 1])
-#         _ni_array = (vel[:limiting_index] / vel[0]) ** (-beta)
-#         _ni_array = ni_mass * _ni_array / (np.sum(_ni_array))
-#         ni_array = np.zeros_like(vel)
-#         ni_array[:limiting_index] = _ni_array
-#
-#     # set up edotr
-#     ni56_lum = 6.45e43
-#     co56_lum = 1.45e43
-#     ni56_life = 8.8  # days
-#     co56_life = 111.3  # days
-#     edotr = np.zeros((mass_len, time_len))
-#     edotr[:, :] = (ni56_lum * np.exp(-tdays / ni56_life) + co56_lum * np.exp(-tdays / co56_life))
-#
-#     # set up empty arrays
-#     energy_v = np.zeros((mass_len, time_len))
-#     lum_rad = np.zeros((mass_len, time_len))
-#     qdot_ni = np.zeros((mass_len, time_len))
-#     eth_v = np.zeros((mass_len, time_len))
-#     td_v = np.zeros((mass_len, time_len))
-#     tlc_v = np.zeros((mass_len, time_len))
-#     tau = np.zeros((mass_len, time_len))
-#     v_photosphere = np.zeros(time_len)
-#     r_photosphere = np.zeros(time_len)
-#
-#     dt = np.diff(time)
-#
-#     #initial conditions
-#     energy_v[:, 0] = 0.5 * m_array*v_m**2
-#     lum_rad[:, 0] = 0
-#     qdot_ni[:, 0] = 0
-#
-#     # solve ODE using euler method for all mass shells v
-#     for ii in range(time_len-1):
-#         td_v[:, ii] = (kappa * m_array * solar_mass * 3) / (
-#                     4 * np.pi * v_m * speed_of_light * time[ii] * beta)
-#         tau[:, ii] = (m_array * solar_mass * kappa / (4 * np.pi * (time[ii] * v_m) ** 2))
-#         leakage = 3*kappa_gamma*m_array*solar_mass/ (4*np.pi*v_m**2)
-#         eth_v[:, ii] = 1 - np.exp(-leakage*time[ii]**(-2))
-#         qdot_ni[:, ii] = ni_array * edotr[:, ii] * eth_v[:, ii]
-#         tlc_v[:, ii] = v_m * time[ii] / speed_of_light
-#         lum_rad[:, ii] = energy_v[:, ii] / (td_v[:, ii] + tlc_v[:, ii])
-#         # assuming dr/dt = v and r = vt sets second term to just be energy/time
-#         energy_v[:, ii + 1] = (qdot_ni[:, ii] - (energy_v[:, ii] / time[ii]) - lum_rad[:, ii]) * dt[ii] + energy_v[:, ii]
-#
-#         photosphere_index = np.argmin(np.abs(tau[:, ii] - 1))
-#         v_photosphere[ii] = v_m[photosphere_index]
-#         r_photosphere[ii] = v_photosphere[ii] * time[ii]
-#
-#     lum_rad[:, -1] = energy_v[:, -1] / (td_v[:, -1] + tlc_v[:, -1])
-#     bolometric_luminosity = np.sum(lum_rad, axis=0)
-#
-#     temperature = (bolometric_luminosity / (4.0 * np.pi * (r_photosphere) ** (2.0) * sigma_sb)) ** (0.25)
-#     mask = temperature < temperature_floor
-#     temperature[mask] = temperature_floor
-#     r_photosphere[mask] = np.sqrt(bolometric_luminosity[mask] / (4.0 * np.pi * temperature_floor ** 4 * sigma_sb))
-#     outputs = namedtuple('output', ['time_temp', 'lbol', 't_photosphere',
-#                                     'r_photosphere', 'tau', 'v_photosphere'])
-#     # remove first and last time step
-#     # outputs.tau = tau[:, 1:-1]
-#     # outputs.v_photosphere = v_photosphere[1:-1]
-#     outputs.time_temp = time[1:-1]/day_to_s
-#     outputs.lbol = bolometric_luminosity[1:-1]
-#     # outputs.t_photosphere = temperature[1:-1]
-#     # outputs.r_photosphere = r_photosphere[1:-1]
-#     photo_mix = photosphere.TemperatureFloor(outputs.time_temp, luminosity=outputs.lbol, vej=vmin,
-#                                              temperature_floor=temperature_floor)
-#     outputs.t_photosphere = photo_mix.photosphere_temperature
-#     outputs.r_photosphere = photo_mix.r_photosphere
-#     return outputs
 
 def nickelmixing_bolometric(time, mej, esn, kappa, kappa_gamma, f_nickel, f_mixing,
                             temperature_floor, **kwargs):
