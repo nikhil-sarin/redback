@@ -96,7 +96,13 @@ def fit_model(
 def _fit_spectrum(transient, model, outdir, label, likelihood=None, sampler='dynesty', nlive=3000, prior=None, walks=1000,
                   resume=True, save_format='json', model_kwargs=None, plot=True, **kwargs):
     x, y, y_err = transient.angstroms, transient.flux_density, transient.flux_density_err
-    likelihood = likelihood or GaussianLikelihood(x=x, y=y, sigma=y_err, function=model, kwargs=model_kwargs)
+
+    if likelihood is None:
+        likelihood = GaussianLikelihood(x=x, y=y, sigma=y_err, function=model, kwargs=model_kwargs)
+        logger.info("No likelihood provided, using standard GaussianLikelihood")
+    else:
+        logger.info("Likelihood provided, using custom likelihood {}".format(likelihood.__class__.__name__))
+        likelihood = likelihood
 
     meta_data = dict(model=model.__name__, transient_type=transient.__class__.__name__.lower())
     transient_kwargs = {k.lstrip("_"): v for k, v in transient.__dict__.items()}
@@ -141,7 +147,12 @@ def _fit_grb(transient, model, outdir, label, likelihood=None, sampler='dynesty'
     else:
         x, x_err, y, y_err = transient.x, transient.x_err, transient.y, transient.y_err
 
-    likelihood = likelihood or GaussianLikelihood(x=x, y=y, sigma=y_err, function=model, kwargs=model_kwargs)
+    if likelihood is None:
+        likelihood = GaussianLikelihood(x=x, y=y, sigma=y_err, function=model, kwargs=model_kwargs)
+        logger.info("No likelihood provided, using standard GaussianLikelihood")
+    else:
+        logger.info("Likelihood provided, using custom likelihood {}".format(likelihood.__class__.__name__))
+        likelihood = likelihood
 
     meta_data = dict(model=model.__name__, transient_type=transient.__class__.__name__.lower())
     transient_kwargs = {k.lstrip("_"): v for k, v in transient.__dict__.items()}
@@ -179,7 +190,12 @@ def _fit_optical_transient(transient, model, outdir, label, likelihood=None, sam
     else:
         x, x_err, y, y_err = transient.x, transient.x_err, transient.y, transient.y_err
 
-    likelihood = likelihood or GaussianLikelihood(x=x, y=y, sigma=y_err, function=model, kwargs=model_kwargs)
+    if likelihood is None:
+        likelihood = GaussianLikelihood(x=x, y=y, sigma=y_err, function=model, kwargs=model_kwargs)
+        logger.info("No likelihood provided, using standard GaussianLikelihood")
+    else:
+        logger.info("Likelihood provided, using custom likelihood {}".format(likelihood.__class__.__name__))
+        likelihood = likelihood
 
     meta_data = dict(model=model.__name__, transient_type=transient.__class__.__name__.lower())
     transient_kwargs = {k.lstrip("_"): v for k, v in transient.__dict__.items()}
