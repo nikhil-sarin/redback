@@ -152,7 +152,7 @@ def plot_spectrum(model, parameters, time_to_plot, axes=None, **kwargs):
     ax.legend(loc='upper left')
     return ax
 
-def plot_gp_lightcurves(transient, gp_output, axes=None, band_colors=None):
+def plot_gp_lightcurves(transient, gp_output, axes=None, band_colors=None, band_scaling=None):
     """
     Plot the Gaussian Process lightcurves
 
@@ -178,6 +178,10 @@ def plot_gp_lightcurves(transient, gp_output, axes=None, band_colors=None):
             band_colors = band_colors
         if gp_output.use_frequency:
             for band in transient.unique_bands:
+                if band_scaling:
+                    scaling = band_scaling[band]
+                else:
+                    scaling = 0
                 f_new = np.ones_like(t_new) * bands_to_frequency([band])
                 X_new = np.column_stack((f_new, t_new))
                 gp = gp_output.gp
@@ -185,18 +189,24 @@ def plot_gp_lightcurves(transient, gp_output, axes=None, band_colors=None):
                 y_std = np.sqrt(np.diag(y_cov))
                 y_lower = y_pred - 0.5 * y_std
                 y_upper = y_pred + 0.5 * y_std
-                ax.plot(t_new - ref_date, y_pred * gp_output.y_scaler, color=band_colors[band])
-                ax.fill_between(t_new - ref_date, y_lower * gp_output.y_scaler, y_upper * gp_output.y_scaler, alpha=0.5,
+                ax.plot(t_new - ref_date, (y_pred * gp_output.y_scaler) + scaling, color=band_colors[band])
+                ax.fill_between(t_new - ref_date, (y_lower * gp_output.y_scaler) + scaling,
+                                (y_upper * gp_output.y_scaler) + scaling, alpha=0.5,
                                 color=band_colors[band])
         else:
             for band in transient.unique_bands:
+                if band_scaling:
+                    scaling = band_scaling[band]
+                else:
+                    scaling = 0
                 gp = gp_output.gp[band]
                 y_pred, y_cov = gp.predict(gp_output.scaled_y[band], t_new, return_cov=True)
                 y_std = np.sqrt(np.diag(y_cov))
                 y_lower = y_pred - 0.5 * y_std
                 y_upper = y_pred + 0.5 * y_std
-                ax.plot(t_new - ref_date, y_pred * gp_output.y_scaler, color=band_colors[band])
-                ax.fill_between(t_new - ref_date, y_lower * gp_output.y_scaler, y_upper * gp_output.y_scaler, alpha=0.5,
+                ax.plot(t_new - ref_date, (y_pred * gp_output.y_scaler) + scaling, color=band_colors[band])
+                ax.fill_between(t_new - ref_date, (y_lower * gp_output.y_scaler) + scaling,
+                                (y_upper * gp_output.y_scaler) + scaling, alpha=0.5,
                                 color=band_colors[band])
     else:
         y_pred, y_cov = gp_output.gp.predict(gp_output.scaled_y, t_new, return_cov=True)
