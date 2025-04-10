@@ -40,8 +40,9 @@ def fit_model(
     :param resume: Whether to resume the run from a checkpoint if available.
     :param save_format: The format to save the result in. (Default value = 'json'_
     :param model_kwargs: Additional keyword arguments for the model.
-    :param kwargs: Additional parameters that will be passed to the sampler
+    :param clean: If True, rerun the fitting, if false try to use previous results in the output directory.
     :param plot: If True, create corner and lightcurve plot
+    :param kwargs: Additional parameters that will be passed to the sampler
     :return: Redback result object, transient specific data object
     """
     if isinstance(model, str):
