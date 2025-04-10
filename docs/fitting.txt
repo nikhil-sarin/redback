@@ -66,6 +66,24 @@ Here
 - data_mode: type of data to fit.
 - kwargs: Additional keyword arguments to pass to fit_grb, such as the likelihood, or things required by the sampler, label of the result file, directory where results are saved to etc.
 
+Fitting bolometric luminosities of optical transients
+---------------
+Most :code:`redback` models can also output bolometric luminosities of optical transients, which is often returned in erg/s.
+However, the transient objects assume luminosity in units of 10^50 erg/s.
+A simple workaround for this is to write a small wrapper function that takes the luminosity in erg/s from the function and divides by 10^50.
+And you then use this wrapper function to fit instead. This is shown in the `examples <https://github.com/nikhil-sarin/redback/blob/master/examples>`_ but we also provide a simple example here.
+
+.. code:: python
+
+    def luminosity_wrapper(tt, **kwargs):
+        func = redback.model_library.all_models_dict['arnett_bolometric'] # or any other model
+        luminosity = func(tt, **kwargs)
+        return luminosity / 1e50
+
+    result = redback.fit_model(name='GRB', model=luminosity_wrapper, sampler='dynesty',
+                               nlive=200, transient=afterglow, prior=priors,
+                               data_mode='luminosity', **kwargs)
+
 Fitting with your own/different likelihood
 ---------------
 
