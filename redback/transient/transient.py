@@ -1195,3 +1195,167 @@ class OpticalTransient(Transient):
         transient_dir, _, _ = redback.get_data.directory.open_access_directory_structure(
             transient=self.name, transient_type=self.__class__.__name__.lower())
         return transient_dir
+
+    def estimate_bb_params(self, distance: float = 1e27, bin_width: float = 1.0, min_filters: int = 3, **kwargs):
+        """
+        Estimate the blackbody temperature and photospheric radius as functions of time by fitting
+        a blackbody SED to the multi‑band flux density data.
+
+        The method groups the photometric data (assumed to be in the "flux_density" data_mode)
+        into time bins (epochs) of width bin_width (in the same units as self.x, typically days).
+        For each epoch that has measurements in at least min_filters filters, it fits a blackbody
+        model to the effective flux densities (converted to mJy) versus effective frequency.
+        The fitting is performed in log‑space (i.e. we fit for log10(temperature) and log10(radius))
+        so that temperature and radius remain positive.
+
+        Parameters
+        ----------
+        distance : float, optional
+            Distance to the transient in centimeters. Default is 1e27 cm.
+        bin_width : float, optional
+            Width of the time bins (in days) used to group the photometric data. Default is 1.0.
+        min_filters : int, optional
+            Minimum number of measurements (from distinct filters) required in a bin to perform the fit.
+            Default is 3.
+        kwargs : Additional keyword arguments
+            maxfev : int, optional, default is 1000
+            T_init : float, optional, default is 1e4, used as the initial guess for the fit.
+            R_init : float, optional, default is 1e15, used as the initial guess for the fit.
+
+        Returns
+        -------
+        A dataframe containing the following columns:
+        epoch_times : np.ndarray
+            Array of the binned epoch times.
+        temperatures : np.ndarray
+            Best‑fit blackbody temperatures (in Kelvin) at each epoch.
+        radii : np.ndarray
+            Best‑fit photospheric radii (in centimeters) at each epoch.
+        temp_errs : np.ndarray
+            1σ uncertainties on the temperatures.
+        radius_errs : np.ndarray
+            1σ uncertainties on the radii.
+        """
+        from scipy.optimize import curve_fit
+        import astropy.units as uu
+        import numpy as np
+        import pandas as pd
+
+        # Retrieve filtered photometry. Assumes self.get_filtered_data() returns (time, time_err, flux, flux_err)
+        # where flux is in mJy.
+        time_data, _, flux_data, flux_err_data = self.get_filtered_data()
+        # Also get the effective frequencies (in Hz) for these measurements.
+        freq_data = self.frequency[self.filtered_indices]
+        T_init = kwargs.get('T_init', 1e4)  # Default initial guess for temperature
+        R_init = kwargs.get('R_init', 1e15)  # Default initial guess for radius
+        maxfev = kwargs.get('maxfev', 1000)  # Default maximum number of function evaluations
+
+        # Sort the arrays by time.
+        sort_idx = np.argsort(time_data)
+        time_data = time_data[sort_idx]
+        flux_data = flux_data[sort_idx]
+        flux_err_data = flux_err_data[sort_idx]
+        freq_data = freq_data[sort_idx]
+
+        redshift = np.nan_to_num(self.redshift)
+        if redshift <= 0.:
+            raise ValueError("Redshift must be provided to perform K-correction.")
+
+        # K-correct the frequency.
+        freq_data, _ = redback.utils.calc_kcorrected_properties(frequency=freq_data, redshift=redshift, time=0.)
+
+        # Define a model function for the fit.
+        # The fit is performed in log10-space so that we enforce positivity.
+        def bb_model(freq, logT, logR):
+            """
+            A wrapper for the blackbody_to_flux_density function.
+            """
+            T = 10 ** logT
+            R = 10 ** logR
+            # Compute the model flux density in erg/s/cm^2/Hz.
+            model_flux_cgs = redback.sed.blackbody_to_flux_density(T, R, distance, freq)
+            # Convert to mJy. (1 Jy = 1e-23 erg/s/cm^2/Hz and 1 mJy = 1e-3 Jy)
+            model_flux_mjy = (model_flux_cgs / (1e-26 * uu.erg / uu.s / uu.cm ** 2 / uu.Hz)).value
+            return model_flux_mjy
+
+        # Prepare to bin the data.
+        epoch_times = []
+        temperatures = []
+        radii = []
+        temp_errs = []
+        radius_errs = []
+
+        t_min = np.min(time_data)
+        t_max = np.max(time_data)
+        bins = np.arange(t_min, t_max + bin_width, bin_width)
+        redback.utils.logger.info("Number of bins: {}".format(len(bins)))
+
+        # Check if at least one bin has enough points.
+        bins_with_enough = [
+            i for i in range(len(bins) - 1)
+            if np.sum((time_data >= bins[i]) & (time_data < bins[i + 1])) >= min_filters
+        ]
+        if len(bins_with_enough) == 0:
+            redback.utils.logger.warning("No time bins have at least {} measurements. "
+                                         "Fitting cannot proceed.".format(min_filters))
+            redback.utils.logger.warning("Try generating more data via the implemented GP interpolation methods, "
+                                         "Or simulating more. Or try larger bin widths, or using fewer filters.")
+            redback.utils.logger.warning("Returning None.")
+            return None
+
+        # Loop over bins (epochs); for each bin with enough data, perform the fit.
+        for i in range(len(bins) - 1):
+            mask = (time_data >= bins[i]) & (time_data < bins[i + 1])
+            if np.sum(mask) < min_filters:
+                continue  # Skip bins without sufficient data.
+
+            # Representative time for the epoch.
+            t_epoch = np.mean(time_data[mask])
+            try:
+                popt, pcov = curve_fit(
+                    bb_model,
+                    freq_data[mask],
+                    flux_data[mask],
+                    sigma=flux_err_data[mask],
+                    p0=[np.log10(T_init), np.log10(R_init)],
+                    absolute_sigma=True,
+                    maxfev=maxfev
+                )
+            except Exception as e:
+                redback.utils.logger.warning(f"Fit failed for epoch {i}: {e}")
+                redback.utils.logger.warning(f"Skipping epoch {i} with time {t_epoch:.2f} days.")
+                continue
+
+            logT_fit, logR_fit = popt
+            T_fit = 10 ** logT_fit
+            R_fit = 10 ** logR_fit
+
+            # Compute one-sigma uncertainties via error propagation.
+            perr = np.sqrt(np.diag(pcov))
+            T_err = np.log(10) * T_fit * perr[0]
+            R_err = np.log(10) * R_fit * perr[1]
+
+            epoch_times.append(t_epoch)
+            temperatures.append(T_fit)
+            radii.append(R_fit)
+            temp_errs.append(T_err)
+            radius_errs.append(R_err)
+
+        # If no epoch successfully yields a fit, warn and return None.
+        if len(epoch_times) == 0:
+            redback.utils.logger.warning("No epochs with sufficient data yielded a successful fit.")
+            return None
+
+        # Assemble the results into a DataFrame.
+        df_bb = pd.DataFrame({
+            'epoch_times': epoch_times,
+            'temperature': temperatures,
+            'radius': radii,
+            'temp_err': temp_errs,
+            'radius_err': radius_errs
+        })
+
+        redback.utils.logger.info('Masking epochs with likely wrong extractions')
+        df_bb = df_bb[df_bb['temp_err']/df_bb['temperature'] < 1]
+        df_bb = df_bb[df_bb['radius_err']/df_bb['radius'] < 1]
+        return df_bb

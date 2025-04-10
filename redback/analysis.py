@@ -218,105 +218,100 @@ def plot_gp_lightcurves(transient, gp_output, axes=None, band_colors=None, band_
         ax.fill_between(t_new, y_lower * gp_output.y_scaler, y_upper * gp_output.y_scaler, alpha=0.5, color='red')
     return ax
 
-def estimate_blackbody_temperature_and_radius(transient, window_duration=1, ignore_epoch_duration=0.5,
-                                              use_flux_density_approximation=True):
+def fit_temperature_and_radius_gp(data, kernelT, kernelR, plot=False, **kwargs):
     """
-    Estimate the temperature and radius as a function of time for any optical transient
+    Fit a Gaussian Process to the temperature and radius data
+
+    :param data:
+    :param kernelT:
+    :param kernelR:
+    :param gp_kwargs:
+    :param plot: Whether to make a two-panel plot of the temperature and radius GP evolution and the data
+    :param kwargs: Additional keyword arguments
+    :param inflate_errors: If True, inflate the errors by 20%, default is False
+    :return: Temperature and radius GP objects and plot fig and axes if requested
     """
-    logger.info("Using the blackbody SED to estimate temperature and radius time series")
-    if transient.data_mode in ['flux', 'luminosity']:
-        raise ValueError("This method only works for flux density or magnitude data modes")
-    if transient.data_mode in ['magnitude']:
-        if use_flux_density_approximation:
-            logger.warning("Using the flux density at effective wavelength approximation")
-            logger.warning("This approximation is not correct for bandpass magnitudes and fluxes and tends to "
-                           "effect radius estimation. Use with caution")
-            df = pd.DataFrame()
-            df['time'] = transient.x
-            df['band'] = transient.sncosmo_bands
-            df['mag'] = transient.y
-            df['mag_err'] = transient.y_err
-            df['epoch'] = (transient.x // window_duration).astype(int)
+    import george
+    from scipy.optimize import minimize
 
-            epoch_fits = []
-            for epoch, group in df.groupby('epoch'):
-                if group['band'].nunique() < 3:
-                    continue
+    temperature = data['temperature']
+    radius = data['radius']
+    t_data = data['epoch_times']
+    T_err = data['temp_err']
+    R_err = data['radius_err']
+    inflate_errors = kwargs.get('inflate_errors', True)
+    if inflate_errors:
+        gp_T_err = T_err * 1.5
+        gp_R_err = R_err * 1.5
+    gp_T = george.GP(kernelT)
+    gp_T.compute(t_data, gp_T_err + 1e-8)
 
-                # Use the average time as the epoch time.
-                t_epoch = group['time'].mean()
-                logger.info(f"Epoch Time: {t_epoch}")
+    def neg_ln_like_T(p):
+        gp_T.set_parameter_vector(p)
+        return -gp_T.log_likelihood(temperature)
 
-                if t_epoch < ignore_epoch_duration:
-                    logger.info('ignoring epochs before {} days'.format(ignore_epoch_duration))
-                    continue
-                else:
-                    # For each observation in the group, convert the mag to flux
-                    waves = []
-                    fluxes = []
-                    flux_errs = []
-                    for idx, row in group.iterrows():
-                        band = row['band']
-                        # Extract the scalar effective wavelength from the returned array
-                        lam_eff = redback.utils.nu_to_lambda(redback.utils.bands_to_frequency([band]))[0]
-                        f_lambda = redback.utils.abmag_to_flambda(row['mag'], lam_eff)
-                        # Propagate mag error into flux error:
-                        f_lambda_err = redback.utils.flux_err_from_mag_err(f_lambda, row['mag_err'])
+    def grad_neg_ln_like_T(p):
+        gp_T.set_parameter_vector(p)
+        return -gp_T.grad_log_likelihood(temperature)
 
-                        waves.append(lam_eff)  # should be scalar value in Å
-                        fluxes.append(f_lambda)
-                        flux_errs.append(f_lambda_err)
+    p0_T = gp_T.get_parameter_vector()
+    result_T = minimize(neg_ln_like_T, p0_T, jac=grad_neg_ln_like_T)
+    gp_T.set_parameter_vector(result_T.x)
 
-                    # Convert lists to 1D numpy arrays.
-                    waves = np.array(waves).flatten()
-                    fluxes = np.array(fluxes).flatten()
-                    flux_errs = np.array(flux_errs).flatten()
-                    log_y_data = np.log(fluxes)
-                    log_y_err = flux_errs / fluxes
+    logger.info("Finished GP fit for temperature")
+    logger.info(f"GP final parameters: {gp_T.get_parameter_dict()}")
 
-                    # Set initial guesses (in log-space)
-                    # For example, if you expect T ~ 6000 K and R ~ 1e15 cm:
-                    initial_logT = np.log(6000)
-                    initial_logR = np.log(1e15)
-                    initial_guess = [initial_logT, initial_logR]
+    gp_R = george.GP(kernelR)
+    gp_R.compute(t_data, gp_R_err + 1e-8)
 
-                    # Perform the fit in log-space.
-                    popt, pcov = curve_fit(
-                        log_blackbody_model_logTR,
-                        waves,  # independent variable: wavelengths
-                        log_y_data,  # dependent variable: ln(flux)
-                        p0=initial_guess,
-                        sigma=log_y_err,
-                        maxfev=10000,
-                        absolute_sigma=True
-                    )
+    def neg_ln_like_R(p):
+        gp_R.set_parameter_vector(p)
+        return -gp_R.log_likelihood(radius)
 
-                    # Extract the best-fit values for logT and logR.
-                    logT_best, logR_best = popt
-                    perr = np.sqrt(np.diag(pcov))
-                    err_logT, err_logR = perr
+    def grad_neg_ln_like_R(p):
+        gp_R.set_parameter_vector(p)
+        return -gp_R.grad_log_likelihood(radius)
 
-                    # Convert the parameters back from log-space.
-                    T_fit = np.exp(logT_best)
-                    R_fit = np.exp(logR_best)
+    p0_R = gp_R.get_parameter_vector()
+    result_R = minimize(neg_ln_like_R, p0_R, jac=grad_neg_ln_like_R)
+    gp_R.set_parameter_vector(result_R.x)
 
-                    # Propagate the uncertainties:
-                    # For T = exp(logT), dT/d(logT) = T, so the uncertainty becomes:
-                    T_err = T_fit * err_logT
-                    R_err = R_fit * err_logR
+    logger.info("Finished GP fit for radius")
+    logger.info(f"GP final parameters: {gp_R.get_parameter_dict()}")
 
-                    epoch_fits.append({'time': t_epoch, 'T': T_fit, 'T_err': T_err,
-                                       'R': R_fit, 'R_err': R_err})
+    if plot:
+        t_pred = np.linspace(t_data.min(), t_data.max(), 100)
+        # Temperature prediction
+        T_pred, T_pred_var = gp_T.predict(temperature, t_pred, return_var=True)
+        T_pred_std = np.sqrt(T_pred_var)
 
-                    # Convert epoch fits to a DataFrame.
-            df_bb = pd.DataFrame(epoch_fits)
-            # print("\nBlackbody fit results per epoch:")
-            print(df_bb)
+        # Radius prediction
+        R_pred, R_pred_var = gp_R.predict(radius, t_pred, return_var=True)
+        R_pred_std = np.sqrt(R_pred_var)
 
-            t_data = df_bb['time'].values
-            T_data = df_bb['T'].values
-            T_err = df_bb['T_err'].values
-            R_data = df_bb['R'].values
-            R_err = df_bb['R_err'].values
+        fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(7, 3))
+        ax1.errorbar(t_data, temperature, yerr=T_err, fmt='o', label='Data', color='blue')
+        ax1.plot(t_pred, T_pred, label='GP Prediction', color='red')
+        ax1.fill_between(t_pred, T_pred - T_pred_std, T_pred + T_pred_std, alpha=0.2, color='red',
+                         label=r"$1\sigma$ GP uncertainty")
+        ax2.errorbar(t_data, radius, yerr=R_err, fmt='o', label='Data', color='blue')
+        ax2.plot(t_pred, R_pred, label='GP Prediction', color='red')
+        ax2.fill_between(t_pred, R_pred - R_pred_std, R_pred + R_pred_std, alpha=0.2, color='red',
+                         label=r"$1\sigma$ GP uncertainty")
 
-    pass
+        ax1.set_xlabel("Time", fontsize=15)
+        ax1.set_ylabel("Temperature [K]", fontsize=15)
+        ax1.set_title("Temperature Evolution", fontsize=15)
+        ax2.set_xlabel("Time", fontsize=15)
+        ax2.set_ylabel("Radius [cm]", fontsize=15)
+        ax2.set_title("Radius Evolution from GP", fontsize=15)
+
+        ax1.set_yscale('log')
+        ax2.set_yscale('log')
+
+        ax1.legend()
+        ax2.legend()
+        plt.subplots_adjust(wspace=0.3)
+        return gp_T, gp_R, fig, (ax1, ax2)
+    else:
+        return gp_T, gp_R
