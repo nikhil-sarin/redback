@@ -9,7 +9,9 @@ import pandas as pd
 import redback
 from redback.plotting import \
     LuminosityPlotter, FluxDensityPlotter, IntegratedFluxPlotter, MagnitudePlotter, \
-     IntegratedFluxOpticalPlotter, SpectrumPlotter
+    IntegratedFluxOpticalPlotter, SpectrumPlotter, LuminosityOpticalPlotter
+from redback.model_library import all_models_dict
+from collections import namedtuple
 
 class Spectrum(object):
     def __init__(self, angstroms: np.ndarray, flux_density: np.ndarray, flux_density_err: np.ndarray,
@@ -119,8 +121,6 @@ class Spectrum(object):
             posterior=posterior, model_kwargs=model_kwargs, **kwargs)
         return plotter.plot_residuals(axes=axes, save=save, show=show)
     LuminosityPlotter, FluxDensityPlotter, IntegratedFluxPlotter, MagnitudePlotter, IntegratedFluxOpticalPlotter
-from redback.model_library import all_models_dict
-from collections import namedtuple
 
 class Transient(object):
     DATA_MODES = ['luminosity', 'flux', 'flux_density', 'magnitude', 'counts', 'ttes']
@@ -483,7 +483,7 @@ class Transient(object):
         if self.use_phase_model:
             return r"Time [MJD]"
         else:
-            return r"Time since burst [days]"
+            return r"Time since explosion [days]"
 
     @property
     def ylabel(self) -> str:
@@ -687,7 +687,11 @@ class Transient(object):
             else:
                 plotter = IntegratedFluxPlotter(transient=self, color=color, filename=filename, outdir=outdir, **kwargs)
         elif self.luminosity_data:
-            plotter = LuminosityPlotter(transient=self, color=color, filename=filename, outdir=outdir, **kwargs)
+            if self.optical_data:
+                plotter = LuminosityOpticalPlotter(transient=self, color=color, filename=filename, outdir=outdir,
+                                                   **kwargs)
+            else:
+                plotter = LuminosityPlotter(transient=self, color=color, filename=filename, outdir=outdir, **kwargs)
         elif self.flux_density_data:
             plotter = FluxDensityPlotter(transient=self, color=color, filename=filename, outdir=outdir,
                                          plot_others=plot_others, **kwargs)
@@ -766,9 +770,13 @@ class Transient(object):
                     transient=self, model=model, filename=filename, outdir=outdir,
                     posterior=posterior, model_kwargs=model_kwargs, random_models=random_models, **kwargs)
         elif self.luminosity_data:
-            plotter = LuminosityPlotter(
-                transient=self, model=model, filename=filename, outdir=outdir,
-                posterior=posterior, model_kwargs=model_kwargs, random_models=random_models, **kwargs)
+            if self.optical_data:
+                plotter = LuminosityOpticalPlotter(transient=self, model=model, filename=filename, outdir=outdir,
+                    posterior=posterior, model_kwargs=model_kwargs, random_models=random_models, **kwargs)
+            else:
+                plotter = LuminosityPlotter(
+                    transient=self, model=model, filename=filename, outdir=outdir,
+                    posterior=posterior, model_kwargs=model_kwargs, random_models=random_models, **kwargs)
         elif self.flux_density_data:
             plotter = FluxDensityPlotter(
                 transient=self, model=model, filename=filename, outdir=outdir,
@@ -804,9 +812,14 @@ class Transient(object):
                 transient=self, model=model, filename=filename, outdir=outdir,
                 posterior=posterior, model_kwargs=model_kwargs, **kwargs)
         elif self.luminosity_data:
-            plotter = LuminosityPlotter(
-                transient=self, model=model, filename=filename, outdir=outdir,
-                posterior=posterior, model_kwargs=model_kwargs, **kwargs)
+            if self.optical_data:
+                plotter = LuminosityOpticalPlotter(
+                    transient=self, model=model, filename=filename, outdir=outdir,
+                    posterior=posterior, model_kwargs=model_kwargs, **kwargs)
+            else:
+                plotter = LuminosityPlotter(
+                    transient=self, model=model, filename=filename, outdir=outdir,
+                    posterior=posterior, model_kwargs=model_kwargs, **kwargs)
         else:
             raise ValueError("Residual plotting not implemented for this data mode")
         return plotter.plot_residuals(axes=axes, save=save, show=show)

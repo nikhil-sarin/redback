@@ -590,6 +590,16 @@ class IntegratedFluxPlotter(Plotter):
         return axes
 
 
+class LuminosityOpticalPlotter(IntegratedFluxPlotter):
+
+    @property
+    def _xlabel(self) -> str:
+        return r"Time since explosion [days]"
+
+    @property
+    def _ylabel(self) -> str:
+        return r"L$_{\rm bol}$ [$10^{50}$ erg s$^{-1}$]"
+
 class LuminosityPlotter(IntegratedFluxPlotter):
     pass
 
