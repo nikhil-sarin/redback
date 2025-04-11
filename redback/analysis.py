@@ -240,18 +240,31 @@ def fit_temperature_and_radius_gp(data, kernelT, kernelR, plot=False, **kwargs):
     R_err = data['radius_err']
     inflate_errors = kwargs.get('inflate_errors', True)
     if inflate_errors:
-        gp_T_err = T_err * 1.5
-        gp_R_err = R_err * 1.5
+        error = kwargs.get('error', 1.5)
+    else:
+        error = 1
+    gp_T_err_raw = T_err * error
+    gp_R_err = R_err * error
+
+    fit_in_log = kwargs.get("fit_in_log", False)
+    if fit_in_log:
+        # In log space, use: log10(T); propagate errors via: δ(log10T)=δT/(T*ln(10))
+        temperature_fit = np.log10(temperature)
+        gp_T_err = gp_T_err_raw / (temperature * np.log(10))
+    else:
+        temperature_fit = temperature
+        gp_T_err = gp_T_err_raw
+
     gp_T = george.GP(kernelT)
     gp_T.compute(t_data, gp_T_err + 1e-8)
 
     def neg_ln_like_T(p):
         gp_T.set_parameter_vector(p)
-        return -gp_T.log_likelihood(temperature)
+        return -gp_T.log_likelihood(temperature_fit)
 
     def grad_neg_ln_like_T(p):
         gp_T.set_parameter_vector(p)
-        return -gp_T.grad_log_likelihood(temperature)
+        return -gp_T.grad_log_likelihood(temperature_fit)
 
     p0_T = gp_T.get_parameter_vector()
     result_T = minimize(neg_ln_like_T, p0_T, jac=grad_neg_ln_like_T)
@@ -279,10 +292,21 @@ def fit_temperature_and_radius_gp(data, kernelT, kernelR, plot=False, **kwargs):
     logger.info(f"GP final parameters: {gp_R.get_parameter_dict()}")
 
     if plot:
+        sigma_to_plot = kwargs.get('sigma_to_plot', 1)
+        label = r"${}\sigma$ GP uncertainty".format(str(int(sigma_to_plot)))
         t_pred = np.linspace(t_data.min(), t_data.max(), 100)
         # Temperature prediction
-        T_pred, T_pred_var = gp_T.predict(temperature, t_pred, return_var=True)
+        T_pred, T_pred_var = gp_T.predict(temperature_fit, t_pred, return_var=True)
         T_pred_std = np.sqrt(T_pred_var)
+
+        # If fitting in log space, convert the prediction back to linear units.
+        if fit_in_log:
+            T_pred_lin = 10**T_pred
+            # Propagate the uncertainty approximately: dT ≈ 10^x * ln(10) * sigma_x.
+            T_pred_std_lin = 10**T_pred * np.log(10) * T_pred_std
+        else:
+            T_pred_lin = T_pred
+            T_pred_std_lin = T_pred_std
 
         # Radius prediction
         R_pred, R_pred_var = gp_R.predict(radius, t_pred, return_var=True)
@@ -290,13 +314,13 @@ def fit_temperature_and_radius_gp(data, kernelT, kernelR, plot=False, **kwargs):
 
         fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(7, 3))
         ax1.errorbar(t_data, temperature, yerr=T_err, fmt='o', label='Data', color='blue')
-        ax1.plot(t_pred, T_pred, label='GP Prediction', color='red')
-        ax1.fill_between(t_pred, T_pred - T_pred_std, T_pred + T_pred_std, alpha=0.2, color='red',
-                         label=r"$1\sigma$ GP uncertainty")
+        ax1.plot(t_pred, T_pred_lin, label='GP Prediction', color='red')
+        ax1.fill_between(t_pred, T_pred_lin - sigma_to_plot*T_pred_std_lin, T_pred_lin + sigma_to_plot*T_pred_std_lin,
+                         alpha=0.2, color='red', label=label)
         ax2.errorbar(t_data, radius, yerr=R_err, fmt='o', label='Data', color='blue')
         ax2.plot(t_pred, R_pred, label='GP Prediction', color='red')
-        ax2.fill_between(t_pred, R_pred - R_pred_std, R_pred + R_pred_std, alpha=0.2, color='red',
-                         label=r"$1\sigma$ GP uncertainty")
+        ax2.fill_between(t_pred, R_pred - sigma_to_plot*R_pred_std, R_pred + sigma_to_plot*R_pred_std, alpha=0.2, color='red',
+                         label=label)
 
         ax1.set_xlabel("Time", fontsize=15)
         ax1.set_ylabel("Temperature [K]", fontsize=15)

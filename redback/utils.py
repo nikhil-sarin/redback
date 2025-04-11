@@ -448,6 +448,49 @@ def check_element(driver, id_number):
         return False
     return True
 
+def bandpass_flux_to_flux_density(flux, flux_err, delta_nu):
+    """
+    Convert an integrated flux (and its error) measured over a bandpass
+    in erg/s/cm² into a flux density (in erg/s/cm²/Hz) and then into millijanskys (mJy).
+
+    Parameters
+    ----------
+    flux : float or numpy.ndarray
+        Integrated flux in erg/s/cm².
+    flux_err : float or numpy.ndarray
+        Error in the integrated flux in erg/s/cm².
+    delta_nu : float
+        Effective bandwidth of the filter in Hz.
+
+    Returns
+    -------
+    f_nu_mJy : float or numpy.ndarray
+        Flux density converted to millijanskys (mJy).
+    f_nu_err_mJy : float or numpy.ndarray
+        Error in the flux density in mJy.
+
+    Notes
+    -----
+    The conversion from integrated flux F (erg/s/cm²) to flux density f_nu (erg/s/cm²/Hz)
+    assumes a known effective bandwidth Δν in Hz:
+
+        f_nu = F / Δν
+
+    Then, converting to mJy is done using the relation
+    1 mJy = 1e-3 Jy = 1e-3 * 1e-23 erg/s/cm²/Hz = 1e-26 erg/s/cm²/Hz.
+    Therefore, to convert erg/s/cm²/Hz into mJy, divide by 1e-26.
+    """
+    # Calculate flux density in erg/s/cm²/Hz
+    f_nu = flux / delta_nu
+    f_nu_err = flux_err / delta_nu
+
+    # Convert to mJy: 1 mJy = 1e-26 erg/s/cm²/Hz
+    conversion_factor = 1e-26  # erg/s/cm²/Hz per mJy
+    f_nu_mJy = f_nu / conversion_factor
+    f_nu_err_mJy = f_nu_err / conversion_factor
+
+    return f_nu_mJy, f_nu_err_mJy
+
 
 def abmag_to_flux_density_and_error_inmjy(m_AB, sigma_m):
     """

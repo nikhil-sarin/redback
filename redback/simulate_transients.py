@@ -76,7 +76,7 @@ class SimulateGenericTransient(object):
         injection_kwargs = self.parameters.copy()
         if 'bands' in model_kwargs.keys():
             injection_kwargs['bands'] = self.subset_bands
-            injection_kwargs['output_format'] = 'magnitude'
+            injection_kwargs['output_format'] = model_kwargs['output_format']
         if 'frequency' in model_kwargs.keys():
             injection_kwargs['frequency'] = self.subset_frequency
             injection_kwargs['output_format'] = 'flux_density'
