@@ -676,6 +676,29 @@ def bands_to_frequency(bands):
             raise KeyError(f"Band {band} is not defined in filters.csv!")
     return np.array(res)
 
+def bands_to_effective_width(bands):
+    """
+    Converts a list of bands into an array of effective width in Hz
+
+    :param bands: List of bands.
+    :type bands: list[str]
+    :return: An array of effective width associated with the given bands.
+    :rtype: np.ndarray
+    """
+    if bands is None:
+        bands = []
+    df = pd.read_csv(f"{dirname}/tables/filters.csv")
+    bands_to_freqs = {band: wavelength for band, wavelength in zip(df['bands'], df['effective_width [Hz]'])}
+    res = []
+    for band in bands:
+        try:
+            res.append(bands_to_freqs[band])
+        except KeyError as e:
+            logger.info(e)
+            raise KeyError(f"Band {band} is not defined in filters.csv!")
+    return np.array(res)
+
+
 def frequency_to_bandname(frequency):
     """
     Converts a list of frequencies into an array corresponding band names

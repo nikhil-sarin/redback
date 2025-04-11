@@ -1276,9 +1276,11 @@ class OpticalTransient(Transient):
                 freq_data = redback.utils.bands_to_frequency(band_data)
             else:
                 # Convert the bandpass fluxes to flux density using the redback function.
-                from redback.utils import bandpass_flux_to_flux_density
+                from redback.utils import bandpass_flux_to_flux_density, bands_to_effective_width
+                redback.utils.logger.warning("Ensure filters.csv has the correct bandpass effective widths for your filter.")
+                effective_widths = bands_to_effective_width(band_data)
                 freq_data = redback.utils.bands_to_frequency(band_data)
-                flux_data, flux_err_data = bandpass_flux_to_flux_density(flux_data, flux_err_data, freq_data)
+                flux_data, flux_err_data = bandpass_flux_to_flux_density(flux_data, flux_err_data, effective_widths)
             # Use the effective frequency approach.
             use_bandpass = False
 
