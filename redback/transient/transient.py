@@ -1250,6 +1250,9 @@ class OpticalTransient(Transient):
         # Assumes self.get_filtered_data() returns (time, time_err, y, y_err)
         time_data, _, flux_data, flux_err_data = self.get_filtered_data()
 
+        redback.utils.logger.info("Estimating blackbody parameters for {}.".format(self.name))
+        redback.utils.logger.info("Using data mode = {}".format(self.data_mode))
+
         # Determine whether we are in bandpass mode.
         use_bandpass = False
         if hasattr(self, "data_mode") and self.data_mode in ['flux', 'magnitude']:
@@ -1258,6 +1261,7 @@ class OpticalTransient(Transient):
             band_data = self.filtered_sncosmo_bands
         else:
             # Otherwise the flux data and frequencies are assumed to be given.
+            redback.utils.logger.info("Using effective wavelength approximation for {}".format(self.data_mode))
             freq_data = self.filtered_frequencies
 
         # Option: force effective wavelength approximation even if data_mode is bandpass.
@@ -1277,8 +1281,6 @@ class OpticalTransient(Transient):
                 flux_data, flux_err_data = bandpass_flux_to_flux_density(flux_data, flux_err_data, freq_data)
             # Use the effective frequency approach.
             use_bandpass = False
-        else:
-            redback.utils.logger.info("Using bandpass integration for blackbody fitting.")
 
         # Get initial guesses.
         T_init = kwargs.get('T_init', 1e4)
@@ -1346,8 +1348,7 @@ class OpticalTransient(Transient):
                 _spectra = model_flux.to(uu.erg / uu.cm ** 2 / uu.s / uu.Angstrom,
                                          equivalencies=uu.spectral_density(wav=lambda_obs * uu.Angstrom))
                 spectra = np.zeros((5, 300))
-                # For simplicity we assume a single phase.
-                spectra[:, :] = _spectra.value  # 1D array corresponding to wavelength grid.
+                spectra[:, :] = _spectra.value
                 # Create a source object from the spectrum.
                 source = redback.sed.RedbackTimeSeriesSource(phase=np.array([0, 1, 2, 3, 4]),
                                                              wave=lambda_obs, flux=spectra)
