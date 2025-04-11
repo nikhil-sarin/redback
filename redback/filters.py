@@ -16,6 +16,7 @@ def add_to_database(LABEL, WAVELENGTH, ZEROFLUX, DATABASE, PLOT_LABEL, EFFECTIVE
 
     frequency = 3.0e8 / WAVELENGTH
     effective_width = 3.0e8 / EFFECTIVE_WIDTH
+    print(effective_width)
     DATABASE.add_row([LABEL, frequency, WAVELENGTH*1e10, 'black', ZEROFLUX, LABEL, PLOT_LABEL, effective_width])
 
 def add_to_sncosmo(LABEL, TRANSMISSION):
@@ -30,7 +31,7 @@ def add_to_sncosmo(LABEL, TRANSMISSION):
     band  = sncosmo.Bandpass(TRANSMISSION['Wavelength'], TRANSMISSION['Transmission'], name=LABEL, wave_unit=u.angstrom)
     sncosmo.register(band, LABEL, force=True)
 
-def add_filter_svo(FILTER, LABEL, PLOT_LABEL=None):
+def add_filter_svo(FILTER, LABEL, PLOT_LABEL=None, OVERWRITE=False):
 
     """
     Wrapper to add a filter from SVO to SNCosmo and the Redback filter database
@@ -44,9 +45,13 @@ def add_filter_svo(FILTER, LABEL, PLOT_LABEL=None):
     
     mask = np.where((database_filters['bands'] == LABEL) & (database_filters['sncosmo_name'] == LABEL))[0]
     
-    # Only add filter to filter database if entry does not exist in the Redback database
+    # Only add filter to filter database if entry does not exist in the Redback database by default
     
-    if len(mask) == 0:
+    # If no entry exists or you choose to overwrite an entry
+    if (len(mask) == 0) or ( (len(mask) != 0) & OVERWRITE ):
+
+        if len(mask) > 0:
+            database_filters.remove_rows(mask)
 
         # Reference (=pivot) wavelength, unit: AA
         wavelength_pivot = FILTER['WavelengthRef']
@@ -170,7 +175,7 @@ def add_filter_user(FILE, LABEL, PLOT_LABEL=None, OVERWRITE=False):
         
         print('Filter {} already exists. Set OVERWRITE to True if you want to overwrite the existing entry'.format(LABEL))
 
-def add_common_filters():
+def add_common_filters(overwrite=False):
 
     """
     Adds Euclid, NTT/EFOSC2, MPG/GROND, Spitzer and WISE filters from SVO
@@ -186,7 +191,7 @@ def add_common_filters():
     filter_label = ['grond::' + x.split('/')[1].split('.')[1] for x in filter_list['filterID']]
     plot_label   = ['GROND/' + x.split('/')[1].split('.')[1] for x in filter_list['filterID']]
 
-    [add_filter_svo(filter_list[ii], filter_label[ii], plot_label[ii]) for ii in range(len(filter_list))]
+    [add_filter_svo(filter_list[ii], filter_label[ii], plot_label[ii], OVERWRITE=overwrite) for ii in range(len(filter_list))]
 
     print('done.\n')
 
@@ -201,7 +206,7 @@ def add_common_filters():
     filter_label = ['efosc2::' + x for x in filter_list['Band']]
     plot_label   = ['EFOSC/' + x for x in filter_list['Band']]
 
-    [add_filter_svo(filter_list[ii], filter_label[ii], plot_label[ii]) for ii in range(len(filter_list))]
+    [add_filter_svo(filter_list[ii], filter_label[ii], plot_label[ii], OVERWRITE=overwrite) for ii in range(len(filter_list))]
 
     print('done.\n')
 
@@ -213,7 +218,7 @@ def add_common_filters():
     filter_label = ['euclid::' + x.split('/')[1].split('.')[1] for x in filter_list['filterID']]
     plot_label   = ['EUCLID/' + x.split('/')[1].split('.')[1].upper() for x in filter_list['filterID']]
 
-    [add_filter_svo(filter_list[ii], filter_label[ii], plot_label[ii]) for ii in range(len(filter_list))]
+    [add_filter_svo(filter_list[ii], filter_label[ii], plot_label[ii], OVERWRITE=overwrite) for ii in range(len(filter_list))]
 
 
     filter_list  = SvoFps.get_filter_list(facility='Euclid', instrument='NISP')
@@ -222,7 +227,7 @@ def add_common_filters():
     filter_label = ['euclid::' + x.split('/')[1].split('.')[1] for x in filter_list['filterID']]
     plot_label   = ['EUCLID/' + x.split('/')[1].split('.')[1] for x in filter_list['filterID']]
 
-    [add_filter_svo(filter_list[ii], filter_label[ii], plot_label[ii]) for ii in range(len(filter_list))]
+    [add_filter_svo(filter_list[ii], filter_label[ii], plot_label[ii], OVERWRITE=overwrite) for ii in range(len(filter_list))]
 
     print('done.\n')
 
@@ -234,7 +239,7 @@ def add_common_filters():
     filter_label = ['irac::' + x.split('/')[1].split('.')[1] for x in filter_list['filterID']]
     plot_label   = ['IRAC/' + x.split('/')[1].split('.')[1] for x in filter_list['filterID']]
 
-    [add_filter_svo(filter_list[ii], filter_label[ii], plot_label[ii]) for ii in range(len(filter_list))]
+    [add_filter_svo(filter_list[ii], filter_label[ii], plot_label[ii], OVERWRITE=overwrite) for ii in range(len(filter_list))]
 
     print('done.\n')
 
@@ -246,7 +251,7 @@ def add_common_filters():
     filter_label = ['wise::' + x.split('/')[1].split('.')[1] for x in filter_list['filterID']]
     plot_label   = ['WISE/' + x.split('/')[1].split('.')[1] for x in filter_list['filterID']]
 
-    [add_filter_svo(filter_list[ii], filter_label[ii], plot_label[ii]) for ii in range(len(filter_list))]
+    [add_filter_svo(filter_list[ii], filter_label[ii], plot_label[ii], OVERWRITE=overwrite) for ii in range(len(filter_list))]
 
     print('done.\n')
 
