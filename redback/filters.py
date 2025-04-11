@@ -5,7 +5,7 @@ import numpy as np
 import redback
 import sncosmo
 
-def add_to_database(LABEL, WAVELENGTH, ZEROFLUX, DATABASE, PLOT_LABEL):
+def add_to_database(LABEL, WAVELENGTH, ZEROFLUX, DATABASE, PLOT_LABEL, EFFECTIVE_WIDTH):
     
     """
     Add a filter to the Redback filter database.
@@ -15,8 +15,8 @@ def add_to_database(LABEL, WAVELENGTH, ZEROFLUX, DATABASE, PLOT_LABEL):
     """
 
     frequency = 3.0e8 / WAVELENGTH
-
-    DATABASE.add_row([LABEL, frequency, WAVELENGTH*1e10, 'black', ZEROFLUX, LABEL, PLOT_LABEL])
+    effective_width = 3.0e8 / EFFECTIVE_WIDTH
+    DATABASE.add_row([LABEL, frequency, WAVELENGTH*1e10, 'black', ZEROFLUX, LABEL, PLOT_LABEL, effective_width])
 
 def add_to_sncosmo(LABEL, TRANSMISSION):
 
@@ -71,7 +71,7 @@ def add_filter_svo(FILTER, LABEL, PLOT_LABEL=None):
 
         plot_label = PLOT_LABEL if PLOT_LABEL != None else LABEL
 
-        add_to_database(LABEL, wavelength_pivot * 1.0e-10, zeroflux, database_filters, plot_label)
+        add_to_database(LABEL, wavelength_pivot * 1.0e-10, zeroflux, database_filters, plot_label, effective_width)
 
     # Non-standard filters always needs to be re-added to SN Cosmo even if an entry exists in filter.csv
 
@@ -83,6 +83,7 @@ def add_filter_svo(FILTER, LABEL, PLOT_LABEL=None):
     database_filters['wavelength [Hz]'].info.format = '.05e'
     database_filters['wavelength [Angstrom]'].info.format = '.05f'
     database_filters['reference_flux'].info.format = '.05e'
+    database_filters['effective_width [Hz]'].info.format = '.05e'
 
     database_filters.write(redback_db_fname, overwrite=True, format='csv')
 
@@ -154,13 +155,14 @@ def add_filter_user(FILE, LABEL, PLOT_LABEL=None, OVERWRITE=False):
 
         print(LABEL, wavelength_pivot * 1.0e-10, zeroflux, plot_label)
 
-        add_to_database(LABEL, wavelength_pivot * 1.0e-10, zeroflux, database_filters, plot_label)
+        add_to_database(LABEL, wavelength_pivot * 1.0e-10, zeroflux, database_filters, plot_label, effective_width)
 
         # Prettify output
 
         database_filters['wavelength [Hz]'].info.format = '.05e'
         database_filters['wavelength [Angstrom]'].info.format = '.05f'
         database_filters['reference_flux'].info.format = '.05e'
+        database_filters['effective_width [Hz]'].info.format = '.05e'
 
         database_filters.write(redback_db_fname, overwrite=True, format='csv')
     
@@ -254,3 +256,30 @@ def show_all_filters():
     database_filters = ascii.read(redback_db_fname)
     
     return database_filters
+
+def add_effective_widths():
+    """
+    Adds effective widths to the Redback filter database
+    :return: None
+    """
+    import pandas as pd
+    db = pd.read_csv(redback.__path__[0] + '/tables/filters.csv')
+    import sncosmo
+    eff_width = np.zeros(len(db))
+    for ii, bb in enumerate(db['sncosmo_name']):
+        try:
+            band = sncosmo.get_bandpass(bb)
+            waves = band.wave  # wavelengths in Angstroms
+            trans = band.trans  # corresponding transmission values
+
+            # Calculate the effective width:
+            #   effective_width = ∫T(λ) dλ / max(T(λ))
+            effective_width = np.trapz(trans, waves) / np.max(trans)
+            effective_width = effective_width * u.Angstrom
+            eff_width[ii] = effective_width.to(u.Hz, equivalencies=u.spectral()).value
+        except Exception:
+            redback.utils.logger.warning("Failed for band={} at index={}".format(bb, ii))
+            eff_width[ii] = db['wavelength [Hz]'].iloc[ii]
+
+    db['effective_width [Hz]'] = eff_width
+    db.to_csv(redback.__path__[0] + '/tables/filters.csv', index=False)
