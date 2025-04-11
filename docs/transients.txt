@@ -141,6 +141,129 @@ In particular, broadband afterglows, kilonovae, prompt gamma-ray burst, supernov
 magnetar powered transients, millisecond magnetars or any other generic electromagnetic transient. A more general example which shows the different ways to create transient objects in :code:`redback` is available
 `here <https://github.com/nikhil-sarin/redback/blob/examples/creating_transient_objects.py>`_.
 
+Working with transient data in MJD
+-------------------------
+
+Quite often the only time values we have are in MJD. In this case, we can set the time attribute of the transient object to be in MJD.
+As an example,
+
+.. code:: python
+
+    import redback
+    import pandas as pd
+
+    # load your data
+    data = pd.read_csv('data.csv')
+    time_mjd = data['time'].values
+    magnitude = data['mag'].values
+    bands = data['frequency'].values
+    mag_err = data['mag_err'].values
+
+    name = 'my_transient'
+    # note that we set the time_mjd instead of a time attribute
+    # note that we set use_phase_model=True
+    sn = redback.transient.Supernova(name=name, time_mjd=time_mjd, magnitude=flux_density,
+                                    magnitude_err=mag_err, bands=bands, use_phase_model=True)
+
+Now when we call the plot_data method, we will see the time in MJD. And the time attribute of the transient object will be in MJD.
+To fit this we will need to use a phase model or a model that works with time data.
+Please look at the rest of the documentation and examples for more details.
+
+GP interpolation
+-------------------------
+:code:`redback` provides a simple interface for doing GP interpolation directly from the transient object.
+This can be done to simply interpolate the data, and generate new data, or to do a GP fit with some mean model.
+
+For example, we can do a GP interpolation of the data in the supernova object as follows,
+
+.. code:: python
+
+    # Use any transient object previously made.
+    from george import kernels
+
+    k1 = kernels.ConstantKernel(np.std(transient.y/transient.y.max()), ndim=2)
+    k2 = kernels.Matern32Kernel([np.var(np.diff(transient.unique_frequencies)), 100], ndim=2)
+    kernel = k1 * k2
+
+    output = transient.fit_gp(mean_model="None", kernel=kernel, use_frequency=True)
+
+Here we set :code:`mean_model="None"` to not use any mean model.
+The :code:`kernel` is a product of two kernels, a constant kernel and a Matern32 kernel.
+And :code:`use_frequency=True` to use the frequency data so that we can use a 2D kernel with time and the effective frequency of the different bands.
+We could also pass in a mean model to use, such as a power law or a polynomial, or things like a Bazin or Gaussian model.
+We could also just use a 1D kernel.
+
+Note that this method only optimizes the GP hyperparameters and does not sample a posterior.
+In the examples, we show how you can use a GP + a mean model and get a full posterior of the GP hyperparameters and the model.
+
+The output here contains the GP object alongside a bunch of useful attributes. The GP fit can be plotted alongside the data using
+
+.. code:: python
+    band_colours = {"g": "green", "r": "red"}
+    ax = sn.plot_data(show=False, band_colors=band_colors)
+    ax.set_xscale("linear")
+    ax.set_xlim(1, 200)
+    ax = redback.analysis.plot_gp_lightcurves(sn, gp_output=output, axes=ax,
+                                              band_colors=band_colors)
+
+Where we can pass in additional keyword arguments to the plotting functions. Please look at the API and plotting documentation for more details.
+
+This GP result can be used to generate a new set of data points via,
+
+.. code:: python
+
+    t_new = np.linspace(10, 150, 100)
+    new_sn = redback.analysis.generate_new_transient_data_from_gp(output, t_new=t_new,
+                                                                 transient=transient)
+
+Where we are returned a new transient object with the new data points. Which works exactly like all other transient objects within :code:`redback`.
+
+Again, we provide a notebook example `here <https://github.com/nikhil-sarin/redback/blob/master/examples/GP_tutorial_with_redback.ipynb>`_
+and some other examples in the `examples <https://github.com/nikhil-sarin/redback/blob/master/examples/>`_ folder.
+
+Blackbody temperature and radius estimation.
+-------------------------
+:code:`redback` provides a simple interface for estimating the blackbody temperature and radius of the transient object.
+This is done by fitting a blackbody model to the data and estimating the temperature and radius from the best fit parameters.
+
+For example, we can do this for the kilonova object as follows,
+
+.. code:: python
+
+    # Use any optical transient object previously made.
+    # these can be passed to the method,
+    # here we use the default values which are used if nothing is passed.
+    bin_width = 1 # width with which to bin the data in days,
+    min_filters = 3 # minimum number of filters/frequencies the epoch must have to be fit.
+
+    # Some other things can also be passed to this function, look at the API.
+    df_bb = kilonova.estimate_bb_params(distance=distance, bin_width=bin_width,
+                                        min_filters=min_filters)
+
+Here we are returned a pandas dataframe with the best fit temperature and radius and
+their errors at times dictated by the bin widths where the transient also has a mininum number of filters.
+
+We provide a detailed notebook example `here <https://github.com/nikhil-sarin/redback/blob/master/examples/estimating_blackbody_properties_with_redback.ipynb>`_.
+
+Bolometric luminosity estimation.
+-------------------------
+:code:`redback` provides a simple interface for estimating the bolometric luminosity of the transient object.
+This can be done either using a blackbody SED, or any other :code:`redback` SED or with some bolometric corrections.
+
+For example, we can do this for the kilonova object as follows,
+
+.. code:: python
+
+    # Some other things can also be passed to this function, look at the API.
+    df_lbol = kilonova.estimate_bolometric_luminosity(distance=distance, sed='blackbody', bin_width=bin_width,
+                                                        min_filters=min_filters)
+
+Here we are returned a pandas dataframe with the bolometric luminosity and its errors at times
+dictated by the bin widths where the transient also has a minimum number of filters.
+
+This data can be easily used to create another transient object with the bolometric luminosity data and then fit.
+Please look at the API for more details and the `examples <https://github.com/nikhil-sarin/redback/blob/master/examples/estimating_lbols.ipynb>`_
+
 Spectrum object
 -------------------------
 
