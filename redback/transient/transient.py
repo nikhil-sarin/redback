@@ -1122,7 +1122,8 @@ class OpticalTransient(Transient):
                          use_phase_model=use_phase_model, optical_data=optical_data,
                          system=system, bands=bands, plotting_order=plotting_order,
                          active_bands=active_bands, **kwargs)
-        self.directory_structure = None
+        self.directory_structure = redback.get_data.directory.DirectoryStructure(
+            directory_path=".", raw_file_path=".", processed_file_path=".")
 
     @classmethod
     def from_open_access_catalogue(

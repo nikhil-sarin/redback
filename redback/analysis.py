@@ -222,10 +222,9 @@ def fit_temperature_and_radius_gp(data, kernelT, kernelR, plot=False, **kwargs):
     """
     Fit a Gaussian Process to the temperature and radius data
 
-    :param data:
-    :param kernelT:
-    :param kernelR:
-    :param gp_kwargs:
+    :param data: DataFrame containing the temperature and radius data output of the transient.estimate_bb_params method.
+    :param kernelT: george kernel for the temperature
+    :param kernelR: george kernel for the radius
     :param plot: Whether to make a two-panel plot of the temperature and radius GP evolution and the data
     :param kwargs: Additional keyword arguments
     :param inflate_errors: If True, inflate the errors by 20%, default is False
@@ -315,3 +314,130 @@ def fit_temperature_and_radius_gp(data, kernelT, kernelR, plot=False, **kwargs):
         return gp_T, gp_R, fig, (ax1, ax2)
     else:
         return gp_T, gp_R
+
+def generate_new_transient_data_from_gp(gp_out, t_new, transient, **kwargs):
+    """
+    Generates new transient data based on Gaussian Process (GP) predictions for the given time array
+    and transient object. Depending on the data mode of the transient object
+    (e.g., 'flux_density', 'flux', 'magnitude', or 'luminosity'), this function updates the data
+    accordingly, adjusting errors and scaling by frequency if necessary.
+
+    :param gp_out: The GP output object containing the Gaussian Process model, scaled data,
+                   and other related attributes.
+    :type gp_out: object
+    :param t_new: Array of new time values for which GP predictions are to be generated.
+    :type t_new: array-like
+    :param transient: The transient object containing the original observation data and related
+                      properties such as data mode and unique frequencies or bands.
+    :type transient: object
+    :param kwargs: Additional parameters to modify behavior, such as:
+
+                   - **inflate_y_err** (bool): Flag to indicate whether to inflate GP errors.
+                   - **error** (float): Multiplier for adjusting GP error inflation.
+
+    :return: A new transient object with data updated using GP predictions.
+    :rtype: object
+    """
+    data_mode = transient.data_mode
+    logger.info(f"Data mode: {data_mode}")
+    logger.info("Creating new {} data".format(data_mode))
+
+    if data_mode not in ['flux_density', 'flux', 'magnitude', 'luminosity']:
+        raise ValueError("Data mode {} not understood".format(data_mode))
+
+    if kwargs.get('inflate_y_err', True):
+        error = kwargs.get('error', 10)
+    else:
+        logger.info("Using GP predicted errors, this is likely being too conservative")
+        error = 1.
+
+    if gp_out.use_frequency:
+        logger.info("GP is a 2D kernel with effective frequency")
+        freqs = transient.unique_frequencies
+        T, F = np.meshgrid(t_new, freqs)
+        bands = redback.utils.frequency_to_bandname(F.flatten())
+        X_new = np.column_stack((F.flatten(), T.flatten()))
+        y_pred, y_var = gp_out.gp.predict(gp_out.scaled_y, X_new, return_var=True)
+        y_std = np.sqrt(y_var)
+        y_err = y_std * error
+        y_pred = y_pred * gp_out.y_scaler
+        tts = T.flatten()
+        freqs = F.flatten()
+    else:
+        logger.info("GP is a 1D kernel")
+        if data_mode == 'flux_density':
+            logger.warning("Bandnames/frequency attributes for the transient object may be weird, "
+                           "Please check for yourself")
+            tts = []
+            ys = []
+            yerrs = []
+            bbs = []
+            for key in gp_out.gp.keys():
+                gp = gp_out.gp[key]
+                y_pred, y_cov = gp.predict(gp_out.scaled_y[key], t_new, return_cov=True)
+                y_std = np.sqrt(np.diag(y_cov))
+                y_err = y_std * error
+                y_pred = y_pred * gp_out.y_scaler
+                _bands = np.repeat(key, len(t_new))
+                bbs.append(key)
+                tts.append(t_new)
+                ys.append(y_pred)
+                yerrs.append(y_err)
+            temp_frame = pd.DataFrame({'time': tts, 'ys': ys, 'yerr': yerrs, 'band': bbs})
+            temp_frame.sort_values('time', inplace=True)
+            y_pred = temp_frame['ys']
+            y_err = temp_frame['yerr']
+            bands = temp_frame['band']
+            freqs = temp_frame['band']
+            tts = temp_frame['time']
+        elif data_mode in ['flux', 'magnitude']:
+            tts = []
+            ys = []
+            yerrs = []
+            bbs = []
+            for band in transient.unique_bands:
+                gp = gp_out.gp[band]
+                y_pred, y_cov = gp.predict(gp_out.scaled_y[band], t_new, return_cov=True)
+                y_std = np.sqrt(np.diag(y_cov))
+                y_err = y_std * error
+                y_pred = y_pred * gp_out.y_scaler
+                _bands = np.repeat(band, len(t_new))
+                bbs.append(_bands)
+                tts.append(t_new)
+                ys.append(y_pred)
+                yerrs.append(y_err)
+            temp_frame = pd.DataFrame({'time':tts, 'ys':ys, 'yerr':yerrs, 'band':bbs})
+            temp_frame.sort_values('time', inplace=True)
+            y_pred = temp_frame['ys']
+            y_err = temp_frame['yerr']
+            bands = temp_frame['band']
+            tts = temp_frame['time']
+        elif data_mode == 'luminosity':
+            y_pred, y_cov = gp_out.gp.predict(gp_out.scaled_y, t_new, return_cov=True)
+            y_std = np.sqrt(np.diag(y_cov))
+            y_err = y_std * error
+            y_pred = y_pred * gp_out.y_scaler
+            tts = t_new
+
+    logger.info(f"Data mode: {data_mode}")
+    logger.info("Creating new transient object with GP data")
+    if data_mode == 'flux_density':
+        new_transient = redback.transient.OpticalTransient(name=transient.name + '_gp',
+                                                           flux_density=y_pred, flux_density_err=y_err,
+                                                           time=tts, bands=bands, frequency=freqs,
+                                                           data_mode=data_mode, redshift=transient.redshift)
+    elif data_mode == 'flux':
+        new_transient = redback.transient.OpticalTransient(name=transient.name + '_gp',
+                                                           flux=y_pred, flux_err=y_err,
+                                                           time=tts, bands=bands,
+                                                           data_mode=data_mode, redshift=transient.redshift)
+    elif data_mode == 'magnitude':
+        new_transient = redback.transient.OpticalTransient(name=transient.name + '_gp',
+                                                           magnitude=y_pred, magnitude_err=y_err,
+                                                           time=tts, bands=bands,
+                                                           data_mode=data_mode, redshift=transient.redshift)
+    elif data_mode == 'luminosity':
+        new_transient = redback.transient.OpticalTransient(name=transient.name + '_gp',
+                                                           Lum50=y_pred, Lum50_err=y_err,
+                                                           time_rest_frame=tts, data_mode=data_mode)
+    return new_transient
