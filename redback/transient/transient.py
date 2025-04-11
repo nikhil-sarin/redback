@@ -1200,14 +1200,16 @@ class OpticalTransient(Transient):
     def estimate_bb_params(self, distance: float = 1e27, bin_width: float = 1.0, min_filters: int = 3, **kwargs):
         """
         Estimate the blackbody temperature and photospheric radius as functions of time by fitting
-        a blackbody SED to the multi‑band flux density data.
+        a blackbody SED to the multi‑band photometry.
 
-        The method groups the photometric data (assumed to be in the "flux_density" data_mode)
-        into time bins (epochs) of width bin_width (in the same units as self.x, typically days).
-        For each epoch that has measurements in at least min_filters filters, it fits a blackbody
-        model to the effective flux densities (converted to mJy) versus effective frequency.
-        The fitting is performed in log‑space (i.e. we fit for log10(temperature) and log10(radius))
-        so that temperature and radius remain positive.
+        The method groups the photometric data into time bins (epochs) of width bin_width (in the
+        same units as self.x, typically days). For each epoch with at least min_filters measurements
+        (from distinct filters), it fits a blackbody model to the data. When working with photometry
+        provided in an effective flux density format (data_mode == "flux_density") the effective–wavelength
+        approximation is used. When the data_mode is "bandpass" (or "magnitude") users have the option
+        (via use_eff_wavelength=True) to instead use the effective wavelength approximation by converting AB
+        magnitudes to flux density (using redback.utils.calc_flux_density_from_ABmag). If this flag is not
+        provided (or is False) then the full bandpass integration is applied.
 
         Parameters
         ----------
@@ -1222,64 +1224,130 @@ class OpticalTransient(Transient):
             maxfev : int, optional, default is 1000
             T_init : float, optional, default is 1e4, used as the initial guess for the fit.
             R_init : float, optional, default is 1e15, used as the initial guess for the fit.
+            use_eff_wavelength : bool, optional, default is False.
+                If True, then even for photometry provided as magnitudes (or bandpass fluxes),
+                the effective wavelength approximation is used. In that case the AB magnitudes are
+                converted to flux densities via redback.utils.calc_flux_density_from_ABmag.
 
         Returns
         -------
-        A dataframe containing the following columns:
-        epoch_times : np.ndarray
-            Array of the binned epoch times.
-        temperatures : np.ndarray
-            Best‑fit blackbody temperatures (in Kelvin) at each epoch.
-        radii : np.ndarray
-            Best‑fit photospheric radii (in centimeters) at each epoch.
-        temp_errs : np.ndarray
-            1σ uncertainties on the temperatures.
-        radius_errs : np.ndarray
-            1σ uncertainties on the radii.
+        df_bb : pandas.DataFrame or None
+            A DataFrame containing columns:
+              - epoch_times : binned epoch times,
+              - temperature : best-fit blackbody temperatures (Kelvin),
+              - radius : best-fit photospheric radii (cm),
+              - temp_err : 1σ uncertainties on the temperatures,
+              - radius_err : 1σ uncertainties on the radii.
+            Returns None if insufficient data are available.
         """
         from scipy.optimize import curve_fit
         import astropy.units as uu
         import numpy as np
         import pandas as pd
 
-        # Retrieve filtered photometry. Assumes self.get_filtered_data() returns (time, time_err, flux, flux_err)
-        # where flux is in mJy.
+        # Retrieve filtered photometry.
+        # Assumes self.get_filtered_data() returns (time, time_err, y, y_err).
         time_data, _, flux_data, flux_err_data = self.get_filtered_data()
-        # Also get the effective frequencies (in Hz) for these measurements.
-        freq_data = self.frequency[self.filtered_indices]
-        T_init = kwargs.get('T_init', 1e4)  # Default initial guess for temperature
-        R_init = kwargs.get('R_init', 1e15)  # Default initial guess for radius
-        maxfev = kwargs.get('maxfev', 1000)  # Default maximum number of function evaluations
 
-        # Sort the arrays by time.
+        # Decide which method to use based on the photometry data_mode.
+        # If self.data_mode is 'bandpass' or 'magnitude', then we assume each measurement is associated
+        # with a filter. (We also assume self.band exists.)
+        use_bandpass = False
+        if hasattr(self, "data_mode") and self.data_mode in ['bandpass', 'magnitude']:
+            use_bandpass = True
+            band_data = self.filtered_sncosmo_bands
+        else:
+            # In this case flux_data are assumed to be effective flux densities and effective frequencies
+            # are available.
+            freq_data = self.filtered_frequencies
+
+        # Option: force effective wavelength approximation even for bandpass/magnitude data.
+        force_eff = kwargs.get('use_eff_wavelength', False)
+        if use_bandpass and force_eff:
+            redback.utils.logger.warning("Using effective wavelength approximation for {}".format(self.data_mode))
+            # Convert the AB magnitudes to flux density using the redback function.
+            from redback.utils import abmag_to_flux_density_and_error_inmjy
+            flux_data, flux_err_data = abmag_to_flux_density_and_error_inmjy(flux_data, flux_err_data)
+            freq_data = redback.utils.bands_to_frequency(band_data)
+            # Use the effective frequency approach.
+            use_bandpass = False
+        else:
+            redback.utils.logger.info("Using bandpass integration for blackbody fitting.")
+
+        # Get initial guesses.
+        T_init = kwargs.get('T_init', 1e4)
+        R_init = kwargs.get('R_init', 1e15)
+        maxfev = kwargs.get('maxfev', 1000)
+
+        # Sort the photometric data by time.
         sort_idx = np.argsort(time_data)
         time_data = time_data[sort_idx]
         flux_data = flux_data[sort_idx]
         flux_err_data = flux_err_data[sort_idx]
-        freq_data = freq_data[sort_idx]
+        if use_bandpass:
+            band_data = band_data[sort_idx]
+        else:
+            freq_data = freq_data[sort_idx]
 
+        # Retrieve and check redshift.
         redshift = np.nan_to_num(self.redshift)
         if redshift <= 0.:
             raise ValueError("Redshift must be provided to perform K-correction.")
 
-        # K-correct the frequency.
-        freq_data, _ = redback.utils.calc_kcorrected_properties(frequency=freq_data, redshift=redshift, time=0.)
+        # For effective frequency mode, K-correct the frequencies.
+        if not use_bandpass:
+            freq_data, _ = redback.utils.calc_kcorrected_properties(frequency=freq_data,
+                                                                    redshift=redshift, time=0.)
 
-        # Define a model function for the fit.
-        # The fit is performed in log10-space so that we enforce positivity.
-        def bb_model(freq, logT, logR):
-            """
-            A wrapper for the blackbody_to_flux_density function.
-            """
-            T = 10 ** logT
-            R = 10 ** logR
-            # Compute the model flux density in erg/s/cm^2/Hz.
-            model_flux_cgs = redback.sed.blackbody_to_flux_density(T, R, distance, freq)
-            # Convert to mJy. (1 Jy = 1e-23 erg/s/cm^2/Hz and 1 mJy = 1e-3 Jy)
-            model_flux_mjy = (model_flux_cgs / (1e-26 * uu.erg / uu.s / uu.cm ** 2 / uu.Hz)).value
-            return model_flux_mjy
+        # Define the model functions.
+        if not use_bandpass:
+            # Effective-wavelength (flux_density) based model.
+            def bb_model(freq, logT, logR):
+                T = 10 ** logT
+                R = 10 ** logR
+                # Compute the model flux density in erg/s/cm^2/Hz.
+                model_flux_cgs = redback.sed.blackbody_to_flux_density(T, R, distance, freq)
+                # Convert to mJy. (1 Jy = 1e-23 erg/s/cm^2/Hz; 1 mJy = 1e-3 Jy = 1e-26 erg/s/cm^2/Hz)
+                model_flux_mjy = (model_flux_cgs / (1e-26 * uu.erg / uu.s / uu.cm**2 / uu.Hz)).value
+                return model_flux_mjy
+            model_func = bb_model
+        else:
+            # Full bandpass flux (or magnitude) integrated model.
+            def bb_model_bandpass(band, logT, logR, redshift, distance, output_format='magnitude'):
+                from redback.utils import calc_kcorrected_properties, lambda_to_nu, bandpass_magnitude_to_flux
+                # Create a wavelength grid (in Å) from 100 to 80,000 Å.
+                lambda_observer_frame = np.geomspace(100, 80000, 300)
+                frequency, _ = calc_kcorrected_properties(frequency=lambda_to_nu(lambda_observer_frame),
+                                                          redshift=redshift, time=0.)
+                T = 10 ** logT
+                R = 10 ** logR
+                # Compute the model flux density in erg/s/cm^2/Hz.
+                model_flux = redback.sed.blackbody_to_flux_density(T, R, distance, frequency)
+                # Convert to per-Å units.
+                _spectra = model_flux.to(uu.erg / uu.cm**2 / uu.s / uu.Angstrom,
+                                          equivalencies=uu.spectral_density(wav=lambda_observer_frame * uu.Angstrom))
+                # Replicate _spectra onto 5 phases to form a spectrum array.
+                spectra = np.zeros((5, 300))
+                spectra[:, :] = _spectra.value
+                phases = np.arange(1, 6, 1)
+                source = redback.sed.RedbackTimeSeriesSource(phase=phases, wave=lambda_observer_frame,
+                                                             flux=spectra)
+                if output_format == 'flux':
+                    magnitude = source.bandmag(phase=2, band=band, magsys='ab')
+                    return bandpass_magnitude_to_flux(magnitude=magnitude, bands=band)
+                elif output_format == 'magnitude':
+                    magnitude = source.bandmag(phase=2, band=band, magsys='ab')
+                    print(magnitude)
+                    return magnitude
+                else:
+                    raise ValueError("Unknown output_format in bb_model_bandpass.")
 
-        # Prepare to bin the data.
+            def bb_model_bandpass_wrapper(band_array, logT, logR):
+                preds = bb_model_bandpass(band_array, logT, logR, redshift, distance, output_format=self.data_mode)
+                return np.array(preds)
+            model_func = bb_model_bandpass_wrapper
+
+        # Initialize lists to accumulate results per epoch.
         epoch_times = []
         temperatures = []
         radii = []
@@ -1291,31 +1359,29 @@ class OpticalTransient(Transient):
         bins = np.arange(t_min, t_max + bin_width, bin_width)
         redback.utils.logger.info("Number of bins: {}".format(len(bins)))
 
-        # Check if at least one bin has enough points.
-        bins_with_enough = [
-            i for i in range(len(bins) - 1)
-            if np.sum((time_data >= bins[i]) & (time_data < bins[i + 1])) >= min_filters
-        ]
+        # Ensure at least one bin has min_filters data points.
+        bins_with_enough = [i for i in range(len(bins) - 1)
+                            if np.sum((time_data >= bins[i]) & (time_data < bins[i + 1])) >= min_filters]
         if len(bins_with_enough) == 0:
-            redback.utils.logger.warning("No time bins have at least {} measurements. "
-                                         "Fitting cannot proceed.".format(min_filters))
-            redback.utils.logger.warning("Try generating more data via the implemented GP interpolation methods, "
-                                         "Or simulating more. Or try larger bin widths, or using fewer filters.")
-            redback.utils.logger.warning("Returning None.")
+            redback.utils.logger.warning("No time bins have at least {} measurements. Fitting cannot proceed.".format(min_filters))
+            redback.utils.logger.warning("Try generating more data through GPs, increasing bin widths, or using fewer filters.")
             return None
 
-        # Loop over bins (epochs); for each bin with enough data, perform the fit.
+        # Loop over bins (epochs): for each with enough data perform the fit.
         for i in range(len(bins) - 1):
             mask = (time_data >= bins[i]) & (time_data < bins[i + 1])
             if np.sum(mask) < min_filters:
-                continue  # Skip bins without sufficient data.
-
-            # Representative time for the epoch.
+                continue
             t_epoch = np.mean(time_data[mask])
             try:
+                # Set the independent variable:
+                if not use_bandpass:
+                    xdata = freq_data[mask]
+                else:
+                    xdata = band_data[mask]
                 popt, pcov = curve_fit(
-                    bb_model,
-                    freq_data[mask],
+                    model_func,
+                    xdata,
                     flux_data[mask],
                     sigma=flux_err_data[mask],
                     p0=[np.log10(T_init), np.log10(R_init)],
@@ -1330,8 +1396,6 @@ class OpticalTransient(Transient):
             logT_fit, logR_fit = popt
             T_fit = 10 ** logT_fit
             R_fit = 10 ** logR_fit
-
-            # Compute one-sigma uncertainties via error propagation.
             perr = np.sqrt(np.diag(pcov))
             T_err = np.log(10) * T_fit * perr[0]
             R_err = np.log(10) * R_fit * perr[1]
@@ -1342,12 +1406,10 @@ class OpticalTransient(Transient):
             temp_errs.append(T_err)
             radius_errs.append(R_err)
 
-        # If no epoch successfully yields a fit, warn and return None.
         if len(epoch_times) == 0:
             redback.utils.logger.warning("No epochs with sufficient data yielded a successful fit.")
             return None
 
-        # Assemble the results into a DataFrame.
         df_bb = pd.DataFrame({
             'epoch_times': epoch_times,
             'temperature': temperatures,
@@ -1357,6 +1419,6 @@ class OpticalTransient(Transient):
         })
 
         redback.utils.logger.info('Masking epochs with likely wrong extractions')
-        df_bb = df_bb[df_bb['temp_err']/df_bb['temperature'] < 1]
-        df_bb = df_bb[df_bb['radius_err']/df_bb['radius'] < 1]
+        df_bb = df_bb[df_bb['temp_err'] / df_bb['temperature'] < 1]
+        df_bb = df_bb[df_bb['radius_err'] / df_bb['radius'] < 1]
         return df_bb

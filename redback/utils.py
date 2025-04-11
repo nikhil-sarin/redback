@@ -448,6 +448,46 @@ def check_element(driver, id_number):
         return False
     return True
 
+
+def abmag_to_flux_density_and_error_inmjy(m_AB, sigma_m):
+    """
+    Convert an AB magnitude and its uncertainty to a flux density in millijanskys (mJy)
+    along with the associated error. In the AB system, the flux density (in erg/s/cm²/Hz) is:
+
+        f_nu = 10^(-0.4*(m_AB + 48.60))
+
+    Since 1 Jansky = 1e-23 erg/s/cm²/Hz and 1 mJy = 1e-3 Jansky,
+    1 mJy = 1e-26 erg/s/cm²/Hz. Therefore, to convert f_nu to mJy, we do:
+
+        f_nu(mJy) = f_nu / 1e-26
+
+    The uncertainty in the flux density is propagated as:
+
+        sigma_f(mJy) = 0.9210 * f_nu(mJy) * sigma_m
+
+    Parameters
+    ----------
+    m_AB : float or array_like
+        The AB magnitude value(s).
+    sigma_m : float or array_like
+        The uncertainty in the AB magnitude.
+
+    Returns
+    -------
+    f_nu_mjy : float or ndarray
+        Flux density in millijanskys (mJy).
+    sigma_f_mjy : float or ndarray
+        Uncertainty in the flux density (mJy).
+    """
+    # Compute flux density in erg/s/cm^2/Hz
+    f_nu = 10 ** (-0.4 * (m_AB + 48.60))
+    # Convert flux density to mJy (1 mJy = 1e-26 erg/s/cm^2/Hz)
+    f_nu_mjy = f_nu / 1e-26
+    # Propagate the uncertainty (σ_f = 0.9210 * f_nu * σ_m, applied after conversion)
+    sigma_f_mjy = 0.9210 * f_nu_mjy * sigma_m
+    return f_nu_mjy, sigma_f_mjy
+
+
 def calc_flux_density_error_from_monochromatic_magnitude(magnitude, magnitude_error, reference_flux, magnitude_system='AB'):
     """
     Calculate flux density error from magnitude error
