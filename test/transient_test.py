@@ -1,7 +1,7 @@
 import os
 import unittest
 from unittest import mock
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 import numpy as np
 import pandas as pd
 
@@ -9,9 +9,58 @@ import redback
 
 dirname = os.path.dirname(__file__)
 
+import redback.get_data.directory as directory
+
+_original_spec_dir_struct = directory.spectrum_directory_structure
+directory.spectrum_directory_structure = lambda transient: "dummy_directory_structure"
 
 class TestSpectrum(unittest.TestCase):
-    pass
+
+    def setUp(self):
+        # Create dummy spectral data
+        # Use three wavelengths (in Angstroms) that might cover the optical
+        self.angstroms = np.array([4000, 5000, 6000])
+        # Fake flux density in erg / s / cm^2 / Angstrom (typical values are small)
+        self.flux_density = np.array([1e-17, 2e-17, 3e-17])
+        # Assume small errors
+        self.flux_density_err = np.array([1e-18, 1e-18, 1e-18])
+        # A dummy observation time and a name for the spectrum
+        self.time_str = "10d"  # could be a phase string
+        self.name = "TestSpec"
+
+    def tearDown(self):
+        # Restore the patched directory function if needed.
+        directory.spectrum_directory_structure = _original_spec_dir_struct
+
+    def test_initialization_with_time(self):
+        spec = redback.transient.Spectrum(self.angstroms, self.flux_density, self.flux_density_err,
+                        time=self.time_str, name=self.name)
+        self.assertTrue(spec.plot_with_time_label,
+                        "When a time is provided, plot_with_time_label should be True.")
+
+    def test_initialization_without_time(self):
+        spec = redback.transient.Spectrum(self.angstroms, self.flux_density, self.flux_density_err,
+                        name=self.name)  # time defaults to None
+        self.assertFalse(spec.plot_with_time_label,
+                         "When no time is provided, plot_with_time_label should be False.")
+
+    def test_directory_structure(self):
+        spec = redback.transient.Spectrum(self.angstroms, self.flux_density, self.flux_density_err, name=self.name)
+        # The __init__ should call redback.get_data.directory.spectrum_directory_structure(name)
+        self.assertEqual(spec.directory_structure, "dummy_directory_structure",
+                         "Directory structure should be patched to a dummy value.")
+
+    def test_xlabel_property(self):
+        spec = redback.transient.Spectrum(self.angstroms, self.flux_density, self.flux_density_err)
+        expected_xlabel = r'Wavelength [$\mathrm{\AA}$]'
+        self.assertEqual(spec.xlabel, expected_xlabel,
+                         "The xlabel property did not match the expected value.")
+
+    def test_ylabel_property(self):
+        spec = redback.transient.Spectrum(self.angstroms, self.flux_density, self.flux_density_err)
+        expected_ylabel = r'Flux ($10^{-17}$ erg s$^{-1}$ cm$^{-2}$ $\mathrm{\AA}$)'
+        self.assertEqual(spec.ylabel, expected_ylabel,
+                         "The ylabel property did not match the expected value.")
 
 class TestTransient(unittest.TestCase):
 
@@ -88,7 +137,7 @@ class TestTransient(unittest.TestCase):
         self.assertFalse(self.transient.use_phase_model)
 
     def test_xlabel(self):
-        self.assertEqual(r"Time since burst [days]", self.transient.xlabel)
+        self.assertEqual(r"Time since explosion [days]", self.transient.xlabel)
         self.transient.use_phase_model = True
         self.assertEqual(r"Time [MJD]", self.transient.xlabel)
 
@@ -390,6 +439,77 @@ class TestOpticalTransient(unittest.TestCase):
             expected = 'rainbow'
             m.return_value = expected
             self.assertEqual(expected, self.transient.get_colors(filters=['a', 'b']))
+
+    def test_estimate_bb_params_effective(self):
+        """Test that estimate_bb_params returns a DataFrame with expected columns and positive values
+        in effective flux density mode."""
+        # Create a transient instance with flux_density data.
+        new_time = np.array([10, 10.1, 10.2, 10.3, 10.4])
+        new_flux = np.array([1e4, 1.05e4, 1.1e4, 1.05e4, 1e4])
+        new_flux_err = np.array([100, 100, 100, 100, 100])
+        new_freq = np.array([5e14, 6e14, 7e14, 8e14, 9e14])
+        transient_bb = redback.transient.OpticalTransient(
+            time=new_time, flux_density=new_flux,
+            redshift=0.1, data_mode="flux_density", name="TestBB",
+            frequency=new_freq, use_phase_model=False)
+        # Monkey-patch get_filtered_data to return our simulated data.
+        transient_bb.get_filtered_data = lambda: (new_time, np.zeros(5), new_flux, new_flux_err)
+        df_bb = transient_bb.estimate_bb_params(distance=1e27, bin_width=1.0, min_filters=3)
+        self.assertIsNotNone(df_bb, "Expected a DataFrame when sufficient data are provided.")
+        self.assertIsInstance(df_bb, pd.DataFrame, "The output must be a DataFrame.")
+        for col in ['epoch_times', 'temperature', 'radius', 'temp_err', 'radius_err']:
+            self.assertIn(col, df_bb.columns, f"Column '{col}' is missing in the DataFrame.")
+        # Check that the fitted temperature and radius are positive.
+        self.assertGreater(df_bb['temperature'].iloc[0], 0, "Temperature should be positive.")
+        self.assertGreater(df_bb['radius'].iloc[0], 0, "Radius should be positive.")
+
+    def test_estimate_bolometric_luminosity_no_corrections(self):
+        """Test that a bolometric luminosity is computed from the BB parameters (without boost or extinction)."""
+        # Create a fake DataFrame of blackbody parameters.
+        fake_df = pd.DataFrame({
+            "epoch_times": [10.5],
+            "temperature": [1e4],  # Kelvin
+            "radius": [1e15],  # cm
+            "temp_err": [500],
+            "radius_err": [1e14]
+        })
+        transient_bb = redback.transient.OpticalTransient(
+            time=np.array([10, 10.1, 10.2, 10.3, 10.4]),
+            time_err=np.array([0.1] * 5),
+            flux_density=np.array([1e4, 1.05e4, 1.1e4, 1.05e4, 1e4]),
+            redshift=0.1, data_mode="flux_density", name="TestBB",
+            photon_index=2, use_phase_model=False)
+        # Monkey-patch estimate_bb_params to return our fake blackbody parameters.
+        transient_bb.estimate_bb_params = lambda **kwargs: fake_df
+        df_bol = transient_bb.estimate_bolometric_luminosity(distance=1e27, bin_width=1.0, min_filters=3)
+        self.assertIsNotNone(df_bol, "A valid bolometric luminosity DataFrame is expected.")
+        for col in ['lum_bol', 'lum_bol_err', 'lum_bol_bb', 'time_rest_frame']:
+            self.assertIn(col, df_bol.columns, f"Column '{col}' is missing in the bolometric DataFrame.")
+        self.assertGreater(df_bol['lum_bol'].iloc[0], 0, "Bolometric luminosity should be positive.")
+
+    def test_estimate_bolometric_luminosity_with_boost_extinction(self):
+        """Test that providing lambda_cut and A_ext yields a DataFrame with the boost/extinction corrections applied."""
+        fake_df = pd.DataFrame({
+            "epoch_times": [10.5],
+            "temperature": [1e4],
+            "radius": [1e15],
+            "temp_err": [500],
+            "radius_err": [1e14]
+        })
+        transient_bb = redback.transient.OpticalTransient(
+            time=np.array([10, 10.1, 10.2, 10.3, 10.4]),
+            time_err=np.array([0.1] * 5),
+            flux_density=np.array([1e4, 1.05e4, 1.1e4, 1.05e4, 1e4]),
+            redshift=0.1, data_mode="flux_density", name="TestBB",
+            photon_index=2, use_phase_model=False)
+        transient_bb.estimate_bb_params = lambda **kwargs: fake_df
+        # Set lambda_cut (in angstroms) and an extinction A_ext in magnitudes.
+        df_bol = transient_bb.estimate_bolometric_luminosity(
+            distance=1e27, bin_width=1.0, min_filters=3, lambda_cut=3000, A_ext=0.5)
+        self.assertIsNotNone(df_bol, "A DataFrame with boost and extinction corrections should be returned.")
+        self.assertIn('lum_bol', df_bol.columns)
+        # Check that luminosity is positive.
+        self.assertGreater(df_bol['lum_bol'].iloc[0], 0, "Corrected bolometric luminosity should be positive.")
 
 
 class TestAfterglow(unittest.TestCase):
