@@ -534,6 +534,10 @@ class SimulateOpticalTransient(object):
         Function to wrap user models into sncosmo model format for full functionality.
         :return: sncosmo source
         """
+        # Ensure sncosmo_kwargs is a dictionary
+        if self.sncosmo_kwargs is None:
+            self.sncosmo_kwargs = {}
+
         self.sncosmo_kwargs['max_time'] = self.sncosmo_kwargs.get('max_time', 100)
         self.parameters['wavelength_observer_frame'] = self.parameters.get('wavelength_observer_frame',
                                                                           np.geomspace(100,60000,100))
