@@ -1445,3 +1445,138 @@ class OpticalTransient(Transient):
         df_bb = df_bb[df_bb['temp_err'] / df_bb['temperature'] < 1]
         df_bb = df_bb[df_bb['radius_err'] / df_bb['radius'] < 1]
         return df_bb
+
+
+    def estimate_bolometric_luminosity(self, distance: float = 1e27, bin_width: float = 1.0,
+                                          min_filters: int = 3, **kwargs):
+        """
+        Estimate the bolometric luminosity as a function of time by fitting the blackbody SED
+        to the multi‑band photometry and then integrating that spectrum. For each epoch the bolometric
+        luminosity is computed using the Stefan–Boltzmann law evaluated at the source:
+
+            L_bol = 4 π R² σ_SB T⁴
+
+        Uncertainties in T and R are propagated assuming
+
+            (ΔL_bol / L_bol)² = (2 ΔR / R)² + (4 ΔT / T)².
+
+        Optionally, two corrections can be applied:
+
+        1. A boost–factor to “restore” missing blue flux. If a cutoff wavelength is provided via
+           the keyword 'lambda_cut' (in angstroms), it is converted to centimeters and a boost factor is
+           calculated as:
+
+               Boost = (F_tot / F_red)
+
+           where F_tot = σ_SB T⁴ and F_red is computed by numerically integrating π * B_λ(T)
+           from the cutoff wavelength (in cm) to infinity. The final (boosted) luminosity becomes:
+
+               L_boosted = Boost × (4π R² σ_SB T⁴).
+
+        2. An extinction correction. If the bolometric extinction (A_ext, in magnitudes) is supplied via
+           the keyword 'A_ext', the luminosity will be reduced by a factor of 10^(–0.4·A_ext) to account
+           for dust extinction. (A_ext defaults to 0.)
+
+        Parameters
+        ----------
+        distance : float, optional
+            Distance to the transient in centimeters. (Default is 1e27 cm.)
+        bin_width : float, optional
+            Width of the time bins (in days) used for grouping photometry. (Default is 1.0.)
+        min_filters : int, optional
+            Minimum number of independent filters required in a bin to perform a fit. (Default is 3.)
+        kwargs : dict, optional
+            Additional keyword arguments to pass to `estimate_bb_params` (e.g., maxfev, T_init, R_init,
+            use_eff_wavelength, etc.). Additionally:
+
+                - 'lambda_cut': If provided (in angstroms), the bolometric luminosity will be “boosted”
+                  to account for missing blue flux.
+                - 'A_ext': Bolometric extinction in magnitudes. The observed luminosity is reduced by a factor
+                  10^(–0.4·A_ext). (Default is 0.)
+
+        Returns
+        -------
+        df_bol : pandas.DataFrame or None
+            A DataFrame containing columns:
+              - epoch_times: Mean time of the bin (days).
+              - temperature: Fitted blackbody temperature (K).
+              - radius: Fitted photospheric radius (cm).
+              - lum_bol: Derived bolometric luminosity (1e50 erg/s) computed as 4π R² σ_SB T⁴
+                         (boosted and extinction-corrected if requested).
+              - lum_bol_bb: Derived bolometric blackbody luminosity (1e50 erg/s) computed as 4π R² σ_SB T⁴,
+                            before applying either the boost or extinction correction.
+              - lum_bol_err: 1σ uncertainty on L_bol (1e50 erg/s) from error propagation.
+              - time_rest_frame: Epoch time divided by (1+redshift), i.e., the rest-frame time in days.
+            Returns None if no valid blackbody fits were obtained.
+        """
+        from redback.sed import boosted_bolometric_luminosity
+
+        # Retrieve optional lambda_cut (in angstroms) for the boost correction.
+        lambda_cut_angstrom = kwargs.pop('lambda_cut', None)
+        if lambda_cut_angstrom is not None:
+            redback.utils.logger.info("Including effects of missing flux due to line blanketing.")
+            redback.utils.logger.info(
+                "Using lambda_cut = {} Å for bolometric luminosity boost.".format(lambda_cut_angstrom))
+            # Convert lambda_cut from angstroms to centimeters (1 Å = 1e-8 cm)
+            lambda_cut = lambda_cut_angstrom * 1e-8
+        else:
+            redback.utils.logger.info("No lambda_cut provided; no correction applied. Assuming a pure blackbody SED.")
+            lambda_cut = None
+
+        # Retrieve optional extinction in magnitudes.
+        A_ext = kwargs.pop('A_ext', 0.0)
+        if A_ext != 0.0:
+            redback.utils.logger.info("Applying extinction correction with A_ext = {} mag.".format(A_ext))
+        extinction_factor = 10 ** (0.4 * A_ext)
+
+        # Retrieve blackbody parameters via your existing method.
+        df_bb = self.estimate_bb_params(distance=distance, bin_width=bin_width, min_filters=min_filters, **kwargs)
+        if df_bb is None or len(df_bb) == 0:
+            redback.utils.logger.warning("No valid blackbody fits were obtained; cannot estimate bolometric luminosity.")
+            return None
+
+        # Compute L_bol (or L_boosted) for each epoch and propagate uncertainties.
+        L_bol = []
+        L_bol_err = []
+        L_bol_bb = []
+        L_bol_bb_err = []
+        for index, row in df_bb.iterrows():
+            temp = row['temperature']
+            radius = row['radius']
+            T_err = row['temp_err']
+            R_err = row['radius_err']
+
+            # Use boosted luminosity if lambda_cut is provided.
+            if lambda_cut is not None:
+                lum, lum_bb = boosted_bolometric_luminosity(temp, radius, lambda_cut)
+            else:
+                lum = 4 * np.pi * (radius ** 2) * redback.constants.sigma_sb * (temp ** 4)
+                lum_bb = lum
+
+            # Apply extinction correction to both luminosities.
+            lum *= extinction_factor
+            lum_bb *= extinction_factor
+
+            # Propagate uncertainties using:
+            # (ΔL/L)² = (2 ΔR / R)² + (4 ΔT / T)².
+            rel_err = np.sqrt((2 * R_err / radius) ** 2 + (4 * T_err / temp) ** 2)
+            L_err = lum * rel_err
+            L_err_bb = lum_bb * rel_err
+
+            L_bol.append(lum)
+            L_bol_bb.append(lum_bb)
+            L_bol_err.append(L_err)
+            L_bol_bb_err.append(L_err_bb)
+
+        df_bol = df_bb.copy()
+        df_bol['lum_bol'] = np.array(L_bol) / 1e50
+        df_bol['lum_bol_err'] = np.array(L_bol_err) / 1e50
+        df_bol['lum_bol_bb'] = np.array(L_bol_bb) / 1e50
+        df_bol['lum_bol_bb_err'] = np.array(L_bol_bb_err) / 1e50
+        df_bol['time_rest_frame'] = df_bol['epoch_times'] / (1 + self.redshift)
+
+        redback.utils.logger.info('Masking bolometric estimates with likely wrong extractions')
+        df_bol = df_bol[df_bol['lum_bol_err'] / df_bol['lum_bol'] < 1]
+        redback.utils.logger.info(
+            "Estimated bolometric luminosity using blackbody integration (with boost and extinction corrections if specified).")
+        return df_bol

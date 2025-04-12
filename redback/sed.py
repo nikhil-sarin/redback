@@ -248,6 +248,53 @@ class _SED(object):
         # convert to mJy
         return flux_density.to(uu.mJy)
 
+def boosted_bolometric_luminosity(temperature, radius, lambda_cut):
+    """
+    Compute the boosted bolometric luminosity for a blackbody with temperature T (K)
+    and radius R (cm) to account for missing blue flux.
+
+    It uses:
+        L_bb = 4π R² σ_SB T⁴,
+    F_tot = σ_SB T⁴, and integrates the flux density redward of lambda_cut.
+
+    Parameters
+    ----------
+    temperature : float
+        Temperature (K)
+    radius : float
+        Photospheric radius (cm)
+    lambda_cut : float
+        Cutoff wavelength in centimeters (i.e. converted from angstroms by multiplying by 1e-8)
+
+    Returns
+    -------
+    L_boosted : float
+        The corrected bolometric luminosity (erg/s)
+    """
+    from scipy.integrate import quad
+    sigma_SB = sigma_sb  # Stefan–Boltzmann constant in cgs
+
+    # Compute pure-blackbody bolometric luminosity.
+    L_bb = 4.0 * np.pi * radius ** 2 * sigma_SB * temperature ** 4
+    # Total flux per unit area (erg/s/cm^2)
+    F_tot = sigma_SB * temperature ** 4
+
+    # Define the Planck function B_lambda (in erg/s/cm^2/cm/sr)
+    def planck_lambda(lam, T):
+        h = planck  # erg s
+        c = speed_of_light  # cm/s
+        k = boltzmann_constant  # erg/K
+        return (2.0 * h * c ** 2) / (lam ** 5) / (np.exp(h * c / (lam * k * T)) - 1.0)
+
+    # Integrand: π * B_lambda gives flux per unit wavelength (erg/s/cm²/cm)
+    integrand = lambda lam, T: np.pi * planck_lambda(lam, T)
+    # Integrate from lambda_cut to infinity to get the red flux.
+    F_red, integration_error = quad(integrand, lambda_cut, np.inf, args=(temperature,))
+    # Compute boost factor.
+    Boost = F_tot / F_red
+    # Corrected luminosity.
+    return Boost * L_bb, L_bb
+
 
 class CutoffBlackbody(_SED):
 
