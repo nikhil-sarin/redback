@@ -413,7 +413,7 @@ class SpecPlotter(object):
 
     @property
     def _y_err(self) -> np.ndarray:
-            return np.array([np.abs(self.transient.y_err)])
+        return np.array([np.abs(self.transient.flux_density_err)])
 
     @property
     def _data_plot_outdir(self) -> str:
