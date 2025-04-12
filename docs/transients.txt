@@ -255,11 +255,12 @@ For example, we can do this for the kilonova object as follows,
 .. code:: python
 
     # Some other things can also be passed to this function, look at the API.
-    df_lbol = kilonova.estimate_bolometric_luminosity(distance=distance, sed='blackbody', bin_width=bin_width,
+    df_lbol = kilonova.estimate_bolometric_luminosity(distance=distance, bin_width=bin_width,
                                                         min_filters=min_filters)
 
 Here we are returned a pandas dataframe with the bolometric luminosity and its errors at times
 dictated by the bin widths where the transient also has a minimum number of filters.
+Note this method by default works assuming a blackbody SED, but we provide a simple option to include the effects of line blanketing as well as host/MW extinction.
 
 This data can be easily used to create another transient object with the bolometric luminosity data and then fit.
 Please look at the API for more details and the `examples <https://github.com/nikhil-sarin/redback/blob/master/examples/estimating_lbols.ipynb>`_
