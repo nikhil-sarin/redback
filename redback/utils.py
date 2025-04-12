@@ -153,7 +153,7 @@ def calculate_normalisation(unique_frequency, model_1, model_2, tref, model_1_di
     """
     from redback.model_library import all_models_dict
     f1 = all_models_dict[model_1](time=tref, a_1=1, **model_1_dict)
-    if unique_frequency == None:
+    if unique_frequency is None:
         f2 = all_models_dict[model_2](time=tref, **model_2_dict)
         norm = f2 / f1
         normalisation = namedtuple('normalisation', ['bolometric_luminosity'])(norm)
