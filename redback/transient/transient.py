@@ -1488,11 +1488,10 @@ class OpticalTransient(Transient):
         kwargs : dict, optional
             Additional keyword arguments to pass to `estimate_bb_params` (e.g., maxfev, T_init, R_init,
             use_eff_wavelength, etc.). Additionally:
-
-                - 'lambda_cut': If provided (in angstroms), the bolometric luminosity will be “boosted”
-                  to account for missing blue flux.
-                - 'A_ext': Bolometric extinction in magnitudes. The observed luminosity is reduced by a factor
-                  10^(–0.4·A_ext). (Default is 0.)
+        - 'lambda_cut': If provided (in angstroms), the bolometric luminosity will be “boosted”
+          to account for missing blue flux.
+        - 'A_ext': Bolometric extinction in magnitudes. The observed luminosity is increased by a factor
+          10^(+0.4·A_ext). (Default is 0.)
 
         Returns
         -------
