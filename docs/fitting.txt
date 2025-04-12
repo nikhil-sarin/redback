@@ -51,20 +51,52 @@ In redback, having created a transient object, specified a model, priors, fittin
 
 .. code:: python
 
-    result = redback.fit_model(name='GRB', model=model, sampler='dynesty',
-                               nlive=200, transient=afterglow, prior=priors,
-                               data_mode='luminosity', **kwargs)
+    result = redback.fit_model(transient, model=model, sampler='dynesty',
+                               nlive=200, transient=afterglow, prior=priors, **kwargs)
 
 Here
 
-- name: `GRB` is a string/name of transient fitting, this is used to .
+- transient: Is the transient object created we want to fit
 - model: is a string referring to a function implemented in redback. Or a function the user has implemented.
 - sampler: is a string referring to the sampler. It could be a string referring to any name of a sampler implemented in :code:`bilby`.
 - nlive: is the number of live points to sample with. Higher = better. Typically we would use nlive=1000/2000 but this depends on the sampler.
 - transient: the transient object
 - prior: the prior object
 - data_mode: type of data to fit.
-- kwargs: Additional keyword arguments to pass to fit_grb, such as the likelihood, or things required by the sampler, label of the result file, directory where results are saved to etc.
+- kwargs: Additional keyword arguments to pass to fit_model, such as the likelihood, or things required by the sampler, label of the result file, directory where results are saved to etc.
+
+Please see the `bilby documentation <https://lscsoft.docs.ligo.org/bilby/api/bilby.core.sampler.run_sampler.html>`_ for more information on the sampler settings.
+As well as the :code:`redback` API.
+
+Fitting models with extinction, phase, or additional effects
+---------------
+In general most :code:`redback` models work on the assumption that the time provided to the model is a time since the explosion/burst etc. I.e., time = 0 is when the transient starts.
+However, sometimes users will not know this and the time they will have is the times of observation in MJD or some other time system.
+
+In this case, we must ensure both the model and the transient object are set up correctly. In particular, you must ensure
+that the transient object is set up with :code:`time_mjd` as an attribute instead of :code:`time` and that the model is set up to take :code:`t0` as an input.
+
+.. code:: python
+
+    # Create a transient object
+    sn = redback.transient.Supernova(name=name, time_mjd=time_mjd, magnitude=flux_density,
+                                    magnitude_err=mag_err, bands=bands, use_phase_model=True)
+
+    # Create a model
+    model = 't0_base_model' # This model is a general workhorse which just adds a t0 to the underlying model which we set by
+    base_model = 'arnett' #this could be any other redback model.
+
+    # Create a prior
+    priors = redback.priors.get_priors(model=base_model)
+
+    # we must add a prior for t0
+    priors['t0'] = bilby.core.prior.Uniform(minimum=sn.x[0]-100, maximum=sn.x[0]-1 name='t0', latex_label=r'$t_{0}~\mathrm{MJD}$')
+
+    # We must also make sure the model kwargs not include a pointer to the base model we want to use.
+    model_kwargs = {bands: sn.filtered_bands, output_format:'magnitude', base_model: base_model}
+
+This is just one such example of a base model, there are models which include extinction, or additional physical effects. Please look at the API for more information.
+
 
 Fitting bolometric luminosities of optical transients
 ---------------
