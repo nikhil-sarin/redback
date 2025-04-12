@@ -1,13 +1,14 @@
 import os
 import unittest
+from unittest import mock
 from unittest.mock import MagicMock, patch, PropertyMock
 import numpy as np
 import pandas as pd
 from redback.transient import Spectrum, Transient
-from redback.plotting import SpecPlotter, IntegratedFluxPlotter
+from redback.plotting import (SpecPlotter, IntegratedFluxPlotter, LuminosityOpticalPlotter,
+    _FilenameGetter, _FilePathGetter, Plotter, SpectrumPlotter, MagnitudePlotter)
 
 from types import SimpleNamespace
-from redback.plotting import Plotter, _FilenameGetter, _FilePathGetter
 import matplotlib.pyplot as plt
 
 
@@ -299,3 +300,129 @@ class TestIntegratedFluxPlotter(unittest.TestCase):
             **self.plotter._model_kwargs
         )
 
+class TestLuminosityOpticalPlotter(unittest.TestCase):
+    def setUp(self) -> None:
+        self.mock_transient = MagicMock()
+        self.mock_transient.x = np.array([1, 10, 100])
+        self.mock_transient.x_err = None
+        self.mock_transient.y = np.array([1e50, 2e50, 1.5e50])
+        self.mock_transient.y_err = np.array([0.1e50, 0.2e50, 0.15e50])
+        self.mock_transient.use_phase_model = False
+        # self.mock_transient.reference_mjd_date = 0
+        self.mock_transient.ylabel = "Luminosity"
+        self.luminosity_plotter = LuminosityOpticalPlotter(transient=self.mock_transient)
+
+    def tearDown(self) -> None:
+        del self.luminosity_plotter
+
+    def test_xlabel_property(self):
+        self.assertEqual(
+            self.luminosity_plotter._xlabel,
+            r"Time since explosion [days]"
+        )
+
+    def test_ylabel_property(self):
+        self.assertEqual(
+            self.luminosity_plotter._ylabel,
+            r"L$_{\rm bol}$ [$10^{50}$ erg s$^{-1}$]"
+        )
+
+    @mock.patch("matplotlib.pyplot.gca")
+    def test_plot_data_creates_axes(self, mock_gca):
+        mock_gca.return_value = plt.figure().add_subplot(111)
+        axes = self.luminosity_plotter.plot_data(save=False, show=False)
+        self.assertIsInstance(axes, plt.Axes)
+
+    def test_plot_data_with_existing_axes(self):
+        fig, ax = plt.subplots()
+        returned_ax = self.luminosity_plotter.plot_data(axes=ax, save=False, show=False)
+        self.assertIs(returned_ax, ax)
+
+class TestSpectrumPlotter(unittest.TestCase):
+    def setUp(self) -> None:
+        # Mock transient setup
+        self.mock_transient = mock.MagicMock()
+        self.mock_transient.angstroms = np.linspace(4000, 7000, 100)
+        self.mock_transient.flux_density = np.sin(self.mock_transient.angstroms / 1000) * 1e-17
+        self.mock_transient.flux_density_err = np.full_like(self.mock_transient.flux_density, 0.1e-17)
+        self.mock_transient.xlabel = "Wavelength [Å]"
+        self.mock_transient.ylabel = "Flux (10^-17 erg s^-1 cm^-2 Å^-1)"
+        self.mock_transient.plot_with_time_label = True
+        self.mock_transient.time = "100s"
+
+        # Create mock posterior DataFrame
+        self.mock_posterior = mock.MagicMock(spec=pd.DataFrame)
+        self.mock_posterior.empty = False
+        self.mock_posterior.columns = ['log_likelihood', 'param1', 'param2']
+
+        # Create mock Series for max likelihood parameters
+        self.mock_max_like_series = mock.MagicMock(spec=pd.Series)
+        self.mock_posterior.iloc.__getitem__.return_value = self.mock_max_like_series
+
+        # Create mock model
+        self.mock_model = mock.MagicMock()
+        self.mock_model.__name__ = "MockModel"  # Ensure __name__ is defined.
+
+        # Initialize plotter with mocked posterior
+        self.spectrum_plotter = SpectrumPlotter(
+            spectrum=self.mock_transient,
+            posterior=self.mock_posterior, model=self.mock_model
+        )
+
+    def tearDown(self) -> None:
+        del self.spectrum_plotter
+
+    def test_plot_data(self):
+        axes = mock.MagicMock()
+        result_axes = self.spectrum_plotter.plot_data(axes=axes, save=False, show=False)
+
+        self.assertEqual(result_axes, axes)
+
+        call_args, call_kwargs = axes.plot.call_args
+        np.testing.assert_array_equal(call_args[0], self.mock_transient.angstroms)
+        np.testing.assert_array_equal(call_args[1], self.mock_transient.flux_density / 1e-17)
+        self.assertEqual(call_kwargs.get('color'), self.spectrum_plotter.color)
+        self.assertEqual(call_kwargs.get('lw'), self.spectrum_plotter.linewidth)
+
+        axes.set_xlabel.assert_called_once_with(self.mock_transient.xlabel,
+                                                fontsize=self.spectrum_plotter.fontsize_axes)
+        axes.set_ylabel.assert_called_once_with(self.mock_transient.ylabel,
+                                                fontsize=self.spectrum_plotter.fontsize_axes)
+
+    def test_posterior_property(self):
+        # Test with mock posterior that has log_likelihood column
+        result = self.spectrum_plotter._posterior
+        self.mock_posterior.sort_values.assert_called_once_with(
+            by='log_likelihood', inplace=True
+        )
+        self.assertEqual(result, self.mock_posterior)
+
+    def test_posterior_property_empty_dataframe(self):
+        # Test with empty DataFrame
+        empty_posterior = mock.MagicMock(spec=pd.DataFrame)
+        empty_posterior.empty = True
+        self.spectrum_plotter.kwargs['posterior'] = empty_posterior
+
+        result = self.spectrum_plotter._posterior
+        empty_posterior.sort_values.assert_not_called()
+        self.assertEqual(result, empty_posterior)
+
+    def test_max_like_params(self):
+        result = self.spectrum_plotter._max_like_params
+        self.mock_posterior.iloc.__getitem__.assert_called_once_with(-1)
+        self.assertEqual(result, self.mock_max_like_series)
+
+    def test_plot_spectrum(self):
+        with mock.patch.object(self.spectrum_plotter, "plot_data", return_value=plt.gca()) as mock_plot_data:
+            axes = self.spectrum_plotter.plot_spectrum(save=False, show=False)
+            mock_plot_data.assert_called_once_with(axes=mock.ANY, save=False, show=False)
+            self.assertIsInstance(axes, plt.Axes)
+
+    def test_plot_residuals(self):
+        with mock.patch.object(self.spectrum_plotter, "plot_spectrum") as mock_plot_spectrum, \
+                mock.patch("matplotlib.pyplot.subplots",
+                           return_value=(mock.MagicMock(), [mock.MagicMock(), mock.MagicMock()])) as mock_subplots:
+            axes = self.spectrum_plotter.plot_residuals(save=False, show=False)
+            mock_plot_spectrum.assert_called_once_with(axes=mock.ANY, save=False, show=False)
+            mock_subplots.assert_called_once()
+            self.assertEqual(len(axes), 2)
