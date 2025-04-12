@@ -97,9 +97,9 @@ def plot_evolution_parameters(result, random_models=100):
         nn = output.nn
         mu = output.mu
         alpha = output.alpha
-        ax[0].plot(time, nn, "--", lw=1, color='red', alpha=2.5, zorder=-1)
-        ax[1].plot(time, np.rad2deg(alpha), "--", lw=1, color='red', alpha=2.5, zorder=-1)
-        ax[2].plot(time, mu, "--", lw=1, color='red', alpha=2.5, zorder=-1)
+        ax[0].plot(time, nn, "--", lw=1, color='red', zorder=-1)
+        ax[1].plot(time, np.rad2deg(alpha), "--", lw=1, color='red', zorder=-1)
+        ax[2].plot(time, mu, "--", lw=1, color='red', zorder=-1)
         ax[0].set_ylabel('braking index')
         ax[1].set_ylabel('inclination angle')
         ax[2].set_ylabel('magnetic moment')
@@ -379,7 +379,10 @@ def generate_new_transient_data_from_gp(gp_out, t_new, transient, **kwargs):
         logger.info("GP is a 2D kernel with effective frequency")
         freqs = transient.unique_frequencies
         T, F = np.meshgrid(t_new, freqs)
-        bands = redback.utils.frequency_to_bandname(F.flatten())
+        try:
+            bands = redback.utils.frequency_to_bandname(F.flatten())
+        except Exception:
+            bands = F.flatten().astype(str)
         X_new = np.column_stack((F.flatten(), T.flatten()))
         y_pred, y_var = gp_out.gp.predict(gp_out.scaled_y, X_new, return_var=True)
         y_std = np.sqrt(y_var)
