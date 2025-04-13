@@ -98,6 +98,7 @@ class TestSpecPlotter(unittest.TestCase):
         flux_density = np.array([1e-17, 2e-17, 3e-17])
         flux_density_err = np.array([0.1e-17, 0.1e-17, 0.1e-17])
         self.spectrum = Spectrum(angstroms, flux_density, flux_density_err, name="test_spectrum")
+        self.spectrum.directory_structure = SimpleNamespace(directory_path='/dummy/path')
         self.plotter = SpecPlotter(self.spectrum)
 
     def tearDown(self) -> None:
