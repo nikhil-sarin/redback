@@ -1,0 +1,6 @@
+redshift = Uniform(0.1, 0.2, name='redshift', latex_label=r'$z$')
+peak_time = Uniform(10, 20, name='peak_time', latex_label=r'$t_{\mathrm{peak}}~(\mathrm{days})$')
+t0 = Uniform(0, 1, name='t0', latex_label=r'$t_0~(\mathrm{days})$')
+x0 = Uniform(1e-10, 1e-1, name='x0', latex_label=r'$x_0$')
+x1 = Normal(0, 1, name='x1', latex_label=r'$x_1$')
+c = Normal(0, 0.1, name='c', latex_label=r'$c$')
