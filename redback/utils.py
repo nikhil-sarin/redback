@@ -767,32 +767,44 @@ def calc_credible_intervals(samples, interval=0.9):
     median = np.quantile(samples, 0.5, axis=0)
     return lower_bound, upper_bound, median
 
-
 def calc_one_dimensional_median_and_error_bar(samples, quantiles=(0.16, 0.84), fmt='.2f'):
     """
-    Calculate the median and error bar of a one dimensional array of samples
+    Calculates the median and error bars for a one-dimensional sample array.
 
-    :param samples: samples array
-    :param quantiles: quantiles to calculate
-    :param fmt: latex fmt
-    :return: summary named tuple
+    This function computes the median, lower, and upper error bars based on the
+    specified quantiles. It returns these values along with a formatted string
+    representation.
+
+    :param samples: An array of numerical values representing the sample data. The
+        input must not be empty.
+    :type samples: list or numpy.ndarray
+    :param quantiles: A tuple specifying the lower and upper quantile values. For
+        example, (0.16, 0.84) represents the 16th percentile as the lower quantile
+        and the 84th percentile as the upper quantile. Default is (0.16, 0.84).
+    :type quantiles: tuple
+    :param fmt: A format string for rounding the results in the formatted output.
+        Default is '.2f'.
+    :type fmt: str
+    :return: A namedtuple containing the median, lower error bar, upper error bar,
+        and a formatted string representation.
+    :rtype: MedianErrorBarResult
+    :raises ValueError: If the input `samples` array is empty.
     """
-    summary = namedtuple('summary', ['median', 'lower', 'upper', 'string'])
+    MedianErrorBarResult = namedtuple('MedianErrorBarResult', ['median', 'lower', 'upper', 'string'])
 
-    if len(quantiles) != 2:
-        raise ValueError("quantiles must be of length 2")
+    if len(samples) == 0:
+        raise ValueError("Samples array cannot be empty.")
 
-    quants_to_compute = np.array([quantiles[0], 0.5, quantiles[1]])
-    quants = np.percentile(samples, quants_to_compute * 100)
-    summary.median = quants[1]
-    summary.plus = quants[2] - summary.median
-    summary.minus = summary.median - quants[0]
+    median = np.median(samples)
+    lower_quantile, upper_quantile = np.quantile(samples, quantiles)
 
-    fmt = "{{0:{0}}}".format(fmt).format
-    string_template = r"${{{0}}}_{{-{1}}}^{{+{2}}}$"
-    summary.string = string_template.format(
-        fmt(summary.median), fmt(summary.minus), fmt(summary.plus))
-    return summary
+    lower = median - lower_quantile
+    upper = upper_quantile - median
+
+    formatted_string = rf"${median:{fmt}}_{{-{lower:{fmt}}}}^{{+{upper:{fmt}}}}$"
+
+    return MedianErrorBarResult(median=median, lower=lower, upper=upper, string=formatted_string)
+
 
 
 def kde_scipy(x, bandwidth=0.05, **kwargs):

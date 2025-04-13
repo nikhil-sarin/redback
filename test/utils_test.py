@@ -194,6 +194,72 @@ class TestCheckKwargsValidity(unittest.TestCase):
 
 class TestSomeUtility(unittest.TestCase):
 
+    def test_calc_credible_intervals_valid_input(self):
+        samples = np.array([1, 2, 3, 4, 5, 6, 7, 8, 9, 10])
+        lower, upper, median = utils.calc_credible_intervals(samples, interval=0.8)
+        self.assertAlmostEqual(lower, np.quantile(samples, 0.1))
+        self.assertAlmostEqual(upper, np.quantile(samples, 0.9))
+        self.assertEqual(median, np.median(samples))
+
+    def test_calc_credible_intervals_raises_error_for_invalid_interval(self):
+        samples = np.array([1, 2, 3, 4, 5])
+        with self.assertRaises(ValueError):
+            utils.calc_credible_intervals(samples, interval=-0.1)
+        with self.assertRaises(ValueError):
+            utils.calc_credible_intervals(samples, interval=1.5)
+
+    def test_calc_credible_intervals_with_multi_dimensional_samples(self):
+        samples = np.array([[1, 2, 3], [4, 5, 6], [7, 8, 9], [10, 11, 12]])
+        lower, upper, median = utils.calc_credible_intervals(samples, interval=0.9)
+        np.testing.assert_array_almost_equal(lower, [1.45, 2.45, 3.45], decimal=2)
+        np.testing.assert_array_almost_equal(upper, [9.55, 10.55, 11.55], decimal=2)
+        np.testing.assert_array_equal(median, [5.5, 6.5, 7.5])
+
+    def test_calc_credible_intervals_empty_samples(self):
+        samples = np.array([])
+        with self.assertRaises(IndexError):
+            utils.calc_credible_intervals(samples, interval=0.9)
+
+    def test_calc_credible_intervals_with_non_default_interval(self):
+        samples = np.array([1, 3, 5, 7, 9, 11, 13, 15, 17, 19])
+        lower, upper, median = utils.calc_credible_intervals(samples, interval=0.5)
+        self.assertAlmostEqual(lower, 5.5)
+        self.assertAlmostEqual(upper, 14.5)
+        self.assertEqual(median, 10)
+
+    def test_valid_samples_with_default_quantiles(self):
+        samples = np.array([1, 2, 3, 4, 5])
+        result = utils.calc_one_dimensional_median_and_error_bar(samples)
+        self.assertAlmostEqual(result.median, 3)
+        self.assertAlmostEqual(result.lower, 1.36, places=2)
+        self.assertAlmostEqual(result.upper, 1.36, places=2)
+        self.assertEqual(result.string, r"$3.00_{-1.36}^{+1.36}$")
+
+    def test_valid_samples_with_custom_quantiles(self):
+        samples = np.array([1, 2, 3, 4, 5])
+        quantiles = (0.1, 0.9)
+        result = utils.calc_one_dimensional_median_and_error_bar(samples, quantiles=quantiles)
+        self.assertAlmostEqual(result.median, 3)
+        self.assertAlmostEqual(result.lower, 1.6, places=1)
+        self.assertAlmostEqual(result.upper, 1.6, places=1)
+        self.assertEqual(result.string, r"$3.00_{-1.60}^{+1.60}$")
+
+    def test_invalid_quantiles_length(self):
+        samples = np.array([1, 2, 3, 4, 5])
+        with self.assertRaises(ValueError):
+            utils.calc_one_dimensional_median_and_error_bar(samples, quantiles=(0.16, 0.5, 0.84))
+
+    def test_empty_samples_array(self):
+        samples = np.array([])
+        with self.assertRaises(ValueError):
+            utils.calc_one_dimensional_median_and_error_bar(samples)
+
+    def test_different_formatting(self):
+        samples = np.array([1, 2, 3, 4, 5])
+        fmt = '.3f'
+        result = utils.calc_one_dimensional_median_and_error_bar(samples, fmt=fmt)
+        self.assertEqual(result.string, r"$3.000_{-1.360}^{+1.360}$")
+
     def test_find_nearest(self):
         array = np.array([1, 2, 3, 4, 5])
         value = 3.2
