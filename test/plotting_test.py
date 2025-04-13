@@ -1,7 +1,7 @@
 import os
 import unittest
 from unittest import mock
-from unittest.mock import MagicMock, patch, PropertyMock
+from unittest.mock import MagicMock, patch, PropertyMock, ANY
 import numpy as np
 import pandas as pd
 from redback.transient import Spectrum, Transient
@@ -10,6 +10,7 @@ from redback.plotting import (SpecPlotter, IntegratedFluxPlotter, LuminosityOpti
 
 from types import SimpleNamespace
 import matplotlib.pyplot as plt
+
 
 
 # Dummy transient: Only the attributes needed are defined.
@@ -100,6 +101,8 @@ class TestSpecPlotter(unittest.TestCase):
         self.plotter = SpecPlotter(self.spectrum)
 
     def tearDown(self) -> None:
+        plt.close('all')  # reset matplotlib global state
+        mock.patch.stopall()
         self.spectrum = None
         self.plotter = None
 
@@ -207,15 +210,16 @@ class TestIntegratedFluxPlotter(unittest.TestCase):
         self.default_patches.start()
 
     def tearDown(self) -> None:
-        patch.stopall()
+        plt.close('all')  # reset matplotlib global state
+        mock.patch.stopall()
 
     @patch("matplotlib.pyplot.figure", autospec=True)
     def test_plot_data(self, mock_figure):
-
         axes_mock = MagicMock()
-        plt.gca = MagicMock(return_value=axes_mock)
 
-        result_axes = self.plotter.plot_data(save=False, show=False)
+        # Correctly and locally patch plt.gca:
+        with patch("matplotlib.pyplot.gca", return_value=axes_mock):
+            result_axes = self.plotter.plot_data(save=False, show=False)
 
         self.assertEqual(result_axes, axes_mock)
         axes_mock.errorbar.assert_called_once()
@@ -223,8 +227,10 @@ class TestIntegratedFluxPlotter(unittest.TestCase):
         axes_mock.set_yscale.assert_called_once_with("log")
         axes_mock.set_xlim.assert_called_once_with(0.1, 200)
         axes_mock.set_ylim.assert_called_once_with(0.1, 200)
-        axes_mock.set_xlabel.assert_called_once_with(r"Time since burst [s]", fontsize=self.plotter.fontsize_axes)
-        axes_mock.set_ylabel.assert_called_once_with(self.transient_mock.ylabel, fontsize=self.plotter.fontsize_axes)
+        axes_mock.set_xlabel.assert_called_once_with(
+            r"Time since burst [s]", fontsize=self.plotter.fontsize_axes)
+        axes_mock.set_ylabel.assert_called_once_with(
+            self.transient_mock.ylabel, fontsize=self.plotter.fontsize_axes)
         axes_mock.annotate.assert_called_once_with(
             self.transient_mock.name,
             xy=self.plotter.xy,
@@ -232,8 +238,9 @@ class TestIntegratedFluxPlotter(unittest.TestCase):
             horizontalalignment=self.plotter.horizontalalignment,
             size=self.plotter.annotation_size
         )
-        self.plotter._save_and_show.assert_called_once_with(filepath=self.plotter._data_plot_filepath, save=False,
-                                                            show=False)
+        self.plotter._save_and_show.assert_called_once_with(
+            filepath=self.plotter._data_plot_filepath, save=False, show=False)
+        plt.close('all')
 
     def test_plot_data_with_custom_axes(self):
         # Test plot_data with a custom matplotlib Axes object
@@ -260,7 +267,6 @@ class TestIntegratedFluxPlotter(unittest.TestCase):
 
         # Clean up
         plt.close(fig)
-
 
     @patch("redback.plotting.IntegratedFluxPlotter._get_times", return_value=np.logspace(0, 2, 10))
     @patch("redback.plotting.IntegratedFluxPlotter._max_like_params", new_callable=PropertyMock)
@@ -375,7 +381,6 @@ class TestSpectrumPlotter(unittest.TestCase):
         )
 
     def tearDown(self) -> None:
-        plt.close('all')
         del self.spectrum_plotter
 
     def test_plot_data(self):
@@ -412,3 +417,100 @@ class TestSpectrumPlotter(unittest.TestCase):
         self.assertEqual(len(axes), 2)
         self.assertIsInstance(axes[0], plt.Axes)
         self.assertIsInstance(axes[1], plt.Axes)
+
+class TestMagnitudePlotter(unittest.TestCase):
+    def setUp(self) -> None:
+        self.mock_transient = MagicMock(spec=Transient)
+        self.mock_transient.use_phase_model = False
+        self.mock_transient.name = "Test"
+        self.mock_transient.active_bands = ["r", "g"]
+        self.mock_transient.x = np.array([0, 1, 2, 3])
+        self.mock_transient.y = np.array([10, 9, 8, 7])
+        self.mock_transient.y_err = np.array([0.1, 0.2, 0.1, 0.2])
+        self.mock_transient.list_of_band_indices = [[0, 1], [2, 3]]
+        self.mock_transient.unique_bands = ["r", "g"]
+        self.mock_transient.get_colors = MagicMock(return_value=["red", "green"])
+        self.mock_transient.ylabel = "Magnitude"
+        self.mock_transient.xlabel = "Time [days]"
+
+        mock_posterior = pd.DataFrame({
+            'log_likelihood': [-100, -50, -10]  # Example values
+        })
+
+        self.mock_transient.directory_structure = MagicMock()
+        self.mock_transient.directory_structure.directory_path = "/mock/path"
+
+        self.mock_model = mock.MagicMock()
+        self.mock_model.__name__ = "MockModel"
+
+        self.kwargs = {"xlabel": "Test X Label", "ylabel": "Test Y Label",
+                       "posterior": mock_posterior, "model": self.mock_model}
+        self.plotter = MagnitudePlotter(self.mock_transient, **self.kwargs)
+
+    def tearDown(self) -> None:
+        plt.close('all')  # reset matplotlib global state
+        mock.patch.stopall()
+        del self.mock_transient
+        del self.plotter
+
+    def test_color_property(self):
+        self.assertEqual(self.plotter._colors, ["red", "green"])
+
+    def test_xlabel_property_with_custom_label(self):
+        self.assertEqual(self.plotter._xlabel, "Test X Label")
+
+    def test_ylabel_property_with_custom_label(self):
+        self.assertEqual(self.plotter._ylabel, "Test Y Label")
+
+    def test_xlim_high_property(self):
+        self.mock_transient.x = np.array([1, 2, 3])
+        self.assertAlmostEqual(self.plotter._xlim_high, 1.2 * 3)
+
+    def test_ylim_low_magnitude_property(self):
+        self.mock_transient.y = np.array([10, 20, 30])
+        self.assertEqual(self.plotter._ylim_low_magnitude, 0.8 * 10)
+
+    def test_ylim_high_magnitude_property(self):
+        self.mock_transient.y = np.array([10, 20, 30])
+        self.assertEqual(self.plotter._ylim_high_magnitude, 1.2 * 30)
+
+    @patch('matplotlib.pyplot.gca')
+    def test_plot_data(self, mock_gca):
+        mock_ax = MagicMock()
+        mock_gca.return_value = mock_ax
+
+        self.plotter.plot_data(save=False, show=False)
+
+        mock_gca.assert_called_once()
+        self.assertTrue(mock_ax.set_xlim.called)
+        self.assertTrue(mock_ax.set_ylim.called)
+        self.assertTrue(mock_ax.errorbar.called)
+
+    @patch('matplotlib.pyplot.gca')
+    def test_plot_lightcurve(self, mock_gca):
+        mock_ax = MagicMock()
+        mock_gca.return_value = mock_ax
+
+        self.plotter.plot_lightcurve(save=False, show=False)
+
+        mock_gca.assert_called_once()
+        self.assertTrue(mock_ax.set_yscale.called)
+        self.assertTrue(mock_ax.errorbar.called)
+
+
+    def test_get_multiband_plot_label(self):
+        band = "r"
+        freq = 1e12
+        label = self.plotter._get_multiband_plot_label(band, freq)
+        self.assertEqual(label, "r")
+
+    def test_nrows_property(self):
+        with patch('redback.plotting.MagnitudePlotter._filters', new_callable=PropertyMock) as mock_filters:
+            mock_filters.return_value = ["r", "g"]
+            self.assertEqual(self.plotter._nrows, 1)
+
+    def test_figsize_property(self):
+        with patch('redback.plotting.MagnitudePlotter._nrows', new_callable=PropertyMock) as mock_nrows:
+            mock_nrows.return_value = 1
+            self.assertEqual(self.plotter._figsize, (12, 4))
+
