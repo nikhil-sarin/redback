@@ -8,6 +8,7 @@ there may be edge cases such as errors in time, or non-detections, or uncertain 
 Many different simple to more complicated likelihoods are included in :code:`redback`,
 these should cover most of the cases seen in transient data but if not, users can write their own likelihoods.
 We encourage users to add such likelihoods to :code:`redback`.
+Please check the `API <https://redback.readthedocs.io/en/latest/>`_ for an up-to-date list of the likelihoods available in :code:`redback` and their usage.
 
 Regular likelihoods
 -------------------------
@@ -23,6 +24,9 @@ More advanced likelihoods
 - Gaussian likelihood with uniform x errors - When you have x errors that are bin widths
 - Gaussian likelihood with non detections - A general Gaussian likelihood with a upper limits on some data points
 - Gaussian likelihood with non detections and quadrature noise - Same as above but with an additional noise source added in quadrature
+- StudentT likelihood - A StudentT likelihood, useful for data with some outliers, heavier tails than a Gaussian means its less sensitive to outliers
+- MixtureLikelihood - A mixture likelihood with two Gaussian components, assumes each data point either comes from one Gaussian that is consistent with the model or an outlier Gaussian.
+  Provides a probabilistic estimate of each data points probability of being an outlier. Please look at the examples for more details.
 
 Write your own likelihood
 -------------------------

@@ -76,7 +76,7 @@ class SimulateGenericTransient(object):
         injection_kwargs = self.parameters.copy()
         if 'bands' in model_kwargs.keys():
             injection_kwargs['bands'] = self.subset_bands
-            injection_kwargs['output_format'] = 'magnitude'
+            injection_kwargs['output_format'] = model_kwargs['output_format']
         if 'frequency' in model_kwargs.keys():
             injection_kwargs['frequency'] = self.subset_frequency
             injection_kwargs['output_format'] = 'flux_density'
@@ -534,6 +534,10 @@ class SimulateOpticalTransient(object):
         Function to wrap user models into sncosmo model format for full functionality.
         :return: sncosmo source
         """
+        # Ensure sncosmo_kwargs is a dictionary
+        if self.sncosmo_kwargs is None:
+            self.sncosmo_kwargs = {}
+
         self.sncosmo_kwargs['max_time'] = self.sncosmo_kwargs.get('max_time', 100)
         self.parameters['wavelength_observer_frame'] = self.parameters.get('wavelength_observer_frame',
                                                                           np.geomspace(100,60000,100))

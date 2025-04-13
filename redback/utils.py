@@ -153,7 +153,7 @@ def calculate_normalisation(unique_frequency, model_1, model_2, tref, model_1_di
     """
     from redback.model_library import all_models_dict
     f1 = all_models_dict[model_1](time=tref, a_1=1, **model_1_dict)
-    if unique_frequency == None:
+    if unique_frequency is None:
         f2 = all_models_dict[model_2](time=tref, **model_2_dict)
         norm = f2 / f1
         normalisation = namedtuple('normalisation', ['bolometric_luminosity'])(norm)
@@ -195,6 +195,34 @@ def get_csm_properties(nn, eta):
     csm_properties.Br = Br
     return csm_properties
 
+
+def abmag_to_flambda(mag, lam_eff):
+    """
+    Converts an AB magnitude to flux density in erg/s/cm^2/Å
+    using the effective wavelength for the band.
+
+    In the AB system, the flux density per unit frequency is:
+        f_nu = 10**(-0.4*(mag+48.6))  [erg/s/cm^2/Hz]
+    To obtain f_lambda [erg/s/cm^2/Å]:
+
+        f_lambda = f_nu * (c / λ^2) / 1e8,
+
+    where λ is the effective wavelength (in cm) and 1e8 converts from per cm to per Å.
+    """
+    # effective wavelength from Å to cm:
+    lam_eff_cm = lam_eff * 1e-8
+    f_nu = 10 ** (-0.4 * (mag + 48.6))
+    f_lambda = f_nu * (redback.constants.speed_of_light / lam_eff_cm ** 2) / 1e8
+    return f_lambda
+
+
+def flambda_err_from_mag_err(flux, mag_err):
+    """
+    Compute the error on the flux given an error on the magnitude.
+    Using error propagation for f = A*10^(-0.4*mag):
+         df/dmag = -0.4 ln(10)* f  =>  σ_f = 0.4 ln(10)* f * σ_mag.
+    """
+    return 0.4 * np.log(10) * flux * mag_err
 
 def fnu_to_flambda(f_nu, wavelength_A):
     """
@@ -439,6 +467,89 @@ def check_element(driver, id_number):
         return False
     return True
 
+def bandpass_flux_to_flux_density(flux, flux_err, delta_nu):
+    """
+    Convert an integrated flux (and its error) measured over a bandpass
+    in erg/s/cm² into a flux density (in erg/s/cm²/Hz) and then into millijanskys (mJy).
+
+    Parameters
+    ----------
+    flux : float or numpy.ndarray
+        Integrated flux in erg/s/cm².
+    flux_err : float or numpy.ndarray
+        Error in the integrated flux in erg/s/cm².
+    delta_nu : float
+        Effective bandwidth of the filter in Hz.
+
+    Returns
+    -------
+    f_nu_mJy : float or numpy.ndarray
+        Flux density converted to millijanskys (mJy).
+    f_nu_err_mJy : float or numpy.ndarray
+        Error in the flux density in mJy.
+
+    Notes
+    -----
+    The conversion from integrated flux F (erg/s/cm²) to flux density f_nu (erg/s/cm²/Hz)
+    assumes a known effective bandwidth Δν in Hz:
+
+        f_nu = F / Δν
+
+    Then, converting to mJy is done using the relation
+    1 mJy = 1e-3 Jy = 1e-3 * 1e-23 erg/s/cm²/Hz = 1e-26 erg/s/cm²/Hz.
+    Therefore, to convert erg/s/cm²/Hz into mJy, divide by 1e-26.
+    """
+    # Calculate flux density in erg/s/cm²/Hz
+    f_nu = flux / delta_nu
+    f_nu_err = flux_err / delta_nu
+
+    # Convert to mJy: 1 mJy = 1e-26 erg/s/cm²/Hz
+    conversion_factor = 1e-26  # erg/s/cm²/Hz per mJy
+    f_nu_mJy = f_nu / conversion_factor
+    f_nu_err_mJy = f_nu_err / conversion_factor
+
+    return f_nu_mJy, f_nu_err_mJy
+
+
+def abmag_to_flux_density_and_error_inmjy(m_AB, sigma_m):
+    """
+    Convert an AB magnitude and its uncertainty to a flux density in millijanskys (mJy)
+    along with the associated error. In the AB system, the flux density (in erg/s/cm²/Hz) is:
+
+        f_nu = 10^(-0.4*(m_AB + 48.60))
+
+    Since 1 Jansky = 1e-23 erg/s/cm²/Hz and 1 mJy = 1e-3 Jansky,
+    1 mJy = 1e-26 erg/s/cm²/Hz. Therefore, to convert f_nu to mJy, we do:
+
+        f_nu(mJy) = f_nu / 1e-26
+
+    The uncertainty in the flux density is propagated as:
+
+        sigma_f(mJy) = 0.9210 * f_nu(mJy) * sigma_m
+
+    Parameters
+    ----------
+    m_AB : float or array_like
+        The AB magnitude value(s).
+    sigma_m : float or array_like
+        The uncertainty in the AB magnitude.
+
+    Returns
+    -------
+    f_nu_mjy : float or ndarray
+        Flux density in millijanskys (mJy).
+    sigma_f_mjy : float or ndarray
+        Uncertainty in the flux density (mJy).
+    """
+    # Compute flux density in erg/s/cm^2/Hz
+    f_nu = 10 ** (-0.4 * (m_AB + 48.60))
+    # Convert flux density to mJy (1 mJy = 1e-26 erg/s/cm^2/Hz)
+    f_nu_mjy = f_nu / 1e-26
+    # Propagate the uncertainty (σ_f = 0.9210 * f_nu * σ_m, applied after conversion)
+    sigma_f_mjy = 0.9210 * f_nu_mjy * sigma_m
+    return f_nu_mjy, sigma_f_mjy
+
+
 
 def calc_flux_density_error_from_monochromatic_magnitude(magnitude, magnitude_error, reference_flux,
                                                          magnitude_system='AB'):
@@ -587,6 +698,28 @@ def bands_to_frequency(bands):
             raise KeyError(f"Band {band} is not defined in filters.csv!")
     return np.array(res)
 
+def bands_to_effective_width(bands):
+    """
+    Converts a list of bands into an array of effective width in Hz
+
+    :param bands: List of bands.
+    :type bands: list[str]
+    :return: An array of effective width associated with the given bands.
+    :rtype: np.ndarray
+    """
+    if bands is None:
+        bands = []
+    df = pd.read_csv(f"{dirname}/tables/filters.csv")
+    bands_to_freqs = {band: wavelength for band, wavelength in zip(df['bands'], df['effective_width [Hz]'])}
+    res = []
+    for band in bands:
+        try:
+            res.append(bands_to_freqs[band])
+        except KeyError as e:
+            logger.info(e)
+            raise KeyError(f"Band {band} is not defined in filters.csv!")
+    return np.array(res)
+
 
 def frequency_to_bandname(frequency):
     """
@@ -634,32 +767,44 @@ def calc_credible_intervals(samples, interval=0.9):
     median = np.quantile(samples, 0.5, axis=0)
     return lower_bound, upper_bound, median
 
-
 def calc_one_dimensional_median_and_error_bar(samples, quantiles=(0.16, 0.84), fmt='.2f'):
     """
-    Calculate the median and error bar of a one dimensional array of samples
+    Calculates the median and error bars for a one-dimensional sample array.
 
-    :param samples: samples array
-    :param quantiles: quantiles to calculate
-    :param fmt: latex fmt
-    :return: summary named tuple
+    This function computes the median, lower, and upper error bars based on the
+    specified quantiles. It returns these values along with a formatted string
+    representation.
+
+    :param samples: An array of numerical values representing the sample data. The
+        input must not be empty.
+    :type samples: list or numpy.ndarray
+    :param quantiles: A tuple specifying the lower and upper quantile values. For
+        example, (0.16, 0.84) represents the 16th percentile as the lower quantile
+        and the 84th percentile as the upper quantile. Default is (0.16, 0.84).
+    :type quantiles: tuple
+    :param fmt: A format string for rounding the results in the formatted output.
+        Default is '.2f'.
+    :type fmt: str
+    :return: A namedtuple containing the median, lower error bar, upper error bar,
+        and a formatted string representation.
+    :rtype: MedianErrorBarResult
+    :raises ValueError: If the input `samples` array is empty.
     """
-    summary = namedtuple('summary', ['median', 'lower', 'upper', 'string'])
+    MedianErrorBarResult = namedtuple('MedianErrorBarResult', ['median', 'lower', 'upper', 'string'])
 
-    if len(quantiles) != 2:
-        raise ValueError("quantiles must be of length 2")
+    if len(samples) == 0:
+        raise ValueError("Samples array cannot be empty.")
 
-    quants_to_compute = np.array([quantiles[0], 0.5, quantiles[1]])
-    quants = np.percentile(samples, quants_to_compute * 100)
-    summary.median = quants[1]
-    summary.plus = quants[2] - summary.median
-    summary.minus = summary.median - quants[0]
+    median = np.median(samples)
+    lower_quantile, upper_quantile = np.quantile(samples, quantiles)
 
-    fmt = "{{0:{0}}}".format(fmt).format
-    string_template = r"${{{0}}}_{{-{1}}}^{{+{2}}}$"
-    summary.string = string_template.format(
-        fmt(summary.median), fmt(summary.minus), fmt(summary.plus))
-    return summary
+    lower = median - lower_quantile
+    upper = upper_quantile - median
+
+    formatted_string = rf"${median:{fmt}}_{{-{lower:{fmt}}}}^{{+{upper:{fmt}}}}$"
+
+    return MedianErrorBarResult(median=median, lower=lower, upper=upper, string=formatted_string)
+
 
 
 def kde_scipy(x, bandwidth=0.05, **kwargs):

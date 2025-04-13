@@ -9,7 +9,9 @@ import pandas as pd
 import redback
 from redback.plotting import \
     LuminosityPlotter, FluxDensityPlotter, IntegratedFluxPlotter, MagnitudePlotter, \
-     IntegratedFluxOpticalPlotter, SpectrumPlotter
+    IntegratedFluxOpticalPlotter, SpectrumPlotter, LuminosityOpticalPlotter
+from redback.model_library import all_models_dict
+from collections import namedtuple
 
 class Spectrum(object):
     def __init__(self, angstroms: np.ndarray, flux_density: np.ndarray, flux_density_err: np.ndarray,
@@ -119,8 +121,6 @@ class Spectrum(object):
             posterior=posterior, model_kwargs=model_kwargs, **kwargs)
         return plotter.plot_residuals(axes=axes, save=save, show=show)
     LuminosityPlotter, FluxDensityPlotter, IntegratedFluxPlotter, MagnitudePlotter, IntegratedFluxOpticalPlotter
-from redback.model_library import all_models_dict
-from collections import namedtuple
 
 class Transient(object):
     DATA_MODES = ['luminosity', 'flux', 'flux_density', 'magnitude', 'counts', 'ttes']
@@ -275,6 +275,7 @@ class Transient(object):
         :return: Six elements when querying magnitude or flux_density data, Eight for 'all'.
         :rtype: tuple
         """
+        DATA_MODES = ['luminosity', 'flux', 'flux_density', 'magnitude', 'counts', 'ttes', 'all']
         df = pd.read_csv(processed_file_path)
         time_days = np.array(df["time (days)"])
         time_mjd = np.array(df["time"])
@@ -283,6 +284,8 @@ class Transient(object):
         bands = np.array(df["band"])
         flux_density = np.array(df["flux_density(mjy)"])
         flux_density_err = np.array(df["flux_density_error"])
+        if data_mode not in DATA_MODES:
+            raise ValueError(f"Data mode {data_mode} not in {DATA_MODES}")
         if data_mode == "magnitude":
             return time_days, time_mjd, magnitude, magnitude_err, bands
         elif data_mode == "flux_density":
@@ -483,7 +486,7 @@ class Transient(object):
         if self.use_phase_model:
             return r"Time [MJD]"
         else:
-            return r"Time since burst [days]"
+            return r"Time since explosion [days]"
 
     @property
     def ylabel(self) -> str:
@@ -687,7 +690,11 @@ class Transient(object):
             else:
                 plotter = IntegratedFluxPlotter(transient=self, color=color, filename=filename, outdir=outdir, **kwargs)
         elif self.luminosity_data:
-            plotter = LuminosityPlotter(transient=self, color=color, filename=filename, outdir=outdir, **kwargs)
+            if self.optical_data:
+                plotter = LuminosityOpticalPlotter(transient=self, color=color, filename=filename, outdir=outdir,
+                                                   **kwargs)
+            else:
+                plotter = LuminosityPlotter(transient=self, color=color, filename=filename, outdir=outdir, **kwargs)
         elif self.flux_density_data:
             plotter = FluxDensityPlotter(transient=self, color=color, filename=filename, outdir=outdir,
                                          plot_others=plot_others, **kwargs)
@@ -766,9 +773,13 @@ class Transient(object):
                     transient=self, model=model, filename=filename, outdir=outdir,
                     posterior=posterior, model_kwargs=model_kwargs, random_models=random_models, **kwargs)
         elif self.luminosity_data:
-            plotter = LuminosityPlotter(
-                transient=self, model=model, filename=filename, outdir=outdir,
-                posterior=posterior, model_kwargs=model_kwargs, random_models=random_models, **kwargs)
+            if self.optical_data:
+                plotter = LuminosityOpticalPlotter(transient=self, model=model, filename=filename, outdir=outdir,
+                    posterior=posterior, model_kwargs=model_kwargs, random_models=random_models, **kwargs)
+            else:
+                plotter = LuminosityPlotter(
+                    transient=self, model=model, filename=filename, outdir=outdir,
+                    posterior=posterior, model_kwargs=model_kwargs, random_models=random_models, **kwargs)
         elif self.flux_density_data:
             plotter = FluxDensityPlotter(
                 transient=self, model=model, filename=filename, outdir=outdir,
@@ -804,9 +815,14 @@ class Transient(object):
                 transient=self, model=model, filename=filename, outdir=outdir,
                 posterior=posterior, model_kwargs=model_kwargs, **kwargs)
         elif self.luminosity_data:
-            plotter = LuminosityPlotter(
-                transient=self, model=model, filename=filename, outdir=outdir,
-                posterior=posterior, model_kwargs=model_kwargs, **kwargs)
+            if self.optical_data:
+                plotter = LuminosityOpticalPlotter(
+                    transient=self, model=model, filename=filename, outdir=outdir,
+                    posterior=posterior, model_kwargs=model_kwargs, **kwargs)
+            else:
+                plotter = LuminosityPlotter(
+                    transient=self, model=model, filename=filename, outdir=outdir,
+                    posterior=posterior, model_kwargs=model_kwargs, **kwargs)
         else:
             raise ValueError("Residual plotting not implemented for this data mode")
         return plotter.plot_residuals(axes=axes, save=save, show=show)
@@ -876,7 +892,7 @@ class Transient(object):
         if mean_model is None:
             redback.utils.logger.info("Mean model not given, fitting GP with no mean model.")
             gp = george.GP(kernel)
-            gp.compute(X, gp_y_err)
+            gp.compute(X, gp_y_err + 1e-8)
             p0 = gp.get_parameter_vector()
             results = op.minimize(nll, p0, jac=grad_nll)
             gp.set_parameter_vector(results.x)
@@ -915,7 +931,7 @@ class Transient(object):
                     mean_model_class = function_to_george_mean_model(mean_model_func)
                     mm = mean_model_class(**prior.sample())
                     gp = george.GP(kernel, mean=mm, fit_mean=True)
-                    gp.compute(gp_x, gp_y_err[self.list_of_band_indices[ii]])
+                    gp.compute(gp_x, gp_y_err[self.list_of_band_indices[ii]] + 1e-8)
                     p0 = gp.get_parameter_vector()
                     results = op.minimize(nll, p0)
                     gp.set_parameter_vector(results.x)
@@ -929,7 +945,7 @@ class Transient(object):
                 mean_model_class = function_to_george_mean_model(mean_model_func)
                 mm = mean_model_class(**prior.sample())
                 gp = george.GP(kernel, mean=mm, fit_mean=True)
-                gp.compute(X, gp_y_err)
+                gp.compute(X, gp_y_err + 1e-8)
                 p0 = gp.get_parameter_vector()
                 results = op.minimize(nll, p0)
                 gp.set_parameter_vector(results.x)
@@ -1109,7 +1125,8 @@ class OpticalTransient(Transient):
                          use_phase_model=use_phase_model, optical_data=optical_data,
                          system=system, bands=bands, plotting_order=plotting_order,
                          active_bands=active_bands, **kwargs)
-        self.directory_structure = None
+        self.directory_structure = redback.get_data.directory.DirectoryStructure(
+            directory_path=".", raw_file_path=".", processed_file_path=".")
 
     @classmethod
     def from_open_access_catalogue(
@@ -1182,3 +1199,386 @@ class OpticalTransient(Transient):
         transient_dir, _, _ = redback.get_data.directory.open_access_directory_structure(
             transient=self.name, transient_type=self.__class__.__name__.lower())
         return transient_dir
+
+    def estimate_bb_params(self, distance: float = 1e27, bin_width: float = 1.0, min_filters: int = 3, **kwargs):
+        """
+        Estimate the blackbody temperature and photospheric radius as functions of time by fitting
+        a blackbody SED to the multi‑band photometry.
+
+        The method groups the photometric data into time bins (epochs) of width bin_width (in the
+        same units as self.x, typically days). For each epoch with at least min_filters measurements
+        (from distinct filters), it fits a blackbody model to the data. When working with photometry
+        provided in an effective flux density format (data_mode == "flux_density") the effective–wavelength
+        approximation is used. When the data_mode is "flux" (or "magnitude") users have the option
+        (via use_eff_wavelength=True) to instead use the effective wavelength approximation by converting AB
+        magnitudes to flux density (using redback.utils.calc_flux_density_from_ABmag). If this flag is not
+        provided (or is False) then the full bandpass integration is applied.
+
+        Parameters
+        ----------
+        distance : float, optional
+            Distance to the transient in centimeters. Default is 1e27 cm.
+        bin_width : float, optional
+            Width of the time bins (in days) used to group the photometric data. Default is 1.0.
+        min_filters : int, optional
+            Minimum number of measurements (from distinct filters) required in a bin to perform the fit.
+            Default is 3.
+        kwargs : Additional keyword arguments
+            maxfev : int, optional, default is 1000
+            T_init : float, optional, default is 1e4, used as the initial guess for the fit.
+            R_init : float, optional, default is 1e15, used as the initial guess for the fit.
+            use_eff_wavelength : bool, optional, default is False.
+                If True, then even for photometry provided as magnitudes (or bandpass fluxes),
+                the effective wavelength approximation is used. In that case the AB magnitudes are
+                converted to flux densities via redback.utils.calc_flux_density_from_ABmag.
+                If False, full bandpass integration is used.
+
+        Returns
+        -------
+        df_bb : pandas.DataFrame or None
+            A DataFrame containing columns:
+              - epoch_times : binned epoch times,
+              - temperature : best-fit blackbody temperatures (Kelvin),
+              - radius : best-fit photospheric radii (cm),
+              - temp_err : 1σ uncertainties on the temperatures,
+              - radius_err : 1σ uncertainties on the radii.
+            Returns None if insufficient data are available.
+        """
+        from scipy.optimize import curve_fit
+        import astropy.units as uu
+        import numpy as np
+        import pandas as pd
+
+        # Get the filtered photometry.
+        # Assumes self.get_filtered_data() returns (time, time_err, y, y_err)
+        time_data, _, flux_data, flux_err_data = self.get_filtered_data()
+
+        redback.utils.logger.info("Estimating blackbody parameters for {}.".format(self.name))
+        redback.utils.logger.info("Using data mode = {}".format(self.data_mode))
+
+        # Determine whether we are in bandpass mode.
+        use_bandpass = False
+        if hasattr(self, "data_mode") and self.data_mode in ['flux', 'magnitude']:
+            use_bandpass = True
+            # Assume self.filtered_sncosmo_bands contains the (string) band names.
+            band_data = self.filtered_sncosmo_bands
+        else:
+            # Otherwise the flux data and frequencies are assumed to be given.
+            redback.utils.logger.info("Using effective wavelength approximation for {}".format(self.data_mode))
+            freq_data = self.filtered_frequencies
+
+        # Option: force effective wavelength approximation even if data_mode is bandpass.
+        force_eff = kwargs.get('use_eff_wavelength', False)
+        if use_bandpass and force_eff:
+            redback.utils.logger.warning("Using effective wavelength approximation for {}".format(self.data_mode))
+
+            if self.data_mode == 'magnitude':
+                # Convert the AB magnitudes to flux density using the redback function.
+                from redback.utils import abmag_to_flux_density_and_error_inmjy
+                flux_data, flux_err_data = abmag_to_flux_density_and_error_inmjy(flux_data, flux_err_data)
+                freq_data = redback.utils.bands_to_frequency(band_data)
+            else:
+                # Convert the bandpass fluxes to flux density using the redback function.
+                from redback.utils import bandpass_flux_to_flux_density, bands_to_effective_width
+                redback.utils.logger.warning("Ensure filters.csv has the correct bandpass effective widths for your filter.")
+                effective_widths = bands_to_effective_width(band_data)
+                freq_data = redback.utils.bands_to_frequency(band_data)
+                flux_data, flux_err_data = bandpass_flux_to_flux_density(flux_data, flux_err_data, effective_widths)
+            # Use the effective frequency approach.
+            use_bandpass = False
+
+        # Get initial guesses.
+        T_init = kwargs.get('T_init', 1e4)
+        R_init = kwargs.get('R_init', 1e15)
+        maxfev = kwargs.get('maxfev', 1000)
+
+        # Sort photometric data by time.
+        sort_idx = np.argsort(time_data)
+        time_data = time_data[sort_idx]
+        flux_data = flux_data[sort_idx]
+        flux_err_data = flux_err_data[sort_idx]
+        if use_bandpass:
+            band_data = np.array(band_data)[sort_idx]
+        else:
+            freq_data = np.array(freq_data)[sort_idx]
+
+        # Retrieve redshift.
+        redshift = np.nan_to_num(self.redshift)
+        if redshift <= 0.:
+            raise ValueError("Redshift must be provided to perform K-correction.")
+
+        # For effective frequency mode, K-correct frequencies.
+        if not use_bandpass:
+            freq_data, _ = redback.utils.calc_kcorrected_properties(frequency=freq_data,
+                                                                    redshift=redshift, time=0.)
+
+        # Define the model functions.
+        if not use_bandpass:
+            # --- Effective-wavelength model ---
+            def bb_model(freq, logT, logR):
+                T = 10 ** logT
+                R = 10 ** logR
+                # Compute the model flux density in erg/s/cm^2/Hz.
+                model_flux_cgs = redback.sed.blackbody_to_flux_density(T, R, distance, freq)
+                # Convert to mJy. (1 Jy = 1e-23 erg/s/cm^2/Hz; 1 mJy = 1e-3 Jy = 1e-26 erg/s/cm^2/Hz)
+                model_flux_mjy = (model_flux_cgs / (1e-26 * uu.erg / uu.s / uu.cm**2 / uu.Hz)).value
+                return model_flux_mjy
+
+            model_func = bb_model
+        else:
+            # --- Full bandpass integration model ---
+            # In this branch we do NOT want to pass strings to curve_fit.
+            # Instead, we will dummy-encode the independent variable as indices.
+            # We also capture the band names in a closure variable.
+            def bb_model_bandpass_from_index(x, logT, logR):
+                # Ensure x is a numpy array and convert indices to integers.
+                i_idx = np.round(x).astype(int)
+                # Retrieve all corresponding band names in one step.
+                bands = np.array(epoch_bands)[i_idx]
+                # Call bb_model_bandpass with the entire array of bands.
+                return bb_model_bandpass(bands, logT, logR, redshift, distance, output_format=self.data_mode)
+
+            def bb_model_bandpass(band, logT, logR, redshift, distance, output_format='magnitude'):
+                from redback.utils import calc_kcorrected_properties, lambda_to_nu, bandpass_magnitude_to_flux
+                # Create a wavelength grid (in Å) from 100 to 80,000 Å.
+                lambda_obs = np.geomspace(100, 80000, 300)
+                # Convert to frequency (Hz) and apply K-correction.
+                frequency, _ = calc_kcorrected_properties(frequency=lambda_to_nu(lambda_obs),
+                                                          redshift=redshift, time=0.)
+                T = 10 ** logT
+                R = 10 ** logR
+                # Compute the model SED (flux density in erg/s/cm^2/Hz).
+                model_flux = redback.sed.blackbody_to_flux_density(T, R, distance, frequency)
+                # Convert the SED to per-Å units.
+                _spectra = model_flux.to(uu.erg / uu.cm ** 2 / uu.s / uu.Angstrom,
+                                         equivalencies=uu.spectral_density(wav=lambda_obs * uu.Angstrom))
+                spectra = np.zeros((5, 300))
+                spectra[:, :] = _spectra.value
+                # Create a source object from the spectrum.
+                source = redback.sed.RedbackTimeSeriesSource(phase=np.array([0, 1, 2, 3, 4]),
+                                                             wave=lambda_obs, flux=spectra)
+                if output_format == 'flux':
+                    # Convert bandpass magnitude to flux.
+                    mag = source.bandmag(phase=0, band=band, magsys='ab')
+                    return bandpass_magnitude_to_flux(magnitude=mag, bands=band)
+                elif output_format == 'magnitude':
+                    mag = source.bandmag(phase=0, band=band, magsys='ab')
+                    return mag
+                else:
+                    raise ValueError("Unknown output_format in bb_model_bandpass.")
+
+            # Our wrapper for curve_fit uses dummy x-values.
+            model_func = bb_model_bandpass_from_index
+
+        # Initialize lists to store fit results.
+        epoch_times = []
+        temperatures = []
+        radii = []
+        temp_errs = []
+        radius_errs = []
+
+        t_min = np.min(time_data)
+        t_max = np.max(time_data)
+        bins = np.arange(t_min, t_max + bin_width, bin_width)
+        redback.utils.logger.info("Number of bins: {}".format(len(bins)))
+
+        # Ensure at least one bin has enough points.
+        bins_with_enough = [i for i in range(len(bins) - 1)
+                            if np.sum((time_data >= bins[i]) & (time_data < bins[i + 1])) >= min_filters]
+        if len(bins_with_enough) == 0:
+            redback.utils.logger.warning("No time bins have at least {} measurements. Fitting cannot proceed.".format(min_filters))
+            redback.utils.logger.warning("Try generating more data through GPs, increasing bin widths, or using fewer filters.")
+            return None
+
+        # Loop over bins (epochs): for each with enough data perform the fit.
+        for i in range(len(bins) - 1):
+            mask = (time_data >= bins[i]) & (time_data < bins[i + 1])
+            if np.sum(mask) < min_filters:
+                continue
+            t_epoch = np.mean(time_data[mask])
+            try:
+                if not use_bandpass:
+                    # Use effective frequency array (numeric).
+                    xdata = freq_data[mask]
+                else:
+                    # For full bandpass integration mode, we dummy encode xdata.
+                    # We ignore the value and simply use indices [0, 1, 2, ...].
+                    epoch_bands = list(band_data[mask])  # capture the list of bands for this epoch
+                    xdata = np.arange(len(epoch_bands))
+                popt, pcov = curve_fit(
+                    model_func,
+                    xdata,
+                    flux_data[mask],
+                    sigma=flux_err_data[mask],
+                    p0=[np.log10(T_init), np.log10(R_init)],
+                    absolute_sigma=True,
+                    maxfev=maxfev
+                )
+            except Exception as e:
+                redback.utils.logger.warning(f"Fit failed for epoch {i}: {e}")
+                redback.utils.logger.warning(f"Skipping epoch {i} with time {t_epoch:.2f} days.")
+                continue
+
+            logT_fit, logR_fit = popt
+            T_fit = 10 ** logT_fit
+            R_fit = 10 ** logR_fit
+            perr = np.sqrt(np.diag(pcov))
+            T_err = np.log(10) * T_fit * perr[0]
+            R_err = np.log(10) * R_fit * perr[1]
+
+            epoch_times.append(t_epoch)
+            temperatures.append(T_fit)
+            radii.append(R_fit)
+            temp_errs.append(T_err)
+            radius_errs.append(R_err)
+
+        if len(epoch_times) == 0:
+            redback.utils.logger.warning("No epochs with sufficient data yielded a successful fit.")
+            return None
+
+        df_bb = pd.DataFrame({
+            'epoch_times': epoch_times,
+            'temperature': temperatures,
+            'radius': radii,
+            'temp_err': temp_errs,
+            'radius_err': radius_errs
+        })
+
+        redback.utils.logger.info('Masking epochs with likely wrong extractions')
+        df_bb = df_bb[df_bb['temp_err'] / df_bb['temperature'] < 1]
+        df_bb = df_bb[df_bb['radius_err'] / df_bb['radius'] < 1]
+        return df_bb
+
+
+    def estimate_bolometric_luminosity(self, distance: float = 1e27, bin_width: float = 1.0,
+                                          min_filters: int = 3, **kwargs):
+        """
+        Estimate the bolometric luminosity as a function of time by fitting the blackbody SED
+        to the multi‑band photometry and then integrating that spectrum. For each epoch the bolometric
+        luminosity is computed using the Stefan–Boltzmann law evaluated at the source:
+
+            L_bol = 4 π R² σ_SB T⁴
+
+        Uncertainties in T and R are propagated assuming
+
+            (ΔL_bol / L_bol)² = (2 ΔR / R)² + (4 ΔT / T)².
+
+        Optionally, two corrections can be applied:
+
+        1. A boost–factor to “restore” missing blue flux. If a cutoff wavelength is provided via
+           the keyword 'lambda_cut' (in angstroms), it is converted to centimeters and a boost factor is
+           calculated as:
+
+               Boost = (F_tot / F_red)
+
+           where F_tot = σ_SB T⁴ and F_red is computed by numerically integrating π * B_λ(T)
+           from the cutoff wavelength (in cm) to infinity. The final (boosted) luminosity becomes:
+
+               L_boosted = Boost × (4π R² σ_SB T⁴).
+
+        2. An extinction correction. If the bolometric extinction (A_ext, in magnitudes) is supplied via
+           the keyword 'A_ext', the luminosity will be reduced by a factor of 10^(–0.4·A_ext) to account
+           for dust extinction. (A_ext defaults to 0.)
+
+        Parameters
+        ----------
+        distance : float, optional
+            Distance to the transient in centimeters. (Default is 1e27 cm.)
+        bin_width : float, optional
+            Width of the time bins (in days) used for grouping photometry. (Default is 1.0.)
+        min_filters : int, optional
+            Minimum number of independent filters required in a bin to perform a fit. (Default is 3.)
+        kwargs : dict, optional
+            Additional keyword arguments to pass to `estimate_bb_params` (e.g., maxfev, T_init, R_init,
+            use_eff_wavelength, etc.). Additionally:
+        - 'lambda_cut': If provided (in angstroms), the bolometric luminosity will be “boosted”
+          to account for missing blue flux.
+        - 'A_ext': Bolometric extinction in magnitudes. The observed luminosity is increased by a factor
+          10^(+0.4·A_ext). (Default is 0.)
+
+        Returns
+        -------
+        df_bol : pandas.DataFrame or None
+            A DataFrame containing columns:
+              - epoch_times: Mean time of the bin (days).
+              - temperature: Fitted blackbody temperature (K).
+              - radius: Fitted photospheric radius (cm).
+              - lum_bol: Derived bolometric luminosity (1e50 erg/s) computed as 4π R² σ_SB T⁴
+                         (boosted and extinction-corrected if requested).
+              - lum_bol_bb: Derived bolometric blackbody luminosity (1e50 erg/s) computed as 4π R² σ_SB T⁴,
+                            before applying either the boost or extinction correction.
+              - lum_bol_err: 1σ uncertainty on L_bol (1e50 erg/s) from error propagation.
+              - time_rest_frame: Epoch time divided by (1+redshift), i.e., the rest-frame time in days.
+            Returns None if no valid blackbody fits were obtained.
+        """
+        from redback.sed import boosted_bolometric_luminosity
+
+        # Retrieve optional lambda_cut (in angstroms) for the boost correction.
+        lambda_cut_angstrom = kwargs.pop('lambda_cut', None)
+        if lambda_cut_angstrom is not None:
+            redback.utils.logger.info("Including effects of missing flux due to line blanketing.")
+            redback.utils.logger.info(
+                "Using lambda_cut = {} Å for bolometric luminosity boost.".format(lambda_cut_angstrom))
+            # Convert lambda_cut from angstroms to centimeters (1 Å = 1e-8 cm)
+            lambda_cut = lambda_cut_angstrom * 1e-8
+        else:
+            redback.utils.logger.info("No lambda_cut provided; no correction applied. Assuming a pure blackbody SED.")
+            lambda_cut = None
+
+        # Retrieve optional extinction in magnitudes.
+        A_ext = kwargs.pop('A_ext', 0.0)
+        if A_ext != 0.0:
+            redback.utils.logger.info("Applying extinction correction with A_ext = {} mag.".format(A_ext))
+        extinction_factor = 10 ** (0.4 * A_ext)
+
+        # Retrieve blackbody parameters via your existing method.
+        df_bb = self.estimate_bb_params(distance=distance, bin_width=bin_width, min_filters=min_filters, **kwargs)
+        if df_bb is None or len(df_bb) == 0:
+            redback.utils.logger.warning("No valid blackbody fits were obtained; cannot estimate bolometric luminosity.")
+            return None
+
+        # Compute L_bol (or L_boosted) for each epoch and propagate uncertainties.
+        L_bol = []
+        L_bol_err = []
+        L_bol_bb = []
+        L_bol_bb_err = []
+        for index, row in df_bb.iterrows():
+            temp = row['temperature']
+            radius = row['radius']
+            T_err = row['temp_err']
+            R_err = row['radius_err']
+
+            # Use boosted luminosity if lambda_cut is provided.
+            if lambda_cut is not None:
+                lum, lum_bb = boosted_bolometric_luminosity(temp, radius, lambda_cut)
+            else:
+                lum = 4 * np.pi * (radius ** 2) * redback.constants.sigma_sb * (temp ** 4)
+                lum_bb = lum
+
+            # Apply extinction correction to both luminosities.
+            lum *= extinction_factor
+            lum_bb *= extinction_factor
+
+            # Propagate uncertainties using:
+            # (ΔL/L)² = (2 ΔR / R)² + (4 ΔT / T)².
+            rel_err = np.sqrt((2 * R_err / radius) ** 2 + (4 * T_err / temp) ** 2)
+            L_err = lum * rel_err
+            L_err_bb = lum_bb * rel_err
+
+            L_bol.append(lum)
+            L_bol_bb.append(lum_bb)
+            L_bol_err.append(L_err)
+            L_bol_bb_err.append(L_err_bb)
+
+        df_bol = df_bb.copy()
+        df_bol['lum_bol'] = np.array(L_bol) / 1e50
+        df_bol['lum_bol_err'] = np.array(L_bol_err) / 1e50
+        df_bol['lum_bol_bb'] = np.array(L_bol_bb) / 1e50
+        df_bol['lum_bol_bb_err'] = np.array(L_bol_bb_err) / 1e50
+        df_bol['time_rest_frame'] = df_bol['epoch_times'] / (1 + self.redshift)
+
+        redback.utils.logger.info('Masking bolometric estimates with likely wrong extractions')
+        df_bol = df_bol[df_bol['lum_bol_err'] / df_bol['lum_bol'] < 1]
+        redback.utils.logger.info(
+            "Estimated bolometric luminosity using blackbody integration (with boost and extinction corrections if specified).")
+        return df_bol

@@ -204,6 +204,266 @@ class GaussianLikelihood(_RedbackLikelihood):
     def _gaussian_log_likelihood(res: np.ndarray, sigma: Union[float, np.ndarray]) -> Any:
         return np.sum(- (res / sigma) ** 2 / 2 - np.log(2 * np.pi * sigma ** 2) / 2)
 
+class MixtureGaussianLikelihood(GaussianLikelihood):
+    def __init__(self, x: np.ndarray, y: np.ndarray,
+                 sigma: Union[float, None, np.ndarray],
+                 function: callable, kwargs: dict = None,
+                 priors=None, fiducial_parameters=None) -> None:
+        """
+        Mixture Gaussian likelihood that handles outliers by modeling each data point’s likelihood
+        as a weighted sum of two Gaussians. The likelihood for each datum is given by
+
+            L_i = α * N(y_i | f(x_i), σ²) + (1 - α) * N(y_i | f(x_i), σ_out²)
+
+        where:
+          - N(y_i | f(x_i), σ²) is the Gaussian probability density evaluated at y_i with mean f(x_i)
+            and variance σ².
+          - α is the inlier fraction (between 0 and 1).
+          - σ_out is the standard deviation for the outlier component.
+
+        In addition, the posterior probability that a data point is an outlier is computed via
+
+            P(outlier | r) = [(1 - α) * p_out(r)] / [α * p_in(r) + (1 - α) * p_out(r)]
+
+        where r is the residual (y - f(x)).
+
+        Parameters
+        ----------
+        x : np.ndarray
+            Independent variable data.
+        y : np.ndarray
+            Observed dependent variable data.
+        sigma : float, None, or np.ndarray
+            Standard deviation for the inlier component.
+        function : callable
+            Model function. It should accept x as the first argument.
+        kwargs : dict, optional
+            Additional keyword arguments for the model function.
+            sigma_out: Standard deviation of outlier data, is set to 10 times the inlier sigma if not provided.
+            alpha: Inlier fraction, i.e., fraction of data points from the underlying model. Default is 0.9.
+        priors : dict, optional
+            Priors for the parameters (not used in this implementation).
+        fiducial_parameters : dict, optional
+            Starting guesses for the model parameters.
+        """
+        super().__init__(x=x, y=y, sigma=sigma, function=function, kwargs=kwargs, priors=priors,
+                        fiducial_parameters=fiducial_parameters)
+
+        # Set default mixture parameters if not provided.
+        if 'alpha' not in self.parameters:
+            self.parameters['alpha'] = 0.9
+        if 'sigma_out' not in self.parameters:
+            if sigma is not None and isinstance(sigma, (int, float)):
+                self.parameters['sigma_out'] = sigma * 10
+            else:
+                self.parameters['sigma_out'] = 10.0
+
+        self._noise_log_likelihood = None
+    def _mixture_gaussian_log_likelihood(self, res: np.ndarray,
+                                         sigma: Union[float, np.ndarray],
+                                         sigma_out: Union[float, np.ndarray],
+                                         alpha: float) -> np.ndarray:
+        """
+        Compute the log-likelihood of the residuals under a mixture of two Gaussians in a stable
+        manner using the log-sum-exp trick.
+
+        Parameters
+        ----------
+        res : np.ndarray
+            Array of residuals.
+        sigma : float or np.ndarray
+            Standard deviation for the inlier Gaussian.
+        sigma_out : float or np.ndarray
+            Standard deviation for the outlier Gaussian.
+        alpha : float
+            Inlier fraction (between 0 and 1).
+
+        Returns
+        -------
+        np.ndarray
+            Log-likelihood for each residual under the mixture model.
+        """
+        # Compute log densities directly for inlier and outlier components:
+        logp_in = -0.5 * np.log(2 * np.pi) - np.log(sigma) - 0.5 * (res / sigma) ** 2
+        logp_out = -0.5 * np.log(2 * np.pi) - np.log(sigma_out) - 0.5 * (res / sigma_out) ** 2
+
+        # Combine contributions using log-sum-exp:
+        # log(sum_i exp(log_a_i)) can be computed as np.logaddexp(log_a, log_b) for two terms.
+        term_in = np.log(alpha) + logp_in
+        term_out = np.log(1 - alpha) + logp_out
+
+        # np.logaddexp is applied element-wise:
+        log_likelihood = np.logaddexp(term_in, term_out)
+        return log_likelihood
+
+    def p_in(self, r: np.ndarray) -> np.ndarray:
+        """
+        Compute the inlier probability density for residuals.
+
+        Parameters
+        ----------
+        r : np.ndarray
+            Residuals.
+
+        Returns
+        -------
+        np.ndarray
+            Inlier probability density evaluated at each residual.
+        """
+        sigma = self.sigma
+        return (1 / (np.sqrt(2 * np.pi) * sigma)) * np.exp(-0.5 * (r / sigma) ** 2)
+
+    def p_out(self, r: np.ndarray) -> np.ndarray:
+        """
+        Compute the outlier probability density for residuals.
+
+        Parameters
+        ----------
+        r : np.ndarray
+            Residuals.
+
+        Returns
+        -------
+        np.ndarray
+            Outlier probability density evaluated at each residual.
+        """
+        sigma_out = self.parameters.get('sigma_out')
+        return (1 / (np.sqrt(2 * np.pi) * sigma_out)) * np.exp(-0.5 * (r / sigma_out) ** 2)
+
+    def log_likelihood(self) -> float:
+        """
+        Compute the total log-likelihood for the mixture model.
+
+        For each data point, the log-likelihood is given by
+
+            log(L_i) = log(α * N(0, σ²) + (1 - α) * N(0, σ_out²)).
+
+        Returns
+        -------
+        float
+            The overall log-likelihood (summed over all data points).
+        """
+        res = self.residual
+        alpha = self.parameters.get('alpha')
+        sigma_out = self.parameters.get('sigma_out')
+        ll = np.sum(self._mixture_gaussian_log_likelihood(res, self.sigma, sigma_out, alpha))
+        return ll
+
+    def calculate_outlier_posteriors(self, model_prediction: np.ndarray) -> np.ndarray:
+        """
+        Calculate the posterior probability that each data point is an outlier.
+
+        Given a model prediction, the residual for each point is computed as:
+            r = y - model_prediction.
+        Then the posterior is given by
+
+            P(outlier | r) = [(1 - α) * p_out(r)] / [α * p_in(r) + (1 - α) * p_out(r)].
+
+        Parameters
+        ----------
+        model_prediction : np.ndarray
+            Model predictions for each data point.
+
+        Returns
+        -------
+        np.ndarray
+            An array of posterior probabilities (between 0 and 1) for each data point being an outlier.
+        """
+        r = self.y - model_prediction
+        pin = self.p_in(r)
+        pout = self.p_out(r)
+        alpha = self.parameters.get('alpha')
+        numerator = (1 - alpha) * pout
+        denominator = alpha * pin + (1 - alpha) * pout
+        posteriors = np.where(denominator > 0, numerator / denominator, 0.0)
+        return posteriors
+
+class StudentTLikelihood(GaussianLikelihood):
+    def __init__(
+            self, x: np.ndarray, y: np.ndarray, sigma: Union[float, None, np.ndarray],
+            function: callable, kwargs: dict = None, priors=None, fiducial_parameters=None) -> None:
+        """
+        A Student-t likelihood that handles outliers by assuming that the data are distributed
+        according to a Student-t distribution. The probability density function for each residual is
+        given by:
+
+            p(r | ν, σ) = Γ((ν+1)/2) / [√(νπ) σ Γ(ν/2)] · [1 + (r/σ)²/ν]^(–(ν+1)/2)
+
+        where ν (nu) is the degrees of freedom and σ is the scale (standard deviation).
+
+        :param x: The x values.
+        :type x: np.ndarray
+        :param y: The y values.
+        :type y: np.ndarray
+        :param sigma: The scale (standard deviation) for the model residuals.
+        :type sigma: Union[float, None, np.ndarray]
+        :param function:
+            The python function to fit to the data. Note, this must take the
+            dependent variable as its first argument. The other arguments will require a prior
+            and will be sampled over (unless a fixed value is given).
+        :type function: callable
+        :param kwargs: Any additional keywords for 'function'.
+        :type kwargs: dict
+        :param nu: The degrees of freedom for the Student-t distribution. Default to 3.0.
+        :param priors: The priors for the parameters. Default to None if not provided.
+        :type priors: Union[dict, None]
+        :param fiducial_parameters: The starting guesses for model parameters to use in the optimization.
+        :type fiducial_parameters: Union[dict, None]
+        """
+        self._noise_log_likelihood = None
+        super().__init__(x=x, y=y, sigma=sigma, function=function, kwargs=kwargs, priors=priors,
+                         fiducial_parameters=fiducial_parameters)
+
+        # Set default degrees of freedom for the Student-t distribution if not provided.
+        if 'nu' not in self.parameters:
+            self.parameters['nu'] = 3.0  # You can change this default as needed.
+
+    def noise_log_likelihood(self) -> float:
+        """
+        Compute the log-likelihood assuming the signal is pure noise (i.e. the residuals are just y).
+        """
+        if self._noise_log_likelihood is None:
+            nu = self.parameters.get('nu')
+            self._noise_log_likelihood = self._student_t_log_likelihood(res=self.y, sigma=self.sigma, nu=nu)
+        return self._noise_log_likelihood
+
+    def log_likelihood(self) -> float:
+        """
+        Compute the total log-likelihood for the Student-t likelihood model.
+
+        :return: The log-likelihood.
+        :rtype: float
+        """
+        nu = self.parameters.get('nu')
+        return np.nan_to_num(self._student_t_log_likelihood(res=self.residual, sigma=self.sigma, nu=nu))
+
+    @staticmethod
+    def _student_t_log_likelihood(res: np.ndarray, sigma: Union[float, np.ndarray], nu: float) -> Any:
+        """
+        Computes the log likelihood of the Student-t distribution for the residuals.
+
+        For each data point, the log probability is given by:
+
+          log[p(r|ν,σ)] = gammaln((ν+1)/2) - gammaln(ν/2)
+                           - 0.5*log(νπ) - log(σ)
+                           - ((ν+1)/2)*log[1 + (r/σ)²/ν]
+
+        :param res: The residuals.
+        :type res: np.ndarray
+        :param sigma: The scale parameter.
+        :type sigma: Union[float, np.ndarray]
+        :param nu: Degrees of freedom.
+        :type nu: float
+        :return: The total log-likelihood.
+        :rtype: float
+        """
+        term1 = gammaln((nu + 1) / 2) - gammaln(nu / 2)
+        term2 = - 0.5 * np.log(nu * np.pi)
+        term3 = - np.log(sigma)
+        term4 = - ((nu + 1) / 2) * np.log(1 + (res / sigma) ** 2 / nu)
+        log_pdf = term1 + term2 + term3 + term4
+        return np.sum(log_pdf)
+
 
 class GaussianLikelihoodUniformXErrors(GaussianLikelihood):
     def __init__(

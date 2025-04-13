@@ -15,4 +15,4 @@ We provide a simplified example of jointly fitting an afterglow and the gravitat
 We note that this framework can also be used to jointly analyse multiple data types from the same source, for example, the optical photometry of a kilonova and a radio afterglow.
 We note that in practice, this is often done with a single likelihood by approximating the magnitude data as a flux density.
 
-Another more general example, is jointly fitting the spectrum and photometry.
+Another more general example, is jointly fitting the spectrum and photometry. Please check the examples for some specific scripts showing how to fit with joint likelihoods in :code:`redback`.

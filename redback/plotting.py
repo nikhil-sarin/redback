@@ -413,7 +413,7 @@ class SpecPlotter(object):
 
     @property
     def _y_err(self) -> np.ndarray:
-            return np.array([np.abs(self.transient.y_err)])
+        return np.array([np.abs(self.transient.flux_density_err)])
 
     @property
     def _data_plot_outdir(self) -> str:
@@ -589,6 +589,16 @@ class IntegratedFluxPlotter(Plotter):
         self._save_and_show(filepath=self._residual_plot_filepath, save=save, show=show)
         return axes
 
+
+class LuminosityOpticalPlotter(IntegratedFluxPlotter):
+
+    @property
+    def _xlabel(self) -> str:
+        return r"Time since explosion [days]"
+
+    @property
+    def _ylabel(self) -> str:
+        return r"L$_{\rm bol}$ [$10^{50}$ erg s$^{-1}$]"
 
 class LuminosityPlotter(IntegratedFluxPlotter):
     pass
