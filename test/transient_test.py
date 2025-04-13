@@ -1160,3 +1160,83 @@ class TestFromSimulatedOpticalData(unittest.TestCase):
                 plotting_order=None,
                 use_phase_model=False,
             )
+
+class TestFromLasairTransient(unittest.TestCase):
+    def setUp(self) -> None:
+        self.mock_data = {
+            "time (days)": [0.1, 0.2, 0.3],
+            "time": [59000.1, 59000.2, 59000.3],
+            "magnitude": [20.5, 20.6, 20.7],
+            "e_magnitude": [0.1, 0.1, 0.1],
+            "band": ["g", "r", "i"],
+            "bands": ["g", "r", "i"],
+            "wavelength [Hz]": [1e14, 2e14, 3e14],
+            "sncosmo_name": ["ztfg", "ztfr", "ztfi"],
+            "flux(erg/cm2/s)": [1e-15, 1.1e-15, 1.2e-15],
+            "flux_error": [1e-16, 1.1e-16, 1.2e-16],
+            "flux_density(mjy)": [0.35, 0.36, 0.37],
+            "flux_density_error": [0.05, 0.05, 0.05]
+        }
+        self.mock_df = pd.DataFrame(self.mock_data)
+
+        self.mock_directory = mock.MagicMock()
+        self.mock_directory.processed_file_path = "mock/path/to/file.csv"
+
+    def tearDown(self) -> None:
+        pass
+
+    @mock.patch("redback.get_data.directory.lasair_directory_structure")
+    @mock.patch("pandas.read_csv")
+    def test_from_lasair_data_basic_functionality(self, mock_read_csv, mock_directory_structure):
+        mock_directory_structure.return_value = self.mock_directory
+        mock_read_csv.return_value = self.mock_df
+
+        transient = redback.transient.Transient.from_lasair_data(
+            name="test_transient",
+            data_mode="magnitude",
+            active_bands="all",
+            use_phase_model=False
+        )
+
+        self.assertEqual(transient.name, "test_transient")
+        self.assertEqual(transient.data_mode, "magnitude")
+        np.testing.assert_array_equal(transient.time, self.mock_data["time (days)"])
+        np.testing.assert_array_equal(transient.time_mjd, self.mock_data["time"])
+        np.testing.assert_array_equal(transient.magnitude, self.mock_data["magnitude"])
+        np.testing.assert_array_equal(transient.magnitude_err, self.mock_data["e_magnitude"])
+        np.testing.assert_array_equal(transient.bands, self.mock_data["band"])
+        np.testing.assert_array_equal(transient.flux, self.mock_data["flux(erg/cm2/s)"])
+        np.testing.assert_array_equal(transient.flux_err, self.mock_data["flux_error"])
+        np.testing.assert_array_equal(transient.flux_density, self.mock_data["flux_density(mjy)"])
+        np.testing.assert_array_equal(transient.flux_density_err, self.mock_data["flux_density_error"])
+
+    @mock.patch("redback.get_data.directory.lasair_directory_structure")
+    @mock.patch("pandas.read_csv")
+    def test_from_lasair_data_with_plotting_order(self, mock_read_csv, mock_directory_structure):
+        mock_directory_structure.return_value = self.mock_directory
+        mock_read_csv.return_value = self.mock_df
+
+        plotting_order = np.array(["r", "g", "i"])
+        transient = redback.transient.Transient.from_lasair_data(
+            name="test_transient",
+            data_mode="magnitude",
+            active_bands="all",
+            use_phase_model=False,
+            plotting_order=plotting_order
+        )
+
+        self.assertEqual(transient.plotting_order.tolist(), plotting_order.tolist())
+
+    @mock.patch("redback.get_data.directory.lasair_directory_structure")
+    @mock.patch("pandas.read_csv")
+    def test_from_lasair_data_invalid_data_mode(self, mock_read_csv, mock_directory_structure):
+        mock_directory_structure.return_value = self.mock_directory
+        mock_read_csv.return_value = self.mock_df
+
+        with self.assertRaises(ValueError):
+            redback.transient.Transient.from_lasair_data(
+                name="test_transient",
+                data_mode="invalid_mode",
+                active_bands="all",
+                use_phase_model=False
+            )
