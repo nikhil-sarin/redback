@@ -275,6 +275,7 @@ class Transient(object):
         :return: Six elements when querying magnitude or flux_density data, Eight for 'all'.
         :rtype: tuple
         """
+        DATA_MODES = ['luminosity', 'flux', 'flux_density', 'magnitude', 'counts', 'ttes', 'all']
         df = pd.read_csv(processed_file_path)
         time_days = np.array(df["time (days)"])
         time_mjd = np.array(df["time"])
@@ -283,6 +284,8 @@ class Transient(object):
         bands = np.array(df["band"])
         flux_density = np.array(df["flux_density(mjy)"])
         flux_density_err = np.array(df["flux_density_error"])
+        if data_mode not in DATA_MODES:
+            raise ValueError(f"Data mode {data_mode} not in {DATA_MODES}")
         if data_mode == "magnitude":
             return time_days, time_mjd, magnitude, magnitude_err, bands
         elif data_mode == "flux_density":
