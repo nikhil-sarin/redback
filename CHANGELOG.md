@@ -1,6 +1,18 @@
 # All notable changes will be documented in this file
 
 ## [1.1] 2025-04-13
+Version 1.12 release of redback
+
+## Added and changed
+* Bugfix for shock cooling and arnett
+* Added bolometric version of shock cooling and arnett
+* Added basic salt2 model direct interface
+* Added some unit tests
+
+## What's Changed
+* shock cooling and arnett bolometric + bugfix  by @nikhil-sarin in https://github.com/nikhil-sarin/redback/pull/268
+
+## [1.1] 2025-04-13
 Version 1.1 release of redback
 
 ## Added and changed
