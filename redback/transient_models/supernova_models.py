@@ -115,6 +115,36 @@ def sncosmo_models(time, redshift, model_kwargs=None, **kwargs):
     elif kwargs['output_format'] == 'sncosmo_source':
         return model
 
+@citation_wrapper('https://ui.adsabs.harvard.edu/abs/2007A%26A...466...11G/abstract, sncosmo')
+def salt2(time, redshift, x0, x1, c, peak_time, **kwargs):
+    """
+    A wrapper to the salt2 model in sncosmo
+
+    :param time: time in days in observer frame (in mjd days)
+    :param redshift: redshift
+    :param x0: x0
+    :param x1: x1
+    :param c: c
+    :param peak_time: peak time in mjd
+    :param kwargs: Additional keyword arguments
+    :param cosmology: astropy cosmology object by default set to Planck18
+    :param mw_extinction: Boolean for whether there is MW extinction or not. Default True
+    :param host_extinction: Boolean for whether there is host extinction or not. Default True
+            if used adds an extra parameter ebv which must also be in kwargs; host galaxy E(B-V). Set to 0.1 by default
+    :param use_set_peak_magnitude: Boolean for whether to set the peak magnitude or not. Default False,
+        if True the following keyword arguments also apply. Else the brightness is set by the model_kwargs.
+    :param peak_abs_mag: SNe peak absolute magnitude default set to -19
+    :param peak_abs_mag_band: Band corresponding to the peak abs mag limit, default to standard::b. Must be in SNCosmo
+    :param magnitude_system: Mag system; default ab
+    :param output_format: 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
+    :return: set by output format - 'flux_density', 'magnitude', 'flux', 'sncosmo_source'
+    """
+    kwargs['sncosmo_model'] = 'salt2'
+    kwargs['peak_time'] = peak_time
+    model_kwargs = {'x0':x0, 'x1':x1, 'c':c}
+    out = sncosmo_models(time=time, redshift=redshift, model_kwargs=model_kwargs, **kwargs)
+    return out
+
 @citation_wrapper('redback')
 def exponential_powerlaw_bolometric(time, lbol_0, alpha_1, alpha_2, tpeak_d, **kwargs):
     """

@@ -26,7 +26,7 @@ class TestModels(unittest.TestCase):
         return prior_dict
 
     def test_models(self):
-        kwargs = dict(frequency=2e14)
+        kwargs = dict(frequency=6e14)
         times = np.array([1, 2, 3])
         for f in self.prior_files:
             print(f)
@@ -66,7 +66,7 @@ class TestPhaseModels(unittest.TestCase):
             print(f)
             model_name = f.replace(".prior", "")
             skip_dict = ['bazin_sne', 'villar_sne', 'blackbody_spectrum_with_absorption_and_emission_lines',
-                         'powerlaw_spectrum_with_absorption_and_emission_lines', 'exp_rise_powerlaw_decline']
+                         'powerlaw_spectrum_with_absorption_and_emission_lines', 'exp_rise_powerlaw_decline', 'salt2']
             if model_name in skip_dict:
                 print('Skipping {}'.format(model_name))
                 pass

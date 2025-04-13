@@ -47,7 +47,6 @@ For a full up to date list of models implemented in :code:`redback`, look at the
     - magnetar + nickel
     - SLSN
     - exponential powerlaw
-    - SNcosmo
     - Shock cooling + Arnett
     - Every model provided by `SNcosmo <https://sncosmo.readthedocs.io/en/stable/index.html>`_
     - Several more...
@@ -210,9 +209,10 @@ For a specific model, users can see the extra keyword arguments by looking at th
 And can allow for more flexibility in the models while keeping the interface of the function simple for the end user.
 
 For several models we also allow users to output the light curve in different formats.
-For example, users can output the light curve in `flux_density` or `magnitude` by passing in those via the keyword argument `output_format`.
+For example, users can output the light curve in `flux_density`, `magnitude`, or `flux` by passing in those via the keyword argument `output_format`.
 Or `spectra` itself which will output a multidimensional array of the spectra at each time.
-Or `sncosmo_source` which will output the sncosmo source object for the model and the users can then use this to make their own plots or look at model with an SNCosmo interface.
+Or `sncosmo_source` which will output the sncosmo source object for the model and users can then use this to make their own plots or look at model with an SNCosmo interface.
+Some models also have an additional flag for `luminosity` or a namedtuple which contains a lot of useful diagnostic properties.
 
 We note that for afterglow models we generally assume the magnitude conversion is a simple conversion from flux density to magnitude, ignoring the affect of the full spectrum.
 This can be done in the proper way for the `afterglow_sed` model variants.
