@@ -3,7 +3,7 @@ import pandas as pd
 from redback.transient_models.phenomenological_models import exponential_powerlaw, fallback_lbol
 from redback.transient_models.magnetar_models import magnetar_only, basic_magnetar
 from redback.transient_models.magnetar_driven_ejecta_models import _ejecta_dynamics_and_interaction
-from redback.transient_models.shock_powered_models import _shock_cooling, _shocked_cocoon, _csm_shock_breakout
+from redback.transient_models.shock_powered_models import  _shocked_cocoon, _csm_shock_breakout
 import redback.interaction_processes as ip
 import redback.sed as sed
 import redback.photosphere as photosphere
@@ -363,10 +363,40 @@ def arnett(time, redshift, f_nickel, mej, **kwargs):
                                                               spectra=spectra, lambda_array=lambda_observer_frame,
                                                               **kwargs)
 
+def shock_cooling_and_arnett_bolometric(time, log10_mass, log10_radius, log10_energy,
+                             f_nickel, mej, vej, kappa, kappa_gamma, temperature_floor, **kwargs):
+    """
+    Bolometric luminosity of shock cooling and arnett model
+
+    :param time: time in days in source frame
+    :param log10_mass: log10 mass of extended material in solar masses
+    :param log10_radius: log10 radius of extended material in cm
+    :param log10_energy: log10 energy of extended material in ergs
+    :param f_nickel: fraction of nickel mass
+    :param mej: total ejecta mass in solar masses
+    :param vej: velocity of ejecta in km/s
+    :param kappa: opacity in cm^2/g
+    :param kappa_gamma: gamma-ray opacity in cm^2/g
+    :param temperature_floor: temperature floor in K
+    :param kwargs: Additional keyword arguments
+    :param nn: density power law slope
+    :param delta: inner density power law slope
+    :return: bolometric luminosity in erg/s
+    """
+    from redback.transient_models.shock_powered_models import shock_cooling_bolometric
+    lbol_1 = shock_cooling_bolometric(time=time * day_to_s, log10_mass=log10_mass, log10_radius=log10_radius,
+                                      log10_energy=log10_energy, **kwargs)
+    lbol_2 = arnett_bolometric(time=time, f_nickel=f_nickel, mej=mej, vej=vej, kappa=kappa,
+                               kappa_gamma=kappa_gamma, temperature_floor=temperature_floor, **kwargs)
+    return lbol_1 + lbol_2
+
+
 @citation_wrapper('https://ui.adsabs.harvard.edu/abs/1982ApJ...253..785A/abstract, Piro+2021')
 def shock_cooling_and_arnett(time, redshift, log10_mass, log10_radius, log10_energy,
-                             f_nickel, mej, **kwargs):
+                             f_nickel, mej, vej, kappa, kappa_gamma, temperature_floor, **kwargs):
     """
+    Photometric light curve of shock cooling and arnett model
+
     :param time: time in days
     :param redshift: source redshift
     :param log10_mass: log10 mass of extended material in solar masses
@@ -374,12 +404,13 @@ def shock_cooling_and_arnett(time, redshift, log10_mass, log10_radius, log10_ene
     :param log10_energy: log10 energy of extended material in ergs
     :param f_nickel: fraction of nickel mass
     :param mej: total ejecta mass in solar masses
-    :param kwargs: Must be all the kwargs required by the specific interaction_process, photosphere, sed methods used
-         e.g., for Diffusion and TemperatureFloor: kappa, kappa_gamma, vej (km/s), temperature_floor
+    :param vej: velocity of ejecta in km/s
+    :param kappa: opacity in cm^2/g
+    :param kappa_gamma: gamma-ray opacity in cm^2/g
+    :param temperature_floor: temperature floor in K
+    :param kwargs: Additional keyword arguments
     :param nn: density power law slope
     :param delta: inner density power law slope
-    :param interaction_process: Default is Diffusion.
-            Can also be None in which case the output is just the raw engine luminosity, or another interaction process.
     :param photosphere: Default is TemperatureFloor.
             kwargs must have vej or relevant parameters if using different photosphere model
     :param sed: Default is blackbody.
@@ -391,33 +422,19 @@ def shock_cooling_and_arnett(time, redshift, log10_mass, log10_radius, log10_ene
     :param cosmology: Cosmology to use for luminosity distance calculation. Defaults to Planck18. Must be a astropy.cosmology object.
     :return: set by output format - 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
     """
-    kwargs['interaction_process'] = kwargs.get("interaction_process", ip.Diffusion)
     kwargs['photosphere'] = kwargs.get("photosphere", photosphere.TemperatureFloor)
     kwargs['sed'] = kwargs.get("sed", sed.Blackbody)
     cosmology = kwargs.get('cosmology', cosmo)
     dl = cosmology.luminosity_distance(redshift).cgs.value
-    mass = 10 ** log10_mass
-    radius = 10 ** log10_radius
-    energy = 10 ** log10_energy
 
     if kwargs['output_format'] == 'flux_density':
         frequency = kwargs['frequency']
         frequency, time = calc_kcorrected_properties(frequency=frequency, redshift=redshift, time=time)
-        output = _shock_cooling(time * day_to_s, mass=mass, radius=radius, energy=energy, **kwargs)
-        lbol_1 = output.lbol
-        lbol_2 = _nickelcobalt_engine(time=time, f_nickel=f_nickel, mej=mej)
-        lbol = lbol_1 + lbol_2
-
-        if kwargs['interaction_process'] is not None:
-            dense_resolution = kwargs.get("dense_resolution", 300)
-            dense_times = np.linspace(0.01, time[-1]+100, dense_resolution)
-            dense_lbols = _nickelcobalt_engine(time=dense_times, f_nickel=f_nickel, mej=mej)
-            shock_cooling = _shock_cooling(dense_times * day_to_s, mass=mass, radius=radius, energy=energy, **kwargs).lbol
-            dense_lbols += shock_cooling
-            interaction_class = kwargs['interaction_process'](time=time, dense_times=dense_times, luminosity=dense_lbols,
-                                                              mej=mej, **kwargs)
-            lbol = interaction_class.new_luminosity
-        photo = kwargs['photosphere'](time=time, luminosity=lbol, **kwargs)
+        lbol = shock_cooling_and_arnett_bolometric(time, log10_mass=log10_mass, log10_radius=log10_radius,
+                                                   log10_energy=log10_energy, f_nickel=f_nickel,
+                                                   mej=mej, vej=vej, kappa=kappa, kappa_gamma=kappa_gamma,
+                                                   temperature_floor=temperature_floor, **kwargs)
+        photo = kwargs['photosphere'](time=time, luminosity=lbol, vej=vej, temperature_floor=temperature_floor, **kwargs)
 
         sed_1 = kwargs['sed'](temperature=photo.photosphere_temperature, r_photosphere=photo.r_photosphere,
                 frequency=frequency, luminosity_distance=dl)
@@ -430,10 +447,11 @@ def shock_cooling_and_arnett(time, redshift, log10_mass, log10_radius, log10_ene
         time_observer_frame = time_temp * (1. + redshift)
         frequency, time = calc_kcorrected_properties(frequency=lambda_to_nu(lambda_observer_frame),
                                                      redshift=redshift, time=time_observer_frame)
-        lbol_1 = _nickelcobalt_engine(time=time, f_nickel=f_nickel, mej=mej)
-        lbol_2 = _shock_cooling(time * day_to_s, mass=mass, radius=radius, energy=energy, **kwargs).lbol
-        lbol = lbol_1 + lbol_2
-        photo = kwargs['photosphere'](time=time, luminosity=lbol, **kwargs)
+        lbol = shock_cooling_and_arnett_bolometric(time, log10_mass=log10_mass, log10_radius=log10_radius,
+                                                   log10_energy=log10_energy, f_nickel=f_nickel,
+                                                   mej=mej, vej=vej, kappa=kappa, kappa_gamma=kappa_gamma,
+                                                   temperature_floor=temperature_floor, **kwargs)
+        photo = kwargs['photosphere'](time=time, luminosity=lbol, vej=vej, temperature_floor=temperature_floor, **kwargs)
         sed_1 = kwargs['sed'](temperature=photo.photosphere_temperature, r_photosphere=photo.r_photosphere,
                               frequency=frequency[:,None], luminosity_distance=dl)
         fmjy = sed_1.flux_density.T
