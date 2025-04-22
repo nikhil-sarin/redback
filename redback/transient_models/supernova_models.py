@@ -833,9 +833,9 @@ def slsn(time, redshift, p0, bp, mass_ns, theta_pb,**kwargs):
         lbol = slsn_bolometric(time=time, p0=p0, bp=bp, mass_ns=mass_ns, theta_pb=theta_pb, **kwargs)
         photo = kwargs['photosphere'](time=time, luminosity=lbol, **kwargs)
         full_sed = np.zeros((len(time), len(frequency)))
-        ss = kwargs['sed'](time=time_temp/day_to_s, temperature=photo.photosphere_temperature,
+        ss = kwargs['sed'](time=time, temperature=photo.photosphere_temperature,
                         r_photosphere=photo.r_photosphere, frequency=frequency[:, None],
-                        luminosity_distance=dl, cutoff_wavelength=cutoff_wavelength, luminosity=output.bolometric_luminosity)
+                        luminosity_distance=dl, cutoff_wavelength=cutoff_wavelength, luminosity=lbol)
         full_sed = ss.flux_density.to(uu.mJy).value.T    
         spectra = (full_sed * uu.mJy).to(uu.erg / uu.cm ** 2 / uu.s / uu.Angstrom,
                                     equivalencies=uu.spectral_density(wav=lambda_observer_frame * uu.Angstrom))
