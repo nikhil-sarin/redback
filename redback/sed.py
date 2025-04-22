@@ -239,8 +239,12 @@ class _SED(object):
         # add distance units
         flux_density /= (4 * np.pi * self.luminosity_distance ** 2)
         # get rid of Angstrom and normalise to frequency
-        flux_density *= nu_to_lambda(self.frequency)
-        flux_density /= self.frequency
+        if flux_density.ndim == 2:
+            flux_density *= nu_to_lambda(np.tile(self.frequency.T, (len(self.time), 1)).T)
+            flux_density /= np.tile(self.frequency.T, (len(self.time), 1)).T
+        else:
+            flux_density *= nu_to_lambda(self.frequency)
+            flux_density /= self.frequency
 
         # add units
         flux_density = flux_density << self.UNITS
@@ -338,8 +342,10 @@ class CutoffBlackbody(_SED):
     @property
     def wavelength(self):
         if len(self.frequency) == 1:
-            self.frequency = np.ones(len(self.time)) * self.frequency
+            self.frequency = np.ones(len(self.time)) * self.frequency              
         wavelength = nu_to_lambda(self.frequency) * angstrom_cgs
+        if len(wavelength) != len(self.time):
+            wavelength = np.tile(wavelength.T, (len(self.time), 1)).T
         return wavelength
 
     @property
@@ -351,15 +357,28 @@ class CutoffBlackbody(_SED):
         return self.X_CONST * np.array(range(1, 11))
 
     def _set_sed(self):
-        self.sed[self.mask] = \
-            self.FLUX_CONST * (self.r_photosphere[self.mask]**2 / self.cutoff_wavelength /
-                               self.wavelength[self.mask] ** 4) \
-            / np.expm1(self.X_CONST / self.wavelength[self.mask] / self.temperature[self.mask])
-        self.sed[~self.mask] = \
-            self.FLUX_CONST * (self.r_photosphere[~self.mask]**2 / self.wavelength[~self.mask]**5) \
-            / np.expm1(self.X_CONST / self.wavelength[~self.mask] / self.temperature[~self.mask])
-        # Apply renormalisation
-        self.sed *= self.norms[np.searchsorted(self.unique_times, self.time)]
+        if np.size(self.wavelength) != np.size(self.time):
+            self.sed = np.zeros((len(self.frequency), len(self.time)))
+            self.r_photosphere = np.tile(self.r_photosphere, (len(self.frequency), 1))
+            self.temperature = np.tile(self.temperature, (len(self.frequency), 1))
+            self.sed[self.mask] = \
+                self.FLUX_CONST * (self.r_photosphere[self.mask]**2 / self.cutoff_wavelength /
+                                self.wavelength[self.mask] ** 4) \
+                / np.expm1(self.X_CONST / self.wavelength[self.mask] / self.temperature[self.mask])
+            self.sed[~self.mask] = \
+                self.FLUX_CONST * (self.r_photosphere[~self.mask]**2 / self.wavelength[~self.mask]**5) \
+                / np.expm1(self.X_CONST / self.wavelength[~self.mask] / self.temperature[~self.mask])
+            self.sed *= self.norms[np.searchsorted(self.unique_times, self.time)]
+        else:    
+            self.sed[self.mask] = \
+                self.FLUX_CONST * (self.r_photosphere[self.mask]**2 / self.cutoff_wavelength /
+                            self.wavelength[self.mask] ** 4) \
+                / np.expm1(self.X_CONST / self.wavelength[self.mask] / self.temperature[self.mask])
+            self.sed[~self.mask] = \
+                self.FLUX_CONST * (self.r_photosphere[~self.mask]**2 / self.wavelength[~self.mask]**5) \
+                / np.expm1(self.X_CONST / self.wavelength[~self.mask] / self.temperature[~self.mask])
+            # Apply renormalisation
+            self.sed *= self.norms[np.searchsorted(self.unique_times, self.time)]
 
     def _set_norm(self):
         self.norms = self.luminosity[self.uniq_is] / \
