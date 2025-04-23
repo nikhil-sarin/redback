@@ -239,7 +239,12 @@ class _SED(object):
         # add distance units
         flux_density /= (4 * np.pi * self.luminosity_distance ** 2)
         # get rid of Angstrom and normalise to frequency
-        if flux_density.ndim == 2:
+        try:
+            self.time
+            flag = True
+        except NameError:
+            flag = False
+        if (flux_density.ndim == 2) and flag:
             flux_density *= nu_to_lambda(np.tile(self.frequency.T, (len(self.time), 1)).T)
             flux_density /= np.tile(self.frequency.T, (len(self.time), 1)).T
         else:
