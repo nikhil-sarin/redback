@@ -242,7 +242,7 @@ class _SED(object):
         try:
             self.time
             flag = True
-        except NameError:
+        except AttributeError:
             flag = False
         if (flux_density.ndim == 2) and flag:
             flux_density *= nu_to_lambda(np.tile(self.frequency.T, (len(self.time), 1)).T)
