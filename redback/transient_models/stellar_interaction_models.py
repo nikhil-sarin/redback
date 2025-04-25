@@ -150,15 +150,24 @@ def wr_bh_merger(time, redshift, M_star, M_bh, M_fast, M_pre, v_fast, v_slow, al
     :param v_slow: Velocity of the slow component in km/s
     :param alpha: Viscosity parameter
     :param eta: Efficiency of conversion of accretion energy to radiation
-    :param kwargs: Additional parameters
-    :param output_format: whether to output dynamics or bolometric luminosity
+    :param kwargs: Additional parameters - Must be all the kwargs required by the specific photosphere, sed methods used
+             e.g., for TemperatureFloor: vej (km/s) and temperature_floor
     :param theta: Disk aspect ratio
     :param phi_0: Solid angle of the slow component
     :param kappa_s: Opacity of the slow component
     :param kappa_f: Opacity of the fast component
     :param kappa_x: Opacity of the x-ray component
     :param N: Number of pre-merger orbits
-    :return: bolometric luminsoity or dynamics output
+    :param photosphere: Default is TemperatureFloor.
+            kwargs must have vej or relevant parameters if using different photosphere model
+    :param sed: Default is CutoffBlackbody.
+    :param frequency: Required if output_format is 'flux_density'.
+        frequency to calculate - Must be same length as time array or a single number).
+    :param bands: Required if output_format is 'magnitude' or 'flux'.
+    :param output_format: 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
+    :param lambda_array: Optional argument to set your desired wavelength array (in Angstroms) to evaluate the SED on.
+    :param cosmology: Cosmology to use for luminosity distance calculation. Defaults to Planck18. Must be a astropy.cosmology object.
+    :return: set by output format - 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
     """
 
     theta = kwargs.get('theta', 0.33)
@@ -167,7 +176,6 @@ def wr_bh_merger(time, redshift, M_star, M_bh, M_fast, M_pre, v_fast, v_slow, al
     kappa_f = kwargs.get('kappa_f', 0.2)
     kappa_x = kwargs.get('kappa_x', 0.4)
     N = kwargs.get('N', 30)
-    kwargs['interaction_process'] = kwargs.get("interaction_process", ip.Diffusion)
     kwargs['photosphere'] = kwargs.get("photosphere", photosphere.TemperatureFloor)
     kwargs['sed'] = kwargs.get("sed", sed.Blackbody)
     cosmology = kwargs.get('cosmology', cosmo)
@@ -178,9 +186,8 @@ def wr_bh_merger(time, redshift, M_star, M_bh, M_fast, M_pre, v_fast, v_slow, al
         frequency = kwargs['frequency']
         frequency, time = calc_kcorrected_properties(frequency=frequency, redshift=redshift, time=time)
         output = _wr_bh_merger(time_temp, M_star, M_bh, M_fast, M_pre, v_fast, v_slow, alpha, eta, **kwargs)
-        photo_fast = kwargs['photosphere'](time=time_temp/day_to_s, luminosity=output.reprocessed_luminosity, **kwargs) 
-        photo_slow = kwargs['photosphere'](time=time_temp/day_to_s, luminosity=output.shock_powered_luminosity, **kwargs)
-
+        photo_fast = kwargs['photosphere'](time=time_temp/day_to_s, luminosity=output.reprocessed_luminosity, vej = v_fast * speed_of_light / km_cgs, **kwargs) 
+        photo_slow = kwargs['photosphere'](time=time_temp/day_to_s, luminosity=output.shock_powered_luminosity, vej = v_slow, **kwargs)
         temp_func_fast = interp1d(time_temp/day_to_s, y=photo_fast.photosphere_temperature)
         temp_func_slow = interp1d(time_temp/day_to_s, y=photo_slow.photosphere_temperature)
         rad_func_fast = interp1d(time_temp/day_to_s, y=photo_fast.r_photosphere)
@@ -204,8 +211,8 @@ def wr_bh_merger(time, redshift, M_star, M_bh, M_fast, M_pre, v_fast, v_slow, al
         frequency, time = calc_kcorrected_properties(frequency=lambda_to_nu(lambda_observer_frame),
                                               redshift=redshift, time=time_observer_frame)
         output = _wr_bh_merger(time_temp, M_star, M_bh, M_fast, M_pre, v_fast, v_slow, alpha, eta, **kwargs)
-        photo_fast = kwargs['photosphere'](time=time_temp/day_to_s, luminosity=output.reprocessed_luminosity, **kwargs)
-        photo_slow = kwargs['photosphere'](time=time_temp/day_to_s, luminosity=output.shock_powered_luminosity, **kwargs)
+        photo_fast = kwargs['photosphere'](time=time_temp/day_to_s, luminosity=output.reprocessed_luminosity, vej = v_fast * speed_of_light / km_cgs, **kwargs) 
+        photo_slow = kwargs['photosphere'](time=time_temp/day_to_s, luminosity=output.shock_powered_luminosity, vej = v_slow, **kwargs)
         sed_fast = kwargs['sed'](temperature=photo_fast.photosphere_temperature, r_photosphere=photo_fast.r_photosphere,
                     frequency=frequency[:,None], luminosity_distance=dl)
         sed_slow = kwargs['sed'](temperature=photo_slow.photosphere_temperature, r_photosphere=photo_slow.r_photosphere,
