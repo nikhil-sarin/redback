@@ -117,7 +117,7 @@ def wr_bh_merger_bolometric(time, M_star, M_bh, M_fast, M_pre, v_fast, v_slow, a
     :param kappa_f: Opacity of the fast component
     :param kappa_x: Opacity of the x-ray component
     :param N: Number of pre-merger orbits
-    :return: bolometric luminsoity or dynamics output
+    :return: bolometric luminosity or dynamics output
     """
     theta = kwargs.get('theta', 0.33)
     phi_0 = kwargs.get('phi_0', 0.5)
