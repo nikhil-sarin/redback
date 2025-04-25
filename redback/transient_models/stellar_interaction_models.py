@@ -249,6 +249,6 @@ def wr_bh_merger(time, redshift, M_star, M_bh, M_fast, M_pre, v_fast, v_slow, al
                                                                           lambdas=lambda_observer_frame,
                                                                           spectra=spectra)
         else:
-            return sed.get_correct_output_format_from_spectra(time=time_obs, time_eval=time_observer_frame,
+            return sed.get_correct_output_format_from_spectra(time=time_obs, time_eval=time_observer_frame/day_to_s,
                                                               spectra=spectra, lambda_array=lambda_observer_frame,
                                                               **kwargs)
