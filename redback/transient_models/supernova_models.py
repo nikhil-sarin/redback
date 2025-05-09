@@ -1525,10 +1525,10 @@ def type_1a(time, redshift, f_nickel, mej, **kwargs):
                                  interaction_process=ip.Diffusion, **kwargs)
         photo = photosphere.TemperatureFloor(time=time, luminosity=lbol, **kwargs)
         full_sed = np.zeros((len(time), len(frequency)))
+        ss = sed.CutoffBlackbody(time=time, temperature=photo.photosphere_temperature,
+                                 r_photosphere=photo.r_photosphere, frequency=frequency[:, None],
+                                 luminosity_distance=dl, cutoff_wavelength=cutoff_wavelength, luminosity=lbol)
         for ii in range(len(frequency)):
-            ss = sed.CutoffBlackbody(time=time, temperature=photo.photosphere_temperature,
-                               r_photosphere=photo.r_photosphere, frequency=frequency[ii],
-                               luminosity_distance=dl, cutoff_wavelength=cutoff_wavelength, luminosity=lbol)
             sed_2 = sed.Line(time=time, luminosity=lbol, frequency=frequency[ii], luminosity_distance=dl,
                              sed=ss, line_wavelength=line_wavelength,
                              line_width=line_width, line_time=line_time,
@@ -1734,8 +1734,6 @@ def general_magnetar_driven_supernova_bolometric(time, mej, E_sn, kappa, l0, tau
     time = time * day_to_s    
     lbol = lbol_func(time)
     v_ej = vej_func(time)
-    erot_total = np.trapz(magnetar_luminosity, x=time_temp)
-    erad_total = np.trapz(output.bolometric_luminosity, x=time_temp) 
     
     dynamics_output = namedtuple('dynamics_output', ['v_ej', 'tau', 'time', 'bolometric_luminosity', 'kinetic_energy', 'erad_total',
                                                      'thermalisation_efficiency', 'magnetar_luminosity', 'erot_total'])
