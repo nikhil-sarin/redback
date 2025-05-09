@@ -228,6 +228,66 @@ def sn_fallback(time, redshift, logl1, tr, **kwargs):
             return sed.get_correct_output_format_from_spectra(time=time_obs, time_eval=time_observer_frame,
                                                               spectra=spectra, lambda_array=lambda_observer_frame,
                                                               **kwargs)
+                                                              
+def sn_nickel_fallback(time, redshift, mej, f_nickel, logl1, tr, **kwargs):
+    """
+    :param time: observer frame time in days
+    :param redshift: source redshift
+    :param mej: total ejecta mass in solar masses
+    :param f_nickel: fraction of nickel mass
+    :param logl1: bolometric luminosity scale in log10 (cgs)
+    :param tr: transition time for luminosity
+    :param kwargs: Must be all the kwargs required by the specific interaction_process, photosphere, sed methods used
+        e.g., for Diffusion and TemperatureFloor: kappa, kappa_gamma, mej (solar masses), vej (km/s), floor temperature
+    :param interaction_process: Default is Diffusion.
+            Can also be None in which case the output is just the raw engine luminosity, or another interaction process.
+    :param photosphere: Default is TemperatureFloor.
+            kwargs must vej or relevant parameters if using different photosphere model
+    :param sed: Default is blackbody.
+    :param frequency: Required if output_format is ‘flux_density’.
+        frequency to calculate - Must be same length as time array or a single number).
+    :param bands: Required if output_format is ‘magnitude’ or ‘flux’.
+    :param output_format: ‘flux_density’, ‘magnitude’, ‘spectra’, ‘flux’, ‘sncosmo_source’
+    :param lambda_array: Optional argument to set your desired wavelength array (in Angstroms) to evaluate the SED on.
+    :param cosmology: Cosmology to use for luminosity distance calculation. Defaults to Planck18. Must be a astropy.cosmology object.
+    :return: set by output format - ‘flux_density’, ‘magnitude’, ‘spectra’, ‘flux’, ‘sncosmo_source’
+    """
+    kwargs["interaction_process"] = kwargs.get("interaction_process", ip.Diffusion)
+    kwargs["photosphere"] = kwargs.get("photosphere", photosphere.TemperatureFloor)
+    kwargs["sed"] = kwargs.get("sed", sed.Blackbody)
+    cosmology = kwargs.get("cosmology", cosmo)
+    dl = cosmology.luminosity_distance(redshift).cgs.value
+    if kwargs['output_format'] == 'flux_density':
+        frequency = kwargs['frequency']
+        frequency, time = calc_kcorrected_properties(frequency=frequency, redshift=redshift, time=time)       
+        lbol = fallback_lbol(time=time, logl1=logl1, tr=tr) + _nickelcobalt_engine(time=time, f_nickel=f_nickel, mej=mej)
+        photo = kwargs['photosphere'](time=time, luminosity=lbol, **kwargs)
+        sed_1 = kwargs['sed'](temperature=photo.photosphere_temperature, r_photosphere=photo.r_photosphere,
+              frequency=frequency, luminosity_distance=dl)
+        flux_density = sed_1.flux_density
+        return flux_density.to(uu.mJy).value
+    else:
+        time_obs = time
+        lambda_observer_frame = kwargs.get('lambda_array', np.geomspace(100, 60000, 100))
+        time_temp = np.geomspace(0.1, 3000, 300) # in days
+        time_observer_frame = time_temp * (1. + redshift)
+        frequency, time = calc_kcorrected_properties(frequency=lambda_to_nu(lambda_observer_frame),
+                                                     redshift=redshift, time=time_observer_frame)
+        lbol = fallback_lbol(time=time, logl1=logl1, tr=tr) + _nickelcobalt_engine(time=time, f_nickel=f_nickel, mej=mej)
+        photo = kwargs['photosphere'](time=time, luminosity=lbol, **kwargs)
+        sed_1 = kwargs['sed'](temperature=photo.photosphere_temperature, r_photosphere=photo.r_photosphere,
+                              frequency=frequency[:,None], luminosity_distance=dl)
+        fmjy = sed_1.flux_density.T
+        spectra = fmjy.to(uu.mJy).to(uu.erg / uu.cm ** 2 / uu.s / uu.Angstrom,
+                                     equivalencies=uu.spectral_density(wav=lambda_observer_frame * uu.Angstrom))
+        if kwargs['output_format'] == 'spectra':
+            return namedtuple('output', ['time', 'lambdas', 'spectra'])(time=time_observer_frame,
+                                                                          lambdas=lambda_observer_frame,
+                                                                          spectra=spectra)
+        else:
+            return sed.get_correct_output_format_from_spectra(time=time_obs, time_eval=time_observer_frame,
+                                                              spectra=spectra, lambda_array=lambda_observer_frame,
+                                                              **kwargs)                                                              
 
 @citation_wrapper('https://ui.adsabs.harvard.edu/abs/2018ApJS..236....6G/abstract')
 def sn_exponential_powerlaw(time, redshift, lbol_0, alpha_1, alpha_2, tpeak_d, **kwargs):
@@ -833,13 +893,12 @@ def slsn(time, redshift, p0, bp, mass_ns, theta_pb,**kwargs):
         lbol = slsn_bolometric(time=time, p0=p0, bp=bp, mass_ns=mass_ns, theta_pb=theta_pb, **kwargs)
         photo = kwargs['photosphere'](time=time, luminosity=lbol, **kwargs)
         full_sed = np.zeros((len(time), len(frequency)))
-        for ii in range(len(frequency)):
-            ss = kwargs['sed'](time=time, temperature=photo.photosphere_temperature,
-                               r_photosphere=photo.r_photosphere, frequency=frequency[ii],
-                               luminosity_distance=dl, cutoff_wavelength=cutoff_wavelength, luminosity=lbol)
-            full_sed[:, ii] = ss.flux_density.to(uu.mJy).value            
+        ss = kwargs['sed'](time=time, temperature=photo.photosphere_temperature,
+                        r_photosphere=photo.r_photosphere, frequency=frequency[:, None],
+                        luminosity_distance=dl, cutoff_wavelength=cutoff_wavelength, luminosity=lbol)
+        full_sed = ss.flux_density.to(uu.mJy).value.T    
         spectra = (full_sed * uu.mJy).to(uu.erg / uu.cm ** 2 / uu.s / uu.Angstrom,
-                                         equivalencies=uu.spectral_density(wav=lambda_observer_frame * uu.Angstrom))
+                                    equivalencies=uu.spectral_density(wav=lambda_observer_frame * uu.Angstrom))
         if kwargs['output_format'] == 'spectra':
             return namedtuple('output', ['time', 'lambdas', 'spectra'])(time=time_observer_frame,
                                                                           lambdas=lambda_observer_frame,
@@ -1796,11 +1855,10 @@ def general_magnetar_driven_supernova(time, redshift, mej, E_sn, kappa, l0, tau_
             return dynamics_output
         else: 
             full_sed = np.zeros((len(time), len(frequency)))
-            for ii in range(len(frequency)):
-                ss = kwargs['sed'](time=time_temp/day_to_s, temperature=photo.photosphere_temperature,
-                               r_photosphere=photo.r_photosphere, frequency=frequency[ii],
-                               luminosity_distance=dl, cutoff_wavelength=cutoff_wavelength, luminosity=output.bolometric_luminosity)
-                full_sed[:, ii] = ss.flux_density.to(uu.mJy).value
+            ss = kwargs['sed'](time=time_temp/day_to_s, temperature=photo.photosphere_temperature,
+                            r_photosphere=photo.r_photosphere, frequency=frequency[:, None],
+                            luminosity_distance=dl, cutoff_wavelength=cutoff_wavelength, luminosity=output.bolometric_luminosity)
+            full_sed = ss.flux_density.to(uu.mJy).value.T    
             spectra = (full_sed * uu.mJy).to(uu.erg / uu.cm ** 2 / uu.s / uu.Angstrom,
                                         equivalencies=uu.spectral_density(wav=lambda_observer_frame * uu.Angstrom))
             if kwargs['output_format'] == 'spectra':

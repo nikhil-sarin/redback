@@ -1134,7 +1134,7 @@ def fitted(time, redshift, log_mh, a_bh, m_disc, r0, tvi, t_form, incl, **kwargs
                                                               **kwargs)
                                                               
 @citation_wrapper('https://ui.adsabs.harvard.edu/abs/2024arXiv240815048M/abstract')   
-def fitted_pl_decay(time, redshift, log_mh, a_bh, m_disc, r0, tvi, t_form, incl, log_L, t_decay, p, log_T, sigma, t_peak, **kwargs):
+def fitted_pl_decay(time, redshift, log_mh, a_bh, m_disc, r0, tvi, t_form, incl, log_L, t_decay, p, log_T, sigma_t, t_peak, **kwargs):
     """
     An import of FitTeD to model the plateau phase, with a gaussian rise and power-law decay
     
@@ -1151,7 +1151,7 @@ def fitted_pl_decay(time, redshift, log_mh, a_bh, m_disc, r0, tvi, t_form, incl,
     :param t_decay: fallback timescale (days)
     :param p: power-law decay index
     :param log_T: single temperature blackbody temperature for decay model (log_10 Kelvin)
-    :param sigma: gaussian rise timescale (days)
+    :param sigma_t: gaussian rise timescale (days)
     :param t_peak: time of light curve peak (days)
     :param kwargs: Must be all the kwargs required by the specific output_format 
     :param output_format: 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'  
@@ -1180,13 +1180,13 @@ def fitted_pl_decay(time, redshift, log_mh, a_bh, m_disc, r0, tvi, t_form, incl,
         if len(freqs_un) == 1:
             nulnus_plateau = m.model_UV(time, log_mh, a_bh, m_disc, r0, tvi, t_form, ang, v=freqs_un[0])
             nulnus_decay = m.decay_model(time, log_L, t_decay, p, t_peak, log_T, v=freqs_un[0])
-            nulnus_rise = m.rise_model(time, log_L, sigma, t_peak, log_T, v=freqs_un[0])
+            nulnus_rise = m.rise_model(time, log_L, sigma_t, t_peak, log_T, v=freqs_un[0])
         else:
             for i in range(0,len(freqs_un)):
                 inds = np.where(frequency == freqs_un[i])[0]
                 nulnus[inds] = m.model_UV([time[j] for j in inds], log_mh, a_bh, m_disc, r0, tvi, t_form, ang, freqs_un[i])
                 nulnus_decay[inds] = m.decay_model([time[j] for j in inds], log_L, t_decay, p, t_peak, log_T, v=freqs_un[i]) 
-                nulnus_rise[inds] = m.rise_model([time[j] for j in inds], log_L, sigma, t_peak, log_T, v=freqs_un[i])                                             
+                nulnus_rise[inds] = m.rise_model([time[j] for j in inds], log_L, sigma_t, t_peak, log_T, v=freqs_un[i])                                             
         nulnus = nulnus_plateau + nulnus_rise + nulnus_decay    
         flux_density = nulnus/(4.0 * np.pi * dl**2 * frequency)   
         return flux_density/1.0e-26   
@@ -1201,7 +1201,7 @@ def fitted_pl_decay(time, redshift, log_mh, a_bh, m_disc, r0, tvi, t_form, incl,
         nulnus_plateau = m.model_SEDs(time, log_mh, a_bh, m_disc, r0, tvi, t_form, ang, frequency)
 
         freq_0 = 6e14
-        l_e_amp = (model.decay_model(time, log_L, t_decay, t_peak, log_T, freq_0) + model.rise_model(time, log_L, sigma, t_peak, log_T, freq_0))
+        l_e_amp = (model.decay_model(time, log_L, t_decay, t_peak, log_T, freq_0) + model.rise_model(time, log_L, sigma_t, t_peak, log_T, freq_0))
         nulnus_risedecay = ((l_e_amp[:, None] * (frequency/freq_0)**4 * 
                         (np.exp(cc.planck * freq_0/(cc.boltzmann_constant * 10**log_T)) - 1)/(np.exp(cc.planck * frequency/(cc.boltzmann_constant * 10**log_T)) - 1)).T)  
         flux_density = ((nulnus_risedecay + nulnus_plateau)/(4.0 * np.pi * dl**2 * frequency[:,np.newaxis] * 1.0e-26))  
@@ -1218,7 +1218,7 @@ def fitted_pl_decay(time, redshift, log_mh, a_bh, m_disc, r0, tvi, t_form, incl,
                                                               **kwargs)  
                                                               
 @citation_wrapper('https://ui.adsabs.harvard.edu/abs/2024arXiv240815048M/abstract')   
-def fitted_exp_decay(time, redshift, log_mh, a_bh, m_disc, r0, tvi, t_form, incl, log_L, t_decay, log_T, sigma, t_peak, **kwargs):
+def fitted_exp_decay(time, redshift, log_mh, a_bh, m_disc, r0, tvi, t_form, incl, log_L, t_decay, log_T, sigma_t, t_peak, **kwargs):
     """
     An import of FitTeD to model the plateau phase, with a gaussian rise and exponential decay
     
@@ -1234,7 +1234,7 @@ def fitted_exp_decay(time, redshift, log_mh, a_bh, m_disc, r0, tvi, t_form, incl
     :param log_L: single temperature blackbody amplitude for decay model (log_10 erg/s)
     :param t_decay: fallback timescale (days)
     :param log_T: single temperature blackbody temperature for decay model (log_10 Kelvin)
-    :param sigma: gaussian rise timescale (days)
+    :param sigma_t: gaussian rise timescale (days)
     :param t_peak: time of light curve peak (days)
     :param kwargs: Must be all the kwargs required by the specific output_format 
     :param output_format: 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'  
@@ -1263,13 +1263,13 @@ def fitted_exp_decay(time, redshift, log_mh, a_bh, m_disc, r0, tvi, t_form, incl
         if len(freqs_un) == 1:
             nulnus_plateau = m.model_UV(time, log_mh, a_bh, m_disc, r0, tvi, t_form, ang, v=freqs_un[0])
             nulnus_decay = m.decay_model(time, log_L, t_decay, t_peak, log_T, v=freqs_un[0])
-            nulnus_rise = m.rise_model(time, log_L, sigma, t_peak, log_T, v=freqs_un[0])
+            nulnus_rise = m.rise_model(time, log_L, sigma_t, t_peak, log_T, v=freqs_un[0])
         else:
             for i in range(0,len(freqs_un)):
                 inds = np.where(frequency == freqs_un[i])[0]
                 nulnus[inds] = m.model_UV([time[j] for j in inds], log_mh, a_bh, m_disc, r0, tvi, t_form, ang, freqs_un[i])
                 nulnus_decay[inds] = m.decay_model([time[j] for j in inds], log_L, t_decay, t_peak, log_T, v=freqs_un[i]) 
-                nulnus_rise[inds] = m.rise_model([time[j] for j in inds], log_L, sigma, t_peak, log_T, v=freqs_un[i]) 
+                nulnus_rise[inds] = m.rise_model([time[j] for j in inds], log_L, sigma_t, t_peak, log_T, v=freqs_un[i]) 
         nulnus = nulnus_plateau + nulnus_rise + nulnus_decay        
         flux_density = nulnus/(4.0 * np.pi * dl**2 * frequency)   
         return flux_density/1.0e-26   
@@ -1284,7 +1284,7 @@ def fitted_exp_decay(time, redshift, log_mh, a_bh, m_disc, r0, tvi, t_form, incl
         nulnus_plateau = m.model_SEDs(time, log_mh, a_bh, m_disc, r0, tvi, t_form, ang, frequency)
 
         freq_0 = 6e14
-        l_e_amp = (m.decay_model(time, log_L, t_decay, t_peak, log_T, freq_0) + m.rise_model(time, log_L, sigma, t_peak, log_T, freq_0))
+        l_e_amp = (m.decay_model(time, log_L, t_decay, t_peak, log_T, freq_0) + m.rise_model(time, log_L, sigma_t, t_peak, log_T, freq_0))
         nulnus_risedecay = ((l_e_amp[:, None] * (frequency/freq_0)**4 * 
                         (np.exp(cc.planck * freq_0/(cc.boltzmann_constant * 10**log_T)) - 1)/(np.exp(cc.planck * frequency/(cc.boltzmann_constant * 10**log_T)) - 1)).T) 
         flux_density = ((nulnus_risedecay + nulnus_plateau)/(4.0 * np.pi * dl**2 * frequency[:,np.newaxis] * 1.0e-26))  
