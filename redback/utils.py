@@ -125,6 +125,18 @@ def citation_wrapper(r):
 
     return wrapper
 
+def calc_effective_width_hz_from_angstrom(effective_width, effective_wavelength):
+    """
+    Calculate the effective width in Hz from the effective wavelength in Angstrom
+
+    :param effective_width: effective_width in Angstrom
+    :param effective_wavelength: effective wavelength in Angstrom
+    :return: effective width in Hz
+    """
+    wavelength_m = effective_wavelength * 1.0e-10
+    effective_width_m = effective_width * 1.0e-10
+    effective_width = (3.0e8 / (wavelength_m**2)) * effective_width_m
+    return effective_width
 
 def calc_tfb(binding_energy_const, mbh_6, stellar_mass):
     """
