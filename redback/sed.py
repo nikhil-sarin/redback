@@ -5,6 +5,8 @@ from sncosmo import TimeSeriesSource
 
 from redback.constants import *
 from redback.utils import nu_to_lambda, bandpass_magnitude_to_flux
+from sncosmo.builtins import time_spline_degree
+
 
 def _bandflux_single_redback(model, band, time_or_phase):
     """
@@ -638,8 +640,9 @@ def get_correct_output_format_from_spectra(time, time_eval, spectra, lambda_arra
     spectra = np.nan_to_num(spectra)
     spectra[spectra.value == np.nan_to_num(np.inf)] = 1e-30 * np.mean(spectra[5])
     spectra[spectra.value == 0.] = 1e-30 * np.mean(spectra[5])
-
-    source = RedbackTimeSeriesSource(phase=time_eval, wave=lambda_array, flux=spectra)
+    time_spline_degree = kwargs.get('time_spline_degree', 3)
+    source = RedbackTimeSeriesSource(phase=time_eval, wave=lambda_array, flux=spectra,
+                                     time_spline_degree=time_spline_degree)
     if kwargs['output_format'] == 'flux':
         bands = kwargs['bands']
         magnitude = source.bandmag(phase=time, band=bands, magsys='ab')
