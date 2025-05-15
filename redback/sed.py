@@ -5,7 +5,6 @@ from sncosmo import TimeSeriesSource
 
 from redback.constants import *
 from redback.utils import nu_to_lambda, bandpass_magnitude_to_flux
-from sncosmo.builtins import time_spline_degree
 
 
 def _bandflux_single_redback(model, band, time_or_phase):
