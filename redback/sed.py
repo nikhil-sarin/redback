@@ -6,6 +6,7 @@ from sncosmo import TimeSeriesSource
 from redback.constants import *
 from redback.utils import nu_to_lambda, bandpass_magnitude_to_flux
 
+
 def _bandflux_single_redback(model, band, time_or_phase):
     """
 
@@ -338,8 +339,10 @@ class CutoffBlackbody(_SED):
     @property
     def wavelength(self):
         if len(self.frequency) == 1:
-            self.frequency = np.ones(len(self.time)) * self.frequency
+            self.frequency = np.ones(len(self.time)) * self.frequency              
         wavelength = nu_to_lambda(self.frequency) * angstrom_cgs
+        if len(wavelength) != len(self.time):
+            wavelength = np.tile(wavelength.T, (len(self.time), 1)).T
         return wavelength
 
     @property
@@ -351,15 +354,28 @@ class CutoffBlackbody(_SED):
         return self.X_CONST * np.array(range(1, 11))
 
     def _set_sed(self):
-        self.sed[self.mask] = \
-            self.FLUX_CONST * (self.r_photosphere[self.mask]**2 / self.cutoff_wavelength /
-                               self.wavelength[self.mask] ** 4) \
-            / np.expm1(self.X_CONST / self.wavelength[self.mask] / self.temperature[self.mask])
-        self.sed[~self.mask] = \
-            self.FLUX_CONST * (self.r_photosphere[~self.mask]**2 / self.wavelength[~self.mask]**5) \
-            / np.expm1(self.X_CONST / self.wavelength[~self.mask] / self.temperature[~self.mask])
-        # Apply renormalisation
-        self.sed *= self.norms[np.searchsorted(self.unique_times, self.time)]
+        if np.size(self.wavelength) != np.size(self.time):
+            self.sed = np.zeros((len(self.frequency), len(self.time)))
+            self.r_photosphere = np.tile(self.r_photosphere, (len(self.frequency), 1))
+            self.temperature = np.tile(self.temperature, (len(self.frequency), 1))
+            self.sed[self.mask] = \
+                self.FLUX_CONST * (self.r_photosphere[self.mask]**2 / self.cutoff_wavelength /
+                                self.wavelength[self.mask] ** 4) \
+                / np.expm1(self.X_CONST / self.wavelength[self.mask] / self.temperature[self.mask])
+            self.sed[~self.mask] = \
+                self.FLUX_CONST * (self.r_photosphere[~self.mask]**2 / self.wavelength[~self.mask]**5) \
+                / np.expm1(self.X_CONST / self.wavelength[~self.mask] / self.temperature[~self.mask])
+            self.sed *= self.norms[np.searchsorted(self.unique_times, self.time)]
+        else:    
+            self.sed[self.mask] = \
+                self.FLUX_CONST * (self.r_photosphere[self.mask]**2 / self.cutoff_wavelength /
+                            self.wavelength[self.mask] ** 4) \
+                / np.expm1(self.X_CONST / self.wavelength[self.mask] / self.temperature[self.mask])
+            self.sed[~self.mask] = \
+                self.FLUX_CONST * (self.r_photosphere[~self.mask]**2 / self.wavelength[~self.mask]**5) \
+                / np.expm1(self.X_CONST / self.wavelength[~self.mask] / self.temperature[~self.mask])
+            # Apply renormalisation
+            self.sed *= self.norms[np.searchsorted(self.unique_times, self.time)]
 
     def _set_norm(self):
         self.norms = self.luminosity[self.uniq_is] / \
@@ -471,59 +487,140 @@ class Synchrotron(_SED):
 
 
 class Line(_SED):
+    """
+    A class that modifies an input SED by incorporating a time‐dependent absorption line feature.
+
+    Reference:
+      https://ui.adsabs.harvard.edu/abs/2018ApJS..236....6G/abstract
+    """
 
     reference = "https://ui.adsabs.harvard.edu/abs/2018ApJS..236....6G/abstract"
 
-    def __init__(self, time: np.ndarray, luminosity: np.ndarray, frequency: Union[np.ndarray, float],
-                 sed: Union[_SED, Blackbody], luminosity_distance: float, line_wavelength: float = 7.5e3,
-                 line_width: float = 500, line_time: float = 50, line_duration: float = 25,
-                 line_amplitude: float = 0.3, **kwargs: None) -> None:
+    def __init__(self,
+                 time: np.ndarray,
+                 luminosity: np.ndarray,
+                 frequency: Union[np.ndarray, float],
+                 sed: Union[_SED, Blackbody],
+                 luminosity_distance: float,
+                 line_wavelength: float = 7.5e3,
+                 line_width: float = 500,
+                 line_time: float = 50,
+                 line_duration: float = 25,
+                 line_amplitude: float = 0.3,
+                 **kwargs) -> None:
         """
-        Modifies the input SED by accounting for absorption lines
+        Modifies the input SED by imposing a time-dependent absorption line.
 
-        :param time: time in source frame
-        :param luminosity: luminosity in cgs
-        :param frequency: frequency to calculate in Hz - Must be same length as time array or a single number.
-                          In source frame.
-        :param sed: instantiated SED class object.
-        :param luminosity_distance: luminosity_distance in cm
-        :param line_wavelength: line wavelength in angstrom
-        :param line_width: line width in angstrom
-        :param line_time: line time
-        :param line_duration: line duration
-        :param line_amplitude: line amplitude
-        :param kwargs: None
+        Parameters
+        ----------
+        time : np.ndarray
+            1D array of times (in source frame).
+        luminosity : np.ndarray
+            1D array of luminosities (in cgs units) corresponding to each time.
+        frequency : Union[np.ndarray, float]
+            Frequency (in Hz, source frame) at which to calculate the flux.
+            If an array is provided, its shape must be broadcastable with time.
+        sed : Union[_SED, Blackbody]
+            An instantiated SED object (e.g. a CutoffBlackbody).
+        luminosity_distance : float
+            Luminosity distance in cm.
+        line_wavelength : float, optional
+            Central wavelength of the line in angstrom (default 7500 Å).
+        line_width : float, optional
+            Line width (sigma) in angstrom (default 500 Å).
+        line_time : float, optional
+            The time when the line is strongest (default 50).
+        line_duration : float, optional
+            The characteristic duration of the line (default 25).
+        line_amplitude : float, optional
+            The maximum amplitude of the line absorption (default 0.3).
+        kwargs : dict, optional
+            Other keyword arguments.
         """
-        super(Line, self).__init__(frequency=frequency, luminosity_distance=luminosity_distance, length=len(time))
-        self.time = time
-        self.luminosity = luminosity
+        # Reshape time and luminosity to column vectors (n_time, 1).
+        self.time = np.atleast_1d(time).reshape(-1, 1)
+        self.luminosity = np.atleast_1d(luminosity).reshape(-1, 1)
+
+        # Convert frequency to a row vector (1, n_freq)
+        freq_arr = np.atleast_1d(frequency)
+        if freq_arr.ndim == 1:
+            freq_arr = freq_arr.reshape(1, -1)
+        self.frequency = freq_arr  # shape (1, n_freq)
+
+        # Call the parent initializer.
+        super().__init__(frequency=self.frequency,
+                         luminosity_distance=luminosity_distance,
+                         length=self.time.shape[0])
+
+        # Keep a reference to the SED to modify.
         self.SED = sed
-        self.sed = None
+        self.sed = None  # This will be computed in _set_sed().
+
+        # Save the line parameters.
         self.line_wavelength = line_wavelength
         self.line_width = line_width
         self.line_time = line_time
         self.line_duration = line_duration
         self.line_amplitude = line_amplitude
 
+        # Use an internal attribute to store the computed flux density.
+        self._flux_density = None
+
+        # Calculate the flux density.
         self.calculate_flux_density()
 
     @property
+    def flux_density(self):
+        """
+        Returns the computed flux density; this property wraps an internal attribute.
+        """
+        return self._flux_density
+
+    @property
     def wavelength(self):
+        """
+        Returns the wavelength corresponding to self.frequency (using nu_to_lambda),
+        while preserving broadcasting.
+        """
         return nu_to_lambda(self.frequency)
 
     def calculate_flux_density(self):
-        # Mostly from Mosfit/SEDs
+        """
+        Compute the modified SED with the absorption line and store the result internally.
+        """
         self._set_sed()
-        return self.flux_density
+        return self._flux_density
 
     def _set_sed(self):
-        amplitude = self.line_amplitude * np.exp(-0.5 * ((self.time - self.line_time) / self.line_duration) ** 2)
-        self.sed = self.SED.sed * (1 - amplitude)
+        """
+        Compute and set the modified SED (flux density) with proper units.
+        Assumes:
+          - self.SED.sed has shape (n_freq, n_time) (e.g., (100,300))
+          - self.time and self.luminosity are processed so that the time‐axis is the second axis.
+        """
+        # Transpose time and luminosity to have time along the second axis
+        time_vals = self.time.T  # Shape (1, n_time)
+        lum_vals = self.luminosity.T  # Shape (1, n_time)
 
-        amplitude *= self.luminosity / (self.line_width * (2 * np.pi) ** 0.5)
+        # Compute a time-dependent amplitude (expected shape (1, n_time))
+        amplitude_time = self.line_amplitude * np.exp(
+            -0.5 * ((time_vals - self.line_time) / self.line_duration) ** 2
+        )
 
-        amp_new = np.exp(-0.5 * ((self.wavelength - self.line_wavelength) / self.line_width) ** 2)
-        self.sed += amplitude * amp_new
+        # Get the baseline SED (shape (n_freq, n_time))
+        sed_base = self.SED.sed
+
+        # Modify the SED by attenuating with the time-dependent factor
+        sed_modified = sed_base * (1 - amplitude_time)
+
+        # Compute additional scaling factors as needed (example below)
+        amplitude_scaled = amplitude_time * lum_vals / (self.line_width * np.sqrt(2 * np.pi))
+        line_profile = np.exp(-0.5 * ((self.wavelength - self.line_wavelength) / self.line_width) ** 2)
+        sed_modified += amplitude_scaled * line_profile
+
+        # IMPORTANT: Convert sed_modified (a numpy array) to an astropy Quantity.
+        # Here, we assume the flux density is in units of erg/s/cm^2/Hz.
+        self._flux_density = sed_modified * uu.erg / uu.s / uu.cm ** 2 / uu.Hz
 
 def get_correct_output_format_from_spectra(time, time_eval, spectra, lambda_array, **kwargs):
     """
@@ -542,8 +639,9 @@ def get_correct_output_format_from_spectra(time, time_eval, spectra, lambda_arra
     spectra = np.nan_to_num(spectra)
     spectra[spectra.value == np.nan_to_num(np.inf)] = 1e-30 * np.mean(spectra[5])
     spectra[spectra.value == 0.] = 1e-30 * np.mean(spectra[5])
-
-    source = RedbackTimeSeriesSource(phase=time_eval, wave=lambda_array, flux=spectra)
+    time_spline_degree = kwargs.get('time_spline_degree', 3)
+    source = RedbackTimeSeriesSource(phase=time_eval, wave=lambda_array, flux=spectra,
+                                     time_spline_degree=time_spline_degree)
     if kwargs['output_format'] == 'flux':
         bands = kwargs['bands']
         magnitude = source.bandmag(phase=time, band=bands, magsys='ab')
