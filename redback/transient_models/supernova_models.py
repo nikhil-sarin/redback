@@ -1482,17 +1482,17 @@ def type_1a(time, redshift, f_nickel, mej, **kwargs):
     :param line_duration: line duration, default is 25
     :param line_amplitude: line amplitude, default is 0.3
     :param frequency: Required if output_format is 'flux_density'.
-        frequency to calculate - Must be same length as time array or a single number).
+        frequency to calculate - Must be same length as time array or a single number.
     :param bands: Required if output_format is 'magnitude' or 'flux'.
     :param output_format: 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
     :param lambda_array: Optional argument to set your desired wavelength array (in Angstroms) to evaluate the SED on.
-    :param cosmology: Cosmology to use for luminosity distance calculation. Defaults to Planck18. Must be a astropy.cosmology object.
+    :param cosmology: cosmology to use for luminosity distance calculation. Defaults to Planck18. Must be an astropy.cosmology object.
     :return: set by output format - 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
     """
     cosmology = kwargs.get('cosmology', cosmo)
     dl = cosmology.luminosity_distance(redshift).cgs.value
     cutoff_wavelength = kwargs.get('cutoff_wavelength', 3000)
-    line_wavelength = kwargs.get('line_wavelength',7.5e3)
+    line_wavelength = kwargs.get('line_wavelength', 7.5e3)
     line_width = kwargs.get('line_width', 500)
     line_time = kwargs.get('line_time', 50)
     line_duration = kwargs.get('line_duration', 25)
@@ -1506,13 +1506,13 @@ def type_1a(time, redshift, f_nickel, mej, **kwargs):
 
         photo = photosphere.TemperatureFloor(time=time, luminosity=lbol, **kwargs)
         sed_1 = sed.CutoffBlackbody(time=time, luminosity=lbol, temperature=photo.photosphere_temperature,
-                                    r_photosphere=photo.r_photosphere,frequency=frequency, luminosity_distance=dl,
+                                    r_photosphere=photo.r_photosphere, frequency=frequency, luminosity_distance=dl,
                                     cutoff_wavelength=cutoff_wavelength)
         sed_2 = sed.Line(time=time, luminosity=lbol, frequency=frequency, luminosity_distance=dl,
                          sed=sed_1, line_wavelength=line_wavelength,
                          line_width=line_width, line_time=line_time,
                          line_duration=line_duration, line_amplitude=line_amplitude)
-        flux_density = sed_2.flux_density
+        flux_density = sed_2.flux_density.flatten()
         return flux_density.to(uu.mJy).value
     else:
         time_obs = time
@@ -1524,18 +1524,23 @@ def type_1a(time, redshift, f_nickel, mej, **kwargs):
         lbol = arnett_bolometric(time=time, f_nickel=f_nickel, mej=mej,
                                  interaction_process=ip.Diffusion, **kwargs)
         photo = photosphere.TemperatureFloor(time=time, luminosity=lbol, **kwargs)
-        full_sed = np.zeros((len(time), len(frequency)))
-        for ii in range(len(frequency)):
-            ss = sed.CutoffBlackbody(time=time, temperature=photo.photosphere_temperature,
-                               r_photosphere=photo.r_photosphere, frequency=frequency[ii],
-                               luminosity_distance=dl, cutoff_wavelength=cutoff_wavelength, luminosity=lbol)
-            sed_2 = sed.Line(time=time, luminosity=lbol, frequency=frequency[ii], luminosity_distance=dl,
-                             sed=ss, line_wavelength=line_wavelength,
-                             line_width=line_width, line_time=line_time,
-                             line_duration=line_duration, line_amplitude=line_amplitude)
-            full_sed[:,ii] = sed_2.flux_density.to(uu.mJy).value
+        # Here we construct the CutoffBlackbody SED with frequency reshaped to (n_freq, 1)
+        ss = sed.CutoffBlackbody(time=time, temperature=photo.photosphere_temperature,
+                                 r_photosphere=photo.r_photosphere, frequency=frequency[:, None],
+                                 luminosity_distance=dl, cutoff_wavelength=cutoff_wavelength, luminosity=lbol)
+        line_sed = sed.Line(time=time, luminosity=lbol, frequency=frequency[:, None],
+                            luminosity_distance=dl, sed=ss,
+                            line_wavelength=line_wavelength,
+                            line_width=line_width,
+                            line_time=line_time,
+                            line_duration=line_duration,
+                            line_amplitude=line_amplitude)
+        full_sed = line_sed.flux_density.to(uu.mJy).value
+        # The following line converts the full SED (in mJy) to erg/s/cm^2/Angstrom.
         spectra = (full_sed * uu.mJy).to(uu.erg / uu.cm ** 2 / uu.s / uu.Angstrom,
-                                         equivalencies=uu.spectral_density(wav=lambdas_observer_frame * uu.Angstrom))
+                                         equivalencies=uu.spectral_density(
+                                             wav=(lambdas_observer_frame.reshape(-1, 1) * uu.Angstrom))).T
+        print(spectra.shape)
         if kwargs['output_format'] == 'spectra':
             return namedtuple('output', ['time', 'lambdas', 'spectra'])(time=time_observer_frame,
                                                                           lambdas=lambdas_observer_frame,
@@ -1544,6 +1549,7 @@ def type_1a(time, redshift, f_nickel, mej, **kwargs):
             return sed.get_correct_output_format_from_spectra(time=time_obs, time_eval=time_observer_frame,
                                                               spectra=spectra, lambda_array=lambdas_observer_frame,
                                                               **kwargs)
+
 
 
 @citation_wrapper('https://ui.adsabs.harvard.edu/abs/2018ApJS..236....6G/abstract')
@@ -1734,8 +1740,6 @@ def general_magnetar_driven_supernova_bolometric(time, mej, E_sn, kappa, l0, tau
     time = time * day_to_s    
     lbol = lbol_func(time)
     v_ej = vej_func(time)
-    erot_total = np.trapz(magnetar_luminosity, x=time_temp)
-    erad_total = np.trapz(output.bolometric_luminosity, x=time_temp) 
     
     dynamics_output = namedtuple('dynamics_output', ['v_ej', 'tau', 'time', 'bolometric_luminosity', 'kinetic_energy', 'erad_total',
                                                      'thermalisation_efficiency', 'magnetar_luminosity', 'erot_total'])
