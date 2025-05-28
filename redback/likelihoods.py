@@ -181,8 +181,16 @@ class GaussianLikelihood(_RedbackLikelihood):
             raise ValueError('Sigma must be either float or array-like x.')
 
     @property
+    def model_output(self) -> np.ndarray:
+        """
+        :return: The model output for the given x values.
+        :rtype: np.ndarray
+        """
+        return self.function(self.x, **self.parameters, **self.kwargs)
+
+    @property
     def residual(self) -> np.ndarray:
-        return self.y - self.function(self.x, **self.parameters, **self.kwargs)
+        return self.y - self.model_output
 
     def noise_log_likelihood(self) -> float:
         """
@@ -534,7 +542,6 @@ class GaussianLikelihoodUniformXErrors(GaussianLikelihood):
         """
         return np.nan_to_num(self.log_likelihood_x() + self.log_likelihood_y())
 
-
 class GaussianLikelihoodQuadratureNoise(GaussianLikelihood):
     def __init__(
             self, x: np.ndarray, y: np.ndarray, sigma_i: Union[float, None, np.ndarray],
@@ -628,7 +635,7 @@ class GaussianLikelihoodWithFractionalNoise(GaussianLikelihood):
         :return: The standard deviation of the full noise
         :rtype: Union[float, np.ndarray]
         """
-        model_y = self.function(self.x, **self.parameters, **self.kwargs)
+        model_y = self.model_output
         return np.sqrt(self.sigma_i**2.*model_y**2)
 
     def noise_log_likelihood(self) -> float:
@@ -652,7 +659,7 @@ class GaussianLikelihoodWithSystematicNoise(GaussianLikelihood):
             self, x: np.ndarray, y: np.ndarray, sigma_i: Union[float, None, np.ndarray],
             function: callable, kwargs: dict = None, priors=None, fiducial_parameters=None) -> None:
         """
-        A Gaussian likelihood with a systematic noise term that is proportional to the model + some additive noise.
+        A Gaussian likelihood with a systematic noise term that is proportional to the model + the original data noise added in quadrature.
         The parameters are inferred from the arguments of function
 
         :param x: The x values.
@@ -688,7 +695,7 @@ class GaussianLikelihoodWithSystematicNoise(GaussianLikelihood):
         :return: The standard deviation of the full noise
         :rtype: Union[float, np.ndarray]
         """
-        model_y = self.function(self.x, **self.parameters, **self.kwargs)
+        model_y = self.model_output
         return np.sqrt(self.sigma_i**2. + model_y**2*self.sigma**2.)
 
     def noise_log_likelihood(self) -> float:
