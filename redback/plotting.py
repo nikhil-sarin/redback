@@ -672,6 +672,7 @@ class MagnitudePlotter(Plotter):
         if self.transient.magnitude_data:
             ax.set_ylim(self._ylim_low_magnitude, self._ylim_high_magnitude)
             ax.invert_yaxis()
+            ax.set_yscale('linear')
         else:
             ax.set_ylim(self._ylim_low, self._ylim_high)
             ax.set_yscale("log")
@@ -680,6 +681,7 @@ class MagnitudePlotter(Plotter):
         if self.transient.magnitude_data:
             ax.set_ylim(self._ylim_low_magnitude, self._ylim_high_magnitude)
             ax.invert_yaxis()
+            ax.set_yscale('linear')
         else:
             ax.set_ylim(self._get_ylim_low_with_indices(indices=indices),
                         self._get_ylim_high_with_indices(indices=indices))

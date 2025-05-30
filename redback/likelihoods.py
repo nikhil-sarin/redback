@@ -659,7 +659,8 @@ class GaussianLikelihoodWithSystematicNoise(GaussianLikelihood):
             self, x: np.ndarray, y: np.ndarray, sigma_i: Union[float, None, np.ndarray],
             function: callable, kwargs: dict = None, priors=None, fiducial_parameters=None) -> None:
         """
-        A Gaussian likelihood with a systematic noise term that is proportional to the model + the original data noise added in quadrature.
+        A Gaussian likelihood with a systematic noise term that is proportional to the model +
+        the original data noise added in quadrature.
         The parameters are inferred from the arguments of function
 
         :param x: The x values.
