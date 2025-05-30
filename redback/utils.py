@@ -142,7 +142,7 @@ def calc_tfb(binding_energy_const, mbh_6, stellar_mass):
     """
     Calculate the fall back timescale for a SMBH disrupting a stellar mass object
     :param binding_energy_const:
-    :param mbh_6: SMBH mass in solar masses
+    :param mbh_6: SMBH mass in 10^6 solar masses
     :param stellar_mass: stellar mass in solar masses
     :return: fall back time in seconds
     """
