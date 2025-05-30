@@ -808,7 +808,6 @@ class MagnitudePlotter(Plotter):
         axes = axes or plt.gca()
 
         axes = self.plot_data(axes=axes, save=False, show=False)
-        axes.set_yscale('log')
 
         times = self._get_times(axes)
         bands_to_plot = self._get_bands_to_plot
