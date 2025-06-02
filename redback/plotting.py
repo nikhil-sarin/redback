@@ -985,6 +985,7 @@ class MagnitudePlotter(Plotter):
             new_model_kwargs = self._model_kwargs.copy()
             new_model_kwargs['frequency'] = freq
             new_model_kwargs['bands'] = redback.utils.sncosmo_bandname_from_band([band])
+            new_model_kwargs['bands'] = [new_model_kwargs['bands'][0] for _ in range(len(times))]
             
             if self.set_same_color_per_subplot is True:
                 color = self._colors[list(self._filters).index(band)]
