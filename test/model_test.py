@@ -251,7 +251,7 @@ class TestExtinctionModelsFluxDensity(unittest.TestCase):
                 kwargs['output_format'] = 'flux_density'
                 kwargs['base_model'] = model_name
                 prior = self.get_prior(file=f)
-                prior['av'] = 0.5
+                prior['av_host'] = 0.5
                 prior['t0'] = 58555
                 if model_name in supernova_models:
                     function = 't0_supernova_extinction'
@@ -267,7 +267,7 @@ class TestExtinctionModelsFluxDensity(unittest.TestCase):
                     function = 't0_afterglow_extinction_model_d2g'
                     kwargs['lognh'] = 22
                     kwargs['factor'] = 5
-                    prior.pop('av')
+                    prior.pop('av_host')
                 if model_name == 'shock_cooling':
                     function = 't0_shock_powered_extinction'
                 function = redback.model_library.all_models_dict[function]
@@ -305,7 +305,7 @@ class TestExtinctionModelsMagnitude(unittest.TestCase):
                 kwargs['output_format'] = 'magnitude'
                 kwargs['base_model'] = model_name
                 prior = self.get_prior(file=f)
-                prior['av'] = 0.5
+                prior['av_host'] = 0.5
                 prior['t0'] = 58555
                 if model_name in supernova_models:
                     function = 't0_supernova_extinction'
