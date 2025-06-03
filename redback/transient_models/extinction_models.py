@@ -157,9 +157,9 @@ def _perform_extinction(flux_density, angstroms, av_host, rv_host, av_mw=0.0, rv
         # Calculate extinction
         try:
             if mw_law in ['fitzpatrick99', 'fm07', 'odonnell94', 'ccm89']:
-                mag_extinction_mw = mw_extinction_func(angstroms, av_mw, rv_mw, **kwargs)
+                mag_extinction_mw = mw_extinction_func(angstroms, av_mw, rv_mw)
             elif mw_law == 'calzetti00':
-                mag_extinction_mw = mw_extinction_func(angstroms, av_mw, **kwargs)
+                mag_extinction_mw = mw_extinction_func(angstroms, av_mw)
         except Exception as e:
             raise ValueError(f"Error applying {mw_law} extinction law: {e}")
 
@@ -195,10 +195,10 @@ def _evaluate_extinction_model(time, av_host, av_mw=0.0, model_type=None, **kwar
         kwargs['base_model'] = kwargs.get('submodel', 'arnett_bolometric')
 
     # Extract extinction parameters
-    rv_host = kwargs.get('rv_host', 3.1)
-    rv_mw = kwargs.get('rv_mw', 3.1)
-    host_law = kwargs.get('host_law', 'fitzpatrick99')
-    mw_law = kwargs.get('mw_law', 'fitzpatrick99')
+    rv_host = kwargs.pop('rv_host', 3.1)
+    rv_mw = kwargs.pop('rv_mw', 3.1)
+    host_law = kwargs.pop('host_law', 'fitzpatrick99')
+    mw_law = kwargs.pop('mw_law', 'fitzpatrick99')
 
     if kwargs['output_format'] == 'flux_density':
         frequency = kwargs['frequency']
