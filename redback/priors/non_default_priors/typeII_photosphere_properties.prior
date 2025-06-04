@@ -1,0 +1,6 @@
+progenitor = Uniform(10, 18, 'progenitor', latex_label='$M_{\\rm ZAMS}$', unit='$M_{\odot}$')
+ni_mass = LogUniform(0.001, 0.3, 'ni_mass', latex_label='${}^{56}$Ni', unit='$M_{\odot}$')
+log10_mdot = Uniform(-5, -1, 'log10_mdot', latex_label='$\\log_{10} \\dot{M}$', unit='$M_{\odot}~\\rm yr^{-1}$')
+beta = Uniform(0.5, 5, 'beta', latex_label='$\\beta$')
+rcsm = Uniform(1, 10, 'rcsm', latex_label='$R_{\\rm csm}$', unit='$10^{14}$cm')
+esn = Uniform(0.5, 5, 'esn', latex_label='$E_{\\rm sn}$', unit='$10^{51}$erg')
