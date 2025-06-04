@@ -44,6 +44,8 @@ setup(
             "lalsuite",
             "kilonova-heating-rate",
             "redback-surrogates",
+            "tensorflow",
+            "keras",
             "kilonovanet",
             "astroquery"
         ]

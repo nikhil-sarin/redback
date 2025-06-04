@@ -13,7 +13,7 @@ from redback.constants import day_to_s, solar_mass, km_cgs, au_cgs, speed_of_lig
 from inspect import isfunction
 import astropy.units as uu
 from collections import namedtuple
-from scipy.interpolate import interp1d
+from scipy.interpolate import interp1d, RegularGridInterpolator
 
 homologous_expansion_models = ['exponential_powerlaw_bolometric', 'arnett_bolometric',
                                'basic_magnetar_powered_bolometric','slsn_bolometric',
@@ -2120,3 +2120,180 @@ def shocked_cocoon_and_arnett(time, redshift, mej_c, vej_c, eta, tshock, shocked
             return sed.get_correct_output_format_from_spectra(time=time_obs, time_eval=time_observer_frame,
                                                               spectra=spectra, lambda_array=lambda_observer_frame,
                                                               **kwargs)
+
+@citation_wrapper("https://ui.adsabs.harvard.edu/abs/2025arXiv250602107S/abstract, https://ui.adsabs.harvard.edu/abs/2023PASJ...75..634M/abstract")
+def typeII_bolometric(time, progenitor, ni_mass, log10_mdot, beta, rcsm, esn, **kwargs):
+    """
+    Bolometric luminosity for a Type II supernova based on Sarin et al. 2025 surrogate model
+    to stella grid in Moriya et al. 2023
+
+    :param time: Time in days in source frame
+    :param progenitor: in solar masses
+    :param ni_mass: in solar masses
+    :param log10_mdot: in solar masses per year
+    :param beta: dimensionless
+    :param rcsm: in 10^14 cm
+    :param esn: in 10^51
+    :param kwargs: None
+    :return: bolometric luminosity in erg/s
+    """
+    from redback_surrogates.supernovamodels import typeII_lbol
+    tt, lbol = typeII_lbol(time=time, progenitor=progenitor, ni_mass=ni_mass,
+                      log10_mdot=log10_mdot, beta=beta, rcsm=rcsm, esn=esn, **kwargs)
+    lbol_func = interp1d(tt, y=lbol, bounds_error=False, fill_value='extrapolate')
+    return lbol_func(time)
+
+@citation_wrapper("https://ui.adsabs.harvard.edu/abs/2025arXiv250602107S/abstract, https://ui.adsabs.harvard.edu/abs/2023PASJ...75..634M/abstract")
+def typeII_photosphere_properties(time, progenitor, ni_mass, log10_mdot, beta, rcsm, esn, **kwargs):
+    """
+    Photosphere properties for a Type II supernova based on Sarin et al. 2025 surrogate model
+    to stella grid in Moriya et al. 2023
+
+    :param time: Time in days in source frame
+    :param progenitor: in solar masses
+    :param ni_mass: in solar masses
+    :param log10_mdot: in solar masses per year
+    :param beta: dimensionless
+    :param rcsm: in 10^14 cm
+    :param esn: in 10^51
+    :param kwargs: None
+    :return: photosphere properties (temperature in K, radius in cm)
+    """
+    from redback_surrogates.supernovamodels import typeII_photosphere
+    tt, temp, rad = typeII_photosphere(time=time, progenitor=progenitor, ni_mass=ni_mass,
+                      log10_mdot=log10_mdot, beta=beta, rcsm=rcsm, esn=esn, **kwargs)
+    temp_func = interp1d(tt, y=temp, bounds_error=False, fill_value='extrapolate')
+    rad_func = interp1d(tt, y=rad, bounds_error=False, fill_value='extrapolate')
+    return temp_func(time), rad_func(time)
+
+@citation_wrapper("https://ui.adsabs.harvard.edu/abs/2025arXiv250602107S/abstract, https://ui.adsabs.harvard.edu/abs/2023PASJ...75..634M/abstract")
+def typeII_surrogate_sarin25(time, redshift, progenitor, ni_mass, log10_mdot, beta, rcsm, esn, **kwargs):
+    """
+    Type II supernova model based on Sarin et al. 2025 surrogate model
+    to stella grid in Moriya et al. 2023
+
+    :param time: Time in days in observer frame
+    :param redshift: redshift
+    :param progenitor: in solar masses
+    :param ni_mass: in solar masses
+    :param log10_mdot: in solar masses per year
+    :param beta: dimensionless
+    :param rcsm: in 10^14 cm
+    :param esn: in 10^51
+    :param kwargs: Additional parameters for the model, such as:
+    :param frequency: Required if output_format is 'flux_density'.
+        frequency to calculate - Must be same length as time array or a single number).
+    :param bands: Required if output_format is 'magnitude' or 'flux'.
+    :param output_format: 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
+    :param lambda_array: Optional argument to set your desired wavelength array (in Angstroms) to evaluate the SED on.
+    :param cosmology: Cosmology to use for luminosity distance calculation. Defaults to Planck18. Must be a astropy.cosmology object.
+    :return: set by output format - 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
+    """
+    from redback_surrogates.supernovamodels import typeII_spectra
+    cosmology = kwargs.get('cosmology', cosmo)
+    dl = cosmology.luminosity_distance(redshift).cgs
+
+    # Get the rest-frame spectrum using typeII_spectra
+    spectra_output = typeII_spectra(
+        progenitor=progenitor,
+        ni_mass=ni_mass,
+        log10_mdot=log10_mdot,
+        beta=beta,
+        rcsm=rcsm,
+        esn=esn,
+        **kwargs
+    )
+
+    # Extract components from the output
+    rest_spectrum = spectra_output.spectrum  # erg/s/Hz in rest frame
+    standard_freqs = spectra_output.frequency.value  # Angstrom in rest frame
+    standard_times = spectra_output.time.value  # days in rest frame
+
+    # Apply cosmological dimming
+    observed_spectrum = rest_spectrum / (4 * np.pi * dl ** 2)
+
+    # Handle different output formats
+    if kwargs.get('output_format') == 'flux_density':
+        # Use redback's K-correction utilities
+        frequency = kwargs['frequency']
+        frequency, time = calc_kcorrected_properties(frequency=frequency, time=time, redshift=redshift)
+
+        # Convert wavelengths to frequencies for interpolation
+        nu_array = lambda_to_nu(standard_freqs)
+
+        # Convert spectrum from erg/s/Hz to erg/s/cm²/Hz (already done above)
+        # Convert to wavelength density for astropy conversion
+        spectra_lambda = spectra_lambda.to(uu.erg / uu.cm ** 2 / uu.s / uu.Angstrom)
+
+        # Convert to mJy using astropy
+        fmjy = spectra_lambda.to(uu.mJy,
+                                 equivalencies=uu.spectral_density(wav=standard_freqs * uu.Angstrom)).value
+
+        # Create interpolator
+        flux_interpolator = RegularGridInterpolator(
+            (standard_times, nu_array),
+            fmjy,
+            bounds_error=False,
+            fill_value=0.0
+        )
+
+        # Prepare points for interpolation
+        if isinstance(frequency, (int, float)):
+            frequency = np.ones_like(time) * frequency
+
+        # Create points for evaluation
+        points = np.column_stack((time, frequency))
+
+        # Return interpolated flux
+        return flux_interpolator(points)
+
+    else:
+        # Create denser grid for output (in rest frame)
+        new_rest_times = np.geomspace(np.min(standard_times), np.max(standard_times), 200)
+        new_rest_freqs = np.geomspace(np.min(standard_freqs), np.max(standard_freqs), 200)
+
+        # Create interpolator for the spectrum in rest frame
+        spectra_func = RegularGridInterpolator(
+            (standard_times, standard_freqs),
+            observed_spectrum.value,
+            bounds_error=False,
+            fill_value=0.0
+        )
+
+        # Create meshgrid for new grid points
+        tt_mesh, ff_mesh = np.meshgrid(new_rest_times, new_rest_freqs, indexing='ij')
+        points_to_evaluate = np.column_stack((tt_mesh.ravel(), ff_mesh.ravel()))
+
+        # Interpolate spectrum onto new grid
+        interpolated_values = spectra_func(points_to_evaluate)
+        interpolated_spectrum = interpolated_values.reshape(tt_mesh.shape) * observed_spectrum.unit
+
+        # Convert times to observer frame
+        time_observer_frame = new_rest_times * (1 + redshift)
+
+        # Convert wavelengths to observer frame
+        lambda_observer_frame = new_rest_freqs * (1 + redshift)
+
+        # Convert spectrum units using astropy
+        interpolated_spectrum = interpolated_spectrum.to(
+            uu.erg / uu.cm ** 2 / uu.s / uu.Angstrom,
+            equivalencies=uu.spectral_density(wav=lambda_observer_frame * uu.Angstrom)
+        )
+
+        # Create output structure
+        if kwargs.get('output_format') == 'spectra':
+            return namedtuple('output', ['time', 'lambdas', 'spectra'])(
+                time=time_observer_frame,
+                lambdas=lambda_observer_frame,
+                spectra=interpolated_spectrum
+            )
+        else:
+            # Get correct output format using redback utility
+            return sed.get_correct_output_format_from_spectra(
+                time=time,  # Original observer frame time for evaluation
+                time_eval=time_observer_frame,
+                spectra=interpolated_spectrum,
+                lambda_array=lambda_observer_frame,
+                time_spline_degree=1,
+                **kwargs
+            )

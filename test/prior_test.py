@@ -1,6 +1,7 @@
 import unittest
 import numpy as np
 import bilby
+import os
 from os import listdir
 from os.path import dirname
 from bilby.core.prior import Constraint, Uniform, LogUniform
@@ -11,12 +12,29 @@ import redback
 
 _dirname = dirname(__file__)
 
+class TestLoadNonDefaultPriors(unittest.TestCase):
+
+    def setUp(self) -> None:
+        self.path_to_files = f"{_dirname}/../redback/priors/non_default_priors/"
+        self.prior_files = listdir(self.path_to_files)
+
+    def tearDown(self) -> None:
+        pass
+
+    def test_load_priors(self):
+        for f in self.prior_files:
+            print(f)
+            prior_dict = bilby.prior.PriorDict()
+            prior_dict.from_file(f"{self.path_to_files}{f}")
+
 
 class TestLoadPriors(unittest.TestCase):
 
     def setUp(self) -> None:
         self.path_to_files = f"{_dirname}/../redback/priors/"
-        self.prior_files = listdir(self.path_to_files)
+        # Filter out directories, only keep files
+        all_items = listdir(self.path_to_files)
+        self.prior_files = [f for f in all_items if os.path.isfile(os.path.join(self.path_to_files, f))]
 
     def tearDown(self) -> None:
         pass
@@ -235,7 +253,9 @@ class TestCornerPlotPriorSamples(unittest.TestCase):
 
     def setUp(self) -> None:
         self.path_to_files = f"{_dirname}/../redback/priors/"
-        self.prior_files = listdir(self.path_to_files)
+        # Filter out directories, only keep files
+        all_items = listdir(self.path_to_files)
+        self.prior_files = [f for f in all_items if os.path.isfile(os.path.join(self.path_to_files, f))]
 
     def tearDown(self) -> None:
         pass
