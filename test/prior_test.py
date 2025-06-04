@@ -11,6 +11,21 @@ import redback
 
 _dirname = dirname(__file__)
 
+class TestLoadNonDefaultPriors(unittest.TestCase):
+
+    def setUp(self) -> None:
+        self.path_to_files = f"{_dirname}/../redback/priors/non_default_priors/"
+        self.prior_files = listdir(self.path_to_files)
+
+    def tearDown(self) -> None:
+        pass
+
+    def test_load_priors(self):
+        for f in self.prior_files:
+            print(f)
+            prior_dict = bilby.prior.PriorDict()
+            prior_dict.from_file(f"{self.path_to_files}{f}")
+
 
 class TestLoadPriors(unittest.TestCase):
 

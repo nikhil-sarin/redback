@@ -3,6 +3,6 @@ log_mh = Uniform(0, 10, name='log_mh', latex_label = r'$M_{\mathrm{BH}}~(M_\odot
 a_mh = Uniform(-1, 1, name='a_mh', latex_label = r'$a_{\mathrm{BH}}$')
 m_disc = LogUniform(1e-3, 10, name='m_disc', latex_label = r'$M_{\mathrm{star}}~(M_\odot)$')
 r0 = Uniform(10, 100, name='r0', latex_label = r'$r_0~(r_g)$')
-tvi = LogUniform(1, 1000, name='tvi', latex_label = r'$t_{\mathrm{vi}}~(\mathrm{day}))
-t_form = Uniform(-100, 365, name='t_form', latex_label = r'$t_{\mathrm{from}}~(\mathrm{day})$')
+tvi = LogUniform(1, 1000, name='tvi', latex_label = r'$t_{\mathrm{vi}}~(\mathrm{day})$')
+t_form = Uniform(-100, 365, name='t_form', latex_label = r'$t_{\mathrm{form}}~(\mathrm{day})$')
 incl = Sine(name='incl', maximum=np.pi/2, latex_label=r'$\\theta_{\mathrm{observer}}~(\mathrm{rad})$')

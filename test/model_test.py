@@ -432,7 +432,6 @@ class TestThinShellExpansion(unittest.TestCase):
         ys = function(self.time, **prior.sample(), **kwargs)
         self.assertEqual(len(self.time), len(ys))
 
-
 class TestTypeIIWrapperFunctions(unittest.TestCase):
 
     def setUp(self):
@@ -830,3 +829,339 @@ class TestTypeIIEdgeCases(unittest.TestCase):
         scalar_rad = float(rad) if hasattr(rad, 'item') else rad
         self.assertTrue(np.isfinite(scalar_temp))
         self.assertTrue(np.isfinite(scalar_rad))
+
+
+class TestJetsimpyModels(unittest.TestCase):
+
+    def setUp(self):
+        """Set up test fixtures."""
+        # Import the functions under test
+        from redback.transient_models.afterglow_models import jetsimpy_tophat, jetsimpy_gaussian, jetsimpy_powerlaw
+        self.jetsimpy_tophat = jetsimpy_tophat
+        self.jetsimpy_gaussian = jetsimpy_gaussian
+        self.jetsimpy_powerlaw = jetsimpy_powerlaw
+
+        # Common test parameters
+        self.time = np.array([1.0, 2.0, 3.0])
+        self.redshift = 0.1
+        self.thv = 0.2
+        self.loge0 = 52.0
+        self.thc = 0.1
+        self.nism = 1.0
+        self.A = 1.0
+        self.p = 2.2
+        self.logepse = -1.0
+        self.logepsb = -2.0
+        self.g0 = 100.0
+        self.s = 2.0  # For powerlaw model
+
+        # Mock cosmology
+        self.mock_cosmology = MagicMock()
+        self.mock_dl = MagicMock()
+        self.mock_dl.cgs.value = 1e28
+        self.mock_cosmology.luminosity_distance.return_value = self.mock_dl
+
+    def test_jetsimpy_tophat_flux_density(self):
+        """Test jetsimpy_tophat with flux_density output."""
+        # Create mock jetsimpy module
+        mock_jetsimpy = MagicMock()
+        mock_flux_density = np.array([1e-26, 2e-26, 3e-26])
+        mock_jetsimpy.FluxDensity_tophat.return_value = mock_flux_density
+
+        # Test parameters
+        frequency = 5e14
+        kwargs = {
+            'output_format': 'flux_density',
+            'frequency': frequency
+        }
+
+        # Patch the import and cosmology
+        with patch.dict('sys.modules', {'jetsimpy': mock_jetsimpy}), \
+                patch('redback.transient_models.afterglow_models.cosmo', self.mock_cosmology):
+            # Call function
+            result = self.jetsimpy_tophat(
+                time=self.time, redshift=self.redshift, thv=self.thv, loge0=self.loge0,
+                thc=self.thc, nism=self.nism, A=self.A, p=self.p,
+                logepse=self.logepse, logepsb=self.logepsb, g0=self.g0, **kwargs
+            )
+
+        # Verify jetsimpy was called with correct parameters
+        mock_jetsimpy.FluxDensity_tophat.assert_called_once()
+        call_args = mock_jetsimpy.FluxDensity_tophat.call_args
+
+        # Check time conversion (days to seconds)
+        expected_time_s = self.time * 86400  # day_to_s
+        np.testing.assert_array_almost_equal(call_args[0][0], expected_time_s)
+
+        # Check frequency
+        self.assertEqual(call_args[0][1], frequency)
+
+        # Check parameter dictionary structure
+        param_dict = call_args[0][2]
+        self.assertIn('Eiso', param_dict)
+        self.assertEqual(param_dict['Eiso'], 10 ** self.loge0)
+        self.assertEqual(param_dict['lf'], self.g0)
+        self.assertEqual(param_dict['theta_c'], self.thc)
+        self.assertEqual(param_dict['theta_v'], self.thv)
+
+        # Verify result
+        np.testing.assert_array_equal(result, mock_flux_density)
+
+    def test_jetsimpy_tophat_magnitude(self):
+        """Test jetsimpy_tophat with magnitude output."""
+        # Create mock jetsimpy module
+        mock_jetsimpy = MagicMock()
+        mock_flux_density = np.array([1e-26, 2e-26, 3e-26])
+        mock_jetsimpy.FluxDensity_tophat.return_value = mock_flux_density
+
+        mock_frequency = 5e14
+        mock_mag_result = MagicMock()
+        mock_mag_result.value = np.array([20.0, 21.0, 22.0])
+
+        # Test parameters
+        kwargs = {
+            'output_format': 'magnitude',
+            'bands': ['g']
+        }
+
+        # Patch everything needed
+        with patch.dict('sys.modules', {'jetsimpy': mock_jetsimpy}), \
+                patch('redback.transient_models.afterglow_models.cosmo', self.mock_cosmology), \
+                patch('redback.transient_models.afterglow_models.bands_to_frequency', return_value=mock_frequency), \
+                patch('redback.transient_models.afterglow_models.calc_ABmag_from_flux_density',
+                      return_value=mock_mag_result):
+            # Call function
+            result = self.jetsimpy_tophat(
+                time=self.time, redshift=self.redshift, thv=self.thv, loge0=self.loge0,
+                thc=self.thc, nism=self.nism, A=self.A, p=self.p,
+                logepse=self.logepse, logepsb=self.logepsb, g0=self.g0, **kwargs
+            )
+
+        # Verify jetsimpy was called
+        mock_jetsimpy.FluxDensity_tophat.assert_called_once()
+
+        # Verify result
+        np.testing.assert_array_equal(result, mock_mag_result.value)
+
+    def test_jetsimpy_gaussian_flux_density(self):
+        """Test jetsimpy_gaussian with flux_density output."""
+        # Create mock jetsimpy module
+        mock_jetsimpy = MagicMock()
+        mock_flux_density = np.array([1e-26, 2e-26, 3e-26])
+        mock_jetsimpy.FluxDensity_gaussian.return_value = mock_flux_density
+
+        # Test parameters
+        frequency = 5e14
+        kwargs = {
+            'output_format': 'flux_density',
+            'frequency': frequency
+        }
+
+        # Patch the import and cosmology
+        with patch.dict('sys.modules', {'jetsimpy': mock_jetsimpy}), \
+                patch('redback.transient_models.afterglow_models.cosmo', self.mock_cosmology):
+            # Call function
+            result = self.jetsimpy_gaussian(
+                time=self.time, redshift=self.redshift, thv=self.thv, loge0=self.loge0,
+                thc=self.thc, nism=self.nism, A=self.A, p=self.p,
+                logepse=self.logepse, logepsb=self.logepsb, g0=self.g0, **kwargs
+            )
+
+        # Verify jetsimpy was called
+        mock_jetsimpy.FluxDensity_gaussian.assert_called_once()
+
+        # Verify result
+        np.testing.assert_array_equal(result, mock_flux_density)
+
+    def test_jetsimpy_powerlaw_flux_density(self):
+        """Test jetsimpy_powerlaw with flux_density output."""
+        # Create mock jetsimpy module
+        mock_jetsimpy = MagicMock()
+        mock_flux_density = np.array([1e-26, 2e-26, 3e-26])
+        mock_jetsimpy.FluxDensity_powerlaw.return_value = mock_flux_density
+
+        # Test parameters
+        frequency = 5e14
+        kwargs = {
+            'output_format': 'flux_density',
+            'frequency': frequency
+        }
+
+        # Patch the import and cosmology
+        with patch.dict('sys.modules', {'jetsimpy': mock_jetsimpy}), \
+                patch('redback.transient_models.afterglow_models.cosmo', self.mock_cosmology):
+            # Call function
+            result = self.jetsimpy_powerlaw(
+                time=self.time, redshift=self.redshift, thv=self.thv, loge0=self.loge0,
+                thc=self.thc, nism=self.nism, A=self.A, p=self.p,
+                logepse=self.logepse, logepsb=self.logepsb, g0=self.g0, s=self.s, **kwargs
+            )
+
+        # Verify jetsimpy was called
+        mock_jetsimpy.FluxDensity_powerlaw.assert_called_once()
+
+        # Check that 's' parameter is included in the parameter dictionary
+        call_args = mock_jetsimpy.FluxDensity_powerlaw.call_args
+        param_dict = call_args[0][2]
+        self.assertIn('s', param_dict)
+        self.assertEqual(param_dict['s'], self.s)
+
+        # Verify result
+        np.testing.assert_array_equal(result, mock_flux_density)
+
+    def test_parameter_dictionary_construction(self):
+        """Test that the parameter dictionary is constructed correctly."""
+        # Create mock jetsimpy module
+        mock_jetsimpy = MagicMock()
+        mock_jetsimpy.FluxDensity_tophat.return_value = np.array([1e-26])
+
+        kwargs = {
+            'output_format': 'flux_density',
+            'frequency': 5e14
+        }
+
+        # Patch the import and cosmology
+        with patch.dict('sys.modules', {'jetsimpy': mock_jetsimpy}), \
+                patch('redback.transient_models.afterglow_models.cosmo', self.mock_cosmology):
+            self.jetsimpy_tophat(
+                time=np.array([1.0]), redshift=self.redshift, thv=self.thv, loge0=self.loge0,
+                thc=self.thc, nism=self.nism, A=self.A, p=self.p,
+                logepse=self.logepse, logepsb=self.logepsb, g0=self.g0, **kwargs
+            )
+
+        # Get the parameter dictionary that was passed
+        call_args = mock_jetsimpy.FluxDensity_tophat.call_args
+        param_dict = call_args[0][2]
+
+        # Verify all expected parameters
+        expected_params = {
+            'Eiso': 10 ** self.loge0,
+            'lf': self.g0,
+            'theta_c': self.thc,
+            'n0': self.nism,
+            'A': self.A,
+            'eps_e': 10 ** self.logepse,
+            'eps_b': 10 ** self.logepsb,
+            'p': self.p,
+            'theta_v': self.thv,
+            'd': self.mock_dl.cgs.value * 3.24078e-25,
+            'z': self.redshift
+        }
+
+        for key, expected_value in expected_params.items():
+            self.assertIn(key, param_dict)
+            self.assertAlmostEqual(param_dict[key], expected_value)
+
+    def test_time_conversion(self):
+        """Test that time is correctly converted from days to seconds."""
+        # Create mock jetsimpy module
+        mock_jetsimpy = MagicMock()
+        mock_jetsimpy.FluxDensity_tophat.return_value = np.array([1e-26, 2e-26, 3e-26])
+
+        kwargs = {
+            'output_format': 'flux_density',
+            'frequency': 5e14
+        }
+
+        input_time = np.array([1.0, 2.0, 3.0])  # days
+
+        # Patch the import, cosmology, and day_to_s
+        with patch.dict('sys.modules', {'jetsimpy': mock_jetsimpy}), \
+                patch('redback.transient_models.afterglow_models.cosmo', self.mock_cosmology), \
+                patch('redback.transient_models.afterglow_models.day_to_s', 86400):
+            self.jetsimpy_tophat(
+                time=input_time, redshift=self.redshift, thv=self.thv, loge0=self.loge0,
+                thc=self.thc, nism=self.nism, A=self.A, p=self.p,
+                logepse=self.logepse, logepsb=self.logepsb, g0=self.g0, **kwargs
+            )
+
+        # Verify time was converted correctly
+        call_args = mock_jetsimpy.FluxDensity_tophat.call_args
+        passed_time = call_args[0][0]
+        expected_time = input_time * 86400  # Convert days to seconds
+
+        np.testing.assert_array_almost_equal(passed_time, expected_time)
+
+    def test_custom_cosmology(self):
+        """Test that custom cosmology is used when provided."""
+        custom_cosmology = MagicMock()
+        custom_dl = MagicMock()
+        custom_dl.cgs.value = 2e28
+        custom_cosmology.luminosity_distance.return_value = custom_dl
+
+        # Create mock jetsimpy module
+        mock_jetsimpy = MagicMock()
+        mock_jetsimpy.FluxDensity_tophat.return_value = np.array([1e-26])
+
+        kwargs = {
+            'output_format': 'flux_density',
+            'frequency': 5e14,
+            'cosmology': custom_cosmology
+        }
+
+        # Patch the import (no need to patch cosmo since we're providing custom cosmology)
+        with patch.dict('sys.modules', {'jetsimpy': mock_jetsimpy}):
+            self.jetsimpy_tophat(
+                time=np.array([1.0]), redshift=self.redshift, thv=self.thv, loge0=self.loge0,
+                thc=self.thc, nism=self.nism, A=self.A, p=self.p,
+                logepse=self.logepse, logepsb=self.logepsb, g0=self.g0, **kwargs
+            )
+
+        # Verify custom cosmology was used
+        custom_cosmology.luminosity_distance.assert_called_once_with(self.redshift)
+
+        # Verify the custom distance was used in parameter dictionary
+        call_args = mock_jetsimpy.FluxDensity_tophat.call_args
+        param_dict = call_args[0][2]
+        expected_d = custom_dl.cgs.value * 3.24078e-25
+        self.assertEqual(param_dict['d'], expected_d)
+
+    def test_all_three_models_called_correctly(self):
+        """Test that all three models call their respective jetsimpy functions."""
+        # Create mock jetsimpy module
+        mock_jetsimpy = MagicMock()
+        mock_jetsimpy.FluxDensity_tophat.return_value = np.array([1e-26])
+        mock_jetsimpy.FluxDensity_gaussian.return_value = np.array([2e-26])
+        mock_jetsimpy.FluxDensity_powerlaw.return_value = np.array([3e-26])
+
+        kwargs = {
+            'output_format': 'flux_density',
+            'frequency': 5e14
+        }
+
+        # Patch the import and cosmology
+        with patch.dict('sys.modules', {'jetsimpy': mock_jetsimpy}), \
+                patch('redback.transient_models.afterglow_models.cosmo', self.mock_cosmology):
+            # Test tophat
+            result1 = self.jetsimpy_tophat(
+                time=np.array([1.0]), redshift=self.redshift, thv=self.thv, loge0=self.loge0,
+                thc=self.thc, nism=self.nism, A=self.A, p=self.p,
+                logepse=self.logepse, logepsb=self.logepsb, g0=self.g0, **kwargs
+            )
+
+            # Test gaussian
+            result2 = self.jetsimpy_gaussian(
+                time=np.array([1.0]), redshift=self.redshift, thv=self.thv, loge0=self.loge0,
+                thc=self.thc, nism=self.nism, A=self.A, p=self.p,
+                logepse=self.logepse, logepsb=self.logepsb, g0=self.g0, **kwargs
+            )
+
+            # Test powerlaw
+            result3 = self.jetsimpy_powerlaw(
+                time=np.array([1.0]), redshift=self.redshift, thv=self.thv, loge0=self.loge0,
+                thc=self.thc, nism=self.nism, A=self.A, p=self.p,
+                logepse=self.logepse, logepsb=self.logepsb, g0=self.g0, s=self.s, **kwargs
+            )
+
+        # Verify each function was called once
+        mock_jetsimpy.FluxDensity_tophat.assert_called_once()
+        mock_jetsimpy.FluxDensity_gaussian.assert_called_once()
+        mock_jetsimpy.FluxDensity_powerlaw.assert_called_once()
+
+        # Verify results
+        np.testing.assert_array_equal(result1, np.array([1e-26]))
+        np.testing.assert_array_equal(result2, np.array([2e-26]))
+        np.testing.assert_array_equal(result3, np.array([3e-26]))
+
+
+
