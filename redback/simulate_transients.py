@@ -657,6 +657,8 @@ class SimulateOpticalTransient(object):
         detected[mask_snr] = 0
         observation_dataframe['detected'] = detected
         observation_dataframe['limiting_magnitude'] = overlapping_database['fiveSigmaDepth'].values
+        observation_dataframe['flux_limit'] = redback.utils.bandpass_magnitude_to_flux(
+            overlapping_database['fiveSigmaDepth'].values, filters)
         return observation_dataframe
 
     def _make_observations(self):

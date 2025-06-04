@@ -672,6 +672,7 @@ class MagnitudePlotter(Plotter):
         if self.transient.magnitude_data:
             ax.set_ylim(self._ylim_low_magnitude, self._ylim_high_magnitude)
             ax.invert_yaxis()
+            ax.set_yscale('linear')
         else:
             ax.set_ylim(self._ylim_low, self._ylim_high)
             ax.set_yscale("log")
@@ -680,6 +681,7 @@ class MagnitudePlotter(Plotter):
         if self.transient.magnitude_data:
             ax.set_ylim(self._ylim_low_magnitude, self._ylim_high_magnitude)
             ax.invert_yaxis()
+            ax.set_yscale('linear')
         else:
             ax.set_ylim(self._get_ylim_low_with_indices(indices=indices),
                         self._get_ylim_high_with_indices(indices=indices))
@@ -806,7 +808,6 @@ class MagnitudePlotter(Plotter):
         axes = axes or plt.gca()
 
         axes = self.plot_data(axes=axes, save=False, show=False)
-        axes.set_yscale('log')
 
         times = self._get_times(axes)
         bands_to_plot = self._get_bands_to_plot
@@ -983,7 +984,8 @@ class MagnitudePlotter(Plotter):
                 continue
             new_model_kwargs = self._model_kwargs.copy()
             new_model_kwargs['frequency'] = freq
-            new_model_kwargs['bands'] = band
+            new_model_kwargs['bands'] = redback.utils.sncosmo_bandname_from_band([band])
+            new_model_kwargs['bands'] = [new_model_kwargs['bands'][0] for _ in range(len(times))]
             
             if self.set_same_color_per_subplot is True:
                 color = self._colors[list(self._filters).index(band)]

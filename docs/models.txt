@@ -196,6 +196,61 @@ The specific physics that can be changed:
 
 We encourage users to add more of these physics switches, which is another easy way to contribute to :code:`redback`.
 
+Extinction
+-------------------------
+
+Redback models by default assume that the light curve is not affected by extinction, either MW or host galaxy.
+To include extinction in the model, users must use the extinction models provided in :code:`redback` while using the original model as a :code:`base_model`.
+For example, to include extinction in the :code:`arnett` model, users can do the following:
+
+.. code:: python
+
+    from redback.model_library import all_models_dict
+
+    base_model = 'arnett'
+    time = np.linspace(10, 500, 100)  # Time in days
+
+    # define parameters for the arnett model
+    parameters = {
+        'f_nickel': 0.6,  # Nickel mass fraction
+        'mej': 5,  # Ejecta mass in solar masses
+        'vej': 1000,  # Ejecta velocity in km/s
+        'kappa': 0.3,  # Opacity in cm^2/g
+        'kappa_gamma': 1e2,  # Gamma-ray opacity in cm^2/g
+        'temperature_floor': 5000, # Temperature floor in K
+        'redshift': 0.8,  # Redshift of the source
+    }
+
+    # generate lsstu magnitudes
+    bands = 'lsstu'  # Bands to output the light curve in
+    output_format = 'magnitude'  # Output format of the light curve
+
+    model = 'extinction_with_supernova_base_model'
+    function = all_models_dict[model]
+
+    # define host extinction parameters
+    av_host = 0.6  # Host galaxy extinction in magnitudes
+    rv_host = 3.1  # Host galaxy extinction law parameter
+    # Define the extinction law to use
+    # options are 'fitzpatrick99', 'fm07', 'calzetti00', 'odonnell94', 'ccm89'
+    host_law = 'fitzpatrick99'  # Host galaxy extinction law
+
+    # Define the Milky Way extinction parameters
+    av_mw = 0.6  # Milky Way extinction in magnitudes
+    rv_mw = 3.1  # Milky Way extinction law parameter
+    # Define the Milky Way extinction law
+    mw_law = 'fitzpatrick99'  # Milky Way extinction law
+
+    # Generate the light curve with extinction
+    magnitude = function(time, av_host=av_host, rv_host=rv_host,
+                            av_mw=av_mw, rv_mw=rv_mw, host_law=host_law,
+                            mw_law=mw_law, output_format=output_format,
+                            bands=bands, base_model=base_model, **parameters)
+
+In v1.13, we changed the way extinction is handled in :code:`redback` models.
+The older interface was similar except users only had the option to pass a single extinction av and rv corresponding to the host extinction, with the extinction law fixed to Fitzpatrick 1999.
+
+
 Extra kwargs and output formats in :code:`redback` models
 -------------------------
 All :code:`redback` models have a set of extra keyword arguments that can be passed to the function.

@@ -12,7 +12,7 @@ def tophat_and_twolayerstratified(time, redshift, av, thv, loge0, thc, logn0, p,
     
     :param time: time in days in observer frame
     :param redshift: source redshift
-    :param av: absolute mag extinction
+    :param av: V-band extinction from host galaxy in magnitudes
     :param thv: viewing angle in radians
     :param loge0: log10 on axis isotropic equivalent energy
     :param thc: half width of jet core/jet opening angle in radians
@@ -28,7 +28,7 @@ def tophat_and_twolayerstratified(time, redshift, av, thv, loge0, thc, logn0, p,
     :param vej_2: velocity of outer shell in c
     :param kappa: constant gray opacity
     :param beta: power law index of density profile
-    :param kwargs: Additional keyword arguments
+    :param kwargs: Additional keyword arguments e.g., for extinction or the models
     :param r_v: extinction parameter, defaults to 3.1
     :param spread: whether jet can spread, defaults to False
     :param latres: latitudinal resolution for structured jets, defaults to 2
@@ -49,7 +49,8 @@ def tophat_and_twolayerstratified(time, redshift, av, thv, loge0, thc, logn0, p,
     r_v = kwargs.get('r_v', 3.1)
     # correct for extinction
     angstroms = nu_to_lambda(kwargs['frequency'])
-    combined = em._perform_extinction(flux_density=combined, angstroms=angstroms, av=av, r_v=r_v)
+    combined = em._perform_extinction(flux_density=combined, angstroms=angstroms, av_host=av, rv_host=r_v,
+                                      redshift=redshift, **kwargs)
     return combined
 
 @citation_wrapper('https://ui.adsabs.harvard.edu/abs/2020ApJ...896..166R/abstract, redback')
@@ -62,7 +63,7 @@ def tophat_and_twocomponent(time, redshift, av, thv, loge0, thc, logn0,
     
     :param time: time in days in observer frame
     :param redshift: source redshift
-    :param av: absolute mag extinction
+    :param av: V-band extinction from host galaxy in magnitudes
     :param thv: viewing angle in radians
     :param loge0: log10 on axis isotropic equivalent energy
     :param thc: half width of jet core/jet opening angle in radians
@@ -81,7 +82,7 @@ def tophat_and_twocomponent(time, redshift, av, thv, loge0, thc, logn0,
     :param vej_2: minimum initial velocity of second component
     :param temperature_floor_2: floor temperature of second component
     :param kappa_2: gray opacity of second component
-    :param kwargs: Additional keyword arguments
+    :param kwargs: Additional keyword arguments e.g., for extinction or the models
     :param r_v: extinction parameter, defaults to 3.1
     :param spread: whether jet can spread, defaults to False
     :param latres: latitudinal resolution for structured jets, defaults to 2
@@ -105,7 +106,8 @@ def tophat_and_twocomponent(time, redshift, av, thv, loge0, thc, logn0,
     r_v = kwargs.get('r_v', 3.1)
     # correct for extinction
     angstroms = nu_to_lambda(kwargs['frequency'])
-    combined = em._perform_extinction(flux_density=combined, angstroms=angstroms, av=av, r_v=r_v)
+    combined = em._perform_extinction(flux_density=combined, angstroms=angstroms, av_host=av, rv_host=r_v,
+                                      redshift=redshift, **kwargs)
     return combined
 
 @citation_wrapper('https://ui.adsabs.harvard.edu/abs/2020ApJ...896..166R/abstract, https://ui.adsabs.harvard.edu/abs/1982ApJ...253..785A/abstract')
@@ -116,7 +118,7 @@ def tophat_and_arnett(time, av, redshift, thv, loge0, thc, logn0, p, logepse, lo
     
     :param time: time in days in observer frame
     :param redshift: source redshift
-    :param av: absolute mag extinction
+    :param av: V-band extinction from host galaxy in magnitudes
     :param thv: viewing angle in radians
     :param loge0: log10 on axis isotropic equivalent energy
     :param thc: half width of jet core/jet opening angle in radians
@@ -131,7 +133,8 @@ def tophat_and_arnett(time, av, redshift, thv, loge0, thc, logn0, p, logepse, lo
     :param mej: total ejecta mass in solar masses
     :param kwargs: Additional keyword arguments
         Must include all the kwargs required by the specific interaction_process, photosphere, sed methods used
-        e.g., for Diffusion and TemperatureFloor: kappa, kappa_gamma, vej (km/s), temperature_floor
+        e.g., for Diffusion and TemperatureFloor: kappa, kappa_gamma, vej (km/s), temperature_floor and
+        any other kwargs for the specific models.
     :param r_v: extinction parameter, defaults to 3.1
     :param spread: whether jet can spread, defaults to False
     :param latres: latitudinal resolution for structured jets, defaults to 2
@@ -157,7 +160,8 @@ def tophat_and_arnett(time, av, redshift, thv, loge0, thc, logn0, p, logepse, lo
     r_v = kwargs.get('r_v', 3.1)
     # correct for extinction
     angstroms = nu_to_lambda(kwargs['frequency'])
-    combined = em._perform_extinction(flux_density=combined, angstroms=angstroms, av=av, r_v=r_v)
+    combined = em._perform_extinction(flux_density=combined, angstroms=angstroms, av_host=av, rv_host=r_v,
+                                      redshift=redshift, **kwargs)
     return combined
 
 @citation_wrapper('redback, and any citations for the specific model you use')
@@ -167,7 +171,7 @@ def afterglow_and_optical(time, redshift, av, **model_kwargs):
     
     :param time: time in days in observer frame
     :param redshift: source redshift
-    :param av: absolute mag extinction
+    :param av: V-band extinction from host galaxy in magnitudes
     :param model_kwargs: kwargs shared by models frequency and r_v (extinction paramater defaults to 3.1)
     :param afterglow_kwargs: dictionary of  parameters required by the afterglow transient model specified by 'base_model'
         and any additional keyword arguments. Refer to model documentation for details.
@@ -198,6 +202,7 @@ def afterglow_and_optical(time, redshift, av, **model_kwargs):
     r_v = model_kwargs.get('r_v', 3.1)
     # correct for extinction
     angstroms = nu_to_lambda(model_kwargs['frequency'])
-    combined = em._perform_extinction(flux_density=combined, angstroms=angstroms, av=av, r_v=r_v)
+    combined = em._perform_extinction(flux_density=combined, angstroms=angstroms, av_host=av, rv_host=r_v,
+                                      redshift=redshift, **kwargs)
     return combined
     

@@ -1953,6 +1953,7 @@ def tophat(time, redshift, thv, loge0, thc, logn0, p, logepse, logepsb, ksin, g0
         return calc_ABmag_from_flux_density(flux_density).value
 
 
+@citation_wrapper('https://ui.adsabs.harvard.edu/abs/2025MNRAS.539.3319W/abstract')
 def tophat_from_emulator(time, redshift, thv, loge0, thc, logn0, p, logepse, logepsb, g0, **kwargs):
     """
     Evaluate a tophat afterglow model using an mpl regressor. Note that this model predicts for a fixed redshift = 0.01 and fixed ksin = 1.
