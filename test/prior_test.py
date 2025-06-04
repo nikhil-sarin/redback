@@ -1,6 +1,7 @@
 import unittest
 import numpy as np
 import bilby
+import os
 from os import listdir
 from os.path import dirname
 from bilby.core.prior import Constraint, Uniform, LogUniform
@@ -31,7 +32,9 @@ class TestLoadPriors(unittest.TestCase):
 
     def setUp(self) -> None:
         self.path_to_files = f"{_dirname}/../redback/priors/"
-        self.prior_files = listdir(self.path_to_files)
+        # Filter out directories, only keep files
+        all_items = listdir(self.path_to_files)
+        self.prior_files = [f for f in all_items if os.path.isfile(os.path.join(self.path_to_files, f))]
 
     def tearDown(self) -> None:
         pass
@@ -250,7 +253,9 @@ class TestCornerPlotPriorSamples(unittest.TestCase):
 
     def setUp(self) -> None:
         self.path_to_files = f"{_dirname}/../redback/priors/"
-        self.prior_files = listdir(self.path_to_files)
+        # Filter out directories, only keep files
+        all_items = listdir(self.path_to_files)
+        self.prior_files = [f for f in all_items if os.path.isfile(os.path.join(self.path_to_files, f))]
 
     def tearDown(self) -> None:
         pass

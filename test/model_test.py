@@ -1,4 +1,5 @@
 import unittest
+import os
 from os import listdir
 from os.path import dirname
 from unittest import mock
@@ -19,7 +20,9 @@ class TestModels(unittest.TestCase):
 
     def setUp(self) -> None:
         self.path_to_files = f"{_dirname}/../redback/priors/"
-        self.prior_files = listdir(self.path_to_files)
+        # Filter out directories, only keep files
+        all_items = listdir(self.path_to_files)
+        self.prior_files = [f for f in all_items if os.path.isfile(os.path.join(self.path_to_files, f))]
 
     def tearDown(self) -> None:
         pass
@@ -53,7 +56,9 @@ class TestModels(unittest.TestCase):
 class TestPhaseModels(unittest.TestCase):
     def setUp(self) -> None:
         self.path_to_files = f"{_dirname}/../redback/priors/"
-        self.prior_files = listdir(self.path_to_files)
+        # Filter out directories, only keep files
+        all_items = listdir(self.path_to_files)
+        self.prior_files = [f for f in all_items if os.path.isfile(os.path.join(self.path_to_files, f))]
 
     def tearDown(self) -> None:
         pass
@@ -95,7 +100,9 @@ class TestPhaseModels(unittest.TestCase):
 class TestMagnitudeOutput(unittest.TestCase):
     def setUp(self) -> None:
         self.path_to_files = f"{_dirname}/../redback/priors/"
-        self.prior_files = listdir(self.path_to_files)
+        # Filter out directories, only keep files
+        all_items = listdir(self.path_to_files)
+        self.prior_files = [f for f in all_items if os.path.isfile(os.path.join(self.path_to_files, f))]
 
     def tearDown(self) -> None:
         pass
@@ -132,7 +139,9 @@ class TestMagnitudeOutput(unittest.TestCase):
 class TestFluxOutput(unittest.TestCase):
     def setUp(self) -> None:
         self.path_to_files = f"{_dirname}/../redback/priors/"
-        self.prior_files = listdir(self.path_to_files)
+        # Filter out directories, only keep files
+        all_items = listdir(self.path_to_files)
+        self.prior_files = [f for f in all_items if os.path.isfile(os.path.join(self.path_to_files, f))]
 
     def tearDown(self) -> None:
         pass
@@ -168,7 +177,9 @@ class TestFluxOutput(unittest.TestCase):
 class TestIntegratedFluxModelFlux(unittest.TestCase):
     def setUp(self) -> None:
         self.path_to_files = f"{_dirname}/../redback/priors/"
-        self.prior_files = listdir(self.path_to_files)
+        # Filter out directories, only keep files
+        all_items = listdir(self.path_to_files)
+        self.prior_files = [f for f in all_items if os.path.isfile(os.path.join(self.path_to_files, f))]
 
     def tearDown(self) -> None:
         pass
@@ -198,7 +209,9 @@ class TestIntegratedFluxModelFlux(unittest.TestCase):
 class TestIntegratedFluxModelRate(unittest.TestCase):
     def setUp(self) -> None:
         self.path_to_files = f"{_dirname}/../redback/priors/"
-        self.prior_files = listdir(self.path_to_files)
+        # Filter out directories, only keep files
+        all_items = listdir(self.path_to_files)
+        self.prior_files = [f for f in all_items if os.path.isfile(os.path.join(self.path_to_files, f))]
 
     def tearDown(self) -> None:
         pass
@@ -227,7 +240,9 @@ class TestIntegratedFluxModelRate(unittest.TestCase):
 class TestExtinctionModelsFluxDensity(unittest.TestCase):
     def setUp(self) -> None:
         self.path_to_files = f"{_dirname}/../redback/priors/"
-        self.prior_files = listdir(self.path_to_files)
+        # Filter out directories, only keep files
+        all_items = listdir(self.path_to_files)
+        self.prior_files = [f for f in all_items if os.path.isfile(os.path.join(self.path_to_files, f))]
 
     def tearDown(self) -> None:
         pass
@@ -282,8 +297,9 @@ class TestExtinctionModelsFluxDensity(unittest.TestCase):
 class TestExtinctionModelsMagnitude(unittest.TestCase):
     def setUp(self) -> None:
         self.path_to_files = f"{_dirname}/../redback/priors/"
-        self.prior_files = listdir(self.path_to_files)
-
+        # Filter out directories, only keep files
+        all_items = listdir(self.path_to_files)
+        self.prior_files = [f for f in all_items if os.path.isfile(os.path.join(self.path_to_files, f))]
     def tearDown(self) -> None:
         pass
 
@@ -830,7 +846,6 @@ class TestTypeIIEdgeCases(unittest.TestCase):
         self.assertTrue(np.isfinite(scalar_temp))
         self.assertTrue(np.isfinite(scalar_rad))
 
-
 class TestJetsimpyModels(unittest.TestCase):
 
     def setUp(self):
@@ -1163,5 +1178,398 @@ class TestJetsimpyModels(unittest.TestCase):
         np.testing.assert_array_equal(result2, np.array([2e-26]))
         np.testing.assert_array_equal(result3, np.array([3e-26]))
 
+class TestFittedModels(unittest.TestCase):
 
+    def setUp(self):
+        """Set up test fixtures."""
+        # Import the functions under test
+        from redback.transient_models.tde_models import fitted, fitted_pl_decay, fitted_exp_decay
+        self.fitted = fitted
+        self.fitted_pl_decay = fitted_pl_decay
+        self.fitted_exp_decay = fitted_exp_decay
 
+        # Common test parameters
+        self.time = np.array([1.0, 2.0, 3.0])
+        self.redshift = 0.1
+        self.log_mh = 6.0
+        self.a_bh = 0.5
+        self.m_disc = 0.1
+        self.r0 = 50.0
+        self.tvi = 10.0
+        self.t_form = 5.0
+        self.incl = 0.5  # radians
+
+        # Additional parameters for decay models
+        self.log_L = 42.0
+        self.t_decay = 100.0
+        self.p = 2.0  # For power-law decay
+        self.log_T = 4.0
+        self.sigma_t = 5.0
+        self.t_peak = 50.0
+
+        # Mock cosmology
+        self.mock_cosmology = MagicMock()
+        self.mock_dl = MagicMock()
+        self.mock_dl.cgs.value = 1e28
+        self.mock_cosmology.luminosity_distance.return_value = self.mock_dl
+
+    def test_fitted_flux_density(self):
+        """Test fitted with flux_density output."""
+        # Create mock fitted module
+        mock_fitted = MagicMock()
+        mock_gr_disc = MagicMock()
+        mock_fitted.models.GR_disc.return_value = mock_gr_disc
+
+        # Mock model_UV method
+        mock_nulnus = np.array([1e30, 2e30, 3e30])
+        mock_gr_disc.model_UV.return_value = mock_nulnus
+
+        # Test parameters
+        frequency = 5e14
+        kwargs = {
+            'output_format': 'flux_density',
+            'frequency': frequency
+        }
+
+        # Patch everything needed
+        with patch.dict('sys.modules', {'fitted': mock_fitted}), \
+                patch('redback.transient_models.tde_models.cosmo', self.mock_cosmology), \
+                patch('redback.transient_models.tde_models.calc_kcorrected_properties',
+                      return_value=(frequency, self.time)):
+            # Call function
+            result = self.fitted(
+                time=self.time, redshift=self.redshift, log_mh=self.log_mh,
+                a_bh=self.a_bh, m_disc=self.m_disc, r0=self.r0, tvi=self.tvi,
+                t_form=self.t_form, incl=self.incl, **kwargs
+            )
+
+        # Verify fitted module was used correctly
+        mock_fitted.models.GR_disc.assert_called_once()
+        mock_gr_disc.model_UV.assert_called_once()
+
+        # Check the call arguments
+        call_args = mock_gr_disc.model_UV.call_args[0]
+        np.testing.assert_array_equal(call_args[0], self.time)  # time
+        self.assertEqual(call_args[1], self.log_mh)  # log_mh
+        self.assertEqual(call_args[2], self.a_bh)  # a_bh
+        self.assertEqual(call_args[3], self.m_disc)  # m_disc
+        self.assertEqual(call_args[4], self.r0)  # r0
+        self.assertEqual(call_args[5], self.tvi)  # tvi
+        self.assertEqual(call_args[6], self.t_form)  # t_form
+        self.assertAlmostEqual(call_args[7], 180.0 / np.pi * self.incl)  # angle conversion
+        self.assertEqual(call_args[8], frequency)  # frequency
+
+        # Verify result format
+        self.assertIsInstance(result, np.ndarray)
+        self.assertEqual(len(result), len(self.time))
+
+    def test_fitted_spectra_output(self):
+        """Test fitted with spectra output."""
+        # Create mock fitted module
+        mock_fitted = MagicMock()
+        mock_gr_disc = MagicMock()
+        mock_fitted.models.GR_disc.return_value = mock_gr_disc
+
+        # Mock model_SEDs method
+        mock_nulnus = np.random.rand(100, 300)  # frequency x time
+        mock_gr_disc.model_SEDs.return_value = mock_nulnus
+
+        kwargs = {
+            'output_format': 'spectra'
+        }
+
+        # Mock lambda_to_nu and calc_kcorrected_properties
+        mock_lambda_array = np.geomspace(100, 60000, 100)
+        mock_frequency_array = np.geomspace(1e14, 1e16, 100)
+        mock_time_array = np.geomspace(0.1, 3000, 300) * (1 + self.redshift)
+
+        with patch.dict('sys.modules', {'fitted': mock_fitted}), \
+                patch('redback.transient_models.tde_models.cosmo', self.mock_cosmology), \
+                patch('redback.transient_models.tde_models.lambda_to_nu', return_value=mock_frequency_array), \
+                patch('redback.transient_models.tde_models.calc_kcorrected_properties',
+                      return_value=(mock_frequency_array, mock_time_array)):
+            # Call function
+            result = self.fitted(
+                time=self.time, redshift=self.redshift, log_mh=self.log_mh,
+                a_bh=self.a_bh, m_disc=self.m_disc, r0=self.r0, tvi=self.tvi,
+                t_form=self.t_form, incl=self.incl, **kwargs
+            )
+
+        # Verify result structure
+        self.assertTrue(hasattr(result, 'time'))
+        self.assertTrue(hasattr(result, 'lambdas'))
+        self.assertTrue(hasattr(result, 'spectra'))
+
+        # Verify fitted module was called
+        mock_fitted.models.GR_disc.assert_called_once()
+        mock_gr_disc.model_SEDs.assert_called_once()
+
+    def test_fitted_pl_decay_flux_density(self):
+        """Test fitted_pl_decay with flux_density output."""
+        # Create mock fitted module
+        mock_fitted = MagicMock()
+        mock_gr_disc = MagicMock()
+        mock_fitted.models.GR_disc.return_value = mock_gr_disc
+
+        # Mock model methods
+        mock_plateau = np.array([1e30, 2e30, 3e30])
+        mock_rise = np.array([0.5e30, 1e30, 1.5e30])
+        mock_decay = np.array([0.3e30, 0.6e30, 0.9e30])
+
+        mock_gr_disc.model_UV.return_value = mock_plateau
+        mock_gr_disc.rise_model.return_value = mock_rise
+        mock_gr_disc.decay_model.return_value = mock_decay
+
+        # Test parameters
+        frequency = 5e14
+        kwargs = {
+            'output_format': 'flux_density',
+            'frequency': frequency
+        }
+
+        with patch.dict('sys.modules', {'fitted': mock_fitted}), \
+                patch('redback.transient_models.tde_models.cosmo', self.mock_cosmology), \
+                patch('redback.transient_models.tde_models.calc_kcorrected_properties',
+                      return_value=(frequency, self.time)):
+            # Call function
+            result = self.fitted_pl_decay(
+                time=self.time, redshift=self.redshift, log_mh=self.log_mh,
+                a_bh=self.a_bh, m_disc=self.m_disc, r0=self.r0, tvi=self.tvi,
+                t_form=self.t_form, incl=self.incl, log_L=self.log_L,
+                t_decay=self.t_decay, p=self.p, log_T=self.log_T,
+                sigma_t=self.sigma_t, t_peak=self.t_peak, **kwargs
+            )
+
+        # Verify fitted module was initialized with correct parameters
+        mock_fitted.models.GR_disc.assert_called_once_with(decay_type='pl', rise=True)
+
+        # Verify all three models were called
+        mock_gr_disc.model_UV.assert_called_once()
+        mock_gr_disc.rise_model.assert_called_once()
+        mock_gr_disc.decay_model.assert_called_once()
+
+        # Verify result
+        self.assertIsInstance(result, np.ndarray)
+        self.assertEqual(len(result), len(self.time))
+
+    def test_fitted_exp_decay_flux_density(self):
+        """Test fitted_exp_decay with flux_density output."""
+        # Create mock fitted module
+        mock_fitted = MagicMock()
+        mock_gr_disc = MagicMock()
+        mock_fitted.models.GR_disc.return_value = mock_gr_disc
+
+        # Mock model methods
+        mock_plateau = np.array([1e30, 2e30, 3e30])
+        mock_rise = np.array([0.5e30, 1e30, 1.5e30])
+        mock_decay = np.array([0.3e30, 0.6e30, 0.9e30])
+
+        mock_gr_disc.model_UV.return_value = mock_plateau
+        mock_gr_disc.rise_model.return_value = mock_rise
+        mock_gr_disc.decay_model.return_value = mock_decay
+
+        # Test parameters
+        frequency = 5e14
+        kwargs = {
+            'output_format': 'flux_density',
+            'frequency': frequency
+        }
+
+        with patch.dict('sys.modules', {'fitted': mock_fitted}), \
+                patch('redback.transient_models.tde_models.cosmo', self.mock_cosmology), \
+                patch('redback.transient_models.tde_models.calc_kcorrected_properties',
+                      return_value=(frequency, self.time)):
+            # Call function
+            result = self.fitted_exp_decay(
+                time=self.time, redshift=self.redshift, log_mh=self.log_mh,
+                a_bh=self.a_bh, m_disc=self.m_disc, r0=self.r0, tvi=self.tvi,
+                t_form=self.t_form, incl=self.incl, log_L=self.log_L,
+                t_decay=self.t_decay, log_T=self.log_T,
+                sigma_t=self.sigma_t, t_peak=self.t_peak, **kwargs
+            )
+
+        # Verify fitted module was initialized with correct parameters
+        mock_fitted.models.GR_disc.assert_called_once_with(decay_type='exp', rise=True)
+
+        # Verify all three models were called
+        mock_gr_disc.model_UV.assert_called_once()
+        mock_gr_disc.rise_model.assert_called_once()
+        mock_gr_disc.decay_model.assert_called_once()
+
+        # Verify result
+        self.assertIsInstance(result, np.ndarray)
+        self.assertEqual(len(result), len(self.time))
+
+    def test_fitted_multiple_frequencies(self):
+        """Test fitted with multiple unique frequencies."""
+        # Create mock fitted module
+        mock_fitted = MagicMock()
+        mock_gr_disc = MagicMock()
+        mock_fitted.models.GR_disc.return_value = mock_gr_disc
+
+        # Mock model_UV to return different values for different calls
+        mock_gr_disc.model_UV.side_effect = [
+            np.array([1e30]), np.array([2e30]), np.array([3e30])  # For different frequencies
+        ]
+
+        # Test with multiple frequencies
+        frequency = np.array([5e14, 6e14, 5e14])  # Two unique frequencies
+        time_extended = np.array([1.0, 2.0, 3.0])
+
+        kwargs = {
+            'output_format': 'flux_density',
+            'frequency': frequency
+        }
+
+        with patch.dict('sys.modules', {'fitted': mock_fitted}), \
+                patch('redback.transient_models.tde_models.cosmo', self.mock_cosmology), \
+                patch('redback.transient_models.tde_models.calc_kcorrected_properties',
+                      return_value=(frequency, time_extended)):
+            # Call function
+            result = self.fitted(
+                time=time_extended, redshift=self.redshift, log_mh=self.log_mh,
+                a_bh=self.a_bh, m_disc=self.m_disc, r0=self.r0, tvi=self.tvi,
+                t_form=self.t_form, incl=self.incl, **kwargs
+            )
+
+        # Verify model_UV was called multiple times for different frequencies
+        self.assertEqual(mock_gr_disc.model_UV.call_count, 2)  # Two unique frequencies
+
+        # Verify result
+        self.assertIsInstance(result, np.ndarray)
+        self.assertEqual(len(result), len(time_extended))
+
+    def test_angle_conversion(self):
+        """Test that inclination angle is correctly converted from radians to degrees."""
+        # Create mock fitted module
+        mock_fitted = MagicMock()
+        mock_gr_disc = MagicMock()
+        mock_fitted.models.GR_disc.return_value = mock_gr_disc
+        mock_gr_disc.model_UV.return_value = np.array([1e30, 2e30, 3e30])
+
+        frequency = 5e14
+        kwargs = {
+            'output_format': 'flux_density',
+            'frequency': frequency
+        }
+
+        incl_radians = np.pi / 4  # 45 degrees
+
+        with patch.dict('sys.modules', {'fitted': mock_fitted}), \
+                patch('redback.transient_models.tde_models.cosmo', self.mock_cosmology), \
+                patch('redback.transient_models.tde_models.calc_kcorrected_properties',
+                      return_value=(frequency, self.time)):
+            # Call function
+            self.fitted(
+                time=self.time, redshift=self.redshift, log_mh=self.log_mh,
+                a_bh=self.a_bh, m_disc=self.m_disc, r0=self.r0, tvi=self.tvi,
+                t_form=self.t_form, incl=incl_radians, **kwargs
+            )
+
+        # Check that angle was converted correctly
+        call_args = mock_gr_disc.model_UV.call_args[0]
+        passed_angle = call_args[7]
+        expected_angle = 180.0 / np.pi * incl_radians  # Should be 45.0
+        self.assertAlmostEqual(passed_angle, expected_angle)
+
+    def test_custom_cosmology(self):
+        """Test that custom cosmology is used when provided."""
+        custom_cosmology = MagicMock()
+        custom_dl = MagicMock()
+        custom_dl.cgs.value = 2e28
+        custom_cosmology.luminosity_distance.return_value = custom_dl
+
+        # Create mock fitted module
+        mock_fitted = MagicMock()
+        mock_gr_disc = MagicMock()
+        mock_fitted.models.GR_disc.return_value = mock_gr_disc
+        mock_gr_disc.model_UV.return_value = np.array([1e30])
+
+        kwargs = {
+            'output_format': 'flux_density',
+            'frequency': 5e14,
+            'cosmology': custom_cosmology
+        }
+
+        with patch.dict('sys.modules', {'fitted': mock_fitted}), \
+                patch('redback.transient_models.tde_models.calc_kcorrected_properties',
+                      return_value=(5e14, np.array([1.0]))):
+            # Call function
+            self.fitted(
+                time=np.array([1.0]), redshift=self.redshift, log_mh=self.log_mh,
+                a_bh=self.a_bh, m_disc=self.m_disc, r0=self.r0, tvi=self.tvi,
+                t_form=self.t_form, incl=self.incl, **kwargs
+            )
+
+        # Verify custom cosmology was used
+        custom_cosmology.luminosity_distance.assert_called_once_with(self.redshift)
+
+    def test_parameter_passing_all_models(self):
+        """Test that all parameters are correctly passed to the models."""
+        # Create mock fitted module
+        mock_fitted = MagicMock()
+        mock_gr_disc = MagicMock()
+        mock_fitted.models.GR_disc.return_value = mock_gr_disc
+        mock_gr_disc.model_UV.return_value = np.array([1e30])
+
+        frequency = 5e14
+        kwargs = {
+            'output_format': 'flux_density',
+            'frequency': frequency
+        }
+
+        with patch.dict('sys.modules', {'fitted': mock_fitted}), \
+                patch('redback.transient_models.tde_models.cosmo', self.mock_cosmology), \
+                patch('redback.transient_models.tde_models.calc_kcorrected_properties',
+                      return_value=(frequency, np.array([1.0]))):
+            # Test fitted
+            self.fitted(
+                time=np.array([1.0]), redshift=self.redshift, log_mh=self.log_mh,
+                a_bh=self.a_bh, m_disc=self.m_disc, r0=self.r0, tvi=self.tvi,
+                t_form=self.t_form, incl=self.incl, **kwargs
+            )
+
+        # Verify all parameters were passed correctly
+        call_args = mock_gr_disc.model_UV.call_args[0]
+        self.assertEqual(call_args[1], self.log_mh)
+        self.assertEqual(call_args[2], self.a_bh)
+        self.assertEqual(call_args[3], self.m_disc)
+        self.assertEqual(call_args[4], self.r0)
+        self.assertEqual(call_args[5], self.tvi)
+        self.assertEqual(call_args[6], self.t_form)
+
+    def test_other_output_formats(self):
+        """Test fitted with other output formats using get_correct_output_format_from_spectra."""
+        # Create mock fitted module
+        mock_fitted = MagicMock()
+        mock_gr_disc = MagicMock()
+        mock_fitted.models.GR_disc.return_value = mock_gr_disc
+        mock_gr_disc.model_SEDs.return_value = np.random.rand(100, 300)
+
+        expected_result = np.array([20.0, 21.0, 22.0])
+
+        kwargs = {
+            'output_format': 'magnitude',
+            'bands': ['g', 'r', 'i']
+        }
+
+        mock_lambda_array = np.geomspace(100, 60000, 100)
+        mock_frequency_array = np.geomspace(1e14, 1e16, 100)
+        mock_time_array = np.geomspace(0.1, 3000, 300) * (1 + self.redshift)
+
+        with patch.dict('sys.modules', {'fitted': mock_fitted}), \
+                patch('redback.transient_models.tde_models.cosmo', self.mock_cosmology), \
+                patch('redback.transient_models.tde_models.lambda_to_nu', return_value=mock_frequency_array), \
+                patch('redback.transient_models.tde_models.calc_kcorrected_properties',
+                      return_value=(mock_frequency_array, mock_time_array)), \
+                patch('redback.transient_models.tde_models.sed.get_correct_output_format_from_spectra',
+                      return_value=expected_result):
+            # Call function
+            result = self.fitted(
+                time=self.time, redshift=self.redshift, log_mh=self.log_mh,
+                a_bh=self.a_bh, m_disc=self.m_disc, r0=self.r0, tvi=self.tvi,
+                t_form=self.t_form, incl=self.incl, **kwargs
+            )
+
+        # Verify result
+        np.testing.assert_array_equal(result, expected_result)
