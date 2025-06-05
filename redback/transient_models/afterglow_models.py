@@ -28,7 +28,7 @@ jet_spreading_models = ['tophat', 'cocoon', 'gaussian',
 
 class RedbackAfterglows():
     def __init__(self, k, n, epsb, epse, g0, ek, thc, thj, tho, p, exp, time, freq, redshift, Dl,
-                 extra_structure_parameter_1,extra_structure_parameter_2, method='TH', res=100, steps=int(500), xiN=1):
+                 extra_structure_parameter_1,extra_structure_parameter_2, method='TH', res=100, steps=int(500), xiN=1, self.aa=1):
         """
         A general class for afterglow models implemented directly in redback.
         This class is not meant to be used directly but instead via the interface for each specific model.
@@ -70,6 +70,7 @@ class RedbackAfterglows():
         :param res: resolution
         :param steps: number of steps used to resolve Gamma and dm
         :param XiN: fraction of electrons that get accelerated
+        :param aa: the expansion description, aa = 0 sound speed, aa = 1 Granot & Piran 2012 like
         """
         self.k = k
         if self.k == 0:
@@ -95,6 +96,7 @@ class RedbackAfterglows():
         self.res = res
         self.steps = steps
         self.xiN = xiN
+        self.aa = aa
 
         ### Set up physical constants
         self.mp = 1.6726231e-24  # g, mass of proton
@@ -285,7 +287,7 @@ class RedbackAfterglows():
         te = np.arcsin(cs / (self.cc * (G2 - 1.) ** 0.5))  # equivalent form for angle due to spreading
         # prepare ex and OmG in this function
         if self.is_expansion:
-            ex = te / (G2) # expansion
+            ex = te / G**(self.aa + 1) # expansion
             fac = 0.5 * latstep
             OmG = rotstep * (np.cos(thi - fac) - np.cos(ex/self.res + thi + fac))  # equivalent form for linear spacing
         else:
