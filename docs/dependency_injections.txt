@@ -91,15 +91,41 @@ Using your own cosmology
 -------------------------
 
 If a user works with a transient outside of the Hubble flow, redshift is not a useful measure of the distance. In such a case, the user could provide a known physical distance.
+Note that redback also allows you to use a different cosmology object from astropy as well.
+
+For example, if you wanted to simply use a different cosmology object, you could do the following:
 
 .. code:: python
 
-    from astropy import units as u
-    from redback.util import user_cosmology
+    from astropy.cosmology import FlatLambdaCDM
+    your_cosmology = FlatLambdaCDM(H0=73, Om0=0.3)
 
-    your_cosmology = user_cosmology()
-    your_cosmology.set_luminosity_distance(40*u.kpc)
-
-    # To use your cosmology in the fitting
+    # To use your cosmology in the fitting, where model kwargs is the standard redback model kwargs dictionary
 
     model_kwargs = dict(cosmology = your_cosmology)
+
+If you don't want to deal with the astropy cosmology object, you can also use the UserCosmology class
+available in :code:`redback.utils` to create a cosmology object which always outputs a specific distance.
+Note, this requires you are using a new version of :code:`bilby` (>=2.5.0).
+
+.. code:: python
+
+    from redback.utils import UserCosmology
+    import astropy.units as uu
+
+    dl = 200*uu.Mpc
+    your_cosmology = UserCosmology()
+    your_cosmology.set_luminosity_distance(dl)
+
+    # To use your cosmology in the fitting, where model kwargs is the standard redback model kwargs dictionary
+    model_kwargs = dict(cosmology = your_cosmology)
+
+Now if you use the result file from the fitting directly (i.e., within the same python session/notebook), then the cosmology will be set to the one you provided.
+However, if you are reading the result file in a different session, you will need the distance again via
+
+.. code:: python
+
+    import astropy.units as uu
+    result = redback.result.read_in_result('replace_with_your_file_path')
+    result.model_kwargs['cosmology'].set_luminosity_distance(200*uu.Mpc)
+

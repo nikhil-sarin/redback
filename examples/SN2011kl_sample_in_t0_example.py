@@ -37,7 +37,7 @@ priors['t0'] = Uniform(supernova.x[0] - 10, supernova.x[0] - 0.05, name='t0', la
 
 # We also need a prior on A_v i.e., the total mag extinction.
 # Just use uniform prior for now.
-priors['av'] = Uniform(0.1, 1, name='av', latex_label=r'$a_{v}$')
+priors['av_host'] = Uniform(0.1, 1, name='av_host', latex_label=r'$A_{V, \rm{host}}$')
 
 model_kwargs = dict(frequency=supernova.filtered_frequencies, output_format='flux_density', base_model=base_model)
 

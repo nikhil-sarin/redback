@@ -1,5 +1,5 @@
 import numpy as np
-from sncosmo import TimeSeriesSource, Model, get_bandpass
+from redback.sed import RedbackTimeSeriesSource
 import redback
 import pandas as pd
 from redback.utils import logger, calc_flux_density_error_from_monochromatic_magnitude, calc_flux_density_from_ABmag
@@ -76,7 +76,7 @@ class SimulateGenericTransient(object):
         injection_kwargs = self.parameters.copy()
         if 'bands' in model_kwargs.keys():
             injection_kwargs['bands'] = self.subset_bands
-            injection_kwargs['output_format'] = 'magnitude'
+            injection_kwargs['output_format'] = model_kwargs['output_format']
         if 'frequency' in model_kwargs.keys():
             injection_kwargs['frequency'] = self.subset_frequency
             injection_kwargs['output_format'] = 'flux_density'
@@ -191,8 +191,16 @@ class SimulateOpticalTransient(object):
                 self.sncosmo_model = self.model(_time_array, **parameters, **model_kwargs)
         elif callable(model):
             self.model = model
-            logger.info('Using custom model. Making a SNCosmo wrapper for this model')
-            self.sncosmo_model = self._make_sncosmo_wrapper_for_user_model()
+            if kwargs['redback_compatible_model']:
+                model_kwargs['output_format'] = 'sncosmo_source'
+                logger.info("Model is consistent with redback model format. Using simplified model wrapper.")
+                model_end_time = model_kwargs.get('end_time', 400.0)
+                _time_array = np.linspace(0.1, model_end_time, 1000)
+                sncosmomodel = self.model(_time_array, **parameters, **model_kwargs)
+                self.sncosmo_model = sncosmomodel
+            else:
+                logger.info('Model is inconsistent with redback model format. Making a custom wrapper for this model')
+                self.sncosmo_model = self._make_sncosmo_wrapper_for_user_model()
         else:
             raise ValueError("The user needs to specify model as either a string or function.")
 
@@ -534,6 +542,10 @@ class SimulateOpticalTransient(object):
         Function to wrap user models into sncosmo model format for full functionality.
         :return: sncosmo source
         """
+        # Ensure sncosmo_kwargs is a dictionary
+        if self.sncosmo_kwargs is None:
+            self.sncosmo_kwargs = {}
+
         self.sncosmo_kwargs['max_time'] = self.sncosmo_kwargs.get('max_time', 100)
         self.parameters['wavelength_observer_frame'] = self.parameters.get('wavelength_observer_frame',
                                                                           np.geomspace(100,60000,100))
@@ -645,6 +657,8 @@ class SimulateOpticalTransient(object):
         detected[mask_snr] = 0
         observation_dataframe['detected'] = detected
         observation_dataframe['limiting_magnitude'] = overlapping_database['fiveSigmaDepth'].values
+        observation_dataframe['flux_limit'] = redback.utils.bandpass_magnitude_to_flux(
+            overlapping_database['fiveSigmaDepth'].values, filters)
         return observation_dataframe
 
     def _make_observations(self):

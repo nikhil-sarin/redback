@@ -1,5 +1,5 @@
 ============
-Acknowledgements
+Acknowledgement/Citations
 ============
 
 The paper describing :code:`redback` is submitted and available `here <https://ui.adsabs.harvard.edu/abs/2023arXiv230812806S/abstract>`_.
@@ -54,7 +54,7 @@ please cite the :code:`redback` paper.
 General citation text
 -------------------------
 
-We recommend the following text for citing :code:`redback` in a scientific publication:
+We recommend something like the following text for citing :code:`redback` in a scientific publication:
 
 For using :code:`redback` to fit transients:
 
@@ -69,3 +69,10 @@ For using :code:`redback` to download transient data:
 
 - We download and process this data using the API provided for {name of data source}~\citep{citation to the source} by the open source software package {\sc Redback}~\cite{sarin_redback}.
 
+For using :code:`redback` to estimate blackbody temperatures/radius and luminosities:
+
+- We estimate the blackbody temperature/radius (and/or) luminosities using {\sc Redback}~\cite{sarin_redback}.
+
+For using :code:`redback` to do any GP interpolation:
+
+- We interpolate using a Gaussian Process with the kernel {kernel} available in {\sc george}~\citep{george paper} through the {\sc Redback} package~\cite{sarin_redback}.

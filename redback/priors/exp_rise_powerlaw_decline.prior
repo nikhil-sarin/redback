@@ -1,0 +1,6 @@
+t0 = Uniform(58000, 59000, 't0', latex_label = '$t_0$')
+m_peak = Uniform(16, 20, 'm_peak', latex_label = '$m_{peak}$')
+tau_rise = Uniform(0.1, 10.0, 'tau_rise', latex_label = '$\\tau_{rise}$')
+tau_decline = Uniform(0.1, 10.0, 'tau_decline', latex_label = '$\\tau_{decline}$')
+alpha = Uniform(0.1, 5.0, 'alpha', latex_label = '$\\alpha$')
+t_peak = Uniform(59000, 59500, 't_peak', latex_label = '$t_{peak}$')

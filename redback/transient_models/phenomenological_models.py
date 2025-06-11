@@ -2,6 +2,120 @@ import numpy as np
 from redback.utils import citation_wrapper
 from redback.constants import speed_of_light_si
 
+
+def exp_rise_powerlaw_decline(t, t0, m_peak, tau_rise, alpha, t_peak, **kwargs):
+    """
+    Compute a smooth light-curve model (in magnitudes) with an exponential rise
+    transitioning into a power-law decline, with a smooth (blended) peak.
+    In all filters the shape is determined by the same t0, tau_rise, alpha, and t_peak;
+    only m_peak differs from filter to filter.
+
+    For t < t0, the function returns np.nan.
+    For t >= t0, the model is constructed as a blend of:
+
+      Rising phase:
+          m_rise(t)  = m_peak + 1.086 * ((t_peak - t) / tau_rise)
+      Declining phase:
+          m_decline(t) = m_peak + 2.5 * alpha * log10((t - t0)/(t_peak - t0))
+
+    A smooth transition is achieved by the switching (weight) function:
+
+          weight(t) = 0.5 * [1 + tanh((t - t_peak)/delta)]
+
+    so that the final magnitude is:
+
+          m(t) = (1 - weight(t)) * m_rise(t) + weight(t) * m_decline(t)
+
+    At t = t_peak, weight = 0.5 and both m_rise and m_decline equal m_peak,
+    ensuring a smooth peak.
+
+    Parameters
+    ----------
+    t : array_like
+        1D array of times (e.g., in modified Julian days) at which to evaluate the model.
+    t0 : float
+        Start time of the transient event (e.g., explosion), in MJD.
+    m_peak : float or array_like
+        Peak magnitude(s) at t = t_peak. If an array is provided, each element is taken
+        to correspond to a different filter.
+    tau_rise : float
+        Characteristic timescale (in days) for the exponential rise.
+    alpha : float
+        Power-law decay index governing the decline.
+    t_peak : float
+        Time (in MJD) at peak brightness (must satisfy t_peak > t0).
+    delta : float, optional
+        Smoothing parameter (in days) controlling the width of the transition around t_peak.
+        If not provided, defaults to 50% of (t_peak - t0).
+
+    Returns
+    -------
+    m_model : ndarray
+        If m_peak is an array (multiple filters), returns a 2D array of shape (n_times, n_filters);
+        if m_peak is a scalar, returns a 1D array (with NaN for t < t0).
+
+    Examples
+    --------
+    Single filter:
+
+    >>> t = np.linspace(58990, 59050, 300)
+    >>> model1 = exp_rise_powerlaw_decline(t, t0=59000, m_peak=17.0, tau_rise=3.0,
+    ...                                     alpha=1.5, t_peak=59010)
+
+    Multiple filters (e.g., g, r, i bands):
+
+    >>> t = np.linspace(58990, 59050, 300)
+    >>> m_peaks = np.array([17.0, 17.5, 18.0])
+    >>> model_multi = exp_rise_powerlaw_decline(t, t0=59000, m_peak=m_peaks, tau_rise=3.0,
+    ...                                          alpha=1.5, t_peak=59010)
+    >>> print(model_multi.shape)  # Expected shape: (300, 3)
+    """
+    # Convert t to a numpy array and force 1D.
+    t = np.asarray(t).flatten()
+    delta = kwargs.get('delta', 0.5)
+
+    # Define default smoothing parameter delta if not provided.
+    #     if delta is None:
+    delta = (t_peak - t0) * delta  # default: 50% of the interval [t0, t_peak]
+
+    # Ensure m_peak is at least 1D (so a scalar becomes an array of length 1).
+    m_peak = np.atleast_1d(m_peak)
+    n_filters = m_peak.shape[0]
+    n_times = t.shape[0]
+
+    # Preallocate model magnitude array with shape (n_times, n_filters)
+    m_model = np.full((n_times, n_filters), np.nan, dtype=float)
+
+    # Create a mask for times t >= t0.
+    valid = t >= t0
+    # Reshape t into a column vector for broadcasting: shape (n_times, 1)
+    t_col = t.reshape(-1, 1)
+
+    # Compute the switching (weight) function: weight = 0 when t << t_peak, 1 when t >> t_peak.
+    weight = 0.5 * (1 + np.tanh((t_col - t_peak) / delta))
+
+    # Rising phase model: for t < t_peak the flux is rising toward peak.
+    # m_rise = m_peak + 1.086 * ((t_peak - t) / tau_rise)
+    m_rise = m_peak[None, :] + 1.086 * ((t_peak - t_col) / tau_rise)
+
+    # Declining phase model: power-law decline in flux gives a logarithmic increase in magnitude.
+    # m_decline = m_peak + 2.5 * alpha * log10((t - t0)/(t_peak - t0))
+    ratio = (t_col - t0) / (t_peak - t0)
+    m_decline = m_peak[None, :] + 2.5 * alpha * np.log10(ratio)
+
+    # Blend the two components using the switching weight.
+    # For t << t_peak, tanh term ≈ -1 so weight ~ 0 and m ~ m_rise.
+    # For t >> t_peak, tanh term ≈ +1 so weight ~ 1 and m ~ m_decline.
+    m_blend = (1 - weight) * m_rise + weight * m_decline
+
+    # Update m_model for valid times (t >= t0). For t < t0, m_model remains NaN.
+    m_model[valid, :] = m_blend[valid, :]
+
+    # If m_peak was given as a scalar, return a 1D array.
+    if n_filters == 1:
+        return m_model.flatten()
+    return m_model
+
 @citation_wrapper('https://ui.adsabs.harvard.edu/abs/2009A%26A...499..653B/abstract')
 def bazin_sne(time, aa, bb, t0, tau_rise, tau_fall, **kwargs):
     """

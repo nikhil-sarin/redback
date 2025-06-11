@@ -1,5 +1,43 @@
 # All notable changes will be documented in this file
 
+## [1.1] 2025-04-13
+Version 1.12 release of redback
+
+## Added and changed
+* Bugfix for shock cooling and arnett
+* Added bolometric version of shock cooling and arnett
+* Added basic salt2 model direct interface
+* Added some unit tests
+
+## What's Changed
+* shock cooling and arnett bolometric + bugfix  by @nikhil-sarin in https://github.com/nikhil-sarin/redback/pull/268
+
+## [1.1] 2025-04-13
+Version 1.1 release of redback
+
+## Added and changed
+* Added new models for TDE, CSM and shock cooling
+* New thermal synchrotron model 
+* New interface for spectra analysis
+* New interface/functionality for GP-based interpolation. 
+* New interface for user-defined cosmology 
+* New interface for estimating blackbody temperature and radius, and bolometric luminosity estimation. 
+* StudentT and MixtureModel Likelihoods 
+* Several new examples
+
+## What's Changed
+* Spectral analysis features by @nikhil-sarin in https://github.com/nikhil-sarin/redback/pull/256
+* added Chavalier/Fransson synchrotron by @conoromand in https://github.com/nikhil-sarin/redback/pull/255
+* Added vectorized Fitted and TDEmass by @conoromand in https://github.com/nikhil-sarin/redback/pull/259
+* MQ24 thermal synchrotron by @conoromand in https://github.com/nikhil-sarin/redback/pull/257
+* GP implementation by @nikhil-sarin in https://github.com/nikhil-sarin/redback/pull/253
+* Update some filters andbugfix by @nikhil-sarin in https://github.com/nikhil-sarin/redback/pull/262
+* New shock cooling models and some changes by @nikhil-sarin in https://github.com/nikhil-sarin/redback/pull/264
+* utils and docs for UserCosmology functionality by @nikhil-sarin in https://github.com/nikhil-sarin/redback/pull/265
+* A big overhaul by @nikhil-sarin in https://github.com/nikhil-sarin/redback/pull/266
+
+**Full Changelog**: https://github.com/nikhil-sarin/redback/compare/v1.03...v1.1
+
 ## [1.0.3] 2025-02-019
 Version 1.0.3 release of redback
 

@@ -14,10 +14,10 @@ from scipy.interpolate import RegularGridInterpolator, interp1d
 from scipy.stats import gaussian_kde
 from selenium import webdriver
 from selenium.common.exceptions import NoSuchElementException
+from astropy.cosmology import FlatLambdaCDM
 
 import redback
 from redback.constants import *
-
 
 dirname = os.path.dirname(__file__)
 filename = os.path.join(dirname, 'plot_styles/paper.mplstyle')
@@ -25,6 +25,7 @@ plt.style.use(filename)
 
 logger = logging.getLogger('redback')
 _bilby_logger = logging.getLogger('bilby')
+
 
 def find_nearest(array, value):
     """
@@ -38,11 +39,13 @@ def find_nearest(array, value):
     idx = (np.abs(array - value)).argmin()
     return array[idx], idx
 
+
 def download_pointing_tables():
     """
     Download the pointing tables from zenodo.
     """
     return logger.info("Pointing tables downloaded and stored in redback/tables")
+
 
 def sncosmo_bandname_from_band(bands, warning_style='softest'):
     """
@@ -74,6 +77,7 @@ def sncosmo_bandname_from_band(bands, warning_style='softest'):
             else:
                 res.append('r')
     return np.array(res)
+
 
 def check_kwargs_validity(kwargs):
     """
@@ -107,27 +111,44 @@ def check_kwargs_validity(kwargs):
         kwargs['frequency_array'] = kwargs.get('frequency_array', np.linspace(100, 20000, 100))
     return kwargs
 
+
 def citation_wrapper(r):
     """
     Wrapper for citation function to allow functions to have a citation attribute
     :param r: proxy argument
     :return: wrapped function
     """
+
     def wrapper(f):
         f.citation = r
         return f
+
     return wrapper
+
+def calc_effective_width_hz_from_angstrom(effective_width, effective_wavelength):
+    """
+    Calculate the effective width in Hz from the effective wavelength in Angstrom
+
+    :param effective_width: effective_width in Angstrom
+    :param effective_wavelength: effective wavelength in Angstrom
+    :return: effective width in Hz
+    """
+    wavelength_m = effective_wavelength * 1.0e-10
+    effective_width_m = effective_width * 1.0e-10
+    effective_width = (3.0e8 / (wavelength_m**2)) * effective_width_m
+    return effective_width
 
 def calc_tfb(binding_energy_const, mbh_6, stellar_mass):
     """
     Calculate the fall back timescale for a SMBH disrupting a stellar mass object
     :param binding_energy_const:
-    :param mbh_6: SMBH mass in solar masses
+    :param mbh_6: SMBH mass in 10^6 solar masses
     :param stellar_mass: stellar mass in solar masses
     :return: fall back time in seconds
     """
     tfb = 58. * (3600. * 24.) * (mbh_6 ** (0.5)) * (stellar_mass ** (0.2)) * ((binding_energy_const / 0.8) ** (-1.5))
     return tfb
+
 
 def calculate_normalisation(unique_frequency, model_1, model_2, tref, model_1_dict, model_2_dict):
     """
@@ -144,17 +165,18 @@ def calculate_normalisation(unique_frequency, model_1, model_2, tref, model_1_di
     """
     from redback.model_library import all_models_dict
     f1 = all_models_dict[model_1](time=tref, a_1=1, **model_1_dict)
-    if unique_frequency == None:
+    if unique_frequency is None:
         f2 = all_models_dict[model_2](time=tref, **model_2_dict)
-        norm = f2/f1
+        norm = f2 / f1
         normalisation = namedtuple('normalisation', ['bolometric_luminosity'])(norm)
     else:
         model_2_dict['frequency'] = unique_frequency
         f2 = all_models_dict[model_2](time=tref, **model_2_dict)
-        unique_norms = f2/f1
+        unique_norms = f2 / f1
         dd = dict(zip(unique_frequency, unique_norms))
         normalisation = namedtuple('normalisation', dd.keys())(*dd.values())
     return normalisation
+
 
 def get_csm_properties(nn, eta):
     """
@@ -186,6 +208,34 @@ def get_csm_properties(nn, eta):
     return csm_properties
 
 
+def abmag_to_flambda(mag, lam_eff):
+    """
+    Converts an AB magnitude to flux density in erg/s/cm^2/Å
+    using the effective wavelength for the band.
+
+    In the AB system, the flux density per unit frequency is:
+        f_nu = 10**(-0.4*(mag+48.6))  [erg/s/cm^2/Hz]
+    To obtain f_lambda [erg/s/cm^2/Å]:
+
+        f_lambda = f_nu * (c / λ^2) / 1e8,
+
+    where λ is the effective wavelength (in cm) and 1e8 converts from per cm to per Å.
+    """
+    # effective wavelength from Å to cm:
+    lam_eff_cm = lam_eff * 1e-8
+    f_nu = 10 ** (-0.4 * (mag + 48.6))
+    f_lambda = f_nu * (redback.constants.speed_of_light / lam_eff_cm ** 2) / 1e8
+    return f_lambda
+
+
+def flambda_err_from_mag_err(flux, mag_err):
+    """
+    Compute the error on the flux given an error on the magnitude.
+    Using error propagation for f = A*10^(-0.4*mag):
+         df/dmag = -0.4 ln(10)* f  =>  σ_f = 0.4 ln(10)* f * σ_mag.
+    """
+    return 0.4 * np.log(10) * flux * mag_err
+
 def fnu_to_flambda(f_nu, wavelength_A):
     """
     Convert flux density from erg/s/cm^2/Hz to erg/s/cm^2/Angstrom.
@@ -195,6 +245,7 @@ def fnu_to_flambda(f_nu, wavelength_A):
     :return: flux density in erg/s/cm^2/Angstrom
     """
     return f_nu * speed_of_light * 1e8 / wavelength_A ** 2
+
 
 def lambda_to_nu(wavelength):
     """
@@ -210,6 +261,7 @@ def nu_to_lambda(frequency):
     :return: wavelength in Angstrom
     """
     return 1.e10 * (speed_of_light_si / frequency)
+
 
 def calc_kcorrected_properties(frequency, redshift, time):
     """
@@ -290,6 +342,7 @@ def date_to_mjd(year, month, day):
     """
     return Time(dict(year=year, month=month, day=day), format="ymdhms").mjd
 
+
 def deceleration_timescale(e0, g0, n0):
     """
     Calculate the deceleration timescale for an afterglow
@@ -307,6 +360,7 @@ def deceleration_timescale(e0, g0, n0):
     t_peak = (num / denom) ** (1. / 3.)
     return t_peak
 
+
 def calc_flux_density_from_ABmag(magnitudes):
     """
     Calculate flux density from AB magnitude assuming monochromatic AB filter
@@ -315,6 +369,7 @@ def calc_flux_density_from_ABmag(magnitudes):
     :return: flux density
     """
     return (magnitudes * uu.ABmag).to(uu.mJy)
+
 
 def calc_ABmag_from_flux_density(fluxdensity):
     """
@@ -325,6 +380,7 @@ def calc_ABmag_from_flux_density(fluxdensity):
     """
     return (fluxdensity * uu.mJy).to(uu.ABmag)
 
+
 def calc_flux_density_from_vegamag(magnitudes, zeropoint):
     """
     Calculate flux density from Vega magnitude assuming Vega filter
@@ -334,8 +390,9 @@ def calc_flux_density_from_vegamag(magnitudes, zeropoint):
     :return: flux density in mJy
     """
     zeropoint = zeropoint * 1000
-    flux_density = zeropoint * 10 ** (magnitudes/-2.5)
+    flux_density = zeropoint * 10 ** (magnitudes / -2.5)
     return flux_density
+
 
 def calc_vegamag_from_flux_density(fluxdensity, zeropoint):
     """
@@ -376,6 +433,7 @@ def bandflux_error_from_limiting_mag(fiveSigmaDepth, bandflux_ref):
     bandflux_error = Flux_five_sigma / 5.0
     return bandflux_error
 
+
 def convert_apparent_mag_to_absolute(app_magnitude, redshift, **kwargs):
     """
     Convert apparent magnitude to absolute magnitude assuming planck18 cosmology.
@@ -397,6 +455,7 @@ def convert_apparent_mag_to_absolute(app_magnitude, redshift, **kwargs):
     # Convert to absolute magnitude using the formula
     absolute_magnitude = app_magnitude - 5 * np.log10(luminosity_distance) + 5
     return absolute_magnitude
+
 
 def convert_absolute_mag_to_apparent(magnitude, distance):
     """
@@ -420,7 +479,92 @@ def check_element(driver, id_number):
         return False
     return True
 
-def calc_flux_density_error_from_monochromatic_magnitude(magnitude, magnitude_error, reference_flux, magnitude_system='AB'):
+def bandpass_flux_to_flux_density(flux, flux_err, delta_nu):
+    """
+    Convert an integrated flux (and its error) measured over a bandpass
+    in erg/s/cm² into a flux density (in erg/s/cm²/Hz) and then into millijanskys (mJy).
+
+    Parameters
+    ----------
+    flux : float or numpy.ndarray
+        Integrated flux in erg/s/cm².
+    flux_err : float or numpy.ndarray
+        Error in the integrated flux in erg/s/cm².
+    delta_nu : float
+        Effective bandwidth of the filter in Hz.
+
+    Returns
+    -------
+    f_nu_mJy : float or numpy.ndarray
+        Flux density converted to millijanskys (mJy).
+    f_nu_err_mJy : float or numpy.ndarray
+        Error in the flux density in mJy.
+
+    Notes
+    -----
+    The conversion from integrated flux F (erg/s/cm²) to flux density f_nu (erg/s/cm²/Hz)
+    assumes a known effective bandwidth Δν in Hz:
+
+        f_nu = F / Δν
+
+    Then, converting to mJy is done using the relation
+    1 mJy = 1e-3 Jy = 1e-3 * 1e-23 erg/s/cm²/Hz = 1e-26 erg/s/cm²/Hz.
+    Therefore, to convert erg/s/cm²/Hz into mJy, divide by 1e-26.
+    """
+    # Calculate flux density in erg/s/cm²/Hz
+    f_nu = flux / delta_nu
+    f_nu_err = flux_err / delta_nu
+
+    # Convert to mJy: 1 mJy = 1e-26 erg/s/cm²/Hz
+    conversion_factor = 1e-26  # erg/s/cm²/Hz per mJy
+    f_nu_mJy = f_nu / conversion_factor
+    f_nu_err_mJy = f_nu_err / conversion_factor
+
+    return f_nu_mJy, f_nu_err_mJy
+
+
+def abmag_to_flux_density_and_error_inmjy(m_AB, sigma_m):
+    """
+    Convert an AB magnitude and its uncertainty to a flux density in millijanskys (mJy)
+    along with the associated error. In the AB system, the flux density (in erg/s/cm²/Hz) is:
+
+        f_nu = 10^(-0.4*(m_AB + 48.60))
+
+    Since 1 Jansky = 1e-23 erg/s/cm²/Hz and 1 mJy = 1e-3 Jansky,
+    1 mJy = 1e-26 erg/s/cm²/Hz. Therefore, to convert f_nu to mJy, we do:
+
+        f_nu(mJy) = f_nu / 1e-26
+
+    The uncertainty in the flux density is propagated as:
+
+        sigma_f(mJy) = 0.9210 * f_nu(mJy) * sigma_m
+
+    Parameters
+    ----------
+    m_AB : float or array_like
+        The AB magnitude value(s).
+    sigma_m : float or array_like
+        The uncertainty in the AB magnitude.
+
+    Returns
+    -------
+    f_nu_mjy : float or ndarray
+        Flux density in millijanskys (mJy).
+    sigma_f_mjy : float or ndarray
+        Uncertainty in the flux density (mJy).
+    """
+    # Compute flux density in erg/s/cm^2/Hz
+    f_nu = 10 ** (-0.4 * (m_AB + 48.60))
+    # Convert flux density to mJy (1 mJy = 1e-26 erg/s/cm^2/Hz)
+    f_nu_mjy = f_nu / 1e-26
+    # Propagate the uncertainty (σ_f = 0.9210 * f_nu * σ_m, applied after conversion)
+    sigma_f_mjy = 0.9210 * f_nu_mjy * sigma_m
+    return f_nu_mjy, sigma_f_mjy
+
+
+
+def calc_flux_density_error_from_monochromatic_magnitude(magnitude, magnitude_error, reference_flux,
+                                                         magnitude_system='AB'):
     """
     Calculate flux density error from magnitude error
 
@@ -436,6 +580,7 @@ def calc_flux_density_error_from_monochromatic_magnitude(magnitude, magnitude_er
     dfdm = 1000 * prefactor * reference_flux * np.exp(prefactor * magnitude)
     flux_err = ((dfdm * magnitude_error) ** 2) ** 0.5
     return flux_err
+
 
 def calc_flux_error_from_magnitude(magnitude, magnitude_error, reference_flux):
     """
@@ -460,7 +605,7 @@ def bands_to_zeropoint(bands):
     :return: zeropoint for magnitude to flux density calculation
     """
     reference_flux = bands_to_reference_flux(bands)
-    zeropoint = 10**(reference_flux/-2.5)
+    zeropoint = 10 ** (reference_flux / -2.5)
     return zeropoint
 
 
@@ -473,7 +618,7 @@ def bandpass_magnitude_to_flux(magnitude, bands):
     :return: flux
     """
     reference_flux = bands_to_reference_flux(bands)
-    maggi = 10.0**(magnitude / (-2.5))
+    maggi = 10.0 ** (magnitude / (-2.5))
     flux = maggi * reference_flux
     return flux
 
@@ -565,6 +710,29 @@ def bands_to_frequency(bands):
             raise KeyError(f"Band {band} is not defined in filters.csv!")
     return np.array(res)
 
+def bands_to_effective_width(bands):
+    """
+    Converts a list of bands into an array of effective width in Hz
+
+    :param bands: List of bands.
+    :type bands: list[str]
+    :return: An array of effective width associated with the given bands.
+    :rtype: np.ndarray
+    """
+    if bands is None:
+        bands = []
+    df = pd.read_csv(f"{dirname}/tables/filters.csv")
+    bands_to_freqs = {band: wavelength for band, wavelength in zip(df['bands'], df['effective_width [Hz]'])}
+    res = []
+    for band in bands:
+        try:
+            res.append(bands_to_freqs[band])
+        except KeyError as e:
+            logger.info(e)
+            raise KeyError(f"Band {band} is not defined in filters.csv!")
+    return np.array(res)
+
+
 def frequency_to_bandname(frequency):
     """
     Converts a list of frequencies into an array corresponding band names
@@ -587,6 +755,7 @@ def frequency_to_bandname(frequency):
             raise KeyError(f"Wavelength {freq} is not defined in filters.csv!")
     return np.array(res)
 
+
 def fetch_driver():
     # open the webdriver
     options = webdriver.ChromeOptions()
@@ -605,37 +774,49 @@ def calc_credible_intervals(samples, interval=0.9):
     """
     if not 0 <= interval <= 1:
         raise ValueError
-    lower_bound = np.quantile(samples, 0.5 - interval/2, axis=0)
-    upper_bound = np.quantile(samples, 0.5 + interval/2, axis=0)
+    lower_bound = np.quantile(samples, 0.5 - interval / 2, axis=0)
+    upper_bound = np.quantile(samples, 0.5 + interval / 2, axis=0)
     median = np.quantile(samples, 0.5, axis=0)
     return lower_bound, upper_bound, median
 
-
 def calc_one_dimensional_median_and_error_bar(samples, quantiles=(0.16, 0.84), fmt='.2f'):
     """
-    Calculate the median and error bar of a one dimensional array of samples
+    Calculates the median and error bars for a one-dimensional sample array.
 
-    :param samples: samples array
-    :param quantiles: quantiles to calculate
-    :param fmt: latex fmt
-    :return: summary named tuple
+    This function computes the median, lower, and upper error bars based on the
+    specified quantiles. It returns these values along with a formatted string
+    representation.
+
+    :param samples: An array of numerical values representing the sample data. The
+        input must not be empty.
+    :type samples: list or numpy.ndarray
+    :param quantiles: A tuple specifying the lower and upper quantile values. For
+        example, (0.16, 0.84) represents the 16th percentile as the lower quantile
+        and the 84th percentile as the upper quantile. Default is (0.16, 0.84).
+    :type quantiles: tuple
+    :param fmt: A format string for rounding the results in the formatted output.
+        Default is '.2f'.
+    :type fmt: str
+    :return: A namedtuple containing the median, lower error bar, upper error bar,
+        and a formatted string representation.
+    :rtype: MedianErrorBarResult
+    :raises ValueError: If the input `samples` array is empty.
     """
-    summary = namedtuple('summary', ['median', 'lower', 'upper', 'string'])
+    MedianErrorBarResult = namedtuple('MedianErrorBarResult', ['median', 'lower', 'upper', 'string'])
 
-    if len(quantiles) != 2:
-        raise ValueError("quantiles must be of length 2")
+    if len(samples) == 0:
+        raise ValueError("Samples array cannot be empty.")
 
-    quants_to_compute = np.array([quantiles[0], 0.5, quantiles[1]])
-    quants = np.percentile(samples, quants_to_compute * 100)
-    summary.median = quants[1]
-    summary.plus = quants[2] - summary.median
-    summary.minus = summary.median - quants[0]
+    median = np.median(samples)
+    lower_quantile, upper_quantile = np.quantile(samples, quantiles)
 
-    fmt = "{{0:{0}}}".format(fmt).format
-    string_template = r"${{{0}}}_{{-{1}}}^{{+{2}}}$"
-    summary.string = string_template.format(
-        fmt(summary.median), fmt(summary.minus), fmt(summary.plus))
-    return summary
+    lower = median - lower_quantile
+    upper = upper_quantile - median
+
+    formatted_string = rf"${median:{fmt}}_{{-{lower:{fmt}}}}^{{+{upper:{fmt}}}}$"
+
+    return MedianErrorBarResult(median=median, lower=lower, upper=upper, string=formatted_string)
+
 
 
 def kde_scipy(x, bandwidth=0.05, **kwargs):
@@ -738,7 +919,6 @@ def setup_logger(outdir='.', label=None, log_level='INFO'):
 
     logger.info(f'Running redback version: {redback.__version__}')
 
-
 class MetaDataAccessor(object):
     """
     Generic descriptor class that allows handy access of properties without long
@@ -758,6 +938,7 @@ class MetaDataAccessor(object):
 
     def __set__(self, instance, value):
         getattr(instance, self.container_instance_name)[self.property_name] = value
+
 
 
 class DataModeSwitch(object):
@@ -813,14 +994,14 @@ def interpolated_barnes_and_kasen_thermalisation_efficiency(mej, vej):
     v_array = np.asarray([0.1, 0.2, 0.3, 0.4])
     mass_array = np.asarray([1.e-3, 5.e-3, 1.e-2, 5.e-2, 1.e-1])
     a_array = np.asarray([[2.01, 4.52, 8.16, 16.3], [0.81, 1.9, 3.2, 5.0],
-                              [0.56, 1.31, 2.19, 3.0], [.27, .55, .95, 2.0],
-                              [0.20, 0.39, 0.65, 0.9]])
+                          [0.56, 1.31, 2.19, 3.0], [.27, .55, .95, 2.0],
+                          [0.20, 0.39, 0.65, 0.9]])
     b_array = np.asarray([[0.28, 0.62, 1.19, 2.4], [0.19, 0.28, 0.45, 0.65],
-                              [0.17, 0.21, 0.31, 0.45], [0.10, 0.13, 0.15, 0.17],
-                              [0.06, 0.11, 0.12, 0.12]])
+                          [0.17, 0.21, 0.31, 0.45], [0.10, 0.13, 0.15, 0.17],
+                          [0.06, 0.11, 0.12, 0.12]])
     d_array = np.asarray([[1.12, 1.39, 1.52, 1.65], [0.86, 1.21, 1.39, 1.5],
-                              [0.74, 1.13, 1.32, 1.4], [0.6, 0.9, 1.13, 1.25],
-                              [0.63, 0.79, 1.04, 1.5]])
+                          [0.74, 1.13, 1.32, 1.4], [0.6, 0.9, 1.13, 1.25],
+                          [0.63, 0.79, 1.04, 1.5]])
     a_func = RegularGridInterpolator((mass_array, v_array), a_array, bounds_error=False, fill_value=None)
     b_func = RegularGridInterpolator((mass_array, v_array), b_array, bounds_error=False, fill_value=None)
     d_func = RegularGridInterpolator((mass_array, v_array), d_array, bounds_error=False, fill_value=None)
@@ -1038,7 +1219,6 @@ def heatinggrids():
     C3_interp = RegularGridInterpolator((V_GRID, YE_GRID), C3_GRID, bounds_error=False, fill_value=None)
     TAU3_interp = RegularGridInterpolator((V_GRID, YE_GRID), TAU3_GRID, bounds_error=False, fill_value=None)
 
-
     interpolators = namedtuple('interpolators', ['E0', 'ALP', 'T0', 'SIG', 'ALP1', 'T1', 'SIG1',
                                                  'C1', 'TAU1', 'C2', 'TAU2', 'C3', 'TAU3'])
     interpolators.E0 = E0_interp
@@ -1055,6 +1235,7 @@ def heatinggrids():
     interpolators.C3 = C3_interp
     interpolators.TAU3 = TAU3_interp
     return interpolators
+
 
 def get_heating_terms(ye, vel, **kwargs):
     ints = heatinggrids()
@@ -1090,6 +1271,7 @@ def get_heating_terms(ye, vel, **kwargs):
     heating_terms.tau3 = tau3 * heating_rate_fudge
     return heating_terms
 
+
 def _calculate_rosswogkorobkin24_qdot(time_array, ejecta_velocity, electron_fraction):
     import pickle
     import os
@@ -1102,6 +1284,7 @@ def _calculate_rosswogkorobkin24_qdot(time_array, ejecta_velocity, electron_frac
     full_array = np.array([_ej_velocity, _ye, time_array]).T
     lum_in = qdot_object(full_array)
     return lum_in
+
 
 def electron_fraction_from_kappa(kappa):
     """
@@ -1117,6 +1300,7 @@ def electron_fraction_from_kappa(kappa):
     electron_fraction = kappa_func(kappa)
     return electron_fraction
 
+
 def kappa_from_electron_fraction(ye):
     """
     Uses interpolation from Tanaka+19 to calculate
@@ -1129,37 +1313,78 @@ def kappa_from_electron_fraction(ye):
     func = interp1d(ye_array, y=kappa_array, fill_value='extrapolate')
     kappa = func(ye)
     return kappa
-    
+
+
 def lorentz_factor_from_velocity(velocity):
     """
     Calculates the Lorentz factor for a given velocity
     :param velocity: velocity in cm/s
     :return: Lorentz factor
     """
-    return 1 / np.sqrt(1 - (velocity / speed_of_light)**2 )
-    
+    return 1 / np.sqrt(1 - (velocity / speed_of_light) ** 2)
+
+
 def velocity_from_lorentz_factor(lorentz_factor):
     """
-    Calculates the velocity for a given Lorentz factor 
+    Calculates the velocity for a given Lorentz factor
     :param Lorentz_factor: relativistic Lorentz factor
     :return: velocity in cm/s
     """
 
     return speed_of_light * np.sqrt(1 - 1 / lorentz_factor ** 2)
 
-class user_cosmology():
-    """
-    Cosmology class similar to the Astropy cosmology class.
-    Needed if the user wants to provide a distance instead
-    of using the luminosity distance inferred from a particular
-    cosmology model.
-    """
 
-    def __init__(self, dl=0):
-        self.dl = 0
+class UserCosmology(FlatLambdaCDM):
+    """
+    Dummy cosmology class that behaves like an Astropy cosmology,
+    except that the luminosity distance is fixed to the user‐specified value.
 
-    def set_luminosity_distance(cls, dl):
-        cls.dl  = dl
-    
+    Parameters
+    ----------
+    dl : astropy.units.Quantity
+        The luminosity distance to return (e.g., 100 * u.Mpc).
+    **kwargs
+        Additional keyword arguments for FlatLambdaCDM (e.g. H0, Om0) if needed.
+    """
+    def __init__(self, **kwargs):
+        self.dl = kwargs.pop("dl", None)
+
+        if 'H0' not in kwargs:
+            kwargs['H0'] = 70 * uu.km / uu.s / uu.Mpc
+        if 'Om0' not in kwargs:
+            kwargs['Om0'] = 0.3
+
+        # Initialize the parent FlatLambdaCDM class.
+        super().__init__(**kwargs)
+
+    def __repr__(self):
+        # Optionally, override __repr__ so that when printed the class appears as FlatLambdaCDM.
+        base_repr = super().__repr__()
+        return base_repr.replace(self.__class__.__name__, "FlatLambdaCDM", 1)
+
+    def set_luminosity_distance(self, dl):
+        """
+        Set (or update) the user-specified luminosity distance.
+
+        Parameters
+        ----------
+        dl : astropy.units.Quantity
+            The new luminosity distance.
+        """
+        self.dl = dl
+
     def luminosity_distance(self, redshift):
+        """
+        Return the user-specified luminosity distance, ignoring the redshift.
+
+        Parameters
+        ----------
+        redshift : float or array-like
+            Redshift (ignored).
+
+        Returns
+        -------
+        astropy.units.Quantity
+            The user-specified luminosity distance.
+        """
         return self.dl

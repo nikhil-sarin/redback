@@ -139,10 +139,10 @@ priors['f_nickel'] = bilby.core.prior.Uniform(
                                         )
 
 # Extinction
-priors['av'] = bilby.core.prior.Uniform(
+priors['av_host'] = bilby.core.prior.Uniform(
                                         minimum     = 0,
                                         maximum     = 1,
-                                        name        = 'av',
+                                        name        = 'av_host',
                                         latex_label = r'$A_V~\rm (mag)$',
                                         unit        = None,
                                         boundary    = None

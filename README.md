@@ -4,7 +4,7 @@
 ![PyPI](https://img.shields.io/pypi/v/redback)
 [![arXiv](https://img.shields.io/badge/arXiv-2308.12806-00ff00.svg)](https://arxiv.org/abs/2308.12806)
 # Redback
-Introducing REDBACK, a bayesian inference software package for fitting electromagnetic transients
+Introducing REDBACK, A software package for end-to-end modelling, fitting, and interpretation of electromagnetic transients via Bayesian Inference
 
 ### Online documentation
 
@@ -15,12 +15,12 @@ Introducing REDBACK, a bayesian inference software package for fitting electroma
 
 ### Motivation and why redback might be useful to you.
 The launch of new telescopes/surveys is leading to an explosion of transient observations. 
-Redback is a software package for end-to-end interpretation and parameter estimation of these transients.
+Redback is a software package for modelling, end-to-end interpretation and parameter estimation of these transients.
 
 - Download data for supernovae, tidal disruption events, gamma-ray burst afterglows, kilonovae, prompt emission from 
   different catalogs/telescopes; Swift, BATSE, Open access catalogs, FINK and LASAIR brokers. 
   Users can also provide their own data or use simulated data
-- Redback processes the data into a homogeneous transient object. Making it easy to plot lightcurves and do any other processing.
+- Redback processes the data into a homogeneous transient object. Making it easy to plot lightcurves and do any other processing e.g., estimating bolometric luminosities or blackbody properties. 
 - The user can then fit one of the models implemented in redback. Or fit their own model. Models for several different types of electromagnetic transients are implemented and range from simple analytical models to numerical surrogates.
 - All models are implemented as functions and can be used to simulate populations, without needing to provide data. This way redback can be used simply as a tool to simulate realistic populations, no need to actually fit anything.
 - Simulate realistic transient lightcurves for Rubin LSST Survey using the latest cadence tables and for ZTF. Or make your own survey. 
@@ -31,7 +31,7 @@ Simulate single transients or populations or simulate a full survey including no
 ### Contributing
 If you are interested in contributing please join the redback 
 [slack](https://join.slack.com/t/redback-group/shared_invite/zt-2503mmkaq-EMEAgz7i3mY0pg1o~VUdqw)
-and email [Nikhil Sarin](mailto:nikhil.sarin@su.se?subject=Contributing%20to%20redback).
+and email [Nikhil Sarin](mailto:nsarin.astro@gmail.com?subject=Contributing%20to%20redback).
 
 To make changes to redback, we require users to use a merge request system. 
 

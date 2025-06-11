@@ -1,7 +1,7 @@
 import os
 import unittest
 from unittest import mock
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 import numpy as np
 import pandas as pd
 
@@ -9,9 +9,58 @@ import redback
 
 dirname = os.path.dirname(__file__)
 
+import redback.get_data.directory as directory
+
+_original_spec_dir_struct = directory.spectrum_directory_structure
+directory.spectrum_directory_structure = lambda transient: "dummy_directory_structure"
 
 class TestSpectrum(unittest.TestCase):
-    pass
+
+    def setUp(self):
+        # Create dummy spectral data
+        # Use three wavelengths (in Angstroms) that might cover the optical
+        self.angstroms = np.array([4000, 5000, 6000])
+        # Fake flux density in erg / s / cm^2 / Angstrom (typical values are small)
+        self.flux_density = np.array([1e-17, 2e-17, 3e-17])
+        # Assume small errors
+        self.flux_density_err = np.array([1e-18, 1e-18, 1e-18])
+        # A dummy observation time and a name for the spectrum
+        self.time_str = "10d"  # could be a phase string
+        self.name = "TestSpec"
+
+    def tearDown(self):
+        # Restore the patched directory function if needed.
+        directory.spectrum_directory_structure = _original_spec_dir_struct
+
+    def test_initialization_with_time(self):
+        spec = redback.transient.Spectrum(self.angstroms, self.flux_density, self.flux_density_err,
+                        time=self.time_str, name=self.name)
+        self.assertTrue(spec.plot_with_time_label,
+                        "When a time is provided, plot_with_time_label should be True.")
+
+    def test_initialization_without_time(self):
+        spec = redback.transient.Spectrum(self.angstroms, self.flux_density, self.flux_density_err,
+                        name=self.name)  # time defaults to None
+        self.assertFalse(spec.plot_with_time_label,
+                         "When no time is provided, plot_with_time_label should be False.")
+
+    def test_directory_structure(self):
+        spec = redback.transient.Spectrum(self.angstroms, self.flux_density, self.flux_density_err, name=self.name)
+        # The __init__ should call redback.get_data.directory.spectrum_directory_structure(name)
+        self.assertEqual(spec.directory_structure, "dummy_directory_structure",
+                         "Directory structure should be patched to a dummy value.")
+
+    def test_xlabel_property(self):
+        spec = redback.transient.Spectrum(self.angstroms, self.flux_density, self.flux_density_err)
+        expected_xlabel = r'Wavelength [$\mathrm{\AA}$]'
+        self.assertEqual(spec.xlabel, expected_xlabel,
+                         "The xlabel property did not match the expected value.")
+
+    def test_ylabel_property(self):
+        spec = redback.transient.Spectrum(self.angstroms, self.flux_density, self.flux_density_err)
+        expected_ylabel = r'Flux ($10^{-17}$ erg s$^{-1}$ cm$^{-2}$ $\mathrm{\AA}$)'
+        self.assertEqual(spec.ylabel, expected_ylabel,
+                         "The ylabel property did not match the expected value.")
 
 class TestTransient(unittest.TestCase):
 
@@ -88,7 +137,7 @@ class TestTransient(unittest.TestCase):
         self.assertFalse(self.transient.use_phase_model)
 
     def test_xlabel(self):
-        self.assertEqual(r"Time since burst [days]", self.transient.xlabel)
+        self.assertEqual(r"Time since explosion [days]", self.transient.xlabel)
         self.transient.use_phase_model = True
         self.assertEqual(r"Time [MJD]", self.transient.xlabel)
 
@@ -390,6 +439,77 @@ class TestOpticalTransient(unittest.TestCase):
             expected = 'rainbow'
             m.return_value = expected
             self.assertEqual(expected, self.transient.get_colors(filters=['a', 'b']))
+
+    def test_estimate_bb_params_effective(self):
+        """Test that estimate_bb_params returns a DataFrame with expected columns and positive values
+        in effective flux density mode."""
+        # Create a transient instance with flux_density data.
+        new_time = np.array([10, 10.1, 10.2, 10.3, 10.4])
+        new_flux = np.array([1e4, 1.05e4, 1.1e4, 1.05e4, 1e4])
+        new_flux_err = np.array([100, 100, 100, 100, 100])
+        new_freq = np.array([5e14, 6e14, 7e14, 8e14, 9e14])
+        transient_bb = redback.transient.OpticalTransient(
+            time=new_time, flux_density=new_flux,
+            redshift=0.1, data_mode="flux_density", name="TestBB",
+            frequency=new_freq, use_phase_model=False)
+        # Monkey-patch get_filtered_data to return our simulated data.
+        transient_bb.get_filtered_data = lambda: (new_time, np.zeros(5), new_flux, new_flux_err)
+        df_bb = transient_bb.estimate_bb_params(distance=1e27, bin_width=1.0, min_filters=3)
+        self.assertIsNotNone(df_bb, "Expected a DataFrame when sufficient data are provided.")
+        self.assertIsInstance(df_bb, pd.DataFrame, "The output must be a DataFrame.")
+        for col in ['epoch_times', 'temperature', 'radius', 'temp_err', 'radius_err']:
+            self.assertIn(col, df_bb.columns, f"Column '{col}' is missing in the DataFrame.")
+        # Check that the fitted temperature and radius are positive.
+        self.assertGreater(df_bb['temperature'].iloc[0], 0, "Temperature should be positive.")
+        self.assertGreater(df_bb['radius'].iloc[0], 0, "Radius should be positive.")
+
+    def test_estimate_bolometric_luminosity_no_corrections(self):
+        """Test that a bolometric luminosity is computed from the BB parameters (without boost or extinction)."""
+        # Create a fake DataFrame of blackbody parameters.
+        fake_df = pd.DataFrame({
+            "epoch_times": [10.5],
+            "temperature": [1e4],  # Kelvin
+            "radius": [1e15],  # cm
+            "temp_err": [500],
+            "radius_err": [1e14]
+        })
+        transient_bb = redback.transient.OpticalTransient(
+            time=np.array([10, 10.1, 10.2, 10.3, 10.4]),
+            time_err=np.array([0.1] * 5),
+            flux_density=np.array([1e4, 1.05e4, 1.1e4, 1.05e4, 1e4]),
+            redshift=0.1, data_mode="flux_density", name="TestBB",
+            photon_index=2, use_phase_model=False)
+        # Monkey-patch estimate_bb_params to return our fake blackbody parameters.
+        transient_bb.estimate_bb_params = lambda **kwargs: fake_df
+        df_bol = transient_bb.estimate_bolometric_luminosity(distance=1e27, bin_width=1.0, min_filters=3)
+        self.assertIsNotNone(df_bol, "A valid bolometric luminosity DataFrame is expected.")
+        for col in ['lum_bol', 'lum_bol_err', 'lum_bol_bb', 'time_rest_frame']:
+            self.assertIn(col, df_bol.columns, f"Column '{col}' is missing in the bolometric DataFrame.")
+        self.assertGreater(df_bol['lum_bol'].iloc[0], 0, "Bolometric luminosity should be positive.")
+
+    def test_estimate_bolometric_luminosity_with_boost_extinction(self):
+        """Test that providing lambda_cut and A_ext yields a DataFrame with the boost/extinction corrections applied."""
+        fake_df = pd.DataFrame({
+            "epoch_times": [10.5],
+            "temperature": [1e4],
+            "radius": [1e15],
+            "temp_err": [500],
+            "radius_err": [1e14]
+        })
+        transient_bb = redback.transient.OpticalTransient(
+            time=np.array([10, 10.1, 10.2, 10.3, 10.4]),
+            time_err=np.array([0.1] * 5),
+            flux_density=np.array([1e4, 1.05e4, 1.1e4, 1.05e4, 1e4]),
+            redshift=0.1, data_mode="flux_density", name="TestBB",
+            photon_index=2, use_phase_model=False)
+        transient_bb.estimate_bb_params = lambda **kwargs: fake_df
+        # Set lambda_cut (in angstroms) and an extinction A_ext in magnitudes.
+        df_bol = transient_bb.estimate_bolometric_luminosity(
+            distance=1e27, bin_width=1.0, min_filters=3, lambda_cut=3000, A_ext=0.5)
+        self.assertIsNotNone(df_bol, "A DataFrame with boost and extinction corrections should be returned.")
+        self.assertIn('lum_bol', df_bol.columns)
+        # Check that luminosity is positive.
+        self.assertGreater(df_bol['lum_bol'].iloc[0], 0, "Corrected bolometric luminosity should be positive.")
 
 
 class TestAfterglow(unittest.TestCase):
@@ -765,3 +885,358 @@ class TestFluxToLuminosityConversion(unittest.TestCase):
         self.assertTrue(np.array_equal(self.converter.time_rest_frame_err, x_err))
         self.assertTrue(np.array_equal(self.converter.Lum50, y))
         self.assertTrue(np.array_equal(self.converter.Lum50_err, y_err))
+
+class TestLoadTransient(unittest.TestCase):
+
+    def setUp(self) -> None:
+        self.mock_file_path = "test_data.csv"
+        self.mock_data = {
+            "time (days)": [1.0, 2.0, 3.0],
+            "time": [2450000.5, 2450001.5, 2450002.5],
+            "magnitude": [21.0, 22.0, 23.0],
+            "e_magnitude": [0.1, 0.1, 0.2],
+            "band": ["g", "r", "i"],
+            "flux_density(mjy)": [1.0, 2.0, 3.0],
+            "flux_density_error": [0.1, 0.2, 0.3],
+        }
+        self.mock_df = pd.DataFrame(self.mock_data)
+
+    def tearDown(self) -> None:
+        if os.path.exists(self.mock_file_path):
+            os.remove(self.mock_file_path)
+
+    @patch("redback.transient.transient.pd.read_csv")
+    def test_load_data_generic_with_magnitude_mode(self, mock_read_csv):
+        mock_read_csv.return_value = self.mock_df
+        result = redback.transient.Transient.load_data_generic(self.mock_file_path, data_mode="magnitude")
+        expected_result = (
+            np.array(self.mock_data["time (days)"]),
+            np.array(self.mock_data["time"]),
+            np.array(self.mock_data["magnitude"]),
+            np.array(self.mock_data["e_magnitude"]),
+            np.array(self.mock_data["band"]),
+        )
+        for res, exp in zip(result, expected_result):
+            np.testing.assert_array_equal(res, exp)
+
+    @patch("redback.transient.transient.pd.read_csv")
+    def test_load_data_generic_with_flux_density_mode(self, mock_read_csv):
+        mock_read_csv.return_value = self.mock_df
+        result = redback.transient.Transient.load_data_generic(self.mock_file_path, data_mode="flux_density")
+        expected_result = (
+            np.array(self.mock_data["time (days)"]),
+            np.array(self.mock_data["time"]),
+            np.array(self.mock_data["flux_density(mjy)"]),
+            np.array(self.mock_data["flux_density_error"]),
+            np.array(self.mock_data["band"]),
+        )
+        for res, exp in zip(result, expected_result):
+            np.testing.assert_array_equal(res, exp)
+
+    @patch("redback.transient.transient.pd.read_csv")
+    def test_load_data_generic_with_all_mode(self, mock_read_csv):
+        mock_read_csv.return_value = self.mock_df
+        result = redback.transient.Transient.load_data_generic(self.mock_file_path, data_mode="all")
+        expected_result = (
+            np.array(self.mock_data["time (days)"]),
+            np.array(self.mock_data["time"]),
+            np.array(self.mock_data["flux_density(mjy)"]),
+            np.array(self.mock_data["flux_density_error"]),
+            np.array(self.mock_data["magnitude"]),
+            np.array(self.mock_data["e_magnitude"]),
+            np.array(self.mock_data["band"]),
+        )
+        for res, exp in zip(result, expected_result):
+            np.testing.assert_array_equal(res, exp)
+
+    def test_load_data_generic_invalid_file_path(self):
+        invalid_file_path = "invalid_path.csv"
+        with self.assertRaises(FileNotFoundError):
+            redback.transient.Transient.load_data_generic(invalid_file_path, data_mode="magnitude")
+
+    @patch("redback.transient.transient.pd.read_csv")
+    def test_load_data_generic_invalid_data_mode(self, mock_read_csv):
+        with self.assertRaises(ValueError):
+            redback.transient.Transient.load_data_generic(self.mock_file_path, data_mode="invalid_mode")
+
+class TestFitGP(unittest.TestCase):
+    def setUp(self) -> None:
+        self.transient = redback.transient.Transient()
+        self.transient.data_mode = "luminosity"
+        self.transient.time_rest_frame = np.array([0.0, 1.0, 2.0, 3.0])
+        self.transient.y = np.array([1.0, 2.0, 1.5, 3.0])
+        self.transient.y_err = np.array([0.1, 0.2, 0.15, 0.3])
+        self.transient.frequency = np.array([100.0, 200.0, 300.0, 400.0])
+        self.transient._filtered_indices = np.array([0, 1, 2, 3])
+        self.transient.active_bands = 'all'
+
+    def tearDown(self) -> None:
+        del self.transient
+
+    def test_fit_gp_without_mean_model(self):
+        """Test fitting a GP without a mean model."""
+        kernel = MagicMock()
+
+        with patch("george.GP") as mock_gp, \
+                patch("scipy.optimize.minimize") as mock_minimize:
+            mock_gp_instance = mock_gp.return_value
+            mock_minimize.return_value.x = [1.0]
+
+            result = self.transient.fit_gp(mean_model=None, kernel=kernel, prior=None, use_frequency=False)
+
+            self.assertIsNotNone(result.gp)
+            self.assertTrue(mock_gp_instance.compute.called)
+            self.assertTrue(mock_minimize.called)
+            self.assertEqual(result.mean_model, None)
+            self.assertFalse(result.use_frequency)
+
+    def test_fit_gp_with_mean_model(self):
+        """Test fitting a GP with a specified mean model."""
+        kernel = MagicMock()
+        mean_model = MagicMock()
+        prior = MagicMock()
+        prior.sample.return_value = {"param1": 1.0, "param2": 2.0}
+
+        with patch("george.GP") as mock_gp, \
+                patch("bilby.core.likelihood.function_to_george_mean_model") as mock_mean_model, \
+                patch("scipy.optimize.minimize") as mock_minimize:
+            mock_gp_instance = mock_gp.return_value
+            mock_minimize.return_value.x = [2.0]
+            mock_mean_model.return_value = MagicMock()
+
+            result = self.transient.fit_gp(mean_model=mean_model, kernel=kernel, prior=prior, use_frequency=False)
+
+            self.assertIsNotNone(result.gp)
+            self.assertEqual(result.mean_model, mean_model)
+            self.assertTrue(mock_mean_model.called)
+            self.assertTrue(mock_gp_instance.compute.called)
+            self.assertTrue(mock_minimize.called)
+
+    def test_fit_gp_without_prior_for_mean_model(self):
+        """Test fitting a GP with a mean model but without providing priors."""
+        kernel = MagicMock()
+        mean_model = MagicMock()
+
+        with self.assertRaises(ValueError):
+            self.transient.fit_gp(mean_model=mean_model, kernel=kernel, prior=None, use_frequency=False)
+
+    def test_fit_gp_with_invalid_data_mode(self):
+        """Test fitting a GP when an invalid/unsupported data mode is set."""
+        kernel = MagicMock()
+
+        with self.assertRaises(ValueError) as context:
+            self.transient.data_mode = "invalid_mode"  # Invalid data mode
+
+        self.assertEqual(str(context.exception), "Unknown data mode.")
+
+    def test_fit_gp_with_use_frequency(self):
+        """Test fitting GP while using frequency as an input (2D GP)."""
+        kernel = MagicMock()
+
+        with patch("george.GP") as mock_gp, \
+                patch("scipy.optimize.minimize") as mock_minimize:
+            mock_gp_instance = mock_gp.return_value
+            mock_minimize.return_value.x = [3.0]
+
+            result = self.transient.fit_gp(mean_model=None, kernel=kernel, prior=None, use_frequency=True)
+
+            self.assertIsNotNone(result.gp)
+            self.assertTrue(mock_gp_instance.compute.called)
+            self.assertTrue(mock_minimize.called)
+            self.assertTrue(result.use_frequency)
+
+    def test_fit_gp_scaling_behavior(self):
+        """Test that GP fitting scales the y values correctly."""
+        kernel = MagicMock()
+
+        with patch("george.GP") as mock_gp, \
+                patch("scipy.optimize.minimize") as mock_minimize:
+            mock_gp_instance = mock_gp.return_value
+            mock_minimize.return_value.x = [1.0]
+
+            result = self.transient.fit_gp(mean_model=None, kernel=kernel, prior=None, use_frequency=False)
+
+            self.assertTrue(mock_gp_instance.compute.called)
+            self.assertTrue(mock_minimize.called)
+            self.assertAlmostEqual(result.y_scaler, np.max(self.transient.y))
+            self.assertTrue(np.allclose(result.scaled_y, self.transient.y / np.max(self.transient.y)))
+
+class TestFromSimulatedOpticalData(unittest.TestCase):
+    @mock.patch("pandas.read_csv")
+    def test_from_simulated_optical_data_success(self, mock_read_csv):
+        mock_data = {
+            "time (days)": [1.0, 2.0, 3.0],
+            "time": [10.0, 20.0, 30.0],
+            "magnitude": [22.1, 23.2, 24.3],
+            "e_magnitude": [0.1, 0.2, 0.3],
+            "band": ["g", "r", "i"],
+            "bands": ["g", "r", "i"],
+            "wavelength [Hz]": [1e14, 2e14, 3e14],
+            "sncosmo_name": ["ztfg", "ztfr", "ztfi"],
+            "flux(erg/cm2/s)": [1e-15, 2e-15, 3e-15],
+            "flux_error": [1e-16, 2e-16, 3e-16],
+            "flux_density(mjy)": [1.1, 1.2, 1.3],
+            "flux_density_error": [0.1, 0.2, 0.3],
+            "detected": [1, 1, 1],
+        }
+        mock_df = pd.DataFrame(mock_data)
+        mock_read_csv.return_value = mock_df
+
+        instance = redback.transient.Transient.from_simulated_optical_data(
+            name="test_transient",
+            data_mode="magnitude",
+            active_bands="all",
+            plotting_order=None,
+            use_phase_model=False,
+        )
+
+        self.assertEqual(instance.name, "test_transient")
+        np.testing.assert_array_equal(instance.time, np.array(mock_data["time (days)"]))
+        np.testing.assert_array_equal(instance.time_mjd, np.array(mock_data["time"]))
+        np.testing.assert_array_equal(instance.magnitude, np.array(mock_data["magnitude"]))
+        np.testing.assert_array_equal(instance.magnitude_err, np.array(mock_data["e_magnitude"]))
+        np.testing.assert_array_equal(instance.bands, np.array(mock_data["band"]))
+        np.testing.assert_array_equal(instance.flux, np.array(mock_data["flux(erg/cm2/s)"]))
+        np.testing.assert_array_equal(instance.flux_err, np.array(mock_data["flux_error"]))
+        np.testing.assert_array_equal(instance.flux_density, np.array(mock_data["flux_density(mjy)"]))
+        np.testing.assert_array_equal(instance.flux_density_err, np.array(mock_data["flux_density_error"]))
+
+    @mock.patch("pandas.read_csv")
+    def test_from_simulated_optical_data_no_detected_entries(self, mock_read_csv):
+        mock_data = {
+            "time (days)": [1.0, 2.0, 3.0],
+            "time": [10.0, 20.0, 30.0],
+            "magnitude": [22.1, 23.2, 24.3],
+            "e_magnitude": [0.1, 0.2, 0.3],
+            "band": ["g", "r", "i"],
+            "bands": ["g", "r", "i"],
+            "wavelength [Hz]": [1e14, 2e14, 3e14],
+            "sncosmo_name": ["ztfg", "ztfr", "ztfi"],
+            "flux(erg/cm2/s)": [1e-15, 2e-15, 3e-15],
+            "flux_error": [1e-16, 2e-16, 3e-16],
+            "flux_density(mjy)": [1.1, 1.2, 1.3],
+            "flux_density_error": [0.1, 0.2, 0.3],
+            "detected": [0, 0, 0],
+        }
+        mock_df = pd.DataFrame(mock_data)
+        mock_read_csv.return_value = mock_df
+
+        instance = redback.transient.Transient.from_simulated_optical_data(
+            name="test_transient",
+            data_mode="magnitude",
+            active_bands="all",
+            plotting_order=None,
+            use_phase_model=False,
+        )
+
+        # safer assertions for either empty arrays or None to ensure test robustness
+        attributes = [
+            instance.time,
+            instance.time_mjd,
+            instance.magnitude,
+            instance.magnitude_err,
+            instance.bands,
+            instance.flux,
+            instance.flux_err,
+            instance.flux_density,
+            instance.flux_density_err
+        ]
+
+        for attr in attributes:
+            if attr is not None:
+                self.assertEqual(len(attr), 0)
+            else:
+                self.assertIsNone(attr)
+
+    @mock.patch("pandas.read_csv")
+    def test_from_simulated_optical_data_file_not_found(self, mock_read_csv):
+        mock_read_csv.side_effect = FileNotFoundError
+
+        with self.assertRaises(FileNotFoundError):
+            redback.transient.Transient.from_simulated_optical_data(
+                name="non_existent_transient",
+                data_mode="magnitude",
+                active_bands="all",
+                plotting_order=None,
+                use_phase_model=False,
+            )
+
+class TestFromLasairTransient(unittest.TestCase):
+    def setUp(self) -> None:
+        self.mock_data = {
+            "time (days)": [0.1, 0.2, 0.3],
+            "time": [59000.1, 59000.2, 59000.3],
+            "magnitude": [20.5, 20.6, 20.7],
+            "e_magnitude": [0.1, 0.1, 0.1],
+            "band": ["g", "r", "i"],
+            "bands": ["g", "r", "i"],
+            "wavelength [Hz]": [1e14, 2e14, 3e14],
+            "sncosmo_name": ["ztfg", "ztfr", "ztfi"],
+            "flux(erg/cm2/s)": [1e-15, 1.1e-15, 1.2e-15],
+            "flux_error": [1e-16, 1.1e-16, 1.2e-16],
+            "flux_density(mjy)": [0.35, 0.36, 0.37],
+            "flux_density_error": [0.05, 0.05, 0.05]
+        }
+        self.mock_df = pd.DataFrame(self.mock_data)
+
+        self.mock_directory = mock.MagicMock()
+        self.mock_directory.processed_file_path = "mock/path/to/file.csv"
+
+    def tearDown(self) -> None:
+        pass
+
+    @mock.patch("redback.get_data.directory.lasair_directory_structure")
+    @mock.patch("pandas.read_csv")
+    def test_from_lasair_data_basic_functionality(self, mock_read_csv, mock_directory_structure):
+        mock_directory_structure.return_value = self.mock_directory
+        mock_read_csv.return_value = self.mock_df
+
+        transient = redback.transient.Transient.from_lasair_data(
+            name="test_transient",
+            data_mode="magnitude",
+            active_bands="all",
+            use_phase_model=False
+        )
+
+        self.assertEqual(transient.name, "test_transient")
+        self.assertEqual(transient.data_mode, "magnitude")
+        np.testing.assert_array_equal(transient.time, self.mock_data["time (days)"])
+        np.testing.assert_array_equal(transient.time_mjd, self.mock_data["time"])
+        np.testing.assert_array_equal(transient.magnitude, self.mock_data["magnitude"])
+        np.testing.assert_array_equal(transient.magnitude_err, self.mock_data["e_magnitude"])
+        np.testing.assert_array_equal(transient.bands, self.mock_data["band"])
+        np.testing.assert_array_equal(transient.flux, self.mock_data["flux(erg/cm2/s)"])
+        np.testing.assert_array_equal(transient.flux_err, self.mock_data["flux_error"])
+        np.testing.assert_array_equal(transient.flux_density, self.mock_data["flux_density(mjy)"])
+        np.testing.assert_array_equal(transient.flux_density_err, self.mock_data["flux_density_error"])
+
+    @mock.patch("redback.get_data.directory.lasair_directory_structure")
+    @mock.patch("pandas.read_csv")
+    def test_from_lasair_data_with_plotting_order(self, mock_read_csv, mock_directory_structure):
+        mock_directory_structure.return_value = self.mock_directory
+        mock_read_csv.return_value = self.mock_df
+
+        plotting_order = np.array(["r", "g", "i"])
+        transient = redback.transient.Transient.from_lasair_data(
+            name="test_transient",
+            data_mode="magnitude",
+            active_bands="all",
+            use_phase_model=False,
+            plotting_order=plotting_order
+        )
+
+        self.assertEqual(transient.plotting_order.tolist(), plotting_order.tolist())
+
+    @mock.patch("redback.get_data.directory.lasair_directory_structure")
+    @mock.patch("pandas.read_csv")
+    def test_from_lasair_data_invalid_data_mode(self, mock_read_csv, mock_directory_structure):
+        mock_directory_structure.return_value = self.mock_directory
+        mock_read_csv.return_value = self.mock_df
+
+        with self.assertRaises(ValueError):
+            redback.transient.Transient.from_lasair_data(
+                name="test_transient",
+                data_mode="invalid_mode",
+                active_bands="all",
+                use_phase_model=False
+            )
