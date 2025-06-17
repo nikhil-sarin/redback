@@ -283,7 +283,7 @@ def powerlaw_blackbody_evolution(time, temperature_0, radius_0, temp_rise_index,
     :param radius_rise_index: radius rise index
     :param radius_decline_index: radius decline index
     :param radius_peak_time: time when radius peaks
-    :return: temperature and radius arrays
+    :return: temperature and radius values (scalars if time is scalar)
     """
     time = np.atleast_1d(time)
 
@@ -306,7 +306,11 @@ def powerlaw_blackbody_evolution(time, temperature_0, radius_0, temp_rise_index,
     radius[decline_mask_radius] = radius_peak * (time[decline_mask_radius] / radius_peak_time) ** (
         -radius_decline_index)
 
-    return temperature, radius
+    # Return scalars if input was scalar
+    if len(time) == 1:
+        return temperature[0], radius[0]
+    else:
+        return temperature, radius
 
 def fallback_lbol(time, logl1, tr, **kwargs):
     """

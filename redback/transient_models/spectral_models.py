@@ -108,3 +108,76 @@ def blackbody_spectrum_at_z(angstroms, redshift, rph, temp, **kwargs):
     flux_obs = flux_rest / (1 + redshift)
 
     return flux_obs
+
+def powerlaw_plus_blackbody_spectrum_at_z(angstroms, redshift, pl_amplitude, pl_slope, pl_evolution_index,
+                                          temperature_0, radius_0, temp_rise_index, temp_decline_index,
+                                          temp_peak_time, radius_rise_index, radius_decline_index,
+                                          radius_peak_time, time, **kwargs):
+    """
+    A powerlaw + blackbody spectrum at a given redshift and time, properly accounting for redshift effects.
+
+    :param angstroms: wavelength array in angstroms in obs frame
+    :param redshift: source redshift
+    :param pl_amplitude: power law amplitude at reference wavelength at t=1 day (erg/s/cm^2/Angstrom)
+    :param pl_slope: power law slope (F_lambda ∝ lambda^slope)
+    :param pl_evolution_index: power law time evolution F_pl(t) ∝ t^(-pl_evolution_index)
+    :param temperature_0: initial blackbody temperature in Kelvin at t=1 day (rest frame)
+    :param radius_0: initial blackbody radius in cm at t=1 day (rest frame)
+    :param temp_rise_index: temperature rise T(t) ∝ t^temp_rise_index for t < temp_peak_time
+    :param temp_decline_index: temperature decline T(t) ∝ t^(-temp_decline_index) for t > temp_peak_time
+    :param temp_peak_time: time in days when temperature peaks
+    :param radius_rise_index: radius rise R(t) ∝ t^radius_rise_index for t < radius_peak_time
+    :param radius_decline_index: radius decline R(t) ∝ t^(-radius_decline_index) for t > radius_peak_time
+    :param radius_peak_time: time in days when radius peaks
+    :param time: time in observer frame in days
+    :param kwargs: Additional parameters
+    :param reference_wavelength: wavelength for power law amplitude normalization in Angstroms (default 5000)
+    :param cosmology: Cosmology object for luminosity distance calculation
+    :return: flux in ergs/s/cm^2/angstrom in obs frame
+    """
+    cosmology = kwargs.get('cosmology', cosmo)
+    dl = cosmology.luminosity_distance(redshift).cgs.value
+    reference_wavelength = kwargs.get('reference_wavelength', 5000.0)  # Angstroms
+
+    # Convert observed wavelengths to rest frame
+    angstroms_rest = angstroms / (1 + redshift)
+
+    # Convert observed time to rest frame
+    time_rest = time / (1 + redshift)
+
+    # Convert wavelengths to frequencies for the SED calculation
+    frequency_rest = lambda_to_nu(wavelength=angstroms_rest)
+
+    # Calculate evolving temperature and radius at this time
+    temperature, radius = pm.powerlaw_blackbody_evolution(time=time_rest, temperature_0=temperature_0, radius_0=radius_0,
+                                                       temp_rise_index=temp_rise_index,
+                                                       temp_decline_index=temp_decline_index,
+                                                       temp_peak_time=temp_peak_time,
+                                                       radius_rise_index=radius_rise_index,
+                                                       radius_decline_index=radius_decline_index,
+                                                       radius_peak_time=radius_peak_time)
+
+    # Create combined SED in rest frame
+    sed_combined = sed.PowerlawPlusBlackbody(temperature=temperature, r_photosphere=radius,
+                                         pl_amplitude=pl_amplitude, pl_slope=pl_slope,
+                                         pl_evolution_index=pl_evolution_index, time=time_rest,
+                                         reference_wavelength=reference_wavelength,
+                                         frequency=frequency_rest, luminosity_distance=dl)
+
+    # Get flux density in rest frame (F_nu)
+    flux_density_rest = sed_combined.flux_density  # erg/s/cm^2/Hz
+
+    # Convert from F_nu to F_lambda in rest frame
+    flux_lambda_rest = fnu_to_flambda(f_nu=flux_density_rest, wavelength_A=angstroms_rest)
+
+    # Apply redshift corrections to get observed frame flux:
+    # - Surface brightness dimming: factor of (1+z)
+    # - Wavelength interval stretching: dλ_obs = dλ_rest × (1+z)
+    # Combined effect: divide by (1+z)
+    flux_lambda_obs = flux_lambda_rest / (1 + redshift)
+
+    # Convert to plain values if needed
+    if hasattr(flux_lambda_obs, 'value'):
+        return flux_lambda_obs.value
+    else:
+        return flux_lambda_obs
