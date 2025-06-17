@@ -174,7 +174,7 @@ def villar_sne(time, aa, cc, t0, tau_rise, tau_fall, gamma, nu, **kwargs):
     return np.concatenate((flux[mask1], flux[mask2]))
 
 
-def powerlaw_plus_blackbody(time, redshift, pl_amplitude, pl_slope, temperature_0, radius_0,
+def powerlaw_plus_blackbody(time, redshift, pl_amplitude, pl_slope, pl_evolution_index, temperature_0, radius_0,
                             temp_rise_index, temp_decline_index, temp_peak_time,
                             radius_rise_index, radius_decline_index, radius_peak_time, **kwargs):
     """
@@ -182,8 +182,9 @@ def powerlaw_plus_blackbody(time, redshift, pl_amplitude, pl_slope, temperature_
 
     :param time: time in observer frame in days
     :param redshift: source redshift
-    :param pl_amplitude: power law amplitude at reference wavelength (erg/s/cm^2/Angstrom)
+    :param pl_amplitude: power law amplitude at reference wavelength at t=1 day (erg/s/cm^2/Angstrom)
     :param pl_slope: power law slope (F_lambda ∝ lambda^slope)
+    :param pl_evolution_index: power law time evolution F_pl(t) ∝ t^(-pl_evolution_index)
     :param temperature_0: initial blackbody temperature in Kelvin at t=1 day
     :param radius_0: initial blackbody radius in cm at t=1 day
     :param temp_rise_index: temperature rise T(t) ∝ t^temp_rise_index for t < temp_peak_time
@@ -224,9 +225,10 @@ def powerlaw_plus_blackbody(time, redshift, pl_amplitude, pl_slope, temperature_
                                                            radius_decline_index=radius_decline_index,
                                                            radius_peak_time=radius_peak_time)
 
-        # Create combined SED
+        # Create combined SED with time-evolving power law
         sed_combined = sed.PowerlawPlusBlackbody(temperature=temperature, r_photosphere=radius,
                                                  pl_amplitude=pl_amplitude, pl_slope=pl_slope,
+                                                 pl_evolution_index=pl_evolution_index, time=time,
                                                  reference_wavelength=reference_wavelength,
                                                  frequency=frequency, luminosity_distance=dl)
         flux_density = sed_combined.flux_density
@@ -248,9 +250,10 @@ def powerlaw_plus_blackbody(time, redshift, pl_amplitude, pl_slope, temperature_
                                                            radius_decline_index=radius_decline_index,
                                                            radius_peak_time=radius_peak_time)
 
-        # Create combined SED
+        # Create combined SED with time-evolving power law
         sed_combined = sed.PowerlawPlusBlackbody(temperature=temperature, r_photosphere=radius,
                                                  pl_amplitude=pl_amplitude, pl_slope=pl_slope,
+                                                 pl_evolution_index=pl_evolution_index, time=time,
                                                  reference_wavelength=reference_wavelength,
                                                  frequency=frequency[:, None], luminosity_distance=dl)
         fmjy = sed_combined.flux_density.T

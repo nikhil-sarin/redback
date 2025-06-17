@@ -406,14 +406,16 @@ class CutoffBlackbody(_SED):
 
 
 class PowerlawPlusBlackbody:
-    """SED class for power law + blackbody combination"""
+    """SED class for power law + blackbody combination with time-evolving power law"""
 
-    def __init__(self, temperature, r_photosphere, pl_amplitude, pl_slope, reference_wavelength,
-                 frequency, luminosity_distance):
+    def __init__(self, temperature, r_photosphere, pl_amplitude, pl_slope, pl_evolution_index, time,
+                 reference_wavelength, frequency, luminosity_distance):
         self.temperature = temperature
         self.r_photosphere = r_photosphere
         self.pl_amplitude = pl_amplitude
         self.pl_slope = pl_slope
+        self.pl_evolution_index = pl_evolution_index
+        self.time = time
         self.reference_wavelength = reference_wavelength
         self.frequency = frequency
         self.luminosity_distance = luminosity_distance
@@ -422,7 +424,7 @@ class PowerlawPlusBlackbody:
         self._calculate_flux_density()
 
     def _calculate_flux_density(self):
-        """Calculate power law + blackbody flux density using blackbody_to_flux_density"""
+        """Calculate power law + blackbody flux density with time-evolving power law"""
 
         # Blackbody component using the provided function
         bb_flux_density = blackbody_to_flux_density(temperature=self.temperature,
@@ -430,12 +432,15 @@ class PowerlawPlusBlackbody:
                                                     dl=self.luminosity_distance,
                                                     frequency=self.frequency)
 
-        # Power law component
+        # Time-evolving power law component
         # Convert frequency to wavelength for power law calculation
         wavelength = (speed_of_light * 1e8) / self.frequency  # Angstroms
 
+        # Calculate time-evolved power law amplitude
+        pl_amplitude_evolved = self.pl_amplitude * (self.time / 1.0) ** (-self.pl_evolution_index)
+
         # Calculate power law in F_lambda
-        pl_flux_lambda = self.pl_amplitude * (wavelength / self.reference_wavelength) ** self.pl_slope
+        pl_flux_lambda = pl_amplitude_evolved * (wavelength / self.reference_wavelength) ** self.pl_slope
 
         # Convert power law from F_lambda to F_nu
         pl_flux_density = pl_flux_lambda * wavelength ** 2 / (speed_of_light * 1e8)
