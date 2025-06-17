@@ -80,3 +80,31 @@ def blackbody_spectrum_with_absorption_and_emission_lines(angstroms, redshift,
     fp1 = pm.line_spectrum_with_velocity_dispersion(angstroms, lc1, ls1, v1)
     fp2 = pm.line_spectrum_with_velocity_dispersion(angstroms, lc2, ls2, v2)
     return flux + fp1 - fp2
+
+def blackbody_spectrum_at_z(angstroms, redshift, rph, temp, **kwargs):
+    """
+    A blackbody spectrum at a given redshift, properly accounting for redshift effects.
+
+    :param angstroms: wavelength array in angstroms in obs frame
+    :param redshift: redshift
+    :param rph: photosphere radius in cm (rest frame)
+    :param temp: photosphere temperature in Kelvin (rest frame)
+    :return: flux in ergs/s/cm^2/angstrom in obs frame
+    """
+    cosmology = kwargs.get('cosmology', cosmo)
+    dl = cosmology.luminosity_distance(redshift).cgs.value
+
+    # Convert observed wavelengths to rest frame
+    angstroms_rest = angstroms / (1 + redshift)
+
+    # Calculate blackbody in rest frame
+    flux_rest = _get_blackbody_spectrum(angstrom=angstroms_rest, distance=dl,
+                                        r_photosphere=rph, temperature=temp)
+
+    # Apply redshift corrections:
+    # - Surface brightness dimming: factor of (1+z)
+    # - Wavelength interval stretching: dλ_obs = dλ_rest × (1+z)
+    # Combined effect: divide by (1+z)
+    flux_obs = flux_rest / (1 + redshift)
+
+    return flux_obs
