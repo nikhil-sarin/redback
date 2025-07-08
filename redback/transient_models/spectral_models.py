@@ -149,13 +149,13 @@ def powerlaw_plus_blackbody_spectrum_at_z(angstroms, redshift, pl_amplitude, pl_
     frequency_rest = lambda_to_nu(wavelength=angstroms_rest)
 
     # Calculate evolving temperature and radius at this time
-    temperature, radius = pm.powerlaw_blackbody_evolution(time=time_rest, temperature_0=temperature_0, radius_0=radius_0,
-                                                       temp_rise_index=temp_rise_index,
-                                                       temp_decline_index=temp_decline_index,
-                                                       temp_peak_time=temp_peak_time,
-                                                       radius_rise_index=radius_rise_index,
-                                                       radius_decline_index=radius_decline_index,
-                                                       radius_peak_time=radius_peak_time)
+    temperature, radius = pm._powerlaw_blackbody_evolution(time=time_rest, temperature_0=temperature_0, radius_0=radius_0,
+                                                           temp_rise_index=temp_rise_index,
+                                                           temp_decline_index=temp_decline_index,
+                                                           temp_peak_time=temp_peak_time,
+                                                           radius_rise_index=radius_rise_index,
+                                                           radius_decline_index=radius_decline_index,
+                                                           radius_peak_time=radius_peak_time)
 
     # Create combined SED in rest frame
     sed_combined = sed.PowerlawPlusBlackbody(temperature=temperature, r_photosphere=radius,

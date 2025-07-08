@@ -217,13 +217,13 @@ def powerlaw_plus_blackbody(time, redshift, pl_amplitude, pl_slope, pl_evolution
         frequency, time = calc_kcorrected_properties(frequency=frequency, redshift=redshift, time=time)
 
         # Calculate evolving temperature and radius
-        temperature, radius = powerlaw_blackbody_evolution(time=time, temperature_0=temperature_0, radius_0=radius_0,
-                                                           temp_rise_index=temp_rise_index,
-                                                           temp_decline_index=temp_decline_index,
-                                                           temp_peak_time=temp_peak_time,
-                                                           radius_rise_index=radius_rise_index,
-                                                           radius_decline_index=radius_decline_index,
-                                                           radius_peak_time=radius_peak_time)
+        temperature, radius = _powerlaw_blackbody_evolution(time=time, temperature_0=temperature_0, radius_0=radius_0,
+                                                            temp_rise_index=temp_rise_index,
+                                                            temp_decline_index=temp_decline_index,
+                                                            temp_peak_time=temp_peak_time,
+                                                            radius_rise_index=radius_rise_index,
+                                                            radius_decline_index=radius_decline_index,
+                                                            radius_peak_time=radius_peak_time)
 
         # Create combined SED with time-evolving power law
         sed_combined = sed.PowerlawPlusBlackbody(temperature=temperature, r_photosphere=radius,
@@ -242,13 +242,13 @@ def powerlaw_plus_blackbody(time, redshift, pl_amplitude, pl_slope, pl_evolution
                                                      redshift=redshift, time=time_observer_frame)
 
         # Calculate evolving temperature and radius
-        temperature, radius = powerlaw_blackbody_evolution(time=time, temperature_0=temperature_0, radius_0=radius_0,
-                                                           temp_rise_index=temp_rise_index,
-                                                           temp_decline_index=temp_decline_index,
-                                                           temp_peak_time=temp_peak_time,
-                                                           radius_rise_index=radius_rise_index,
-                                                           radius_decline_index=radius_decline_index,
-                                                           radius_peak_time=radius_peak_time)
+        temperature, radius = _powerlaw_blackbody_evolution(time=time, temperature_0=temperature_0, radius_0=radius_0,
+                                                            temp_rise_index=temp_rise_index,
+                                                            temp_decline_index=temp_decline_index,
+                                                            temp_peak_time=temp_peak_time,
+                                                            radius_rise_index=radius_rise_index,
+                                                            radius_decline_index=radius_decline_index,
+                                                            radius_peak_time=radius_peak_time)
 
         # Create combined SED with time-evolving power law
         sed_combined = sed.PowerlawPlusBlackbody(temperature=temperature, r_photosphere=radius,
@@ -269,8 +269,8 @@ def powerlaw_plus_blackbody(time, redshift, pl_amplitude, pl_slope, pl_evolution
                                                               **kwargs)
 
 
-def powerlaw_blackbody_evolution(time, temperature_0, radius_0, temp_rise_index, temp_decline_index,
-                                 temp_peak_time, radius_rise_index, radius_decline_index, radius_peak_time):
+def _powerlaw_blackbody_evolution(time, temperature_0, radius_0, temp_rise_index, temp_decline_index,
+                                  temp_peak_time, radius_rise_index, radius_decline_index, radius_peak_time):
     """
     Calculate evolving temperature and radius with piecewise power-law evolution
 
