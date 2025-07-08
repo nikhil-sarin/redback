@@ -47,7 +47,8 @@ setup(
             "tensorflow",
             "keras",
             "kilonovanet",
-            "astroquery"
+            "astroquery",
+            "pyphot==1.6.0",
         ]
     },
     python_requires=">=3.10",

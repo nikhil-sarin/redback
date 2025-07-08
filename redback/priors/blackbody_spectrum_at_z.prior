@@ -1,0 +1,3 @@
+redshift = Uniform(0.01, 1.0, 'redshift', latex_label = r'$z$')
+rph = LogUniform(1e13, 1e20, 'rph', latex_label = r'$R_{\mathrm{ph}}~(\mathrm{cm})$')
+temp = Uniform(2000, 15000, 'temp', latex_label = r'$T~(\mathrm{K})$')

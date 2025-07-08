@@ -173,6 +173,145 @@ def villar_sne(time, aa, cc, t0, tau_rise, tau_fall, gamma, nu, **kwargs):
     flux[mask2] = norm[mask2] * ((1 - nu) * np.exp(-((time[mask2] - t0 - gamma)/tau_fall)))
     return np.concatenate((flux[mask1], flux[mask2]))
 
+
+def powerlaw_plus_blackbody(time, redshift, pl_amplitude, pl_slope, pl_evolution_index, temperature_0, radius_0,
+                            temp_rise_index, temp_decline_index, temp_peak_time,
+                            radius_rise_index, radius_decline_index, radius_peak_time, **kwargs):
+    """
+    Power law + blackbody spectrum with piecewise evolving temperature and radius
+
+    :param time: time in observer frame in days
+    :param redshift: source redshift
+    :param pl_amplitude: power law amplitude at reference wavelength at t=1 day (erg/s/cm^2/Angstrom)
+    :param pl_slope: power law slope (F_lambda ∝ lambda^slope)
+    :param pl_evolution_index: power law time evolution F_pl(t) ∝ t^(-pl_evolution_index)
+    :param temperature_0: initial blackbody temperature in Kelvin at t=1 day
+    :param radius_0: initial blackbody radius in cm at t=1 day
+    :param temp_rise_index: temperature rise T(t) ∝ t^temp_rise_index for t < temp_peak_time
+    :param temp_decline_index: temperature decline T(t) ∝ t^(-temp_decline_index) for t > temp_peak_time
+    :param temp_peak_time: time in days when temperature peaks
+    :param radius_rise_index: radius rise R(t) ∝ t^radius_rise_index for t < radius_peak_time
+    :param radius_decline_index: radius decline R(t) ∝ t^(-radius_decline_index) for t > radius_peak_time
+    :param radius_peak_time: time in days when radius peaks
+    :param kwargs: Additional parameters
+    :param reference_wavelength: wavelength for power law amplitude normalization in Angstroms (default 5000)
+    :param frequency: Required if output_format is 'flux_density'
+    :param bands: Required if output_format is 'magnitude' or 'flux'
+    :param output_format: 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
+    :param lambda_array: Optional wavelength array in Angstroms to evaluate SED
+    :param cosmology: Cosmology object for luminosity distance calculation
+    :return: set by output format - 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
+    """
+    from astropy.cosmology import Planck18 as cosmo
+    from astropy import units as uu
+    from redback.utils import lambda_to_nu, calc_kcorrected_properties
+    import redback.sed as sed
+    from collections import namedtuple
+
+    cosmology = kwargs.get('cosmology', cosmo)
+    dl = cosmology.luminosity_distance(redshift).cgs.value
+    reference_wavelength = kwargs.get('reference_wavelength', 5000.0)  # Angstroms
+
+    if kwargs['output_format'] == 'flux_density':
+        frequency = kwargs['frequency']
+        frequency, time = calc_kcorrected_properties(frequency=frequency, redshift=redshift, time=time)
+
+        # Calculate evolving temperature and radius
+        temperature, radius = _powerlaw_blackbody_evolution(time=time, temperature_0=temperature_0, radius_0=radius_0,
+                                                            temp_rise_index=temp_rise_index,
+                                                            temp_decline_index=temp_decline_index,
+                                                            temp_peak_time=temp_peak_time,
+                                                            radius_rise_index=radius_rise_index,
+                                                            radius_decline_index=radius_decline_index,
+                                                            radius_peak_time=radius_peak_time)
+
+        # Create combined SED with time-evolving power law
+        sed_combined = sed.PowerlawPlusBlackbody(temperature=temperature, r_photosphere=radius,
+                                                 pl_amplitude=pl_amplitude, pl_slope=pl_slope,
+                                                 pl_evolution_index=pl_evolution_index, time=time,
+                                                 reference_wavelength=reference_wavelength,
+                                                 frequency=frequency, luminosity_distance=dl)
+        flux_density = sed_combined.flux_density
+        return flux_density.to(uu.mJy).value
+    else:
+        time_obs = time
+        lambda_observer_frame = kwargs.get('lambda_array', np.geomspace(100, 60000, 100))
+        time_temp = np.geomspace(0.1, 3000, 300)  # in days
+        time_observer_frame = time_temp * (1. + redshift)
+        frequency, time = calc_kcorrected_properties(frequency=lambda_to_nu(lambda_observer_frame),
+                                                     redshift=redshift, time=time_observer_frame)
+
+        # Calculate evolving temperature and radius
+        temperature, radius = _powerlaw_blackbody_evolution(time=time, temperature_0=temperature_0, radius_0=radius_0,
+                                                            temp_rise_index=temp_rise_index,
+                                                            temp_decline_index=temp_decline_index,
+                                                            temp_peak_time=temp_peak_time,
+                                                            radius_rise_index=radius_rise_index,
+                                                            radius_decline_index=radius_decline_index,
+                                                            radius_peak_time=radius_peak_time)
+
+        # Create combined SED with time-evolving power law
+        sed_combined = sed.PowerlawPlusBlackbody(temperature=temperature, r_photosphere=radius,
+                                                 pl_amplitude=pl_amplitude, pl_slope=pl_slope,
+                                                 pl_evolution_index=pl_evolution_index, time=time,
+                                                 reference_wavelength=reference_wavelength,
+                                                 frequency=frequency[:, None], luminosity_distance=dl)
+        fmjy = sed_combined.flux_density.T
+        spectra = fmjy.to(uu.mJy).to(uu.erg / uu.cm ** 2 / uu.s / uu.Angstrom,
+                                     equivalencies=uu.spectral_density(wav=lambda_observer_frame * uu.Angstrom))
+        if kwargs['output_format'] == 'spectra':
+            return namedtuple('output', ['time', 'lambdas', 'spectra'])(time=time_observer_frame,
+                                                                        lambdas=lambda_observer_frame,
+                                                                        spectra=spectra)
+        else:
+            return sed.get_correct_output_format_from_spectra(time=time_obs, time_eval=time_observer_frame,
+                                                              spectra=spectra, lambda_array=lambda_observer_frame,
+                                                              **kwargs)
+
+
+def _powerlaw_blackbody_evolution(time, temperature_0, radius_0, temp_rise_index, temp_decline_index,
+                                  temp_peak_time, radius_rise_index, radius_decline_index, radius_peak_time):
+    """
+    Calculate evolving temperature and radius with piecewise power-law evolution
+
+    :param time: time array in days
+    :param temperature_0: initial temperature at t=1 day
+    :param radius_0: initial radius at t=1 day
+    :param temp_rise_index: temperature rise index
+    :param temp_decline_index: temperature decline index
+    :param temp_peak_time: time when temperature peaks
+    :param radius_rise_index: radius rise index
+    :param radius_decline_index: radius decline index
+    :param radius_peak_time: time when radius peaks
+    :return: temperature and radius values (scalars if time is scalar)
+    """
+    time = np.atleast_1d(time)
+
+    # Temperature evolution
+    temp_peak = temperature_0 * (temp_peak_time / 1.0) ** temp_rise_index
+    rise_mask_temp = time <= temp_peak_time
+    decline_mask_temp = ~rise_mask_temp
+
+    temperature = np.zeros_like(time)
+    temperature[rise_mask_temp] = temperature_0 * (time[rise_mask_temp] / 1.0) ** temp_rise_index
+    temperature[decline_mask_temp] = temp_peak * (time[decline_mask_temp] / temp_peak_time) ** (-temp_decline_index)
+
+    # Radius evolution
+    radius_peak = radius_0 * (radius_peak_time / 1.0) ** radius_rise_index
+    rise_mask_radius = time <= radius_peak_time
+    decline_mask_radius = ~rise_mask_radius
+
+    radius = np.zeros_like(time)
+    radius[rise_mask_radius] = radius_0 * (time[rise_mask_radius] / 1.0) ** radius_rise_index
+    radius[decline_mask_radius] = radius_peak * (time[decline_mask_radius] / radius_peak_time) ** (
+        -radius_decline_index)
+
+    # Return scalars if input was scalar
+    if len(time) == 1:
+        return temperature[0], radius[0]
+    else:
+        return temperature, radius
+
 def fallback_lbol(time, logl1, tr, **kwargs):
     """
     :param time: time in seconds
