@@ -10,3 +10,4 @@ temp_peak_time = LogUniform(0.1, 10.0, 'temp_peak_time', latex_label = r'$t_{T,\
 radius_rise_index = Uniform(0.0, 2.0, 'radius_rise_index', latex_label = r'$\alpha_{R,\mathrm{rise}}$')
 radius_decline_index = Uniform(0.0, 2.0, 'radius_decline_index', latex_label = r'$\alpha_{R,\mathrm{dec}}$')
 radius_peak_time = LogUniform(0.1, 10.0, 'radius_peak_time', latex_label = r'$t_{R,\mathrm{peak}}~(\mathrm{days})$')
+time = Uniform(0.5, 10.0, 'time', latex_label = r'$t~(\mathrm{days})$')
