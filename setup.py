@@ -48,7 +48,7 @@ setup(
             "keras",
             "kilonovanet",
             "astroquery",
-            "pyphot=1.6.0",
+            "pyphot==1.6.0",
         ]
     },
     python_requires=">=3.10",
