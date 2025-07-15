@@ -738,7 +738,7 @@ def bulla_bns_kilonova(time, redshift, mej_dyn, mej_disk, phi, costheta_obs, **k
             spectra = output.spectra / (4 * np.pi * dl ** 2) # to erg/s/cm^2/Angstrom
             spectra = spectra * uu.erg / (uu.s * uu.cm ** 2 * uu.Angstrom)
             time_obs = time
-            return get_correct_output_format_from_spectra(time=time_obs, time_eval=time_observer_frame / day_to_s,
+            return get_correct_output_format_from_spectra(time=time_obs, time_eval=time_observer_frame,
                                                    spectra=spectra, lambda_array=lambda_observer_frame,
                                                    **kwargs)
 
@@ -791,7 +791,7 @@ def bulla_nsbh_kilonova(time, redshift, mej_dyn, mej_disk, costheta_obs, **kwarg
             spectra = output.spectra / (4 * np.pi * dl ** 2) # to erg/s/cm^2/Angstrom
             spectra = spectra * uu.erg / (uu.s * uu.cm ** 2 * uu.Angstrom)
             time_obs = time
-            return get_correct_output_format_from_spectra(time=time_obs, time_eval=time_observer_frame / day_to_s,
+            return get_correct_output_format_from_spectra(time=time_obs, time_eval=time_observer_frame,
                                                    spectra=spectra, lambda_array=lambda_observer_frame,
                                                    **kwargs)
 
@@ -842,7 +842,7 @@ def kasen_bns_kilonova(time, redshift, mej, vej, chi, **kwargs):
             spectra = output.spectra / (4 * np.pi * dl ** 2) # to erg/s/cm^2/Angstrom
             spectra = spectra * uu.erg / (uu.s * uu.cm ** 2 * uu.Angstrom)
             time_obs = time
-            return get_correct_output_format_from_spectra(time=time_obs, time_eval=time_observer_frame / day_to_s,
+            return get_correct_output_format_from_spectra(time=time_obs, time_eval=time_observer_frame,
                                                    spectra=spectra, lambda_array=lambda_observer_frame,
                                                    **kwargs)
 @citation_wrapper('https://ui.adsabs.harvard.edu/abs/2020ApJ...891..152H/abstract')
