@@ -270,7 +270,7 @@ def powerlaw_plus_blackbody(time, redshift, pl_amplitude, pl_slope, pl_evolution
 
 
 def _powerlaw_blackbody_evolution(time, temperature_0, radius_0, temp_rise_index, temp_decline_index,
-                                  temp_peak_time, radius_rise_index, radius_decline_index, radius_peak_time):
+                                  temp_peak_time, radius_rise_index, radius_decline_index, radius_peak_time, **kwargs):
     """
     Calculate evolving temperature and radius with piecewise power-law evolution
 
