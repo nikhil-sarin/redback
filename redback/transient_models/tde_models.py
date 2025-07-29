@@ -159,8 +159,9 @@ def _cooling_envelope(mbh_6, stellar_mass, eta, alpha, beta, **kwargs):
     except ValueError:
         constraint_1 = len(time_temp)
         constraint_2 = len(time_temp)
-    constraint = np.min([constraint_1, constraint_2])
-    termination_time_id = np.min([constraint_1, constraint_2])
+    constraint = np.max([constraint_1, constraint_2])
+    termination_time_id = np.max([constraint_1, constraint_2])
+
     nu = 6.0e14
     expon = 1. / (np.exp(cc.planck * nu / (cc.boltzmann_constant * Teff)) - 1.0)
     nuLnu40 = (8.0*np.pi ** (2.0) * Rph ** (2.0) / cc.speed_of_light ** (2.0))
@@ -256,9 +257,10 @@ def cooling_envelope(time, redshift, mbh_6, stellar_mass, eta, alpha, beta, **kw
                                                               **kwargs)
 
 @citation_wrapper('https://arxiv.org/abs/2307.15121,https://ui.adsabs.harvard.edu/abs/2022arXiv220707136M/abstract')
-def gaussianrise_cooling_envelope_bolometric(time, peak_time, sigma_t, mbh_6, stellar_mass, eta, alpha, beta, **kwargs):
+def gaussianrise_cooling_envelope_bolometric(time, peak_time, sigma_t, mbh_6, stellar_mass, eta, alpha, beta, xi,
+                                                **kwargs):
     """
-    Full lightcurve, with gaussian rise till fallback time and then the metzger tde model,
+    Full lightcurve, with gaussian rise till xi * fallback time and then the metzger tde model,
     bolometric version for fitting the bolometric lightcurve
 
     :param time: time in source frame in days
@@ -269,28 +271,114 @@ def gaussianrise_cooling_envelope_bolometric(time, peak_time, sigma_t, mbh_6, st
     :param eta: SMBH feedback efficiency (typical range: etamin - 0.1)
     :param alpha: disk viscosity
     :param beta: TDE penetration factor (typical range: 1 - beta_max)
+    :param xi: transition factor - Gaussian transitions to cooling envelope at xi * tfb
     :param kwargs: Additional parameters
     :return luminosity in ergs/s
     """
     output = _cooling_envelope(mbh_6, stellar_mass, eta, alpha, beta, **kwargs)
     kwargs['binding_energy_const'] = kwargs.get('binding_energy_const', 0.8)
     tfb_sf = calc_tfb(kwargs['binding_energy_const'], mbh_6, stellar_mass)  # source frame
-    f1 = pm.gaussian_rise(time=tfb_sf, a_1=1, peak_time=peak_time * cc.day_to_s, sigma_t=sigma_t * cc.day_to_s)
+
+    # Transition time
+    transition_time = xi * tfb_sf
+
+    # Find the luminosity value at the transition time by interpolating the cooling envelope model
+    # Create interpolation function for the cooling envelope model
+    cooling_envelope_func = interp1d(output.time_temp, output.bolometric_luminosity,
+                                     bounds_error=False, fill_value='extrapolate')
+
+    # Get luminosity at transition time
+    f1 = pm.gaussian_rise(time=transition_time, a_1=1,
+                          peak_time=peak_time * cc.day_to_s,
+                          sigma_t=sigma_t * cc.day_to_s)
 
     # get normalisation
-    f2 = output.bolometric_luminosity[0]
-    norm = f2/f1
+    f2 = cooling_envelope_func(transition_time)
+    norm = f2 / f1
 
-    #evaluate giant array of bolometric luminosities
-    tt_pre_fb = np.linspace(0, tfb_sf, 100)
-    tt_post_fb = output.time_temp
-    full_time = np.concatenate([tt_pre_fb, tt_post_fb])
-    f1 = pm.gaussian_rise(time=tt_pre_fb, a_1=norm,
-                          peak_time=peak_time * cc.day_to_s, sigma_t=sigma_t * cc.day_to_s)
-    f2 = output.bolometric_luminosity
-    full_lbol = np.concatenate([f1, f2])
+    # evaluate giant array of bolometric luminosities
+    tt_pre_transition = np.linspace(0, transition_time, 100)
+    # Only use cooling envelope times after the transition
+    tt_post_transition = output.time_temp[output.time_temp >= transition_time]
+
+    full_time = np.concatenate([tt_pre_transition, tt_post_transition])
+
+    # Gaussian part before transition
+    f1_array = pm.gaussian_rise(time=tt_pre_transition, a_1=norm,
+                                peak_time=peak_time * cc.day_to_s,
+                                sigma_t=sigma_t * cc.day_to_s)
+
+    # Cooling envelope part after transition
+    f2_array = output.bolometric_luminosity[output.time_temp >= transition_time]
+
+    full_lbol = np.concatenate([f1_array, f2_array])
     lbol_func = interp1d(full_time, y=full_lbol, fill_value='extrapolate')
-    return lbol_func(time*cc.day_to_s)
+
+    return lbol_func(time * cc.day_to_s)
+
+
+@citation_wrapper('https://arxiv.org/abs/2307.15121,https://ui.adsabs.harvard.edu/abs/2022arXiv220707136M/abstract')
+def smooth_exponential_powerlaw_cooling_envelope_bolometric(time, peak_time, alpha_1, alpha_2, smoothing_factor,
+                                                               mbh_6, stellar_mass, eta, alpha, beta, xi, **kwargs):
+    """
+    Full lightcurve, with smoothed exponential power law rise till xi * fallback time and then the metzger tde model,
+    bolometric version for fitting the bolometric lightcurve
+
+    :param time: time in source frame in days
+    :param peak_time: peak time in days
+    :param alpha_1: power law index before peak
+    :param alpha_2: power law index after peak
+    :param smoothing_factor: controls transition smoothness at peak (higher = smoother)
+    :param mbh_6: mass of supermassive black hole in units of 10^6 solar mass
+    :param stellar_mass: stellar mass in units of solar masses
+    :param eta: SMBH feedback efficiency (typical range: etamin - 0.1)
+    :param alpha: disk viscosity
+    :param beta: TDE penetration factor (typical range: 1 - beta_max)
+    :param xi: transition factor - smooth exponential power law transitions to cooling envelope at xi * tfb
+    :param kwargs: Additional parameters
+    :return luminosity in ergs/s
+    """
+    # Get cooling envelope output
+    output = _cooling_envelope(mbh_6, stellar_mass, eta, alpha, beta, **kwargs)
+    kwargs['binding_energy_const'] = kwargs.get('binding_energy_const', 0.8)
+    tfb_sf = calc_tfb(kwargs['binding_energy_const'], mbh_6, stellar_mass)  # source frame
+
+    # Transition time
+    transition_time = xi * tfb_sf
+
+    # Find the luminosity value at the transition time by interpolating the cooling envelope model
+    # Create interpolation function for the cooling envelope model
+    cooling_envelope_func = interp1d(output.time_temp, output.bolometric_luminosity,
+                                     bounds_error=False, fill_value='extrapolate')
+
+    # Get luminosity at transition time using smooth exponential power law
+    f1 = pm.smooth_exponential_powerlaw(np.array([transition_time]), 1.0,
+                                     peak_time * cc.day_to_s,
+                                     alpha_1, alpha_2, smoothing_factor)[0]
+
+    # get normalisation
+    f2 = cooling_envelope_func(transition_time)
+    norm = f2 / f1
+
+    # evaluate giant array of bolometric luminosities
+    tt_pre_transition = np.linspace(0, transition_time, 100)
+    # Only use cooling envelope times after the transition
+    tt_post_transition = output.time_temp[output.time_temp >= transition_time]
+
+    full_time = np.concatenate([tt_pre_transition, tt_post_transition])
+
+    # Smooth exponential power law part before transition
+    f1_array = pm.smooth_exponential_powerlaw(tt_pre_transition, norm,
+                                           peak_time * cc.day_to_s,
+                                           alpha_1, alpha_2, smoothing_factor)
+
+    # Cooling envelope part after transition
+    f2_array = output.bolometric_luminosity[output.time_temp >= transition_time]
+
+    full_lbol = np.concatenate([f1_array, f2_array])
+    lbol_func = interp1d(full_time, y=full_lbol, fill_value='extrapolate')
+
+    return lbol_func(time * cc.day_to_s)
 
 
 @citation_wrapper('https://arxiv.org/abs/2307.15121,https://ui.adsabs.harvard.edu/abs/2022arXiv220707136M/abstract')
