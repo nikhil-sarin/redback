@@ -6,8 +6,3 @@ stellar_mass = LogUniform(0.1, 10, name='stellar_mass', latex_label = r'$M_{\mat
 eta = LogUniform(1e-4, 0.1, name='eta', latex_label=r'$\\eta$')
 alpha = LogUniform(0.1, 1, name='alpha', latex_label=r'$\\alpha$')
 beta = Uniform(1, 5, name='beta', latex_label=r'$\\beta$')
-beta = 0.9
-xi = 1
-eta = 0.1
-alpha = 0.1
-mbh_6 = 1

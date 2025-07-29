@@ -155,12 +155,14 @@ def _cooling_envelope(mbh_6, stellar_mass, eta, alpha, beta, **kwargs):
                                    'rtidal', 'rcirc', 'termination_time', 'termination_time_id'])
     try:
         constraint_1 = np.min(np.where(Rv < Rcirc/2.))
+        if constraint_1 == 0.:
+            constraint_1 = 5000
         constraint_2 = np.min(np.where(Me < 0.0))
     except ValueError:
         constraint_1 = len(time_temp)
         constraint_2 = len(time_temp)
-    constraint = np.max([constraint_1, constraint_2])
-    termination_time_id = np.max([constraint_1, constraint_2])
+    constraint = np.min([constraint_1, constraint_2])
+    termination_time_id = np.min([constraint_1, constraint_2])
 
     nu = 6.0e14
     expon = 1. / (np.exp(cc.planck * nu / (cc.boltzmann_constant * Teff)) - 1.0)
