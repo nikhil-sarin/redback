@@ -40,14 +40,14 @@ def _cooling_envelope(mbh_6, stellar_mass, eta, alpha, beta, **kwargs):
     :param alpha: disk viscosity
     :param beta: TDE penetration factor (typical range: 0.1 - beta_max).
     :param kwargs: Binding energy constant, zeta, hoverR, t_0_init, f_debris (optional, defaults to 1 unless
-                   calculate_partial_disruption=True), calculate_partial_disruption (optional, defaults to False).
+                   calculate_f_debris=True), calculate_f_debris (optional, defaults to False).
     :return: named tuple with bolometric luminosity, photosphere radius, temperature, and other parameters
     """
     t_0_init = kwargs.get('t_0_init', 1.0)
     binding_energy_const = kwargs.get('binding_energy_const', 0.8)
     zeta = kwargs.get('zeta', 2.0)
     hoverR = kwargs.get('hoverR', 0.3)
-    calculate_partial_disruption = kwargs.get('calculate_partial_disruption', False)
+    calculate_f_debris = kwargs.get('calculate_f_debris', False)
 
     # Determine debris fraction
     if 'f_debris' in kwargs:
@@ -56,7 +56,7 @@ def _cooling_envelope(mbh_6, stellar_mass, eta, alpha, beta, **kwargs):
         f_mbh = None
         g_mstar = None
         scaling_factor = None
-    elif calculate_partial_disruption:
+    elif calculate_f_debris:
         # Calculate debris fraction from beta using Ryu et al. scaling
         # R_t = r_t * f(m_bh) * g(m_star)
         # f(m_bh) = 0.80 + 0.26 * (mbh/10^6)^0.5
