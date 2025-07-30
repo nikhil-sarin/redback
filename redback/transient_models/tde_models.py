@@ -32,30 +32,52 @@ def _semianalytical_fallback():
 def _cooling_envelope(mbh_6, stellar_mass, eta, alpha, beta, **kwargs):
     """
     Sarin and Metzger 24 cooling envelope model.
-    Also includes partial disruptions (beta < 1) by assuming only fraction of stellar mass is disrupted.
+    Also includes partial disruptions by assuming only fraction of stellar mass is disrupted.
 
     :param mbh_6: mass of supermassive black hole in units of 10^6 solar mass
     :param stellar_mass: stellar mass in units of solar masses
     :param eta: SMBH feedback efficiency (typical range: etamin - 0.1)
     :param alpha: disk viscosity
-    :param beta: TDE penetration factor (typical range: 1 - beta_max)
-    :param kwargs: Binding energy constant, zeta, hoverR, t_0_init, f_debris (optional, if not provided it will be calculated from beta and mbh_6)
+    :param beta: TDE penetration factor (typical range: 0.1 - beta_max).
+    :param kwargs: Binding energy constant, zeta, hoverR, t_0_init, f_debris (optional, defaults to 1 unless
+                   calculate_partial_disruption=True), calculate_partial_disruption (optional, defaults to False).
     :return: named tuple with bolometric luminosity, photosphere radius, temperature, and other parameters
     """
     t_0_init = kwargs.get('t_0_init', 1.0)
     binding_energy_const = kwargs.get('binding_energy_const', 0.8)
     zeta = kwargs.get('zeta', 2.0)
     hoverR = kwargs.get('hoverR', 0.3)
+    calculate_partial_disruption = kwargs.get('calculate_partial_disruption', False)
 
-    # Calculate debris fraction from beta using Ryu et al. scaling
-    # R_t = r_t * f(m_bh) where f(m_bh) = 0.80 + 0.26 * (mbh/10^6)^0.5
-    # f_debris = (beta * f(m_bh))^3
-    f_mbh = 0.80 + 0.26 * (mbh_6) ** 0.5
-    f_debris = (beta * f_mbh) ** 3
-    f_debris = np.clip(f_debris, 0.0, 1.0)  # Ensure physical bounds
+    # Determine debris fraction
+    if 'f_debris' in kwargs:
+        # User explicitly provided f_debris - use that value
+        f_debris = kwargs['f_debris']
+        f_mbh = None
+        g_mstar = None
+        scaling_factor = None
+    elif calculate_partial_disruption:
+        # Calculate debris fraction from beta using Ryu et al. scaling
+        # R_t = r_t * f(m_bh) * g(m_star)
+        # f(m_bh) = 0.80 + 0.26 * (mbh/10^6)^0.5
+        f_mbh = 0.80 + 0.26 * (mbh_6) ** 0.5
 
-    # Allow manual override if f_debris is explicitly provided
-    f_debris = kwargs.get('f_debris', f_debris)
+        # g(m_star) = (1.47 + exp[(M_star - 0.669)/0.137]) / (1 + 2.34 * exp[(M_star - 0.669)/0.137])
+        exp_term = np.exp((stellar_mass - 0.669) / 0.137)
+        g_mstar = (1.47 + exp_term) / (1 + 2.34 * exp_term)
+
+        # Combined scaling factor
+        scaling_factor = f_mbh * g_mstar
+
+        # f_debris = (beta * scaling_factor)^3
+        f_debris = (beta * scaling_factor) ** 3
+        f_debris = np.clip(f_debris, 0.0, 1.0)  # Ensure physical bounds
+    else:
+        # Default behavior: assume complete disruption
+        f_debris = 1.0
+        f_mbh = None
+        g_mstar = None
+        scaling_factor = None
 
     # gravitational radius
     Rg = cc.graviational_constant * mbh_6 * 1.0e6 * (cc.solar_mass / cc.speed_of_light ** (2.0))
@@ -171,7 +193,8 @@ def _cooling_envelope(mbh_6, stellar_mass, eta, alpha, beta, **kwargs):
                                    'photosphere_radius', 'lum_xray', 'accretion_radius',
                                    'SMBH_accretion_rate', 'time_temp', 'nulnu',
                                    'time_since_fb', 'tfb', 'lnu', 'envelope_radius', 'envelope_mass',
-                                   'rtidal', 'rcirc', 'termination_time', 'termination_time_id', 'f_debris'])
+                                   'rtidal', 'rcirc', 'termination_time', 'termination_time_id', 'f_debris',
+                                   'f_mbh', 'g_mstar', 'scaling_factor'])
     try:
         constraint_1 = np.min(np.where(Rv < Rcirc / 2.))
         if constraint_1 == 0.:
@@ -211,6 +234,9 @@ def _cooling_envelope(mbh_6, stellar_mass, eta, alpha, beta, **kwargs):
     output.tfb = tfb
     output.nulnu = nuLnu40[:constraint] * 1e40
     output.f_debris = f_debris
+    output.f_mbh = f_mbh
+    output.g_mstar = g_mstar
+    output.scaling_factor = scaling_factor
     return output
 
 @citation_wrapper('https://arxiv.org/abs/2307.15121,https://ui.adsabs.harvard.edu/abs/2022arXiv220707136M/abstract')
@@ -225,7 +251,7 @@ def cooling_envelope(time, redshift, mbh_6, stellar_mass, eta, alpha, beta, **kw
     :param eta: SMBH feedback efficiency (typical range: etamin - 0.1)
     :param alpha: disk viscosity
     :param beta: TDE penetration factor (typical range: 1 - beta_max)
-    :param kwargs: Additional parameters
+    :param kwargs: Additional parameters, check _cooling_envelope for more information
     :param frequency: Required if output_format is 'flux_density'.
         frequency to calculate - Must be same length as time array or a single number).
     :param bands: Required if output_format is 'magnitude' or 'flux'.
@@ -295,7 +321,7 @@ def gaussianrise_cooling_envelope_bolometric(time, peak_time, sigma_t, mbh_6, st
     :param alpha: disk viscosity
     :param beta: TDE penetration factor (typical range: 1 - beta_max)
     :param xi: transition factor - Gaussian transitions to cooling envelope at xi * tfb
-    :param kwargs: Additional parameters
+    :param kwargs: Additional parameters, check _cooling_envelope for more information
     :return luminosity in ergs/s
     """
     output = _cooling_envelope(mbh_6, stellar_mass, eta, alpha, beta, **kwargs)
@@ -358,7 +384,7 @@ def smooth_exponential_powerlaw_cooling_envelope_bolometric(time, peak_time, alp
     :param alpha: disk viscosity
     :param beta: TDE penetration factor (typical range: 1 - beta_max)
     :param xi: transition factor - smooth exponential power law transitions to cooling envelope at xi * tfb
-    :param kwargs: Additional parameters
+    :param kwargs: Additional parameters, check _cooling_envelope for more information
     :return luminosity in ergs/s
     """
     # Get cooling envelope output
@@ -419,7 +445,7 @@ def gaussianrise_cooling_envelope(time, redshift, peak_time, sigma_t, mbh_6, ste
     :param eta: SMBH feedback efficiency (typical range: etamin - 0.1)
     :param alpha: disk viscosity
     :param beta: TDE penetration factor (typical range: 1 - beta_max)
-    :param kwargs: Additional parameters
+    :param kwargs: Additional parameters, check _cooling_envelope for more information
     :param xi: Optional argument (default set to one) to change the point where lightcurve switches from Gaussian rise to cooling envelope.
         stitching_point = xi * tfb (where tfb is fallback time). So a xi=1 means the stitching point is at fallback time.
     :param frequency: Required if output_format is 'flux_density'.
@@ -539,7 +565,7 @@ def bpl_cooling_envelope(time, redshift, peak_time, alpha_1, alpha_2, mbh_6, ste
     :param eta: SMBH feedback efficiency (typical range: etamin - 0.1)
     :param alpha: disk viscosity
     :param beta: TDE penetration factor (typical range: 1 - beta_max)
-    :param kwargs: Additional parameters
+    :param kwargs: Additional parameters, check _cooling_envelope for more information
     :param xi: Optional argument (default set to one) to change the point where lightcurve switches from Gaussian rise to cooling envelope.
         stitching_point = xi * tfb (where tfb is fallback time). So a xi=1 means the stitching point is at fallback time.
     :param frequency: Required if output_format is 'flux_density'.
