@@ -306,7 +306,7 @@ def cooling_envelope(time, redshift, mbh_6, stellar_mass, eta, alpha, beta, **kw
                                                               **kwargs)
 
 @citation_wrapper('https://arxiv.org/abs/2307.15121,https://ui.adsabs.harvard.edu/abs/2022arXiv220707136M/abstract')
-def gaussianrise_cooling_envelope_bolometric(time, peak_time, sigma_t, mbh_6, stellar_mass, eta, alpha, beta, xi,
+def gaussianrise_cooling_envelope_bolometric(time, peak_time, sigma_t, mbh_6, stellar_mass, eta, alpha, beta,
                                                 **kwargs):
     """
     Full lightcurve, with gaussian rise till xi * fallback time and then the metzger tde model,
@@ -320,8 +320,8 @@ def gaussianrise_cooling_envelope_bolometric(time, peak_time, sigma_t, mbh_6, st
     :param eta: SMBH feedback efficiency (typical range: etamin - 0.1)
     :param alpha: disk viscosity
     :param beta: TDE penetration factor (typical range: 1 - beta_max)
-    :param xi: transition factor - Gaussian transitions to cooling envelope at xi * tfb
     :param kwargs: Additional parameters, check _cooling_envelope for more information
+    :param xi: Optional, default is 1. transition factor - Gaussian transitions to cooling envelope at xi * tfb
     :return luminosity in ergs/s
     """
     output = _cooling_envelope(mbh_6, stellar_mass, eta, alpha, beta, **kwargs)
@@ -329,6 +329,7 @@ def gaussianrise_cooling_envelope_bolometric(time, peak_time, sigma_t, mbh_6, st
     tfb_sf = calc_tfb(kwargs['binding_energy_const'], mbh_6, stellar_mass)  # source frame
 
     # Transition time
+    xi = kwargs.get('xi', 1.)
     transition_time = xi * tfb_sf
 
     # Find the luminosity value at the transition time by interpolating the cooling envelope model
@@ -368,7 +369,7 @@ def gaussianrise_cooling_envelope_bolometric(time, peak_time, sigma_t, mbh_6, st
 
 @citation_wrapper('https://arxiv.org/abs/2307.15121,https://ui.adsabs.harvard.edu/abs/2022arXiv220707136M/abstract')
 def smooth_exponential_powerlaw_cooling_envelope_bolometric(time, peak_time, alpha_1, alpha_2, smoothing_factor,
-                                                               mbh_6, stellar_mass, eta, alpha, beta, xi, **kwargs):
+                                                               mbh_6, stellar_mass, eta, alpha, beta, **kwargs):
     """
     Full lightcurve, with smoothed exponential power law rise till xi * fallback time and then the metzger tde model,
     bolometric version for fitting the bolometric lightcurve
@@ -383,7 +384,7 @@ def smooth_exponential_powerlaw_cooling_envelope_bolometric(time, peak_time, alp
     :param eta: SMBH feedback efficiency (typical range: etamin - 0.1)
     :param alpha: disk viscosity
     :param beta: TDE penetration factor (typical range: 1 - beta_max)
-    :param xi: transition factor - smooth exponential power law transitions to cooling envelope at xi * tfb
+    :param xi: Optional transition factor - smooth exponential power law transitions to cooling envelope at xi * tfb
     :param kwargs: Additional parameters, check _cooling_envelope for more information
     :return luminosity in ergs/s
     """
@@ -393,6 +394,7 @@ def smooth_exponential_powerlaw_cooling_envelope_bolometric(time, peak_time, alp
     tfb_sf = calc_tfb(kwargs['binding_energy_const'], mbh_6, stellar_mass)  # source frame
 
     # Transition time
+    xi = kwargs.get('xi', 1.)
     transition_time = xi * tfb_sf
 
     # Find the luminosity value at the transition time by interpolating the cooling envelope model
