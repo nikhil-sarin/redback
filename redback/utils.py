@@ -1301,20 +1301,6 @@ def _calculate_rosswogkorobkin24_qdot(time_array, ejecta_velocity, electron_frac
     lum_in = _qdot_interpolator_cache(full_array)
     return lum_in
 
-# def _calculate_rosswogkorobkin24_qdot(time_array, ejecta_velocity, electron_fraction):
-#     import pickle
-#     import os
-#     dirname = os.path.dirname(__file__)
-#     with open(f"{dirname}/tables/qdot_rosswogkorobkin24.pck", 'rb') as file_handle:
-#         qdot_object = pickle.load(file_handle)
-#     steps = len(time_array)
-#     _ej_velocity = np.repeat(ejecta_velocity, steps)
-#     _ye = np.repeat(electron_fraction, steps)
-#     full_array = np.array([_ej_velocity, _ye, time_array]).T
-#     lum_in = qdot_object(full_array)
-#     return lum_in
-
-
 def electron_fraction_from_kappa(kappa):
     """
     Uses interpolation from Tanaka+19 to calculate
