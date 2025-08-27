@@ -17,10 +17,10 @@ setup(
     package_dir={'redback': 'redback', },
     package_data={'redback': ['priors/*', 'tables/*', 'plot_styles/*']},
     install_requires=[
-        "numpy==1.26.0",
+        "numpy",
         "setuptools",
         "pandas",
-        "scipy<1.14.0",
+        "scipy",
         "selenium",
         "matplotlib",
         "astropy",

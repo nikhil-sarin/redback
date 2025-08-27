@@ -10,6 +10,7 @@ from collections import namedtuple
 from scipy.interpolate import interp1d
 import bilby
 import numpy as np
+import pytest
 
 import redback.model_library
 
@@ -296,6 +297,7 @@ class TestExtinctionModelsFluxDensity(unittest.TestCase):
                 ys = np.ones(len(times))
             self.assertEqual(len(times), len(ys))
 
+@pytest.mark.ci
 class TestExtinctionModelsMagnitude(unittest.TestCase):
     def setUp(self) -> None:
         self.path_to_files = f"{_dirname}/../redback/priors/"
