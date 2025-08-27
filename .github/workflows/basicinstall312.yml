@@ -31,4 +31,4 @@ jobs:
         pip install flake8 pytest pytest-cov coverage coverage-badge coveralls
     - name: Run tests
       run: |
-        coverage run -m pytest test/model_test.py
+        coverage run -m pytest test/model_test.py -m ci
