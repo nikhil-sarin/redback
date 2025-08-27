@@ -3,6 +3,33 @@ from redback.utils import citation_wrapper
 from redback.constants import speed_of_light_si
 
 
+def smooth_exponential_powerlaw(time, a_1, tpeak, alpha_1, alpha_2, smoothing_factor, **kwargs):
+    """
+    Smoothed version of exponential power law
+
+    :param time: time array in seconds
+    :param a_1: exponential amplitude scale
+    :param alpha_1: first exponent
+    :param alpha_2: second exponent
+    :param tpeak: peak time in seconds
+    :param smoothing_factor: controls transition smoothness (higher = smoother)
+    :param kwargs: Additional parameters
+    :return: In whatever units set by a_1
+    """
+    t_norm = time / tpeak
+
+    # Smooth transition function using tanh or similar
+    transition = 0.5 * (1 + np.tanh(smoothing_factor * np.log(t_norm)))
+
+    # Pre-peak behavior
+    pre_peak = a_1 * (t_norm ** alpha_1)
+
+    # Post-peak behavior
+    post_peak = a_1 * (t_norm ** alpha_2)
+
+    # Smooth combination
+    return pre_peak * (1 - transition) + post_peak * transition
+
 def exp_rise_powerlaw_decline(t, t0, m_peak, tau_rise, alpha, t_peak, **kwargs):
     """
     Compute a smooth light-curve model (in magnitudes) with an exponential rise
@@ -176,23 +203,25 @@ def villar_sne(time, aa, cc, t0, tau_rise, tau_fall, gamma, nu, **kwargs):
 
 def powerlaw_plus_blackbody(time, redshift, pl_amplitude, pl_slope, pl_evolution_index, temperature_0, radius_0,
                             temp_rise_index, temp_decline_index, temp_peak_time,
-                            radius_rise_index, radius_decline_index, radius_peak_time, **kwargs):
+                            radius_rise_index, radius_decline_index, radius_peak_time,
+                            reference_time=1.0, **kwargs):
     """
     Power law + blackbody spectrum with piecewise evolving temperature and radius
 
     :param time: time in observer frame in days
     :param redshift: source redshift
-    :param pl_amplitude: power law amplitude at reference wavelength at t=1 day (erg/s/cm^2/Angstrom)
+    :param pl_amplitude: power law amplitude at reference wavelength at reference_time (erg/s/cm^2/Angstrom)
     :param pl_slope: power law slope (F_lambda ∝ lambda^slope)
     :param pl_evolution_index: power law time evolution F_pl(t) ∝ t^(-pl_evolution_index)
-    :param temperature_0: initial blackbody temperature in Kelvin at t=1 day
-    :param radius_0: initial blackbody radius in cm at t=1 day
+    :param temperature_0: initial blackbody temperature in Kelvin at reference_time
+    :param radius_0: initial blackbody radius in cm at reference_time
     :param temp_rise_index: temperature rise T(t) ∝ t^temp_rise_index for t < temp_peak_time
     :param temp_decline_index: temperature decline T(t) ∝ t^(-temp_decline_index) for t > temp_peak_time
     :param temp_peak_time: time in days when temperature peaks
     :param radius_rise_index: radius rise R(t) ∝ t^radius_rise_index for t < radius_peak_time
     :param radius_decline_index: radius decline R(t) ∝ t^(-radius_decline_index) for t > radius_peak_time
     :param radius_peak_time: time in days when radius peaks
+    :param reference_time: reference time for temperature_0, radius_0, and pl_amplitude in days (defaults to 1.0)
     :param kwargs: Additional parameters
     :param reference_wavelength: wavelength for power law amplitude normalization in Angstroms (default 5000)
     :param frequency: Required if output_format is 'flux_density'
@@ -223,7 +252,8 @@ def powerlaw_plus_blackbody(time, redshift, pl_amplitude, pl_slope, pl_evolution
                                                             temp_peak_time=temp_peak_time,
                                                             radius_rise_index=radius_rise_index,
                                                             radius_decline_index=radius_decline_index,
-                                                            radius_peak_time=radius_peak_time)
+                                                            radius_peak_time=radius_peak_time,
+                                                            reference_time=reference_time)
 
         # Create combined SED with time-evolving power law
         sed_combined = sed.PowerlawPlusBlackbody(temperature=temperature, r_photosphere=radius,
@@ -248,7 +278,8 @@ def powerlaw_plus_blackbody(time, redshift, pl_amplitude, pl_slope, pl_evolution
                                                             temp_peak_time=temp_peak_time,
                                                             radius_rise_index=radius_rise_index,
                                                             radius_decline_index=radius_decline_index,
-                                                            radius_peak_time=radius_peak_time)
+                                                            radius_peak_time=radius_peak_time,
+                                                            reference_time=reference_time)
 
         # Create combined SED with time-evolving power law
         sed_combined = sed.PowerlawPlusBlackbody(temperature=temperature, r_photosphere=radius,
@@ -270,39 +301,41 @@ def powerlaw_plus_blackbody(time, redshift, pl_amplitude, pl_slope, pl_evolution
 
 
 def _powerlaw_blackbody_evolution(time, temperature_0, radius_0, temp_rise_index, temp_decline_index,
-                                  temp_peak_time, radius_rise_index, radius_decline_index, radius_peak_time, **kwargs):
+                                  temp_peak_time, radius_rise_index, radius_decline_index, radius_peak_time,
+                                  reference_time=1.0, **kwargs):
     """
     Calculate evolving temperature and radius with piecewise power-law evolution
 
     :param time: time array in days
-    :param temperature_0: initial temperature at t=1 day
-    :param radius_0: initial radius at t=1 day
+    :param temperature_0: initial temperature at reference_time
+    :param radius_0: initial radius at reference_time
     :param temp_rise_index: temperature rise index
     :param temp_decline_index: temperature decline index
     :param temp_peak_time: time when temperature peaks
     :param radius_rise_index: radius rise index
     :param radius_decline_index: radius decline index
     :param radius_peak_time: time when radius peaks
+    :param reference_time: reference time for temperature_0 and radius_0 (defaults to 1.0 day)
     :return: temperature and radius values (scalars if time is scalar)
     """
     time = np.atleast_1d(time)
 
     # Temperature evolution
-    temp_peak = temperature_0 * (temp_peak_time / 1.0) ** temp_rise_index
+    temp_peak = temperature_0 * (temp_peak_time / reference_time) ** temp_rise_index
     rise_mask_temp = time <= temp_peak_time
     decline_mask_temp = ~rise_mask_temp
 
     temperature = np.zeros_like(time)
-    temperature[rise_mask_temp] = temperature_0 * (time[rise_mask_temp] / 1.0) ** temp_rise_index
+    temperature[rise_mask_temp] = temperature_0 * (time[rise_mask_temp] / reference_time) ** temp_rise_index
     temperature[decline_mask_temp] = temp_peak * (time[decline_mask_temp] / temp_peak_time) ** (-temp_decline_index)
 
     # Radius evolution
-    radius_peak = radius_0 * (radius_peak_time / 1.0) ** radius_rise_index
+    radius_peak = radius_0 * (radius_peak_time / reference_time) ** radius_rise_index
     rise_mask_radius = time <= radius_peak_time
     decline_mask_radius = ~rise_mask_radius
 
     radius = np.zeros_like(time)
-    radius[rise_mask_radius] = radius_0 * (time[rise_mask_radius] / 1.0) ** radius_rise_index
+    radius[rise_mask_radius] = radius_0 * (time[rise_mask_radius] / reference_time) ** radius_rise_index
     radius[decline_mask_radius] = radius_peak * (time[decline_mask_radius] / radius_peak_time) ** (
         -radius_decline_index)
 

@@ -416,6 +416,7 @@ def extinction_with_stellar_interaction_base_model(time, av_host, **kwargs):
     output = _evaluate_extinction_model(time=time, av_host=av_host, model_type='stellar_interaction', **kwargs)
     return output
 
+@citation_wrapper('redback')
 def extinction_with_general_synchrotron_base_model(time, av_host, **kwargs):
     """
     Extinction with models implemented in general_synchrotron_models
