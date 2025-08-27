@@ -1,3 +1,4 @@
+redshift = Uniform(1e-6, 3, 'redshift', latex_label = r'$z$')
 peak_time = LogUniform(0.1,60, name='peak_time', latex_label = r'$t_{\mathrm{peak}}~(\mathrm{day})$')
 alpha_1 = Uniform(0.5, 3, name='alpha_1', latex_label=r'$\\alpha_{1}$')
 alpha_2 = Uniform(-3, -0.5, name='alpha_2', latex_label=r'$\\alpha_{2}$')
