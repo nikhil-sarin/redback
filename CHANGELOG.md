@@ -1,6 +1,35 @@
 # All notable changes will be documented in this file
 
-## [1.1] 2025-04-13
+## [1.12.1] 2025-08-28
+Version 1.12.1 release of redback
+
+## Added and changed
+* Added partial disruptions to cooling envelope TDE model
+* Added few new parameterisations for TDE model
+* Added some phenomenological models
+* Changed heating rate kilonova model grid file to use npz format
+* Changed dependency on numpy/scipy 
+* Several new models
+* Type II supernova surrogate model based on Sarin et al. 2025
+* New non-detection likelihood + example 
+
+## What's Changed
+* added nickel + fallback model by @conoromand in https://github.com/nikhil-sarin/redback/pull/273
+* Fixed variable name to prevent noise-term problems by @conoromand in https://github.com/nikhil-sarin/redback/pull/274
+* Vectorized magnetar by @conoromand in https://github.com/nikhil-sarin/redback/pull/275
+* Fix for effective widths by @nikhil-sarin in https://github.com/nikhil-sarin/redback/pull/271
+* Stellar interactions by @conoromand in https://github.com/nikhil-sarin/redback/pull/276
+* Non detection likelihood + plotting options + extinction functionality overhaul by @nikhil-sarin in https://github.com/nikhil-sarin/redback/pull/277
+* Type ii surr by @nikhil-sarin in https://github.com/nikhil-sarin/redback/pull/278
+* Update afterglow_models.py by @GPLamb in https://github.com/nikhil-sarin/redback/pull/279
+* Extra spectrum models by @nikhil-sarin in https://github.com/nikhil-sarin/redback/pull/280
+* Remove extra day_to_s division by @nikhil-sarin in https://github.com/nikhil-sarin/redback/pull/281
+* Update cooling envelope model + misc by @nikhil-sarin in https://github.com/nikhil-sarin/redback/pull/283
+* Fix basic install by @nikhil-sarin in https://github.com/nikhil-sarin/redback/pull/285
+
+**Full Changelog**: https://github.com/nikhil-sarin/redback/compare/v1.12.0...v1.12.1
+
+## [1.12] 2025-04-13
 Version 1.12 release of redback
 
 ## Added and changed
