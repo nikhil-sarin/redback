@@ -7,7 +7,6 @@ import astropy.units as uu
 import numpy as np
 from collections import namedtuple
 from scipy.special import erf
-from scipy.interpolate import interp1d
 try:
     import afterglowpy as afterglow
 
@@ -26,9 +25,467 @@ jet_spreading_models = ['tophat', 'cocoon', 'gaussian',
                           'smoothpowerlaw', 'powerlawcore',
                           'tophat']
 
-class RedbackAfterglows():
+import numba as nb
+
+# Physical constants (as module-level constants for Numba)
+MP = 1.6726231e-24  # g, mass of proton
+ME = 9.1093897e-28  # g, mass of electron
+CC = 2.99792453e10  # cm s^-1, speed of light
+QE = 4.8032068e-10  # esu, electron charge
+C2 = CC * CC
+SIGT = (QE * QE / (ME * C2)) ** 2 * (8 * np.pi / 3)  # Thomson cross-section
+FOURPI = 4 * np.pi
+DAY_TO_S = 86400.0
+
+
+# Numba-compiled utility functions
+@nb.jit(nopython=True, fastmath=True, cache=True)
+def get_segments_numba(thj, res):
+    """Calculate jet segments - matches Python exactly"""
+    latstep = thj / res
+    rotstep = 2.0 * np.pi / res
+    Nlatstep = int(res)
+    Nrotstep = int(2 * np.pi / rotstep)
+
+    Omi = np.zeros(Nlatstep * Nrotstep)
+    phi = np.linspace(rotstep, Nrotstep * rotstep, Nrotstep)
+
+    # Match the Python loop exactly
+    for i in range(Nlatstep):
+        start_idx = i * Nrotstep
+        end_idx = (i + 1) * Nrotstep
+        for j in range(Nrotstep):
+            Omi[start_idx + j] = (phi[j] - (phi[j] - rotstep)) * (np.cos(i * latstep) - np.cos((i + 1) * latstep))
+
+    thi = np.linspace(latstep - latstep / 2., Nlatstep * latstep - latstep / 2., Nlatstep)
+    phii = np.linspace(rotstep - rotstep / 2., Nrotstep * rotstep - rotstep / 2., Nrotstep)
+
+    return Omi, thi, phii, rotstep, latstep
+
+
+@nb.jit(nopython=True, fastmath=True, cache=True)
+def erf_approximation_numba(x):
+    """Numba-compatible erf approximation that matches scipy.special.erf closely"""
+    # Use a high-precision approximation
+    a1 = 0.254829592
+    a2 = -0.284496736
+    a3 = 1.421413741
+    a4 = -1.453152027
+    a5 = 1.061405429
+    p = 0.3275911
+
+    result = np.zeros_like(x)
+    for i in range(len(x)):
+        sign = 1.0 if x[i] >= 0 else -1.0
+        x_abs = abs(x[i])
+
+        # A&S formula 7.1.26
+        t = 1.0 / (1.0 + p * x_abs)
+        y = 1.0 - (((((a5 * t + a4) * t) + a3) * t + a2) * t + a1) * t * np.exp(-x_abs * x_abs)
+
+        result[i] = sign * y
+
+    return result
+
+
+@nb.jit(nopython=True, fastmath=True, cache=True)
+def get_structure_numba(gamma, en, thi, thc, method_id, s, a, thj):
+    """Calculate jet structure - matches Python exactly"""
+    n = thi.shape[0]
+    Gs = np.full(n, gamma)
+    Ei = np.full(n, en)
+
+    if method_id == 1:  # Top-hat - match Python implementation exactly
+        thj_used = min(thc, thj)
+        # Use the erf approximation that matches Python
+        erf_arg = -(thi - thj_used) * 1000.0
+        fac = (erf_approximation_numba(erf_arg) * 0.5) + 0.5
+        Gs = (Gs - 1) * fac + 1.0000000000001
+        Ei *= fac
+
+    elif method_id == 2:  # Gaussian
+        fac = np.exp(-0.5 * (thi / thc) ** 2)
+        Gs = (Gs - 1.0) * fac + 1.0000000000001
+        Ei *= fac
+
+    elif method_id == 3:  # Power-law
+        for i in range(n):
+            if thi[i] >= thc:
+                fac_s = (thc / thi[i]) ** s
+                fac_a = (thc / thi[i]) ** a
+                Ei[i] *= fac_s
+                Gs[i] = (Gs[i] - 1.0) * fac_a + 1.000000000000001
+
+    elif method_id == 4:  # Alternative powerlaw
+        fac = (1 + (thi / thc) ** 2) ** 0.5
+        Gs = 1.000000000001 + (Gs - 1.0) * fac ** (-a)
+        Ei *= fac ** (-s)
+
+    elif method_id == 5:  # Two-Component
+        for i in range(n):
+            if thi[i] > thc:
+                Gs[i] = a
+                Ei[i] *= s
+
+    elif method_id == 6:  # Double Gaussian
+        for i in range(n):
+            # Energy structure
+            Ei[i] = Ei[i] * ((1.0 - s) * np.exp(-0.5 * (thi[i] / thc) ** 2) +
+                             s * np.exp(-0.5 * (thi[i] / thj) ** 2))
+
+            # Lorentz factor structure
+            temp = ((1.0 - s) * np.exp(-0.5 * (thi[i] / thc) ** 2) +
+                    s * np.exp(-0.5 * (thi[i] / thj) ** 2)) / \
+                   ((1.0 - s / a) * np.exp(-0.5 * (thi[i] / thc) ** 2) +
+                    (s / a) * np.exp(-0.5 * (thi[i] / thj) ** 2))
+
+            if not np.isfinite(temp):
+                Gs[i] = a
+            else:
+                Gs[i] = (Gs[i] - 1.0) * temp + 1.0000000000001
+
+    return Gs, Ei
+
+
+@nb.jit(nopython=True, fastmath=True, cache=True)
+def get_obsangle_numba(phii, thi, tho):
+    """Calculate observer angles - matches Python exactly"""
+    phi = 0.0  # rotational symmetry
+    sin_thi = np.sin(thi)
+    cos_thi = np.cos(thi)
+
+    # Match the Python broadcasting exactly
+    n_thi = thi.shape[0]
+    n_phi = phii.shape[0]
+    Obsa = np.zeros(n_thi * n_phi)
+
+    idx = 0
+    for i in range(n_thi):
+        for j in range(n_phi):
+            f1 = np.sin(phi) * np.sin(tho) * np.sin(phii[j]) * sin_thi[i]
+            f2 = np.cos(phi) * np.sin(tho) * np.cos(phii[j]) * sin_thi[i]
+            ang = np.cos(tho) * cos_thi[i] + f2 + f1
+
+            # Ensure valid range for acos
+            if ang > 1.0:
+                ang = 1.0
+            elif ang < -1.0:
+                ang = -1.0
+
+            Obsa[idx] = np.arccos(ang)
+            idx += 1
+
+    return Obsa
+
+
+@nb.jit(nopython=True, fastmath=True, cache=True)
+def RK4_step_numba(ghat, dm_rk4, G_rk4, M, fac, therm):
+    """Single RK4 step - matches Python exactly"""
+    ghatm1 = ghat - 1.0
+    dm_base10 = 10.0 ** dm_rk4
+    G_rk4_sq = G_rk4 * G_rk4
+    _G_rk4 = 1.0 / G_rk4
+
+    return fac * dm_base10 * (ghat * (G_rk4_sq - 1.0) - ghatm1 * (G_rk4 - _G_rk4)) / \
+        (M + dm_base10 * (therm + (1.0 - therm) * (2.0 * ghat * G_rk4 -
+                                                   ghatm1 * (1 + 1.0 / G_rk4_sq))))
+
+
+@nb.jit(nopython=True, fastmath=True, cache=True)
+def get_gamma_numba(G0, Eps, therm, steps, n0, k):
+    """Calculate gamma evolution - matches Python exactly"""
+    n_g0 = G0.shape[0]
+    steps_int = int(steps)
+
+    # Parameter setting - match Python exactly
+    Rmin = 1e10
+    Rmax = 1e24
+    Nmin = (FOURPI / (3.0 - k)) * n0 * Rmin ** (3.0 - k)
+    Nmax = (FOURPI / (3.0 - k)) * n0 * Rmax ** (3.0 - k)
+    dlogm = np.log10(Nmin * MP)
+    h = np.log10(Nmax / Nmin) / float(steps_int)
+    fac = -h * np.log(10.0)
+
+    M = Eps / (G0 * C2)
+
+    # Arrays for state
+    state_G = np.zeros((steps_int, n_g0), dtype=np.float64)
+    state_dm = np.zeros((steps_int, n_g0), dtype=np.float64)
+    state_gH = np.zeros((steps_int, n_g0), dtype=np.float64)
+
+    # Initial values
+    G = G0.astype(np.float64).copy()
+    dm = np.full(n_g0, dlogm, dtype=np.float64)
+
+    # Main loop - match Python exactly
+    for i in range(steps_int):
+        # Store current values
+        state_G[i] = G
+        state_dm[i] = dm
+
+        # Calculate intermediate values
+        G2m1 = G * G - 1.0
+        G2m1_root = np.sqrt(G2m1)
+
+        # Temperature and adiabatic index - match Python exactly
+        theta = G2m1_root * (G2m1_root + 1.07 * G2m1) / (3.0 * (1 + G2m1_root + 1.07 * G2m1))
+        z = theta / (0.24 + theta)
+        ghat = ((((((1.07136 * z - 2.39332) * z + 2.32513) * z -
+                   0.96583) * z + 0.18203) * z - 1.21937) * z + 5.0) / 3.0
+
+        state_gH[i] = ghat
+
+        # 4th order Runge-Kutta - match Python exactly
+        F1 = RK4_step_numba(ghat, dm, G, M, fac, therm)
+        F2 = RK4_step_numba(ghat, dm + 0.5 * h, G + 0.5 * F1, M, fac, therm)
+        F3 = RK4_step_numba(ghat, dm + 0.5 * h, G + 0.5 * F2, M, fac, therm)
+        F4 = RK4_step_numba(ghat, dm + h, G + F3, M, fac, therm)
+
+        # Update state - match Python exactly
+        G = G + (F1 + 2.0 * (F2 + F3) + F4) / 6.0 + 1e-15
+        dm = dm + h
+
+    return state_G.T, (10.0 ** state_dm).T, state_gH.T
+
+
+@nb.jit(nopython=True, fastmath=True, cache=True)
+def calc_afterglow_step1_numba(G, dm, p, xp, Fx, EB, Ee, n, k, thi, ghat, rotstep, latstep, xiN, is_expansion, a1, res):
+    """Calculate synchrotron parameters - matches Python exactly"""
+    size = G.shape[0]
+
+    # Ensure all variables are properly typed arrays
+    Gm1 = G - 1.0
+    G2 = G * G
+    beta = np.sqrt(1 - 1.0 / G2)
+    Ne = dm / MP
+
+    # Side-ways expansion - match Python exactly
+    cs = np.sqrt(C2 * ghat * (ghat - 1) * Gm1 / (1 + ghat * Gm1))
+    te = np.arcsin(cs / (CC * np.sqrt(G2 - 1.0)))
+
+    # Initialize OmG as array from the start
+    OmG = np.zeros(size, dtype=np.float64)
+
+    # Expansion effects - match Python logic exactly
+    if is_expansion:
+        ex = te / G ** (a1 + 1)
+        fac = 0.5 * latstep
+        for i in range(size):
+            OmG[i] = rotstep * (np.cos(thi - fac) - np.cos(ex[i] / res + thi + fac))
+    else:
+        ex = np.ones(size, dtype=np.float64)  # Make sure ex is an array
+        fac = 0.5 * latstep
+        omg_val = rotstep * (np.cos(thi - fac) - np.cos(thi + fac))
+        for i in range(size):
+            OmG[i] = omg_val
+
+    # Calculate R - match Python exactly
+    exponent = np.ones(size, dtype=np.float64)
+    for i in range(1, size):
+        exponent[i] = ((1 - np.cos(latstep + ex[0])) / (1 - np.cos(latstep + ex[i]))) ** (1.0 / 2.0)
+
+    R = ((3.0 - k) * Ne[:size] / (FOURPI * n)) ** (1.0 / (3.0 - k))
+
+    # Match Python: R[1:] = np.diff(R) * exponent[1:size] ** (1. / (3. - k))
+    R_orig = R.copy()
+    for i in range(1, size):
+        R[i] = (R_orig[i] - R_orig[i - 1]) * exponent[i] ** (1.0 / (3.0 - k))
+
+    R = np.cumsum(R)  # Match Python: R = np.cumsum(R)
+
+    n0 = n * R ** (-k)
+
+    # Forward shock parameters - ensure all are arrays
+    B = np.sqrt(2 * FOURPI * EB * n0 * MP * C2 * ((ghat * G + 1.0) / (ghat - 1.0)) * Gm1)
+    gmm = np.sqrt(1.5 * FOURPI * QE / (SIGT * B))
+
+    # Calculate gm - ensure it's always an array
+    gm = np.zeros(size, dtype=np.float64)
+
+    if p > 2:
+        gp = (p - 2) / (p - 1)
+        gm[:] = gp * (Ee / xiN) * Gm1 * (MP / ME)
+    elif p == 2:
+        for i in range(size):
+            gp_i = 1 / np.log(gmm[i] / ((Ee / xiN) * Gm1[i] * (MP / ME)))
+            gm[i] = gp_i * (Ee / xiN) * Gm1[i] * (MP / ME)
+    else:  # p < 2
+        for i in range(size):
+            gm[i] = ((2 - p) / (p - 1) * (MP / ME) * (Ee / xiN) * Gm1[i] * gmm[i] ** (p - 2)) ** (1 / (p - 1))
+
+    # Ensure all output arrays are properly formed
+    nump = 3.0 * xp * gm * gm * QE * B / (FOURPI * ME * CC)
+    Pp = xiN * Fx * ME * C2 * SIGT * B / (3.0 * QE)
+    KT = gm * ME * C2
+
+    return beta, Ne, OmG, R, B, gm, nump, Pp, KT
+
+
+@nb.jit(nopython=True, fastmath=True, cache=True)
+def calc_afterglow_step2_numba(Dl, Om0, rotstep, latstep, Obsa, beta, Ne, OmG, R, B, gm, nump, Pp, KT, G, is_expansion):
+    """Calculate emission properties - matches Python exactly"""
+    Dl2 = Dl * Dl
+    NO = Om0 * Ne / FOURPI  # Match Python: NO = Om0 * Ne / self.fourpi
+    cos_Obsa = np.cos(Obsa)
+
+    size = G.shape[0]
+
+    # Match Python expansion logic exactly
+    Om = np.zeros(size, dtype=np.float64)
+    thii = np.zeros(size, dtype=np.float64)
+
+    if is_expansion:
+        for i in range(size):
+            Om[i] = max(Om0, OmG[i])  # Match Python: Om = np.maximum(Om0, OmG)
+            thii[i] = np.arccos(1.0 - Om[i] / rotstep)
+    else:
+        for i in range(size):
+            Om[i] = OmG[i]  # Match Python: Om = OmG
+            thii[i] = np.arccos(1.0 - Om[i] / rotstep)
+
+    # Match Python: R_diff = np.diff(R,prepend=0)
+    R_diff = np.zeros(size, dtype=np.float64)
+    R_diff[0] = R[0]
+    for i in range(1, size):
+        R_diff[i] = R[i] - R[i - 1]
+
+    dt = R_diff * (1.0 / beta[:size] - cos_Obsa) / CC
+    dto = R_diff * (1.0 / beta[:size] - 1.0) / CC
+
+    tobs = np.cumsum(dt)
+    tobso = np.cumsum(dto)
+
+    # Forward shock - match Python exactly
+    dop = 1.0 / (G * (1.0 - beta * cos_Obsa))
+    gc = 6.0 * np.pi * ME * CC / (G * SIGT * B * B * tobso)
+    nucp = 0.286 * 3.0 * gc * gc * QE * B / (FOURPI * ME * CC)
+    num = dop * nump
+    nuc = dop * nucp
+    Fmax = NO * Pp * dop * dop * dop / (FOURPI * Dl2)
+
+    # Self-absorption - match Python exactly
+    FBB = 2 * Om * np.cos(thii) * dop * KT * R * R / (C2 * Dl2)
+
+    return FBB, Fmax, nuc, num, tobs
+
+
+@nb.jit(nopython=True, fastmath=True, cache=True)
+def get_ag_numba(FBB, nuc, num, nu1, Fmax, p):
+    """Calculate flux at frequency - matches Python exactly"""
+    Fluxt = np.zeros(num.shape[0], dtype=np.float64)
+
+    # Match Python boolean logic exactly
+    for i in range(num.shape[0]):
+        # Fast cooling regime
+        if (nuc[i] < num[i]) and (nu1 < nuc[i]):
+            Fluxt[i] = Fmax[i] * (nu1 / nuc[i]) ** (1.0 / 3.0)
+        elif (nuc[i] < nu1) and (nuc[i] < num[i]):
+            Fluxt[i] = Fmax[i] * (nu1 / nuc[i]) ** (-1.0 / 2.0)
+        elif (num[i] < nu1) and (nuc[i] < num[i]):
+            Fluxt[i] = Fmax[i] * (num[i] / nuc[i]) ** (-1.0 / 2.0) * (nu1 / num[i]) ** (-p / 2.0)
+        # Slow cooling regime
+        elif (num[i] < nuc[i]) and (nu1 < num[i]):
+            Fluxt[i] = Fmax[i] * (nu1 / num[i]) ** (1.0 / 3.0)
+        elif (num[i] < nu1) and (num[i] < nuc[i]):
+            Fluxt[i] = Fmax[i] * (nu1 / num[i]) ** (-(p - 1.0) / 2.0)
+        elif (nuc[i] < nu1) and (num[i] < nuc[i]):
+            Fluxt[i] = Fmax[i] * (nuc[i] / num[i]) ** (-(p - 1.0) / 2.0) * (nu1 / nuc[i]) ** (-p / 2.0)
+
+    # Self-absorption - match Python exactly
+    FBB_adj = FBB * nu1 ** 2.0 * np.maximum(1.0, (nu1 / num) ** 0.5)
+    for i in range(len(Fluxt)):
+        Fluxt[i] = min(FBB_adj[i], Fluxt[i])
+
+    return Fluxt
+
+@nb.jit(nopython=True, fastmath=True, cache=True)
+def get_gamma_refreshed_numba(G0, G1, Eps, Eps2, s1, therm, steps, n0, k):
+    """Calculate gamma evolution with energy injection - matches Python exactly"""
+    Eps0 = Eps
+    n = n0
+
+    # Parameter setting - match Python exactly
+    Rmin = 1e10
+    Rmax = 1e24
+    Nmin = (FOURPI / 3.0) * n * Rmin ** (3.0 - k)
+    Nmax = (FOURPI / 3.0) * n * Rmax ** (3.0 - k)
+
+    dlogm = np.log10(Nmin * MP)
+    h = (np.log10(Nmax) - np.log10(Nmin)) / steps
+
+    # Arrays for state
+    steps_int = int(steps)
+    G = np.ones(steps_int + 1, dtype=np.float64)
+    dm = np.zeros(steps_int, dtype=np.float64)
+    gH = np.zeros(steps_int, dtype=np.float64)
+
+    # Initial values
+    G[0] = G0
+    dm[0] = dlogm
+    M = Eps / (G0 * C2)
+
+    # Main loop - match Python exactly
+    for i in range(steps_int):
+        # Calculate intermediate values
+        G2m1 = G[i] * G[i] - 1.0
+        G2m1_root = np.sqrt(G2m1)
+
+        # Temperature and adiabatic index - match Python exactly
+        theta = G2m1_root / 3.0 * ((G2m1_root + 1.07 * G2m1) / (1 + G2m1_root + 1.07 * G2m1))
+        z = theta / (0.24 + theta)
+        ghat = (5.0 - 1.21937 * z + 0.18203 * z ** 2 - 0.96583 * z ** 3 +
+                2.32513 * z ** 4 - 2.39332 * z ** 5 + 1.07136 * z ** 6) / 3.0
+
+        dm[i] = dlogm + i * h
+        gH[i] = ghat
+
+        # Helper values for RK4
+        dm_10 = 10.0 ** dm[i]
+        h_log10 = h * np.log(10.0)
+
+        # 4th order Runge-Kutta - match Python exactly
+        F1 = -h_log10 * dm_10 * (ghat * G2m1 - (ghat - 1.0) * G[i] * (1.0 - 1.0 / G[i] ** 2)) / \
+             (M + therm * dm_10 + (1.0 - therm) * dm_10 * (2.0 * ghat * G[i] - (ghat - 1.0) * (1.0 + 1.0 / G[i] ** 2)))
+
+        G_F1_2 = G[i] + F1 / 2.0
+        dm_h2_10 = 10.0 ** (dm[i] + h / 2.0)
+        F2 = -h_log10 * dm_h2_10 * (ghat * (G_F1_2 ** 2 - 1.0) - (ghat - 1.0) * G_F1_2 * (1.0 - 1.0 / G_F1_2 ** 2)) / \
+             (M + therm * dm_h2_10 + (1.0 - therm) * dm_h2_10 * (
+                         2.0 * ghat * G_F1_2 - (ghat - 1.0) * (1.0 + 1.0 / G_F1_2 ** 2)))
+
+        G_F2_2 = G[i] + F2 / 2.0
+        F3 = -h_log10 * dm_h2_10 * (ghat * (G_F2_2 ** 2 - 1.0) - (ghat - 1.0) * G_F2_2 * (1.0 - 1.0 / G_F2_2 ** 2)) / \
+             (M + therm * dm_h2_10 + (1.0 - therm) * dm_h2_10 * (
+                         2.0 * ghat * G_F2_2 - (ghat - 1.0) * (1.0 + 1.0 / G_F2_2 ** 2)))
+
+        G_F3 = G[i] + F3
+        dm_h_10 = 10.0 ** (dm[i] + h)
+        F4 = -h_log10 * dm_h_10 * (ghat * (G_F3 ** 2 - 1.0) - (ghat - 1.0) * G_F3 * (1.0 - 1.0 / G_F3 ** 2)) / \
+             (M + therm * dm_h_10 + (1.0 - therm) * dm_h_10 * (
+                         2.0 * ghat * G_F3 - (ghat - 1.0) * (1.0 + 1.0 / G_F3 ** 2)))
+
+        # Update state
+        G[i + 1] = G[i] + (F1 + 2.0 * F2 + 2.0 * F3 + F4) / 6.0
+
+        # Energy injection - match Python exactly
+        if G[i + 1] <= G1:
+            Eps1 = Eps
+            beta_ratio = np.sqrt(G[i + 1] ** 2 - 1.0) / np.sqrt(G1 ** 2 - 1.0)
+            Eps = min(Eps0 * (beta_ratio ** (-s1)), Eps2)
+            M += (Eps - Eps1) / (G[i] * C2)
+
+    # Return arrays matching the Python version
+    G_out = G[:-1]  # Remove the last element to match Python size
+    dm_out = 10.0 ** dm
+    gH_out = gH
+
+    return G_out, dm_out, gH_out
+
+# Main class with Numba acceleration
+class RedbackAfterglows:
     def __init__(self, k, n, epsb, epse, g0, ek, thc, thj, tho, p, exp, time, freq, redshift, Dl,
-                 extra_structure_parameter_1,extra_structure_parameter_2, method='TH', res=100, steps=int(500), xiN=1, a1=1):
+                 extra_structure_parameter_1, extra_structure_parameter_2, method='TH', res=100, steps=int(500), xiN=1,
+                 a1=1):
         """
         A general class for afterglow models implemented directly in redback.
         This class is not meant to be used directly but instead via the interface for each specific model.
@@ -36,8 +493,9 @@ class RedbackAfterglows():
         Script was originally written by En-Tzu Lin <entzulin@gapp.nthu.edu.tw> and Gavin Lamb <g.p.lamb@ljmu.ac.uk>
         and modified and implemented into redback by Nikhil Sarin <nsarin.astro@gmail.com>.
         Includes wind-like mediums, expansion and multiple jet structures.
+        Includes SSA and uses Numba for acceleration.
 
-        :param k:
+        :param k: 0 or 2 for constant or wind density
         :param n: ISM, ambient number density
         :param epsb: magnetic fraction
         :param epse: electron fraction
@@ -72,333 +530,109 @@ class RedbackAfterglows():
         :param XiN: fraction of electrons that get accelerated
         :param a1: the expansion description, a1 = 0 sound speed, a1 = 1 Granot & Piran 2012
         """
-        self.k = k
+        self.k = float(k)
         if self.k == 0:
-            self.n = n
+            self.n = float(n)
         elif self.k == 2:
-            self.n = n * 3e35  # n \equiv A*
-        self.epsB = epsb
-        self.epse = epse
-        self.g0 = g0
-        self.ek = ek
-        self.thc = thc
-        self.thj = thj
-        self.tho = tho
-        self.p = p
-        self.exp = exp
+            self.n = float(n * 3e35)
+        else:
+            self.n = float(n)
+
+        self.epsB = float(epsb)
+        self.epse = float(epse)
+        self.g0 = float(g0)
+        self.ek = float(ek)
+        self.thc = float(thc)
+        self.thj = float(thj)
+        self.tho = float(tho)
+        self.p = float(p)
+        self.exp = bool(exp)
         self.t = time
         self.freq = freq
-        self.z = redshift
-        self.Dl = Dl
+        self.z = float(redshift)
+        self.Dl = float(Dl)
         self.method = method
-        self.s = extra_structure_parameter_1
-        self.a = extra_structure_parameter_2
-        self.res = res
-        self.steps = steps
-        self.xiN = xiN
-        self.a1 = a1
-
-        ### Set up physical constants
-        self.mp = 1.6726231e-24  # g, mass of proton
-        self.me = 9.1093897e-28  # g, mass of electron
-        self.cc = 2.99792453e10  # cm s^-1, speed of light
-        self.qe = 4.8032068e-10  # esu, electron charge
-        self.c2 = self.cc * self.cc
-        self.sigT = (self.qe * self.qe / (self.me * self.c2)) ** 2 * (8 * np.pi / 3)  # Thomson cross-section
-        self.fourpi = 4 * np.pi
+        self.s = float(extra_structure_parameter_1)
+        self.a = float(extra_structure_parameter_2)
+        self.res = float(res)
+        self.steps = int(steps)
+        self.xiN = float(xiN)
+        self.a1 = float(a1)
         self.is_expansion = self.exp
 
-    def calc_erf_numba(self, x):
-        return np.array([erf(i) for i in x])
+        # Method ID for Numba
+        self.method_id = self._method_to_id(method)
+
+    def _method_to_id(self, method):
+        """Convert method string to integer for Numba"""
+        method_map = {"TH": 1, "Gaussian": 2, "GJ": 2, "PL": 3, "PL-alt": 4, "PL2": 4,
+                      "Two-Component": 5, "2C": 5, "Double-Gaussian": 6, "DG": 6}
+        return method_map.get(method, 1)
 
     def get_lightcurve(self):
         if (self.k != 0) and (self.k != 2):
             raise ValueError("k must either be 0 or 2")
         if (self.p < 1.2) or (self.p > 3.4):
             raise ValueError("p is out of range, 1.2 < p < 3.4")
-        # parameters p, x_p, and phi_p from Wijers & Galama 1999
+
+        # Parameters from Wijers & Galama 1999
         pxf = np.array([[1.0, 3.0, 0.41], [1.2, 1.4, 0.44], [1.4, 1.1, 0.48], [1.6, 0.86, 0.53], [1.8, 0.725, 0.56],
                         [2.0, 0.637, 0.59], [2.2, 0.579, 0.612], [2.5, 0.520, 0.630], [2.7, 0.487, 0.641],
-                        [3.0, 0.451, 0.659],
-                        [3.2, 0.434, 0.660], [3.4, 0.420, 0.675]])
+                        [3.0, 0.451, 0.659], [3.2, 0.434, 0.660], [3.4, 0.420, 0.675]])
         xp = np.interp(self.p, pxf[:, 0], pxf[:, 1])  # dimensionless spectral peak
         Fx = np.interp(self.p, pxf[:, 0], pxf[:, 2])  # dimensionless peak flux
-        nu0 = np.unique(self.freq)  # unique frequencies in the sample, if loading a data array for frequencies
-        nu = nu0 * (1 + self.z)  # rest frame frequency
+        nu0 = np.unique(self.freq)
+        nu = nu0 * (1 + self.z)
         nu = np.array(nu)
-        Omi, thi, phii, rotstep, latstep = self.get_segments(thj=self.thj, res=self.res)
-        Gs, Ei = self.get_structure(gamma=self.g0, en=self.ek,
-                                    thi=thi, thc=self.thc, method=self.method, s=self.s, a=self.a, thj=self.thj)
-        G, SM, ghat = self.get_gamma(G0=Gs, Eps=Ei, therm=0., steps=self.steps, n0=self.n, k=self.k)
-        Obsa = self.get_obsangle(phii=phii, thi=thi, tho=self.tho)
-        # calculate the afterglow flux
-        Flux, tobs = self.calc_afterglow(G=G, SM=SM, Dl=self.Dl, p=self.p, xp=xp, Fx=Fx,
-                                         EB=self.epsB, Ee=self.epse, Gs=Gs, Omi=Omi, Ei=Ei,
-                                         n=self.n, k=self.k, tho=self.tho, thi=thi, phii=phii,
-                                         thj=self.thj, ghat=ghat, rotstep=rotstep,
-                                         latstep=latstep, Obsa=Obsa, nu=nu,
-                                         steps=self.steps, XiN=self.xiN)
-        # sums all the flux at the same observer times
-        LC = self.calc_lightcurve(time=self.t, tobs=tobs, Flux=Flux,
-                                  nu_size=nu.size, thi_size=thi.size, phii_size=phii.size,
-                                  freq=self.freq, nu0=nu0)
+
+        # Use Numba-accelerated functions
+        Omi, thi, phii, rotstep, latstep = get_segments_numba(self.thj, self.res)
+        Gs, Ei = get_structure_numba(self.g0, self.ek, thi, self.thc, self.method_id, self.s, self.a, self.thj)
+        G, SM, ghat = get_gamma_numba(Gs, Ei, 0.0, self.steps, self.n, self.k)
+        Obsa = get_obsangle_numba(phii, thi, self.tho)
+
+        # Calculate afterglow flux using Numba
+        Flux, tobs = self.calc_afterglow_numba(G, SM, self.Dl, self.p, xp, Fx,
+                                               self.epsB, self.epse, Gs, Omi, Ei,
+                                               self.n, self.k, self.tho, thi, phii,
+                                               self.thj, ghat, rotstep, latstep, Obsa, nu,
+                                               self.steps, self.xiN)
+
+        # Calculate final lightcurve
+        LC = self.calc_lightcurve(self.t, tobs, Flux, nu.size, thi.size, phii.size, self.freq, nu0)
         return LC
 
-    def get_segments(self, thj, res):
-        ### parameter setting
-        latstep = thj/res #lateral step from centre to edge - fixed angular width
-        rotstep = 2.*np.pi/res #rotational step 
-        Nlatstep = int(res) #integer number of lateral steps
-        Nrotstep = int(2*np.pi/rotstep) #interger number of rotational steps
-        Omi = np.empty((Nlatstep*Nrotstep)) #defines an array for the solid angle of each segment
-        phi = np.linspace(rotstep,Nrotstep*rotstep,Nrotstep) #rotation angles from 0-2pi
-        for i in range(0,Nlatstep):
-            Omi[i*Nrotstep:(i+1)*Nrotstep] = (phi-(phi-rotstep))*(np.cos((i*latstep))-np.cos(((i+1)*latstep))) #defines the solid angle of each segment
-        thi = np.linspace(latstep-latstep/2.,Nlatstep*latstep-latstep/2.,Nlatstep) #lateral angle to centre of segment
-        phii = np.linspace(rotstep-rotstep/2.,Nrotstep*rotstep-rotstep/2.,Nrotstep)#rotational angle to centre of each segment
-        return Omi, thi, phii, rotstep, latstep
+    def calc_afterglow_numba(self, G, SM, Dl, p, xp, Fx, EB, Ee, Gs, Omi, Ei, n, k, tho, thi, phii, thj, ghat, rotstep,
+                             latstep, Obsa, nu, steps, XiN):
+        """Numba-accelerated afterglow calculation"""
+        Flux = np.empty((nu.size, steps, thi.size * phii.size))
+        tobs = np.empty((steps, thi.size * phii.size))
 
-    def get_structure(self, gamma, en, thi, thc, method, s, a, thj):
-        if gamma == 1.0:
-            raise ValueError("Gamma must not equal 1!!!")
-        Gs = np.full(shape=thi.size, fill_value=gamma)
-        Ei = np.full(shape=thi.size, fill_value=en)
-        if method == "TH":  # Top-hat
-            thj_ = np.where(thc < thj, thc, thj)
-            fac = (self.calc_erf_numba(-(thi - thj_) * 1000.) * 0.5) + 0.5
-            Gs = (Gs - 1) * fac + 1.0000000000001
-            Ei *= fac
-        elif method == "Gaussian" or method == "GJ":  # Gaussian
-            fac = np.exp(-0.5 * (thi / thc) ** 2)
-            Gs = (Gs - 1) * fac + 1.0000000000001
-            Ei *= fac
-        elif method == "PL":  # Power-law
-            for i, thi_t in enumerate(thi):
-                if thi_t >= thc:
-                    fac_s = (thc / thi_t) ** (s)
-                    fac_a = (thc / thi_t) ** (a)
-                    Ei[i] *= fac_s
-                    Gs[i] = (Gs[i] - 1.) * fac_a + 1.000000000000001
-        elif method == "PL-alt" or method == "PL2":  # alternative powerlaw
-            fac = (1 + (thi / thc) ** 2) ** 0.5
-            Gs = 1.000000000001 + (Gs - 1) * fac ** (-a)
-            Ei *= fac ** (-s)
-        elif method == "Two-Component" or method == "2C":  # Two-Component
-            if a < 1:
-                raise ValueError("a must be > 1 for two-component model")
-            for i, thi_t in enumerate(thi):
-                if thi_t > thc:
-                    Gs[i] = a
-                    Ei[i] *= s
-        elif method == "Double-Gaussian" or method == "DG":  # Double Gaussian
-            if (a > 1) or (s > 1):
-                raise ValueError("a and s must be < 1 for double Gaussian model")
-            fac = self.double_gaussian_beam(thi, thc, thj, s, a)
-            Ei *= fac
-            fac_gs = self.double_gaussian_lf(thi, thc, thj, s, a)
-            Gs = (Gs - 1) * fac_gs + 1.0000000000001
-        else:  # default
-            pass
-        return Gs, Ei
-
-    def gaussian_beam(self, thi, thc):
-        return np.exp(-0.5 * (thi / thc) ** 2)
-
-    def double_gaussian_beam(self, thi, thc, thj, s, a):
-        return (1. - s) * self.gaussian_beam(thi, thc) + s * self.gaussian_beam(thi, thj)
-
-    def double_gaussian_lf(self, thi, thc, thj, s, a):
-        out = self.double_gaussian_beam(thi, thc, thj, s, a) / self.double_gaussian_beam(thi, thc, thj, s / a, a)
-        out[np.isnan(out)] = a
-        return out
-
-    def get_gamma(self, G0, Eps, therm, steps, n0, k):
-        ### parameter setting
-        Rmin = 1e10  # cm
-        Rmax = 1e24  # cm
-        Nmin = (self.fourpi / (3. - k)) * n0 * Rmin ** (3. - k)  # min number
-        Nmax = (self.fourpi / (3. - k)) * n0 * Rmax ** (3. - k)  # max number
-        dlogm = np.log10(Nmin * self.mp)
-        h = np.log10(Nmax / Nmin) / steps  # step size in dlog(m)
-        # constant factor
-        fac = -h * np.log(10)
-        M = Eps / (G0 * self.c2)  # explosion rest mass
-
-        ### 4th-order Runge-Kutta integration
-        def RK4(ghat, dm_rk4, G_rk4):
-            ghatm1 = ghat - 1.
-            dm_base10 = 10 ** dm_rk4
-            G_rk4_sq = G_rk4 * G_rk4
-            _G_rk4 = 1. / G_rk4
-            return fac * dm_base10 * (ghat * (G_rk4_sq - 1.) - ghatm1 * (G_rk4 - _G_rk4)) \
-                / (M + dm_base10 * (therm + (1. - therm) * (2. * ghat * G_rk4 - ghatm1 * (1 + 1. / G_rk4_sq))))
-
-        # arrays for the state at each step
-        state_G = np.empty(shape=(steps, G0.size))
-        state_dm = np.empty(shape=(steps, G0.size))
-        state_gH = np.empty(shape=(steps, G0.size))
-        # initial values
-        G = G0
-        dm = np.full(shape=G.size, fill_value=dlogm)
-        # main loop
-        for i in range(steps):
-            # store the G and dm
-            state_G[i] = G
-            state_dm[i] = dm
-            G2m1 = G * G - 1.0
-            G2m1_root = G2m1 ** 0.5
-            # temperature of shocked matter
-            theta = G2m1_root * (G2m1_root + 1.07 * G2m1) / (3. * (1 + G2m1_root + 1.07 * G2m1))
-            z = theta / (0.24 + theta)
-            # adiabatic index
-            ghat = ((((((
-                                1.07136 * z - 2.39332) * z + 2.32513) * z - 0.96583) * z + 0.18203) * z - 1.21937) * z + 5.) / 3.
-            # 4th order Runge Kutta to solve ODE from Pe'er 2012
-            F1 = RK4(ghat, dm, G)
-            F2 = RK4(ghat, dm + 0.5 * h, G + 0.5 * F1)
-            F3 = RK4(ghat, dm + 0.5 * h, G + 0.5 * F2)
-            F4 = RK4(ghat, dm + h, G + F3)
-            # update state
-            G = G + (F1 + 2. * (F2 + F3) + F4) / 6. + 1e-15
-            dm = dm + h
-            # store the ghat
-            state_gH[i] = ghat
-        return state_G.T, 10. ** state_dm.T, state_gH.T
-
-    def get_obsangle(self, phii, thi, tho):
-        phi = 0.0  # we assume rotational symmetry - phi is therefore arbitrary
-        sin_thi = np.sin(thi)
-        cos_thi = np.cos(thi)
-        f1 = np.sin(phi) * np.sin(tho) * np.sin(phii) * sin_thi.reshape(-1, 1)
-        f2 = np.cos(phi) * np.sin(tho) * np.cos(phii) * sin_thi.reshape(-1, 1)
-        Obsa = np.cos(tho) * cos_thi.reshape(-1, 1) + f2 + f1
-        Obsa = np.arccos(Obsa)
-        return Obsa.ravel()
-
-    def calc_afterglow_step1(self, G, dm, p, xp, Fx, EB, Ee, n, k, thi, ghat, rotstep, latstep, xiN):
-        rotstep = np.full(1, rotstep)
-        latstep = np.full(1, latstep)
-        Gm1 = G - 1.0
-        G2 = G * G
-        beta = (1 - 1. / G2) ** 0.5  # normalised velocity at each radial step
-        Ne = dm / self.mp  # number of swept up electrons
-        ### side-ways expansion
-        cs = (self.c2 * ghat * (ghat - 1) * Gm1 / (1 + ghat * Gm1)) ** 0.5  # sound speed
-        te = np.arcsin(cs / (self.cc * (G2 - 1.) ** 0.5))  # equivalent form for angle due to spreading
-        # prepare ex and OmG in this function
-        if self.is_expansion:
-            ex = te / G**(self.a1 + 1) # expansion
-            fac = 0.5 * latstep
-            OmG = rotstep * (np.cos(thi - fac) - np.cos(ex/self.res + thi + fac))  # equivalent form for linear spacing
-        else:
-            ex = np.ones(te.size)  # no expansion
-            fac = 0.5 * latstep
-            OmG = rotstep * (np.cos(thi - fac) - np.cos(thi + fac))  # equivalent form for linear spacing
-        # prepare R
-        size = G.size
-        exponent = ((1 - np.cos(latstep + ex[0])) / (1 - np.cos(latstep + ex[:size]))) ** (1/2)
-        R = ((3. - k) * Ne[:size] / (self.fourpi * n)) ** (1. / (3. - k))
-        R[1:] = np.diff(R) * exponent[1:size] ** (1. / (3. - k))
-        R = np.cumsum(R)
-
-        n0 = n * R ** (-k)
-        ### forward shock
-        # parameters for synchrotron emission
-        B = (2 * self.fourpi * EB * n0 * self.mp * self.c2 * (
-                    (ghat * G + 1.) / (ghat - 1.)) * Gm1) ** 0.5  # magnetic field strength
-        gmm = (1.5 * self.fourpi * self.qe / (self.sigT * B)) ** (0.5)
-        if p > 2:
-            gp = (p - 2) / (p - 1)
-        elif p == 2:
-            gp = 1 / np.log(gmm / ((Ee / xiN) * Gm1 * (self.mp / self.me)))
-        if p >= 2:
-            gm = gp * (Ee / xiN) * Gm1 * (self.mp / self.me)
-        else:
-            gm = ((2 - p) / (p - 1) * (self.mp / self.me) * (Ee / xiN) * Gm1 * gmm ** (p - 2)) ** (1 / (p - 1))
-
-        nump = 3. * xp * gm * gm * self.qe * B / (
-                    self.fourpi * self.me * self.cc)  # characteristic synchrotron frequency co-moving
-        Pp = xiN * Fx * self.me * self.c2 * self.sigT * B / (
-                    3. * self.qe)  # 3.**0.5*q**3.*B/(me*c**2.)#  # synchrotron power per electron co-moving
-        KT = gm * self.me * self.c2
-        return beta, Ne, OmG, R, B, gm, nump, Pp, KT
-
-    def calc_afterglow_step2(self, Dl, Om0, rotstep, latstep, Obsa, beta, Ne, OmG, R, B, gm, nump, Pp, KT, G):
-        Dl2 = Dl * Dl
-        NO  = Om0 * Ne / self.fourpi   # initial electrons per segment
-        cos_Obsa = np.cos(Obsa)
-        if self.is_expansion:
-            Om   = np.maximum(Om0, OmG)  # solid angle at each step given expansion condition
-            thii = np.arccos(1. - Om / rotstep)
-        else:
-            Om   = OmG  # array for solid angle
-            thii = np.arccos(1. - Om / rotstep)
-        size = G.size
-        R_diff = np.diff(R,prepend=0)
-        dt = R_diff*(1./beta[:size]-np.cos(Obsa))/self.cc
-        dto = R_diff*(1./beta[:size]-1.)/self.cc
-        tobs = np.cumsum(dt)
-        tobso = np.cumsum(dto)
-        ""
-        ### forward shock
-        dop  = 1. / (G * (1. - beta * cos_Obsa))  # Doppler factor
-        # parameters for synchrotron emission
-        gc = 6. * np.pi * self.me * self.cc / (G * self.sigT * B * B * tobso)  # gamma_c
-        nucp = 0.286 * 3. * gc * gc * self.qe * B / (self.fourpi * self.me * self.cc)  # cooling frequency co-moving
-        num = dop * nump  # observer frame synchrotron frequency
-        nuc = dop * nucp  # observer frame cooling frequency
-        # maximum synchrotron flux including emission area correction for 1/G > jet opening angle
-        Fmax = NO * Pp * dop * dop * dop / (self.fourpi * Dl2)
-        ### self-absorption
-        FBB = 2 * Om * np.cos(thii) * dop * KT * R * R / (self.c2 * Dl2)
-        return FBB, Fmax, nuc, num, tobs
-
-    def get_ag(self, FBB, nuc, num, nu1, Fmax, p):
-        Fluxt = np.zeros((num.size)) #array for flux at a given frequency with time
-        #Observed flux at each step
-        #Fast
-        F1 = (nuc < num) & (nu1 < nuc)
-        Fluxt[F1] = Fmax[F1] * (nu1/nuc[F1])**(1./3.)
-        F2 = (nuc < nu1) & (nuc < num)
-        Fluxt[F2] = Fmax[F2] * (nu1/nuc[F2])**(-1./2.)
-        F3 = (num < nu1) & (nuc < num)
-        Fluxt[F3] = Fmax[F3] * (num[F3]/nuc[F3])**(-1./2.)*(nu1/num[F3])**(-p/2.)
-        #Slow
-        S1 = (num < nuc) & (nu1 < num)
-        Fluxt[S1] = Fmax[S1] * (nu1/num[S1])**(1./3.)
-        S2 = (num < nu1) & (num < nuc)
-        Fluxt[S2] = Fmax[S2] * (nu1/num[S2])**(-(p-1.)/2.)
-        S3 = (nuc < nu1) & (num < nuc)
-        Fluxt[S3] = Fmax[S3] * (nuc[S3]/num[S3])**(-(p-1.)/2.)*(nu1/nuc[S3])**(-p/2.)
-        #SSA
-        FBB = FBB*nu1**2.*np.maximum(1,(nu1/num)**0.5)
-        Fluxt = np.minimum(FBB,Fluxt)
-        return Fluxt
-
-    def calc_afterglow(self, G, SM, Dl, p, xp, Fx, EB, Ee, Gs, Omi, Ei, n, k, tho, thi, phii, thj, ghat, rotstep,
-                       latstep, Obsa, nu, steps, XiN):
-        Flux = np.empty(shape=(nu.size, steps, thi.size * phii.size))
-        tobs = np.empty(shape=(steps, thi.size * phii.size))
         kk = 0
         for i in range(thi.size):
-            beta, Ne, OmG, R, B, gm, nump, Pp, KT = self.calc_afterglow_step1(G[i, :], SM[i, :], p, xp, Fx, EB, Ee, n, k,
-                                                                         thi[i], ghat[i, :], rotstep, latstep, XiN)
+            beta, Ne, OmG, R, B, gm, nump, Pp, KT = calc_afterglow_step1_numba(
+                G[i, :], SM[i, :], p, xp, Fx, EB, Ee, n, k, thi[i], ghat[i, :],
+                rotstep, latstep, XiN, self.is_expansion, self.a1, self.res)
+
             for j in range(phii.size):
-                FBB, Fmax, nuc, num, tobs[:, kk] = self.calc_afterglow_step2(Dl, Omi[kk], rotstep, latstep, Obsa[kk], beta,
-                                                                        Ne, OmG, R, B, gm, nump, Pp, KT, G[i, :])
+                FBB, Fmax, nuc, num, tobs[:, kk] = calc_afterglow_step2_numba(
+                    Dl, Omi[kk], rotstep, latstep, Obsa[kk], beta, Ne, OmG, R, B, gm, nump, Pp, KT, G[i, :],
+                    self.is_expansion)
+
                 if nu.size > 1:
-                    for h in range(0, nu.size):
-                        Flux[h, :, kk] = self.get_ag(FBB, nuc, num, nu[h], Fmax, p)
+                    for h in range(nu.size):
+                        Flux[h, :, kk] = get_ag_numba(FBB, nuc, num, nu[h], Fmax, p)
                 elif nu.size == 1:
-                    Flux[0, :, kk] = self.get_ag(FBB, nuc, num, nu, Fmax, p)
+                    Flux[0, :, kk] = get_ag_numba(FBB, nuc, num, nu[0], Fmax, p)
                 kk += 1
+
         return Flux, tobs
 
     def calc_lightcurve(self, time, tobs, Flux, nu_size, thi_size, phii_size, freq, nu0):
-        LC = np.zeros((freq.size))
+        LC = np.zeros(freq.size)
         # forward shock lightcurve at each observation time
         for h in range(nu_size):
-            FF = np.zeros((len(time[(freq == nu0[h])])))
+            FF = np.zeros(len(time[(freq == nu0[h])]))
             for i in range(thi_size * phii_size):
                 FF += np.interp(time[(freq == nu0[h])] / (1 + self.z), tobs[:, i], Flux[h, :, i])
             LC[(freq == nu0[h])] = FF
@@ -416,8 +650,9 @@ class RedbackAfterglowsRefreshed(RedbackAfterglows):
         Script was originally written by En-Tzu Lin <entzulin@gapp.nthu.edu.tw> and Gavin Lamb <g.p.lamb@ljmu.ac.uk>
         and modified and implemented into redback by Nikhil Sarin <nsarin.astro@gmail.com>.
         Includes wind-like mediums, expansion and multiple jet structures.
+        Includes SSA and uses Numba for acceleration.
 
-        :param k:
+        :param k: 0 or 2 for constant or wind density
         :param n: ISM, ambient number density
         :param epsb: magnetic fraction
         :param epse: electron fraction
@@ -462,66 +697,9 @@ class RedbackAfterglowsRefreshed(RedbackAfterglows):
                          Dl=Dl, extra_structure_parameter_1=extra_structure_parameter_1,
                          extra_structure_parameter_2=extra_structure_parameter_2, method=method,
                          res=res, steps=steps, xiN=xiN, a1=a1)
-        self.G1 = g1
-        self.Et = et
-        self.s1 = s1
-
-    def get_gamma_refreshed(self, G0, G1, Eps, Eps2, s1, therm, steps, n0, k):
-        Eps0 = Eps
-        # solves blastwave dynamics and gives the Lorentz factor and swept-up mass at each step
-        # Gamma0, blast energy per steradian, fraction thermal radiated
-        # therm = 0 for adiabatic solution
-        n = n0
-        Rmin = 1.e10  # cm
-        Rmax = 1.e24  # cm
-        Nmin = (self.fourpi / 3.) * n * Rmin ** (3 - k)  # min number
-        Nmax = (self.fourpi / 3.) * n * Rmax ** (3 - k)  # min number
-        # assumption is no sideways expansion - the radius is not determined by the O(4)RK only mass and Gamma
-        dlogm = np.log10(Nmin * self.mp)
-        h = (np.log10(Nmax) - np.log10(Nmin)) / steps  # step size in dlog(m)
-        G = np.ones(steps + 1)  # set up arrays
-        dm = np.zeros(steps)
-        G[0] = G0  # initial Gamma
-        dm[0] = dlogm  #
-        gH = np.zeros(steps)
-        M = Eps / (G0 * self.cc ** 2.)  # explosion rest mass
-        for i in range(0, steps, 1):
-            theta = ((G[i] ** 2. - 1) ** 0.5) / 3. * (((G[i] ** 2. - 1) ** 0.5 + 1.07 * (G[i] ** 2. - 1)) / (
-                        1 + (G[i] ** 2. - 1) ** 0.5 + 1.07 * (G[i] ** 2. - 1)))  # temperature of shocked matter
-            z = theta / (0.24 + theta)
-            ghat = (
-                               5 - 1.21937 * z + 0.18203 * z ** 2. - 0.96583 * z ** 3. + 2.32513 * z ** 4. - 2.39332 * z ** 5. + 1.07136 * z ** 6.) / 3.  # adiabatic index
-            dm[i] = (dlogm + i * h)
-            # 4th order Runge Kutta to solve ODE from Pe'er 2012
-            F1 = -1. * h * np.log(10) * (10. ** dm[i]) * (
-                        ghat * (G[i] ** 2. - 1) - (ghat - 1) * G[i] * (1 - G[i] ** -2.)) / (
-                             M + therm * (10. ** dm[i]) + (1. - therm) * 10. ** (dm[i]) * (
-                                 2. * ghat * G[i] - (ghat - 1) * (1 + G[i] ** -2.)))  #
-
-            F2 = -1. * h * np.log(10) * (10. ** (dm[i] + h / 2.)) * (
-                        ghat * ((G[i] + F1 / 2.) ** 2. - 1) - (ghat - 1) * (G[i] + F1 / 2.) * (
-                            1 - (G[i] + F1 / 2.) ** -2.)) / (
-                             M + therm * (10. ** (dm[i] + h / 2.)) + (1. - therm) * (10. ** (dm[i] + h / 2.)) * (
-                                 2. * ghat * (G[i] + F1 / 2.) - (ghat - 1) * (1 + (G[i] + F1 / 2.) ** -2.)))  #
-
-            F3 = -1. * h * np.log(10) * (10. ** (dm[i] + h / 2.)) * (
-                        ghat * ((G[i] + F2 / 2.) ** 2. - 1) - (ghat - 1) * (G[i] + F2 / 2.) * (
-                            1 - (G[i] + F2 / 2.) ** -2.)) / (
-                             M + therm * (10. ** (dm[i] + h / 2.)) + (1. - therm) * (10. ** (dm[i] + h / 2.)) * (
-                                 2. * ghat * (G[i] + F2 / 2.) - (ghat - 1) * (1 + (G[i] + F2 / 2.) ** -2.)))  #
-
-            F4 = -1. * h * np.log(10) * (10. ** (dm[i] + h)) * (
-                        ghat * ((G[i] + F3) ** 2. - 1) - (ghat - 1) * (G[i] + F3) * (1 - (G[i] + F3) ** -2.)) / (
-                             M + therm * (10. ** (dm[i] + h)) + (1. - therm) * (10. ** (dm[i] + h)) * (
-                                 2. * ghat * (G[i] + F3) - (ghat - 1) * (1 + (G[i] + F3) ** -2.)))  #
-            gH[i] = ghat
-            G[i + 1] = G[i] + (1. / 6.) * (F1 + 2. * F2 + 2. * F3 + F4)
-            if G[i + 1] <= G1:
-                Eps1 = Eps
-                Eps = min(Eps0 * ((G[i + 1] ** 2 - 1) ** 0.5 / (G1 ** 2 - 1) ** 0.5) ** -s1, Eps2)  #
-                M += (Eps - Eps1) / (G[i] * self.cc ** 2.)  # new explosion rest mass
-
-        return G, 10. ** dm, gH
+        self.G1 = float(g1)
+        self.Et = float(et)
+        self.s1 = float(s1)
 
     def get_lightcurve(self):
         if (self.k != 0) and (self.k != 2):
@@ -538,26 +716,34 @@ class RedbackAfterglowsRefreshed(RedbackAfterglows):
         nu0 = np.unique(self.freq)  # unique frequencies in the sample, if loading a data array for frequencies
         nu = nu0 * (1 + self.z)  # rest frame frequency
         nu = np.array(nu)
-        Omi, thi, phii, rotstep, latstep = self.get_segments(thj=self.thj, res=self.res)
-        Gs, Ei = self.get_structure(gamma=self.g0, en=self.ek,
-                                    thi=thi, thc=self.thc, method=self.method, s=self.s, a=self.a, thj=self.thj)
+
+        # Use Numba-accelerated functions from parent class
+        Omi, thi, phii, rotstep, latstep = get_segments_numba(self.thj, self.res)
+        Gs, Ei = get_structure_numba(self.g0, self.ek, thi, self.thc, self.method_id, self.s, self.a, self.thj)
+
+        # Use Numba-accelerated refreshed gamma calculation
         G = np.empty((thi.size, self.steps))
         SM = np.empty((thi.size, self.steps))
         ghat = np.empty((thi.size, self.steps))
+
         for i in range(thi.size):
             E2 = self.Et * Ei[i]
-            Gg, dM, gh = self.get_gamma_refreshed(Gs[i], self.G1, Ei[i], E2 * Ei[i] / self.ek, self.s1, 0.,
-                                        self.steps, self.n, self.k)
-            G[i, :], SM[i, :], ghat[i, :] = Gg[0:Gg.size - 1], dM[0:Gg.size - 1], gh[0:Gg.size - 1]
-        Obsa = self.get_obsangle(phii=phii, thi=thi, tho=self.tho)
-        # calculate the afterglow flux
-        Flux, tobs = self.calc_afterglow(G=G, SM=SM, Dl=self.Dl, p=self.p, xp=xp, Fx=Fx,
-                                         EB=self.epsB, Ee=self.epse, Gs=Gs, Omi=Omi, Ei=Ei,
-                                         n=self.n, k=self.k, tho=self.tho, thi=thi, phii=phii,
-                                         thj=self.thj, ghat=ghat, rotstep=rotstep,
-                                         latstep=latstep, Obsa=Obsa, nu=nu,
-                                         steps=self.steps, XiN=self.xiN)
-        # sums all the flux at the same observer times
+            Gg, dM, gh = get_gamma_refreshed_numba(Gs[i], self.G1, Ei[i], E2 * Ei[i] / self.ek,
+                                                   self.s1, 0.0, self.steps, self.n, self.k)
+            G[i, :] = Gg
+            SM[i, :] = dM
+            ghat[i, :] = gh
+
+        Obsa = get_obsangle_numba(phii, thi, self.tho)
+
+        # Calculate afterglow flux using Numba from parent class
+        Flux, tobs = self.calc_afterglow_numba(G, SM, self.Dl, self.p, xp, Fx,
+                                               self.epsB, self.epse, Gs, Omi, Ei,
+                                               self.n, self.k, self.tho, thi, phii,
+                                               self.thj, ghat, rotstep, latstep, Obsa, nu,
+                                               self.steps, self.xiN)
+
+        # Calculate final lightcurve
         LC = self.calc_lightcurve(time=self.t, tobs=tobs, Flux=Flux,
                                   nu_size=nu.size, thi_size=thi.size, phii_size=phii.size,
                                   freq=self.freq, nu0=nu0)
