@@ -42,7 +42,7 @@ def fit_model(
     :param model_kwargs: Additional keyword arguments for the model.
     :param clean: If True, rerun the fitting, if false try to use previous results in the output directory.
     :param plot: If True, create corner and lightcurve plot
-    :param kwargs: Additional parameters that will be passed to the sampler
+    :param kwargs: Additional parameters that will be passed to the sampler via bilby
     :return: Redback result object, transient specific data object
     """
     if isinstance(model, str):
@@ -104,7 +104,6 @@ def _fit_spectrum(transient, model, outdir, label, likelihood=None, sampler='dyn
     meta_data.update(transient_kwargs)
     model_kwargs = redback.utils.check_kwargs_validity(model_kwargs)
     meta_data['model_kwargs'] = model_kwargs
-    nthreads = kwargs.get('nthreads', 1)
 
     result = None
     if not kwargs.get("clean", False):
@@ -120,7 +119,7 @@ def _fit_spectrum(transient, model, outdir, label, likelihood=None, sampler='dyn
         likelihood=likelihood, priors=prior, label=label, sampler=sampler, nlive=nlive,
         outdir=outdir, plot=plot, use_ratio=False, walks=walks, resume=resume,
         maxmcmc=10 * walks, result_class=RedbackResult, meta_data=meta_data,
-        nthreads=nthreads, save_bounds=False, nsteps=nlive, nwalkers=walks, save=save_format, **kwargs)
+        save_bounds=False, nsteps=nlive, nwalkers=walks, save=save_format, **kwargs)
     plt.close('all')
     if plot:
         result.plot_spectrum(model=model)
@@ -149,7 +148,6 @@ def _fit_grb(transient, model, outdir, label, likelihood=None, sampler='dynesty'
     meta_data.update(transient_kwargs)
     model_kwargs = redback.utils.check_kwargs_validity(model_kwargs)
     meta_data['model_kwargs'] = model_kwargs
-    nthreads = kwargs.get('nthreads', 1)
 
     result = None
     if not kwargs.get("clean", False):
@@ -165,7 +163,7 @@ def _fit_grb(transient, model, outdir, label, likelihood=None, sampler='dynesty'
         likelihood=likelihood, priors=prior, label=label, sampler=sampler, nlive=nlive,
         outdir=outdir, plot=plot, use_ratio=False, walks=walks, resume=resume,
         maxmcmc=10 * walks, result_class=RedbackResult, meta_data=meta_data,
-        nthreads=nthreads, save_bounds=False, nsteps=nlive, nwalkers=walks, save=save_format, **kwargs)
+        save_bounds=False, nsteps=nlive, nwalkers=walks, save=save_format, **kwargs)
     plt.close('all')
     if plot:
         result.plot_lightcurve(model=model)
@@ -187,7 +185,6 @@ def _fit_optical_transient(transient, model, outdir, label, likelihood=None, sam
     meta_data.update(transient_kwargs)
     model_kwargs = redback.utils.check_kwargs_validity(model_kwargs)
     meta_data['model_kwargs'] = model_kwargs
-    nthreads = kwargs.get('nthreads', 1)
 
     result = None
     if not kwargs.get("clean", False):
@@ -203,7 +200,7 @@ def _fit_optical_transient(transient, model, outdir, label, likelihood=None, sam
         likelihood=likelihood, priors=prior, label=label, sampler=sampler, nlive=nlive,
         outdir=outdir, plot=plot, use_ratio=False, walks=walks, resume=resume,
         maxmcmc=10 * walks, result_class=RedbackResult, meta_data=meta_data,
-        nthreads=nthreads, save_bounds=False, nsteps=nlive, nwalkers=walks, save=save_format, **kwargs)
+        save_bounds=False, nsteps=nlive, nwalkers=walks, save=save_format, **kwargs)
     plt.close('all')
     if plot:
         result.plot_lightcurve(model=model)
@@ -223,7 +220,6 @@ def _fit_prompt(transient, model, outdir, label, likelihood=None, integrated_rat
     meta_data.update(transient_kwargs)
     model_kwargs = redback.utils.check_kwargs_validity(model_kwargs)
     meta_data['model_kwargs'] = model_kwargs
-    nthreads = kwargs.get('nthreads', 1)
 
     result = None
     if not kwargs.get("clean", False):
@@ -239,7 +235,7 @@ def _fit_prompt(transient, model, outdir, label, likelihood=None, integrated_rat
         likelihood=likelihood, priors=prior, label=label, sampler=sampler, nlive=nlive,
         outdir=outdir, plot=False, use_ratio=False, walks=walks, resume=resume,
         maxmcmc=10 * walks, result_class=RedbackResult, meta_data=meta_data,
-        nthreads=nthreads, save_bounds=False, nsteps=nlive, nwalkers=walks, save=save_format, **kwargs)
+        save_bounds=False, nsteps=nlive, nwalkers=walks, save=save_format, **kwargs)
     plt.close('all')
     if plot:
         result.plot_lightcurve(model=model)
