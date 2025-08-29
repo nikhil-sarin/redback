@@ -138,7 +138,7 @@ We note that some samplers have multiprocessing, which you can see how to use `h
 To use MPI with redback, most samplers will work out of the box and all you need to do is pass a :code:`npool`
 (or similar argument, please see the bilby docs) to the :code:`fit_model` function.
 This is especially true for linux, and the general scripts we provide in the examples folder will work out of the box as soon as you pass :code:`npool` or the relevant argument.
-For Mac users, there is some finnicky behaviour with MPI which requires that you wrap all your code in a script in a __main__ block.
+For Mac users, there is some finicky behaviour with MPI which requires that you wrap all your code in a script in a __main__ block.
 
 This is a known issue with MPI on Mac and not specific to redback or bilby.
 
