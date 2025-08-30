@@ -131,5 +131,25 @@ Once written this likelihood can be passed to the fit_model function as follows:
 
 Please look at the documentation for how to use the likelihoods correctly.
 
-We note that some samplers have multiprocessing, which you can see how to use `here <https://lscsoft.docs.ligo.org/bilby/api/bilby.core.sampler.run_sampler.html>`_.
-We will soon implement some `GPU` models and :code:`parallel bilby` functionality for more rapid inference workflows.
+Using MPI
+---------------
+We note that some samplers have multiprocessing, which you can see how to use `here <https://bilby-dev.github.io/bilby/api/bilby.core.sampler.run_sampler.html#bilby.core.sampler.run_sampler>`_.
+
+To use MPI with redback, most samplers will work out of the box and all you need to do is pass a :code:`npool`
+(or similar argument, please see the bilby docs) to the :code:`fit_model` function.
+This is especially true for linux, and the general scripts we provide in the examples folder will work out of the box as soon as you pass :code:`npool` or the relevant argument.
+For Mac users, there is some finicky behaviour with MPI which requires that you wrap all your code in a script in a __main__ block.
+
+This is a known issue with MPI on Mac and not specific to redback or bilby.
+
+An example of how to do this is shown below:
+
+.. code:: python
+
+    if __name__ == "__main__":
+        import bilby
+        import redback
+
+        # rest of your code here
+
+We will soon implement some `GPU` models and :code:`JAX` functionality for more rapid inference workflows.
