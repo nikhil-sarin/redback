@@ -5,7 +5,7 @@ with open("README.md", "r", encoding="utf-8") as fh:
 
 setup(
     name='redback',
-    version='1.12.0',
+    version='1.12.1',
     description='A Bayesian inference and modelling pipeline for electromagnetic transients',
     long_description=long_description,
     long_description_content_type="text/markdown",
@@ -17,10 +17,10 @@ setup(
     package_dir={'redback': 'redback', },
     package_data={'redback': ['priors/*', 'tables/*', 'plot_styles/*']},
     install_requires=[
-        "numpy==1.26.0",
+        "numpy",
         "setuptools",
         "pandas",
-        "scipy<1.14.0",
+        "scipy",
         "selenium",
         "matplotlib",
         "astropy",
@@ -47,7 +47,8 @@ setup(
             "tensorflow",
             "keras",
             "kilonovanet",
-            "astroquery"
+            "astroquery",
+            "pyphot==1.6.0",
         ]
     },
     python_requires=">=3.10",

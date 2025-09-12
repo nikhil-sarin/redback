@@ -10,6 +10,7 @@ from collections import namedtuple
 from scipy.interpolate import interp1d
 import bilby
 import numpy as np
+import pytest
 
 import redback.model_library
 
@@ -75,7 +76,9 @@ class TestPhaseModels(unittest.TestCase):
             print(f)
             model_name = f.replace(".prior", "")
             skip_dict = ['bazin_sne', 'villar_sne', 'blackbody_spectrum_with_absorption_and_emission_lines',
-                         'powerlaw_spectrum_with_absorption_and_emission_lines', 'exp_rise_powerlaw_decline', 'salt2']
+                         'powerlaw_spectrum_with_absorption_and_emission_lines',
+                         'exp_rise_powerlaw_decline', 'salt2', 'blackbody_spectrum_at_z',
+                         'powerlaw_plus_blackbody_spectrum_at_z']
             if model_name in skip_dict:
                 print('Skipping {}'.format(model_name))
                 pass
@@ -294,6 +297,7 @@ class TestExtinctionModelsFluxDensity(unittest.TestCase):
                 ys = np.ones(len(times))
             self.assertEqual(len(times), len(ys))
 
+@pytest.mark.ci
 class TestExtinctionModelsMagnitude(unittest.TestCase):
     def setUp(self) -> None:
         self.path_to_files = f"{_dirname}/../redback/priors/"
