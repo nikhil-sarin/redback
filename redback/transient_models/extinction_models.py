@@ -32,7 +32,7 @@ extinction_supernova_base_models = ['sn_exponential_powerlaw', 'arnett', 'shock_
                                     'csm_interaction', 'csm_nickel', 'type_1a', 'type_1c',
                                     'general_magnetar_slsn','general_magnetar_driven_supernova', 'sn_fallback',
                                     'csm_shock_and_arnett', 'shocked_cocoon_and_arnett',
-                                    'csm_shock_and_arnett_two_rphots', 'nickelmixing']
+                                    'csm_shock_and_arnett_two_rphots', 'nickelmixing',
                                     'sn_nickel_fallback', 'shockcooling_morag_and_arnett',
                                     'shockcooling_sapirandwaxman_and_arnett',
                                     'csm_shock_and_arnett', 'shocked_cocoon_and_arnett',

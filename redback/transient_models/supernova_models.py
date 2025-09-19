@@ -460,7 +460,7 @@ def _nickelmixing(time, mej, esn, kappa, kappa_gamma, f_nickel, f_mixing,
     # Constants assumed defined elsewhere: day_to_s, solar_mass, km_cgs, speed_of_light, sigma_sb.
     tdays = time / day_to_s
     time_len = len(time)
-    mass_len = int(kwargs.get('mass_len', 1000))
+    mass_len = int(kwargs.get('mass_len', 5000))
     ni_mass = f_nickel * mej
     vmin_frac = kwargs.get('vmin_frac', 1.0)
     vmin = vmin_frac * (2 * (esn * 1e51) / (mej * solar_mass)) ** 0.5 / 1e5
@@ -472,7 +472,6 @@ def _nickelmixing(time, mej, esn, kappa, kappa_gamma, f_nickel, f_mixing,
     use_gray_opacity = kwargs.get('use_gray_opacity', False)
 
     if use_gray_opacity:
-        # logger.info("Using gray opacity.")
         kappa_eff = kappa
     else:
         # logger.info("Using temperature-dependent opacity.")
@@ -484,7 +483,6 @@ def _nickelmixing(time, mej, esn, kappa, kappa_gamma, f_nickel, f_mixing,
         kappa_n = kwargs.get('kappa_n', 10)  # controls transition steepness
 
     if use_broken_powerlaw:
-        # logger.info("Using broken power-law for mass and nickel distribution.")
         delta = kwargs.get('delta', 1.0)
         nn = kwargs.get('nn', 12.0)
         beta = kwargs.get('beta', 13.8/3.)  # effective photon diffusion term
@@ -493,7 +491,6 @@ def _nickelmixing(time, mej, esn, kappa, kappa_gamma, f_nickel, f_mixing,
             f_nickel=f_nickel, f_mixing=f_mixing,
             mass_len=mass_len, vmax=vmax, delta=delta, n=nn)
     else:
-        # logger.info("Using simple power-law for mass and nickel distribution.")
         # Set up velocity array (in km/s)
         beta = kwargs.get('beta', 3.0)  # velocity power-law slope
         vel = np.linspace(vmin, vmax, mass_len)
@@ -536,7 +533,7 @@ def _nickelmixing(time, mej, esn, kappa, kappa_gamma, f_nickel, f_mixing,
     dt = np.diff(time)
 
     # Initial conditions: set initial thermal energy from kinetic energy,
-    # or zero because the former does not seem to work...
+    # or zero because stability
     energy_v[:, 0] = 0. # 0.5 * m_array * solar_mass * v_m ** 2
 
     # Loop over time steps: update energy and luminosity in each shell.
@@ -570,7 +567,6 @@ def _nickelmixing(time, mej, esn, kappa, kappa_gamma, f_nickel, f_mixing,
         eth_v[:, ii] = 1 - np.exp(-leakage * time[ii] ** (-2))
         qdot_ni[:, ii] = ni_array * edotr[:, ii] * eth_v[:, ii]
         tlc_v[:, ii] = v_m * time[ii] / speed_of_light
-        # lum_rad[:, ii] = lum_fudge*energy_v[:, ii] / (td_v[:, ii] + tlc_v[:, ii])
         lum_rad[:, ii] = energy_v[:, ii] / (td_v[:, ii] + tlc_v[:, ii])
         # Euler integration update for energy in each shell
         energy_v[:, ii + 1] = (qdot_ni[:, ii] - (1e-4*energy_v[:, ii] / time[ii]) - 0.1*lum_rad[:, ii]) * dt[ii] + energy_v[:,ii]
