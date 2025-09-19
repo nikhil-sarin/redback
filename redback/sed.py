@@ -481,6 +481,108 @@ class Blackbody(object):
         return self.flux_density
 
 
+class BlackbodyWithFeatures(object):
+    reference = "Blackbody spectrum with time-dependent absorption/emission features"
+
+    def __init__(self, temperature: np.ndarray, r_photosphere: np.ndarray,
+                 frequency: np.ndarray, luminosity_distance: float,
+                 time: np.ndarray, feature_list: list = None, **kwargs: None) -> None:
+        """
+        Blackbody SED with time-dependent spectral features
+
+        :param temperature: effective temperature in kelvin (array matching time)
+        :param r_photosphere: photosphere radius in cm (array matching time)
+        :param frequency: frequency to calculate in Hz - source frame (can be 2D: freq x time)
+        :param luminosity_distance: luminosity_distance in cm
+        :param time: time array in seconds - source frame
+        :param feature_list: list of spectral features
+        :param kwargs: None
+        """
+        self.temperature = temperature
+        self.r_photosphere = r_photosphere
+        self.frequency = frequency
+        self.luminosity_distance = luminosity_distance
+        self.time = np.atleast_1d(time).flatten()
+        self.feature_list = feature_list if feature_list is not None else []
+
+        self.flux_density = self.calculate_flux_density()
+
+    def calculate_flux_density(self):
+        """
+        Calculate flux density including blackbody and spectral features
+        """
+        # First get the base blackbody spectrum (same as original Blackbody class)
+        base_flux = blackbody_to_flux_density(
+            temperature=self.temperature,
+            r_photosphere=self.r_photosphere,
+            frequency=self.frequency,
+            dl=self.luminosity_distance
+        )
+
+        # Now apply spectral features
+        flux_with_features = self._apply_features(base_flux)
+
+        return flux_with_features
+
+    def _apply_features(self, base_flux):
+        """Apply spectral features to the base flux"""
+        if not self.feature_list:
+            return base_flux
+
+        flux = base_flux.copy()
+
+        # Handle frequency array - extract 1D frequency for wavelength conversion
+        if self.frequency.ndim == 2:
+            # frequency is 2D (freq x time), take first column for wavelength grid
+            freq_for_wavelength = self.frequency[:, 0]
+        else:
+            # frequency is 1D
+            freq_for_wavelength = self.frequency
+
+        # Convert frequency to wavelength for feature calculations
+        c = speed_of_light
+        wavelength_cm = c / freq_for_wavelength  # cm
+        wavelength_angstrom = wavelength_cm * 1e8  # Convert to Angstroms
+
+        # Apply each feature
+        for feature in self.feature_list:
+            # Create time mask for when feature is active
+            time_mask = ((self.time >= feature['t_start']) &
+                         (self.time <= feature['t_end']))
+
+            if np.any(time_mask):
+                # Feature parameters
+                lambda0 = feature['rest_wavelength']  # Angstroms
+                sigma = feature['sigma']  # Angstroms
+                amplitude = feature['amplitude']  # dimensionless
+
+                # Create Gaussian profile in wavelength
+                gaussian_profile = np.exp(-0.5 * ((wavelength_angstrom - lambda0) / sigma) ** 2)
+
+                # Apply feature based on flux array dimensions
+                if flux.ndim == 1:
+                    # Single time point case
+                    if time_mask.item():
+                        feature_factor = 1.0 + amplitude * gaussian_profile
+                        flux = flux * feature_factor
+                elif flux.ndim == 2:
+                    # Multiple time points case - flux shape is (freq, time) or (time, freq)
+                    # Check which dimension matches time
+                    if flux.shape[1] == len(self.time):
+                        # flux is (freq, time)
+                        feature_factor = 1.0 + amplitude * gaussian_profile[:, None] * time_mask[None, :]
+                        flux = flux * feature_factor
+                    elif flux.shape[0] == len(self.time):
+                        # flux is (time, freq)
+                        feature_factor = 1.0 + amplitude * time_mask[:, None] * gaussian_profile[None, :]
+                        flux = flux * feature_factor
+                    else:
+                        # fallback: assume (time, freq)
+                        feature_factor = 1.0 + amplitude * time_mask[:, None] * gaussian_profile[None, :]
+                        flux = flux * feature_factor
+
+        return flux
+
 class Synchrotron(_SED):
 
     reference = "https://ui.adsabs.harvard.edu/abs/2004rvaa.conf...13H/abstract"
