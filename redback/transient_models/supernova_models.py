@@ -460,21 +460,17 @@ def _nickelmixing(time, mej, esn, kappa, kappa_gamma, f_nickel, f_mixing,
     # Constants assumed defined elsewhere: day_to_s, solar_mass, km_cgs, speed_of_light, sigma_sb.
     tdays = time / day_to_s
     time_len = len(time)
-    mass_len = int(kwargs.get('mass_len', 5000))
+    mass_len = int(kwargs.get('mass_len', 1000))
     ni_mass = f_nickel * mej
-    vmin_frac = kwargs.get('vmin_frac', 1.0)
+    vmin_frac = kwargs.get('vmin_frac', 0.2)
     vmin = vmin_frac * (2 * (esn * 1e51) / (mej * solar_mass)) ** 0.5 / 1e5
-    vmax = kwargs.get('vmax', 100000)
-    # A fudge factor to account for the inaccurate radiative losses in the scheme
-    # and get right energetics when compared with the arnett model
-    lum_fudge = kwargs.get('lum_fudge', 0.2)
-    use_broken_powerlaw = kwargs.get('use_broken_powerlaw', False)
-    use_gray_opacity = kwargs.get('use_gray_opacity', False)
+    vmax = kwargs.get('vmax', 250000)
+    use_broken_powerlaw = kwargs.get('use_broken_powerlaw', True)
+    use_gray_opacity = kwargs.get('use_gray_opacity', True)
 
     if use_gray_opacity:
         kappa_eff = kappa
     else:
-        # logger.info("Using temperature-dependent opacity.")
         # Parameters for temperature-dependent opacity:
         # κ_max is the input "kappa" (for hot, fully ionized ejecta)
         # κ_min and the exponent kappa_n control how quickly the opacity falls when T < T_floor.
@@ -485,7 +481,7 @@ def _nickelmixing(time, mej, esn, kappa, kappa_gamma, f_nickel, f_mixing,
     if use_broken_powerlaw:
         delta = kwargs.get('delta', 1.0)
         nn = kwargs.get('nn', 12.0)
-        beta = kwargs.get('beta', 13.8/3.)  # effective photon diffusion term
+        diffusion_beta = 13.8 / 3 # effective photon diffusion term, extra /3 to cancel the 3 in the td_v formula.
         vel, v_m, m_array, ni_array = _compute_mass_and_nickel(
             vmin=vmin, esn=esn, mej=mej,
             f_nickel=f_nickel, f_mixing=f_mixing,
@@ -493,6 +489,7 @@ def _nickelmixing(time, mej, esn, kappa, kappa_gamma, f_nickel, f_mixing,
     else:
         # Set up velocity array (in km/s)
         beta = kwargs.get('beta', 3.0)  # velocity power-law slope
+        diffusion_beta = beta
         vel = np.linspace(vmin, vmax, mass_len)
         # Convert to cgs: cm/s
         v_m = vel * km_cgs
@@ -509,7 +506,7 @@ def _nickelmixing(time, mej, esn, kappa, kappa_gamma, f_nickel, f_mixing,
         ni_array[:limiting_index] = _ni_array
 
     # Radioactive decay luminosities and lifetimes (in erg/s/solar_mass and days, respectively)
-    ni56_lum = 6.45e43 # in erg/s/solar mass
+    ni56_lum = 6.45e43  # in erg/s/solar mass
     co56_lum = 1.45e43
     ni56_life = 8.8  # days
     co56_life = 111.3  # days
@@ -534,7 +531,7 @@ def _nickelmixing(time, mej, esn, kappa, kappa_gamma, f_nickel, f_mixing,
 
     # Initial conditions: set initial thermal energy from kinetic energy,
     # or zero because stability
-    energy_v[:, 0] = 0. # 0.5 * m_array * solar_mass * v_m ** 2
+    energy_v[:, 0] = 0.  # 0.5 * m_array * solar_mass * v_m ** 2
 
     # Loop over time steps: update energy and luminosity in each shell.
     for ii in range(time_len - 1):
@@ -561,15 +558,30 @@ def _nickelmixing(time, mej, esn, kappa, kappa_gamma, f_nickel, f_mixing,
                             (1.0 + np.tanh((T_eff_prev - temperature_floor) / (50000)))
         # print(kappa_eff)
         td_v[:, ii] = (kappa_eff * m_array * solar_mass * 3) / \
-                      (4 * np.pi * v_m * speed_of_light * time[ii] * beta)
+                      (4 * np.pi * v_m * speed_of_light * time[ii] * diffusion_beta)
+        # Add minimum diffusion time to prevent instability
+        min_diffusion_time = dt[ii] * 1  # Minimum 10x timestep
+        td_v[:, ii] = np.maximum(td_v[:, ii], min_diffusion_time)
+
         tau[:, ii] = (m_array * solar_mass * kappa_eff) / (4 * np.pi * (time[ii] * v_m) ** 2)
         leakage = 3 * kappa_gamma * m_array * solar_mass / (4 * np.pi * v_m ** 2)
         eth_v[:, ii] = 1 - np.exp(-leakage * time[ii] ** (-2))
         qdot_ni[:, ii] = ni_array * edotr[:, ii] * eth_v[:, ii]
         tlc_v[:, ii] = v_m * time[ii] / speed_of_light
-        lum_rad[:, ii] = energy_v[:, ii] / (td_v[:, ii] + tlc_v[:, ii])
+
+        # Prevent division by very small numbers
+        t_total = td_v[:, ii] + tlc_v[:, ii]
+        lum_rad[:, ii] = energy_v[:, ii] / np.maximum(t_total, dt[ii])
         # Euler integration update for energy in each shell
-        energy_v[:, ii + 1] = (qdot_ni[:, ii] - (1e-4*energy_v[:, ii] / time[ii]) - 0.1*lum_rad[:, ii]) * dt[ii] + energy_v[:,ii]
+        energy_change = (qdot_ni[:, ii] - (energy_v[:, ii] / time[ii]) - lum_rad[:, ii]) * dt[ii]
+
+        # Limit energy change to prevent instability (max 50% change per timestep)
+        max_change = 0.5 * np.abs(energy_v[:, ii]) + 1e40  # Add small floor
+        energy_change = np.clip(energy_change, -max_change, max_change)
+
+        energy_v[:, ii + 1] = energy_v[:, ii] + energy_change
+        # Ensure energy stays positive
+        energy_v[:, ii + 1] = np.maximum(energy_v[:, ii + 1], 0)
 
         # Determine the photospheric shell by finding where τ ≃ 1
         photosphere_index = np.argmin(np.abs(tau[:, ii] - 1))
