@@ -11,7 +11,7 @@ def _get_blackbody_spectrum(angstrom, temperature, r_photosphere, distance):
     :param temperature: temperature in Kelvin
     :param r_photosphere: photosphere radius in cm
     :param distance: distance in cm
-    :return: flux in ergs/s/cm^2/hz
+    :return: flux in ergs/s/cm^2/angstrom
     """
     frequency = lambda_to_nu(angstrom)
     flux_density = sed.blackbody_to_flux_density(frequency=frequency,
