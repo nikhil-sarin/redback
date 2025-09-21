@@ -457,6 +457,8 @@ def arnett(time, redshift, f_nickel, mej, **kwargs):
 @citation_wrapper('https://ui.adsabs.harvard.edu/abs/1982ApJ...253..785A/abstract')
 def arnett_with_features(time, redshift, f_nickel, mej, **kwargs):
     """
+    A version of the arnett model where SED has time-evolving spectral features. See sed.spectral_feature_list for more details.
+
     :param time: time in days
     :param redshift: source redshift
     :param f_nickel: fraction of nickel mass
@@ -479,12 +481,12 @@ def arnett_with_features(time, redshift, f_nickel, mej, **kwargs):
     """
     kwargs['interaction_process'] = kwargs.get("interaction_process", ip.Diffusion)
     kwargs['photosphere'] = kwargs.get("photosphere", photosphere.TemperatureFloor)
-    kwargs['sed'] = kwargs.get("sed", sed.BlackbodyWithFeatures)
+    kwargs['sed'] = kwargs.get("sed", sed.BlackbodyWithSpectralFeatures)
     cosmology = kwargs.get('cosmology', cosmo)
     dl = cosmology.luminosity_distance(redshift).cgs.value
 
     # Get or create default Type Ia features
-    feature_list = kwargs.get('feature_list', create_default_sn_ia_features())
+    feature_list = kwargs.get('feature_list', None)
 
     if kwargs['output_format'] == 'flux_density':
         frequency = kwargs['frequency']
