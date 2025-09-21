@@ -566,7 +566,10 @@ class BlackbodyWithSpectralFeatures(object):
         flux = base_flux.copy()
 
         # Handle frequency array for wavelength conversion
-        if self.frequency.ndim == 2:
+        if not hasattr(self.frequency, 'ndim'):
+            # frequency is a scalar, convert to array
+            freq_for_wavelength = np.array([self.frequency])
+        elif self.frequency.ndim == 2:
             freq_for_wavelength = self.frequency[:, 0]
         else:
             freq_for_wavelength = self.frequency
