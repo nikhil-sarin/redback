@@ -1,4 +1,4 @@
-import warnings
+from redback.utils import logger
 
 
 def cond_jit(func=None, **kwargs):
@@ -23,7 +23,7 @@ def cond_jit(func=None, **kwargs):
 
         decorator = jit(**kwargs)
     except ImportError:
-        warnings.warn("Numba is not installed. Using the non-compiled function.")
+        logger.warning("Numba is not installed. Using the non-compiled function.")
 
         # If numba is not available, fall back to a no-op decorator.
         def no_op_decorator(func):

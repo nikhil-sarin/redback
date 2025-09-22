@@ -623,6 +623,93 @@ def bandpass_magnitude_to_flux(magnitude, bands):
     return flux
 
 
+def build_spectral_feature_list(**kwargs):
+    """Build feature list from numbered parameters like rest_wavelength_feature_1, etc."""
+
+    # Find all feature numbers by looking for _feature_ pattern
+    feature_numbers = set()
+    for key in kwargs.keys():
+        if '_feature_' in key:
+            try:
+                # Extract number from parameter name
+                number = int(key.split('_feature_')[-1])
+                feature_numbers.add(number)
+            except ValueError:
+                continue  # Skip malformed parameter names
+
+    # If no custom features found, use defaults
+    if not feature_numbers and kwargs.get('use_default_features', True):
+        return _get_default_sn_ia_features()
+    elif not feature_numbers:
+        return []
+
+    # Sort feature numbers to ensure consistent ordering
+    feature_numbers = sorted(feature_numbers)
+
+    # Required parameters for each feature
+    required_params = ['rest_wavelength', 'sigma', 'amplitude', 't_start', 't_end']
+    optional_params = ['t_rise', 't_fall']
+
+    feature_list = []
+
+    for n in feature_numbers:
+        feature = {}
+
+        # Check required parameters
+        missing_params = []
+        for param in required_params:
+            param_name = f"{param}_feature_{n}"
+            if param_name in kwargs:
+                value = kwargs[param_name]
+
+                # Convert time parameters from days to seconds
+                if param in ['t_start', 't_end']:
+                    value = value * 24 * 3600
+
+                feature[param] = value
+            else:
+                missing_params.append(param_name)
+
+        # Raise error if required parameters are missing
+        if missing_params:
+            raise ValueError(f"Missing required parameters for feature {n}: {missing_params}")
+
+        # Add optional parameters with defaults
+        evolution_mode = kwargs.get('evolution_mode', 'smooth')
+        if evolution_mode == 'smooth':
+            # Default rise/fall times
+            t_rise_param = f"t_rise_feature_{n}"
+            t_fall_param = f"t_fall_feature_{n}"
+
+            feature['t_rise'] = kwargs.get(t_rise_param, 2.0) * 24 * 3600  # 2 days default
+            feature['t_fall'] = kwargs.get(t_fall_param, 5.0) * 24 * 3600  # 5 days default
+
+        feature_list.append(feature)
+
+    return feature_list
+
+
+def _get_default_sn_ia_features():
+    """Default SN Ia features"""
+    return [
+        {
+            't_start': 0, 't_end': 40 * 24 * 3600,
+            't_rise': 3 * 24 * 3600, 't_fall': 7 * 24 * 3600,
+            'rest_wavelength': 6355.0, 'sigma': 400.0, 'amplitude': -0.4
+        },
+        {
+            't_start': 0, 't_end': 60 * 24 * 3600,
+            't_rise': 2 * 24 * 3600, 't_fall': 10 * 24 * 3600,
+            'rest_wavelength': 3934.0, 'sigma': 300.0, 'amplitude': -0.5
+        },
+        {
+            't_start': 0, 't_end': 50 * 24 * 3600,
+            't_rise': 4 * 24 * 3600, 't_fall': 8 * 24 * 3600,
+            'rest_wavelength': 8600.0, 'sigma': 500.0, 'amplitude': -0.3
+        },
+    ]
+
+
 def magnitude_error_from_flux_error(bandflux, bandflux_error):
     """
     Function to propagate the flux error to the mag system.
