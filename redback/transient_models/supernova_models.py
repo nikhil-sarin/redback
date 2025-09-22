@@ -8,7 +8,8 @@ import redback.interaction_processes as ip
 import redback.sed as sed
 import redback.photosphere as photosphere
 from astropy.cosmology import Planck18 as cosmo  # noqa
-from redback.utils import calc_kcorrected_properties, citation_wrapper, logger, get_csm_properties, nu_to_lambda, lambda_to_nu, velocity_from_lorentz_factor
+from redback.utils import (calc_kcorrected_properties, citation_wrapper, logger, get_csm_properties, nu_to_lambda,
+                           lambda_to_nu, velocity_from_lorentz_factor, build_spectral_feature_list)
 from redback.constants import day_to_s, solar_mass, km_cgs, au_cgs, speed_of_light, sigma_sb
 from inspect import isfunction
 import astropy.units as uu
@@ -795,6 +796,148 @@ def arnett(time, redshift, f_nickel, mej, **kwargs):
             return sed.get_correct_output_format_from_spectra(time=time_obs, time_eval=time_observer_frame,
                                                               spectra=spectra, lambda_array=lambda_observer_frame,
                                                               **kwargs)
+
+
+@citation_wrapper('https://ui.adsabs.harvard.edu/abs/1982ApJ...253..785A/abstract')
+def arnett_with_features(time, redshift, f_nickel, mej, **kwargs):
+    """
+    A version of the arnett model where SED has time-evolving spectral features.
+
+    :param time: time in days
+    :param redshift: source redshift
+    :param f_nickel: fraction of nickel mass
+    :param mej: total ejecta mass in solar masses
+    :param kwargs: Must be all the kwargs required by the specific interaction_process, photosphere, sed methods used
+         e.g., for Diffusion and TemperatureFloor: kappa, kappa_gamma, vej (km/s), temperature_floor
+    :param interaction_process: Default is Diffusion.
+            Can also be None in which case the output is just the raw engine luminosity, or another interaction process.
+    :param photosphere: Default is TemperatureFloor.
+            kwargs must have vej or relevant parameters if using different photosphere model
+    :param sed: Default is BlackbodyWithFeatures for Type Ia spectra.
+    :param frequency: Required if output_format is 'flux_density'.
+        frequency to calculate - Must be same length as time array or a single number).
+    :param bands: Required if output_format is 'magnitude' or 'flux'.
+    :param output_format: 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
+    :param lambda_array: Optional argument to set your desired wavelength array (in Angstroms) to evaluate the SED on.
+    :param cosmology: Cosmology to use for luminosity distance calculation. Defaults to Planck18. Must be a astropy.cosmology object.
+    :param feature_list: Optional list of spectral features. If None, uses default Type Ia features.
+
+    Feature Parameters (dynamically numbered):
+    Features are defined by groups of parameters with pattern: {param}_feature_{N}
+    where N starts from 1. All features with the same N are grouped together.
+
+    Required for each feature N:
+    :param rest_wavelength_feature_N: Central wavelength in Angstroms
+    :param sigma_feature_N: Gaussian width in Angstroms
+    :param amplitude_feature_N: Amplitude (negative=absorption, positive=emission), percentage of continuum (e.g., -0.4 = 40% absorption)
+    :param t_start_feature_N: Start time in source-frame days
+    :param t_end_feature_N: End time in source-frame days
+
+    Optional for each feature N (smooth mode only):
+    :param t_rise_feature_N: Rise time in source-frame days (default: 2.0)
+    :param t_fall_feature_N: Fall time in source-frame days (default: 5.0)
+
+    General parameters:
+    :param evolution_mode: 'smooth' or 'sharp' (default: 'smooth')
+    :param use_default_features: If True and no custom features found, use defaults (default: True)
+
+    Examples:
+    --------
+    # Single custom feature
+    result = model(time, z, f_ni, mej,
+                   rest_wavelength_feature_1=6355.0,
+                   sigma_feature_1=400.0,
+                   amplitude_feature_1=-0.4,
+                   t_start_feature_1=0,
+                   t_end_feature_1=30,
+                   output_format='magnitude', bands='lsstg')
+
+    # Multiple features
+    result = model(time, z, f_ni, mej,
+                   rest_wavelength_feature_1=6355.0, sigma_feature_1=400.0,
+                   amplitude_feature_1=-0.4, t_start_feature_1=0, t_end_feature_1=40,
+                   rest_wavelength_feature_2=3934.0, sigma_feature_2=300.0,
+                   amplitude_feature_2=-0.5, t_start_feature_2=0, t_end_feature_2=60,
+                   rest_wavelength_feature_3=8600.0, sigma_feature_3=500.0,
+                   amplitude_feature_3=-0.3, t_start_feature_3=0, t_end_feature_3=50,
+                   evolution_mode='smooth',
+                   output_format='magnitude', bands='lsstg')
+
+    :return: set by output format - 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
+    """
+    kwargs['interaction_process'] = kwargs.get("interaction_process", ip.Diffusion)
+    kwargs['photosphere'] = kwargs.get("photosphere", photosphere.TemperatureFloor)
+    kwargs['sed'] = kwargs.get("sed", sed.BlackbodyWithSpectralFeatures)
+    cosmology = kwargs.get('cosmology', cosmo)
+    dl = cosmology.luminosity_distance(redshift).cgs.value
+
+    # Build feature list from numbered parameters
+    feature_list = build_spectral_feature_list(**kwargs)
+
+    if kwargs['output_format'] == 'flux_density':
+        frequency = kwargs['frequency']
+        frequency, time = calc_kcorrected_properties(frequency=frequency, redshift=redshift, time=time)
+        lbol = arnett_bolometric(time=time, f_nickel=f_nickel, mej=mej, **kwargs)
+        photo = kwargs['photosphere'](time=time, luminosity=lbol, **kwargs)
+
+        # Convert time from days to seconds for feature application
+        time_seconds = time * 24 * 3600
+
+        sed_1 = kwargs['sed'](
+            temperature=photo.photosphere_temperature,
+            r_photosphere=photo.r_photosphere,
+            frequency=frequency,
+            luminosity_distance=dl,
+            time=time_seconds,
+            feature_list=feature_list,
+            evolution_mode=kwargs.get('evolution_mode', 'smooth')
+        )
+        flux_density = sed_1.flux_density
+        return flux_density.to(uu.mJy).value
+
+    else:
+        time_obs = time
+        lambda_observer_frame = kwargs.get('lambda_array', np.geomspace(100, 60000, 100))
+        time_temp = np.geomspace(0.1, 3000, 3000)  # in days
+        time_observer_frame = time_temp * (1. + redshift)
+        frequency, time = calc_kcorrected_properties(
+            frequency=lambda_to_nu(lambda_observer_frame),
+            redshift=redshift,
+            time=time_observer_frame
+        )
+        lbol = arnett_bolometric(time=time, f_nickel=f_nickel, mej=mej, **kwargs)
+        photo = kwargs['photosphere'](time=time, luminosity=lbol, **kwargs)
+
+        # Convert time from days to seconds for feature application
+        time_seconds = time * 24 * 3600
+
+        sed_1 = kwargs['sed'](
+            temperature=photo.photosphere_temperature,
+            r_photosphere=photo.r_photosphere,
+            frequency=frequency[:, None],
+            luminosity_distance=dl,
+            time=time_seconds,
+            feature_list=feature_list,
+            evolution_mode=kwargs.get('evolution_mode', 'smooth')
+        )
+        fmjy = sed_1.flux_density.T
+        spectra = fmjy.to(uu.mJy).to(uu.erg / uu.cm ** 2 / uu.s / uu.Angstrom,
+                                     equivalencies=uu.spectral_density(wav=lambda_observer_frame * uu.Angstrom))
+
+        if kwargs['output_format'] == 'spectra':
+            return namedtuple('output', ['time', 'lambdas', 'spectra'])(
+                time=time_observer_frame,
+                lambdas=lambda_observer_frame,
+                spectra=spectra
+            )
+        else:
+            return sed.get_correct_output_format_from_spectra(
+                time=time_obs,
+                time_eval=time_observer_frame,
+                spectra=spectra,
+                lambda_array=lambda_observer_frame,
+                **kwargs
+            )
 
 def shock_cooling_and_arnett_bolometric(time, log10_mass, log10_radius, log10_energy,
                              f_nickel, mej, vej, kappa, kappa_gamma, temperature_floor, **kwargs):

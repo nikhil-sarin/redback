@@ -11,6 +11,9 @@ from scipy.interpolate import interp1d
 import bilby
 import numpy as np
 import pytest
+import astropy.units as uu
+from redback.transient_models.supernova_models import arnett_with_features
+
 
 import redback.model_library
 
@@ -1577,3 +1580,230 @@ class TestFittedModels(unittest.TestCase):
 
         # Verify result
         np.testing.assert_array_equal(result, expected_result)
+
+class TestArnettWithFeatures:
+    """Simplified test suite for arnett_with_features function"""
+
+    @pytest.fixture
+    def basic_params(self):
+        """Basic parameters for testing"""
+        return {
+            'time': np.array([1, 10, 20, 30]),
+            'redshift': 0.01,
+            'f_nickel': 0.6,
+            'mej': 1.4,
+            'kappa': 0.34,
+            'kappa_gamma': 0.03,
+            'vej': 2000,
+            'temperature_floor': 3000
+        }
+
+    @patch('redback.utils.calc_kcorrected_properties')
+    @patch('redback.transient_models.supernova_models.arnett_bolometric')
+    @patch('redback.transient_models.supernova_models.cosmo')
+    def test_magnitude_output_with_defaults(self, mock_cosmo, mock_lbol, mock_kcorr, basic_params):
+        """Test magnitude output format with default features"""
+        # Setup mocks
+        mock_cosmo.luminosity_distance.return_value.cgs.value = 3.086e19
+        mock_kcorr.return_value = (np.array([1e14, 1e15]), np.array([1, 10, 20, 30]))
+        mock_lbol.return_value = np.array([1e42, 1e42, 1e41, 1e40])
+
+        # Mock photosphere
+        mock_photo = MagicMock()
+        mock_photo.photosphere_temperature = np.array([8000, 7000, 6000, 5000])
+        mock_photo.r_photosphere = np.array([1e14, 1.5e14, 2e14, 2.5e14])
+
+        # Mock SED with proper astropy units
+        mock_sed = MagicMock()
+        mock_sed_instance = MagicMock()
+
+        # Create mock flux_density with astropy units and .T attribute
+        mock_flux_array = np.ones((100, 3000)) * 1e-3  # Shape: (freq, time)
+        mock_flux_quantity = mock_flux_array * uu.erg / uu.cm ** 2 / uu.s / uu.Hz
+        mock_sed_instance.flux_density = mock_flux_quantity
+        mock_sed.return_value = mock_sed_instance
+
+        with patch('redback.photosphere.TemperatureFloor', return_value=mock_photo):
+            with patch('redback.sed.BlackbodyWithSpectralFeatures', mock_sed):
+                with patch('redback.sed.get_correct_output_format_from_spectra',
+                           return_value=np.array([18, 17, 18, 19])) as mock_get_format:
+                    result = arnett_with_features(
+                        output_format='magnitude',
+                        bands='lsstg',
+                        **basic_params
+                    )
+
+        # Verify result
+        assert isinstance(result, np.ndarray)
+        assert len(result) == 4  # Same as input time array
+        assert all(15 < mag < 25 for mag in result)  # Reasonable magnitude range
+
+        # Verify SED was called with feature_list
+        mock_sed.assert_called_once()
+        call_kwargs = mock_sed.call_args[1]
+        assert 'feature_list' in call_kwargs
+        assert 'evolution_mode' in call_kwargs
+        assert call_kwargs['evolution_mode'] == 'smooth'
+
+    @patch('redback.utils.calc_kcorrected_properties')
+    @patch('redback.transient_models.supernova_models.arnett_bolometric')
+    @patch('redback.transient_models.supernova_models.cosmo')
+    def test_flux_density_output_with_defaults(self, mock_cosmo, mock_lbol, mock_kcorr, basic_params):
+        """Test flux_density output format with default features"""
+        # Setup mocks
+        mock_cosmo.luminosity_distance.return_value.cgs.value = 3.086e19
+        mock_kcorr.return_value = (np.array([1e14, 1e15]), np.array([1, 10, 20, 30]))
+        mock_lbol.return_value = np.array([1e42, 1e42, 1e41, 1e40])
+
+        # Mock photosphere
+        mock_photo = MagicMock()
+        mock_photo.photosphere_temperature = np.array([8000, 7000, 6000, 5000])
+        mock_photo.r_photosphere = np.array([1e14, 1.5e14, 2e14, 2.5e14])
+
+        # Mock SED with proper astropy units
+        mock_sed = MagicMock()
+        mock_sed_instance = MagicMock()
+
+        # Create flux_density with proper units and conversion chain
+        mock_flux_array = np.array([1.5, 2.0])  # mJy values
+        mock_flux_quantity = mock_flux_array * uu.erg / uu.cm ** 2 / uu.s / uu.Hz
+
+        # Mock the unit conversion chain
+        mock_converted = MagicMock()
+        mock_converted.value = mock_flux_array
+        mock_flux_quantity.to = MagicMock(return_value=mock_converted)
+
+        mock_sed_instance.flux_density = mock_flux_quantity
+        mock_sed.return_value = mock_sed_instance
+
+        with patch('redback.photosphere.TemperatureFloor', return_value=mock_photo):
+            with patch('redback.sed.BlackbodyWithSpectralFeatures', mock_sed):
+                result = arnett_with_features(
+                    output_format='flux_density',
+                    frequency=np.array([1e14, 1e15]),
+                    **basic_params
+                )
+
+        # Verify result
+        assert isinstance(result, np.ndarray)
+        assert len(result) == 2  # Same as frequency array
+        assert all(flux > 0 for flux in result)  # Positive flux values
+
+        # Verify SED was called correctly
+        mock_sed.assert_called_once()
+        call_kwargs = mock_sed.call_args[1]
+        assert 'feature_list' in call_kwargs
+        assert 'evolution_mode' in call_kwargs
+
+    @patch('redback.utils.calc_kcorrected_properties')
+    @patch('redback.transient_models.supernova_models.arnett_bolometric')
+    @patch('redback.transient_models.supernova_models.cosmo')
+    def test_custom_features_make_difference(self, mock_cosmo, mock_lbol, mock_kcorr, basic_params):
+        """Test that custom features produce different results than defaults"""
+        # Setup mocks
+        mock_cosmo.luminosity_distance.return_value.cgs.value = 3.086e19
+        mock_kcorr.return_value = (np.array([1e14, 1e15]), np.array([1, 10, 20, 30]))
+        mock_lbol.return_value = np.array([1e42, 1e42, 1e41, 1e40])
+
+        # Mock photosphere
+        mock_photo = MagicMock()
+        mock_photo.photosphere_temperature = np.array([8000, 7000, 6000, 5000])
+        mock_photo.r_photosphere = np.array([1e14, 1.5e14, 2e14, 2.5e14])
+
+        # Create a mock SED that returns different values based on feature_list
+        call_count = 0
+
+        def mock_sed_factory(*args, **kwargs):
+            nonlocal call_count
+            mock_sed_instance = MagicMock()
+
+            feature_list = kwargs.get('feature_list', [])
+
+            if len(feature_list) == 3:  # Default features
+                flux_values = np.array([1.0, 1.5])
+            else:  # Custom features (should be 1 feature)
+                flux_values = np.array([0.8, 1.2])  # Different values
+
+            # Create proper astropy quantity
+            mock_flux_quantity = flux_values * uu.erg / uu.cm ** 2 / uu.s / uu.Hz
+            mock_converted = MagicMock()
+            mock_converted.value = flux_values
+            mock_flux_quantity.to = MagicMock(return_value=mock_converted)
+            mock_sed_instance.flux_density = mock_flux_quantity
+
+            call_count += 1
+            return mock_sed_instance
+
+        with patch('redback.photosphere.TemperatureFloor', return_value=mock_photo):
+
+            # Test with default features (no custom params)
+            with patch('redback.sed.BlackbodyWithSpectralFeatures', side_effect=mock_sed_factory):
+                result_default = arnett_with_features(
+                    output_format='flux_density',
+                    frequency=np.array([1e14, 1e15]),
+                    **basic_params
+                )
+
+            # Reset call count
+            call_count = 0
+
+            # Test with custom feature
+            with patch('redback.sed.BlackbodyWithSpectralFeatures', side_effect=mock_sed_factory):
+                result_custom = arnett_with_features(
+                    output_format='flux_density',
+                    frequency=np.array([1e14, 1e15]),
+                    rest_wavelength_feature_1=6355.0,
+                    sigma_feature_1=400.0,
+                    amplitude_feature_1=-0.6,  # Strong absorption
+                    t_start_feature_1=0,
+                    t_end_feature_1=30,
+                    use_default_features=False,
+                    **basic_params
+                )
+
+        # Verify results are different
+        assert not np.allclose(result_default, result_custom)
+        assert len(result_default) == len(result_custom) == 2
+
+    def test_feature_parameter_parsing(self, basic_params):
+        """Test that feature parameters are correctly parsed"""
+        with patch('redback.transient_models.supernova_models.build_spectral_feature_list') as mock_build:
+            mock_build.return_value = []
+
+            with patch('redback.utils.calc_kcorrected_properties'):
+                with patch('redback.transient_models.supernova_models.arnett_bolometric'):
+                    with patch('redback.transient_models.supernova_models.cosmo'):
+                        with patch('redback.photosphere.TemperatureFloor'):
+                            with patch('redback.sed.BlackbodyWithSpectralFeatures') as mock_sed:
+                                # Create proper mock
+                                mock_sed_instance = MagicMock()
+                                flux_values = np.array([1.0])
+                                mock_flux_quantity = flux_values * uu.erg / uu.cm ** 2 / uu.s / uu.Hz
+                                mock_converted = MagicMock()
+                                mock_converted.value = flux_values
+                                mock_flux_quantity.to = MagicMock(return_value=mock_converted)
+                                mock_sed_instance.flux_density = mock_flux_quantity
+                                mock_sed.return_value = mock_sed_instance
+
+                                arnett_with_features(
+                                    output_format='flux_density',
+                                    frequency=np.array([1e14]),
+                                    rest_wavelength_feature_1=6355.0,
+                                    sigma_feature_1=400.0,
+                                    amplitude_feature_1=-0.4,
+                                    t_start_feature_1=0,
+                                    t_end_feature_1=30,
+                                    evolution_mode='sharp',
+                                    **basic_params
+                                )
+
+        # Verify build_spectral_feature_list was called with the right parameters
+        mock_build.assert_called_once()
+        call_kwargs = mock_build.call_args[1]
+
+        assert call_kwargs['rest_wavelength_feature_1'] == 6355.0
+        assert call_kwargs['sigma_feature_1'] == 400.0
+        assert call_kwargs['amplitude_feature_1'] == -0.4
+        assert call_kwargs['t_start_feature_1'] == 0
+        assert call_kwargs['t_end_feature_1'] == 30
+        assert call_kwargs['evolution_mode'] == 'sharp'
