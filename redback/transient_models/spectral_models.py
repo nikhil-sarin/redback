@@ -26,7 +26,7 @@ def _get_powerlaw_spectrum(angstrom, alpha, aa):
     :param angstrom: wavelength array in angstroms
     :param alpha: power law index
     :param aa: normalization
-    :return: flux in ergs/s/cm^2/angstrom
+    :return: flux in units set by normalisation
     """
     return aa*angstrom**alpha
 
