@@ -23,8 +23,9 @@ extinction_integrated_flux_afterglow_models = extinction_afterglow_base_models
 extinction_supernova_base_models = ['sn_exponential_powerlaw', 'arnett', 'shock_cooling_and_arnett',
                                     'basic_magnetar_powered', 'slsn', 'magnetar_nickel',
                                     'csm_interaction', 'csm_nickel', 'type_1a', 'type_1c',
-                                    'general_magnetar_slsn','general_magnetar_driven_supernova', 'sn_fallback',
-                                    'csm_shock_and_arnett', 'shocked_cocoon_and_arnett', 'csm_shock_and_arnett_two_rphots']
+                                    'general_magnetar_slsn','general_magnetar_driven_supernova', 'sn_fallback', 'sn_nickel_fallback',
+                                    'csm_shock_and_arnett', 'shocked_cocoon_and_arnett', 'csm_shock_and_arnett_two_rphots', 
+                                    'shockcooling_sapirwaxman_and_arnett', 'shocked_cocoon_csm_and_arnett']
 extinction_kilonova_base_models = ['nicholl_bns', 'mosfit_rprocess', 'mosfit_kilonova',
                                    'power_law_stratified_kilonova','bulla_bns_kilonova',
                                    'bulla_nsbh_kilonova', 'kasen_bns_kilonova','two_layer_stratified_kilonova',
@@ -34,12 +35,13 @@ extinction_kilonova_base_models = ['nicholl_bns', 'mosfit_rprocess', 'mosfit_kil
                                    'polytrope_eos_two_component_bns', 'one_component_nsbh_ejecta_relation',
                                    'two_component_nsbh_ejecta_relation','metzger_kilonova_model']
 extinction_tde_base_models = ['tde_analytical', 'tde_semianalytical', 'gaussianrise_cooling_envelope',
-                              'cooling_envelope', 'bpl_cooling_envelope']
+                              'cooling_envelope', 'bpl_cooling_envelope', 'tde_fallback', 'stream_stream_tde']
 extinction_magnetar_driven_base_models = ['basic_mergernova', 'general_mergernova', 'general_mergernova_thermalisation',
                                           'general_mergernova_evolution', 'metzger_magnetar_driven_kilonova_model',
                                           'general_metzger_magnetar_driven', 'general_metzger_magnetar_driven_thermalisation',
                                           'general_metzger_magnetar_driven_evolution']
-extinction_shock_powered_base_models = ['shocked_cocoon', 'shock_cooling', 'csm_shock_breakout']
+extinction_shock_powered_base_models = ['shocked_cocoon', 'shock_cooling', 'csm_shock_breakout', 'shockcooling_sapirandwaxman']
+extinction_stellar_interaction_models = ['wr_bh_merger']
 
 extinction_model_library = {'kilonova': extinction_kilonova_base_models,
                             'supernova': extinction_supernova_base_models,
@@ -47,12 +49,13 @@ extinction_model_library = {'kilonova': extinction_kilonova_base_models,
                             'tde': extinction_tde_base_models,
                             'magnetar_driven': extinction_magnetar_driven_base_models,
                             'shock_powered': extinction_shock_powered_base_models,
-                            'integrated_flux_afterglow': extinction_integrated_flux_afterglow_models}
+                            'stellar_interaction': extinction_stellar_interaction_models,
+                            'integrated_flux_afterglow': extinction_integrated_flux_afterglow_models}                            
 
 model_library = {'supernova': 'supernova_models', 'afterglow': 'afterglow_models',
                  'magnetar_driven': 'magnetar_driven_ejecta_models', 'tde': 'tde_models',
                  'kilonova': 'kilonova_models', 'shock_powered': 'shock_powered_models',
-                 'integrated_flux_afterglow': 'afterglow_models'}
+                 'integrated_flux_afterglow': 'afterglow_models', 'stellar_interaction': 'stellar_interaction_models'}
 
 def _get_correct_function(base_model, model_type=None):
     """
@@ -220,6 +223,20 @@ def extinction_with_magnetar_driven_base_model(time, av, **kwargs):
     :return: set by output format kwarg - 'flux_density', 'magnitude', 'flux' with extinction applied
     """
     output = _evaluate_extinction_model(time=time, av=av, model_type='magnetar_driven', **kwargs)
+    return output
+
+@citation_wrapper('redback')
+def extinction_with_stellar_interaction_base_model(time, av, **kwargs):
+    """
+    Extinction with models implemented in stellar_interaction_models
+
+    :param time: time in observer frame in days
+    :param av: absolute mag extinction
+    :param kwargs: Must be all the parameters required by the base_model specified using kwargs['base_model']
+        and r_v, default is 3.1
+    :return: set by kwargs['output_format'] - 'flux_density', 'magnitude', 'flux' with extinction applied
+    """
+    output = _evaluate_extinction_model(time=time, av=av, model_type='stellar_interaction', **kwargs)
     return output
 
 
