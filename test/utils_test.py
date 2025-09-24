@@ -442,3 +442,288 @@ class TestSomeUtility(unittest.TestCase):
         # Check results
         self.assertIsInstance(result, tuple)
         self.assertEqual(result.bolometric_luminosity, 3.0)
+
+
+class TestBuildSpectralFeatureList(unittest.TestCase):
+    """Test suite for build_spectral_feature_list function"""
+
+    def test_empty_kwargs_returns_defaults(self):
+        """Test that empty kwargs returns default features when use_default_features=True"""
+        result = utils.build_spectral_feature_list()
+        expected = utils._get_default_sn_ia_features()
+        assert result == expected
+
+    def test_empty_kwargs_with_no_defaults(self):
+        """Test that empty kwargs returns empty list when use_default_features=False"""
+        result = utils.build_spectral_feature_list(use_default_features=False)
+        assert result == []
+
+    def test_single_feature_complete(self):
+        """Test building a single complete feature"""
+        kwargs = {
+            'rest_wavelength_feature_1': 6355.0,
+            'sigma_feature_1': 400.0,
+            'amplitude_feature_1': -0.4,
+            't_start_feature_1': 0,
+            't_end_feature_1': 30
+        }
+
+        result = utils.build_spectral_feature_list(**kwargs)
+
+        assert len(result) == 1
+        feature = result[0]
+        assert feature['rest_wavelength'] == 6355.0
+        assert feature['sigma'] == 400.0
+        assert feature['amplitude'] == -0.4
+        assert feature['t_start'] == 0  # 0 days = 0 seconds
+        assert feature['t_end'] == 30 * 24 * 3600  # 30 days to seconds
+        # Check defaults for smooth mode
+        assert feature['t_rise'] == 2.0 * 24 * 3600  # 2 days default
+        assert feature['t_fall'] == 5.0 * 24 * 3600  # 5 days default
+
+    def test_single_feature_with_custom_rise_fall(self):
+        """Test single feature with custom rise/fall times"""
+        kwargs = {
+            'rest_wavelength_feature_1': 6355.0,
+            'sigma_feature_1': 400.0,
+            'amplitude_feature_1': -0.4,
+            't_start_feature_1': 0,
+            't_end_feature_1': 30,
+            't_rise_feature_1': 3.0,
+            't_fall_feature_1': 7.0
+        }
+
+        result = utils.build_spectral_feature_list(**kwargs)
+
+        assert len(result) == 1
+        feature = result[0]
+        assert feature['t_rise'] == 3.0 * 24 * 3600
+        assert feature['t_fall'] == 7.0 * 24 * 3600
+
+    def test_multiple_features_sequential(self):
+        """Test multiple features with sequential numbering"""
+        kwargs = {
+            'rest_wavelength_feature_1': 6355.0,
+            'sigma_feature_1': 400.0,
+            'amplitude_feature_1': -0.4,
+            't_start_feature_1': 0,
+            't_end_feature_1': 30,
+            'rest_wavelength_feature_2': 3934.0,
+            'sigma_feature_2': 300.0,
+            'amplitude_feature_2': -0.5,
+            't_start_feature_2': 5,
+            't_end_feature_2': 60,
+            'rest_wavelength_feature_3': 8600.0,
+            'sigma_feature_3': 500.0,
+            'amplitude_feature_3': -0.3,
+            't_start_feature_3': 10,
+            't_end_feature_3': 50
+        }
+
+        result = utils.build_spectral_feature_list(**kwargs)
+
+        assert len(result) == 3
+
+        # Check feature 1
+        assert result[0]['rest_wavelength'] == 6355.0
+        assert result[0]['t_start'] == 0
+
+        # Check feature 2
+        assert result[1]['rest_wavelength'] == 3934.0
+        assert result[1]['t_start'] == 5 * 24 * 3600
+
+        # Check feature 3
+        assert result[2]['rest_wavelength'] == 8600.0
+        assert result[2]['t_start'] == 10 * 24 * 3600
+
+    def test_multiple_features_non_sequential(self):
+        """Test multiple features with non-sequential numbering"""
+        kwargs = {
+            'rest_wavelength_feature_5': 6355.0,
+            'sigma_feature_5': 400.0,
+            'amplitude_feature_5': -0.4,
+            't_start_feature_5': 0,
+            't_end_feature_5': 30,
+            'rest_wavelength_feature_2': 3934.0,
+            'sigma_feature_2': 300.0,
+            'amplitude_feature_2': -0.5,
+            't_start_feature_2': 5,
+            't_end_feature_2': 60,
+            'rest_wavelength_feature_10': 8600.0,
+            'sigma_feature_10': 500.0,
+            'amplitude_feature_10': -0.3,
+            't_start_feature_10': 10,
+            't_end_feature_10': 50
+        }
+
+        result = utils.build_spectral_feature_list(**kwargs)
+
+        assert len(result) == 3
+        # Should be sorted by feature number: 2, 5, 10
+        assert result[0]['rest_wavelength'] == 3934.0  # feature_2
+        assert result[1]['rest_wavelength'] == 6355.0  # feature_5
+        assert result[2]['rest_wavelength'] == 8600.0  # feature_10
+
+    def test_sharp_evolution_mode_no_rise_fall(self):
+        """Test that sharp mode doesn't add t_rise/t_fall parameters"""
+        kwargs = {
+            'rest_wavelength_feature_1': 6355.0,
+            'sigma_feature_1': 400.0,
+            'amplitude_feature_1': -0.4,
+            't_start_feature_1': 0,
+            't_end_feature_1': 30,
+            'evolution_mode': 'sharp'
+        }
+
+        result = utils.build_spectral_feature_list(**kwargs)
+
+        assert len(result) == 1
+        feature = result[0]
+        assert 't_rise' not in feature
+        assert 't_fall' not in feature
+
+    def test_time_conversion_days_to_seconds(self):
+        """Test that time parameters are correctly converted from days to seconds"""
+        kwargs = {
+            'rest_wavelength_feature_1': 6355.0,
+            'sigma_feature_1': 400.0,
+            'amplitude_feature_1': -0.4,
+            't_start_feature_1': 1.5,  # 1.5 days
+            't_end_feature_1': 30.25,  # 30.25 days
+            't_rise_feature_1': 2.5,  # 2.5 days
+            't_fall_feature_1': 5.75  # 5.75 days
+        }
+
+        result = utils.build_spectral_feature_list(**kwargs)
+
+        feature = result[0]
+        assert feature['t_start'] == 1.5 * 24 * 3600
+        assert feature['t_end'] == 30.25 * 24 * 3600
+        assert feature['t_rise'] == 2.5 * 24 * 3600
+        assert feature['t_fall'] == 5.75 * 24 * 3600
+
+    def test_malformed_parameter_names_ignored(self):
+        """Test that malformed parameter names are ignored"""
+        kwargs = {
+            'rest_wavelength_feature_1': 6355.0,
+            'sigma_feature_1': 400.0,
+            'amplitude_feature_1': -0.4,
+            't_start_feature_1': 0,
+            't_end_feature_1': 30,
+            'bad_feature_name': 123,  # No number after _feature_
+            'another_feature_bad_number': 456,  # Not following pattern
+            'rest_wavelength_feature_abc': 789,  # Non-numeric feature number
+        }
+
+        # Should work fine and only create 1 feature
+        result = utils.build_spectral_feature_list(**kwargs)
+        assert len(result) == 1
+
+    def test_zero_feature_number(self):
+        """Test feature with number 0"""
+        kwargs = {
+            'rest_wavelength_feature_0': 6355.0,
+            'sigma_feature_0': 400.0,
+            'amplitude_feature_0': -0.4,
+            't_start_feature_0': 0,
+            't_end_feature_0': 30
+        }
+
+        result = utils.build_spectral_feature_list(**kwargs)
+        assert len(result) == 1
+        assert result[0]['rest_wavelength'] == 6355.0
+
+    def test_negative_feature_number(self):
+        """Test feature with negative number"""
+        kwargs = {
+            'rest_wavelength_feature_-1': 6355.0,
+            'sigma_feature_-1': 400.0,
+            'amplitude_feature_-1': -0.4,
+            't_start_feature_-1': 0,
+            't_end_feature_-1': 30
+        }
+
+        result = utils.build_spectral_feature_list(**kwargs)
+        assert len(result) == 1
+        assert result[0]['rest_wavelength'] == 6355.0
+
+    def test_large_feature_numbers(self):
+        """Test with large feature numbers"""
+        kwargs = {
+            'rest_wavelength_feature_1000': 6355.0,
+            'sigma_feature_1000': 400.0,
+            'amplitude_feature_1000': -0.4,
+            't_start_feature_1000': 0,
+            't_end_feature_1000': 30
+        }
+
+        result = utils.build_spectral_feature_list(**kwargs)
+        assert len(result) == 1
+        assert result[0]['rest_wavelength'] == 6355.0
+
+    def test_partial_parameters_with_defaults_fallback(self):
+        """Test that partial parameters don't prevent fallback to defaults"""
+        kwargs = {
+            'some_other_parameter': 123,
+            'not_a_feature_param': 456,
+            'use_default_features': True
+        }
+
+        result = utils.build_spectral_feature_list(**kwargs)
+        expected = utils._get_default_sn_ia_features()
+        assert result == expected
+
+
+class TestGetDefaultSnIaFeatures(unittest.TestCase):
+    """Test suite for _get_default_sn_ia_features function"""
+
+    def test_returns_list(self):
+        """Test that function returns a list"""
+        result = utils._get_default_sn_ia_features()
+        assert isinstance(result, list)
+
+    def test_has_expected_number_of_features(self):
+        """Test that default features has expected number of items"""
+        result = utils._get_default_sn_ia_features()
+        assert len(result) == 3  # Based on your implementation
+
+    def test_features_have_required_keys(self):
+        """Test that each feature has all required keys"""
+        result = utils._get_default_sn_ia_features()
+        required_keys = {'t_start', 't_end', 't_rise', 't_fall', 'rest_wavelength', 'sigma', 'amplitude'}
+
+        for feature in result:
+            assert isinstance(feature, dict)
+            assert required_keys.issubset(feature.keys())
+
+    def test_time_values_are_in_seconds(self):
+        """Test that time values are in seconds (not days)"""
+        result = utils._get_default_sn_ia_features()
+
+        for feature in result:
+            # Time values should be large (seconds, not days)
+            assert feature['t_start'] >= 0
+            assert feature['t_end'] > feature['t_start']
+            assert feature['t_rise'] > 0
+            assert feature['t_fall'] > 0
+            # Should be much larger than typical day values
+            assert feature['t_end'] > 1000  # More than 1000 seconds
+
+    def test_wavelengths_are_reasonable(self):
+        """Test that wavelengths are in reasonable ranges"""
+        result = utils._get_default_sn_ia_features()
+
+        for feature in result:
+            # Wavelengths should be in Angstroms, optical range
+            assert 1000 < feature['rest_wavelength'] < 50000
+            assert feature['sigma'] > 0
+
+    def test_amplitudes_are_reasonable(self):
+        """Test that amplitudes are reasonable"""
+        result = utils._get_default_sn_ia_features()
+
+        for feature in result:
+            # Amplitudes should be reasonable fractions
+            assert -1.0 <= feature['amplitude'] <= 1.0
+            # Most SN Ia features are absorption (negative)
+            assert feature['amplitude'] != 0

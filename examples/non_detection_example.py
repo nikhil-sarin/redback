@@ -6,6 +6,8 @@ import redback
 
 # In this example we show how to apply constraints on priors.
 # This can be used for a case of a non-detection.
+# Note there is now a general notebook on non-detections called "handing_non_detections".
+# This example only showcases the prior constraints method.
 
 model = 'evolving_magnetar'
 priors = redback.priors.get_priors(model=model)

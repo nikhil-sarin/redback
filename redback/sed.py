@@ -6,6 +6,7 @@ from sncosmo import TimeSeriesSource
 from redback.constants import *
 from redback.utils import nu_to_lambda, bandpass_magnitude_to_flux
 
+
 def _bandflux_single_redback(model, band, time_or_phase):
     """
 
@@ -404,6 +405,52 @@ class CutoffBlackbody(_SED):
         return self.flux_density
 
 
+class PowerlawPlusBlackbody:
+    """SED class for power law + blackbody combination with time-evolving power law"""
+
+    def __init__(self, temperature, r_photosphere, pl_amplitude, pl_slope, pl_evolution_index, time,
+                 reference_wavelength, frequency, luminosity_distance):
+        self.temperature = temperature
+        self.r_photosphere = r_photosphere
+        self.pl_amplitude = pl_amplitude
+        self.pl_slope = pl_slope
+        self.pl_evolution_index = pl_evolution_index
+        self.time = time
+        self.reference_wavelength = reference_wavelength
+        self.frequency = frequency
+        self.luminosity_distance = luminosity_distance
+
+        # Calculate combined flux density
+        self._calculate_flux_density()
+
+    def _calculate_flux_density(self):
+        """Calculate power law + blackbody flux density with time-evolving power law"""
+
+        # Blackbody component using the provided function
+        bb_flux_density = blackbody_to_flux_density(temperature=self.temperature,
+                                                    r_photosphere=self.r_photosphere,
+                                                    dl=self.luminosity_distance,
+                                                    frequency=self.frequency)
+
+        # Time-evolving power law component
+        # Convert frequency to wavelength for power law calculation
+        wavelength = (speed_of_light * 1e8) / self.frequency  # Angstroms
+
+        # Calculate time-evolved power law amplitude
+        pl_amplitude_evolved = self.pl_amplitude * (self.time / 1.0) ** (-self.pl_evolution_index)
+
+        # Calculate power law in F_lambda
+        pl_flux_lambda = pl_amplitude_evolved * (wavelength / self.reference_wavelength) ** self.pl_slope
+
+        # Convert power law from F_lambda to F_nu
+        pl_flux_density = pl_flux_lambda * wavelength ** 2 / (speed_of_light * 1e8)
+        pl_flux_density = pl_flux_density * uu.erg / uu.s / uu.cm ** 2 / uu.Hz
+
+        # Combine components
+        total_flux_density = bb_flux_density + pl_flux_density
+
+        self.flux_density = total_flux_density
+
 class Blackbody(object):
 
     reference = "It is a blackbody - Do you really need a reference for this?"
@@ -433,6 +480,204 @@ class Blackbody(object):
             frequency=self.frequency, dl=self.luminosity_distance)
         return self.flux_density
 
+class BlackbodyWithSpectralFeatures(object):
+    reference = "Blackbody spectrum with adaptive time-dependent spectral features"
+
+    def __init__(self, temperature: np.ndarray, r_photosphere: np.ndarray,
+                 frequency: np.ndarray, luminosity_distance: float,
+                 time: np.ndarray, feature_list: list = None,
+                 evolution_mode: str = 'smooth', **kwargs: None) -> None:
+        """
+        Blackbody SED with time-evolving spectral features (absorption/emission lines).
+
+        Features are modeled as Gaussian profiles in wavelength that can evolve smoothly
+        or sharply over time. Each feature is defined by its central wavelength, width,
+        amplitude, and temporal evolution parameters.
+
+        :param temperature: Effective temperature in Kelvin (array matching time)
+        :param r_photosphere: Photosphere radius in cm (array matching time)
+        :param frequency: Frequency array in Hz (source frame)
+        :param luminosity_distance: Luminosity distance in cm
+        :param time: Time array in seconds (source frame)
+        :param feature_list: List of spectral feature dictionaries. Each feature requires:
+            - 't_start': Start time in seconds
+            - 't_end': End time in seconds
+            - 'rest_wavelength': Central wavelength in Angstroms
+            - 'sigma': Gaussian width in Angstroms
+            - 'amplitude': Fractional flux change (negative for absorption, positive for emission)
+            For smooth mode, optionally include:
+            - 't_rise': Rise time in seconds (default: 2 days)
+            - 't_fall': Fall time in seconds (default: 5 days)
+        :param evolution_mode: Temporal evolution type:
+            - 'smooth': Sigmoid transitions with configurable rise/fall times
+            - 'sharp': Step function on/off transitions
+        :param kwargs: Additional keyword arguments (unused)
+
+        Examples
+        --------
+        >>> # Simple absorption line
+        >>> feature = {
+        ...     't_start': 0, 't_end': 30*24*3600,
+        ...     'rest_wavelength': 6355.0, 'sigma': 400.0, 'amplitude': -0.3
+        ... }
+        >>>
+        >>> # Smooth evolution with custom rise/fall
+        >>> smooth_feature = {
+        ...     't_start': 0, 't_end': 40*24*3600,
+        ...     't_rise': 3*24*3600, 't_fall': 7*24*3600,
+        ...     'rest_wavelength': 6355.0, 'sigma': 400.0, 'amplitude': -0.4
+        ... }
+        """
+        self.temperature = temperature
+        self.r_photosphere = r_photosphere
+        self.frequency = frequency
+        self.luminosity_distance = luminosity_distance
+        self.time = np.atleast_1d(time).flatten()
+        self.feature_list = feature_list if feature_list is not None else []
+        self.evolution_mode = evolution_mode.lower()
+
+        # Validate evolution mode
+        valid_modes = ['smooth', 'sharp']
+        if self.evolution_mode not in valid_modes:
+            raise ValueError(f"evolution_mode must be one of {valid_modes}")
+
+        self.flux_density = self.calculate_flux_density()
+
+    def calculate_flux_density(self):
+        """Calculate flux density including blackbody and spectral features"""
+        # Get base blackbody spectrum
+        base_flux = blackbody_to_flux_density(
+            temperature=self.temperature,
+            r_photosphere=self.r_photosphere,
+            frequency=self.frequency,
+            dl=self.luminosity_distance
+        )
+
+        # Apply spectral features
+        flux_with_features = self._apply_features(base_flux)
+
+        return flux_with_features
+
+    def _apply_features(self, base_flux):
+        """Apply spectral features completely vectorized"""
+        if not self.feature_list:
+            return base_flux
+
+        flux = base_flux.copy()
+
+        # Handle frequency array for wavelength conversion
+        if not hasattr(self.frequency, 'ndim'):
+            # frequency is a scalar, convert to array
+            freq_for_wavelength = np.array([self.frequency])
+        elif self.frequency.ndim == 2:
+            freq_for_wavelength = self.frequency[:, 0]
+        else:
+            freq_for_wavelength = self.frequency
+
+        # Convert frequency to wavelength
+        c = speed_of_light
+        wavelength_angstrom = c / freq_for_wavelength * 1e8
+
+        # Stack all feature parameters for vectorized processing
+        n_features = len(self.feature_list)
+        if n_features == 0:
+            return flux
+
+        # Extract feature parameters into arrays
+        wavelengths = np.array([f['rest_wavelength'] for f in self.feature_list])
+        sigmas = np.array([f['sigma'] for f in self.feature_list])
+        amplitudes = np.array([f['amplitude'] for f in self.feature_list])
+
+        # Calculate all Gaussian profiles at once
+        # Shape: (n_features, n_wavelengths)
+        wl_diff = wavelength_angstrom[None, :] - wavelengths[:, None]
+        gaussian_profiles = np.exp(-0.5 * (wl_diff / sigmas[:, None]) ** 2)
+
+        # Calculate time factors for all features
+        if self.evolution_mode == 'smooth':
+            time_factors = self._calculate_smooth_evolution()
+        else:  # sharp
+            time_factors = self._calculate_sharp_evolution()
+
+        # Apply all features based on flux dimensions
+        if flux.ndim == 1:
+            # Single time case - sum all feature contributions
+            feature_contributions = amplitudes[:, None] * time_factors[:, 0] * gaussian_profiles
+            total_feature_factor = 1.0 + np.sum(feature_contributions, axis=0)
+            flux = flux * total_feature_factor
+
+        elif flux.ndim == 2:
+            if flux.shape[1] == len(self.time):
+                # flux is (freq, time)
+                # time_factors shape: (n_features, n_times)
+                # gaussian_profiles shape: (n_features, n_freq)
+                # Broadcast to (n_features, n_freq, n_times)
+                feature_contributions = (amplitudes[:, None, None] *
+                                         gaussian_profiles[:, :, None] *
+                                         time_factors[:, None, :])
+                total_feature_factor = 1.0 + np.sum(feature_contributions, axis=0)
+                flux = flux * total_feature_factor
+            else:
+                # flux is (time, freq)
+                # Broadcast to (n_features, n_times, n_freq)
+                feature_contributions = (amplitudes[:, None, None] *
+                                         time_factors[:, :, None] *
+                                         gaussian_profiles[:, None, :])
+                total_feature_factor = 1.0 + np.sum(feature_contributions, axis=0)
+                flux = flux * total_feature_factor
+
+        return flux
+
+    def _calculate_smooth_evolution(self):
+        """Calculate smooth transitions for all features vectorized"""
+        n_features = len(self.feature_list)
+        n_times = len(self.time)
+
+        # Extract timing parameters
+        t_starts = np.array([f['t_start'] for f in self.feature_list])
+        t_ends = np.array([f['t_end'] for f in self.feature_list])
+        t_rises = np.array([f.get('t_rise', 2 * 24 * 3600) for f in self.feature_list])
+        t_falls = np.array([f.get('t_fall', 5 * 24 * 3600) for f in self.feature_list])
+
+        # Broadcast time array for vectorized operations
+        time_grid = self.time[None, :]  # Shape: (1, n_times)
+
+        # Vectorized conditions
+        before_start = time_grid < t_starts[:, None]
+        in_rise = (time_grid >= t_starts[:, None]) & (time_grid < (t_starts + t_rises)[:, None])
+        in_plateau = (time_grid >= (t_starts + t_rises)[:, None]) & (time_grid < (t_ends - t_falls)[:, None])
+        in_fall = (time_grid >= (t_ends - t_falls)[:, None]) & (time_grid < t_ends[:, None])
+        after_end = time_grid >= t_ends[:, None]
+
+        # Calculate smooth transitions
+        # Rise phase
+        x_rise = (time_grid - t_starts[:, None]) / t_rises[:, None]
+        rise_factors = 0.5 * (1 + np.tanh(6 * (x_rise - 0.5)))
+
+        # Fall phase
+        x_fall = (t_ends[:, None] - time_grid) / t_falls[:, None]
+        fall_factors = 0.5 * (1 + np.tanh(6 * (x_fall - 0.5)))
+
+        # Combine all phases
+        time_factors = (before_start * 0.0 +
+                        in_rise * rise_factors +
+                        in_plateau * 1.0 +
+                        in_fall * fall_factors +
+                        after_end * 0.0)
+
+        return time_factors
+
+    def _calculate_sharp_evolution(self):
+        """Calculate sharp on/off evolution vectorized"""
+        # Extract timing parameters
+        t_starts = np.array([f['t_start'] for f in self.feature_list])
+        t_ends = np.array([f['t_end'] for f in self.feature_list])
+
+        # Vectorized time masks
+        time_grid = self.time[None, :]  # Shape: (1, n_times)
+        active_mask = (time_grid >= t_starts[:, None]) & (time_grid <= t_ends[:, None])
+
+        return active_mask.astype(float)
 
 class Synchrotron(_SED):
 
@@ -484,61 +729,141 @@ class Synchrotron(_SED):
         self._set_sed()
         return self.flux_density
 
-
 class Line(_SED):
+    """
+    A class that modifies an input SED by incorporating a time‐dependent absorption line feature.
+
+    Reference:
+      https://ui.adsabs.harvard.edu/abs/2018ApJS..236....6G/abstract
+    """
 
     reference = "https://ui.adsabs.harvard.edu/abs/2018ApJS..236....6G/abstract"
 
-    def __init__(self, time: np.ndarray, luminosity: np.ndarray, frequency: Union[np.ndarray, float],
-                 sed: Union[_SED, Blackbody], luminosity_distance: float, line_wavelength: float = 7.5e3,
-                 line_width: float = 500, line_time: float = 50, line_duration: float = 25,
-                 line_amplitude: float = 0.3, **kwargs: None) -> None:
+    def __init__(self,
+                 time: np.ndarray,
+                 luminosity: np.ndarray,
+                 frequency: Union[np.ndarray, float],
+                 sed: Union[_SED, Blackbody],
+                 luminosity_distance: float,
+                 line_wavelength: float = 7.5e3,
+                 line_width: float = 500,
+                 line_time: float = 50,
+                 line_duration: float = 25,
+                 line_amplitude: float = 0.3,
+                 **kwargs) -> None:
         """
-        Modifies the input SED by accounting for absorption lines
+        Modifies the input SED by imposing a time-dependent absorption line.
 
-        :param time: time in source frame
-        :param luminosity: luminosity in cgs
-        :param frequency: frequency to calculate in Hz - Must be same length as time array or a single number.
-                          In source frame.
-        :param sed: instantiated SED class object.
-        :param luminosity_distance: luminosity_distance in cm
-        :param line_wavelength: line wavelength in angstrom
-        :param line_width: line width in angstrom
-        :param line_time: line time
-        :param line_duration: line duration
-        :param line_amplitude: line amplitude
-        :param kwargs: None
+        Parameters
+        ----------
+        time : np.ndarray
+            1D array of times (in source frame).
+        luminosity : np.ndarray
+            1D array of luminosities (in cgs units) corresponding to each time.
+        frequency : Union[np.ndarray, float]
+            Frequency (in Hz, source frame) at which to calculate the flux.
+            If an array is provided, its shape must be broadcastable with time.
+        sed : Union[_SED, Blackbody]
+            An instantiated SED object (e.g. a CutoffBlackbody).
+        luminosity_distance : float
+            Luminosity distance in cm.
+        line_wavelength : float, optional
+            Central wavelength of the line in angstrom (default 7500 Å).
+        line_width : float, optional
+            Line width (sigma) in angstrom (default 500 Å).
+        line_time : float, optional
+            The time when the line is strongest (default 50).
+        line_duration : float, optional
+            The characteristic duration of the line (default 25).
+        line_amplitude : float, optional
+            The maximum amplitude of the line absorption (default 0.3).
+        kwargs : dict, optional
+            Other keyword arguments.
         """
-        super(Line, self).__init__(frequency=frequency, luminosity_distance=luminosity_distance, length=len(time))
-        self.time = time
-        self.luminosity = luminosity
+        # Reshape time and luminosity to column vectors (n_time, 1).
+        self.time = np.atleast_1d(time).reshape(-1, 1)
+        self.luminosity = np.atleast_1d(luminosity).reshape(-1, 1)
+
+        # Convert frequency to a row vector (1, n_freq)
+        freq_arr = np.atleast_1d(frequency)
+        if freq_arr.ndim == 1:
+            freq_arr = freq_arr.reshape(1, -1)
+        self.frequency = freq_arr  # shape (1, n_freq)
+
+        # Call the parent initializer.
+        super().__init__(frequency=self.frequency,
+                         luminosity_distance=luminosity_distance,
+                         length=self.time.shape[0])
+
+        # Keep a reference to the SED to modify.
         self.SED = sed
-        self.sed = None
+        self.sed = None  # This will be computed in _set_sed().
+
+        # Save the line parameters.
         self.line_wavelength = line_wavelength
         self.line_width = line_width
         self.line_time = line_time
         self.line_duration = line_duration
         self.line_amplitude = line_amplitude
 
+        # Use an internal attribute to store the computed flux density.
+        self._flux_density = None
+
+        # Calculate the flux density.
         self.calculate_flux_density()
 
     @property
+    def flux_density(self):
+        """
+        Returns the computed flux density; this property wraps an internal attribute.
+        """
+        return self._flux_density
+
+    @property
     def wavelength(self):
+        """
+        Returns the wavelength corresponding to self.frequency (using nu_to_lambda),
+        while preserving broadcasting.
+        """
         return nu_to_lambda(self.frequency)
 
     def calculate_flux_density(self):
-        # Mostly from Mosfit/SEDs
+        """
+        Compute the modified SED with the absorption line and store the result internally.
+        """
         self._set_sed()
-        return self.flux_density
+        return self._flux_density
 
     def _set_sed(self):
-        amplitude = self.line_amplitude * np.exp(-0.5 * ((self.time - self.line_time) / self.line_duration) ** 2)
-        self.sed = self.SED.sed * (1 - amplitude)
+        """
+        Compute and set the modified SED (flux density) with proper units.
+        Assumes:
+          - self.SED.sed has shape (n_freq, n_time) (e.g., (100,300))
+          - self.time and self.luminosity are processed so that the time‐axis is the second axis.
+        """
+        # Transpose time and luminosity to have time along the second axis
+        time_vals = self.time.T  # Shape (1, n_time)
+        lum_vals = self.luminosity.T  # Shape (1, n_time)
 
-        amplitude *= self.luminosity / (self.line_width * (2 * np.pi) ** 0.5)
+        # Compute a time-dependent amplitude (expected shape (1, n_time))
+        amplitude_time = self.line_amplitude * np.exp(
+            -0.5 * ((time_vals - self.line_time) / self.line_duration) ** 2
+        )
 
-        amp_new = np.exp(-0.5 * ((self.wavelength - self.line_wavelength) / self.line_width) ** 2)
-        self.sed += amplitude * amp_new
+        # Get the baseline SED (shape (n_freq, n_time))
+        sed_base = self.SED.sed
+
+        # Modify the SED by attenuating with the time-dependent factor
+        sed_modified = sed_base * (1 - amplitude_time)
+
+        # Compute additional scaling factors as needed (example below)
+        amplitude_scaled = amplitude_time * lum_vals / (self.line_width * np.sqrt(2 * np.pi))
+        line_profile = np.exp(-0.5 * ((self.wavelength - self.line_wavelength) / self.line_width) ** 2)
+        sed_modified += amplitude_scaled * line_profile
+
+        # IMPORTANT: Convert sed_modified (a numpy array) to an astropy Quantity.
+        # Here, we assume the flux density is in units of erg/s/cm^2/Hz.
+        self._flux_density = sed_modified * uu.erg / uu.s / uu.cm ** 2 / uu.Hz
 
 def get_correct_output_format_from_spectra(time, time_eval, spectra, lambda_array, **kwargs):
     """
@@ -557,8 +882,9 @@ def get_correct_output_format_from_spectra(time, time_eval, spectra, lambda_arra
     spectra = np.nan_to_num(spectra)
     spectra[spectra.value == np.nan_to_num(np.inf)] = 1e-30 * np.mean(spectra[5])
     spectra[spectra.value == 0.] = 1e-30 * np.mean(spectra[5])
-
-    source = RedbackTimeSeriesSource(phase=time_eval, wave=lambda_array, flux=spectra)
+    time_spline_degree = kwargs.get('time_spline_degree', 3)
+    source = RedbackTimeSeriesSource(phase=time_eval, wave=lambda_array, flux=spectra,
+                                     time_spline_degree=time_spline_degree)
     if kwargs['output_format'] == 'flux':
         bands = kwargs['bands']
         magnitude = source.bandmag(phase=time, band=bands, magsys='ab')

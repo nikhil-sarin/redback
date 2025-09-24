@@ -28,7 +28,7 @@ jet_spreading_models = ['tophat', 'cocoon', 'gaussian',
 
 class RedbackAfterglows():
     def __init__(self, k, n, epsb, epse, g0, ek, thc, thj, tho, p, exp, time, freq, redshift, Dl,
-                 extra_structure_parameter_1,extra_structure_parameter_2, method='TH', res=100, steps=int(500), xiN=1):
+                 extra_structure_parameter_1,extra_structure_parameter_2, method='TH', res=100, steps=int(500), xiN=1, a1=1):
         """
         A general class for afterglow models implemented directly in redback.
         This class is not meant to be used directly but instead via the interface for each specific model.
@@ -70,6 +70,7 @@ class RedbackAfterglows():
         :param res: resolution
         :param steps: number of steps used to resolve Gamma and dm
         :param XiN: fraction of electrons that get accelerated
+        :param a1: the expansion description, a1 = 0 sound speed, a1 = 1 Granot & Piran 2012
         """
         self.k = k
         if self.k == 0:
@@ -95,6 +96,7 @@ class RedbackAfterglows():
         self.res = res
         self.steps = steps
         self.xiN = xiN
+        self.a1 = a1
 
         ### Set up physical constants
         self.mp = 1.6726231e-24  # g, mass of proton
@@ -285,7 +287,7 @@ class RedbackAfterglows():
         te = np.arcsin(cs / (self.cc * (G2 - 1.) ** 0.5))  # equivalent form for angle due to spreading
         # prepare ex and OmG in this function
         if self.is_expansion:
-            ex = te / (G2) # expansion
+            ex = te / G**(self.a1 + 1) # expansion
             fac = 0.5 * latstep
             OmG = rotstep * (np.cos(thi - fac) - np.cos(ex/self.res + thi + fac))  # equivalent form for linear spacing
         else:
@@ -405,7 +407,7 @@ class RedbackAfterglows():
 class RedbackAfterglowsRefreshed(RedbackAfterglows):
     def __init__(self, k, n, epsb, epse, g0, g1, ek, et, s1, thc, thj, tho, p, exp, time, freq, redshift, Dl,
                  extra_structure_parameter_1, extra_structure_parameter_2,
-                 method='TH', res=100, steps=int(500), xiN=1):
+                 method='TH', res=100, steps=int(500), xiN=1, a1=1):
 
         """
         A general class for refreshed afterglow models implemented directly in redback.
@@ -452,13 +454,14 @@ class RedbackAfterglowsRefreshed(RedbackAfterglows):
         :param res: resolution
         :param steps: number of steps used to resolve Gamma and dm
         :param XiN: fraction of electrons that get accelerated
+        :param a1: the expansion description, a1 = 0 sound speed, a1 = 1 Granot & Piran 2012
         """
 
         super().__init__(k=k, n=n, epsb=epsb, epse=epse, g0=g0, ek=ek, thc=thc, thj=thj,
                          tho=tho, p=p, exp=exp, time=time, freq=freq, redshift=redshift,
                          Dl=Dl, extra_structure_parameter_1=extra_structure_parameter_1,
                          extra_structure_parameter_2=extra_structure_parameter_2, method=method,
-                         res=res, steps=steps, xiN=xiN)
+                         res=res, steps=steps, xiN=xiN, a1=a1)
         self.G1 = g1
         self.Et = et
         self.s1 = s1
@@ -726,6 +729,7 @@ def tophat_redback(time, redshift, thv, loge0, thc, logn0, p, logepse, logepsb, 
     if isinstance(frequency, float):
         frequency = np.ones(len(time)) * frequency
     k = kwargs.get('k', 0)
+    a1 = kwargs.get('a1', 1)
     exp = kwargs.get('expansion', 1)
     epse = 10 ** logepse
     epsb = 10 ** logepsb
@@ -746,7 +750,7 @@ def tophat_redback(time, redshift, thv, loge0, thc, logn0, p, logepse, logepsb, 
     ag_class = RedbackAfterglows(k=k, n=nism, epse=epse, epsb=epsb, g0=g0, ek=e0, thc=thc, thj=thc, tho=thv, p=p, exp=exp,
                                 time=time, freq=frequency, redshift=redshift, Dl=dl, method=method,
                                  extra_structure_parameter_1=s, extra_structure_parameter_2=a,
-                                 res=res, xiN=xiN, steps=steps)
+                                 res=res, xiN=xiN, steps=steps, a1=a1)
     flux_density = ag_class.get_lightcurve()
     fmjy = flux_density / 1e-26
     if kwargs['output_format'] == 'flux_density':
@@ -789,6 +793,7 @@ def gaussian_redback(time, redshift, thv, loge0, thc, thj, logn0, p, logepse, lo
     if isinstance(frequency, float):
         frequency = np.ones(len(time)) * frequency
     k = kwargs.get('k', 0)
+    a1 = kwargs.get('a1', 1)
     exp = kwargs.get('expansion', 1)
     epse = 10 ** logepse
     epsb = 10 ** logepsb
@@ -809,7 +814,7 @@ def gaussian_redback(time, redshift, thv, loge0, thc, thj, logn0, p, logepse, lo
     ag_class = RedbackAfterglows(k=k, n=nism, epse=epse, epsb=epsb, g0=g0, ek=e0, thc=thc, thj=thj, tho=thv, p=p, exp=exp,
                                 time=time, freq=frequency, redshift=redshift, Dl=dl, method=method,
                                  extra_structure_parameter_1=s, extra_structure_parameter_2=a,
-                                 res=res, xiN=xiN, steps=steps)
+                                 res=res, xiN=xiN, steps=steps, a1=a1)
     flux_density = ag_class.get_lightcurve()
     fmjy = flux_density / 1e-26
     if kwargs['output_format'] == 'flux_density':
@@ -855,6 +860,7 @@ def twocomponent_redback(time, redshift, thv, loge0, thc, thj, logn0, p, logepse
     if isinstance(frequency, float):
         frequency = np.ones(len(time)) * frequency
     k = kwargs.get('k', 0)
+    a1 = kwargs.get('a1', 1)
     exp = kwargs.get('expansion', 1)
     epse = 10 ** logepse
     epsb = 10 ** logepsb
@@ -876,7 +882,7 @@ def twocomponent_redback(time, redshift, thv, loge0, thc, thj, logn0, p, logepse
     ag_class = RedbackAfterglows(k=k, n=nism, epse=epse, epsb=epsb, g0=g0, ek=e0, thc=thc, thj=thj, tho=thv, p=p, exp=exp,
                                  time=time, freq=frequency, redshift=redshift, Dl=dl, method=method,
                                  extra_structure_parameter_1=ss, extra_structure_parameter_2=aa,
-                                 res=res, xiN=xiN, steps=steps)
+                                 res=res, xiN=xiN, steps=steps, a1=a1)
     flux_density = ag_class.get_lightcurve()
     fmjy = flux_density / 1e-26
     if kwargs['output_format'] == 'flux_density':
@@ -923,6 +929,7 @@ def powerlaw_redback(time, redshift, thv, loge0, thc, thj, logn0, p, logepse, lo
     if isinstance(frequency, float):
         frequency = np.ones(len(time)) * frequency
     k = kwargs.get('k', 0)
+    a1 = kwargs.get('a1', 1)
     exp = kwargs.get('expansion', 1)
     epse = 10 ** logepse
     epsb = 10 ** logepsb
@@ -944,7 +951,7 @@ def powerlaw_redback(time, redshift, thv, loge0, thc, thj, logn0, p, logepse, lo
     ag_class = RedbackAfterglows(k=k, n=nism, epse=epse, epsb=epsb, g0=g0, ek=e0, thc=thc, thj=thj, tho=thv, p=p, exp=exp,
                                  time=time, freq=frequency, redshift=redshift, Dl=dl, method=method,
                                  extra_structure_parameter_1=ss, extra_structure_parameter_2=aa,
-                                 res=res, xiN=xiN, steps=steps)
+                                 res=res, xiN=xiN, steps=steps, a1=a1)
     flux_density = ag_class.get_lightcurve()
     fmjy = flux_density / 1e-26
     if kwargs['output_format'] == 'flux_density':
@@ -990,6 +997,7 @@ def alternativepowerlaw_redback(time, redshift, thv, loge0, thc, thj, logn0, p, 
     if isinstance(frequency, float):
         frequency = np.ones(len(time)) * frequency
     k = kwargs.get('k', 0)
+    a1 = kwargs.get('a1', 1)
     exp = kwargs.get('expansion', 1)
     epse = 10 ** logepse
     epsb = 10 ** logepsb
@@ -1011,7 +1019,7 @@ def alternativepowerlaw_redback(time, redshift, thv, loge0, thc, thj, logn0, p, 
     ag_class = RedbackAfterglows(k=k, n=nism, epse=epse, epsb=epsb, g0=g0, ek=e0, thc=thc, thj=thj, tho=thv, p=p, exp=exp,
                                  time=time, freq=frequency, redshift=redshift, Dl=dl, method=method,
                                  extra_structure_parameter_1=ss, extra_structure_parameter_2=aa,
-                                 res=res, xiN=xiN, steps=steps)
+                                 res=res, xiN=xiN, steps=steps, a1=a1)
     flux_density = ag_class.get_lightcurve()
     fmjy = flux_density / 1e-26
     if kwargs['output_format'] == 'flux_density':
@@ -1057,6 +1065,7 @@ def doublegaussian_redback(time, redshift, thv, loge0, thc, thj, logn0, p, logep
     if isinstance(frequency, float):
         frequency = np.ones(len(time)) * frequency
     k = kwargs.get('k', 0)
+    a1 = kwargs.get('a1', 1)
     exp = kwargs.get('expansion', 1)
     epse = 10 ** logepse
     epsb = 10 ** logepsb
@@ -1078,7 +1087,7 @@ def doublegaussian_redback(time, redshift, thv, loge0, thc, thj, logn0, p, logep
     ag_class = RedbackAfterglows(k=k, n=nism, epse=epse, epsb=epsb, g0=g0, ek=e0, thc=thc, thj=thj, tho=thv, p=p, exp=exp,
                                  time=time, freq=frequency, redshift=redshift, Dl=dl, method=method,
                                  extra_structure_parameter_1=ss, extra_structure_parameter_2=aa,
-                                 res=res, xiN=xiN, steps=steps)
+                                 res=res, xiN=xiN, steps=steps, a1=a1)
     flux_density = ag_class.get_lightcurve()
     fmjy = flux_density / 1e-26
     if kwargs['output_format'] == 'flux_density':
@@ -1125,6 +1134,7 @@ def tophat_redback_refreshed(time, redshift, thv, loge0, thc, g1, et, s1,
     if isinstance(frequency, float):
         frequency = np.ones(len(time)) * frequency
     k = kwargs.get('k', 0)
+    a1 = kwargs.get('a1', 1)
     exp = kwargs.get('expansion', 1)
     epse = 10 ** logepse
     epsb = 10 ** logepsb
@@ -1146,7 +1156,7 @@ def tophat_redback_refreshed(time, redshift, thv, loge0, thc, g1, et, s1,
                                           thc=thc, thj=thc, tho=thv, p=p, exp=exp,time=time, freq=frequency,
                                           redshift=redshift, Dl=dl, method=method,
                                  extra_structure_parameter_1=s, extra_structure_parameter_2=a,
-                                 res=res, xiN=xiN, steps=steps)
+                                 res=res, xiN=xiN, steps=steps, a1=a1)
     flux_density = ag_class.get_lightcurve()
     fmjy = flux_density / 1e-26
     if kwargs['output_format'] == 'flux_density':
@@ -1194,6 +1204,7 @@ def gaussian_redback_refreshed(time, redshift, thv, loge0, thc, thj, g1, et, s1,
     if isinstance(frequency, float):
         frequency = np.ones(len(time)) * frequency
     k = kwargs.get('k', 0)
+    a1 = kwargs.get('a1', 1)
     exp = kwargs.get('expansion', 1)
     epse = 10 ** logepse
     epsb = 10 ** logepsb
@@ -1215,7 +1226,7 @@ def gaussian_redback_refreshed(time, redshift, thv, loge0, thc, thj, g1, et, s1,
                                  tho=thv, p=p, exp=exp, g1=g1, et=et, s1=s1,
                                 time=time, freq=frequency, redshift=redshift, Dl=dl, method=method,
                                  extra_structure_parameter_1=s, extra_structure_parameter_2=a,
-                                 res=res, xiN=xiN, steps=steps)
+                                 res=res, xiN=xiN, steps=steps, a1=a1)
     flux_density = ag_class.get_lightcurve()
     fmjy = flux_density / 1e-26
     if kwargs['output_format'] == 'flux_density':
@@ -1266,6 +1277,7 @@ def twocomponent_redback_refreshed(time, redshift, thv, loge0, thc, thj, g1, et,
     if isinstance(frequency, float):
         frequency = np.ones(len(time)) * frequency
     k = kwargs.get('k', 0)
+    a1 = kwargs.get('a1', 1)
     exp = kwargs.get('expansion', 1)
     epse = 10 ** logepse
     epsb = 10 ** logepsb
@@ -1287,7 +1299,7 @@ def twocomponent_redback_refreshed(time, redshift, thv, loge0, thc, thj, g1, et,
     ag_class = RedbackAfterglowsRefreshed(k=k, n=nism, epse=epse, epsb=epsb, g0=g0, ek=e0, thc=thc, thj=thj,
                                           tho=thv, p=p, exp=exp, g1=g1, et=et, s1=s1, time=time, freq=frequency,
                                           redshift=redshift, Dl=dl, method=method, extra_structure_parameter_1=ss,
-                                          extra_structure_parameter_2=aa, res=res, xiN=xiN, steps=steps)
+                                          extra_structure_parameter_2=aa, res=res, xiN=xiN, steps=steps, a1=a1)
     flux_density = ag_class.get_lightcurve()
     fmjy = flux_density / 1e-26
     if kwargs['output_format'] == 'flux_density':
@@ -1339,6 +1351,7 @@ def powerlaw_redback_refreshed(time, redshift, thv, loge0, thc, thj, g1, et, s1,
     if isinstance(frequency, float):
         frequency = np.ones(len(time)) * frequency
     k = kwargs.get('k', 0)
+    a1 = kwargs.get('a1', 1)
     exp = kwargs.get('expansion', 1)
     epse = 10 ** logepse
     epsb = 10 ** logepsb
@@ -1361,7 +1374,7 @@ def powerlaw_redback_refreshed(time, redshift, thv, loge0, thc, thj, g1, et, s1,
                                  ek=e0, thc=thc, thj=thj, tho=thv, p=p, exp=exp,
                                  time=time, freq=frequency, redshift=redshift, Dl=dl, method=method,
                                  extra_structure_parameter_1=ss, extra_structure_parameter_2=aa,
-                                 res=res, xiN=xiN, steps=steps)
+                                 res=res, xiN=xiN, steps=steps, a1=a1)
     flux_density = ag_class.get_lightcurve()
     fmjy = flux_density / 1e-26
     if kwargs['output_format'] == 'flux_density':
@@ -1412,6 +1425,7 @@ def alternativepowerlaw_redback_refreshed(time, redshift, thv, loge0, thc, thj, 
     if isinstance(frequency, float):
         frequency = np.ones(len(time)) * frequency
     k = kwargs.get('k', 0)
+    a1 = kwargs.get('a1', 1)
     exp = kwargs.get('expansion', 1)
     epse = 10 ** logepse
     epsb = 10 ** logepsb
@@ -1434,7 +1448,7 @@ def alternativepowerlaw_redback_refreshed(time, redshift, thv, loge0, thc, thj, 
                                           ek=e0, thc=thc, thj=thj, tho=thv, p=p, exp=exp,
                                  time=time, freq=frequency, redshift=redshift, Dl=dl, method=method,
                                  extra_structure_parameter_1=ss, extra_structure_parameter_2=aa,
-                                 res=res, xiN=xiN, steps=steps)
+                                 res=res, xiN=xiN, steps=steps, a1=a1)
     flux_density = ag_class.get_lightcurve()
     fmjy = flux_density / 1e-26
     if kwargs['output_format'] == 'flux_density':
@@ -1485,6 +1499,7 @@ def doublegaussian_redback_refreshed(time, redshift, thv, loge0, thc, thj, g1, e
     if isinstance(frequency, float):
         frequency = np.ones(len(time)) * frequency
     k = kwargs.get('k', 0)
+    a1 = kwargs.get('a1', 1)
     exp = kwargs.get('expansion', 1)
     epse = 10 ** logepse
     epsb = 10 ** logepsb
@@ -1507,7 +1522,7 @@ def doublegaussian_redback_refreshed(time, redshift, thv, loge0, thc, thj, g1, e
                                  thc=thc, thj=thj, tho=thv, p=p, exp=exp, g1=g1, et=et, s1=s1,
                                  time=time, freq=frequency, redshift=redshift, Dl=dl, method=method,
                                  extra_structure_parameter_1=ss, extra_structure_parameter_2=aa,
-                                 res=res, xiN=xiN, steps=steps)
+                                 res=res, xiN=xiN, steps=steps, a1=a1)
     flux_density = ag_class.get_lightcurve()
     fmjy = flux_density / 1e-26
     if kwargs['output_format'] == 'flux_density':
@@ -1953,6 +1968,7 @@ def tophat(time, redshift, thv, loge0, thc, logn0, p, logepse, logepsb, ksin, g0
         return calc_ABmag_from_flux_density(flux_density).value
 
 
+@citation_wrapper('https://ui.adsabs.harvard.edu/abs/2025MNRAS.539.3319W/abstract')
 def tophat_from_emulator(time, redshift, thv, loge0, thc, logn0, p, logepse, logepsb, g0, **kwargs):
     """
     Evaluate a tophat afterglow model using an mpl regressor. Note that this model predicts for a fixed redshift = 0.01 and fixed ksin = 1.

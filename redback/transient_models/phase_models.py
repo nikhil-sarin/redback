@@ -54,15 +54,20 @@ def t0_base_model(time, t0, **kwargs):
     return output
 
 
-def _t0_with_extinction(time, t0, av, model_type='supernova', **kwargs):
+def _t0_with_extinction(time, t0, av_host, model_type='supernova', **kwargs):
     """
     :param time: time in mjd
     :param t0: start time in mjd
-    :param av: absolute mag extinction
-    :param model_type: what type of transient extinction function to use
-    :param kwargs: Must be all the parameters required by the base_model specified using kwargs['base_model']
-        and r_v, default is 3.1
-    :return: flux_density or magnitude depending on kwargs['output_format']
+    :param av_host: V-band extinction from host galaxy in magnitudes
+    :param kwargs: Must be all the parameters required by the base_model specified using kwargs['base_model'] plus:
+        - redshift: source redshift (required)
+        - av_mw: MW V-band extinction in magnitudes (default 0.0)
+        - rv_host: host R_V parameter (default 3.1)
+        - rv_mw: MW R_V parameter (default 3.1)
+        - host_law: host extinction law (default 'fitzpatrick99')
+        - mw_law: MW extinction law (default 'fitzpatrick99')
+        Available extinction laws: 'fitzpatrick99', 'fm07', 'calzetti00', 'odonnell94', 'ccm89'
+    :return: flux_density or magnitude depending on kwargs['output_format'] with extinction applied
     """
     output = namedtuple('output', ['time', 'observable'])
     function = extinction_model_functions[model_type]
@@ -71,7 +76,7 @@ def _t0_with_extinction(time, t0, av, model_type='supernova', **kwargs):
     time = (time - t0).to(uu.day).value
     transient_time = time[time >= 0.0]
     bad_time = time[time < 0.0]
-    output_real = function(transient_time, av=av, **kwargs)
+    output_real = function(transient_time, av_host=av_host, **kwargs)
     if kwargs['output_format'] == 'magnitude':
         output_fake = np.zeros(len(bad_time)) + 5000
     else:
@@ -81,83 +86,132 @@ def _t0_with_extinction(time, t0, av, model_type='supernova', **kwargs):
     return output
 
 @citation_wrapper('redback')
-def t0_afterglow_extinction(time, t0, av, **kwargs):
+def t0_afterglow_extinction(time, t0, av_host, **kwargs):
     """
+    Afterglow model with t0 parameter and host/MW extinction
+
     :param time: time in mjd
     :param t0: start time in mjd
-    :param av: absolute mag extinction
-    :param kwargs: Must be all the parameters required by the base_model specified using kwargs['base_model']
-        and r_v, default is 3.1
-    :return: flux_density or magnitude depending on kwargs['output_format']
+    :param av_host: V-band extinction from host galaxy in magnitudes
+    :param kwargs: Must be all the parameters required by the base_model specified using kwargs['base_model'] plus:
+        - redshift: source redshift (required)
+        - av_mw: MW V-band extinction in magnitudes (default 0.0)
+        - rv_host: host R_V parameter (default 3.1)
+        - rv_mw: MW R_V parameter (default 3.1)
+        - host_law: host extinction law (default 'fitzpatrick99')
+        - mw_law: MW extinction law (default 'fitzpatrick99')
+        Available extinction laws: 'fitzpatrick99', 'fm07', 'calzetti00', 'odonnell94', 'ccm89'
+    :return: flux_density or magnitude depending on kwargs['output_format'] with extinction applied
     """
-    summary = _t0_with_extinction(time=time, t0=t0, av=av, model_type='afterglow', **kwargs)
+    summary = _t0_with_extinction(time=time, t0=t0, av_host=av_host, model_type='afterglow', **kwargs)
     return summary.observable
 
 @citation_wrapper('redback')
-def t0_supernova_extinction(time, t0, av, **kwargs):
+def t0_supernova_extinction(time, t0, av_host, **kwargs):
     """
+    Supernova model with t0 parameter and host/MW extinction
+
     :param time: time in mjd
     :param t0: start time in mjd
-    :param av: absolute mag extinction
-    :param kwargs: Must be all the parameters required by the base_model specified using kwargs['base_model']
-        and r_v, default is 3.1
-    :return: flux_density or magnitude depending on kwargs['output_format']
+    :param av_host: V-band extinction from host galaxy in magnitudes
+    :param kwargs: Must be all the parameters required by the base_model specified using kwargs['base_model'] plus:
+        - redshift: source redshift (required)
+        - av_mw: MW V-band extinction in magnitudes (default 0.0)
+        - rv_host: host R_V parameter (default 3.1)
+        - rv_mw: MW R_V parameter (default 3.1)
+        - host_law: host extinction law (default 'fitzpatrick99')
+        - mw_law: MW extinction law (default 'fitzpatrick99')
+        Available extinction laws: 'fitzpatrick99', 'fm07', 'calzetti00', 'odonnell94', 'ccm89'
+    :return: flux_density or magnitude depending on kwargs['output_format'] with extinction applied
     """
-    summary = _t0_with_extinction(time=time, t0=t0, av=av, model_type='supernova', **kwargs)
+    summary = _t0_with_extinction(time=time, t0=t0, av_host=av_host, model_type='supernova', **kwargs)
     return summary.observable
 
 @citation_wrapper('redback')
-def t0_kilonova_extinction(time, t0, av, **kwargs):
+def t0_kilonova_extinction(time, t0, av_host, **kwargs):
     """
+    Kilonova model with t0 parameter and host/MW extinction
+
     :param time: time in mjd
     :param t0: start time in mjd
-    :param av: absolute mag extinction
-    :param kwargs: Must be all the parameters required by the base_model specified using kwargs['base_model']
-        and r_v, default is 3.1
-    :return: flux_density or magnitude depending on kwargs['output_format']
+    :param av_host: V-band extinction from host galaxy in magnitudes
+    :param kwargs: Must be all the parameters required by the base_model specified using kwargs['base_model'] plus:
+        - redshift: source redshift (required)
+        - av_mw: MW V-band extinction in magnitudes (default 0.0)
+        - rv_host: host R_V parameter (default 3.1)
+        - rv_mw: MW R_V parameter (default 3.1)
+        - host_law: host extinction law (default 'fitzpatrick99')
+        - mw_law: MW extinction law (default 'fitzpatrick99')
+        Available extinction laws: 'fitzpatrick99', 'fm07', 'calzetti00', 'odonnell94', 'ccm89'
+    :return: flux_density or magnitude depending on kwargs['output_format'] with extinction applied
     """
-    summary = _t0_with_extinction(time=time, t0=t0, av=av, model_type='kilonova', **kwargs)
+    summary = _t0_with_extinction(time=time, t0=t0, av_host=av_host, model_type='kilonova', **kwargs)
     return summary.observable
 
 @citation_wrapper('redback')
-def t0_tde_extinction(time, t0, av, **kwargs):
+def t0_tde_extinction(time, t0, av_host, **kwargs):
     """
+    TDE model with t0 parameter and host/MW extinction
+
     :param time: time in mjd
     :param t0: start time in mjd
-    :param av: absolute mag extinction
-    :param kwargs: Must be all the parameters required by the base_model specified using kwargs['base_model']
-        and r_v, default is 3.1
-    :return: flux_density or magnitude depending on kwargs['output_format']
+    :param av_host: V-band extinction from host galaxy in magnitudes
+    :param kwargs: Must be all the parameters required by the base_model specified using kwargs['base_model'] plus:
+        - redshift: source redshift (required)
+        - av_mw: MW V-band extinction in magnitudes (default 0.0)
+        - rv_host: host R_V parameter (default 3.1)
+        - rv_mw: MW R_V parameter (default 3.1)
+        - host_law: host extinction law (default 'fitzpatrick99')
+        - mw_law: MW extinction law (default 'fitzpatrick99')
+        - peak_time_mjd: peak time in mjd (if provided, will be converted to peak_time relative to t0)
+        Available extinction laws: 'fitzpatrick99', 'fm07', 'calzetti00', 'odonnell94', 'ccm89'
+    :return: flux_density or magnitude depending on kwargs['output_format'] with extinction applied
     """
     if 'peak_time_mjd' in kwargs:
         kwargs['peak_time'] = kwargs['peak_time_mjd'] - t0
-    summary = _t0_with_extinction(time=time, t0=t0, av=av, model_type='tde', **kwargs)
+    summary = _t0_with_extinction(time=time, t0=t0, av_host=av_host, model_type='tde', **kwargs)
     return summary.observable
 
 @citation_wrapper('redback')
-def t0_magnetar_driven_extinction(time, t0, av, **kwargs):
+def t0_magnetar_driven_extinction(time, t0, av_host, **kwargs):
     """
+    Magnetar-driven model with t0 parameter and host/MW extinction
+
     :param time: time in mjd
     :param t0: start time in mjd
-    :param av: absolute mag extinction
-    :param kwargs: Must be all the parameters required by the base_model specified using kwargs['base_model']
-        and r_v, default is 3.1
-    :return: flux_density or magnitude depending on kwargs['output_format']
+    :param av_host: V-band extinction from host galaxy in magnitudes
+    :param kwargs: Must be all the parameters required by the base_model specified using kwargs['base_model'] plus:
+        - redshift: source redshift (required)
+        - av_mw: MW V-band extinction in magnitudes (default 0.0)
+        - rv_host: host R_V parameter (default 3.1)
+        - rv_mw: MW R_V parameter (default 3.1)
+        - host_law: host extinction law (default 'fitzpatrick99')
+        - mw_law: MW extinction law (default 'fitzpatrick99')
+        Available extinction laws: 'fitzpatrick99', 'fm07', 'calzetti00', 'odonnell94', 'ccm89'
+    :return: flux_density or magnitude depending on kwargs['output_format'] with extinction applied
     """
-    summary = _t0_with_extinction(time=time, t0=t0, av=av, model_type='magnetar_driven', **kwargs)
+    summary = _t0_with_extinction(time=time, t0=t0, av_host=av_host, model_type='magnetar_driven', **kwargs)
     return summary.observable
 
 @citation_wrapper('redback')
-def t0_shock_powered_extinction(time, t0, av, **kwargs):
+def t0_shock_powered_extinction(time, t0, av_host, **kwargs):
     """
+    Shock-powered model with t0 parameter and host/MW extinction
+
     :param time: time in mjd
     :param t0: start time in mjd
-    :param av: absolute mag extinction
-    :param kwargs: Must be all the parameters required by the base_model specified using kwargs['base_model']
-        and r_v, default is 3.1
-    :return: flux or magnitude depending on kwargs['output_format']
+    :param av_host: V-band extinction from host galaxy in magnitudes
+    :param kwargs: Must be all the parameters required by the base_model specified using kwargs['base_model'] plus:
+        - redshift: source redshift (required)
+        - av_mw: MW V-band extinction in magnitudes (default 0.0)
+        - rv_host: host R_V parameter (default 3.1)
+        - rv_mw: MW R_V parameter (default 3.1)
+        - host_law: host extinction law (default 'fitzpatrick99')
+        - mw_law: MW extinction law (default 'fitzpatrick99')
+        Available extinction laws: 'fitzpatrick99', 'fm07', 'calzetti00', 'odonnell94', 'ccm89'
+    :return: flux_density or magnitude depending on kwargs['output_format'] with extinction applied
     """
-    summary = _t0_with_extinction(time=time, t0=t0, av=av, model_type='shock_powered', **kwargs)
+    summary = _t0_with_extinction(time=time, t0=t0, av_host=av_host, model_type='shock_powered', **kwargs)
     return summary.observable
     
 @citation_wrapper('redback')

@@ -1,4 +1,3 @@
-import george.modeling
 from redback.transient_models import phenomenological_models as pm
 
 def calculate_flux_with_labels(time, t0, tau_rise, tau_fall, labels, **kwargs):
@@ -33,13 +32,3 @@ def calculate_flux_with_labels(time, t0, tau_rise, tau_fall, labels, **kwargs):
     flux_results = {f'{label}': flux_matrix[i] for i, label in enumerate(labels)}
 
     return flux_results
-
-class BazinGPModel(george.modeling.Model):
-    def __init__(self, band_labels):
-        self.parameter_names = ['t0', 'tau_rise', 'tau_fall']
-        self.band_labels = band_labels
-        for label in band_labels:
-            self.parameter_names.extend([f'a_{label}', f'b_{label}'])
-
-        def get_flux(self, t):
-            return calculate_flux_with_labels(t, **self.get_parameter_vector())

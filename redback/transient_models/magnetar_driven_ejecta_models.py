@@ -615,10 +615,13 @@ def _general_metzger_magnetar_driven_kilonova_model(time, mej, vej, beta, kappa,
     v0 = vej * speed_of_light
     ek_tot_0 = 0.5 * m0 * v0 ** 2
 
-    # set up mass and velocity layers
+    # set up mass and velocity layers and normalize them
     vmin = vej
     vel = np.linspace(vmin, vmax, mass_len)
     m_array = mej * (vel/vmin)**(-beta)
+    total_mass = np.sum(m_array)
+    normalised_mass = m_array * (mej/ total_mass)
+    m_array = normalised_mass
     v_m = vel * speed_of_light
 
     # set up arrays

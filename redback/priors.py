@@ -45,14 +45,25 @@ def get_priors(model, times=None, y=None, yerr=None, dt=None, **kwargs):
         logger.info(f'Setting up prior for base model {model}.')
         logger.info(f'You will need to explicitly set a prior on t0 and or extinction if relevant')
 
+    # Try loading from main priors folder first
     try:
         filename = os.path.join(os.path.dirname(__file__), 'priors', f'{model}.prior')
         priors.from_file(filename)
+        return priors
     except FileNotFoundError:
-        logger.warning(f'No prior file found for model {model}. '
-                    f'Perhaps you also want to set up the prior for the base model? '
-                    f'Or you may need to set up your prior explicitly.')
+        pass  # Continue to try the non_default_priors folder
+
+    # Try loading from non_default_priors subfolder
+    try:
+        filename = os.path.join(os.path.dirname(__file__), 'priors', 'non_default_priors', f'{model}.prior')
+        priors.from_file(filename)
+        return priors
+    except FileNotFoundError:
+        logger.warning(f'No prior file found for model {model} in either priors or non_default_priors folders. '
+                       f'Perhaps you also want to set up the prior for the base model? '
+                       f'Or you may need to set up your prior explicitly.')
         logger.info('Returning Empty PriorDict.')
+
     return priors
 
 
