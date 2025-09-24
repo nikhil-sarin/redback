@@ -2116,3 +2116,47 @@ def shocked_cocoon_and_arnett(time, redshift, mej_c, vej_c, eta, tshock, shocked
             return sed.get_correct_output_format_from_spectra(time=time_obs, time_eval=time_observer_frame,
                                                               spectra=spectra, lambda_array=lambda_observer_frame,
                                                               **kwargs)
+                                                              
+def shocked_cocoon_csm_and_arnett(time, redshift, e_eng, m_csm, r_csm, kappa, mej, f_nickel, vej, **kwargs):
+    """
+    Emission from a shocked cocoon and arnett model for radioactive decay.
+    We assume two different photospheres here.
+
+    NOT UPDATED YET
+    :param time: Time in days in observer frame
+    :param redshift: redshift
+    :param mej_c: cocoon mass (in solar masses)
+    :param vej_c: cocoon material velocity (in c)
+    :param eta: slope for the cocoon density profile
+    :param tshock: shock breakout time (in seconds)
+    :param shocked_fraction: fraction of the cocoon shocked
+    :param cos_theta_cocoon: cosine of the cocoon opening angle
+    :param kappa: opacity
+    :param mej: supernova ejecta mass (in solar masses)
+    :param f_nickel: fraction of nickel for ejecta mass
+    :param vej: supernova ejecta velocity (in km/s)
+    :param kwargs: Extra parameters used by model e.g., kappa_gamma, temperature_floor, and any kwarg to
+                change any other input physics/parameters from default.
+    :param frequency: Required if output_format is 'flux_density'.
+        frequency to calculate - Must be same length as time array or a single number).
+    :param bands: Required if output_format is 'magnitude' or 'flux'.
+    :param output_format: 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
+    :param lambda_array: Optional argument to set your desired wavelength array (in Angstroms) to evaluate the SED on.
+    :param cosmology: Cosmology to use for luminosity distance calculation. Defaults to Planck18. Must be a astropy.cosmology object.
+    :return: set by output format - 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
+    """
+    from jet_shock_in_csm_cocoon_cooling_model import cocoon_cooling_model
+    cosmology = kwargs.get('cosmology', cosmo)
+    dl = cosmology.luminosity_distance(redshift).cgs.value
+    time_obs = time   
+
+    frequency = kwargs['frequency']
+    output = cocoon_cooling_model(time=time, redshift=redshift, e_eng=e_eng, m_csm=m_csm, r_csm=r_csm, kappa=kappa, bands=frequency)
+    frequency, time = calc_kcorrected_properties(frequency=frequency, redshift=redshift, time=time)
+    lbol = arnett_bolometric(time=time, f_nickel=f_nickel, mej=mej, vej=vej,
+                             interaction_process=ip.Diffusion, kappa=kappa, **kwargs)
+    photo = photosphere.TemperatureFloor(time=time, luminosity=lbol, vej=vej, **kwargs)
+    sed_1 = sed.Blackbody(temperature=photo.photosphere_temperature,
+                          r_photosphere=photo.r_photosphere, frequency=frequency, luminosity_distance=dl)
+    flux_density_arnett = sed_1.flux_density.to(uu.mJy).value
+    return flux_density_arnett + output                                                           
