@@ -7,6 +7,8 @@ import astropy.units as uu
 import numpy as np
 from collections import namedtuple
 from scipy.special import erf
+from redback.wrappers import cond_jit
+
 try:
     import afterglowpy as afterglow
 
@@ -25,7 +27,6 @@ jet_spreading_models = ['tophat', 'cocoon', 'gaussian',
                           'smoothpowerlaw', 'powerlawcore',
                           'tophat']
 
-import numba as nb
 
 # Physical constants (as module-level constants for Numba)
 MP = 1.6726231e-24  # g, mass of proton
@@ -39,7 +40,7 @@ DAY_TO_S = 86400.0
 
 
 # Numba-compiled utility functions
-@nb.jit(nopython=True, fastmath=True, cache=True)
+@cond_jit(nopython=True, fastmath=True, cache=True)
 def get_segments_numba(thj, res):
     """Calculate jet segments - matches Python exactly"""
     latstep = thj / res
@@ -63,7 +64,7 @@ def get_segments_numba(thj, res):
     return Omi, thi, phii, rotstep, latstep
 
 
-@nb.jit(nopython=True, fastmath=True, cache=True)
+@cond_jit(nopython=True, fastmath=True, cache=True)
 def erf_approximation_numba(x):
     """Numba-compatible erf approximation that matches scipy.special.erf closely"""
     # Use a high-precision approximation
@@ -88,7 +89,7 @@ def erf_approximation_numba(x):
     return result
 
 
-@nb.jit(nopython=True, fastmath=True, cache=True)
+@cond_jit(nopython=True, fastmath=True, cache=True)
 def get_structure_numba(gamma, en, thi, thc, method_id, s, a, thj):
     """Calculate jet structure - matches Python exactly"""
     n = thi.shape[0]
@@ -147,7 +148,7 @@ def get_structure_numba(gamma, en, thi, thc, method_id, s, a, thj):
     return Gs, Ei
 
 
-@nb.jit(nopython=True, fastmath=True, cache=True)
+@cond_jit(nopython=True, fastmath=True, cache=True)
 def get_obsangle_numba(phii, thi, tho):
     """Calculate observer angles - matches Python exactly"""
     phi = 0.0  # rotational symmetry
@@ -178,7 +179,7 @@ def get_obsangle_numba(phii, thi, tho):
     return Obsa
 
 
-@nb.jit(nopython=True, fastmath=True, cache=True)
+@cond_jit(nopython=True, fastmath=True, cache=True)
 def RK4_step_numba(ghat, dm_rk4, G_rk4, M, fac, therm):
     """Single RK4 step - matches Python exactly"""
     ghatm1 = ghat - 1.0
@@ -191,7 +192,7 @@ def RK4_step_numba(ghat, dm_rk4, G_rk4, M, fac, therm):
                                                    ghatm1 * (1 + 1.0 / G_rk4_sq))))
 
 
-@nb.jit(nopython=True, fastmath=True, cache=True)
+@cond_jit(nopython=True, fastmath=True, cache=True)
 def get_gamma_numba(G0, Eps, therm, steps, n0, k):
     """Calculate gamma evolution - matches Python exactly"""
     n_g0 = G0.shape[0]
@@ -248,7 +249,7 @@ def get_gamma_numba(G0, Eps, therm, steps, n0, k):
     return state_G.T, (10.0 ** state_dm).T, state_gH.T
 
 
-@nb.jit(nopython=True, fastmath=True, cache=True)
+@cond_jit(nopython=True, fastmath=True, cache=True)
 def calc_afterglow_step1_numba(G, dm, p, xp, Fx, EB, Ee, n, k, thi, ghat, rotstep, latstep, xiN, is_expansion, a1, res):
     """Calculate synchrotron parameters - matches Python exactly"""
     size = G.shape[0]
@@ -321,7 +322,7 @@ def calc_afterglow_step1_numba(G, dm, p, xp, Fx, EB, Ee, n, k, thi, ghat, rotste
     return beta, Ne, OmG, R, B, gm, nump, Pp, KT
 
 
-@nb.jit(nopython=True, fastmath=True, cache=True)
+@cond_jit(nopython=True, fastmath=True, cache=True)
 def calc_afterglow_step2_numba(Dl, Om0, rotstep, latstep, Obsa, beta, Ne, OmG, R, B, gm, nump, Pp, KT, G, is_expansion):
     """Calculate emission properties - matches Python exactly"""
     Dl2 = Dl * Dl
@@ -369,7 +370,7 @@ def calc_afterglow_step2_numba(Dl, Om0, rotstep, latstep, Obsa, beta, Ne, OmG, R
     return FBB, Fmax, nuc, num, tobs
 
 
-@nb.jit(nopython=True, fastmath=True, cache=True)
+@cond_jit(nopython=True, fastmath=True, cache=True)
 def get_ag_numba(FBB, nuc, num, nu1, Fmax, p):
     """Calculate flux at frequency - matches Python exactly with overlapping conditions"""
     Fluxt = np.zeros(num.shape[0], dtype=np.float64)
@@ -396,7 +397,7 @@ def get_ag_numba(FBB, nuc, num, nu1, Fmax, p):
     for i in range(len(Fluxt)):
         Fluxt[i] = min(FBB_adj[i], Fluxt[i])
 
-@nb.jit(nopython=True, fastmath=True, cache=True)
+@cond_jit(nopython=True, fastmath=True, cache=True)
 def get_gamma_refreshed_numba(G0, G1, Eps, Eps2, s1, therm, steps, n0, k):
     """Calculate gamma evolution with energy injection - matches Python exactly"""
     Eps0 = Eps
