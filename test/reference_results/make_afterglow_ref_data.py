@@ -6,7 +6,7 @@ To regenerate the data run the following command from this directory:
 import numpy as np
 import redback
 
-from ref_data_utils import make_ref_data, test_on_ref_data
+from redback.test_utils.ref_data_utils import make_ref_data, test_on_ref_data
 
 
 time = np.linspace(0.1, 50, 100)
