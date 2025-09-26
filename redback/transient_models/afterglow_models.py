@@ -397,6 +397,8 @@ def get_ag_numba(FBB, nuc, num, nu1, Fmax, p):
     for i in range(len(Fluxt)):
         Fluxt[i] = min(FBB_adj[i], Fluxt[i])
 
+    return Fluxt
+
 @cond_jit(nopython=True, fastmath=True, cache=True)
 def get_gamma_refreshed_numba(G0, G1, Eps, Eps2, s1, therm, steps, n0, k):
     """Calculate gamma evolution with energy injection - matches Python exactly"""
