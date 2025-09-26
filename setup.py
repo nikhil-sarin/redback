@@ -18,6 +18,7 @@ setup(
     package_data={'redback': ['priors/*', 'tables/*', 'plot_styles/*']},
     install_requires=[
         "numpy",
+        "numba",
         "setuptools",
         "pandas",
         "scipy",
