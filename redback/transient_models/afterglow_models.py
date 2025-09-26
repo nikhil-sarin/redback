@@ -492,7 +492,7 @@ class RedbackAfterglows:
         Script was originally written by En-Tzu Lin <entzulin@gapp.nthu.edu.tw> and Gavin Lamb <g.p.lamb@ljmu.ac.uk>
         and modified and implemented into redback by Nikhil Sarin <nsarin.astro@gmail.com>.
         Includes wind-like mediums, expansion and multiple jet structures.
-        Includes SSA and uses Numba for acceleration.
+        Includes SSA and uses Numba for acceleration (or numpy if Numba is not installed).
 
         :param k: 0 or 2 for constant or wind density
         :param n: ISM, ambient number density
@@ -649,7 +649,7 @@ class RedbackAfterglowsRefreshed(RedbackAfterglows):
         Script was originally written by En-Tzu Lin <entzulin@gapp.nthu.edu.tw> and Gavin Lamb <g.p.lamb@ljmu.ac.uk>
         and modified and implemented into redback by Nikhil Sarin <nsarin.astro@gmail.com>.
         Includes wind-like mediums, expansion and multiple jet structures.
-        Includes SSA and uses Numba for acceleration.
+        Includes SSA and uses Numba for acceleration (or numpy if Numba is not installed).
 
         :param k: 0 or 2 for constant or wind density
         :param n: ISM, ambient number density
