@@ -200,6 +200,239 @@ def villar_sne(time, aa, cc, t0, tau_rise, tau_fall, gamma, nu, **kwargs):
     flux[mask2] = norm[mask2] * ((1 - nu) * np.exp(-((time[mask2] - t0 - gamma)/tau_fall)))
     return np.concatenate((flux[mask1], flux[mask2]))
 
+def evolving_blackbody(time, redshift, temperature_0, radius_0,
+                            temp_rise_index, temp_decline_index, temp_peak_time,
+                            radius_rise_index, radius_decline_index, radius_peak_time,
+                            reference_time=1.0, **kwargs):
+    """
+    Blackbody spectrum with piecewise evolving temperature and radius
+
+    :param time: time in observer frame in days
+    :param redshift: source redshift
+    :param temperature_0: initial blackbody temperature in Kelvin at reference_time
+    :param radius_0: initial blackbody radius in cm at reference_time
+    :param temp_rise_index: temperature rise T(t) ∝ t^temp_rise_index for t < temp_peak_time
+    :param temp_decline_index: temperature decline T(t) ∝ t^(-temp_decline_index) for t > temp_peak_time
+    :param temp_peak_time: time in days when temperature peaks
+    :param radius_rise_index: radius rise R(t) ∝ t^radius_rise_index for t < radius_peak_time
+    :param radius_decline_index: radius decline R(t) ∝ t^(-radius_decline_index) for t > radius_peak_time
+    :param radius_peak_time: time in days when radius peaks
+    :param reference_time: reference time for temperature_0, radius_0, and pl_amplitude in days (defaults to 1.0)
+    :param kwargs: Additional parameters
+    :param frequency: Required if output_format is 'flux_density'
+    :param bands: Required if output_format is 'magnitude' or 'flux'
+    :param output_format: 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
+    :param lambda_array: Optional wavelength array in Angstroms to evaluate SED
+    :param cosmology: Cosmology object for luminosity distance calculation
+    :return: set by output format - 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
+    """
+    from astropy.cosmology import Planck18 as cosmo
+    from astropy import units as uu
+    from redback.utils import lambda_to_nu, calc_kcorrected_properties
+    import redback.sed as sed
+    from collections import namedtuple
+    cosmology = kwargs.get('cosmology', cosmo)
+    dl = cosmology.luminosity_distance(redshift).cgs.value
+    reference_wavelength = kwargs.get('reference_wavelength', 5000.0)  # Angstroms
+
+    if kwargs['output_format'] == 'flux_density':
+        frequency = kwargs['frequency']
+        frequency, time = calc_kcorrected_properties(frequency=frequency, redshift=redshift, time=time)
+
+        # Calculate evolving temperature and radius
+        temperature, radius = _powerlaw_blackbody_evolution(time=time, temperature_0=temperature_0, radius_0=radius_0,
+                                                            temp_rise_index=temp_rise_index,
+                                                            temp_decline_index=temp_decline_index,
+                                                            temp_peak_time=temp_peak_time,
+                                                            radius_rise_index=radius_rise_index,
+                                                            radius_decline_index=radius_decline_index,
+                                                            radius_peak_time=radius_peak_time,
+                                                            reference_time=reference_time)
+
+        # Create combined SED with time-evolving power law
+        sed_combined = sed.Blackbody(temperature=temperature, r_photosphere=radius,
+                                                 frequency=frequency, luminosity_distance=dl)
+        flux_density = sed_combined.flux_density
+        return flux_density.to(uu.mJy).value
+    else:
+        time_obs = time
+        lambda_observer_frame = kwargs.get('lambda_array', np.geomspace(100, 60000, 100))
+        time_temp = np.geomspace(0.1, 3000, 300)  # in days
+        time_observer_frame = time_temp * (1. + redshift)
+        frequency, time = calc_kcorrected_properties(frequency=lambda_to_nu(lambda_observer_frame),
+                                                     redshift=redshift, time=time_observer_frame)
+
+        # Calculate evolving temperature and radius
+        temperature, radius = _powerlaw_blackbody_evolution(time=time, temperature_0=temperature_0, radius_0=radius_0,
+                                                            temp_rise_index=temp_rise_index,
+                                                            temp_decline_index=temp_decline_index,
+                                                            temp_peak_time=temp_peak_time,
+                                                            radius_rise_index=radius_rise_index,
+                                                            radius_decline_index=radius_decline_index,
+                                                            radius_peak_time=radius_peak_time,
+                                                            reference_time=reference_time)
+
+        # Create combined SED with time-evolving power law
+        sed_combined = sed.Blackbody(temperature=temperature, r_photosphere=radius,
+                                                 frequency=frequency[:, None], luminosity_distance=dl)
+        fmjy = sed_combined.flux_density.T
+        spectra = fmjy.to(uu.mJy).to(uu.erg / uu.cm ** 2 / uu.s / uu.Angstrom,
+                                     equivalencies=uu.spectral_density(wav=lambda_observer_frame * uu.Angstrom))
+        if kwargs['output_format'] == 'spectra':
+            return namedtuple('output', ['time', 'lambdas', 'spectra'])(time=time_observer_frame,
+                                                                        lambdas=lambda_observer_frame,
+                                                                        spectra=spectra)
+        else:
+            return sed.get_correct_output_format_from_spectra(time=time_obs, time_eval=time_observer_frame,
+                                                              spectra=spectra, lambda_array=lambda_observer_frame,
+                                                              **kwargs)
+
+def evolving_blackbody_with_features(time, redshift, temperature_0, radius_0,
+                                     temp_rise_index, temp_decline_index, temp_peak_time,
+                                     radius_rise_index, radius_decline_index, radius_peak_time,
+                                     reference_time=1.0, **kwargs):
+    """
+    Blackbody spectrum with piecewise evolving temperature and radius, plus time-dependent spectral features
+
+    :param time: time in observer frame in days
+    :param redshift: source redshift
+    :param temperature_0: initial blackbody temperature in Kelvin at reference_time
+    :param radius_0: initial blackbody radius in cm at reference_time
+    :param temp_rise_index: temperature rise T(t) ∝ t^temp_rise_index for t < temp_peak_time
+    :param temp_decline_index: temperature decline T(t) ∝ t^(-temp_decline_index) for t > temp_peak_time
+    :param temp_peak_time: time in days when temperature peaks
+    :param radius_rise_index: radius rise R(t) ∝ t^radius_rise_index for t < radius_peak_time
+    :param radius_decline_index: radius decline R(t) ∝ t^(-radius_decline_index) for t > radius_peak_time
+    :param radius_peak_time: time in days when radius peaks
+    :param reference_time: reference time for temperature_0, radius_0 in days (defaults to 1.0)
+    :param kwargs: Additional parameters
+    :param frequency: Required if output_format is 'flux_density'
+    :param bands: Required if output_format is 'magnitude' or 'flux'
+    :param output_format: 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
+    :param lambda_array: Optional wavelength array in Angstroms to evaluate SED
+    :param cosmology: Cosmology object for luminosity distance calculation
+
+    Feature Parameters (dynamically numbered):
+    Features are defined by groups of parameters with pattern: {param}_feature_{N}
+    where N starts from 1. All features with the same N are grouped together.
+
+    Required for each feature N:
+    :param rest_wavelength_feature_N: Central wavelength in Angstroms
+    :param sigma_feature_N: Gaussian width in Angstroms
+    :param amplitude_feature_N: Amplitude (negative=absorption, positive=emission)
+    :param t_start_feature_N: Start time in source-frame days
+    :param t_end_feature_N: End time in source-frame days
+
+    Optional for each feature N (smooth mode only):
+    :param t_rise_feature_N: Rise time in source-frame days (default: 2.0)
+    :param t_fall_feature_N: Fall time in source-frame days (default: 5.0)
+
+    General parameters:
+    :param evolution_mode: 'smooth' or 'sharp' (default: 'smooth')
+    :param use_default_features: If True and no custom features found, use defaults (default: False)
+
+    :return: set by output format - 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
+    """
+    from astropy.cosmology import Planck18 as cosmo
+    from astropy import units as uu
+    from redback.utils import lambda_to_nu, calc_kcorrected_properties
+    import redback.sed as sed
+    from redback.transient_models.supernova_models import build_spectral_feature_list
+    from collections import namedtuple
+    import numpy as np
+
+    cosmology = kwargs.get('cosmology', cosmo)
+    dl = cosmology.luminosity_distance(redshift).cgs.value
+
+    # Build feature list from numbered parameters
+    feature_list = build_spectral_feature_list(**kwargs)
+
+    if kwargs['output_format'] == 'flux_density':
+        frequency = kwargs['frequency']
+        frequency, time = calc_kcorrected_properties(frequency=frequency, redshift=redshift, time=time)
+
+        # Calculate evolving temperature and radius
+        temperature, radius = _powerlaw_blackbody_evolution(
+            time=time, temperature_0=temperature_0, radius_0=radius_0,
+            temp_rise_index=temp_rise_index,
+            temp_decline_index=temp_decline_index,
+            temp_peak_time=temp_peak_time,
+            radius_rise_index=radius_rise_index,
+            radius_decline_index=radius_decline_index,
+            radius_peak_time=radius_peak_time,
+            reference_time=reference_time
+        )
+
+        # Convert time from days to seconds for feature application
+        time_seconds = time * 24 * 3600
+
+        # Create SED with spectral features
+        sed_combined = sed.BlackbodyWithSpectralFeatures(
+            temperature=temperature,
+            r_photosphere=radius,
+            frequency=frequency,
+            luminosity_distance=dl,
+            time=time_seconds,
+            feature_list=feature_list,
+            evolution_mode=kwargs.get('evolution_mode', 'smooth')
+        )
+        flux_density = sed_combined.flux_density
+        return flux_density.to(uu.mJy).value
+
+    else:
+        time_obs = time
+        lambda_observer_frame = kwargs.get('lambda_array', np.geomspace(100, 60000, 100))
+        time_temp = np.geomspace(0.1, 3000, 300)  # in days
+        time_observer_frame = time_temp * (1. + redshift)
+        frequency, time = calc_kcorrected_properties(
+            frequency=lambda_to_nu(lambda_observer_frame),
+            redshift=redshift,
+            time=time_observer_frame
+        )
+
+        # Calculate evolving temperature and radius
+        temperature, radius = _powerlaw_blackbody_evolution(
+            time=time, temperature_0=temperature_0, radius_0=radius_0,
+            temp_rise_index=temp_rise_index,
+            temp_decline_index=temp_decline_index,
+            temp_peak_time=temp_peak_time,
+            radius_rise_index=radius_rise_index,
+            radius_decline_index=radius_decline_index,
+            radius_peak_time=radius_peak_time,
+            reference_time=reference_time
+        )
+
+        # Convert time from days to seconds for feature application
+        time_seconds = time * 24 * 3600
+
+        # Create SED with spectral features
+        sed_combined = sed.BlackbodyWithSpectralFeatures(
+            temperature=temperature,
+            r_photosphere=radius,
+            frequency=frequency[:, None],
+            luminosity_distance=dl,
+            time=time_seconds,
+            feature_list=feature_list,
+            evolution_mode=kwargs.get('evolution_mode', 'smooth')
+        )
+        fmjy = sed_combined.flux_density.T
+        spectra = fmjy.to(uu.mJy).to(uu.erg / uu.cm ** 2 / uu.s / uu.Angstrom,
+                                     equivalencies=uu.spectral_density(wav=lambda_observer_frame * uu.Angstrom))
+
+        if kwargs['output_format'] == 'spectra':
+            return namedtuple('output', ['time', 'lambdas', 'spectra'])(
+                time=time_observer_frame,
+                lambdas=lambda_observer_frame,
+                spectra=spectra
+            )
+        else:
+            return sed.get_correct_output_format_from_spectra(
+                time=time_obs,
+                time_eval=time_observer_frame,
+                spectra=spectra,
+                lambda_array=lambda_observer_frame,
+                **kwargs
+            )
 
 def powerlaw_plus_blackbody(time, redshift, pl_amplitude, pl_slope, pl_evolution_index, temperature_0, radius_0,
                             temp_rise_index, temp_decline_index, temp_peak_time,

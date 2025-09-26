@@ -8,8 +8,9 @@ import redback.interaction_processes as ip
 import redback.sed as sed
 import redback.photosphere as photosphere
 from astropy.cosmology import Planck18 as cosmo  # noqa
-from redback.utils import calc_kcorrected_properties, citation_wrapper, logger, get_csm_properties, nu_to_lambda, lambda_to_nu, velocity_from_lorentz_factor
-from redback.constants import day_to_s, solar_mass, km_cgs, au_cgs, speed_of_light
+from redback.utils import (calc_kcorrected_properties, citation_wrapper, logger, get_csm_properties, nu_to_lambda,
+                           lambda_to_nu, velocity_from_lorentz_factor, build_spectral_feature_list)
+from redback.constants import day_to_s, solar_mass, km_cgs, au_cgs, speed_of_light, sigma_sb
 from inspect import isfunction
 import astropy.units as uu
 from collections import namedtuple
@@ -371,6 +372,349 @@ def _nickelcobalt_engine(time, f_nickel, mej, **kwargs):
     lbol = nickel_mass * (ni56_lum*np.exp(-time/ni56_life) + co56_lum * np.exp(-time/co56_life))
     return lbol
 
+def _compute_mass_and_nickel(vmin, esn, mej, f_nickel, f_mixing, mass_len,
+                            vmax, delta=0.0, n=12.0):
+    """
+    Compute the mass and nickel distributions following a broken power-law
+    density profile inspired by Matzner & McKee (1999)
+
+    :param vmin: minimum velocity in km/s
+    :param esn: supernova explosion energy in foe
+    :param mej: total ejecta mass in solar masses
+    :param f_nickel: fraction of nickel mass
+    :param f_mixing: fraction of nickel mass that is mixed
+    :param mass_len: number of mass shells
+    :param vmax: maximum velocity in km/s
+    :param delta: inner density profile exponent (actual mass dist is 2 - delta)
+    :param n: outer density profile exponent (actual mass dist is 2 - n)
+    :return: vel in km/s, v_m in cm/s, m_array in solar masses, ni_array in solar masses (total nickel mass is f_nickel*mej)
+    """
+    # Create velocity grid in km/s and convert to cm/s.
+    vel = np.geomspace(vmin, vmax, mass_len) # km/s
+    v_m = vel * km_cgs # cgs
+
+    # Define a break velocity; use shock speed from Matzner & McKee (1999).
+    num = 2 * (5 - delta) * (n - 5) * esn * 1e51
+    denom = (3 - delta)*(n - 3) * mej * solar_mass
+    v_break = np.sqrt(num/denom) / km_cgs
+
+    # For a uniform grid, determine the velocity spacing.
+    dv = vel[1] - vel[0]
+
+    # Compute the unnormalized mass distribution using vectorized operations.
+    # For the inner part: (v/v_break)^(2 - delta)
+    # For the outer part: (v/v_break)^(2 - n)
+    m_array = np.where(vel <= v_break,
+                       (vel / v_break)**(2.0 - delta),
+                       (vel / v_break)**(2.0 - n))
+    # Multiply by the bin width.
+    m_array = m_array * dv
+    # Normalize the mass array so that the summed mass equals mej.
+    total_mass = np.sum(m_array)
+    m_array = mej * m_array / total_mass
+
+    # --- Compute the nickel distribution ---
+    # Total nickel mass.
+    ni_mass = f_nickel * mej
+    # Only the inner fraction of the shells receives nickel.
+    limiting_index = int(mass_len * f_mixing)
+    limiting_index = max(limiting_index, 1)
+    # Using the same inner profile for the nickel weight.
+    _ni_array = np.where(vel[:limiting_index] <= v_break,
+                       (vel[:limiting_index] / v_break)**(2.0 - delta),
+                       (vel[:limiting_index] / v_break)**(2.0 - n))
+    # old, if only considering nickel in the inner power-law shells.
+    # _ni_array = (vel[:limiting_index] / vel[0])**(2.0 - delta)
+
+    _ni_array = ni_mass * _ni_array / np.sum(_ni_array)
+    ni_array = np.zeros_like(vel)
+    ni_array[:limiting_index] = _ni_array
+
+    return vel, v_m, m_array, ni_array
+
+
+def _nickelmixing(time, mej, esn, kappa, kappa_gamma, f_nickel, f_mixing,
+                  temperature_floor, **kwargs):
+    """
+    :param time: time array to evaluate model on in source frame in seconds
+    :param mej: ejecta mass in solar masses
+    :param esn: explosion energy in foe
+    :param beta: velocity power law slope (M ∝ v^-beta)
+    :param kappa: gray opacity at high temperatures (κ_max) [cm²/g], if use_gray_opacity is True, this is your kappa.
+    :param kappa_gamma: gamma-ray opacity (assumed constant)
+    :param f_nickel: fraction of total ejecta mass that is nickel
+    :param f_mixing: fraction of nickel mass that is mixed, a low value puts all the nickel in the first shell.
+    :param temperature_floor: temperature floor in K, also used as the transition T_crit.
+    :param kwargs: Additional keyword arguments:
+    :param use_broken_powerlaw (bool): whether to use a broken power-law for the mass and nickel distribution, True by default.
+    :param use_gray_opacity (bool): whether to use gray opacity, defaults to True.
+    :param delta (float): inner density profile exponent, used if use_broken_powerlaw is True.
+    :param nn (float): outer density profile exponent, used if use_broken_powerlaw is True.
+    :param beta (float): velocity power law slope, defaults to 3.0. Only used if use_broken_powerlaw is False.
+    :param mass_len (int): number of mass shells, defaults to 200.
+    :param vmax (float): maximum velocity in km/s, defaults to 100000.
+    :param vmin_frac (float): fraction of characteristic velocity that is the minimum velocity, defaults to 1.0.
+    :param kappa_min (float): minimum opacity when cool (default: 0.05 cm²/g).
+    :param kappa_n   (float): exponent controlling the transition (default: 4.0).
+    :return: namedtuple with time_temp (days), lbol, t_photosphere, r_photosphere, tau, and v_photosphere.
+    """
+    # Constants assumed defined elsewhere: day_to_s, solar_mass, km_cgs, speed_of_light, sigma_sb.
+    tdays = time / day_to_s
+    time_len = len(time)
+    mass_len = int(kwargs.get('mass_len', 1000))
+    ni_mass = f_nickel * mej
+    vmin_frac = kwargs.get('vmin_frac', 0.2)
+    vmin = vmin_frac * (2 * (esn * 1e51) / (mej * solar_mass)) ** 0.5 / 1e5
+    vmax = kwargs.get('vmax', 250000)
+    use_broken_powerlaw = kwargs.get('use_broken_powerlaw', True)
+    use_gray_opacity = kwargs.get('use_gray_opacity', True)
+
+    if use_gray_opacity:
+        kappa_eff = kappa
+    else:
+        # Parameters for temperature-dependent opacity:
+        # κ_max is the input "kappa" (for hot, fully ionized ejecta)
+        # κ_min and the exponent kappa_n control how quickly the opacity falls when T < T_floor.
+        kappa_max = kappa
+        kappa_min = kwargs.get('kappa_min', 0.001)  # example default in cm²/g
+        kappa_n = kwargs.get('kappa_n', 10)  # controls transition steepness
+
+    if use_broken_powerlaw:
+        delta = kwargs.get('delta', 1.0)
+        nn = kwargs.get('nn', 12.0)
+        diffusion_beta = 13.8 / 3 # effective photon diffusion term, extra /3 to cancel the 3 in the td_v formula.
+        vel, v_m, m_array, ni_array = _compute_mass_and_nickel(
+            vmin=vmin, esn=esn, mej=mej,
+            f_nickel=f_nickel, f_mixing=f_mixing,
+            mass_len=mass_len, vmax=vmax, delta=delta, n=nn)
+    else:
+        # Set up velocity array (in km/s)
+        beta = kwargs.get('beta', 3.0)  # velocity power-law slope
+        diffusion_beta = beta
+        vel = np.linspace(vmin, vmax, mass_len)
+        # Convert to cgs: cm/s
+        v_m = vel * km_cgs
+        # Construct a normalized mass distribution (in solar masses)
+        m_array = mej * (vel / vmin) ** (-beta)
+        total_mass = np.sum(m_array)
+        m_array = m_array * (mej / total_mass)
+        # Nickel distribution: put the nickel into the first few shells
+        limiting_index = int(mass_len * f_mixing)
+        limiting_index = max(limiting_index, 1)
+        _ni_array = (vel[:limiting_index] / vel[0]) ** (-beta)
+        _ni_array = ni_mass * _ni_array / np.sum(_ni_array)
+        ni_array = np.zeros_like(vel)
+        ni_array[:limiting_index] = _ni_array
+
+    # Radioactive decay luminosities and lifetimes (in erg/s/solar_mass and days, respectively)
+    ni56_lum = 6.45e43  # in erg/s/solar mass
+    co56_lum = 1.45e43
+    ni56_life = 8.8  # days
+    co56_life = 111.3  # days
+
+    # Energy deposition rate per shell as a function of time
+    edotr = np.zeros((mass_len, time_len))
+    edotr[:, :] = (ni56_lum * np.exp(-tdays / ni56_life) +
+                   co56_lum * np.exp(-tdays / co56_life))
+
+    # Pre-allocate arrays
+    energy_v = np.zeros((mass_len, time_len))
+    lum_rad = np.zeros((mass_len, time_len))
+    qdot_ni = np.zeros((mass_len, time_len))
+    eth_v = np.zeros((mass_len, time_len))
+    td_v = np.zeros((mass_len, time_len))
+    tlc_v = np.zeros((mass_len, time_len))
+    tau = np.zeros((mass_len, time_len))
+    v_photosphere = np.zeros(time_len)
+    r_photosphere = np.zeros(time_len)
+
+    dt = np.diff(time)
+
+    # Initial conditions: set initial thermal energy from kinetic energy,
+    # or zero because stability
+    energy_v[:, 0] = 0.  # 0.5 * m_array * solar_mass * v_m ** 2
+
+    # Loop over time steps: update energy and luminosity in each shell.
+    for ii in range(time_len - 1):
+        if use_gray_opacity:
+            kappa_eff = kappa
+        else:
+            # For the first time step, use κ_max; thereafter update using an effective temperature.
+            if ii == 0:
+                kappa_eff = kappa_max
+            else:
+                # Estimate a global effective luminosity and photospheric radius from previous step.
+                L_bol_prev = np.sum(lum_rad[:, ii - 1])
+                # print(L_bol_prev)
+                # For safety, if r_photosphere was not set (or is zero), use temperature_floor.
+                if r_photosphere[ii - 1] > 0:
+                    T_eff_prev = (L_bol_prev / (4.0 * np.pi * (r_photosphere[ii - 1]) ** 2 * sigma_sb)) ** 0.25
+                else:
+                    T_eff_prev = temperature_floor
+                # Update effective opacity using the temperature-dependent formula:
+                # When T_eff ≫ T_floor, κ_eff ~ κ_max; when T_eff ≪ T_floor, κ_eff → κ_min.
+                # kappa_eff = kappa_min + (kappa_max - kappa_min) / \
+                #             (1.0 + (temperature_floor / T_eff_prev) ** kappa_n)
+                kappa_eff = kappa_min + 0.5 * (kappa_max - kappa_min) * \
+                            (1.0 + np.tanh((T_eff_prev - temperature_floor) / (50000)))
+        # print(kappa_eff)
+        td_v[:, ii] = (kappa_eff * m_array * solar_mass * 3) / \
+                      (4 * np.pi * v_m * speed_of_light * time[ii] * diffusion_beta)
+        # Add minimum diffusion time to prevent instability
+        min_diffusion_time = dt[ii] * 1  # Minimum 10x timestep
+        td_v[:, ii] = np.maximum(td_v[:, ii], min_diffusion_time)
+
+        tau[:, ii] = (m_array * solar_mass * kappa_eff) / (4 * np.pi * (time[ii] * v_m) ** 2)
+        leakage = 3 * kappa_gamma * m_array * solar_mass / (4 * np.pi * v_m ** 2)
+        eth_v[:, ii] = 1 - np.exp(-leakage * time[ii] ** (-2))
+        qdot_ni[:, ii] = ni_array * edotr[:, ii] * eth_v[:, ii]
+        tlc_v[:, ii] = v_m * time[ii] / speed_of_light
+
+        # Prevent division by very small numbers
+        t_total = td_v[:, ii] + tlc_v[:, ii]
+        lum_rad[:, ii] = energy_v[:, ii] / np.maximum(t_total, dt[ii])
+        # Euler integration update for energy in each shell
+        energy_change = (qdot_ni[:, ii] - (energy_v[:, ii] / time[ii]) - lum_rad[:, ii]) * dt[ii]
+
+        # Limit energy change to prevent instability (max 50% change per timestep)
+        max_change = 0.5 * np.abs(energy_v[:, ii]) + 1e40  # Add small floor
+        energy_change = np.clip(energy_change, -max_change, max_change)
+
+        energy_v[:, ii + 1] = energy_v[:, ii] + energy_change
+        # Ensure energy stays positive
+        energy_v[:, ii + 1] = np.maximum(energy_v[:, ii + 1], 0)
+
+        # Determine the photospheric shell by finding where τ ≃ 1
+        photosphere_index = np.argmin(np.abs(tau[:, ii] - 1))
+        v_photosphere[ii] = v_m[photosphere_index]
+        r_photosphere[ii] = v_photosphere[ii] * time[ii]
+
+    # Final step for luminosity in the last time index
+    lum_rad[:, -1] = energy_v[:, -1] / (td_v[:, -1] + tlc_v[:, -1])
+    bolometric_luminosity = np.sum(lum_rad, axis=0)
+
+    # # Compute the effective temperature from the global bolometric luminosity and photospheric radius
+    temperature = (bolometric_luminosity / (4.0 * np.pi * (r_photosphere) ** 2 * sigma_sb)) ** 0.25
+    # Apply a temperature floor
+    mask = temperature < temperature_floor
+    temperature[mask] = temperature_floor
+    r_photosphere[mask] = np.sqrt(bolometric_luminosity[mask] / (4.0 * np.pi * temperature_floor ** 4 * sigma_sb))
+
+    from collections import namedtuple
+    outputs = namedtuple('output', ['time_temp', 'lbol', 't_photosphere',
+                                    'r_photosphere', 'tau', 'v_photosphere', 'energy_v'])
+    outputs.time_temp = time[1:-1] / day_to_s
+    outputs.lbol = bolometric_luminosity[1:-1]
+    outputs.t_photosphere = temperature[1:-1]
+    outputs.r_photosphere = r_photosphere[1:-1]
+    outputs.tau = tau[:, 1:-1]
+    outputs.energy_v = energy_v[:, 1:-1]
+    outputs.v_photosphere = v_photosphere[1:-1]
+    return outputs
+
+def nickelmixing_bolometric(time, mej, esn, kappa, kappa_gamma, f_nickel, f_mixing,
+                            temperature_floor, **kwargs):
+    """
+    A model for the bolometric light curve of a supernova with nickel mixing
+
+    :param time: time in source frame in days
+    :param mej: ejecta mass in solar masses
+    :param esn: energy of explosion in foe
+    :param kappa: gray opacity
+    :param kappa_gamma: gamma-ray opacity
+    :param f_nickel: fraction of nickel mass
+    :param f_mixing: fraction of nickel mass that is mixed, a low value puts all the nickel in the first shell.
+    :param kwargs: bolometric luminosity in erg/s
+    :param beta: power law slope for mass distribution; m = m_0 * (v/v_min)^(-beta)
+    :param stop_time: time to stop ODE at, default is 300 days
+    :param mass_len: number of mass shells, defaults to 200
+    :param vmax: maximum velocity in km/s, defaults to 100000
+    :param dense_resolution: resolution of dense time array, default is 1000
+    :return: bolometric luminosity
+    """
+    dense_resolution = kwargs.get("dense_resolution", 1000)
+    stop_time = kwargs.get("stop_time", 300)
+    time_temp = np.geomspace(0.01, int(stop_time), int(dense_resolution))
+    outputs = _nickelmixing(time_temp * 86400, mej=mej, esn=esn, kappa=kappa,
+                               kappa_gamma=kappa_gamma, f_nickel=f_nickel,
+                               f_mixing=f_mixing, temperature_floor=temperature_floor, **kwargs)
+    lbol = outputs.lbol
+    temp_times = outputs.time_temp
+    func = interp1d(temp_times, lbol, kind='cubic', fill_value='extrapolate')
+    return func(time)
+
+def nickelmixing(time, redshift, mej, esn, kappa, kappa_gamma, f_nickel, f_mixing,
+                 temperature_floor, **kwargs):
+    """
+    A model for the radioactive decay of a supernova with nickel mixing
+
+    :param time: time in observer frame in days
+    :param redshift: source redshift
+    :param mej: ejecta mass in solar masses
+    :param esn: energy of explosion in foe
+    :param vmax: maximum velocity of ejecta in km/s
+    :param kappa: gray opacity
+    :param kappa_gamma: gamma-ray opacity
+    :param f_nickel: fraction of nickel mass
+    :param f_mixing: fraction of nickel mass that is mixed, a low value puts all the nickel in the first shell.
+    :param kwargs: additional keyword arguments
+    :param beta: power law slope for mass distribution; m = m_0 * (v/v_min)^(-beta)
+    :param mass_len: number of mass shells, defaults to 200
+    :param vmax: maximum velocity in km/s, defaults to 100000
+    :param stop_time: time to stop ODE at, default is 300 days
+    :param dense_resolution: resolution of dense time array, default is 1000
+    :param frequency: Required if output_format is 'flux_density'.
+    frequency to calculate - Must be same length as time array or a single number).
+    :param bands: Required if output_format is 'magnitude' or 'flux'.
+    :param output_format: 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
+    :param lambda_array: Optional argument to set your desired wavelength array (in Angstroms) to evaluate the SED on.
+    :param cosmology: Cosmology to use for luminosity distance calculation. Defaults to Planck18. Must be a astropy.cosmology object.
+    :return: set by output format - 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
+    """
+    # cosmology = kwargs.get('cosmology', cosmo)
+    from astropy.cosmology import FlatLambdaCDM
+    cosmo = FlatLambdaCDM(H0=73, Om0=0.3)
+    dl = cosmo.luminosity_distance(redshift).cgs.value
+    # dl = cosmology.luminosity_distance(redshift).cgs.value
+    dense_resolution = kwargs.get("dense_resolution", 1000)
+    stop_time = kwargs.get("stop_time", 300)
+    time_temp = np.geomspace(0.01, int(stop_time), int(dense_resolution))
+    outputs = _nickelmixing(time_temp * 86400, mej=mej, esn=esn, kappa=kappa,
+                                                     kappa_gamma=kappa_gamma, f_nickel=f_nickel,
+                                                     f_mixing=f_mixing, temperature_floor=temperature_floor, **kwargs)
+    time_temp = outputs.time_temp
+    temperature = outputs.t_photosphere
+    r_photosphere = outputs.r_photosphere
+    if kwargs['output_format'] == 'flux_density':
+        frequency = kwargs['frequency']
+        # convert to source frame time and frequency
+        frequency, time = calc_kcorrected_properties(frequency=frequency, redshift=redshift, time=time)
+        temp_func = interp1d(time_temp, y=temperature)
+        rad_func = interp1d(time_temp, y=r_photosphere)
+        temp = temp_func(time)
+        rad = rad_func(time)
+        flux_density = sed.blackbody_to_flux_density(temperature=temp, r_photosphere=rad, frequency=frequency, dl=dl)
+        return flux_density.to(uu.mJy).value
+    else:
+        time_obs = time
+        lambda_observer_frame = kwargs.get('lambda_array', np.geomspace(100, 60000, 100))
+        time_observer_frame = time_temp * (1. + redshift)
+        frequency, time = calc_kcorrected_properties(frequency=lambda_to_nu(lambda_observer_frame),
+                                                     redshift=redshift, time=time_observer_frame)
+        fmjy = sed.blackbody_to_flux_density(temperature=temperature,
+                                         r_photosphere=r_photosphere, frequency=frequency[:, None], dl=dl)
+        fmjy = fmjy.T
+        spectra = fmjy.to(uu.mJy).to(uu.erg / uu.cm ** 2 / uu.s / uu.Angstrom,
+                                     equivalencies=uu.spectral_density(wav=lambda_observer_frame * uu.Angstrom))
+    if kwargs['output_format'] == 'spectra':
+        return namedtuple('output', ['time', 'lambdas', 'spectra'])(time=time_observer_frame,
+                                                                    lambdas=lambda_observer_frame,
+                                                                    spectra=spectra)
+    else:
+        return sed.get_correct_output_format_from_spectra(time=time_obs, time_eval=time_observer_frame,
+                                                      spectra=spectra, lambda_array=lambda_observer_frame,
+                                                      **kwargs)
+
 @citation_wrapper('https://ui.adsabs.harvard.edu/abs/1982ApJ...253..785A/abstract')
 def arnett_bolometric(time, f_nickel, mej, **kwargs):
     """
@@ -452,6 +796,148 @@ def arnett(time, redshift, f_nickel, mej, **kwargs):
             return sed.get_correct_output_format_from_spectra(time=time_obs, time_eval=time_observer_frame,
                                                               spectra=spectra, lambda_array=lambda_observer_frame,
                                                               **kwargs)
+
+
+@citation_wrapper('https://ui.adsabs.harvard.edu/abs/1982ApJ...253..785A/abstract')
+def arnett_with_features(time, redshift, f_nickel, mej, **kwargs):
+    """
+    A version of the arnett model where SED has time-evolving spectral features.
+
+    :param time: time in days
+    :param redshift: source redshift
+    :param f_nickel: fraction of nickel mass
+    :param mej: total ejecta mass in solar masses
+    :param kwargs: Must be all the kwargs required by the specific interaction_process, photosphere, sed methods used
+         e.g., for Diffusion and TemperatureFloor: kappa, kappa_gamma, vej (km/s), temperature_floor
+    :param interaction_process: Default is Diffusion.
+            Can also be None in which case the output is just the raw engine luminosity, or another interaction process.
+    :param photosphere: Default is TemperatureFloor.
+            kwargs must have vej or relevant parameters if using different photosphere model
+    :param sed: Default is BlackbodyWithFeatures for Type Ia spectra.
+    :param frequency: Required if output_format is 'flux_density'.
+        frequency to calculate - Must be same length as time array or a single number).
+    :param bands: Required if output_format is 'magnitude' or 'flux'.
+    :param output_format: 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
+    :param lambda_array: Optional argument to set your desired wavelength array (in Angstroms) to evaluate the SED on.
+    :param cosmology: Cosmology to use for luminosity distance calculation. Defaults to Planck18. Must be a astropy.cosmology object.
+    :param feature_list: Optional list of spectral features. If None, uses default Type Ia features.
+
+    Feature Parameters (dynamically numbered):
+    Features are defined by groups of parameters with pattern: {param}_feature_{N}
+    where N starts from 1. All features with the same N are grouped together.
+
+    Required for each feature N:
+    :param rest_wavelength_feature_N: Central wavelength in Angstroms
+    :param sigma_feature_N: Gaussian width in Angstroms
+    :param amplitude_feature_N: Amplitude (negative=absorption, positive=emission), percentage of continuum (e.g., -0.4 = 40% absorption)
+    :param t_start_feature_N: Start time in source-frame days
+    :param t_end_feature_N: End time in source-frame days
+
+    Optional for each feature N (smooth mode only):
+    :param t_rise_feature_N: Rise time in source-frame days (default: 2.0)
+    :param t_fall_feature_N: Fall time in source-frame days (default: 5.0)
+
+    General parameters:
+    :param evolution_mode: 'smooth' or 'sharp' (default: 'smooth')
+    :param use_default_features: If True and no custom features found, use defaults (default: True)
+
+    Examples:
+    --------
+    # Single custom feature
+    result = model(time, z, f_ni, mej,
+                   rest_wavelength_feature_1=6355.0,
+                   sigma_feature_1=400.0,
+                   amplitude_feature_1=-0.4,
+                   t_start_feature_1=0,
+                   t_end_feature_1=30,
+                   output_format='magnitude', bands='lsstg')
+
+    # Multiple features
+    result = model(time, z, f_ni, mej,
+                   rest_wavelength_feature_1=6355.0, sigma_feature_1=400.0,
+                   amplitude_feature_1=-0.4, t_start_feature_1=0, t_end_feature_1=40,
+                   rest_wavelength_feature_2=3934.0, sigma_feature_2=300.0,
+                   amplitude_feature_2=-0.5, t_start_feature_2=0, t_end_feature_2=60,
+                   rest_wavelength_feature_3=8600.0, sigma_feature_3=500.0,
+                   amplitude_feature_3=-0.3, t_start_feature_3=0, t_end_feature_3=50,
+                   evolution_mode='smooth',
+                   output_format='magnitude', bands='lsstg')
+
+    :return: set by output format - 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
+    """
+    kwargs['interaction_process'] = kwargs.get("interaction_process", ip.Diffusion)
+    kwargs['photosphere'] = kwargs.get("photosphere", photosphere.TemperatureFloor)
+    kwargs['sed'] = kwargs.get("sed", sed.BlackbodyWithSpectralFeatures)
+    cosmology = kwargs.get('cosmology', cosmo)
+    dl = cosmology.luminosity_distance(redshift).cgs.value
+
+    # Build feature list from numbered parameters
+    feature_list = build_spectral_feature_list(**kwargs)
+
+    if kwargs['output_format'] == 'flux_density':
+        frequency = kwargs['frequency']
+        frequency, time = calc_kcorrected_properties(frequency=frequency, redshift=redshift, time=time)
+        lbol = arnett_bolometric(time=time, f_nickel=f_nickel, mej=mej, **kwargs)
+        photo = kwargs['photosphere'](time=time, luminosity=lbol, **kwargs)
+
+        # Convert time from days to seconds for feature application
+        time_seconds = time * 24 * 3600
+
+        sed_1 = kwargs['sed'](
+            temperature=photo.photosphere_temperature,
+            r_photosphere=photo.r_photosphere,
+            frequency=frequency,
+            luminosity_distance=dl,
+            time=time_seconds,
+            feature_list=feature_list,
+            evolution_mode=kwargs.get('evolution_mode', 'smooth')
+        )
+        flux_density = sed_1.flux_density
+        return flux_density.to(uu.mJy).value
+
+    else:
+        time_obs = time
+        lambda_observer_frame = kwargs.get('lambda_array', np.geomspace(100, 60000, 100))
+        time_temp = np.geomspace(0.1, 3000, 3000)  # in days
+        time_observer_frame = time_temp * (1. + redshift)
+        frequency, time = calc_kcorrected_properties(
+            frequency=lambda_to_nu(lambda_observer_frame),
+            redshift=redshift,
+            time=time_observer_frame
+        )
+        lbol = arnett_bolometric(time=time, f_nickel=f_nickel, mej=mej, **kwargs)
+        photo = kwargs['photosphere'](time=time, luminosity=lbol, **kwargs)
+
+        # Convert time from days to seconds for feature application
+        time_seconds = time * 24 * 3600
+
+        sed_1 = kwargs['sed'](
+            temperature=photo.photosphere_temperature,
+            r_photosphere=photo.r_photosphere,
+            frequency=frequency[:, None],
+            luminosity_distance=dl,
+            time=time_seconds,
+            feature_list=feature_list,
+            evolution_mode=kwargs.get('evolution_mode', 'smooth')
+        )
+        fmjy = sed_1.flux_density.T
+        spectra = fmjy.to(uu.mJy).to(uu.erg / uu.cm ** 2 / uu.s / uu.Angstrom,
+                                     equivalencies=uu.spectral_density(wav=lambda_observer_frame * uu.Angstrom))
+
+        if kwargs['output_format'] == 'spectra':
+            return namedtuple('output', ['time', 'lambdas', 'spectra'])(
+                time=time_observer_frame,
+                lambdas=lambda_observer_frame,
+                spectra=spectra
+            )
+        else:
+            return sed.get_correct_output_format_from_spectra(
+                time=time_obs,
+                time_eval=time_observer_frame,
+                spectra=spectra,
+                lambda_array=lambda_observer_frame,
+                **kwargs
+            )
 
 def shock_cooling_and_arnett_bolometric(time, log10_mass, log10_radius, log10_energy,
                              f_nickel, mej, vej, kappa, kappa_gamma, temperature_floor, **kwargs):
