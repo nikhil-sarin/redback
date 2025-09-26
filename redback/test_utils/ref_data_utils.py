@@ -45,7 +45,7 @@ def make_ref_data(model, param_grid, other_kwargs, filename):
     table.write(filename, format='ascii.ecsv', overwrite=True)
 
 
-def test_on_ref_data(model, filename):
+def assert_matches_ref_data(model, filename):
     """Test a model against reference data.
 
     Parameters

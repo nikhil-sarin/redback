@@ -6,7 +6,7 @@ import os
 import redback
 import unittest
 
-from redback.test_utils.ref_data_utils import test_on_ref_data
+from redback.test_utils.ref_data_utils import assert_matches_ref_data
 
 _dirname = os.path.dirname(__file__)
 
@@ -20,7 +20,7 @@ class TestOnReferenceData(unittest.TestCase):
         the make_afterglow_ref_data.py script in the reference_results directory.
         """
         self.reference_file = os.path.join(_dirname, "reference_results", "tophat_redback_ref_data.ecsv")
-        test_on_ref_data(
+        assert_matches_ref_data(
             redback.transient_models.afterglow_models.tophat_redback,
             self.reference_file,
         )

@@ -6,7 +6,7 @@ To regenerate the data run the following command from this directory:
 import numpy as np
 import redback
 
-from redback.test_utils.ref_data_utils import make_ref_data, test_on_ref_data
+from redback.test_utils.ref_data_utils import make_ref_data, assert_matches_ref_data
 
 
 time = np.linspace(0.1, 50, 100)
@@ -32,7 +32,7 @@ make_ref_data(
 )
 
 # Confirm that the data works.
-test_on_ref_data(
+assert_matches_ref_data(
     redback.transient_models.afterglow_models.tophat_redback,
     '../reference_results/tophat_redback_ref_data.ecsv',
 )
