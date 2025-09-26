@@ -371,32 +371,30 @@ def calc_afterglow_step2_numba(Dl, Om0, rotstep, latstep, Obsa, beta, Ne, OmG, R
 
 @nb.jit(nopython=True, fastmath=True, cache=True)
 def get_ag_numba(FBB, nuc, num, nu1, Fmax, p):
-    """Calculate flux at frequency - matches Python exactly"""
+    """Calculate flux at frequency - matches Python exactly with overlapping conditions"""
     Fluxt = np.zeros(num.shape[0], dtype=np.float64)
 
-    # Match Python boolean logic exactly
+    # Allow overlapping conditions where later ones can overwrite earlier ones
     for i in range(num.shape[0]):
         # Fast cooling regime
         if (nuc[i] < num[i]) and (nu1 < nuc[i]):
             Fluxt[i] = Fmax[i] * (nu1 / nuc[i]) ** (1.0 / 3.0)
-        elif (nuc[i] < nu1) and (nuc[i] < num[i]):
+        if (nuc[i] < nu1) and (nuc[i] < num[i]):
             Fluxt[i] = Fmax[i] * (nu1 / nuc[i]) ** (-1.0 / 2.0)
-        elif (num[i] < nu1) and (nuc[i] < num[i]):
+        if (num[i] < nu1) and (nuc[i] < num[i]):
             Fluxt[i] = Fmax[i] * (num[i] / nuc[i]) ** (-1.0 / 2.0) * (nu1 / num[i]) ** (-p / 2.0)
         # Slow cooling regime
-        elif (num[i] < nuc[i]) and (nu1 < num[i]):
+        if (num[i] < nuc[i]) and (nu1 < num[i]):
             Fluxt[i] = Fmax[i] * (nu1 / num[i]) ** (1.0 / 3.0)
-        elif (num[i] < nu1) and (num[i] < nuc[i]):
+        if (num[i] < nu1) and (num[i] < nuc[i]):
             Fluxt[i] = Fmax[i] * (nu1 / num[i]) ** (-(p - 1.0) / 2.0)
-        elif (nuc[i] < nu1) and (num[i] < nuc[i]):
+        if (nuc[i] < nu1) and (num[i] < nuc[i]):
             Fluxt[i] = Fmax[i] * (nuc[i] / num[i]) ** (-(p - 1.0) / 2.0) * (nu1 / nuc[i]) ** (-p / 2.0)
 
-    # Self-absorption - match Python exactly
+    # Self-absorption
     FBB_adj = FBB * nu1 ** 2.0 * np.maximum(1.0, (nu1 / num) ** 0.5)
     for i in range(len(Fluxt)):
         Fluxt[i] = min(FBB_adj[i], Fluxt[i])
-
-    return Fluxt
 
 @nb.jit(nopython=True, fastmath=True, cache=True)
 def get_gamma_refreshed_numba(G0, G1, Eps, Eps2, s1, therm, steps, n0, k):
