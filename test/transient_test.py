@@ -1161,6 +1161,78 @@ class TestFromSimulatedOpticalData(unittest.TestCase):
                 use_phase_model=False,
             )
 
+
+class TestFromLightCurveLynx(unittest.TestCase):
+    def test_from_lightcurvelynx(self):
+        # Use the most basic data returned by LightCurveLynx
+        mock_data = {
+            "mjd": [59000.0, 59001.0],
+            "filter": ["g", "r"],
+            "flux": [1.1e6, 1.2e6],
+            "fluxerr": [1.0e5, 2.0e5],
+        }
+        mock_df = pd.DataFrame(mock_data)
+
+        instance = redback.transient.Transient.from_lightcurvelynx(
+            name="test_transient",
+            data=mock_df,
+            data_mode="flux_density",
+            active_bands="all",
+            plotting_order=None,
+            use_phase_model=False,
+        )
+
+        self.assertEqual(instance.name, "test_transient")
+        np.testing.assert_array_equal(instance.time_mjd, np.array(mock_df["mjd"]))
+        np.testing.assert_array_equal(instance.flux_density, np.array(mock_df["flux"])/1e6)
+        np.testing.assert_array_equal(instance.flux_density_err, np.array(mock_df["fluxerr"])/1e6)
+        np.testing.assert_array_equal(instance.bands, np.array(mock_df["filter"]))
+
+        # We get an error if we try to use magnitude mode since there is no magnitude data.
+        with self.assertRaises(ValueError):
+            _ = redback.transient.Transient.from_lightcurvelynx(
+                name="test_transient",
+                data=mock_df,
+                data_mode="magnitude",
+                active_bands="all",
+                plotting_order=None,
+                use_phase_model=False,
+            )
+
+        # We can add the magnitude data and then it works.
+        mock_df["mag"] = [20.0, 21.0]
+        mock_df["magerr"] = [0.1, 0.2]
+        mock_df["time_rel"] = [0.0, 1.0]
+        instance2 = redback.transient.Transient.from_lightcurvelynx(
+            name="test_transient",
+            data=mock_df,
+            data_mode="magnitude",
+            active_bands="all",
+            plotting_order=None,
+            use_phase_model=False,
+        )
+        self.assertEqual(instance2.name, "test_transient")
+        np.testing.assert_array_equal(instance2.time_mjd, np.array(mock_df["mjd"]))
+        np.testing.assert_array_equal(instance2.time, np.array(mock_df["time_rel"]))
+        np.testing.assert_array_equal(instance2.flux_density, np.array(mock_df["flux"])/1e6)
+        np.testing.assert_array_equal(instance2.flux_density_err, np.array(mock_df["fluxerr"])/1e6)
+        np.testing.assert_array_equal(instance2.bands, np.array(mock_df["filter"]))
+        np.testing.assert_array_equal(instance2.magnitude, np.array(mock_df["mag"]))
+        np.testing.assert_array_equal(instance2.magnitude_err, np.array(mock_df["magerr"]))
+
+        # If we add a detected column, we filter the non-detections.
+        mock_df["detected"] = [1, 0]
+        instance3 = redback.transient.Transient.from_lightcurvelynx(
+            name="test_transient",
+            data=mock_df,
+            data_mode="magnitude",
+            active_bands="all",
+            plotting_order=None,
+            use_phase_model=False
+        )
+        np.testing.assert_array_equal(instance3.time_mjd, np.array(mock_df["mjd"][0:1]))
+
+
 class TestFromLasairTransient(unittest.TestCase):
     def setUp(self) -> None:
         self.mock_data = {

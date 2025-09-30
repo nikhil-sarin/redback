@@ -373,6 +373,69 @@ class Transient(object):
                    magnitude_err=magnitude_err, flux=flux, flux_err=flux_err, bands=bands, active_bands=active_bands,
                    use_phase_model=use_phase_model, optical_data=True, plotting_order=plotting_order)
 
+
+    @classmethod
+    def from_lightcurvelynx(
+            cls, name: str, data: pd.DataFrame = None, data_mode: str = "magnitude",
+            active_bands: Union[np.ndarray, str] = 'all', plotting_order: Union[np.ndarray, str] = None,
+            use_phase_model: bool = False) -> Transient:
+        """Constructor method to built object from a LightCurveLynx simulated light curve.
+        https://github.com/lincc-frameworks/lightcurvelynx
+
+        :param name: Name of the transient.
+        :type name: str
+        :param data: DataFrame containing the light curve data. If None, it will try to load from "simulated/{name}.csv".
+        :type data: pd.DataFrame, optional
+        :param data_mode: Data mode used. Must be from `OpticalTransient.DATA_MODES`. Default is magnitude.
+        :type data_mode: str, optional
+        :param active_bands: Sets active bands based on array given.
+                             If argument is 'all', all unique bands in `self.bands` will be used.
+        :type active_bands: Union[np.ndarray, str]
+        :param plotting_order: Order in which to plot the bands/and how unique bands are stored.
+        :type plotting_order: Union[np.ndarray, str], optional
+        :param use_phase_model: Whether to use a phase model.
+        :type use_phase_model: bool, optional
+
+        :return: A class instance.
+        :rtype: OpticalTransient
+        """
+        if data is None:
+            path = "simulated/" + name + ".csv"
+            data = pd.read_csv(path)
+
+        # Filter out the non-detections.
+        if "detected" in data.columns:
+            data = data[data.detected != 0]
+
+        # Process the time and bands data.
+        time_mjd = data["mjd"].to_numpy()
+        time_days = data["time_rel"].to_numpy() if "time_rel" in data.columns else None
+        bands = data["filter"].to_numpy()
+
+        # Process the magnitude data. Checking that we have the values if the data mode is magnitude.
+        if "mag" in data.columns:
+            magnitude = data["mag"].to_numpy()
+            magnitude_err = data["magerr"].to_numpy()
+        elif data_mode == "magnitude":
+            raise ValueError("Magnitude data mode selected but no magnitude data found in the DataFrame.")
+        else:
+            magnitude = None
+            magnitude_err = None
+
+        # Handle the flux density data, converting from nanojanskys to milijanskys.
+        flux_density = np.array(data["flux"]) / 1e6  # Convert from nJy to mJy
+        flux_density_err = np.array(data["fluxerr"]) / 1e6  # Convert from nJy to mJy
+
+        # We do not have the flux information.
+        flux = None
+        flux_err = None
+
+        return cls(name=name, data_mode=data_mode, time=time_days, time_err=None, time_mjd=time_mjd,
+                   flux_density=flux_density, flux_density_err=flux_density_err, magnitude=magnitude,
+                   magnitude_err=magnitude_err, flux=flux, flux_err=flux_err, bands=bands, active_bands=active_bands,
+                   use_phase_model=use_phase_model, optical_data=True, plotting_order=plotting_order)
+
+
     @property
     def _time_attribute_name(self) -> str:
         if self.luminosity_data:
