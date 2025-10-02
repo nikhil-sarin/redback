@@ -381,6 +381,8 @@ class Transient(object):
             use_phase_model: bool = False) -> Transient:
         """Constructor method to built object from a LightCurveLynx simulated light curve.
         https://github.com/lincc-frameworks/lightcurvelynx
+        Only the time, bands, magnitude and magnitude error columns are used. The rest are computed
+        from those.
 
         :param name: Name of the transient.
         :type name: str
@@ -413,22 +415,23 @@ class Transient(object):
         bands = data["filter"].to_numpy()
 
         # Process the magnitude data. Checking that we have the values if the data mode is magnitude.
-        if "mag" in data.columns:
-            magnitude = data["mag"].to_numpy()
-            magnitude_err = data["magerr"].to_numpy()
-        elif data_mode == "magnitude":
-            raise ValueError("Magnitude data mode selected but no magnitude data found in the DataFrame.")
-        else:
-            magnitude = None
-            magnitude_err = None
+        if "mag" not in data.columns:
+            raise ValueError("Magnitude values are required for LightCurveLynx input.")
+        magnitude = data["mag"].to_numpy()
+        magnitude_err = data["magerr"].to_numpy()
 
-        # Handle the flux density data, converting from nanojanskys to milijanskys.
-        flux_density = np.array(data["flux"]) / 1e6  # Convert from nJy to mJy
-        flux_density_err = np.array(data["fluxerr"]) / 1e6  # Convert from nJy to mJy
-
-        # We do not have the flux information.
-        flux = None
-        flux_err = None
+        # Compute the other values from the given magnitude and band data. We use the formulation
+        # from SimulateOpticalTransient._make_observation_single().
+        ref_flux = redback.utils.bands_to_reference_flux(bands)
+        flux = redback.utils.bandpass_magnitude_to_flux(magnitude=magnitude, bands=bands)
+        flux_err = redback.utils.calc_flux_error_from_magnitude(magnitude, magnitude_err, ref_flux)
+        flux_density = redback.utils.calc_flux_density_from_ABmag(magnitude).value
+        flux_density_err = redback.utils.calc_flux_density_error_from_monochromatic_magnitude(
+            magnitude=magnitude,
+            magnitude_error=magnitude_err,
+            reference_flux=3631,
+            magnitude_system='AB',
+        )
 
         return cls(name=name, data_mode=data_mode, time=time_days, time_err=None, time_mjd=time_mjd,
                    flux_density=flux_density, flux_density_err=flux_density_err, magnitude=magnitude,
