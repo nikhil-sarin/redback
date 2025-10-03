@@ -1182,12 +1182,33 @@ class TestFromLightCurveLynx(unittest.TestCase):
                 data_mode="flux_density",
                 active_bands="all",
                 plotting_order=None,
-                use_phase_model=False,
+                use_phase_model=True,
             )
 
         # We can add the magnitude data and then it works.
         mock_df["mag"] = [20.0, 21.0]
         mock_df["magerr"] = [0.1, 0.2]
+        instance = redback.transient.Transient.from_lightcurvelynx(
+            name="test_transient",
+            data=mock_df,
+            data_mode="magnitude",
+            active_bands="all",
+            plotting_order=None,
+            use_phase_model=True,
+        )
+
+        # But we fail if we try to use a non-phase model, because there is not relative time.
+        with self.assertRaises(ValueError):
+            _ = redback.transient.Transient.from_lightcurvelynx(
+                name="test_transient",
+                data=mock_df,
+                data_mode="magnitude",
+                active_bands="all",
+                plotting_order=None,
+                use_phase_model=False,
+            )
+
+        # After adding a relative time column, everything works.
         mock_df["time_rel"] = [0.0, 1.0]
         instance = redback.transient.Transient.from_lightcurvelynx(
             name="test_transient",

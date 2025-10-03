@@ -410,9 +410,14 @@ class Transient(object):
             data = data[data.detected != 0]
 
         # Process the time and bands data.
+        bands = data["filter"].to_numpy()        
         time_mjd = data["mjd"].to_numpy()
-        time_days = data["time_rel"].to_numpy() if "time_rel" in data.columns else None
-        bands = data["filter"].to_numpy()
+        if "time_rel" in data.columns:
+            time_days = data["time_rel"].to_numpy()
+        elif not use_phase_model:
+            raise ValueError("Relative time column 'time_rel' is required if not using phase model.")
+        else:
+            time_days = None
 
         # Process the magnitude data. Checking that we have the values if the data mode is magnitude.
         if "mag" not in data.columns:
