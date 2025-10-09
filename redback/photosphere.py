@@ -108,7 +108,7 @@ class TemperatureFloor(object):
     def calculate_photosphere_temperature(self) -> None:
         self.photosphere_temperature = self.xnp.where(
             self.mask,
-            self.luminosity / (self.STEF_CONSTANT * self.radius_squared) ** 0.25,
+            (self.luminosity / (self.STEF_CONSTANT * self.radius_squared)) ** 0.25,
             self.temperature_floor,
         )
 
