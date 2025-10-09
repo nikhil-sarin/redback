@@ -1,4 +1,5 @@
 # This is mostly from mosfit/photospheres but rewritten considerably.
+from types import ModuleType
 from typing import Any, Union
 
 import numpy as np
@@ -60,7 +61,8 @@ class TemperatureFloor(object):
     reference = "https://ui.adsabs.harvard.edu/abs/2017ApJ...851L..21V/abstract"
 
     def __init__(self, time: np.ndarray, luminosity: np.ndarray,
-                 vej: np.ndarray, temperature_floor: Union[float, int], **kwargs: None) -> None:
+                 vej: np.ndarray, temperature_floor: Union[float, int], 
+                 xnp: ModuleType = np, **kwargs: None) -> None:
         """
         Photosphere with a floor temperature and effective blackbody otherwise
 
@@ -72,15 +74,18 @@ class TemperatureFloor(object):
         :type vej: numpy.ndarray
         :param temperature_floor: floor temperature in kelvin
         :type temperature_floor: Union[float, int]
+        :param xnp: The module used to perform numerical operations (e.g., numpy or jax.numpy)
+
         """
+        self.xnp = xnp
         self.time = time
         self.luminosity = luminosity
         self.v_ejecta = vej
         self.temperature_floor = temperature_floor
-        self.r_photosphere = np.array([])
-        self.photosphere_temperature = np.array([])
-        self.radius_squared = np.array([])
-        self.rec_radius_squared = np.array([])
+        self.r_photosphere = xnp.array([])
+        self.photosphere_temperature = xnp.array([])
+        self.radius_squared = xnp.array([])
+        self.rec_radius_squared = xnp.array([])
         self.calculate_photosphere_properties()
 
     def set_radius_squared(self) -> None:
@@ -94,14 +99,18 @@ class TemperatureFloor(object):
         return self.radius_squared <= self.rec_radius_squared
 
     def calculate_r_photosphere(self) -> None:
-        self.r_photosphere = self.rec_radius_squared ** 0.5
-        self.r_photosphere[self.mask] = self.radius_squared[self.mask] ** 0.5
+        self.r_photosphere = self.xnp.where(
+            self.mask,
+            self.radius_squared ** 0.5,
+            self.rec_radius_squared ** 0.5
+        )
 
     def calculate_photosphere_temperature(self) -> None:
-        self.photosphere_temperature = np.zeros(len(self.time))
-        self.photosphere_temperature[self.mask] = \
-            (self.luminosity[self.mask] / (self.STEF_CONSTANT * self.radius_squared[self.mask])) ** 0.25
-        self.photosphere_temperature[~self.mask] = self.temperature_floor
+        self.photosphere_temperature = self.xnp.where(
+            self.mask,
+            self.luminosity / (self.STEF_CONSTANT * self.radius_squared) ** 0.25,
+            self.temperature_floor,
+        )
 
     def calculate_photosphere_properties(self) -> tuple:
         self.set_radius_squared()
