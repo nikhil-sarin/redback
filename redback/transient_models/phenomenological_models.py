@@ -14,6 +14,7 @@ def smooth_exponential_powerlaw(time, a_1, tpeak, alpha_1, alpha_2, smoothing_fa
     :param tpeak: peak time in seconds
     :param smoothing_factor: controls transition smoothness (higher = smoother)
     :param kwargs: Additional parameters
+    :param xnp: The package to use for execution (numpy or jax.numpy). Defaults to numpy.
     :return: In whatever units set by a_1
     """
     t_norm = xnp.asarray(time) / tpeak
@@ -75,6 +76,8 @@ def exp_rise_powerlaw_decline(t, t0, m_peak, tau_rise, alpha, t_peak, delta=0.5,
     delta : float, optional
         Smoothing parameter (in days) controlling the width of the transition around t_peak.
         If not provided, defaults to 50% of (t_peak - t0).
+    xnp : module, optional
+        The package to use for execution (numpy or jax.numpy). Defaults to numpy.
 
     Returns
     -------
@@ -152,6 +155,7 @@ def bazin_sne(time, aa, bb, t0, tau_rise, tau_fall, xnp=np):
     :param t0: start time
     :param tau_rise: exponential rise time
     :param tau_fall: exponential fall time
+    :param xnp: The package to use for execution (numpy or jax.numpy). Defaults to numpy.
     :return: matrix of flux values in units set by AA
     """
     # Convert inputs to JAX arrays
