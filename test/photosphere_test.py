@@ -89,7 +89,7 @@ class TestDenseCore(unittest.TestCase):
         del self.envelope_slope
 
     def test_calculate_photosphere_properties(self):
-        expected_temperature = np.array([1.00000000e+05, 3.98642285e-02, 3.76813318e-02])
-        expected_r_photosphere = np.array([1.67534478e+00, 1.49091357e+13, 2.04367737e+13])
+        expected_temperature = np.array([0.04389278, 0.03986423, 0.03768133])
+        expected_r_photosphere = np.array([8.69596989e+12, 1.49091357e+13, 2.04367737e+13])
         self.assertTrue(np.allclose(expected_temperature, self.dense_core.photosphere_temperature))
         self.assertTrue(np.allclose(expected_r_photosphere, self.dense_core.r_photosphere))

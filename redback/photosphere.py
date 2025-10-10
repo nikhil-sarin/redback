@@ -12,7 +12,8 @@ class CocoonPhotosphere(object):
     STEF_CONSTANT = 4 * np.pi * sigma_sb
     reference = 'https://ui.adsabs.harvard.edu/abs/2021MNRAS.505.3016N/abstract'
     def __init__(self, time: np.ndarray, luminosity: np.ndarray, tau_diff: float,
-                 t_thin: float, vej:np.ndarray, nn: Union[float, int], **kwargs: None) -> None:
+                 t_thin: float, vej:np.ndarray, nn: Union[float, int], xnp: ModuleType = np,
+                 **kwargs: None) -> None:
         """
         Cocoon Photosphere
 
@@ -28,14 +29,16 @@ class CocoonPhotosphere(object):
         :type vej: numpy.ndarray
         :param nn: density power law index
         :type nn: Union[float, int]
+        :param xnp: The module used to perform numerical operations (e.g., numpy or jax.numpy)
         :param kwargs: Additional keyword arguments
         """
+        self.xnp = xnp
         self.time = time
         self.luminosity = luminosity
         self.tau_diff = tau_diff
         self.t_thin = t_thin
-        self.r_photosphere = np.array([])
-        self.photosphere_temperature = np.array([])
+        self.r_photosphere = None
+        self.photosphere_temperature = None
         self.vej = vej
         self.nn = nn
         self.calculate_photosphere_properties()
@@ -43,6 +46,7 @@ class CocoonPhotosphere(object):
     @property
     def set_vphoto(self):
         return self.vej * (self.time / self.t_thin) ** (-2./(self.nn + 3))
+
     def calculate_r_photosphere(self) -> None:
         self.r_photosphere = self.RADIUS_CONSTANT * self.set_vphoto * self.time
 
@@ -125,8 +129,9 @@ class TDEPhotosphere(object):
     STEF_CONSTANT = 4 * np.pi * sigma_sb
     reference = "https://ui.adsabs.harvard.edu/abs/2019ApJ...872..151M/abstract"
 
-    def __init__(self, time: np.ndarray, luminosity: np.ndarray, mass_bh: float, mass_star: float, star_radius: float,
-                 tpeak: float, beta: float, rph_0: float, lphoto: float, **kwargs: None) -> None:
+    def __init__(self, time: np.ndarray, luminosity: np.ndarray, mass_bh: float, mass_star: float,
+                 star_radius: float, tpeak: float, beta: float, rph_0: float, lphoto: float,
+                 xnp: ModuleType = np, **kwargs: None) -> None:
         """
         Photosphere that expands/recedes as a power law of Mdot
 
@@ -139,7 +144,9 @@ class TDEPhotosphere(object):
         :param beta: dmdt power law slope
         :param rph_0: initial photosphere radius
         :param lphoto: initial photosphere luminosity
+        :param xnp: The module used to perform numerical operations (e.g., numpy or jax.numpy)
         """
+        self.xnp = xnp
         self.time = time
         self.luminosity = luminosity
         self.mass_bh = mass_bh
@@ -176,13 +183,13 @@ class TDEPhotosphere(object):
 
     @property
     def a_p(self) -> float:
-        return (graviational_constant * self.mass_bh_si * (self.tpeak * day_to_s / np.pi) ** 2) ** (1. / 3.)
+        return (graviational_constant * self.mass_bh_si * (self.tpeak * day_to_s / self.xnp.pi) ** 2) ** (1. / 3.)
 
     @property
     def a_t(self) -> float:
         """Semi-major axis of material that accretes at self.time,
         only calculate for times after first mass accretion"""
-        return (graviational_constant * self.mass_bh_si * (self.time * day_to_s / np.pi) ** 2) ** (1. / 3.)
+        return (graviational_constant * self.mass_bh_si * (self.time * day_to_s / self.xnp.pi) ** 2) ** (1. / 3.)
 
     @property
     def r_photo_min(self) -> float:
@@ -222,7 +229,7 @@ class DenseCore(object):
 
     def __init__(
             self, time: np.ndarray, luminosity: np.ndarray, mej: float, vej: float, kappa: float,
-            envelope_slope: float = 10., **kwargs: None) -> None:
+            envelope_slope: float = 10., xnp: ModuleType = np, **kwargs: None) -> None:
         """
         Photosphere with a dense core and a low-mass envelope.
 
@@ -232,6 +239,7 @@ class DenseCore(object):
         :param vej: ejecta velocity in km/s
         :param kappa: opacity
         :param envelope_slope: envelope slope, default = 10
+        :param xnp: The module used to perform numerical operations (e.g., numpy or jax.numpy)
         """
         self.time = time
         self.luminosity = luminosity
@@ -239,18 +247,19 @@ class DenseCore(object):
         self.vej = vej
         self.kappa = kappa
         self.envelope_slope = envelope_slope
+        self.xnp = xnp
 
-        self.radius = np.zeros(len(self.time))
-        self.rho_core = np.zeros(len(self.time))
+        self.radius = self.xnp.zeros(len(self.time))
+        self.rho_core = self.xnp.zeros(len(self.time))
         self.mask_3 = None
 
-        self.r_photosphere = []
-        self.photosphere_temperature = []
+        self.r_photosphere = None
+        self.photosphere_temperature = None
         self.calculate_photosphere_properties()
 
     @property
     def peak_luminosity_index(self) -> Any:
-        return np.argmax(self.luminosity)
+        return self.xnp.argmax(self.luminosity)
 
     @property
     def temperature_last(self) -> float:
@@ -260,7 +269,7 @@ class DenseCore(object):
         self.radius = self.vej * km_cgs * self.time * day_to_s
 
     def set_rho_core(self) -> None:
-        self.rho_core = (3.0 * self.mej * solar_mass / (4.0 * np.pi * self.radius ** 3))
+        self.rho_core = (3.0 * self.mej * solar_mass / (4.0 * self.xnp.pi * self.radius ** 3))
 
     @property
     def tau_core(self) -> np.ndarray:
@@ -282,7 +291,7 @@ class DenseCore(object):
     @property
     def mask_4(self) -> np.ndarray:
         # select all arrays after peak_luminosity_index
-        return np.arange(self.peak_luminosity_index, len(self.luminosity), 1)
+        return self.xnp.arange(self.peak_luminosity_index, len(self.luminosity), 1)
 
     @property
     def mask_all(self) -> np.ndarray:
@@ -292,29 +301,39 @@ class DenseCore(object):
         self.set_radius()
         self.set_rho_core()
 
-        self.r_photosphere = np.zeros(len(self.time))
-        self.r_photosphere[self.mask_1] = \
-            (2.0 * (self.envelope_slope - 1.0) /
-             (3.0 * self.kappa * self.rho_core[self.mask_1] * self.radius[self.mask_1] ** self.envelope_slope)) ** \
-            (1.0 / (1.0 - self.envelope_slope))
-        self.r_photosphere[~self.mask_1] = \
-            self.envelope_slope * self.radius[~self.mask_1] / \
-            (self.envelope_slope - 1.0) - 2.0 / (
-                    3.0 * self.kappa * self.rho_core[~self.mask_1])
+        self.r_photosphere = self.xnp.where(
+            self.mask_1,
+            (
+                2.0 * (self.envelope_slope - 1.0) /
+                (3.0 * self.kappa * self.rho_core * self.radius ** self.envelope_slope)
+            ) ** (1.0 / (1.0 - self.envelope_slope)),
+            (
+                self.envelope_slope * self.radius / (self.envelope_slope - 1.0)
+                - 2.0 / (3.0 * self.kappa * self.rho_core)
+            ),
+        )
 
-        self.photosphere_temperature = np.zeros(len(self.time))
-        self.photosphere_temperature[self.mask_2] = \
-            (self.luminosity[self.mask_2] / (self.r_photosphere[self.mask_2] ** 2 * self.STEF_CONSTANT)) ** 0.25
-        self.photosphere_temperature[~self.mask_2] = self.temperature_last
-
-        self.r_photosphere[~self.mask_2] = \
-            (self.luminosity[~self.mask_2] /
-             (self.photosphere_temperature[~self.mask_2] ** 4 * self.STEF_CONSTANT)) ** 0.5
+        self.photosphere_temperature = self.xnp.where(
+            self.mask_2,
+            (self.luminosity / (self.r_photosphere ** 2 * self.STEF_CONSTANT)) ** 0.25,
+            self.temperature_last
+        )
+        self.r_photosphere = self.xnp.where(
+            self.mask_2,
+            self.r_photosphere,
+            (self.luminosity / (self.photosphere_temperature ** 4 * self.STEF_CONSTANT)) ** 0.5
+        )
 
         self.mask_3 = self.photosphere_temperature > self.temperature_last
-        self.photosphere_temperature[self.mask_all] = self.temperature_last
-        self.r_photosphere[self.mask_all] = \
-            (self.luminosity[self.mask_all] /
-             (self.photosphere_temperature[self.mask_all] ** 4 * self.STEF_CONSTANT)) ** 0.5
+        self.photosphere_temperature = self.xnp.where(
+            self.mask_all,
+            self.temperature_last,
+            self.photosphere_temperature,
+        )
+        self.r_photosphere = self.xnp.where(
+            self.mask_all,
+            (self.luminosity / (self.photosphere_temperature ** 4 * self.STEF_CONSTANT)) ** 0.5,
+            self.r_photosphere,
+        )
 
         return self.photosphere_temperature, self.r_photosphere
