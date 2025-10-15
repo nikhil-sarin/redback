@@ -1,5 +1,5 @@
 import numpy as np
-from redback.utils import citation_wrapper
+from redback.utils import citation_wrapper, get_cosmology_from_kwargs
 from redback.constants import speed_of_light_si
 
 
@@ -231,7 +231,7 @@ def evolving_blackbody(time, redshift, temperature_0, radius_0,
     from redback.utils import lambda_to_nu, calc_kcorrected_properties
     import redback.sed as sed
     from collections import namedtuple
-    cosmology = kwargs.get('cosmology', cosmo)
+    cosmology = get_cosmology_from_kwargs(kwargs)
     dl = cosmology.luminosity_distance(redshift).cgs.value
     reference_wavelength = kwargs.get('reference_wavelength', 5000.0)  # Angstroms
 
@@ -341,7 +341,7 @@ def evolving_blackbody_with_features(time, redshift, temperature_0, radius_0,
     from collections import namedtuple
     import numpy as np
 
-    cosmology = kwargs.get('cosmology', cosmo)
+    cosmology = get_cosmology_from_kwargs(kwargs)
     dl = cosmology.luminosity_distance(redshift).cgs.value
 
     # Build feature list from numbered parameters
@@ -470,7 +470,7 @@ def powerlaw_plus_blackbody(time, redshift, pl_amplitude, pl_slope, pl_evolution
     import redback.sed as sed
     from collections import namedtuple
 
-    cosmology = kwargs.get('cosmology', cosmo)
+    cosmology = get_cosmology_from_kwargs(kwargs)
     dl = cosmology.luminosity_distance(redshift).cgs.value
     reference_wavelength = kwargs.get('reference_wavelength', 5000.0)  # Angstroms
 

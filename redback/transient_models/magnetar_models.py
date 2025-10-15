@@ -6,7 +6,7 @@ from collections import namedtuple
 from scipy.interpolate import interp1d
 from scipy.integrate import quad, cumulative_trapezoid as cumtrapz
 from inspect import isfunction
-from redback.utils import logger, citation_wrapper
+from redback.utils import logger, citation_wrapper, get_cosmology_from_kwargs
 
 from redback.constants import *
 from redback.transient_models.fireball_models import one_component_fireball_model
@@ -595,7 +595,7 @@ def luminosity_based_magnetar_models(time, photon_index, **kwargs):
         raise ValueError("Not a valid base model.")
     redshift = kwargs['redshift']
     kcorr = (1 + redshift)**(photon_index - 2)
-    cosmology = kwargs.get('cosmology', cosmo)
+    cosmology = get_cosmology_from_kwargs(kwargs)
     dl = cosmology.luminosity_distance(redshift).cgs.value
     time = time / (1 + redshift)
     lum = function(time, **kwargs) * 1e50

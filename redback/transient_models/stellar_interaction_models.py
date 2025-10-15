@@ -4,7 +4,7 @@ import redback.interaction_processes as ip
 import redback.sed as sed
 import redback.photosphere as photosphere
 from astropy.cosmology import Planck18 as cosmo
-from redback.utils import calc_kcorrected_properties, citation_wrapper, lambda_to_nu
+from redback.utils import calc_kcorrected_properties, citation_wrapper, lambda_to_nu, get_cosmology_from_kwargs
 from redback.constants import *
 from scipy.interpolate import interp1d
 
@@ -182,7 +182,7 @@ def wr_bh_merger(time, redshift, M_star, M_bh, M_fast, M_pre, v_fast, v_slow, al
     N = kwargs.get('N', 30)
     kwargs['photosphere'] = kwargs.get("photosphere", photosphere.TemperatureFloor)
     kwargs['sed'] = kwargs.get("sed", sed.Blackbody)
-    cosmology = kwargs.get('cosmology', cosmo)
+    cosmology = get_cosmology_from_kwargs(kwargs)
     dl = cosmology.luminosity_distance(redshift).cgs.value
 
     time_temp = np.geomspace(1e0, 1e8, 2000)

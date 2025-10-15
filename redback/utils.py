@@ -68,6 +68,19 @@ def normalize_frequency_to_time_array(frequency, time):
     return np.asarray(frequency)
 
 
+def get_cosmology_from_kwargs(kwargs):
+    """
+    Extract cosmology from kwargs or return default Planck18.
+    
+    This is a commonly used pattern across many transient models.
+    
+    :param kwargs: Keyword arguments dictionary
+    :return: Cosmology object
+    """
+    from astropy.cosmology import Planck18 as cosmo
+    return kwargs.get('cosmology', cosmo)
+
+
 def download_pointing_tables():
     """
     Download the pointing tables from zenodo.

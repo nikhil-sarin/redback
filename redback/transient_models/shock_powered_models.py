@@ -6,7 +6,7 @@ import redback.constants as cc
 from astropy import units as uu
 import redback.sed as sed
 from astropy.cosmology import Planck18 as cosmo  # noqa
-from redback.utils import calc_kcorrected_properties, citation_wrapper, lambda_to_nu
+from redback.utils import calc_kcorrected_properties, citation_wrapper, lambda_to_nu, get_cosmology_from_kwargs
 
 
 def _shockcooling_morag(time, v_shock, m_env, f_rho_m, radius, kappa):
@@ -181,7 +181,7 @@ def shockcooling_morag(time, redshift, v_shock, m_env, f_rho_m, radius, kappa, *
     """
     v_shock = v_shock * 1e5
     radius = radius * 1e13
-    cosmology = kwargs.get('cosmology', cosmo)
+    cosmology = get_cosmology_from_kwargs(kwargs)
     dl = cosmology.luminosity_distance(redshift).cgs.value
     time_temp = kwargs.get('time_temp', np.linspace(0.01, 60, 100))
     time_obs = time
@@ -424,7 +424,7 @@ def shockcooling_sapirandwaxman(time, redshift, v_shock, m_env, f_rho_m, radius,
     v_shock = v_shock * 1e5
     RW = kwargs.get('RW', False)
     radius = radius * 1e13
-    cosmology = kwargs.get('cosmology', cosmo)
+    cosmology = get_cosmology_from_kwargs(kwargs)
     dl = cosmology.luminosity_distance(redshift).cgs.value
     time_temp = kwargs.get('time_temp', np.linspace(0.01, 60, 100))
     time_obs = time
@@ -564,7 +564,7 @@ def csm_shock_breakout(time, redshift, csm_mass, v_min, beta, kappa, shell_radiu
     :return: set by output format - 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
     """
     csm_mass = csm_mass * cc.solar_mass
-    cosmology = kwargs.get('cosmology', cosmo)
+    cosmology = get_cosmology_from_kwargs(kwargs)
     dl = cosmology.luminosity_distance(redshift).cgs.value
     time_temp = np.linspace(1e-2, 60, 300) #days
     time_obs = time
@@ -729,7 +729,7 @@ def shock_cooling(time, redshift, log10_mass, log10_radius, log10_energy, **kwar
     mass = 10 ** log10_mass
     radius = 10 ** log10_radius
     energy = 10 ** log10_energy
-    cosmology = kwargs.get('cosmology', cosmo)
+    cosmology = get_cosmology_from_kwargs(kwargs)
     dl = cosmology.luminosity_distance(redshift).cgs.value
     time_obs = time
 
@@ -1000,7 +1000,7 @@ def shocked_cocoon(time, redshift, mej, vej, eta, tshock, shocked_fraction, cos_
     :param cosmology: Cosmology to use for luminosity distance calculation. Defaults to Planck18. Must be a astropy.cosmology object.
     :return: set by output format - 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
     """
-    cosmology = kwargs.get('cosmology', cosmo)
+    cosmology = get_cosmology_from_kwargs(kwargs)
     dl = cosmology.luminosity_distance(redshift).cgs.value
     time_obs = time
 
