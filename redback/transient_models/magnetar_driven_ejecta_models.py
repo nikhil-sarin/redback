@@ -294,8 +294,7 @@ def basic_mergernova(time, redshift, mej, beta, ejecta_radius, kappa, n_ism, p0,
     kwargs['use_relativistic_blackbody'] = True
 
     time_temp = np.geomspace(1e-4, 1e8, 500, endpoint=True) #in source frame
-    cosmology = get_cosmology_from_kwargs(kwargs)
-    dl = cosmology.luminosity_distance(redshift).cgs.value
+    dl = get_luminosity_distance(redshift, **kwargs)
     magnetar_luminosity = basic_magnetar(time=time_temp, p0=p0, bp=bp, mass_ns=mass_ns, theta_pb=theta_pb)
     output = _ejecta_dynamics_and_interaction(time=time_temp, mej=mej,
                                               beta=beta, ejecta_radius=ejecta_radius,
@@ -344,8 +343,7 @@ def general_mergernova(time, redshift, mej, beta, ejecta_radius, kappa, n_ism, l
     kwargs['use_relativistic_blackbody'] = True
 
     time_temp = np.geomspace(1e-4, 1e8, 500, endpoint=True) #in source frame
-    cosmology = get_cosmology_from_kwargs(kwargs)
-    dl = cosmology.luminosity_distance(redshift).cgs.value
+    dl = get_luminosity_distance(redshift, **kwargs)
     magnetar_luminosity = magnetar_only(time=time_temp, l0=l0, tau=tau_sd, nn=nn)
     output = _ejecta_dynamics_and_interaction(time=time_temp, mej=mej,
                                               beta=beta, ejecta_radius=ejecta_radius,
@@ -394,8 +392,7 @@ def general_mergernova_thermalisation(time, redshift, mej, beta, ejecta_radius, 
     kwargs['use_relativistic_blackbody'] = True
 
     time_temp = np.geomspace(1e-4, 1e8, 500, endpoint=True) #in source frame
-    cosmology = get_cosmology_from_kwargs(kwargs)
-    dl = cosmology.luminosity_distance(redshift).cgs.value
+    dl = get_luminosity_distance(redshift, **kwargs)
     magnetar_luminosity = magnetar_only(time=time_temp, l0=l0, tau=tau_sd, nn=nn)
     output = _ejecta_dynamics_and_interaction(time=time_temp, mej=mej,
                                               beta=beta, ejecta_radius=ejecta_radius,
@@ -445,8 +442,7 @@ def general_mergernova_evolution(time, redshift, mej, beta, ejecta_radius, kappa
     kwargs['use_relativistic_blackbody'] = True
 
     time_temp = np.geomspace(1e-4, 1e8, 500, endpoint=True) #in source frame
-    cosmology = get_cosmology_from_kwargs(kwargs)
-    dl = cosmology.luminosity_distance(redshift).cgs.value
+    dl = get_luminosity_distance(redshift, **kwargs)
     bint = 10 ** logbint
     bext = 10 ** logbext
     radius = radius * km_cgs
@@ -532,8 +528,7 @@ def _trapped_magnetar_flux(time, redshift, mej, beta, ejecta_radius, kappa, n_is
     kwargs['frequency'] = frequency
     lum = _trapped_magnetar_lum(time, mej, beta, ejecta_radius, kappa, n_ism, l0, tau_sd, nn, thermalisation_efficiency,
                                 **kwargs)
-    cosmology = get_cosmology_from_kwargs(kwargs)
-    dl = cosmology.luminosity_distance(redshift).cgs.value
+    dl = get_luminosity_distance(redshift, **kwargs)
     kcorr = (1. + redshift) ** (photon_index - 2)
     flux = lum / (4 * np.pi * dl ** 2 * kcorr)
     return flux
@@ -784,8 +779,7 @@ def metzger_magnetar_driven_kilonova_model(time, redshift, mej, vej, beta, kappa
     kwargs['use_relativistic_blackbody'] = False
 
     time_temp = np.geomspace(1e-4, 1e7, 300) #in source frame
-    cosmology = get_cosmology_from_kwargs(kwargs)
-    dl = cosmology.luminosity_distance(redshift).cgs.value
+    dl = get_luminosity_distance(redshift, **kwargs)
     magnetar_luminosity = basic_magnetar(time=time_temp, p0=p0, bp=bp, mass_ns=mass_ns, theta_pb=theta_pb)
     output = _general_metzger_magnetar_driven_kilonova_model(time=time_temp, mej=mej, vej=vej, beta=beta, kappa=kappa_r,
                                                              magnetar_luminosity=magnetar_luminosity,
@@ -833,8 +827,7 @@ def general_metzger_magnetar_driven(time, redshift, mej, vej, beta, kappa_r, l0,
     kwargs['use_relativistic_blackbody'] = False
 
     time_temp = np.geomspace(1e-4, 1e7, 300) #in source frame
-    cosmology = get_cosmology_from_kwargs(kwargs)
-    dl = cosmology.luminosity_distance(redshift).cgs.value
+    dl = get_luminosity_distance(redshift, **kwargs)
     magnetar_luminosity = magnetar_only(time=time_temp, l0=l0, tau=tau_sd, nn=nn)
     output = _general_metzger_magnetar_driven_kilonova_model(time=time_temp, mej=mej, vej=vej, beta=beta, kappa=kappa_r,
                                                              magnetar_luminosity=magnetar_luminosity,
@@ -883,8 +876,7 @@ def general_metzger_magnetar_driven_thermalisation(time, redshift, mej, vej, bet
     use_gamma_ray_opacity = True
 
     time_temp = np.geomspace(1e-4, 1e7, 300) #in source frame
-    cosmology = get_cosmology_from_kwargs(kwargs)
-    dl = cosmology.luminosity_distance(redshift).cgs.value
+    dl = get_luminosity_distance(redshift, **kwargs)
     magnetar_luminosity = magnetar_only(time=time_temp, l0=l0, tau=tau_sd, nn=nn)
     output = _general_metzger_magnetar_driven_kilonova_model(time=time_temp, mej=mej, vej=vej, beta=beta, kappa=kappa_r,
                                                              magnetar_luminosity=magnetar_luminosity,
@@ -938,8 +930,7 @@ def general_metzger_magnetar_driven_evolution(time, redshift, mej, vej, beta, ka
     bext = 10 ** logbext
     radius = radius * km_cgs
     moi = 10 ** logmoi
-    cosmology = get_cosmology_from_kwargs(kwargs)
-    dl = cosmology.luminosity_distance(redshift).cgs.value
+    dl = get_luminosity_distance(redshift, **kwargs)
     output = _evolving_gw_and_em_magnetar(time=time_temp, bint=bint, bext=bext, p0=p0, chi0=chi0, radius=radius, moi=moi)
     magnetar_luminosity = output.Edot_d
     output = _general_metzger_magnetar_driven_kilonova_model(time=time_temp, mej=mej, vej=vej, beta=beta, kappa=kappa_r,

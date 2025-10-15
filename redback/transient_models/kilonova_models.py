@@ -11,7 +11,7 @@ from redback.interaction_processes import Diffusion, AsphericalDiffusion
 
 from redback.utils import calc_kcorrected_properties, interpolated_barnes_and_kasen_thermalisation_efficiency, \
     electron_fraction_from_kappa, citation_wrapper, lambda_to_nu, _calculate_rosswogkorobkin24_qdot, \
-    kappa_from_electron_fraction, get_cosmology_from_kwargs
+    kappa_from_electron_fraction, get_cosmology_from_kwargs, get_luminosity_distance
 from redback.eos import PiecewisePolytrope
 from redback.sed import blackbody_to_flux_density, get_correct_output_format_from_spectra, Blackbody
 from redback.constants import *
@@ -350,8 +350,7 @@ def nicholl_bns(time, redshift, mass_1, mass_2, lambda_s, kappa_red, kappa_blue,
     :return: set by output format - 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
     """
     from redback.transient_models.shock_powered_models import _shocked_cocoon_nicholl
-    cosmology = get_cosmology_from_kwargs(kwargs)
-    dl = cosmology.luminosity_distance(redshift).cgs.value
+    dl = get_luminosity_distance(redshift, **kwargs)
     dense_resolution = kwargs.get('dense_resolution', 100)
     time_temp = np.geomspace(0.01, 30, dense_resolution)  # in source frame and days
     kappa_gamma = kwargs.get('kappa_gamma', 10)
@@ -482,8 +481,7 @@ def mosfit_rprocess(time, redshift, mej, vej, kappa, kappa_gamma, temperature_fl
     :return: set by output format - 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
     """
     ckm = 3e10/1e5
-    cosmology = get_cosmology_from_kwargs(kwargs)
-    dl = cosmology.luminosity_distance(redshift).cgs.value
+    dl = get_luminosity_distance(redshift, **kwargs)
     dense_resolution = kwargs.get('dense_resolution', 300)
     time_temp = np.geomspace(1e-2, 7e6, dense_resolution) # in source frame in seconds
     time_obs = time
@@ -562,8 +560,7 @@ def mosfit_kilonova(time, redshift, mej_1, vej_1, temperature_floor_1, kappa_1,
     :return: set by output format - 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
     """
     ckm = 3e10/1e5
-    cosmology = get_cosmology_from_kwargs(kwargs)
-    dl = cosmology.luminosity_distance(redshift).cgs.value
+    dl = get_luminosity_distance(redshift, **kwargs)
     dense_resolution = kwargs.get('dense_resolution', 300)
     time_temp = np.geomspace(1e-2, 7e6, dense_resolution)  # in source frame in s
     time_obs = time
@@ -709,8 +706,7 @@ def bulla_bns_kilonova(time, redshift, mej_dyn, mej_disk, phi, costheta_obs, **k
     """
     from redback_surrogates.kilonovamodels import bulla_bns_kilonovanet_spectra as function
 
-    cosmology = get_cosmology_from_kwargs(kwargs)
-    dl = cosmology.luminosity_distance(redshift).cgs.value
+    dl = get_luminosity_distance(redshift, **kwargs)
 
     if kwargs['output_format'] == 'flux_density':
         frequency = kwargs['frequency']
@@ -762,8 +758,7 @@ def bulla_nsbh_kilonova(time, redshift, mej_dyn, mej_disk, costheta_obs, **kwarg
     """
     from redback_surrogates.kilonovamodels import bulla_nsbh_kilonovanet_spectra as function
 
-    cosmology = get_cosmology_from_kwargs(kwargs)
-    dl = cosmology.luminosity_distance(redshift).cgs.value
+    dl = get_luminosity_distance(redshift, **kwargs)
 
     if kwargs['output_format'] == 'flux_density':
         frequency = kwargs['frequency']
@@ -815,8 +810,7 @@ def kasen_bns_kilonova(time, redshift, mej, vej, chi, **kwargs):
     """
     from redback_surrogates.kilonovamodels import kasen_bns_kilonovanet_spectra as function
 
-    cosmology = get_cosmology_from_kwargs(kwargs)
-    dl = cosmology.luminosity_distance(redshift).cgs.value
+    dl = get_luminosity_distance(redshift, **kwargs)
 
     if kwargs['output_format'] == 'flux_density':
         frequency = kwargs['frequency']
@@ -891,8 +885,7 @@ def _kilonova_hr(time, redshift, mej, velocity_array, kappa_array, beta, **kwarg
     :param cosmology: Cosmology to use for luminosity distance calculation. Defaults to Planck18. Must be a astropy.cosmology object.
     :return: set by output format - 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
     """
-    cosmology = get_cosmology_from_kwargs(kwargs)
-    dl = cosmology.luminosity_distance(redshift).cgs.value
+    dl = get_luminosity_distance(redshift, **kwargs)
     time_obs = time
 
     if kwargs['output_format'] == 'flux_density':
@@ -987,8 +980,7 @@ def three_component_kilonova_model(time, redshift, mej_1, vej_1, temperature_flo
     :param cosmology: Cosmology to use for luminosity distance calculation. Defaults to Planck18. Must be a astropy.cosmology object.
     :return: set by output format - 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
     """
-    cosmology = get_cosmology_from_kwargs(kwargs)
-    dl = cosmology.luminosity_distance(redshift).cgs.value
+    dl = get_luminosity_distance(redshift, **kwargs)
     time_temp = np.geomspace(1e-2, 7e6, 300) # in source frame
     time_obs = time
 
@@ -1076,8 +1068,7 @@ def two_component_kilonova_model(time, redshift, mej_1, vej_1, temperature_floor
     :param cosmology: Cosmology to use for luminosity distance calculation. Defaults to Planck18. Must be a astropy.cosmology object.
     :return: set by output format - 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
     """
-    cosmology = get_cosmology_from_kwargs(kwargs)
-    dl = cosmology.luminosity_distance(redshift).cgs.value
+    dl = get_luminosity_distance(redshift, **kwargs)
     time_temp = np.geomspace(1e-2, 7e6, 300) # in source frame
     time_obs = time
 
@@ -1389,8 +1380,7 @@ def one_component_kilonova_model(time, redshift, mej, vej, kappa, **kwargs):
     :param cosmology: Cosmology to use for luminosity distance calculation. Defaults to Planck18. Must be a astropy.cosmology object.
     :return: set by output format - 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
     """
-    cosmology = get_cosmology_from_kwargs(kwargs)
-    dl = cosmology.luminosity_distance(redshift).cgs.value
+    dl = get_luminosity_distance(redshift, **kwargs)
     time_temp = np.geomspace(1e-3, 7e6, 300) # in source frame
     time_obs = time
     _, temperature, r_photosphere = _one_component_kilonova_model(time_temp, mej, vej, kappa, **kwargs)
@@ -1523,8 +1513,7 @@ def one_comp_kne_rosswog_heatingrate(time, redshift, mej, vej, ye, **kwargs):
     :param cosmology: Cosmology to use for luminosity distance calculation. Defaults to Planck18. Must be a astropy.cosmology object.
     :return: set by output format - 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
     """
-    cosmology = get_cosmology_from_kwargs(kwargs)
-    dl = cosmology.luminosity_distance(redshift).cgs.value
+    dl = get_luminosity_distance(redshift, **kwargs)
     time_temp = np.geomspace(1e-3, 7e6, 300) # in source frame
     time_obs = time
     _, temperature, r_photosphere = _one_component_kilonova_rosswog_heatingrate(time_temp, mej, vej, ye, **kwargs)
@@ -1591,8 +1580,7 @@ def two_comp_kne_rosswog_heatingrate(time, redshift, mej_1, vej_1, temperature_f
     :param cosmology: Cosmology to use for luminosity distance calculation. Defaults to Planck18. Must be a astropy.cosmology object.
     :return: set by output format - 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
     """
-    cosmology = get_cosmology_from_kwargs(kwargs)
-    dl = cosmology.luminosity_distance(redshift).cgs.value
+    dl = get_luminosity_distance(redshift, **kwargs)
     time_temp = np.geomspace(1e-2, 7e6, 300) # in source frame
     time_obs = time
 
@@ -1726,8 +1714,7 @@ def metzger_kilonova_model(time, redshift, mej, vej, beta, kappa, **kwargs):
     :param cosmology: Cosmology to use for luminosity distance calculation. Defaults to Planck18. Must be a astropy.cosmology object.
     :return: set by output format - 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
     """
-    cosmology = get_cosmology_from_kwargs(kwargs)
-    dl = cosmology.luminosity_distance(redshift).cgs.value
+    dl = get_luminosity_distance(redshift, **kwargs)
     time_temp = np.geomspace(1e-4, 7e6, 300) # in source frame
     time_obs = time
     bolometric_luminosity, temperature, r_photosphere = _metzger_kilonova_model(time_temp, mej, vej, beta,

@@ -2,7 +2,7 @@ from astropy.cosmology import Planck18 as cosmo  # noqa
 from inspect import isfunction
 from redback.utils import (logger, citation_wrapper, calc_ABmag_from_flux_density, lambda_to_nu, bands_to_frequency,
                            normalize_frequency_to_time_array, get_cosmology_from_kwargs,
-                           get_cosmology_from_kwargs)
+                           get_cosmology_from_kwargs, get_luminosity_distance)
 from redback.constants import day_to_s, speed_of_light, solar_mass, proton_mass, electron_mass, sigma_T
 from redback.sed import get_correct_output_format_from_spectra
 import astropy.units as uu
@@ -736,8 +736,7 @@ def tophat_redback(time, redshift, thv, loge0, thc, logn0, p, logepse, logepsb, 
     nism = 10 ** logn0
     e0 = 10 ** loge0
     time = time * day_to_s
-    cosmology = get_cosmology_from_kwargs(kwargs)
-    dl = cosmology.luminosity_distance(redshift).cgs.value
+    dl = get_luminosity_distance(redshift, **kwargs)
     method = 'TH'
     s, a = 0.01, 0.5
 
@@ -798,8 +797,7 @@ def gaussian_redback(time, redshift, thv, loge0, thc, thj, logn0, p, logepse, lo
     nism = 10 ** logn0
     e0 = 10 ** loge0
     time = time * day_to_s
-    cosmology = get_cosmology_from_kwargs(kwargs)
-    dl = cosmology.luminosity_distance(redshift).cgs.value
+    dl = get_luminosity_distance(redshift, **kwargs)
     method = 'GJ'
     s, a = 0.01, 0.5
 
@@ -863,8 +861,7 @@ def twocomponent_redback(time, redshift, thv, loge0, thc, thj, logn0, p, logepse
     nism = 10 ** logn0
     e0 = 10 ** loge0
     time = time * day_to_s
-    cosmology = get_cosmology_from_kwargs(kwargs)
-    dl = cosmology.luminosity_distance(redshift).cgs.value
+    dl = get_luminosity_distance(redshift, **kwargs)
     method = '2C'
     ss = kwargs.get('ss', 0.01)
     aa = kwargs.get('aa', 4)
@@ -930,8 +927,7 @@ def powerlaw_redback(time, redshift, thv, loge0, thc, thj, logn0, p, logepse, lo
     nism = 10 ** logn0
     e0 = 10 ** loge0
     time = time * day_to_s
-    cosmology = get_cosmology_from_kwargs(kwargs)
-    dl = cosmology.luminosity_distance(redshift).cgs.value
+    dl = get_luminosity_distance(redshift, **kwargs)
     method = 'PL'
     ss = kwargs.get('ss', 3)
     aa = kwargs.get('aa', -3)
@@ -996,8 +992,7 @@ def alternativepowerlaw_redback(time, redshift, thv, loge0, thc, thj, logn0, p, 
     nism = 10 ** logn0
     e0 = 10 ** loge0
     time = time * day_to_s
-    cosmology = get_cosmology_from_kwargs(kwargs)
-    dl = cosmology.luminosity_distance(redshift).cgs.value
+    dl = get_luminosity_distance(redshift, **kwargs)
     method = 'PL2'
     ss = kwargs.get('ss', 3)
     aa = kwargs.get('aa', 3)
@@ -1062,8 +1057,7 @@ def doublegaussian_redback(time, redshift, thv, loge0, thc, thj, logn0, p, logep
     nism = 10 ** logn0
     e0 = 10 ** loge0
     time = time * day_to_s
-    cosmology = get_cosmology_from_kwargs(kwargs)
-    dl = cosmology.luminosity_distance(redshift).cgs.value
+    dl = get_luminosity_distance(redshift, **kwargs)
     method = 'DG'
     ss = kwargs.get('ss', 0.1)
     aa = kwargs.get('aa', 0.5)
@@ -1129,8 +1123,7 @@ def tophat_redback_refreshed(time, redshift, thv, loge0, thc, g1, et, s1,
     nism = 10 ** logn0
     e0 = 10 ** loge0
     time = time * day_to_s
-    cosmology = get_cosmology_from_kwargs(kwargs)
-    dl = cosmology.luminosity_distance(redshift).cgs.value
+    dl = get_luminosity_distance(redshift, **kwargs)
     method = 'TH'
     s, a = 0.01, 0.5
 
@@ -1197,8 +1190,7 @@ def gaussian_redback_refreshed(time, redshift, thv, loge0, thc, thj, g1, et, s1,
     nism = 10 ** logn0
     e0 = 10 ** loge0
     time = time * day_to_s
-    cosmology = get_cosmology_from_kwargs(kwargs)
-    dl = cosmology.luminosity_distance(redshift).cgs.value
+    dl = get_luminosity_distance(redshift, **kwargs)
     method = 'GJ'
     s, a = 0.01, 0.5
 
@@ -1268,8 +1260,7 @@ def twocomponent_redback_refreshed(time, redshift, thv, loge0, thc, thj, g1, et,
     nism = 10 ** logn0
     e0 = 10 ** loge0
     time = time * day_to_s
-    cosmology = get_cosmology_from_kwargs(kwargs)
-    dl = cosmology.luminosity_distance(redshift).cgs.value
+    dl = get_luminosity_distance(redshift, **kwargs)
     method = '2C'
     ss = kwargs.get('ss', 0.01)
     aa = kwargs.get('aa', 4.)
@@ -1340,8 +1331,7 @@ def powerlaw_redback_refreshed(time, redshift, thv, loge0, thc, thj, g1, et, s1,
     nism = 10 ** logn0
     e0 = 10 ** loge0
     time = time * day_to_s
-    cosmology = get_cosmology_from_kwargs(kwargs)
-    dl = cosmology.luminosity_distance(redshift).cgs.value
+    dl = get_luminosity_distance(redshift, **kwargs)
     method = 'PL'
     ss = kwargs.get('ss', 3)
     aa = kwargs.get('aa', -3)
@@ -1412,8 +1402,7 @@ def alternativepowerlaw_redback_refreshed(time, redshift, thv, loge0, thc, thj, 
     nism = 10 ** logn0
     e0 = 10 ** loge0
     time = time * day_to_s
-    cosmology = get_cosmology_from_kwargs(kwargs)
-    dl = cosmology.luminosity_distance(redshift).cgs.value
+    dl = get_luminosity_distance(redshift, **kwargs)
     method = 'PL2'
     ss = kwargs.get('ss', 3)
     aa = kwargs.get('aa', 3)
@@ -1484,8 +1473,7 @@ def doublegaussian_redback_refreshed(time, redshift, thv, loge0, thc, thj, g1, e
     nism = 10 ** logn0
     e0 = 10 ** loge0
     time = time * day_to_s
-    cosmology = get_cosmology_from_kwargs(kwargs)
-    dl = cosmology.luminosity_distance(redshift).cgs.value
+    dl = get_luminosity_distance(redshift, **kwargs)
     method = 'DG'
     ss = kwargs.get('ss', 0.1)
     aa = kwargs.get('aa', 0.5)
@@ -1540,8 +1528,7 @@ def cocoon(time, redshift, umax, umin, loge0, k, mej, logn0, p, logepse, logepsb
         For a proper calculation of the magntitude use the sed variant models.
     """
     time = time * day_to_s
-    cosmology = get_cosmology_from_kwargs(kwargs)
-    dl = cosmology.luminosity_distance(redshift).cgs.value
+    dl = get_luminosity_distance(redshift, **kwargs)
     spread = kwargs.get('spread', False)
     latres = kwargs.get('latres', 2)
     tres = kwargs.get('tres', 100)
@@ -1632,8 +1619,7 @@ def cone_afterglow(time, redshift, thv, loge0, thw, thc, logn0, p, logepse, loge
         For a proper calculation of the magntitude use the sed variant models.
     """
     time = time * day_to_s
-    cosmology = get_cosmology_from_kwargs(kwargs)
-    dl = cosmology.luminosity_distance(redshift).cgs.value
+    dl = get_luminosity_distance(redshift, **kwargs)
     spread = kwargs.get('spread', False)
     latres = kwargs.get('latres', 2)
     tres = kwargs.get('tres', 100)
@@ -1689,8 +1675,7 @@ def gaussiancore(time, redshift, thv, loge0, thc, thw, logn0, p, logepse, logeps
         For a proper calculation of the magntitude use the sed variant models.
     """
     time = time * day_to_s
-    cosmology = get_cosmology_from_kwargs(kwargs)
-    dl = cosmology.luminosity_distance(redshift).cgs.value
+    dl = get_luminosity_distance(redshift, **kwargs)
     spread = kwargs.get('spread', False)
     latres = kwargs.get('latres', 2)
     tres = kwargs.get('tres', 100)
@@ -1747,8 +1732,7 @@ def gaussian(time, redshift, thv, loge0, thw, thc, logn0, p, logepse, logepsb, k
         For a proper calculation of the magntitude use the sed variant models.
     """
     time = time * day_to_s
-    cosmology = get_cosmology_from_kwargs(kwargs)
-    dl = cosmology.luminosity_distance(redshift).cgs.value
+    dl = get_luminosity_distance(redshift, **kwargs)
     spread = kwargs.get('spread', False)
     latres = kwargs.get('latres', 2)
     tres = kwargs.get('tres', 100)
@@ -1805,8 +1789,7 @@ def smoothpowerlaw(time, redshift, thv, loge0, thw, thc, beta, logn0, p, logepse
         For a proper calculation of the magntitude use the sed variant models.
     """
     time = time * day_to_s
-    cosmology = get_cosmology_from_kwargs(kwargs)
-    dl = cosmology.luminosity_distance(redshift).cgs.value
+    dl = get_luminosity_distance(redshift, **kwargs)
     spread = kwargs.get('spread', False)
     latres = kwargs.get('latres', 2)
     tres = kwargs.get('tres', 100)
@@ -1863,8 +1846,7 @@ def powerlawcore(time, redshift, thv, loge0, thw, thc, beta, logn0, p, logepse, 
         For a proper calculation of the magntitude use the sed variant models.
     """
     time = time * day_to_s
-    cosmology = get_cosmology_from_kwargs(kwargs)
-    dl = cosmology.luminosity_distance(redshift).cgs.value
+    dl = get_luminosity_distance(redshift, **kwargs)
     spread = kwargs.get('spread', False)
     latres = kwargs.get('latres', 2)
     tres = kwargs.get('tres', 100)
@@ -1920,8 +1902,7 @@ def tophat(time, redshift, thv, loge0, thc, logn0, p, logepse, logepsb, ksin, g0
         For a proper calculation of the magntitude use the sed variant models. assuming a monochromatic
     """
     time = time * day_to_s
-    cosmology = get_cosmology_from_kwargs(kwargs)
-    dl = cosmology.luminosity_distance(redshift).cgs.value
+    dl = get_luminosity_distance(redshift, **kwargs)
     spread = kwargs.get('spread', False)
     latres = kwargs.get('latres', 2)
     tres = kwargs.get('tres', 100)
@@ -2130,8 +2111,7 @@ def jetsimpy_tophat(time, redshift, thv, loge0, thc, nism, A, p, logepse, logeps
     """
     import jetsimpy #Can not use models unless jetsimpy is downloaded
     time = time * day_to_s
-    cosmology = get_cosmology_from_kwargs(kwargs)
-    dl = cosmology.luminosity_distance(redshift).cgs.value
+    dl = get_luminosity_distance(redshift, **kwargs)
     P = dict(Eiso = 10 ** loge0, lf = g0, theta_c = thc, n0 = nism, A = A, eps_e = 10 ** logepse, eps_b = 10 ** logepsb, p = p, theta_v = thv, d = dl*3.24078e-25, z = redshift) #make a param dict
     if kwargs['output_format'] == 'flux_density':
         frequency = kwargs['frequency']
@@ -2165,8 +2145,7 @@ def jetsimpy_gaussian(time, redshift, thv, loge0, thc, nism, A, p, logepse, loge
     """
     import jetsimpy #Can not use models unless jetsimpy is downloaded
     time = time * day_to_s
-    cosmology = get_cosmology_from_kwargs(kwargs)
-    dl = cosmology.luminosity_distance(redshift).cgs.value
+    dl = get_luminosity_distance(redshift, **kwargs)
     P = dict(Eiso = 10 ** loge0, lf = g0, theta_c = thc, n0 = nism, A = A, eps_e = 10 ** logepse, eps_b = 10 ** logepsb, p = p, theta_v = thv, d = dl*3.24078e-25, z = redshift) #make a param dict
     if kwargs['output_format'] == 'flux_density':
         frequency = kwargs['frequency']
@@ -2201,8 +2180,7 @@ def jetsimpy_powerlaw(time, redshift, thv, loge0, thc, nism, A, p, logepse, loge
     """
     import jetsimpy #Can not use models unless jetsimpy is downloaded
     time = time * day_to_s
-    cosmology = get_cosmology_from_kwargs(kwargs)
-    dl = cosmology.luminosity_distance(redshift).cgs.value
+    dl = get_luminosity_distance(redshift, **kwargs)
     P = dict(Eiso = 10 ** loge0, lf = g0, theta_c = thc, n0 = nism, A = A, eps_e = 10 ** logepse, eps_b = 10 ** logepsb, p = p, theta_v = thv, d = dl*3.24078e-25, z = redshift, s = s) #make a param dict
     if kwargs['output_format'] == 'flux_density':
         frequency = kwargs['frequency']

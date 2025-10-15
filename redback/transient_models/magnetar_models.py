@@ -595,8 +595,7 @@ def luminosity_based_magnetar_models(time, photon_index, **kwargs):
         raise ValueError("Not a valid base model.")
     redshift = kwargs['redshift']
     kcorr = (1 + redshift)**(photon_index - 2)
-    cosmology = get_cosmology_from_kwargs(kwargs)
-    dl = cosmology.luminosity_distance(redshift).cgs.value
+    dl = get_luminosity_distance(redshift, **kwargs)
     time = time / (1 + redshift)
     lum = function(time, **kwargs) * 1e50
     flux = lum / (4*np.pi*dl**2*kcorr)

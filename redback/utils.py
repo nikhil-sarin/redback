@@ -81,6 +81,22 @@ def get_cosmology_from_kwargs(kwargs):
     return kwargs.get('cosmology', cosmo)
 
 
+def get_luminosity_distance(redshift, cosmology=None, **kwargs):
+    """
+    Calculate luminosity distance in CGS units.
+    
+    This is a commonly used pattern across many transient models.
+    
+    :param redshift: Source redshift
+    :param cosmology: Cosmology object (optional, will use kwargs or Planck18)
+    :param kwargs: Keyword arguments (may contain 'cosmology')
+    :return: Luminosity distance in CGS units
+    """
+    if cosmology is None:
+        cosmology = get_cosmology_from_kwargs(kwargs)
+    return cosmology.luminosity_distance(redshift).cgs.value
+
+
 def download_pointing_tables():
     """
     Download the pointing tables from zenodo.

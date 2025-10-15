@@ -182,8 +182,7 @@ def wr_bh_merger(time, redshift, M_star, M_bh, M_fast, M_pre, v_fast, v_slow, al
     N = kwargs.get('N', 30)
     kwargs['photosphere'] = kwargs.get("photosphere", photosphere.TemperatureFloor)
     kwargs['sed'] = kwargs.get("sed", sed.Blackbody)
-    cosmology = get_cosmology_from_kwargs(kwargs)
-    dl = cosmology.luminosity_distance(redshift).cgs.value
+    dl = get_luminosity_distance(redshift, **kwargs)
 
     time_temp = np.geomspace(1e0, 1e8, 2000)
     if kwargs['output_format'] == 'flux_density':

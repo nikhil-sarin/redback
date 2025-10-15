@@ -73,8 +73,7 @@ def blackbody_spectrum_with_absorption_and_emission_lines(angstroms, redshift,
     :param v2: velocity of absorption line
     :return: flux in ergs/s/cm^2/angstrom
     """
-    cosmology = get_cosmology_from_kwargs(kwargs)
-    dl = cosmology.luminosity_distance(redshift).cgs.value
+    dl = get_luminosity_distance(redshift, **kwargs)
     flux = _get_blackbody_spectrum(angstrom=angstroms, distance=dl,
                                   r_photosphere=rph, temperature=temp)
     fp1 = pm.line_spectrum_with_velocity_dispersion(angstroms, lc1, ls1, v1)
@@ -91,8 +90,7 @@ def blackbody_spectrum_at_z(angstroms, redshift, rph, temp, **kwargs):
     :param temp: photosphere temperature in Kelvin (rest frame)
     :return: flux in ergs/s/cm^2/angstrom in obs frame
     """
-    cosmology = get_cosmology_from_kwargs(kwargs)
-    dl = cosmology.luminosity_distance(redshift).cgs.value
+    dl = get_luminosity_distance(redshift, **kwargs)
 
     # Convert observed wavelengths to rest frame
     angstroms_rest = angstroms / (1 + redshift)
@@ -135,8 +133,7 @@ def powerlaw_plus_blackbody_spectrum_at_z(angstroms, redshift, pl_amplitude, pl_
     :param cosmology: Cosmology object for luminosity distance calculation
     :return: flux in ergs/s/cm^2/angstrom in obs frame
     """
-    cosmology = get_cosmology_from_kwargs(kwargs)
-    dl = cosmology.luminosity_distance(redshift).cgs.value
+    dl = get_luminosity_distance(redshift, **kwargs)
     reference_wavelength = kwargs.get('reference_wavelength', 5000.0)  # Angstroms
 
     # Convert observed wavelengths to rest frame
