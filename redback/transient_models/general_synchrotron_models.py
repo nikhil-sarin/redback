@@ -4,7 +4,7 @@ from redback.transient_models.magnetar_driven_ejecta_models import _ejecta_dynam
 from redback.transient_models.shock_powered_models import _emissivity_pl, _emissivity_thermal, _tau_nu, _c_j, _c_alpha, _g_theta, _low_freq_apl_correction, _low_freq_jpl_correction
 from redback.transient_models.afterglow_models import _get_kn_dynamics, _pnu_synchrotron
 from astropy.cosmology import Planck18 as cosmo
-from redback.utils import calc_kcorrected_properties, citation_wrapper, logger, get_csm_properties, nu_to_lambda, lambda_to_nu, velocity_from_lorentz_factor, calc_ABmag_from_flux_density
+from redback.utils import calc_kcorrected_properties, citation_wrapper, logger, get_csm_properties, nu_to_lambda, lambda_to_nu, velocity_from_lorentz_factor, calc_ABmag_from_flux_density, normalize_frequency_to_time_array
 from redback.constants import day_to_s, solar_mass, km_cgs, au_cgs, speed_of_light, qe, electron_mass, proton_mass, sigma_T
 from scipy import integrate
 from scipy.interpolate import interp1d
@@ -248,9 +248,7 @@ def kilonova_afterglow_redback(time, redshift, loge0, mej, logn0, logepse, logep
     mu = 1.0
     blueshift = Gamma * (1.0 - beta * mu)
 
-    frequency = kwargs['frequency']
-    if isinstance(frequency, float):
-        frequency = np.ones(len(time)) * frequency
+    frequency = normalize_frequency_to_time_array(kwargs['frequency'], time)
     fnu_func = {}
     for nu in frequency:
         Fnu_opt_thin = _pnu_synchrotron(nu * blueshift * (1.0 + redshift), B, gamma_m, gamma_c, Ne, p) * (1.0 + redshift) / (
@@ -316,9 +314,7 @@ def kilonova_afterglow_nakarpiran(time, redshift, loge0, mej, logn0, logepse, lo
     fnu_dec_dict = {}
     fnu_func = {}
     temp_time = np.linspace(0.1, 100, 200) * t_dec
-    frequency = kwargs['frequency']
-    if isinstance(frequency, float):
-        frequency = np.ones(len(time)) * frequency
+    frequency = normalize_frequency_to_time_array(kwargs['frequency'], time)
     for freq in frequency:
         # Eq. 11 in Nakar & Piran 2011 (in Mjy)
         fnu_dec_dict[freq] = 0.3 * (Eej / 1e49) * n0 ** (0.25 * (p + 1)) * (epsilon_B / 1e-1) ** (0.25 * (p + 1)) * (
@@ -536,9 +532,7 @@ def synchrotron_massloss(time, redshift, v_s, log_Mdot_vwind, logepsb, logepse, 
     """
     cosmology = kwargs.get('cosmology', cosmo)
     dl = cosmology.luminosity_distance(redshift).cgs.value
-    frequency = kwargs['frequency']
-    if isinstance(frequency, float):
-        frequency = np.ones(len(time)) * frequency
+    frequency = normalize_frequency_to_time_array(kwargs['frequency'], time)
     frequency, time = calc_kcorrected_properties(frequency=frequency, redshift=redshift, time=time)   
 
     eps_e = 10.0 ** logepse
@@ -588,9 +582,7 @@ def synchrotron_ism(time, redshift, v_s, logn0, logepsb, logepse, p, **kwargs):
     """
     cosmology = kwargs.get('cosmology', cosmo)
     dl = cosmology.luminosity_distance(redshift).cgs.value
-    frequency = kwargs['frequency']
-    if isinstance(frequency, float):
-        frequency = np.ones(len(time)) * frequency
+    frequency = normalize_frequency_to_time_array(kwargs['frequency'], time)
     frequency, time = calc_kcorrected_properties(frequency=frequency, redshift=redshift, time=time)
 
     n_ism = 10.0 ** logn0
@@ -640,9 +632,7 @@ def synchrotron_pldensity(time, redshift, v_s, logA, s, logepsb, logepse, p, **k
     """
     cosmology = kwargs.get('cosmology', cosmo)
     dl = cosmology.luminosity_distance(redshift).cgs.value
-    frequency = kwargs['frequency']
-    if isinstance(frequency, float):
-        frequency = np.ones(len(time)) * frequency
+    frequency = normalize_frequency_to_time_array(kwargs['frequency'], time)
     frequency, time = calc_kcorrected_properties(frequency=frequency, redshift=redshift, time=time)
 
     A = 10.0 ** logA

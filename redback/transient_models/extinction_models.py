@@ -2,7 +2,7 @@ from inspect import isfunction
 import numpy as np
 import redback.utils
 from redback.transient_models.fireball_models import predeceleration
-from redback.utils import logger, calc_ABmag_from_flux_density, citation_wrapper, lambda_to_nu
+from redback.utils import logger, calc_ABmag_from_flux_density, citation_wrapper, lambda_to_nu, normalize_frequency_to_array
 import astropy.units as uu
 import redback.sed as sed
 from redback.constants import day_to_s
@@ -221,9 +221,7 @@ def _evaluate_extinction_model(time, av_host, av_mw=0.0, model_type=None, **kwar
     mw_law = kwargs.pop('mw_law', 'fitzpatrick99')
 
     if kwargs['output_format'] == 'flux_density':
-        frequency = kwargs['frequency']
-        if isinstance(frequency, float):
-            frequency = np.ones(len(time)) * frequency
+        frequency = normalize_frequency_to_time_array(kwargs['frequency'], time)
 
         angstroms = redback.utils.nu_to_lambda(frequency)
 

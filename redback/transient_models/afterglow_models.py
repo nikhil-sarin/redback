@@ -1,6 +1,7 @@
 from astropy.cosmology import Planck18 as cosmo  # noqa
 from inspect import isfunction
-from redback.utils import logger, citation_wrapper, calc_ABmag_from_flux_density, lambda_to_nu, bands_to_frequency
+from redback.utils import (logger, citation_wrapper, calc_ABmag_from_flux_density, lambda_to_nu, bands_to_frequency,
+                           normalize_frequency_to_time_array)
 from redback.constants import day_to_s, speed_of_light, solar_mass, proton_mass, electron_mass, sigma_T
 from redback.sed import get_correct_output_format_from_spectra
 import astropy.units as uu
@@ -725,9 +726,7 @@ def tophat_redback(time, redshift, thv, loge0, thc, logn0, p, logepse, logepsb, 
     :return: flux density or AB mag. Note this is going to give the monochromatic magnitude at the effective frequency for the band.
         For a proper calculation of the magntitude use the sed variant models.
     """
-    frequency = kwargs['frequency']
-    if isinstance(frequency, float):
-        frequency = np.ones(len(time)) * frequency
+    frequency = normalize_frequency_to_time_array(kwargs['frequency'], time)
     k = kwargs.get('k', 0)
     a1 = kwargs.get('a1', 1)
     exp = kwargs.get('expansion', 1)
@@ -789,9 +788,7 @@ def gaussian_redback(time, redshift, thv, loge0, thc, thj, logn0, p, logepse, lo
     :return: flux density or AB mag. Note this is going to give the monochromatic magnitude at the effective frequency for the band.
         For a proper calculation of the magntitude use the sed variant models.
     """
-    frequency = kwargs['frequency']
-    if isinstance(frequency, float):
-        frequency = np.ones(len(time)) * frequency
+    frequency = normalize_frequency_to_time_array(kwargs['frequency'], time)
     k = kwargs.get('k', 0)
     a1 = kwargs.get('a1', 1)
     exp = kwargs.get('expansion', 1)
@@ -856,9 +853,7 @@ def twocomponent_redback(time, redshift, thv, loge0, thc, thj, logn0, p, logepse
     :return: flux density or AB mag. Note this is going to give the monochromatic magnitude at the effective frequency for the band.
         For a proper calculation of the magntitude use the sed variant models.
     """
-    frequency = kwargs['frequency']
-    if isinstance(frequency, float):
-        frequency = np.ones(len(time)) * frequency
+    frequency = normalize_frequency_to_time_array(kwargs['frequency'], time)
     k = kwargs.get('k', 0)
     a1 = kwargs.get('a1', 1)
     exp = kwargs.get('expansion', 1)
@@ -925,9 +920,7 @@ def powerlaw_redback(time, redshift, thv, loge0, thc, thj, logn0, p, logepse, lo
     :return: flux density or AB mag. Note this is going to give the monochromatic magnitude at the effective frequency for the band.
         For a proper calculation of the magntitude use the sed variant models.
     """
-    frequency = kwargs['frequency']
-    if isinstance(frequency, float):
-        frequency = np.ones(len(time)) * frequency
+    frequency = normalize_frequency_to_time_array(kwargs['frequency'], time)
     k = kwargs.get('k', 0)
     a1 = kwargs.get('a1', 1)
     exp = kwargs.get('expansion', 1)
@@ -993,9 +986,7 @@ def alternativepowerlaw_redback(time, redshift, thv, loge0, thc, thj, logn0, p, 
     :return: flux density or AB mag. Note this is going to give the monochromatic magnitude at the effective frequency for the band.
         For a proper calculation of the magntitude use the sed variant models.
     """
-    frequency = kwargs['frequency']
-    if isinstance(frequency, float):
-        frequency = np.ones(len(time)) * frequency
+    frequency = normalize_frequency_to_time_array(kwargs['frequency'], time)
     k = kwargs.get('k', 0)
     a1 = kwargs.get('a1', 1)
     exp = kwargs.get('expansion', 1)
@@ -1061,9 +1052,7 @@ def doublegaussian_redback(time, redshift, thv, loge0, thc, thj, logn0, p, logep
     :return: flux density or AB mag. Note this is going to give the monochromatic magnitude at the effective frequency for the band.
         For a proper calculation of the magntitude use the sed variant models.
     """
-    frequency = kwargs['frequency']
-    if isinstance(frequency, float):
-        frequency = np.ones(len(time)) * frequency
+    frequency = normalize_frequency_to_time_array(kwargs['frequency'], time)
     k = kwargs.get('k', 0)
     a1 = kwargs.get('a1', 1)
     exp = kwargs.get('expansion', 1)
@@ -1130,9 +1119,7 @@ def tophat_redback_refreshed(time, redshift, thv, loge0, thc, g1, et, s1,
     :return: flux density or AB mag. Note this is going to give the monochromatic magnitude at the effective frequency for the band.
         For a proper calculation of the magntitude use the sed variant models.
     """
-    frequency = kwargs['frequency']
-    if isinstance(frequency, float):
-        frequency = np.ones(len(time)) * frequency
+    frequency = normalize_frequency_to_time_array(kwargs['frequency'], time)
     k = kwargs.get('k', 0)
     a1 = kwargs.get('a1', 1)
     exp = kwargs.get('expansion', 1)
@@ -1200,9 +1187,7 @@ def gaussian_redback_refreshed(time, redshift, thv, loge0, thc, thj, g1, et, s1,
     :return: flux density or AB mag. Note this is going to give the monochromatic magnitude at the effective frequency for the band.
         For a proper calculation of the magntitude use the sed variant models.
     """
-    frequency = kwargs['frequency']
-    if isinstance(frequency, float):
-        frequency = np.ones(len(time)) * frequency
+    frequency = normalize_frequency_to_time_array(kwargs['frequency'], time)
     k = kwargs.get('k', 0)
     a1 = kwargs.get('a1', 1)
     exp = kwargs.get('expansion', 1)
@@ -1273,9 +1258,7 @@ def twocomponent_redback_refreshed(time, redshift, thv, loge0, thc, thj, g1, et,
     :return: flux density or AB mag. Note this is going to give the monochromatic magnitude at the effective frequency for the band.
         For a proper calculation of the magntitude use the sed variant models.
     """
-    frequency = kwargs['frequency']
-    if isinstance(frequency, float):
-        frequency = np.ones(len(time)) * frequency
+    frequency = normalize_frequency_to_time_array(kwargs['frequency'], time)
     k = kwargs.get('k', 0)
     a1 = kwargs.get('a1', 1)
     exp = kwargs.get('expansion', 1)
@@ -1347,9 +1330,7 @@ def powerlaw_redback_refreshed(time, redshift, thv, loge0, thc, thj, g1, et, s1,
     :return: flux density or AB mag. Note this is going to give the monochromatic magnitude at the effective frequency for the band.
         For a proper calculation of the magntitude use the sed variant models.
     """
-    frequency = kwargs['frequency']
-    if isinstance(frequency, float):
-        frequency = np.ones(len(time)) * frequency
+    frequency = normalize_frequency_to_time_array(kwargs['frequency'], time)
     k = kwargs.get('k', 0)
     a1 = kwargs.get('a1', 1)
     exp = kwargs.get('expansion', 1)
@@ -1421,9 +1402,7 @@ def alternativepowerlaw_redback_refreshed(time, redshift, thv, loge0, thc, thj, 
     :return: flux density or AB mag. Note this is going to give the monochromatic magnitude at the effective frequency for the band.
         For a proper calculation of the magntitude use the sed variant models.
     """
-    frequency = kwargs['frequency']
-    if isinstance(frequency, float):
-        frequency = np.ones(len(time)) * frequency
+    frequency = normalize_frequency_to_time_array(kwargs['frequency'], time)
     k = kwargs.get('k', 0)
     a1 = kwargs.get('a1', 1)
     exp = kwargs.get('expansion', 1)
@@ -1495,9 +1474,7 @@ def doublegaussian_redback_refreshed(time, redshift, thv, loge0, thc, thj, g1, e
     :return: flux density or AB mag. Note this is going to give the monochromatic magnitude at the effective frequency for the band.
         For a proper calculation of the magntitude use the sed variant models.
     """
-    frequency = kwargs['frequency']
-    if isinstance(frequency, float):
-        frequency = np.ones(len(time)) * frequency
+    frequency = normalize_frequency_to_time_array(kwargs['frequency'], time)
     k = kwargs.get('k', 0)
     a1 = kwargs.get('a1', 1)
     exp = kwargs.get('expansion', 1)

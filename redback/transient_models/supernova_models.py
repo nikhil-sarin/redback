@@ -9,7 +9,8 @@ import redback.sed as sed
 import redback.photosphere as photosphere
 from astropy.cosmology import Planck18 as cosmo  # noqa
 from redback.utils import (calc_kcorrected_properties, citation_wrapper, logger, get_csm_properties, nu_to_lambda,
-                           lambda_to_nu, velocity_from_lorentz_factor, build_spectral_feature_list)
+                           lambda_to_nu, velocity_from_lorentz_factor, build_spectral_feature_list,
+                           normalize_frequency_to_array)
 from redback.constants import day_to_s, solar_mass, km_cgs, au_cgs, speed_of_light, sigma_sb
 from inspect import isfunction
 import astropy.units as uu
@@ -56,7 +57,7 @@ def sncosmo_models(time, redshift, model_kwargs=None, **kwargs):
     model.set(z=redshift)
     model.set(t0=peak_time)
 
-    if model_kwargs == None:
+    if model_kwargs is None:
         _model_kwargs = {}
         for x in kwargs['model_kwarg_names']:
             _model_kwargs[x] = kwargs[x]
@@ -81,8 +82,7 @@ def sncosmo_models(time, redshift, model_kwargs=None, **kwargs):
     if kwargs['output_format'] == 'flux_density':
         frequency = kwargs['frequency']
 
-        if isinstance(frequency, float):
-            frequency = np.array([frequency])
+        frequency = normalize_frequency_to_array(frequency)
 
         if (len(frequency) != 1 or len(frequency) == len(time)):
             raise ValueError('frequency array must be of length 1 or same size as time array')

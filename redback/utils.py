@@ -40,6 +40,34 @@ def find_nearest(array, value):
     return array[idx], idx
 
 
+def normalize_frequency_to_array(frequency):
+    """
+    Normalize frequency input to a numpy array.
+    
+    :param frequency: Frequency value(s) - can be float or array-like
+    :return: Frequency as numpy array
+    """
+    if isinstance(frequency, float):
+        frequency = np.array([frequency])
+    return np.asarray(frequency)
+
+
+def normalize_frequency_to_time_array(frequency, time):
+    """
+    Normalize frequency to match time array length.
+    
+    If frequency is a scalar, returns an array of that frequency value
+    matching the length of the time array.
+    
+    :param frequency: Frequency value(s) - can be float or array-like
+    :param time: Time array to match length with
+    :return: Frequency array matching time array length
+    """
+    if isinstance(frequency, float):
+        frequency = np.ones(len(time)) * frequency
+    return np.asarray(frequency)
+
+
 def download_pointing_tables():
     """
     Download the pointing tables from zenodo.
@@ -86,7 +114,7 @@ def check_kwargs_validity(kwargs):
     :param kwargs:
     :return:
     """
-    if kwargs == None:
+    if kwargs is None:
         logger.info("No kwargs passed to function")
         return kwargs
     if 'output_format' not in kwargs.keys():

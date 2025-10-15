@@ -3,7 +3,7 @@ import redback.interaction_processes as ip
 import redback.sed as sed
 import redback.photosphere as photosphere
 from redback.utils import calc_kcorrected_properties, citation_wrapper, calc_tfb, lambda_to_nu, \
-    calc_ABmag_from_flux_density, calc_flux_density_from_ABmag, bands_to_frequency
+    calc_ABmag_from_flux_density, calc_flux_density_from_ABmag, bands_to_frequency, normalize_frequency_to_array
 import redback.constants as cc
 import redback.transient_models.phenomenological_models as pm
 
@@ -266,9 +266,7 @@ def cooling_envelope(time, redshift, mbh_6, stellar_mass, eta, alpha, beta, **kw
     time_obs = time
 
     if kwargs['output_format'] == 'flux_density':
-        frequency = kwargs['frequency']
-        if isinstance(frequency, float):
-            frequency = np.ones(len(time)) * frequency
+        frequency = normalize_frequency_to_time_array(kwargs['frequency'], time)
 
         # convert to source frame time and frequency
         time = time * cc.day_to_s
@@ -471,9 +469,7 @@ def gaussianrise_cooling_envelope(time, redshift, peak_time, sigma_t, mbh_6, ste
     f1 = pm.gaussian_rise(time=stitching_point, a_1=1., peak_time=peak_time * cc.day_to_s, sigma_t=sigma_t * cc.day_to_s)
 
     if kwargs['output_format'] == 'flux_density':
-        frequency = kwargs['frequency']
-        if isinstance(frequency, float):
-            frequency = np.ones(len(time)) * frequency
+        frequency = normalize_frequency_to_time_array(kwargs['frequency'], time)
 
         # convert to source frame time and frequency
         frequency, time = calc_kcorrected_properties(frequency=frequency, redshift=redshift, time=time)
@@ -592,9 +588,7 @@ def bpl_cooling_envelope(time, redshift, peak_time, alpha_1, alpha_2, mbh_6, ste
                                  alpha_1=alpha_1, alpha_2=alpha_2)
 
     if kwargs['output_format'] == 'flux_density':
-        frequency = kwargs['frequency']
-        if isinstance(frequency, float):
-            frequency = np.ones(len(time)) * frequency
+        frequency = normalize_frequency_to_time_array(kwargs['frequency'], time)
 
         # convert to source frame time and frequency
         frequency, time = calc_kcorrected_properties(frequency=frequency, redshift=redshift, time=time)
@@ -1576,9 +1570,7 @@ def stream_stream_tde(time, redshift, mbh_6, mstar, c1, f, h_r, inc_tcool, del_o
     r_eff = np.sqrt(full_lbol / (np.pi * cc.sigma_sb * full_temp**4.0))            
         
     if kwargs['output_format'] == 'flux_density':
-        frequency = kwargs['frequency']
-        if isinstance(frequency, float):
-            frequency = np.ones(len(time)) * frequency           
+        frequency = normalize_frequency_to_time_array(kwargs['frequency'], time)           
     
         # convert to source frame time and frequency
         frequency, time = calc_kcorrected_properties(frequency=frequency, redshift=redshift, time=time)
