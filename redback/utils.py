@@ -146,22 +146,20 @@ def check_kwargs_validity(kwargs):
     if kwargs is None:
         logger.info("No kwargs passed to function")
         return kwargs
-    if 'output_format' not in kwargs.keys():
+    if 'output_format' not in kwargs:
         raise ValueError("output_format must be specified")
-    else:
-        output_format = kwargs['output_format']
+    
+    output_format = kwargs['output_format']
     match = ['frequency', 'bands']
-    if any(x in kwargs.keys() for x in match):
-        pass
-    else:
+    if not any(x in kwargs for x in match):
         raise ValueError("frequency or bands must be specified in model_kwargs")
 
     if output_format == 'flux_density':
-        if 'frequency' not in kwargs.keys():
+        if 'frequency' not in kwargs:
             kwargs['frequency'] = redback.utils.bands_to_frequency(kwargs['bands'])
 
     if output_format in ['flux', 'magnitude']:
-        if 'bands' not in kwargs.keys():
+        if 'bands' not in kwargs:
             kwargs['bands'] = redback.utils.frequency_to_bandname(kwargs['frequency'])
 
     if output_format == 'spectra':
@@ -685,7 +683,7 @@ def build_spectral_feature_list(**kwargs):
 
     # Find all feature numbers by looking for _feature_ pattern
     feature_numbers = set()
-    for key in kwargs.keys():
+    for key in kwargs:
         if '_feature_' in key:
             try:
                 # Extract number from parameter name
