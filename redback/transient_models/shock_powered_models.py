@@ -6,7 +6,7 @@ import redback.constants as cc
 from astropy import units as uu
 import redback.sed as sed
 from astropy.cosmology import Planck18 as cosmo  # noqa
-from redback.utils import calc_kcorrected_properties, citation_wrapper, lambda_to_nu, get_cosmology_from_kwargs
+from redback.utils import calc_kcorrected_properties, citation_wrapper, lambda_to_nu, get_cosmology_from_kwargs, get_luminosity_distance
 
 
 def _shockcooling_morag(time, v_shock, m_env, f_rho_m, radius, kappa):

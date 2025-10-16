@@ -4,7 +4,7 @@ import redback.sed as sed
 import redback.photosphere as photosphere
 from redback.utils import calc_kcorrected_properties, citation_wrapper, calc_tfb, lambda_to_nu, \
     calc_ABmag_from_flux_density, calc_flux_density_from_ABmag, bands_to_frequency, normalize_frequency_to_array, \
-    get_cosmology_from_kwargs
+    get_cosmology_from_kwargs, get_luminosity_distance, normalize_frequency_to_time_array
 import redback.constants as cc
 import redback.transient_models.phenomenological_models as pm
 

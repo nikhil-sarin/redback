@@ -4,7 +4,7 @@ from redback.transient_models.magnetar_driven_ejecta_models import _ejecta_dynam
 from redback.transient_models.shock_powered_models import _emissivity_pl, _emissivity_thermal, _tau_nu, _c_j, _c_alpha, _g_theta, _low_freq_apl_correction, _low_freq_jpl_correction
 from redback.transient_models.afterglow_models import _get_kn_dynamics, _pnu_synchrotron
 from astropy.cosmology import Planck18 as cosmo
-from redback.utils import calc_kcorrected_properties, citation_wrapper, logger, get_csm_properties, nu_to_lambda, lambda_to_nu, velocity_from_lorentz_factor, calc_ABmag_from_flux_density, normalize_frequency_to_time_array, get_cosmology_from_kwargs
+from redback.utils import calc_kcorrected_properties, citation_wrapper, logger, get_csm_properties, nu_to_lambda, lambda_to_nu, velocity_from_lorentz_factor, calc_ABmag_from_flux_density, normalize_frequency_to_time_array, get_cosmology_from_kwargs, get_luminosity_distance
 from redback.constants import day_to_s, solar_mass, km_cgs, au_cgs, speed_of_light, qe, electron_mass, proton_mass, sigma_T
 from scipy import integrate
 from scipy.interpolate import interp1d

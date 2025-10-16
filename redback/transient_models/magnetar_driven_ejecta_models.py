@@ -7,7 +7,7 @@ from collections import namedtuple
 import astropy.units as uu # noqa
 import astropy.constants as cc # noqa
 from redback.utils import calc_kcorrected_properties, interpolated_barnes_and_kasen_thermalisation_efficiency, \
-    electron_fraction_from_kappa, citation_wrapper, lambda_to_nu, velocity_from_lorentz_factor, get_cosmology_from_kwargs
+    electron_fraction_from_kappa, citation_wrapper, lambda_to_nu, velocity_from_lorentz_factor, get_cosmology_from_kwargs, get_luminosity_distance
 from redback.sed import blackbody_to_flux_density, get_correct_output_format_from_spectra
 
 def _ejecta_dynamics_and_interaction(time, mej, beta, ejecta_radius, kappa, n_ism,

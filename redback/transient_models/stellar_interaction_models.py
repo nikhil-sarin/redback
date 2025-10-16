@@ -4,7 +4,7 @@ import redback.interaction_processes as ip
 import redback.sed as sed
 import redback.photosphere as photosphere
 from astropy.cosmology import Planck18 as cosmo
-from redback.utils import calc_kcorrected_properties, citation_wrapper, lambda_to_nu, get_cosmology_from_kwargs
+from redback.utils import calc_kcorrected_properties, citation_wrapper, lambda_to_nu, get_cosmology_from_kwargs, get_luminosity_distance
 from redback.constants import *
 from scipy.interpolate import interp1d
 

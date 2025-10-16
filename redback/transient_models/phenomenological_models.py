@@ -1,5 +1,5 @@
 import numpy as np
-from redback.utils import citation_wrapper, get_cosmology_from_kwargs
+from redback.utils import citation_wrapper, get_cosmology_from_kwargs, get_luminosity_distance
 from redback.constants import speed_of_light_si
 
 

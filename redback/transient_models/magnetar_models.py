@@ -6,7 +6,7 @@ from collections import namedtuple
 from scipy.interpolate import interp1d
 from scipy.integrate import quad, cumulative_trapezoid as cumtrapz
 from inspect import isfunction
-from redback.utils import logger, citation_wrapper, get_cosmology_from_kwargs
+from redback.utils import logger, citation_wrapper, get_cosmology_from_kwargs, get_luminosity_distance
 
 from redback.constants import *
 from redback.transient_models.fireball_models import one_component_fireball_model

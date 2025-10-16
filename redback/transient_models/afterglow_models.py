@@ -1,8 +1,7 @@
 from astropy.cosmology import Planck18 as cosmo  # noqa
 from inspect import isfunction
 from redback.utils import (logger, citation_wrapper, calc_ABmag_from_flux_density, lambda_to_nu, bands_to_frequency,
-                           normalize_frequency_to_time_array, get_cosmology_from_kwargs,
-                           get_cosmology_from_kwargs, get_luminosity_distance)
+                           normalize_frequency_to_time_array, get_cosmology_from_kwargs, get_luminosity_distance)
 from redback.constants import day_to_s, speed_of_light, solar_mass, proton_mass, electron_mass, sigma_T
 from redback.sed import get_correct_output_format_from_spectra
 import astropy.units as uu

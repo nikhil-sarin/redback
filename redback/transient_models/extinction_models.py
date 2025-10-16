@@ -2,7 +2,7 @@ from inspect import isfunction
 import numpy as np
 import redback.utils
 from redback.transient_models.fireball_models import predeceleration
-from redback.utils import logger, calc_ABmag_from_flux_density, citation_wrapper, lambda_to_nu, normalize_frequency_to_array
+from redback.utils import logger, calc_ABmag_from_flux_density, citation_wrapper, lambda_to_nu, normalize_frequency_to_array, normalize_frequency_to_time_array
 import astropy.units as uu
 import redback.sed as sed
 from redback.constants import day_to_s

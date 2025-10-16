@@ -1,7 +1,7 @@
 import numpy
 from astropy.cosmology import Planck18 as cosmo
 import redback.constants as cc
-from redback.utils import lambda_to_nu, fnu_to_flambda, get_cosmology_from_kwargs
+from redback.utils import lambda_to_nu, fnu_to_flambda, get_cosmology_from_kwargs, get_luminosity_distance
 import redback.sed as sed
 import redback.transient_models.phenomenological_models as pm
 
