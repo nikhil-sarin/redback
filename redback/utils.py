@@ -68,32 +68,36 @@ def normalize_frequency_to_time_array(frequency, time):
     return np.asarray(frequency)
 
 
-def get_cosmology_from_kwargs(kwargs):
+def get_cosmology_from_kwargs(kwargs, default=None):
     """
     Extract cosmology from kwargs or return default Planck18.
     
     This is a commonly used pattern across many transient models.
     
     :param kwargs: Keyword arguments dictionary
+    :param default: Default cosmology to use if not in kwargs (uses Planck18 if None)
     :return: Cosmology object
     """
-    from astropy.cosmology import Planck18 as cosmo
-    return kwargs.get('cosmology', cosmo)
+    if default is None:
+        from astropy.cosmology import Planck18 as cosmo
+        default = cosmo
+    return kwargs.get('cosmology', default)
 
 
-def get_luminosity_distance(redshift, cosmology=None, **kwargs):
+def get_luminosity_distance(redshift, cosmology=None, default_cosmology=None, **kwargs):
     """
     Calculate luminosity distance in CGS units.
     
     This is a commonly used pattern across many transient models.
     
     :param redshift: Source redshift
-    :param cosmology: Cosmology object (optional, will use kwargs or Planck18)
+    :param cosmology: Cosmology object (optional, will use kwargs or default)
+    :param default_cosmology: Default cosmology to use if not in kwargs (uses Planck18 if None)
     :param kwargs: Keyword arguments (may contain 'cosmology')
     :return: Luminosity distance in CGS units
     """
     if cosmology is None:
-        cosmology = get_cosmology_from_kwargs(kwargs)
+        cosmology = get_cosmology_from_kwargs(kwargs, default=default_cosmology)
     return cosmology.luminosity_distance(redshift).cgs.value
 
 
