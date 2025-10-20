@@ -704,9 +704,9 @@ def tophat_redback(time, redshift, thv, loge0, thc, logn0, p, logepse, logepsb, 
     :param time: time in days
     :param redshift: source redshift
     :param thv: observer viewing angle in radians
-    :param loge0: jet energy in \log_{10} ergs
+    :param loge0: jet energy in \\log_{10} ergs
     :param thc: jet opening angle in radians
-    :param logn0: ism number density in \log_{10} cm^-3 or \log_{10} A* for wind-like density profile
+    :param logn0: ism number density in \\log_{10} cm^-3 or \\log_{10} A* for wind-like density profile
     :param p: electron power law index
     :param logepse: partition fraction in electrons
     :param logepsb: partition fraction in magnetic field
@@ -767,10 +767,10 @@ def gaussian_redback(time, redshift, thv, loge0, thc, thj, logn0, p, logepse, lo
     :param time: time in days
     :param redshift: source redshift
     :param thv: observer viewing angle in radians
-    :param loge0: jet energy in \log_{10} ergs
+    :param loge0: jet energy in \\log_{10} ergs
     :param thc: jet core size in radians
     :param thj: jet edge in radians (thc < thj < pi/2)
-    :param logn0: ism number density in \log_{10} cm^-3 or \log_{10} A* for wind-like density profile
+    :param logn0: ism number density in \\log_{10} cm^-3 or \\log_{10} A* for wind-like density profile
     :param p: electron power law index
     :param logepse: partition fraction in electrons
     :param logepsb: partition fraction in magnetic field
@@ -832,10 +832,10 @@ def twocomponent_redback(time, redshift, thv, loge0, thc, thj, logn0, p, logepse
     :param time: time in days
     :param redshift: source redshift
     :param thv: observer viewing angle in radians
-    :param loge0: jet energy in \log_{10} ergs
+    :param loge0: jet energy in \\log_{10} ergs
     :param thc: jet core size in radians
     :param thj: jet edge in radians (thc < thj < pi/2)
-    :param logn0: ism number density in \log_{10} cm^-3 or \log_{10} A* for wind-like density profile
+    :param logn0: ism number density in \\log_{10} cm^-3 or \\log_{10} A* for wind-like density profile
     :param p: electron power law index
     :param logepse: partition fraction in electrons
     :param logepsb: partition fraction in magnetic field
@@ -901,10 +901,10 @@ def powerlaw_redback(time, redshift, thv, loge0, thc, thj, logn0, p, logepse, lo
     :param time: time in days
     :param redshift: source redshift
     :param thv: observer viewing angle in radians
-    :param loge0: jet energy in \log_{10} ergs
+    :param loge0: jet energy in \\log_{10} ergs
     :param thc: jet core size in radians
     :param thj: jet edge in radians (thc < thj < pi/2)
-    :param logn0: ism number density in \log_{10} cm^-3 or \log_{10} A* for wind-like density profile
+    :param logn0: ism number density in \\log_{10} cm^-3 or \\log_{10} A* for wind-like density profile
     :param p: electron power law index
     :param logepse: partition fraction in electrons
     :param logepsb: partition fraction in magnetic field
@@ -969,10 +969,10 @@ def alternativepowerlaw_redback(time, redshift, thv, loge0, thc, thj, logn0, p, 
     :param time: time in days
     :param redshift: source redshift
     :param thv: observer viewing angle in radians
-    :param loge0: jet energy in \log_{10} ergs
+    :param loge0: jet energy in \\log_{10} ergs
     :param thc: jet core size in radians
     :param thj: jet edge in radians (thc < thj < pi/2)
-    :param logn0: ism number density in \log_{10} cm^-3 or \log_{10} A* for wind-like density profile
+    :param logn0: ism number density in \\log_{10} cm^-3 or \\log_{10} A* for wind-like density profile
     :param p: electron power law index
     :param logepse: partition fraction in electrons
     :param logepsb: partition fraction in magnetic field
@@ -1037,10 +1037,10 @@ def doublegaussian_redback(time, redshift, thv, loge0, thc, thj, logn0, p, logep
     :param time: time in days
     :param redshift: source redshift
     :param thv: observer viewing angle in radians
-    :param loge0: jet energy in \log_{10} ergs
+    :param loge0: jet energy in \\log_{10} ergs
     :param thc: jet core size in radians
     :param thj: jet edge in radians (thc < thj < pi/2)
-    :param logn0: ism number density in \log_{10} cm^-3 or \log_{10} A* for wind-like density profile
+    :param logn0: ism number density in \\log_{10} cm^-3 or \\log_{10} A* for wind-like density profile
     :param p: electron power law index
     :param logepse: partition fraction in electrons
     :param logepsb: partition fraction in magnetic field
@@ -1105,13 +1105,13 @@ def tophat_redback_refreshed(time, redshift, thv, loge0, thc, g1, et, s1,
     :param time: time in days
     :param redshift: source redshift
     :param thv: observer viewing angle in radians
-    :param loge0: jet energy in \log_{10} ergs
+    :param loge0: jet energy in \\log_{10} ergs
     :param thc: jet opening angle in radians
     :param g1: Lorentz factor of shell at start of energy injection. 2 <= g1 < g0
     :param et: factor by which total kinetic energy is larger
     :param s1: index for energy injection; typically between 0--10, some higher values, ~<30, are supported for some structures.
         Values of ~10 are consistent with a discrete shock interaction, see Lamb, Levan & Tanvir 2020
-    :param logn0: ism number density in \log_{10} cm^-3 or \log_{10} A* for wind-like density profile
+    :param logn0: ism number density in \\log_{10} cm^-3 or \\log_{10} A* for wind-like density profile
     :param p: electron power law index
     :param logepse: partition fraction in electrons
     :param logepsb: partition fraction in magnetic field
@@ -1174,14 +1174,14 @@ def gaussian_redback_refreshed(time, redshift, thv, loge0, thc, thj, g1, et, s1,
     :param time: time in days
     :param redshift: source redshift
     :param thv: observer viewing angle in radians
-    :param loge0: jet energy in \log_{10} ergs
+    :param loge0: jet energy in \\log_{10} ergs
     :param thc: jet core size in radians
     :param thj: jet edge in radians (thc < thj < pi/2)
     :param g1: Lorentz factor of shell at start of energy injection. 2 <= g1 < g0
     :param et: factor by which total kinetic energy is larger
     :param s1: index for energy injection; typically between 0--10, some higher values, ~<30, are supported for some structures.
         Values of ~10 are consistent with a discrete shock interaction, see Lamb, Levan & Tanvir 2020
-    :param logn0: ism number density in \log_{10} cm^-3 or \log_{10} A* for wind-like density profile
+    :param logn0: ism number density in \\log_{10} cm^-3 or \\log_{10} A* for wind-like density profile
     :param p: electron power law index
     :param logepse: partition fraction in electrons
     :param logepsb: partition fraction in magnetic field
@@ -1245,14 +1245,14 @@ def twocomponent_redback_refreshed(time, redshift, thv, loge0, thc, thj, g1, et,
     :param time: time in days
     :param redshift: source redshift
     :param thv: observer viewing angle in radians
-    :param loge0: jet energy in \log_{10} ergs
+    :param loge0: jet energy in \\log_{10} ergs
     :param thc: jet core size in radians
     :param thj: jet edge in radians (thc < thj < pi/2)
     :param g1: Lorentz factor of shell at start of energy injection. 2 <= g1 < g0
     :param et: factor by which total kinetic energy is larger
     :param s1: index for energy injection; typically between 0--10, some higher values, ~<30, are supported for some structures.
         Values of ~10 are consistent with a discrete shock interaction, see Lamb, Levan & Tanvir 2020
-    :param logn0: ism number density in \log_{10} cm^-3 or \log_{10} A* for wind-like density profile
+    :param logn0: ism number density in \\log_{10} cm^-3 or \\log_{10} A* for wind-like density profile
     :param p: electron power law index
     :param logepse: partition fraction in electrons
     :param logepsb: partition fraction in magnetic field
@@ -1319,14 +1319,14 @@ def powerlaw_redback_refreshed(time, redshift, thv, loge0, thc, thj, g1, et, s1,
     :param time: time in days
     :param redshift: source redshift
     :param thv: observer viewing angle in radians
-    :param loge0: jet energy in \log_{10} ergs
+    :param loge0: jet energy in \\log_{10} ergs
     :param thc: jet core size in radians
     :param thj: jet edge in radians (thc < thj < pi/2)
     :param g1: Lorentz factor of shell at start of energy injection. 2 <= g1 < g0
     :param et: factor by which total kinetic energy is larger
     :param s1: index for energy injection; typically between 0--10, some higher values, ~<30, are supported for some structures.
         Values of ~10 are consistent with a discrete shock interaction, see Lamb, Levan & Tanvir 2020
-    :param logn0: ism number density in \log_{10} cm^-3 or \log_{10} A* for wind-like density profile
+    :param logn0: ism number density in \\log_{10} cm^-3 or \\log_{10} A* for wind-like density profile
     :param p: electron power law index
     :param logepse: partition fraction in electrons
     :param logepsb: partition fraction in magnetic field
@@ -1393,14 +1393,14 @@ def alternativepowerlaw_redback_refreshed(time, redshift, thv, loge0, thc, thj, 
     :param time: time in days
     :param redshift: source redshift
     :param thv: observer viewing angle in radians
-    :param loge0: jet energy in \log_{10} ergs
+    :param loge0: jet energy in \\log_{10} ergs
     :param thc: jet core size in radians
     :param thj: jet edge in radians (thc < thj < pi/2)
     :param g1: Lorentz factor of shell at start of energy injection. 2 <= g1 < g0
     :param et: factor by which total kinetic energy is larger
     :param s1: index for energy injection; typically between 0--10, some higher values, ~<30, are supported for some structures.
         Values of ~10 are consistent with a discrete shock interaction, see Lamb, Levan & Tanvir 2020
-    :param logn0: ism number density in \log_{10} cm^-3 or \log_{10} A* for wind-like density profile
+    :param logn0: ism number density in \\log_{10} cm^-3 or \\log_{10} A* for wind-like density profile
     :param p: electron power law index
     :param logepse: partition fraction in electrons
     :param logepsb: partition fraction in magnetic field
@@ -1467,14 +1467,14 @@ def doublegaussian_redback_refreshed(time, redshift, thv, loge0, thc, thj, g1, e
     :param time: time in days
     :param redshift: source redshift
     :param thv: observer viewing angle in radians
-    :param loge0: jet energy in \log_{10} ergs
+    :param loge0: jet energy in \\log_{10} ergs
     :param thc: jet core size in radians
     :param thj: jet edge in radians (thc < thj < pi/2)
     :param g1: Lorentz factor of shell at start of energy injection. 2 <= g1 < g0
     :param et: factor by which total kinetic energy is larger
     :param s1: index for energy injection; typically between 0--10, some higher values, ~<30, are supported for some structures.
         Values of ~10 are consistent with a discrete shock interaction, see Lamb, Levan & Tanvir 2020
-    :param logn0: ism number density in \log_{10} cm^-3 or \log_{10} A* for wind-like density profile
+    :param logn0: ism number density in \\log_{10} cm^-3 or \\log_{10} A* for wind-like density profile
     :param p: electron power law index
     :param logepse: partition fraction in electrons
     :param logepsb: partition fraction in magnetic field

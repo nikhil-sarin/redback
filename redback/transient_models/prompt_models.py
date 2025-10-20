@@ -2,11 +2,34 @@ import numpy as np
 
 
 def gaussian_prompt(times, amplitude, t_0, sigma, **kwargs):
+    """
+    Gaussian prompt emission model.
+
+    :param times: time array
+    :param amplitude: amplitude of the Gaussian
+    :param t_0: central time of the Gaussian peak
+    :param sigma: width (standard deviation) of the Gaussian
+    :param kwargs: Additional keyword arguments
+        dt: time bin width (default: 1)
+    :return: flux values at given times
+    """
     dt = kwargs.get('dt', 1)
     return amplitude * np.exp(-(times - t_0) ** 2 / (2 * sigma ** 2)) * dt
 
 
 def skew_gaussian(times, amplitude, t_0, sigma_rise, sigma_fall, **kwargs):
+    """
+    Skewed Gaussian prompt emission model with different rise and fall widths.
+
+    :param times: time array
+    :param amplitude: amplitude of the Gaussian
+    :param t_0: central time of the peak
+    :param sigma_rise: width (standard deviation) of the rise (before t_0)
+    :param sigma_fall: width (standard deviation) of the fall (after t_0)
+    :param kwargs: Additional keyword arguments
+        dt: time bin width (default: 1)
+    :return: flux values at given times
+    """
     dt = kwargs.get('dt', 1)
     before_burst_indices = np.where(times <= t_0)
     after_burst_indices = np.where(times > t_0)
@@ -19,6 +42,18 @@ def skew_gaussian(times, amplitude, t_0, sigma_rise, sigma_fall, **kwargs):
 
 
 def skew_exponential(times, amplitude, t_0, tau_rise, tau_fall, **kwargs):
+    """
+    Skewed exponential prompt emission model with different rise and fall timescales.
+
+    :param times: time array
+    :param amplitude: amplitude of the exponential
+    :param t_0: central time of the peak
+    :param tau_rise: rise timescale (before t_0)
+    :param tau_fall: fall timescale (after t_0)
+    :param kwargs: Additional keyword arguments
+        dt: time bin width (default: 1)
+    :return: flux values at given times
+    """
     dt = kwargs.get('dt', 1)
 
     before_burst_indices = np.where(times <= t_0)
@@ -30,6 +65,18 @@ def skew_exponential(times, amplitude, t_0, tau_rise, tau_fall, **kwargs):
 
 
 def fred(times, amplitude, psi, tau, delta, **kwargs):
+    """
+    Fast Rise Exponential Decay (FRED) prompt emission model.
+
+    :param times: time array
+    :param amplitude: amplitude of the FRED profile
+    :param psi: shape parameter controlling the asymmetry
+    :param tau: timescale parameter
+    :param delta: time offset
+    :param kwargs: Additional keyword arguments
+        dt: time bin width (default: 1)
+    :return: flux values at given times
+    """
     dt = kwargs.get('dt', 1)
     frac = (times - delta) / tau
     with np.errstate(divide='ignore', invalid='ignore', over='ignore'):
@@ -37,6 +84,20 @@ def fred(times, amplitude, psi, tau, delta, **kwargs):
 
 
 def fred_extended(times, amplitude, psi, tau, delta, gamma, nu, **kwargs):
+    """
+    Extended Fast Rise Exponential Decay (FRED) prompt emission model with additional shape parameters.
+
+    :param times: time array
+    :param amplitude: amplitude of the FRED profile
+    :param psi: shape parameter controlling the asymmetry
+    :param tau: timescale parameter
+    :param delta: time offset
+    :param gamma: exponent for the rise component
+    :param nu: exponent for the decay component
+    :param kwargs: Additional keyword arguments
+        dt: time bin width (default: 1)
+    :return: flux values at given times
+    """
     dt = kwargs.get('dt', 1)
     frac = (times - delta) / tau
     with np.errstate(divide='ignore', invalid='ignore', over='ignore'):

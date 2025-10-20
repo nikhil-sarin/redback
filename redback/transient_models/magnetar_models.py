@@ -82,7 +82,7 @@ def evolving_magnetar(time, a_1, alpha_1, mu0, muinf, p0, sinalpha0, tm, II, **k
     Millisecond magnetar model with evolution of inclination angle
 
     :param time: time in seconds
-    :param A_1: amplitude of curvature effect power law
+    :param a_1: amplitude of curvature effect power law
     :param alpha_1: index of curvature effect power law
     :param mu0: Initial magnetic moment [10^33 G cm^3]
     :param muinf: Magnetic moment when field relaxes [10^33 G cm^3]
@@ -101,12 +101,15 @@ def evolving_magnetar(time, a_1, alpha_1, mu0, muinf, p0, sinalpha0, tm, II, **k
 @citation_wrapper('https://ui.adsabs.harvard.edu/abs/2001ApJ...552L..35Z/abstract')
 def vacuum_dipole_magnetar_only(time, l0, tau, **kwargs):
     """
+    Vacuum dipole magnetar model with fixed braking index.
+
     :param time: time in seconds
     :param l0: initial luminosity parameter
     :param tau: spin-down damping timescale
-    :param nn: braking index
     :param kwargs: key word arguments for handling plotting/other functionality
     :return: luminosity or flux (depending on scaling of l0) as a function of time.
+
+    Note: This model uses a fixed braking index of nn=3.
     """
     nn = 3
     lum = l0 * (1. + time / tau) ** ((1. + nn) / (1. - nn))
@@ -118,13 +121,14 @@ def full_vacuum_dipole_magnetar(time, a_1, alpha_1, l0, tau, **kwargs):
     Generalised millisecond magnetar with curvature effect power law
 
     :param time: time in seconds
-    :param A_1: amplitude of curvature effect power law
+    :param a_1: amplitude of curvature effect power law
     :param alpha_1: index of curvature effect power law
     :param l0: initial luminosity parameter
     :param tau: spin-down damping timescale
-    :param nn: braking index
     :param kwargs: key word arguments for handling plotting/other functionality
     :return: luminosity or flux (depending on scaling of l0) as a function of time.
+
+    Note: This model uses a fixed braking index of nn=3.
     """
     pl = one_component_fireball_model(time=time, a_1=a_1, alpha_1=alpha_1)
     mag = vacuum_dipole_magnetar_only(time=time, l0=l0, tau=tau)
@@ -146,16 +150,19 @@ def magnetar_only(time, l0, tau, nn, **kwargs):
 @citation_wrapper('https://ui.adsabs.harvard.edu/abs/2018PhRvD..98d3011S/abstract')
 def gw_magnetar(time, a_1, alpha_1, fgw0, tau, nn, log_ii, **kwargs):
     """
+    Magnetar model with gravitational wave emission.
+
     :param time: time in seconds
-    :param A_1: amplitude of curvature effect power law
+    :param a_1: amplitude of curvature effect power law
     :param alpha_1: index of curvature effect power law
     :param fgw0: initial gravitational-wave frequency
     :param tau: spin-down damping timescale
     :param nn: braking index
     :param log_ii: log10 moment of inertia
-    :param eta: fixed to 0.1, its a fudge factor for the efficiency
     :param kwargs: key word arguments for handling plotting/other functionality
     :return: luminosity
+
+    Note: This model uses a fixed efficiency factor eta=0.1.
     """
     eta = 0.1
     omega_0 = fgw0 * np.pi  # spin frequency
@@ -268,7 +275,7 @@ def full_magnetar(time, a_1, alpha_1, l0, tau, nn, **kwargs):
     Generalised millisecond magnetar with curvature effect power law
 
     :param time: time in seconds
-    :param A_1: amplitude of curvature effect power law
+    :param a_1: amplitude of curvature effect power law
     :param alpha_1: index of curvature effect power law
     :param l0: initial luminosity parameter
     :param tau: spin-down damping timescale
@@ -286,7 +293,7 @@ def collapsing_magnetar(time, a_1, alpha_1, l0, tau, nn, tcol, **kwargs):
     Generalised millisecond magnetar with curvature effect power law and a collapse time
 
     :param time: time in seconds
-    :param A_1: amplitude of curvature effect power law
+    :param a_1: amplitude of curvature effect power law
     :param alpha_1: index of curvature effect power law
     :param l0: initial luminosity parameter
     :param tau: spin-down damping timescale
@@ -408,7 +415,7 @@ def piecewise_radiative_losses(time, a_1, alpha_1, l0, tau, nn, kappa, t0_s, **k
     Assumes smoothness and continuity between the prompt and magnetar term by fixing e0 variable
 
     :param time: time in seconds
-    :param A_1: amplitude of curvature effect power law
+    :param a_1: amplitude of curvature effect power law
     :param alpha_1: index of curvature effect power law
     :param l0: initial luminosity parameter
     :param tau: spin-down damping timescale
@@ -437,7 +444,7 @@ def radiative_losses(time, a_1, alpha_1, l0, tau, nn, kappa, t0_s, log_e0, **kwa
     radiative losses model with a step function, indicating the magnetar term turns on at T0
 
     :param time: time in seconds
-    :param A_1: amplitude of curvature effect power law
+    :param a_1: amplitude of curvature effect power law
     :param alpha_1: index of curvature effect power law
     :param l0: initial luminosity parameter
     :param tau: spin-down damping timescale
@@ -490,7 +497,7 @@ def radiative_losses_smoothness(time, a_1, alpha_1, l0, tau, nn, kappa, t0_s, lo
     radiative losses model with a step function, indicating the magnetar term turns on at T0
 
     :param time: time in seconds
-    :param A_1: amplitude of curvature effect power law
+    :param a_1: amplitude of curvature effect power law
     :param alpha_1: index of curvature effect power law
     :param l0: initial luminosity parameter
     :param tau: spin-down damping timescale
@@ -521,7 +528,7 @@ def radiative_losses_mdr(time, a_1, alpha_1, l0, tau, kappa, log_e0, t0_s, **kwa
     radiative losses model for vacuum dipole radiation
 
     :param time: time in seconds
-    :param A_1: amplitude of curvature effect power law
+    :param a_1: amplitude of curvature effect power law
     :param alpha_1: index of curvature effect power law
     :param l0: initial luminosity parameter
     :param tau: spin-down damping timescale
@@ -548,7 +555,7 @@ def collapsing_radiative_losses(time, a_1, alpha_1, l0, tau, nn, tcol, kappa, t0
     radiative losses model with collapse time
 
     :param time: time in seconds
-    :param A_1: amplitude of curvature effect power law
+    :param a_1: amplitude of curvature effect power law
     :param alpha_1: index of curvature effect power law
     :param l0: initial luminosity parameter
     :param tau: spin-down damping timescale
