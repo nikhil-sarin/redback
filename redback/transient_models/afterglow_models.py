@@ -109,9 +109,11 @@ class RedbackAfterglows():
         self.is_expansion = self.exp
 
     def calc_erf_numba(self, x):
+        """Calculate error function for array of values."""
         return np.array([erf(i) for i in x])
 
     def get_lightcurve(self):
+        """Calculate the afterglow lightcurve by integrating over jet structure."""
         if (self.k != 0) and (self.k != 2):
             raise ValueError("k must either be 0 or 2")
         if (self.p < 1.2) or (self.p > 3.4):
@@ -145,6 +147,7 @@ class RedbackAfterglows():
         return LC
 
     def get_segments(self, thj, res):
+        """Calculate jet segments for numerical integration over jet structure."""
         ### parameter setting
         latstep = thj/res #lateral step from centre to edge - fixed angular width
         rotstep = 2.*np.pi/res #rotational step 
@@ -159,6 +162,7 @@ class RedbackAfterglows():
         return Omi, thi, phii, rotstep, latstep
 
     def get_structure(self, gamma, en, thi, thc, method, s, a, thj):
+        """Get jet structure (energy and Lorentz factor) as a function of angle."""
         if gamma == 1.0:
             raise ValueError("Gamma must not equal 1!!!")
         Gs = np.full(shape=thi.size, fill_value=gamma)
@@ -202,17 +206,21 @@ class RedbackAfterglows():
         return Gs, Ei
 
     def gaussian_beam(self, thi, thc):
+        """Calculate Gaussian beam profile."""
         return np.exp(-0.5 * (thi / thc) ** 2)
 
     def double_gaussian_beam(self, thi, thc, thj, s, a):
+        """Calculate double Gaussian beam profile."""
         return (1. - s) * self.gaussian_beam(thi, thc) + s * self.gaussian_beam(thi, thj)
 
     def double_gaussian_lf(self, thi, thc, thj, s, a):
+        """Calculate double Gaussian Lorentz factor profile."""
         out = self.double_gaussian_beam(thi, thc, thj, s, a) / self.double_gaussian_beam(thi, thc, thj, s / a, a)
         out[np.isnan(out)] = a
         return out
 
     def get_gamma(self, G0, Eps, therm, steps, n0, k):
+        """Calculate evolution of Lorentz factor and swept-up mass."""
         ### parameter setting
         Rmin = 1e10  # cm
         Rmax = 1e24  # cm
@@ -226,6 +234,7 @@ class RedbackAfterglows():
 
         ### 4th-order Runge-Kutta integration
         def RK4(ghat, dm_rk4, G_rk4):
+            """Fourth-order Runge-Kutta integration step."""
             ghatm1 = ghat - 1.
             dm_base10 = 10 ** dm_rk4
             G_rk4_sq = G_rk4 * G_rk4
@@ -266,6 +275,7 @@ class RedbackAfterglows():
         return state_G.T, 10. ** state_dm.T, state_gH.T
 
     def get_obsangle(self, phii, thi, tho):
+        """Calculate observed angle for each jet segment."""
         phi = 0.0  # we assume rotational symmetry - phi is therefore arbitrary
         sin_thi = np.sin(thi)
         cos_thi = np.cos(thi)
@@ -276,6 +286,7 @@ class RedbackAfterglows():
         return Obsa.ravel()
 
     def calc_afterglow_step1(self, G, dm, p, xp, Fx, EB, Ee, n, k, thi, ghat, rotstep, latstep, xiN):
+        """Calculate afterglow parameters part 1: shock physics and synchrotron properties."""
         rotstep = np.full(1, rotstep)
         latstep = np.full(1, latstep)
         Gm1 = G - 1.0
@@ -324,6 +335,7 @@ class RedbackAfterglows():
         return beta, Ne, OmG, R, B, gm, nump, Pp, KT
 
     def calc_afterglow_step2(self, Dl, Om0, rotstep, latstep, Obsa, beta, Ne, OmG, R, B, gm, nump, Pp, KT, G):
+        """Calculate afterglow parameters part 2: emission, self-absorption and observer times."""
         Dl2 = Dl * Dl
         NO  = Om0 * Ne / self.fourpi   # initial electrons per segment
         cos_Obsa = np.cos(Obsa)
@@ -354,6 +366,7 @@ class RedbackAfterglows():
         return FBB, Fmax, nuc, num, tobs
 
     def get_ag(self, FBB, nuc, num, nu1, Fmax, p):
+        """Calculate afterglow flux at a specific frequency accounting for fast/slow cooling and self-absorption."""
         Fluxt = np.zeros((num.size)) #array for flux at a given frequency with time
         #Observed flux at each step
         #Fast
@@ -377,6 +390,7 @@ class RedbackAfterglows():
 
     def calc_afterglow(self, G, SM, Dl, p, xp, Fx, EB, Ee, Gs, Omi, Ei, n, k, tho, thi, phii, thj, ghat, rotstep,
                        latstep, Obsa, nu, steps, XiN):
+        """Calculate full afterglow emission integrating over jet structure and time."""
         Flux = np.empty(shape=(nu.size, steps, thi.size * phii.size))
         tobs = np.empty(shape=(steps, thi.size * phii.size))
         kk = 0
@@ -395,6 +409,7 @@ class RedbackAfterglows():
         return Flux, tobs
 
     def calc_lightcurve(self, time, tobs, Flux, nu_size, thi_size, phii_size, freq, nu0):
+        """Sum fluxes at each observer time to create final lightcurve."""
         LC = np.zeros((freq.size))
         # forward shock lightcurve at each observation time
         for h in range(nu_size):
@@ -467,6 +482,7 @@ class RedbackAfterglowsRefreshed(RedbackAfterglows):
         self.s1 = s1
 
     def get_gamma_refreshed(self, G0, G1, Eps, Eps2, s1, therm, steps, n0, k):
+        """Calculate evolution of Lorentz factor for refreshed shock models."""
         Eps0 = Eps
         # solves blastwave dynamics and gives the Lorentz factor and swept-up mass at each step
         # Gamma0, blast energy per steradian, fraction thermal radiated
@@ -524,6 +540,7 @@ class RedbackAfterglowsRefreshed(RedbackAfterglows):
         return G, 10. ** dm, gH
 
     def get_lightcurve(self):
+        """Calculate refreshed shock afterglow lightcurve."""
         if (self.k != 0) and (self.k != 2):
             raise ValueError("k must either be 0 or 2")
         if (self.p < 1.2) or (self.p > 3.4):

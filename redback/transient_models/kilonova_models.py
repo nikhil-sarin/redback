@@ -1959,13 +1959,16 @@ def _gwemlightcurve_interface_factory(model):
     default_filters = ['u', 'g', 'r', 'i', 'z', 'y', 'J', 'H', 'K']
 
     def interface_bolometric(times, **parameters):
+        """Interface function for bolometric luminosity from gwemlightcurve model."""
         return _generate_single_lightcurve_at_times(model=model, times=times, **parameters)[0]
 
     def interface_all_magnitudes(times, **parameters):
+        """Interface function for all magnitude bands from gwemlightcurve model."""
         magnitudes = _generate_single_lightcurve_at_times(model=model, times=times, **parameters)[1]
         return pd.DataFrame(magnitudes.T, columns=default_filters)
 
     def interface_filtered_magnitudes(times, **parameters):
+        """Interface function for filtered magnitude bands from gwemlightcurve model."""
         filters = parameters.get('filters', default_filters)
         all_magnitudes = interface_all_magnitudes(times, **parameters)
         if len(filters) == 1:
