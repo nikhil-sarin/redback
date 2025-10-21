@@ -2133,6 +2133,7 @@ def afterglow_models_sed(time, **kwargs):
 def jetsimpy_tophat(time, redshift, thv, loge0, thc, nism, A, p, logepse, logepsb, g0, **kwargs):
     """
     A tophat jet model from jetsimpy
+
     :param time: time in days in observer frame
     :param redshift: source redshift
     :param thv: viewing angle in radians
@@ -2154,7 +2155,8 @@ def jetsimpy_tophat(time, redshift, thv, loge0, thc, nism, A, p, logepse, logeps
     time = time * day_to_s
     cosmology = kwargs.get('cosmology', cosmo)
     dl = cosmology.luminosity_distance(redshift).cgs.value
-    P = dict(Eiso = 10 ** loge0, lf = g0, theta_c = thc, n0 = nism, A = A, eps_e = 10 ** logepse, eps_b = 10 ** logepsb, p = p, theta_v = thv, d = dl*3.24078e-25, z = redshift) #make a param dict
+    P = dict(Eiso = 10 ** loge0, lf = g0, theta_c = thc, n0 = nism, A = A, eps_e = 10 ** logepse,
+             eps_b = 10 ** logepsb, p = p, theta_v = thv, d = dl*3.24078e-25, z = redshift) #make a param dict
     if kwargs['output_format'] == 'flux_density':
         frequency = kwargs['frequency']
         flux_density = jetsimpy.FluxDensity_tophat(time, frequency, P)
@@ -2168,6 +2170,7 @@ def jetsimpy_tophat(time, redshift, thv, loge0, thc, nism, A, p, logepse, logeps
 def jetsimpy_gaussian(time, redshift, thv, loge0, thc, nism, A, p, logepse, logepsb, g0, **kwargs):
     """
     A gaussian jet model from jetsimpy
+
     :param time: time in days in observer frame
     :param redshift: source redshift
     :param thv: viewing angle in radians
@@ -2189,7 +2192,8 @@ def jetsimpy_gaussian(time, redshift, thv, loge0, thc, nism, A, p, logepse, loge
     time = time * day_to_s
     cosmology = kwargs.get('cosmology', cosmo)
     dl = cosmology.luminosity_distance(redshift).cgs.value
-    P = dict(Eiso = 10 ** loge0, lf = g0, theta_c = thc, n0 = nism, A = A, eps_e = 10 ** logepse, eps_b = 10 ** logepsb, p = p, theta_v = thv, d = dl*3.24078e-25, z = redshift) #make a param dict
+    P = dict(Eiso = 10 ** loge0, lf = g0, theta_c = thc, n0 = nism, A = A, eps_e = 10 ** logepse,
+             eps_b = 10 ** logepsb, p = p, theta_v = thv, d = dl*3.24078e-25, z = redshift) #make a param dict
     if kwargs['output_format'] == 'flux_density':
         frequency = kwargs['frequency']
         flux_density = jetsimpy.FluxDensity_gaussian(time, frequency, P)
@@ -2203,6 +2207,7 @@ def jetsimpy_gaussian(time, redshift, thv, loge0, thc, nism, A, p, logepse, loge
 def jetsimpy_powerlaw(time, redshift, thv, loge0, thc, nism, A, p, logepse, logepsb, g0, s, **kwargs):
     """
     A power-law jet model from jetsimpy
+
     :param time: time in days in observer frame
     :param redshift: source redshift
     :param thv: viewing angle in radians
@@ -2225,7 +2230,8 @@ def jetsimpy_powerlaw(time, redshift, thv, loge0, thc, nism, A, p, logepse, loge
     time = time * day_to_s
     cosmology = kwargs.get('cosmology', cosmo)
     dl = cosmology.luminosity_distance(redshift).cgs.value
-    P = dict(Eiso = 10 ** loge0, lf = g0, theta_c = thc, n0 = nism, A = A, eps_e = 10 ** logepse, eps_b = 10 ** logepsb, p = p, theta_v = thv, d = dl*3.24078e-25, z = redshift, s = s) #make a param dict
+    P = dict(Eiso = 10 ** loge0, lf = g0, theta_c = thc, n0 = nism, A = A, eps_e = 10 ** logepse,
+             eps_b = 10 ** logepsb, p = p, theta_v = thv, d = dl*3.24078e-25, z = redshift, s = s) #make a param dict
     if kwargs['output_format'] == 'flux_density':
         frequency = kwargs['frequency']
         flux_density = jetsimpy.FluxDensity_powerlaw(time, frequency, P)
@@ -2233,4 +2239,67 @@ def jetsimpy_powerlaw(time, redshift, thv, loge0, thc, nism, A, p, logepse, loge
     else:
         frequency = bands_to_frequency(kwargs['bands'])       
         flux_density = jetsimpy.FluxDensity_powerlaw(time, frequency, P)
+        return calc_ABmag_from_flux_density(flux_density).value
+
+@citation_wrapper('https://ui.adsabs.harvard.edu/abs/2025arXiv250710829W/abstract')
+def vegasafterglow_tophat(time, redshift, thv, loge0, thc, nism, p, logepse, logepsb, g0, **kwargs):
+    """
+    A power-law jet model for VegasAfterglow
+
+    :param time: time in days in observer frame
+    :param redshift: source redshift
+    :param thv: viewing angle in radians
+    :param loge0: log10 on axis isotropic equivalent energy
+    :param thc: half width of jet core/jet opening angle in radians
+    :param nism: number density of ISM in cm^-3 (ntot = A * (r / 1e17)^-2 + nism (cm^-3))
+    :param A: wind density scale (ntot = A * (r / 1e17)^-2 + nism (cm^-3))
+    :param p: electron distribution power law index.
+    :param logepse: log10 fraction of thermal energy in electrons
+    :param logepsb: log10 fraction of thermal energy in magnetic field
+    :param g0: initial lorentz factor
+    :param s: power-law jet slope
+    :param kwargs: Additional keyword arguments
+    :param output_format: Whether to output flux density or AB mag
+    :param frequency: frequency in Hz for the flux density calculation
+    :param cosmology: Cosmology to use for luminosity distance calculation. Defaults to Planck18. Must be a astropy.cosmology object.
+    :return: flux density or AB mag. Note this is going to give the monochromatic magnitude at the effective frequency for the band.
+    """
+    try:
+        from VegasAfterglow import ISM, TophatJet, Observer, Radiation, Model
+    except ImportError:
+        raise ImportError("VegasAfterglow is not installed. Please install it to use this model.")
+
+    time = time * day_to_s
+    cosmology = kwargs.get('cosmology', cosmo)
+    dl = cosmology.luminosity_distance(redshift).cgs.value
+    frequency = kwargs['frequency']
+    medium = ISM(n_ism=10**nism)  # in cgs unit
+    spread = kwargs.get('spread', False)
+    reverse_shock = kwargs.get('reverse_shock', False)
+
+    # 2. Configure the jet structure (top-hat with opening angle, energy, and Lorentz factor)
+    jet = TophatJet(theta_c=thc, E_iso=10**loge0, Gamma0=g0, spread=spread)  # in cgs unit
+
+    # 3. Set observer parameters (distance, redshift, viewing angle)
+    obs = Observer(lumi_dist=dl, z=redshift, theta_obs=thv)  # in cgs unit
+
+    # 4. Define radiation microphysics parameters
+    rad = Radiation(eps_e=10**logepse, eps_B=10**logepsb, p=p)
+    if reverse_shock:
+        reverse_logepse = kwargs.get('reverse_logepse', logepse)
+        reverse_logepsb = kwargs.get('reverse_logepsb', logepsb)
+        reverse_p = kwargs.get('reverse_p', p)
+        rad_reverse = Radiation(eps_e=10**reverse_logepse, p=reverse_p, eps_B=10**reverse_logepsb)
+    else:
+        rad_reverse = None
+
+    # 5. Combine all components into a complete afterglow model
+    model = Model(jet=jet, medium=medium, observer=obs, fwd_rad=rad, rvs_rad=rad_reverse)
+
+    if kwargs['output_format'] == 'flux_density':
+        flux_density = model.flux_density(time, frequency)
+        return flux_density
+    else:
+        frequency = bands_to_frequency(kwargs['bands'])
+        flux_density = model.flux_density(time, frequency)
         return calc_ABmag_from_flux_density(flux_density).value
