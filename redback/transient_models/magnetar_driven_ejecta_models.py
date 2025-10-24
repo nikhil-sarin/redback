@@ -215,12 +215,13 @@ def _processing_other_formats(dl, output, redshift, time_obs, time_temp, **kwarg
         fmjy = _comoving_blackbody_to_flux_density(dl=dl, frequency=frequency[:, None], radius=output.radius,
                                                    temperature=output.comoving_temperature,
                                                    doppler_factor=output.doppler_factor)
+        fmjy = fmjy / (1. + redshift)
     else:
         fmjy = blackbody_to_flux_density(temperature=output.temperature,
                                          r_photosphere=output.r_photosphere, frequency=frequency[:, None], dl=dl)
 
     fmjy = fmjy.T
-    spectra = fmjy.to(uu.mJy).to(uu.erg / uu.cm ** 2 / uu.s / uu.Angstrom,
+    spectra = (fmjy / (1 + redshift)).to(uu.mJy).to(uu.erg / uu.cm ** 2 / uu.s / uu.Angstrom,
                                  equivalencies=uu.spectral_density(wav=lambda_observer_frame * uu.Angstrom))
     if kwargs['output_format'] == 'spectra':
         return namedtuple('output', ['time', 'lambdas', 'spectra'])(time=time_observer_frame,
