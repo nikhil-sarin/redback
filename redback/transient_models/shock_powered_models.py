@@ -203,7 +203,7 @@ def shockcooling_morag(time, redshift, v_shock, m_env, f_rho_m, radius, kappa, *
         flux_density = sed.blackbody_to_flux_density(temperature=temp, r_photosphere=photosphere,
                                                      dl=dl, frequency=frequency)
 
-        return flux_density.to(uu.mJy).value
+        return flux_density.to(uu.mJy).value / (1 + redshift)
     else:
         lambda_observer_frame = kwargs.get('lambda_array', np.geomspace(100, 60000, 200))
         time_observer_frame = time_temp * (1. + redshift)
@@ -212,7 +212,7 @@ def shockcooling_morag(time, redshift, v_shock, m_env, f_rho_m, radius, kappa, *
         fmjy = sed.blackbody_to_flux_density(temperature=output.t_photosphere,
                                              r_photosphere=output.r_photosphere, frequency=frequency[:, None], dl=dl)
         fmjy = fmjy.T
-        spectra = fmjy.to(uu.mJy).to(uu.erg / uu.cm ** 2 / uu.s / uu.Angstrom,
+        spectra = (fmjy / (1 + redshift)).to(uu.mJy).to(uu.erg / uu.cm ** 2 / uu.s / uu.Angstrom,
                                      equivalencies=uu.spectral_density(wav=lambda_observer_frame * uu.Angstrom))
         if kwargs['output_format'] == 'spectra':
             return namedtuple('output', ['time', 'lambdas', 'spectra'])(time=time_observer_frame,
@@ -446,7 +446,7 @@ def shockcooling_sapirandwaxman(time, redshift, v_shock, m_env, f_rho_m, radius,
         flux_density = sed.blackbody_to_flux_density(temperature=temp, r_photosphere=photosphere,
                                                      dl=dl, frequency=frequency)
 
-        return flux_density.to(uu.mJy).value
+        return flux_density.to(uu.mJy).value / (1 + redshift)
     else:
         lambda_observer_frame = kwargs.get('lambda_array', np.geomspace(100, 60000, 200))
         time_observer_frame = time_temp * (1. + redshift)
@@ -455,7 +455,7 @@ def shockcooling_sapirandwaxman(time, redshift, v_shock, m_env, f_rho_m, radius,
         fmjy = sed.blackbody_to_flux_density(temperature=output.t_photosphere,
                                              r_photosphere=output.r_photosphere, frequency=frequency[:, None], dl=dl)
         fmjy = fmjy.T
-        spectra = fmjy.to(uu.mJy).to(uu.erg / uu.cm ** 2 / uu.s / uu.Angstrom,
+        spectra = (fmjy / (1 + redshift)).to(uu.mJy).to(uu.erg / uu.cm ** 2 / uu.s / uu.Angstrom,
                                      equivalencies=uu.spectral_density(wav=lambda_observer_frame * uu.Angstrom))
         if kwargs['output_format'] == 'spectra':
             return namedtuple('output', ['time', 'lambdas', 'spectra'])(time=time_observer_frame,
@@ -588,7 +588,7 @@ def csm_shock_breakout(time, redshift, csm_mass, v_min, beta, kappa, shell_radiu
         flux_density = sed.blackbody_to_flux_density(temperature=temp, r_photosphere=photosphere,
                                                  dl=dl, frequency=frequency)
 
-        return flux_density.to(uu.mJy).value
+        return flux_density.to(uu.mJy).value / (1 + redshift)
     else:
         lambda_observer_frame = kwargs.get('lambda_array', np.geomspace(100, 60000, 200))
         time_observer_frame = time_temp * (1. + redshift)
@@ -597,7 +597,7 @@ def csm_shock_breakout(time, redshift, csm_mass, v_min, beta, kappa, shell_radiu
         fmjy = sed.blackbody_to_flux_density(temperature=outputs.temperature,
                                          r_photosphere=outputs.r_photosphere, frequency=frequency[:, None], dl=dl)
         fmjy = fmjy.T
-        spectra = fmjy.to(uu.mJy).to(uu.erg / uu.cm ** 2 / uu.s / uu.Angstrom,
+        spectra = (fmjy / (1 + redshift)).to(uu.mJy).to(uu.erg / uu.cm ** 2 / uu.s / uu.Angstrom,
                                      equivalencies=uu.spectral_density(wav=lambda_observer_frame * uu.Angstrom))
         if kwargs['output_format'] == 'spectra':
             return namedtuple('output', ['time', 'lambdas', 'spectra'])(time=time_observer_frame,
@@ -739,7 +739,7 @@ def shock_cooling(time, redshift, log10_mass, log10_radius, log10_energy, **kwar
         output = _shock_cooling(time*cc.day_to_s, mass=mass, radius=radius, energy=energy, **kwargs)
         flux_density = sed.blackbody_to_flux_density(temperature=output.temperature, r_photosphere=output.r_photosphere,
                                              dl=dl, frequency=frequency)
-        return flux_density.to(uu.mJy).value
+        return flux_density.to(uu.mJy).value / (1 + redshift)
     else:
         time_temp = np.linspace(1e-2, 60, 100)
         lambda_observer_frame = kwargs.get('lambda_array', np.geomspace(100, 60000, 100))
@@ -751,7 +751,7 @@ def shock_cooling(time, redshift, log10_mass, log10_radius, log10_energy, **kwar
         fmjy = sed.blackbody_to_flux_density(temperature=output.temperature,
                                              r_photosphere=output.r_photosphere, frequency=frequency[:, None], dl=dl)
         fmjy = fmjy.T
-        spectra = fmjy.to(uu.mJy).to(uu.erg / uu.cm ** 2 / uu.s / uu.Angstrom,
+        spectra = (fmjy / (1 + redshift)).to(uu.mJy).to(uu.erg / uu.cm ** 2 / uu.s / uu.Angstrom,
                                      equivalencies=uu.spectral_density(wav=lambda_observer_frame * uu.Angstrom))
         if kwargs['output_format'] == 'spectra':
             return namedtuple('output', ['time', 'lambdas', 'spectra'])(time=time_observer_frame,
@@ -1012,7 +1012,7 @@ def shocked_cocoon(time, redshift, mej, vej, eta, tshock, shocked_fraction, cos_
                                  cos_theta_cocoon=cos_theta_cocoon, kappa=kappa)
         flux_density = sed.blackbody_to_flux_density(temperature=output.temperature, r_photosphere=output.r_photosphere,
                                                      dl=dl, frequency=frequency)
-        return flux_density.to(uu.mJy).value
+        return flux_density.to(uu.mJy).value / (1 + redshift)
     else:
         lambda_observer_frame = kwargs.get('frequency_array', np.geomspace(100, 60000, 100))
         time_temp = np.linspace(1e-2, 100, 100)
@@ -1025,7 +1025,7 @@ def shocked_cocoon(time, redshift, mej, vej, eta, tshock, shocked_fraction, cos_
         fmjy = sed.blackbody_to_flux_density(temperature=output.temperature,
                                          r_photosphere=output.r_photosphere, frequency=frequency[:, None], dl=dl)
         fmjy = fmjy.T
-        spectra = fmjy.to(uu.mJy).to(uu.erg / uu.cm ** 2 / uu.s / uu.Angstrom,
+        spectra = (fmjy / (1 + redshift)).to(uu.mJy).to(uu.erg / uu.cm ** 2 / uu.s / uu.Angstrom,
                                      equivalencies=uu.spectral_density(wav=lambda_observer_frame * uu.Angstrom))
         if kwargs['output_format'] == 'spectra':
             return namedtuple('output', ['time', 'lambdas', 'spectra'])(time=time_observer_frame,
