@@ -865,6 +865,66 @@ class Line(_SED):
         # Here, we assume the flux density is in units of erg/s/cm^2/Hz.
         self._flux_density = sed_modified * uu.erg / uu.s / uu.cm ** 2 / uu.Hz
 
+def flux_density_to_spectrum(flux_density, redshift, lambda_observer_frame):
+    """
+    Convert flux density in observer frame to spectrum in erg/cm^2/s/Angstrom.
+
+    This function consolidates the common pattern used across many transient models
+    for converting flux density (from blackbody or other sources) to spectra.
+
+    :param flux_density: Flux density array in erg/s/Hz/cm^2 (astropy Quantity or array)
+                         Shape can be (n_times, n_frequencies) or (n_frequencies, n_times)
+    :param redshift: Cosmological redshift (dimensionless)
+    :param lambda_observer_frame: Observer frame wavelength array in Angstrom
+    :return: Spectrum in erg/cm^2/s/Angstrom with astropy units
+    """
+    # Ensure flux_density has units if it doesn't already
+    if not hasattr(flux_density, 'unit'):
+        flux_density = flux_density * uu.erg / uu.s / uu.Hz / uu.cm ** 2
+
+    # Apply redshift correction and convert to spectrum units
+    spectra = (flux_density / (1 + redshift)).to(uu.mJy).to(
+        uu.erg / uu.cm ** 2 / uu.s / uu.Angstrom,
+        equivalencies=uu.spectral_density(wav=lambda_observer_frame * uu.Angstrom)
+    )
+
+    return spectra
+
+
+def blackbody_to_spectrum(temperature, r_photosphere, frequency, dl, redshift, lambda_observer_frame):
+    """
+    Create a blackbody spectrum directly from physical parameters.
+
+    This is a convenience wrapper that combines blackbody_to_flux_density with
+    flux_density_to_spectrum, consolidating the most common pattern used across
+    transient models.
+
+    :param temperature: Effective temperature in Kelvin (can be array for multiple times)
+    :param r_photosphere: Photosphere radius in cm (can be array for multiple times)
+    :param frequency: Frequency array in Hz (source frame). Shape should be (n_frequencies, 1) for broadcasting
+    :param dl: Luminosity distance in cm
+    :param redshift: Cosmological redshift (dimensionless)
+    :param lambda_observer_frame: Observer frame wavelength array in Angstrom
+    :return: Spectrum in erg/cm^2/s/Angstrom with shape (n_times, n_frequencies)
+    """
+    # Calculate flux density in source frame
+    fmjy = blackbody_to_flux_density(
+        temperature=temperature,
+        r_photosphere=r_photosphere,
+        dl=dl,
+        frequency=frequency
+    )
+
+    # Transpose if needed to get (n_times, n_frequencies) shape
+    if fmjy.ndim == 2 and fmjy.shape[0] == len(frequency):
+        fmjy = fmjy.T
+
+    # Convert to spectrum
+    spectra = flux_density_to_spectrum(fmjy, redshift, lambda_observer_frame)
+
+    return spectra
+
+
 def get_correct_output_format_from_spectra(time, time_eval, spectra, lambda_array, **kwargs):
     """
     Use SNcosmo to get the bandpass flux or magnitude in AB from spectra at given times.
