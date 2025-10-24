@@ -253,7 +253,7 @@ def evolving_blackbody(time, redshift, temperature_0, radius_0,
         sed_combined = sed.Blackbody(temperature=temperature, r_photosphere=radius,
                                                  frequency=frequency, luminosity_distance=dl)
         flux_density = sed_combined.flux_density
-        return flux_density.to(uu.mJy).value
+        return flux_density.to(uu.mJy).value / (1 + redshift)
     else:
         time_obs = time
         lambda_observer_frame = kwargs.get('lambda_array', np.geomspace(100, 60000, 100))
@@ -276,6 +276,7 @@ def evolving_blackbody(time, redshift, temperature_0, radius_0,
         sed_combined = sed.Blackbody(temperature=temperature, r_photosphere=radius,
                                                  frequency=frequency[:, None], luminosity_distance=dl)
         fmjy = sed_combined.flux_density.T
+        fmjy = fmjy / (1 + redshift)
         spectra = fmjy.to(uu.mJy).to(uu.erg / uu.cm ** 2 / uu.s / uu.Angstrom,
                                      equivalencies=uu.spectral_density(wav=lambda_observer_frame * uu.Angstrom))
         if kwargs['output_format'] == 'spectra':
@@ -377,7 +378,7 @@ def evolving_blackbody_with_features(time, redshift, temperature_0, radius_0,
             evolution_mode=kwargs.get('evolution_mode', 'smooth')
         )
         flux_density = sed_combined.flux_density
-        return flux_density.to(uu.mJy).value
+        return flux_density.to(uu.mJy).value / (1 + redshift)
 
     else:
         time_obs = time
@@ -416,6 +417,7 @@ def evolving_blackbody_with_features(time, redshift, temperature_0, radius_0,
             evolution_mode=kwargs.get('evolution_mode', 'smooth')
         )
         fmjy = sed_combined.flux_density.T
+        fmjy = fmjy / (1 + redshift)
         spectra = fmjy.to(uu.mJy).to(uu.erg / uu.cm ** 2 / uu.s / uu.Angstrom,
                                      equivalencies=uu.spectral_density(wav=lambda_observer_frame * uu.Angstrom))
 
@@ -495,7 +497,7 @@ def powerlaw_plus_blackbody(time, redshift, pl_amplitude, pl_slope, pl_evolution
                                                  reference_wavelength=reference_wavelength,
                                                  frequency=frequency, luminosity_distance=dl)
         flux_density = sed_combined.flux_density
-        return flux_density.to(uu.mJy).value
+        return flux_density.to(uu.mJy).value / (1 + redshift)
     else:
         time_obs = time
         lambda_observer_frame = kwargs.get('lambda_array', np.geomspace(100, 60000, 100))
@@ -521,7 +523,7 @@ def powerlaw_plus_blackbody(time, redshift, pl_amplitude, pl_slope, pl_evolution
                                                  reference_wavelength=reference_wavelength,
                                                  frequency=frequency[:, None], luminosity_distance=dl)
         fmjy = sed_combined.flux_density.T
-        spectra = fmjy.to(uu.mJy).to(uu.erg / uu.cm ** 2 / uu.s / uu.Angstrom,
+        spectra = (fmjy / (1 + redshift)).to(uu.mJy).to(uu.erg / uu.cm ** 2 / uu.s / uu.Angstrom,
                                      equivalencies=uu.spectral_density(wav=lambda_observer_frame * uu.Angstrom))
         if kwargs['output_format'] == 'spectra':
             return namedtuple('output', ['time', 'lambdas', 'spectra'])(time=time_observer_frame,
