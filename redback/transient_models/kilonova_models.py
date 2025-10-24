@@ -13,8 +13,7 @@ from redback.utils import calc_kcorrected_properties, interpolated_barnes_and_ka
     electron_fraction_from_kappa, citation_wrapper, lambda_to_nu, _calculate_rosswogkorobkin24_qdot, \
     kappa_from_electron_fraction
 from redback.eos import PiecewisePolytrope
-from redback.sed import blackbody_to_flux_density, get_correct_output_format_from_spectra, Blackbody, \
-    flux_density_to_spectrum, blackbody_to_spectrum
+from redback.sed import blackbody_to_flux_density, get_correct_output_format_from_spectra, blackbody_to_spectrum
 from redback.constants import *
 import redback.ejecta_relations as ejr
 
