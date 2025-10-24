@@ -242,7 +242,7 @@ def _cooling_envelope(mbh_6, stellar_mass, eta, alpha, beta, **kwargs):
 @citation_wrapper('https://arxiv.org/abs/2307.15121,https://ui.adsabs.harvard.edu/abs/2022arXiv220707136M/abstract')
 def cooling_envelope(time, redshift, mbh_6, stellar_mass, eta, alpha, beta, **kwargs):
     """
-    This model is only valid for time after circulation. Use the gaussianrise_metzgertde model for the full lightcurve
+    This model is only valid for time after circulation. Use the gaussianrise_cooling_envelope model for the full lightcurve
 
     :param time: time in observer frame in days
     :param redshift: redshift
@@ -283,7 +283,7 @@ def cooling_envelope(time, redshift, mbh_6, stellar_mass, eta, alpha, beta, **kw
 
         flux_density = sed.blackbody_to_flux_density(temperature=temp, r_photosphere=photosphere,
                                                  dl=dl, frequency=frequency)
-        return flux_density.to(uu.mJy).value
+        return flux_density.to(uu.mJy).value / (1 + redshift)
     else:
         lambda_observer_frame = kwargs.get('lambda_array', np.geomspace(100, 60000, 100))
         time_observer_frame = output.time_since_fb * (1. + redshift)
@@ -294,7 +294,7 @@ def cooling_envelope(time, redshift, mbh_6, stellar_mass, eta, alpha, beta, **kw
                                              r_photosphere=output.photosphere_radius,
                                              frequency=frequency[:, None], dl=dl)
         fmjy = fmjy.T
-        spectra = fmjy.to(uu.mJy).to(uu.erg / uu.cm ** 2 / uu.s / uu.Angstrom,
+        spectra = (fmjy / (1 + redshift)).to(uu.mJy).to(uu.erg / uu.cm ** 2 / uu.s / uu.Angstrom,
                                      equivalencies=uu.spectral_density(wav=lambda_observer_frame * uu.Angstrom))
         if kwargs['output_format'] == 'spectra':
             return namedtuple('output', ['time', 'lambdas', 'spectra'])(time=time_observer_frame,
@@ -505,7 +505,7 @@ def gaussianrise_cooling_envelope(time, redshift, peak_time, sigma_t, mbh_6, ste
         for freq, tt in zip(frequency, time):
             flux_density.append(flux_den_interp_func[freq](tt * cc.day_to_s))
         flux_density = flux_density * uu.mJy
-        return flux_density.to(uu.mJy).value
+        return flux_density.to(uu.mJy).value / (1 + redshift)
     else:
         bands = kwargs['bands']
         if isinstance(bands, str):
@@ -626,7 +626,7 @@ def bpl_cooling_envelope(time, redshift, peak_time, alpha_1, alpha_2, mbh_6, ste
         for freq, tt in zip(frequency, time):
             flux_density.append(flux_den_interp_func[freq](tt * cc.day_to_s))
         flux_density = flux_density * uu.mJy
-        return flux_density.to(uu.mJy).value
+        return flux_density.to(uu.mJy).value / (1 + redshift)
     else:
         bands = kwargs['bands']
         if isinstance(bands, str):
@@ -731,7 +731,7 @@ def tde_analytical(time, redshift, l0, t_0_turn, **kwargs):
 
         flux_density = sed_1.flux_density
         flux_density = np.nan_to_num(flux_density)
-        return flux_density.to(uu.mJy).value
+        return flux_density.to(uu.mJy).value / (1 + redshift)
     else:
         time_obs = time
         lambda_observer_frame = kwargs.get('lambda_array', np.geomspace(100, 60000, 100))
@@ -747,6 +747,7 @@ def tde_analytical(time, redshift, l0, t_0_turn, **kwargs):
                                 r_photosphere=photo.r_photosphere,frequency=frequency[ii],
                                 luminosity_distance=dl, cutoff_wavelength=cutoff_wavelength, luminosity=lbol)
             full_sed[:, ii] = ss.flux_density.to(uu.mJy).value
+        full_sed = full_sed / (1 + redshift)
         spectra = (full_sed * uu.mJy).to(uu.erg / uu.cm ** 2 / uu.s / uu.Angstrom,
                                      equivalencies=uu.spectral_density(wav=lambda_observer_frame * uu.Angstrom))
         if kwargs['output_format'] == 'spectra':
@@ -1182,7 +1183,7 @@ def tde_fallback(time, redshift, mbh6, mstar, tvisc, bb, eta, leddlimit, rph0, l
                      frequency=frequency, luminosity_distance=dl)
         flux_density = sed_1.flux_density
         flux_density = np.nan_to_num(flux_density)
-        return flux_density.to(uu.mJy).value
+        return flux_density.to(uu.mJy).value / (1 + redshift)
     else:
         time_obs = time
         lambda_observer_frame = kwargs.get('lambda_array', np.geomspace(100, 60000, 100))
@@ -1198,7 +1199,7 @@ def tde_fallback(time, redshift, mbh6, mstar, tvisc, bb, eta, leddlimit, rph0, l
         sed_1 = kwargs['sed'](time=time, temperature=photo.photosphere_temperature, r_photosphere=photo.r_photosphere,
                      frequency=frequency[:, None], luminosity_distance=dl)
         fmjy = sed_1.flux_density.T
-        spectra = fmjy.to(uu.mJy).to(uu.erg / uu.cm ** 2 / uu.s / uu.Angstrom,
+        spectra = (fmjy / (1 + redshift)).to(uu.mJy).to(uu.erg / uu.cm ** 2 / uu.s / uu.Angstrom,
                                      equivalencies=uu.spectral_density(wav=lambda_observer_frame * uu.Angstrom))
         if kwargs['output_format'] == 'spectra':
             return namedtuple('output', ['time', 'lambdas', 'spectra'])(time=time_observer_frame,
@@ -1323,7 +1324,7 @@ def fitted_pl_decay(time, redshift, log_mh, a_bh, m_disc, r0, tvi, t_form, incl,
         else:
             for i in range(0,len(freqs_un)):
                 inds = np.where(frequency == freqs_un[i])[0]
-                nulnus[inds] = m.model_UV([time[j] for j in inds], log_mh, a_bh, m_disc, r0, tvi, t_form, ang, freqs_un[i])
+                nulnus_plateau[inds] = m.model_UV([time[j] for j in inds], log_mh, a_bh, m_disc, r0, tvi, t_form, ang, freqs_un[i])
                 nulnus_decay[inds] = m.decay_model([time[j] for j in inds], log_L, t_decay, p, t_peak, log_T, v=freqs_un[i]) 
                 nulnus_rise[inds] = m.rise_model([time[j] for j in inds], log_L, sigma_t, t_peak, log_T, v=freqs_un[i])                                             
         nulnus = nulnus_plateau + nulnus_rise + nulnus_decay    
@@ -1340,7 +1341,7 @@ def fitted_pl_decay(time, redshift, log_mh, a_bh, m_disc, r0, tvi, t_form, incl,
         nulnus_plateau = m.model_SEDs(time, log_mh, a_bh, m_disc, r0, tvi, t_form, ang, frequency)
 
         freq_0 = 6e14
-        l_e_amp = (model.decay_model(time, log_L, t_decay, t_peak, log_T, freq_0) + model.rise_model(time, log_L, sigma_t, t_peak, log_T, freq_0))
+        l_e_amp = (m.decay_model(time, log_L, t_decay, t_peak, log_T, freq_0) + m.rise_model(time, log_L, sigma_t, t_peak, log_T, freq_0))
         nulnus_risedecay = ((l_e_amp[:, None] * (frequency/freq_0)**4 * 
                         (np.exp(cc.planck * freq_0/(cc.boltzmann_constant * 10**log_T)) - 1)/(np.exp(cc.planck * frequency/(cc.boltzmann_constant * 10**log_T)) - 1)).T)  
         flux_density = ((nulnus_risedecay + nulnus_plateau)/(4.0 * np.pi * dl**2 * frequency[:,np.newaxis] * 1.0e-26))  
@@ -1406,7 +1407,7 @@ def fitted_exp_decay(time, redshift, log_mh, a_bh, m_disc, r0, tvi, t_form, incl
         else:
             for i in range(0,len(freqs_un)):
                 inds = np.where(frequency == freqs_un[i])[0]
-                nulnus[inds] = m.model_UV([time[j] for j in inds], log_mh, a_bh, m_disc, r0, tvi, t_form, ang, freqs_un[i])
+                nulnus_plateau[inds] = m.model_UV([time[j] for j in inds], log_mh, a_bh, m_disc, r0, tvi, t_form, ang, freqs_un[i])
                 nulnus_decay[inds] = m.decay_model([time[j] for j in inds], log_L, t_decay, t_peak, log_T, v=freqs_un[i]) 
                 nulnus_rise[inds] = m.rise_model([time[j] for j in inds], log_L, sigma_t, t_peak, log_T, v=freqs_un[i]) 
         nulnus = nulnus_plateau + nulnus_rise + nulnus_decay        
@@ -1598,7 +1599,7 @@ def stream_stream_tde(time, redshift, mbh_6, mstar, c1, f, h_r, inc_tcool, del_o
         for freq, tt in zip(frequency, time):
             flux_density.append(flux_den_interp_func[freq](tt * cc.day_to_s))
         flux_density = flux_density * uu.mJy
-        return flux_density.to(uu.mJy).value    
+        return flux_density.to(uu.mJy).value / (1 + redshift)
         
     else:
         time_obs = time
@@ -1613,7 +1614,8 @@ def stream_stream_tde(time, redshift, mbh_6, mstar, c1, f, h_r, inc_tcool, del_o
         fmjy = ((flux_den[:, None] * (frequency/freq_0)**4 * 
                         (np.exp(cc.planck * freq_0/(cc.boltzmann_constant * full_temp[:, None])) - 1) / (np.exp(cc.planck * frequency/(cc.boltzmann_constant * full_temp[:, None])) - 1)).T)                
         spectra = fmjy.T.to(uu.erg / uu.cm ** 2 / uu.s / uu.Angstrom,
-                                     equivalencies=uu.spectral_density(wav=lambda_observer_frame * uu.Angstrom)) 
+                                     equivalencies=uu.spectral_density(wav=lambda_observer_frame * uu.Angstrom))
+        spectra = spectra / (1 + redshift)
         if kwargs['output_format'] == 'spectra':
             return namedtuple('output', ['time', 'lambdas', 'spectra'])(time=time_observer_frame,
                                                                           lambdas=lambda_observer_frame,
