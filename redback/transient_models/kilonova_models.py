@@ -424,7 +424,7 @@ def nicholl_bns(time, redshift, mass_1, mass_2, lambda_s, kappa_red, kappa_blue,
         fmjy = blackbody_to_flux_density(temperature=cocoon_photo.photosphere_temperature,
                                          r_photosphere=cocoon_photo.r_photosphere,dl=dl,
                                          frequency=frequency[:,None]).T
-        cocoon_spectra = fmjy.to(uu.mJy).to(uu.erg / uu.cm ** 2 / uu.s / uu.Angstrom,
+        cocoon_spectra = (fmjy / (1 + redshift)).to(uu.mJy).to(uu.erg / uu.cm ** 2 / uu.s / uu.Angstrom,
                                          equivalencies=uu.spectral_density(wav=lambda_observer_frame * uu.Angstrom))
         cocoon_spectra = np.nan_to_num(cocoon_spectra)
         full_spec = cocoon_spectra.value
@@ -441,7 +441,7 @@ def nicholl_bns(time, redshift, mass_1, mass_2, lambda_s, kappa_red, kappa_blue,
                                               r_photosphere=photo.r_photosphere, dl=dl,
                                               frequency=frequency[:, None])
             fmjy = fmjy.T
-            spectra = fmjy.to(uu.mJy).to(uu.erg / uu.cm ** 2 / uu.s / uu.Angstrom,
+            spectra = (fmjy / (1 + redshift)).to(uu.mJy).to(uu.erg / uu.cm ** 2 / uu.s / uu.Angstrom,
                                          equivalencies=uu.spectral_density(wav=lambda_observer_frame * uu.Angstrom))
             spectra = np.nan_to_num(spectra)
             units = spectra.unit
@@ -507,7 +507,7 @@ def mosfit_rprocess(time, redshift, mej, vej, kappa, kappa_gamma, temperature_fl
         photosphere = rad_func(time)
         flux_density = blackbody_to_flux_density(temperature=temp, r_photosphere=photosphere,
                                                  dl=dl, frequency=frequency)
-        return flux_density.to(uu.mJy).value
+        return flux_density.to(uu.mJy).value / (1 + redshift)
     else:
         lambda_observer_frame = kwargs.get('lambda_array', np.geomspace(100, 60000, 200))
         time_observer_frame = time_temp / day_to_s * (1. + redshift) # in days
@@ -516,7 +516,7 @@ def mosfit_rprocess(time, redshift, mej, vej, kappa, kappa_gamma, temperature_fl
         fmjy = blackbody_to_flux_density(temperature=photo.photosphere_temperature,
                                          r_photosphere=photo.r_photosphere, frequency=frequency[:, None], dl=dl)
         fmjy = fmjy.T
-        spectra = fmjy.to(uu.mJy).to(uu.erg / uu.cm ** 2 / uu.s / uu.Angstrom,
+        spectra = (fmjy / (1 + redshift)).to(uu.mJy).to(uu.erg / uu.cm ** 2 / uu.s / uu.Angstrom,
                                      equivalencies=uu.spectral_density(wav=lambda_observer_frame * uu.Angstrom))
         if kwargs['output_format'] == 'spectra':
             return namedtuple('output', ['time', 'lambdas', 'spectra'])(time=time_observer_frame,
@@ -612,7 +612,7 @@ def mosfit_kilonova(time, redshift, mej_1, vej_1, temperature_floor_1, kappa_1,
                                      temperature_floor=temperature_floor[x])
             fmjy = blackbody_to_flux_density(temperature=photo.photosphere_temperature,
                                              r_photosphere=photo.r_photosphere, frequency=frequency[:, None], dl=dl).T
-            spectra = fmjy.to(uu.mJy).to(uu.erg / uu.cm ** 2 / uu.s / uu.Angstrom,
+            spectra = (fmjy / (1 + redshift)).to(uu.mJy).to(uu.erg / uu.cm ** 2 / uu.s / uu.Angstrom,
                                          equivalencies=uu.spectral_density(wav=lambda_observer_frame * uu.Angstrom))
             units = spectra.unit
             full_spec += spectra.value
@@ -717,7 +717,7 @@ def bulla_bns_kilonova(time, redshift, mej_dyn, mej_disk, phi, costheta_obs, **k
         frequency, time = calc_kcorrected_properties(frequency=frequency, time=time, redshift=redshift)
         output = function(time_source_frame=time, redshift=redshift, mej_dyn=mej_dyn,
                           mej_disk=mej_disk, phi=phi, costheta_obs=costheta_obs)
-        spectra = output.spectra / (4 * np.pi * dl ** 2)  # to erg/s/cm^2/Angstrom
+        spectra = output.spectra / (4 * np.pi * dl ** 2) / (1 + redshift)  # to erg/s/cm^2/Angstrom
         spectra = spectra * uu.erg / (uu.s * uu.cm ** 2 * uu.Angstrom)
         fmjy = spectra.to(uu.mJy, equivalencies=uu.spectral_density(wav=output.lambdas * uu.Angstrom)).value
         nu_array = lambda_to_nu(output.lambdas)
@@ -735,7 +735,7 @@ def bulla_bns_kilonova(time, redshift, mej_dyn, mej_disk, phi, costheta_obs, **k
         else:
             time_observer_frame = output.time
             lambda_observer_frame = output.lambdas
-            spectra = output.spectra / (4 * np.pi * dl ** 2) # to erg/s/cm^2/Angstrom
+            spectra = output.spectra / (4 * np.pi * dl ** 2) / (1 + redshift) # to erg/s/cm^2/Angstrom
             spectra = spectra * uu.erg / (uu.s * uu.cm ** 2 * uu.Angstrom)
             time_obs = time
             return get_correct_output_format_from_spectra(time=time_obs, time_eval=time_observer_frame,
@@ -770,7 +770,7 @@ def bulla_nsbh_kilonova(time, redshift, mej_dyn, mej_disk, costheta_obs, **kwarg
         frequency, time = calc_kcorrected_properties(frequency=frequency, time=time, redshift=redshift)
         output = function(time_source_frame=time, redshift=redshift, mej_dyn=mej_dyn,
                           mej_disk=mej_disk, costheta_obs=costheta_obs)
-        spectra = output.spectra / (4 * np.pi * dl ** 2)  # to erg/s/cm^2/Angstrom
+        spectra = output.spectra / (4 * np.pi * dl ** 2) / (1 + redshift)  # to erg/s/cm^2/Angstrom
         spectra = spectra * uu.erg / (uu.s * uu.cm ** 2 * uu.Angstrom)
         fmjy = spectra.to(uu.mJy, equivalencies=uu.spectral_density(wav=output.lambdas * uu.Angstrom)).value
         nu_array = lambda_to_nu(output.lambdas)
@@ -788,7 +788,7 @@ def bulla_nsbh_kilonova(time, redshift, mej_dyn, mej_disk, costheta_obs, **kwarg
         else:
             time_observer_frame = output.time
             lambda_observer_frame = output.lambdas
-            spectra = output.spectra / (4 * np.pi * dl ** 2) # to erg/s/cm^2/Angstrom
+            spectra = output.spectra / (4 * np.pi * dl ** 2) / (1 + redshift) # to erg/s/cm^2/Angstrom
             spectra = spectra * uu.erg / (uu.s * uu.cm ** 2 * uu.Angstrom)
             time_obs = time
             return get_correct_output_format_from_spectra(time=time_obs, time_eval=time_observer_frame,
@@ -822,7 +822,7 @@ def kasen_bns_kilonova(time, redshift, mej, vej, chi, **kwargs):
         frequency = kwargs['frequency']
         frequency, time = calc_kcorrected_properties(frequency=frequency, time=time, redshift=redshift)
         output = function(time_source_frame=time,redshift=redshift, mej=mej, vej=vej, chi=chi)
-        spectra = output.spectra / (4 * np.pi * dl ** 2) # to erg/s/cm^2/Angstrom
+        spectra = output.spectra / (4 * np.pi * dl ** 2) / (1 + redshift) # to erg/s/cm^2/Angstrom
         spectra = spectra * uu.erg / (uu.s * uu.cm ** 2 * uu.Angstrom)
         fmjy = spectra.to(uu.mJy, equivalencies=uu.spectral_density(wav=output.lambdas * uu.Angstrom)).value
         nu_array = lambda_to_nu(output.lambdas)
@@ -839,7 +839,7 @@ def kasen_bns_kilonova(time, redshift, mej, vej, chi, **kwargs):
         else:
             time_observer_frame = output.time
             lambda_observer_frame = output.lambdas
-            spectra = output.spectra / (4 * np.pi * dl ** 2) # to erg/s/cm^2/Angstrom
+            spectra = output.spectra / (4 * np.pi * dl ** 2) / (1 + redshift) # to erg/s/cm^2/Angstrom
             spectra = spectra * uu.erg / (uu.s * uu.cm ** 2 * uu.Angstrom)
             time_obs = time
             return get_correct_output_format_from_spectra(time=time_obs, time_eval=time_observer_frame,
@@ -910,7 +910,7 @@ def _kilonova_hr(time, redshift, mej, velocity_array, kappa_array, beta, **kwarg
 
         flux_density = blackbody_to_flux_density(temperature=temperature.value, r_photosphere=r_photosphere.value,
                                                  dl=dl, frequency=frequency)
-        return flux_density.to(uu.mJy).value
+        return flux_density.to(uu.mJy).value / (1 + redshift)
     else:
         lambda_observer_frame = kwargs.get('lambda_array', np.geomspace(100, 60000, 200))
         time_observer_frame = np.geomspace(0.03, 10, 100) * day_to_s
@@ -920,7 +920,7 @@ def _kilonova_hr(time, redshift, mej, velocity_array, kappa_array, beta, **kwarg
         fmjy = blackbody_to_flux_density(temperature=temperature.value,
                                          r_photosphere=r_photosphere.value, frequency=frequency[:, None], dl=dl)
         fmjy = fmjy.T
-        spectra = fmjy.to(uu.mJy).to(uu.erg / uu.cm ** 2 / uu.s / uu.Angstrom,
+        spectra = (fmjy / (1 + redshift)).to(uu.mJy).to(uu.erg / uu.cm ** 2 / uu.s / uu.Angstrom,
                                      equivalencies=uu.spectral_density(wav=lambda_observer_frame * uu.Angstrom))
         if kwargs['output_format'] == 'spectra':
             return namedtuple('output', ['time', 'lambdas', 'spectra'])(time=time_observer_frame,
@@ -1037,7 +1037,7 @@ def three_component_kilonova_model(time, redshift, mej_1, vej_1, temperature_flo
             fmjy = blackbody_to_flux_density(temperature=temperature,
                                              r_photosphere=r_photosphere, frequency=frequency[:, None], dl=dl)
             fmjy = fmjy.T
-            spectra = fmjy.to(uu.mJy).to(uu.erg / uu.cm ** 2 / uu.s / uu.Angstrom,
+            spectra = (fmjy / (1 + redshift)).to(uu.mJy).to(uu.erg / uu.cm ** 2 / uu.s / uu.Angstrom,
                                          equivalencies=uu.spectral_density(wav=lambda_observer_frame * uu.Angstrom))
             units = spectra.unit
             full_spec += spectra.value
@@ -1127,7 +1127,7 @@ def two_component_kilonova_model(time, redshift, mej_1, vej_1, temperature_floor
             fmjy = blackbody_to_flux_density(temperature=temperature,
                                              r_photosphere=r_photosphere, frequency=frequency[:, None], dl=dl)
             fmjy = fmjy.T
-            spectra = fmjy.to(uu.mJy).to(uu.erg / uu.cm ** 2 / uu.s / uu.Angstrom,
+            spectra = (fmjy / (1 + redshift)).to(uu.mJy).to(uu.erg / uu.cm ** 2 / uu.s / uu.Angstrom,
                                          equivalencies=uu.spectral_density(wav=lambda_observer_frame * uu.Angstrom))
             units = spectra.unit
             full_spec += spectra.value
@@ -1410,7 +1410,7 @@ def one_component_kilonova_model(time, redshift, mej, vej, kappa, **kwargs):
         flux_density = blackbody_to_flux_density(temperature=temp, r_photosphere=photosphere,
                                                  dl=dl, frequency=frequency)
 
-        return flux_density.to(uu.mJy).value
+        return flux_density.to(uu.mJy).value / (1 + redshift)
 
     else:
         lambda_observer_frame = kwargs.get('lambda_array', np.geomspace(100, 60000, 200))
@@ -1420,7 +1420,7 @@ def one_component_kilonova_model(time, redshift, mej, vej, kappa, **kwargs):
         fmjy = blackbody_to_flux_density(temperature=temperature,
                                          r_photosphere=r_photosphere, frequency=frequency[:, None], dl=dl)
         fmjy = fmjy.T
-        spectra = fmjy.to(uu.mJy).to(uu.erg / uu.cm ** 2 / uu.s / uu.Angstrom,
+        spectra = (fmjy / (1 + redshift)).to(uu.mJy).to(uu.erg / uu.cm ** 2 / uu.s / uu.Angstrom,
                                      equivalencies=uu.spectral_density(wav=lambda_observer_frame * uu.Angstrom))
         if kwargs['output_format'] == 'spectra':
             return namedtuple('output', ['time', 'lambdas', 'spectra'])(time=time_observer_frame,
@@ -1544,7 +1544,7 @@ def one_comp_kne_rosswog_heatingrate(time, redshift, mej, vej, ye, **kwargs):
         flux_density = blackbody_to_flux_density(temperature=temp, r_photosphere=photosphere,
                                                  dl=dl, frequency=frequency)
 
-        return flux_density.to(uu.mJy).value
+        return flux_density.to(uu.mJy).value / (1 + redshift)
 
     else:
         lambda_observer_frame = kwargs.get('lambda_array', np.geomspace(100, 60000, 200))
@@ -1554,7 +1554,7 @@ def one_comp_kne_rosswog_heatingrate(time, redshift, mej, vej, ye, **kwargs):
         fmjy = blackbody_to_flux_density(temperature=temperature,
                                          r_photosphere=r_photosphere, frequency=frequency[:, None], dl=dl)
         fmjy = fmjy.T
-        spectra = fmjy.to(uu.mJy).to(uu.erg / uu.cm ** 2 / uu.s / uu.Angstrom,
+        spectra = (fmjy / (1 + redshift)).to(uu.mJy).to(uu.erg / uu.cm ** 2 / uu.s / uu.Angstrom,
                                      equivalencies=uu.spectral_density(wav=lambda_observer_frame * uu.Angstrom))
         if kwargs['output_format'] == 'spectra':
             return namedtuple('output', ['time', 'lambdas', 'spectra'])(time=time_observer_frame,
@@ -1650,7 +1650,7 @@ def two_comp_kne_rosswog_heatingrate(time, redshift, mej_1, vej_1, temperature_f
             fmjy = blackbody_to_flux_density(temperature=temperature,
                                              r_photosphere=r_photosphere, frequency=frequency[:, None], dl=dl)
             fmjy = fmjy.T
-            spectra = fmjy.to(uu.mJy).to(uu.erg / uu.cm ** 2 / uu.s / uu.Angstrom,
+            spectra = (fmjy / (1 + redshift)).to(uu.mJy).to(uu.erg / uu.cm ** 2 / uu.s / uu.Angstrom,
                                          equivalencies=uu.spectral_density(wav=lambda_observer_frame * uu.Angstrom))
             units = spectra.unit
             full_spec += spectra.value
@@ -1748,7 +1748,7 @@ def metzger_kilonova_model(time, redshift, mej, vej, beta, kappa, **kwargs):
 
         flux_density = blackbody_to_flux_density(temperature=temp, r_photosphere=photosphere,
                                                  dl=dl, frequency=frequency)
-        return flux_density.to(uu.mJy).value
+        return flux_density.to(uu.mJy).value / (1 + redshift)
 
     else:
         lambda_observer_frame = kwargs.get('lambda_array', np.geomspace(100, 60000, 200))
@@ -1758,7 +1758,7 @@ def metzger_kilonova_model(time, redshift, mej, vej, beta, kappa, **kwargs):
         fmjy = blackbody_to_flux_density(temperature=temperature,
                                          r_photosphere=r_photosphere, frequency=frequency[:, None], dl=dl)
         fmjy = fmjy.T
-        spectra = fmjy.to(uu.mJy).to(uu.erg / uu.cm ** 2 / uu.s / uu.Angstrom,
+        spectra = (fmjy / (1 + redshift)).to(uu.mJy).to(uu.erg / uu.cm ** 2 / uu.s / uu.Angstrom,
                                      equivalencies=uu.spectral_density(wav=lambda_observer_frame * uu.Angstrom))
         if kwargs['output_format'] == 'spectra':
             return namedtuple('output', ['time', 'lambdas', 'spectra'])(time=time_observer_frame,
@@ -1807,9 +1807,6 @@ def _metzger_kilonova_model(time, mej, vej, beta, kappa, **kwargs):
     vmax = kwargs.get('vmax', 0.7)
     vel = np.linspace(vmin, vmax, mass_len)
     m_array = mej * (vel/vmin)**(-beta)
-    total_mass = np.sum(m_array)
-    normalised_mass = m_array * (mej/ total_mass)
-    m_array = normalised_mass
     v_m = vel * speed_of_light
 
     # set up arrays
