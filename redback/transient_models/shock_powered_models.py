@@ -5,6 +5,7 @@ from scipy.interpolate import interp1d
 import redback.constants as cc
 from astropy import units as uu
 import redback.sed as sed
+from redback.sed import flux_density_to_spectrum, blackbody_to_spectrum
 from astropy.cosmology import Planck18 as cosmo  # noqa
 from redback.utils import calc_kcorrected_properties, citation_wrapper, lambda_to_nu
 
@@ -209,11 +210,14 @@ def shockcooling_morag(time, redshift, v_shock, m_env, f_rho_m, radius, kappa, *
         time_observer_frame = time_temp * (1. + redshift)
         frequency, time = calc_kcorrected_properties(frequency=lambda_to_nu(lambda_observer_frame),
                                                      redshift=redshift, time=time_observer_frame)
-        fmjy = sed.blackbody_to_flux_density(temperature=output.t_photosphere,
-                                             r_photosphere=output.r_photosphere, frequency=frequency[:, None], dl=dl)
-        fmjy = fmjy.T
-        spectra = (fmjy / (1 + redshift)).to(uu.mJy).to(uu.erg / uu.cm ** 2 / uu.s / uu.Angstrom,
-                                     equivalencies=uu.spectral_density(wav=lambda_observer_frame * uu.Angstrom))
+        spectra = blackbody_to_spectrum(
+            temperature=output.t_photosphere,
+            r_photosphere=output.r_photosphere,
+            frequency=frequency[:, None],
+            dl=dl,
+            redshift=redshift,
+            lambda_observer_frame=lambda_observer_frame
+        )
         if kwargs['output_format'] == 'spectra':
             return namedtuple('output', ['time', 'lambdas', 'spectra'])(time=time_observer_frame,
                                                                         lambdas=lambda_observer_frame,
@@ -452,11 +456,14 @@ def shockcooling_sapirandwaxman(time, redshift, v_shock, m_env, f_rho_m, radius,
         time_observer_frame = time_temp * (1. + redshift)
         frequency, time = calc_kcorrected_properties(frequency=lambda_to_nu(lambda_observer_frame),
                                                      redshift=redshift, time=time_observer_frame)
-        fmjy = sed.blackbody_to_flux_density(temperature=output.t_photosphere,
-                                             r_photosphere=output.r_photosphere, frequency=frequency[:, None], dl=dl)
-        fmjy = fmjy.T
-        spectra = (fmjy / (1 + redshift)).to(uu.mJy).to(uu.erg / uu.cm ** 2 / uu.s / uu.Angstrom,
-                                     equivalencies=uu.spectral_density(wav=lambda_observer_frame * uu.Angstrom))
+        spectra = blackbody_to_spectrum(
+            temperature=output.t_photosphere,
+            r_photosphere=output.r_photosphere,
+            frequency=frequency[:, None],
+            dl=dl,
+            redshift=redshift,
+            lambda_observer_frame=lambda_observer_frame
+        )
         if kwargs['output_format'] == 'spectra':
             return namedtuple('output', ['time', 'lambdas', 'spectra'])(time=time_observer_frame,
                                                                         lambdas=lambda_observer_frame,
@@ -594,11 +601,14 @@ def csm_shock_breakout(time, redshift, csm_mass, v_min, beta, kappa, shell_radiu
         time_observer_frame = time_temp * (1. + redshift)
         frequency, time = calc_kcorrected_properties(frequency=lambda_to_nu(lambda_observer_frame),
                                                      redshift=redshift, time=time_observer_frame)
-        fmjy = sed.blackbody_to_flux_density(temperature=outputs.temperature,
-                                         r_photosphere=outputs.r_photosphere, frequency=frequency[:, None], dl=dl)
-        fmjy = fmjy.T
-        spectra = (fmjy / (1 + redshift)).to(uu.mJy).to(uu.erg / uu.cm ** 2 / uu.s / uu.Angstrom,
-                                     equivalencies=uu.spectral_density(wav=lambda_observer_frame * uu.Angstrom))
+        spectra = blackbody_to_spectrum(
+            temperature=outputs.temperature,
+            r_photosphere=outputs.r_photosphere,
+            frequency=frequency[:, None],
+            dl=dl,
+            redshift=redshift,
+            lambda_observer_frame=lambda_observer_frame
+        )
         if kwargs['output_format'] == 'spectra':
             return namedtuple('output', ['time', 'lambdas', 'spectra'])(time=time_observer_frame,
                                                                            lambdas=lambda_observer_frame,
@@ -748,11 +758,14 @@ def shock_cooling(time, redshift, log10_mass, log10_radius, log10_energy, **kwar
         frequency, time = calc_kcorrected_properties(frequency=lambda_to_nu(lambda_observer_frame),
                                                      redshift=redshift, time=time_observer_frame)
         output = _shock_cooling(time=time * cc.day_to_s, mass=mass, radius=radius, energy=energy, **kwargs)
-        fmjy = sed.blackbody_to_flux_density(temperature=output.temperature,
-                                             r_photosphere=output.r_photosphere, frequency=frequency[:, None], dl=dl)
-        fmjy = fmjy.T
-        spectra = (fmjy / (1 + redshift)).to(uu.mJy).to(uu.erg / uu.cm ** 2 / uu.s / uu.Angstrom,
-                                     equivalencies=uu.spectral_density(wav=lambda_observer_frame * uu.Angstrom))
+        spectra = blackbody_to_spectrum(
+            temperature=output.temperature,
+            r_photosphere=output.r_photosphere,
+            frequency=frequency[:, None],
+            dl=dl,
+            redshift=redshift,
+            lambda_observer_frame=lambda_observer_frame
+        )
         if kwargs['output_format'] == 'spectra':
             return namedtuple('output', ['time', 'lambdas', 'spectra'])(time=time_observer_frame,
                                                                           lambdas=lambda_observer_frame,
@@ -1022,11 +1035,14 @@ def shocked_cocoon(time, redshift, mej, vej, eta, tshock, shocked_fraction, cos_
         output = _shocked_cocoon(time=time, mej=mej, vej=vej, eta=eta,
                                  tshock=tshock, shocked_fraction=shocked_fraction,
                                  cos_theta_cocoon=cos_theta_cocoon, kappa=kappa)
-        fmjy = sed.blackbody_to_flux_density(temperature=output.temperature,
-                                         r_photosphere=output.r_photosphere, frequency=frequency[:, None], dl=dl)
-        fmjy = fmjy.T
-        spectra = (fmjy / (1 + redshift)).to(uu.mJy).to(uu.erg / uu.cm ** 2 / uu.s / uu.Angstrom,
-                                     equivalencies=uu.spectral_density(wav=lambda_observer_frame * uu.Angstrom))
+        spectra = blackbody_to_spectrum(
+            temperature=output.temperature,
+            r_photosphere=output.r_photosphere,
+            frequency=frequency[:, None],
+            dl=dl,
+            redshift=redshift,
+            lambda_observer_frame=lambda_observer_frame
+        )
         if kwargs['output_format'] == 'spectra':
             return namedtuple('output', ['time', 'lambdas', 'spectra'])(time=time_observer_frame,
                                                                           lambdas=lambda_observer_frame,
