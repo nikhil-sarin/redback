@@ -2018,7 +2018,6 @@ def type_1a(time, redshift, f_nickel, mej, **kwargs):
         spectra = (full_sed * uu.mJy).to(uu.erg / uu.cm ** 2 / uu.s / uu.Angstrom,
                                          equivalencies=uu.spectral_density(
                                              wav=(lambdas_observer_frame.reshape(-1, 1) * uu.Angstrom))).T
-        print(spectra.shape)
         if kwargs['output_format'] == 'spectra':
             return namedtuple('output', ['time', 'lambdas', 'spectra'])(time=time_observer_frame,
                                                                           lambdas=lambdas_observer_frame,
