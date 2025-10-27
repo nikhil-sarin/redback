@@ -1422,10 +1422,9 @@ class OpticalTransient(Transient):
                 # Compute the model SED (flux density in erg/s/cm^2/Hz).
                 # Apply cosmological dimming factor for observer-frame flux
                 model_flux = redback.sed.blackbody_to_flux_density(T, R, distance, frequency) / (1 + redshift)
-                # Convert the SED to per-Å units using rest-frame wavelengths.
-                lambda_rest = lambda_obs / (1 + redshift)
+                # Convert the SED to per-Å units
                 _spectra = model_flux.to(uu.erg / uu.cm ** 2 / uu.s / uu.Angstrom,
-                                         equivalencies=uu.spectral_density(wav=lambda_rest * uu.Angstrom))
+                                         equivalencies=uu.spectral_density(wav=lambda_obs * uu.Angstrom))
                 spectra = np.zeros((5, 300))
                 spectra[:, :] = _spectra.value
                 # Create a source object from the spectrum.
