@@ -2677,13 +2677,13 @@ def typeII_surrogate_sarin25(time, redshift, progenitor, ni_mass, log10_mdot, be
         **kwargs
     )
 
-    # Extract components from the output
-    rest_spectrum = spectra_output.spectrum  # erg/s/Hz in rest frame
-    standard_freqs = spectra_output.frequency.value  # Angstrom in rest frame
-    standard_times = spectra_output.time.value  # days in rest frame
+    # Extract components from the output (note: .frequency is actually wavelengths in Angstroms)
+    luminosity_density = spectra_output.spectrum  # erg/s/Hz (luminosity density at rest-frame frequencies)
+    lambda_rest = spectra_output.frequency.value  # Angstroms (rest-frame wavelengths)
+    time_rest = spectra_output.time.value  # days (rest frame)
 
-    # Apply cosmological dimming
-    observed_spectrum = rest_spectrum / (4 * np.pi * dl ** 2) / (1 + redshift)
+    # Apply cosmological dimming: L_nu / (4*pi*d_L^2) gives flux that still needs (1+z) correction
+    flux_density = luminosity_density / (4 * np.pi * dl ** 2)
 
     # Handle different output formats
     if kwargs.get('output_format') == 'flux_density':
@@ -2691,20 +2691,15 @@ def typeII_surrogate_sarin25(time, redshift, progenitor, ni_mass, log10_mdot, be
         frequency = kwargs['frequency']
         frequency, time = calc_kcorrected_properties(frequency=frequency, time=time, redshift=redshift)
 
-        # Convert wavelengths to frequencies for interpolation
-        nu_array = lambda_to_nu(standard_freqs)
+        # Convert rest-frame wavelengths to rest-frame frequencies for interpolation
+        nu_rest = lambda_to_nu(lambda_rest)
 
-        # Convert spectrum from erg/s/Hz to erg/s/cm²/Hz (already done above)
-        # Convert to wavelength density for astropy conversion
-        spectra_lambda = observed_spectrum.to(uu.erg / uu.cm ** 2 / uu.s / uu.Angstrom)
+        # Convert flux density to mJy
+        fmjy = flux_density.to(uu.mJy).value
 
-        # Convert to mJy using astropy
-        fmjy = spectra_lambda.to(uu.mJy,
-                                 equivalencies=uu.spectral_density(wav=standard_freqs * uu.Angstrom)).value
-
-        # Create interpolator
+        # Create interpolator on rest-frame grid
         flux_interpolator = RegularGridInterpolator(
-            (standard_times, nu_array),
+            (time_rest, nu_rest),
             fmjy,
             bounds_error=False,
             fill_value=0.0
@@ -2717,38 +2712,38 @@ def typeII_surrogate_sarin25(time, redshift, progenitor, ni_mass, log10_mdot, be
         # Create points for evaluation
         points = np.column_stack((time, frequency))
 
-        # Return interpolated flux
-        return flux_interpolator(points)
+        # Return interpolated flux density with (1+z) correction for observer frame
+        return flux_interpolator(points) / (1 + redshift)
 
     else:
         # Create denser grid for output (in rest frame)
-        new_rest_times = np.geomspace(np.min(standard_times), np.max(standard_times), 200)
-        new_rest_freqs = np.geomspace(np.min(standard_freqs), np.max(standard_freqs), 200)
+        time_rest_dense = np.geomspace(np.min(time_rest), np.max(time_rest), 200)
+        lambda_rest_dense = np.geomspace(np.min(lambda_rest), np.max(lambda_rest), 200)
 
-        # Create interpolator for the spectrum in rest frame
-        spectra_func = RegularGridInterpolator(
-            (standard_times, standard_freqs),
-            observed_spectrum.value,
+        # Create interpolator for the flux density in rest frame
+        flux_interpolator = RegularGridInterpolator(
+            (time_rest, lambda_rest),
+            flux_density.value,
             bounds_error=False,
             fill_value=0.0
         )
 
         # Create meshgrid for new grid points
-        tt_mesh, ff_mesh = np.meshgrid(new_rest_times, new_rest_freqs, indexing='ij')
-        points_to_evaluate = np.column_stack((tt_mesh.ravel(), ff_mesh.ravel()))
+        tt_mesh, ll_mesh = np.meshgrid(time_rest_dense, lambda_rest_dense, indexing='ij')
+        points_to_evaluate = np.column_stack((tt_mesh.ravel(), ll_mesh.ravel()))
 
-        # Interpolate spectrum onto new grid
-        interpolated_values = spectra_func(points_to_evaluate)
-        interpolated_spectrum = interpolated_values.reshape(tt_mesh.shape) * observed_spectrum.unit
+        # Interpolate flux density onto denser grid
+        interpolated_values = flux_interpolator(points_to_evaluate)
+        interpolated_flux = interpolated_values.reshape(tt_mesh.shape) * flux_density.unit
 
-        # Convert times to observer frame
-        time_observer_frame = new_rest_times * (1 + redshift)
+        # Convert to observer frame: times and wavelengths
+        time_observer_frame = time_rest_dense * (1 + redshift)
+        lambda_observer_frame = lambda_rest_dense * (1 + redshift)
 
-        # Convert wavelengths to observer frame
-        lambda_observer_frame = new_rest_freqs * (1 + redshift)
-
-        # Convert spectrum units using astropy
-        interpolated_spectrum = interpolated_spectrum.to(
+        # Apply (1+z) correction to flux and convert units
+        # After dividing by (1+z), flux is in observer frame at observer-frame wavelengths
+        flux_observer = interpolated_flux / (1 + redshift)
+        spectra = flux_observer.to(
             uu.erg / uu.cm ** 2 / uu.s / uu.Angstrom,
             equivalencies=uu.spectral_density(wav=lambda_observer_frame * uu.Angstrom)
         )
@@ -2758,14 +2753,14 @@ def typeII_surrogate_sarin25(time, redshift, progenitor, ni_mass, log10_mdot, be
             return namedtuple('output', ['time', 'lambdas', 'spectra'])(
                 time=time_observer_frame,
                 lambdas=lambda_observer_frame,
-                spectra=interpolated_spectrum
+                spectra=spectra
             )
         else:
             # Get correct output format using redback utility
             return sed.get_correct_output_format_from_spectra(
                 time=time,  # Original observer frame time for evaluation
                 time_eval=time_observer_frame,
-                spectra=interpolated_spectrum,
+                spectra=spectra,
                 lambda_array=lambda_observer_frame,
                 time_spline_degree=1,
                 **kwargs
