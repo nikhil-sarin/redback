@@ -731,7 +731,8 @@ def bulla_bns_kilonova(time, redshift, mej_dyn, mej_disk, phi, costheta_obs, **k
                           mej_disk=mej_disk, phi=phi, costheta_obs=costheta_obs)
         spectra = output.spectra / (4 * np.pi * dl ** 2) / (1 + redshift)  # to erg/s/cm^2/Angstrom
         spectra = spectra * uu.erg / (uu.s * uu.cm ** 2 * uu.Angstrom)
-        fmjy = spectra.to(uu.mJy, equivalencies=uu.spectral_density(wav=output.lambdas * uu.Angstrom)).value
+        lambdas_obs = output.lambdas * (1 + redshift)
+        fmjy = spectra.to(uu.mJy, equivalencies=uu.spectral_density(wav=lambdas_obs * uu.Angstrom)).value
         nu_array = lambda_to_nu(output.lambdas)
         fmjy_func = RegularGridInterpolator((np.unique(time), nu_array), fmjy, bounds_error=False)
         if type(frequency) == float:
@@ -746,7 +747,7 @@ def bulla_bns_kilonova(time, redshift, mej_dyn, mej_disk, phi, costheta_obs, **k
             return output
         else:
             time_observer_frame = output.time
-            lambda_observer_frame = output.lambdas
+            lambda_observer_frame = output.lambdas * (1 + redshift)
             spectra = output.spectra / (4 * np.pi * dl ** 2) / (1 + redshift) # to erg/s/cm^2/Angstrom
             spectra = spectra * uu.erg / (uu.s * uu.cm ** 2 * uu.Angstrom)
             time_obs = time
@@ -784,7 +785,8 @@ def bulla_nsbh_kilonova(time, redshift, mej_dyn, mej_disk, costheta_obs, **kwarg
                           mej_disk=mej_disk, costheta_obs=costheta_obs)
         spectra = output.spectra / (4 * np.pi * dl ** 2) / (1 + redshift)  # to erg/s/cm^2/Angstrom
         spectra = spectra * uu.erg / (uu.s * uu.cm ** 2 * uu.Angstrom)
-        fmjy = spectra.to(uu.mJy, equivalencies=uu.spectral_density(wav=output.lambdas * uu.Angstrom)).value
+        lambdas_obs = output.lambdas * (1 + redshift)
+        fmjy = spectra.to(uu.mJy, equivalencies=uu.spectral_density(wav=lambdas_obs * uu.Angstrom)).value
         nu_array = lambda_to_nu(output.lambdas)
         fmjy_func = RegularGridInterpolator((np.unique(time), nu_array), fmjy, bounds_error=False)
         if type(frequency) == float:
@@ -799,7 +801,7 @@ def bulla_nsbh_kilonova(time, redshift, mej_dyn, mej_disk, costheta_obs, **kwarg
             return output
         else:
             time_observer_frame = output.time
-            lambda_observer_frame = output.lambdas
+            lambda_observer_frame = output.lambdas * (1 + redshift)
             spectra = output.spectra / (4 * np.pi * dl ** 2) / (1 + redshift) # to erg/s/cm^2/Angstrom
             spectra = spectra * uu.erg / (uu.s * uu.cm ** 2 * uu.Angstrom)
             time_obs = time
@@ -836,7 +838,8 @@ def kasen_bns_kilonova(time, redshift, mej, vej, chi, **kwargs):
         output = function(time_source_frame=time,redshift=redshift, mej=mej, vej=vej, chi=chi)
         spectra = output.spectra / (4 * np.pi * dl ** 2) / (1 + redshift) # to erg/s/cm^2/Angstrom
         spectra = spectra * uu.erg / (uu.s * uu.cm ** 2 * uu.Angstrom)
-        fmjy = spectra.to(uu.mJy, equivalencies=uu.spectral_density(wav=output.lambdas * uu.Angstrom)).value
+        lambdas_obs = output.lambdas * (1 + redshift)
+        fmjy = spectra.to(uu.mJy, equivalencies=uu.spectral_density(wav=lambdas_obs * uu.Angstrom)).value
         nu_array = lambda_to_nu(output.lambdas)
         fmjy_func = RegularGridInterpolator((np.unique(time), nu_array), fmjy, bounds_error=False)
         if type(frequency) == float or type(frequency) == np.float64:
@@ -850,7 +853,7 @@ def kasen_bns_kilonova(time, redshift, mej, vej, chi, **kwargs):
             return output
         else:
             time_observer_frame = output.time
-            lambda_observer_frame = output.lambdas
+            lambda_observer_frame = output.lambdas * (1 + redshift)
             spectra = output.spectra / (4 * np.pi * dl ** 2) / (1 + redshift) # to erg/s/cm^2/Angstrom
             spectra = spectra * uu.erg / (uu.s * uu.cm ** 2 * uu.Angstrom)
             time_obs = time
@@ -1036,7 +1039,7 @@ def three_component_kilonova_model(time, redshift, mej_1, vej_1, temperature_flo
             ff += flux_density.value
 
         ff = ff * units
-        return ff.to(uu.mJy).value
+        return ff.to(uu.mJy).value / (1 + redshift)
 
     else:
         lambda_observer_frame = kwargs.get('lambda_array', np.geomspace(100, 60000, 200))
@@ -1128,7 +1131,7 @@ def two_component_kilonova_model(time, redshift, mej_1, vej_1, temperature_floor
             ff += flux_density.value
 
         ff = ff * units
-        return ff.to(uu.mJy).value
+        return ff.to(uu.mJy).value / (1 + redshift)
 
     else:
         lambda_observer_frame = kwargs.get('lambda_array', np.geomspace(100, 60000, 200))
@@ -1656,7 +1659,7 @@ def two_comp_kne_rosswog_heatingrate(time, redshift, mej_1, vej_1, temperature_f
             ff += flux_density.value
 
         ff = ff * units
-        return ff.to(uu.mJy).value
+        return ff.to(uu.mJy).value / (1 + redshift)
 
     else:
         lambda_observer_frame = kwargs.get('lambda_array', np.geomspace(100, 60000, 200))

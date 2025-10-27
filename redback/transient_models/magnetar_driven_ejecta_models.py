@@ -216,7 +216,7 @@ def _processing_other_formats(dl, output, redshift, time_obs, time_temp, **kwarg
         fmjy = _comoving_blackbody_to_flux_density(dl=dl, frequency=frequency[:, None], radius=output.radius,
                                                    temperature=output.comoving_temperature,
                                                    doppler_factor=output.doppler_factor)
-        fmjy = fmjy / (1. + redshift)
+        fmjy = fmjy
         fmjy = fmjy.T
         spectra = flux_density_to_spectrum(fmjy, redshift, lambda_observer_frame)
     else:
