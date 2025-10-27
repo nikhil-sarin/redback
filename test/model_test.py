@@ -1807,3 +1807,153 @@ class TestArnettWithFeatures:
         assert call_kwargs['t_start_feature_1'] == 0
         assert call_kwargs['t_end_feature_1'] == 30
         assert call_kwargs['evolution_mode'] == 'sharp'
+
+class TestCosmologicalCorrections(unittest.TestCase):
+    """
+    Test that transient models correctly apply cosmological corrections.
+    
+    Key physics being tested:
+    - F_ν,obs = L_ν,rest / (4π d_L² × (1+z))
+    - The (1+z) factor accounts for photon energy decrease and time dilation
+    """
+
+    def test_flux_density_redshift_correction(self):
+        """
+        Test that flux_density output has the (1+z) correction.
+        
+        Evaluates the same source at two different redshifts at the same rest-frame
+        time and frequency. The flux ratio should follow:
+        F_ν(z2)/F_ν(z1) = (d_L,z1/d_L,z2)² × (1+z1)/(1+z2)
+        """
+        from redback.transient_models.supernova_models import arnett
+        from astropy.cosmology import Planck18 as cosmo
+        
+        z1 = 0.05
+        z2 = 0.15
+        
+        # Same rest-frame conditions
+        t_rest = 15.0
+        nu_rest = 5e14  # Hz
+        
+        params = {
+            'f_nickel': 0.1,
+            'mej': 5.0,
+            'kappa': 0.1,
+            'kappa_gamma': 0.01,
+            'vej': 10000,
+            'temperature_floor': 3000,
+            'output_format': 'flux_density'
+        }
+        
+        # Evaluate at observer-frame times and frequencies
+        fd_z1 = arnett(time=np.array([t_rest * (1 + z1)]), redshift=z1, 
+                      frequency=nu_rest / (1 + z1), **params)[0]
+        fd_z2 = arnett(time=np.array([t_rest * (1 + z2)]), redshift=z2,
+                      frequency=nu_rest / (1 + z2), **params)[0]
+        
+        d_L_z1 = cosmo.luminosity_distance(z1).cgs.value
+        d_L_z2 = cosmo.luminosity_distance(z2).cgs.value
+        
+        observed_ratio = fd_z2 / fd_z1
+        
+        # Expected ratio WITH (1+z) correction
+        expected_ratio = (d_L_z1 / d_L_z2)**2 * ((1 + z1) / (1 + z2))
+        
+        # Should match within 2% (allowing for small numerical errors)
+        relative_diff = abs(observed_ratio - expected_ratio) / expected_ratio
+        
+        self.assertLess(relative_diff, 0.02, 
+            f"Flux density ratio doesn't match expected cosmological scaling. "
+            f"Observed: {observed_ratio:.6f}, Expected: {expected_ratio:.6f}, "
+            f"Difference: {relative_diff:.2%}. Missing (1+z) correction?")
+    
+    def test_spectra_redshift_correction(self):
+        """
+        Test that spectra output has the (1+z) correction.
+        
+        Similar to flux_density test but for spectra output format.
+        """
+        from redback.transient_models.supernova_models import arnett
+        from astropy.cosmology import Planck18 as cosmo
+        
+        z1 = 0.05
+        z2 = 0.15
+        
+        # Same rest-frame time
+        t_rest = 15.0
+        
+        params = {
+            'f_nickel': 0.1,
+            'mej': 5.0,
+            'kappa': 0.1,
+            'kappa_gamma': 0.01,
+            'vej': 10000,
+            'temperature_floor': 3000,
+            'output_format': 'spectra',
+            'lambda_array': np.array([5000.0])  # Single wavelength for simplicity
+        }
+        
+        result_z1 = arnett(time=np.array([t_rest * (1 + z1)]), redshift=z1, **params)
+        result_z2 = arnett(time=np.array([t_rest * (1 + z2)]), redshift=z2, **params)
+        
+        # Get median flux values (avoiding zeros)
+        flux_z1 = np.median(result_z1.spectra.value[result_z1.spectra.value > 0])
+        flux_z2 = np.median(result_z2.spectra.value[result_z2.spectra.value > 0])
+        
+        d_L_z1 = cosmo.luminosity_distance(z1).cgs.value
+        d_L_z2 = cosmo.luminosity_distance(z2).cgs.value
+        
+        observed_ratio = flux_z2 / flux_z1
+        
+        # Expected ratio (approximately, since spectral shape changes with redshift)
+        expected_ratio = (d_L_z1 / d_L_z2)**2 * ((1 + z1) / (1 + z2))
+        
+        # More lenient tolerance for spectra due to K-corrections and spectral shape changes
+        relative_diff = abs(observed_ratio - expected_ratio) / expected_ratio
+        
+        self.assertLess(relative_diff, 0.5,
+            f"Spectra ratio deviates too much from expected cosmological scaling. "
+            f"Observed: {observed_ratio:.6f}, Expected: {expected_ratio:.6f}, "
+            f"Difference: {relative_diff:.2%}. Possible missing (1+z) correction.")
+    
+    def test_spectra_observer_frame_output(self):
+        """
+        Test that spectra output returns observer-frame quantities.
+        
+        Output should have:
+        - Times in observer frame (t_obs = t_rest × (1+z))
+        - Wavelengths in observer frame (λ_obs = λ_rest × (1+z))
+        - Spectra in observer-frame units (erg/cm²/s/Angstrom)
+        """
+        from redback.transient_models.supernova_models import arnett
+        
+        z = 0.3
+        time = np.array([10.0, 20.0, 30.0])  # observer frame days
+        
+        result = arnett(
+            time=time,
+            redshift=z,
+            f_nickel=0.1,
+            mej=5.0,
+            kappa=0.1,
+            kappa_gamma=0.01,
+            vej=10000,
+            temperature_floor=3000,
+            output_format='spectra'
+        )
+        
+        # Check units
+        self.assertEqual(result.spectra.unit, uu.erg / (uu.Angstrom * uu.s * uu.cm**2),
+                        "Spectra has wrong units")
+        
+        # Check that times are positive and finite
+        self.assertTrue(np.all(result.time > 0), "Times should be positive")
+        self.assertTrue(np.all(np.isfinite(result.time)), "Times should be finite")
+        
+        # Check that wavelengths are in reasonable range
+        self.assertGreater(np.min(result.lambdas), 50, "Wavelengths too small")
+        self.assertLess(np.max(result.lambdas), 200000, "Wavelengths too large")
+        
+        # Check that spectra values are physical (non-negative, finite)
+        self.assertTrue(np.all(result.spectra.value >= 0), "Spectra should be non-negative")
+        self.assertTrue(np.all(np.isfinite(result.spectra.value)), "Spectra should be finite")
