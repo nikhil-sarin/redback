@@ -16,9 +16,16 @@ def integrated_flux_afterglowpy_base_model(time, **kwargs):
     """
     Synchrotron afterglow with integrated flux
 
-    :param time: time in days
-    :param kwargs:all kwargs required by model + frequency: a list of two frequencies to integrate over.
-    :return: integrated flux
+    Parameters
+    ----------
+    time
+        time in days
+    kwargs
+        all kwargs required by model + frequency: a list of two frequencies to integrate over.
+
+    Returns
+    -------
+        integrated flux
     """
     from ..model_library import modules_dict  # import model library in function to avoid circular dependency
     base_model = kwargs['base_model']
@@ -53,11 +60,16 @@ def integrated_flux_rate_model(time, **kwargs):
     """
     Synchrotron afterglow with approximate calculation of the counts
 
-    :param time: time in days
-    :param kwargs:all kwargs required by model + frequency: an array of two frequencies to integrate over.
-        + prefactor an array of values same size as time array
-        or float which calculates the effective Ei/area for the specific time bin.
-    :return: counts
+    Parameters
+    ----------
+    time
+        time in days
+    kwargs
+        all kwargs required by model + frequency: an array of two frequencies to integrate over. + prefactor an array of values same size as time array or float which calculates the effective Ei/area for the specific time bin.
+
+    Returns
+    -------
+        counts
     """
     prefactor = kwargs.get('prefactor', 1)
     dt = kwargs.get('dt', 1)

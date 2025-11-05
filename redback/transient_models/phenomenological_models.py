@@ -7,14 +7,26 @@ def smooth_exponential_powerlaw(time, a_1, tpeak, alpha_1, alpha_2, smoothing_fa
     """
     Smoothed version of exponential power law
 
-    :param time: time array in seconds
-    :param a_1: exponential amplitude scale
-    :param alpha_1: first exponent
-    :param alpha_2: second exponent
-    :param tpeak: peak time in seconds
-    :param smoothing_factor: controls transition smoothness (higher = smoother)
-    :param kwargs: Additional parameters
-    :return: In whatever units set by a_1
+    Parameters
+    ----------
+    time
+        time array in seconds
+    a_1
+        exponential amplitude scale
+    alpha_1
+        first exponent
+    alpha_2
+        second exponent
+    tpeak
+        peak time in seconds
+    smoothing_factor
+        controls transition smoothness (higher = smoother)
+    kwargs
+        Additional parameters
+
+    Returns
+    -------
+        In whatever units set by a_1
     """
     t_norm = time / tpeak
 
@@ -148,13 +160,24 @@ def bazin_sne(time, aa, bb, t0, tau_rise, tau_fall, **kwargs):
     """
     Bazin function for CCSN light curves with vectorized inputs.
 
-    :param time: time array in arbitrary units
-    :param aa: array (or float) of normalisations, if array this is unique to each 'band'
-    :param bb: array (or float) of additive constants, if array this is unique to each 'band'
-    :param t0: start time
-    :param tau_rise: exponential rise time
-    :param tau_fall: exponential fall time
-    :return: matrix of flux values in units set by AA
+    Parameters
+    ----------
+    time
+        time array in arbitrary units
+    aa
+        array (or float) of normalisations, if array this is unique to each 'band'
+    bb
+        array (or float) of additive constants, if array this is unique to each 'band'
+    t0
+        start time
+    tau_rise
+        exponential rise time
+    tau_fall
+        exponential fall time
+
+    Returns
+    -------
+        matrix of flux values in units set by AA
     """
     if isinstance(aa, float):
         aa_values = [aa]
@@ -181,16 +204,29 @@ def villar_sne(time, aa, cc, t0, tau_rise, tau_fall, gamma, nu, **kwargs):
     """
     Villar function for SN light curves
 
-    :param time: time array in arbitrary units
-    :param aa: normalisation on the Villar function, amplotude
-    :param cc: additive constant, baseline flux
-    :param t0: "start" time
-    :param tau_rise: exponential rise time
-    :param tau_fall: exponential fall time
-    :param gamma: plateau duration
-    :param nu: related to beta and between 0 an 1; nu = -beta/gamma / A
-    :param kwargs:
-    :return: flux in units set by AA
+    Parameters
+    ----------
+    time
+        time array in arbitrary units
+    aa
+        normalisation on the Villar function, amplotude
+    cc
+        additive constant, baseline flux
+    t0
+        "start" time
+    tau_rise
+        exponential rise time
+    tau_fall
+        exponential fall time
+    gamma
+        plateau duration
+    nu
+        related to beta and between 0 an 1; nu = -beta/gamma / A
+    kwargs
+
+    Returns
+    -------
+        flux in units set by AA
     """
     mask1 = time < t0 + gamma
     mask2 = (time >= t0 + gamma)
@@ -207,24 +243,46 @@ def evolving_blackbody(time, redshift, temperature_0, radius_0,
     """
     Blackbody spectrum with piecewise evolving temperature and radius
 
-    :param time: time in observer frame in days
-    :param redshift: source redshift
-    :param temperature_0: initial blackbody temperature in Kelvin at reference_time
-    :param radius_0: initial blackbody radius in cm at reference_time
-    :param temp_rise_index: temperature rise T(t) ∝ t^temp_rise_index for t < temp_peak_time
-    :param temp_decline_index: temperature decline T(t) ∝ t^(-temp_decline_index) for t > temp_peak_time
-    :param temp_peak_time: time in days when temperature peaks
-    :param radius_rise_index: radius rise R(t) ∝ t^radius_rise_index for t < radius_peak_time
-    :param radius_decline_index: radius decline R(t) ∝ t^(-radius_decline_index) for t > radius_peak_time
-    :param radius_peak_time: time in days when radius peaks
-    :param reference_time: reference time for temperature_0, radius_0, and pl_amplitude in days (defaults to 1.0)
-    :param kwargs: Additional parameters
-    :param frequency: Required if output_format is 'flux_density'
-    :param bands: Required if output_format is 'magnitude' or 'flux'
-    :param output_format: 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
-    :param lambda_array: Optional wavelength array in Angstroms to evaluate SED
-    :param cosmology: Cosmology object for luminosity distance calculation
-    :return: set by output format - 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
+    Parameters
+    ----------
+    time
+        time in observer frame in days
+    redshift
+        source redshift
+    temperature_0
+        initial blackbody temperature in Kelvin at reference_time
+    radius_0
+        initial blackbody radius in cm at reference_time
+    temp_rise_index
+        temperature rise T(t) ∝ t^temp_rise_index for t < temp_peak_time
+    temp_decline_index
+        temperature decline T(t) ∝ t^(-temp_decline_index) for t > temp_peak_time
+    temp_peak_time
+        time in days when temperature peaks
+    radius_rise_index
+        radius rise R(t) ∝ t^radius_rise_index for t < radius_peak_time
+    radius_decline_index
+        radius decline R(t) ∝ t^(-radius_decline_index) for t > radius_peak_time
+    radius_peak_time
+        time in days when radius peaks
+    reference_time
+        reference time for temperature_0, radius_0, and pl_amplitude in days (defaults to 1.0)
+    kwargs
+        Additional parameters
+    frequency
+        Required if output_format is 'flux_density'
+    bands
+        Required if output_format is 'magnitude' or 'flux'
+    output_format
+        'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
+    lambda_array
+        Optional wavelength array in Angstroms to evaluate SED
+    cosmology
+        Cosmology object for luminosity distance calculation
+
+    Returns
+    -------
+        set by output format - 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
     """
     from astropy.cosmology import Planck18 as cosmo
     from astropy import units as uu
@@ -294,44 +352,64 @@ def evolving_blackbody_with_features(time, redshift, temperature_0, radius_0,
     """
     Blackbody spectrum with piecewise evolving temperature and radius, plus time-dependent spectral features
 
-    :param time: time in observer frame in days
-    :param redshift: source redshift
-    :param temperature_0: initial blackbody temperature in Kelvin at reference_time
-    :param radius_0: initial blackbody radius in cm at reference_time
-    :param temp_rise_index: temperature rise T(t) ∝ t^temp_rise_index for t < temp_peak_time
-    :param temp_decline_index: temperature decline T(t) ∝ t^(-temp_decline_index) for t > temp_peak_time
-    :param temp_peak_time: time in days when temperature peaks
-    :param radius_rise_index: radius rise R(t) ∝ t^radius_rise_index for t < radius_peak_time
-    :param radius_decline_index: radius decline R(t) ∝ t^(-radius_decline_index) for t > radius_peak_time
-    :param radius_peak_time: time in days when radius peaks
-    :param reference_time: reference time for temperature_0, radius_0 in days (defaults to 1.0)
-    :param kwargs: Additional parameters
-    :param frequency: Required if output_format is 'flux_density'
-    :param bands: Required if output_format is 'magnitude' or 'flux'
-    :param output_format: 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
-    :param lambda_array: Optional wavelength array in Angstroms to evaluate SED
-    :param cosmology: Cosmology object for luminosity distance calculation
+    Parameters
+    ----------
+    time
+        time in observer frame in days
+    redshift
+        source redshift
+    temperature_0
+        initial blackbody temperature in Kelvin at reference_time
+    radius_0
+        initial blackbody radius in cm at reference_time
+    temp_rise_index
+        temperature rise T(t) ∝ t^temp_rise_index for t < temp_peak_time
+    temp_decline_index
+        temperature decline T(t) ∝ t^(-temp_decline_index) for t > temp_peak_time
+    temp_peak_time
+        time in days when temperature peaks
+    radius_rise_index
+        radius rise R(t) ∝ t^radius_rise_index for t < radius_peak_time
+    radius_decline_index
+        radius decline R(t) ∝ t^(-radius_decline_index) for t > radius_peak_time
+    radius_peak_time
+        time in days when radius peaks
+    reference_time
+        reference time for temperature_0, radius_0 in days (defaults to 1.0)
+    kwargs
+        Additional parameters
+    frequency
+        Required if output_format is 'flux_density'
+    bands
+        Required if output_format is 'magnitude' or 'flux'
+    output_format
+        'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
+    lambda_array
+        Optional wavelength array in Angstroms to evaluate SED
+    cosmology
+        Cosmology object for luminosity distance calculation
+    rest_wavelength_feature_N
+        Central wavelength in Angstroms
+    sigma_feature_N
+        Gaussian width in Angstroms
+    amplitude_feature_N
+        Amplitude (negative=absorption, positive=emission)
+    t_start_feature_N
+        Start time in source-frame days
+    t_end_feature_N
+        End time in source-frame days
+    t_rise_feature_N
+        Rise time in source-frame days (default: 2.0)
+    t_fall_feature_N
+        Fall time in source-frame days (default: 5.0)
+    evolution_mode
+        'smooth' or 'sharp' (default: 'smooth')
+    use_default_features
+        If True and no custom features found, use defaults (default: False)
 
-    Feature Parameters (dynamically numbered):
-    Features are defined by groups of parameters with pattern: {param}_feature_{N}
-    where N starts from 1. All features with the same N are grouped together.
-
-    Required for each feature N:
-    :param rest_wavelength_feature_N: Central wavelength in Angstroms
-    :param sigma_feature_N: Gaussian width in Angstroms
-    :param amplitude_feature_N: Amplitude (negative=absorption, positive=emission)
-    :param t_start_feature_N: Start time in source-frame days
-    :param t_end_feature_N: End time in source-frame days
-
-    Optional for each feature N (smooth mode only):
-    :param t_rise_feature_N: Rise time in source-frame days (default: 2.0)
-    :param t_fall_feature_N: Fall time in source-frame days (default: 5.0)
-
-    General parameters:
-    :param evolution_mode: 'smooth' or 'sharp' (default: 'smooth')
-    :param use_default_features: If True and no custom features found, use defaults (default: False)
-
-    :return: set by output format - 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
+    Returns
+    -------
+        set by output format - 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
     """
     from astropy.cosmology import Planck18 as cosmo
     from astropy import units as uu
@@ -441,28 +519,54 @@ def powerlaw_plus_blackbody(time, redshift, pl_amplitude, pl_slope, pl_evolution
     """
     Power law + blackbody spectrum with piecewise evolving temperature and radius
 
-    :param time: time in observer frame in days
-    :param redshift: source redshift
-    :param pl_amplitude: power law amplitude at reference wavelength at reference_time (erg/s/cm^2/Angstrom)
-    :param pl_slope: power law slope (F_lambda ∝ lambda^slope)
-    :param pl_evolution_index: power law time evolution F_pl(t) ∝ t^(-pl_evolution_index)
-    :param temperature_0: initial blackbody temperature in Kelvin at reference_time
-    :param radius_0: initial blackbody radius in cm at reference_time
-    :param temp_rise_index: temperature rise T(t) ∝ t^temp_rise_index for t < temp_peak_time
-    :param temp_decline_index: temperature decline T(t) ∝ t^(-temp_decline_index) for t > temp_peak_time
-    :param temp_peak_time: time in days when temperature peaks
-    :param radius_rise_index: radius rise R(t) ∝ t^radius_rise_index for t < radius_peak_time
-    :param radius_decline_index: radius decline R(t) ∝ t^(-radius_decline_index) for t > radius_peak_time
-    :param radius_peak_time: time in days when radius peaks
-    :param reference_time: reference time for temperature_0, radius_0, and pl_amplitude in days (defaults to 1.0)
-    :param kwargs: Additional parameters
-    :param reference_wavelength: wavelength for power law amplitude normalization in Angstroms (default 5000)
-    :param frequency: Required if output_format is 'flux_density'
-    :param bands: Required if output_format is 'magnitude' or 'flux'
-    :param output_format: 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
-    :param lambda_array: Optional wavelength array in Angstroms to evaluate SED
-    :param cosmology: Cosmology object for luminosity distance calculation
-    :return: set by output format - 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
+    Parameters
+    ----------
+    time
+        time in observer frame in days
+    redshift
+        source redshift
+    pl_amplitude
+        power law amplitude at reference wavelength at reference_time (erg/s/cm^2/Angstrom)
+    pl_slope
+        power law slope (F_lambda ∝ lambda^slope)
+    pl_evolution_index
+        power law time evolution F_pl(t) ∝ t^(-pl_evolution_index)
+    temperature_0
+        initial blackbody temperature in Kelvin at reference_time
+    radius_0
+        initial blackbody radius in cm at reference_time
+    temp_rise_index
+        temperature rise T(t) ∝ t^temp_rise_index for t < temp_peak_time
+    temp_decline_index
+        temperature decline T(t) ∝ t^(-temp_decline_index) for t > temp_peak_time
+    temp_peak_time
+        time in days when temperature peaks
+    radius_rise_index
+        radius rise R(t) ∝ t^radius_rise_index for t < radius_peak_time
+    radius_decline_index
+        radius decline R(t) ∝ t^(-radius_decline_index) for t > radius_peak_time
+    radius_peak_time
+        time in days when radius peaks
+    reference_time
+        reference time for temperature_0, radius_0, and pl_amplitude in days (defaults to 1.0)
+    kwargs
+        Additional parameters
+    reference_wavelength
+        wavelength for power law amplitude normalization in Angstroms (default 5000)
+    frequency
+        Required if output_format is 'flux_density'
+    bands
+        Required if output_format is 'magnitude' or 'flux'
+    output_format
+        'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
+    lambda_array
+        Optional wavelength array in Angstroms to evaluate SED
+    cosmology
+        Cosmology object for luminosity distance calculation
+
+    Returns
+    -------
+        set by output format - 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
     """
     from astropy.cosmology import Planck18 as cosmo
     from astropy import units as uu
@@ -539,17 +643,32 @@ def _powerlaw_blackbody_evolution(time, temperature_0, radius_0, temp_rise_index
     """
     Calculate evolving temperature and radius with piecewise power-law evolution
 
-    :param time: time array in days
-    :param temperature_0: initial temperature at reference_time
-    :param radius_0: initial radius at reference_time
-    :param temp_rise_index: temperature rise index
-    :param temp_decline_index: temperature decline index
-    :param temp_peak_time: time when temperature peaks
-    :param radius_rise_index: radius rise index
-    :param radius_decline_index: radius decline index
-    :param radius_peak_time: time when radius peaks
-    :param reference_time: reference time for temperature_0 and radius_0 (defaults to 1.0 day)
-    :return: temperature and radius values (scalars if time is scalar)
+    Parameters
+    ----------
+    time
+        time array in days
+    temperature_0
+        initial temperature at reference_time
+    radius_0
+        initial radius at reference_time
+    temp_rise_index
+        temperature rise index
+    temp_decline_index
+        temperature decline index
+    temp_peak_time
+        time when temperature peaks
+    radius_rise_index
+        radius rise index
+    radius_decline_index
+        radius decline index
+    radius_peak_time
+        time when radius peaks
+    reference_time
+        reference time for temperature_0 and radius_0 (defaults to 1.0 day)
+
+    Returns
+    -------
+        temperature and radius values (scalars if time is scalar)
     """
     time = np.atleast_1d(time)
 
@@ -580,10 +699,19 @@ def _powerlaw_blackbody_evolution(time, temperature_0, radius_0, temp_rise_index
 
 def fallback_lbol(time, logl1, tr, **kwargs):
     """
-    :param time: time in seconds
-    :param logl1: luminosity scale in log 10 ergs
-    :param tr: transition time for flat luminosity to power-law decay
-    :return: lbol
+
+    Parameters
+    ----------
+    time
+        time in seconds
+    logl1
+        luminosity scale in log 10 ergs
+    tr
+        transition time for flat luminosity to power-law decay
+
+    Returns
+    -------
+        lbol
     """
     l1 = 10**logl1
     time = time * 86400
@@ -596,11 +724,20 @@ def line_spectrum(wavelength, line_amp, cont_amp, x0, **kwargs):
     """
     A gaussian to add or subtract from a continuum spectrum to mimic absorption or emission lines
 
-    :param wavelength: wavelength array in whatever units
-    :param line_amp: line amplitude scale
-    :param cont_amp: Continuum amplitude scale
-    :param x0: Position of emission line
-    :return: spectrum in whatever units set by line_amp
+    Parameters
+    ----------
+    wavelength
+        wavelength array in whatever units
+    line_amp
+        line amplitude scale
+    cont_amp
+        Continuum amplitude scale
+    x0
+        Position of emission line
+
+    Returns
+    -------
+        spectrum in whatever units set by line_amp
     """
     spectrum = line_amp / cont_amp * np.exp(-(wavelength - x0) ** 2. / (2 * cont_amp ** 2) )
     return spectrum
@@ -609,11 +746,20 @@ def line_spectrum_with_velocity_dispersion(angstroms, wavelength_center, line_st
     """
     A Gaussian line profile with velocity dispersion
 
-    :param angstroms: wavelength array in angstroms or arbitrary units
-    :param wavelength_center: center of the line in angstroms
-    :param line_strength: line amplitude scale
-    :param velocity_dispersion: velocity in m/s
-    :return: spectrum in whatever units set by line_strength
+    Parameters
+    ----------
+    angstroms
+        wavelength array in angstroms or arbitrary units
+    wavelength_center
+        center of the line in angstroms
+    line_strength
+        line amplitude scale
+    velocity_dispersion
+        velocity in m/s
+
+    Returns
+    -------
+        spectrum in whatever units set by line_strength
     """
 
     # Calculate the Doppler shift for each wavelength using Gaussian profile
@@ -622,24 +768,45 @@ def line_spectrum_with_velocity_dispersion(angstroms, wavelength_center, line_st
 
 def gaussian_rise(time, a_1, peak_time, sigma_t, **kwargs):
     """
-    :param time: time array in whatver time units
-    :param a_1: gaussian rise amplitude scale
-    :param peak_time: peak time in whatever units
-    :param sigma_t: the sharpness of the Gaussian
-    :return: In whatever units set by a_1 
+
+    Parameters
+    ----------
+    time
+        time array in whatver time units
+    a_1
+        gaussian rise amplitude scale
+    peak_time
+        peak time in whatever units
+    sigma_t
+        the sharpness of the Gaussian
+
+    Returns
+    -------
+        In whatever units set by a_1
     """
     total = a_1 * np.exp(-(time - peak_time)**2. / (2 * sigma_t ** 2))
     return total
 
 def exponential_powerlaw(time, a_1, alpha_1, alpha_2, tpeak, **kwargs):
     """
-    :param time: time array in seconds
-    :param a_1: exponential amplitude scale
-    :param alpha_1: first exponent
-    :param alpha_2: second exponent
-    :param tpeak: peak time in seconds
-    :param kwargs:
-    :return: In whatever units set by a_1
+
+    Parameters
+    ----------
+    time
+        time array in seconds
+    a_1
+        exponential amplitude scale
+    alpha_1
+        first exponent
+    alpha_2
+        second exponent
+    tpeak
+        peak time in seconds
+    kwargs
+
+    Returns
+    -------
+        In whatever units set by a_1
     """
     total = a_1 * (1 - np.exp(-time/tpeak))**alpha_1 * (time/tpeak)**(-alpha_2)
     return total
@@ -650,12 +817,22 @@ def two_component_powerlaw(time, a_1, alpha_1,
     """
     Two component powerlaw model
 
-    :param time: time array for power law
-    :param a_1: power law decay amplitude
-    :param alpha_1: power law decay exponent
-    :param delta_time_one: time between start and end of first power law
-    :param alpha_2: power law decay exponent for the second power law
-    :return: In whatever units set by a_1
+    Parameters
+    ----------
+    time
+        time array for power law
+    a_1
+        power law decay amplitude
+    alpha_1
+        power law decay exponent
+    delta_time_one
+        time between start and end of first power law
+    alpha_2
+        power law decay exponent for the second power law
+
+    Returns
+    -------
+        In whatever units set by a_1
     """
     time_one = delta_time_one
     amplitude_two = a_1 * time_one ** alpha_1 / (time_one ** alpha_2)
@@ -676,14 +853,26 @@ def three_component_powerlaw(time, a_1, alpha_1,
     """
     Three component powerlaw model
 
-    :param time: time array for power law
-    :param a_1: power law decay amplitude
-    :param alpha_1: power law decay exponent
-    :param delta_time_one: time between start and end of first power law
-    :param alpha_2: power law decay exponent for the second power law
-    :param delta_time_two: time between first and second power laws
-    :param alpha_3: power law decay exponent for third power law
-    :return: In whatever units set by a_1
+    Parameters
+    ----------
+    time
+        time array for power law
+    a_1
+        power law decay amplitude
+    alpha_1
+        power law decay exponent
+    delta_time_one
+        time between start and end of first power law
+    alpha_2
+        power law decay exponent for the second power law
+    delta_time_two
+        time between first and second power laws
+    alpha_3
+        power law decay exponent for third power law
+
+    Returns
+    -------
+        In whatever units set by a_1
     """
     time_one = delta_time_one
     time_two = time_one + delta_time_two
@@ -708,16 +897,30 @@ def four_component_powerlaw(time, a_1, alpha_1, delta_time_one,
     """
     Four component powerlaw model
 
-    :param time: time array for power law
-    :param a_1: power law decay amplitude
-    :param alpha_1: power law decay exponent
-    :param delta_time_one: time between start and end of first power law
-    :param alpha_2: power law decay exponent for the second power law
-    :param delta_time_two: time between first and second power laws
-    :param alpha_3: power law decay exponent for third power law
-    :param delta_time_three: time between second and third power laws
-    :param alpha_4: power law decay exponent for fourth power law
-    :return: In whatever units set by a_1
+    Parameters
+    ----------
+    time
+        time array for power law
+    a_1
+        power law decay amplitude
+    alpha_1
+        power law decay exponent
+    delta_time_one
+        time between start and end of first power law
+    alpha_2
+        power law decay exponent for the second power law
+    delta_time_two
+        time between first and second power laws
+    alpha_3
+        power law decay exponent for third power law
+    delta_time_three
+        time between second and third power laws
+    alpha_4
+        power law decay exponent for fourth power law
+
+    Returns
+    -------
+        In whatever units set by a_1
     """
 
     time_one = delta_time_one
@@ -749,18 +952,34 @@ def five_component_powerlaw(time, a_1, alpha_1,
     """
     Five component powerlaw model
 
-    :param time: time array for power law
-    :param a_1: power law decay amplitude
-    :param alpha_1: power law decay exponent
-    :param delta_time_one: time between start and end of first power law
-    :param alpha_2: power law decay exponent for the second power law
-    :param delta_time_two: time between first and second power laws
-    :param alpha_3: power law decay exponent for third power law
-    :param delta_time_three: time between second and third power laws
-    :param alpha_4: power law decay exponent for fourth power law
-    :param delta_time_four: time between third and fourth power laws
-    :param alpha_5: power law decay exponent for fifth power law
-    :return: In whatever units set by a_1
+    Parameters
+    ----------
+    time
+        time array for power law
+    a_1
+        power law decay amplitude
+    alpha_1
+        power law decay exponent
+    delta_time_one
+        time between start and end of first power law
+    alpha_2
+        power law decay exponent for the second power law
+    delta_time_two
+        time between first and second power laws
+    alpha_3
+        power law decay exponent for third power law
+    delta_time_three
+        time between second and third power laws
+    alpha_4
+        power law decay exponent for fourth power law
+    delta_time_four
+        time between third and fourth power laws
+    alpha_5
+        power law decay exponent for fifth power law
+
+    Returns
+    -------
+        In whatever units set by a_1
     """
 
     time_one = delta_time_one
@@ -799,20 +1018,38 @@ def six_component_powerlaw(time, a_1, alpha_1,
     """
     six component powerlaw model
 
-    :param time: time array for power law
-    :param a_1: power law decay amplitude
-    :param alpha_1: power law decay exponent
-    :param delta_time_one: time between start and end of first power law
-    :param alpha_2: power law decay exponent for the second power law
-    :param delta_time_two: time between first and second power laws
-    :param alpha_3: power law decay exponent for third power law
-    :param delta_time_three: time between second and third power laws
-    :param alpha_4: power law decay exponent for fourth power law
-    :param delta_time_four: time between third and fourth power laws
-    :param alpha_5: power law decay exponent for fifth power law
-    :param delta_time_five: time between fourth and fifth power laws
-    :param alpha_6: power law decay exponent for sixth power law
-    :return: In whatever units set by a_1
+    Parameters
+    ----------
+    time
+        time array for power law
+    a_1
+        power law decay amplitude
+    alpha_1
+        power law decay exponent
+    delta_time_one
+        time between start and end of first power law
+    alpha_2
+        power law decay exponent for the second power law
+    delta_time_two
+        time between first and second power laws
+    alpha_3
+        power law decay exponent for third power law
+    delta_time_three
+        time between second and third power laws
+    alpha_4
+        power law decay exponent for fourth power law
+    delta_time_four
+        time between third and fourth power laws
+    alpha_5
+        power law decay exponent for fifth power law
+    delta_time_five
+        time between fourth and fifth power laws
+    alpha_6
+        power law decay exponent for sixth power law
+
+    Returns
+    -------
+        In whatever units set by a_1
     """
     time_one = delta_time_one
     time_two = time_one + delta_time_two

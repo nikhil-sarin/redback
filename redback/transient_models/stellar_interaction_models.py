@@ -12,22 +12,41 @@ from scipy.interpolate import interp1d
 def _wr_bh_merger(time, M_star, M_bh, M_fast, M_pre, v_fast, v_slow, alpha, eta, theta, phi_0, kappa_s, kappa_f, kappa_x, N, **kwargs): 
     """
     Parameters:
-    :param time: time in source frame in seconds
-    :param M_star: Mass of the Wolf-Rayet star in solar masses
-    :param M_bh: Mass of the black hole in solar masses
-    :param M_fast: Mass of the fast component in solar masses
-    :param M_pre: Mass of the pre-merger CSM in solar masses
-    :param v_fast: Velocity of the fast component in units of c
-    :param v_slow: Velocity of the slow component in km/s
-    :param alpha: Viscosity parameter
-    :param eta: Efficiency of conversion of accretion energy to radiation
-    :param theta: Disk aspect ratio
-    :param phi_0: Solid angle of the slow component
-    :param kappa_s: Opacity of the slow component
-    :param kappa_f: Opacity of the fast component
-    :param kappa_x: Opacity of the x-ray component
-    :param N: Number of pre-merger orbits
-    :param kwargs: Additional parameters
+
+    Parameters
+    ----------
+    time
+        time in source frame in seconds
+    M_star
+        Mass of the Wolf-Rayet star in solar masses
+    M_bh
+        Mass of the black hole in solar masses
+    M_fast
+        Mass of the fast component in solar masses
+    M_pre
+        Mass of the pre-merger CSM in solar masses
+    v_fast
+        Velocity of the fast component in units of c
+    v_slow
+        Velocity of the slow component in km/s
+    alpha
+        Viscosity parameter
+    eta
+        Efficiency of conversion of accretion energy to radiation
+    theta
+        Disk aspect ratio
+    phi_0
+        Solid angle of the slow component
+    kappa_s
+        Opacity of the slow component
+    kappa_f
+        Opacity of the fast component
+    kappa_x
+        Opacity of the x-ray component
+    N
+        Number of pre-merger orbits
+    kwargs
+        Additional parameters
     """
     # Calculate constants
     M_acc = M_acc = 0.05 * (M_bh/10.0)**0.6 * (M_star/10.0)**0.65
@@ -105,24 +124,47 @@ def _wr_bh_merger(time, M_star, M_bh, M_fast, M_pre, v_fast, v_slow, alpha, eta,
 def wr_bh_merger_bolometric(time, M_star, M_bh, M_fast, M_pre, v_fast, v_slow, alpha, eta, **kwargs):
     """
     Parameters:
-    :param time: time in source frame in days
-    :param M_star: Mass of the Wolf-Rayet star in solar masses
-    :param M_bh: Mass of the black hole in solar masses
-    :param M_fast: Mass of the fast component in solar masses
-    :param M_pre: Mass of the pre-merger CSM in solar masses
-    :param v_fast: Velocity of the fast component in units of c
-    :param v_slow: Velocity of the slow component in km/s
-    :param alpha: Viscosity parameter
-    :param eta: Efficiency of conversion of accretion energy to radiation
-    :param kwargs: Additional parameters
-    :param output_format: whether to output dynamics or bolometric luminosity
-    :param theta: Disk aspect ratio
-    :param phi_0: Solid angle of the slow component
-    :param kappa_s: Opacity of the slow component
-    :param kappa_f: Opacity of the fast component
-    :param kappa_x: Opacity of the x-ray component
-    :param N: Number of pre-merger orbits
-    :return: bolometric luminosity or dynamics output
+
+    Parameters
+    ----------
+    time
+        time in source frame in days
+    M_star
+        Mass of the Wolf-Rayet star in solar masses
+    M_bh
+        Mass of the black hole in solar masses
+    M_fast
+        Mass of the fast component in solar masses
+    M_pre
+        Mass of the pre-merger CSM in solar masses
+    v_fast
+        Velocity of the fast component in units of c
+    v_slow
+        Velocity of the slow component in km/s
+    alpha
+        Viscosity parameter
+    eta
+        Efficiency of conversion of accretion energy to radiation
+    kwargs
+        Additional parameters
+    output_format
+        whether to output dynamics or bolometric luminosity
+    theta
+        Disk aspect ratio
+    phi_0
+        Solid angle of the slow component
+    kappa_s
+        Opacity of the slow component
+    kappa_f
+        Opacity of the fast component
+    kappa_x
+        Opacity of the x-ray component
+    N
+        Number of pre-merger orbits
+
+    Returns
+    -------
+        bolometric luminosity or dynamics output
     """
     theta = kwargs.get('theta', 0.33)
     phi_0 = kwargs.get('phi_0', 0.5)
@@ -145,33 +187,59 @@ def wr_bh_merger_bolometric(time, M_star, M_bh, M_fast, M_pre, v_fast, v_slow, a
 def wr_bh_merger(time, redshift, M_star, M_bh, M_fast, M_pre, v_fast, v_slow, alpha, eta, **kwargs):
     """
     Parameters:
-    :param time: time in source frame in days
-    :param redshift: redshift 
-    :param M_star: Mass of the Wolf-Rayet star in solar masses
-    :param M_bh: Mass of the black hole in solar masses
-    :param M_fast: Mass of the fast component in solar masses
-    :param M_pre: Mass of the pre-merger CSM in solar masses
-    :param v_fast: Velocity of the fast component in units of c
-    :param v_slow: Velocity of the slow component in km/s
-    :param alpha: Viscosity parameter
-    :param eta: Efficiency of conversion of accretion energy to radiation
-    :param kwargs: Additional parameters - Must be all the kwargs required by the specific photosphere, sed methods used
-             e.g., for TemperatureFloor: vej (km/s) and temperature_floor
-    :param theta: Disk aspect ratio
-    :param phi_0: Solid angle of the slow component
-    :param kappa_s: Opacity of the slow component
-    :param kappa_f: Opacity of the fast component
-    :param kappa_x: Opacity of the x-ray component
-    :param N: Number of pre-merger orbits
-    :param photosphere: Default is TemperatureFloor.
-            kwargs must have vej or relevant parameters if using different photosphere model
-    :param frequency: Required if output_format is 'flux_density'.
-        frequency to calculate - Must be same length as time array or a single number).
-    :param bands: Required if output_format is 'magnitude' or 'flux'.
-    :param output_format: 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
-    :param lambda_array: Optional argument to set your desired wavelength array (in Angstroms) to evaluate the SED on.
-    :param cosmology: Cosmology to use for luminosity distance calculation. Defaults to Planck18. Must be a astropy.cosmology object.
-    :return: set by output format - 'flux_density', 'magnitude', 'dynamics_output', 'spectra', 'flux', 'sncosmo_source'
+
+    Parameters
+    ----------
+    time
+        time in source frame in days
+    redshift
+        redshift
+    M_star
+        Mass of the Wolf-Rayet star in solar masses
+    M_bh
+        Mass of the black hole in solar masses
+    M_fast
+        Mass of the fast component in solar masses
+    M_pre
+        Mass of the pre-merger CSM in solar masses
+    v_fast
+        Velocity of the fast component in units of c
+    v_slow
+        Velocity of the slow component in km/s
+    alpha
+        Viscosity parameter
+    eta
+        Efficiency of conversion of accretion energy to radiation
+    kwargs
+        Additional parameters - Must be all the kwargs required by the specific photosphere, sed methods used e.g., for TemperatureFloor: vej (km/s) and temperature_floor
+    theta
+        Disk aspect ratio
+    phi_0
+        Solid angle of the slow component
+    kappa_s
+        Opacity of the slow component
+    kappa_f
+        Opacity of the fast component
+    kappa_x
+        Opacity of the x-ray component
+    N
+        Number of pre-merger orbits
+    photosphere
+        Default is TemperatureFloor. kwargs must have vej or relevant parameters if using different photosphere model
+    frequency
+        Required if output_format is 'flux_density'. frequency to calculate - Must be same length as time array or a single number).
+    bands
+        Required if output_format is 'magnitude' or 'flux'.
+    output_format
+        'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
+    lambda_array
+        Optional argument to set your desired wavelength array (in Angstroms) to evaluate the SED on.
+    cosmology
+        Cosmology to use for luminosity distance calculation. Defaults to Planck18. Must be a astropy.cosmology object.
+
+    Returns
+    -------
+        set by output format - 'flux_density', 'magnitude', 'dynamics_output', 'spectra', 'flux', 'sncosmo_source'
     """
 
     theta = kwargs.get('theta', 0.33)

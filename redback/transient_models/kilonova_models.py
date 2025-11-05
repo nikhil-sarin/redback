@@ -23,26 +23,38 @@ def _nicholl_bns_get_quantities(mass_1, mass_2, lambda_s, kappa_red, kappa_blue,
     """
     Calculates quantities for the Nicholl et al. 2021 BNS model
 
-    :param mass_1: Mass of primary in solar masses
-    :param mass_2: Mass of secondary in solar masses
-    :param lambda_s: Symmetric tidal deformability i.e, lambda_s = lambda_1 + lambda_2
-    :param kappa_red: opacity of the red ejecta
-    :param kappa_blue: opacity of the blue ejecta
-    :param mtov: Tolman Oppenheimer-Volkoff mass in solar masses
-    :param epsilon: fraction of disk that gets unbound/ejected
-    :param alpha: Enhancement of blue ejecta by NS surface winds if mtotal < prompt collapse,
-                can turn off by setting alpha=1
-    :param cos_theta_open: Lanthanide opening angle 
-    :param cos_theta: Viewing angle of observer
-    :param kwargs: Additional keyword arguments
-    :param dynamical_ejecta_error: Error in dynamical ejecta mass, default is 1 i.e., no error in fitting formula
-    :param disk_ejecta_error: Error in disk ejecta mass, default is 1 i.e., no error in fitting formula
-    :return: Namedtuple with 'mejecta_blue', 'mejecta_red', 'mejecta_purple',
-            'vejecta_blue', 'vejecta_red', 'vejecta_purple',
-            'vejecta_mean', 'kappa_mean', 'mejecta_dyn',
-            'mejecta_total', 'kappa_purple', 'radius_1', 'radius_2',
-            'binary_lambda', 'remnant_radius', 'area_blue', 'area_blue_ref',
-            'area_red', 'area_red_ref' properties. Masses in solar masses and velocities in units of c
+    Parameters
+    ----------
+    mass_1
+        Mass of primary in solar masses
+    mass_2
+        Mass of secondary in solar masses
+    lambda_s
+        Symmetric tidal deformability i.e, lambda_s = lambda_1 + lambda_2
+    kappa_red
+        opacity of the red ejecta
+    kappa_blue
+        opacity of the blue ejecta
+    mtov
+        Tolman Oppenheimer-Volkoff mass in solar masses
+    epsilon
+        fraction of disk that gets unbound/ejected
+    alpha
+        Enhancement of blue ejecta by NS surface winds if mtotal < prompt collapse, can turn off by setting alpha=1
+    cos_theta_open
+        Lanthanide opening angle
+    cos_theta
+        Viewing angle of observer
+    kwargs
+        Additional keyword arguments
+    dynamical_ejecta_error
+        Error in dynamical ejecta mass, default is 1 i.e., no error in fitting formula
+    disk_ejecta_error
+        Error in disk ejecta mass, default is 1 i.e., no error in fitting formula
+
+    Returns
+    -------
+        Namedtuple with 'mejecta_blue', 'mejecta_red', 'mejecta_purple', 'vejecta_blue', 'vejecta_red', 'vejecta_purple', 'vejecta_mean', 'kappa_mean', 'mejecta_dyn', 'mejecta_total', 'kappa_purple', 'radius_1', 'radius_2', 'binary_lambda', 'remnant_radius', 'area_blue', 'area_blue_ref', 'area_red', 'area_red_ref' properties. Masses in solar masses and velocities in units of c
     """
     ckm = 3e10/1e5
     a = 0.07550
@@ -316,38 +328,68 @@ def nicholl_bns(time, redshift, mass_1, mass_2, lambda_s, kappa_red, kappa_blue,
     Kilonova model from Nicholl et al. 2021, inclides three kilonova components
     + shock heating from cocoon + disk winds from remnant
 
-    :param time: time in days in observer frame
-    :param redshift: redshift
-    :param mass_1: Mass of primary in solar masses
-    :param mass_2: Mass of secondary in solar masses
-    :param lambda_s: Symmetric tidal deformability i.e, lambda_s = lambda_1 + lambda_2
-    :param kappa_red: opacity of the red ejecta
-    :param kappa_blue: opacity of the blue ejecta
-    :param mtov: Tolman Oppenheimer-Volkoff mass in solar masses
-    :param epsilon: fraction of disk that gets unbound/ejected
-    :param alpha: Enhancement of blue ejecta by NS surface winds if mtotal < prompt collapse,
-                can turn off by setting alpha=1
-    :param cos_theta: Viewing angle of observer
-    :param cos_theta_open: Lanthanide opening angle
-    :param cos_theta_cocoon: Opening angle of shocked cocoon
-    :param temperature_floor_1: Temperature floor of first (blue) component
-    :param temperature_floor_2: Temperature floor of second (purple) component
-    :param temperature_floor_3: Temperature floor of third (red) component
-    :param kwargs: Additional keyword arguments
-    :param dynamical_ejecta_error: Error in dynamical ejecta mass, default is 1 i.e., no error in fitting formula
-    :param disk_ejecta_error: Error in disk ejecta mass, default is 1 i.e., no error in fitting formula
-    :param shocked_fraction: Fraction of ejecta that is shocked by jet, default is 0.2 i.e., 20% of blue ejecta is shocked.
-        Use 0. if you want to turn off cocoon emission.
-    :param nn: ejecta power law density profile, default is 1.
-    :param tshock: time for shock in source frame in seconds, default is 1.7s (see Nicholl et al. 2021)
-    :param frequency: Required if output_format is 'flux_density'.
-        frequency to calculate - Must be same length as time array or a single number).
-    :param bands: Required if output_format is 'magnitude' or 'flux'.
-    :param output_format: 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
-    :param lambda_array: Optional argument to set your desired wavelength array (in Angstroms) to evaluate the SED on.
-    :param dense_resolution: resolution of the grid that the model is actually evaluated on, default is 300
-    :param cosmology: Cosmology to use for luminosity distance calculation. Defaults to Planck18. Must be a astropy.cosmology object.
-    :return: set by output format - 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
+    Parameters
+    ----------
+    time
+        time in days in observer frame
+    redshift
+        redshift
+    mass_1
+        Mass of primary in solar masses
+    mass_2
+        Mass of secondary in solar masses
+    lambda_s
+        Symmetric tidal deformability i.e, lambda_s = lambda_1 + lambda_2
+    kappa_red
+        opacity of the red ejecta
+    kappa_blue
+        opacity of the blue ejecta
+    mtov
+        Tolman Oppenheimer-Volkoff mass in solar masses
+    epsilon
+        fraction of disk that gets unbound/ejected
+    alpha
+        Enhancement of blue ejecta by NS surface winds if mtotal < prompt collapse, can turn off by setting alpha=1
+    cos_theta
+        Viewing angle of observer
+    cos_theta_open
+        Lanthanide opening angle
+    cos_theta_cocoon
+        Opening angle of shocked cocoon
+    temperature_floor_1
+        Temperature floor of first (blue) component
+    temperature_floor_2
+        Temperature floor of second (purple) component
+    temperature_floor_3
+        Temperature floor of third (red) component
+    kwargs
+        Additional keyword arguments
+    dynamical_ejecta_error
+        Error in dynamical ejecta mass, default is 1 i.e., no error in fitting formula
+    disk_ejecta_error
+        Error in disk ejecta mass, default is 1 i.e., no error in fitting formula
+    shocked_fraction
+        Fraction of ejecta that is shocked by jet, default is 0.2 i.e., 20% of blue ejecta is shocked. Use 0. if you want to turn off cocoon emission.
+    nn
+        ejecta power law density profile, default is 1.
+    tshock
+        time for shock in source frame in seconds, default is 1.7s (see Nicholl et al. 2021)
+    frequency
+        Required if output_format is 'flux_density'. frequency to calculate - Must be same length as time array or a single number).
+    bands
+        Required if output_format is 'magnitude' or 'flux'.
+    output_format
+        'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
+    lambda_array
+        Optional argument to set your desired wavelength array (in Angstroms) to evaluate the SED on.
+    dense_resolution
+        resolution of the grid that the model is actually evaluated on, default is 300
+    cosmology
+        Cosmology to use for luminosity distance calculation. Defaults to Planck18. Must be a astropy.cosmology object.
+
+    Returns
+    -------
+        set by output format - 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
     """
     from redback.transient_models.shock_powered_models import _shocked_cocoon_nicholl
     cosmology = kwargs.get('cosmology', cosmo)
@@ -464,22 +506,40 @@ def mosfit_rprocess(time, redshift, mej, vej, kappa, kappa_gamma, temperature_fl
     A single component kilonova model that *should* be exactly the same as mosfit's r-process model.
     Effectively the only difference to the redback one_component model is the inclusion of gamma-ray opacity in diffusion.
 
-    :param time: observer frame time in days
-    :param redshift: redshift
-    :param mej: ejecta mass in solar masses of first component
-    :param vej: minimum initial velocity of first component in units of c
-    :param kappa: gray opacity of first component
-    :param temperature_floor: floor temperature of first component
-    :param kappa_gamma: gamma-ray opacity
-    :param kwargs: Additional keyword arguments
-    :param frequency: Required if output_format is 'flux_density'.
-        frequency to calculate - Must be same length as time array or a single number).
-    :param bands: Required if output_format is 'magnitude' or 'flux'.
-    :param output_format: 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
-    :param lambda_array: Optional argument to set your desired wavelength array (in Angstroms) to evaluate the SED on.
-    :param dense_resolution: resolution of the grid that the model is actually evaluated on, default is 300
-    :param cosmology: Cosmology to use for luminosity distance calculation. Defaults to Planck18. Must be a astropy.cosmology object.
-    :return: set by output format - 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
+    Parameters
+    ----------
+    time
+        observer frame time in days
+    redshift
+        redshift
+    mej
+        ejecta mass in solar masses of first component
+    vej
+        minimum initial velocity of first component in units of c
+    kappa
+        gray opacity of first component
+    temperature_floor
+        floor temperature of first component
+    kappa_gamma
+        gamma-ray opacity
+    kwargs
+        Additional keyword arguments
+    frequency
+        Required if output_format is 'flux_density'. frequency to calculate - Must be same length as time array or a single number).
+    bands
+        Required if output_format is 'magnitude' or 'flux'.
+    output_format
+        'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
+    lambda_array
+        Optional argument to set your desired wavelength array (in Angstroms) to evaluate the SED on.
+    dense_resolution
+        resolution of the grid that the model is actually evaluated on, default is 300
+    cosmology
+        Cosmology to use for luminosity distance calculation. Defaults to Planck18. Must be a astropy.cosmology object.
+
+    Returns
+    -------
+        set by output format - 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
     """
     ckm = 3e10/1e5
     cosmology = kwargs.get('cosmology', cosmo)
@@ -536,30 +596,56 @@ def mosfit_kilonova(time, redshift, mej_1, vej_1, temperature_floor_1, kappa_1,
     Effectively the only difference to the redback three_component model is the inclusion of gamma-ray opacity in diffusion.
     Note: Villar et al. fix the kappa's of each component to get the desired red/blue/purple components. This is not done here.
 
-    :param time: observer frame time in days
-    :param redshift: redshift
-    :param mej_1: ejecta mass in solar masses of first component
-    :param vej_1: minimum initial velocity of first component in units of c
-    :param kappa_1: gray opacity of first component
-    :param temperature_floor_1: floor temperature of first component
-    :param mej_2: ejecta mass in solar masses of second component
-    :param vej_2: minimum initial velocity of second component in units of c
-    :param temperature_floor_2: floor temperature of second component
-    :param kappa_2: gray opacity of second component
-    :param mej_3: ejecta mass in solar masses of third component
-    :param vej_3: minimum initial velocity of third component in units of c
-    :param temperature_floor_3: floor temperature of third component
-    :param kappa_3: gray opacity of third component
-    :param kappa_gamma: gamma-ray opacity
-    :param kwargs: Additional keyword arguments
-    :param frequency: Required if output_format is 'flux_density'.
-        frequency to calculate - Must be same length as time array or a single number).
-    :param bands: Required if output_format is 'magnitude' or 'flux'.
-    :param output_format: 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
-    :param lambda_array: Optional argument to set your desired wavelength array (in Angstroms) to evaluate the SED on.
-    :param dense_resolution: resolution of the grid that the model is actually evaluated on, default is 300
-    :param cosmology: Cosmology to use for luminosity distance calculation. Defaults to Planck18. Must be a astropy.cosmology object.
-    :return: set by output format - 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
+    Parameters
+    ----------
+    time
+        observer frame time in days
+    redshift
+        redshift
+    mej_1
+        ejecta mass in solar masses of first component
+    vej_1
+        minimum initial velocity of first component in units of c
+    kappa_1
+        gray opacity of first component
+    temperature_floor_1
+        floor temperature of first component
+    mej_2
+        ejecta mass in solar masses of second component
+    vej_2
+        minimum initial velocity of second component in units of c
+    temperature_floor_2
+        floor temperature of second component
+    kappa_2
+        gray opacity of second component
+    mej_3
+        ejecta mass in solar masses of third component
+    vej_3
+        minimum initial velocity of third component in units of c
+    temperature_floor_3
+        floor temperature of third component
+    kappa_3
+        gray opacity of third component
+    kappa_gamma
+        gamma-ray opacity
+    kwargs
+        Additional keyword arguments
+    frequency
+        Required if output_format is 'flux_density'. frequency to calculate - Must be same length as time array or a single number).
+    bands
+        Required if output_format is 'magnitude' or 'flux'.
+    output_format
+        'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
+    lambda_array
+        Optional argument to set your desired wavelength array (in Angstroms) to evaluate the SED on.
+    dense_resolution
+        resolution of the grid that the model is actually evaluated on, default is 300
+    cosmology
+        Cosmology to use for luminosity distance calculation. Defaults to Planck18. Must be a astropy.cosmology object.
+
+    Returns
+    -------
+        set by output format - 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
     """
     ckm = 3e10/1e5
     cosmology = kwargs.get('cosmology', cosmo)
@@ -631,10 +717,18 @@ def mosfit_kilonova(time, redshift, mej_1, vej_1, temperature_floor_1, kappa_1,
 def _mosfit_kilonova_one_component_lbol(time, mej, vej):
     """
 
-    :param time: time in seconds in source frame
-    :param mej: mass in solar masses
-    :param vej: velocity in units of c
-    :return: lbol in erg/s
+    Parameters
+    ----------
+    time
+        time in seconds in source frame
+    mej
+        mass in solar masses
+    vej
+        velocity in units of c
+
+    Returns
+    -------
+        lbol in erg/s
     """
     tdays = time/day_to_s
 
@@ -661,24 +755,44 @@ def power_law_stratified_kilonova(time, redshift, mej, voffset, v0, alpha,
 
     Must be used with a constraint to avoid prior draws that predict nonsensical luminosities. Or a sensible prior.
 
-    :param time: time in days in observer frame
-    :param redshift: redshift
-    :param mej: total ejecta mass in solar masses
-    :param voffset: minimum ejecta velocity in units of c
-    :param v0: velocity normalization in units of c of the power law
-    :param alpha: power-law index of the velocity distribution i.e., vel = (xs/v0)^-alpha + voffset.
-    :param kappa_offset: minimum kappa value
-    :param kappa_0: kappa normalization
-    :param zeta: power law index of the kappa distribution i.e., kappa = (xs/kappa_0)^-zeta + kappa_offset
-    :param beta: power law index of density profile
-    :param kwargs: Additional keyword arguments
-    :param frequency: Required if output_format is 'flux_density'.
-        frequency to calculate - Must be same length as time array or a single number).
-    :param bands: Required if output_format is 'magnitude' or 'flux'.
-    :param output_format: 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
-    :param lambda_array: Optional argument to set your desired wavelength array (in Angstroms) to evaluate the SED on.
-    :param cosmology: Cosmology to use for luminosity distance calculation. Defaults to Planck18. Must be a astropy.cosmology object.
-    :return: set by output format - 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
+    Parameters
+    ----------
+    time
+        time in days in observer frame
+    redshift
+        redshift
+    mej
+        total ejecta mass in solar masses
+    voffset
+        minimum ejecta velocity in units of c
+    v0
+        velocity normalization in units of c of the power law
+    alpha
+        power-law index of the velocity distribution i.e., vel = (xs/v0)^-alpha + voffset.
+    kappa_offset
+        minimum kappa value
+    kappa_0
+        kappa normalization
+    zeta
+        power law index of the kappa distribution i.e., kappa = (xs/kappa_0)^-zeta + kappa_offset
+    beta
+        power law index of density profile
+    kwargs
+        Additional keyword arguments
+    frequency
+        Required if output_format is 'flux_density'. frequency to calculate - Must be same length as time array or a single number).
+    bands
+        Required if output_format is 'magnitude' or 'flux'.
+    output_format
+        'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
+    lambda_array
+        Optional argument to set your desired wavelength array (in Angstroms) to evaluate the SED on.
+    cosmology
+        Cosmology to use for luminosity distance calculation. Defaults to Planck18. Must be a astropy.cosmology object.
+
+    Returns
+    -------
+        set by output format - 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
     """
     xs = np.linspace(0.2, 0.5, 10)
     velocity_array = np.flip(xs/v0) ** -alpha + voffset
@@ -693,19 +807,34 @@ def bulla_bns_kilonova(time, redshift, mej_dyn, mej_disk, phi, costheta_obs, **k
     """
     Kilonovanet model based on Bulla BNS merger simulations
 
-    :param time: time in days in observer frame
-    :param redshift: redshift
-    :param mej_dyn: dynamical mass of ejecta in solar masses
-    :param mej_disk: disk mass of ejecta in solar masses
-    :param phi: half-opening angle of the lanthanide-rich tidal dynamical ejecta in degrees
-    :param costheta_obs: cosine of the observers viewing angle
-    :param kwargs: Additional keyword arguments
-    :param frequency: Required if output_format is 'flux_density'.
-        frequency to calculate - Must be same length as time array or a single number).
-    :param bands: Required if output_format is 'magnitude' or 'flux'.
-    :param output_format: 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
-    :param cosmology: Cosmology to use for luminosity distance calculation. Defaults to Planck18. Must be a astropy.cosmology object.
-    :return: set by output format - 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
+    Parameters
+    ----------
+    time
+        time in days in observer frame
+    redshift
+        redshift
+    mej_dyn
+        dynamical mass of ejecta in solar masses
+    mej_disk
+        disk mass of ejecta in solar masses
+    phi
+        half-opening angle of the lanthanide-rich tidal dynamical ejecta in degrees
+    costheta_obs
+        cosine of the observers viewing angle
+    kwargs
+        Additional keyword arguments
+    frequency
+        Required if output_format is 'flux_density'. frequency to calculate - Must be same length as time array or a single number).
+    bands
+        Required if output_format is 'magnitude' or 'flux'.
+    output_format
+        'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
+    cosmology
+        Cosmology to use for luminosity distance calculation. Defaults to Planck18. Must be a astropy.cosmology object.
+
+    Returns
+    -------
+        set by output format - 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
     """
     from redback_surrogates.kilonovamodels import bulla_bns_kilonovanet_spectra as function
 
@@ -747,18 +876,32 @@ def bulla_nsbh_kilonova(time, redshift, mej_dyn, mej_disk, costheta_obs, **kwarg
     """
     Kilonovanet model based on Bulla NSBH merger simulations
 
-    :param time: time in observer frame in days
-    :param redshift: redshift
-    :param mej_dyn: dynamical mass of ejecta in solar masses
-    :param mej_disk: disk mass of ejecta in solar masses
-    :param costheta_obs: cosine of the observers viewing angle
-    :param kwargs: Additional keyword arguments
-    :param frequency: Required if output_format is 'flux_density'.
-        frequency to calculate - Must be same length as time array or a single number).
-    :param bands: Required if output_format is 'magnitude' or 'flux'.
-    :param output_format: 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
-    :param cosmology: Cosmology to use for luminosity distance calculation. Defaults to Planck18. Must be a astropy.cosmology object.
-    :return: set by output format - 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
+    Parameters
+    ----------
+    time
+        time in observer frame in days
+    redshift
+        redshift
+    mej_dyn
+        dynamical mass of ejecta in solar masses
+    mej_disk
+        disk mass of ejecta in solar masses
+    costheta_obs
+        cosine of the observers viewing angle
+    kwargs
+        Additional keyword arguments
+    frequency
+        Required if output_format is 'flux_density'. frequency to calculate - Must be same length as time array or a single number).
+    bands
+        Required if output_format is 'magnitude' or 'flux'.
+    output_format
+        'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
+    cosmology
+        Cosmology to use for luminosity distance calculation. Defaults to Planck18. Must be a astropy.cosmology object.
+
+    Returns
+    -------
+        set by output format - 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
     """
     from redback_surrogates.kilonovamodels import bulla_nsbh_kilonovanet_spectra as function
 
@@ -800,18 +943,32 @@ def kasen_bns_kilonova(time, redshift, mej, vej, chi, **kwargs):
     """
     Kilonovanet model based on Kasen BNS simulations
 
-    :param time: time in days in observer frame
-    :param redshift: redshift
-    :param mej: ejecta mass in solar masses
-    :param vej: ejecta velocity in units of c
-    :param chi: lanthanide fraction
-    :param kwargs: Additional keyword arguments
-    :param frequency: Required if output_format is 'flux_density'.
-        frequency to calculate - Must be same length as time array or a single number).
-    :param bands: Required if output_format is 'magnitude' or 'flux'.
-    :param output_format: 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
-    :param cosmology: Cosmology to use for luminosity distance calculation. Defaults to Planck18. Must be a astropy.cosmology object.
-    :return: set by output format - 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
+    Parameters
+    ----------
+    time
+        time in days in observer frame
+    redshift
+        redshift
+    mej
+        ejecta mass in solar masses
+    vej
+        ejecta velocity in units of c
+    chi
+        lanthanide fraction
+    kwargs
+        Additional keyword arguments
+    frequency
+        Required if output_format is 'flux_density'. frequency to calculate - Must be same length as time array or a single number).
+    bands
+        Required if output_format is 'magnitude' or 'flux'.
+    output_format
+        'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
+    cosmology
+        Cosmology to use for luminosity distance calculation. Defaults to Planck18. Must be a astropy.cosmology object.
+
+    Returns
+    -------
+        set by output format - 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
     """
     from redback_surrogates.kilonovamodels import kasen_bns_kilonovanet_spectra as function
 
@@ -850,21 +1007,38 @@ def two_layer_stratified_kilonova(time, redshift, mej, vej_1, vej_2, kappa, beta
     """
     Uses kilonova_heating_rate module to model a two layer stratified kilonova
 
-    :param time: observer frame time in days
-    :param redshift: redshift
-    :param mej: ejecta mass in solar masses
-    :param vej_1: velocity of inner shell in c
-    :param vej_2: velocity of outer shell in c
-    :param kappa: constant gray opacity
-    :param beta: power law index of density profile
-    :param kwargs: Additional keyword arguments
-    :param frequency: Required if output_format is 'flux_density'.
-        frequency to calculate - Must be same length as time array or a single number).
-    :param bands: Required if output_format is 'magnitude' or 'flux'.
-    :param output_format: 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
-    :param lambda_array: Optional argument to set your desired wavelength array (in Angstroms) to evaluate the SED on.
-    :param cosmology: Cosmology to use for luminosity distance calculation. Defaults to Planck18. Must be a astropy.cosmology object.
-    :return: set by output format - 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
+    Parameters
+    ----------
+    time
+        observer frame time in days
+    redshift
+        redshift
+    mej
+        ejecta mass in solar masses
+    vej_1
+        velocity of inner shell in c
+    vej_2
+        velocity of outer shell in c
+    kappa
+        constant gray opacity
+    beta
+        power law index of density profile
+    kwargs
+        Additional keyword arguments
+    frequency
+        Required if output_format is 'flux_density'. frequency to calculate - Must be same length as time array or a single number).
+    bands
+        Required if output_format is 'magnitude' or 'flux'.
+    output_format
+        'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
+    lambda_array
+        Optional argument to set your desired wavelength array (in Angstroms) to evaluate the SED on.
+    cosmology
+        Cosmology to use for luminosity distance calculation. Defaults to Planck18. Must be a astropy.cosmology object.
+
+    Returns
+    -------
+        set by output format - 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
     """
     velocity_array = np.array([vej_1, vej_2])
     output = _kilonova_hr(time, redshift, mej, velocity_array, kappa, beta, **kwargs)
@@ -875,21 +1049,36 @@ def _kilonova_hr(time, redshift, mej, velocity_array, kappa_array, beta, **kwarg
     """
     Uses kilonova_heating_rate module
 
-    :param time: observer frame time in days
-    :param redshift: redshift
-    :param frequency: frequency to calculate - Must be same length as time array or a single number
-    :param mej: ejecta mass
-    :param velocity_array: array of ejecta velocities; length >=2
-    :param kappa_array: opacities of each shell, length = 1 less than velocity
-    :param beta: power law index of density profile
-    :param kwargs: Additional keyword arguments
-    :param frequency: Required if output_format is 'flux_density'.
-        frequency to calculate - Must be same length as time array or a single number).
-    :param bands: Required if output_format is 'magnitude' or 'flux'.
-    :param output_format: 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
-    :param lambda_array: Optional argument to set your desired wavelength array (in Angstroms) to evaluate the SED on.
-    :param cosmology: Cosmology to use for luminosity distance calculation. Defaults to Planck18. Must be a astropy.cosmology object.
-    :return: set by output format - 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
+    Parameters
+    ----------
+    time
+        observer frame time in days
+    redshift
+        redshift
+    frequency
+        Required if output_format is 'flux_density'. frequency to calculate - Must be same length as time array or a single number).
+    mej
+        ejecta mass
+    velocity_array
+        array of ejecta velocities; length >=2
+    kappa_array
+        opacities of each shell, length = 1 less than velocity
+    beta
+        power law index of density profile
+    kwargs
+        Additional keyword arguments
+    bands
+        Required if output_format is 'magnitude' or 'flux'.
+    output_format
+        'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
+    lambda_array
+        Optional argument to set your desired wavelength array (in Angstroms) to evaluate the SED on.
+    cosmology
+        Cosmology to use for luminosity distance calculation. Defaults to Planck18. Must be a astropy.cosmology object.
+
+    Returns
+    -------
+        set by output format - 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
     """
     cosmology = kwargs.get('cosmology', cosmo)
     dl = cosmology.luminosity_distance(redshift).cgs.value
@@ -935,12 +1124,22 @@ def _kilonova_hr_sourceframe(time, mej, velocity_array, kappa_array, beta):
     """
     Uses kilonova_heating_rate module
 
-    :param time: source frame time in seconds
-    :param mej: ejecta mass
-    :param velocity_array: array of ejecta velocities; length >=2
-    :param kappa_array: opacities of each shell, length = 1 less than velocity
-    :param beta: power law index of density profile
-    :return: bolometric_luminosity, temperature, photosphere
+    Parameters
+    ----------
+    time
+        source frame time in seconds
+    mej
+        ejecta mass
+    velocity_array
+        array of ejecta velocities; length >=2
+    kappa_array
+        opacities of each shell, length = 1 less than velocity
+    beta
+        power law index of density profile
+
+    Returns
+    -------
+        bolometric_luminosity, temperature, photosphere
     """
     if len(velocity_array) < 2:
         raise ValueError("velocity_array must be of length >=2")
@@ -964,28 +1163,53 @@ def three_component_kilonova_model(time, redshift, mej_1, vej_1, temperature_flo
                                  mej_2, vej_2, temperature_floor_2, kappa_2,
                                    mej_3, vej_3, temperature_floor_3, kappa_3, **kwargs):
     """
-    :param time: observer frame time in days
-    :param redshift: redshift
-    :param mej_1: ejecta mass in solar masses of first component
-    :param vej_1: minimum initial velocity of first component
-    :param kappa_1: gray opacity of first component
-    :param temperature_floor_1: floor temperature of first component
-    :param mej_2: ejecta mass in solar masses of second component
-    :param vej_2: minimum initial velocity of second component
-    :param temperature_floor_2: floor temperature of second component
-    :param kappa_2: gray opacity of second component
-    :param mej_3: ejecta mass in solar masses of third component
-    :param vej_3: minimum initial velocity of third component
-    :param temperature_floor_3: floor temperature of third component
-    :param kappa_3: gray opacity of third component
-    :param kwargs: Additional keyword arguments
-    :param frequency: Required if output_format is 'flux_density'.
-        frequency to calculate - Must be same length as time array or a single number).
-    :param bands: Required if output_format is 'magnitude' or 'flux'.
-    :param output_format: 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
-    :param lambda_array: Optional argument to set your desired wavelength array (in Angstroms) to evaluate the SED on.
-    :param cosmology: Cosmology to use for luminosity distance calculation. Defaults to Planck18. Must be a astropy.cosmology object.
-    :return: set by output format - 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
+
+    Parameters
+    ----------
+    time
+        observer frame time in days
+    redshift
+        redshift
+    mej_1
+        ejecta mass in solar masses of first component
+    vej_1
+        minimum initial velocity of first component
+    kappa_1
+        gray opacity of first component
+    temperature_floor_1
+        floor temperature of first component
+    mej_2
+        ejecta mass in solar masses of second component
+    vej_2
+        minimum initial velocity of second component
+    temperature_floor_2
+        floor temperature of second component
+    kappa_2
+        gray opacity of second component
+    mej_3
+        ejecta mass in solar masses of third component
+    vej_3
+        minimum initial velocity of third component
+    temperature_floor_3
+        floor temperature of third component
+    kappa_3
+        gray opacity of third component
+    kwargs
+        Additional keyword arguments
+    frequency
+        Required if output_format is 'flux_density'. frequency to calculate - Must be same length as time array or a single number).
+    bands
+        Required if output_format is 'magnitude' or 'flux'.
+    output_format
+        'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
+    lambda_array
+        Optional argument to set your desired wavelength array (in Angstroms) to evaluate the SED on.
+    cosmology
+        Cosmology to use for luminosity distance calculation. Defaults to Planck18. Must be a astropy.cosmology object.
+
+    Returns
+    -------
+        set by output format - 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
     """
     cosmology = kwargs.get('cosmology', cosmo)
     dl = cosmology.luminosity_distance(redshift).cgs.value
@@ -1057,24 +1281,45 @@ def three_component_kilonova_model(time, redshift, mej_1, vej_1, temperature_flo
 def two_component_kilonova_model(time, redshift, mej_1, vej_1, temperature_floor_1, kappa_1,
                                  mej_2, vej_2, temperature_floor_2, kappa_2, **kwargs):
     """
-    :param time: observer frame time in days
-    :param redshift: redshift
-    :param mej_1: ejecta mass in solar masses of first component
-    :param vej_1: minimum initial velocity of first component
-    :param kappa_1: gray opacity of first component
-    :param temperature_floor_1: floor temperature of first component
-    :param mej_2: ejecta mass in solar masses of second component
-    :param vej_2: minimum initial velocity of second component
-    :param temperature_floor_2: floor temperature of second component
-    :param kappa_2: gray opacity of second component
-    :param kwargs: Additional keyword arguments
-    :param frequency: Required if output_format is 'flux_density'.
-        frequency to calculate - Must be same length as time array or a single number).
-    :param bands: Required if output_format is 'magnitude' or 'flux'.
-    :param output_format: 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
-    :param lambda_array: Optional argument to set your desired wavelength array (in Angstroms) to evaluate the SED on.
-    :param cosmology: Cosmology to use for luminosity distance calculation. Defaults to Planck18. Must be a astropy.cosmology object.
-    :return: set by output format - 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
+
+    Parameters
+    ----------
+    time
+        observer frame time in days
+    redshift
+        redshift
+    mej_1
+        ejecta mass in solar masses of first component
+    vej_1
+        minimum initial velocity of first component
+    kappa_1
+        gray opacity of first component
+    temperature_floor_1
+        floor temperature of first component
+    mej_2
+        ejecta mass in solar masses of second component
+    vej_2
+        minimum initial velocity of second component
+    temperature_floor_2
+        floor temperature of second component
+    kappa_2
+        gray opacity of second component
+    kwargs
+        Additional keyword arguments
+    frequency
+        Required if output_format is 'flux_density'. frequency to calculate - Must be same length as time array or a single number).
+    bands
+        Required if output_format is 'magnitude' or 'flux'.
+    output_format
+        'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
+    lambda_array
+        Optional argument to set your desired wavelength array (in Angstroms) to evaluate the SED on.
+    cosmology
+        Cosmology to use for luminosity distance calculation. Defaults to Planck18. Must be a astropy.cosmology object.
+
+    Returns
+    -------
+        set by output format - 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
     """
     cosmology = kwargs.get('cosmology', cosmo)
     dl = cosmology.luminosity_distance(redshift).cgs.value
@@ -1148,22 +1393,40 @@ def one_component_ejecta_relation(time, redshift, mass_1, mass_2,
     """
     Assumes no velocity projection in the ejecta velocity ejecta relation
 
-    :param time: observer frame time in days
-    :param redshift: redshift
-    :param mass_1: mass of primary in solar masses
-    :param mass_2: mass of secondary in solar masses
-    :param lambda_1: dimensionless tidal deformability of primary
-    :param lambda_2: dimensionless tidal deformability of secondary
-    :param kappa: gray opacity
-    :param kwargs: Additional keyword arguments
-    :param temperature_floor: Temperature floor in K (default 4000)
-    :param frequency: Required if output_format is 'flux_density'.
-        frequency to calculate - Must be same length as time array or a single number).
-    :param bands: Required if output_format is 'magnitude' or 'flux'.
-    :param output_format: 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
-    :param lambda_array: Optional argument to set your desired wavelength array (in Angstroms) to evaluate the SED on.
-    :param cosmology: Cosmology to use for luminosity distance calculation. Defaults to Planck18. Must be a astropy.cosmology object.
-    :return: set by output format - 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
+    Parameters
+    ----------
+    time
+        observer frame time in days
+    redshift
+        redshift
+    mass_1
+        mass of primary in solar masses
+    mass_2
+        mass of secondary in solar masses
+    lambda_1
+        dimensionless tidal deformability of primary
+    lambda_2
+        dimensionless tidal deformability of secondary
+    kappa
+        gray opacity
+    kwargs
+        Additional keyword arguments
+    temperature_floor
+        Temperature floor in K (default 4000)
+    frequency
+        Required if output_format is 'flux_density'. frequency to calculate - Must be same length as time array or a single number).
+    bands
+        Required if output_format is 'magnitude' or 'flux'.
+    output_format
+        'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
+    lambda_array
+        Optional argument to set your desired wavelength array (in Angstroms) to evaluate the SED on.
+    cosmology
+        Cosmology to use for luminosity distance calculation. Defaults to Planck18. Must be a astropy.cosmology object.
+
+    Returns
+    -------
+        set by output format - 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
     """
     ejecta_relation = kwargs.get('ejecta_relation', ejr.OneComponentBNSNoProjection)
     ejecta_relation = ejecta_relation(mass_1, mass_2, lambda_1, lambda_2)
@@ -1178,22 +1441,40 @@ def one_component_ejecta_relation_projection(time, redshift, mass_1, mass_2,
     """
     Assumes a velocity projection between the orthogonal and orbital plane
 
-    :param time: observer frame time in days
-    :param redshift: redshift
-    :param mass_1: mass of primary in solar masses
-    :param mass_2: mass of secondary in solar masses
-    :param lambda_1: dimensionless tidal deformability of primary
-    :param lambda_2: dimensionless tidal deformability of secondary
-    :param kappa: gray opacity
-    :param kwargs: Additional keyword arguments
-    :param temperature_floor: Temperature floor in K (default 4000)
-    :param frequency: Required if output_format is 'flux_density'.
-        frequency to calculate - Must be same length as time array or a single number).
-    :param bands: Required if output_format is 'magnitude' or 'flux'.
-    :param output_format: 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
-    :param lambda_array: Optional argument to set your desired wavelength array (in Angstroms) to evaluate the SED on.
-    :param cosmology: Cosmology to use for luminosity distance calculation. Defaults to Planck18. Must be a astropy.cosmology object.
-    :return: set by output format - 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
+    Parameters
+    ----------
+    time
+        observer frame time in days
+    redshift
+        redshift
+    mass_1
+        mass of primary in solar masses
+    mass_2
+        mass of secondary in solar masses
+    lambda_1
+        dimensionless tidal deformability of primary
+    lambda_2
+        dimensionless tidal deformability of secondary
+    kappa
+        gray opacity
+    kwargs
+        Additional keyword arguments
+    temperature_floor
+        Temperature floor in K (default 4000)
+    frequency
+        Required if output_format is 'flux_density'. frequency to calculate - Must be same length as time array or a single number).
+    bands
+        Required if output_format is 'magnitude' or 'flux'.
+    output_format
+        'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
+    lambda_array
+        Optional argument to set your desired wavelength array (in Angstroms) to evaluate the SED on.
+    cosmology
+        Cosmology to use for luminosity distance calculation. Defaults to Planck18. Must be a astropy.cosmology object.
+
+    Returns
+    -------
+        set by output format - 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
     """
     ejecta_relation = kwargs.get('ejecta_relation', ejr.OneComponentBNSProjection)
     ejecta_relation = ejecta_relation(mass_1, mass_2, lambda_1, lambda_2)
@@ -1209,29 +1490,52 @@ def two_component_bns_ejecta_relation(time, redshift, mass_1, mass_2,
     Assumes two kilonova components corresponding to dynamical and disk wind ejecta with properties
     derived using ejecta relation specified by keyword argument.
 
-    :param time: observer frame time in days
-    :param redshift: redshift
-    :param mass_1: mass of primary in solar masses
-    :param mass_2: mass of secondary in solar masses
-    :param lambda_1: dimensionless tidal deformability of primary
-    :param lambda_2: dimensionless tidal deformability of secondary
-    :param mtov: Tolman Oppenheimer Volkoff mass in solar masses
-    :param zeta: fraction of disk that gets unbound
-    :param vej_2: disk wind velocity in c
-    :param kappa_1: gray opacity of first component
-    :param kappa_2: gracy opacity of second component
-    :param tf_1: floor temperature of first component
-    :param tf_2: floor temperature of second component
-    :param kwargs: additional keyword arguments
-    :param ejecta_relation: a class that relates the instrinsic parameters to the kilonova parameters
-            default is TwoComponentBNS
-    :param frequency: Required if output_format is 'flux_density'.
-        frequency to calculate - Must be same length as time array or a single number).
-    :param bands: Required if output_format is 'magnitude' or 'flux'.
-    :param output_format: 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
-    :param lambda_array: Optional argument to set your desired wavelength array (in Angstroms) to evaluate the SED on.
-    :param cosmology: Cosmology to use for luminosity distance calculation. Defaults to Planck18. Must be a astropy.cosmology object.
-    :return: set by output format - 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
+    Parameters
+    ----------
+    time
+        observer frame time in days
+    redshift
+        redshift
+    mass_1
+        mass of primary in solar masses
+    mass_2
+        mass of secondary in solar masses
+    lambda_1
+        dimensionless tidal deformability of primary
+    lambda_2
+        dimensionless tidal deformability of secondary
+    mtov
+        Tolman Oppenheimer Volkoff mass in solar masses
+    zeta
+        fraction of disk that gets unbound
+    vej_2
+        disk wind velocity in c
+    kappa_1
+        gray opacity of first component
+    kappa_2
+        gracy opacity of second component
+    tf_1
+        floor temperature of first component
+    tf_2
+        floor temperature of second component
+    kwargs
+        additional keyword arguments
+    ejecta_relation
+        a class that relates the instrinsic parameters to the kilonova parameters default is TwoComponentBNS
+    frequency
+        Required if output_format is 'flux_density'. frequency to calculate - Must be same length as time array or a single number).
+    bands
+        Required if output_format is 'magnitude' or 'flux'.
+    output_format
+        'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
+    lambda_array
+        Optional argument to set your desired wavelength array (in Angstroms) to evaluate the SED on.
+    cosmology
+        Cosmology to use for luminosity distance calculation. Defaults to Planck18. Must be a astropy.cosmology object.
+
+    Returns
+    -------
+        set by output format - 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
     """
     ejecta_relation = kwargs.get('ejecta_relation', ejr.TwoComponentBNS)
     ejecta_relation = ejecta_relation(mass_1=mass_1, mass_2=mass_2, lambda_1=lambda_1,
@@ -1253,30 +1557,54 @@ def polytrope_eos_two_component_bns(time, redshift, mass_1, mass_2,  log_p, gamm
     Assumes two kilonova components corresponding to dynamical and disk wind ejecta with properties
     derived using ejecta relation specified by keyword argument and lambda set by polytropic EOS.
 
-    :param time: observer frame time in days
-    :param redshift: redshift
-    :param mass_1: mass of primary in solar masses
-    :param mass_2: mass of secondary in solar masses
-    :param log_p: log central pressure in SI units
-    :param gamma_1: polytrope index 1
-    :param gamma_2: polytrope index 2
-    :param gamma_3: polytrope index 3
-    :param zeta: fraction of disk that gets unbound
-    :param vej_2: disk wind velocity in c
-    :param kappa_1: gray opacity of first component
-    :param kappa_2: gracy opacity of second component
-    :param tf_1: floor temperature of first component
-    :param tf_2: floor temperature of second component
-    :param kwargs: additional keyword arguments
-    :param ejecta_relation: a class that relates the instrinsic parameters to the kilonova parameters
-            default is TwoComponentBNS
-    :param frequency: Required if output_format is 'flux_density'.
-        frequency to calculate - Must be same length as time array or a single number).
-    :param bands: Required if output_format is 'magnitude' or 'flux'.
-    :param output_format: 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
-    :param lambda_array: Optional argument to set your desired wavelength array (in Angstroms) to evaluate the SED on.
-    :param cosmology: Cosmology to use for luminosity distance calculation. Defaults to Planck18. Must be a astropy.cosmology object.
-    :return: set by output format - 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
+    Parameters
+    ----------
+    time
+        observer frame time in days
+    redshift
+        redshift
+    mass_1
+        mass of primary in solar masses
+    mass_2
+        mass of secondary in solar masses
+    log_p
+        log central pressure in SI units
+    gamma_1
+        polytrope index 1
+    gamma_2
+        polytrope index 2
+    gamma_3
+        polytrope index 3
+    zeta
+        fraction of disk that gets unbound
+    vej_2
+        disk wind velocity in c
+    kappa_1
+        gray opacity of first component
+    kappa_2
+        gracy opacity of second component
+    tf_1
+        floor temperature of first component
+    tf_2
+        floor temperature of second component
+    kwargs
+        additional keyword arguments
+    ejecta_relation
+        a class that relates the instrinsic parameters to the kilonova parameters default is TwoComponentBNS
+    frequency
+        Required if output_format is 'flux_density'. frequency to calculate - Must be same length as time array or a single number).
+    bands
+        Required if output_format is 'magnitude' or 'flux'.
+    output_format
+        'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
+    lambda_array
+        Optional argument to set your desired wavelength array (in Angstroms) to evaluate the SED on.
+    cosmology
+        Cosmology to use for luminosity distance calculation. Defaults to Planck18. Must be a astropy.cosmology object.
+
+    Returns
+    -------
+        set by output format - 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
     """
     central_pressure = np.logspace(np.log10(4e32), np.log10(2.5e35), 70)
     eos = PiecewisePolytrope(log_p=log_p, gamma_1=gamma_1, gamma_2=gamma_2, gamma_3=gamma_3)
@@ -1303,24 +1631,42 @@ def one_component_nsbh_ejecta_relation(time, redshift, mass_bh, mass_ns,
     """
     One component NSBH model
 
-    :param time: observer frame time in days
-    :param redshift: redshift
-    :param mass_bh: mass of black hole
-    :param mass_2: mass of neutron star
-    :param chi_bh: spin of black hole along z axis
-    :param lambda_ns: tidal deformability of neutron star
-    :param kappa: opacity
-    :param kwargs: additional keyword arguments
-    :param temperature_floor: floor temperature
-    :param ejecta_relation: a class that relates the instrinsic parameters to the kilonova parameters
-            default is OneComponentNSBH
-    :param frequency: Required if output_format is 'flux_density'.
-        frequency to calculate - Must be same length as time array or a single number).
-    :param bands: Required if output_format is 'magnitude' or 'flux'.
-    :param output_format: 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
-    :param lambda_array: Optional argument to set your desired wavelength array (in Angstroms) to evaluate the SED on.
-    :param cosmology: Cosmology to use for luminosity distance calculation. Defaults to Planck18. Must be a astropy.cosmology object.
-    :return: set by output format - 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
+    Parameters
+    ----------
+    time
+        observer frame time in days
+    redshift
+        redshift
+    mass_bh
+        mass of black hole
+    mass_2
+        mass of neutron star
+    chi_bh
+        spin of black hole along z axis
+    lambda_ns
+        tidal deformability of neutron star
+    kappa
+        opacity
+    kwargs
+        additional keyword arguments
+    temperature_floor
+        floor temperature
+    ejecta_relation
+        a class that relates the instrinsic parameters to the kilonova parameters default is OneComponentNSBH
+    frequency
+        Required if output_format is 'flux_density'. frequency to calculate - Must be same length as time array or a single number).
+    bands
+        Required if output_format is 'magnitude' or 'flux'.
+    output_format
+        'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
+    lambda_array
+        Optional argument to set your desired wavelength array (in Angstroms) to evaluate the SED on.
+    cosmology
+        Cosmology to use for luminosity distance calculation. Defaults to Planck18. Must be a astropy.cosmology object.
+
+    Returns
+    -------
+        set by output format - 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
     """
     ejecta_relation = kwargs.get('ejecta_relation', ejr.OneComponentNSBH)
     ejecta_relation = ejecta_relation(mass_bh=mass_bh, mass_ns=mass_ns, chi_bh=chi_bh, lambda_ns=lambda_ns)
@@ -1335,28 +1681,50 @@ def two_component_nsbh_ejecta_relation(time, redshift,  mass_bh, mass_ns,
     """
     Two component NSBH model with dynamical and disk wind ejecta
 
-    :param time: observer frame time in days
-    :param redshift: redshift
-    :param mass_bh: mass of black hole
-    :param mass_2: mass of neutron star
-    :param chi_bh: spin of black hole along z axis
-    :param lambda_ns: tidal deformability of neutron star
-    :param zeta: fraction of disk that gets unbound
-    :param vej_2: disk wind velocity in c
-    :param kappa_1: gray opacity of first component
-    :param kappa_2: gracy opacity of second component
-    :param tf_1: floor temperature of first component
-    :param tf_2: floor temperature of second component
-    :param kwargs: additional keyword arguments
-    :param ejecta_relation: a class that relates the instrinsic parameters to the kilonova parameters
-            default is TwoComponentNSBH
-    :param frequency: Required if output_format is 'flux_density'.
-        frequency to calculate - Must be same length as time array or a single number).
-    :param bands: Required if output_format is 'magnitude' or 'flux'.
-    :param output_format: 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
-    :param lambda_array: Optional argument to set your desired wavelength array (in Angstroms) to evaluate the SED on.
-    :param cosmology: Cosmology to use for luminosity distance calculation. Defaults to Planck18. Must be a astropy.cosmology object.
-    :return: set by output format - 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
+    Parameters
+    ----------
+    time
+        observer frame time in days
+    redshift
+        redshift
+    mass_bh
+        mass of black hole
+    mass_2
+        mass of neutron star
+    chi_bh
+        spin of black hole along z axis
+    lambda_ns
+        tidal deformability of neutron star
+    zeta
+        fraction of disk that gets unbound
+    vej_2
+        disk wind velocity in c
+    kappa_1
+        gray opacity of first component
+    kappa_2
+        gracy opacity of second component
+    tf_1
+        floor temperature of first component
+    tf_2
+        floor temperature of second component
+    kwargs
+        additional keyword arguments
+    ejecta_relation
+        a class that relates the instrinsic parameters to the kilonova parameters default is TwoComponentNSBH
+    frequency
+        Required if output_format is 'flux_density'. frequency to calculate - Must be same length as time array or a single number).
+    bands
+        Required if output_format is 'magnitude' or 'flux'.
+    output_format
+        'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
+    lambda_array
+        Optional argument to set your desired wavelength array (in Angstroms) to evaluate the SED on.
+    cosmology
+        Cosmology to use for luminosity distance calculation. Defaults to Planck18. Must be a astropy.cosmology object.
+
+    Returns
+    -------
+        set by output format - 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
     """
     ejecta_relation = kwargs.get('ejecta_relation', ejr.TwoComponentNSBH)
     ejecta_relation = ejecta_relation(mass_bh=mass_bh, mass_ns=mass_ns, chi_bh=chi_bh,
@@ -1374,20 +1742,37 @@ def two_component_nsbh_ejecta_relation(time, redshift,  mass_bh, mass_ns,
 @citation_wrapper('redback')
 def one_component_kilonova_model(time, redshift, mej, vej, kappa, **kwargs):
     """
-    :param time: observer frame time in days
-    :param redshift: redshift
-    :param mej: ejecta mass in solar masses
-    :param vej: minimum initial velocity
-    :param kappa: gray opacity
-    :param kwargs: Additional keyword arguments
-    :param temperature_floor: Temperature floor in K (default 4000)
-    :param frequency: Required if output_format is 'flux_density'.
-        frequency to calculate - Must be same length as time array or a single number).
-    :param bands: Required if output_format is 'magnitude' or 'flux'.
-    :param output_format: 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
-    :param lambda_array: Optional argument to set your desired wavelength array (in Angstroms) to evaluate the SED on.
-    :param cosmology: Cosmology to use for luminosity distance calculation. Defaults to Planck18. Must be a astropy.cosmology object.
-    :return: set by output format - 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
+
+    Parameters
+    ----------
+    time
+        observer frame time in days
+    redshift
+        redshift
+    mej
+        ejecta mass in solar masses
+    vej
+        minimum initial velocity
+    kappa
+        gray opacity
+    kwargs
+        Additional keyword arguments
+    temperature_floor
+        Temperature floor in K (default 4000)
+    frequency
+        Required if output_format is 'flux_density'. frequency to calculate - Must be same length as time array or a single number).
+    bands
+        Required if output_format is 'magnitude' or 'flux'.
+    output_format
+        'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
+    lambda_array
+        Optional argument to set your desired wavelength array (in Angstroms) to evaluate the SED on.
+    cosmology
+        Cosmology to use for luminosity distance calculation. Defaults to Planck18. Must be a astropy.cosmology object.
+
+    Returns
+    -------
+        set by output format - 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
     """
     cosmology = kwargs.get('cosmology', cosmo)
     dl = cosmology.luminosity_distance(redshift).cgs.value
@@ -1436,15 +1821,26 @@ def _calc_new_heating_rate(time, mej, electron_fraction, ejecta_velocity, **kwar
     """
     Heating rate prescription following Rosswog and Korobkin 2024
 
-    :param time: time in seconds
-    :param mej: ejecta mass in solar masses
-    :param electron_fraction: electron fraction
-    :param ejecta_velocity: ejecta velocity in c
-    :param kwargs: Additional keyword arguments
-    :param heating_rate_perturbation: A fudge factor for heating rate to account for uncertainties in the heating rate. Default is 1.0 i.e., no perturbation.
-    :param heating_rate_fudge: A fudge factor for each of the terms in the heating rate. Default to 1. i.e., no uncertainty
-    Default is 1.0 i.e., no perturbation.
-    :return: heating rate in erg/s
+    Parameters
+    ----------
+    time
+        time in seconds
+    mej
+        ejecta mass in solar masses
+    electron_fraction
+        electron fraction
+    ejecta_velocity
+        ejecta velocity in c
+    kwargs
+        Additional keyword arguments
+    heating_rate_perturbation
+        A fudge factor for heating rate to account for uncertainties in the heating rate. Default is 1.0 i.e., no perturbation.
+    heating_rate_fudge
+        A fudge factor for each of the terms in the heating rate. Default to 1. i.e., no uncertainty Default is 1.0 i.e., no perturbation.
+
+    Returns
+    -------
+        heating rate in erg/s
     """
     heating_rate_perturbation = kwargs.get('heating_rate_perturbation', 1.0)
     # rescale
@@ -1505,23 +1901,41 @@ def _one_component_kilonova_rosswog_heatingrate(time, mej, vej, electron_fractio
 @citation_wrapper('https://ui.adsabs.harvard.edu/abs/2024arXiv240407271S/abstract, https://ui.adsabs.harvard.edu/abs/2024AnP...53600306R/abstract')
 def one_comp_kne_rosswog_heatingrate(time, redshift, mej, vej, ye, **kwargs):
     """
-    :param time: observer frame time in days
-    :param redshift: redshift
-    :param mej: ejecta mass in solar masses
-    :param vej: minimum initial velocity
-    :param kappa: gray opacity
-    :param kwargs: Additional keyword arguments
-    :param temperature_floor: Temperature floor in K (default 4000)
-    :param heating_rate_perturbation: A fudge factor for heating rate to account for uncertainties in the heating rate.
-    Default is 1.0 i.e., no perturbation.
-    :param heating_rate_fudge: A fudge factor for each of the terms in the heating rate. Default to 1. i.e., no uncertainty
-    :param frequency: Required if output_format is 'flux_density'.
-        frequency to calculate - Must be same length as time array or a single number).
-    :param bands: Required if output_format is 'magnitude' or 'flux'.
-    :param output_format: 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
-    :param lambda_array: Optional argument to set your desired wavelength array (in Angstroms) to evaluate the SED on.
-    :param cosmology: Cosmology to use for luminosity distance calculation. Defaults to Planck18. Must be a astropy.cosmology object.
-    :return: set by output format - 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
+
+    Parameters
+    ----------
+    time
+        observer frame time in days
+    redshift
+        redshift
+    mej
+        ejecta mass in solar masses
+    vej
+        minimum initial velocity
+    kappa
+        gray opacity
+    kwargs
+        Additional keyword arguments
+    temperature_floor
+        Temperature floor in K (default 4000)
+    heating_rate_perturbation
+        A fudge factor for heating rate to account for uncertainties in the heating rate. Default is 1.0 i.e., no perturbation.
+    heating_rate_fudge
+        A fudge factor for each of the terms in the heating rate. Default to 1. i.e., no uncertainty
+    frequency
+        Required if output_format is 'flux_density'. frequency to calculate - Must be same length as time array or a single number).
+    bands
+        Required if output_format is 'magnitude' or 'flux'.
+    output_format
+        'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
+    lambda_array
+        Optional argument to set your desired wavelength array (in Angstroms) to evaluate the SED on.
+    cosmology
+        Cosmology to use for luminosity distance calculation. Defaults to Planck18. Must be a astropy.cosmology object.
+
+    Returns
+    -------
+        set by output format - 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
     """
     cosmology = kwargs.get('cosmology', cosmo)
     dl = cosmology.luminosity_distance(redshift).cgs.value
@@ -1569,27 +1983,49 @@ def one_comp_kne_rosswog_heatingrate(time, redshift, mej, vej, ye, **kwargs):
 def two_comp_kne_rosswog_heatingrate(time, redshift, mej_1, vej_1, temperature_floor_1, ye_1,
                                  mej_2, vej_2, temperature_floor_2, ye_2, **kwargs):
     """
-    :param time: observer frame time in days
-    :param redshift: redshift
-    :param mej_1: ejecta mass in solar masses of first component
-    :param vej_1: minimum initial velocity of first component
-    :param kappa_1: gray opacity of first component
-    :param temperature_floor_1: floor temperature of first component
-    :param mej_2: ejecta mass in solar masses of second component
-    :param vej_2: minimum initial velocity of second component
-    :param temperature_floor_2: floor temperature of second component
-    :param kappa_2: gray opacity of second component
-    :param kwargs: Additional keyword arguments
-    :param heating_rate_perturbation: A fudge factor for heating rate to account for uncertainties in the heating rate.
-    Default is 1.0 i.e., no perturbation.
-    :param heating_rate_fudge: A fudge factor for each of the terms in the heating rate. Default to 1. i.e., no uncertainty
-    :param frequency: Required if output_format is 'flux_density'.
-        frequency to calculate - Must be same length as time array or a single number).
-    :param bands: Required if output_format is 'magnitude' or 'flux'.
-    :param output_format: 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
-    :param lambda_array: Optional argument to set your desired wavelength array (in Angstroms) to evaluate the SED on.
-    :param cosmology: Cosmology to use for luminosity distance calculation. Defaults to Planck18. Must be a astropy.cosmology object.
-    :return: set by output format - 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
+
+    Parameters
+    ----------
+    time
+        observer frame time in days
+    redshift
+        redshift
+    mej_1
+        ejecta mass in solar masses of first component
+    vej_1
+        minimum initial velocity of first component
+    kappa_1
+        gray opacity of first component
+    temperature_floor_1
+        floor temperature of first component
+    mej_2
+        ejecta mass in solar masses of second component
+    vej_2
+        minimum initial velocity of second component
+    temperature_floor_2
+        floor temperature of second component
+    kappa_2
+        gray opacity of second component
+    kwargs
+        Additional keyword arguments
+    heating_rate_perturbation
+        A fudge factor for heating rate to account for uncertainties in the heating rate. Default is 1.0 i.e., no perturbation.
+    heating_rate_fudge
+        A fudge factor for each of the terms in the heating rate. Default to 1. i.e., no uncertainty
+    frequency
+        Required if output_format is 'flux_density'. frequency to calculate - Must be same length as time array or a single number).
+    bands
+        Required if output_format is 'magnitude' or 'flux'.
+    output_format
+        'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
+    lambda_array
+        Optional argument to set your desired wavelength array (in Angstroms) to evaluate the SED on.
+    cosmology
+        Cosmology to use for luminosity distance calculation. Defaults to Planck18. Must be a astropy.cosmology object.
+
+    Returns
+    -------
+        set by output format - 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
     """
     cosmology = kwargs.get('cosmology', cosmo)
     dl = cosmology.luminosity_distance(redshift).cgs.value
@@ -1667,13 +2103,25 @@ def two_comp_kne_rosswog_heatingrate(time, redshift, mej_1, vej_1, temperature_f
 
 def _one_component_kilonova_model(time, mej, vej, kappa, **kwargs):
     """
-    :param time: source frame time in seconds
-    :param redshift: redshift
-    :param mej: ejecta mass in solar masses
-    :param vej: minimum initial velocity
-    :param kappa_r: gray opacity
-    :param kwargs: temperature_floor
-    :return: bolometric_luminosity, temperature, r_photosphere
+
+    Parameters
+    ----------
+    time
+        source frame time in seconds
+    redshift
+        redshift
+    mej
+        ejecta mass in solar masses
+    vej
+        minimum initial velocity
+    kappa_r
+        gray opacity
+    kwargs
+        temperature_floor
+
+    Returns
+    -------
+        bolometric_luminosity, temperature, r_photosphere
     """
     tdays = time/day_to_s
 
@@ -1710,21 +2158,39 @@ def _one_component_kilonova_model(time, mej, vej, kappa, **kwargs):
 @citation_wrapper('https://ui.adsabs.harvard.edu/abs/2017LRR....20....3M/abstract')
 def metzger_kilonova_model(time, redshift, mej, vej, beta, kappa, **kwargs):
     """
-    :param time: observer frame time in days
-    :param redshift: redshift
-    :param mej: ejecta mass in solar masses
-    :param vej: minimum initial velocity
-    :param beta: velocity power law slope (M=v^-beta)
-    :param kappa: gray opacity
-    :param kwargs: Additional keyword arguments
-    :param neutron_precursor_switch: Whether to include neutron precursor emission
-    :param frequency: Required if output_format is 'flux_density'.
-        frequency to calculate - Must be same length as time array or a single number).
-    :param bands: Required if output_format is 'magnitude' or 'flux'.
-    :param output_format: 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
-    :param lambda_array: Optional argument to set your desired wavelength array (in Angstroms) to evaluate the SED on.
-    :param cosmology: Cosmology to use for luminosity distance calculation. Defaults to Planck18. Must be a astropy.cosmology object.
-    :return: set by output format - 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
+
+    Parameters
+    ----------
+    time
+        observer frame time in days
+    redshift
+        redshift
+    mej
+        ejecta mass in solar masses
+    vej
+        minimum initial velocity
+    beta
+        velocity power law slope (M=v^-beta)
+    kappa
+        gray opacity
+    kwargs
+        Additional keyword arguments
+    neutron_precursor_switch
+        Whether to include neutron precursor emission
+    frequency
+        Required if output_format is 'flux_density'. frequency to calculate - Must be same length as time array or a single number).
+    bands
+        Required if output_format is 'magnitude' or 'flux'.
+    output_format
+        'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
+    lambda_array
+        Optional argument to set your desired wavelength array (in Angstroms) to evaluate the SED on.
+    cosmology
+        Cosmology to use for luminosity distance calculation. Defaults to Planck18. Must be a astropy.cosmology object.
+
+    Returns
+    -------
+        set by output format - 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
     """
     cosmology = kwargs.get('cosmology', cosmo)
     dl = cosmology.luminosity_distance(redshift).cgs.value
@@ -1772,15 +2238,29 @@ def metzger_kilonova_model(time, redshift, mej, vej, beta, kappa, **kwargs):
 
 def _metzger_kilonova_model(time, mej, vej, beta, kappa, **kwargs):
     """
-    :param time: time array to evaluate model on in source frame in seconds
-    :param redshift: redshift
-    :param mej: ejecta mass in solar masses
-    :param vej: minimum initial velocity
-    :param beta: velocity power law slope (M=v^-beta)
-    :param kappa: gray opacity
-    :param kwargs: Additional keyword arguments
-    :param neutron_precursor_switch: Whether to include neutron precursor emission
-    :return: bolometric_luminosity, temperature, photosphere_radius
+
+    Parameters
+    ----------
+    time
+        time array to evaluate model on in source frame in seconds
+    redshift
+        redshift
+    mej
+        ejecta mass in solar masses
+    vej
+        minimum initial velocity
+    beta
+        velocity power law slope (M=v^-beta)
+    kappa
+        gray opacity
+    kwargs
+        Additional keyword arguments
+    neutron_precursor_switch
+        Whether to include neutron precursor emission
+
+    Returns
+    -------
+        bolometric_luminosity, temperature, photosphere_radius
     """
     neutron_precursor_switch = kwargs.get('neutron_precursor_switch', True)
 

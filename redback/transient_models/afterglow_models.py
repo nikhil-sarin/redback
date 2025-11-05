@@ -37,41 +37,52 @@ class RedbackAfterglows():
         and modified and implemented into redback by Nikhil Sarin <nsarin.astro@gmail.com>.
         Includes wind-like mediums, expansion and multiple jet structures.
 
-        :param k:
-        :param n: ISM, ambient number density
-        :param epsb: magnetic fraction
-        :param epse: electron fraction
-        :param g0: initial Lorentz factor
-        :param ek: kinetic energy
-        :param thc: core angle
-        :param thj: jet outer angle. For tophat jets thc=thj
-        :param tho: observers viewing angle
-        :param p: electron power-law index
-        :param exp: Boolean for whether to include sound speed expansion
-        :param time: lightcurve time steps
-        :param freq: lightcurve frequencies
-        :param redshift: source redshift
-        :param Dl: luminosity distance
-        :param extra_structure_parameter_1: Extra structure specific parameter #1.
-            Specifically, this parameter sets;
-            The index on energy for power-law jets.
-            The fractional energy contribution for the Double Gaussian (must be less than 1).
-            The energy fraction  for the outer sheath for two-component jets (must be less than 1).
-            Unused for tophat or Gaussian jets.
-        :param extra_structure_parameter_2: Extra structure specific parameter #2.
-            Specifically, this parameter sets;
-            The index on lorentz factor for power-law jets.
-            The lorentz factor for second Gaussian (must be less than 1).
-            The lorentz factor  for the outer sheath for two-component jets (must be less than 1).
-            Unused for tophat or Gaussian jets.
-        :param method: Type of jet structure to use. Defaults to 'TH' for tophat jet.
-            Other options are '2C', 'GJ', 'PL', 'PL2', 'DG'. Corresponding to two component, gaussian jet, powerlaw,
-            alternative powerlaw and double Gaussian.
-        :param res: resolution
-        :param steps: number of steps used to resolve Gamma and dm
-        :param XiN: fraction of electrons that get accelerated
-        :param a1: the expansion description, a1 = 0 sound speed, a1 = 1 Granot & Piran 2012
-        """
+    Parameters
+    ----------
+    k
+    n
+        ISM, ambient number density
+    epsb
+        magnetic fraction
+    epse
+        electron fraction
+    g0
+        initial Lorentz factor
+    ek
+        kinetic energy
+    thc
+        core angle
+    thj
+        jet outer angle. For tophat jets thc=thj
+    tho
+        observers viewing angle
+    p
+        electron power-law index
+    exp
+        Boolean for whether to include sound speed expansion
+    time
+        lightcurve time steps
+    freq
+        lightcurve frequencies
+    redshift
+        source redshift
+    Dl
+        luminosity distance
+    extra_structure_parameter_1
+        Extra structure specific parameter #1. Specifically, this parameter sets; The index on energy for power-law jets. The fractional energy contribution for the Double Gaussian (must be less than 1). The energy fraction  for the outer sheath for two-component jets (must be less than 1). Unused for tophat or Gaussian jets.
+    extra_structure_parameter_2
+        Extra structure specific parameter #2. Specifically, this parameter sets; The index on lorentz factor for power-law jets. The lorentz factor for second Gaussian (must be less than 1). The lorentz factor  for the outer sheath for two-component jets (must be less than 1). Unused for tophat or Gaussian jets.
+    method
+        Type of jet structure to use. Defaults to 'TH' for tophat jet. Other options are '2C', 'GJ', 'PL', 'PL2', 'DG'. Corresponding to two component, gaussian jet, powerlaw, alternative powerlaw and double Gaussian.
+    res
+        resolution
+    steps
+        number of steps used to resolve Gamma and dm
+    XiN
+        fraction of electrons that get accelerated
+    a1
+        the expansion description, a1 = 0 sound speed, a1 = 1 Granot & Piran 2012
+    """
         self.k = k
         if self.k == 0:
             self.n = n
@@ -432,45 +443,58 @@ class RedbackAfterglowsRefreshed(RedbackAfterglows):
         and modified and implemented into redback by Nikhil Sarin <nsarin.astro@gmail.com>.
         Includes wind-like mediums, expansion and multiple jet structures.
 
-        :param k:
-        :param n: ISM, ambient number density
-        :param epsb: magnetic fraction
-        :param epse: electron fraction
-        :param g0: initial Lorentz factor
-        :param g1: Lorentz factor of shell at start of energy injection
-        :param ek: kinetic energy
-        :param et: factor by which total kinetic energy is larger
-        :param s1: index for energy injection; typically between 0--10, some higher values, ~<30, are supported for some structures.
-            Values of ~10 are consistent with a discrete shock interaction, see Lamb, Levan & Tanvir 2020
-        :param thc: core angle
-        :param thj: jet outer angle. For tophat jets thc=thj
-        :param tho: observers viewing angle
-        :param p: electron power-law index
-        :param exp: Boolean for whether to include sound speed expansion
-        :param time: lightcurve time steps
-        :param freq: lightcurve frequencies
-        :param redshift: source redshift
-        :param Dl: luminosity distance
-        :param extra_structure_parameter_1: Extra structure specific parameter #1.
-            Specifically, this parameter sets;
-            The index on energy for power-law jets.
-            The fractional energy contribution for the Double Gaussian (must be less than 1).
-            The energy fraction  for the outer sheath for two-component jets (must be less than 1).
-            Unused for tophat or Gaussian jets.
-        :param extra_structure_parameter_2: Extra structure specific parameter #2.
-            Specifically, this parameter sets;
-            The index on lorentz factor for power-law jets.
-            The lorentz factor for second Gaussian (must be less than 1).
-            The lorentz factor  for the outer sheath for two-component jets (must be less than 1).
-            Unused for tophat or Gaussian jets.
-        :param method: Type of jet structure to use. Defaults to 'TH' for tophat jet.
-            Other options are '2C', 'GJ', 'PL', 'PL2', 'DG'. Corresponding to two component, gaussian jet, powerlaw,
-            alternative powerlaw and double Gaussian.
-        :param res: resolution
-        :param steps: number of steps used to resolve Gamma and dm
-        :param XiN: fraction of electrons that get accelerated
-        :param a1: the expansion description, a1 = 0 sound speed, a1 = 1 Granot & Piran 2012
-        """
+    Parameters
+    ----------
+    k
+    n
+        ISM, ambient number density
+    epsb
+        magnetic fraction
+    epse
+        electron fraction
+    g0
+        initial Lorentz factor
+    g1
+        Lorentz factor of shell at start of energy injection
+    ek
+        kinetic energy
+    et
+        factor by which total kinetic energy is larger
+    s1
+        index for energy injection; typically between 0--10, some higher values, ~<30, are supported for some structures. Values of ~10 are consistent with a discrete shock interaction, see Lamb, Levan & Tanvir 2020
+    thc
+        core angle
+    thj
+        jet outer angle. For tophat jets thc=thj
+    tho
+        observers viewing angle
+    p
+        electron power-law index
+    exp
+        Boolean for whether to include sound speed expansion
+    time
+        lightcurve time steps
+    freq
+        lightcurve frequencies
+    redshift
+        source redshift
+    Dl
+        luminosity distance
+    extra_structure_parameter_1
+        Extra structure specific parameter #1. Specifically, this parameter sets; The index on energy for power-law jets. The fractional energy contribution for the Double Gaussian (must be less than 1). The energy fraction  for the outer sheath for two-component jets (must be less than 1). Unused for tophat or Gaussian jets.
+    extra_structure_parameter_2
+        Extra structure specific parameter #2. Specifically, this parameter sets; The index on lorentz factor for power-law jets. The lorentz factor for second Gaussian (must be less than 1). The lorentz factor  for the outer sheath for two-component jets (must be less than 1). Unused for tophat or Gaussian jets.
+    method
+        Type of jet structure to use. Defaults to 'TH' for tophat jet. Other options are '2C', 'GJ', 'PL', 'PL2', 'DG'. Corresponding to two component, gaussian jet, powerlaw, alternative powerlaw and double Gaussian.
+    res
+        resolution
+    steps
+        number of steps used to resolve Gamma and dm
+    XiN
+        fraction of electrons that get accelerated
+    a1
+        the expansion description, a1 = 0 sound speed, a1 = 1 Granot & Piran 2012
+    """
 
         super().__init__(k=k, n=n, epsb=epsb, epse=epse, g0=g0, ek=ek, thc=thc, thj=thj,
                          tho=tho, p=p, exp=exp, time=time, freq=freq, redshift=redshift,
@@ -583,13 +607,24 @@ class RedbackAfterglowsRefreshed(RedbackAfterglows):
 def _pnu_synchrotron(nu, B, gamma_m, gamma_c, Ne, p):
     """
 
-    :param nu: frequency in Hz
-    :param B: magnetic field in G
-    :param gamma_m: minimum Lorentz factor of electrons
-    :param gamma_c: electron Lorentz factor at which the cooling is important
-    :param Ne: Number of emitting electrons
-    :param p: power law index of the electron energy distribution
-    :return: Pnu
+    Parameters
+    ----------
+    nu
+        frequency in Hz
+    B
+        magnetic field in G
+    gamma_m
+        minimum Lorentz factor of electrons
+    gamma_c
+        electron Lorentz factor at which the cooling is important
+    Ne
+        Number of emitting electrons
+    p
+        power law index of the electron energy distribution
+
+    Returns
+    -------
+        Pnu
     """
     qe = 4.80320425e-10  # electron charge in CGS
     Pnu_max = Ne * (electron_mass * speed_of_light ** 2 * sigma_T / (3.0 * qe)) * B
@@ -625,10 +660,18 @@ def _get_kn_dynamics(n0, Eej, Mej):
     Calculates blast-wave hydrodynamics. Based on Pe'er (2012) with a numerical correction
     factor to ensure asymptotic convergence to Sedov-Taylor solution (see also Nava et al. 2013; Huang et al. 1999)
 
-    :param n0: ISM density in cm^-3
-    :param Eej: Ejecta energy in erg
-    :param Mej: ejecta mass in g
-    :return: Dynamical outputs - t, R, beta, Gamma, eden, tobs, beta_sh, Gamma_sh.
+    Parameters
+    ----------
+    n0
+        ISM density in cm^-3
+    Eej
+        Ejecta energy in erg
+    Mej
+        ejecta mass in g
+
+    Returns
+    -------
+        Dynamical outputs - t, R, beta, Gamma, eden, tobs, beta_sh, Gamma_sh.
     """
     from scipy import integrate
 
@@ -718,29 +761,50 @@ def tophat_redback(time, redshift, thv, loge0, thc, logn0, p, logepse, logepsb, 
     A tophat model implemented directly in redback. Based on Lamb, Mandel & Resmi 2018 and other work.
     Look at the RedbackAfterglow class for more details/implementation.
 
-    :param time: time in days
-    :param redshift: source redshift
-    :param thv: observer viewing angle in radians
-    :param loge0: jet energy in \\log_{10} ergs
-    :param thc: jet opening angle in radians
-    :param logn0: ism number density in \\log_{10} cm^-3 or \\log_{10} A* for wind-like density profile
-    :param p: electron power law index
-    :param logepse: partition fraction in electrons
-    :param logepsb: partition fraction in magnetic field
-    :param g0: initial lorentz factor
-    :param xiN: fraction of electrons that get accelerated. Defaults to 1.
-    :param kwargs: additional keyword arguments
-    :param res: resolution - set dynamically based on afterglow properties by default,
-            but can be set manually to a specific number.
-    :param steps: number of steps used to resolve Gamma and dm. Defaults to 250 but can be set manually.
-    :param k: power law index of density profile. Defaults to 0 for constant density.
-        Can be set to 2 for wind-like density profile.
-    :param expansion: 0 or 1 to dictate whether to include expansion effects. Defaults to 1
-    :param output_format: Whether to output flux density or AB mag
-    :param frequency: frequency in Hz for the flux density calculation
-    :param cosmology: Cosmology to use for luminosity distance calculation. Defaults to Planck18. Must be a astropy.cosmology object.
-    :return: flux density or AB mag. Note this is going to give the monochromatic magnitude at the effective frequency for the band.
-        For a proper calculation of the magntitude use the sed variant models.
+    Parameters
+    ----------
+    time
+        time in days
+    redshift
+        source redshift
+    thv
+        observer viewing angle in radians
+    loge0
+        jet energy in \\log_{10} ergs
+    thc
+        jet opening angle in radians
+    logn0
+        ism number density in \\log_{10} cm^-3 or \\log_{10} A* for wind-like density profile
+    p
+        electron power law index
+    logepse
+        partition fraction in electrons
+    logepsb
+        partition fraction in magnetic field
+    g0
+        initial lorentz factor
+    xiN
+        fraction of electrons that get accelerated. Defaults to 1.
+    kwargs
+        additional keyword arguments
+    res
+        resolution - set dynamically based on afterglow properties by default, but can be set manually to a specific number.
+    steps
+        number of steps used to resolve Gamma and dm. Defaults to 250 but can be set manually.
+    k
+        power law index of density profile. Defaults to 0 for constant density. Can be set to 2 for wind-like density profile.
+    expansion
+        0 or 1 to dictate whether to include expansion effects. Defaults to 1
+    output_format
+        Whether to output flux density or AB mag
+    frequency
+        frequency in Hz for the flux density calculation
+    cosmology
+        Cosmology to use for luminosity distance calculation. Defaults to Planck18. Must be a astropy.cosmology object.
+
+    Returns
+    -------
+        flux density or AB mag. Note this is going to give the monochromatic magnitude at the effective frequency for the band. For a proper calculation of the magntitude use the sed variant models.
     """
     frequency = kwargs['frequency']
     if isinstance(frequency, float):
@@ -781,30 +845,52 @@ def gaussian_redback(time, redshift, thv, loge0, thc, thj, logn0, p, logepse, lo
     A Gaussian structure afterglow model implemented directly in redback. Based on Lamb, Mandel & Resmi 2018 and other work.
     Look at the RedbackAfterglow class for more details/implementation.
 
-    :param time: time in days
-    :param redshift: source redshift
-    :param thv: observer viewing angle in radians
-    :param loge0: jet energy in \\log_{10} ergs
-    :param thc: jet core size in radians
-    :param thj: jet edge in radians (thc < thj < pi/2)
-    :param logn0: ism number density in \\log_{10} cm^-3 or \\log_{10} A* for wind-like density profile
-    :param p: electron power law index
-    :param logepse: partition fraction in electrons
-    :param logepsb: partition fraction in magnetic field
-    :param g0: initial lorentz factor
-    :param xiN: fraction of electrons that get accelerated. Defaults to 1.
-    :param kwargs: additional keyword arguments
-    :param res: resolution - set dynamically based on afterglow properties by default,
-            but can be set manually to a specific number.
-    :param steps: number of steps used to resolve Gamma and dm. Defaults to 250 but can be set manually.
-    :param k: power law index of density profile. Defaults to 0 for constant density.
-        Can be set to 2 for wind-like density profile.
-    :param expansion: 0 or 1 to dictate whether to include expansion effects. Defaults to 1
-    :param output_format: Whether to output flux density or AB mag
-    :param frequency: frequency in Hz for the flux density calculation
-    :param cosmology: Cosmology to use for luminosity distance calculation. Defaults to Planck18. Must be a astropy.cosmology object.
-    :return: flux density or AB mag. Note this is going to give the monochromatic magnitude at the effective frequency for the band.
-        For a proper calculation of the magntitude use the sed variant models.
+    Parameters
+    ----------
+    time
+        time in days
+    redshift
+        source redshift
+    thv
+        observer viewing angle in radians
+    loge0
+        jet energy in \\log_{10} ergs
+    thc
+        jet core size in radians
+    thj
+        jet edge in radians (thc < thj < pi/2)
+    logn0
+        ism number density in \\log_{10} cm^-3 or \\log_{10} A* for wind-like density profile
+    p
+        electron power law index
+    logepse
+        partition fraction in electrons
+    logepsb
+        partition fraction in magnetic field
+    g0
+        initial lorentz factor
+    xiN
+        fraction of electrons that get accelerated. Defaults to 1.
+    kwargs
+        additional keyword arguments
+    res
+        resolution - set dynamically based on afterglow properties by default, but can be set manually to a specific number.
+    steps
+        number of steps used to resolve Gamma and dm. Defaults to 250 but can be set manually.
+    k
+        power law index of density profile. Defaults to 0 for constant density. Can be set to 2 for wind-like density profile.
+    expansion
+        0 or 1 to dictate whether to include expansion effects. Defaults to 1
+    output_format
+        Whether to output flux density or AB mag
+    frequency
+        frequency in Hz for the flux density calculation
+    cosmology
+        Cosmology to use for luminosity distance calculation. Defaults to Planck18. Must be a astropy.cosmology object.
+
+    Returns
+    -------
+        flux density or AB mag. Note this is going to give the monochromatic magnitude at the effective frequency for the band. For a proper calculation of the magntitude use the sed variant models.
     """
     frequency = kwargs['frequency']
     if isinstance(frequency, float):
@@ -846,32 +932,56 @@ def twocomponent_redback(time, redshift, thv, loge0, thc, thj, logn0, p, logepse
     Based on Lamb, Mandel & Resmi 2018 and other work.
     Look at the RedbackAfterglow class for more details/implementation.
 
-    :param time: time in days
-    :param redshift: source redshift
-    :param thv: observer viewing angle in radians
-    :param loge0: jet energy in \\log_{10} ergs
-    :param thc: jet core size in radians
-    :param thj: jet edge in radians (thc < thj < pi/2)
-    :param logn0: ism number density in \\log_{10} cm^-3 or \\log_{10} A* for wind-like density profile
-    :param p: electron power law index
-    :param logepse: partition fraction in electrons
-    :param logepsb: partition fraction in magnetic field
-    :param g0: initial lorentz factor
-    :param xiN: fraction of electrons that get accelerated. Defaults to 1.
-    :param kwargs: additional keyword arguments
-    :param res: resolution - set dynamically based on afterglow properties by default,
-            but can be set manually to a specific number.
-    :param steps: number of steps used to resolve Gamma and dm. Defaults to 250 but can be set manually.
-    :param k: power law index of density profile. Defaults to 0 for constant density.
-        Can be set to 2 for wind-like density profile.
-    :param expansion: 0 or 1 to dictate whether to include expansion effects. Defaults to 1
-    :param ss: Fraction of energy in the outer sheath of the jet. Defaults to 0.01
-    :param aa: Lorentz factor outside the core. Defaults to 4.
-    :param output_format: Whether to output flux density or AB mag
-    :param frequency: frequency in Hz for the flux density calculation
-    :param cosmology: Cosmology to use for luminosity distance calculation. Defaults to Planck18. Must be a astropy.cosmology object.
-    :return: flux density or AB mag. Note this is going to give the monochromatic magnitude at the effective frequency for the band.
-        For a proper calculation of the magntitude use the sed variant models.
+    Parameters
+    ----------
+    time
+        time in days
+    redshift
+        source redshift
+    thv
+        observer viewing angle in radians
+    loge0
+        jet energy in \\log_{10} ergs
+    thc
+        jet core size in radians
+    thj
+        jet edge in radians (thc < thj < pi/2)
+    logn0
+        ism number density in \\log_{10} cm^-3 or \\log_{10} A* for wind-like density profile
+    p
+        electron power law index
+    logepse
+        partition fraction in electrons
+    logepsb
+        partition fraction in magnetic field
+    g0
+        initial lorentz factor
+    xiN
+        fraction of electrons that get accelerated. Defaults to 1.
+    kwargs
+        additional keyword arguments
+    res
+        resolution - set dynamically based on afterglow properties by default, but can be set manually to a specific number.
+    steps
+        number of steps used to resolve Gamma and dm. Defaults to 250 but can be set manually.
+    k
+        power law index of density profile. Defaults to 0 for constant density. Can be set to 2 for wind-like density profile.
+    expansion
+        0 or 1 to dictate whether to include expansion effects. Defaults to 1
+    ss
+        Fraction of energy in the outer sheath of the jet. Defaults to 0.01
+    aa
+        Lorentz factor outside the core. Defaults to 4.
+    output_format
+        Whether to output flux density or AB mag
+    frequency
+        frequency in Hz for the flux density calculation
+    cosmology
+        Cosmology to use for luminosity distance calculation. Defaults to Planck18. Must be a astropy.cosmology object.
+
+    Returns
+    -------
+        flux density or AB mag. Note this is going to give the monochromatic magnitude at the effective frequency for the band. For a proper calculation of the magntitude use the sed variant models.
     """
     frequency = kwargs['frequency']
     if isinstance(frequency, float):
@@ -915,32 +1025,56 @@ def powerlaw_redback(time, redshift, thv, loge0, thc, thj, logn0, p, logepse, lo
     Based on Lamb, Mandel & Resmi 2018 and other work.
     Look at the RedbackAfterglow class for more details/implementation.
 
-    :param time: time in days
-    :param redshift: source redshift
-    :param thv: observer viewing angle in radians
-    :param loge0: jet energy in \\log_{10} ergs
-    :param thc: jet core size in radians
-    :param thj: jet edge in radians (thc < thj < pi/2)
-    :param logn0: ism number density in \\log_{10} cm^-3 or \\log_{10} A* for wind-like density profile
-    :param p: electron power law index
-    :param logepse: partition fraction in electrons
-    :param logepsb: partition fraction in magnetic field
-    :param g0: initial lorentz factor
-    :param xiN: fraction of electrons that get accelerated. Defaults to 1.
-    :param kwargs: additional keyword arguments
-    :param res: resolution - set dynamically based on afterglow properties by default,
-            but can be set manually to a specific number.
-    :param steps: number of steps used to resolve Gamma and dm. Defaults to 250 but can be set manually.
-    :param k: power law index of density profile. Defaults to 0 for constant density.
-        Can be set to 2 for wind-like density profile.
-    :param expansion: 0 or 1 to dictate whether to include expansion effects. Defaults to 1
-    :param ss: Index of energy outside core. Defaults to -3
-    :param aa: Index of Lorentz factor outside the core. Defaults to -3
-    :param output_format: Whether to output flux density or AB mag
-    :param frequency: frequency in Hz for the flux density calculation
-    :param cosmology: Cosmology to use for luminosity distance calculation. Defaults to Planck18. Must be a astropy.cosmology object.
-    :return: flux density or AB mag. Note this is going to give the monochromatic magnitude at the effective frequency for the band.
-        For a proper calculation of the magntitude use the sed variant models.
+    Parameters
+    ----------
+    time
+        time in days
+    redshift
+        source redshift
+    thv
+        observer viewing angle in radians
+    loge0
+        jet energy in \\log_{10} ergs
+    thc
+        jet core size in radians
+    thj
+        jet edge in radians (thc < thj < pi/2)
+    logn0
+        ism number density in \\log_{10} cm^-3 or \\log_{10} A* for wind-like density profile
+    p
+        electron power law index
+    logepse
+        partition fraction in electrons
+    logepsb
+        partition fraction in magnetic field
+    g0
+        initial lorentz factor
+    xiN
+        fraction of electrons that get accelerated. Defaults to 1.
+    kwargs
+        additional keyword arguments
+    res
+        resolution - set dynamically based on afterglow properties by default, but can be set manually to a specific number.
+    steps
+        number of steps used to resolve Gamma and dm. Defaults to 250 but can be set manually.
+    k
+        power law index of density profile. Defaults to 0 for constant density. Can be set to 2 for wind-like density profile.
+    expansion
+        0 or 1 to dictate whether to include expansion effects. Defaults to 1
+    ss
+        Index of energy outside core. Defaults to -3
+    aa
+        Index of Lorentz factor outside the core. Defaults to -3
+    output_format
+        Whether to output flux density or AB mag
+    frequency
+        frequency in Hz for the flux density calculation
+    cosmology
+        Cosmology to use for luminosity distance calculation. Defaults to Planck18. Must be a astropy.cosmology object.
+
+    Returns
+    -------
+        flux density or AB mag. Note this is going to give the monochromatic magnitude at the effective frequency for the band. For a proper calculation of the magntitude use the sed variant models.
     """
     frequency = kwargs['frequency']
     if isinstance(frequency, float):
@@ -983,32 +1117,56 @@ def alternativepowerlaw_redback(time, redshift, thv, loge0, thc, thj, logn0, p, 
     Based on Lamb, Mandel & Resmi 2018 and other work.
     Look at the RedbackAfterglow class for more details/implementation.
 
-    :param time: time in days
-    :param redshift: source redshift
-    :param thv: observer viewing angle in radians
-    :param loge0: jet energy in \\log_{10} ergs
-    :param thc: jet core size in radians
-    :param thj: jet edge in radians (thc < thj < pi/2)
-    :param logn0: ism number density in \\log_{10} cm^-3 or \\log_{10} A* for wind-like density profile
-    :param p: electron power law index
-    :param logepse: partition fraction in electrons
-    :param logepsb: partition fraction in magnetic field
-    :param g0: initial lorentz factor
-    :param xiN: fraction of electrons that get accelerated. Defaults to 1.
-    :param kwargs: additional keyword arguments
-    :param res: resolution - set dynamically based on afterglow properties by default,
-            but can be set manually to a specific number.
-    :param steps: number of steps used to resolve Gamma and dm. Defaults to 250 but can be set manually.
-    :param k: power law index of density profile. Defaults to 0 for constant density.
-        Can be set to 2 for wind-like density profile.
-    :param expansion: 0 or 1 to dictate whether to include expansion effects. Defaults to 1
-    :param ss: Index of energy outside core. Defaults to 3
-    :param aa: Index of Lorentz factor outside the core. Defaults to 3
-    :param output_format: Whether to output flux density or AB mag
-    :param frequency: frequency in Hz for the flux density calculation
-    :param cosmology: Cosmology to use for luminosity distance calculation. Defaults to Planck18. Must be a astropy.cosmology object.
-    :return: flux density or AB mag. Note this is going to give the monochromatic magnitude at the effective frequency for the band.
-        For a proper calculation of the magntitude use the sed variant models.
+    Parameters
+    ----------
+    time
+        time in days
+    redshift
+        source redshift
+    thv
+        observer viewing angle in radians
+    loge0
+        jet energy in \\log_{10} ergs
+    thc
+        jet core size in radians
+    thj
+        jet edge in radians (thc < thj < pi/2)
+    logn0
+        ism number density in \\log_{10} cm^-3 or \\log_{10} A* for wind-like density profile
+    p
+        electron power law index
+    logepse
+        partition fraction in electrons
+    logepsb
+        partition fraction in magnetic field
+    g0
+        initial lorentz factor
+    xiN
+        fraction of electrons that get accelerated. Defaults to 1.
+    kwargs
+        additional keyword arguments
+    res
+        resolution - set dynamically based on afterglow properties by default, but can be set manually to a specific number.
+    steps
+        number of steps used to resolve Gamma and dm. Defaults to 250 but can be set manually.
+    k
+        power law index of density profile. Defaults to 0 for constant density. Can be set to 2 for wind-like density profile.
+    expansion
+        0 or 1 to dictate whether to include expansion effects. Defaults to 1
+    ss
+        Index of energy outside core. Defaults to 3
+    aa
+        Index of Lorentz factor outside the core. Defaults to 3
+    output_format
+        Whether to output flux density or AB mag
+    frequency
+        frequency in Hz for the flux density calculation
+    cosmology
+        Cosmology to use for luminosity distance calculation. Defaults to Planck18. Must be a astropy.cosmology object.
+
+    Returns
+    -------
+        flux density or AB mag. Note this is going to give the monochromatic magnitude at the effective frequency for the band. For a proper calculation of the magntitude use the sed variant models.
     """
     frequency = kwargs['frequency']
     if isinstance(frequency, float):
@@ -1051,32 +1209,56 @@ def doublegaussian_redback(time, redshift, thv, loge0, thc, thj, logn0, p, logep
     Based on Lamb, Mandel & Resmi 2018 and other work.
     Look at the RedbackAfterglow class for more details/implementation.
 
-    :param time: time in days
-    :param redshift: source redshift
-    :param thv: observer viewing angle in radians
-    :param loge0: jet energy in \\log_{10} ergs
-    :param thc: jet core size in radians
-    :param thj: jet edge in radians (thc < thj < pi/2)
-    :param logn0: ism number density in \\log_{10} cm^-3 or \\log_{10} A* for wind-like density profile
-    :param p: electron power law index
-    :param logepse: partition fraction in electrons
-    :param logepsb: partition fraction in magnetic field
-    :param g0: initial lorentz factor
-    :param xiN: fraction of electrons that get accelerated. Defaults to 1.
-    :param kwargs: additional keyword arguments
-    :param res: resolution - set dynamically based on afterglow properties by default,
-            but can be set manually to a specific number.
-    :param steps: number of steps used to resolve Gamma and dm. Defaults to 250 but can be set manually.
-    :param k: power law index of density profile. Defaults to 0 for constant density.
-        Can be set to 2 for wind-like density profile.
-    :param expansion: 0 or 1 to dictate whether to include expansion effects. Defaults to 1
-    :param ss: Fractional contribution of energy to second Gaussian. Defaults to 0.1, must be less than 1.
-    :param aa: Lorentz factor for second Gaussian, must be less than 1.
-    :param output_format: Whether to output flux density or AB mag
-    :param frequency: frequency in Hz for the flux density calculation
-    :param cosmology: Cosmology to use for luminosity distance calculation. Defaults to Planck18. Must be a astropy.cosmology object.
-    :return: flux density or AB mag. Note this is going to give the monochromatic magnitude at the effective frequency for the band.
-        For a proper calculation of the magntitude use the sed variant models.
+    Parameters
+    ----------
+    time
+        time in days
+    redshift
+        source redshift
+    thv
+        observer viewing angle in radians
+    loge0
+        jet energy in \\log_{10} ergs
+    thc
+        jet core size in radians
+    thj
+        jet edge in radians (thc < thj < pi/2)
+    logn0
+        ism number density in \\log_{10} cm^-3 or \\log_{10} A* for wind-like density profile
+    p
+        electron power law index
+    logepse
+        partition fraction in electrons
+    logepsb
+        partition fraction in magnetic field
+    g0
+        initial lorentz factor
+    xiN
+        fraction of electrons that get accelerated. Defaults to 1.
+    kwargs
+        additional keyword arguments
+    res
+        resolution - set dynamically based on afterglow properties by default, but can be set manually to a specific number.
+    steps
+        number of steps used to resolve Gamma and dm. Defaults to 250 but can be set manually.
+    k
+        power law index of density profile. Defaults to 0 for constant density. Can be set to 2 for wind-like density profile.
+    expansion
+        0 or 1 to dictate whether to include expansion effects. Defaults to 1
+    ss
+        Fractional contribution of energy to second Gaussian. Defaults to 0.1, must be less than 1.
+    aa
+        Lorentz factor for second Gaussian, must be less than 1.
+    output_format
+        Whether to output flux density or AB mag
+    frequency
+        frequency in Hz for the flux density calculation
+    cosmology
+        Cosmology to use for luminosity distance calculation. Defaults to Planck18. Must be a astropy.cosmology object.
+
+    Returns
+    -------
+        flux density or AB mag. Note this is going to give the monochromatic magnitude at the effective frequency for the band. For a proper calculation of the magntitude use the sed variant models.
     """
     frequency = kwargs['frequency']
     if isinstance(frequency, float):
@@ -1119,33 +1301,56 @@ def tophat_redback_refreshed(time, redshift, thv, loge0, thc, g1, et, s1,
     A Refreshed tophat model implemented directly in redback. Based on Lamb et al. 2019
     Look at the RedbackAfterglowRefreshed class for more details/implementation.
 
-    :param time: time in days
-    :param redshift: source redshift
-    :param thv: observer viewing angle in radians
-    :param loge0: jet energy in \\log_{10} ergs
-    :param thc: jet opening angle in radians
-    :param g1: Lorentz factor of shell at start of energy injection. 2 <= g1 < g0
-    :param et: factor by which total kinetic energy is larger
-    :param s1: index for energy injection; typically between 0--10, some higher values, ~<30, are supported for some structures.
-        Values of ~10 are consistent with a discrete shock interaction, see Lamb, Levan & Tanvir 2020
-    :param logn0: ism number density in \\log_{10} cm^-3 or \\log_{10} A* for wind-like density profile
-    :param p: electron power law index
-    :param logepse: partition fraction in electrons
-    :param logepsb: partition fraction in magnetic field
-    :param g0: initial lorentz factor
-    :param xiN: fraction of electrons that get accelerated. Defaults to 1.
-    :param kwargs: additional keyword arguments
-    :param res: resolution - set dynamically based on afterglow properties by default,
-            but can be set manually to a specific number.
-    :param steps: number of steps used to resolve Gamma and dm. Defaults to 250 but can be set manually.
-    :param k: power law index of density profile. Defaults to 0 for constant density.
-        Can be set to 2 for wind-like density profile.
-    :param expansion: 0 or 1 to dictate whether to include expansion effects. Defaults to 1
-    :param output_format: Whether to output flux density or AB mag
-    :param frequency: frequency in Hz for the flux density calculation
-    :param cosmology: Cosmology to use for luminosity distance calculation. Defaults to Planck18. Must be a astropy.cosmology object.
-    :return: flux density or AB mag. Note this is going to give the monochromatic magnitude at the effective frequency for the band.
-        For a proper calculation of the magntitude use the sed variant models.
+    Parameters
+    ----------
+    time
+        time in days
+    redshift
+        source redshift
+    thv
+        observer viewing angle in radians
+    loge0
+        jet energy in \\log_{10} ergs
+    thc
+        jet opening angle in radians
+    g1
+        Lorentz factor of shell at start of energy injection. 2 <= g1 < g0
+    et
+        factor by which total kinetic energy is larger
+    s1
+        index for energy injection; typically between 0--10, some higher values, ~<30, are supported for some structures. Values of ~10 are consistent with a discrete shock interaction, see Lamb, Levan & Tanvir 2020
+    logn0
+        ism number density in \\log_{10} cm^-3 or \\log_{10} A* for wind-like density profile
+    p
+        electron power law index
+    logepse
+        partition fraction in electrons
+    logepsb
+        partition fraction in magnetic field
+    g0
+        initial lorentz factor
+    xiN
+        fraction of electrons that get accelerated. Defaults to 1.
+    kwargs
+        additional keyword arguments
+    res
+        resolution - set dynamically based on afterglow properties by default, but can be set manually to a specific number.
+    steps
+        number of steps used to resolve Gamma and dm. Defaults to 250 but can be set manually.
+    k
+        power law index of density profile. Defaults to 0 for constant density. Can be set to 2 for wind-like density profile.
+    expansion
+        0 or 1 to dictate whether to include expansion effects. Defaults to 1
+    output_format
+        Whether to output flux density or AB mag
+    frequency
+        frequency in Hz for the flux density calculation
+    cosmology
+        Cosmology to use for luminosity distance calculation. Defaults to Planck18. Must be a astropy.cosmology object.
+
+    Returns
+    -------
+        flux density or AB mag. Note this is going to give the monochromatic magnitude at the effective frequency for the band. For a proper calculation of the magntitude use the sed variant models.
     """
     frequency = kwargs['frequency']
     if isinstance(frequency, float):
@@ -1188,34 +1393,58 @@ def gaussian_redback_refreshed(time, redshift, thv, loge0, thc, thj, g1, et, s1,
     A Refreshed Gaussian structured jet model implemented directly in redback. Based on Lamb et al. 2019
     Look at the RedbackAfterglowRefreshed class for more details/implementation.
 
-    :param time: time in days
-    :param redshift: source redshift
-    :param thv: observer viewing angle in radians
-    :param loge0: jet energy in \\log_{10} ergs
-    :param thc: jet core size in radians
-    :param thj: jet edge in radians (thc < thj < pi/2)
-    :param g1: Lorentz factor of shell at start of energy injection. 2 <= g1 < g0
-    :param et: factor by which total kinetic energy is larger
-    :param s1: index for energy injection; typically between 0--10, some higher values, ~<30, are supported for some structures.
-        Values of ~10 are consistent with a discrete shock interaction, see Lamb, Levan & Tanvir 2020
-    :param logn0: ism number density in \\log_{10} cm^-3 or \\log_{10} A* for wind-like density profile
-    :param p: electron power law index
-    :param logepse: partition fraction in electrons
-    :param logepsb: partition fraction in magnetic field
-    :param g0: initial lorentz factor
-    :param xiN: fraction of electrons that get accelerated. Defaults to 1.
-    :param kwargs: additional keyword arguments
-    :param res: resolution - set dynamically based on afterglow properties by default,
-            but can be set manually to a specific number.
-    :param steps: number of steps used to resolve Gamma and dm. Defaults to 250 but can be set manually.
-    :param k: power law index of density profile. Defaults to 0 for constant density.
-        Can be set to 2 for wind-like density profile.
-    :param expansion: 0 or 1 to dictate whether to include expansion effects. Defaults to 1
-    :param output_format: Whether to output flux density or AB mag
-    :param frequency: frequency in Hz for the flux density calculation
-    :param cosmology: Cosmology to use for luminosity distance calculation. Defaults to Planck18. Must be a astropy.cosmology object.
-    :return: flux density or AB mag. Note this is going to give the monochromatic magnitude at the effective frequency for the band.
-        For a proper calculation of the magntitude use the sed variant models.
+    Parameters
+    ----------
+    time
+        time in days
+    redshift
+        source redshift
+    thv
+        observer viewing angle in radians
+    loge0
+        jet energy in \\log_{10} ergs
+    thc
+        jet core size in radians
+    thj
+        jet edge in radians (thc < thj < pi/2)
+    g1
+        Lorentz factor of shell at start of energy injection. 2 <= g1 < g0
+    et
+        factor by which total kinetic energy is larger
+    s1
+        index for energy injection; typically between 0--10, some higher values, ~<30, are supported for some structures. Values of ~10 are consistent with a discrete shock interaction, see Lamb, Levan & Tanvir 2020
+    logn0
+        ism number density in \\log_{10} cm^-3 or \\log_{10} A* for wind-like density profile
+    p
+        electron power law index
+    logepse
+        partition fraction in electrons
+    logepsb
+        partition fraction in magnetic field
+    g0
+        initial lorentz factor
+    xiN
+        fraction of electrons that get accelerated. Defaults to 1.
+    kwargs
+        additional keyword arguments
+    res
+        resolution - set dynamically based on afterglow properties by default, but can be set manually to a specific number.
+    steps
+        number of steps used to resolve Gamma and dm. Defaults to 250 but can be set manually.
+    k
+        power law index of density profile. Defaults to 0 for constant density. Can be set to 2 for wind-like density profile.
+    expansion
+        0 or 1 to dictate whether to include expansion effects. Defaults to 1
+    output_format
+        Whether to output flux density or AB mag
+    frequency
+        frequency in Hz for the flux density calculation
+    cosmology
+        Cosmology to use for luminosity distance calculation. Defaults to Planck18. Must be a astropy.cosmology object.
+
+    Returns
+    -------
+        flux density or AB mag. Note this is going to give the monochromatic magnitude at the effective frequency for the band. For a proper calculation of the magntitude use the sed variant models.
     """
     frequency = kwargs['frequency']
     if isinstance(frequency, float):
@@ -1259,36 +1488,62 @@ def twocomponent_redback_refreshed(time, redshift, thv, loge0, thc, thj, g1, et,
     Based on Lamb et al. 2019 and other work.
     Look at the RedbackAfterglowRefreshed class for more details/implementation.
 
-    :param time: time in days
-    :param redshift: source redshift
-    :param thv: observer viewing angle in radians
-    :param loge0: jet energy in \\log_{10} ergs
-    :param thc: jet core size in radians
-    :param thj: jet edge in radians (thc < thj < pi/2)
-    :param g1: Lorentz factor of shell at start of energy injection. 2 <= g1 < g0
-    :param et: factor by which total kinetic energy is larger
-    :param s1: index for energy injection; typically between 0--10, some higher values, ~<30, are supported for some structures.
-        Values of ~10 are consistent with a discrete shock interaction, see Lamb, Levan & Tanvir 2020
-    :param logn0: ism number density in \\log_{10} cm^-3 or \\log_{10} A* for wind-like density profile
-    :param p: electron power law index
-    :param logepse: partition fraction in electrons
-    :param logepsb: partition fraction in magnetic field
-    :param g0: initial lorentz factor
-    :param xiN: fraction of electrons that get accelerated. Defaults to 1.
-    :param kwargs: additional keyword arguments
-    :param res: resolution - set dynamically based on afterglow properties by default,
-            but can be set manually to a specific number.
-    :param steps: number of steps used to resolve Gamma and dm. Defaults to 250 but can be set manually.
-    :param k: power law index of density profile. Defaults to 0 for constant density.
-        Can be set to 2 for wind-like density profile.
-    :param expansion: 0 or 1 to dictate whether to include expansion effects. Defaults to 1
-    :param ss: Fraction of energy in the outer sheath of the jet. Defaults to 0.01
-    :param aa: Lorentz factor outside the core. Defaults to 4.
-    :param output_format: Whether to output flux density or AB mag
-    :param frequency: frequency in Hz for the flux density calculation
-    :param cosmology: Cosmology to use for luminosity distance calculation. Defaults to Planck18. Must be a astropy.cosmology object.
-    :return: flux density or AB mag. Note this is going to give the monochromatic magnitude at the effective frequency for the band.
-        For a proper calculation of the magntitude use the sed variant models.
+    Parameters
+    ----------
+    time
+        time in days
+    redshift
+        source redshift
+    thv
+        observer viewing angle in radians
+    loge0
+        jet energy in \\log_{10} ergs
+    thc
+        jet core size in radians
+    thj
+        jet edge in radians (thc < thj < pi/2)
+    g1
+        Lorentz factor of shell at start of energy injection. 2 <= g1 < g0
+    et
+        factor by which total kinetic energy is larger
+    s1
+        index for energy injection; typically between 0--10, some higher values, ~<30, are supported for some structures. Values of ~10 are consistent with a discrete shock interaction, see Lamb, Levan & Tanvir 2020
+    logn0
+        ism number density in \\log_{10} cm^-3 or \\log_{10} A* for wind-like density profile
+    p
+        electron power law index
+    logepse
+        partition fraction in electrons
+    logepsb
+        partition fraction in magnetic field
+    g0
+        initial lorentz factor
+    xiN
+        fraction of electrons that get accelerated. Defaults to 1.
+    kwargs
+        additional keyword arguments
+    res
+        resolution - set dynamically based on afterglow properties by default, but can be set manually to a specific number.
+    steps
+        number of steps used to resolve Gamma and dm. Defaults to 250 but can be set manually.
+    k
+        power law index of density profile. Defaults to 0 for constant density. Can be set to 2 for wind-like density profile.
+    expansion
+        0 or 1 to dictate whether to include expansion effects. Defaults to 1
+    ss
+        Fraction of energy in the outer sheath of the jet. Defaults to 0.01
+    aa
+        Lorentz factor outside the core. Defaults to 4.
+    output_format
+        Whether to output flux density or AB mag
+    frequency
+        frequency in Hz for the flux density calculation
+    cosmology
+        Cosmology to use for luminosity distance calculation. Defaults to Planck18. Must be a astropy.cosmology object.
+
+    Returns
+    -------
+        flux density or AB mag. Note this is going to give the monochromatic magnitude at the effective frequency for the band. For a proper calculation of the magntitude use the sed variant models.
     """
     frequency = kwargs['frequency']
     if isinstance(frequency, float):
@@ -1333,36 +1588,62 @@ def powerlaw_redback_refreshed(time, redshift, thv, loge0, thc, thj, g1, et, s1,
     Based on Lamb et al. 2019 and other work.
     Look at the RedbackAfterglowRefreshed class for more details/implementation.
 
-    :param time: time in days
-    :param redshift: source redshift
-    :param thv: observer viewing angle in radians
-    :param loge0: jet energy in \\log_{10} ergs
-    :param thc: jet core size in radians
-    :param thj: jet edge in radians (thc < thj < pi/2)
-    :param g1: Lorentz factor of shell at start of energy injection. 2 <= g1 < g0
-    :param et: factor by which total kinetic energy is larger
-    :param s1: index for energy injection; typically between 0--10, some higher values, ~<30, are supported for some structures.
-        Values of ~10 are consistent with a discrete shock interaction, see Lamb, Levan & Tanvir 2020
-    :param logn0: ism number density in \\log_{10} cm^-3 or \\log_{10} A* for wind-like density profile
-    :param p: electron power law index
-    :param logepse: partition fraction in electrons
-    :param logepsb: partition fraction in magnetic field
-    :param g0: initial lorentz factor
-    :param xiN: fraction of electrons that get accelerated. Defaults to 1.
-    :param kwargs: additional keyword arguments
-    :param res: resolution - set dynamically based on afterglow properties by default,
-            but can be set manually to a specific number.
-    :param steps: number of steps used to resolve Gamma and dm. Defaults to 250 but can be set manually.
-    :param k: power law index of density profile. Defaults to 0 for constant density.
-        Can be set to 2 for wind-like density profile.
-    :param expansion: 0 or 1 to dictate whether to include expansion effects. Defaults to 1
-    :param ss: Index of energy outside core. Defaults to -3
-    :param aa: Index of Lorentz factor outside the core. Defaults to -3
-    :param output_format: Whether to output flux density or AB mag
-    :param frequency: frequency in Hz for the flux density calculation
-    :param cosmology: Cosmology to use for luminosity distance calculation. Defaults to Planck18. Must be a astropy.cosmology object.
-    :return: flux density or AB mag. Note this is going to give the monochromatic magnitude at the effective frequency for the band.
-        For a proper calculation of the magntitude use the sed variant models.
+    Parameters
+    ----------
+    time
+        time in days
+    redshift
+        source redshift
+    thv
+        observer viewing angle in radians
+    loge0
+        jet energy in \\log_{10} ergs
+    thc
+        jet core size in radians
+    thj
+        jet edge in radians (thc < thj < pi/2)
+    g1
+        Lorentz factor of shell at start of energy injection. 2 <= g1 < g0
+    et
+        factor by which total kinetic energy is larger
+    s1
+        index for energy injection; typically between 0--10, some higher values, ~<30, are supported for some structures. Values of ~10 are consistent with a discrete shock interaction, see Lamb, Levan & Tanvir 2020
+    logn0
+        ism number density in \\log_{10} cm^-3 or \\log_{10} A* for wind-like density profile
+    p
+        electron power law index
+    logepse
+        partition fraction in electrons
+    logepsb
+        partition fraction in magnetic field
+    g0
+        initial lorentz factor
+    xiN
+        fraction of electrons that get accelerated. Defaults to 1.
+    kwargs
+        additional keyword arguments
+    res
+        resolution - set dynamically based on afterglow properties by default, but can be set manually to a specific number.
+    steps
+        number of steps used to resolve Gamma and dm. Defaults to 250 but can be set manually.
+    k
+        power law index of density profile. Defaults to 0 for constant density. Can be set to 2 for wind-like density profile.
+    expansion
+        0 or 1 to dictate whether to include expansion effects. Defaults to 1
+    ss
+        Index of energy outside core. Defaults to -3
+    aa
+        Index of Lorentz factor outside the core. Defaults to -3
+    output_format
+        Whether to output flux density or AB mag
+    frequency
+        frequency in Hz for the flux density calculation
+    cosmology
+        Cosmology to use for luminosity distance calculation. Defaults to Planck18. Must be a astropy.cosmology object.
+
+    Returns
+    -------
+        flux density or AB mag. Note this is going to give the monochromatic magnitude at the effective frequency for the band. For a proper calculation of the magntitude use the sed variant models.
     """
     frequency = kwargs['frequency']
     if isinstance(frequency, float):
@@ -1407,36 +1688,62 @@ def alternativepowerlaw_redback_refreshed(time, redshift, thv, loge0, thc, thj, 
     Based on Lamb et al. 2019.
     Look at the RedbackAfterglowRefreshed class for more details/implementation.
 
-    :param time: time in days
-    :param redshift: source redshift
-    :param thv: observer viewing angle in radians
-    :param loge0: jet energy in \\log_{10} ergs
-    :param thc: jet core size in radians
-    :param thj: jet edge in radians (thc < thj < pi/2)
-    :param g1: Lorentz factor of shell at start of energy injection. 2 <= g1 < g0
-    :param et: factor by which total kinetic energy is larger
-    :param s1: index for energy injection; typically between 0--10, some higher values, ~<30, are supported for some structures.
-        Values of ~10 are consistent with a discrete shock interaction, see Lamb, Levan & Tanvir 2020
-    :param logn0: ism number density in \\log_{10} cm^-3 or \\log_{10} A* for wind-like density profile
-    :param p: electron power law index
-    :param logepse: partition fraction in electrons
-    :param logepsb: partition fraction in magnetic field
-    :param g0: initial lorentz factor
-    :param xiN: fraction of electrons that get accelerated. Defaults to 1.
-    :param kwargs: additional keyword arguments
-    :param res: resolution - set dynamically based on afterglow properties by default,
-            but can be set manually to a specific number.
-    :param steps: number of steps used to resolve Gamma and dm. Defaults to 250 but can be set manually.
-    :param k: power law index of density profile. Defaults to 0 for constant density.
-        Can be set to 2 for wind-like density profile.
-    :param expansion: 0 or 1 to dictate whether to include expansion effects. Defaults to 1
-    :param ss: Index of energy outside core. Defaults to 3
-    :param aa: Index of Lorentz factor outside the core. Defaults to 3
-    :param output_format: Whether to output flux density or AB mag
-    :param frequency: frequency in Hz for the flux density calculation
-    :param cosmology: Cosmology to use for luminosity distance calculation. Defaults to Planck18. Must be a astropy.cosmology object.
-    :return: flux density or AB mag. Note this is going to give the monochromatic magnitude at the effective frequency for the band.
-        For a proper calculation of the magntitude use the sed variant models.
+    Parameters
+    ----------
+    time
+        time in days
+    redshift
+        source redshift
+    thv
+        observer viewing angle in radians
+    loge0
+        jet energy in \\log_{10} ergs
+    thc
+        jet core size in radians
+    thj
+        jet edge in radians (thc < thj < pi/2)
+    g1
+        Lorentz factor of shell at start of energy injection. 2 <= g1 < g0
+    et
+        factor by which total kinetic energy is larger
+    s1
+        index for energy injection; typically between 0--10, some higher values, ~<30, are supported for some structures. Values of ~10 are consistent with a discrete shock interaction, see Lamb, Levan & Tanvir 2020
+    logn0
+        ism number density in \\log_{10} cm^-3 or \\log_{10} A* for wind-like density profile
+    p
+        electron power law index
+    logepse
+        partition fraction in electrons
+    logepsb
+        partition fraction in magnetic field
+    g0
+        initial lorentz factor
+    xiN
+        fraction of electrons that get accelerated. Defaults to 1.
+    kwargs
+        additional keyword arguments
+    res
+        resolution - set dynamically based on afterglow properties by default, but can be set manually to a specific number.
+    steps
+        number of steps used to resolve Gamma and dm. Defaults to 250 but can be set manually.
+    k
+        power law index of density profile. Defaults to 0 for constant density. Can be set to 2 for wind-like density profile.
+    expansion
+        0 or 1 to dictate whether to include expansion effects. Defaults to 1
+    ss
+        Index of energy outside core. Defaults to 3
+    aa
+        Index of Lorentz factor outside the core. Defaults to 3
+    output_format
+        Whether to output flux density or AB mag
+    frequency
+        frequency in Hz for the flux density calculation
+    cosmology
+        Cosmology to use for luminosity distance calculation. Defaults to Planck18. Must be a astropy.cosmology object.
+
+    Returns
+    -------
+        flux density or AB mag. Note this is going to give the monochromatic magnitude at the effective frequency for the band. For a proper calculation of the magntitude use the sed variant models.
     """
     frequency = kwargs['frequency']
     if isinstance(frequency, float):
@@ -1481,36 +1788,62 @@ def doublegaussian_redback_refreshed(time, redshift, thv, loge0, thc, thj, g1, e
     Based on Lamb et al. 2019 and other work.
     Look at the RedbackAfterglowRefreshed class for more details/implementation.
 
-    :param time: time in days
-    :param redshift: source redshift
-    :param thv: observer viewing angle in radians
-    :param loge0: jet energy in \\log_{10} ergs
-    :param thc: jet core size in radians
-    :param thj: jet edge in radians (thc < thj < pi/2)
-    :param g1: Lorentz factor of shell at start of energy injection. 2 <= g1 < g0
-    :param et: factor by which total kinetic energy is larger
-    :param s1: index for energy injection; typically between 0--10, some higher values, ~<30, are supported for some structures.
-        Values of ~10 are consistent with a discrete shock interaction, see Lamb, Levan & Tanvir 2020
-    :param logn0: ism number density in \\log_{10} cm^-3 or \\log_{10} A* for wind-like density profile
-    :param p: electron power law index
-    :param logepse: partition fraction in electrons
-    :param logepsb: partition fraction in magnetic field
-    :param g0: initial lorentz factor
-    :param xiN: fraction of electrons that get accelerated. Defaults to 1.
-    :param kwargs: additional keyword arguments
-    :param res: resolution - set dynamically based on afterglow properties by default,
-            but can be set manually to a specific number.
-    :param steps: number of steps used to resolve Gamma and dm. Defaults to 250 but can be set manually.
-    :param k: power law index of density profile. Defaults to 0 for constant density.
-        Can be set to 2 for wind-like density profile.
-    :param expansion: 0 or 1 to dictate whether to include expansion effects. Defaults to 1
-    :param ss: Fractional contribution of energy to second Gaussian. Defaults to 0.1, must be less than 1.
-    :param aa: Lorentz factor for second Gaussian, must be less than 1.
-    :param output_format: Whether to output flux density or AB mag
-    :param frequency: frequency in Hz for the flux density calculation
-    :param cosmology: Cosmology to use for luminosity distance calculation. Defaults to Planck18. Must be a astropy.cosmology object.
-    :return: flux density or AB mag. Note this is going to give the monochromatic magnitude at the effective frequency for the band.
-        For a proper calculation of the magntitude use the sed variant models.
+    Parameters
+    ----------
+    time
+        time in days
+    redshift
+        source redshift
+    thv
+        observer viewing angle in radians
+    loge0
+        jet energy in \\log_{10} ergs
+    thc
+        jet core size in radians
+    thj
+        jet edge in radians (thc < thj < pi/2)
+    g1
+        Lorentz factor of shell at start of energy injection. 2 <= g1 < g0
+    et
+        factor by which total kinetic energy is larger
+    s1
+        index for energy injection; typically between 0--10, some higher values, ~<30, are supported for some structures. Values of ~10 are consistent with a discrete shock interaction, see Lamb, Levan & Tanvir 2020
+    logn0
+        ism number density in \\log_{10} cm^-3 or \\log_{10} A* for wind-like density profile
+    p
+        electron power law index
+    logepse
+        partition fraction in electrons
+    logepsb
+        partition fraction in magnetic field
+    g0
+        initial lorentz factor
+    xiN
+        fraction of electrons that get accelerated. Defaults to 1.
+    kwargs
+        additional keyword arguments
+    res
+        resolution - set dynamically based on afterglow properties by default, but can be set manually to a specific number.
+    steps
+        number of steps used to resolve Gamma and dm. Defaults to 250 but can be set manually.
+    k
+        power law index of density profile. Defaults to 0 for constant density. Can be set to 2 for wind-like density profile.
+    expansion
+        0 or 1 to dictate whether to include expansion effects. Defaults to 1
+    ss
+        Fractional contribution of energy to second Gaussian. Defaults to 0.1, must be less than 1.
+    aa
+        Lorentz factor for second Gaussian, must be less than 1.
+    output_format
+        Whether to output flux density or AB mag
+    frequency
+        frequency in Hz for the flux density calculation
+    cosmology
+        Cosmology to use for luminosity distance calculation. Defaults to Planck18. Must be a astropy.cosmology object.
+
+    Returns
+    -------
+        flux density or AB mag. Note this is going to give the monochromatic magnitude at the effective frequency for the band. For a proper calculation of the magntitude use the sed variant models.
     """
     frequency = kwargs['frequency']
     if isinstance(frequency, float):
@@ -1552,31 +1885,54 @@ def cocoon(time, redshift, umax, umin, loge0, k, mej, logn0, p, logepse, logepsb
     """
     A cocoon afterglow model from afterglowpy
 
-    :param time: time in days in observer frame
-    :param redshift: source redshift
-    :param umax: initial outflow 4 velocity maximum
-    :param umin: minimum outflow 4 velocity
-    :param loge0: log10 fidicial energy in velocity distribution E(>u) = E0u^-k in erg
-    :param k: power law index of energy velocity distribution
-    :param mej: mass of material at umax in solar masses
-    :param logn0: log10 number density of ISM in cm^-3
-    :param p: electron distribution power law index. Must be greater than 2.
-    :param logepse: log10 fraction of thermal energy in electrons
-    :param logepsb: log10 fraction of thermal energy in magnetic field
-    :param ksin: fraction of electrons that get accelerated
-    :param g0: initial lorentz factor
-    :param kwargs: Additional keyword arguments
-    :param spread: whether jet can spread, defaults to False
-    :param latres: latitudinal resolution for structured jets, defaults to 2
-    :param tres: time resolution of shock evolution, defaults to 100
-    :param spectype: whether to have inverse compton, defaults to 0, i.e., no inverse compton.
-        Change to 1 for including inverse compton emission.
-    :param l0, ts, q: energy injection parameters, defaults to 0
-    :param output_format: Whether to output flux density or AB mag
-    :param frequency: frequency in Hz for the flux density calculation
-    :param cosmology: Cosmology to use for luminosity distance calculation. Defaults to Planck18. Must be a astropy.cosmology object.
-    :return: flux density or AB mag. Note this is going to give the monochromatic magnitude at the effective frequency for the band.
-        For a proper calculation of the magntitude use the sed variant models.
+    Parameters
+    ----------
+    time
+        time in days in observer frame
+    redshift
+        source redshift
+    umax
+        initial outflow 4 velocity maximum
+    umin
+        minimum outflow 4 velocity
+    loge0
+        log10 fidicial energy in velocity distribution E(>u) = E0u^-k in erg
+    k
+        power law index of energy velocity distribution
+    mej
+        mass of material at umax in solar masses
+    logn0
+        log10 number density of ISM in cm^-3
+    p
+        electron distribution power law index. Must be greater than 2.
+    logepse
+        log10 fraction of thermal energy in electrons
+    logepsb
+        log10 fraction of thermal energy in magnetic field
+    ksin
+        fraction of electrons that get accelerated
+    g0
+        initial lorentz factor
+    kwargs
+        Additional keyword arguments
+    spread
+        whether jet can spread, defaults to False
+    latres
+        latitudinal resolution for structured jets, defaults to 2
+    tres
+        time resolution of shock evolution, defaults to 100
+    spectype
+        whether to have inverse compton, defaults to 0, i.e., no inverse compton. Change to 1 for including inverse compton emission.
+    output_format
+        Whether to output flux density or AB mag
+    frequency
+        frequency in Hz for the flux density calculation
+    cosmology
+        Cosmology to use for luminosity distance calculation. Defaults to Planck18. Must be a astropy.cosmology object.
+
+    Returns
+    -------
+        flux density or AB mag. Note this is going to give the monochromatic magnitude at the effective frequency for the band. For a proper calculation of the magntitude use the sed variant models.
     """
     time = time * day_to_s
     cosmology = kwargs.get('cosmology', cosmo)
@@ -1609,31 +1965,54 @@ def kilonova_afterglow(time, redshift, umax, umin, loge0, k, mej, logn0, p, loge
     """
     A kilonova afterglow model from afterglowpy, similar to cocoon but with constraints.
 
-    :param time: time in days in observer frame
-    :param redshift: source redshift
-    :param umax: initial outflow 4 velocity maximum
-    :param umin: minimum outflow 4 velocity
-    :param loge0: log10 fidicial energy in velocity distribution E(>u) = E0u^-k in erg
-    :param k: power law index of energy velocity distribution
-    :param mej: mass of material at umax in solar masses
-    :param logn0: log10 number density of ISM in cm^-3
-    :param p: electron distribution power law index. Must be greater than 2.
-    :param logepse: log10 fraction of thermal energy in electrons
-    :param logepsb: log10 fraction of thermal energy in magnetic field
-    :param ksin: fraction of electrons that get accelerated
-    :param g0: initial lorentz factor
-    :param kwargs: Additional keyword arguments
-    :param spread: whether jet can spread, defaults to False
-    :param latres: latitudinal resolution for structured jets, defaults to 2
-    :param tres: time resolution of shock evolution, defaults to 100
-    :param spectype: whether to have inverse compton, defaults to 0, i.e., no inverse compton.
-        Change to 1 for including inverse compton emission.
-    :param l0, ts, q: energy injection parameters, defaults to 0
-    :param output_format: Whether to output flux density or AB mag
-    :param frequency: frequency in Hz for the flux density calculation
-    :param cosmology: Cosmology to use for luminosity distance calculation. Defaults to Planck18. Must be a astropy.cosmology object.
-    :return: flux density or AB mag. Note this is going to give the monochromatic magnitude at the effective frequency for the band.
-        For a proper calculation of the magntitude use the sed variant models.
+    Parameters
+    ----------
+    time
+        time in days in observer frame
+    redshift
+        source redshift
+    umax
+        initial outflow 4 velocity maximum
+    umin
+        minimum outflow 4 velocity
+    loge0
+        log10 fidicial energy in velocity distribution E(>u) = E0u^-k in erg
+    k
+        power law index of energy velocity distribution
+    mej
+        mass of material at umax in solar masses
+    logn0
+        log10 number density of ISM in cm^-3
+    p
+        electron distribution power law index. Must be greater than 2.
+    logepse
+        log10 fraction of thermal energy in electrons
+    logepsb
+        log10 fraction of thermal energy in magnetic field
+    ksin
+        fraction of electrons that get accelerated
+    g0
+        initial lorentz factor
+    kwargs
+        Additional keyword arguments
+    spread
+        whether jet can spread, defaults to False
+    latres
+        latitudinal resolution for structured jets, defaults to 2
+    tres
+        time resolution of shock evolution, defaults to 100
+    spectype
+        whether to have inverse compton, defaults to 0, i.e., no inverse compton. Change to 1 for including inverse compton emission.
+    output_format
+        Whether to output flux density or AB mag
+    frequency
+        frequency in Hz for the flux density calculation
+    cosmology
+        Cosmology to use for luminosity distance calculation. Defaults to Planck18. Must be a astropy.cosmology object.
+
+    Returns
+    -------
+        flux density or AB mag. Note this is going to give the monochromatic magnitude at the effective frequency for the band. For a proper calculation of the magntitude use the sed variant models.
     """
     output = cocoon(time=time, redshift=redshift, umax=umax, umin=umin, loge0=loge0,
                     k=k, mej=mej, logn0=logn0,p=p,logepse=logepse,logepsb=logepsb,
@@ -1645,30 +2024,52 @@ def cone_afterglow(time, redshift, thv, loge0, thw, thc, logn0, p, logepse, loge
     """
     A cone afterglow model from afterglowpy
 
-    :param time: time in days in observer frame
-    :param redshift: source redshift
-    :param thv: viewing angle in radians
-    :param loge0: log10 on axis isotropic equivalent energy
-    :param thw: wing truncation angle of jet thw = thw*thc
-    :param thc: half width of jet core in radians
-    :param logn0: log10 number density of ISM in cm^-3
-    :param p: electron distribution power law index. Must be greater than 2.
-    :param logepse: log10 fraction of thermal energy in electrons
-    :param logepsb: log10 fraction of thermal energy in magnetic field
-    :param ksin: fraction of electrons that get accelerated
-    :param g0: initial lorentz factor
-    :param kwargs: Additional keyword arguments
-    :param spread: whether jet can spread, defaults to False
-    :param latres: latitudinal resolution for structured jets, defaults to 2
-    :param tres: time resolution of shock evolution, defaults to 100
-    :param spectype: whether to have inverse compton, defaults to 0, i.e., no inverse compton.
-        Change to 1 for including inverse compton emission.
-    :param l0, ts, q: energy injection parameters, defaults to 0
-    :param output_format: Whether to output flux density or AB mag
-    :param frequency: frequency in Hz for the flux density calculation
-    :param cosmology: Cosmology to use for luminosity distance calculation. Defaults to Planck18. Must be a astropy.cosmology object.
-    :return: flux density or AB mag. Note this is going to give the monochromatic magnitude at the effective frequency for the band.
-        For a proper calculation of the magntitude use the sed variant models.
+    Parameters
+    ----------
+    time
+        time in days in observer frame
+    redshift
+        source redshift
+    thv
+        viewing angle in radians
+    loge0
+        log10 on axis isotropic equivalent energy
+    thw
+        wing truncation angle of jet thw = thw*thc
+    thc
+        half width of jet core in radians
+    logn0
+        log10 number density of ISM in cm^-3
+    p
+        electron distribution power law index. Must be greater than 2.
+    logepse
+        log10 fraction of thermal energy in electrons
+    logepsb
+        log10 fraction of thermal energy in magnetic field
+    ksin
+        fraction of electrons that get accelerated
+    g0
+        initial lorentz factor
+    kwargs
+        Additional keyword arguments
+    spread
+        whether jet can spread, defaults to False
+    latres
+        latitudinal resolution for structured jets, defaults to 2
+    tres
+        time resolution of shock evolution, defaults to 100
+    spectype
+        whether to have inverse compton, defaults to 0, i.e., no inverse compton. Change to 1 for including inverse compton emission.
+    output_format
+        Whether to output flux density or AB mag
+    frequency
+        frequency in Hz for the flux density calculation
+    cosmology
+        Cosmology to use for luminosity distance calculation. Defaults to Planck18. Must be a astropy.cosmology object.
+
+    Returns
+    -------
+        flux density or AB mag. Note this is going to give the monochromatic magnitude at the effective frequency for the band. For a proper calculation of the magntitude use the sed variant models.
     """
     time = time * day_to_s
     cosmology = kwargs.get('cosmology', cosmo)
@@ -1702,30 +2103,52 @@ def gaussiancore(time, redshift, thv, loge0, thc, thw, logn0, p, logepse, logeps
     """
     A gaussiancore model from afterglowpy
 
-    :param time: time in days in observer frame
-    :param redshift: source redshift
-    :param thv: viewing angle in radians
-    :param loge0: log10 on axis isotropic equivalent energy
-    :param thw: wing truncation angle of jet thw = thw*thc
-    :param thc: half width of jet core in radians
-    :param logn0: log10 number density of ISM in cm^-3
-    :param p: electron distribution power law index. Must be greater than 2.
-    :param logepse: log10 fraction of thermal energy in electrons
-    :param logepsb: log10 fraction of thermal energy in magnetic field
-    :param ksin: fraction of electrons that get accelerated
-    :param g0: initial lorentz factor
-    :param kwargs: Additional keyword arguments
-    :param spread: whether jet can spread, defaults to False
-    :param latres: latitudinal resolution for structured jets, defaults to 2
-    :param tres: time resolution of shock evolution, defaults to 100
-    :param spectype: whether to have inverse compton, defaults to 0, i.e., no inverse compton.
-        Change to 1 for including inverse compton emission.
-    :param l0, ts, q: energy injection parameters, defaults to 0
-    :param output_format: Whether to output flux density or AB mag
-    :param frequency: frequency in Hz for the flux density calculation
-    :param cosmology: Cosmology to use for luminosity distance calculation. Defaults to Planck18. Must be a astropy.cosmology object.
-    :return: flux density or AB mag. Note this is going to give the monochromatic magnitude at the effective frequency for the band.
-        For a proper calculation of the magntitude use the sed variant models.
+    Parameters
+    ----------
+    time
+        time in days in observer frame
+    redshift
+        source redshift
+    thv
+        viewing angle in radians
+    loge0
+        log10 on axis isotropic equivalent energy
+    thw
+        wing truncation angle of jet thw = thw*thc
+    thc
+        half width of jet core in radians
+    logn0
+        log10 number density of ISM in cm^-3
+    p
+        electron distribution power law index. Must be greater than 2.
+    logepse
+        log10 fraction of thermal energy in electrons
+    logepsb
+        log10 fraction of thermal energy in magnetic field
+    ksin
+        fraction of electrons that get accelerated
+    g0
+        initial lorentz factor
+    kwargs
+        Additional keyword arguments
+    spread
+        whether jet can spread, defaults to False
+    latres
+        latitudinal resolution for structured jets, defaults to 2
+    tres
+        time resolution of shock evolution, defaults to 100
+    spectype
+        whether to have inverse compton, defaults to 0, i.e., no inverse compton. Change to 1 for including inverse compton emission.
+    output_format
+        Whether to output flux density or AB mag
+    frequency
+        frequency in Hz for the flux density calculation
+    cosmology
+        Cosmology to use for luminosity distance calculation. Defaults to Planck18. Must be a astropy.cosmology object.
+
+    Returns
+    -------
+        flux density or AB mag. Note this is going to give the monochromatic magnitude at the effective frequency for the band. For a proper calculation of the magntitude use the sed variant models.
     """
     time = time * day_to_s
     cosmology = kwargs.get('cosmology', cosmo)
@@ -1760,30 +2183,52 @@ def gaussian(time, redshift, thv, loge0, thw, thc, logn0, p, logepse, logepsb, k
     """
     A gaussian structured jet model from afterglowpy
 
-    :param time: time in days in observer frame
-    :param redshift: source redshift
-    :param thv: viewing angle in radians
-    :param loge0: log10 on axis isotropic equivalent energy
-    :param thw: wing truncation angle of jet thw = thw*thc
-    :param thc: half width of jet core in radians
-    :param logn0: log10 number density of ISM in cm^-3
-    :param p: electron distribution power law index. Must be greater than 2.
-    :param logepse: log10 fraction of thermal energy in electrons
-    :param logepsb: log10 fraction of thermal energy in magnetic field
-    :param ksin: fraction of electrons that get accelerated
-    :param g0: initial lorentz factor
-    :param kwargs: Additional keyword arguments
-    :param spread: whether jet can spread, defaults to False
-    :param latres: latitudinal resolution for structured jets, defaults to 2
-    :param tres: time resolution of shock evolution, defaults to 100
-    :param spectype: whether to have inverse compton, defaults to 0, i.e., no inverse compton.
-        Change to 1 for including inverse compton emission.
-    :param l0, ts, q: energy injection parameters, defaults to 0
-    :param output_format: Whether to output flux density or AB mag
-    :param frequency: frequency in Hz for the flux density calculation
-    :param cosmology: Cosmology to use for luminosity distance calculation. Defaults to Planck18. Must be a astropy.cosmology object.
-    :return: flux density or AB mag. Note this is going to give the monochromatic magnitude at the effective frequency for the band.
-        For a proper calculation of the magntitude use the sed variant models.
+    Parameters
+    ----------
+    time
+        time in days in observer frame
+    redshift
+        source redshift
+    thv
+        viewing angle in radians
+    loge0
+        log10 on axis isotropic equivalent energy
+    thw
+        wing truncation angle of jet thw = thw*thc
+    thc
+        half width of jet core in radians
+    logn0
+        log10 number density of ISM in cm^-3
+    p
+        electron distribution power law index. Must be greater than 2.
+    logepse
+        log10 fraction of thermal energy in electrons
+    logepsb
+        log10 fraction of thermal energy in magnetic field
+    ksin
+        fraction of electrons that get accelerated
+    g0
+        initial lorentz factor
+    kwargs
+        Additional keyword arguments
+    spread
+        whether jet can spread, defaults to False
+    latres
+        latitudinal resolution for structured jets, defaults to 2
+    tres
+        time resolution of shock evolution, defaults to 100
+    spectype
+        whether to have inverse compton, defaults to 0, i.e., no inverse compton. Change to 1 for including inverse compton emission.
+    output_format
+        Whether to output flux density or AB mag
+    frequency
+        frequency in Hz for the flux density calculation
+    cosmology
+        Cosmology to use for luminosity distance calculation. Defaults to Planck18. Must be a astropy.cosmology object.
+
+    Returns
+    -------
+        flux density or AB mag. Note this is going to give the monochromatic magnitude at the effective frequency for the band. For a proper calculation of the magntitude use the sed variant models.
     """
     time = time * day_to_s
     cosmology = kwargs.get('cosmology', cosmo)
@@ -1817,31 +2262,54 @@ def smoothpowerlaw(time, redshift, thv, loge0, thw, thc, beta, logn0, p, logepse
     """
     A smoothpowerlaw structured jet model from afterglowpy
 
-    :param time: time in days in observer frame
-    :param redshift: source redshift
-    :param thv: viewing angle in radians
-    :param loge0: log10 on axis isotropic equivalent energy
-    :param thw: wing truncation angle of jet thw = thw*thc
-    :param thc: half width of jet core in radians
-    :param beta: index for power-law structure, theta^-b
-    :param logn0: log10 number density of ISM in cm^-3
-    :param p: electron distribution power law index. Must be greater than 2.
-    :param logepse: log10 fraction of thermal energy in electrons
-    :param logepsb: log10 fraction of thermal energy in magnetic field
-    :param ksin: fraction of electrons that get accelerated
-    :param g0: initial lorentz factor
-    :param kwargs: Additional keyword arguments
-    :param spread: whether jet can spread, defaults to False
-    :param latres: latitudinal resolution for structured jets, defaults to 2
-    :param tres: time resolution of shock evolution, defaults to 100
-    :param spectype: whether to have inverse compton, defaults to 0, i.e., no inverse compton.
-        Change to 1 for including inverse compton emission.
-    :param l0, ts, q: energy injection parameters, defaults to 0
-    :param output_format: Whether to output flux density or AB mag
-    :param frequency: frequency in Hz for the flux density calculation
-    :param cosmology: Cosmology to use for luminosity distance calculation. Defaults to Planck18. Must be a astropy.cosmology object.
-    :return: flux density or AB mag. Note this is going to give the monochromatic magnitude at the effective frequency for the band.
-        For a proper calculation of the magntitude use the sed variant models.
+    Parameters
+    ----------
+    time
+        time in days in observer frame
+    redshift
+        source redshift
+    thv
+        viewing angle in radians
+    loge0
+        log10 on axis isotropic equivalent energy
+    thw
+        wing truncation angle of jet thw = thw*thc
+    thc
+        half width of jet core in radians
+    beta
+        index for power-law structure, theta^-b
+    logn0
+        log10 number density of ISM in cm^-3
+    p
+        electron distribution power law index. Must be greater than 2.
+    logepse
+        log10 fraction of thermal energy in electrons
+    logepsb
+        log10 fraction of thermal energy in magnetic field
+    ksin
+        fraction of electrons that get accelerated
+    g0
+        initial lorentz factor
+    kwargs
+        Additional keyword arguments
+    spread
+        whether jet can spread, defaults to False
+    latres
+        latitudinal resolution for structured jets, defaults to 2
+    tres
+        time resolution of shock evolution, defaults to 100
+    spectype
+        whether to have inverse compton, defaults to 0, i.e., no inverse compton. Change to 1 for including inverse compton emission.
+    output_format
+        Whether to output flux density or AB mag
+    frequency
+        frequency in Hz for the flux density calculation
+    cosmology
+        Cosmology to use for luminosity distance calculation. Defaults to Planck18. Must be a astropy.cosmology object.
+
+    Returns
+    -------
+        flux density or AB mag. Note this is going to give the monochromatic magnitude at the effective frequency for the band. For a proper calculation of the magntitude use the sed variant models.
     """
     time = time * day_to_s
     cosmology = kwargs.get('cosmology', cosmo)
@@ -1875,31 +2343,54 @@ def powerlawcore(time, redshift, thv, loge0, thw, thc, beta, logn0, p, logepse, 
     """
     A power law with core structured jet model from afterglowpy
 
-    :param time: time in days in observer frame
-    :param redshift: source redshift
-    :param thv: viewing angle in radians
-    :param loge0: log10 on axis isotropic equivalent energy
-    :param thw: wing truncation angle of jet thw = thw*thc
-    :param thc: half width of jet core in radians
-    :param beta: index for power-law structure, theta^-b
-    :param logn0: log10 number density of ISM in cm^-3
-    :param p: electron distribution power law index. Must be greater than 2.
-    :param logepse: log10 fraction of thermal energy in electrons
-    :param logepsb: log10 fraction of thermal energy in magnetic field
-    :param ksin: fraction of electrons that get accelerated
-    :param g0: initial lorentz factor
-    :param kwargs: Additional keyword arguments
-    :param spread: whether jet can spread, defaults to False
-    :param latres: latitudinal resolution for structured jets, defaults to 2
-    :param tres: time resolution of shock evolution, defaults to 100
-    :param spectype: whether to have inverse compton, defaults to 0, i.e., no inverse compton.
-        Change to 1 for including inverse compton emission.
-    :param l0, ts, q: energy injection parameters, defaults to 0
-    :param output_format: Whether to output flux density or AB mag
-    :param frequency: frequency in Hz for the flux density calculation
-    :param cosmology: Cosmology to use for luminosity distance calculation. Defaults to Planck18. Must be a astropy.cosmology object.
-    :return: flux density or AB mag. Note this is going to give the monochromatic magnitude at the effective frequency for the band.
-        For a proper calculation of the magntitude use the sed variant models.
+    Parameters
+    ----------
+    time
+        time in days in observer frame
+    redshift
+        source redshift
+    thv
+        viewing angle in radians
+    loge0
+        log10 on axis isotropic equivalent energy
+    thw
+        wing truncation angle of jet thw = thw*thc
+    thc
+        half width of jet core in radians
+    beta
+        index for power-law structure, theta^-b
+    logn0
+        log10 number density of ISM in cm^-3
+    p
+        electron distribution power law index. Must be greater than 2.
+    logepse
+        log10 fraction of thermal energy in electrons
+    logepsb
+        log10 fraction of thermal energy in magnetic field
+    ksin
+        fraction of electrons that get accelerated
+    g0
+        initial lorentz factor
+    kwargs
+        Additional keyword arguments
+    spread
+        whether jet can spread, defaults to False
+    latres
+        latitudinal resolution for structured jets, defaults to 2
+    tres
+        time resolution of shock evolution, defaults to 100
+    spectype
+        whether to have inverse compton, defaults to 0, i.e., no inverse compton. Change to 1 for including inverse compton emission.
+    output_format
+        Whether to output flux density or AB mag
+    frequency
+        frequency in Hz for the flux density calculation
+    cosmology
+        Cosmology to use for luminosity distance calculation. Defaults to Planck18. Must be a astropy.cosmology object.
+
+    Returns
+    -------
+        flux density or AB mag. Note this is going to give the monochromatic magnitude at the effective frequency for the band. For a proper calculation of the magntitude use the sed variant models.
     """
     time = time * day_to_s
     cosmology = kwargs.get('cosmology', cosmo)
@@ -1934,29 +2425,50 @@ def tophat(time, redshift, thv, loge0, thc, logn0, p, logepse, logepsb, ksin, g0
     """
     A tophat jet model from afterglowpy
 
-    :param time: time in days in observer frame
-    :param redshift: source redshift
-    :param thv: viewing angle in radians
-    :param loge0: log10 on axis isotropic equivalent energy
-    :param thc: half width of jet core/jet opening angle in radians
-    :param logn0: log10 number density of ISM in cm^-3
-    :param p: electron distribution power law index. Must be greater than 2.
-    :param logepse: log10 fraction of thermal energy in electrons
-    :param logepsb: log10 fraction of thermal energy in magnetic field
-    :param ksin: fraction of electrons that get accelerated
-    :param g0: initial lorentz factor
-    :param kwargs: Additional keyword arguments
-    :param spread: whether jet can spread, defaults to False
-    :param latres: latitudinal resolution for structured jets, defaults to 2
-    :param tres: time resolution of shock evolution, defaults to 100
-    :param spectype: whether to have inverse compton, defaults to 0, i.e., no inverse compton.
-        Change to 1 for including inverse compton emission.
-    :param l0, ts, q: energy injection parameters, defaults to 0
-    :param output_format: Whether to output flux density or AB mag
-    :param frequency: frequency in Hz for the flux density calculation
-    :param cosmology: Cosmology to use for luminosity distance calculation. Defaults to Planck18. Must be a astropy.cosmology object.
-    :return: flux density or AB mag. Note this is going to give the monochromatic magnitude at the effective frequency for the band.
-        For a proper calculation of the magntitude use the sed variant models. assuming a monochromatic
+    Parameters
+    ----------
+    time
+        time in days in observer frame
+    redshift
+        source redshift
+    thv
+        viewing angle in radians
+    loge0
+        log10 on axis isotropic equivalent energy
+    thc
+        half width of jet core/jet opening angle in radians
+    logn0
+        log10 number density of ISM in cm^-3
+    p
+        electron distribution power law index. Must be greater than 2.
+    logepse
+        log10 fraction of thermal energy in electrons
+    logepsb
+        log10 fraction of thermal energy in magnetic field
+    ksin
+        fraction of electrons that get accelerated
+    g0
+        initial lorentz factor
+    kwargs
+        Additional keyword arguments
+    spread
+        whether jet can spread, defaults to False
+    latres
+        latitudinal resolution for structured jets, defaults to 2
+    tres
+        time resolution of shock evolution, defaults to 100
+    spectype
+        whether to have inverse compton, defaults to 0, i.e., no inverse compton. Change to 1 for including inverse compton emission.
+    output_format
+        Whether to output flux density or AB mag
+    frequency
+        frequency in Hz for the flux density calculation
+    cosmology
+        Cosmology to use for luminosity distance calculation. Defaults to Planck18. Must be a astropy.cosmology object.
+
+    Returns
+    -------
+        flux density or AB mag. Note this is going to give the monochromatic magnitude at the effective frequency for the band. For a proper calculation of the magntitude use the sed variant models. assuming a monochromatic
     """
     time = time * day_to_s
     cosmology = kwargs.get('cosmology', cosmo)
@@ -1991,21 +2503,38 @@ def tophat_from_emulator(time, redshift, thv, loge0, thc, logn0, p, logepse, log
     Evaluate a tophat afterglow model using an mpl regressor. Note that this model predicts for a fixed redshift = 0.01 and fixed ksin = 1.
     This tophat model does not include all of the ususal kwargs
 
-    :param time: time in days in observer frame, should be in range 0.1 to 300
-    :param redshift: source redshift
-    :param thv: viewing angle in radians
-    :param loge0: log10 on axis isotropic equivalent energy
-    :param thc: half width of jet core/jet opening angle in radians
-    :param logn0: log10 number density of ISM in cm^-3
-    :param p: electron distribution power law index. Must be greater than 2.
-    :param logepse: log10 fraction of thermal energy in electrons
-    :param logepsb: log10 fraction of thermal energy in magnetic field
-    :param g0: initial lorentz factor
-    :param kwargs: Additional keyword arguments
-    :param frequency: frequency of the band to view in- single number or same length as time array
-    :param output_format: Whether to output flux density or AB mag, specified by 'flux_density' or 'magnitude'
-    :return: flux density or AB mag predicted by emulator. Note this is going to give the monochromatic magnitude at the effective frequency for the band.
-        For a proper calculation of the magntitude use the sed variant models
+    Parameters
+    ----------
+    time
+        time in days in observer frame, should be in range 0.1 to 300
+    redshift
+        source redshift
+    thv
+        viewing angle in radians
+    loge0
+        log10 on axis isotropic equivalent energy
+    thc
+        half width of jet core/jet opening angle in radians
+    logn0
+        log10 number density of ISM in cm^-3
+    p
+        electron distribution power law index. Must be greater than 2.
+    logepse
+        log10 fraction of thermal energy in electrons
+    logepsb
+        log10 fraction of thermal energy in magnetic field
+    g0
+        initial lorentz factor
+    kwargs
+        Additional keyword arguments
+    frequency
+        frequency of the band to view in- single number or same length as time array
+    output_format
+        Whether to output flux density or AB mag, specified by 'flux_density' or 'magnitude'
+
+    Returns
+    -------
+        flux density or AB mag predicted by emulator. Note this is going to give the monochromatic magnitude at the effective frequency for the band. For a proper calculation of the magntitude use the sed variant models
     """
 
     from redback_surrogates.afterglowmodels import tophat_emulator
@@ -2032,19 +2561,30 @@ def afterglow_models_with_energy_injection(time, **kwargs):
     """
     A base class for afterglowpy models with energy injection.
 
-    :param time: time in days in observer frame
-    :param kwargs: Additional keyword arguments
-    :param spread: whether jet can spread, defaults to False
-    :param latres: latitudinal resolution for structured jets, defaults to 2
-    :param tres: time resolution of shock evolution, defaults to 100
-    :param spectype: whether to have inverse compton, defaults to 0, i.e., no inverse compton.
-        Change to 1 for including inverse compton emission.
-    :param l0, ts, q: energy injection parameters, defaults to 0
-    :param output_format: Whether to output flux density or AB mag
-    :param frequency: frequency in Hz for the flux density calculation
-    :param base_model: A string to indicate the type of jet model to use.
-    :return: flux density or AB mag. Note this is going to give the monochromatic magnitude at the effective frequency for the band.
-        For a proper calculation of the magntitude use the sed variant models.
+    Parameters
+    ----------
+    time
+        time in days in observer frame
+    kwargs
+        Additional keyword arguments
+    spread
+        whether jet can spread, defaults to False
+    latres
+        latitudinal resolution for structured jets, defaults to 2
+    tres
+        time resolution of shock evolution, defaults to 100
+    spectype
+        whether to have inverse compton, defaults to 0, i.e., no inverse compton. Change to 1 for including inverse compton emission.
+    output_format
+        Whether to output flux density or AB mag
+    frequency
+        frequency in Hz for the flux density calculation
+    base_model
+        A string to indicate the type of jet model to use.
+
+    Returns
+    -------
+        flux density or AB mag. Note this is going to give the monochromatic magnitude at the effective frequency for the band. For a proper calculation of the magntitude use the sed variant models.
     """
     from redback.model_library import modules_dict  # import model library in function to avoid circular dependency
     base_model = kwargs['base_model']
@@ -2067,18 +2607,28 @@ def afterglow_models_with_jet_spread(time, **kwargs):
     """
     A base class for afterglow models with jet spreading. Note, with these models you cannot sample in g0.
 
-    :param time: time in days in observer frame
-    :param kwargs: Additional keyword arguments
-    :param latres: latitudinal resolution for structured jets, defaults to 2
-    :param tres: time resolution of shock evolution, defaults to 100
-    :param spectype: whether to have inverse compton, defaults to 0, i.e., no inverse compton.
-        Change to 1 for including inverse compton emission.
-    :param l0, ts, q: energy injection parameters, defaults to 0
-    :param output_format: Whether to output flux density or AB mag
-    :param frequency: frequency in Hz for the flux density calculation
-    :param base_model: A string to indicate the type of jet model to use.
-    :return: flux density or AB mag. Note this is going to give the monochromatic magnitude at the effective frequency for the band.
-        For a proper calculation of the magntitude use the sed variant models.
+    Parameters
+    ----------
+    time
+        time in days in observer frame
+    kwargs
+        Additional keyword arguments
+    latres
+        latitudinal resolution for structured jets, defaults to 2
+    tres
+        time resolution of shock evolution, defaults to 100
+    spectype
+        whether to have inverse compton, defaults to 0, i.e., no inverse compton. Change to 1 for including inverse compton emission.
+    output_format
+        Whether to output flux density or AB mag
+    frequency
+        frequency in Hz for the flux density calculation
+    base_model
+        A string to indicate the type of jet model to use.
+
+    Returns
+    -------
+        flux density or AB mag. Note this is going to give the monochromatic magnitude at the effective frequency for the band. For a proper calculation of the magntitude use the sed variant models.
     """
     from redback.model_library import modules_dict  # import model library in function to avoid circular dependency
     base_model = kwargs['base_model']
@@ -2101,18 +2651,32 @@ def afterglow_models_sed(time, **kwargs):
     """
     A base class for afterglowpy models for bandpass magnitudes/flux/spectra/sncosmo source.
 
-    :param time: time in days in observer frame
-    :param kwargs: Additional keyword arguments, must be all parameters required by the base model and the following:
-    :param base_model: A string to indicate the type of jet model to use.
-    :param spread: whether jet can spread, defaults to False
-    :param latres: latitudinal resolution for structured jets, defaults to 2
-    :param tres: time resolution of shock evolution, defaults to 100
-    :param spectype: whether to have inverse compton, defaults to 0, i.e., no inverse compton.
-        Change to 1 for including inverse compton emission.
-    :param bands: Required if output_format is 'magnitude' or 'flux'.
-    :param output_format: 'magnitude', 'spectra', 'flux', 'sncosmo_source'
-    :param lambda_array: Optional argument to set your desired wavelength array (in Angstroms) to evaluate the SED on.
-    :return: set by output format - 'magnitude', 'spectra', 'flux', 'sncosmo_source'
+    Parameters
+    ----------
+    time
+        time in days in observer frame
+    kwargs
+        Additional keyword arguments, must be all parameters required by the base model and the following:
+    base_model
+        A string to indicate the type of jet model to use.
+    spread
+        whether jet can spread, defaults to False
+    latres
+        latitudinal resolution for structured jets, defaults to 2
+    tres
+        time resolution of shock evolution, defaults to 100
+    spectype
+        whether to have inverse compton, defaults to 0, i.e., no inverse compton. Change to 1 for including inverse compton emission.
+    bands
+        Required if output_format is 'magnitude' or 'flux'.
+    output_format
+        'magnitude', 'spectra', 'flux', 'sncosmo_source'
+    lambda_array
+        Optional argument to set your desired wavelength array (in Angstroms) to evaluate the SED on.
+
+    Returns
+    -------
+        set by output format - 'magnitude', 'spectra', 'flux', 'sncosmo_source'
     """
     from redback.model_library import modules_dict  # import model library in function to avoid circular dependency
     base_model = kwargs['base_model']
@@ -2150,22 +2714,43 @@ def afterglow_models_sed(time, **kwargs):
 def jetsimpy_tophat(time, redshift, thv, loge0, thc, nism, A, p, logepse, logepsb, g0, **kwargs):
     """
     A tophat jet model from jetsimpy
-    :param time: time in days in observer frame
-    :param redshift: source redshift
-    :param thv: viewing angle in radians
-    :param loge0: log10 on axis isotropic equivalent energy
-    :param thc: half width of jet core/jet opening angle in radians
-    :param nism: number density of ISM in cm^-3 (ntot = A * (r / 1e17)^-2 + nism (cm^-3))
-    :param A: wind density scale (ntot = A * (r / 1e17)^-2 + nism (cm^-3))
-    :param p: electron distribution power law index.
-    :param logepse: log10 fraction of thermal energy in electrons
-    :param logepsb: log10 fraction of thermal energy in magnetic field
-    :param g0: initial lorentz factor
-    :param kwargs: Additional keyword arguments
-    :param output_format: Whether to output flux density or AB mag
-    :param frequency: frequency in Hz for the flux density calculation
-    :param cosmology: Cosmology to use for luminosity distance calculation. Defaults to Planck18. Must be a astropy.cosmology object.
-    :return: flux density or AB mag. Note this is going to give the monochromatic magnitude at the effective frequency for the band.
+
+    Parameters
+    ----------
+    time
+        time in days in observer frame
+    redshift
+        source redshift
+    thv
+        viewing angle in radians
+    loge0
+        log10 on axis isotropic equivalent energy
+    thc
+        half width of jet core/jet opening angle in radians
+    nism
+        number density of ISM in cm^-3 (ntot = A * (r / 1e17)^-2 + nism (cm^-3))
+    A
+        wind density scale (ntot = A * (r / 1e17)^-2 + nism (cm^-3))
+    p
+        electron distribution power law index.
+    logepse
+        log10 fraction of thermal energy in electrons
+    logepsb
+        log10 fraction of thermal energy in magnetic field
+    g0
+        initial lorentz factor
+    kwargs
+        Additional keyword arguments
+    output_format
+        Whether to output flux density or AB mag
+    frequency
+        frequency in Hz for the flux density calculation
+    cosmology
+        Cosmology to use for luminosity distance calculation. Defaults to Planck18. Must be a astropy.cosmology object.
+
+    Returns
+    -------
+        flux density or AB mag. Note this is going to give the monochromatic magnitude at the effective frequency for the band.
     """
     import jetsimpy #Can not use models unless jetsimpy is downloaded
     time = time * day_to_s
@@ -2185,22 +2770,43 @@ def jetsimpy_tophat(time, redshift, thv, loge0, thc, nism, A, p, logepse, logeps
 def jetsimpy_gaussian(time, redshift, thv, loge0, thc, nism, A, p, logepse, logepsb, g0, **kwargs):
     """
     A gaussian jet model from jetsimpy
-    :param time: time in days in observer frame
-    :param redshift: source redshift
-    :param thv: viewing angle in radians
-    :param loge0: log10 on axis isotropic equivalent energy
-    :param thc: half width of jet core/jet opening angle in radians
-    :param nism: number density of ISM in cm^-3 (ntot = A * (r / 1e17)^-2 + nism (cm^-3))
-    :param A: wind density scale (ntot = A * (r / 1e17)^-2 + nism (cm^-3))
-    :param p: electron distribution power law index.
-    :param logepse: log10 fraction of thermal energy in electrons
-    :param logepsb: log10 fraction of thermal energy in magnetic field
-    :param g0: initial lorentz factor
-    :param kwargs: Additional keyword arguments
-    :param output_format: Whether to output flux density or AB mag
-    :param frequency: frequency in Hz for the flux density calculation
-    :param cosmology: Cosmology to use for luminosity distance calculation. Defaults to Planck18. Must be a astropy.cosmology object.
-    :return: flux density or AB mag. Note this is going to give the monochromatic magnitude at the effective frequency for the band.
+
+    Parameters
+    ----------
+    time
+        time in days in observer frame
+    redshift
+        source redshift
+    thv
+        viewing angle in radians
+    loge0
+        log10 on axis isotropic equivalent energy
+    thc
+        half width of jet core/jet opening angle in radians
+    nism
+        number density of ISM in cm^-3 (ntot = A * (r / 1e17)^-2 + nism (cm^-3))
+    A
+        wind density scale (ntot = A * (r / 1e17)^-2 + nism (cm^-3))
+    p
+        electron distribution power law index.
+    logepse
+        log10 fraction of thermal energy in electrons
+    logepsb
+        log10 fraction of thermal energy in magnetic field
+    g0
+        initial lorentz factor
+    kwargs
+        Additional keyword arguments
+    output_format
+        Whether to output flux density or AB mag
+    frequency
+        frequency in Hz for the flux density calculation
+    cosmology
+        Cosmology to use for luminosity distance calculation. Defaults to Planck18. Must be a astropy.cosmology object.
+
+    Returns
+    -------
+        flux density or AB mag. Note this is going to give the monochromatic magnitude at the effective frequency for the band.
     """
     import jetsimpy #Can not use models unless jetsimpy is downloaded
     time = time * day_to_s
@@ -2220,23 +2826,45 @@ def jetsimpy_gaussian(time, redshift, thv, loge0, thc, nism, A, p, logepse, loge
 def jetsimpy_powerlaw(time, redshift, thv, loge0, thc, nism, A, p, logepse, logepsb, g0, s, **kwargs):
     """
     A power-law jet model from jetsimpy
-    :param time: time in days in observer frame
-    :param redshift: source redshift
-    :param thv: viewing angle in radians
-    :param loge0: log10 on axis isotropic equivalent energy
-    :param thc: half width of jet core/jet opening angle in radians
-    :param nism: number density of ISM in cm^-3 (ntot = A * (r / 1e17)^-2 + nism (cm^-3))
-    :param A: wind density scale (ntot = A * (r / 1e17)^-2 + nism (cm^-3))
-    :param p: electron distribution power law index.
-    :param logepse: log10 fraction of thermal energy in electrons
-    :param logepsb: log10 fraction of thermal energy in magnetic field
-    :param g0: initial lorentz factor
-    :param s: power-law jet slope
-    :param kwargs: Additional keyword arguments
-    :param output_format: Whether to output flux density or AB mag
-    :param frequency: frequency in Hz for the flux density calculation
-    :param cosmology: Cosmology to use for luminosity distance calculation. Defaults to Planck18. Must be a astropy.cosmology object.
-    :return: flux density or AB mag. Note this is going to give the monochromatic magnitude at the effective frequency for the band.
+
+    Parameters
+    ----------
+    time
+        time in days in observer frame
+    redshift
+        source redshift
+    thv
+        viewing angle in radians
+    loge0
+        log10 on axis isotropic equivalent energy
+    thc
+        half width of jet core/jet opening angle in radians
+    nism
+        number density of ISM in cm^-3 (ntot = A * (r / 1e17)^-2 + nism (cm^-3))
+    A
+        wind density scale (ntot = A * (r / 1e17)^-2 + nism (cm^-3))
+    p
+        electron distribution power law index.
+    logepse
+        log10 fraction of thermal energy in electrons
+    logepsb
+        log10 fraction of thermal energy in magnetic field
+    g0
+        initial lorentz factor
+    s
+        power-law jet slope
+    kwargs
+        Additional keyword arguments
+    output_format
+        Whether to output flux density or AB mag
+    frequency
+        frequency in Hz for the flux density calculation
+    cosmology
+        Cosmology to use for luminosity distance calculation. Defaults to Planck18. Must be a astropy.cosmology object.
+
+    Returns
+    -------
+        flux density or AB mag. Note this is going to give the monochromatic magnitude at the effective frequency for the band.
     """
     import jetsimpy #Can not use models unless jetsimpy is downloaded
     time = time * day_to_s

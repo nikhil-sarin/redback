@@ -14,10 +14,19 @@ from scipy.interpolate import interp1d
 
 def _analytic_fallback(time, l0, t_0):
     """
-    :param time: time in days
-    :param l0: bolometric luminosity at 1 second in cgs
-    :param t_0: turn on time in days (after this time lbol decays as 5/3 powerlaw)
-    :return: bolometric luminosity
+
+    Parameters
+    ----------
+    time
+        time in days
+    l0
+        bolometric luminosity at 1 second in cgs
+    t_0
+        turn on time in days (after this time lbol decays as 5/3 powerlaw)
+
+    Returns
+    -------
+        bolometric luminosity
     """
     mask = time - t_0 > 0.
     lbol = np.zeros(len(time))
@@ -34,14 +43,24 @@ def _cooling_envelope(mbh_6, stellar_mass, eta, alpha, beta, **kwargs):
     Sarin and Metzger 24 cooling envelope model.
     Also includes partial disruptions by assuming only fraction of stellar mass is disrupted.
 
-    :param mbh_6: mass of supermassive black hole in units of 10^6 solar mass
-    :param stellar_mass: stellar mass in units of solar masses
-    :param eta: SMBH feedback efficiency (typical range: etamin - 0.1)
-    :param alpha: disk viscosity
-    :param beta: TDE penetration factor (typical range: 0.1 - beta_max).
-    :param kwargs: Binding energy constant, zeta, hoverR, t_0_init, f_debris (optional, defaults to 1 unless
-                   calculate_f_debris=True), calculate_f_debris (optional, defaults to False).
-    :return: named tuple with bolometric luminosity, photosphere radius, temperature, and other parameters
+    Parameters
+    ----------
+    mbh_6
+        mass of supermassive black hole in units of 10^6 solar mass
+    stellar_mass
+        stellar mass in units of solar masses
+    eta
+        SMBH feedback efficiency (typical range: etamin - 0.1)
+    alpha
+        disk viscosity
+    beta
+        TDE penetration factor (typical range: 0.1 - beta_max).
+    kwargs
+        Binding energy constant, zeta, hoverR, t_0_init, f_debris (optional, defaults to 1 unless calculate_f_debris=True), calculate_f_debris (optional, defaults to False).
+
+    Returns
+    -------
+        named tuple with bolometric luminosity, photosphere radius, temperature, and other parameters
     """
     t_0_init = kwargs.get('t_0_init', 1.0)
     binding_energy_const = kwargs.get('binding_energy_const', 0.8)
@@ -244,21 +263,38 @@ def cooling_envelope(time, redshift, mbh_6, stellar_mass, eta, alpha, beta, **kw
     """
     This model is only valid for time after circulation. Use the gaussianrise_metzgertde model for the full lightcurve
 
-    :param time: time in observer frame in days
-    :param redshift: redshift
-    :param mbh_6: mass of supermassive black hole in units of 10^6 solar mass
-    :param stellar_mass: stellar mass in units of solar masses
-    :param eta: SMBH feedback efficiency (typical range: etamin - 0.1)
-    :param alpha: disk viscosity
-    :param beta: TDE penetration factor (typical range: 1 - beta_max)
-    :param kwargs: Additional parameters, check _cooling_envelope for more information
-    :param frequency: Required if output_format is 'flux_density'.
-        frequency to calculate - Must be same length as time array or a single number).
-    :param bands: Required if output_format is 'magnitude' or 'flux'.
-    :param output_format: 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
-    :param lambda_array: Optional argument to set your desired wavelength array (in Angstroms) to evaluate the SED on.
-    :param cosmology: Cosmology to use for luminosity distance calculation. Defaults to Planck18. Must be a astropy.cosmology object.
-    :return: set by output format - 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
+    Parameters
+    ----------
+    time
+        time in observer frame in days
+    redshift
+        redshift
+    mbh_6
+        mass of supermassive black hole in units of 10^6 solar mass
+    stellar_mass
+        stellar mass in units of solar masses
+    eta
+        SMBH feedback efficiency (typical range: etamin - 0.1)
+    alpha
+        disk viscosity
+    beta
+        TDE penetration factor (typical range: 1 - beta_max)
+    kwargs
+        Additional parameters, check _cooling_envelope for more information
+    frequency
+        Required if output_format is 'flux_density'. frequency to calculate - Must be same length as time array or a single number).
+    bands
+        Required if output_format is 'magnitude' or 'flux'.
+    output_format
+        'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
+    lambda_array
+        Optional argument to set your desired wavelength array (in Angstroms) to evaluate the SED on.
+    cosmology
+        Cosmology to use for luminosity distance calculation. Defaults to Planck18. Must be a astropy.cosmology object.
+
+    Returns
+    -------
+        set by output format - 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
     """
     output = _cooling_envelope(mbh_6, stellar_mass, eta, alpha, beta, **kwargs)
     cosmology = kwargs.get('cosmology', cosmo)
@@ -312,17 +348,28 @@ def gaussianrise_cooling_envelope_bolometric(time, peak_time, sigma_t, mbh_6, st
     Full lightcurve, with gaussian rise till xi * fallback time and then the metzger tde model,
     bolometric version for fitting the bolometric lightcurve
 
-    :param time: time in source frame in days
-    :param peak_time: peak time in days
-    :param sigma_t: the sharpness of the Gaussian in days
-    :param mbh_6: mass of supermassive black hole in units of 10^6 solar mass
-    :param stellar_mass: stellar mass in units of solar masses
-    :param eta: SMBH feedback efficiency (typical range: etamin - 0.1)
-    :param alpha: disk viscosity
-    :param beta: TDE penetration factor (typical range: 1 - beta_max)
-    :param kwargs: Additional parameters, check _cooling_envelope for more information
-    :param xi: Optional, default is 1. transition factor - Gaussian transitions to cooling envelope at xi * tfb
-    :return luminosity in ergs/s
+    Parameters
+    ----------
+    time
+        time in source frame in days
+    peak_time
+        peak time in days
+    sigma_t
+        the sharpness of the Gaussian in days
+    mbh_6
+        mass of supermassive black hole in units of 10^6 solar mass
+    stellar_mass
+        stellar mass in units of solar masses
+    eta
+        SMBH feedback efficiency (typical range: etamin - 0.1)
+    alpha
+        disk viscosity
+    beta
+        TDE penetration factor (typical range: 1 - beta_max)
+    kwargs
+        Additional parameters, check _cooling_envelope for more information
+    xi
+        Optional, default is 1. transition factor - Gaussian transitions to cooling envelope at xi * tfb
     """
     output = _cooling_envelope(mbh_6, stellar_mass, eta, alpha, beta, **kwargs)
     kwargs['binding_energy_const'] = kwargs.get('binding_energy_const', 0.8)
@@ -374,19 +421,32 @@ def smooth_exponential_powerlaw_cooling_envelope_bolometric(time, peak_time, alp
     Full lightcurve, with smoothed exponential power law rise till xi * fallback time and then the metzger tde model,
     bolometric version for fitting the bolometric lightcurve
 
-    :param time: time in source frame in days
-    :param peak_time: peak time in days
-    :param alpha_1: power law index before peak
-    :param alpha_2: power law index after peak
-    :param smoothing_factor: controls transition smoothness at peak (higher = smoother)
-    :param mbh_6: mass of supermassive black hole in units of 10^6 solar mass
-    :param stellar_mass: stellar mass in units of solar masses
-    :param eta: SMBH feedback efficiency (typical range: etamin - 0.1)
-    :param alpha: disk viscosity
-    :param beta: TDE penetration factor (typical range: 1 - beta_max)
-    :param xi: Optional transition factor - smooth exponential power law transitions to cooling envelope at xi * tfb
-    :param kwargs: Additional parameters, check _cooling_envelope for more information
-    :return luminosity in ergs/s
+    Parameters
+    ----------
+    time
+        time in source frame in days
+    peak_time
+        peak time in days
+    alpha_1
+        power law index before peak
+    alpha_2
+        power law index after peak
+    smoothing_factor
+        controls transition smoothness at peak (higher = smoother)
+    mbh_6
+        mass of supermassive black hole in units of 10^6 solar mass
+    stellar_mass
+        stellar mass in units of solar masses
+    eta
+        SMBH feedback efficiency (typical range: etamin - 0.1)
+    alpha
+        disk viscosity
+    beta
+        TDE penetration factor (typical range: 1 - beta_max)
+    xi
+        Optional transition factor - smooth exponential power law transitions to cooling envelope at xi * tfb
+    kwargs
+        Additional parameters, check _cooling_envelope for more information
     """
     # Get cooling envelope output
     output = _cooling_envelope(mbh_6, stellar_mass, eta, alpha, beta, **kwargs)
@@ -438,25 +498,44 @@ def gaussianrise_cooling_envelope(time, redshift, peak_time, sigma_t, mbh_6, ste
     Full lightcurve, with gaussian rise till fallback time and then the metzger tde model,
     photometric version where each band is fit/joint separately
 
-    :param time: time in observer frame in days
-    :param redshift: redshift
-    :param peak_time: peak time in days
-    :param sigma_t: the sharpness of the Gaussian in days
-    :param mbh_6: mass of supermassive black hole in units of 10^6 solar mass
-    :param stellar_mass: stellar mass in units of solar masses
-    :param eta: SMBH feedback efficiency (typical range: etamin - 0.1)
-    :param alpha: disk viscosity
-    :param beta: TDE penetration factor (typical range: 1 - beta_max)
-    :param kwargs: Additional parameters, check _cooling_envelope for more information
-    :param xi: Optional argument (default set to one) to change the point where lightcurve switches from Gaussian rise to cooling envelope.
-        stitching_point = xi * tfb (where tfb is fallback time). So a xi=1 means the stitching point is at fallback time.
-    :param frequency: Required if output_format is 'flux_density'.
-        frequency to calculate - Must be same length as time array or a single number).
-    :param bands: Required if output_format is 'magnitude' or 'flux'.
-    :param output_format: 'flux_density', 'magnitude', 'flux'
-    :param lambda_array: Optional argument to set your desired wavelength array (in Angstroms) to evaluate the SED on.
-    :param cosmology: Cosmology to use for luminosity distance calculation. Defaults to Planck18. Must be a astropy.cosmology object.
-    :return: set by output format - 'flux_density', 'magnitude', 'flux'
+    Parameters
+    ----------
+    time
+        time in observer frame in days
+    redshift
+        redshift
+    peak_time
+        peak time in days
+    sigma_t
+        the sharpness of the Gaussian in days
+    mbh_6
+        mass of supermassive black hole in units of 10^6 solar mass
+    stellar_mass
+        stellar mass in units of solar masses
+    eta
+        SMBH feedback efficiency (typical range: etamin - 0.1)
+    alpha
+        disk viscosity
+    beta
+        TDE penetration factor (typical range: 1 - beta_max)
+    kwargs
+        Additional parameters, check _cooling_envelope for more information
+    xi
+        Optional argument (default set to one) to change the point where lightcurve switches from Gaussian rise to cooling envelope. stitching_point = xi * tfb (where tfb is fallback time). So a xi=1 means the stitching point is at fallback time.
+    frequency
+        Required if output_format is 'flux_density'. frequency to calculate - Must be same length as time array or a single number).
+    bands
+        Required if output_format is 'magnitude' or 'flux'.
+    output_format
+        'flux_density', 'magnitude', 'flux'
+    lambda_array
+        Optional argument to set your desired wavelength array (in Angstroms) to evaluate the SED on.
+    cosmology
+        Cosmology to use for luminosity distance calculation. Defaults to Planck18. Must be a astropy.cosmology object.
+
+    Returns
+    -------
+        set by output format - 'flux_density', 'magnitude', 'flux'
     """
     binding_energy_const = kwargs.get('binding_energy_const', 0.8)
     tfb_sf = calc_tfb(binding_energy_const, mbh_6, stellar_mass)  # source frame
@@ -557,26 +636,46 @@ def bpl_cooling_envelope(time, redshift, peak_time, alpha_1, alpha_2, mbh_6, ste
     Full lightcurve, with gaussian rise till fallback time and then the metzger tde model,
     photometric version where each band is fit/joint separately
 
-    :param time: time in observer frame in days
-    :param redshift: redshift
-    :param peak_time: peak time in days
-    :param alpha_1: power law index for first power law
-    :param alpha_2: power law index for second power law (should be positive)
-    :param mbh_6: mass of supermassive black hole in units of 10^6 solar mass
-    :param stellar_mass: stellar mass in units of solar masses
-    :param eta: SMBH feedback efficiency (typical range: etamin - 0.1)
-    :param alpha: disk viscosity
-    :param beta: TDE penetration factor (typical range: 1 - beta_max)
-    :param kwargs: Additional parameters, check _cooling_envelope for more information
-    :param xi: Optional argument (default set to one) to change the point where lightcurve switches from Gaussian rise to cooling envelope.
-        stitching_point = xi * tfb (where tfb is fallback time). So a xi=1 means the stitching point is at fallback time.
-    :param frequency: Required if output_format is 'flux_density'.
-        frequency to calculate - Must be same length as time array or a single number).
-    :param bands: Required if output_format is 'magnitude' or 'flux'.
-    :param output_format: 'flux_density', 'magnitude', 'flux'
-    :param lambda_array: Optional argument to set your desired wavelength array (in Angstroms) to evaluate the SED on.
-    :param cosmology: Cosmology to use for luminosity distance calculation. Defaults to Planck18. Must be a astropy.cosmology object.
-    :return: set by output format - 'flux_density', 'magnitude', 'flux'
+    Parameters
+    ----------
+    time
+        time in observer frame in days
+    redshift
+        redshift
+    peak_time
+        peak time in days
+    alpha_1
+        power law index for first power law
+    alpha_2
+        power law index for second power law (should be positive)
+    mbh_6
+        mass of supermassive black hole in units of 10^6 solar mass
+    stellar_mass
+        stellar mass in units of solar masses
+    eta
+        SMBH feedback efficiency (typical range: etamin - 0.1)
+    alpha
+        disk viscosity
+    beta
+        TDE penetration factor (typical range: 1 - beta_max)
+    kwargs
+        Additional parameters, check _cooling_envelope for more information
+    xi
+        Optional argument (default set to one) to change the point where lightcurve switches from Gaussian rise to cooling envelope. stitching_point = xi * tfb (where tfb is fallback time). So a xi=1 means the stitching point is at fallback time.
+    frequency
+        Required if output_format is 'flux_density'. frequency to calculate - Must be same length as time array or a single number).
+    bands
+        Required if output_format is 'magnitude' or 'flux'.
+    output_format
+        'flux_density', 'magnitude', 'flux'
+    lambda_array
+        Optional argument to set your desired wavelength array (in Angstroms) to evaluate the SED on.
+    cosmology
+        Cosmology to use for luminosity distance calculation. Defaults to Planck18. Must be a astropy.cosmology object.
+
+    Returns
+    -------
+        set by output format - 'flux_density', 'magnitude', 'flux'
     """
     binding_energy_const = kwargs.get('binding_energy_const', 0.8)
     tfb_sf = calc_tfb(binding_energy_const, mbh_6, stellar_mass)  # source frame
@@ -675,14 +774,23 @@ def bpl_cooling_envelope(time, redshift, peak_time, alpha_1, alpha_2, mbh_6, ste
 @citation_wrapper('redback')
 def tde_analytical_bolometric(time, l0, t_0_turn, **kwargs):
     """
-    :param time: rest frame time in days
-    :param l0: bolometric luminosity at 1 second in cgs
-    :param t_0_turn: turn on time in days (after this time lbol decays as 5/3 powerlaw)
-    :param interaction_process: Default is Diffusion.
-            Can also be None in which case the output is just the raw engine luminosity
-    :param kwargs: Must be all the kwargs required by the specific interaction_process
-                e.g., for Diffusion: kappa, kappa_gamma, mej (solar masses), vej (km/s), temperature_floor
-    :return: bolometric_luminosity
+
+    Parameters
+    ----------
+    time
+        rest frame time in days
+    l0
+        bolometric luminosity at 1 second in cgs
+    t_0_turn
+        turn on time in days (after this time lbol decays as 5/3 powerlaw)
+    interaction_process
+        Default is Diffusion. Can also be None in which case the output is just the raw engine luminosity
+    kwargs
+        Must be all the kwargs required by the specific interaction_process e.g., for Diffusion: kappa, kappa_gamma, mej (solar masses), vej (km/s), temperature_floor
+
+    Returns
+    -------
+        bolometric_luminosity
     """
     _interaction_process = kwargs.get("interaction_process", ip.Diffusion)
     lbol = _analytic_fallback(time=time, l0=l0, t_0=t_0_turn)
@@ -697,22 +805,37 @@ def tde_analytical_bolometric(time, l0, t_0_turn, **kwargs):
 @citation_wrapper('redback')
 def tde_analytical(time, redshift, l0, t_0_turn, **kwargs):
     """
-    :param time: observer frame time in days
-    :param l0: bolometric luminosity at 1 second in cgs
-    :param t_0_turn: turn on time in days (after this time lbol decays as 5/3 powerlaw)
-    :param kwargs: Must be all the kwargs required by the specific interaction_process
-     e.g., for Diffusion TemperatureFloor: kappa, kappa_gamma, vej (km/s), temperature_floor
-    :param interaction_process: Default is Diffusion.
-            Can also be None in which case the output is just the raw engine luminosity
-    :param photosphere: TemperatureFloor
-    :param sed: CutoffBlackbody must have cutoff_wavelength in kwargs or it will default to 3000 Angstrom
-    :param frequency: Required if output_format is 'flux_density'.
-        frequency to calculate - Must be same length as time array or a single number).
-    :param bands: Required if output_format is 'magnitude' or 'flux'.
-    :param output_format: 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
-    :param lambda_array: Optional argument to set your desired wavelength array (in Angstroms) to evaluate the SED on.
-    :param cosmology: Cosmology to use for luminosity distance calculation. Defaults to Planck18. Must be a astropy.cosmology object.
-    :return: set by output format - 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
+
+    Parameters
+    ----------
+    time
+        observer frame time in days
+    l0
+        bolometric luminosity at 1 second in cgs
+    t_0_turn
+        turn on time in days (after this time lbol decays as 5/3 powerlaw)
+    kwargs
+        Must be all the kwargs required by the specific interaction_process e.g., for Diffusion TemperatureFloor: kappa, kappa_gamma, vej (km/s), temperature_floor
+    interaction_process
+        Default is Diffusion. Can also be None in which case the output is just the raw engine luminosity
+    photosphere
+        TemperatureFloor
+    sed
+        CutoffBlackbody must have cutoff_wavelength in kwargs or it will default to 3000 Angstrom
+    frequency
+        Required if output_format is 'flux_density'. frequency to calculate - Must be same length as time array or a single number).
+    bands
+        Required if output_format is 'magnitude' or 'flux'.
+    output_format
+        'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
+    lambda_array
+        Optional argument to set your desired wavelength array (in Angstroms) to evaluate the SED on.
+    cosmology
+        Cosmology to use for luminosity distance calculation. Defaults to Planck18. Must be a astropy.cosmology object.
+
+    Returns
+    -------
+        set by output format - 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
     """
     kwargs['interaction_process'] = kwargs.get("interaction_process", ip.Diffusion)
     kwargs['photosphere'] = kwargs.get("photosphere", photosphere.TemperatureFloor)
@@ -765,7 +888,9 @@ def _initialize_mosfit_tde_model():
     Loads and interpolates tde simulation data. Simulation data is
     from Guillochon 2013 and can be found on astrocrash.net.
 
-    :return: Named tuple with several outputs
+    Returns
+    -------
+        Named tuple with several outputs
     """
 
     import os
@@ -897,14 +1022,26 @@ def _tde_mosfit_engine(times, mbh6, mstar, b, efficiency, leddlimit, **kwargs):
     """
     Produces the processed outputs from simulation data for the TDE model.
 
-    :param times: A dense array of times in rest frame in days
-    :param mbh6: black hole mass in units of 10^6 solar masses
-    :param mstar: star mass in units of solar masses
-    :param b: Relates to beta and gamma values for the star that's disrupted
-    :param efficiency: efficiency of the BH
-    :param leddlimit: eddington limit for the BH
-    :param kwargs: Additional keyword arguments
-    :return: Named tuple with several outputs
+    Parameters
+    ----------
+    times
+        A dense array of times in rest frame in days
+    mbh6
+        black hole mass in units of 10^6 solar masses
+    mstar
+        star mass in units of solar masses
+    b
+        Relates to beta and gamma values for the star that's disrupted
+    efficiency
+        efficiency of the BH
+    leddlimit
+        eddington limit for the BH
+    kwargs
+        Additional keyword arguments
+
+    Returns
+    -------
+        Named tuple with several outputs
     """
     beta_interp = True
 
@@ -1107,15 +1244,28 @@ def _tde_fallback_all_outputs(time, mbh6, mstar, tvisc, bb, eta, leddlimit, **kw
     """
     Identical to the Mosfit model following Guillochon+ 2013 apart from doing the fallback rate fudge in mosfit.
 
-    :param time: A dense array of times in rest frame in days
-    :param mbh6: black hole mass in units of 10^6 solar masses
-    :param mstar: star mass in units of solar masses
-    :param tvisc: viscous timescale in days
-    :param bb: Relates to beta and gamma values for the star that's disrupted
-    :param eta: efficiency of the BH
-    :param leddlimit: eddington limit for the BH
-    :param kwargs: Additional keyword arguments
-    :return: bolometric luminosity
+    Parameters
+    ----------
+    time
+        A dense array of times in rest frame in days
+    mbh6
+        black hole mass in units of 10^6 solar masses
+    mstar
+        star mass in units of solar masses
+    tvisc
+        viscous timescale in days
+    bb
+        Relates to beta and gamma values for the star that's disrupted
+    eta
+        efficiency of the BH
+    leddlimit
+        eddington limit for the BH
+    kwargs
+        Additional keyword arguments
+
+    Returns
+    -------
+        bolometric luminosity
     """
     _interaction_process = kwargs.get("interaction_process", ip.Viscous)
     dense_resolution = kwargs.get("dense_resolution", 1000)
@@ -1131,15 +1281,28 @@ def tde_fallback_bolometric(time, mbh6, mstar, tvisc, bb, eta, leddlimit, **kwar
     """
     Identical to the Mosfit model following Guillochon+ 2013 apart from doing the fallback rate fudge in mosfit.
 
-    :param time: A dense array of times in rest frame in days
-    :param mbh6: black hole mass in units of 10^6 solar masses
-    :param mstar: star mass in units of solar masses
-    :param tvisc: viscous timescale in days
-    :param bb: Relates to beta and gamma values for the star that's disrupted
-    :param eta: efficiency of the BH
-    :param leddlimit: eddington limit for the BH
-    :param kwargs: Additional keyword arguments
-    :return: bolometric luminosity
+    Parameters
+    ----------
+    time
+        A dense array of times in rest frame in days
+    mbh6
+        black hole mass in units of 10^6 solar masses
+    mstar
+        star mass in units of solar masses
+    tvisc
+        viscous timescale in days
+    bb
+        Relates to beta and gamma values for the star that's disrupted
+    eta
+        efficiency of the BH
+    leddlimit
+        eddington limit for the BH
+    kwargs
+        Additional keyword arguments
+
+    Returns
+    -------
+        bolometric luminosity
     """
     lbol, _ = _tde_fallback_all_outputs(time=time, mbh6=mbh6, mstar=mstar, tvisc=tvisc, bb=bb, eta=eta,
                                        leddlimit=leddlimit, **kwargs)
@@ -1150,18 +1313,34 @@ def tde_fallback(time, redshift, mbh6, mstar, tvisc, bb, eta, leddlimit, rph0, l
     """
     Identical to the Mosfit model following Guillochon+ 2013 apart from doing the fallback rate fudge in mosfit.
 
-    :param time: Times in observer frame in days
-    :param redshift: redshift of the transient
-    :param mbh6: black hole mass in units of 10^6 solar masses
-    :param mstar: star mass in units of solar masses
-    :param tvisc: viscous timescale in days
-    :param bb: Relates to beta and gamma values for the star that's disrupted
-    :param eta: efficiency of the BH
-    :param leddlimit: eddington limit for the BH
-    :param rph0: initial photosphere radius
-    :param lphoto: photosphere luminosity
-    :param kwargs: Additional keyword arguments
-    :return: set by output format - 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
+    Parameters
+    ----------
+    time
+        Times in observer frame in days
+    redshift
+        redshift of the transient
+    mbh6
+        black hole mass in units of 10^6 solar masses
+    mstar
+        star mass in units of solar masses
+    tvisc
+        viscous timescale in days
+    bb
+        Relates to beta and gamma values for the star that's disrupted
+    eta
+        efficiency of the BH
+    leddlimit
+        eddington limit for the BH
+    rph0
+        initial photosphere radius
+    lphoto
+        photosphere luminosity
+    kwargs
+        Additional keyword arguments
+
+    Returns
+    -------
+        set by output format - 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
     """
 
     kwargs['interaction_process'] = kwargs.get("interaction_process", ip.Viscous)
@@ -1213,23 +1392,41 @@ def tde_fallback(time, redshift, mbh6, mstar, tvisc, bb, eta, leddlimit, rph0, l
 def fitted(time, redshift, log_mh, a_bh, m_disc, r0, tvi, t_form, incl, **kwargs):
     """
     An import of FitTeD to model the plateau phase
-    
-    :param time: observer frame time in days
-    :param redshift: redshift
-    :param log_mh: log of the black hole mass (solar masses)
-    :param a_bh: black hole spin parameter (dimensionless)
-    :param m_disc: initial mass of disc ring (solar masses)
-    :param r0: initial radius of disc ring (gravitational radii)
-    :param tvi: viscous timescale of disc evolution (days)
-    :param t_form: time of ring formation prior to t = 0 (days)
-    :param incl: disc-observer inclination angle (radians)    
-    :param kwargs: Must be all the kwargs required by the specific output_format 
-    :param output_format: 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'  
-    :param frequency: Required if output_format is 'flux_density'.
-        frequency to calculate - Must be same length as time array or a single number).
-    :param bands: Required if output_format is 'magnitude' or 'flux'.
-    :param cosmology: Cosmology to use for luminosity distance calculation. Defaults to Planck18. Must be a astropy.cosmology object.
-    :return: set by output format - 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
+
+    Parameters
+    ----------
+    time
+        observer frame time in days
+    redshift
+        redshift
+    log_mh
+        log of the black hole mass (solar masses)
+    a_bh
+        black hole spin parameter (dimensionless)
+    m_disc
+        initial mass of disc ring (solar masses)
+    r0
+        initial radius of disc ring (gravitational radii)
+    tvi
+        viscous timescale of disc evolution (days)
+    t_form
+        time of ring formation prior to t = 0 (days)
+    incl
+        disc-observer inclination angle (radians)
+    kwargs
+        Must be all the kwargs required by the specific output_format
+    output_format
+        'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
+    frequency
+        Required if output_format is 'flux_density'. frequency to calculate - Must be same length as time array or a single number).
+    bands
+        Required if output_format is 'magnitude' or 'flux'.
+    cosmology
+        Cosmology to use for luminosity distance calculation. Defaults to Planck18. Must be a astropy.cosmology object.
+
+    Returns
+    -------
+        set by output format - 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
     """
     import fitted #user needs to have downloaded and compiled FitTeD in order to run this model
     cosmology = kwargs.get('cosmology', cosmo)
@@ -1276,29 +1473,53 @@ def fitted(time, redshift, log_mh, a_bh, m_disc, r0, tvi, t_form, incl, **kwargs
 def fitted_pl_decay(time, redshift, log_mh, a_bh, m_disc, r0, tvi, t_form, incl, log_L, t_decay, p, log_T, sigma_t, t_peak, **kwargs):
     """
     An import of FitTeD to model the plateau phase, with a gaussian rise and power-law decay
-    
-    :param time: observer frame time in days
-    :param redshift: redshift
-    :param log_mh: log of the black hole mass (solar masses)
-    :param a_bh: black hole spin parameter (dimensionless)
-    :param m_disc: initial mass of disc ring (solar masses)
-    :param r0: initial radius of disc ring (gravitational radii)
-    :param tvi: viscous timescale of disc evolution (days)
-    :param t_form: time of ring formation prior to t = 0 (days)
-    :param incl: disc-observer inclination angle (radians)    
-    :param log_L: single temperature blackbody amplitude for decay model (log_10 erg/s)
-    :param t_decay: fallback timescale (days)
-    :param p: power-law decay index
-    :param log_T: single temperature blackbody temperature for decay model (log_10 Kelvin)
-    :param sigma_t: gaussian rise timescale (days)
-    :param t_peak: time of light curve peak (days)
-    :param kwargs: Must be all the kwargs required by the specific output_format 
-    :param output_format: 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'  
-    :param frequency: Required if output_format is 'flux_density'.
-        frequency to calculate - Must be same length as time array or a single number).
-    :param bands: Required if output_format is 'magnitude' or 'flux'.
-    :param cosmology: Cosmology to use for luminosity distance calculation. Defaults to Planck18. Must be a astropy.cosmology object.
-    :return: set by output format - 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
+
+    Parameters
+    ----------
+    time
+        observer frame time in days
+    redshift
+        redshift
+    log_mh
+        log of the black hole mass (solar masses)
+    a_bh
+        black hole spin parameter (dimensionless)
+    m_disc
+        initial mass of disc ring (solar masses)
+    r0
+        initial radius of disc ring (gravitational radii)
+    tvi
+        viscous timescale of disc evolution (days)
+    t_form
+        time of ring formation prior to t = 0 (days)
+    incl
+        disc-observer inclination angle (radians)
+    log_L
+        single temperature blackbody amplitude for decay model (log_10 erg/s)
+    t_decay
+        fallback timescale (days)
+    p
+        power-law decay index
+    log_T
+        single temperature blackbody temperature for decay model (log_10 Kelvin)
+    sigma_t
+        gaussian rise timescale (days)
+    t_peak
+        time of light curve peak (days)
+    kwargs
+        Must be all the kwargs required by the specific output_format
+    output_format
+        'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
+    frequency
+        Required if output_format is 'flux_density'. frequency to calculate - Must be same length as time array or a single number).
+    bands
+        Required if output_format is 'magnitude' or 'flux'.
+    cosmology
+        Cosmology to use for luminosity distance calculation. Defaults to Planck18. Must be a astropy.cosmology object.
+
+    Returns
+    -------
+        set by output format - 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
     """
     import fitted #user needs to have downloaded and compiled FitTeD in order to run this model
     cosmology = kwargs.get('cosmology', cosmo)
@@ -1360,28 +1581,51 @@ def fitted_pl_decay(time, redshift, log_mh, a_bh, m_disc, r0, tvi, t_form, incl,
 def fitted_exp_decay(time, redshift, log_mh, a_bh, m_disc, r0, tvi, t_form, incl, log_L, t_decay, log_T, sigma_t, t_peak, **kwargs):
     """
     An import of FitTeD to model the plateau phase, with a gaussian rise and exponential decay
-    
-    :param time: observer frame time in days
-    :param redshift: redshift
-    :param log_mh: log of the black hole mass (solar masses)
-    :param a_bh: black hole spin parameter (dimensionless)
-    :param m_disc: initial mass of disc ring (solar masses)
-    :param r0: initial radius of disc ring (gravitational radii)
-    :param tvi: viscous timescale of disc evolution (days)
-    :param t_form: time of ring formation prior to t = 0 (days)
-    :param incl: disc-observer inclination angle (radians)    
-    :param log_L: single temperature blackbody amplitude for decay model (log_10 erg/s)
-    :param t_decay: fallback timescale (days)
-    :param log_T: single temperature blackbody temperature for decay model (log_10 Kelvin)
-    :param sigma_t: gaussian rise timescale (days)
-    :param t_peak: time of light curve peak (days)
-    :param kwargs: Must be all the kwargs required by the specific output_format 
-    :param output_format: 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'  
-    :param frequency: Required if output_format is 'flux_density'.
-        frequency to calculate - Must be same length as time array or a single number).
-    :param bands: Required if output_format is 'magnitude' or 'flux'.
-    :param cosmology: Cosmology to use for luminosity distance calculation. Defaults to Planck18. Must be a astropy.cosmology object.
-    :return: set by output format - 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
+
+    Parameters
+    ----------
+    time
+        observer frame time in days
+    redshift
+        redshift
+    log_mh
+        log of the black hole mass (solar masses)
+    a_bh
+        black hole spin parameter (dimensionless)
+    m_disc
+        initial mass of disc ring (solar masses)
+    r0
+        initial radius of disc ring (gravitational radii)
+    tvi
+        viscous timescale of disc evolution (days)
+    t_form
+        time of ring formation prior to t = 0 (days)
+    incl
+        disc-observer inclination angle (radians)
+    log_L
+        single temperature blackbody amplitude for decay model (log_10 erg/s)
+    t_decay
+        fallback timescale (days)
+    log_T
+        single temperature blackbody temperature for decay model (log_10 Kelvin)
+    sigma_t
+        gaussian rise timescale (days)
+    t_peak
+        time of light curve peak (days)
+    kwargs
+        Must be all the kwargs required by the specific output_format
+    output_format
+        'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
+    frequency
+        Required if output_format is 'flux_density'. frequency to calculate - Must be same length as time array or a single number).
+    bands
+        Required if output_format is 'magnitude' or 'flux'.
+    cosmology
+        Cosmology to use for luminosity distance calculation. Defaults to Planck18. Must be a astropy.cosmology object.
+
+    Returns
+    -------
+        set by output format - 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
     """
     import fitted #user needs to have downloaded and compiled FitTeD in order to run this model
     cosmology = kwargs.get('cosmology', cosmo)
@@ -1443,15 +1687,27 @@ def fitted_exp_decay(time, redshift, log_mh, a_bh, m_disc, r0, tvi, t_form, incl
 def _stream_stream_collision(mbh_6, mstar, c1, f, h_r, inc_tcool, del_omega):
     """
     A TDE model based on stream-stream collisions.  Used as input for the bolometric and broadband versions.
-    
-    :param mbh_6: black hole mass (10^6 solar masses)
-    :param mstar: mass of the disrupted star (solar masses)
-    :param c1: characteristic distance scale of the emission region in units of the apocenter distance of the most tightly bound debris
-    :param f: fraction of the bound mass within the semimajor axis of the most tightly bound debris at peak mass return time
-    :param h_r: aspect ratio used to calculate t_cool. This is only used when include_tcool_tdyn_ratio = 1
-    :param inc_tcool: if include_tcool_tdyn_ratio = 1, the luminosity is limited by the Eddington luminosity if t_cool / t_dyn < 1.0
-    :param del_omega: solid angle (in units of pi) of radiation from the emission region
-    :return: physical outputs
+
+    Parameters
+    ----------
+    mbh_6
+        black hole mass (10^6 solar masses)
+    mstar
+        mass of the disrupted star (solar masses)
+    c1
+        characteristic distance scale of the emission region in units of the apocenter distance of the most tightly bound debris
+    f
+        fraction of the bound mass within the semimajor axis of the most tightly bound debris at peak mass return time
+    h_r
+        aspect ratio used to calculate t_cool. This is only used when include_tcool_tdyn_ratio = 1
+    inc_tcool
+        if include_tcool_tdyn_ratio = 1, the luminosity is limited by the Eddington luminosity if t_cool / t_dyn < 1.0
+    del_omega
+        solid angle (in units of pi) of radiation from the emission region
+
+    Returns
+    -------
+        physical outputs
     """
     kappa = 0.34
     t_ratio = 0.0
@@ -1503,18 +1759,33 @@ def _stream_stream_collision(mbh_6, mstar, c1, f, h_r, inc_tcool, del_omega):
 def stream_stream_tde_bolometric(time, mbh_6, mstar, c1, f, h_r, inc_tcool, del_omega, sigma_t, peak_time, **kwargs): 
     """
     A bolometric TDE model based on stream-stream collisions.  The early emission follows a gaussian rise.
-    
-    :param time: observer frame time in days
-    :param mbh_6: black hole mass (10^6 solar masses)
-    :param mstar: mass of the disrupted star (solar masses)
-    :param c1: characteristic distance scale of the emission region in units of the apocenter distance of the most tightly bound debris
-    :param f: fraction of the bound mass within the semimajor axis of the most tightly bound debris at peak mass return time
-    :param h_r: aspect ratio used to calculate t_cool. This is only used when include_tcool_tdyn_ratio = 1
-    :param inc_tcool: if include_tcool_tdyn_ratio = 1, the luminosity is limited by the Eddington luminosity if t_cool / t_dyn < 1.0
-    :param del_omega: solid angle (in units of pi) of radiation from the emission region
-    :param peak_time: peak time in days
-    :param sigma_t: the sharpness of the Gaussian in days
-    :return: bolometric luminosity         
+
+    Parameters
+    ----------
+    time
+        observer frame time in days
+    mbh_6
+        black hole mass (10^6 solar masses)
+    mstar
+        mass of the disrupted star (solar masses)
+    c1
+        characteristic distance scale of the emission region in units of the apocenter distance of the most tightly bound debris
+    f
+        fraction of the bound mass within the semimajor axis of the most tightly bound debris at peak mass return time
+    h_r
+        aspect ratio used to calculate t_cool. This is only used when include_tcool_tdyn_ratio = 1
+    inc_tcool
+        if include_tcool_tdyn_ratio = 1, the luminosity is limited by the Eddington luminosity if t_cool / t_dyn < 1.0
+    del_omega
+        solid angle (in units of pi) of radiation from the emission region
+    peak_time
+        peak time in days
+    sigma_t
+        the sharpness of the Gaussian in days
+
+    Returns
+    -------
+        bolometric luminosity
     """
     output = _stream_stream_collision(mbh_6, mstar, c1, f, h_r, inc_tcool, del_omega)    
     f1 = pm.gaussian_rise(time=output.time_temp[0] / cc.day_to_s, a_1=1, peak_time=peak_time, sigma_t=sigma_t)
@@ -1534,25 +1805,45 @@ def stream_stream_tde_bolometric(time, mbh_6, mstar, c1, f, h_r, inc_tcool, del_
 def stream_stream_tde(time, redshift, mbh_6, mstar, c1, f, h_r, inc_tcool, del_omega, sigma_t, peak_time, **kwargs):
     """
     A TDE model based on stream-stream collisions.  The early emission follows a constant temperature gaussian rise.
-    
-    :param time: observer frame time in days
-    :param redshift: redshift
-    :param mbh_6: black hole mass (10^6 solar masses)
-    :param mstar: mass of the disrupted star (solar masses)
-    :param c1: characteristic distance scale of the emission region in units of the apocenter distance of the most tightly bound debris
-    :param f: fraction of the bound mass within the semimajor axis of the most tightly bound debris at peak mass return time
-    :param h_r: aspect ratio used to calculate t_cool. This is only used when include_tcool_tdyn_ratio = 1
-    :param inc_tcool: if include_tcool_tdyn_ratio = 1, the luminosity is limited by the Eddington luminosity if t_cool / t_dyn < 1.0
-    :param del_omega: solid angle (in units of pi) of radiation from the emission region
-    :param peak_time: peak time in days
-    :param sigma_t: the sharpness of the Gaussian in days
-    :param kwargs: Must be all the kwargs required by the specific output_format 
-    :param output_format: 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'  
-    :param frequency: Required if output_format is 'flux_density'.
-        frequency to calculate - Must be same length as time array or a single number).
-    :param bands: Required if output_format is 'magnitude' or 'flux'.
-    :param cosmology: Cosmology to use for luminosity distance calculation. Defaults to Planck18. Must be a astropy.cosmology object.
-    :return: set by output format - 'flux_density' or 'magnitude'     
+
+    Parameters
+    ----------
+    time
+        observer frame time in days
+    redshift
+        redshift
+    mbh_6
+        black hole mass (10^6 solar masses)
+    mstar
+        mass of the disrupted star (solar masses)
+    c1
+        characteristic distance scale of the emission region in units of the apocenter distance of the most tightly bound debris
+    f
+        fraction of the bound mass within the semimajor axis of the most tightly bound debris at peak mass return time
+    h_r
+        aspect ratio used to calculate t_cool. This is only used when include_tcool_tdyn_ratio = 1
+    inc_tcool
+        if include_tcool_tdyn_ratio = 1, the luminosity is limited by the Eddington luminosity if t_cool / t_dyn < 1.0
+    del_omega
+        solid angle (in units of pi) of radiation from the emission region
+    peak_time
+        peak time in days
+    sigma_t
+        the sharpness of the Gaussian in days
+    kwargs
+        Must be all the kwargs required by the specific output_format
+    output_format
+        'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
+    frequency
+        Required if output_format is 'flux_density'. frequency to calculate - Must be same length as time array or a single number).
+    bands
+        Required if output_format is 'magnitude' or 'flux'.
+    cosmology
+        Cosmology to use for luminosity distance calculation. Defaults to Planck18. Must be a astropy.cosmology object.
+
+    Returns
+    -------
+        set by output format - 'flux_density' or 'magnitude'
     """
 
     cosmology = kwargs.get('cosmology', cosmo)

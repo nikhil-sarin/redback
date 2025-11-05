@@ -29,15 +29,28 @@ def evolving_magnetar_only(time, mu0, muinf, p0, sinalpha0, tm, II, **kwargs):
     """
     Millisecond magnetar model with evolution of inclination angle
 
-    :param time: time in seconds
-    :param mu0: Initial magnetic moment [10^33 G cm^3]
-    :param muinf: Magnetic moment when field relaxes [10^33 G cm^3]
-    :param p0: initial spin period
-    :param sinalpha0: initial sin(alpha0) where alpha is the angle between B and P axes.
-    :param tm: magnetic field decay timescale in days
-    :param II: Moment of inertia in cgs
-    :param kwargs: key word argument for handling plotting
-    :return: luminosity (depending on scaling) as a function of time.
+    Parameters
+    ----------
+    time
+        time in seconds
+    mu0
+        Initial magnetic moment [10^33 G cm^3]
+    muinf
+        Magnetic moment when field relaxes [10^33 G cm^3]
+    p0
+        initial spin period
+    sinalpha0
+        initial sin(alpha0) where alpha is the angle between B and P axes.
+    tm
+        magnetic field decay timescale in days
+    II
+        Moment of inertia in cgs
+    kwargs
+        key word argument for handling plotting
+
+    Returns
+    -------
+        luminosity (depending on scaling) as a function of time.
     """
     mu0 = mu0 * 1e33  # G cm^3
     muinf = muinf * 1e33  # G cm^3
@@ -81,17 +94,32 @@ def evolving_magnetar(time, a_1, alpha_1, mu0, muinf, p0, sinalpha0, tm, II, **k
     """
     Millisecond magnetar model with evolution of inclination angle
 
-    :param time: time in seconds
-    :param a_1: amplitude of curvature effect power law
-    :param alpha_1: index of curvature effect power law
-    :param mu0: Initial magnetic moment [10^33 G cm^3]
-    :param muinf: Magnetic moment when field relaxes [10^33 G cm^3]
-    :param p0: initial spin period
-    :param sinalpha0: initial sin(alpha0) where alpha is the angle between B and P axes.
-    :param tm: magnetic field decay timescale in days
-    :param II: Moment of inertia in cgs
-    :param kwargs: key word argument for handling plotting
-    :return: luminosity (depending on scaling) as a function of time.
+    Parameters
+    ----------
+    time
+        time in seconds
+    a_1
+        amplitude of curvature effect power law
+    alpha_1
+        index of curvature effect power law
+    mu0
+        Initial magnetic moment [10^33 G cm^3]
+    muinf
+        Magnetic moment when field relaxes [10^33 G cm^3]
+    p0
+        initial spin period
+    sinalpha0
+        initial sin(alpha0) where alpha is the angle between B and P axes.
+    tm
+        magnetic field decay timescale in days
+    II
+        Moment of inertia in cgs
+    kwargs
+        key word argument for handling plotting
+
+    Returns
+    -------
+        luminosity (depending on scaling) as a function of time.
     """
     pl = one_component_fireball_model(time=time, a_1=a_1, alpha_1=alpha_1)
     magnetar = evolving_magnetar_only(time=time, mu0=mu0, muinf=muinf,
@@ -103,13 +131,24 @@ def vacuum_dipole_magnetar_only(time, l0, tau, **kwargs):
     """
     Vacuum dipole magnetar model with fixed braking index.
 
-    :param time: time in seconds
-    :param l0: initial luminosity parameter
-    :param tau: spin-down damping timescale
-    :param kwargs: key word arguments for handling plotting/other functionality
-    :return: luminosity or flux (depending on scaling of l0) as a function of time.
+    Parameters
+    ----------
+    time
+        time in seconds
+    l0
+        initial luminosity parameter
+    tau
+        spin-down damping timescale
+    kwargs
+        key word arguments for handling plotting/other functionality
 
-    Note: This model uses a fixed braking index of nn=3.
+    Returns
+    -------
+        luminosity or flux (depending on scaling of l0) as a function of time.
+
+    Notes
+    -----
+    This model uses a fixed braking index of nn=3.
     """
     nn = 3
     lum = l0 * (1. + time / tau) ** ((1. + nn) / (1. - nn))
@@ -120,15 +159,28 @@ def full_vacuum_dipole_magnetar(time, a_1, alpha_1, l0, tau, **kwargs):
     """
     Generalised millisecond magnetar with curvature effect power law
 
-    :param time: time in seconds
-    :param a_1: amplitude of curvature effect power law
-    :param alpha_1: index of curvature effect power law
-    :param l0: initial luminosity parameter
-    :param tau: spin-down damping timescale
-    :param kwargs: key word arguments for handling plotting/other functionality
-    :return: luminosity or flux (depending on scaling of l0) as a function of time.
+    Parameters
+    ----------
+    time
+        time in seconds
+    a_1
+        amplitude of curvature effect power law
+    alpha_1
+        index of curvature effect power law
+    l0
+        initial luminosity parameter
+    tau
+        spin-down damping timescale
+    kwargs
+        key word arguments for handling plotting/other functionality
 
-    Note: This model uses a fixed braking index of nn=3.
+    Returns
+    -------
+        luminosity or flux (depending on scaling of l0) as a function of time.
+
+    Notes
+    -----
+    This model uses a fixed braking index of nn=3.
     """
     pl = one_component_fireball_model(time=time, a_1=a_1, alpha_1=alpha_1)
     mag = vacuum_dipole_magnetar_only(time=time, l0=l0, tau=tau)
@@ -137,12 +189,23 @@ def full_vacuum_dipole_magnetar(time, a_1, alpha_1, l0, tau, **kwargs):
 @citation_wrapper('https://ui.adsabs.harvard.edu/abs/2017ApJ...843L...1L/abstract')
 def magnetar_only(time, l0, tau, nn, **kwargs):
     """
-    :param time: time in seconds
-    :param l0: initial luminosity parameter
-    :param tau: spin-down damping timescale
-    :param nn: braking index
-    :param kwargs: key word arguments for handling plotting/other functionality
-    :return: luminosity or flux (depending on scaling of l0) as a function of time.
+
+    Parameters
+    ----------
+    time
+        time in seconds
+    l0
+        initial luminosity parameter
+    tau
+        spin-down damping timescale
+    nn
+        braking index
+    kwargs
+        key word arguments for handling plotting/other functionality
+
+    Returns
+    -------
+        luminosity or flux (depending on scaling of l0) as a function of time.
     """
     lum = l0 * (1. + time / tau) ** ((1. + nn) / (1. - nn))
     return lum
@@ -152,17 +215,32 @@ def gw_magnetar(time, a_1, alpha_1, fgw0, tau, nn, log_ii, **kwargs):
     """
     Magnetar model with gravitational wave emission.
 
-    :param time: time in seconds
-    :param a_1: amplitude of curvature effect power law
-    :param alpha_1: index of curvature effect power law
-    :param fgw0: initial gravitational-wave frequency
-    :param tau: spin-down damping timescale
-    :param nn: braking index
-    :param log_ii: log10 moment of inertia
-    :param kwargs: key word arguments for handling plotting/other functionality
-    :return: luminosity
+    Parameters
+    ----------
+    time
+        time in seconds
+    a_1
+        amplitude of curvature effect power law
+    alpha_1
+        index of curvature effect power law
+    fgw0
+        initial gravitational-wave frequency
+    tau
+        spin-down damping timescale
+    nn
+        braking index
+    log_ii
+        log10 moment of inertia
+    kwargs
+        key word arguments for handling plotting/other functionality
 
-    Note: This model uses a fixed efficiency factor eta=0.1.
+    Returns
+    -------
+        luminosity
+
+    Notes
+    -----
+    This model uses a fixed efficiency factor eta=0.1.
     """
     eta = 0.1
     omega_0 = fgw0 * np.pi  # spin frequency
@@ -178,13 +256,25 @@ def gw_magnetar(time, a_1, alpha_1, fgw0, tau, nn, log_ii, **kwargs):
 @citation_wrapper('https://ui.adsabs.harvard.edu/abs/2006ApJ...648L..51S/abstract')
 def basic_magnetar(time, p0, bp, mass_ns, theta_pb, **kwargs):
     """
-    :param time: time in seconds in source frame
-    :param p0: initial spin period in milliseconds
-    :param bp: polar magnetic field strength in 10^14 Gauss
-    :param mass_ns: mass of neutron star in solar masses
-    :param theta_pb: angle between spin and magnetic field axes in radians
-    :param kwargs: None
-    :return: luminosity
+
+    Parameters
+    ----------
+    time
+        time in seconds in source frame
+    p0
+        initial spin period in milliseconds
+    bp
+        polar magnetic field strength in 10^14 Gauss
+    mass_ns
+        mass of neutron star in solar masses
+    theta_pb
+        angle between spin and magnetic field axes in radians
+    kwargs
+        None
+
+    Returns
+    -------
+        luminosity
     """
     erot = 2.6e52 * (mass_ns/1.4)**(3./2.) * p0**(-2)
     tp = 1.3e5 * bp**(-2) * p0**2 * (mass_ns/1.4)**(3./2.) * (np.sin(theta_pb))**(-2)
@@ -196,15 +286,28 @@ def _evolving_gw_and_em_magnetar(time, bint, bext, p0, chi0, radius, moi, **kwar
     Assumes a combination of GW and EM spin down with a constant spin-magnetic field inclination angle.
     Only EM contributes to observed emission.
 
-    :param time: time in source frame in seconds (must be a large array as this function is semianalytic)
-    :param bint: internal magnetic field in G
-    :param bext: external magnetic field in G
-    :param p0: spin period in s
-    :param chi0: initial inclination angle
-    :param radius: radius of NS in cm
-    :param moi: moment of inertia of NS
-    :param kwargs: None
-    :return: luminosity
+    Parameters
+    ----------
+    time
+        time in source frame in seconds (must be a large array as this function is semianalytic)
+    bint
+        internal magnetic field in G
+    bext
+        external magnetic field in G
+    p0
+        spin period in s
+    chi0
+        initial inclination angle
+    radius
+        radius of NS in cm
+    moi
+        moment of inertia of NS
+    kwargs
+        None
+
+    Returns
+    -------
+        luminosity
     """
     epsilon_b = -3e-4 * (bint / bext) ** 2 * (bext / 1e16) ** 2
     omega_0 = 2.0 * np.pi / p0
@@ -248,15 +351,28 @@ def magnetar_luminosity_evolution(time, logbint, logbext, p0, chi0, radius, logm
     Assumes a combination of GW and EM spin down with a constant spin-magnetic field inclination angle.
     Only EM contributes to observed emission.
 
-    :param time: time in source frame in seconds
-    :param logbint: log10 internal magnetic field in G
-    :param logbext: log10 external magnetic field in G
-    :param p0: spin period in s
-    :param chi0: initial inclination angle
-    :param radius: radius of NS in KM
-    :param logmoi: log10 moment of inertia of NS
-    :param kwargs: None
-    :return: luminosity
+    Parameters
+    ----------
+    time
+        time in source frame in seconds
+    logbint
+        log10 internal magnetic field in G
+    logbext
+        log10 external magnetic field in G
+    p0
+        spin period in s
+    chi0
+        initial inclination angle
+    radius
+        radius of NS in KM
+    logmoi
+        log10 moment of inertia of NS
+    kwargs
+        None
+
+    Returns
+    -------
+        luminosity
     """
     time_temp = np.geomspace(1e-4, 1e7, 300)
     bint = 10**logbint
@@ -274,14 +390,26 @@ def full_magnetar(time, a_1, alpha_1, l0, tau, nn, **kwargs):
     """
     Generalised millisecond magnetar with curvature effect power law
 
-    :param time: time in seconds
-    :param a_1: amplitude of curvature effect power law
-    :param alpha_1: index of curvature effect power law
-    :param l0: initial luminosity parameter
-    :param tau: spin-down damping timescale
-    :param nn: braking index
-    :param kwargs: key word arguments for handling plotting/other functionality
-    :return: luminosity or flux (depending on scaling of l0) as a function of time.
+    Parameters
+    ----------
+    time
+        time in seconds
+    a_1
+        amplitude of curvature effect power law
+    alpha_1
+        index of curvature effect power law
+    l0
+        initial luminosity parameter
+    tau
+        spin-down damping timescale
+    nn
+        braking index
+    kwargs
+        key word arguments for handling plotting/other functionality
+
+    Returns
+    -------
+        luminosity or flux (depending on scaling of l0) as a function of time.
     """
     pl = one_component_fireball_model(time=time, a_1=a_1, alpha_1=alpha_1)
     mag = magnetar_only(time=time, l0=l0, tau=tau, nn=nn)
@@ -292,15 +420,28 @@ def collapsing_magnetar(time, a_1, alpha_1, l0, tau, nn, tcol, **kwargs):
     """
     Generalised millisecond magnetar with curvature effect power law and a collapse time
 
-    :param time: time in seconds
-    :param a_1: amplitude of curvature effect power law
-    :param alpha_1: index of curvature effect power law
-    :param l0: initial luminosity parameter
-    :param tau: spin-down damping timescale
-    :param nn: braking index
-    :param tcol: collapse time in seconds
-    :param kwargs: key word arguments for handling plotting/other functionality
-    :return: luminosity or flux (depending on scaling of l0) as a function of time.
+    Parameters
+    ----------
+    time
+        time in seconds
+    a_1
+        amplitude of curvature effect power law
+    alpha_1
+        index of curvature effect power law
+    l0
+        initial luminosity parameter
+    tau
+        spin-down damping timescale
+    nn
+        braking index
+    tcol
+        collapse time in seconds
+    kwargs
+        key word arguments for handling plotting/other functionality
+
+    Returns
+    -------
+        luminosity or flux (depending on scaling of l0) as a function of time.
     """
     pl = one_component_fireball_model(time, a_1, alpha_1)
     mag = np.heaviside(tcol - time, 1e-50) * magnetar_only(time, l0, tau, nn)
@@ -313,14 +454,26 @@ def general_magnetar(time, a_1, alpha_1,
     """
     Reparameterized millisecond magnetar model (piecewise)
 
-    :param time: time array for power law
-    :param a_1: power law decay amplitude
-    :param alpha_1: power law decay exponent
-    :param delta_time_one: time between start and end of prompt emission
-    :param alpha_2: Reparameterized braking index n
-    :param delta_time_two: time between end of prompt emission and end of magnetar model plateau phase, (tau)
-    :param kwargs: key word arguments for handling plotting/other functionality
-    :return: luminosity or flux (depending on scaling of l0) as a function of time.
+    Parameters
+    ----------
+    time
+        time array for power law
+    a_1
+        power law decay amplitude
+    alpha_1
+        power law decay exponent
+    delta_time_one
+        time between start and end of prompt emission
+    alpha_2
+        Reparameterized braking index n
+    delta_time_two
+        time between end of prompt emission and end of magnetar model plateau phase, (tau)
+    kwargs
+        key word arguments for handling plotting/other functionality
+
+    Returns
+    -------
+        luminosity or flux (depending on scaling of l0) as a function of time.
     """
 
     time_one = delta_time_one
@@ -343,13 +496,24 @@ def _integral_general(time, t0, kappa, tau, nn, **kwargs):
     """
     General integral for radiative losses model
 
-    :param time: time in seconds
-    :param t0: time for radiative losses to start in seconds
-    :param kappa: radiative efficiency
-    :param tau: spin down damping timescale in seconds
-    :param nn: braking index
-    :param kwargs: key word arguments for handling plotting/other functionality
-    :return: luminosity
+    Parameters
+    ----------
+    time
+        time in seconds
+    t0
+        time for radiative losses to start in seconds
+    kappa
+        radiative efficiency
+    tau
+        spin down damping timescale in seconds
+    nn
+        braking index
+    kwargs
+        key word arguments for handling plotting/other functionality
+
+    Returns
+    -------
+        luminosity
     """
     first_term, second_term = _get_integral_terms(time=time, t0=t0, kappa=kappa, tau=tau, nn=nn)
     return first_term - second_term
@@ -359,14 +523,26 @@ def _integral_general_collapsing(time, t0, kappa, tau, nn, tcol, **kwargs):
     """
     General integral for radiative losses model
 
-    :param time: time in seconds
-    :param t0: time for radiative losses to start in seconds
-    :param kappa: radiative efficiency
-    :param tau: spin down damping timescale in seconds
-    :param nn: braking index
-    :param tcol: collapse time in seconds
-    :param kwargs: key word arguments for handling plotting/other functionality
-    :return: luminosity
+    Parameters
+    ----------
+    time
+        time in seconds
+    t0
+        time for radiative losses to start in seconds
+    kappa
+        radiative efficiency
+    tau
+        spin down damping timescale in seconds
+    nn
+        braking index
+    tcol
+        collapse time in seconds
+    kwargs
+        key word arguments for handling plotting/other functionality
+
+    Returns
+    -------
+        luminosity
     """
     first_term, second_term = _get_integral_terms(time=time, t0=t0, kappa=kappa, tau=tau, nn=nn)
     return np.heaviside(tcol - time, 1e-50) * (first_term - second_term)
@@ -376,12 +552,22 @@ def _get_integral_terms(time, t0, kappa, tau, nn):
     """
     Get integral terms for radiative losses model
 
-    :param time: time in seconds
-    :param t0: time for radiative losses to start in seconds
-    :param kappa: radiative efficiency
-    :param tau: spin down damping timescale in seconds
-    :param nn: braking index
-    :return: first and second terms
+    Parameters
+    ----------
+    time
+        time in seconds
+    t0
+        time for radiative losses to start in seconds
+    kappa
+        radiative efficiency
+    tau
+        spin down damping timescale in seconds
+    nn
+        braking index
+
+    Returns
+    -------
+        first and second terms
     """
     alpha = (1 + nn) / (-1 + nn)
     pft = ss.hyp2f1(1 + kappa, alpha, 2 + kappa, -time / tau)
@@ -395,11 +581,20 @@ def _integral_mdr(time, t0, kappa, a, **kwargs):
     """
     Calculate integral for vacuum dipole radiation
 
-    :param time: time in seconds
-    :param t0: time for radiative losses to start in seconds
-    :param kappa: radiative efficiency
-    :param a: 1/tau (spin down damping timescale)
-    :return: integral
+    Parameters
+    ----------
+    time
+        time in seconds
+    t0
+        time for radiative losses to start in seconds
+    kappa
+        radiative efficiency
+    a
+        1/tau (spin down damping timescale)
+
+    Returns
+    -------
+        integral
     """
     z_f = (1 + a * time) ** (-1)
     z_int = (1 + a * t0) ** (-1)
@@ -414,16 +609,30 @@ def piecewise_radiative_losses(time, a_1, alpha_1, l0, tau, nn, kappa, t0_s, **k
     """
     Assumes smoothness and continuity between the prompt and magnetar term by fixing e0 variable
 
-    :param time: time in seconds
-    :param a_1: amplitude of curvature effect power law
-    :param alpha_1: index of curvature effect power law
-    :param l0: initial luminosity parameter
-    :param tau: spin-down damping timescale
-    :param nn: braking index
-    :param kappa: radiative efficiency
-    :param t0_s: time for radiative losses to start in seconds
-    :param kwargs: key word arguments for handling plotting/other functionality
-    :return: luminosity
+    Parameters
+    ----------
+    time
+        time in seconds
+    a_1
+        amplitude of curvature effect power law
+    alpha_1
+        index of curvature effect power law
+    l0
+        initial luminosity parameter
+    tau
+        spin-down damping timescale
+    nn
+        braking index
+    kappa
+        radiative efficiency
+    t0_s
+        time for radiative losses to start in seconds
+    kwargs
+        key word arguments for handling plotting/other functionality
+
+    Returns
+    -------
+        luminosity
     """
     pl_time = np.where(time <= t0_s)
     magnetar_time = np.where(time > t0_s)
@@ -443,17 +652,32 @@ def radiative_losses(time, a_1, alpha_1, l0, tau, nn, kappa, t0_s, log_e0, **kwa
     """
     radiative losses model with a step function, indicating the magnetar term turns on at T0
 
-    :param time: time in seconds
-    :param a_1: amplitude of curvature effect power law
-    :param alpha_1: index of curvature effect power law
-    :param l0: initial luminosity parameter
-    :param tau: spin-down damping timescale
-    :param nn: braking index
-    :param kappa: radiative efficiency
-    :param t0_s: time for radiative losses to start in seconds
-    :param log_e0: log10 E0 to connect curvature effect energy with transition point energy, captures flares
-    :param kwargs: key word arguments for handling plotting/other functionality
-    :return: luminosity
+    Parameters
+    ----------
+    time
+        time in seconds
+    a_1
+        amplitude of curvature effect power law
+    alpha_1
+        index of curvature effect power law
+    l0
+        initial luminosity parameter
+    tau
+        spin-down damping timescale
+    nn
+        braking index
+    kappa
+        radiative efficiency
+    t0_s
+        time for radiative losses to start in seconds
+    log_e0
+        log10 E0 to connect curvature effect energy with transition point energy, captures flares
+    kwargs
+        key word arguments for handling plotting/other functionality
+
+    Returns
+    -------
+        luminosity
     """
     e0 = 10 ** log_e0
     pl = one_component_fireball_model(time, a_1, alpha_1)
@@ -470,17 +694,24 @@ def radiative_only(time, l0, tau, nn, kappa, t0_s, log_e0, **kwargs):
     """
     radiative losses model only
 
-    :param time: time in seconds
-    :param l0: initial luminosity parameter
-    :param tau: spin-down damping timescale
-    :param nn: braking index
-    :param kappa: radiative efficiency
-    :param t0_s: time for radiative losses to start in seconds
-    :param log_e0: log10 E0 to connect curvature effect energy smoothly with transition point energy
-    :param kwargs: key word arguments for handling plotting/other functionality
-    :return: luminosity
-
-    :return:
+    Parameters
+    ----------
+    time
+        time in seconds
+    l0
+        initial luminosity parameter
+    tau
+        spin-down damping timescale
+    nn
+        braking index
+    kappa
+        radiative efficiency
+    t0_s
+        time for radiative losses to start in seconds
+    log_e0
+        log10 E0 to connect curvature effect energy smoothly with transition point energy
+    kwargs
+        key word arguments for handling plotting/other functionality
     """
     e0 = 10 ** log_e0
     loss_term = e0 * (t0_s / time) ** kappa
@@ -496,18 +727,32 @@ def radiative_losses_smoothness(time, a_1, alpha_1, l0, tau, nn, kappa, t0_s, lo
     """
     radiative losses model with a step function, indicating the magnetar term turns on at T0
 
-    :param time: time in seconds
-    :param a_1: amplitude of curvature effect power law
-    :param alpha_1: index of curvature effect power law
-    :param l0: initial luminosity parameter
-    :param tau: spin-down damping timescale
-    :param nn: braking index
-    :param kappa: radiative efficiency
-    :param t0_s: time for radiative losses to start in seconds
-    :param log_e0: log10 E0 to connect curvature effect energy smoothly with transition point energy
-    :param kwargs: key word arguments for handling plotting/other functionality
-    :return: luminosity
+    Parameters
+    ----------
+    time
+        time in seconds
+    a_1
+        amplitude of curvature effect power law
+    alpha_1
+        index of curvature effect power law
+    l0
+        initial luminosity parameter
+    tau
+        spin-down damping timescale
+    nn
+        braking index
+    kappa
+        radiative efficiency
+    t0_s
+        time for radiative losses to start in seconds
+    log_e0
+        log10 E0 to connect curvature effect energy smoothly with transition point energy
+    kwargs
+        key word arguments for handling plotting/other functionality
 
+    Returns
+    -------
+        luminosity
     """
     pl = one_component_fireball_model(time, a_1, alpha_1)
     e0 = 10 ** log_e0
@@ -527,16 +772,30 @@ def radiative_losses_mdr(time, a_1, alpha_1, l0, tau, kappa, log_e0, t0_s, **kwa
     """
     radiative losses model for vacuum dipole radiation
 
-    :param time: time in seconds
-    :param a_1: amplitude of curvature effect power law
-    :param alpha_1: index of curvature effect power law
-    :param l0: initial luminosity parameter
-    :param tau: spin-down damping timescale
-    :param kappa: radiative efficiency
-    :param t0_s: time for radiative losses to start in seconds
-    :param log_e0: log10 E0 to connect curvature effect energy smoothly with transition point energy
-    :param kwargs: key word arguments for handling plotting/other functionality
-    :return: luminosity
+    Parameters
+    ----------
+    time
+        time in seconds
+    a_1
+        amplitude of curvature effect power law
+    alpha_1
+        index of curvature effect power law
+    l0
+        initial luminosity parameter
+    tau
+        spin-down damping timescale
+    kappa
+        radiative efficiency
+    t0_s
+        time for radiative losses to start in seconds
+    log_e0
+        log10 E0 to connect curvature effect energy smoothly with transition point energy
+    kwargs
+        key word arguments for handling plotting/other functionality
+
+    Returns
+    -------
+        luminosity
     """
     a = 1. / tau
     e0 = 10 ** log_e0
@@ -554,19 +813,34 @@ def collapsing_radiative_losses(time, a_1, alpha_1, l0, tau, nn, tcol, kappa, t0
     """
     radiative losses model with collapse time
 
-    :param time: time in seconds
-    :param a_1: amplitude of curvature effect power law
-    :param alpha_1: index of curvature effect power law
-    :param l0: initial luminosity parameter
-    :param tau: spin-down damping timescale
-    :param nn: braking index
-    :param tcol: collapse time in seconds
-    :param kappa: radiative efficiency
-    :param t0_s: time for radiative losses to start in seconds
-    :param log_e0: log10 E0 to connect curvature effect energy smoothly with transition point energy
-    :param kwargs: key word arguments for handling plotting/other functionality
-    :return: luminosity
+    Parameters
+    ----------
+    time
+        time in seconds
+    a_1
+        amplitude of curvature effect power law
+    alpha_1
+        index of curvature effect power law
+    l0
+        initial luminosity parameter
+    tau
+        spin-down damping timescale
+    nn
+        braking index
+    tcol
+        collapse time in seconds
+    kappa
+        radiative efficiency
+    t0_s
+        time for radiative losses to start in seconds
+    log_e0
+        log10 E0 to connect curvature effect energy smoothly with transition point energy
+    kwargs
+        key word arguments for handling plotting/other functionality
 
+    Returns
+    -------
+        luminosity
     """
     e0 = 10 ** log_e0
     pl = one_component_fireball_model(time, a_1, alpha_1)
@@ -583,11 +857,20 @@ def luminosity_based_magnetar_models(time, photon_index, **kwargs):
     """
     Luminosity models that you want to fit to flux data by placing a prior on the redshift.
 
-    :param time: time in observers frame
-    :param photon_index: photon index
-    :param kwargs: all parameters for the model of choice.
-    :param cosmology: Cosmology to use for luminosity distance calculation. Defaults to Planck18. Must be a astropy.cosmology object.
-    :return: luminosity/1e50 erg
+    Parameters
+    ----------
+    time
+        time in observers frame
+    photon_index
+        photon index
+    kwargs
+        all parameters for the model of choice.
+    cosmology
+        Cosmology to use for luminosity distance calculation. Defaults to Planck18. Must be a astropy.cosmology object.
+
+    Returns
+    -------
+        luminosity/1e50 erg
     """
     from redback.model_library import modules_dict  # import model library in function to avoid circular dependency
     base_model = kwargs['base_model']

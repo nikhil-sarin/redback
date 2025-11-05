@@ -57,28 +57,27 @@ def _shockcooling_morag(time, v_shock, m_env, f_rho_m, radius, kappa):
 
        R_{\mathrm{bb}} = \frac{1}{T^2}\,\sqrt{\frac{L}{4\pi\,\sigma_{\mathrm{SB}}}}\,.
 
-    :param time: Time at which to evaluate the model (in days).
-    :type time: float or array_like
-    :param v_shock: Shock speed in units of 10^(8.5) cm/s.
-    :type v_shock: float
-    :param m_env: Envelope mass in solar masses.
-    :type m_env: float
-    :param f_rho_m: Product of the dimensionless factor f_ρ and the ejecta mass in solar masses.
-    :type f_rho_m: float
-    :param radius: Progenitor radius in units of 10^(13) cm.
-    :type radius: float
-    :param t_exp: Explosion epoch in days. Default is 0.
-    :type t_exp: float
-    :param kappa: Opacity relative to the electron scattering opacity. Default is 1.
-    :type kappa: float
+    Parameters
+    ----------
+    time : float or array_like
+        Time at which to evaluate the model (in days).
+    v_shock : float
+        Shock speed in units of 10^(8.5) cm/s.
+    m_env : float
+        Envelope mass in solar masses.
+    f_rho_m : float
+        Product of the dimensionless factor f_ρ and the ejecta mass in solar masses.
+    radius : float
+        Progenitor radius in units of 10^(13) cm.
+    t_exp : float
+        Explosion epoch in days. Default is 0.
+    kappa : float
+        Opacity relative to the electron scattering opacity. Default is 1.
 
-    :return: A namedtuple ``ShockCoolingResult`` with the following fields:
-             - luminosity: Bolometric luminosity in erg/s.
-             - t_photosphere: Effective temperature in Kelvin.
-             - r_photosphere: Effective photospheric radius in cm.
-             - min_time: Minimum time for which the model is valid in days.
-             - max_time: Maximum time for which the model is valid in days.
-    :rtype: ShockCoolingResult
+    Returns
+    -------
+    ShockCoolingResult
+        A namedtuple ``ShockCoolingResult`` with the following fields: - luminosity: Bolometric luminosity in erg/s. - t_photosphere: Effective temperature in Kelvin. - r_photosphere: Effective photospheric radius in cm. - min_time: Minimum time for which the model is valid in days. - max_time: Maximum time for which the model is valid in days.
     """
     # Normalization constants
     v_norm = 10 ** 8.5  # (cm/s) for shock speed normalization, roughly 3.16e8 cm/s.
@@ -142,14 +141,26 @@ def shockcooling_morag_bolometric(time, v_shock, m_env, f_rho_m, radius, kappa, 
     """
     Bolometric lightcurve following the Morag, Sapir, & Waxman model.
 
-    :param time: time in source frame in days
-    :param v_shock: shock speed in km/s
-    :param m_env: envelope mass in solar masses
-    :param f_rho_m: f_rho * M (with M in solar masses). f_rho is typically, of order unity
-    :param radius: star/envelope radius in units of 10^13 cm
-    :param kappa: opacity in cm^2/g
-    :param kwargs: Additional parameters required by model
-    :return: bolometric luminosity in erg/s
+    Parameters
+    ----------
+    time
+        time in source frame in days
+    v_shock
+        shock speed in km/s
+    m_env
+        envelope mass in solar masses
+    f_rho_m
+        f_rho * M (with M in solar masses). f_rho is typically, of order unity
+    radius
+        star/envelope radius in units of 10^13 cm
+    kappa
+        opacity in cm^2/g
+    kwargs
+        Additional parameters required by model
+
+    Returns
+    -------
+        bolometric luminosity in erg/s
     """
     v_shock = v_shock * 1e5
     radius = radius * 1e13
@@ -162,22 +173,40 @@ def shockcooling_morag(time, redshift, v_shock, m_env, f_rho_m, radius, kappa, *
     """
     Lightcurve following the Morag, Sapir, & Waxman model
 
-    :param time: time in observer frame in days
-    :param redshift: redshift
-    :param v_shock: shock speed in km/s
-    :param m_env: envelope mass in solar masses
-    :param f_rho_m: f_rho * M (with M in solar masses). f_rho is typically, of order unity
-    :param radius: star/envelope radius in units of 10^13 cm
-    :param kappa: opacity in cm^2/g
-    :param kwargs: Additional parameters required by model
-    :param time_temp: Optional argument to set your desired time array (in source frame days) to evaluate the model on.
-    :param frequency: Required if output_format is 'flux_density'.
-        frequency to calculate - Must be same length as time array or a single number).
-    :param bands: Required if output_format is 'magnitude' or 'flux'.
-    :param output_format: 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
-    :param lambda_array: Optional argument to set your desired wavelength array (in Angstroms) to evaluate the SED on.
-    :param cosmology: Cosmology to use for luminosity distance calculation. Defaults to Planck18. Must be a astropy.cosmology object.
-    :return: set by output format - 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
+    Parameters
+    ----------
+    time
+        time in observer frame in days
+    redshift
+        redshift
+    v_shock
+        shock speed in km/s
+    m_env
+        envelope mass in solar masses
+    f_rho_m
+        f_rho * M (with M in solar masses). f_rho is typically, of order unity
+    radius
+        star/envelope radius in units of 10^13 cm
+    kappa
+        opacity in cm^2/g
+    kwargs
+        Additional parameters required by model
+    time_temp
+        Optional argument to set your desired time array (in source frame days) to evaluate the model on.
+    frequency
+        Required if output_format is 'flux_density'. frequency to calculate - Must be same length as time array or a single number).
+    bands
+        Required if output_format is 'magnitude' or 'flux'.
+    output_format
+        'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
+    lambda_array
+        Optional argument to set your desired wavelength array (in Angstroms) to evaluate the SED on.
+    cosmology
+        Cosmology to use for luminosity distance calculation. Defaults to Planck18. Must be a astropy.cosmology object.
+
+    Returns
+    -------
+        set by output format - 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
     """
     v_shock = v_shock * 1e5
     radius = radius * 1e13
@@ -273,29 +302,29 @@ def _shockcooling_sapirandwaxman(time, v_shock, m_env, f_rho_m, radius, kappa, n
        R_{\mathrm{bb}} = \frac{\sqrt{L/(4\pi\sigma)}}{T_{\mathrm{K}}^2} \quad
        \text{with } \sigma = 5.670374419 \times 10^{-5}\,\mathrm{erg\,s^{-1}\,cm^{-2}\,K^{-4}}.
 
-    :param time: Time (in days) at which to evaluate the model.
-    :type time: float or array-like
-    :param v_shock: Shock speed in cm/s.
-    :type v_shock: float
-    :param m_env: Envelope mass in solar masses.
-    :type m_env: float
-    :param f_rho_m: The product :math:`f_{\\rho} \, M` (with M in solar masses). Typically of order unity.
-    :type f_rho_m: float
-    :param radius: Progenitor radius in cm.
-    :type radius: float
-    :param kappa: Ejecta opacity in cm²/g (e.g., approximately 0.34 for pure electron scattering).
-    :type kappa: float
-    :param nn: The polytropic index of the progenitor. Must be either 1.5 (default) or 3.0.
-    :type nn: float, optional
-    :param RW: If True, use the simplified Rabinak & Waxman formulation (sets a = 0 and adjusts the temperature correction factor).
-    :type RW: bool, optional
-    :return: A named tuple with the following fields:
-             - **t_photosphere**: Color temperature in Kelvin,
-             - **r_photosphere**: Derived photospheric radius in cm,
-             - **luminosity**: Bolometric luminosity in erg/s.
-            - **min_time**: Minimum time for which the model is valid in days.
-            - **max_time**: Maximum time for which the model is valid in days.
-    :rtype: namedtuple
+    Parameters
+    ----------
+    time : float or array-like
+        Time (in days) at which to evaluate the model.
+    v_shock : float
+        Shock speed in cm/s.
+    m_env : float
+        Envelope mass in solar masses.
+    f_rho_m : float
+        The product :math:`f_{\\rho} \, M` (with M in solar masses). Typically of order unity.
+    radius : float
+        Progenitor radius in cm.
+    kappa : float
+        Ejecta opacity in cm²/g (e.g., approximately 0.34 for pure electron scattering).
+    nn : float, optional
+        The polytropic index of the progenitor. Must be either 1.5 (default) or 3.0.
+    RW : bool, optional
+        If True, use the simplified Rabinak & Waxman formulation (sets a = 0 and adjusts the temperature correction factor).
+
+    Returns
+    -------
+    namedtuple
+        A named tuple with the following fields: - **t_photosphere**: Color temperature in Kelvin, - **r_photosphere**: Derived photospheric radius in cm, - **luminosity**: Bolometric luminosity in erg/s. - **min_time**: Minimum time for which the model is valid in days. - **max_time**: Maximum time for which the model is valid in days.
     """
     # Normalization constants
     v_norm = 10 ** 8.5  # (cm/s) for shock speed normalization, roughly 3.16e8 cm/s.
@@ -376,16 +405,30 @@ def shockcooling_sapirandwaxman_bolometric(time, v_shock, m_env, f_rho_m, radius
     """
     Bolometric lightcurve following the Sapir & Waxman (and Rabinak & Waxman) model.
 
-    :param time: time in source frame in days
-    :param v_shock: shock speed in km/s
-    :param m_env: envelope mass in solar masses
-    :param f_rho_m: f_rho * M (with M in solar masses). f_rho is typically, of order unity
-    :param radius: star/envelope radius in units of 10^13 cm
-    :param kappa: opacity in cm^2/g
-    :param kwargs: Additional parameters required by model
-    :param n: index of progenitor density profile, 1.5 (default) or 3.0
-    :param RW: If True, use the simplified Rabinak & Waxman formulation (off by default)
-    :return: bolometric luminosity in erg/s
+    Parameters
+    ----------
+    time
+        time in source frame in days
+    v_shock
+        shock speed in km/s
+    m_env
+        envelope mass in solar masses
+    f_rho_m
+        f_rho * M (with M in solar masses). f_rho is typically, of order unity
+    radius
+        star/envelope radius in units of 10^13 cm
+    kappa
+        opacity in cm^2/g
+    kwargs
+        Additional parameters required by model
+    n
+        index of progenitor density profile, 1.5 (default) or 3.0
+    RW
+        If True, use the simplified Rabinak & Waxman formulation (off by default)
+
+    Returns
+    -------
+        bolometric luminosity in erg/s
     """
     n = kwargs.get('n', 1.5)
     v_shock = v_shock * 1e5
@@ -400,24 +443,44 @@ def shockcooling_sapirandwaxman(time, redshift, v_shock, m_env, f_rho_m, radius,
     """
     Lightcurve following the Sapir & Waxman (and Rabinak & Waxman) model
 
-    :param time: time in observer frame in days
-    :param redshift: redshift
-    :param v_shock: shock speed in km/s
-    :param m_env: envelope mass in solar masses
-    :param f_rho_m: f_rho * M (with M in solar masses). f_rho is typically, of order unity
-    :param radius: star/envelope radius in units of 10^13 cm
-    :param kappa: opacity in cm^2/g
-    :param kwargs: Additional parameters required by model
-    :param time_temp: Optional argument to set your desired time array (in source frame days) to evaluate the model on.
-    :param n: index of progenitor density profile, 1.5 (default) or 3.0
-    :param RW: If True, use the simplified Rabinak & Waxman formulation (off by default)
-    :param frequency: Required if output_format is 'flux_density'.
-        frequency to calculate - Must be same length as time array or a single number).
-    :param bands: Required if output_format is 'magnitude' or 'flux'.
-    :param output_format: 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
-    :param lambda_array: Optional argument to set your desired wavelength array (in Angstroms) to evaluate the SED on.
-    :param cosmology: Cosmology to use for luminosity distance calculation. Defaults to Planck18. Must be a astropy.cosmology object.
-    :return: set by output format - 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
+    Parameters
+    ----------
+    time
+        time in observer frame in days
+    redshift
+        redshift
+    v_shock
+        shock speed in km/s
+    m_env
+        envelope mass in solar masses
+    f_rho_m
+        f_rho * M (with M in solar masses). f_rho is typically, of order unity
+    radius
+        star/envelope radius in units of 10^13 cm
+    kappa
+        opacity in cm^2/g
+    kwargs
+        Additional parameters required by model
+    time_temp
+        Optional argument to set your desired time array (in source frame days) to evaluate the model on.
+    n
+        index of progenitor density profile, 1.5 (default) or 3.0
+    RW
+        If True, use the simplified Rabinak & Waxman formulation (off by default)
+    frequency
+        Required if output_format is 'flux_density'. frequency to calculate - Must be same length as time array or a single number).
+    bands
+        Required if output_format is 'magnitude' or 'flux'.
+    output_format
+        'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
+    lambda_array
+        Optional argument to set your desired wavelength array (in Angstroms) to evaluate the SED on.
+    cosmology
+        Cosmology to use for luminosity distance calculation. Defaults to Planck18. Must be a astropy.cosmology object.
+
+    Returns
+    -------
+        set by output format - 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
     """
 
     n = kwargs.get('n', 1.5)
@@ -472,14 +535,26 @@ def _csm_shock_breakout(time, csm_mass, v_min, beta, kappa, shell_radius, shell_
     """
     Dense CSM shock breakout and cooling model From Margalit 2022
 
-    :param time: time in days
-    :param csm_mass: mass of CSM shell in g
-    :param v_min: minimum velocity in km/s
-    :param beta: velocity ratio in c (beta < 1)
-    :param kappa: opacity in cm^2/g
-    :param shell_radius: radius of shell in 10^14 cm
-    :param shell_width_ratio: shell width ratio (deltaR/R0)
-    :return: namedtuple with lbol, r_photosphere, and temperature
+    Parameters
+    ----------
+    time
+        time in days
+    csm_mass
+        mass of CSM shell in g
+    v_min
+        minimum velocity in km/s
+    beta
+        velocity ratio in c (beta < 1)
+    kappa
+        opacity in cm^2/g
+    shell_radius
+        radius of shell in 10^14 cm
+    shell_width_ratio
+        shell width ratio (deltaR/R0)
+
+    Returns
+    -------
+        namedtuple with lbol, r_photosphere, and temperature
     """
     v0 = v_min * 1e5
     e0 = 0.5 * csm_mass * v0**2
@@ -523,15 +598,28 @@ def csm_shock_breakout_bolometric(time, csm_mass, v_min, beta, kappa, shell_radi
     """
     Dense CSM shock breakout and cooling model From Margalit 2022
 
-    :param time: time in days in source frame
-    :param csm_mass: mass of CSM shell in solar masses
-    :param v_min: minimum velocity in km/s
-    :param beta: velocity ratio in c (beta < 1)
-    :param kappa: opacity in cm^2/g
-    :param shell_radius: radius of shell in 10^14 cm
-    :param shell_width_ratio: shell width ratio (deltaR/R0)
-    :param kwargs: Additional parameters required by model
-    :return: bolometric luminosity
+    Parameters
+    ----------
+    time
+        time in days in source frame
+    csm_mass
+        mass of CSM shell in solar masses
+    v_min
+        minimum velocity in km/s
+    beta
+        velocity ratio in c (beta < 1)
+    kappa
+        opacity in cm^2/g
+    shell_radius
+        radius of shell in 10^14 cm
+    shell_width_ratio
+        shell width ratio (deltaR/R0)
+    kwargs
+        Additional parameters required by model
+
+    Returns
+    -------
+        bolometric luminosity
     """
     csm_mass = csm_mass * cc.solar_mass
     time_temp = np.linspace(1e-2, 200, 300)  # days
@@ -546,22 +634,40 @@ def csm_shock_breakout(time, redshift, csm_mass, v_min, beta, kappa, shell_radiu
     """
     Dense CSM shock breakout and cooling model From Margalit 2022
 
-    :param time: time in days in observer frame
-    :param redshift: redshift
-    :param csm_mass: mass of CSM shell in solar masses
-    :param v_min: minimum velocity in km/s
-    :param beta: velocity ratio in c (beta < 1)
-    :param kappa: opacity in cm^2/g
-    :param shell_radius: radius of shell in 10^14 cm
-    :param shell_width_ratio: shell width ratio (deltaR/R0)
-    :param kwargs: Additional parameters required by model
-    :param frequency: Required if output_format is 'flux_density'.
-        frequency to calculate - Must be same length as time array or a single number).
-    :param bands: Required if output_format is 'magnitude' or 'flux'.
-    :param output_format: 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
-    :param lambda_array: Optional argument to set your desired wavelength array (in Angstroms) to evaluate the SED on.
-    :param cosmology: Cosmology to use for luminosity distance calculation. Defaults to Planck18. Must be a astropy.cosmology object.
-    :return: set by output format - 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
+    Parameters
+    ----------
+    time
+        time in days in observer frame
+    redshift
+        redshift
+    csm_mass
+        mass of CSM shell in solar masses
+    v_min
+        minimum velocity in km/s
+    beta
+        velocity ratio in c (beta < 1)
+    kappa
+        opacity in cm^2/g
+    shell_radius
+        radius of shell in 10^14 cm
+    shell_width_ratio
+        shell width ratio (deltaR/R0)
+    kwargs
+        Additional parameters required by model
+    frequency
+        Required if output_format is 'flux_density'. frequency to calculate - Must be same length as time array or a single number).
+    bands
+        Required if output_format is 'magnitude' or 'flux'.
+    output_format
+        'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
+    lambda_array
+        Optional argument to set your desired wavelength array (in Angstroms) to evaluate the SED on.
+    cosmology
+        Cosmology to use for luminosity distance calculation. Defaults to Planck18. Must be a astropy.cosmology object.
+
+    Returns
+    -------
+        set by output format - 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
     """
     csm_mass = csm_mass * cc.solar_mass
     cosmology = kwargs.get('cosmology', cosmo)
@@ -612,14 +718,27 @@ def csm_shock_breakout(time, redshift, csm_mass, v_min, beta, kappa, shell_radiu
 @citation_wrapper('https://ui.adsabs.harvard.edu/abs/2021ApJ...909..209P/abstract')
 def _shock_cooling(time, mass, radius, energy, **kwargs):
     """
-    :param time: time in source frame in seconds
-    :param mass: mass of extended material in solar masses
-    :param radius: radius of extended material in cm
-    :param energy: energy of extended material in ergs
-    :param kwargs: extra parameters to change physics
-    :param nn: density power law slope
-    :param delta: inner density power law slope
-    :return: namedtuple with lbol, r_photosphere, and temperature
+
+    Parameters
+    ----------
+    time
+        time in source frame in seconds
+    mass
+        mass of extended material in solar masses
+    radius
+        radius of extended material in cm
+    energy
+        energy of extended material in ergs
+    kwargs
+        extra parameters to change physics
+    nn
+        density power law slope
+    delta
+        inner density power law slope
+
+    Returns
+    -------
+        namedtuple with lbol, r_photosphere, and temperature
     """
     nn = kwargs.get('nn',10)
     delta = kwargs.get('delta',1.1)
@@ -656,15 +775,28 @@ def _shocked_cocoon_nicholl(time, kappa, mejecta, vejecta, cos_theta_cocoon, sho
     """
     Shocked cocoon model from Nicholl et al. 2021
 
-    :param time: time in source frame in days
-    :param kappa: opacity
-    :param mejecta: ejecta in solar masses
-    :param vejecta: ejecta velocity in units of c (speed of light)
-    :param cos_theta_cocoon: cosine of the cocoon opening angle
-    :param shocked_fraction: fraction of the ejecta that is shocked
-    :param nn: ejecta power law density profile
-    :param tshock: time of shock in source frame in seconds
-    :return: luminosity
+    Parameters
+    ----------
+    time
+        time in source frame in days
+    kappa
+        opacity
+    mejecta
+        ejecta in solar masses
+    vejecta
+        ejecta velocity in units of c (speed of light)
+    cos_theta_cocoon
+        cosine of the cocoon opening angle
+    shocked_fraction
+        fraction of the ejecta that is shocked
+    nn
+        ejecta power law density profile
+    tshock
+        time of shock in source frame in seconds
+
+    Returns
+    -------
+        luminosity
     """
     ckm = 3e10 / 1e5
     vejecta = vejecta * ckm
@@ -691,14 +823,27 @@ def _shocked_cocoon_nicholl(time, kappa, mejecta, vejecta, cos_theta_cocoon, sho
 @citation_wrapper('https://ui.adsabs.harvard.edu/abs/2021ApJ...909..209P/abstract')
 def shock_cooling_bolometric(time, log10_mass, log10_radius, log10_energy, **kwargs):
     """
-    :param time: time in source frame in seconds
-    :param log10_mass: log10 mass of extended material in solar masses
-    :param log10_radius: log10 radius of extended material in cm
-    :param log10_energy: log10 energy of extended material in ergs
-    :param kwargs: extra parameters to change physics
-    :param nn: density power law slope
-    :param delta: inner density power law slope
-    :return: bolometric_luminosity
+
+    Parameters
+    ----------
+    time
+        time in source frame in seconds
+    log10_mass
+        log10 mass of extended material in solar masses
+    log10_radius
+        log10 radius of extended material in cm
+    log10_energy
+        log10 energy of extended material in ergs
+    kwargs
+        extra parameters to change physics
+    nn
+        density power law slope
+    delta
+        inner density power law slope
+
+    Returns
+    -------
+        bolometric_luminosity
     """
     mass = 10 ** log10_mass
     radius = 10 ** log10_radius
@@ -709,22 +854,39 @@ def shock_cooling_bolometric(time, log10_mass, log10_radius, log10_energy, **kwa
 @citation_wrapper('https://ui.adsabs.harvard.edu/abs/2021ApJ...909..209P/abstract')
 def shock_cooling(time, redshift, log10_mass, log10_radius, log10_energy, **kwargs):
     """
-    :param time: time in observer frame in days
-    :param redshift: redshift
-    :param log10_mass: log10 mass of extended material in solar masses
-    :param log10_radius: log10 radius of extended material in cm
-    :param log10_energy: log10 energy of extended material in ergs
-    :param kwargs: extra parameters to change physics and other settings
-    :param frequency: frequency to calculate model on - Must be same length as time array or a single number)
-    :param nn: density power law slope
-    :param delta: inner density power law slope
-    :param frequency: Required if output_format is 'flux_density'.
-        frequency to calculate - Must be same length as time array or a single number).
-    :param bands: Required if output_format is 'magnitude' or 'flux'.
-    :param output_format: 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
-    :param lambda_array: Optional argument to set your desired wavelength array (in Angstroms) to evaluate the SED on.
-    :param cosmology: Cosmology to use for luminosity distance calculation. Defaults to Planck18. Must be a astropy.cosmology object.
-    :return: set by output format - 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
+
+    Parameters
+    ----------
+    time
+        time in observer frame in days
+    redshift
+        redshift
+    log10_mass
+        log10 mass of extended material in solar masses
+    log10_radius
+        log10 radius of extended material in cm
+    log10_energy
+        log10 energy of extended material in ergs
+    kwargs
+        extra parameters to change physics and other settings
+    frequency
+        Required if output_format is 'flux_density'. frequency to calculate - Must be same length as time array or a single number).
+    nn
+        density power law slope
+    delta
+        inner density power law slope
+    bands
+        Required if output_format is 'magnitude' or 'flux'.
+    output_format
+        'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
+    lambda_array
+        Optional argument to set your desired wavelength array (in Angstroms) to evaluate the SED on.
+    cosmology
+        Cosmology to use for luminosity distance calculation. Defaults to Planck18. Must be a astropy.cosmology object.
+
+    Returns
+    -------
+        set by output format - 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
     """
     mass = 10 ** log10_mass
     radius = 10 ** log10_radius
@@ -764,8 +926,15 @@ def shock_cooling(time, redshift, log10_mass, log10_radius, log10_energy, **kwar
 
 def _c_j(p):
     """
-    :param p: electron power law slope
-    :return: prefactor for emissivity
+
+    Parameters
+    ----------
+    p
+        electron power law slope
+
+    Returns
+    -------
+        prefactor for emissivity
     """
     term1 = (special.gamma((p+5.0)/4.0)/special.gamma((p+7.0)/4.0))
     term2 = special.gamma((3.0*p+19.0)/12.0)
@@ -776,8 +945,15 @@ def _c_j(p):
 
 def _c_alpha(p):
     """
-    :param p: electron power law slope
-    :return: prefactor for absorption coefficient
+
+    Parameters
+    ----------
+    p
+        electron power law slope
+
+    Returns
+    -------
+        prefactor for absorption coefficient
     """
     term1 = (special.gamma((p+6.0)/4.0)/special.gamma((p+8.0)/4.0))
     term2 = special.gamma((3.0*p+2.0)/12.0)
@@ -788,9 +964,17 @@ def _c_alpha(p):
 
 def _g_theta(theta,p):
     """
-    :param theta: dimensionless electron temperature
-    :param p: electron power law slope
-    :return: correction term for power law electron distribution
+
+    Parameters
+    ----------
+    theta
+        dimensionless electron temperature
+    p
+        electron power law slope
+
+    Returns
+    -------
+        correction term for power law electron distribution
     """
     aa = (6.0 + 15.0 * theta) / (4.0 + 5.0 * theta)
     gamma_m = 1e0 + aa * theta
@@ -799,10 +983,19 @@ def _g_theta(theta,p):
 
 def _low_freq_jpl_correction(x,theta,p):
     """
-    :param x: dimensionless frequency
-    :param theta: dimensionless electron temperature
-    :param p: electron power law slope
-    :return: low-frequency correction to power-law emissivity
+
+    Parameters
+    ----------
+    x
+        dimensionless frequency
+    theta
+        dimensionless electron temperature
+    p
+        electron power law slope
+
+    Returns
+    -------
+        low-frequency correction to power-law emissivity
     """
     aa = (6.0 + 15.0 * theta) / (4.0 + 5.0 * theta)
     gamma_m = 1e0 + aa * theta
@@ -817,10 +1010,19 @@ def _low_freq_jpl_correction(x,theta,p):
 
 def _low_freq_apl_correction(x,theta,p):
     """
-    :param x: dimensionless frequency
-    :param theta: dimensionless electron temperature
-    :param p: electron power law slope
-    :return: low-frequency correction to power-law absorption coefficient
+
+    Parameters
+    ----------
+    x
+        dimensionless frequency
+    theta
+        dimensionless electron temperature
+    p
+        electron power law slope
+
+    Returns
+    -------
+        low-frequency correction to power-law absorption coefficient
     """
     aa = (6.0 + 15.0 * theta) / (4.0 + 5.0 * theta)
     gamma_m = 1e0 + aa * theta
@@ -835,14 +1037,27 @@ def _low_freq_apl_correction(x,theta,p):
 
 def _emissivity_pl(x, nism, bfield, theta, xi, p, z_cool):
     """
-    :param x: dimensionless frequency
-    :param nism: electron number density in emitting region (cm^-3)
-    :param bfield: magnetic field strength in Gauss
-    :param theta: dimensionless electron temperature
-    :param xi: fraction of energy carried by power law electrons
-    :param p: electron power law slope
-    :param z_cool: normalised cooling lorentz factor
-    :return: synchrotron emissivity of power-law electrons
+
+    Parameters
+    ----------
+    x
+        dimensionless frequency
+    nism
+        electron number density in emitting region (cm^-3)
+    bfield
+        magnetic field strength in Gauss
+    theta
+        dimensionless electron temperature
+    xi
+        fraction of energy carried by power law electrons
+    p
+        electron power law slope
+    z_cool
+        normalised cooling lorentz factor
+
+    Returns
+    -------
+        synchrotron emissivity of power-law electrons
     """
     val = _c_j(p)*(cc.qe**3/(cc.electron_mass*cc.speed_of_light**2))*xi*nism*bfield*_g_theta(theta=theta,p=p)*x**(-(p-1.0)/2.0)
     # correct emission at low-frequencies x < x_m:
@@ -855,12 +1070,23 @@ def _emissivity_pl(x, nism, bfield, theta, xi, p, z_cool):
 
 def _emissivity_thermal(x, nism, bfield, theta, z_cool):
     """
-    :param x: dimensionless frequency
-    :param nism: electron number density in emitting region (cm^-3)
-    :param bfield: magnetic field strength in Gauss
-    :param theta: dimensionless electron temperature
-    :param z_cool: normalised cooling lorentz factor
-    :return: synchrotron emissivity of thermal electrons
+
+    Parameters
+    ----------
+    x
+        dimensionless frequency
+    nism
+        electron number density in emitting region (cm^-3)
+    bfield
+        magnetic field strength in Gauss
+    theta
+        dimensionless electron temperature
+    z_cool
+        normalised cooling lorentz factor
+
+    Returns
+    -------
+        synchrotron emissivity of thermal electrons
     """
     ff = 2.0*theta**2/special.kn(2,1.0/theta)
     ix = 4.0505*x**(-1.0/6.0)*( 1.0 + 0.40*x**(-0.25) + 0.5316*x**(-0.5) )*np.exp(-1.8899*x**(1.0/3.0))
@@ -872,12 +1098,23 @@ def _emissivity_thermal(x, nism, bfield, theta, z_cool):
 
 def _alphanu_th(x, nism, bfield, theta, z_cool):
     """
-    :param x: dimensionless frequency
-    :param nism: electron number density in emitting region (cm^-3)
-    :param bfield: magnetic field strength in Gauss
-    :param theta: dimensionless electron temperature
-    :param z_cool: normalised cooling lorentz factor
-    :return: Synchrotron absorption coeff of thermal electrons
+
+    Parameters
+    ----------
+    x
+        dimensionless frequency
+    nism
+        electron number density in emitting region (cm^-3)
+    bfield
+        magnetic field strength in Gauss
+    theta
+        dimensionless electron temperature
+    z_cool
+        normalised cooling lorentz factor
+
+    Returns
+    -------
+        Synchrotron absorption coeff of thermal electrons
     """
     ff = 2.0 * theta ** 2 / special.kn(2, 1.0 / theta)
     ix = 4.0505*x**(-1.0/6.0)*( 1.0 + 0.40*x**(-0.25) + 0.5316*x**(-0.5) )*np.exp(-1.8899*x**(1.0/3.0))
@@ -889,14 +1126,27 @@ def _alphanu_th(x, nism, bfield, theta, z_cool):
 
 def _alphanu_pl(x, nism, bfield, theta, xi, p, z_cool):
     """
-    :param x: dimensionless frequency
-    :param nism: electron number density in emitting region (cm^-3)
-    :param bfield: magnetic field strength in Gauss
-    :param theta: dimensionless electron temperature
-    :param xi: fraction of energy carried by power law electrons
-    :param p: electron power law slope
-    :param z_cool: normalised cooling lorentz factor
-    :return: Synchrotron absorption coeff of power-law electrons
+
+    Parameters
+    ----------
+    x
+        dimensionless frequency
+    nism
+        electron number density in emitting region (cm^-3)
+    bfield
+        magnetic field strength in Gauss
+    theta
+        dimensionless electron temperature
+    xi
+        fraction of energy carried by power law electrons
+    p
+        electron power law slope
+    z_cool
+        normalised cooling lorentz factor
+
+    Returns
+    -------
+        Synchrotron absorption coeff of power-law electrons
     """
     val = _c_alpha(p)*cc.qe*(xi*nism/(theta**5*bfield))*_g_theta(theta,p=p)*x**(-(p+4.0)/2.0)
     # correct emission at low-frequencies x < x_m:
@@ -908,15 +1158,29 @@ def _alphanu_pl(x, nism, bfield, theta, xi, p, z_cool):
 
 def _tau_nu(x, nism, radius, bfield, theta, xi, p, z_cool):
     """
-    :param x: dimensionless frequency
-    :param nism: electron number density in emitting region (cm^-3)
-    :param radius: characteristic size of the emitting region (in cm)
-    :param bfield: magnetic field strength in Gauss
-    :param theta: dimensionless electron temperature
-    :param xi: fraction of energy carried by power law electrons
-    :param p: electron power law slope
-    :param z_cool: normalised cooling lorentz factor
-    :return: Total (thermal+non-thermal) synchrotron optical depth
+
+    Parameters
+    ----------
+    x
+        dimensionless frequency
+    nism
+        electron number density in emitting region (cm^-3)
+    radius
+        characteristic size of the emitting region (in cm)
+    bfield
+        magnetic field strength in Gauss
+    theta
+        dimensionless electron temperature
+    xi
+        fraction of energy carried by power law electrons
+    p
+        electron power law slope
+    z_cool
+        normalised cooling lorentz factor
+
+    Returns
+    -------
+        Total (thermal+non-thermal) synchrotron optical depth
     """
     alphanu_pl = _alphanu_pl(x=x,nism=nism,bfield=bfield,theta=theta,xi=xi,p=p,z_cool=z_cool)
     alphanu_thermal = _alphanu_th(x=x, nism=nism, bfield=bfield,theta=theta,z_cool=z_cool)
@@ -926,15 +1190,29 @@ def _tau_nu(x, nism, radius, bfield, theta, xi, p, z_cool):
 @citation_wrapper('https://ui.adsabs.harvard.edu/abs/2018ApJ...855..103P/abstract')
 def _shocked_cocoon(time, mej, vej, eta, tshock, shocked_fraction, cos_theta_cocoon, kappa):
     """
-    :param time: source frame time in days
-    :param mej: ejecta mass in solar masses
-    :param vej: ejecta velocity in c
-    :param eta: slope for ejecta density profile
-    :param tshock: shock time in seconds
-    :param shocked_fraction: fraction of ejecta mass shocked
-    :param cos_theta_cocoon: cocoon opening angle
-    :param kappa: opacity
-    :return: namedtuple with lbol, r_photosphere, and temperature
+
+    Parameters
+    ----------
+    time
+        source frame time in days
+    mej
+        ejecta mass in solar masses
+    vej
+        ejecta velocity in c
+    eta
+        slope for ejecta density profile
+    tshock
+        shock time in seconds
+    shocked_fraction
+        fraction of ejecta mass shocked
+    cos_theta_cocoon
+        cocoon opening angle
+    kappa
+        opacity
+
+    Returns
+    -------
+        namedtuple with lbol, r_photosphere, and temperature
     """
     c_kms = cc.speed_of_light / cc.km_cgs
     vej = vej * c_kms
@@ -965,16 +1243,31 @@ def _shocked_cocoon(time, mej, vej, eta, tshock, shocked_fraction, cos_theta_coc
 @citation_wrapper('https://ui.adsabs.harvard.edu/abs/2018ApJ...855..103P/abstract')
 def shocked_cocoon_bolometric(time, mej, vej, eta, tshock, shocked_fraction, cos_theta_cocoon, kappa, **kwargs):
     """
-    :param time: source frame time in days
-    :param mej: ejecta mass in solar masses
-    :param vej: ejecta mass in km/s
-    :param eta: slope for ejecta density profile
-    :param tshock: shock time in seconds
-    :param shocked_fraction: fraction of ejecta mass shocked
-    :param cos_theta_cocoon: cocoon opening angle
-    :param kappa: opacity
-    :param kwargs: None
-    :return: bolometric_luminosity
+
+    Parameters
+    ----------
+    time
+        source frame time in days
+    mej
+        ejecta mass in solar masses
+    vej
+        ejecta mass in km/s
+    eta
+        slope for ejecta density profile
+    tshock
+        shock time in seconds
+    shocked_fraction
+        fraction of ejecta mass shocked
+    cos_theta_cocoon
+        cocoon opening angle
+    kappa
+        opacity
+    kwargs
+        None
+
+    Returns
+    -------
+        bolometric_luminosity
     """
     output = _shocked_cocoon(time, mej, vej, eta, tshock, shocked_fraction, cos_theta_cocoon, kappa)
     return output.lbol
@@ -982,23 +1275,43 @@ def shocked_cocoon_bolometric(time, mej, vej, eta, tshock, shocked_fraction, cos
 @citation_wrapper('https://ui.adsabs.harvard.edu/abs/2018ApJ...855..103P/abstract')
 def shocked_cocoon(time, redshift, mej, vej, eta, tshock, shocked_fraction, cos_theta_cocoon, kappa, **kwargs):
     """
-    :param time: observer frame time in days
-    :param redshift: redshift
-    :param mej: ejecta mass in solar masses
-    :param vej: ejecta velocity in c
-    :param eta: slope for ejecta density profile
-    :param tshock: shock time in seconds
-    :param shocked_fraction: fraction of ejecta mass shocked
-    :param cos_theta_cocoon: cocoon opening angle
-    :param kappa: opacity
-    :param kwargs: Extra parameters used by function
-    :param frequency: Required if output_format is 'flux_density'.
-        frequency to calculate - Must be same length as time array or a single number).
-    :param bands: Required if output_format is 'magnitude' or 'flux'.
-    :param output_format: 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
-    :param lambda_array: Optional argument to set your desired wavelength array (in Angstroms) to evaluate the SED on.
-    :param cosmology: Cosmology to use for luminosity distance calculation. Defaults to Planck18. Must be a astropy.cosmology object.
-    :return: set by output format - 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
+
+    Parameters
+    ----------
+    time
+        observer frame time in days
+    redshift
+        redshift
+    mej
+        ejecta mass in solar masses
+    vej
+        ejecta velocity in c
+    eta
+        slope for ejecta density profile
+    tshock
+        shock time in seconds
+    shocked_fraction
+        fraction of ejecta mass shocked
+    cos_theta_cocoon
+        cocoon opening angle
+    kappa
+        opacity
+    kwargs
+        Extra parameters used by function
+    frequency
+        Required if output_format is 'flux_density'. frequency to calculate - Must be same length as time array or a single number).
+    bands
+        Required if output_format is 'magnitude' or 'flux'.
+    output_format
+        'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
+    lambda_array
+        Optional argument to set your desired wavelength array (in Angstroms) to evaluate the SED on.
+    cosmology
+        Cosmology to use for luminosity distance calculation. Defaults to Planck18. Must be a astropy.cosmology object.
+
+    Returns
+    -------
+        set by output format - 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
     """
     cosmology = kwargs.get('cosmology', cosmo)
     dl = cosmology.luminosity_distance(redshift).cgs.value
@@ -1041,7 +1354,5 @@ def csm_truncation_shock():
     """
     Multi-zone version of Margalit 2022 model for CSM shock breakout and cooling one zone model is implemented as
     csm_shock_breakout
-
-    :return:
     """
     raise NotImplementedError("This model is not yet implemented.")
