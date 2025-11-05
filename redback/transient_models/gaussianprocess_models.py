@@ -5,13 +5,25 @@ def calculate_flux_with_labels(time, t0, tau_rise, tau_fall, labels, **kwargs):
     Calculate flux for multiple sets of parameters using the Bazin function,
     where parameters are indexed by the provided labels.
 
-    :param time: time array in arbitrary units
-    :param t0: start time
-    :param tau_rise: exponential rise time
-    :param tau_fall: exponential fall time
-    :param labels: list of strings to generate parameter names
-    :param kwargs: keyword arguments for parameters in the form a_{label}, b_{label}, etc.
-    :return: dictionary with labels as keys and flux arrays as values
+    Parameters
+    ----------
+    time : array_like
+        Time array in arbitrary units
+    t0 : float
+        Start time
+    tau_rise : float
+        Exponential rise time
+    tau_fall : float
+        Exponential fall time
+    labels : list of str
+        List of strings to generate parameter names
+    kwargs : dict
+        Keyword arguments for parameters in the form a_{label}, b_{label}, etc.
+
+    Returns
+    -------
+    dict
+        Dictionary with labels as keys and flux arrays as values
     """
     a_values = []
     b_values = []
