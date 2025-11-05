@@ -729,7 +729,8 @@ def bulla_bns_kilonova(time, redshift, mej_dyn, mej_disk, phi, costheta_obs, **k
         frequency, time = calc_kcorrected_properties(frequency=frequency, time=time, redshift=redshift)
         output = function(time_source_frame=time, redshift=redshift, mej_dyn=mej_dyn,
                           mej_disk=mej_disk, phi=phi, costheta_obs=costheta_obs)
-        spectra = output.spectra / (4 * np.pi * dl ** 2) / (1 + redshift)  # to erg/s/cm^2/Angstrom
+        # multiply by (1+z) because the kilonova net outputs L_nu in source frame per unit frequency
+        spectra = output.spectra / (4 * np.pi * dl ** 2) * (1 + redshift)  # to erg/s/cm^2/Angstrom
         spectra = spectra * uu.erg / (uu.s * uu.cm ** 2 * uu.Angstrom)
         lambdas_obs = output.lambdas * (1 + redshift)
         fmjy = spectra.to(uu.mJy, equivalencies=uu.spectral_density(wav=lambdas_obs * uu.Angstrom)).value
@@ -748,7 +749,8 @@ def bulla_bns_kilonova(time, redshift, mej_dyn, mej_disk, phi, costheta_obs, **k
         else:
             time_observer_frame = output.time
             lambda_observer_frame = output.lambdas * (1 + redshift)
-            spectra = output.spectra / (4 * np.pi * dl ** 2) / (1 + redshift) # to erg/s/cm^2/Angstrom
+            # multiply by (1+z) because the kilonova net outputs L_nu in source frame per unit frequency
+            spectra = (output.spectra / (4 * np.pi * dl ** 2)) * (1 + redshift) # to erg/s/cm^2/Angstrom
             spectra = spectra * uu.erg / (uu.s * uu.cm ** 2 * uu.Angstrom)
             time_obs = time
             return get_correct_output_format_from_spectra(time=time_obs, time_eval=time_observer_frame,
@@ -783,7 +785,8 @@ def bulla_nsbh_kilonova(time, redshift, mej_dyn, mej_disk, costheta_obs, **kwarg
         frequency, time = calc_kcorrected_properties(frequency=frequency, time=time, redshift=redshift)
         output = function(time_source_frame=time, redshift=redshift, mej_dyn=mej_dyn,
                           mej_disk=mej_disk, costheta_obs=costheta_obs)
-        spectra = output.spectra / (4 * np.pi * dl ** 2) / (1 + redshift)  # to erg/s/cm^2/Angstrom
+        # multiply by (1+z) because the kilonova net outputs L_nu in source frame per unit frequency
+        spectra = output.spectra / (4 * np.pi * dl ** 2) * (1 + redshift)  # to erg/s/cm^2/Angstrom
         spectra = spectra * uu.erg / (uu.s * uu.cm ** 2 * uu.Angstrom)
         lambdas_obs = output.lambdas * (1 + redshift)
         fmjy = spectra.to(uu.mJy, equivalencies=uu.spectral_density(wav=lambdas_obs * uu.Angstrom)).value
@@ -802,7 +805,8 @@ def bulla_nsbh_kilonova(time, redshift, mej_dyn, mej_disk, costheta_obs, **kwarg
         else:
             time_observer_frame = output.time
             lambda_observer_frame = output.lambdas * (1 + redshift)
-            spectra = output.spectra / (4 * np.pi * dl ** 2) / (1 + redshift) # to erg/s/cm^2/Angstrom
+            # multiply by (1+z) because the kilonova net outputs L_nu in source frame per unit frequency
+            spectra = (output.spectra / (4 * np.pi * dl ** 2)) * (1 + redshift) # to erg/s/cm^2/Angstrom
             spectra = spectra * uu.erg / (uu.s * uu.cm ** 2 * uu.Angstrom)
             time_obs = time
             return get_correct_output_format_from_spectra(time=time_obs, time_eval=time_observer_frame,
@@ -836,7 +840,8 @@ def kasen_bns_kilonova(time, redshift, mej, vej, chi, **kwargs):
         frequency = kwargs['frequency']
         frequency, time = calc_kcorrected_properties(frequency=frequency, time=time, redshift=redshift)
         output = function(time_source_frame=time,redshift=redshift, mej=mej, vej=vej, chi=chi)
-        spectra = output.spectra / (4 * np.pi * dl ** 2) / (1 + redshift) # to erg/s/cm^2/Angstrom
+        # multiply by (1+z) because the kilonova net outputs L_nu in source frame per unit frequency
+        spectra = output.spectra / (4 * np.pi * dl ** 2) * (1 + redshift) # to erg/s/cm^2/Angstrom
         spectra = spectra * uu.erg / (uu.s * uu.cm ** 2 * uu.Angstrom)
         lambdas_obs = output.lambdas * (1 + redshift)
         fmjy = spectra.to(uu.mJy, equivalencies=uu.spectral_density(wav=lambdas_obs * uu.Angstrom)).value
@@ -854,7 +859,8 @@ def kasen_bns_kilonova(time, redshift, mej, vej, chi, **kwargs):
         else:
             time_observer_frame = output.time
             lambda_observer_frame = output.lambdas * (1 + redshift)
-            spectra = output.spectra / (4 * np.pi * dl ** 2) / (1 + redshift) # to erg/s/cm^2/Angstrom
+            # multiply by (1+z) because the kilonova net outputs L_nu in source frame per unit frequency
+            spectra = (output.spectra / (4 * np.pi * dl ** 2)) * (1 + redshift) # to erg/s/cm^2/Angstrom
             spectra = spectra * uu.erg / (uu.s * uu.cm ** 2 * uu.Angstrom)
             time_obs = time
             return get_correct_output_format_from_spectra(time=time_obs, time_eval=time_observer_frame,
