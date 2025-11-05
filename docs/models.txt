@@ -133,8 +133,7 @@ Alongside these models we also include some general models which can many of the
 Model optimizations
 -------------------------
 Some models in :code:`redback` have been optimized for speed using `numba <https://numba.pydata.org/>`_
-or available with a `jax <https://jax.readthedocs.io/en/latest/>`_ fortran, or another optimized backend.
-Please see the API docs for more details on which models have been optimized and how to use these optimized versions.
+or available with a fortran, or another optimized backend. Please see the API docs for more details on which models have been optimized and how to use these optimized versions.
 Numba is an optional dependency of :code:`redback`, while other models may require users to install additional packages or precompile code.
 
 Using :code:`redback` models as functions
