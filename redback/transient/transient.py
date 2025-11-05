@@ -373,6 +373,77 @@ class Transient(object):
                    magnitude_err=magnitude_err, flux=flux, flux_err=flux_err, bands=bands, active_bands=active_bands,
                    use_phase_model=use_phase_model, optical_data=True, plotting_order=plotting_order)
 
+
+    @classmethod
+    def from_lightcurvelynx(
+            cls, name: str, data: pd.DataFrame = None, data_mode: str = "magnitude",
+            active_bands: Union[np.ndarray, str] = 'all', plotting_order: Union[np.ndarray, str] = None,
+            use_phase_model: bool = False) -> Transient:
+        """Constructor method to built object from a LightCurveLynx simulated light curve.
+        https://github.com/lincc-frameworks/lightcurvelynx
+        Only the time, bands, magnitude and magnitude error columns are used. The rest are computed
+        from those.
+
+        :param name: Name of the transient.
+        :type name: str
+        :param data: DataFrame containing the light curve data. If None, it will try to load from "simulated/{name}.csv".
+        :type data: pd.DataFrame, optional
+        :param data_mode: Data mode used. Must be from `OpticalTransient.DATA_MODES`. Default is magnitude.
+        :type data_mode: str, optional
+        :param active_bands: Sets active bands based on array given.
+                             If argument is 'all', all unique bands in `self.bands` will be used.
+        :type active_bands: Union[np.ndarray, str]
+        :param plotting_order: Order in which to plot the bands/and how unique bands are stored.
+        :type plotting_order: Union[np.ndarray, str], optional
+        :param use_phase_model: Whether to use a phase model.
+        :type use_phase_model: bool, optional
+
+        :return: A class instance.
+        :rtype: OpticalTransient
+        """
+        if data is None:
+            path = "simulated/" + name + ".csv"
+            data = pd.read_csv(path)
+
+        # Filter out the non-detections.
+        if "detected" in data.columns:
+            data = data[data.detected != 0]
+
+        # Process the time and bands data.
+        bands = data["filter"].to_numpy()        
+        time_mjd = data["mjd"].to_numpy()
+        if "time_rel" in data.columns:
+            time_days = data["time_rel"].to_numpy()
+        elif not use_phase_model:
+            raise ValueError("Relative time column 'time_rel' is required if not using phase model.")
+        else:
+            time_days = None
+
+        # Process the magnitude data. Checking that we have the values if the data mode is magnitude.
+        if "mag" not in data.columns:
+            raise ValueError("Magnitude values are required for LightCurveLynx input.")
+        magnitude = data["mag"].to_numpy()
+        magnitude_err = data["magerr"].to_numpy()
+
+        # Compute the other values from the given magnitude and band data. We use the formulation
+        # from SimulateOpticalTransient._make_observation_single().
+        ref_flux = redback.utils.bands_to_reference_flux(bands)
+        flux = redback.utils.bandpass_magnitude_to_flux(magnitude=magnitude, bands=bands)
+        flux_err = redback.utils.calc_flux_error_from_magnitude(magnitude, magnitude_err, ref_flux)
+        flux_density = redback.utils.calc_flux_density_from_ABmag(magnitude).value
+        flux_density_err = redback.utils.calc_flux_density_error_from_monochromatic_magnitude(
+            magnitude=magnitude,
+            magnitude_error=magnitude_err,
+            reference_flux=3631,
+            magnitude_system='AB',
+        )
+
+        return cls(name=name, data_mode=data_mode, time=time_days, time_err=None, time_mjd=time_mjd,
+                   flux_density=flux_density, flux_density_err=flux_density_err, magnitude=magnitude,
+                   magnitude_err=magnitude_err, flux=flux, flux_err=flux_err, bands=bands, active_bands=active_bands,
+                   use_phase_model=use_phase_model, optical_data=True, plotting_order=plotting_order)
+
+
     @property
     def _time_attribute_name(self) -> str:
         if self.luminosity_data:
