@@ -173,6 +173,7 @@ def exponential_powerlaw_bolometric(time, lbol_0, alpha_1, alpha_2, tpeak_d, **k
         lbol = interaction_class.new_luminosity
     return lbol
 
+@citation_wrapper('redback')
 def sn_fallback(time, redshift, logl1, tr, **kwargs):
     """
     :param time: observer frame time in days
@@ -229,7 +230,8 @@ def sn_fallback(time, redshift, logl1, tr, **kwargs):
             return sed.get_correct_output_format_from_spectra(time=time_obs, time_eval=time_observer_frame,
                                                               spectra=spectra, lambda_array=lambda_observer_frame,
                                                               **kwargs)
-                                                              
+
+@citation_wrapper('redback')
 def sn_nickel_fallback(time, redshift, mej, f_nickel, logl1, tr, **kwargs):
     """
     :param time: observer frame time in days
@@ -641,6 +643,7 @@ def nickelmixing_bolometric(time, mej, esn, kappa, kappa_gamma, f_nickel, f_mixi
     func = interp1d(temp_times, lbol, kind='cubic', fill_value='extrapolate')
     return func(time)
 
+@citation_wrapper('Sarin (in prep)')
 def nickelmixing(time, redshift, mej, esn, kappa, kappa_gamma, f_nickel, f_mixing,
                  temperature_floor, **kwargs):
     """
@@ -938,6 +941,7 @@ def arnett_with_features(time, redshift, f_nickel, mej, **kwargs):
                 **kwargs
             )
 
+@citation_wrapper('https://ui.adsabs.harvard.edu/abs/1982ApJ...253..785A/abstract, Piro+2021')
 def shock_cooling_and_arnett_bolometric(time, log10_mass, log10_radius, log10_energy,
                              f_nickel, mej, vej, kappa, kappa_gamma, temperature_floor, **kwargs):
     """
@@ -1506,6 +1510,7 @@ def homologous_expansion_supernova_model_bolometric(time, mej, ek, **kwargs):
         return lbol, kwargs
     else:
         return lbol
+
 @citation_wrapper('redback')
 def thin_shell_supernova_model_bolometric(time, mej, ek, **kwargs):
     """
@@ -2027,8 +2032,6 @@ def type_1a(time, redshift, f_nickel, mej, **kwargs):
                                                               spectra=spectra, lambda_array=lambdas_observer_frame,
                                                               **kwargs)
 
-
-
 @citation_wrapper('https://ui.adsabs.harvard.edu/abs/2018ApJS..236....6G/abstract')
 def type_1c(time, redshift, f_nickel, mej, pp, **kwargs):
     """
@@ -2349,8 +2352,6 @@ def general_magnetar_driven_supernova(time, redshift, mej, E_sn, kappa, l0, tau_
                 return sed.get_correct_output_format_from_spectra(time=time_obs, time_eval=time_observer_frame/day_to_s,
                                                      spectra=spectra, lambda_array=lambda_observer_frame,
                                                      **kwargs)
-
-
 
 @citation_wrapper('https://ui.adsabs.harvard.edu/abs/2022ApJ...933..238M/abstract, https://ui.adsabs.harvard.edu/abs/1982ApJ...253..785A/abstract')
 def csm_shock_and_arnett_bolometric(time, mej, f_nickel, csm_mass, v_min, beta, shell_radius,
