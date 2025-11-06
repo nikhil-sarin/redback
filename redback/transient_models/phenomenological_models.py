@@ -416,7 +416,7 @@ def evolving_blackbody_with_features(time, redshift, temperature_0, radius_0,
             evolution_mode=kwargs.get('evolution_mode', 'smooth')
         )
         fmjy = sed_combined.flux_density.T
-        spectra = flux_density_to_spectrum(fmjy, redshift, lambda_observer_frame)
+        spectra = sed.flux_density_to_spectrum(fmjy, redshift, lambda_observer_frame)
 
         if kwargs['output_format'] == 'spectra':
             return namedtuple('output', ['time', 'lambdas', 'spectra'])(
