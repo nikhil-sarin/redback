@@ -1,2 +1,2 @@
-redshift = Uniform(0.01, 1.5, name='redshift', latex_label=r'$z$')
+redshift = Uniform(0.01, 0.05, name='redshift', latex_label=r'$z$')
 amplitude = LogUniform(1e-2, 1e2, name='amplitude', latex_label=r'$A$')
