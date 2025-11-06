@@ -10,10 +10,15 @@ _dirname = os.path.dirname(__file__)
 def get_trigger_number(grb: str) -> str:
     """Gets the trigger number from the GRB table.
 
-    :param grb: Telephone number of GRB, e.g., 'GRB140903A' or '140903A' are valid inputs.
-    :type grb: str
-    :return: The GRB trigger number.
-    :rtype: str
+    Parameters
+    ----------
+    grb : str
+        Telephone number of GRB, e.g., 'GRB140903A' or '140903A' are valid inputs.
+
+    Returns
+    -------
+    str
+        The GRB trigger number.
     """
     grb = grb.lstrip('GRB')
     grb_table = get_grb_table()
@@ -26,8 +31,11 @@ def get_trigger_number(grb: str) -> str:
 
 def get_grb_table() -> pd.DataFrame:
     """
-    :return: The combined long and short GRB table.
-    :rtype: pandas.DataFrame
+
+    Returns
+    -------
+    pandas.DataFrame
+        The combined long and short GRB table.
     """
     short_table = os.path.join(_dirname, '../tables/SGRB_table.txt')
     long_table = os.path.join(_dirname, '../tables/LGRB_table.txt')
@@ -42,11 +50,15 @@ def get_batse_trigger_from_grb(grb: str) -> int:
     """Gets the BATSE trigger from the BATSE trigger table. If the same trigger appears multiple times,
     successive alphabetical letters need to be appended to distinguish the triggers.
 
-    :param grb: Telephone number of GRB, e.g., 'GRB910425A' or '910425A' are valid inputs. An alphabetical letter
-                needs to be appended if the event is listed multiple times.
-    :type grb: str
-    :return: The BATSE trigger number.
-    :rtype: int
+    Parameters
+    ----------
+    grb : str
+        Telephone number of GRB, e.g., 'GRB910425A' or '910425A' are valid inputs. An alphabetical letter needs to be appended if the event is listed multiple times.
+
+    Returns
+    -------
+    int
+        The BATSE trigger number.
     """
     grb = "GRB" + grb.lstrip("GRB")
 
@@ -75,13 +87,24 @@ def convert_ztf_difference_magnitude_to_apparent_magnitude(filters, diff_mag, di
     """
     Convert ztf difference magnitudes. This code is modified from https://lasair-ztf.lsst.ac.uk/lasair/static/mag.py
 
-    :param filter: filters name
-    :param diff_mag: difference magnitude
-    :param diff_mag_err: difference magnitude error
-    :param status: "t" or "f" depending on whether difference is positive or negative
-    :param ref_mag: reference image magnitude
-    :param ref_mag_err: reference image magnitude error
-    :return: apparent magnitude, apparent magnitude error
+    Parameters
+    ----------
+    filter
+        filters name
+    diff_mag
+        difference magnitude
+    diff_mag_err
+        difference magnitude error
+    status
+        "t" or "f" depending on whether difference is positive or negative
+    ref_mag
+        reference image magnitude
+    ref_mag_err
+        reference image magnitude error
+
+    Returns
+    -------
+        apparent magnitude, apparent magnitude error
     """
     zero_point_mag_dict = {"g":26.325, "r":26.275, "i":25.660}
     zero_points = np.array([zero_point_mag_dict[filters] for _ in range(len(filters))])

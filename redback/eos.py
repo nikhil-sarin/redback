@@ -15,11 +15,18 @@ except ModuleNotFoundError as e:
 class PiecewisePolytrope(object):
     def __init__(self, log_p, gamma_1, gamma_2, gamma_3):
         """
-        :param log_p: log central pressure in SI units
-        :param gamma_1: polytrope index 1
-        :param gamma_2: polytrope index 2
-        :param gamma_3: polytrope index 3
-        """
+
+    Parameters
+    ----------
+    log_p
+        log central pressure in SI units
+    gamma_1
+        polytrope index 1
+    gamma_2
+        polytrope index 2
+    gamma_3
+        polytrope index 3
+    """
         self.log_p = log_p
         self.gamma_1 = gamma_1
         self.gamma_2 = gamma_2
@@ -27,8 +34,11 @@ class PiecewisePolytrope(object):
 
     def maximum_mass(self):
         """
-        :return: maximum non-rotating mass in solar masses (Mtov) for the equation of state
-        """
+
+    Returns
+    -------
+        maximum non-rotating mass in solar masses (Mtov) for the equation of state
+    """
         polytrope = lalsim.SimNeutronStarEOS4ParameterPiecewisePolytrope(self.log_p, self.gamma_1,
                                                                          self.gamma_2, self.gamma_3)
         polytrope = lalsim.CreateSimNeutronStarFamily(polytrope)
@@ -37,8 +47,11 @@ class PiecewisePolytrope(object):
 
     def maximum_speed_of_sound(self):
         """
-        :return: maximum speed of sound in units of c
-        """
+
+    Returns
+    -------
+        maximum speed of sound in units of c
+    """
         polytrope = lalsim.SimNeutronStarEOS4ParameterPiecewisePolytrope(self.log_p, self.gamma_1,
                                                                          self.gamma_2, self.gamma_3)
         max_enthalpy = lalsim.SimNeutronStarEOSMaxPseudoEnthalpy(polytrope)
@@ -48,9 +61,16 @@ class PiecewisePolytrope(object):
 
     def radius_of_mass(self, mass):
         """
-        :param mass: mass array in solar masses
-        :return: return radius in meters
-        """
+
+    Parameters
+    ----------
+    mass
+        mass array in solar masses
+
+    Returns
+    -------
+        return radius in meters
+    """
 
         m1 = mass * cc.M_sun.si.value
         polytrope = lalsim.SimNeutronStarEOS4ParameterPiecewisePolytrope(self.log_p, self.gamma_1,
@@ -70,9 +90,15 @@ class PiecewisePolytrope(object):
 
     def lambda_of_central_pressure(self, central_pressure):
         """
-        :param central_pressure:
-        :return: mass in solar masses and dimensionless tidal deformability
-        """
+
+    Parameters
+    ----------
+    central_pressure
+
+    Returns
+    -------
+        mass in solar masses and dimensionless tidal deformability
+    """
         polytrope = lalsim.SimNeutronStarEOS4ParameterPiecewisePolytrope(self.log_p, self.gamma_1,
                                                                          self.gamma_2, self.gamma_3)
         radius, mass, k2 = lalsim.SimNeutronStarTOVODEIntegrate(central_pressure, polytrope)
@@ -83,11 +109,18 @@ class PiecewisePolytrope(object):
 
     def lambda_array_of_central_pressure(self, central_pressure_array, maximum_mass_lower_limit=2.01):
         """
-        :param central_pressure_array: array of central pressure in SI units
-        :param maximum_mass_lower_limit: 2.01 solar masses, Throw out EOS's that are below this value.
-        Users should enforce this at the prior level.
-        :return: dimensionless tidal deformability
-        """
+
+    Parameters
+    ----------
+    central_pressure_array
+        array of central pressure in SI units
+    maximum_mass_lower_limit
+        2.01 solar masses, Throw out EOS's that are below this value. Users should enforce this at the prior level.
+
+    Returns
+    -------
+        dimensionless tidal deformability
+    """
 
         tmp = np.array([self.lambda_of_central_pressure(pp) for pp in central_pressure_array])
         mass = tmp[:, 0]
@@ -108,11 +141,19 @@ class PiecewisePolytrope(object):
 
     def lambda_of_mass(self, central_pressure, mass, maximum_mass_lower_limit=2.01):
         """
-        :param central_pressure: central pressure in SI units
-        :param mass: neutron star masses in solar masses
-        :param maximum_mass_limit:
-        :return: lambda for the given mass array
-        """
+
+    Parameters
+    ----------
+    central_pressure
+        central pressure in SI units
+    mass
+        neutron star masses in solar masses
+    maximum_mass_limit
+
+    Returns
+    -------
+        lambda for the given mass array
+    """
         mass_tmp, Lambda_tmp, max_mass = self.lambda_array_of_central_pressure(central_pressure, maximum_mass_lower_limit)
 
         if hasattr(mass, '__len__'):

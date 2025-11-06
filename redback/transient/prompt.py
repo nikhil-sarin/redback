@@ -24,35 +24,38 @@ class PromptTimeSeries(Transient):
             trigger_number: str = None, channels: Union[np.ndarray, str] = "all", instrument: str = "batse", 
             **kwargs: None) -> None:
         """
-        :param name: Telephone number of GRB, e.g., 'GRB140903A' or '140903A' are valid inputs
-        :type name: str
-        :param bin_size: Bin size for binning time-tagged event data.
-        :type bin_size: float
-        :param ttes: Time-tagged events data for unbinned prompt data.
-        :type ttes: np.ndarray, optional
-        :param time: Times in the observer frame.
-        :type time: np.ndarray, optional
-        :param time_err: Time errors in the observer frame.
-        :type time_err: np.ndarray, optional
-        :param time_rest_frame: Times in the rest frame. Used for luminosity data.
-        :type time_rest_frame: np.ndarray, optional
-        :param time_rest_frame_err: Time errors in the rest frame. Used for luminosity data.
-        :type time_rest_frame_err: np.ndarray, optional
-        :param counts: The number of counts at each given time.
-        :type counts: np.ndarray, optional
-        :param channel_tags: The channel tag associated with each time.
-        :type channel_tags: np.ndarray, optional
-        :param data_mode: Data mode. Must be one from `PromptTimeSeries.DATA_MODES`.
-        :type data_mode: str
-        :param trigger_number: BATSE trigger number.
-        :type trigger_number: str
-        :param channels: Array of channels to use. Use all channels if 'all' is given.
-        :type channels: Union[np.ndarray, float]
-        :param instrument: Instrument we use. Default is 'batse'.
-        :type instrument: str, optional
-        :param kwargs: Any other kwargs.
-        :type kwargs: None
-        """
+
+    Parameters
+    ----------
+    name : str
+        Telephone number of GRB, e.g., 'GRB140903A' or '140903A' are valid inputs
+    bin_size : float
+        Bin size for binning time-tagged event data.
+    ttes : np.ndarray, optional
+        Time-tagged events data for unbinned prompt data.
+    time : np.ndarray, optional
+        Times in the observer frame.
+    time_err : np.ndarray, optional
+        Time errors in the observer frame.
+    time_rest_frame : np.ndarray, optional
+        Times in the rest frame. Used for luminosity data.
+    time_rest_frame_err : np.ndarray, optional
+        Time errors in the rest frame. Used for luminosity data.
+    counts : np.ndarray, optional
+        The number of counts at each given time.
+    channel_tags : np.ndarray, optional
+        The channel tag associated with each time.
+    data_mode : str
+        Data mode. Must be one from `PromptTimeSeries.DATA_MODES`.
+    trigger_number : str
+        BATSE trigger number.
+    channels : Union[np.ndarray, float]
+        Array of channels to use. Use all channels if 'all' is given.
+    instrument : str, optional
+        Instrument we use. Default is 'batse'.
+    kwargs : None
+        Any other kwargs.
+    """
         super().__init__(time=time, time_err=time_err, time_rest_frame=time_rest_frame,
                          time_rest_frame_err=time_rest_frame_err, counts=counts, ttes=ttes, bin_size=bin_size,
                          name=name, data_mode=data_mode, **kwargs)
@@ -73,16 +76,20 @@ class PromptTimeSeries(Transient):
             cls, name: str, trigger_number: str = None, channels: Union[np.ndarray, str] = "all") -> PromptTimeSeries:
         """Constructor that loads batse data given a trigger number.
 
-        :param name: Name of the transient.
-        :type name: str
-        :param trigger_number: BATSE trigger number.
-        :type trigger_number: str
-        :param channels: Array of channels to use. Use all channels if 'all' is given.
-        :type channels: Union[np.ndarray, float]
+    Parameters
+    ----------
+    name : str
+        Name of the transient.
+    trigger_number : str
+        BATSE trigger number.
+    channels : Union[np.ndarray, float]
+        Array of channels to use. Use all channels if 'all' is given.
 
-        :return: An instance of `PromptTimeSeries`.
-        :rtype: PromptTimeSeries
-        """
+    Returns
+    -------
+    PromptTimeSeries
+        An instance of `PromptTimeSeries`.
+    """
         time, dt, counts = cls.load_batse_data(name=name, channels=channels)
         return cls(name=name, bin_size=dt, time=time, counts=counts, data_mode="counts",
                    trigger_number=trigger_number, channels=channels, instrument="batse")
@@ -91,14 +98,17 @@ class PromptTimeSeries(Transient):
     def load_batse_data(name: str, channels: Union[np.ndarray, str]) -> tuple:
         """Load batse data given a transient name.
 
-        :type name: str
-        :param name: Name of the GRB, e.g. GRB123456.
-        :param channels: Array of channels to use. Use all channels if 'all' is given.
-        :type channels: Union[np.ndarray, float]
+    Parameters
+    ----------
+    name : str
+        Name of the GRB, e.g. GRB123456.
+    channels : Union[np.ndarray, float]
+        Array of channels to use. Use all channels if 'all' is given.
 
-        :return: Time, time step size, and counts in the format (time, dt, counts)
-        :rtype tuple:
-        """
+    Returns
+    -------
+        Time, time step size, and counts in the format (time, dt, counts)
+    """
         name = f"GRB{name.lstrip('GRB')}"
         directory_structure = batse_prompt_directory_structure(grb=name)
         path = directory_structure.directory_path + name.lstrip('GRB') + '_BATSE_lc.csv'
@@ -123,27 +133,33 @@ class PromptTimeSeries(Transient):
     def _stripped_name(self) -> str:
         """Strips 'GRB' from the transient name.
 
-        :return: The stripped transient name.
-        :rtype: str
-        """
+    Returns
+    -------
+    str
+        The stripped transient name.
+    """
         return self.name.lstrip('GRB')
 
     @property
     def trigger_number(self) -> str:
         """Trigger number getter.
 
-        :return: The trigger number.
-        :rtype: str
-        """
+    Returns
+    -------
+    str
+        The trigger number.
+    """
         return self._trigger_number
 
     @trigger_number.setter
     def trigger_number(self, trigger_number: str) -> None:
         """Trigger number setter. If no trigger number is given, get trigger number from GRB using the conversion table.
 
-        :param trigger_number: The trigger number.
-        :type trigger_number: str
-        """
+    Parameters
+    ----------
+    trigger_number : str
+        The trigger number.
+    """
         if trigger_number is None:
             self._trigger_number = str(get_batse_trigger_from_grb(self.name))
         else:
@@ -152,9 +168,11 @@ class PromptTimeSeries(Transient):
     def plot_data(self, **kwargs: None) -> None:
         """Simple plot of the data.
 
-        :param kwargs: Placeholder.
-        :type kwargs: None
-        """
+    Parameters
+    ----------
+    kwargs : None
+        Placeholder.
+    """
         plt.step(self.time, self.counts / self.bin_size)
         plt.ylabel('Counts')
         plt.xlabel('Time')
@@ -165,23 +183,26 @@ class PromptTimeSeries(Transient):
             self, model: callable, axes: matplotlib.axes.Axes = None, save: bool = True, show: bool = True,
             random_models: int = 1000, posterior: pd.DataFrame = None, outdir: str = None, **kwargs: None) -> None:
         """
-        :param model: The model we are using
-        :type model: callable
-        :param axes: Axes to plot into. Currently a placeholder.
-        :type axes: matplotlib.axes.Axes, optional
-        :param save: Whether to save the plot. Default is `True`. Currently, a placeholder.
-        :type save: bool, option
-        :param show: Whether to show the plot. Default is `True`. Currently, a placeholder.
-        :type show: bool, optional
-        :param random_models: Number of random posterior samples to use for plots. Default is 1000.
-        :type random_models: int, optional
-        :param posterior: Posterior from which to draw samples from.
-        :type posterior: pd.DataFrame, optional
-        :param outdir: Out directory to save the plot in. Currently, a placeholder.
-        :type outdir: str
-        :param kwargs: All other plotting kwargs. Currently, a placeholder.
-        :type kwargs: None
-        """
+
+    Parameters
+    ----------
+    model : callable
+        The model we are using
+    axes : matplotlib.axes.Axes, optional
+        Axes to plot into. Currently a placeholder.
+    save : bool, option
+        Whether to save the plot. Default is `True`. Currently, a placeholder.
+    show : bool, optional
+        Whether to show the plot. Default is `True`. Currently, a placeholder.
+    random_models : int, optional
+        Number of random posterior samples to use for plots. Default is 1000.
+    posterior : pd.DataFrame, optional
+        Posterior from which to draw samples from.
+    outdir : str
+        Out directory to save the plot in. Currently, a placeholder.
+    kwargs : None
+        All other plotting kwargs. Currently, a placeholder.
+    """
         plt.clf()
         plt.step(self.time, self.counts / self.bin_size)
         plt.plot(self.time, model(self.time, **dict(posterior.iloc[-1])))
@@ -200,9 +221,11 @@ class PromptTimeSeries(Transient):
     def event_table(self) -> str:
         """Gets the event table using a relative path.
 
-        :return: The event table.
-        :rtype: str
-        """
+    Returns
+    -------
+    str
+        The event table.
+    """
         return os.path.join(dirname, f'../tables/BATSE_4B_catalogue.csv')
 
     def _set_data(self) -> None:
@@ -217,31 +240,43 @@ class PromptTimeSeries(Transient):
     @property
     def t90(self) -> float:
         """
-        :return: The t90 data.
-        :rtype: float
-        """
+
+    Returns
+    -------
+    float
+        The t90 data.
+    """
         return self.data['t90'][self._data_index]
 
     @property
     def t90_error(self) -> float:
         """
-        :return: The t90 error value.
-        :rtype: float
-        """
+
+    Returns
+    -------
+    float
+        The t90 error value.
+    """
         return self.data['t90_error'][self._data_index]
 
     @property
     def t90_start(self) -> float:
         """
-        :return: The t90 start value.
-        :rtype: float
-        """
+
+    Returns
+    -------
+    float
+        The t90 start value.
+    """
         return self.data['t90_start'][self._data_index]
 
     @property
     def t90_end(self) -> float:
         """
-        :return: The t90 end value.
-        :rtype: float
-        """
+
+    Returns
+    -------
+    float
+        The t90 end value.
+    """
         return self.t90_start + self.t90

@@ -12,10 +12,18 @@ def _bandflux_single_redback(model, band, time_or_phase):
 
     Synthetic photometry of a model through a single bandpass
 
-    :param model: Source object
-    :param band: Bandpass
-    :param time_or_phase: Time or phase numpy array
-    :return: bandflux through the bandpass
+    Parameters
+    ----------
+    model
+        Source object
+    band
+        Bandpass
+    time_or_phase
+        Time or phase numpy array
+
+    Returns
+    -------
+        bandflux through the bandpass
     """
     from sncosmo.utils import integration_grid
     HC_ERG_AA = 1.9864458571489284e-08 # planck * speed_of_light in AA/s
@@ -123,21 +131,34 @@ class RedbackTimeSeriesSource(TimeSeriesSource):
             flux density at a given time and wavelength, and changes
             the behaviour of the _flux method to better handle models with very low flux values.
 
-            :param phase: phase/time array
-            :param wave: wavelength array in Angstrom
-            :param spectra: spectra in erg/cm^2/s/A evaluated at all times and frequencies; shape (len(times), len(frequency_array))
-            :param kwargs: additional arguments
-            """
+    Parameters
+    ----------
+    phase
+        phase/time array
+    wave
+        wavelength array in Angstrom
+    spectra
+        spectra in erg/cm^2/s/A evaluated at all times and frequencies; shape (len(times), len(frequency_array))
+    kwargs
+        additional arguments
+    """
             super(RedbackTimeSeriesSource, self).__init__(phase=phase, wave=wave, flux=flux, **kwargs)
 
         def get_flux_density(self, time, wavelength):
             """
             Get the flux density at a given time and wavelength.
 
-            :param time: time in days
-            :param wavelength: wavelength in Angstrom
-            :return: flux density in erg/cm^2/s/A
-            """
+    Parameters
+    ----------
+    time
+        time in days
+    wavelength
+        wavelength in Angstrom
+
+    Returns
+    -------
+        flux density in erg/cm^2/s/A
+    """
             return self._flux(time, wavelength)
 
         def bandflux(self, band, phase, zp=None, zpsys=None):
@@ -199,12 +220,20 @@ def blackbody_to_flux_density(temperature, r_photosphere, dl, frequency):
     """
     A general blackbody_to_flux_density formula
 
-    :param temperature: effective temperature in kelvin
-    :param r_photosphere: photosphere radius in cm
-    :param dl: luminosity_distance in cm
-    :param frequency: frequency to calculate in Hz - Must be same length as time array or a single number.
-                      In source frame
-    :return: flux_density in erg/s/Hz/cm^2
+    Parameters
+    ----------
+    temperature
+        effective temperature in kelvin
+    r_photosphere
+        photosphere radius in cm
+    dl
+        luminosity_distance in cm
+    frequency
+        frequency to calculate in Hz - Must be same length as time array or a single number. In source frame
+
+    Returns
+    -------
+        flux_density in erg/s/Hz/cm^2
     """
     # adding units back in to ensure dimensions are correct
     frequency = frequency * uu.Hz
@@ -310,15 +339,25 @@ class CutoffBlackbody(_SED):
         """
         Blackbody SED with a cutoff
 
-        :param time: time in source frame
-        :param temperature: temperature in kelvin
-        :param luminosity: luminosity in cgs
-        :param r_photosphere: photosphere radius in cm
-        :param frequency: frequency in Hz - must be a single number or same length as time array
-        :param luminosity_distance: dl in cm
-        :param cutoff_wavelength: cutoff wavelength in Angstrom
-        :param kwargs: None
-        """
+    Parameters
+    ----------
+    time
+        time in source frame
+    temperature
+        temperature in kelvin
+    luminosity
+        luminosity in cgs
+    r_photosphere
+        photosphere radius in cm
+    frequency
+        frequency in Hz - must be a single number or same length as time array
+    luminosity_distance
+        dl in cm
+    cutoff_wavelength
+        cutoff wavelength in Angstrom
+    kwargs
+        None
+    """
         super(CutoffBlackbody, self).__init__(
             frequency=frequency, luminosity_distance=luminosity_distance, length=len(time))
         self.time = time
@@ -460,13 +499,19 @@ class Blackbody(object):
         """
         Simple Blackbody SED
 
-        :param temperature: effective temperature in kelvin
-        :param r_photosphere: photosphere radius in cm
-        :param frequency: frequency to calculate in Hz - Must be same length as time array or a single number.
-                          In source frame
-        :param luminosity_distance: luminosity_distance in cm
-        :param kwargs: None
-        """
+    Parameters
+    ----------
+    temperature
+        effective temperature in kelvin
+    r_photosphere
+        photosphere radius in cm
+    frequency
+        frequency to calculate in Hz - Must be same length as time array or a single number. In source frame
+    luminosity_distance
+        luminosity_distance in cm
+    kwargs
+        None
+    """
         self.temperature = temperature
         self.r_photosphere = r_photosphere
         self.frequency = frequency
@@ -494,40 +539,25 @@ class BlackbodyWithSpectralFeatures(object):
         or sharply over time. Each feature is defined by its central wavelength, width,
         amplitude, and temporal evolution parameters.
 
-        :param temperature: Effective temperature in Kelvin (array matching time)
-        :param r_photosphere: Photosphere radius in cm (array matching time)
-        :param frequency: Frequency array in Hz (source frame)
-        :param luminosity_distance: Luminosity distance in cm
-        :param time: Time array in seconds (source frame)
-        :param feature_list: List of spectral feature dictionaries. Each feature requires:
-            - 't_start': Start time in seconds
-            - 't_end': End time in seconds
-            - 'rest_wavelength': Central wavelength in Angstroms
-            - 'sigma': Gaussian width in Angstroms
-            - 'amplitude': Fractional flux change (negative for absorption, positive for emission)
-            For smooth mode, optionally include:
-            - 't_rise': Rise time in seconds (default: 2 days)
-            - 't_fall': Fall time in seconds (default: 5 days)
-        :param evolution_mode: Temporal evolution type:
-            - 'smooth': Sigmoid transitions with configurable rise/fall times
-            - 'sharp': Step function on/off transitions
-        :param kwargs: Additional keyword arguments (unused)
-
-        Examples
-        --------
-        >>> # Simple absorption line
-        >>> feature = {
-        ...     't_start': 0, 't_end': 30*24*3600,
-        ...     'rest_wavelength': 6355.0, 'sigma': 400.0, 'amplitude': -0.3
-        ... }
-        >>>
-        >>> # Smooth evolution with custom rise/fall
-        >>> smooth_feature = {
-        ...     't_start': 0, 't_end': 40*24*3600,
-        ...     't_rise': 3*24*3600, 't_fall': 7*24*3600,
-        ...     'rest_wavelength': 6355.0, 'sigma': 400.0, 'amplitude': -0.4
-        ... }
-        """
+    Parameters
+    ----------
+    temperature
+        Effective temperature in Kelvin (array matching time)
+    r_photosphere
+        Photosphere radius in cm (array matching time)
+    frequency
+        Frequency array in Hz (source frame)
+    luminosity_distance
+        Luminosity distance in cm
+    time
+        Time array in seconds (source frame)
+    feature_list
+        List of spectral feature dictionaries. Each feature requires: - 't_start': Start time in seconds - 't_end': End time in seconds - 'rest_wavelength': Central wavelength in Angstroms - 'sigma': Gaussian width in Angstroms - 'amplitude': Fractional flux change (negative for absorption, positive for emission) For smooth mode, optionally include: - 't_rise': Rise time in seconds (default: 2 days) - 't_fall': Fall time in seconds (default: 5 days)
+    evolution_mode
+        Temporal evolution type: - 'smooth': Sigmoid transitions with configurable rise/fall times - 'sharp': Step function on/off transitions
+    kwargs
+        Additional keyword arguments (unused)
+    """
         self.temperature = temperature
         self.r_photosphere = r_photosphere
         self.frequency = frequency
@@ -688,15 +718,23 @@ class Synchrotron(_SED):
         """
         Synchrotron SED
 
-        :param frequency: frequency to calculate in Hz - Must be same length as time array or a single number.
-                          In source frame.
-        :param luminosity_distance: luminosity_distance in cm
-        :param pp: synchrotron power law slope
-        :param nu_max: max frequency
-        :param source_radius: emitting source radius
-        :param f0: frequency normalization
-        :param kwargs: None
-        """
+    Parameters
+    ----------
+    frequency
+        frequency to calculate in Hz - Must be same length as time array or a single number. In source frame.
+    luminosity_distance
+        luminosity_distance in cm
+    pp
+        synchrotron power law slope
+    nu_max
+        max frequency
+    source_radius
+        emitting source radius
+    f0
+        frequency normalization
+    kwargs
+        None
+    """
         super(Synchrotron, self).__init__(frequency=frequency, luminosity_distance=luminosity_distance)
         self.pp = pp
         self.nu_max = nu_max
@@ -869,14 +907,26 @@ def get_correct_output_format_from_spectra(time, time_eval, spectra, lambda_arra
     """
     Use SNcosmo to get the bandpass flux or magnitude in AB from spectra at given times.
 
-    :param time: times in observer frame in days to evaluate the model on
-    :param time_eval: times in observer frame where spectra are evaluated. A densely sampled array for accuracy
-    :param bands: band array - must be same length as time array or a single band
-    :param spectra: spectra in erg/cm^2/s/A evaluated at all times and frequencies; shape (len(times), len(frequency_array))
-    :param lambda_array: wavelenth array in Angstrom in observer frame
-    :param kwargs: Additional parameters
-    :param output_format: 'flux', 'magnitude', 'sncosmo_source', 'flux_density'
-    :return: flux, magnitude or SNcosmo TimeSeries Source depending on output format kwarg
+    Parameters
+    ----------
+    time
+        times in observer frame in days to evaluate the model on
+    time_eval
+        times in observer frame where spectra are evaluated. A densely sampled array for accuracy
+    bands
+        band array - must be same length as time array or a single band
+    spectra
+        spectra in erg/cm^2/s/A evaluated at all times and frequencies; shape (len(times), len(frequency_array))
+    lambda_array
+        wavelenth array in Angstrom in observer frame
+    kwargs
+        Additional parameters
+    output_format
+        'flux', 'magnitude', 'sncosmo_source', 'flux_density'
+
+    Returns
+    -------
+        flux, magnitude or SNcosmo TimeSeries Source depending on output format kwarg
     """
     # clean up spectrum to remove nonsensical values before creating sncosmo source
     spectra = np.nan_to_num(spectra)

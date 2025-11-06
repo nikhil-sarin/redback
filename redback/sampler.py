@@ -25,25 +25,47 @@ def fit_model(
         resume: bool = True, save_format: str = "json", model_kwargs: dict = None, plot=True, **kwargs)\
         -> redback.result.RedbackResult:
     """
-    :param transient: The transient to be fitted
-    :param model: Name of the model to fit to data or a function.
-    :param outdir: Output directory. Will default to a sensible structure if not given.
-    :param label: Result file labels. Will use the model name if not given.
-    :param sampler: The sampling backend. Nested samplers are encouraged to allow evidence calculation.
-                    (Default value = 'dynesty')
-    :param nlive: Number of live points.
-    :param prior: Priors to use during sampling. If not given, we use the default priors for the given model.
-    :param walks: Number of `dynesty` random walks.
-    :param truncate: Flag to confirm whether to truncate the prompt emission data
-    :param use_photon_index_prior: flag to turn off/on photon index prior and fits according to the curvature effect
-    :param truncate_method: method of truncation
-    :param resume: Whether to resume the run from a checkpoint if available.
-    :param save_format: The format to save the result in. (Default value = 'json'_
-    :param model_kwargs: Additional keyword arguments for the model.
-    :param clean: If True, rerun the fitting, if false try to use previous results in the output directory.
-    :param plot: If True, create corner and lightcurve plot
-    :param kwargs: Additional parameters that will be passed to the sampler via bilby
-    :return: Redback result object, transient specific data object
+
+    Parameters
+    ----------
+    transient
+        The transient to be fitted
+    model
+        Name of the model to fit to data or a function.
+    outdir
+        Output directory. Will default to a sensible structure if not given.
+    label
+        Result file labels. Will use the model name if not given.
+    sampler
+        The sampling backend. Nested samplers are encouraged to allow evidence calculation. (Default value = 'dynesty')
+    nlive
+        Number of live points.
+    prior
+        Priors to use during sampling. If not given, we use the default priors for the given model.
+    walks
+        Number of `dynesty` random walks.
+    truncate
+        Flag to confirm whether to truncate the prompt emission data
+    use_photon_index_prior
+        flag to turn off/on photon index prior and fits according to the curvature effect
+    truncate_method
+        method of truncation
+    resume
+        Whether to resume the run from a checkpoint if available.
+    save_format
+        The format to save the result in. (Default value = 'json'_
+    model_kwargs
+        Additional keyword arguments for the model.
+    clean
+        If True, rerun the fitting, if false try to use previous results in the output directory.
+    plot
+        If True, create corner and lightcurve plot
+    kwargs
+        Additional parameters that will be passed to the sampler via bilby
+
+    Returns
+    -------
+        Redback result object, transient specific data object
     """
     if isinstance(model, str):
         modelname = model

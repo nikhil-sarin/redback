@@ -14,11 +14,20 @@ def _setup_plotting_result(model, model_kwargs, parameters, transient):
     """
     Helper function to setup the plotting result
 
-    :param model: model string or model function
-    :param model_kwargs: keyword arguments passed to the model
-    :param parameters: parameters to plot
-    :param transient: transient object
-    :return: a tuple of model, parameters, and result
+    Parameters
+    ----------
+    model
+        model string or model function
+    model_kwargs
+        keyword arguments passed to the model
+    parameters
+        parameters to plot
+    transient
+        transient object
+
+    Returns
+    -------
+        a tuple of model, parameters, and result
     """
     if isinstance(parameters, dict):
         parameters = pd.DataFrame.from_dict(parameters)
@@ -50,11 +59,20 @@ def plot_lightcurve(transient, parameters, model, model_kwargs=None, **kwargs: N
     """
     Plot a lightcurve for a given model and parameters
 
-    :param transient: transient object
-    :param parameters: parameters to plot
-    :param model: model string or model function
-    :param model_kwargs: keyword arguments passed to the model
-    :return: plot_lightcurve
+    Parameters
+    ----------
+    transient
+        transient object
+    parameters
+        parameters to plot
+    model
+        model string or model function
+    model_kwargs
+        keyword arguments passed to the model
+
+    Returns
+    -------
+        plot_lightcurve
     """
     model, parameters, res = _setup_plotting_result(model, model_kwargs, parameters, transient)
     return res.plot_lightcurve(model=model, random_models=len(parameters), plot_max_likelihood=False,
@@ -65,11 +83,20 @@ def plot_multiband_lightcurve(transient, parameters, model, model_kwargs=None, *
     """
     Plot a multiband lightcurve for a given model and parameters
 
-    :param transient: transient object
-    :param parameters: parameters to plot
-    :param model: model string or model function
-    :param model_kwargs: keyword arguments passed to the model
-    :return: plot_multiband_lightcurve
+    Parameters
+    ----------
+    transient
+        transient object
+    parameters
+        parameters to plot
+    model
+        model string or model function
+    model_kwargs
+        keyword arguments passed to the model
+
+    Returns
+    -------
+        plot_multiband_lightcurve
     """
     model, parameters, res = _setup_plotting_result(model, model_kwargs, parameters, transient)
     return res.plot_multiband_lightcurve(model=model, random_models=len(parameters), plot_max_likelihood=False,
@@ -80,9 +107,16 @@ def plot_evolution_parameters(result, random_models=100):
     """
     Plot evolution parameters for a given evolving_magnetar result
 
-    :param result: redback result
-    :param random_models: number of random models to plot
-    :return: fig and axes
+    Parameters
+    ----------
+    result
+        redback result
+    random_models
+        number of random models to plot
+
+    Returns
+    -------
+        fig and axes
     """
     logger.warning("This type of plot is only valid for evolving magnetar models")
     tmin = np.log10(np.min(result.metadata['time']))
@@ -113,16 +147,24 @@ def plot_spectrum(model, parameters, time_to_plot, axes=None, **kwargs):
     """
     Plot a spectrum for a given model and parameters
 
-    :param model: Model string for a redback model
-    :param parameters: dictionary of parameters/alongside model specific keyword arguments.
-        Must be one set of parameters. If you want to plot a posterior prediction of the spectrum,
-        call this function in a loop.
-    :param time_to_plot: Times to plot (in days) the spectrum at.
-        The spectrum plotted will be at the nearest neighbour to this value
-    :param axes: None or matplotlib axes object if you want to plot on an existing set of axes
-    :param kwargs: Additional keyword arguments used by this function.
-    :param colors_list: List of colors to use for each time to plot. Set randomly unless specified.
-    :return: matplotlib axes
+    Parameters
+    ----------
+    model
+        Model string for a redback model
+    parameters
+        dictionary of parameters/alongside model specific keyword arguments. Must be one set of parameters. If you want to plot a posterior prediction of the spectrum, call this function in a loop.
+    time_to_plot
+        Times to plot (in days) the spectrum at. The spectrum plotted will be at the nearest neighbour to this value
+    axes
+        None or matplotlib axes object if you want to plot on an existing set of axes
+    kwargs
+        Additional keyword arguments used by this function.
+    colors_list
+        List of colors to use for each time to plot. Set randomly unless specified.
+
+    Returns
+    -------
+        matplotlib axes
     """
     function = redback.model_library.all_models_dict[model]
     model_kwargs = {}
@@ -156,11 +198,20 @@ def plot_gp_lightcurves(transient, gp_output, axes=None, band_colors=None, band_
     """
     Plot the Gaussian Process lightcurves
 
-    :param transient: A transient object
-    :param gp_output: The output of the fit_gp function
-    :param axes: axes, ideally you should be passing the axes from the plot_data methods
-    :param band_colors: a dictionary of band colors; again ideally you should be passing the band_colors from the plot_data methods
-    :return: axes object with the GP lightcurves plotted
+    Parameters
+    ----------
+    transient
+        A transient object
+    gp_output
+        The output of the fit_gp function
+    axes
+        axes, ideally you should be passing the axes from the plot_data methods
+    band_colors
+        a dictionary of band colors; again ideally you should be passing the band_colors from the plot_data methods
+
+    Returns
+    -------
+        axes object with the GP lightcurves plotted
     """
     ax = axes or plt.gca()
 
@@ -222,13 +273,24 @@ def fit_temperature_and_radius_gp(data, kernelT, kernelR, plot=False, **kwargs):
     """
     Fit a Gaussian Process to the temperature and radius data
 
-    :param data: DataFrame containing the temperature and radius data output of the transient.estimate_bb_params method.
-    :param kernelT: george kernel for the temperature
-    :param kernelR: george kernel for the radius
-    :param plot: Whether to make a two-panel plot of the temperature and radius GP evolution and the data
-    :param kwargs: Additional keyword arguments
-    :param inflate_errors: If True, inflate the errors by 20%, default is False
-    :return: Temperature and radius GP objects and plot fig and axes if requested
+    Parameters
+    ----------
+    data
+        DataFrame containing the temperature and radius data output of the transient.estimate_bb_params method.
+    kernelT
+        george kernel for the temperature
+    kernelR
+        george kernel for the radius
+    plot
+        Whether to make a two-panel plot of the temperature and radius GP evolution and the data
+    kwargs
+        Additional keyword arguments
+    inflate_errors
+        If True, inflate the errors by 20%, default is False
+
+    Returns
+    -------
+        Temperature and radius GP objects and plot fig and axes if requested
     """
     import george
     from scipy.optimize import minimize
@@ -346,21 +408,21 @@ def generate_new_transient_data_from_gp(gp_out, t_new, transient, **kwargs):
     (e.g., 'flux_density', 'flux', 'magnitude', or 'luminosity'), this function updates the data
     accordingly, adjusting errors and scaling by frequency if necessary.
 
-    :param gp_out: The GP output object containing the Gaussian Process model, scaled data,
-                   and other related attributes.
-    :type gp_out: object
-    :param t_new: Array of new time values for which GP predictions are to be generated.
-    :type t_new: array-like
-    :param transient: The transient object containing the original observation data and related
-                      properties such as data mode and unique frequencies or bands.
-    :type transient: object
-    :param kwargs: Additional parameters to modify behavior, such as:
+    Parameters
+    ----------
+    gp_out : object
+        The GP output object containing the Gaussian Process model, scaled data, and other related attributes.
+    t_new : array-like
+        Array of new time values for which GP predictions are to be generated.
+    transient : object
+        The transient object containing the original observation data and related properties such as data mode and unique frequencies or bands.
+    kwargs
+        Additional parameters to modify behavior, such as:
 
-                   - **inflate_y_err** (bool): Flag to indicate whether to inflate GP errors.
-                   - **error** (float): Multiplier for adjusting GP error inflation.
-
-    :return: A new transient object with data updated using GP predictions.
-    :rtype: object
+    Returns
+    -------
+    object
+        A new transient object with data updated using GP predictions.
     """
     data_mode = transient.data_mode
     logger.info(f"Data mode: {data_mode}")

@@ -35,9 +35,11 @@ class BATSEDataGetter(GRBDataGetter):
         """
         Constructor class for a data getter. The instance will be able to download the specified BATSE data.
 
-        :param grb: Telephone number of GRB, e.g., 'GRB140903A' or '140903A' are valid inputs.
-        :type grb: str
-        """
+    Parameters
+    ----------
+    grb : str
+        Telephone number of GRB, e.g., 'GRB140903A' or '140903A' are valid inputs.
+    """
         super().__init__(grb=grb, transient_type="prompt")
         self.directory_path, self.raw_file_path, self.processed_file_path = self.create_directory_structure()
 
@@ -88,10 +90,12 @@ class BATSEDataGetter(GRBDataGetter):
     def convert_raw_data_to_csv(self) -> pd.DataFrame:
         """Converts the raw data into processed data and saves it into the processed file path.
         The column names are in `BATSEDataGetter.PROCESSED_FILE_COLUMNS`.
-        
-        :return: The processed data frame.
-        :rtype: pd.DataFrame
-        """
+
+    Returns
+    -------
+    pd.DataFrame
+        The processed data frame.
+    """
         with fits.open(self.raw_file_path) as fits_data:
             data = self._get_columns(fits_data=fits_data)
         df = pd.DataFrame(data=data, columns=self.PROCESSED_FILE_COLUMNS)
@@ -101,12 +105,17 @@ class BATSEDataGetter(GRBDataGetter):
     @staticmethod
     def _get_columns(fits_data: astropy.io.fits.hdu.PrimaryHDU) -> np.ndarray:
         """
-        :param fits_data: The fits formatted data to which extract the columns from.
-        :type fits_data: astropy.io.fits.hdu.PrimaryHDU
 
-        :return: The columns.
-        :rtype: numpy.ndarray
-        """
+    Parameters
+    ----------
+    fits_data : astropy.io.fits.hdu.PrimaryHDU
+        The fits formatted data to which extract the columns from.
+
+    Returns
+    -------
+    numpy.ndarray
+        The columns.
+    """
         data = fits_data[-1].data
         bin_left = np.array(data['TIMES'][:, 0])
         bin_right = np.array(data['TIMES'][:, 1])

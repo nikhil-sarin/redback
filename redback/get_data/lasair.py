@@ -27,12 +27,13 @@ class LasairDataGetter(DataGetter):
         """
         Constructor class for a data getter. The instance will be able to downloaded the specified Swift data.
 
-        :param transient: Telephone number of GRB, e.g., 'GRB140903A' or '140903A' are valid inputs.
-        :type transient: str
-        :param transient_type: Type of the transient. Must be from
-                               `redback.get_data.open_data.LasairDataGetter.VALID_TRANSIENT_TYPES`.
-        :type transient_type: str
-        """
+    Parameters
+    ----------
+    transient : str
+        Telephone number of GRB, e.g., 'GRB140903A' or '140903A' are valid inputs.
+    transient_type : str
+        Type of the transient. Must be from `redback.get_data.open_data.LasairDataGetter.VALID_TRANSIENT_TYPES`.
+    """
         super().__init__(transient, transient_type)
         self.directory_path, self.raw_file_path, self.processed_file_path = \
             redback.get_data.directory.lasair_directory_structure(transient=self.transient,
@@ -41,9 +42,12 @@ class LasairDataGetter(DataGetter):
     @property
     def url(self) -> str:
         """
-        :return: The lasair raw data url.
-        :rtype: str
-        """
+
+    Returns
+    -------
+    str
+        The lasair raw data url.
+    """
         return f"https://lasair-ztf.lsst.ac.uk/objects/{self.transient}"
 
     def collect_data(self) -> None:
@@ -74,9 +78,11 @@ class LasairDataGetter(DataGetter):
         """Converts the raw data into processed data and saves it into the processed file path.
         The data columns are in `OpenDataGetter.PROCESSED_FILE_COLUMNS`.
 
-        :return: The processed data.
-        :rtype: pandas.DataFrame
-        """
+    Returns
+    -------
+    pandas.DataFrame
+        The processed data.
+    """
         if os.path.isfile(self.processed_file_path):
             logger.warning('The processed data file already exists. Returning.')
             return pd.read_csv(self.processed_file_path)

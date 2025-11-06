@@ -87,56 +87,14 @@ class Plotter(object):
 
     def __init__(self, transient: Union[redback.transient.Transient, None], **kwargs) -> None:
         """
-        :param transient: An instance of `redback.transient.Transient`. Contains the data to be plotted.
-        :param kwargs: Additional kwargs the plotter uses. -------
-        :keyword capsize: Same as matplotlib capsize.
-        :keyword bands_to_plot: List of bands to plot in plot lightcurve and multiband lightcurve. Default is active bands.
-        :keyword legend_location: Same as matplotlib legend location.
-        :keyword legend_cols: Same as matplotlib legend columns.
-        :keyword color: Color of the data points.
-        :keyword band_colors: A dictionary with the colors of the bands.
-        :keyword band_labels: List with the names of the bands.
-        :keyword band_scaling: Dict with the scaling for each band. First entry should be {type: '+' or 'x'} for different types.
-        :keyword dpi: Same as matplotlib dpi.
-        :keyword elinewidth: same as matplotlib elinewidth
-        :keyword errorbar_fmt: 'fmt' argument of `ax.errorbar`.
-        :keyword model: str or callable, the model to plot.
-        :keyword ms: Same as matplotlib markersize.
-        :keyword axis_tick_params_pad: `pad` argument in calls to `ax.tick_params` when setting the axes.
-        :keyword max_likelihood_alpha: `alpha` argument, i.e. transparency, when plotting the max likelihood curve.
-        :keyword random_sample_alpha: `alpha` argument, i.e. transparency, when plotting random sample curves.
-        :keyword uncertainty_band_alpha: `alpha` argument, i.e. transparency, when plotting a credible band.
-        :keyword max_likelihood_color: Color of the maximum likelihood curve.
-        :keyword random_sample_color: Color of the random sample curves.
-        :keyword bbox_inches: Setting for saving plots. Default is 'tight'.
-        :keyword linewidth: Same as matplotlib linewidth
-        :keyword zorder: Same as matplotlib zorder
-        :keyword xy: For `ax.annotate' x and y coordinates of the point to annotate.
-        :keyword xycoords: The coordinate system `xy` is given in. Default is 'axes fraction'
-        :keyword horizontalalignment: Horizontal alignment of the annotation. Default is 'right'
-        :keyword annotation_size: `size` argument of of `ax.annotate`.
-        :keyword fontsize_axes: Font size of the x and y labels.
-        :keyword fontsize_legend: Font size of the legend.
-        :keyword fontsize_figure: Font size of the figure. Relevant for multiband plots.
-                                  Used on `supxlabel` and `supylabel`.
-        :keyword fontsize_ticks: Font size of the axis ticks.
-        :keyword hspace: Argument for `subplots_adjust`, sets horizontal spacing between panels.
-        :keyword wspace: Argument for `subplots_adjust`, sets horizontal spacing between panels.
-        :keyword plot_others: Whether to plot additional bands in the data plot, all in the same colors
-        :keyword random_models: Number of random draws to use to calculate credible bands or to plot.
-        :keyword uncertainty_mode: 'random_models': Plot random draws from the available parameter sets.
-                                   'credible_intervals': Plot a credible interval that is calculated based
-                                   on the available parameter sets.
-        :keyword reference_mjd_date: Date to use as reference point for the x axis.
-                                    Default is the first date in the data.
-        :keyword credible_interval_level: 0.9: Plot the 90% credible interval.
-        :keyword plot_max_likelihood: Plots the draw corresponding to the maximum likelihood. Default is 'True'.
-        :keyword set_same_color_per_subplot: Sets the lightcurve to be the same color as the data per subplot. Default is 'True'.
-        :keyword xlim_high_multiplier: Adjust the maximum xlim based on available x values.
-        :keyword xlim_low_multiplier: Adjust the minimum xlim based on available x values.
-        :keyword ylim_high_multiplier: Adjust the maximum ylim based on available x values.
-        :keyword ylim_low_multiplier: Adjust the minimum ylim based on available x values.
-        """
+
+    Parameters
+    ----------
+    transient
+        An instance of `redback.transient.Transient`. Contains the data to be plotted.
+    kwargs
+        Additional kwargs the plotter uses. -------
+    """
         self.transient = transient
         self.kwargs = kwargs or dict()
         self._posterior_sorted = False
@@ -145,12 +103,17 @@ class Plotter(object):
 
     def _get_times(self, axes: matplotlib.axes.Axes) -> np.ndarray:
         """
-        :param axes: The axes used in the plotting procedure.
-        :type axes: matplotlib.axes.Axes
 
-        :return: Linearly or logarithmically scaled time values depending on the y scale used in the plot.
-        :rtype: np.ndarray
-        """
+    Parameters
+    ----------
+    axes : matplotlib.axes.Axes
+        The axes used in the plotting procedure.
+
+    Returns
+    -------
+    np.ndarray
+        Linearly or logarithmically scaled time values depending on the y scale used in the plot.
+    """
         if isinstance(axes, np.ndarray):
             ax = axes[0]
         else:
@@ -317,52 +280,14 @@ class SpecPlotter(object):
 
     def __init__(self, spectrum: Union[redback.transient.Spectrum, None], **kwargs) -> None:
         """
-        :param spectrum: An instance of `redback.transient.Spectrum`. Contains the data to be plotted.
-        :param kwargs: Additional kwargs the plotter uses. -------
-        :keyword capsize: Same as matplotlib capsize.
-        :keyword elinewidth: same as matplotlib elinewidth
-        :keyword errorbar_fmt: 'fmt' argument of `ax.errorbar`.
-        :keyword ms: Same as matplotlib markersize.
-        :keyword legend_location: Same as matplotlib legend location.
-        :keyword legend_cols: Same as matplotlib legend columns.
-        :keyword color: Color of the data points.
-        :keyword dpi: Same as matplotlib dpi.
-        :keyword model: str or callable, the model to plot.
-        :keyword ms: Same as matplotlib markersize.
-        :keyword axis_tick_params_pad: `pad` argument in calls to `ax.tick_params` when setting the axes.
-        :keyword max_likelihood_alpha: `alpha` argument, i.e. transparency, when plotting the max likelihood curve.
-        :keyword random_sample_alpha: `alpha` argument, i.e. transparency, when plotting random sample curves.
-        :keyword uncertainty_band_alpha: `alpha` argument, i.e. transparency, when plotting a credible band.
-        :keyword max_likelihood_color: Color of the maximum likelihood curve.
-        :keyword random_sample_color: Color of the random sample curves.
-        :keyword bbox_inches: Setting for saving plots. Default is 'tight'.
-        :keyword linewidth: Same as matplotlib linewidth
-        :keyword zorder: Same as matplotlib zorder
-        :keyword yscale: Same as matplotlib yscale, default is linear
-        :keyword xy: For `ax.annotate' x and y coordinates of the point to annotate.
-        :keyword xycoords: The coordinate system `xy` is given in. Default is 'axes fraction'
-        :keyword horizontalalignment: Horizontal alignment of the annotation. Default is 'right'
-        :keyword annotation_size: `size` argument of of `ax.annotate`.
-        :keyword fontsize_axes: Font size of the x and y labels.
-        :keyword fontsize_legend: Font size of the legend.
-        :keyword fontsize_figure: Font size of the figure. Relevant for multiband plots.
-                                  Used on `supxlabel` and `supylabel`.
-        :keyword fontsize_ticks: Font size of the axis ticks.
-        :keyword hspace: Argument for `subplots_adjust`, sets horizontal spacing between panels.
-        :keyword wspace: Argument for `subplots_adjust`, sets horizontal spacing between panels.
-        :keyword plot_others: Whether to plot additional bands in the data plot, all in the same colors
-        :keyword random_models: Number of random draws to use to calculate credible bands or to plot.
-        :keyword uncertainty_mode: 'random_models': Plot random draws from the available parameter sets.
-                                   'credible_intervals': Plot a credible interval that is calculated based
-                                   on the available parameter sets.
-        :keyword credible_interval_level: 0.9: Plot the 90% credible interval.
-        :keyword plot_max_likelihood: Plots the draw corresponding to the maximum likelihood. Default is 'True'.
-        :keyword set_same_color_per_subplot: Sets the lightcurve to be the same color as the data per subplot. Default is 'True'.
-        :keyword xlim_high_multiplier: Adjust the maximum xlim based on available x values.
-        :keyword xlim_low_multiplier: Adjust the minimum xlim based on available x values.
-        :keyword ylim_high_multiplier: Adjust the maximum ylim based on available x values.
-        :keyword ylim_low_multiplier: Adjust the minimum ylim based on available x values.
-        """
+
+    Parameters
+    ----------
+    spectrum
+        An instance of `redback.transient.Spectrum`. Contains the data to be plotted.
+    kwargs
+        Additional kwargs the plotter uses. -------
+    """
         self.transient = spectrum
         self.kwargs = kwargs or dict()
         self._posterior_sorted = False
@@ -371,12 +296,17 @@ class SpecPlotter(object):
 
     def _get_angstroms(self, axes: matplotlib.axes.Axes) -> np.ndarray:
         """
-        :param axes: The axes used in the plotting procedure.
-        :type axes: matplotlib.axes.Axes
 
-        :return: Linearly or logarithmically scaled angtrom values depending on the y scale used in the plot.
-        :rtype: np.ndarray
-        """
+    Parameters
+    ----------
+    axes : matplotlib.axes.Axes
+        The axes used in the plotting procedure.
+
+    Returns
+    -------
+    np.ndarray
+        Linearly or logarithmically scaled angtrom values depending on the y scale used in the plot.
+    """
         if isinstance(axes, np.ndarray):
             ax = axes[0]
         else:
@@ -482,16 +412,20 @@ class IntegratedFluxPlotter(Plotter):
             self, axes: matplotlib.axes.Axes = None, save: bool = True, show: bool = True) -> matplotlib.axes.Axes:
         """Plots the Integrated flux data and returns Axes.
 
-        :param axes: Matplotlib axes to plot the data into. Useful for user specific modifications to the plot.
-        :type axes: Union[matplotlib.axes.Axes, None], optional
-        :param save: Whether to save the plot. (Default value = True)
-        :type save: bool
-        :param show: Whether to show the plot. (Default value = True)
-        :type show: bool
+    Parameters
+    ----------
+    axes : Union[matplotlib.axes.Axes, None], optional
+        Matplotlib axes to plot the data into. Useful for user specific modifications to the plot.
+    save : bool
+        Whether to save the plot. (Default value = True)
+    show : bool
+        Whether to show the plot. (Default value = True)
 
-        :return: The axes with the plot.
-        :rtype: matplotlib.axes.Axes
-        """
+    Returns
+    -------
+    matplotlib.axes.Axes
+        The axes with the plot.
+    """
         ax = axes or plt.gca()
 
         ax.errorbar(self.transient.x, self.transient.y, xerr=self._x_err, yerr=self._y_err,
@@ -518,16 +452,20 @@ class IntegratedFluxPlotter(Plotter):
             self, axes: matplotlib.axes.Axes = None, save: bool = True, show: bool = True) -> matplotlib.axes.Axes:
         """Plots the Integrated flux data and the lightcurve and returns Axes.
 
-        :param axes: Matplotlib axes to plot the lightcurve into. Useful for user specific modifications to the plot.
-        :type axes: Union[matplotlib.axes.Axes, None], optional
-        :param save: Whether to save the plot. (Default value = True)
-        :type save: bool
-        :param show: Whether to show the plot. (Default value = True)
-        :type show: bool
+    Parameters
+    ----------
+    axes : Union[matplotlib.axes.Axes, None], optional
+        Matplotlib axes to plot the lightcurve into. Useful for user specific modifications to the plot.
+    save : bool
+        Whether to save the plot. (Default value = True)
+    show : bool
+        Whether to show the plot. (Default value = True)
 
-        :return: The axes with the plot.
-        :rtype: matplotlib.axes.Axes
-        """
+    Returns
+    -------
+    matplotlib.axes.Axes
+        The axes with the plot.
+    """
         
         axes = axes or plt.gca()
 
@@ -564,13 +502,20 @@ class IntegratedFluxPlotter(Plotter):
             self, axes: matplotlib.axes.Axes = None, save: bool = True, show: bool = True) -> matplotlib.axes.Axes:
         """Plots the residual of the Integrated flux data returns Axes.
 
-        :param axes: Matplotlib axes to plot the lightcurve into. Useful for user specific modifications to the plot.
-        :param save: Whether to save the plot. (Default value = True)
-        :param show: Whether to show the plot. (Default value = True)
+    Parameters
+    ----------
+    axes
+        Matplotlib axes to plot the lightcurve into. Useful for user specific modifications to the plot.
+    save
+        Whether to save the plot. (Default value = True)
+    show
+        Whether to show the plot. (Default value = True)
 
-        :return: The axes with the plot.
-        :rtype: matplotlib.axes.Axes
-        """
+    Returns
+    -------
+    matplotlib.axes.Axes
+        The axes with the plot.
+    """
         if axes is None:
             fig, axes = plt.subplots(
                 nrows=2, ncols=1, sharex=True, sharey=False, figsize=(10, 8), gridspec_kw=dict(height_ratios=[2, 1]))
@@ -725,16 +670,20 @@ class MagnitudePlotter(Plotter):
             self, axes: matplotlib.axes.Axes = None, save: bool = True, show: bool = True) -> matplotlib.axes.Axes:
         """Plots the Magnitude data and returns Axes.
 
-        :param axes: Matplotlib axes to plot the data into. Useful for user specific modifications to the plot.
-        :type axes: Union[matplotlib.axes.Axes, None], optional
-        :param save: Whether to save the plot. (Default value = True)
-        :type save: bool
-        :param show: Whether to show the plot. (Default value = True)
-        :type show: bool
+    Parameters
+    ----------
+    axes : Union[matplotlib.axes.Axes, None], optional
+        Matplotlib axes to plot the data into. Useful for user specific modifications to the plot.
+    save : bool
+        Whether to save the plot. (Default value = True)
+    show : bool
+        Whether to show the plot. (Default value = True)
 
-        :return: The axes with the plot.
-        :rtype: matplotlib.axes.Axes
-        """
+    Returns
+    -------
+    matplotlib.axes.Axes
+        The axes with the plot.
+    """
         ax = axes or plt.gca()
 
         band_label_generator = self.band_label_generator
@@ -795,16 +744,20 @@ class MagnitudePlotter(Plotter):
             -> matplotlib.axes.Axes:
         """Plots the Magnitude data and returns Axes.
 
-        :param axes: Matplotlib axes to plot the lightcurve into. Useful for user specific modifications to the plot.
-        :type axes: Union[matplotlib.axes.Axes, None], optional
-        :param save: Whether to save the plot. (Default value = True)
-        :type save: bool
-        :param show: Whether to show the plot. (Default value = True)
-        :type show: bool
+    Parameters
+    ----------
+    axes : Union[matplotlib.axes.Axes, None], optional
+        Matplotlib axes to plot the lightcurve into. Useful for user specific modifications to the plot.
+    save : bool
+        Whether to save the plot. (Default value = True)
+    show : bool
+        Whether to show the plot. (Default value = True)
 
-        :return: The axes with the plot.
-        :rtype: matplotlib.axes.Axes
-        """
+    Returns
+    -------
+    matplotlib.axes.Axes
+        The axes with the plot.
+    """
         axes = axes or plt.gca()
 
         axes = self.plot_data(axes=axes, save=False, show=False)
@@ -875,18 +828,22 @@ class MagnitudePlotter(Plotter):
             show: bool = True) -> matplotlib.axes.Axes:
         """Plots the Magnitude multiband data and returns Axes.
 
-        :param figure: Matplotlib figure to plot the data into.
-        :type figure: matplotlib.figure.Figure
-        :param axes: Matplotlib axes to plot the data into. Useful for user specific modifications to the plot.
-        :type axes: Union[matplotlib.axes.Axes, None], optional
-        :param save: Whether to save the plot. (Default value = True)
-        :type save: bool
-        :param show: Whether to show the plot. (Default value = True)
-        :type show: bool
+    Parameters
+    ----------
+    figure : matplotlib.figure.Figure
+        Matplotlib figure to plot the data into.
+    axes : Union[matplotlib.axes.Axes, None], optional
+        Matplotlib axes to plot the data into. Useful for user specific modifications to the plot.
+    save : bool
+        Whether to save the plot. (Default value = True)
+    show : bool
+        Whether to show the plot. (Default value = True)
 
-        :return: The axes with the plot.
-        :rtype: matplotlib.axes.Axes
-        """
+    Returns
+    -------
+    matplotlib.axes.Axes
+        The axes with the plot.
+    """
         if not self._check_valid_multiband_data_mode():
             return
 
@@ -956,17 +913,22 @@ class MagnitudePlotter(Plotter):
         self, figure: matplotlib.figure.Figure = None, axes: matplotlib.axes.Axes = None, save: bool = True, show: bool = True) -> matplotlib.axes.Axes:
         """Plots the Magnitude multiband lightcurve and returns Axes.
 
-        :param figure: Matplotlib figure to plot the data into.
-        :param axes: Matplotlib axes to plot the data into. Useful for user specific modifications to the plot.
-        :type axes: Union[matplotlib.axes.Axes, None], optional
-        :param save: Whether to save the plot. (Default value = True)
-        :type save: bool
-        :param show: Whether to show the plot. (Default value = True)
-        :type show: bool
+    Parameters
+    ----------
+    figure
+        Matplotlib figure to plot the data into.
+    axes : Union[matplotlib.axes.Axes, None], optional
+        Matplotlib axes to plot the data into. Useful for user specific modifications to the plot.
+    save : bool
+        Whether to save the plot. (Default value = True)
+    show : bool
+        Whether to show the plot. (Default value = True)
 
-        :return: The axes with the plot.
-        :rtype: matplotlib.axes.Axes
-        """
+    Returns
+    -------
+    matplotlib.axes.Axes
+        The axes with the plot.
+    """
         if not self._check_valid_multiband_data_mode():
             return
 
@@ -1035,16 +997,20 @@ class SpectrumPlotter(SpecPlotter):
             self, axes: matplotlib.axes.Axes = None, save: bool = True, show: bool = True) -> matplotlib.axes.Axes:
         """Plots the spectrum data and returns Axes.
 
-        :param axes: Matplotlib axes to plot the data into. Useful for user specific modifications to the plot.
-        :type axes: Union[matplotlib.axes.Axes, None], optional
-        :param save: Whether to save the plot. (Default value = True)
-        :type save: bool
-        :param show: Whether to show the plot. (Default value = True)
-        :type show: bool
+    Parameters
+    ----------
+    axes : Union[matplotlib.axes.Axes, None], optional
+        Matplotlib axes to plot the data into. Useful for user specific modifications to the plot.
+    save : bool
+        Whether to save the plot. (Default value = True)
+    show : bool
+        Whether to show the plot. (Default value = True)
 
-        :return: The axes with the plot.
-        :rtype: matplotlib.axes.Axes
-        """
+    Returns
+    -------
+    matplotlib.axes.Axes
+        The axes with the plot.
+    """
         ax = axes or plt.gca()
 
         if self.transient.plot_with_time_label:
@@ -1074,16 +1040,20 @@ class SpectrumPlotter(SpecPlotter):
             self, axes: matplotlib.axes.Axes = None, save: bool = True, show: bool = True) -> matplotlib.axes.Axes:
         """Plots the spectrum data and the fit and returns Axes.
 
-        :param axes: Matplotlib axes to plot the lightcurve into. Useful for user specific modifications to the plot.
-        :type axes: Union[matplotlib.axes.Axes, None], optional
-        :param save: Whether to save the plot. (Default value = True)
-        :type save: bool
-        :param show: Whether to show the plot. (Default value = True)
-        :type show: bool
+    Parameters
+    ----------
+    axes : Union[matplotlib.axes.Axes, None], optional
+        Matplotlib axes to plot the lightcurve into. Useful for user specific modifications to the plot.
+    save : bool
+        Whether to save the plot. (Default value = True)
+    show : bool
+        Whether to show the plot. (Default value = True)
 
-        :return: The axes with the plot.
-        :rtype: matplotlib.axes.Axes
-        """
+    Returns
+    -------
+    matplotlib.axes.Axes
+        The axes with the plot.
+    """
 
         axes = axes or plt.gca()
 
@@ -1117,13 +1087,20 @@ class SpectrumPlotter(SpecPlotter):
             self, axes: matplotlib.axes.Axes = None, save: bool = True, show: bool = True) -> matplotlib.axes.Axes:
         """Plots the residual of the Integrated flux data returns Axes.
 
-        :param axes: Matplotlib axes to plot the lightcurve into. Useful for user specific modifications to the plot.
-        :param save: Whether to save the plot. (Default value = True)
-        :param show: Whether to show the plot. (Default value = True)
+    Parameters
+    ----------
+    axes
+        Matplotlib axes to plot the lightcurve into. Useful for user specific modifications to the plot.
+    save
+        Whether to save the plot. (Default value = True)
+    show
+        Whether to show the plot. (Default value = True)
 
-        :return: The axes with the plot.
-        :rtype: matplotlib.axes.Axes
-        """
+    Returns
+    -------
+    matplotlib.axes.Axes
+        The axes with the plot.
+    """
         if axes is None:
             fig, axes = plt.subplots(
                 nrows=2, ncols=1, sharex=True, sharey=False, figsize=(10, 8), gridspec_kw=dict(height_ratios=[2, 1]))

@@ -11,13 +11,24 @@ def add_to_database(label, wavelength, zeroflux, database, plot_label, effective
     """
     Add a filter to the Redback filter database.
 
-    :param label:       name of the filter in the Redback filter database
-    :param wavelength:  central wavelength of the filter as defined on SVO in m
-    :param zeroflux:   zero flux of the filter in erg/cm^2/s/Hz
-    :param database:    filter database
-    :param plot_label:  plot label. If none is provided, it will use LABEL (default: None).
-    :param effective_width: effective width of the filter in Angstrom
-    :return: None
+    Parameters
+    ----------
+    label
+        name of the filter in the Redback filter database
+    wavelength
+        central wavelength of the filter as defined on SVO in m
+    zeroflux
+        zero flux of the filter in erg/cm^2/s/Hz
+    database
+        filter database
+    plot_label
+        plot label. If none is provided, it will use LABEL (default: None).
+    effective_width
+        effective width of the filter in Angstrom
+
+    Returns
+    -------
+        None
     """
 
     frequency = 3.0e8 / wavelength
@@ -30,9 +41,16 @@ def add_to_sncosmo(label, transmission):
     """
     Add a filter to the Redback filter database.
 
-    :param label:       name of the filter in the Redback filter database
-    :param WAVELENGTH:  central wavelength of the filter as defined on SVO
-    :return: None
+    Parameters
+    ----------
+    label
+        name of the filter in the Redback filter database
+    WAVELENGTH
+        central wavelength of the filter as defined on SVO
+
+    Returns
+    -------
+        None
     """
 
     band  = sncosmo.Bandpass(transmission['Wavelength'], transmission['Transmission'], name=label, wave_unit=u.angstrom)
@@ -43,11 +61,20 @@ def add_filter_svo(filter, label, plot_label=None, overwrite=False):
     """
     Wrapper to add a filter from SVO to SNCosmo and the Redback filter database
 
-    :param filter: record from the SVO query
-    :param label:  name of the filter in SNCosmo
-    :param plot_label: plot label. If none is provided, it will use LABEL (default: None).
-    :param overwrite:  overwrite any existing entry? (default: False)
-    :return: None
+    Parameters
+    ----------
+    filter
+        record from the SVO query
+    label
+        name of the filter in SNCosmo
+    plot_label
+        plot label. If none is provided, it will use LABEL (default: None).
+    overwrite
+        overwrite any existing entry? (default: False)
+
+    Returns
+    -------
+        None
     """
 
     redback_db_fname = redback.__path__[0] + '/tables/filters.csv'
@@ -106,13 +133,23 @@ def add_filter_user(file, label, plot_label=None, overwrite=False):
 
     """
     Wrapper to add a user filter from SVO to SNCosmo and the Redback filter database
-    :param file:       file name that contains the transmission function
-                       (Must have two columns, wavelength must be in AA)
-    :param label:      name of the filter
-    :param DATABASE:   location of the Redback filter database
-    :param plot_label: plot label. If none is provided, it will use LABEL (default: None).
-    :param overwrite:  overwrite any existing entry? (default: False)
-    :return: None
+
+    Parameters
+    ----------
+    file
+        file name that contains the transmission function (Must have two columns, wavelength must be in AA)
+    label
+        name of the filter
+    DATABASE
+        location of the Redback filter database
+    plot_label
+        plot label. If none is provided, it will use LABEL (default: None).
+    overwrite
+        overwrite any existing entry? (default: False)
+
+    Returns
+    -------
+        None
     """
 
     # Read Redback filter database
@@ -190,7 +227,9 @@ def add_common_filters(overwrite=False):
     """
     Adds Euclid, NTT/EFOSC2, MPG/GROND, Spitzer and WISE filters from SVO
 
-    :return: None
+    Returns
+    -------
+        None
     """
 
     # GROND
@@ -276,7 +315,9 @@ def add_effective_widths():
     """
     Adds effective widths to the Redback filter database
 
-    :return: None
+    Returns
+    -------
+        None
     """
     import pandas as pd
     db = pd.read_csv(redback.__path__[0] + '/tables/filters.csv')

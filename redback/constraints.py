@@ -9,8 +9,14 @@ def slsn_constraint(parameters):
     Place constraints on the magnetar rotational energy being larger than the total output energy,
     and the that nebula phase does not begin till at least a 100 days.
 
-    :param parameters: dictionary of parameters
-    :return: converted_parameters dictionary where the violated samples are thrown out
+    Parameters
+    ----------
+    parameters
+        dictionary of parameters
+
+    Returns
+    -------
+        converted_parameters dictionary where the violated samples are thrown out
     """
     converted_parameters = parameters.copy()
     mej = parameters['mej'] * solar_mass
@@ -33,8 +39,14 @@ def basic_magnetar_powered_sn_constraints(parameters):
     """
     Constraint so that magnetar rotational energy is larger than ejecta kinetic energy
 
-    :param parameters: dictionary of parameters
-    :return: converted_parameters dictionary where the violated samples are thrown out
+    Parameters
+    ----------
+    parameters
+        dictionary of parameters
+
+    Returns
+    -------
+        converted_parameters dictionary where the violated samples are thrown out
     """
     converted_parameters = parameters.copy()
     mej = parameters['mej'] * solar_mass
@@ -51,8 +63,14 @@ def general_magnetar_powered_sn_constraints(parameters):
     """
     Constraint so that magnetar rotational energy is larger than ejecta kinetic energy
 
-    :param parameters: dictionary of parameters
-    :return: converted_parameters dictionary where the violated samples are thrown out
+    Parameters
+    ----------
+    parameters
+        dictionary of parameters
+
+    Returns
+    -------
+        converted_parameters dictionary where the violated samples are thrown out
     """
     converted_parameters = parameters.copy()
     mej = parameters['mej'] * solar_mass
@@ -69,8 +87,14 @@ def vacuum_dipole_magnetar_powered_supernova_constraints(parameters):
     """
     Constraint so that magnetar rotational energy is smaller than some number
 
-    :param parameters: dictionary of parameters
-    :return: converted_parameters dictionary where the violated samples are thrown out
+    Parameters
+    ----------
+    parameters
+        dictionary of parameters
+
+    Returns
+    -------
+        converted_parameters dictionary where the violated samples are thrown out
     """
     converted_parameters = parameters.copy()
     l0 = parameters['l0']
@@ -84,8 +108,14 @@ def general_magnetar_powered_supernova_constraints(parameters):
     """
     Constraint so that magnetar rotational energy is smaller than some number
 
-    :param parameters: dictionary of parameters
-    :return: converted_parameters dictionary where the violated samples are thrown out
+    Parameters
+    ----------
+    parameters
+        dictionary of parameters
+
+    Returns
+    -------
+        converted_parameters dictionary where the violated samples are thrown out
     """
     converted_parameters = parameters.copy()
     l0 = parameters['l0']
@@ -100,8 +130,14 @@ def tde_constraints(parameters):
     """
     Constraint so that the pericenter radius is larger than the schwarzchild radius of the black hole.
 
-    :param parameters: dictionary of parameters
-    :return: converted_parameters dictionary where the violated samples are thrown out
+    Parameters
+    ----------
+    parameters
+        dictionary of parameters
+
+    Returns
+    -------
+        converted_parameters dictionary where the violated samples are thrown out
     """
     converted_parameters = parameters.copy()
     rp = parameters['pericenter_radius']
@@ -113,8 +149,15 @@ def tde_constraints(parameters):
 def gaussianrise_tde_constraints(parameters):
     """
     Constraint on beta, eta and peak time for gaussian rise TDE model
-    :param parameters: dictionary of parameters
-    :return: converted_parameters dictionary where the violated samples are thrown out
+
+    Parameters
+    ----------
+    parameters
+        dictionary of parameters
+
+    Returns
+    -------
+        converted_parameters dictionary where the violated samples are thrown out
     """
     converted_parameters = parameters.copy()
     ms = parameters['stellar_mass']
@@ -130,8 +173,14 @@ def nuclear_burning_constraints(parameters):
     """
     Constraint so that nuclear burning energy is greater than kinetic energy.
 
-    :param parameters: dictionary of parameters
-    :return: converted_parameters dictionary where the violated samples are thrown out
+    Parameters
+    ----------
+    parameters
+        dictionary of parameters
+
+    Returns
+    -------
+        converted_parameters dictionary where the violated samples are thrown out
     """
     converted_parameters = parameters.copy()
     mej = parameters['mej'] * solar_mass
@@ -148,8 +197,14 @@ def simple_fallback_constraints(parameters):
     Constraint on the fall back energy being larger than the kinetic energy,
     and the that nebula phase does not begin till at least a 100 days.
 
-    :param parameters: dictionary of parameters
-    :return: converted_parameters dictionary where the violated samples are thrown out
+    Parameters
+    ----------
+    parameters
+        dictionary of parameters
+
+    Returns
+    -------
+        converted_parameters dictionary where the violated samples are thrown out
     """
     converted_parameters = parameters.copy()
     mej = parameters['mej'] * solar_mass
@@ -173,8 +228,14 @@ def csm_constraints(parameters):
     Constraint so that photospheric radius is within the csm and the
     diffusion time is less than the shock crossing time.
 
-    :param parameters: dictionary of parameters
-    :return: converted_parameters dictionary where the violated samples are thrown out
+    Parameters
+    ----------
+    parameters
+        dictionary of parameters
+
+    Returns
+    -------
+        converted_parameters dictionary where the violated samples are thrown out
     """
     converted_parameters = parameters.copy()
     mej = parameters['mej']
@@ -238,8 +299,14 @@ def piecewise_polytrope_eos_constraints(parameters):
     """
     Constraint on piecewise-polytrope EOS to enforce causality and max mass
 
-    :param parameters: dictionary of parameters
-    :return: converted_parameters dictionary where the violated samples are thrown out
+    Parameters
+    ----------
+    parameters
+        dictionary of parameters
+
+    Returns
+    -------
+        converted_parameters dictionary where the violated samples are thrown out
     """
     converted_parameters = parameters.copy()
     log_p = parameters['log_p']

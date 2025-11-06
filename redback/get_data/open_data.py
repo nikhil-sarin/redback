@@ -32,12 +32,13 @@ class OpenDataGetter(DataGetter):
     def __init__(self, transient: str, transient_type: str) -> None:
         """Constructor class for a data getter. The instance will be able to download the specified Swift data.
 
-        :param transient: Telephone number of GRB, e.g., 'GRB140903A' or '140903A' are valid inputs.
-        :type transient: str
-        :param transient_type: Type of the transient.
-                               Must be from `redback.get_data.open_data.OpenDataGetter.VALID_TRANSIENT_TYPES`.
-        :type transient_type: str
-        """
+    Parameters
+    ----------
+    transient : str
+        Telephone number of GRB, e.g., 'GRB140903A' or '140903A' are valid inputs.
+    transient_type : str
+        Type of the transient. Must be from `redback.get_data.open_data.OpenDataGetter.VALID_TRANSIENT_TYPES`.
+    """
         super().__init__(transient, transient_type)
         self.directory_path, self.raw_file_path, self.processed_file_path = \
             redback.get_data.directory.open_access_directory_structure(transient=self.transient,
@@ -46,27 +47,36 @@ class OpenDataGetter(DataGetter):
     @property
     def url(self) -> str:
         """
-        :return: The astrocats raw data url.
-        :rtype: str
-        """
+
+    Returns
+    -------
+    str
+        The astrocats raw data url.
+    """
         return f"https://api.astrocats.space/{self.transient}/photometry/time+magnitude+e_" \
                f"magnitude+band+system?e_magnitude&band&time&format=csv"
 
     @property
     def metadata_url(self) -> str:
         """
-        :return: The astrocats metadata url.
-        :rtype: str
-        """
+
+    Returns
+    -------
+    str
+        The astrocats metadata url.
+    """
         return f"https://api.astrocats.space/{self.transient}/" \
                f"timeofmerger+discoverdate+redshift+ra+dec+host+alias?format=CSV"
 
     @property
     def metadata_path(self):
         """
-        :return: The path to the metadata file.
-        :rtype: str
-        """
+
+    Returns
+    -------
+    str
+        The path to the metadata file.
+    """
         return f"{self.directory_path}{self.transient}_metadata.csv"
 
     def collect_data(self) -> None:
@@ -89,9 +99,11 @@ class OpenDataGetter(DataGetter):
         """Converts the raw data into processed data and saves it into the processed file path.
         The data columns are in `OpenDataGetter.PROCESSED_FILE_COLUMNS`.
 
-        :return: The processed data.
-        :rtype: pandas.DataFrame
-        """
+    Returns
+    -------
+    pandas.DataFrame
+        The processed data.
+    """
         if os.path.isfile(self.processed_file_path):
             logger.warning('The processed data file already exists. Returning.')
             return pd.read_csv(self.processed_file_path)
@@ -129,18 +141,13 @@ class OpenDataGetter(DataGetter):
     def get_time_of_event(self, data: pd.DataFrame, metadata: pd.DataFrame) -> Time:
         """Infers the time of the event from the given data.
 
-        :param data: The half-processed data.
-        :type data: pandas.DataFrame
-        :param metadata: The metadata.
-        :type metadata: pandas.DataFrame
-        :param data: pd.DataFrame: 
-        :param metadata: pd.DataFrame: 
-
-        Returns
-        -------
-        astropy.time.Time: The time of the event in the astropy format.
-
-        """
+    Parameters
+    ----------
+    data : pandas.DataFrame
+        pd.DataFrame:
+    metadata : pandas.DataFrame
+        pd.DataFrame:
+    """
         time_of_event = metadata['timeofmerger'].iloc[0]
         if np.isnan(time_of_event):
             if self.transient_type == 'kilonova':

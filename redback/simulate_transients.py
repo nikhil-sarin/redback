@@ -18,26 +18,29 @@ class SimulateGenericTransient(object):
         """
         A generic interface to simulating transients
 
-        :param model: String corresponding to redback model or a python function that can evaluate an SED.
-        :param parameters: Dictionary of parameters describing a single transient
-        :param times: Time values that the model is evaluated from
-        :param model_kwargs: Additional keyword arguments, must include all the keyword arguments required by the model.
-                Refer to the model documentation for details
-        :param data_points: Number of data points to randomly sample.
-                This will randomly sample data_points in time and in bands or frequency.
-        :param seed: random seed for reproducibility
-        :param multiwavelength_transient: Boolean.
-                If True, the model is assumed to be a transient which has multiple bands/frequency
-                and the data points are sampled in bands/frequency as well,
-                rather than just corresponding to one wavelength/filter.
-                This also allows the same time value to be sampled multiple times.
-        :param noise_type: String. Type of noise to add to the model.
-            Default is 'gaussianmodel' where sigma is noise_term * model.
-            Another option is 'gaussian' i.e., a simple Gaussian noise with sigma = noise_term.
-        :param noise_term: Float. Factor which is multiplied by the model flux/magnitude to give the sigma
-            or is sigma itself for 'gaussian' noise. Or the SNR for 'SNRbased' noise.
-        :param extra_scatter: Float. Sigma of normal added to output for additional scatter.
-        """
+    Parameters
+    ----------
+    model
+        String corresponding to redback model or a python function that can evaluate an SED.
+    parameters
+        Dictionary of parameters describing a single transient
+    times
+        Time values that the model is evaluated from
+    model_kwargs
+        Additional keyword arguments, must include all the keyword arguments required by the model. Refer to the model documentation for details
+    data_points
+        Number of data points to randomly sample. This will randomly sample data_points in time and in bands or frequency.
+    seed
+        random seed for reproducibility
+    multiwavelength_transient
+        Boolean. If True, the model is assumed to be a transient which has multiple bands/frequency and the data points are sampled in bands/frequency as well, rather than just corresponding to one wavelength/filter. This also allows the same time value to be sampled multiple times.
+    noise_type
+        String. Type of noise to add to the model. Default is 'gaussianmodel' where sigma is noise_term * model. Another option is 'gaussian' i.e., a simple Gaussian noise with sigma = noise_term.
+    noise_term
+        Float. Factor which is multiplied by the model flux/magnitude to give the sigma or is sigma itself for 'gaussian' noise. Or the SNR for 'SNRbased' noise.
+    extra_scatter
+        Float. Sigma of normal added to output for additional scatter.
+    """
         if model in redback.model_library.all_models_dict:
             self.model = redback.model_library.all_models_dict[model]
         else:
@@ -122,8 +125,11 @@ class SimulateGenericTransient(object):
         This will save the data to a folder called 'simulated'
         with the name of the transient and a csv file of the injection parameters
 
-        :param name: name to save transient.
-        """
+    Parameters
+    ----------
+    name
+        name to save transient.
+    """
         bilby.utils.check_directory_exists_and_if_not_mkdir('simulated')
         path = 'simulated/' + name + '.csv'
         injection_path = 'simulated/' + name + '_injection_parameters.csv'
@@ -139,31 +145,37 @@ class SimulateOpticalTransient(object):
         """
         Simulate an optical transient or transient population for an optical Survey like Rubin, ZTF, Roman etc
 
-        :param model: String corresponding to redback model or a python function that can evaluate an SED.
-        :param parameters: Dictionary of parameters describing a single transient or a transient population.
-                This can either include RA and DEC or it is randomly drawn from the pointing database.
-                Must include t0_mjd_transient or t0.
-        :param pointings_database: A pandas DataFrame containing the pointings of the survey.
-        :param survey: String corresponding to the survey name. This is used to look up the pointings database.
-                Set to LSST 10 year baseline 3.0 by default. If None, the user must supply a pointings_database.
-                Implemented surveys currently include a Rubin 10 year baseline 3.0 as 'Rubin_10yr_baseline, and ZTF as 'ztf'.
-        :param sncosmo_kwargs: Any kwargs to be passed to SNcosmo.
-                SNcosmo is used to evaluate the bandpass magnitudes in different bands.
-        :param obs_buffer: A observation buffer in days to add to the start of the transient
-                to allow for non-detections. Default is 5 days
-        :param survey_fov_sqdeg: Survey field of view. Default is 9.6 sqdeg for Rubin.
-                36" for ZTF as a circular approximation to the square FOV of ZTF.
-        :param snr_threshold: SNR threshold for detection. Default is 5.
-        :param end_transient_time: End time of the transient in days. Default is 1000 days.
-                Note that SNCosmo will extrapolate past when the transient model evaluates the SED so these should really be the same.
-        :param add_source_noise: Boolean. If True, add an extra noise in quadrature to the limiting mag noise.
-                The factor is a multiple of the model flux i.e. noise = (skynoise**2 + (model_flux*source_noise)**2)**0.5
-        :param population: Boolean. If True, the parameters are assumed to be for a population of transients.
-        :param model_kwargs: Dictionary of kwargs to be passed to the model.
-        :param kwargs: Dictionary of additional kwargs
-        :param source_noise: Float. Factor to multiply the model flux by to add an extra noise
-                in quadrature to the limiting mag noise. Default value is 0.02, disabled by default.
-        """
+    Parameters
+    ----------
+    model
+        String corresponding to redback model or a python function that can evaluate an SED.
+    parameters
+        Dictionary of parameters describing a single transient or a transient population. This can either include RA and DEC or it is randomly drawn from the pointing database. Must include t0_mjd_transient or t0.
+    pointings_database
+        A pandas DataFrame containing the pointings of the survey.
+    survey
+        String corresponding to the survey name. This is used to look up the pointings database. Set to LSST 10 year baseline 3.0 by default. If None, the user must supply a pointings_database. Implemented surveys currently include a Rubin 10 year baseline 3.0 as 'Rubin_10yr_baseline, and ZTF as 'ztf'.
+    sncosmo_kwargs
+        Any kwargs to be passed to SNcosmo. SNcosmo is used to evaluate the bandpass magnitudes in different bands.
+    obs_buffer
+        A observation buffer in days to add to the start of the transient to allow for non-detections. Default is 5 days
+    survey_fov_sqdeg
+        Survey field of view. Default is 9.6 sqdeg for Rubin. 36" for ZTF as a circular approximation to the square FOV of ZTF.
+    snr_threshold
+        SNR threshold for detection. Default is 5.
+    end_transient_time
+        End time of the transient in days. Default is 1000 days. Note that SNCosmo will extrapolate past when the transient model evaluates the SED so these should really be the same.
+    add_source_noise
+        Boolean. If True, add an extra noise in quadrature to the limiting mag noise. The factor is a multiple of the model flux i.e. noise = (skynoise**2 + (model_flux*source_noise)**2)**0.5
+    population
+        Boolean. If True, the parameters are assumed to be for a population of transients.
+    model_kwargs
+        Dictionary of kwargs to be passed to the model.
+    kwargs
+        Dictionary of additional kwargs
+    source_noise
+        Float. Factor to multiply the model flux by to add an extra noise in quadrature to the limiting mag noise. Default value is 0.02, disabled by default.
+    """
 
         self.survey_fov_sqdeg = survey_fov_sqdeg
         self.snr_threshold = snr_threshold
@@ -235,29 +247,37 @@ class SimulateOpticalTransient(object):
         """
         Constructor method to build simulated transient object for a single transient.
 
-        :param model: String corresponding to redback model or a python function that can evaluate an SED.
-        :param parameters: Dictionary of parameters describing a single transient or a transient population.
-            This can either include RA and DEC or it is randomly drawn from the pointing database.
-            Must include t0_mjd_transient or t0.
-        :param pointings_database: A pandas DataFrame containing the pointings of the survey.
-        :param survey: String corresponding to the survey name. This is used to look up the pointings database.
-            Set to LSST 10 year baseline 3.0 by default.
-        :param sncosmo_kwargs: Any kwargs to be passed to SNcosmo.
-            SNcosmo is used to evaluate the bandpass magnitudes in different bands.
-        :param obs_buffer: A observation buffer in days to add to the start of the transient
-            to allow for non-detections. Default is 5 days
-        :param survey_fov_sqdeg: Survey field of view. Default is 9.6 sqdeg for Rubin.
-        :param snr_threshold: SNR threshold for detection. Default is 5.
-        :param end_transient_time: End time of the transient in days. Default is 1000 days.
-            Note that SNCosmo will extrapolate past when the transient model evaluates the SED so these should really be the same.
-        :param add_source_noise: Boolean. If True, add an extra noise in quadrature to the limiting mag noise.
-            The factor is a multiple of the model flux i.e. noise = (skynoise**2 + (model_flux*source_noise)**2)**0.5
-        :param population: Boolean. If True, the parameters are assumed to be for a population of transients.
-        :param model_kwargs: Dictionary of kwargs to be passed to the model.
-        :param kwargs: Dictionary of additional kwargs
-        :param source_noise: Float. Factor to multiply the model flux by to add an extra noise
-            in quadrature to the limiting mag noise. Default value is 0.02, disabled by default.
-        """
+    Parameters
+    ----------
+    model
+        String corresponding to redback model or a python function that can evaluate an SED.
+    parameters
+        Dictionary of parameters describing a single transient or a transient population. This can either include RA and DEC or it is randomly drawn from the pointing database. Must include t0_mjd_transient or t0.
+    pointings_database
+        A pandas DataFrame containing the pointings of the survey.
+    survey
+        String corresponding to the survey name. This is used to look up the pointings database. Set to LSST 10 year baseline 3.0 by default.
+    sncosmo_kwargs
+        Any kwargs to be passed to SNcosmo. SNcosmo is used to evaluate the bandpass magnitudes in different bands.
+    obs_buffer
+        A observation buffer in days to add to the start of the transient to allow for non-detections. Default is 5 days
+    survey_fov_sqdeg
+        Survey field of view. Default is 9.6 sqdeg for Rubin.
+    snr_threshold
+        SNR threshold for detection. Default is 5.
+    end_transient_time
+        End time of the transient in days. Default is 1000 days. Note that SNCosmo will extrapolate past when the transient model evaluates the SED so these should really be the same.
+    add_source_noise
+        Boolean. If True, add an extra noise in quadrature to the limiting mag noise. The factor is a multiple of the model flux i.e. noise = (skynoise**2 + (model_flux*source_noise)**2)**0.5
+    population
+        Boolean. If True, the parameters are assumed to be for a population of transients.
+    model_kwargs
+        Dictionary of kwargs to be passed to the model.
+    kwargs
+        Dictionary of additional kwargs
+    source_noise
+        Float. Factor to multiply the model flux by to add an extra noise in quadrature to the limiting mag noise. Default value is 0.02, disabled by default.
+    """
         return cls(model=model, parameters=parameters, pointings_database=pointings_database, survey=survey,
                    sncosmo_kwargs=sncosmo_kwargs, obs_buffer=obs_buffer,
                    survey_fov_sqdeg=survey_fov_sqdeg, snr_threshold=snr_threshold,
@@ -271,27 +291,33 @@ class SimulateOpticalTransient(object):
         """
         Constructor method to build simulated transient object for a single transient with Rubin.
 
-        :param model: String corresponding to redback model or a python function that can evaluate an SED.
-        :param parameters: Dictionary of parameters describing a single transient or a transient population.
-            This can either include RA and DEC or it is randomly drawn from the pointing database.
-            Must include t0_mjd_transient or t0.
-        :param pointings_database: A pandas DataFrame containing the pointings of the survey.
-        :param survey: String corresponding to the survey name. This is used to look up the pointings database.
-            Set to LSST 10 year baseline 3.0 by default.
-        :param sncosmo_kwargs: Any kwargs to be passed to SNcosmo.
-            SNcosmo is used to evaluate the bandpass magnitudes in different bands.
-        :param obs_buffer: A observation buffer in days to add to the start of the transient
-            to allow for non-detections. Default is 5 days
-        :param snr_threshold: SNR threshold for detection. Default is 5.
-        :param end_transient_time: End time of the transient in days. Default is 1000 days.
-            Note that SNCosmo will extrapolate past when the transient model evaluates the SED so these should really be the same.
-        :param add_source_noise: Boolean. If True, add an extra noise in quadrature to the limiting mag noise.
-            The factor is a multiple of the model flux i.e. noise = (skynoise**2 + (model_flux*source_noise)**2)**0.5
-        :param model_kwargs: Dictionary of kwargs to be passed to the model.
-        :param kwargs: Dictionary of additional kwargs
-        :param source_noise: Float. Factor to multiply the model flux by to add an extra noise
-            in quadrature to the limiting mag noise. Default value is 0.02, disabled by default.
-        """
+    Parameters
+    ----------
+    model
+        String corresponding to redback model or a python function that can evaluate an SED.
+    parameters
+        Dictionary of parameters describing a single transient or a transient population. This can either include RA and DEC or it is randomly drawn from the pointing database. Must include t0_mjd_transient or t0.
+    pointings_database
+        A pandas DataFrame containing the pointings of the survey.
+    survey
+        String corresponding to the survey name. This is used to look up the pointings database. Set to LSST 10 year baseline 3.0 by default.
+    sncosmo_kwargs
+        Any kwargs to be passed to SNcosmo. SNcosmo is used to evaluate the bandpass magnitudes in different bands.
+    obs_buffer
+        A observation buffer in days to add to the start of the transient to allow for non-detections. Default is 5 days
+    snr_threshold
+        SNR threshold for detection. Default is 5.
+    end_transient_time
+        End time of the transient in days. Default is 1000 days. Note that SNCosmo will extrapolate past when the transient model evaluates the SED so these should really be the same.
+    add_source_noise
+        Boolean. If True, add an extra noise in quadrature to the limiting mag noise. The factor is a multiple of the model flux i.e. noise = (skynoise**2 + (model_flux*source_noise)**2)**0.5
+    model_kwargs
+        Dictionary of kwargs to be passed to the model.
+    kwargs
+        Dictionary of additional kwargs
+    source_noise
+        Float. Factor to multiply the model flux by to add an extra noise in quadrature to the limiting mag noise. Default value is 0.02, disabled by default.
+    """
         return cls(model=model, parameters=parameters, pointings_database=pointings_database, survey=survey,
                    sncosmo_kwargs=sncosmo_kwargs, obs_buffer=obs_buffer,
                    survey_fov_sqdeg=9.6, snr_threshold=snr_threshold,
@@ -305,26 +331,33 @@ class SimulateOpticalTransient(object):
         """
         Constructor method to build simulated transient object for a single transient with ZTF.
 
-        :param model: String corresponding to redback model or a python function that can evaluate an SED.
-        :param parameters: Dictionary of parameters describing a single transient or a transient population.
-            This can either include RA and DEC or it is randomly drawn from the pointing database.
-            Must include t0_mjd_transient or t0.
-        :param pointings_database: A pandas DataFrame containing the pointings of the survey.
-        :param survey: String corresponding to the survey name. This is used to look up the pointings database.
-        :param sncosmo_kwargs: Any kwargs to be passed to SNcosmo.
-            SNcosmo is used to evaluate the bandpass magnitudes in different bands.
-        :param obs_buffer: A observation buffer in days to add to the start of the transient
-            to allow for non-detections. Default is 5 days
-        :param snr_threshold: SNR threshold for detection. Default is 5.
-        :param end_transient_time: End time of the transient in days. Default is 1000 days.
-            Note that SNCosmo will extrapolate past when the transient model evaluates the SED so these should really be the same.
-        :param add_source_noise: Boolean. If True, add an extra noise in quadrature to the limiting mag noise.
-            The factor is a multiple of the model flux i.e. noise = (skynoise**2 + (model_flux*source_noise)**2)**0.5
-        :param model_kwargs: Dictionary of kwargs to be passed to the model.
-        :param kwargs: Dictionary of additional kwargs
-        :param source_noise: Float. Factor to multiply the model flux by to add an extra noise
-            in quadrature to the limiting mag noise. Default value is 0.02, disabled by default.
-        """
+    Parameters
+    ----------
+    model
+        String corresponding to redback model or a python function that can evaluate an SED.
+    parameters
+        Dictionary of parameters describing a single transient or a transient population. This can either include RA and DEC or it is randomly drawn from the pointing database. Must include t0_mjd_transient or t0.
+    pointings_database
+        A pandas DataFrame containing the pointings of the survey.
+    survey
+        String corresponding to the survey name. This is used to look up the pointings database.
+    sncosmo_kwargs
+        Any kwargs to be passed to SNcosmo. SNcosmo is used to evaluate the bandpass magnitudes in different bands.
+    obs_buffer
+        A observation buffer in days to add to the start of the transient to allow for non-detections. Default is 5 days
+    snr_threshold
+        SNR threshold for detection. Default is 5.
+    end_transient_time
+        End time of the transient in days. Default is 1000 days. Note that SNCosmo will extrapolate past when the transient model evaluates the SED so these should really be the same.
+    add_source_noise
+        Boolean. If True, add an extra noise in quadrature to the limiting mag noise. The factor is a multiple of the model flux i.e. noise = (skynoise**2 + (model_flux*source_noise)**2)**0.5
+    model_kwargs
+        Dictionary of kwargs to be passed to the model.
+    kwargs
+        Dictionary of additional kwargs
+    source_noise
+        Float. Factor to multiply the model flux by to add an extra noise in quadrature to the limiting mag noise. Default value is 0.02, disabled by default.
+    """
         return cls(model=model, parameters=parameters, pointings_database=pointings_database, survey=survey,
                    sncosmo_kwargs=sncosmo_kwargs, obs_buffer=obs_buffer,
                    survey_fov_sqdeg=36., snr_threshold=snr_threshold,
@@ -338,28 +371,35 @@ class SimulateOpticalTransient(object):
         """
         Constructor method to build simulated transient object for a single transient.
 
-        :param model: String corresponding to redback model or a python function that can evaluate an SED.
-        :param parameters: Dictionary of parameters describing a single transient or a transient population.
-            This can either include RA and DEC or it is randomly drawn from the pointing database.
-            Must include t0_mjd_transient or t0.
-        :param pointings_database: A pandas DataFrame containing the pointings of the survey.
-        :param survey: String corresponding to the survey name. This is used to look up the pointings database.
-            Set to LSST 10 year baseline 3.0 by default.
-        :param sncosmo_kwargs: Any kwargs to be passed to SNcosmo.
-            SNcosmo is used to evaluate the bandpass magnitudes in different bands.
-        :param obs_buffer: A observation buffer in days to add to the start of the transient
-            to allow for non-detections. Default is 5 days
-        :param survey_fov_sqdeg: Survey field of view. Default is 9.6 sqdeg for Rubin.
-        :param snr_threshold: SNR threshold for detection. Default is 5.
-        :param end_transient_time: End time of the transient in days. Default is 1000 days.
-            Note that SNCosmo will extrapolate past when the transient model evaluates the SED so these should really be the same.
-        :param add_source_noise: Boolean. If True, add an extra noise in quadrature to the limiting mag noise.
-            The factor is a multiple of the model flux i.e. noise = (skynoise**2 + (model_flux*source_noise)**2)**0.5
-        :param model_kwargs: Dictionary of kwargs to be passed to the model.
-        :param kwargs: Dictionary of additional kwargs
-        :param source_noise: Float. Factor to multiply the model flux by to add an extra noise
-            in quadrature to the limiting mag noise. Default value is 0.02, disabled by default.
-        """
+    Parameters
+    ----------
+    model
+        String corresponding to redback model or a python function that can evaluate an SED.
+    parameters
+        Dictionary of parameters describing a single transient or a transient population. This can either include RA and DEC or it is randomly drawn from the pointing database. Must include t0_mjd_transient or t0.
+    pointings_database
+        A pandas DataFrame containing the pointings of the survey.
+    survey
+        String corresponding to the survey name. This is used to look up the pointings database. Set to LSST 10 year baseline 3.0 by default.
+    sncosmo_kwargs
+        Any kwargs to be passed to SNcosmo. SNcosmo is used to evaluate the bandpass magnitudes in different bands.
+    obs_buffer
+        A observation buffer in days to add to the start of the transient to allow for non-detections. Default is 5 days
+    survey_fov_sqdeg
+        Survey field of view. Default is 9.6 sqdeg for Rubin.
+    snr_threshold
+        SNR threshold for detection. Default is 5.
+    end_transient_time
+        End time of the transient in days. Default is 1000 days. Note that SNCosmo will extrapolate past when the transient model evaluates the SED so these should really be the same.
+    add_source_noise
+        Boolean. If True, add an extra noise in quadrature to the limiting mag noise. The factor is a multiple of the model flux i.e. noise = (skynoise**2 + (model_flux*source_noise)**2)**0.5
+    model_kwargs
+        Dictionary of kwargs to be passed to the model.
+    kwargs
+        Dictionary of additional kwargs
+    source_noise
+        Float. Factor to multiply the model flux by to add an extra noise in quadrature to the limiting mag noise. Default value is 0.02, disabled by default.
+    """
         return cls(model=model, parameters=parameters, pointings_database=pointings_database, survey=survey,
                    sncosmo_kwargs=sncosmo_kwargs, obs_buffer=obs_buffer,
                    survey_fov_sqdeg=survey_fov_sqdeg, snr_threshold=snr_threshold,
@@ -373,26 +413,33 @@ class SimulateOpticalTransient(object):
         """
         Constructor method to build simulated transient object for a single transient.
 
-        :param model: String corresponding to redback model or a python function that can evaluate an SED.
-        :param parameters: Dictionary of parameters describing a single transient or a transient population.
-            This can either include RA and DEC or it is randomly drawn from the pointing database.
-            Must include t0_mjd_transient or t0.
-        :param pointings_database: A pandas DataFrame containing the pointings of the survey.
-        :param survey: String corresponding to the survey name. This is used to look up the pointings database.
-            Set to LSST 10 year baseline 3.0 by default.
-        :param sncosmo_kwargs: Any kwargs to be passed to SNcosmo.
-            SNcosmo is used to evaluate the bandpass magnitudes in different bands.
-        :param obs_buffer: A observation buffer in days to add to the start of the transient
-            to allow for non-detections. Default is 5 days
-        :param snr_threshold: SNR threshold for detection. Default is 5.
-        :param end_transient_time: End time of the transient in days. Default is 1000 days.
-        :param add_source_noise: Boolean. If True, add an extra noise in quadrature to the limiting mag noise.
-            The factor is a multiple of the model flux i.e. noise = (skynoise**2 + (model_flux*source_noise)**2)**0.5
-        :param model_kwargs: Dictionary of kwargs to be passed to the model.
-        :param kwargs: Dictionary of additional kwargs
-        :param source_noise: Float. Factor to multiply the model flux by to add an extra noise
-            in quadrature to the limiting mag noise. Default value is 0.02, disabled by default.
-        """
+    Parameters
+    ----------
+    model
+        String corresponding to redback model or a python function that can evaluate an SED.
+    parameters
+        Dictionary of parameters describing a single transient or a transient population. This can either include RA and DEC or it is randomly drawn from the pointing database. Must include t0_mjd_transient or t0.
+    pointings_database
+        A pandas DataFrame containing the pointings of the survey.
+    survey
+        String corresponding to the survey name. This is used to look up the pointings database. Set to LSST 10 year baseline 3.0 by default.
+    sncosmo_kwargs
+        Any kwargs to be passed to SNcosmo. SNcosmo is used to evaluate the bandpass magnitudes in different bands.
+    obs_buffer
+        A observation buffer in days to add to the start of the transient to allow for non-detections. Default is 5 days
+    snr_threshold
+        SNR threshold for detection. Default is 5.
+    end_transient_time
+        End time of the transient in days. Default is 1000 days.
+    add_source_noise
+        Boolean. If True, add an extra noise in quadrature to the limiting mag noise. The factor is a multiple of the model flux i.e. noise = (skynoise**2 + (model_flux*source_noise)**2)**0.5
+    model_kwargs
+        Dictionary of kwargs to be passed to the model.
+    kwargs
+        Dictionary of additional kwargs
+    source_noise
+        Float. Factor to multiply the model flux by to add an extra noise in quadrature to the limiting mag noise. Default value is 0.02, disabled by default.
+    """
         return cls(model=model, parameters=parameters, pointings_database=pointings_database, survey=survey,
                    sncosmo_kwargs=sncosmo_kwargs, obs_buffer=obs_buffer,
                    survey_fov_sqdeg=9.6, snr_threshold=snr_threshold,
@@ -406,26 +453,33 @@ class SimulateOpticalTransient(object):
         """
         Constructor method to build simulated transient object for a single transient.
 
-        :param model: String corresponding to redback model or a python function that can evaluate an SED.
-        :param parameters: Dictionary of parameters describing a single transient or a transient population.
-            This can either include RA and DEC or it is randomly drawn from the pointing database.
-            Must include t0_mjd_transient or t0.
-        :param pointings_database: A pandas DataFrame containing the pointings of the survey.
-        :param survey: String corresponding to the survey name. This is used to look up the pointings database.
-        :param sncosmo_kwargs: Any kwargs to be passed to SNcosmo.
-            SNcosmo is used to evaluate the bandpass magnitudes in different bands.
-        :param obs_buffer: A observation buffer in days to add to the start of the transient
-            to allow for non-detections. Default is 5 days
-        :param snr_threshold: SNR threshold for detection. Default is 5.
-        :param end_transient_time: End time of the transient in days. Default is 1000 days.
-            Note that SNCosmo will extrapolate past when the transient model evaluates the SED so these should really be the same.
-        :param add_source_noise: Boolean. If True, add an extra noise in quadrature to the limiting mag noise.
-            The factor is a multiple of the model flux i.e. noise = (skynoise**2 + (model_flux*source_noise)**2)**0.5
-        :param model_kwargs: Dictionary of kwargs to be passed to the model.
-        :param kwargs: Dictionary of additional kwargs
-        :param source_noise: Float. Factor to multiply the model flux by to add an extra noise
-            in quadrature to the limiting mag noise. Default value is 0.02, disabled by default.
-        """
+    Parameters
+    ----------
+    model
+        String corresponding to redback model or a python function that can evaluate an SED.
+    parameters
+        Dictionary of parameters describing a single transient or a transient population. This can either include RA and DEC or it is randomly drawn from the pointing database. Must include t0_mjd_transient or t0.
+    pointings_database
+        A pandas DataFrame containing the pointings of the survey.
+    survey
+        String corresponding to the survey name. This is used to look up the pointings database.
+    sncosmo_kwargs
+        Any kwargs to be passed to SNcosmo. SNcosmo is used to evaluate the bandpass magnitudes in different bands.
+    obs_buffer
+        A observation buffer in days to add to the start of the transient to allow for non-detections. Default is 5 days
+    snr_threshold
+        SNR threshold for detection. Default is 5.
+    end_transient_time
+        End time of the transient in days. Default is 1000 days. Note that SNCosmo will extrapolate past when the transient model evaluates the SED so these should really be the same.
+    add_source_noise
+        Boolean. If True, add an extra noise in quadrature to the limiting mag noise. The factor is a multiple of the model flux i.e. noise = (skynoise**2 + (model_flux*source_noise)**2)**0.5
+    model_kwargs
+        Dictionary of kwargs to be passed to the model.
+    kwargs
+        Dictionary of additional kwargs
+    source_noise
+        Float. Factor to multiply the model flux by to add an extra noise in quadrature to the limiting mag noise. Default value is 0.02, disabled by default.
+    """
         return cls(model=model, parameters=parameters, pointings_database=pointings_database, survey=survey,
                    sncosmo_kwargs=sncosmo_kwargs, obs_buffer=obs_buffer,
                    survey_fov_sqdeg=36., snr_threshold=snr_threshold,
@@ -436,9 +490,7 @@ class SimulateOpticalTransient(object):
         """
         Make a dataframe that can be used for inference.
         This removes all the non-detections from the observations dataframe.
-
-        :return:
-        """
+    """
         if self.population:
             all_data = self.list_of_observations
             events = len(self.parameters)
@@ -457,8 +509,11 @@ class SimulateOpticalTransient(object):
     def survey_radius(self):
         """
         Convert the circular field of view to a radius in radians.
-        :return: survey_radius in radians
-        """
+
+    Returns
+    -------
+        survey_radius in radians
+    """
         survey_fov_sqrad = self.survey_fov_sqdeg*(np.pi/180.0)**2
         survey_radius = np.sqrt(survey_fov_sqrad/np.pi)
         # survey_radius = np.sqrt(self.survey_fov_sqdeg*((np.pi/180.0)**2.0)/np.pi)
@@ -467,8 +522,11 @@ class SimulateOpticalTransient(object):
     @property
     def t0_transient(self):
         """
-        :return: The start time of the transient in MJD
-        """
+
+    Returns
+    -------
+        The start time of the transient in MJD
+    """
         if 't0' in self.parameters:
             return self.parameters['t0']
         else:
@@ -477,8 +535,11 @@ class SimulateOpticalTransient(object):
     @property
     def RA(self):
         """
-        :return: The RA of the transient in radians. Draw randomly from the pointings database if not supplied.
-        """
+
+    Returns
+    -------
+        The RA of the transient in radians. Draw randomly from the pointings database if not supplied.
+    """
         if 'ra' in self.parameters:
             RA = self.parameters['ra'].values
         else:
@@ -488,8 +549,11 @@ class SimulateOpticalTransient(object):
     @property
     def DEC(self):
         """
-        :return: The DEC of the transient in radians. Draw randomly from the pointings database if not supplied.
-        """
+
+    Returns
+    -------
+        The DEC of the transient in radians. Draw randomly from the pointings database if not supplied.
+    """
         if 'dec' in self.parameters:
             dec = self.parameters['dec'].values
         else:
@@ -499,39 +563,54 @@ class SimulateOpticalTransient(object):
     @property
     def min_dec(self):
         """
-        :return: Minimum dec of the survey in radians
-        """
+
+    Returns
+    -------
+        Minimum dec of the survey in radians
+    """
         df = self.pointings_database
         return np.min(df['_dec'])
 
     @property
     def max_dec(self):
         """
-        :return: Maximum dec of the survey in radians
-        """
+
+    Returns
+    -------
+        Maximum dec of the survey in radians
+    """
         df = self.pointings_database
         return np.max(df['_dec'])
 
     @property
     def start_mjd(self):
         """
-        :return: Start of the survey in MJD
-        """
+
+    Returns
+    -------
+        Start of the survey in MJD
+    """
         df = self.pointings_database
         return np.min(df['expMJD'])
 
     @property
     def end_mjd(self):
         """
-        :return: End of the survey in MJD
-        """
+
+    Returns
+    -------
+        End of the survey in MJD
+    """
         df = self.pointings_database
         return np.max(df['expMJD'])
 
     def _get_unique_reference_fluxes(self):
         """
-        :return: Get the unique reference fluxes for each filter in the survey
-        """
+
+    Returns
+    -------
+        Get the unique reference fluxes for each filter in the survey
+    """
         unique_bands = self.pointings_database.filters.unique()
         ref_flux = redback.utils.bands_to_reference_flux(unique_bands)
         return ref_flux
@@ -540,8 +619,11 @@ class SimulateOpticalTransient(object):
         """
 
         Function to wrap user models into sncosmo model format for full functionality.
-        :return: sncosmo source
-        """
+
+    Returns
+    -------
+        sncosmo source
+    """
         # Ensure sncosmo_kwargs is a dictionary
         if self.sncosmo_kwargs is None:
             self.sncosmo_kwargs = {}
@@ -561,9 +643,16 @@ class SimulateOpticalTransient(object):
         """
 
         A lookup table to get the name of the pointings database for a given survey.
-        :param survey: name of the survey
-        :return: path to the pointings database
-        """
+
+    Parameters
+    ----------
+    survey
+        name of the survey
+
+    Returns
+    -------
+        path to the pointings database
+    """
         survey_to_table = {'Rubin_10yr_baseline': 'rubin_baseline_v3.0_10yrs.tar.gz',
                            'Rubin_10yr_morez': 'rubin_morez.tar.gz',
                            'Rubin_10yr_lessweight': 'rubin_lessweight.tar.gz',
@@ -575,8 +664,10 @@ class SimulateOpticalTransient(object):
         """
         Find the time indices of the pointings database that overlap with the transient.
 
-        :return: indices of the pointings database that overlap with the transient.
-        """
+    Returns
+    -------
+        indices of the pointings database that overlap with the transient.
+    """
         pointing_times = self.pointings_database[['expMJD']].values.flatten()
         if self.population:
             condition_1 = pointing_times >= self.t0_transient.values[:, None] - self.obs_buffer
@@ -619,9 +710,14 @@ class SimulateOpticalTransient(object):
         """
         Calculate properties of the transient at the overlapping pointings for a single transient.
 
-        :param overlapping_database:
-        :return: Dataframe of observations including non-detections/upper limits
-        """
+    Parameters
+    ----------
+    overlapping_database
+
+    Returns
+    -------
+        Dataframe of observations including non-detections/upper limits
+    """
         times = overlapping_database['expMJD'].values - t0_transient
         filters = overlapping_database['filter'].values
         magnitude = sncosmo_model.bandmag(phase=times, band=filters, magsys='AB')
@@ -664,8 +760,11 @@ class SimulateOpticalTransient(object):
     def _make_observations(self):
         """
         Calculate properties of the transient at the overlapping pointings for a single transient.
-        :return: Dataframe of observations including non-detections/upper limits
-        """
+
+    Returns
+    -------
+        Dataframe of observations including non-detections/upper limits
+    """
         overlapping_sky_indices = self._find_sky_overlaps()
         overlapping_time_indices = self._find_time_overlaps()
 
@@ -682,8 +781,11 @@ class SimulateOpticalTransient(object):
     def _make_observations_for_population(self):
         """
         Calculate properties of the transient at the overlapping pointings for a transient population.
-        :return: Dataframe of observations including non-detections/upper limits
-        """
+
+    Returns
+    -------
+        Dataframe of observations including non-detections/upper limits
+    """
         dfs = []
         overlapping_sky_indices = self._find_sky_overlaps()
         time_mask = self._find_time_overlaps()
@@ -708,11 +810,19 @@ class SimulateOpticalTransient(object):
         This will save the data to a folder called 'simulated'
         with the name of the transient and a csv file of the injection parameters
 
-        :param transient_names: list of transient names. Default is None which will label transients as event_0, etc
-        :param kwargs: kwargs for the save_transient function
-        :param injection_file_path: path to save the injection file
-        :return: None
-        """
+    Parameters
+    ----------
+    transient_names
+        list of transient names. Default is None which will label transients as event_0, etc
+    kwargs
+        kwargs for the save_transient function
+    injection_file_path
+        path to save the injection file
+
+    Returns
+    -------
+        None
+    """
         injection_file_name = kwargs.get('injection_file_path', 'simulated/population_injection_parameters.csv')
         if transient_names is None:
             transient_names = ['event_' + str(x) for x in range(len(self.list_of_observations))]
@@ -729,8 +839,11 @@ class SimulateOpticalTransient(object):
         This will save the data to a folder called 'simulated'
         with the name of the transient and a csv file of the injection parameters
 
-        :param name: name to save transient.
-        """
+    Parameters
+    ----------
+    name
+        name to save transient.
+    """
         bilby.utils.check_directory_exists_and_if_not_mkdir('simulated')
         path = 'simulated/' + name + '.csv'
         injection_path = 'simulated/' + name + '_injection_parameters.csv'
@@ -741,15 +854,12 @@ def make_pointing_table_from_average_cadence(ra, dec, num_obs, average_cadence, 
     """
     Makes a pandas dataframe of pointings from specified settings.
 
-    :param float: ra
-    :param float: dec
-    :param dict: num_obs
-    :param dict: average_cadence
-    :param dict: cadence_scatter
-    :param dict: limiting_magnitudes
-
-    :return dataframe: pandas dataframe of the mock pointings needed to simulate observations for
-    given transient.
+    Parameters
+    ----------
+    float
+        dec
+    dict
+        limiting_magnitudes
     """
     initMJD = kwargs.get("initMJD", 59580)
     df_list = []
@@ -775,33 +885,41 @@ class SimulateFullOpticalSurvey(SimulateOpticalTransient):
         The prior is used to draw the parameters of the individual events.
         We can then simulate observations of all these events and understand the rate of detections etc.
 
-        :param model: String corresponding to redback model or a python function that can evaluate an SED.
-        :param prior: A redback prior corresponding to the model.
-            The prior on the redshift is forced to be uniform in comoving volume. With maximum what the user sets in their prior.
-        :param rate: Rate of the population in Gpc^-3 yr^-1
-        :param survey_start_date: Start date of the survey in MJD.
-        :param survey_duration: Duration of the survey in years.
-            This can be set arbitrarily high if one wants to look at detection efficiencies.
-            Or to a real number if wanting to look at a volume/flux limited survey.
-        :param pointings_database: A pandas DataFrame containing the pointings of the survey.
-        :param survey: String corresponding to the survey name. This is used to look up the pointings database.
-        :param sncosmo_kwargs: Any kwargs to be passed to SNcosmo.
-            SNcosmo is used to evaluate the bandpass magnitudes in different bands.
-        :param obs_buffer: A observation buffer in days to add to the start of the transient
-            to allow for non-detections. Default is 5 days
-        :param snr_threshold: SNR threshold for detection. Default is 5.
-        :param end_transient_time: End time of the transient in days. Default is 1000 days.
-            Note that SNCosmo will extrapolate past when the transient model evaluates the SED so these should really be the same.
-        :param add_source_noise: Boolean. If True, add an extra noise in quadrature to the limiting mag noise.
-            The factor is a multiple of the model flux i.e. noise = (skynoise**2 + (model_flux*source_noise)**2)**0.5
-        :param model_kwargs: Dictionary of kwargs to be passed to the model.
-        :param kwargs: Dictionary of additional kwargs
-        :param cosmology: Cosmology to use. Default is Planck18.
-            Users can pass their own cosmology class here as long as it works like astropy.cosmology.
-            Users should ensure they use the same cosmology in the model. Or deliberately choose not to.
-        :param source_noise: Float. Factor to multiply the model flux by to add an extra noise
-            in quadrature to the limiting mag noise. Default value is 0.02, disabled by default.
-        """
+    Parameters
+    ----------
+    model
+        String corresponding to redback model or a python function that can evaluate an SED.
+    prior
+        A redback prior corresponding to the model. The prior on the redshift is forced to be uniform in comoving volume. With maximum what the user sets in their prior.
+    rate
+        Rate of the population in Gpc^-3 yr^-1
+    survey_start_date
+        Start date of the survey in MJD.
+    survey_duration
+        Duration of the survey in years. This can be set arbitrarily high if one wants to look at detection efficiencies. Or to a real number if wanting to look at a volume/flux limited survey.
+    pointings_database
+        A pandas DataFrame containing the pointings of the survey.
+    survey
+        String corresponding to the survey name. This is used to look up the pointings database.
+    sncosmo_kwargs
+        Any kwargs to be passed to SNcosmo. SNcosmo is used to evaluate the bandpass magnitudes in different bands.
+    obs_buffer
+        A observation buffer in days to add to the start of the transient to allow for non-detections. Default is 5 days
+    snr_threshold
+        SNR threshold for detection. Default is 5.
+    end_transient_time
+        End time of the transient in days. Default is 1000 days. Note that SNCosmo will extrapolate past when the transient model evaluates the SED so these should really be the same.
+    add_source_noise
+        Boolean. If True, add an extra noise in quadrature to the limiting mag noise. The factor is a multiple of the model flux i.e. noise = (skynoise**2 + (model_flux*source_noise)**2)**0.5
+    model_kwargs
+        Dictionary of kwargs to be passed to the model.
+    kwargs
+        Dictionary of additional kwargs
+    cosmology
+        Cosmology to use. Default is Planck18. Users can pass their own cosmology class here as long as it works like astropy.cosmology. Users should ensure they use the same cosmology in the model. Or deliberately choose not to.
+    source_noise
+        Float. Factor to multiply the model flux by to add an extra noise in quadrature to the limiting mag noise. Default value is 0.02, disabled by default.
+    """
         self.rate = rate * uu.Gpc**-3 * uu.yr**-1
         self.prior = prior
         self.survey_start_date = survey_start_date
@@ -867,11 +985,19 @@ class SimulateFullOpticalSurvey(SimulateOpticalTransient):
         This will save the data to a folder called 'simulated'
         with the name of the transient and a csv file of the injection parameters
 
-        :param transient_names: list of transient names. Default is None which will label transients as event_0, etc
-        :param kwargs: kwargs for the save_transient function
-        :param injection_file_path: path to save the injection file
-        :return: None
-        """
+    Parameters
+    ----------
+    transient_names
+        list of transient names. Default is None which will label transients as event_0, etc
+    kwargs
+        kwargs for the save_transient function
+    injection_file_path
+        path to save the injection file
+
+    Returns
+    -------
+        None
+    """
         injection_file_name = kwargs.get('injection_file_path', 'simulated_survey/population_injection_parameters.csv')
         if survey is None:
             survey_name = 'survey'
