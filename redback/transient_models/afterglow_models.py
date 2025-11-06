@@ -2305,8 +2305,8 @@ def afterglow_models_sed(time, **kwargs):
     temp_kwargs['output_format'] = 'flux_density'
     output = function(times_mesh, **temp_kwargs).T
     fmjy = output * uu.mJy
-    spectra = fmjy.to(uu.mJy).to(uu.erg / uu.cm ** 2 / uu.s / uu.Angstrom,
-                                 equivalencies=uu.spectral_density(wav=lambda_observer_frame * uu.Angstrom))
+    spectra = fmjy.to(uu.erg / uu.cm ** 2 / uu.s / uu.Angstrom,
+                     equivalencies=uu.spectral_density(wav=lambda_observer_frame * uu.Angstrom))
     if kwargs['output_format'] == 'spectra':
         return namedtuple('output', ['time', 'lambdas', 'spectra'])(time=time_observer_frame,
                                                                     lambdas=lambda_observer_frame,
