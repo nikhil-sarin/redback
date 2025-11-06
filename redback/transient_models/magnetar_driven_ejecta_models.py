@@ -8,7 +8,8 @@ import astropy.units as uu # noqa
 import astropy.constants as cc # noqa
 from redback.utils import calc_kcorrected_properties, interpolated_barnes_and_kasen_thermalisation_efficiency, \
     electron_fraction_from_kappa, citation_wrapper, lambda_to_nu, velocity_from_lorentz_factor, get_cosmology_from_kwargs, get_luminosity_distance
-from redback.sed import blackbody_to_flux_density, get_correct_output_format_from_spectra
+from redback.sed import blackbody_to_flux_density, get_correct_output_format_from_spectra, \
+    flux_density_to_spectrum, blackbody_to_spectrum
 
 def _ejecta_dynamics_and_interaction(time, mej, beta, ejecta_radius, kappa, n_ism,
                                      magnetar_luminosity, pair_cascade_switch, use_gamma_ray_opacity, **kwargs):
@@ -215,13 +216,18 @@ def _processing_other_formats(dl, output, redshift, time_obs, time_temp, **kwarg
         fmjy = _comoving_blackbody_to_flux_density(dl=dl, frequency=frequency[:, None], radius=output.radius,
                                                    temperature=output.comoving_temperature,
                                                    doppler_factor=output.doppler_factor)
+        fmjy = fmjy
+        fmjy = fmjy.T
+        spectra = flux_density_to_spectrum(fmjy, redshift, lambda_observer_frame)
     else:
-        fmjy = blackbody_to_flux_density(temperature=output.temperature,
-                                         r_photosphere=output.r_photosphere, frequency=frequency[:, None], dl=dl)
-
-    fmjy = fmjy.T
-    spectra = fmjy.to(uu.mJy).to(uu.erg / uu.cm ** 2 / uu.s / uu.Angstrom,
-                                 equivalencies=uu.spectral_density(wav=lambda_observer_frame * uu.Angstrom))
+        spectra = blackbody_to_spectrum(
+            temperature=output.temperature,
+            r_photosphere=output.r_photosphere,
+            frequency=frequency[:, None],
+            dl=dl,
+            redshift=redshift,
+            lambda_observer_frame=lambda_observer_frame
+        )
     if kwargs['output_format'] == 'spectra':
         return namedtuple('output', ['time', 'lambdas', 'spectra'])(time=time_observer_frame,
                                                                       lambdas=lambda_observer_frame,
@@ -256,13 +262,14 @@ def _process_flux_density(dl, output, redshift, time, time_temp, **kwargs):
         df = d_func(time)
         flux_density = _comoving_blackbody_to_flux_density(dl=dl, frequency=frequency, radius=rad, temperature=temp,
                                                        doppler_factor=df)
+        flux_density = flux_density / (1 + redshift)
     else:
         temp_func = interp1d(time_temp, y=output.temperature)
         rad_func = interp1d(time_temp, y=output.r_photosphere)
         temp = temp_func(time)
         rad = rad_func(time)
         flux_density = blackbody_to_flux_density(temperature=temp, r_photosphere=rad, frequency=frequency, dl=dl)
-    return flux_density.to(uu.mJy).value
+    return flux_density.to(uu.mJy).value / (1 + redshift)
 
 @citation_wrapper('https://ui.adsabs.harvard.edu/abs/2013ApJ...776L..40Y/abstract')
 def basic_mergernova(time, redshift, mej, beta, ejecta_radius, kappa, n_ism, p0, bp,
