@@ -762,6 +762,27 @@ def thermal_synchrotron_v2_lnu(time, bG_sh, log_Mdot_vwind, n_ism, logepse, loge
         lnu
 
     """
+    mu = kwargs.get('mu', 0.62)
+    mu_e = kwargs.get('mu_e', 1.18)
+    ell_dec = kwargs.get('ell_dec', 1.0)
+    f = kwargs.get('f', 3.0/16.0)
+    epsilon_T = 10**logepse
+    epsilon_B = 10**logepsb
+    frequency = kwargs['frequency']
+    t = time * day_to_s
+
+    Mdot_vwind = 10.0 ** log_Mdot_vwind
+    Md_vw_cgs = Mdot_vwind * solar_mass / (day_to_s * 365.24) / km_cgs #g/cm
+
+    R = (1.0 + bG_sh**2)**0.5 * bG_sh * speed_of_light * ell_dec * t
+    bG = 0.5 * (bG_sh**2 - 2.0 + (bG_sh**4 + 5.0 * bG_sh**2 + 4.0)**0.5)**0.5
+    Gamma = (1.0 + bG**2)**0.5
+
+    #total ISM number density is sum of wind and flat density component
+    Mdot_over_vw = 4.0 * np.pi * mu * proton_mass * R**2 * n_ism + Md_vw_cgs
+    n = Md_vw_cgs / (4.0 * np.pi * mu * proton_mass * R**2) + n_ism
+
+    if Gamma==1:
         # fix bG << 1 case where numerical accuracy fails
         Theta = (2.0 / 3.0) * epsilon_T * (9.0 * mu * proton_mass / (32.0 * mu_e * electron_mass)) * ((16.0 / 9.0) * bG**2)
         Gamma_minus_one = 0.5 * bG**2
