@@ -179,30 +179,29 @@ def sn1998bw_template(time, redshift, amplitude, **kwargs):
     model = sncosmo.Model(source='v19-1998bw')
     original_redshift = 0.0085
     cosmology = kwargs.get("cosmology", cosmo)
-    original_dl = cosmology.luminosity_distance(redshift=original_redshift).cgs.value
+    original_dl = cosmology.luminosity_distance(original_redshift).cgs.value
     original_peak_time = 15
     model.set(z=original_redshift, t0=original_peak_time)
     model.set_source_peakmag(14.25, band='bessellb', magsys='ab')
     tts = np.geomspace(0.01, 90, 200)
     lls = np.linspace(1620, 11000, 300)
     f_lambda = model.flux(tts, lls) #erg/s/cm^2/Angstrom.
-    l_lambda = f_lambda * 4 * np.pi * original_dl.to(uu.cm).value**2  # erg/s/Angstrom
+    l_lambda = f_lambda * 4 * np.pi * original_dl**2  # erg/s/Angstrom
 
     # We consider this the rest frame spectrum of 1998bw. Now we can redshift it and scale it.
     time_obs = tts * (1 + redshift)
     lambda_obs = lls * (1 + redshift)
-    dl_new = cosmology.luminosity_distance(redshift=redshift).cgs.value
+    dl_new = cosmology.luminosity_distance(redshift).cgs.value
     f_lambda_obs = l_lambda / (4 * np.pi * dl_new**2)
     f_lambda_obs = amplitude * f_lambda_obs * (1 + redshift) # accounting for bandwidth stretching
+    f_lambda_obs = f_lambda_obs * uu.erg / uu.s / uu.cm ** 2 / uu.Angstrom
     if kwargs['output_format'] == 'flux_density':
         frequency = kwargs['frequency']
         # work in obs frame
-        f_lambda_obs = f_lambda_obs * uu.erg / uu.s / uu.cm**2 / uu.Angstrom
         ff_array = lambda_to_nu(lambda_obs)
 
         # Convert flux density to mJy
-        fmjy = f_lambda_obs.to(uu.mJy, equivalencies=uu.spectral_density(wav=lambda_obs)).value
-
+        fmjy = f_lambda_obs.to(uu.mJy, equivalencies=uu.spectral_density(wav=lambda_obs * uu.Angstrom)).value
         # Create interpolator on obs frame grid
         flux_interpolator = RegularGridInterpolator(
             (time_obs, ff_array),
