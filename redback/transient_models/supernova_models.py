@@ -150,7 +150,7 @@ def salt2(time, redshift, x0, x1, c, peak_time, **kwargs):
 @citation_wrapper('https://arxiv.org/abs/1908.05228, SN1998bw papers..., sncosmo, redback')
 def sn1998bw_template(time, redshift, amplitude, **kwargs):
     """
-    A wrapper to the SN1998bw template in
+    A wrapper to the SN1998bw template. Only valid between 1100-11000 Angstrom and 0.01 to 90 days post explosion in rest frame
 
     Parameters
     ----------
