@@ -223,7 +223,7 @@ def sn1998bw_template(time, redshift, amplitude, **kwargs):
                                                                     lambdas=lambda_obs,
                                                                     spectra=f_lambda_obs)
     else:
-        return sed.get_correct_output_format_from_spectra(time=time_obs, time_eval=time_obs,
+        return sed.get_correct_output_format_from_spectra(time=time, time_eval=time_obs,
                                                           spectra=f_lambda_obs, lambda_array=lambda_obs,
                                                           **kwargs)
 
