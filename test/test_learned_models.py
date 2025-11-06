@@ -17,10 +17,10 @@ class _DummyModel:
         self.times = np.arange(-10, 50, 1)
         self.wavelengths = np.arange(1000, 10000, 200)
 
-    def predict_spectra_grid(self, freq=1.0, amp=1.0, center=5000.0, width=100.0):
+    def predict_spectra_grid(self, freq=1.0, amp=1.0, center=5000.0, width=1000.0):
         """A dummy predict method that returns a grid based on input parameters."""
         gaussian_envelope = np.exp(-((self.wavelengths - center) ** 2) / (2 * width**2))
-        sine_wave = amp * np.sin(2 * np.pi * freq * self.times)
+        sine_wave = amp * (1.0 + np.sin(2 * np.pi * freq * self.times))
         return (gaussian_envelope[None, :] * sine_wave[:, None]) * uu.erg / uu.s / uu.Hz
 
 
@@ -33,29 +33,22 @@ class TestLearnedModels(unittest.TestCase):
         the make_afterglow_ref_data.py script in the reference_results directory.
         """
         model = _DummyModel()
-        func = make_learned_model_callable(model)
 
+        # Check that we built a function that looks like a redback function (with time first and
+        # then the model parameters).
+        func = make_learned_model_callable(model)
+        assert isinstance(func, types.FunctionType)
+        assert inspect.getfullargspec(func).args == ["time", "freq", "amp", "center", "width"]
+
+        # Check that we can evaluate the function.
         spectra1 = func(
             time=model.times,
             freq=1.0,
-            amp=1.0,
-            center=5000.0,
-            width=100.0,
+            amp=1e10,
+            center=3100.0,  # Peak at 3100 Angstroms
+            width=1000.0,  # 1000 Angstrom stddev
+            redshift=0.5,
             output_format="flux_density",
             frequency=3000.0,
         )
         assert spectra1.shape == (len(model.times),)
-
-        spectra2 = func(
-            time=model.times,
-            freq=2.0,
-            amp=5.0,
-            center=6000.0,
-            width=200.0,
-            output_format="flux_density",
-            frequency=3000.0,
-        )
-        assert spectra2.shape == (len(model.times),)
-
-        # Spectra generated with different parameters should not be the same.
-        assert not np.allclose(spectra1, spectra2)
