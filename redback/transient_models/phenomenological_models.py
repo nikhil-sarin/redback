@@ -1,6 +1,7 @@
 import numpy as np
 from redback.utils import citation_wrapper
 from redback.constants import speed_of_light_si
+from redback.model_utils import get_cosmology_defaults
 
 
 def smooth_exponential_powerlaw(time, a_1, tpeak, alpha_1, alpha_2, smoothing_factor, **kwargs):
@@ -232,8 +233,7 @@ def evolving_blackbody(time, redshift, temperature_0, radius_0,
     import redback.sed as sed
     from redback.sed import flux_density_to_spectrum
     from collections import namedtuple
-    cosmology = kwargs.get('cosmology', cosmo)
-    dl = cosmology.luminosity_distance(redshift).cgs.value
+    cosmology, dl = get_cosmology_defaults(redshift, kwargs)
     reference_wavelength = kwargs.get('reference_wavelength', 5000.0)  # Angstroms
 
     if kwargs['output_format'] == 'flux_density':
@@ -341,8 +341,7 @@ def evolving_blackbody_with_features(time, redshift, temperature_0, radius_0,
     from collections import namedtuple
     import numpy as np
 
-    cosmology = kwargs.get('cosmology', cosmo)
-    dl = cosmology.luminosity_distance(redshift).cgs.value
+    cosmology, dl = get_cosmology_defaults(redshift, kwargs)
 
     # Build feature list from numbered parameters
     feature_list = build_spectral_feature_list(**kwargs)
@@ -470,8 +469,7 @@ def powerlaw_plus_blackbody(time, redshift, pl_amplitude, pl_slope, pl_evolution
     from redback.sed import flux_density_to_spectrum
     from collections import namedtuple
 
-    cosmology = kwargs.get('cosmology', cosmo)
-    dl = cosmology.luminosity_distance(redshift).cgs.value
+    cosmology, dl = get_cosmology_defaults(redshift, kwargs)
     reference_wavelength = kwargs.get('reference_wavelength', 5000.0)  # Angstroms
 
     if kwargs['output_format'] == 'flux_density':

@@ -7,6 +7,7 @@ from astropy.cosmology import Planck18 as cosmo
 from redback.utils import calc_kcorrected_properties, citation_wrapper, lambda_to_nu
 from redback.constants import *
 from scipy.interpolate import interp1d
+from redback.model_utils import get_cosmology_defaults
 
 @citation_wrapper('https://ui.adsabs.harvard.edu/abs/2022ApJ...932...84M')
 def _wr_bh_merger(time, M_star, M_bh, M_fast, M_pre, v_fast, v_slow, alpha, eta, theta, phi_0, kappa_s, kappa_f, kappa_x, N, **kwargs): 
@@ -182,8 +183,7 @@ def wr_bh_merger(time, redshift, M_star, M_bh, M_fast, M_pre, v_fast, v_slow, al
     N = kwargs.get('N', 30)
     kwargs['photosphere'] = kwargs.get("photosphere", photosphere.TemperatureFloor)
     kwargs['sed'] = kwargs.get("sed", sed.Blackbody)
-    cosmology = kwargs.get('cosmology', cosmo)
-    dl = cosmology.luminosity_distance(redshift).cgs.value
+    cosmology, dl = get_cosmology_defaults(redshift, kwargs)
 
     time_temp = np.geomspace(1e0, 1e8, 2000)
     if kwargs['output_format'] == 'flux_density':

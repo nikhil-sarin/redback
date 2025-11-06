@@ -12,6 +12,7 @@ from collections import namedtuple
 from astropy.cosmology import Planck18 as cosmo  # noqa
 import astropy.units as uu
 from scipy.interpolate import interp1d
+from redback.model_utils import setup_optical_depth_defaults, get_cosmology_defaults
 
 def _analytic_fallback(time, l0, t_0):
     """
@@ -262,8 +263,7 @@ def cooling_envelope(time, redshift, mbh_6, stellar_mass, eta, alpha, beta, **kw
     :return: set by output format - 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
     """
     output = _cooling_envelope(mbh_6, stellar_mass, eta, alpha, beta, **kwargs)
-    cosmology = kwargs.get('cosmology', cosmo)
-    dl = cosmology.luminosity_distance(redshift).cgs.value
+    cosmology, dl = get_cosmology_defaults(redshift, kwargs)
     time_obs = time
 
     if kwargs['output_format'] == 'flux_density':
@@ -466,8 +466,7 @@ def gaussianrise_cooling_envelope(time, redshift, peak_time, sigma_t, mbh_6, ste
     tfb_obf = tfb_sf * (1. + redshift)  # observer frame
     xi = kwargs.get('xi', 1.)
     output = _cooling_envelope(mbh_6, stellar_mass, eta, alpha, beta, **kwargs)
-    cosmology = kwargs.get('cosmology', cosmo)
-    dl = cosmology.luminosity_distance(redshift).cgs.value
+    cosmology, dl = get_cosmology_defaults(redshift, kwargs)
     stitching_point = xi * tfb_obf
 
     # normalisation term in observer frame
@@ -586,8 +585,7 @@ def bpl_cooling_envelope(time, redshift, peak_time, alpha_1, alpha_2, mbh_6, ste
     tfb_obf = tfb_sf * (1. + redshift)  # observer frame
     xi = kwargs.get('xi', 1.)
     output = _cooling_envelope(mbh_6, stellar_mass, eta, alpha, beta, **kwargs)
-    cosmology = kwargs.get('cosmology', cosmo)
-    dl = cosmology.luminosity_distance(redshift).cgs.value
+    cosmology, dl = get_cosmology_defaults(redshift, kwargs)
     stitching_point = xi * tfb_obf
 
     # normalisation term in observer frame
@@ -717,12 +715,12 @@ def tde_analytical(time, redshift, l0, t_0_turn, **kwargs):
     :param cosmology: Cosmology to use for luminosity distance calculation. Defaults to Planck18. Must be a astropy.cosmology object.
     :return: set by output format - 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
     """
-    kwargs['interaction_process'] = kwargs.get("interaction_process", ip.Diffusion)
-    kwargs['photosphere'] = kwargs.get("photosphere", photosphere.TemperatureFloor)
-    kwargs['sed'] = kwargs.get("sed", sed.CutoffBlackbody)
+    # Custom SED default for cutoff blackbody
+    kwargs.setdefault('interaction_process', ip.Diffusion)
+    kwargs.setdefault('photosphere', photosphere.TemperatureFloor)
+    kwargs.setdefault('sed', sed.CutoffBlackbody)
     cutoff_wavelength = kwargs.get('cutoff_wavelength', 3000)
-    cosmology = kwargs.get('cosmology', cosmo)
-    dl = cosmology.luminosity_distance(redshift).cgs.value
+    cosmology, dl = get_cosmology_defaults(redshift, kwargs)
 
     if kwargs['output_format'] == 'flux_density':
         frequency = kwargs['frequency']
@@ -1168,11 +1166,11 @@ def tde_fallback(time, redshift, mbh6, mstar, tvisc, bb, eta, leddlimit, rph0, l
     :return: set by output format - 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
     """
 
-    kwargs['interaction_process'] = kwargs.get("interaction_process", ip.Viscous)
-    kwargs['photosphere'] = kwargs.get("photosphere", photosphere.TDEPhotosphere)
-    kwargs['sed'] = kwargs.get("sed", sed.Blackbody)
-    cosmology = kwargs.get('cosmology', cosmo)
-    dl = cosmology.luminosity_distance(redshift).cgs.value
+    # TDE-specific defaults for Viscous interaction and TDEPhotosphere
+    kwargs.setdefault('interaction_process', ip.Viscous)
+    kwargs.setdefault('photosphere', photosphere.TDEPhotosphere)
+    kwargs.setdefault('sed', sed.Blackbody)
+    cosmology, dl = get_cosmology_defaults(redshift, kwargs)
 
     if kwargs['output_format'] == 'flux_density':
         frequency = kwargs['frequency']
@@ -1235,8 +1233,7 @@ def fitted(time, redshift, log_mh, a_bh, m_disc, r0, tvi, t_form, incl, **kwargs
     :return: set by output format - 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
     """
     import fitted #user needs to have downloaded and compiled FitTeD in order to run this model
-    cosmology = kwargs.get('cosmology', cosmo)
-    dl = cosmology.luminosity_distance(redshift).cgs.value
+    cosmology, dl = get_cosmology_defaults(redshift, kwargs)
     ang = 180.0/np.pi*incl
     m = fitted.models.GR_disc()
 
@@ -1303,8 +1300,7 @@ def fitted_pl_decay(time, redshift, log_mh, a_bh, m_disc, r0, tvi, t_form, incl,
     :return: set by output format - 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
     """
     import fitted #user needs to have downloaded and compiled FitTeD in order to run this model
-    cosmology = kwargs.get('cosmology', cosmo)
-    dl = cosmology.luminosity_distance(redshift).cgs.value
+    cosmology, dl = get_cosmology_defaults(redshift, kwargs)
     ang = 180.0/np.pi*incl
     m = fitted.models.GR_disc(decay_type='pl', rise=True)
 
@@ -1385,8 +1381,7 @@ def fitted_exp_decay(time, redshift, log_mh, a_bh, m_disc, r0, tvi, t_form, incl
     :return: set by output format - 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
     """
     import fitted #user needs to have downloaded and compiled FitTeD in order to run this model
-    cosmology = kwargs.get('cosmology', cosmo)
-    dl = cosmology.luminosity_distance(redshift).cgs.value
+    cosmology, dl = get_cosmology_defaults(redshift, kwargs)
     ang = 180.0/np.pi*incl
     m = fitted.models.GR_disc(decay_type='exp', rise=True)
 
@@ -1555,8 +1550,7 @@ def stream_stream_tde(time, redshift, mbh_6, mstar, c1, f, h_r, inc_tcool, del_o
     :return: set by output format - 'flux_density' or 'magnitude'     
     """
 
-    cosmology = kwargs.get('cosmology', cosmo)
-    dl = cosmology.luminosity_distance(redshift).cgs.value
+    cosmology, dl = get_cosmology_defaults(redshift, kwargs)
     output = _stream_stream_collision(mbh_6, mstar, c1, f, h_r, inc_tcool, del_omega)
 
     #get bolometric and temperature info

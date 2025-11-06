@@ -12,6 +12,7 @@ from astropy.cosmology import Planck18 as cosmo  # noqa
 from redback.utils import (calc_kcorrected_properties, citation_wrapper, logger, get_csm_properties, nu_to_lambda,
                            lambda_to_nu, velocity_from_lorentz_factor, build_spectral_feature_list)
 from redback.constants import day_to_s, solar_mass, km_cgs, au_cgs, speed_of_light, sigma_sb
+from redback.model_utils import setup_optical_depth_defaults, get_cosmology_defaults
 from inspect import isfunction
 import astropy.units as uu
 from collections import namedtuple
@@ -397,11 +398,8 @@ def sn_exponential_powerlaw(time, redshift, lbol_0, alpha_1, alpha_2, tpeak_d, *
     :param cosmology: Cosmology to use for luminosity distance calculation. Defaults to Planck18. Must be a astropy.cosmology object.
     :return: set by output format - 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
     """
-    kwargs['interaction_process'] = kwargs.get("interaction_process", ip.Diffusion)
-    kwargs['photosphere'] = kwargs.get("photosphere", photosphere.TemperatureFloor)
-    kwargs['sed'] = kwargs.get("sed", sed.Blackbody)
-    cosmology = kwargs.get('cosmology', cosmo)
-    dl = cosmology.luminosity_distance(redshift).cgs.value
+    setup_optical_depth_defaults(kwargs)
+    cosmology, dl = get_cosmology_defaults(redshift, kwargs)
 
     if kwargs['output_format'] == 'flux_density':
         frequency = kwargs['frequency']
@@ -845,11 +843,8 @@ def arnett(time, redshift, f_nickel, mej, **kwargs):
     :param cosmology: Cosmology to use for luminosity distance calculation. Defaults to Planck18. Must be a astropy.cosmology object.
     :return: set by output format - 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
     """
-    kwargs['interaction_process'] = kwargs.get("interaction_process", ip.Diffusion)
-    kwargs['photosphere'] = kwargs.get("photosphere", photosphere.TemperatureFloor)
-    kwargs['sed'] = kwargs.get("sed", sed.Blackbody)
-    cosmology = kwargs.get('cosmology', cosmo)
-    dl = cosmology.luminosity_distance(redshift).cgs.value
+    setup_optical_depth_defaults(kwargs)
+    cosmology, dl = get_cosmology_defaults(redshift, kwargs)
 
     if kwargs['output_format'] == 'flux_density':
         frequency = kwargs['frequency']
@@ -950,11 +945,11 @@ def arnett_with_features(time, redshift, f_nickel, mej, **kwargs):
 
     :return: set by output format - 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
     """
-    kwargs['interaction_process'] = kwargs.get("interaction_process", ip.Diffusion)
-    kwargs['photosphere'] = kwargs.get("photosphere", photosphere.TemperatureFloor)
-    kwargs['sed'] = kwargs.get("sed", sed.BlackbodyWithSpectralFeatures)
-    cosmology = kwargs.get('cosmology', cosmo)
-    dl = cosmology.luminosity_distance(redshift).cgs.value
+    # Custom SED default for features
+    kwargs.setdefault('interaction_process', ip.Diffusion)
+    kwargs.setdefault('photosphere', photosphere.TemperatureFloor)
+    kwargs.setdefault('sed', sed.BlackbodyWithSpectralFeatures)
+    cosmology, dl = get_cosmology_defaults(redshift, kwargs)
 
     # Build feature list from numbered parameters
     feature_list = build_spectral_feature_list(**kwargs)
@@ -1083,10 +1078,9 @@ def shock_cooling_and_arnett(time, redshift, log10_mass, log10_radius, log10_ene
     :param cosmology: Cosmology to use for luminosity distance calculation. Defaults to Planck18. Must be a astropy.cosmology object.
     :return: set by output format - 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
     """
-    kwargs['photosphere'] = kwargs.get("photosphere", photosphere.TemperatureFloor)
-    kwargs['sed'] = kwargs.get("sed", sed.Blackbody)
-    cosmology = kwargs.get('cosmology', cosmo)
-    dl = cosmology.luminosity_distance(redshift).cgs.value
+    kwargs.setdefault('photosphere', photosphere.TemperatureFloor)
+    kwargs.setdefault('sed', sed.Blackbody)
+    cosmology, dl = get_cosmology_defaults(redshift, kwargs)
 
     if kwargs['output_format'] == 'flux_density':
         frequency = kwargs['frequency']
@@ -1174,8 +1168,7 @@ def shockcooling_morag_and_arnett(time, redshift, v_shock, m_env, mej, f_rho, f_
     :param cosmology: Cosmology to use for luminosity distance calculation. Defaults to Planck18. Must be a astropy.cosmology object.
     :return: set by output format - 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
     """
-    cosmology = kwargs.get('cosmology', cosmo)
-    dl = cosmology.luminosity_distance(redshift).cgs.value
+    cosmology, dl = get_cosmology_defaults(redshift, kwargs)
 
     if kwargs['output_format'] == 'flux_density':
         frequency = kwargs['frequency']
@@ -1261,8 +1254,7 @@ def shockcooling_sapirwaxman_and_arnett(time, redshift, v_shock, m_env, mej, f_r
     :param cosmology: Cosmology to use for luminosity distance calculation. Defaults to Planck18. Must be a astropy.cosmology object.
     :return: set by output format - 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
     """
-    cosmology = kwargs.get('cosmology', cosmo)
-    dl = cosmology.luminosity_distance(redshift).cgs.value
+    cosmology, dl = get_cosmology_defaults(redshift, kwargs)
 
     if kwargs['output_format'] == 'flux_density':
         frequency = kwargs['frequency']
@@ -1347,11 +1339,8 @@ def basic_magnetar_powered(time, redshift, p0, bp, mass_ns, theta_pb,**kwargs):
     :param cosmology: Cosmology to use for luminosity distance calculation. Defaults to Planck18. Must be a astropy.cosmology object.
     :return: set by output format - 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
     """
-    kwargs['interaction_process'] = kwargs.get("interaction_process", ip.Diffusion)
-    kwargs['photosphere'] = kwargs.get("photosphere", photosphere.TemperatureFloor)
-    kwargs['sed'] = kwargs.get("sed", sed.Blackbody)
-    cosmology = kwargs.get('cosmology', cosmo)
-    dl = cosmology.luminosity_distance(redshift).cgs.value
+    setup_optical_depth_defaults(kwargs)
+    cosmology, dl = get_cosmology_defaults(redshift, kwargs)
 
     if kwargs['output_format'] == 'flux_density':
         frequency = kwargs['frequency']
@@ -1431,12 +1420,12 @@ def slsn(time, redshift, p0, bp, mass_ns, theta_pb,**kwargs):
     :param cosmology: Cosmology to use for luminosity distance calculation. Defaults to Planck18. Must be a astropy.cosmology object.
     :return: set by output format - 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
     """
-    kwargs['interaction_process'] = kwargs.get("interaction_process", ip.Diffusion)
-    kwargs['photosphere'] = kwargs.get("photosphere", photosphere.TemperatureFloor)
-    kwargs['sed'] = kwargs.get("sed", sed.CutoffBlackbody)   
+    # Custom SED default for cutoff blackbody
+    kwargs.setdefault('interaction_process', ip.Diffusion)
+    kwargs.setdefault('photosphere', photosphere.TemperatureFloor)
+    kwargs.setdefault('sed', sed.CutoffBlackbody)
     cutoff_wavelength = kwargs.get('cutoff_wavelength', 3000)
-    cosmology = kwargs.get('cosmology', cosmo)
-    dl = cosmology.luminosity_distance(redshift).cgs.value
+    cosmology, dl = get_cosmology_defaults(redshift, kwargs)
 
     if kwargs['output_format'] == 'flux_density':
         frequency = kwargs['frequency']
@@ -1503,11 +1492,8 @@ def magnetar_nickel(time, redshift, f_nickel, mej, p0, bp, mass_ns, theta_pb, **
     :param cosmology: Cosmology to use for luminosity distance calculation. Defaults to Planck18. Must be a astropy.cosmology object.
     :return: set by output format - 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
     """
-    kwargs['interaction_process'] = kwargs.get("interaction_process", ip.Diffusion)
-    kwargs['photosphere'] = kwargs.get("photosphere", photosphere.TemperatureFloor)
-    kwargs['sed'] = kwargs.get("sed", sed.Blackbody)
-    cosmology = kwargs.get('cosmology', cosmo)
-    dl = cosmology.luminosity_distance(redshift).cgs.value
+    setup_optical_depth_defaults(kwargs)
+    cosmology, dl = get_cosmology_defaults(redshift, kwargs)
 
     if kwargs['output_format'] == 'flux_density':
         frequency = kwargs['frequency']
@@ -1586,7 +1572,7 @@ def homologous_expansion_supernova_model_bolometric(time, mej, ek, **kwargs):
     v_ejecta = np.sqrt(10.0 * ek / (3.0 * mej * solar_mass)) / km_cgs
     kwargs['vej'] = v_ejecta
     kwargs['mej'] = mej
-    kwargs['interaction_process'] = kwargs.get("interaction_process", ip.Diffusion)
+    kwargs.setdefault('interaction_process', ip.Diffusion)
     lbol = function(time, **kwargs)
     if kwargs['output_format'] in ['spectra', 'flux', 'flux_density', 'magnitude']:
         return lbol, kwargs
@@ -1623,7 +1609,7 @@ def thin_shell_supernova_model_bolometric(time, mej, ek, **kwargs):
     kwargs['vej'] = v_ejecta
     kwargs['mej'] = mej
 
-    kwargs['interaction_process'] = kwargs.get("interaction_process", ip.Diffusion)
+    kwargs.setdefault('interaction_process', ip.Diffusion)
     lbol = function(time, **kwargs)
     if kwargs['output_format'] in ['spectra', 'flux', 'flux_density', 'magnitude']:
         return lbol, kwargs
@@ -1656,11 +1642,8 @@ def homologous_expansion_supernova(time, redshift, mej, ek, **kwargs):
     :param cosmology: Cosmology to use for luminosity distance calculation. Defaults to Planck18. Must be a astropy.cosmology object.
     :return: set by output format - 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
     """
-    kwargs['interaction_process'] = kwargs.get("interaction_process", ip.Diffusion)
-    kwargs['photosphere'] = kwargs.get("photosphere", photosphere.TemperatureFloor)
-    kwargs['sed'] = kwargs.get("sed", sed.Blackbody)
-    cosmology = kwargs.get('cosmology', cosmo)
-    dl = cosmology.luminosity_distance(redshift).cgs.value
+    setup_optical_depth_defaults(kwargs)
+    cosmology, dl = get_cosmology_defaults(redshift, kwargs)
 
     if kwargs['output_format'] == 'flux_density':
         frequency = kwargs['frequency']
@@ -1721,11 +1704,8 @@ def thin_shell_supernova(time, redshift, mej, ek, **kwargs):
     :param cosmology: Cosmology to use for luminosity distance calculation. Defaults to Planck18. Must be a astropy.cosmology object.
     :return: set by output format - 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
     """
-    kwargs['interaction_process'] = kwargs.get("interaction_process", ip.Diffusion)
-    kwargs['photosphere'] = kwargs.get("photosphere", photosphere.TemperatureFloor)
-    kwargs['sed'] = kwargs.get("sed", sed.Blackbody)
-    cosmology = kwargs.get('cosmology', cosmo)
-    dl = cosmology.luminosity_distance(redshift).cgs.value
+    setup_optical_depth_defaults(kwargs)
+    cosmology, dl = get_cosmology_defaults(redshift, kwargs)
 
     if kwargs['output_format'] == 'flux_density':
         frequency = kwargs['frequency']
@@ -1914,11 +1894,11 @@ def csm_interaction(time, redshift, mej, csm_mass, vej, eta, rho, kappa, r0, **k
     :param cosmology: Cosmology to use for luminosity distance calculation. Defaults to Planck18. Must be a astropy.cosmology object.
     :return: set by output format - 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
     """
-    kwargs['interaction_process'] = kwargs.get("interaction_process", ip.CSMDiffusion)
-    kwargs['photosphere'] = kwargs.get("photosphere", photosphere.TemperatureFloor)
-    kwargs['sed'] = kwargs.get("sed", sed.Blackbody)
-    cosmology = kwargs.get('cosmology', cosmo)
-    dl = cosmology.luminosity_distance(redshift).cgs.value
+    # CSMDiffusion default differs from standard Diffusion
+    kwargs.setdefault('interaction_process', ip.CSMDiffusion)
+    kwargs.setdefault('photosphere', photosphere.TemperatureFloor)
+    kwargs.setdefault('sed', sed.Blackbody)
+    cosmology, dl = get_cosmology_defaults(redshift, kwargs)
 
     if kwargs['output_format'] == 'flux_density':
         frequency = kwargs['frequency']
@@ -1982,8 +1962,7 @@ def csm_nickel(time, redshift, mej, f_nickel, csm_mass, ek, eta, rho, kappa, r0,
     :param cosmology: Cosmology to use for luminosity distance calculation. Defaults to Planck18. Must be a astropy.cosmology object.
     :return: set by output format - 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
     """
-    cosmology = kwargs.get('cosmology', cosmo)
-    dl = cosmology.luminosity_distance(redshift).cgs.value
+    cosmology, dl = get_cosmology_defaults(redshift, kwargs)
     vej = np.sqrt(2.0 * ek / (mej * solar_mass)) / km_cgs
 
     if kwargs['output_format'] == 'flux_density':
@@ -2053,8 +2032,7 @@ def type_1a(time, redshift, f_nickel, mej, **kwargs):
     :param cosmology: cosmology to use for luminosity distance calculation. Defaults to Planck18. Must be an astropy.cosmology object.
     :return: set by output format - 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
     """
-    cosmology = kwargs.get('cosmology', cosmo)
-    dl = cosmology.luminosity_distance(redshift).cgs.value
+    cosmology, dl = get_cosmology_defaults(redshift, kwargs)
     cutoff_wavelength = kwargs.get('cutoff_wavelength', 3000)
     line_wavelength = kwargs.get('line_wavelength', 7.5e3)
     line_width = kwargs.get('line_width', 500)
@@ -2136,8 +2114,7 @@ def type_1c(time, redshift, f_nickel, mej, pp, **kwargs):
     """
     nu_max = kwargs.get('nu_max', 1e9)
     f0 = kwargs.get('f0', 1e-26)
-    cosmology = kwargs.get('cosmology', cosmo)
-    dl = cosmology.luminosity_distance(redshift).cgs.value
+    cosmology, dl = get_cosmology_defaults(redshift, kwargs)
 
     if kwargs['output_format'] == 'flux_density':
         frequency = kwargs['frequency']
@@ -2224,11 +2201,8 @@ def general_magnetar_slsn(time, redshift, l0, tsd, nn, ** kwargs):
     :param cosmology: Cosmology to use for luminosity distance calculation. Defaults to Planck18. Must be a astropy.cosmology object.
     :return: set by output format - 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
     """
-    kwargs['interaction_process'] = kwargs.get("interaction_process", ip.Diffusion)
-    kwargs['photosphere'] = kwargs.get("photosphere", photosphere.TemperatureFloor)
-    kwargs['sed'] = kwargs.get("sed", sed.Blackbody)
-    cosmology = kwargs.get('cosmology', cosmo)
-    dl = cosmology.luminosity_distance(redshift).cgs.value
+    setup_optical_depth_defaults(kwargs)
+    cosmology, dl = get_cosmology_defaults(redshift, kwargs)
 
     if kwargs['output_format'] == 'flux_density':
         frequency = kwargs['frequency']
@@ -2490,8 +2464,7 @@ def csm_shock_and_arnett(time, redshift, mej, f_nickel, csm_mass, v_min, beta, s
     :param cosmology: Cosmology to use for luminosity distance calculation. Defaults to Planck18. Must be a astropy.cosmology object.
     :return: set by output format - 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
     """
-    cosmology = kwargs.get('cosmology', cosmo)
-    dl = cosmology.luminosity_distance(redshift).cgs.value
+    cosmology, dl = get_cosmology_defaults(redshift, kwargs)
 
     if kwargs['output_format'] == 'flux_density':
         frequency = kwargs['frequency']
@@ -2555,8 +2528,7 @@ def csm_shock_and_arnett_two_rphots(time, redshift, mej, f_nickel, csm_mass, v_m
     :param cosmology: Cosmology to use for luminosity distance calculation. Defaults to Planck18. Must be a astropy.cosmology object.
     :return: set by output format - 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
     """
-    cosmology = kwargs.get('cosmology', cosmo)
-    dl = cosmology.luminosity_distance(redshift).cgs.value
+    cosmology, dl = get_cosmology_defaults(redshift, kwargs)
 
     if kwargs['output_format'] == 'flux_density':
         frequency = kwargs['frequency']
@@ -2630,8 +2602,7 @@ def shocked_cocoon_and_arnett(time, redshift, mej_c, vej_c, eta, tshock, shocked
     :param cosmology: Cosmology to use for luminosity distance calculation. Defaults to Planck18. Must be a astropy.cosmology object.
     :return: set by output format - 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
     """
-    cosmology = kwargs.get('cosmology', cosmo)
-    dl = cosmology.luminosity_distance(redshift).cgs.value
+    cosmology, dl = get_cosmology_defaults(redshift, kwargs)
     time_obs = time
 
     if kwargs['output_format'] == 'flux_density':

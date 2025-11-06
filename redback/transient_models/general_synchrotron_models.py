@@ -5,6 +5,7 @@ from redback.transient_models.shock_powered_models import _emissivity_pl, _emiss
 from redback.transient_models.afterglow_models import _get_kn_dynamics, _pnu_synchrotron
 from astropy.cosmology import Planck18 as cosmo
 from redback.utils import calc_kcorrected_properties, citation_wrapper, logger, get_csm_properties, nu_to_lambda, lambda_to_nu, velocity_from_lorentz_factor, calc_ABmag_from_flux_density
+from redback.model_utils import get_cosmology_defaults
 from redback.constants import day_to_s, solar_mass, km_cgs, au_cgs, speed_of_light, qe, electron_mass, proton_mass, sigma_T
 from scipy import integrate
 from scipy.interpolate import interp1d
@@ -130,8 +131,7 @@ def pwn(time, redshift, mej, l0, tau_sd, nn, eps_b, gamma_b, **kwargs):
     ejecta_radius = 1.0e11
     epse=1.0-eps_b
     n_ism = 1.0e-5
-    cosmology = kwargs.get('cosmology', cosmo)
-    dl = cosmology.luminosity_distance(redshift).cgs.value
+    cosmology, dl = get_cosmology_defaults(redshift, kwargs)
     pair_cascade_switch = kwargs.get('pair_cascade_switch', False)
     use_r_process = kwargs.get('use_r_process', False)
     nu_M=3.8e22*np.ones(2500)
@@ -430,8 +430,7 @@ def thermal_synchrotron_fluxdensity(time, redshift, logn0, v0, logr0, eta, logep
     new_kwargs = kwargs.copy()
     new_kwargs['frequency'] = frequency
     time = time * day_to_s
-    cosmology = kwargs.get('cosmology', cosmo)
-    dl = cosmology.luminosity_distance(redshift).cgs.value
+    cosmology, dl = get_cosmology_defaults(redshift, kwargs)
     lnu = thermal_synchrotron_lnu(time,logn0, v0, logr0, eta, logepse, logepsb, xi, p,**new_kwargs)
     flux_density = lnu / (4.0 * np.pi * dl**2)
     return flux_density*1.0e26
@@ -455,8 +454,7 @@ def tde_synchrotron(time, redshift, Mej, vej, logepse, logepsb, p, **kwargs):
     """
     frequency = kwargs['frequency']
     geometry = kwargs.get('geometry', 'sphere')
-    cosmology = kwargs.get('cosmology', cosmo)
-    dl = cosmology.luminosity_distance(redshift).cgs.value
+    cosmology, dl = get_cosmology_defaults(redshift, kwargs)
     beta1 = 5.0 / 2.0
     beta2 = (1.0 - p) / 2.0
     s = 1.47 - (0.21 * p)
@@ -534,8 +532,7 @@ def synchrotron_massloss(time, redshift, v_s, log_Mdot_vwind, logepsb, logepse, 
     :param cosmology: Cosmology to use for luminosity distance calculation. Defaults to Planck18. Must be a astropy.cosmology object.
     :return: flux density
     """
-    cosmology = kwargs.get('cosmology', cosmo)
-    dl = cosmology.luminosity_distance(redshift).cgs.value
+    cosmology, dl = get_cosmology_defaults(redshift, kwargs)
     frequency = kwargs['frequency']
     if isinstance(frequency, float):
         frequency = np.ones(len(time)) * frequency
@@ -586,8 +583,7 @@ def synchrotron_ism(time, redshift, v_s, logn0, logepsb, logepse, p, **kwargs):
     :param cosmology: Cosmology to use for luminosity distance calculation. Defaults to Planck18. Must be a astropy.cosmology object.
     :return: flux density
     """
-    cosmology = kwargs.get('cosmology', cosmo)
-    dl = cosmology.luminosity_distance(redshift).cgs.value
+    cosmology, dl = get_cosmology_defaults(redshift, kwargs)
     frequency = kwargs['frequency']
     if isinstance(frequency, float):
         frequency = np.ones(len(time)) * frequency
@@ -638,8 +634,7 @@ def synchrotron_pldensity(time, redshift, v_s, logA, s, logepsb, logepse, p, **k
     :param cosmology: Cosmology to use for luminosity distance calculation. Defaults to Planck18. Must be a astropy.cosmology object.
     :return: flux density
     """
-    cosmology = kwargs.get('cosmology', cosmo)
-    dl = cosmology.luminosity_distance(redshift).cgs.value
+    cosmology, dl = get_cosmology_defaults(redshift, kwargs)
     frequency = kwargs['frequency']
     if isinstance(frequency, float):
         frequency = np.ones(len(time)) * frequency
@@ -801,8 +796,7 @@ def thermal_synchrotron_v2_fluxdensity(time, redshift, bG_sh, log_Mdot_vwind, n_
     frequency, time = calc_kcorrected_properties(frequency=frequency, redshift=redshift, time=time)
     new_kwargs = kwargs.copy()
     new_kwargs['frequency'] = frequency
-    cosmology = kwargs.get('cosmology', cosmo)
-    dl = cosmology.luminosity_distance(redshift).cgs.value
+    cosmology, dl = get_cosmology_defaults(redshift, kwargs)
     lnu = thermal_synchrotron_v2_lnu(time, bG_sh, log_Mdot_vwind, n_ism, logepse, logepsb, xi, p, **new_kwargs)
     flux_density = lnu / (4.0 * np.pi * dl**2)/1.0e-26
     return flux_density           
