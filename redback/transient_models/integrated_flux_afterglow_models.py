@@ -14,11 +14,28 @@ integrated_flux_base_models = ['tophat', 'cocoon', 'gaussian',
 @citation_wrapper('https://ui.adsabs.harvard.edu/abs/2021arXiv210510108S/abstract')
 def integrated_flux_afterglowpy_base_model(time, **kwargs):
     """
-    Synchrotron afterglow with integrated flux
+    Synchrotron afterglow with integrated flux.
 
-    :param time: time in days
-    :param kwargs:all kwargs required by model + frequency: a list of two frequencies to integrate over.
-    :return: integrated flux
+    Parameters
+    ----------
+    time : np.ndarray
+        Time in days.
+    **kwargs : dict
+        Additional keyword arguments:
+
+        - base_model : str or callable
+            Name or function of afterglow model to use.
+        - frequency : list or tuple
+            Two frequencies to integrate over [freq_min, freq_max].
+        - resolution : int, optional
+            Number of frequency points (default 50).
+        - output_format : str
+            Must be 'flux_density'.
+
+    Returns
+    -------
+    np.ndarray
+        Integrated flux.
     """
     from ..model_library import modules_dict  # import model library in function to avoid circular dependency
     base_model = kwargs['base_model']
@@ -51,13 +68,30 @@ def integrated_flux_afterglowpy_base_model(time, **kwargs):
 @citation_wrapper('https://ui.adsabs.harvard.edu/abs/2021arXiv210510108S/abstract')
 def integrated_flux_rate_model(time, **kwargs):
     """
-    Synchrotron afterglow with approximate calculation of the counts
+    Synchrotron afterglow with approximate calculation of counts.
 
-    :param time: time in days
-    :param kwargs:all kwargs required by model + frequency: an array of two frequencies to integrate over.
-        + prefactor an array of values same size as time array
-        or float which calculates the effective Ei/area for the specific time bin.
-    :return: counts
+    Parameters
+    ----------
+    time : np.ndarray
+        Time in days.
+    **kwargs : dict
+        Additional keyword arguments:
+
+        - base_model : str or callable
+            Name or function of afterglow model to use.
+        - frequency : list or tuple
+            Two frequencies to integrate over [freq_min, freq_max].
+        - prefactor : float or np.ndarray
+            Effective Ei/area for the specific time bin (same size as time array or float).
+        - dt : float, optional
+            Time bin width (default 1).
+        - background_rate : float, optional
+            Background rate (default 0).
+
+    Returns
+    -------
+    np.ndarray
+        Counts/rate.
     """
     prefactor = kwargs.get('prefactor', 1)
     dt = kwargs.get('dt', 1)

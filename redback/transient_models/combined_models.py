@@ -6,39 +6,67 @@ from redback.utils import citation_wrapper
 @citation_wrapper('https://ui.adsabs.harvard.edu/abs/2020ApJ...896..166R/abstract, https://ui.adsabs.harvard.edu/abs/2020ApJ...891..152H/abstract')
 def tophat_and_twolayerstratified(time, redshift, av, thv, loge0, thc, logn0, p, logepse,
                                   logepsb, ksin, g0, mej, vej_1, vej_2, kappa, beta, **kwargs):
-    
     """
-    function to combine the flux density signals of a tophat afterglow and a two layer stratified kilonova with extinction
-    
-    :param time: time in days in observer frame
-    :param redshift: source redshift
-    :param av: V-band extinction from host galaxy in magnitudes
-    :param thv: viewing angle in radians
-    :param loge0: log10 on axis isotropic equivalent energy
-    :param thc: half width of jet core/jet opening angle in radians
-    :param beta: index for power-law structure, theta^-b
-    :param logn0: log10 number density of ISM in cm^-3
-    :param p: electron distribution power law index. Must be greater than 2.
-    :param logepse: log10 fraction of thermal energy in electrons
-    :param logepsb: log10 fraction of thermal energy in magnetic field
-    :param ksin: fraction of electrons that get accelerated
-    :param g0: initial lorentz factor
-    :param mej: ejecta mass in solar masses
-    :param vej_1: velocity of inner shell in c
-    :param vej_2: velocity of outer shell in c
-    :param kappa: constant gray opacity
-    :param beta: power law index of density profile
-    :param kwargs: Additional keyword arguments e.g., for extinction or the models
-    :param r_v: extinction parameter, defaults to 3.1
-    :param spread: whether jet can spread, defaults to False
-    :param latres: latitudinal resolution for structured jets, defaults to 2
-    :param tres: time resolution of shock evolution, defaults to 100
-    :param spectype: whether to have inverse compton, defaults to 0, i.e., no inverse compton.
-        Change to 1 for including inverse compton emission.
-    :param l0, ts, q: energy injection parameters, defaults to 0
-    :param frequency: frequency to calculate - Must be same length as time array or a single number
-    :return: flux density signal with extinction added
-    
+    Combined tophat afterglow and two-layer stratified kilonova with extinction.
+
+    Parameters
+    ----------
+    time : np.ndarray
+        Time in days in observer frame.
+    redshift : float
+        Source redshift.
+    av : float
+        V-band extinction from host galaxy in magnitudes.
+    thv : float
+        Viewing angle in radians.
+    loge0 : float
+        Log10 on-axis isotropic equivalent energy.
+    thc : float
+        Half width of jet core/jet opening angle in radians.
+    logn0 : float
+        Log10 number density of ISM in cm^-3.
+    p : float
+        Electron distribution power law index (must be > 2).
+    logepse : float
+        Log10 fraction of thermal energy in electrons.
+    logepsb : float
+        Log10 fraction of thermal energy in magnetic field.
+    ksin : float
+        Fraction of electrons that get accelerated.
+    g0 : float
+        Initial Lorentz factor.
+    mej : float
+        Ejecta mass in solar masses.
+    vej_1 : float
+        Velocity of inner shell in c.
+    vej_2 : float
+        Velocity of outer shell in c.
+    kappa : float
+        Constant gray opacity.
+    beta : float
+        Power law index of density profile.
+    **kwargs : dict
+        Additional keyword arguments:
+
+        - r_v : float, optional
+            Extinction parameter (default 3.1).
+        - spread : bool, optional
+            Whether jet can spread (default False).
+        - latres : int, optional
+            Latitudinal resolution for structured jets (default 2).
+        - tres : int, optional
+            Time resolution of shock evolution (default 100).
+        - spectype : int, optional
+            Whether to have inverse Compton: 0 = no, 1 = yes (default 0).
+        - l0, ts, q : float, optional
+            Energy injection parameters (default 0).
+        - frequency : float or np.ndarray
+            Frequency to calculate (must be same length as time array or a single number).
+
+    Returns
+    -------
+    np.ndarray
+        Flux density signal with extinction added.
     """
     kwargs['output_format'] = 'flux_density'
     afterglow = tm.afterglow_models.tophat(time=time, redshift=redshift, thv=thv, loge0=loge0, thc=thc, logn0=logn0,
@@ -57,41 +85,73 @@ def tophat_and_twolayerstratified(time, redshift, av, thv, loge0, thc, logn0, p,
 def tophat_and_twocomponent(time, redshift, av, thv, loge0, thc, logn0,
                             p, logepse, logepsb, ksin, g0, mej_1, vej_1,
                             temperature_floor_1, kappa_1, mej_2, vej_2, temperature_floor_2, kappa_2, **kwargs):
-    
     """
-    function to combine the flux density signals of a tophat afterglow and a two component kilonova with extinction added
-    
-    :param time: time in days in observer frame
-    :param redshift: source redshift
-    :param av: V-band extinction from host galaxy in magnitudes
-    :param thv: viewing angle in radians
-    :param loge0: log10 on axis isotropic equivalent energy
-    :param thc: half width of jet core/jet opening angle in radians
-    :param beta: index for power-law structure, theta^-b
-    :param logn0: log10 number density of ISM in cm^-3
-    :param p: electron distribution power law index. Must be greater than 2.
-    :param logepse: log10 fraction of thermal energy in electrons
-    :param logepsb: log10 fraction of thermal energy in magnetic field
-    :param ksin: fraction of electrons that get accelerated
-    :param g0: initial lorentz factor
-    :param mej_1: ejecta mass in solar masses of first component
-    :param vej_1: minimum initial velocity of first component
-    :param kappa_1: gray opacity of first component
-    :param temperature_floor_1: floor temperature of first component
-    :param mej_2: ejecta mass in solar masses of second component
-    :param vej_2: minimum initial velocity of second component
-    :param temperature_floor_2: floor temperature of second component
-    :param kappa_2: gray opacity of second component
-    :param kwargs: Additional keyword arguments e.g., for extinction or the models
-    :param r_v: extinction parameter, defaults to 3.1
-    :param spread: whether jet can spread, defaults to False
-    :param latres: latitudinal resolution for structured jets, defaults to 2
-    :param tres: time resolution of shock evolution, defaults to 100
-    :param spectype: whether to have inverse compton, defaults to 0, i.e., no inverse compton.
-        Change to 1 for including inverse compton emission.
-    :param l0, ts, q: energy injection parameters, defaults to 0
-    :param frequency: frequency to calculate - Must be same length as time array or a single number
-    :return: flux density signal with extinction added
+    Combined tophat afterglow and two-component kilonova with extinction.
+
+    Parameters
+    ----------
+    time : np.ndarray
+        Time in days in observer frame.
+    redshift : float
+        Source redshift.
+    av : float
+        V-band extinction from host galaxy in magnitudes.
+    thv : float
+        Viewing angle in radians.
+    loge0 : float
+        Log10 on-axis isotropic equivalent energy.
+    thc : float
+        Half width of jet core/jet opening angle in radians.
+    logn0 : float
+        Log10 number density of ISM in cm^-3.
+    p : float
+        Electron distribution power law index (must be > 2).
+    logepse : float
+        Log10 fraction of thermal energy in electrons.
+    logepsb : float
+        Log10 fraction of thermal energy in magnetic field.
+    ksin : float
+        Fraction of electrons that get accelerated.
+    g0 : float
+        Initial Lorentz factor.
+    mej_1 : float
+        Ejecta mass in solar masses of first component.
+    vej_1 : float
+        Minimum initial velocity of first component.
+    temperature_floor_1 : float
+        Floor temperature of first component.
+    kappa_1 : float
+        Gray opacity of first component.
+    mej_2 : float
+        Ejecta mass in solar masses of second component.
+    vej_2 : float
+        Minimum initial velocity of second component.
+    temperature_floor_2 : float
+        Floor temperature of second component.
+    kappa_2 : float
+        Gray opacity of second component.
+    **kwargs : dict
+        Additional keyword arguments:
+
+        - r_v : float, optional
+            Extinction parameter (default 3.1).
+        - spread : bool, optional
+            Whether jet can spread (default False).
+        - latres : int, optional
+            Latitudinal resolution for structured jets (default 2).
+        - tres : int, optional
+            Time resolution of shock evolution (default 100).
+        - spectype : int, optional
+            Whether to have inverse Compton: 0 = no, 1 = yes (default 0).
+        - l0, ts, q : float, optional
+            Energy injection parameters (default 0).
+        - frequency : float or np.ndarray
+            Frequency to calculate (must be same length as time array or a single number).
+
+    Returns
+    -------
+    np.ndarray
+        Flux density signal with extinction added.
     """
     
     kwargs['output_format'] = 'flux_density'
@@ -112,43 +172,75 @@ def tophat_and_twocomponent(time, redshift, av, thv, loge0, thc, logn0,
 
 @citation_wrapper('https://ui.adsabs.harvard.edu/abs/2020ApJ...896..166R/abstract, https://ui.adsabs.harvard.edu/abs/1982ApJ...253..785A/abstract')
 def tophat_and_arnett(time, av, redshift, thv, loge0, thc, logn0, p, logepse, logepsb, ksin, g0, f_nickel, mej, **kwargs):
-    
     """
-    function to combine the flux density signals of a tophat afterglow and an arnett supernova with extinction added
-    
-    :param time: time in days in observer frame
-    :param redshift: source redshift
-    :param av: V-band extinction from host galaxy in magnitudes
-    :param thv: viewing angle in radians
-    :param loge0: log10 on axis isotropic equivalent energy
-    :param thc: half width of jet core/jet opening angle in radians
-    :param beta: index for power-law structure, theta^-b
-    :param logn0: log10 number density of ISM in cm^-3
-    :param p: electron distribution power law index. Must be greater than 2.
-    :param logepse: log10 fraction of thermal energy in electrons
-    :param logepsb: log10 fraction of thermal energy in magnetic field
-    :param ksin: fraction of electrons that get accelerated
-    :param g0: initial lorentz factor
-    :param f_nickel: fraction of nickel mass
-    :param mej: total ejecta mass in solar masses
-    :param kwargs: Additional keyword arguments
-        Must include all the kwargs required by the specific interaction_process, photosphere, sed methods used
-        e.g., for Diffusion and TemperatureFloor: kappa, kappa_gamma, vej (km/s), temperature_floor and
-        any other kwargs for the specific models.
-    :param r_v: extinction parameter, defaults to 3.1
-    :param spread: whether jet can spread, defaults to False
-    :param latres: latitudinal resolution for structured jets, defaults to 2
-    :param tres: time resolution of shock evolution, defaults to 100
-    :param spectype: whether to have inverse compton, defaults to 0, i.e., no inverse compton.
-        Change to 1 for including inverse compton emission.
-    :param l0, ts, q: energy injection parameters, defaults to 0
-    :param interaction_process: Default is Diffusion.
-            Can also be None in which case the output is just the raw engine luminosity, or another interaction process.
-    :param photosphere: Default is TemperatureFloor.
-            kwargs must have vej or relevant parameters if using different photosphere model
-    :param sed: Default is blackbody.
-    :param frequency: frequency to calculate - Must be same length as time array or a single number
-    :return: flux density with extinction added
+    Combined tophat afterglow and Arnett supernova with extinction.
+
+    Parameters
+    ----------
+    time : np.ndarray
+        Time in days in observer frame.
+    av : float
+        V-band extinction from host galaxy in magnitudes.
+    redshift : float
+        Source redshift.
+    thv : float
+        Viewing angle in radians.
+    loge0 : float
+        Log10 on-axis isotropic equivalent energy.
+    thc : float
+        Half width of jet core/jet opening angle in radians.
+    logn0 : float
+        Log10 number density of ISM in cm^-3.
+    p : float
+        Electron distribution power law index (must be > 2).
+    logepse : float
+        Log10 fraction of thermal energy in electrons.
+    logepsb : float
+        Log10 fraction of thermal energy in magnetic field.
+    ksin : float
+        Fraction of electrons that get accelerated.
+    g0 : float
+        Initial Lorentz factor.
+    f_nickel : float
+        Fraction of nickel mass.
+    mej : float
+        Total ejecta mass in solar masses.
+    **kwargs : dict
+        Additional keyword arguments:
+
+        - r_v : float, optional
+            Extinction parameter (default 3.1).
+        - spread : bool, optional
+            Whether jet can spread (default False).
+        - latres : int, optional
+            Latitudinal resolution for structured jets (default 2).
+        - tres : int, optional
+            Time resolution of shock evolution (default 100).
+        - spectype : int, optional
+            Whether to have inverse Compton: 0 = no, 1 = yes (default 0).
+        - l0, ts, q : float, optional
+            Energy injection parameters (default 0).
+        - interaction_process : class, optional
+            Default is Diffusion. Can also be None or another interaction process.
+        - photosphere : class, optional
+            Default is TemperatureFloor.
+        - sed : class, optional
+            Default is Blackbody.
+        - kappa : float
+            Opacity.
+        - kappa_gamma : float
+            Gamma-ray opacity.
+        - vej : float
+            Ejecta velocity in km/s.
+        - temperature_floor : float
+            Floor temperature.
+        - frequency : float or np.ndarray
+            Frequency to calculate (must be same length as time array or a single number).
+
+    Returns
+    -------
+    np.ndarray
+        Flux density with extinction added.
     """
     
     kwargs['output_format'] = 'flux_density'
@@ -167,18 +259,36 @@ def tophat_and_arnett(time, av, redshift, thv, loge0, thc, logn0, p, logepse, lo
 @citation_wrapper('redback, and any citations for the specific model you use')
 def afterglow_and_optical(time, redshift, av, **model_kwargs):
     """
-    function to combine the signals of any afterglow and any other optical transient with extinction added
-    
-    :param time: time in days in observer frame
-    :param redshift: source redshift
-    :param av: V-band extinction from host galaxy in magnitudes
-    :param model_kwargs: kwargs shared by models frequency and r_v (extinction paramater defaults to 3.1)
-    :param afterglow_kwargs: dictionary of  parameters required by the afterglow transient model specified by 'base_model'
-        and any additional keyword arguments. Refer to model documentation for details.
-    :param optical_kwargs: dictionary of parameters required by the optical transient model specifed by 'base_model'
-        and any additional keyword arguments. Note the base model must correspond to the given model type. Refer to model documentation
-        for details.
-    :return: flux density signal with extinction added
+    Combined generic afterglow and optical transient with extinction.
+
+    Parameters
+    ----------
+    time : np.ndarray
+        Time in days in observer frame.
+    redshift : float
+        Source redshift.
+    av : float
+        V-band extinction from host galaxy in magnitudes.
+    **model_kwargs : dict
+        Additional keyword arguments:
+
+        - afterglow_kwargs : dict
+            Dictionary of parameters required by the afterglow transient model specified by 'base_model'
+            and any additional keyword arguments.
+        - optical_kwargs : dict
+            Dictionary of parameters required by the optical transient model specified by 'base_model'
+            and any additional keyword arguments.
+        - frequency : float or np.ndarray
+            Frequency to calculate.
+        - r_v : float, optional
+            Extinction parameter (default 3.1).
+        - output_format : str, optional
+            Output format (default 'flux_density').
+
+    Returns
+    -------
+    np.ndarray
+        Flux density signal with extinction added.
     """
 
     from redback.model_library import all_models_dict

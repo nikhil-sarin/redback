@@ -7,11 +7,23 @@ import redback.transient_models.phenomenological_models as pm
 
 def _get_blackbody_spectrum(angstrom, temperature, r_photosphere, distance):
     """
-    :param angstrom: wavelength array in angstroms
-    :param temperature: temperature in Kelvin
-    :param r_photosphere: photosphere radius in cm
-    :param distance: distance in cm
-    :return: flux in ergs/s/cm^2/angstrom
+    Calculate blackbody spectrum.
+
+    Parameters
+    ----------
+    angstrom : np.ndarray
+        Wavelength array in angstroms.
+    temperature : float
+        Temperature in Kelvin.
+    r_photosphere : float
+        Photosphere radius in cm.
+    distance : float
+        Distance in cm.
+
+    Returns
+    -------
+    np.ndarray
+        Flux in ergs/s/cm^2/angstrom.
     """
     frequency = lambda_to_nu(angstrom)
     flux_density = sed.blackbody_to_flux_density(frequency=frequency,
@@ -23,29 +35,60 @@ def _get_blackbody_spectrum(angstrom, temperature, r_photosphere, distance):
 
 def _get_powerlaw_spectrum(angstrom, alpha, aa):
     """
-    :param angstrom: wavelength array in angstroms
-    :param alpha: power law index
-    :param aa: normalization
-    :return: flux in units set by normalisation
+    Calculate power law spectrum.
+
+    Parameters
+    ----------
+    angstrom : np.ndarray
+        Wavelength array in angstroms.
+    alpha : float
+        Power law index.
+    aa : float
+        Normalization.
+
+    Returns
+    -------
+    np.ndarray
+        Flux in units set by normalization.
     """
     return aa*angstrom**alpha
 
 def powerlaw_spectrum_with_absorption_and_emission_lines(angstroms, alpha, aa, lc1, ls1,
                                                          v1, lc2, ls2, v2, **kwargs):
     """
-    A power law spectrum with one absorption line and one emission line.
-    One can add more lines if needed. Or turn the line strength to zero to remove the line.
+    Power law spectrum with absorption and emission lines.
 
-    :param angstroms: wavelength array in angstroms
-    :param alpha: power law index
-    :param aa: normalization
-    :param lc1: center of emission line
-    :param ls1: strength of emission line
-    :param v1: velocity of emission line
-    :param lc2: center of absorption line
-    :param ls2: strength of absorption line
-    :param v2: velocity of absorption line
-    :return: flux in ergs/s/cm^2/angstrom
+    Parameters
+    ----------
+    angstroms : np.ndarray
+        Wavelength array in angstroms.
+    alpha : float
+        Power law index.
+    aa : float
+        Normalization.
+    lc1 : float
+        Center of emission line.
+    ls1 : float
+        Strength of emission line.
+    v1 : float
+        Velocity of emission line.
+    lc2 : float
+        Center of absorption line.
+    ls2 : float
+        Strength of absorption line.
+    v2 : float
+        Velocity of absorption line.
+    **kwargs : dict
+        Additional keyword arguments (not used).
+
+    Returns
+    -------
+    np.ndarray
+        Flux in ergs/s/cm^2/angstrom.
+
+    Notes
+    -----
+    One can add more lines if needed or set line strength to zero to remove a line.
     """
     flux = _get_powerlaw_spectrum(angstrom=angstroms, alpha=alpha, aa=aa)
     fp1 = pm.line_spectrum_with_velocity_dispersion(angstroms, lc1, ls1, v1)
@@ -58,20 +101,44 @@ def blackbody_spectrum_with_absorption_and_emission_lines(angstroms, redshift,
                                                           lc1, ls1, v1,
                                                           lc2, ls2, v2, **kwargs):
     """
-    A blackbody spectrum with one absorption line and one emission line.
-    One can add more lines if needed. Or turn the line strength to zero to remove the line.
+    Blackbody spectrum with absorption and emission lines.
 
-    :param angstroms: wavelength array in angstroms
-    :param redshift: redshift
-    :param rph: photosphere radius in cm
-    :param temp: photosphere temperature in Kelvin
-    :param lc1: center of emission line
-    :param ls1: strength of emission line
-    :param v1: velocity of emission line
-    :param lc2: center of absorption line
-    :param ls2: strength of absorption line
-    :param v2: velocity of absorption line
-    :return: flux in ergs/s/cm^2/angstrom
+    Parameters
+    ----------
+    angstroms : np.ndarray
+        Wavelength array in angstroms.
+    redshift : float
+        Redshift.
+    rph : float
+        Photosphere radius in cm.
+    temp : float
+        Photosphere temperature in Kelvin.
+    lc1 : float
+        Center of emission line.
+    ls1 : float
+        Strength of emission line.
+    v1 : float
+        Velocity of emission line.
+    lc2 : float
+        Center of absorption line.
+    ls2 : float
+        Strength of absorption line.
+    v2 : float
+        Velocity of absorption line.
+    **kwargs : dict
+        Additional keyword arguments:
+
+        - cosmology : astropy.cosmology object, optional
+            Cosmology to use (defaults to Planck18).
+
+    Returns
+    -------
+    np.ndarray
+        Flux in ergs/s/cm^2/angstrom.
+
+    Notes
+    -----
+    One can add more lines if needed or set line strength to zero to remove a line.
     """
     cosmology = kwargs.get('cosmology', cosmo)
     dl = cosmology.luminosity_distance(redshift).cgs.value
@@ -83,13 +150,28 @@ def blackbody_spectrum_with_absorption_and_emission_lines(angstroms, redshift,
 
 def blackbody_spectrum_at_z(angstroms, redshift, rph, temp, **kwargs):
     """
-    A blackbody spectrum at a given redshift, properly accounting for redshift effects.
+    Blackbody spectrum at a given redshift with proper redshift corrections.
 
-    :param angstroms: wavelength array in angstroms in obs frame
-    :param redshift: redshift
-    :param rph: photosphere radius in cm (rest frame)
-    :param temp: photosphere temperature in Kelvin (rest frame)
-    :return: flux in ergs/s/cm^2/angstrom in obs frame
+    Parameters
+    ----------
+    angstroms : np.ndarray
+        Wavelength array in angstroms in observer frame.
+    redshift : float
+        Redshift.
+    rph : float
+        Photosphere radius in cm (rest frame).
+    temp : float
+        Photosphere temperature in Kelvin (rest frame).
+    **kwargs : dict
+        Additional keyword arguments:
+
+        - cosmology : astropy.cosmology object, optional
+            Cosmology to use (defaults to Planck18).
+
+    Returns
+    -------
+    np.ndarray
+        Flux in ergs/s/cm^2/angstrom in observer frame.
     """
     cosmology = kwargs.get('cosmology', cosmo)
     dl = cosmology.luminosity_distance(redshift).cgs.value
@@ -114,26 +196,50 @@ def powerlaw_plus_blackbody_spectrum_at_z(angstroms, redshift, pl_amplitude, pl_
                                           temp_peak_time, radius_rise_index, radius_decline_index,
                                           radius_peak_time, time, **kwargs):
     """
-    A powerlaw + blackbody spectrum at a given redshift and time, properly accounting for redshift effects.
+    Power law plus blackbody spectrum at redshift with time evolution.
 
-    :param angstroms: wavelength array in angstroms in obs frame
-    :param redshift: source redshift
-    :param pl_amplitude: power law amplitude at reference wavelength at t=1 day (erg/s/cm^2/Angstrom)
-    :param pl_slope: power law slope (F_lambda ∝ lambda^slope)
-    :param pl_evolution_index: power law time evolution F_pl(t) ∝ t^(-pl_evolution_index)
-    :param temperature_0: initial blackbody temperature in Kelvin at t=1 day (rest frame)
-    :param radius_0: initial blackbody radius in cm at t=1 day (rest frame)
-    :param temp_rise_index: temperature rise T(t) ∝ t^temp_rise_index for t < temp_peak_time
-    :param temp_decline_index: temperature decline T(t) ∝ t^(-temp_decline_index) for t > temp_peak_time
-    :param temp_peak_time: time in days when temperature peaks
-    :param radius_rise_index: radius rise R(t) ∝ t^radius_rise_index for t < radius_peak_time
-    :param radius_decline_index: radius decline R(t) ∝ t^(-radius_decline_index) for t > radius_peak_time
-    :param radius_peak_time: time in days when radius peaks
-    :param time: time in observer frame in days
-    :param kwargs: Additional parameters
-    :param reference_wavelength: wavelength for power law amplitude normalization in Angstroms (default 5000)
-    :param cosmology: Cosmology object for luminosity distance calculation
-    :return: flux in ergs/s/cm^2/angstrom in obs frame
+    Parameters
+    ----------
+    angstroms : np.ndarray
+        Wavelength array in angstroms in observer frame.
+    redshift : float
+        Source redshift.
+    pl_amplitude : float
+        Power law amplitude at reference wavelength at t=1 day (erg/s/cm^2/Angstrom).
+    pl_slope : float
+        Power law slope (F_lambda ∝ lambda^slope).
+    pl_evolution_index : float
+        Power law time evolution F_pl(t) ∝ t^(-pl_evolution_index).
+    temperature_0 : float
+        Initial blackbody temperature in Kelvin at t=1 day (rest frame).
+    radius_0 : float
+        Initial blackbody radius in cm at t=1 day (rest frame).
+    temp_rise_index : float
+        Temperature rise T(t) ∝ t^temp_rise_index for t < temp_peak_time.
+    temp_decline_index : float
+        Temperature decline T(t) ∝ t^(-temp_decline_index) for t > temp_peak_time.
+    temp_peak_time : float
+        Time in days when temperature peaks.
+    radius_rise_index : float
+        Radius rise R(t) ∝ t^radius_rise_index for t < radius_peak_time.
+    radius_decline_index : float
+        Radius decline R(t) ∝ t^(-radius_decline_index) for t > radius_peak_time.
+    radius_peak_time : float
+        Time in days when radius peaks.
+    time : float
+        Time in observer frame in days.
+    **kwargs : dict
+        Additional keyword arguments:
+
+        - reference_wavelength : float, optional
+            Wavelength for power law amplitude normalization in Angstroms (default 5000).
+        - cosmology : astropy.cosmology object, optional
+            Cosmology for luminosity distance calculation (defaults to Planck18).
+
+    Returns
+    -------
+    np.ndarray
+        Flux in ergs/s/cm^2/angstrom in observer frame.
     """
     cosmology = kwargs.get('cosmology', cosmo)
     dl = cosmology.luminosity_distance(redshift).cgs.value

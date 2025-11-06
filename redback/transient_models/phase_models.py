@@ -20,10 +20,32 @@ extinction_model_functions = {'supernova':extinction_models.extinction_with_supe
 @citation_wrapper('redback')
 def t0_base_model(time, t0, **kwargs):
     """
-    :param time: time in mjd
-    :param t0: start time in mjd
-    :param kwargs: Must be all the parameters required by the base_model specified using kwargs['base_model']
-    :return: output of the base_model
+    Generic base model with t0 parameter for MJD time handling.
+
+    Parameters
+    ----------
+    time : np.ndarray
+        Time in MJD.
+    t0 : float
+        Start time in MJD.
+    **kwargs : dict
+        Additional keyword arguments:
+
+        - base_model : str
+            Name of base model to use.
+        - peak_time_mjd : float, optional
+            Peak time in MJD (will be converted to peak_time relative to t0).
+        - output_format : str
+            Output format: 'flux_density', 'magnitude', 'flux', or 'spectra'.
+        - frequency : float or np.ndarray, optional
+            Frequency if output_format is 'flux_density'.
+        - bands : str or np.ndarray, optional
+            Bands if output_format is 'magnitude' or 'flux'.
+
+    Returns
+    -------
+    np.ndarray
+        Output of the base model.
     """
     from redback.model_library import all_models_dict  # import model library in function to avoid circular dependency
     base_model = kwargs['base_model']
@@ -55,18 +77,45 @@ def t0_base_model(time, t0, **kwargs):
 
 def _t0_with_extinction(time, t0, av_host, model_type='supernova', **kwargs):
     """
-    :param time: time in mjd
-    :param t0: start time in mjd
-    :param av_host: V-band extinction from host galaxy in magnitudes
-    :param kwargs: Must be all the parameters required by the base_model specified using kwargs['base_model'] plus:
-        - redshift: source redshift (required)
-        - av_mw: MW V-band extinction in magnitudes (default 0.0)
-        - rv_host: host R_V parameter (default 3.1)
-        - rv_mw: MW R_V parameter (default 3.1)
-        - host_law: host extinction law (default 'fitzpatrick99')
-        - mw_law: MW extinction law (default 'fitzpatrick99')
-        Available extinction laws: 'fitzpatrick99', 'fm07', 'calzetti00', 'odonnell94', 'ccm89'
-    :return: flux_density or magnitude depending on kwargs['output_format'] with extinction applied
+    Generic t0 model with extinction for MJD time handling.
+
+    Parameters
+    ----------
+    time : np.ndarray
+        Time in MJD.
+    t0 : float
+        Start time in MJD.
+    av_host : float
+        V-band extinction from host galaxy in magnitudes.
+    model_type : str, optional
+        Type of model: 'supernova', 'kilonova', 'afterglow', 'tde', 'magnetar_driven', or 'shock_powered'.
+        Default is 'supernova'.
+    **kwargs : dict
+        Additional keyword arguments:
+
+        - base_model : str
+            Name of base model to use.
+        - redshift : float
+            Source redshift (required).
+        - av_mw : float, optional
+            MW V-band extinction in magnitudes (default 0.0).
+        - rv_host : float, optional
+            Host R_V parameter (default 3.1).
+        - rv_mw : float, optional
+            MW R_V parameter (default 3.1).
+        - host_law : str, optional
+            Host extinction law (default 'fitzpatrick99').
+            Options: 'fitzpatrick99', 'fm07', 'calzetti00', 'odonnell94', 'ccm89'.
+        - mw_law : str, optional
+            MW extinction law (default 'fitzpatrick99').
+            Options: 'fitzpatrick99', 'fm07', 'calzetti00', 'odonnell94', 'ccm89'.
+        - output_format : str
+            Output format: 'flux_density' or 'magnitude'.
+
+    Returns
+    -------
+    namedtuple
+        Output containing time and observable with extinction applied.
     """
     output = namedtuple('output', ['time', 'observable'])
     function = extinction_model_functions[model_type]
@@ -87,20 +136,42 @@ def _t0_with_extinction(time, t0, av_host, model_type='supernova', **kwargs):
 @citation_wrapper('redback')
 def t0_afterglow_extinction(time, t0, av_host, **kwargs):
     """
-    Afterglow model with t0 parameter and host/MW extinction
+    Afterglow model with t0 parameter and host/MW extinction.
 
-    :param time: time in mjd
-    :param t0: start time in mjd
-    :param av_host: V-band extinction from host galaxy in magnitudes
-    :param kwargs: Must be all the parameters required by the base_model specified using kwargs['base_model'] plus:
-        - redshift: source redshift (required)
-        - av_mw: MW V-band extinction in magnitudes (default 0.0)
-        - rv_host: host R_V parameter (default 3.1)
-        - rv_mw: MW R_V parameter (default 3.1)
-        - host_law: host extinction law (default 'fitzpatrick99')
-        - mw_law: MW extinction law (default 'fitzpatrick99')
-        Available extinction laws: 'fitzpatrick99', 'fm07', 'calzetti00', 'odonnell94', 'ccm89'
-    :return: flux_density or magnitude depending on kwargs['output_format'] with extinction applied
+    Parameters
+    ----------
+    time : np.ndarray
+        Time in MJD.
+    t0 : float
+        Start time in MJD.
+    av_host : float
+        V-band extinction from host galaxy in magnitudes.
+    **kwargs : dict
+        Additional keyword arguments:
+
+        - base_model : str
+            Name of afterglow model to use.
+        - redshift : float
+            Source redshift (required).
+        - av_mw : float, optional
+            MW V-band extinction in magnitudes (default 0.0).
+        - rv_host : float, optional
+            Host R_V parameter (default 3.1).
+        - rv_mw : float, optional
+            MW R_V parameter (default 3.1).
+        - host_law : str, optional
+            Host extinction law (default 'fitzpatrick99').
+            Options: 'fitzpatrick99', 'fm07', 'calzetti00', 'odonnell94', 'ccm89'.
+        - mw_law : str, optional
+            MW extinction law (default 'fitzpatrick99').
+            Options: 'fitzpatrick99', 'fm07', 'calzetti00', 'odonnell94', 'ccm89'.
+        - output_format : str
+            Output format: 'flux_density' or 'magnitude'.
+
+    Returns
+    -------
+    np.ndarray
+        Flux density or magnitude with extinction applied.
     """
     summary = _t0_with_extinction(time=time, t0=t0, av_host=av_host, model_type='afterglow', **kwargs)
     return summary.observable
@@ -108,20 +179,42 @@ def t0_afterglow_extinction(time, t0, av_host, **kwargs):
 @citation_wrapper('redback')
 def t0_supernova_extinction(time, t0, av_host, **kwargs):
     """
-    Supernova model with t0 parameter and host/MW extinction
+    Supernova model with t0 parameter and host/MW extinction.
 
-    :param time: time in mjd
-    :param t0: start time in mjd
-    :param av_host: V-band extinction from host galaxy in magnitudes
-    :param kwargs: Must be all the parameters required by the base_model specified using kwargs['base_model'] plus:
-        - redshift: source redshift (required)
-        - av_mw: MW V-band extinction in magnitudes (default 0.0)
-        - rv_host: host R_V parameter (default 3.1)
-        - rv_mw: MW R_V parameter (default 3.1)
-        - host_law: host extinction law (default 'fitzpatrick99')
-        - mw_law: MW extinction law (default 'fitzpatrick99')
-        Available extinction laws: 'fitzpatrick99', 'fm07', 'calzetti00', 'odonnell94', 'ccm89'
-    :return: flux_density or magnitude depending on kwargs['output_format'] with extinction applied
+    Parameters
+    ----------
+    time : np.ndarray
+        Time in MJD.
+    t0 : float
+        Start time in MJD.
+    av_host : float
+        V-band extinction from host galaxy in magnitudes.
+    **kwargs : dict
+        Additional keyword arguments:
+
+        - base_model : str
+            Name of supernova model to use.
+        - redshift : float
+            Source redshift (required).
+        - av_mw : float, optional
+            MW V-band extinction in magnitudes (default 0.0).
+        - rv_host : float, optional
+            Host R_V parameter (default 3.1).
+        - rv_mw : float, optional
+            MW R_V parameter (default 3.1).
+        - host_law : str, optional
+            Host extinction law (default 'fitzpatrick99').
+            Options: 'fitzpatrick99', 'fm07', 'calzetti00', 'odonnell94', 'ccm89'.
+        - mw_law : str, optional
+            MW extinction law (default 'fitzpatrick99').
+            Options: 'fitzpatrick99', 'fm07', 'calzetti00', 'odonnell94', 'ccm89'.
+        - output_format : str
+            Output format: 'flux_density' or 'magnitude'.
+
+    Returns
+    -------
+    np.ndarray
+        Flux density or magnitude with extinction applied.
     """
     summary = _t0_with_extinction(time=time, t0=t0, av_host=av_host, model_type='supernova', **kwargs)
     return summary.observable
@@ -129,20 +222,42 @@ def t0_supernova_extinction(time, t0, av_host, **kwargs):
 @citation_wrapper('redback')
 def t0_kilonova_extinction(time, t0, av_host, **kwargs):
     """
-    Kilonova model with t0 parameter and host/MW extinction
+    Kilonova model with t0 parameter and host/MW extinction.
 
-    :param time: time in mjd
-    :param t0: start time in mjd
-    :param av_host: V-band extinction from host galaxy in magnitudes
-    :param kwargs: Must be all the parameters required by the base_model specified using kwargs['base_model'] plus:
-        - redshift: source redshift (required)
-        - av_mw: MW V-band extinction in magnitudes (default 0.0)
-        - rv_host: host R_V parameter (default 3.1)
-        - rv_mw: MW R_V parameter (default 3.1)
-        - host_law: host extinction law (default 'fitzpatrick99')
-        - mw_law: MW extinction law (default 'fitzpatrick99')
-        Available extinction laws: 'fitzpatrick99', 'fm07', 'calzetti00', 'odonnell94', 'ccm89'
-    :return: flux_density or magnitude depending on kwargs['output_format'] with extinction applied
+    Parameters
+    ----------
+    time : np.ndarray
+        Time in MJD.
+    t0 : float
+        Start time in MJD.
+    av_host : float
+        V-band extinction from host galaxy in magnitudes.
+    **kwargs : dict
+        Additional keyword arguments:
+
+        - base_model : str
+            Name of kilonova model to use.
+        - redshift : float
+            Source redshift (required).
+        - av_mw : float, optional
+            MW V-band extinction in magnitudes (default 0.0).
+        - rv_host : float, optional
+            Host R_V parameter (default 3.1).
+        - rv_mw : float, optional
+            MW R_V parameter (default 3.1).
+        - host_law : str, optional
+            Host extinction law (default 'fitzpatrick99').
+            Options: 'fitzpatrick99', 'fm07', 'calzetti00', 'odonnell94', 'ccm89'.
+        - mw_law : str, optional
+            MW extinction law (default 'fitzpatrick99').
+            Options: 'fitzpatrick99', 'fm07', 'calzetti00', 'odonnell94', 'ccm89'.
+        - output_format : str
+            Output format: 'flux_density' or 'magnitude'.
+
+    Returns
+    -------
+    np.ndarray
+        Flux density or magnitude with extinction applied.
     """
     summary = _t0_with_extinction(time=time, t0=t0, av_host=av_host, model_type='kilonova', **kwargs)
     return summary.observable
@@ -150,21 +265,44 @@ def t0_kilonova_extinction(time, t0, av_host, **kwargs):
 @citation_wrapper('redback')
 def t0_tde_extinction(time, t0, av_host, **kwargs):
     """
-    TDE model with t0 parameter and host/MW extinction
+    TDE model with t0 parameter and host/MW extinction.
 
-    :param time: time in mjd
-    :param t0: start time in mjd
-    :param av_host: V-band extinction from host galaxy in magnitudes
-    :param kwargs: Must be all the parameters required by the base_model specified using kwargs['base_model'] plus:
-        - redshift: source redshift (required)
-        - av_mw: MW V-band extinction in magnitudes (default 0.0)
-        - rv_host: host R_V parameter (default 3.1)
-        - rv_mw: MW R_V parameter (default 3.1)
-        - host_law: host extinction law (default 'fitzpatrick99')
-        - mw_law: MW extinction law (default 'fitzpatrick99')
-        - peak_time_mjd: peak time in mjd (if provided, will be converted to peak_time relative to t0)
-        Available extinction laws: 'fitzpatrick99', 'fm07', 'calzetti00', 'odonnell94', 'ccm89'
-    :return: flux_density or magnitude depending on kwargs['output_format'] with extinction applied
+    Parameters
+    ----------
+    time : np.ndarray
+        Time in MJD.
+    t0 : float
+        Start time in MJD.
+    av_host : float
+        V-band extinction from host galaxy in magnitudes.
+    **kwargs : dict
+        Additional keyword arguments:
+
+        - base_model : str
+            Name of TDE model to use.
+        - redshift : float
+            Source redshift (required).
+        - av_mw : float, optional
+            MW V-band extinction in magnitudes (default 0.0).
+        - rv_host : float, optional
+            Host R_V parameter (default 3.1).
+        - rv_mw : float, optional
+            MW R_V parameter (default 3.1).
+        - host_law : str, optional
+            Host extinction law (default 'fitzpatrick99').
+            Options: 'fitzpatrick99', 'fm07', 'calzetti00', 'odonnell94', 'ccm89'.
+        - mw_law : str, optional
+            MW extinction law (default 'fitzpatrick99').
+            Options: 'fitzpatrick99', 'fm07', 'calzetti00', 'odonnell94', 'ccm89'.
+        - peak_time_mjd : float, optional
+            Peak time in MJD (will be converted to peak_time relative to t0).
+        - output_format : str
+            Output format: 'flux_density' or 'magnitude'.
+
+    Returns
+    -------
+    np.ndarray
+        Flux density or magnitude with extinction applied.
     """
     if 'peak_time_mjd' in kwargs:
         kwargs['peak_time'] = kwargs['peak_time_mjd'] - t0
@@ -174,20 +312,42 @@ def t0_tde_extinction(time, t0, av_host, **kwargs):
 @citation_wrapper('redback')
 def t0_magnetar_driven_extinction(time, t0, av_host, **kwargs):
     """
-    Magnetar-driven model with t0 parameter and host/MW extinction
+    Magnetar-driven model with t0 parameter and host/MW extinction.
 
-    :param time: time in mjd
-    :param t0: start time in mjd
-    :param av_host: V-band extinction from host galaxy in magnitudes
-    :param kwargs: Must be all the parameters required by the base_model specified using kwargs['base_model'] plus:
-        - redshift: source redshift (required)
-        - av_mw: MW V-band extinction in magnitudes (default 0.0)
-        - rv_host: host R_V parameter (default 3.1)
-        - rv_mw: MW R_V parameter (default 3.1)
-        - host_law: host extinction law (default 'fitzpatrick99')
-        - mw_law: MW extinction law (default 'fitzpatrick99')
-        Available extinction laws: 'fitzpatrick99', 'fm07', 'calzetti00', 'odonnell94', 'ccm89'
-    :return: flux_density or magnitude depending on kwargs['output_format'] with extinction applied
+    Parameters
+    ----------
+    time : np.ndarray
+        Time in MJD.
+    t0 : float
+        Start time in MJD.
+    av_host : float
+        V-band extinction from host galaxy in magnitudes.
+    **kwargs : dict
+        Additional keyword arguments:
+
+        - base_model : str
+            Name of magnetar-driven model to use.
+        - redshift : float
+            Source redshift (required).
+        - av_mw : float, optional
+            MW V-band extinction in magnitudes (default 0.0).
+        - rv_host : float, optional
+            Host R_V parameter (default 3.1).
+        - rv_mw : float, optional
+            MW R_V parameter (default 3.1).
+        - host_law : str, optional
+            Host extinction law (default 'fitzpatrick99').
+            Options: 'fitzpatrick99', 'fm07', 'calzetti00', 'odonnell94', 'ccm89'.
+        - mw_law : str, optional
+            MW extinction law (default 'fitzpatrick99').
+            Options: 'fitzpatrick99', 'fm07', 'calzetti00', 'odonnell94', 'ccm89'.
+        - output_format : str
+            Output format: 'flux_density' or 'magnitude'.
+
+    Returns
+    -------
+    np.ndarray
+        Flux density or magnitude with extinction applied.
     """
     summary = _t0_with_extinction(time=time, t0=t0, av_host=av_host, model_type='magnetar_driven', **kwargs)
     return summary.observable
@@ -195,20 +355,42 @@ def t0_magnetar_driven_extinction(time, t0, av_host, **kwargs):
 @citation_wrapper('redback')
 def t0_shock_powered_extinction(time, t0, av_host, **kwargs):
     """
-    Shock-powered model with t0 parameter and host/MW extinction
+    Shock-powered model with t0 parameter and host/MW extinction.
 
-    :param time: time in mjd
-    :param t0: start time in mjd
-    :param av_host: V-band extinction from host galaxy in magnitudes
-    :param kwargs: Must be all the parameters required by the base_model specified using kwargs['base_model'] plus:
-        - redshift: source redshift (required)
-        - av_mw: MW V-band extinction in magnitudes (default 0.0)
-        - rv_host: host R_V parameter (default 3.1)
-        - rv_mw: MW R_V parameter (default 3.1)
-        - host_law: host extinction law (default 'fitzpatrick99')
-        - mw_law: MW extinction law (default 'fitzpatrick99')
-        Available extinction laws: 'fitzpatrick99', 'fm07', 'calzetti00', 'odonnell94', 'ccm89'
-    :return: flux_density or magnitude depending on kwargs['output_format'] with extinction applied
+    Parameters
+    ----------
+    time : np.ndarray
+        Time in MJD.
+    t0 : float
+        Start time in MJD.
+    av_host : float
+        V-band extinction from host galaxy in magnitudes.
+    **kwargs : dict
+        Additional keyword arguments:
+
+        - base_model : str
+            Name of shock-powered model to use.
+        - redshift : float
+            Source redshift (required).
+        - av_mw : float, optional
+            MW V-band extinction in magnitudes (default 0.0).
+        - rv_host : float, optional
+            Host R_V parameter (default 3.1).
+        - rv_mw : float, optional
+            MW R_V parameter (default 3.1).
+        - host_law : str, optional
+            Host extinction law (default 'fitzpatrick99').
+            Options: 'fitzpatrick99', 'fm07', 'calzetti00', 'odonnell94', 'ccm89'.
+        - mw_law : str, optional
+            MW extinction law (default 'fitzpatrick99').
+            Options: 'fitzpatrick99', 'fm07', 'calzetti00', 'odonnell94', 'ccm89'.
+        - output_format : str
+            Output format: 'flux_density' or 'magnitude'.
+
+    Returns
+    -------
+    np.ndarray
+        Flux density or magnitude with extinction applied.
     """
     summary = _t0_with_extinction(time=time, t0=t0, av_host=av_host, model_type='shock_powered', **kwargs)
     return summary.observable
@@ -216,12 +398,30 @@ def t0_shock_powered_extinction(time, t0, av_host, **kwargs):
 @citation_wrapper('https://ui.adsabs.harvard.edu/abs/2021arXiv210601556S/abstract')
 def t0_afterglow_extinction_model_d2g(time, lognh, factor, **kwargs):
     """
-    :param time: time in mjd
-    :param lognh: hydrogen column density
-    :param factor: prefactor for extinction
-    :param kwargs: Must include t0 parameter which is in the same units as the data.
-                And all the parameters required by the base_model specified using kwargs['base_model']
-    :return: magnitude or flux_density depending on kwarg 'output_format'
+    Afterglow model with t0 parameter using dust-to-gas ratio for extinction.
+
+    Parameters
+    ----------
+    time : np.ndarray
+        Time in MJD.
+    lognh : float
+        Log10 hydrogen column density.
+    factor : float
+        Prefactor for extinction.
+    **kwargs : dict
+        Additional keyword arguments:
+
+        - t0 : float
+            Start time in MJD.
+        - base_model : str
+            Name of afterglow model to use.
+        - output_format : str
+            Output format: 'flux_density' or 'magnitude'.
+
+    Returns
+    -------
+    np.ndarray
+        Magnitude or flux density depending on output_format.
     """
     t0 = kwargs['t0']
     t0 = Time(t0, format='mjd')
@@ -237,11 +437,34 @@ def t0_afterglow_extinction_model_d2g(time, lognh, factor, **kwargs):
 @citation_wrapper('https://ui.adsabs.harvard.edu/abs/2021arXiv210601556S/abstract')
 def _t0_thin_shell_predeceleration(time, **kwargs):
     """
-    Assume pre-deceleration behaviour is in thin-shell regime and follows Sari and Piran 1997
+    Pre-deceleration model assuming thin-shell regime following Sari and Piran 1997.
 
-    :param time:
-    :param kwargs:
-    :return: flux or magnitude
+    Parameters
+    ----------
+    time : np.ndarray
+        Time array.
+    **kwargs : dict
+        Additional keyword arguments:
+
+        - loge0 : float
+            Log10 on-axis isotropic equivalent energy.
+        - logn0 : float
+            Log10 number density of ISM.
+        - g0 : float
+            Initial Lorentz factor.
+        - m : float
+            Pre-deceleration gradient.
+        - t0 : float
+            Start time.
+        - tp : float
+            Peak time.
+        - output_format : str
+            Output format: 'flux_density' or 'magnitude'.
+
+    Returns
+    -------
+    np.ndarray
+        Flux or magnitude.
     """
     e0 = 10 ** kwargs['loge0']
     nism = 10 ** kwargs['logn0']
@@ -271,12 +494,28 @@ def _t0_thin_shell_predeceleration(time, **kwargs):
 @citation_wrapper('https://ui.adsabs.harvard.edu/abs/2021arXiv210601556S/abstract')
 def _t0_exinction_models_with_sampled_t_peak(time, tp, **kwargs):
     """
-    Sample in peak time and smoothly connect with afterglowpy output
+    Sample peak time and smoothly connect with afterglow model output.
 
-    :param time: in MJD, times should be after T0.
-    :param tp: in MJD
-    :param kwargs:
-    :return: flux or magnitude depending on kwargs.
+    Parameters
+    ----------
+    time : np.ndarray
+        Time in MJD (times should be after T0).
+    tp : float
+        Peak time in MJD.
+    **kwargs : dict
+        Additional keyword arguments:
+
+        - t0 : float
+            Start time in MJD.
+        - m : float
+            Pre-deceleration gradient.
+        - output_format : str
+            Output format: 'flux_density' or 'magnitude'.
+
+    Returns
+    -------
+    np.ndarray
+        Flux or magnitude depending on output_format.
     """
     gradient = kwargs['m']
     tt_predec = time[time < tp]
@@ -298,11 +537,28 @@ def _t0_exinction_models_with_sampled_t_peak(time, tp, **kwargs):
 @citation_wrapper('https://ui.adsabs.harvard.edu/abs/2021arXiv210510108S/abstract')
 def _t0_afterglowpy_rate_model(time, **kwargs):
     """
-    :param time: time in seconds
-    :param burst_start: burst start time in seconds
-    :param background_rate: background rate. This background rate could be zero.
-    :param kwargs: all other keyword arguments needed for the base model
-    :return: rate, including the background rate
+    Afterglow rate model with burst start time.
+
+    Parameters
+    ----------
+    time : np.ndarray
+        Time in seconds.
+    **kwargs : dict
+        Additional keyword arguments:
+
+        - burst_start : float, optional
+            Burst start time in seconds (default 0).
+        - background_rate : float, optional
+            Background rate (default 0).
+        - dt : float, optional
+            Time bin width (default 1).
+        - prefactor : np.ndarray
+            Prefactor array.
+
+    Returns
+    -------
+    np.ndarray
+        Rate including background rate.
     """
     dt = kwargs.get('dt', 1)
     burst_start = kwargs.get('burst_start', 0)
@@ -317,11 +573,21 @@ def _t0_afterglowpy_rate_model(time, **kwargs):
 @citation_wrapper('https://ui.adsabs.harvard.edu/abs/2021arXiv210510108S/abstract')
 def _t0_afterglowpy_flux_model(time, burst_start, **kwargs):
     """
-    Afterglowpy based integrated flux models with burst_start as a parameter.
+    Afterglow integrated flux model with burst start time.
 
-    :param time: time in seconds
-    :param kwargs: Must include a burst_start and background_rate parameter. This background rate could be zero.
-    :return: integrated flux
+    Parameters
+    ----------
+    time : np.ndarray
+        Time in seconds.
+    burst_start : float
+        Burst start time in seconds.
+    **kwargs : dict
+        Additional keyword arguments required by the base model.
+
+    Returns
+    -------
+    tuple
+        (flux, grb_time) - integrated flux and GRB time array.
     """
     grb_time = time[time >= burst_start] - burst_start
     flux = infam.integrated_flux_afterglowpy_base_model(grb_time, **kwargs)
@@ -330,12 +596,24 @@ def _t0_afterglowpy_flux_model(time, burst_start, **kwargs):
 @citation_wrapper('https://ui.adsabs.harvard.edu/abs/2021arXiv210510108S/abstract')
 def _t0_afterglowpy_flux_density_model(time, burst_start, **kwargs):
     """
-    Afterglowpy based flux density models with burst_start as a parameter.
+    Afterglow flux density model with burst start time.
 
-    :param time: time in seconds
-    :param kwargs: Must include a burst_start and background_rate parameter. This background rate could be zero.
-    :return: flux density for time > T0 parameter
+    Parameters
+    ----------
+    time : np.ndarray
+        Time in seconds.
+    burst_start : float
+        Burst start time in seconds.
+    **kwargs : dict
+        Additional keyword arguments:
 
+        - base_model : str or callable
+            Name or function of afterglow model to use.
+
+    Returns
+    -------
+    tuple
+        (flux_density, grb_time) - flux density and GRB time array for time > T0.
     """
     from ..model_library import modules_dict
     base_model = kwargs['base_model']

@@ -14,25 +14,50 @@ from redback.sed import blackbody_to_flux_density, get_correct_output_format_fro
 def _ejecta_dynamics_and_interaction(time, mej, beta, ejecta_radius, kappa, n_ism,
                                      magnetar_luminosity, pair_cascade_switch, use_gamma_ray_opacity, **kwargs):
     """
-    :param time: time in source frame
-    :param mej: ejecta mass in solar masses
-    :param beta: initial ejecta velocity in c
-    :param ejecta_radius: initial ejecta radius
-    :param kappa: opacity
-    :param n_ism: ism number density
-    :param magnetar_luminosity: evaluated magnetar luminosity in source frame
-    :param pair_cascade_switch: whether to account for pair cascade losses
-    :param use_gamma_ray_opacity: whether to use gamma ray opacity to calculate thermalisation efficiency
-    :param kwargs: Additional parameters
-    :param use_r_process: whether to use r-process
-    :param kappa_gamma: Gamma-ray opacity for leakage efficiency, only used if use_gamma_ray_opacity = True
-    :param thermalisation_efficiency: magnetar thermalisation efficiency only used if use_gamma_ray_opacity = False
-    :param ejecta albedo: ejecta albedo; default is 0.5
-    :param pair_cascade_fraction: fraction of magnetar luminosity lost to pair cascades; default is 0.05
-    :param f_nickel: nickel fraction (if not using r_process)
-    :return: named tuple with 'lorentz_factor', 'bolometric_luminosity', 'comoving_temperature',
-            'radius', 'doppler_factor', 'tau', 'time', 'kinetic_energy',
-            'erad_total', 'thermalisation_efficiency'
+    Calculate ejecta dynamics and interaction with magnetar energy injection.
+
+    Parameters
+    ----------
+    time : np.ndarray
+        Time in source frame in seconds.
+    mej : float
+        Ejecta mass in solar masses.
+    beta : float
+        Initial ejecta velocity in units of c.
+    ejecta_radius : float
+        Initial ejecta radius in cm.
+    kappa : float
+        Opacity in cm^2/g.
+    n_ism : float
+        ISM number density in cm^-3.
+    magnetar_luminosity : np.ndarray
+        Evaluated magnetar luminosity in source frame in erg/s.
+    pair_cascade_switch : bool
+        Whether to account for pair cascade losses.
+    use_gamma_ray_opacity : bool
+        Whether to use gamma ray opacity to calculate thermalisation efficiency.
+    **kwargs : dict
+        Additional keyword arguments:
+
+        - use_r_process : bool
+            Whether to use r-process heating (default: True).
+        - kappa_gamma : float
+            Gamma-ray opacity for leakage efficiency in cm^2/g, only used if use_gamma_ray_opacity = True.
+        - thermalisation_efficiency : float
+            Magnetar thermalisation efficiency, only used if use_gamma_ray_opacity = False.
+        - ejecta_albedo : float
+            Ejecta albedo (default: 0.5).
+        - pair_cascade_fraction : float
+            Fraction of magnetar luminosity lost to pair cascades (default: 0.05).
+        - f_nickel : float
+            Nickel fraction if not using r_process.
+
+    Returns
+    -------
+    namedtuple
+        Named tuple with fields: 'lorentz_factor', 'bolometric_luminosity', 'comoving_temperature',
+        'radius', 'doppler_factor', 'tau', 'time', 'kinetic_energy', 'erad_total',
+        'thermalisation_efficiency', 'r_photosphere'.
     """
     mag_lum = magnetar_luminosity
     use_r_process = kwargs.get('use_r_process',True)
@@ -152,12 +177,25 @@ def _ejecta_dynamics_and_interaction(time, mej, beta, ejecta_radius, kappa, n_is
 
 def _comoving_blackbody_to_flux_density(dl, frequency, radius, temperature, doppler_factor):
     """
-    :param dl: luminosity distance in cm
-    :param frequency: frequency to calculate in Hz - Must be same length as time array or a single number
-    :param radius: ejecta radius in cm
-    :param temperature: comoving temperature in K
-    :param doppler_factor: doppler_factor
-    :return: flux_density
+    Calculate flux density from a relativistic blackbody in the comoving frame.
+
+    Parameters
+    ----------
+    dl : float
+        Luminosity distance in cm.
+    frequency : np.ndarray or float
+        Frequency to calculate in Hz. Must be same length as time array or a single number.
+    radius : np.ndarray or float
+        Ejecta radius in cm.
+    temperature : np.ndarray or float
+        Comoving temperature in K.
+    doppler_factor : np.ndarray or float
+        Doppler factor.
+
+    Returns
+    -------
+    astropy.units.Quantity
+        Flux density.
     """
     ## adding units back in to ensure dimensions are correct
     frequency = frequency * uu.Hz
@@ -176,11 +214,23 @@ def _comoving_blackbody_to_flux_density(dl, frequency, radius, temperature, dopp
 
 def _comoving_blackbody_to_luminosity(frequency, radius, temperature, doppler_factor):
     """
-    :param frequency: frequency to calculate in Hz - Must be same length as time array or a single number
-    :param radius: ejecta radius in cm
-    :param temperature: comoving temperature in K
-    :param doppler_factor: doppler_factor
-    :return: luminosity
+    Calculate luminosity from a relativistic blackbody in the comoving frame.
+
+    Parameters
+    ----------
+    frequency : np.ndarray or float
+        Frequency to calculate in Hz. Must be same length as time array or a single number.
+    radius : np.ndarray or float
+        Ejecta radius in cm.
+    temperature : np.ndarray or float
+        Comoving temperature in K.
+    doppler_factor : np.ndarray or float
+        Doppler factor.
+
+    Returns
+    -------
+    astropy.units.Quantity
+        Luminosity.
     """
     ## adding units back in to ensure dimensions are correct
     frequency = frequency * uu.Hz
@@ -197,16 +247,34 @@ def _comoving_blackbody_to_luminosity(frequency, radius, temperature, doppler_fa
 
 def _processing_other_formats(dl, output, redshift, time_obs, time_temp, **kwargs):
     """
-    Function to process the output of the dynamics function into other formats
+    Process the dynamics output into various output formats (spectra, magnitude, flux).
 
-    :param dl: luminosity distance in cm
-    :param output: dynamics output
-    :param redshift: source redshift
-    :param time_obs: observed time array in days
-    :param time_temp: temporary time array in seconds where output is evaluated
-    :param kwargs: extra arguments
-    :param lambda_array: Optional argument to set your desired wavelength array (in Angstroms) to evaluate the SED on.
-    :return: returns the correct output format
+    Parameters
+    ----------
+    dl : float
+        Luminosity distance in cm.
+    output : namedtuple
+        Dynamics output containing temperature, radius, and other properties.
+    redshift : float
+        Source redshift.
+    time_obs : np.ndarray
+        Observed time array in days.
+    time_temp : np.ndarray
+        Temporary time array in seconds where output is evaluated.
+    **kwargs : dict
+        Additional keyword arguments:
+
+        - lambda_array : np.ndarray
+            Optional wavelength array in Angstroms to evaluate the SED on (default: np.geomspace(100, 60000, 100)).
+        - use_relativistic_blackbody : bool
+            Whether to use relativistic blackbody formula.
+        - output_format : str
+            Output format: 'spectra', 'magnitude', 'flux', 'sncosmo_source'.
+
+    Returns
+    -------
+    namedtuple or array
+        Returns the correct output format based on output_format parameter.
     """
     lambda_observer_frame = kwargs.get('lambda_array', np.geomspace(100, 60000, 100))
     time_observer_frame = time_temp * (1. + redshift)
@@ -239,15 +307,32 @@ def _processing_other_formats(dl, output, redshift, time_obs, time_temp, **kwarg
 
 def _process_flux_density(dl, output, redshift, time, time_temp, **kwargs):
     """
-    Function to process the output of the dynamics function into flux density
+    Process the dynamics output into flux density format.
 
-    :param dl: luminosity distance in cm
-    :param output: dynamics output
-    :param redshift: source redshift
-    :param time_obs: observed time array in days
-    :param time_temp: temporary time array in seconds where output is evaluated
-    :param kwargs: extra arguments
-    :return: returns the correct output format
+    Parameters
+    ----------
+    dl : float
+        Luminosity distance in cm.
+    output : namedtuple
+        Dynamics output containing temperature, radius, and other properties.
+    redshift : float
+        Source redshift.
+    time : np.ndarray
+        Observed time array in days.
+    time_temp : np.ndarray
+        Temporary time array in seconds where output is evaluated.
+    **kwargs : dict
+        Additional keyword arguments:
+
+        - frequency : np.ndarray or float
+            Frequency in Hz to calculate flux density at.
+        - use_relativistic_blackbody : bool
+            Whether to use relativistic blackbody formula.
+
+    Returns
+    -------
+    np.ndarray
+        Flux density in mJy.
     """
     frequency = kwargs['frequency']
     time = time * day_to_s
@@ -275,27 +360,57 @@ def _process_flux_density(dl, output, redshift, time, time_temp, **kwargs):
 def basic_mergernova(time, redshift, mej, beta, ejecta_radius, kappa, n_ism, p0, bp,
                      mass_ns, theta_pb, thermalisation_efficiency, **kwargs):
     """
-    :param time: time in observer frame in days
-    :param redshift: redshift
-    :param mej: ejecta mass in solar units
-    :param beta: initial ejecta velocity
-    :param ejecta_radius: initial ejecta radius
-    :param kappa: opacity
-    :param n_ism: ism number density
-    :param p0: initial spin period in milliseconds
-    :param bp: polar magnetic field strength in units of 10^14 Gauss
-    :param mass_ns: mass of neutron star in solar masses
-    :param theta_pb: angle between spin and magnetic field axes in radians
-    :param thermalisation_efficiency: magnetar thermalisation efficiency
-    :param kwargs: Additional parameters
-    :param pair_cascade_switch: whether to account for pair cascade losses, default is False
-    :param frequency: Required if output_format is 'flux_density'.
-        frequency to calculate - Must be same length as time array or a single number).
-    :param bands: Required if output_format is 'magnitude' or 'flux'.
-    :param output_format: 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
-    :param lambda_array: Optional argument to set your desired wavelength array (in Angstroms) to evaluate the SED on.
-    :param cosmology: Cosmology to use for luminosity distance calculation. Defaults to Planck18. Must be a astropy.cosmology object.
-    :return: set by output format - 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
+    Basic mergernova model with magnetar energy injection and ejecta-ISM interaction.
+
+    This model combines magnetar spin-down energy injection with ejecta dynamics
+    and interaction with the surrounding interstellar medium.
+
+    Parameters
+    ----------
+    time : np.ndarray
+        Time in observer frame in days.
+    redshift : float
+        Source redshift.
+    mej : float
+        Ejecta mass in solar masses.
+    beta : float
+        Initial ejecta velocity in units of c.
+    ejecta_radius : float
+        Initial ejecta radius in cm.
+    kappa : float
+        Opacity in cm^2/g.
+    n_ism : float
+        ISM number density in cm^-3.
+    p0 : float
+        Initial spin period in milliseconds.
+    bp : float
+        Polar magnetic field strength in units of 10^14 Gauss.
+    mass_ns : float
+        Mass of neutron star in solar masses.
+    theta_pb : float
+        Angle between spin and magnetic field axes in radians.
+    thermalisation_efficiency : float
+        Magnetar thermalisation efficiency.
+    **kwargs : dict
+        Additional keyword arguments:
+
+        - pair_cascade_switch : bool
+            Whether to account for pair cascade losses (default: False).
+        - frequency : np.ndarray or float
+            Required if output_format is 'flux_density'. Frequency in Hz.
+        - bands : str or list
+            Required if output_format is 'magnitude' or 'flux'.
+        - output_format : str
+            Output format: 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'.
+        - lambda_array : np.ndarray
+            Optional wavelength array in Angstroms to evaluate the SED on.
+        - cosmology : astropy.cosmology
+            Cosmology to use for luminosity distance calculation (default: Planck18).
+
+    Returns
+    -------
+    array_like or namedtuple
+        Set by output_format: flux density (mJy), magnitude, spectra, flux, or sncosmo_source.
     """
     pair_cascade_switch = kwargs.get('pair_cascade_switch', False)
     kwargs['use_relativistic_blackbody'] = True
@@ -324,28 +439,59 @@ def basic_mergernova(time, redshift, mej, beta, ejecta_radius, kappa, n_ism, p0,
 def general_mergernova(time, redshift, mej, beta, ejecta_radius, kappa, n_ism, l0, tau_sd, nn,
                thermalisation_efficiency, **kwargs):
     """
-    :param time: time in observer frame in days
-    :param redshift: redshift
-    :param mej: ejecta mass in solar units
-    :param beta: initial ejecta velocity
-    :param ejecta_radius: initial ejecta radius
-    :param kappa: opacity
-    :param n_ism: ism number density
-    :param l0: initial magnetar X-ray luminosity
-    :param tau_sd: magnetar spin down damping timescale
-    :param nn: braking index
-    :param thermalisation_efficiency: magnetar thermalisation efficiency
-    :param kwargs: Additional parameters
-    :param pair_cascade_switch: whether to account for pair cascade losses, default is True
-    :param ejecta albedo: ejecta albedo; default is 0.5
-    :param pair_cascade_fraction: fraction of magnetar luminosity lost to pair cascades; default is 0.05
-    :param frequency: Required if output_format is 'flux_density'.
-        frequency to calculate - Must be same length as time array or a single number).
-    :param bands: Required if output_format is 'magnitude' or 'flux'.
-    :param output_format: 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
-    :param lambda_array: Optional argument to set your desired wavelength array (in Angstroms) to evaluate the SED on.
-    :param cosmology: Cosmology to use for luminosity distance calculation. Defaults to Planck18. Must be a astropy.cosmology object.
-    :return: set by output format - 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
+    General mergernova model with phenomenological magnetar energy injection.
+
+    This model uses a phenomenological magnetar model with general parameters
+    for the spin-down luminosity evolution.
+
+    Parameters
+    ----------
+    time : np.ndarray
+        Time in observer frame in days.
+    redshift : float
+        Source redshift.
+    mej : float
+        Ejecta mass in solar masses.
+    beta : float
+        Initial ejecta velocity in units of c.
+    ejecta_radius : float
+        Initial ejecta radius in cm.
+    kappa : float
+        Opacity in cm^2/g.
+    n_ism : float
+        ISM number density in cm^-3.
+    l0 : float
+        Initial magnetar X-ray luminosity in erg/s.
+    tau_sd : float
+        Magnetar spin down damping timescale in seconds.
+    nn : float
+        Braking index.
+    thermalisation_efficiency : float
+        Magnetar thermalisation efficiency.
+    **kwargs : dict
+        Additional keyword arguments:
+
+        - pair_cascade_switch : bool
+            Whether to account for pair cascade losses (default: True).
+        - ejecta_albedo : float
+            Ejecta albedo (default: 0.5).
+        - pair_cascade_fraction : float
+            Fraction of magnetar luminosity lost to pair cascades (default: 0.05).
+        - frequency : np.ndarray or float
+            Required if output_format is 'flux_density'. Frequency in Hz.
+        - bands : str or list
+            Required if output_format is 'magnitude' or 'flux'.
+        - output_format : str
+            Output format: 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'.
+        - lambda_array : np.ndarray
+            Optional wavelength array in Angstroms to evaluate the SED on.
+        - cosmology : astropy.cosmology
+            Cosmology to use for luminosity distance calculation (default: Planck18).
+
+    Returns
+    -------
+    array_like or namedtuple
+        Set by output_format: flux density (mJy), magnitude, spectra, flux, or sncosmo_source.
     """
     pair_cascade_switch = kwargs.get('pair_cascade_switch', True)
     kwargs['use_relativistic_blackbody'] = True
@@ -374,28 +520,59 @@ def general_mergernova(time, redshift, mej, beta, ejecta_radius, kappa, n_ism, l
 def general_mergernova_thermalisation(time, redshift, mej, beta, ejecta_radius, kappa, n_ism, l0, tau_sd, nn,
                kappa_gamma, **kwargs):
     """
-    :param time: time in observer frame in days
-    :param redshift: redshift
-    :param mej: ejecta mass in solar units
-    :param beta: initial ejecta velocity
-    :param ejecta_radius: initial ejecta radius
-    :param kappa: opacity
-    :param n_ism: ism number density
-    :param l0: initial magnetar X-ray luminosity
-    :param tau_sd: magnetar spin down damping timescale
-    :param nn: braking index
-    :param kappa_gamma: gamma-ray opacity used to calculate magnetar thermalisation efficiency
-    :param kwargs: Additional parameters
-    :param pair_cascade_switch: whether to account for pair cascade losses, default is True
-    :param ejecta albedo: ejecta albedo; default is 0.5
-    :param pair_cascade_fraction: fraction of magnetar luminosity lost to pair cascades; default is 0.05
-    :param frequency: Required if output_format is 'flux_density'.
-        frequency to calculate - Must be same length as time array or a single number).
-    :param bands: Required if output_format is 'magnitude' or 'flux'.
-    :param output_format: 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
-    :param lambda_array: Optional argument to set your desired wavelength array (in Angstroms) to evaluate the SED on.
-    :param cosmology: Cosmology to use for luminosity distance calculation. Defaults to Planck18. Must be a astropy.cosmology object.
-    :return: set by output format - 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
+    General mergernova model with gamma-ray opacity-based thermalisation efficiency.
+
+    This variant calculates the thermalisation efficiency from the gamma-ray opacity
+    rather than using a fixed value.
+
+    Parameters
+    ----------
+    time : np.ndarray
+        Time in observer frame in days.
+    redshift : float
+        Source redshift.
+    mej : float
+        Ejecta mass in solar masses.
+    beta : float
+        Initial ejecta velocity in units of c.
+    ejecta_radius : float
+        Initial ejecta radius in cm.
+    kappa : float
+        Opacity in cm^2/g.
+    n_ism : float
+        ISM number density in cm^-3.
+    l0 : float
+        Initial magnetar X-ray luminosity in erg/s.
+    tau_sd : float
+        Magnetar spin down damping timescale in seconds.
+    nn : float
+        Braking index.
+    kappa_gamma : float
+        Gamma-ray opacity in cm^2/g used to calculate magnetar thermalisation efficiency.
+    **kwargs : dict
+        Additional keyword arguments:
+
+        - pair_cascade_switch : bool
+            Whether to account for pair cascade losses (default: True).
+        - ejecta_albedo : float
+            Ejecta albedo (default: 0.5).
+        - pair_cascade_fraction : float
+            Fraction of magnetar luminosity lost to pair cascades (default: 0.05).
+        - frequency : np.ndarray or float
+            Required if output_format is 'flux_density'. Frequency in Hz.
+        - bands : str or list
+            Required if output_format is 'magnitude' or 'flux'.
+        - output_format : str
+            Output format: 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'.
+        - lambda_array : np.ndarray
+            Optional wavelength array in Angstroms to evaluate the SED on.
+        - cosmology : astropy.cosmology
+            Cosmology to use for luminosity distance calculation (default: Planck18).
+
+    Returns
+    -------
+    array_like or namedtuple
+        Set by output_format: flux density (mJy), magnitude, spectra, flux, or sncosmo_source.
     """
     pair_cascade_switch = kwargs.get('pair_cascade_switch', True)
     kwargs['use_relativistic_blackbody'] = True
@@ -422,31 +599,65 @@ def general_mergernova_thermalisation(time, redshift, mej, beta, ejecta_radius, 
 def general_mergernova_evolution(time, redshift, mej, beta, ejecta_radius, kappa, n_ism, logbint,
                                  logbext, p0, chi0, radius, logmoi, kappa_gamma, **kwargs):
     """
-    :param time: time in observer frame in days
-    :param redshift: redshift
-    :param mej: ejecta mass in solar units
-    :param beta: initial ejecta velocity
-    :param ejecta_radius: initial ejecta radius
-    :param kappa: opacity
-    :param n_ism: ism number density
-    :param logbint: log10 internal magnetic field in G
-    :param logbext: log10 external magnetic field in G
-    :param p0: spin period in s
-    :param chi0: initial inclination angle
-    :param radius: radius of NS in KM
-    :param logmoi: log10 moment of inertia of NS
-    :param kappa_gamma: gamma-ray opacity used to calculate magnetar thermalisation efficiency
-    :param kwargs: Additional parameters
-    :param pair_cascade_switch: whether to account for pair cascade losses, default is True
-    :param ejecta albedo: ejecta albedo; default is 0.5
-    :param pair_cascade_fraction: fraction of magnetar luminosity lost to pair cascades; default is 0.05
-    :param frequency: Required if output_format is 'flux_density'.
-        frequency to calculate - Must be same length as time array or a single number).
-    :param bands: Required if output_format is 'magnitude' or 'flux'.
-    :param output_format: 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
-    :param cosmology: Cosmology to use for luminosity distance calculation. Defaults to Planck18. Must be a astropy.cosmology object.
-    :param lambda_array: Optional argument to set your desired wavelength array (in Angstroms) to evaluate the SED on.
-    :return: set by output format - 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
+    General mergernova model with evolving magnetar including GW and EM emission.
+
+    This model includes both gravitational wave and electromagnetic energy loss
+    from the magnetar with evolving spin and magnetic field orientation.
+
+    Parameters
+    ----------
+    time : np.ndarray
+        Time in observer frame in days.
+    redshift : float
+        Source redshift.
+    mej : float
+        Ejecta mass in solar masses.
+    beta : float
+        Initial ejecta velocity in units of c.
+    ejecta_radius : float
+        Initial ejecta radius in cm.
+    kappa : float
+        Opacity in cm^2/g.
+    n_ism : float
+        ISM number density in cm^-3.
+    logbint : float
+        Log10 internal magnetic field in G.
+    logbext : float
+        Log10 external magnetic field in G.
+    p0 : float
+        Spin period in seconds.
+    chi0 : float
+        Initial inclination angle in radians.
+    radius : float
+        Radius of neutron star in km.
+    logmoi : float
+        Log10 moment of inertia of neutron star in g cm^2.
+    kappa_gamma : float
+        Gamma-ray opacity in cm^2/g used to calculate magnetar thermalisation efficiency.
+    **kwargs : dict
+        Additional keyword arguments:
+
+        - pair_cascade_switch : bool
+            Whether to account for pair cascade losses (default: True).
+        - ejecta_albedo : float
+            Ejecta albedo (default: 0.5).
+        - pair_cascade_fraction : float
+            Fraction of magnetar luminosity lost to pair cascades (default: 0.05).
+        - frequency : np.ndarray or float
+            Required if output_format is 'flux_density'. Frequency in Hz.
+        - bands : str or list
+            Required if output_format is 'magnitude' or 'flux'.
+        - output_format : str
+            Output format: 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'.
+        - lambda_array : np.ndarray
+            Optional wavelength array in Angstroms to evaluate the SED on.
+        - cosmology : astropy.cosmology
+            Cosmology to use for luminosity distance calculation (default: Planck18).
+
+    Returns
+    -------
+    array_like or namedtuple
+        Set by output_format: flux density (mJy), magnitude, spectra, flux, or sncosmo_source.
     """
     pair_cascade_switch = kwargs.get('pair_cascade_switch', True)
     kwargs['use_relativistic_blackbody'] = True
@@ -477,19 +688,40 @@ def general_mergernova_evolution(time, redshift, mej, beta, ejecta_radius, kappa
 def _trapped_magnetar_lum(time, mej, beta, ejecta_radius, kappa, n_ism, l0, tau_sd, nn, thermalisation_efficiency,
                           **kwargs):
     """
-    :param time: time in source frame
-    :param mej: ejecta mass in solar units
-    :param beta: initial ejecta velocity
-    :param ejecta_radius: initial ejecta radius
-    :param kappa: opacity
-    :param n_ism: ism number density
-    :param l0: initial magnetar X-ray luminosity
-    :param tau_sd: magnetar spin down damping timescale
-    :param nn: braking index
-    :param thermalisation_efficiency: magnetar thermalisation efficiency
-    :param kwargs: 'output_format' - whether to output flux density or AB magnitude
-    :param kwargs: 'frequency' in Hertz to evaluate the mergernova emission - use a typical X-ray frequency
-    :return: luminosity
+    Calculate luminosity for trapped magnetar emission through ejecta.
+
+    Parameters
+    ----------
+    time : np.ndarray
+        Time in source frame in seconds.
+    mej : float
+        Ejecta mass in solar masses.
+    beta : float
+        Initial ejecta velocity in units of c.
+    ejecta_radius : float
+        Initial ejecta radius in cm.
+    kappa : float
+        Opacity in cm^2/g.
+    n_ism : float
+        ISM number density in cm^-3.
+    l0 : float
+        Initial magnetar X-ray luminosity in erg/s.
+    tau_sd : float
+        Magnetar spin down damping timescale in seconds.
+    nn : float
+        Braking index.
+    thermalisation_efficiency : float
+        Magnetar thermalisation efficiency.
+    **kwargs : dict
+        Additional keyword arguments:
+
+        - frequency : float
+            Frequency in Hz to evaluate the mergernova emission (use a typical X-ray frequency).
+
+    Returns
+    -------
+    np.ndarray
+        Luminosity in erg/s.
     """
     time_temp = np.geomspace(1e-4, 1e8, 500, endpoint=True) #in source frame
     magnetar_luminosity = magnetar_only(time=time_temp, l0=l0, tau=tau_sd, nn=nn)
@@ -517,22 +749,46 @@ def _trapped_magnetar_lum(time, mej, beta, ejecta_radius, kappa, n_ism, l0, tau_
 def _trapped_magnetar_flux(time, redshift, mej, beta, ejecta_radius, kappa, n_ism, l0, tau_sd, nn,
                            thermalisation_efficiency, photon_index, **kwargs):
     """
-    :param time: time in observer frame in seconds
-    :param redshift: redshift
-    :param mej: ejecta mass in solar units
-    :param beta: initial ejecta velocity
-    :param ejecta_radius: initial ejecta radius
-    :param kappa: opacity
-    :param n_ism: ism number density
-    :param l0: initial magnetar X-ray luminosity
-    :param tau_sd: magnetar spin down damping timescale
-    :param nn: braking index
-    :param thermalisation_efficiency: magnetar thermalisation efficiency
-    :param kwargs: 'output_format' - whether to output flux density or AB magnitude
-    :param kwargs: 'frequency' in Hertz to evaluate the mergernova emission - use a typical X-ray frequency
-    :param kwargs: 'photon_index' used to calculate k correction and convert from luminosity to flux
-    :param cosmology: Cosmology to use for luminosity distance calculation. Defaults to Planck18. Must be a astropy.cosmology object.
-    :return: integrated flux
+    Calculate flux for trapped magnetar emission through ejecta.
+
+    Parameters
+    ----------
+    time : np.ndarray
+        Time in observer frame in seconds.
+    redshift : float
+        Source redshift.
+    mej : float
+        Ejecta mass in solar masses.
+    beta : float
+        Initial ejecta velocity in units of c.
+    ejecta_radius : float
+        Initial ejecta radius in cm.
+    kappa : float
+        Opacity in cm^2/g.
+    n_ism : float
+        ISM number density in cm^-3.
+    l0 : float
+        Initial magnetar X-ray luminosity in erg/s.
+    tau_sd : float
+        Magnetar spin down damping timescale in seconds.
+    nn : float
+        Braking index.
+    thermalisation_efficiency : float
+        Magnetar thermalisation efficiency.
+    photon_index : float
+        Photon index used to calculate k correction and convert from luminosity to flux.
+    **kwargs : dict
+        Additional keyword arguments:
+
+        - frequency : float
+            Frequency in Hz to evaluate the mergernova emission (use a typical X-ray frequency).
+        - cosmology : astropy.cosmology
+            Cosmology to use for luminosity distance calculation (default: Planck18).
+
+    Returns
+    -------
+    np.ndarray
+        Integrated flux in erg/s/cm^2.
     """
     frequency = kwargs['frequency']
     frequency, time = calc_kcorrected_properties(frequency=frequency, redshift=redshift, time=time)
@@ -549,22 +805,51 @@ def _trapped_magnetar_flux(time, redshift, mej, beta, ejecta_radius, kappa, n_is
 def trapped_magnetar(time, redshift, mej, beta, ejecta_radius, kappa, n_ism, l0, tau_sd, nn, thermalisation_efficiency,
                      **kwargs):
     """
-    :param time: time in source frame or observer frame depending on output format in seconds
-    :param redshift: redshift - not used if evaluating luminosity
-    :param mej: ejecta mass in solar units
-    :param beta: initial ejecta velocity
-    :param ejecta_radius: initial ejecta radius
-    :param kappa: opacity
-    :param n_ism: ism number density
-    :param l0: initial magnetar X-ray luminosity
-    :param tau_sd: magnetar spin down damping timescale
-    :param nn: braking index
-    :param thermalisation_efficiency: magnetar thermalisation efficiency
-    :param kwargs: 'output_format' - whether to output luminosity or flux
-    :param kwargs: 'frequency' in Hertz to evaluate the mergernova emission - use a typical X-ray frequency
-    :param kwargs: 'photon_index' only used if calculating the flux lightcurve
-    :param cosmology: Cosmology to use for luminosity distance calculation. Defaults to Planck18. Must be a astropy.cosmology object.
-    :return: luminosity or integrated flux
+    Trapped magnetar model for X-ray emission escaping through ejecta.
+
+    This model accounts for magnetar X-ray emission that is partially trapped
+    by the ejecta and escapes based on the optical depth.
+
+    Parameters
+    ----------
+    time : np.ndarray
+        Time in source frame or observer frame (depending on output format) in seconds.
+    redshift : float
+        Source redshift (not used if evaluating luminosity).
+    mej : float
+        Ejecta mass in solar masses.
+    beta : float
+        Initial ejecta velocity in units of c.
+    ejecta_radius : float
+        Initial ejecta radius in cm.
+    kappa : float
+        Opacity in cm^2/g.
+    n_ism : float
+        ISM number density in cm^-3.
+    l0 : float
+        Initial magnetar X-ray luminosity in erg/s.
+    tau_sd : float
+        Magnetar spin down damping timescale in seconds.
+    nn : float
+        Braking index.
+    thermalisation_efficiency : float
+        Magnetar thermalisation efficiency.
+    **kwargs : dict
+        Additional keyword arguments:
+
+        - output_format : str
+            Whether to output 'luminosity' or 'flux'.
+        - frequency : float
+            Frequency in Hz to evaluate the mergernova emission (use a typical X-ray frequency).
+        - photon_index : float
+            Only used if calculating the flux lightcurve.
+        - cosmology : astropy.cosmology
+            Cosmology to use for luminosity distance calculation (default: Planck18).
+
+    Returns
+    -------
+    np.ndarray
+        Luminosity in erg/s or integrated flux in erg/s/cm^2, depending on output_format.
     """
     if kwargs['output_format'] == 'luminosity':
         return _trapped_magnetar_lum(time, mej, beta, ejecta_radius, kappa, n_ism, l0, tau_sd, nn,
@@ -576,26 +861,53 @@ def trapped_magnetar(time, redshift, mej, beta, ejecta_radius, kappa, n_ism, l0,
 def _general_metzger_magnetar_driven_kilonova_model(time, mej, vej, beta, kappa, magnetar_luminosity,
                                                     use_gamma_ray_opacity, **kwargs):
     """
-    :param time: time array to evaluate model on in source frame in seconds
-    :param redshift: redshift
-    :param mej: ejecta mass in solar masses
-    :param vej: minimum initial velocity
-    :param beta: velocity power law slope (M=v^-beta)
-    :param kappa: opacity
-    :param magnetar_luminosity: evaluated magnetar luminosity in source frame
-    :param pair_cascade_switch: whether to account for pair cascade losses
-    :param use_gamma_ray_opacity: whether to use gamma ray opacity to calculate thermalisation efficiency
-    :param kwargs: Additional parameters
-    :param ejecta albedo: ejecta albedo; default is 0.5
-    :param pair_cascade_fraction: fraction of magnetar luminosity lost to pair cascades; default is 0.05
-    :param kappa_gamma: Gamma-ray opacity for leakage efficiency, only used if use_gamma_ray_opacity = True
-    :param thermalisation_efficiency: magnetar thermalisation efficiency only used if use_gamma_ray_opacity = False
-    :param neutron_precursor_switch: whether to have neutron precursor emission, default True
-    :param pair_cascade_switch: whether to account for pair cascade losses, default is True
-    :param magnetar_heating: whether magnetar heats all layers or just the bottom layer.
-    :param vmax: maximum initial velocity of mass layers, default is 0.7c
-    :return: named tuple with 'lorentz_factor', 'bolometric_luminosity', 'temperature',
-                'r_photosphere', 'kinetic_energy','erad_total', 'thermalisation_efficiency'
+    General Metzger magnetar-driven kilonova model with stratified ejecta.
+
+    This model treats the ejecta as multiple mass shells with different velocities
+    following a power-law distribution. Each shell is heated by radioactive decay
+    and optionally by magnetar energy injection.
+
+    Parameters
+    ----------
+    time : np.ndarray
+        Time array to evaluate model on in source frame in seconds.
+    mej : float
+        Ejecta mass in solar masses.
+    vej : float
+        Minimum initial velocity in units of c.
+    beta : float
+        Velocity power law slope (M proportional to v^-beta).
+    kappa : float
+        Opacity in cm^2/g.
+    magnetar_luminosity : np.ndarray
+        Evaluated magnetar luminosity in source frame in erg/s.
+    use_gamma_ray_opacity : bool
+        Whether to use gamma ray opacity to calculate thermalisation efficiency.
+    **kwargs : dict
+        Additional keyword arguments:
+
+        - ejecta_albedo : float
+            Ejecta albedo (default: 0.5).
+        - pair_cascade_fraction : float
+            Fraction of magnetar luminosity lost to pair cascades (default: 0.01).
+        - kappa_gamma : float
+            Gamma-ray opacity for leakage efficiency in cm^2/g, only used if use_gamma_ray_opacity = True.
+        - thermalisation_efficiency : float
+            Magnetar thermalisation efficiency, only used if use_gamma_ray_opacity = False.
+        - neutron_precursor_switch : bool
+            Whether to have neutron precursor emission (default: True).
+        - pair_cascade_switch : bool
+            Whether to account for pair cascade losses (default: True).
+        - magnetar_heating : str
+            Whether magnetar heats 'all_layers' or just 'first_layer' (default: 'first_layer').
+        - vmax : float
+            Maximum initial velocity of mass layers in units of c (default: 0.7).
+
+    Returns
+    -------
+    namedtuple
+        Named tuple with fields: 'lorentz_factor', 'bolometric_luminosity', 'temperature',
+        'r_photosphere', 'kinetic_energy', 'erad_total', 'thermalisation_efficiency'.
     """
     pair_cascade_switch = kwargs.get('pair_cascade_switch', True)
     ejecta_albedo = kwargs.get('ejecta_albedo', 0.5)
@@ -761,31 +1073,65 @@ def _general_metzger_magnetar_driven_kilonova_model(time, mej, vej, beta, kappa,
 def metzger_magnetar_driven_kilonova_model(time, redshift, mej, vej, beta, kappa_r, p0, bp,
                                            mass_ns, theta_pb, thermalisation_efficiency, **kwargs):
     """
-    :param time: observer frame time in days
-    :param redshift: redshift
-    :param mej: ejecta mass in solar masses
-    :param vej: minimum initial velocity
-    :param beta: velocity power law slope (M=v^-beta)
-    :param kappa_r: opacity
-    :param p0: initial spin period in milliseconds
-    :param bp: polar magnetic field strength in units of 10^14 Gauss
-    :param mass_ns: mass of neutron star in solar masses
-    :param theta_pb: angle between spin and magnetic field axes in radians
-    :param thermalisation_efficiency: magnetar thermalisation efficiency
-    :param kwargs: Additional parameters
-    :param pair_cascade_switch: whether to account for pair cascade losses, default is True
-    :param ejecta albedo: ejecta albedo; default is 0.5
-    :param pair_cascade_fraction: fraction of magnetar luminosity lost to pair cascades; default is 0.05
-    :param neutron_precursor_switch: whether to have neutron precursor emission, default True
-    :param magnetar_heating: whether magnetar heats all layers or just the bottom layer. default first layer only
-    :param vmax: maximum initial velocity of mass layers, default is 0.7c
-    :param frequency: Required if output_format is 'flux_density'.
-        frequency to calculate - Must be same length as time array or a single number).
-    :param bands: Required if output_format is 'magnitude' or 'flux'.
-    :param output_format: 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
-    :param lambda_array: Optional argument to set your desired wavelength array (in Angstroms) to evaluate the SED on.
-    :param cosmology: Cosmology to use for luminosity distance calculation. Defaults to Planck18. Must be a astropy.cosmology object.
-    :return: set by output format - 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
+    Metzger magnetar-driven kilonova model with stratified ejecta and basic magnetar.
+
+    This is a multi-layer kilonova model with magnetar energy injection using the
+    basic magnetar spin-down formulation.
+
+    Parameters
+    ----------
+    time : np.ndarray
+        Observer frame time in days.
+    redshift : float
+        Source redshift.
+    mej : float
+        Ejecta mass in solar masses.
+    vej : float
+        Minimum initial velocity in units of c.
+    beta : float
+        Velocity power law slope (M proportional to v^-beta).
+    kappa_r : float
+        Opacity in cm^2/g.
+    p0 : float
+        Initial spin period in milliseconds.
+    bp : float
+        Polar magnetic field strength in units of 10^14 Gauss.
+    mass_ns : float
+        Mass of neutron star in solar masses.
+    theta_pb : float
+        Angle between spin and magnetic field axes in radians.
+    thermalisation_efficiency : float
+        Magnetar thermalisation efficiency.
+    **kwargs : dict
+        Additional keyword arguments:
+
+        - pair_cascade_switch : bool
+            Whether to account for pair cascade losses (default: True).
+        - ejecta_albedo : float
+            Ejecta albedo (default: 0.5).
+        - pair_cascade_fraction : float
+            Fraction of magnetar luminosity lost to pair cascades (default: 0.05).
+        - neutron_precursor_switch : bool
+            Whether to have neutron precursor emission (default: True).
+        - magnetar_heating : str
+            Whether magnetar heats 'all_layers' or 'first_layer' (default: 'first_layer').
+        - vmax : float
+            Maximum initial velocity of mass layers in units of c (default: 0.7).
+        - frequency : np.ndarray or float
+            Required if output_format is 'flux_density'. Frequency in Hz.
+        - bands : str or list
+            Required if output_format is 'magnitude' or 'flux'.
+        - output_format : str
+            Output format: 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'.
+        - lambda_array : np.ndarray
+            Optional wavelength array in Angstroms to evaluate the SED on.
+        - cosmology : astropy.cosmology
+            Cosmology to use for luminosity distance calculation (default: Planck18).
+
+    Returns
+    -------
+    array_like or namedtuple
+        Set by output_format: flux density (mJy), magnitude, spectra, flux, or sncosmo_source.
     """
     use_gamma_ray_opacity = False
     kwargs['use_relativistic_blackbody'] = False
@@ -811,30 +1157,63 @@ def metzger_magnetar_driven_kilonova_model(time, redshift, mej, vej, beta, kappa
 def general_metzger_magnetar_driven(time, redshift, mej, vej, beta, kappa_r, l0,
                                     tau_sd, nn, thermalisation_efficiency, **kwargs):
     """
-    :param time: observer frame time in days
-    :param redshift: redshift
-    :param mej: ejecta mass in solar masses
-    :param vej: minimum initial velocity
-    :param beta: velocity power law slope (M=v^-beta)
-    :param kappa_r: opacity
-    :param l0: initial magnetar X-ray luminosity
-    :param tau_sd: magnetar spin down damping timescale
-    :param nn: braking index
-    :param thermalisation_efficiency: magnetar thermalisation efficiency
-    :param kwargs: Additional parameters
-    :param ejecta albedo: ejecta albedo; default is 0.5
-    :param pair_cascade_fraction: fraction of magnetar luminosity lost to pair cascades; default is 0.05
-    :param neutron_precursor_switch: whether to have neutron precursor emission, default true
-    :param pair_cascade_switch: whether to account for pair cascade losses, default is True
-    :param magnetar_heating: whether magnetar heats all layers or just the bottom layer. default first layer only
-    :param vmax: maximum initial velocity of mass layers, default is 0.7c
-    :param frequency: Required if output_format is 'flux_density'.
-        frequency to calculate - Must be same length as time array or a single number).
-    :param bands: Required if output_format is 'magnitude' or 'flux'.
-    :param output_format: 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
-    :param lambda_array: Optional argument to set your desired wavelength array (in Angstroms) to evaluate the SED on.
-    :param cosmology: Cosmology to use for luminosity distance calculation. Defaults to Planck18. Must be a astropy.cosmology object.
-    :return: set by output format - 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
+    General Metzger magnetar-driven kilonova with phenomenological magnetar.
+
+    This multi-layer kilonova model uses the general phenomenological magnetar
+    formulation for energy injection.
+
+    Parameters
+    ----------
+    time : np.ndarray
+        Observer frame time in days.
+    redshift : float
+        Source redshift.
+    mej : float
+        Ejecta mass in solar masses.
+    vej : float
+        Minimum initial velocity in units of c.
+    beta : float
+        Velocity power law slope (M proportional to v^-beta).
+    kappa_r : float
+        Opacity in cm^2/g.
+    l0 : float
+        Initial magnetar X-ray luminosity in erg/s.
+    tau_sd : float
+        Magnetar spin down damping timescale in seconds.
+    nn : float
+        Braking index.
+    thermalisation_efficiency : float
+        Magnetar thermalisation efficiency.
+    **kwargs : dict
+        Additional keyword arguments:
+
+        - ejecta_albedo : float
+            Ejecta albedo (default: 0.5).
+        - pair_cascade_fraction : float
+            Fraction of magnetar luminosity lost to pair cascades (default: 0.05).
+        - neutron_precursor_switch : bool
+            Whether to have neutron precursor emission (default: True).
+        - pair_cascade_switch : bool
+            Whether to account for pair cascade losses (default: True).
+        - magnetar_heating : str
+            Whether magnetar heats 'all_layers' or 'first_layer' (default: 'first_layer').
+        - vmax : float
+            Maximum initial velocity of mass layers in units of c (default: 0.7).
+        - frequency : np.ndarray or float
+            Required if output_format is 'flux_density'. Frequency in Hz.
+        - bands : str or list
+            Required if output_format is 'magnitude' or 'flux'.
+        - output_format : str
+            Output format: 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'.
+        - lambda_array : np.ndarray
+            Optional wavelength array in Angstroms to evaluate the SED on.
+        - cosmology : astropy.cosmology
+            Cosmology to use for luminosity distance calculation (default: Planck18).
+
+    Returns
+    -------
+    array_like or namedtuple
+        Set by output_format: flux density (mJy), magnitude, spectra, flux, or sncosmo_source.
     """
     use_gamma_ray_opacity = False
     kwargs['use_relativistic_blackbody'] = False
@@ -861,30 +1240,63 @@ def general_metzger_magnetar_driven(time, redshift, mej, vej, beta, kappa_r, l0,
 def general_metzger_magnetar_driven_thermalisation(time, redshift, mej, vej, beta, kappa_r, l0,
                                     tau_sd, nn, kappa_gamma, **kwargs):
     """
-    :param time: observer frame time in days
-    :param redshift: redshift
-    :param mej: ejecta mass in solar masses
-    :param vej: minimum initial velocity
-    :param beta: velocity power law slope (M=v^-beta)
-    :param kappa_r: opacity
-    :param l0: initial magnetar X-ray luminosity
-    :param tau_sd: magnetar spin down damping timescale
-    :param nn: braking index
-    :param kappa_gamma: gamma-ray opacity used to calculate magnetar thermalisation efficiency
-    :param kwargs: Additional parameters
-    :param ejecta albedo: ejecta albedo; default is 0.5
-    :param pair_cascade_fraction: fraction of magnetar luminosity lost to pair cascades; default is 0.05
-    :param neutron_precursor_switch: whether to have neutron precursor emission, default true
-    :param pair_cascade_switch: whether to account for pair cascade losses, default is True
-    :param magnetar_heating: whether magnetar heats all layers or just the bottom layer. default first layer only
-    :param vmax: maximum initial velocity of mass layers, default is 0.7c
-    :param frequency: Required if output_format is 'flux_density'.
-        frequency to calculate - Must be same length as time array or a single number).
-    :param bands: Required if output_format is 'magnitude' or 'flux'.
-    :param output_format: 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
-    :param lambda_array: Optional argument to set your desired wavelength array (in Angstroms) to evaluate the SED on.
-    :param cosmology: Cosmology to use for luminosity distance calculation. Defaults to Planck18. Must be a astropy.cosmology object.
-    :return: set by output format - 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
+    General Metzger magnetar-driven kilonova with gamma-ray opacity thermalisation.
+
+    This variant calculates the thermalisation efficiency from the gamma-ray opacity
+    in the multi-layer ejecta model.
+
+    Parameters
+    ----------
+    time : np.ndarray
+        Observer frame time in days.
+    redshift : float
+        Source redshift.
+    mej : float
+        Ejecta mass in solar masses.
+    vej : float
+        Minimum initial velocity in units of c.
+    beta : float
+        Velocity power law slope (M proportional to v^-beta).
+    kappa_r : float
+        Opacity in cm^2/g.
+    l0 : float
+        Initial magnetar X-ray luminosity in erg/s.
+    tau_sd : float
+        Magnetar spin down damping timescale in seconds.
+    nn : float
+        Braking index.
+    kappa_gamma : float
+        Gamma-ray opacity in cm^2/g used to calculate magnetar thermalisation efficiency.
+    **kwargs : dict
+        Additional keyword arguments:
+
+        - ejecta_albedo : float
+            Ejecta albedo (default: 0.5).
+        - pair_cascade_fraction : float
+            Fraction of magnetar luminosity lost to pair cascades (default: 0.05).
+        - neutron_precursor_switch : bool
+            Whether to have neutron precursor emission (default: True).
+        - pair_cascade_switch : bool
+            Whether to account for pair cascade losses (default: True).
+        - magnetar_heating : str
+            Whether magnetar heats 'all_layers' or 'first_layer' (default: 'first_layer').
+        - vmax : float
+            Maximum initial velocity of mass layers in units of c (default: 0.7).
+        - frequency : np.ndarray or float
+            Required if output_format is 'flux_density'. Frequency in Hz.
+        - bands : str or list
+            Required if output_format is 'magnitude' or 'flux'.
+        - output_format : str
+            Output format: 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'.
+        - lambda_array : np.ndarray
+            Optional wavelength array in Angstroms to evaluate the SED on.
+        - cosmology : astropy.cosmology
+            Cosmology to use for luminosity distance calculation (default: Planck18).
+
+    Returns
+    -------
+    array_like or namedtuple
+        Set by output_format: flux density (mJy), magnitude, spectra, flux, or sncosmo_source.
     """
     kwargs['use_relativistic_blackbody'] = False
     use_gamma_ray_opacity = True
@@ -909,33 +1321,69 @@ def general_metzger_magnetar_driven_thermalisation(time, redshift, mej, vej, bet
 def general_metzger_magnetar_driven_evolution(time, redshift, mej, vej, beta, kappa_r, logbint,
                                  logbext, p0, chi0, radius, logmoi, kappa_gamma, **kwargs):
     """
-    :param time: observer frame time in days
-    :param redshift: redshift
-    :param mej: ejecta mass in solar masses
-    :param vej: minimum initial velocity
-    :param beta: velocity power law slope (M=v^-beta)
-    :param kappa_r: opacity
-    :param logbint: log10 internal magnetic field in G
-    :param logbext: log10 external magnetic field in G
-    :param p0: spin period in s
-    :param chi0: initial inclination angle
-    :param radius: radius of NS in KM
-    :param logmoi: log10 moment of inertia of NS
-    :param kappa_gamma: gamma-ray opacity used to calculate magnetar thermalisation efficiency
-    :param kwargs: Additional parameters
-    :param ejecta albedo: ejecta albedo; default is 0.5
-    :param pair_cascade_fraction: fraction of magnetar luminosity lost to pair cascades; default is 0.05
-    :param neutron_precursor_switch: whether to have neutron precursor emission, default true
-    :param pair_cascade_switch: whether to account for pair cascade losses, default is True
-    :param magnetar_heating: whether magnetar heats all layers or just the bottom layer. default first layer only
-    :param vmax: maximum initial velocity of mass layers, default is 0.7c
-    :param frequency: Required if output_format is 'flux_density'.
-        frequency to calculate - Must be same length as time array or a single number).
-    :param bands: Required if output_format is 'magnitude' or 'flux'.
-    :param output_format: 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
-    :param lambda_array: Optional argument to set your desired wavelength array (in Angstroms) to evaluate the SED on.
-    :param cosmology: Cosmology to use for luminosity distance calculation. Defaults to Planck18. Must be a astropy.cosmology object.
-    :return: set by output format - 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
+    General Metzger magnetar-driven kilonova with evolving magnetar and GW losses.
+
+    This model includes the full evolution of the magnetar including both
+    electromagnetic and gravitational wave energy losses in a multi-layer ejecta model.
+
+    Parameters
+    ----------
+    time : np.ndarray
+        Observer frame time in days.
+    redshift : float
+        Source redshift.
+    mej : float
+        Ejecta mass in solar masses.
+    vej : float
+        Minimum initial velocity in units of c.
+    beta : float
+        Velocity power law slope (M proportional to v^-beta).
+    kappa_r : float
+        Opacity in cm^2/g.
+    logbint : float
+        Log10 internal magnetic field in G.
+    logbext : float
+        Log10 external magnetic field in G.
+    p0 : float
+        Spin period in seconds.
+    chi0 : float
+        Initial inclination angle in radians.
+    radius : float
+        Radius of neutron star in km.
+    logmoi : float
+        Log10 moment of inertia of neutron star in g cm^2.
+    kappa_gamma : float
+        Gamma-ray opacity in cm^2/g used to calculate magnetar thermalisation efficiency.
+    **kwargs : dict
+        Additional keyword arguments:
+
+        - ejecta_albedo : float
+            Ejecta albedo (default: 0.5).
+        - pair_cascade_fraction : float
+            Fraction of magnetar luminosity lost to pair cascades (default: 0.05).
+        - neutron_precursor_switch : bool
+            Whether to have neutron precursor emission (default: True).
+        - pair_cascade_switch : bool
+            Whether to account for pair cascade losses (default: True).
+        - magnetar_heating : str
+            Whether magnetar heats 'all_layers' or 'first_layer' (default: 'first_layer').
+        - vmax : float
+            Maximum initial velocity of mass layers in units of c (default: 0.7).
+        - frequency : np.ndarray or float
+            Required if output_format is 'flux_density'. Frequency in Hz.
+        - bands : str or list
+            Required if output_format is 'magnitude' or 'flux'.
+        - output_format : str
+            Output format: 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'.
+        - lambda_array : np.ndarray
+            Optional wavelength array in Angstroms to evaluate the SED on.
+        - cosmology : astropy.cosmology
+            Cosmology to use for luminosity distance calculation (default: Planck18).
+
+    Returns
+    -------
+    array_like or namedtuple
+        Set by output_format: flux density (mJy), magnitude, spectra, flux, or sncosmo_source.
     """
     use_gamma_ray_opacity = True
     kwargs['use_relativistic_blackbody'] = False

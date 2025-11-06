@@ -14,144 +14,144 @@ from scipy import special
 
 def _calc_free_free_abs(frequency, Y_fe, Zbar, mej, radius_2darray, F_nu_2darray):
     """
-    :param frequency: frequency to calculate
-    :param Y_fe: free electron fraction
-    :param Zbar: average proton number
-    :param mej: ejecta mass in solar units
-    :param radius_2darray: radius of the ejecta at each time
-    :param F_nu_2darray: unabsorbed flux density
-    :return: absorbed flux density
-    """
-    n_e = mej * solar_mass * 3 / (4 * np.pi * radius_2darray**3) * Y_fe / proton_mass
-    tau_ff = 8.4e-28 * n_e**2 * radius_2darray * Zbar**2 * (frequency / 1.0e10) ** -2.1
-    F_nu_2darray = F_nu_2darray * np.exp(-tau_ff)
-    
-    return F_nu_2darray
+    Parameters
+    ----------
+    frequency : np.ndarray or float
+        frequency to calculate
+    Y_fe : float
+        free electron fraction
+    Zbar : float
+        average proton number
+    mej : float
+        ejecta mass in solar units
+    radius_2darray : float
+        radius of the ejecta at each time
+    F_nu_2darray : float
+        unabsorbed flux density
 
-def _calc_compton_scat(frequency, Y_e, mej, radius_2darray, F_nu_2darray):
-    """
-    :param frequency: frequency to calculate
-    :param Y_e: electron fraction
-    :param mej: ejecta mass in solar units
-    :param radius_2darray: radius of the ejecta at each time
-    :param F_nu_2darray: unabsorbed flux density
-    :return: absorbed flux density
-    """
-    nu_e = 1.24e20
-    x = frequency/nu_e
-    msk = (x < 1e-3)
-    sigknpre = (1.0 + x)/x**3
-    sigkn1 = 2.0 * x * (1.0 + x)/(1.0 + 2.0*x) - np.log(1.0 + 2*x)
-    sigkn2 = np.log(1.0 + 2.0*x)/(2.0*x)
-    sigkn3 = (1.0 + 3.0*x)/(1.0 + 2.0*x)**2
-    sig_kn = (3.0/4.0) * sigma_T * (sigknpre*sigkn1 + sigkn2 - sigkn3)
-    if (np.size(sig_kn) > 1):
-        sig_kn[msk] = sigma_T
-    elif ((np.size(sig_kn) == 1) and (msk == True)):
-        sig_kn = sigma_T   
-    kappa_comp = sig_kn * Y_e / proton_mass
-    tau_comp = 3.0 * kappa_comp * mej * solar_mass / (4.0 * np.pi * radius_2darray**2)
-    F_nu_2darray = F_nu_2darray * np.exp(-tau_comp)
-    
-    return F_nu_2darray
+    Returns
+    -------
+    np.ndarray or float
+        absorbed flux density
 
+    """
+    """
+    Parameters
+    ----------
+    frequency : np.ndarray or float
+        frequency to calculate
+    Y_e : float
+        electron fraction
+    mej : float
+        ejecta mass in solar units
+    radius_2darray : float
+        radius of the ejecta at each time
+    F_nu_2darray : float
+        unabsorbed flux density
+
+    Returns
+    -------
+    np.ndarray or float
+        absorbed flux density
+
+    """
 def _calc_photoelectric_abs(frequency, Zbar, mej, radius_2darray, F_nu_2darray):
     """
-    :param frequency: frequency to calculate
-    :param Zbar: average proton number
-    :param mej: ejecta mass in solar units
-    :param radius_2darray: radius of the ejecta at each time
-    :param F_nu_2darray: unabsorbed flux density
-    :return: absorbed flux density
-    """
-    msk = (frequency > 2.42e15)
-    kappa_pe = 2.37 * (Zbar/6.0)**3 * (frequency/2.42e18)**-3
-    tau_pe = 3.0 * kappa_pe * mej * solar_mass / (4.0 * np.pi * radius_2darray**2)
-    F_nu_2darray[:,msk] = F_nu_2darray[:,msk] * np.exp(-tau_pe[:,msk])
-    
-    return F_nu_2darray
-    
-def _calc_optical_abs(frequency, kappa, mej, radius_2darray, F_nu_2darray):
-    """
-    :param frequency: frequency to calculate
-    :param kappa: thermalization opacity
-    :param mej: ejecta mass in solar units
-    :param radius_2darray: radius of the ejecta at each time
-    :param F_nu_2darray: unabsorbed flux density
-    :return: absorbed flux density
-    """
-    msk = np.logical_and((frequency < 2.42e15),(frequency > 2.42e13))
-    tau_opt = 3.0 * kappa * mej * solar_mass / (4.0 * np.pi * radius_2darray**2)
-    F_nu_2darray[:,msk] = F_nu_2darray[:,msk] * np.exp(-tau_opt[:,msk])
-    
-    return F_nu_2darray    
+    Parameters
+    ----------
+    frequency : np.ndarray or float
+        frequency to calculate
+    Zbar : float
+        average proton number
+    mej : float
+        ejecta mass in solar units
+    radius_2darray : float
+        radius of the ejecta at each time
+    F_nu_2darray : float
+        unabsorbed flux density
 
-@citation_wrapper('Omand et al. (2024)')
-def pwn(time, redshift, mej, l0, tau_sd, nn, eps_b, gamma_b, **kwargs):
-    """
-    :param time: time in observer frame in days
-    :param redshift: redshift
-    :param mej: ejecta mass in solar units
-    :param l0: initial magnetar spin-down luminosity (in erg/s)
-    :param tau_sd: magnetar spin down damping timescale (in seconds)
-    :param nn: braking index
-    :param eps_b: magnetization of the PWN
-    :param gamma_b: Lorentz factor of electrons at synchrotron break
-    :param kwargs: Additional parameters - 
-    :param E_k: initial ejecta kinetic energy
-    :param kappa: opacity (used only in dynamics and optical absorption)
-    :param kappa_gamma: gamma-ray opacity used to calculate magnetar thermalisation efficiency (used only in dynamics)
-    :param q1: low energy spectral index (must be < 2)
-    :param q2: high energy spectral index (must be > 2)
-    :param Zbar: average proton number (used for free-free and photoelectric absorption)
-    :param Y_e: electron fraction (used for Compton scattering)
-    :param Y_fe: free electron fraction (used for free-free absorption)
-    :param pair_cascade_switch: whether to account for pair cascade losses, default is False
-    :param ejecta albedo: ejecta albedo; default is 0.5
-    :param pair_cascade_fraction: fraction of magnetar luminosity lost to pair cascades; default is 0.05
-    :param use_r_process: determine whether the ejecta is composed of r-process material; default is no
-    :param frequency: (frequency to calculate - Must be same length as time array or a single number)
-    :param f_nickel: Ni^56 mass as a fraction of ejecta mass
-    :return: flux density or AB magnitude or dynamics output
-    """
-    #get parameter values or use defaults
-    E_sn = kwargs.get('E_k', 1.0e51)
-    kappa = kwargs.get('kappa', 0.1)
-    if 'kappa' in kwargs:
-        del kwargs['kappa']
-    kappa_gamma = kwargs.get('kappa_gamma', 0.01)
-    kwargs['kappa_gamma'] = kappa_gamma
-    q1 = kwargs.get('q1',1.5)
-    q2 = kwargs.get('q2',2.5)
-    Zbar = kwargs.get('Zbar',8.0)
-    Y_e = kwargs.get('Y_e',0.5)
-    Y_fe = kwargs.get('Y_fe',0.0625)
-    
-    ejecta_radius = 1.0e11
-    epse=1.0-eps_b
-    n_ism = 1.0e-5
-    cosmology = kwargs.get('cosmology', cosmo)
-    dl = cosmology.luminosity_distance(redshift).cgs.value
-    pair_cascade_switch = kwargs.get('pair_cascade_switch', False)
-    use_r_process = kwargs.get('use_r_process', False)
-    nu_M=3.8e22*np.ones(2500)
+    Returns
+    -------
+    np.ndarray or float
+        absorbed flux density
 
-    #initial values and dynamics
-    time_temp = np.geomspace(1e0, 1e10, 2500)
-    frequency = kwargs['frequency']
-    if (np.size(frequency) == 1):
-        frequency = np.ones(len(time))*frequency
-    frequency, time = calc_kcorrected_properties(frequency=frequency, redshift=redshift, time=time)
-    magnetar_luminosity = magnetar_only(time=time_temp, l0=l0, tau=tau_sd, nn=nn)
-    v_init = np.sqrt(E_sn / (0.5 * mej * solar_mass)) / speed_of_light
-    output = _ejecta_dynamics_and_interaction(time=time_temp, mej=mej,
-                                          beta=v_init, ejecta_radius=ejecta_radius,
-                                          kappa=kappa, n_ism=n_ism, magnetar_luminosity=magnetar_luminosity,
-                                          pair_cascade_switch=pair_cascade_switch,
-                                          use_gamma_ray_opacity=True, **kwargs)                                                                                
-    vej = velocity_from_lorentz_factor(output.lorentz_factor)/km_cgs 
+    """
+    """
+    Parameters
+    ----------
+    frequency : np.ndarray or float
+        frequency to calculate
+    kappa : float
+        thermalization opacity
+    mej : float
+        ejecta mass in solar units
+    radius_2darray : float
+        radius of the ejecta at each time
+    F_nu_2darray : float
+        unabsorbed flux density
 
-    #calculating synchrotron quantites
+    Returns
+    -------
+    np.ndarray or float
+        absorbed flux density
+
+    """
+    """
+    Parameters
+    ----------
+    time : np.ndarray
+        time in observer frame in days
+    redshift : float
+        redshift
+    mej : float
+        ejecta mass in solar units
+    l0 : float
+        initial magnetar spin-down luminosity (in erg/s)
+    tau_sd : float
+        magnetar spin down damping timescale (in seconds)
+    nn : float
+        braking index
+    eps_b : float
+        magnetization of the PWN
+    gamma_b : float
+        Lorentz factor of electrons at synchrotron break
+    **kwargs : dict
+        Additional keyword arguments.
+    E_k : float
+        initial ejecta kinetic energy
+    kappa : float
+        opacity (used only in dynamics and optical absorption)
+    kappa_gamma : float
+        gamma-ray opacity used to calculate magnetar thermalisation efficiency (used only in dynamics)
+    q1 : float
+        low energy spectral index (must be < 2)
+    q2 : float
+        high energy spectral index (must be > 2)
+    Zbar : float
+        average proton number (used for free-free and photoelectric absorption)
+    Y_e : float
+        electron fraction (used for Compton scattering)
+    Y_fe : float
+        free electron fraction (used for free-free absorption)
+    pair_cascade_switch : float
+        whether to account for pair cascade losses, default is False
+    pair_cascade_switch : float
+        whether to account for pair cascade losses, default is False
+    pair_cascade_fraction : float
+        fraction of magnetar luminosity lost to pair cascades; default is 0.05
+    use_r_process : float
+        determine whether the ejecta is composed of r-process material; default is no
+    frequency : np.ndarray or float
+        (frequency to calculate - Must be same length as time array or a single number)
+    f_nickel : float
+        Ni^56 mass as a fraction of ejecta mass
+
+    Returns
+    -------
+    np.ndarray or float
+        flux density or AB magnitude or dynamics output
+
+    """
     int_lsd = integrate.cumulative_trapezoid(magnetar_luminosity, time_temp,initial=0)
     B_nb = np.sqrt(6.0 * eps_b * int_lsd / output.radius**3)
     B_nb[0] = B_nb[1]
@@ -202,24 +202,47 @@ def pwn(time, redshift, mej, l0, tau_sd, nn, eps_b, gamma_b, **kwargs):
 def kilonova_afterglow_redback(time, redshift, loge0, mej, logn0, logepse, logepsb, p,
                              **kwargs):
     """
-    Calculate the afterglow emission from a kilonova remnant, following the model of Sarin et al. 2022.
-    This model was modified by Nikhil Sarin following code provided by Ben Margalit.
+    Kilonova afterglow emission following Sarin et al. 2022.
 
-    :param time: time in observer frame (days) in observer frame
-    :param redshift: source redshift
-    :param loge0: log10 of the initial kinetic energy of the ejecta (erg)
-    :param mej: ejecta mass (solar masses)
-    :param logn0: log10 of the circumburst density (cm^-3)
-    :param logepse: log10 of the fraction of shock energy given to electrons
-    :param logepsb: log10 of the fraction of shock energy given to magnetic field
-    :param p: power-law index of the electron energy distribution
-    :param kwargs: Additional keyword arguments
-    :param zeta_e: fraction of electrons participating in diffusive shock acceleration. Default is 1.
-    :param output_format: Whether to output flux density or AB mag
-    :param frequency: frequency in Hz for the flux density calculation
-    :param cosmology: Cosmology to use for luminosity distance calculation. Defaults to Planck18. Must be a astropy.cosmology object.
-    :return: flux density or AB mag. Note this is going to give the monochromatic magnitude at the effective frequency for the band.
-        For a proper calculation of the magntitude use the sed variant models.
+    This model calculates afterglow emission from a kilonova remnant.
+    Modified by Nikhil Sarin following code provided by Ben Margalit.
+
+    Parameters
+    ----------
+    time : np.ndarray
+        Time in observer frame in days.
+    redshift : float
+        Source redshift.
+    loge0 : float
+        Log10 of the initial kinetic energy of the ejecta in erg.
+    mej : float
+        Ejecta mass in solar masses.
+    logn0 : float
+        Log10 of the circumburst density in cm^-3.
+    logepse : float
+        Log10 of the fraction of shock energy given to electrons (epsilon_e).
+    logepsb : float
+        Log10 of the fraction of shock energy given to magnetic field (epsilon_B).
+    p : float
+        Power-law index of the electron energy distribution.
+    **kwargs : dict
+        Additional keyword arguments:
+
+        - zeta_e : float
+            Fraction of electrons participating in diffusive shock acceleration (default: 1.0).
+        - output_format : str
+            Whether to output 'flux_density' or 'magnitude'.
+        - frequency : np.ndarray or float
+            Frequency in Hz for the flux density calculation.
+        - cosmology : astropy.cosmology
+            Cosmology to use for luminosity distance calculation (default: Planck18).
+
+    Returns
+    -------
+    np.ndarray
+        Flux density in mJy or AB magnitude. Note: this gives the monochromatic magnitude
+        at the effective frequency for the band. For proper magnitude calculation use the
+        SED variant models.
     """
     Eej = 10 ** loge0
     Mej = mej * solar_mass
@@ -284,36 +307,36 @@ def kilonova_afterglow_nakarpiran(time, redshift, loge0, mej, logn0, logepse, lo
     """
     A kilonova afterglow model based on Nakar & Piran 2011
 
-    :param time: time in days in the observer frame
-    :param redshift: source redshift
-    :param loge0: initial kinetic energy in erg of ejecta
-    :param mej: mass of ejecta in solar masses
-    :param logn0: log10 of the number density of the circumburst medium in cm^-3
-    :param logepse: log10 of the fraction of energy given to electrons
-    :param logepsb: log10 of the fraction of energy given to the magnetic field
-    :param p: electron power law index
-    :param kwargs: Additional keyword arguments
-    :param output_format: Whether to output flux density or AB mag
-    :param frequency: frequency in Hz for the flux density calculation
-    :param cosmology: Cosmology to use for luminosity distance calculation. Defaults to Planck18. Must be a astropy.cosmology object.
-    :return: flux density or AB mag. Note this is going to give the monochromatic magnitude at the effective frequency for the band.
-        For a proper calculation of the magntitude use the sed variant models.
-    :return:
+    Parameters
+    ----------
+    time : np.ndarray
+        time in days in the observer frame
+    redshift : float
+        source redshift
+    loge0 : float
+        initial kinetic energy in erg of ejecta
+    mej : float
+        mass of ejecta in solar masses
+    logn0 : float
+        log10 of the number density of the circumburst medium in cm^-3
+    logepse : float
+        log10 of the fraction of energy given to electrons
+    logepsb : float
+        log10 of the fraction of energy given to the magnetic field
+    p : float
+        electron power law index
+    **kwargs : dict
+        Additional keyword arguments.
+    output_format : float
+        Whether to output flux density or AB mag
+    frequency : np.ndarray or float
+        frequency in Hz for the flux density calculation
+    cosmology : float
+        Cosmology to use for luminosity distance calculation. Defaults to Planck18. Must be a astropy.cosmology object.
+    cosmology : float
+        Cosmology to use for luminosity distance calculation. Defaults to Planck18. Must be a astropy.cosmology object.
+
     """
-    Eej = 10 ** loge0
-    Mej = mej * solar_mass
-    Gamma0 = 1.0 + Eej / (Mej * speed_of_light ** 2)
-    vej = speed_of_light * (1.0 - Gamma0 ** (-2)) ** 0.5
-    cosmology = kwargs.get('cosmology', cosmo)
-    epsilon_e = 10 ** logepse
-    epsilon_B = 10 ** logepsb
-    n0 = 10 ** logn0
-    dl = cosmology.luminosity_distance(redshift).cgs.value
-
-    # in days
-    t_dec = 30 * (Eej / 1e49) ** (1.0 / 3.0) * (n0 / 1e0) ** (-1.0 / 3.0) * (vej / speed_of_light) ** (-5.0 / 3.0)
-
-    fnu_dec_dict = {}
     fnu_func = {}
     temp_time = np.linspace(0.1, 100, 200) * t_dec
     frequency = kwargs['frequency']
@@ -341,43 +364,43 @@ def kilonova_afterglow_nakarpiran(time, redshift, loge0, mej, logn0, logepse, lo
 @citation_wrapper('https://ui.adsabs.harvard.edu/abs/2021ApJ...923L..14M/abstract')
 def thermal_synchrotron_lnu(time, logn0, v0, logr0, eta, logepse, logepsb, xi, p, **kwargs):
     """
-    :param time: time in source frame in seconds
-    :param logn0: log10 initial ambient ism density
-    :param v0: initial velocity in c
-    :param logr0: log10 initial radius
-    :param eta: deceleration slope (r = r0 * (time/t0)**eta; v = v0*(time/t0)**(eta-1))
-    :param logepse: log10 epsilon_e; electron thermalisation efficiency
-    :param logepsb: log10 epsilon_b; magnetic field amplification efficiency
-    :param xi: fraction of energy carried by power law electrons
-    :param p: electron power law slope
-    :param kwargs: extra parameters to change physics/settings
-    :param frequency: frequency to calculate model on - Must be same length as time array or a single number)
-    :param wind_slope: slope for ism density scaling (nism = n0 * (r/r0)**(-wind_slope)). Default is 2
-    :param mu: mean molecular weight, default is 0.62
-    :param mu_e: mean molecular weight per electron, default is 1.18
-    :return: lnu
+    Parameters
+    ----------
+    time : np.ndarray
+        time in source frame in seconds
+    logn0 : float
+        log10 initial ambient ism density
+    v0 : float
+        initial velocity in c
+    logr0 : float
+        log10 initial radius
+    eta : float
+        deceleration slope (r = r0 * (time/t0)**eta; v = v0*(time/t0)**(eta-1))
+    logepse : float
+        log10 epsilon_e; electron thermalisation efficiency
+    logepsb : float
+        log10 epsilon_b; magnetic field amplification efficiency
+    xi : float
+        fraction of energy carried by power law electrons
+    p : float
+        electron power law slope
+    **kwargs : dict
+        Additional keyword arguments.
+    frequency : np.ndarray or float
+        frequency to calculate model on - Must be same length as time array or a single number)
+    wind_slope : float
+        slope for ism density scaling (nism = n0 * (r/r0)**(-wind_slope)). Default is 2
+    mu : float
+        mean molecular weight, default is 0.62
+    mu_e : float
+        mean molecular weight per electron, default is 1.18
+
+    Returns
+    -------
+    np.ndarray or float
+        lnu
+
     """
-    v0 = v0 * speed_of_light
-    r0 = 10**logr0
-    t0 = eta * r0 / v0
-    radius = r0 * (time / t0) ** eta
-    velocity = v0 * (time/t0)**(eta - 1)
-    wind_slope = kwargs.get('wind_slope',2)
-    mu = kwargs.get('mu', 0.62)
-    mu_e = kwargs.get('mu_e', 1.18)
-    n0 = 10 ** logn0
-    nism = n0 * (radius / r0) ** (-wind_slope)
-
-    epsilon_T = 10**logepse
-    epsilon_B = 10**logepsb
-
-    frequency = kwargs['frequency']
-
-    ne = 4.0*mu_e*nism
-    beta = velocity/speed_of_light
-
-    theta0 = epsilon_T * (9.0 * mu * proton_mass / (32.0 * mu_e * electron_mass)) * beta ** 2
-    theta = (5.0*theta0-6.0+(25.0*theta0**2+180.0*theta0+36.0)**0.5)/30.0
 
     bfield = (9.0*np.pi*epsilon_B*nism*mu*proton_mass)**0.5*velocity
     # mean dynamical time:
@@ -406,24 +429,48 @@ def thermal_synchrotron_lnu(time, logn0, v0, logr0, eta, logepse, logepsb, xi, p
 def thermal_synchrotron_fluxdensity(time, redshift, logn0, v0, logr0, eta, logepse, logepsb,
                                     xi, p, **kwargs):
     """
-    :param time: time in observer frame in days
-    :param redshift: redshift
-    :param logn0: log10 initial ambient ism density
-    :param v0: initial velocity in c
-    :param logr0: log10 initial radius
-    :param eta: deceleration slope (r = r0 * (time/t0)**eta; v = v0*(time/t0)**(eta-1))
-    :param logepse: log10 epsilon_e; electron thermalisation efficiency
-    :param logepsb: log10 epsilon_b; magnetic field amplification efficiency
-    :param xi: fraction of energy carried by power law electrons
-    :param p: electron power law slope
-    :param kwargs: extra parameters to change physics/settings
-    :param frequency: frequency to calculate model on - Must be same length as time array or a single number)
-    :param wind_slope: slope for ism density scaling (nism = n0 * (r/r0)**(-wind_slope)). Default is 2
-    :param mu: mean molecular weight, default is 0.62
-    :param mu_e: mean molecular weight per electron, default is 1.18
-    :param kwargs: extra parameters to change physics and other settings
-    :param cosmology: Cosmology to use for luminosity distance calculation. Defaults to Planck18. Must be a astropy.cosmology object.
-    :return: flux density in mJy
+    Thermal synchrotron flux density from shock breakout.
+
+    Parameters
+    ----------
+    time : np.ndarray
+        Time in observer frame in days.
+    redshift : float
+        Source redshift.
+    logn0 : float
+        Log10 initial ambient ISM density in cm^-3.
+    v0 : float
+        Initial velocity in units of c.
+    logr0 : float
+        Log10 initial radius in cm.
+    eta : float
+        Deceleration slope: r = r0 * (time/t0)**eta; v = v0*(time/t0)**(eta-1).
+    logepse : float
+        Log10 epsilon_e, electron thermalisation efficiency.
+    logepsb : float
+        Log10 epsilon_B, magnetic field amplification efficiency.
+    xi : float
+        Fraction of energy carried by power law electrons.
+    p : float
+        Electron power law slope.
+    **kwargs : dict
+        Additional keyword arguments:
+
+        - frequency : np.ndarray or float
+            Frequency in Hz to calculate model on. Must be same length as time array or a single number.
+        - wind_slope : float
+            Slope for ISM density scaling: nism = n0 * (r/r0)**(-wind_slope) (default: 2).
+        - mu : float
+            Mean molecular weight (default: 0.62).
+        - mu_e : float
+            Mean molecular weight per electron (default: 1.18).
+        - cosmology : astropy.cosmology
+            Cosmology to use for luminosity distance calculation (default: Planck18).
+
+    Returns
+    -------
+    np.ndarray
+        Flux density in mJy.
     """
     frequency = kwargs['frequency']
     frequency, time = calc_kcorrected_properties(frequency=frequency, redshift=redshift, time=time)
@@ -439,39 +486,39 @@ def thermal_synchrotron_fluxdensity(time, redshift, logn0, v0, logr0, eta, logep
 @citation_wrapper('https://ui.adsabs.harvard.edu/abs/2022MNRAS.511.5328G/abstract')
 def tde_synchrotron(time, redshift, Mej, vej, logepse, logepsb, p, **kwargs):
     """
-    :param time: time in observer frame in days
-    :param redshift: redshift
-    :param Mej: mass of the emitting region (solar masses)
-    :param vej: initial velocity of the outflow (km/s)
-    :param logepse: log10 epsilon_e; electron thermalisation efficiency
-    :param logepsb: log10 epsilon_b; magnetic field amplification efficiency
-    :param p: electron power law slope
-    :param kwargs: extra parameters to change physics/settings
-    :param frequency: frequency to calculate model on - Must be same length as time array or a single number)
-    :param geometry: geometry of the outflow.  Either "sphere" or "cone" is supported.
-    :param output_format: Whether to output light curves or physical parameters.
-    :param cosmology: Cosmology to use for luminosity distance calculation. Defaults to Planck18. Must be a astropy.cosmology object.
-    :return: flux density
-    """
-    frequency = kwargs['frequency']
-    geometry = kwargs.get('geometry', 'sphere')
-    cosmology = kwargs.get('cosmology', cosmo)
-    dl = cosmology.luminosity_distance(redshift).cgs.value
-    beta1 = 5.0 / 2.0
-    beta2 = (1.0 - p) / 2.0
-    s = 1.47 - (0.21 * p)
-    eps_e = 10.0 ** logepse
-    eps_b = 10.0 ** logepsb
-    if geometry == 'cone':
-        F_A = 0.13
-        F_V = 1.15
-    else:    
-        F_A = 1.0
-        F_V = 4.0/3.0
+    Parameters
+    ----------
+    time : np.ndarray
+        time in observer frame in days
+    redshift : float
+        redshift
+    Mej : float
+        mass of the emitting region (solar masses)
+    vej : float
+        initial velocity of the outflow (km/s)
+    logepse : float
+        log10 epsilon_e; electron thermalisation efficiency
+    logepsb : float
+        log10 epsilon_b; magnetic field amplification efficiency
+    p : float
+        electron power law slope
+    **kwargs : dict
+        Additional keyword arguments.
+    frequency : np.ndarray or float
+        frequency to calculate model on - Must be same length as time array or a single number)
+    geometry : float
+        geometry of the outflow.  Either "sphere" or "cone" is supported.
+    output_format : float
+        Whether to output light curves or physical parameters.
+    cosmology : float
+        Cosmology to use for luminosity distance calculation. Defaults to Planck18. Must be a astropy.cosmology object.
 
-    beta = vej * km_cgs / speed_of_light
-    E = Mej * solar_mass * (beta * speed_of_light) ** 2.0 / 2.0
-    R = time * day_to_s * beta * speed_of_light / ((1 - beta) * (1 + redshift))
+    Returns
+    -------
+    np.ndarray or float
+        flux density
+
+    """
     eps = 11.0 * eps_b / (6.0 * eps_e)
     R_eq = R / eps ** (1.0 / 17.0)
     E_eq = E / ((11.0 / 17.0) * eps ** (-6.0 / 17.0) + (6.0 / 17.0) * eps ** (11.0 / 17.0))
@@ -522,35 +569,35 @@ def tde_synchrotron(time, redshift, Mej, vej, logepse, logepsb, p, **kwargs):
 @citation_wrapper('https://ui.adsabs.harvard.edu/abs/2007ihea.book.....R/abstract, https://ui.adsabs.harvard.edu/abs/2017hsn..book..875C/abstract')
 def synchrotron_massloss(time, redshift, v_s, log_Mdot_vwind, logepsb, logepse, p, **kwargs):
     """
-    :param time: time in observer frame in days
-    :param redshift: redshift
-    :param v_s: velocity of the shock (km/s)
-    :param log Mdot_vwind: log10 of the mass loss rate over wind velocity ((solar mass / year)/(km / s))
-    :param logepse: log10 epsilon_e; electron thermalisation efficiency
-    :param logepsb: log10 epsilon_b; magnetic field amplification efficiency
-    :param p: electron power law slope
-    :param kwargs: extra parameters to change physics/settings
-    :param frequency: frequency to calculate model on - Must be same length as time array or a single number)
-    :param cosmology: Cosmology to use for luminosity distance calculation. Defaults to Planck18. Must be a astropy.cosmology object.
-    :return: flux density
-    """
-    cosmology = kwargs.get('cosmology', cosmo)
-    dl = cosmology.luminosity_distance(redshift).cgs.value
-    frequency = kwargs['frequency']
-    if isinstance(frequency, float):
-        frequency = np.ones(len(time)) * frequency
-    frequency, time = calc_kcorrected_properties(frequency=frequency, redshift=redshift, time=time)   
+    Parameters
+    ----------
+    time : np.ndarray
+        time in observer frame in days
+    redshift : float
+        redshift
+    v_s : float
+        velocity of the shock (km/s)
+    v_s : float
+        velocity of the shock (km/s)
+    logepse : float
+        log10 epsilon_e; electron thermalisation efficiency
+    logepsb : float
+        log10 epsilon_b; magnetic field amplification efficiency
+    p : float
+        electron power law slope
+    **kwargs : dict
+        Additional keyword arguments.
+    frequency : np.ndarray or float
+        frequency to calculate model on - Must be same length as time array or a single number)
+    cosmology : float
+        Cosmology to use for luminosity distance calculation. Defaults to Planck18. Must be a astropy.cosmology object.
 
-    eps_e = 10.0 ** logepse
-    eps_b = 10.0 ** logepsb
-    v_cgs = v_s * km_cgs
-    t_cgs = time * day_to_s
-    r_s = v_cgs * t_cgs
-    Mdot_vwind = 10.0 ** log_Mdot_vwind    
-    Md_vw_cgs = Mdot_vwind * solar_mass / (day_to_s * 365.24) / km_cgs #g/cm
-    nu_0 = 1.253e19
-   
-    rho_csm = Md_vw_cgs / (4.0 * np.pi * r_s ** 2.0)
+    Returns
+    -------
+    np.ndarray or float
+        flux density
+
+    """
     u_b = eps_b * rho_csm * v_cgs ** 2.0
     B = np.sqrt(8 * np.pi * u_b)
     N_0 = 4.0 / 3.0 * np.pi * r_s ** 3.0 * eps_e * rho_csm / proton_mass
@@ -574,35 +621,35 @@ def synchrotron_massloss(time, redshift, v_s, log_Mdot_vwind, logepsb, logepse, 
 @citation_wrapper('https://ui.adsabs.harvard.edu/abs/2007ihea.book.....R/abstract, https://ui.adsabs.harvard.edu/abs/2017hsn..book..875C/abstract')    
 def synchrotron_ism(time, redshift, v_s, logn0, logepsb, logepse, p, **kwargs):  
     """
-    :param time: time in observer frame in days
-    :param redshift: redshift
-    :param v_s: velocity of the shock (km/s)
-    :param logn0: log10 of the circumburst density (cm^-3)
-    :param logepse: log10 epsilon_e; electron thermalisation efficiency
-    :param logepsb: log10 epsilon_b; magnetic field amplification efficiency
-    :param p: electron power law slope
-    :param kwargs: extra parameters to change physics/settings
-    :param frequency: frequency to calculate model on - Must be same length as time array or a single number)
-    :param cosmology: Cosmology to use for luminosity distance calculation. Defaults to Planck18. Must be a astropy.cosmology object.
-    :return: flux density
+    Parameters
+    ----------
+    time : np.ndarray
+        time in observer frame in days
+    redshift : float
+        redshift
+    v_s : float
+        velocity of the shock (km/s)
+    logn0 : float
+        log10 of the circumburst density (cm^-3)
+    logepse : float
+        log10 epsilon_e; electron thermalisation efficiency
+    logepsb : float
+        log10 epsilon_b; magnetic field amplification efficiency
+    p : float
+        electron power law slope
+    **kwargs : dict
+        Additional keyword arguments.
+    frequency : np.ndarray or float
+        frequency to calculate model on - Must be same length as time array or a single number)
+    cosmology : float
+        Cosmology to use for luminosity distance calculation. Defaults to Planck18. Must be a astropy.cosmology object.
+
+    Returns
+    -------
+    np.ndarray or float
+        flux density
+
     """
-    cosmology = kwargs.get('cosmology', cosmo)
-    dl = cosmology.luminosity_distance(redshift).cgs.value
-    frequency = kwargs['frequency']
-    if isinstance(frequency, float):
-        frequency = np.ones(len(time)) * frequency
-    frequency, time = calc_kcorrected_properties(frequency=frequency, redshift=redshift, time=time)
-
-    n_ism = 10.0 ** logn0
-    eps_e = 10.0 ** logepse
-    eps_b = 10.0 ** logepsb
-    v_cgs = v_s * km_cgs
-    t_cgs = time * day_to_s
-    r_s = v_cgs * t_cgs
-    nu_0 = 1.253e19
-
-    rho_csm = proton_mass * n_ism
-    u_b = eps_b * rho_csm * v_cgs ** 2.0 
     B = np.sqrt(8 * np.pi * u_b) 
     N_0 = 4.0 / 3.0 * np.pi * r_s ** 3.0 * eps_e * n_ism 
     C_0 = 4.0 / 3.0 * N_0 * sigma_T * speed_of_light * u_b 
@@ -625,37 +672,37 @@ def synchrotron_ism(time, redshift, v_s, logn0, logepsb, logepse, p, **kwargs):
 @citation_wrapper('https://ui.adsabs.harvard.edu/abs/2007ihea.book.....R/abstract, https://ui.adsabs.harvard.edu/abs/2017hsn..book..875C/abstract')    
 def synchrotron_pldensity(time, redshift, v_s, logA, s, logepsb, logepse, p, **kwargs):    
     """
-    :param time: time in observer frame in days
-    :param redshift: redshift
-    :param v_s: velocity of the shock (km/s)
-    :param logA: log10 of the circumstellar material density at R=1e15 cm (cm^-3)
-    :param s: power law index of the circumstellar material density profile
-    :param logepse: log10 epsilon_e; electron thermalisation efficiency
-    :param logepsb: log10 epsilon_b; magnetic field amplification efficiency
-    :param p: electron power law slope
-    :param kwargs: extra parameters to change physics/settings
-    :param frequency: frequency to calculate model on - Must be same length as time array or a single number)
-    :param cosmology: Cosmology to use for luminosity distance calculation. Defaults to Planck18. Must be a astropy.cosmology object.
-    :return: flux density
+    Parameters
+    ----------
+    time : np.ndarray
+        time in observer frame in days
+    redshift : float
+        redshift
+    v_s : float
+        velocity of the shock (km/s)
+    logA : float
+        log10 of the circumstellar material density at R=1e15 cm (cm^-3)
+    s : float
+        power law index of the circumstellar material density profile
+    logepse : float
+        log10 epsilon_e; electron thermalisation efficiency
+    logepsb : float
+        log10 epsilon_b; magnetic field amplification efficiency
+    p : float
+        electron power law slope
+    **kwargs : dict
+        Additional keyword arguments.
+    frequency : np.ndarray or float
+        frequency to calculate model on - Must be same length as time array or a single number)
+    cosmology : float
+        Cosmology to use for luminosity distance calculation. Defaults to Planck18. Must be a astropy.cosmology object.
+
+    Returns
+    -------
+    np.ndarray or float
+        flux density
+
     """
-    cosmology = kwargs.get('cosmology', cosmo)
-    dl = cosmology.luminosity_distance(redshift).cgs.value
-    frequency = kwargs['frequency']
-    if isinstance(frequency, float):
-        frequency = np.ones(len(time)) * frequency
-    frequency, time = calc_kcorrected_properties(frequency=frequency, redshift=redshift, time=time)
-
-    A = 10.0 ** logA
-    eps_e = 10.0 ** logepse
-    eps_b = 10.0 ** logepsb
-    v_cgs = v_s * km_cgs
-    t_cgs = time * day_to_s
-    r_s = v_cgs * t_cgs
-    nu_0 = 1.253e19    
-
-    n_csm = A * (r_s / 1e15) **(-s)
-    rho_csm = n_csm * proton_mass
-    u_b = eps_b * rho_csm * v_cgs ** 2.0
     B = np.sqrt(8 * np.pi * u_b) 
     N_0 = 4.0 / 3.0 * np.pi * r_s ** 3.0 * eps_e * n_csm
     C_0 = 4.0 / 3.0 * N_0 * sigma_T * speed_of_light * u_b
@@ -678,43 +725,43 @@ def synchrotron_pldensity(time, redshift, v_s, logA, s, logepsb, logepse, p, **k
 @citation_wrapper('https://ui.adsabs.harvard.edu/abs/2024ApJ...977..134M/abstract, https://ui.adsabs.harvard.edu/abs/2021ApJ...923L..14M/abstract')     
 def thermal_synchrotron_v2_lnu(time, bG_sh, log_Mdot_vwind, n_ism, logepse, logepsb, xi, p, **kwargs):
     """
-    :param time: time in source frame in days
-    :param bG_sh: Proper-velocity of the shock (bG_sh = Gamma_sh*beta_sh)
-    :param log Mdot_vwind: log10 of the mass loss rate over wind velocity ((solar mass / year)/(km / s))
-    :param n_ism: the circumburst density of the ISM (cm^-3)
-    :param logepse: log10 epsilon_e; electron thermalisation efficiency
-    :param logepsb: log10 epsilon_b; magnetic field amplification efficiency
-    :param xi: fraction of energy carried by power law electrons
-    :param p: electron power law slope
-    :param kwargs: extra parameters to change physics/settings
-    :param frequency: frequency to calculate model on - Must be same length as time array or a single number)
-    :param mu: mean molecular weight, default is 0.62
-    :param mu_e: mean molecular weight per electron, default is 1.18
-    :param ell_dec: Deceleration parameter defined in eq. (1) of MQ24, default is 1.0
-    :param f: Volume-filling factor defined in eq. (3) of MQ24, default is 3.0/16.0
-    :return: lnu
+    Parameters
+    ----------
+    time : np.ndarray
+        time in source frame in days
+    bG_sh : float
+        Proper-velocity of the shock (bG_sh = Gamma_sh*beta_sh)
+    bG_sh : float
+        Proper-velocity of the shock (bG_sh = Gamma_sh*beta_sh)
+    n_ism : float
+        the circumburst density of the ISM (cm^-3)
+    logepse : float
+        log10 epsilon_e; electron thermalisation efficiency
+    logepsb : float
+        log10 epsilon_b; magnetic field amplification efficiency
+    xi : float
+        fraction of energy carried by power law electrons
+    p : float
+        electron power law slope
+    **kwargs : dict
+        Additional keyword arguments.
+    frequency : np.ndarray or float
+        frequency to calculate model on - Must be same length as time array or a single number)
+    mu : float
+        mean molecular weight, default is 0.62
+    mu_e : float
+        mean molecular weight per electron, default is 1.18
+    ell_dec : float
+        Deceleration parameter defined in eq. (1) of MQ24, default is 1.0
+    f : float
+        Volume-filling factor defined in eq. (3) of MQ24, default is 3.0/16.0
+
+    Returns
+    -------
+    np.ndarray or float
+        lnu
+
     """
-    mu = kwargs.get('mu', 0.62)
-    mu_e = kwargs.get('mu_e', 1.18)
-    ell_dec = kwargs.get('ell_dec', 1.0)
-    f = kwargs.get('f', 3.0/16.0)
-    epsilon_T = 10**logepse
-    epsilon_B = 10**logepsb
-    frequency = kwargs['frequency']  
-    t = time * day_to_s
-    
-    Mdot_vwind = 10.0 ** log_Mdot_vwind    
-    Md_vw_cgs = Mdot_vwind * solar_mass / (day_to_s * 365.24) / km_cgs #g/cm   
-    
-    R = (1.0 + bG_sh**2)**0.5 * bG_sh * speed_of_light * ell_dec * t
-    bG = 0.5 * (bG_sh**2 - 2.0 + (bG_sh**4 + 5.0 * bG_sh**2 + 4.0)**0.5)**0.5
-    Gamma = (1.0 + bG**2)**0.5
-    
-    #total ISM number density is sum of wind and flat density component
-    Mdot_over_vw = 4.0 * np.pi * mu * proton_mass * R**2 * n_ism + Md_vw_cgs
-    n = Md_vw_cgs / (4.0 * np.pi * mu * proton_mass * R**2) + n_ism
-    
-    if Gamma==1:
         # fix bG << 1 case where numerical accuracy fails
         Theta = (2.0 / 3.0) * epsilon_T * (9.0 * mu * proton_mass / (32.0 * mu_e * electron_mass)) * ((16.0 / 9.0) * bG**2)
         Gamma_minus_one = 0.5 * bG**2
@@ -779,30 +826,44 @@ def thermal_synchrotron_v2_lnu(time, bG_sh, log_Mdot_vwind, n_ism, logepse, loge
 @citation_wrapper('https://ui.adsabs.harvard.edu/abs/2024ApJ...977..134M/abstract, https://ui.adsabs.harvard.edu/abs/2021ApJ...923L..14M/abstract')     
 def thermal_synchrotron_v2_fluxdensity(time, redshift, bG_sh, log_Mdot_vwind, n_ism, logepse, logepsb, xi, p, **kwargs):
     """
-    :param time: time in source frame in days
-    :param redshift: redshift
-    :param bG_sh: Proper-velocity of the shock (bG_sh = Gamma_sh*beta_sh)
-    :param log Mdot_vwind: log10 of the mass loss rate over wind velocity ((solar mass / year)/(km / s))
-    :param n_ism: the circumburst density of the ISM (cm^-3)
-    :param logepse: log10 epsilon_e; electron thermalisation efficiency
-    :param logepsb: log10 epsilon_b; magnetic field amplification efficiency
-    :param xi: fraction of energy carried by power law electrons
-    :param p: electron power law slope
-    :param kwargs: extra parameters to change physics/settings
-    :param frequency: frequency to calculate model on - Must be same length as time array or a single number)
-    :param mu: mean molecular weight, default is 0.62
-    :param mu_e: mean molecular weight per electron, default is 1.18
-    :param ell_dec: Deceleration parameter defined in eq. (1) of MQ24, default is 1.0
-    :param f: Volume-filling factor defined in eq. (3) of MQ24, default is 3.0/16.0
-    :param cosmology: Cosmology to use for luminosity distance calculation. Defaults to Planck18. Must be a astropy.cosmology object.
-    :return: flux density in mJy
+    Parameters
+    ----------
+    time : np.ndarray
+        time in source frame in days
+    redshift : float
+        redshift
+    bG_sh : float
+        Proper-velocity of the shock (bG_sh = Gamma_sh*beta_sh)
+    bG_sh : float
+        Proper-velocity of the shock (bG_sh = Gamma_sh*beta_sh)
+    n_ism : float
+        the circumburst density of the ISM (cm^-3)
+    logepse : float
+        log10 epsilon_e; electron thermalisation efficiency
+    logepsb : float
+        log10 epsilon_b; magnetic field amplification efficiency
+    xi : float
+        fraction of energy carried by power law electrons
+    p : float
+        electron power law slope
+    **kwargs : dict
+        Additional keyword arguments.
+    frequency : np.ndarray or float
+        frequency to calculate model on - Must be same length as time array or a single number)
+    mu : float
+        mean molecular weight, default is 0.62
+    mu_e : float
+        mean molecular weight per electron, default is 1.18
+    ell_dec : float
+        Deceleration parameter defined in eq. (1) of MQ24, default is 1.0
+    f : float
+        Volume-filling factor defined in eq. (3) of MQ24, default is 3.0/16.0
+    cosmology : float
+        Cosmology to use for luminosity distance calculation. Defaults to Planck18. Must be a astropy.cosmology object.
+
+    Returns
+    -------
+    np.ndarray or float
+        flux density in mJy
+
     """
-    frequency = kwargs['frequency']
-    frequency, time = calc_kcorrected_properties(frequency=frequency, redshift=redshift, time=time)
-    new_kwargs = kwargs.copy()
-    new_kwargs['frequency'] = frequency
-    cosmology = kwargs.get('cosmology', cosmo)
-    dl = cosmology.luminosity_distance(redshift).cgs.value
-    lnu = thermal_synchrotron_v2_lnu(time, bG_sh, log_Mdot_vwind, n_ism, logepse, logepsb, xi, p, **new_kwargs)
-    flux_density = lnu / (4.0 * np.pi * dl**2)/1.0e-26
-    return flux_density           

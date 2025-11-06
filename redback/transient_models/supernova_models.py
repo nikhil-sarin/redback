@@ -25,25 +25,52 @@ homologous_expansion_models = ['exponential_powerlaw_bolometric', 'arnett_bolome
 @citation_wrapper('https://zenodo.org/record/6363879#.YkQn3y8RoeY')
 def sncosmo_models(time, redshift, model_kwargs=None, **kwargs):
     """
-    A wrapper to SNCosmo models
+    A wrapper to SNCosmo models.
 
-    :param time: observer frame time in days
-    :param redshift: redshift
-    :param model_kwargs: all model keyword arguments in a dictionary
-    :param kwargs: Additional keyword arguments for redback
-    :param frequency: Frequency in Hz to evaluate model on, must be same shape as time array or a single value.
-    :param sncosmo_model: String of the SNcosmo model to use.
-    :param peak_time: SNe peak time in days
-    :param cosmology: astropy cosmology object by default set to Planck18
-    :param mw_extinction: Boolean for whether there is MW extinction or not. Default True
-    :param host_extinction: Boolean for whether there is host extinction or not. Default True
-            if used adds an extra parameter ebv which must also be in kwargs; host galaxy E(B-V). Set to 0.1 by default
-    :param use_set_peak_magnitude: Boolean for whether to set the peak magnitude or not. Default False,
-        if True the following keyword arguments also apply. Else the brightness is set by the model_kwargs.
-    :param peak_abs_mag: SNe peak absolute magnitude default set to -19
-    :param peak_abs_mag_band: Band corresponding to the peak abs mag limit, default to standard::b. Must be in SNCosmo
-    :param magnitude_system: Mag system; default ab
-    :return: set by output format - 'flux_density', 'magnitude', 'flux', 'sncosmo_source'
+    Parameters
+    ----------
+    time : np.ndarray
+        Observer frame time in days.
+    redshift : float
+        Source redshift.
+    model_kwargs : dict, optional
+        All model keyword arguments in a dictionary.
+    **kwargs : dict
+        Additional keyword arguments:
+
+        - frequency : np.ndarray or float
+            Frequency in Hz to evaluate model on, must be same shape as time array or a single value.
+            Required if output_format is 'flux_density'.
+        - sncosmo_model : str
+            String of the SNcosmo model to use. Default is 'salt2'.
+        - peak_time : float
+            SNe peak time in days. Default is 0.
+        - cosmology : astropy.cosmology object
+            Cosmology to use. Default is Planck18.
+        - mw_extinction : bool
+            Whether there is MW extinction. Default is True.
+        - host_extinction : bool
+            Whether there is host extinction. Default is True.
+            If used, adds ebv parameter to kwargs.
+        - ebv : float
+            Host galaxy E(B-V). Default is 0.1.
+        - use_set_peak_magnitude : bool
+            Whether to set the peak magnitude. Default is False.
+        - peak_abs_mag : float
+            SNe peak absolute magnitude. Default is -19.
+        - peak_abs_mag_band : str
+            Band for peak absolute magnitude. Default is 'standard::b'.
+        - magnitude_system : str
+            Magnitude system. Default is 'ab'.
+        - bands : str or list
+            Required if output_format is 'magnitude' or 'flux'.
+        - output_format : str
+            'flux_density', 'magnitude', 'flux', or 'sncosmo_source'.
+
+    Returns
+    -------
+    output
+        Format set by output_format: flux density (mJy), magnitude, flux, or sncosmo source object.
     """
     import sncosmo
     peak_time = kwargs.get('peak_time', 0)
@@ -120,26 +147,52 @@ def sncosmo_models(time, redshift, model_kwargs=None, **kwargs):
 @citation_wrapper('https://ui.adsabs.harvard.edu/abs/2007A%26A...466...11G/abstract, sncosmo')
 def salt2(time, redshift, x0, x1, c, peak_time, **kwargs):
     """
-    A wrapper to the salt2 model in sncosmo
+    A wrapper to the SALT2 model in SNCosmo.
 
-    :param time: time in days in observer frame (in mjd days)
-    :param redshift: redshift
-    :param x0: x0
-    :param x1: x1
-    :param c: c
-    :param peak_time: peak time in mjd
-    :param kwargs: Additional keyword arguments
-    :param cosmology: astropy cosmology object by default set to Planck18
-    :param mw_extinction: Boolean for whether there is MW extinction or not. Default True
-    :param host_extinction: Boolean for whether there is host extinction or not. Default True
-            if used adds an extra parameter ebv which must also be in kwargs; host galaxy E(B-V). Set to 0.1 by default
-    :param use_set_peak_magnitude: Boolean for whether to set the peak magnitude or not. Default False,
-        if True the following keyword arguments also apply. Else the brightness is set by the model_kwargs.
-    :param peak_abs_mag: SNe peak absolute magnitude default set to -19
-    :param peak_abs_mag_band: Band corresponding to the peak abs mag limit, default to standard::b. Must be in SNCosmo
-    :param magnitude_system: Mag system; default ab
-    :param output_format: 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
-    :return: set by output format - 'flux_density', 'magnitude', 'flux', 'sncosmo_source'
+    Parameters
+    ----------
+    time : np.ndarray
+        Time in days in observer frame (MJD).
+    redshift : float
+        Source redshift.
+    x0 : float
+        SALT2 x0 parameter (amplitude).
+    x1 : float
+        SALT2 x1 parameter (stretch).
+    c : float
+        SALT2 c parameter (color).
+    peak_time : float
+        Peak time in MJD.
+    **kwargs : dict
+        Additional keyword arguments:
+
+        - cosmology : astropy.cosmology object
+            Cosmology to use. Default is Planck18.
+        - mw_extinction : bool
+            Whether there is MW extinction. Default is True.
+        - host_extinction : bool
+            Whether there is host extinction. Default is True.
+        - ebv : float
+            Host galaxy E(B-V). Default is 0.1.
+        - use_set_peak_magnitude : bool
+            Whether to set the peak magnitude. Default is False.
+        - peak_abs_mag : float
+            SNe peak absolute magnitude. Default is -19.
+        - peak_abs_mag_band : str
+            Band for peak absolute magnitude. Default is 'standard::b'.
+        - magnitude_system : str
+            Magnitude system. Default is 'ab'.
+        - frequency : np.ndarray or float
+            Required if output_format is 'flux_density'.
+        - bands : str or list
+            Required if output_format is 'magnitude' or 'flux'.
+        - output_format : str
+            'flux_density', 'magnitude', 'flux', or 'sncosmo_source'.
+
+    Returns
+    -------
+    output
+        Format set by output_format: flux density (mJy), magnitude, flux, or sncosmo source object.
     """
     kwargs['sncosmo_model'] = 'salt2'
     kwargs['peak_time'] = peak_time
@@ -232,16 +285,41 @@ def sn1998bw_template(time, redshift, amplitude, **kwargs):
 @citation_wrapper('redback')
 def exponential_powerlaw_bolometric(time, lbol_0, alpha_1, alpha_2, tpeak_d, **kwargs):
     """
-    :param time: rest frame time in days
-    :param lbol_0: bolometric luminosity scale in cgs
-    :param alpha_1: first exponent
-    :param alpha_2: second exponent
-    :param tpeak_d: peak time in days
-    :param kwargs: Must be all the kwargs required by the specific interaction_process
-            e.g., for Diffusion: kappa, kappa_gamma, vej (km/s), temperature_floor
-    :param interaction_process: Default is Diffusion.
-        Can also be None in which case the output is just the raw engine luminosity, or another interaction process.
-    :return: bolometric_luminosity
+    Exponential power-law bolometric light curve model.
+
+    Parameters
+    ----------
+    time : np.ndarray
+        Rest frame time in days.
+    lbol_0 : float
+        Bolometric luminosity scale in erg/s.
+    alpha_1 : float
+        First power-law exponent.
+    alpha_2 : float
+        Second power-law exponent.
+    tpeak_d : float
+        Peak time in days.
+    **kwargs : dict
+        Additional keyword arguments:
+
+        - interaction_process : class
+            Interaction process class. Default is Diffusion.
+            Can be None for raw engine luminosity.
+        - kappa : float
+            Opacity (required for Diffusion).
+        - kappa_gamma : float
+            Gamma-ray opacity (required for Diffusion).
+        - vej : float
+            Ejecta velocity in km/s (required for Diffusion).
+        - temperature_floor : float
+            Floor temperature in K (required for Diffusion).
+        - dense_resolution : int
+            Resolution of dense time array. Default is 1000.
+
+    Returns
+    -------
+    lbol : np.ndarray
+        Bolometric luminosity in erg/s.
     """
     _interaction_process = kwargs.get("interaction_process", ip.Diffusion)
     lbol = exponential_powerlaw(time, a_1=lbol_0, alpha_1=alpha_1, alpha_2=alpha_2,
@@ -258,24 +336,52 @@ def exponential_powerlaw_bolometric(time, lbol_0, alpha_1, alpha_2, tpeak_d, **k
 @citation_wrapper('redback')
 def sn_fallback(time, redshift, logl1, tr, **kwargs):
     """
-    :param time: observer frame time in days
-    :param redshift: source redshift
-    :param logl1: bolometric luminosity scale in log10 (cgs)
-    :param tr: transition time for luminosity
-    :param kwargs: Must be all the kwargs required by the specific interaction_process, photosphere, sed methods used
-        e.g., for Diffusion and TemperatureFloor: kappa, kappa_gamma, mej (solar masses), vej (km/s), floor temperature
-    :param interaction_process: Default is Diffusion.
-            Can also be None in which case the output is just the raw engine luminosity, or another interaction process.
-    :param photosphere: Default is TemperatureFloor.
-            kwargs must vej or relevant parameters if using different photosphere model
-    :param sed: Default is blackbody.
-    :param frequency: Required if output_format is ‘flux_density’.
-        frequency to calculate - Must be same length as time array or a single number).
-    :param bands: Required if output_format is ‘magnitude’ or ‘flux’.
-    :param output_format: ‘flux_density’, ‘magnitude’, ‘spectra’, ‘flux’, ‘sncosmo_source’
-    :param lambda_array: Optional argument to set your desired wavelength array (in Angstroms) to evaluate the SED on.
-    :param cosmology: Cosmology to use for luminosity distance calculation. Defaults to Planck18. Must be a astropy.cosmology object.
-    :return: set by output format - ‘flux_density’, ‘magnitude’, ‘spectra’, ‘flux’, ‘sncosmo_source’
+    Supernova fallback accretion model.
+
+    Parameters
+    ----------
+    time : np.ndarray
+        Observer frame time in days.
+    redshift : float
+        Source redshift.
+    logl1 : float
+        Bolometric luminosity scale in log10 (erg/s).
+    tr : float
+        Transition time for luminosity in days.
+    **kwargs : dict
+        Additional keyword arguments:
+
+        - interaction_process : class
+            Interaction process class. Default is Diffusion.
+        - photosphere : class
+            Photosphere model. Default is TemperatureFloor.
+        - sed : class
+            SED model. Default is Blackbody.
+        - kappa : float
+            Opacity (required for Diffusion).
+        - kappa_gamma : float
+            Gamma-ray opacity (required for Diffusion).
+        - mej : float
+            Ejecta mass in solar masses.
+        - vej : float
+            Ejecta velocity in km/s.
+        - temperature_floor : float
+            Floor temperature in K.
+        - frequency : np.ndarray or float
+            Required if output_format is 'flux_density'.
+        - bands : str or list
+            Required if output_format is 'magnitude' or 'flux'.
+        - output_format : str
+            'flux_density', 'magnitude', 'spectra', or 'flux'.
+        - lambda_array : np.ndarray
+            Wavelength array in Angstroms. Default is np.geomspace(100, 60000, 100).
+        - cosmology : astropy.cosmology object
+            Cosmology to use. Default is Planck18.
+
+    Returns
+    -------
+    output
+        Format set by output_format: flux density (mJy), magnitude, spectra, or flux.
     """
     kwargs["interaction_process"] = kwargs.get("interaction_process", ip.Diffusion)
     kwargs["photosphere"] = kwargs.get("photosphere", photosphere.TemperatureFloor)
@@ -316,26 +422,54 @@ def sn_fallback(time, redshift, logl1, tr, **kwargs):
 @citation_wrapper('redback')
 def sn_nickel_fallback(time, redshift, mej, f_nickel, logl1, tr, **kwargs):
     """
-    :param time: observer frame time in days
-    :param redshift: source redshift
-    :param mej: total ejecta mass in solar masses
-    :param f_nickel: fraction of nickel mass
-    :param logl1: bolometric luminosity scale in log10 (cgs)
-    :param tr: transition time for luminosity
-    :param kwargs: Must be all the kwargs required by the specific interaction_process, photosphere, sed methods used
-        e.g., for Diffusion and TemperatureFloor: kappa, kappa_gamma, mej (solar masses), vej (km/s), floor temperature
-    :param interaction_process: Default is Diffusion.
-            Can also be None in which case the output is just the raw engine luminosity, or another interaction process.
-    :param photosphere: Default is TemperatureFloor.
-            kwargs must vej or relevant parameters if using different photosphere model
-    :param sed: Default is blackbody.
-    :param frequency: Required if output_format is ‘flux_density’.
-        frequency to calculate - Must be same length as time array or a single number).
-    :param bands: Required if output_format is ‘magnitude’ or ‘flux’.
-    :param output_format: ‘flux_density’, ‘magnitude’, ‘spectra’, ‘flux’, ‘sncosmo_source’
-    :param lambda_array: Optional argument to set your desired wavelength array (in Angstroms) to evaluate the SED on.
-    :param cosmology: Cosmology to use for luminosity distance calculation. Defaults to Planck18. Must be a astropy.cosmology object.
-    :return: set by output format - ‘flux_density’, ‘magnitude’, ‘spectra’, ‘flux’, ‘sncosmo_source’
+    Supernova model combining nickel decay and fallback accretion.
+
+    Parameters
+    ----------
+    time : np.ndarray
+        Observer frame time in days.
+    redshift : float
+        Source redshift.
+    mej : float
+        Total ejecta mass in solar masses.
+    f_nickel : float
+        Fraction of nickel mass.
+    logl1 : float
+        Bolometric luminosity scale in log10 (erg/s).
+    tr : float
+        Transition time for luminosity in days.
+    **kwargs : dict
+        Additional keyword arguments:
+
+        - interaction_process : class
+            Interaction process class. Default is Diffusion.
+        - photosphere : class
+            Photosphere model. Default is TemperatureFloor.
+        - sed : class
+            SED model. Default is Blackbody.
+        - kappa : float
+            Opacity (required for Diffusion).
+        - kappa_gamma : float
+            Gamma-ray opacity (required for Diffusion).
+        - vej : float
+            Ejecta velocity in km/s.
+        - temperature_floor : float
+            Floor temperature in K.
+        - frequency : np.ndarray or float
+            Required if output_format is 'flux_density'.
+        - bands : str or list
+            Required if output_format is 'magnitude' or 'flux'.
+        - output_format : str
+            'flux_density', 'magnitude', 'spectra', or 'flux'.
+        - lambda_array : np.ndarray
+            Wavelength array in Angstroms. Default is np.geomspace(100, 60000, 100).
+        - cosmology : astropy.cosmology object
+            Cosmology to use. Default is Planck18.
+
+    Returns
+    -------
+    output
+        Format set by output_format: flux density (mJy), magnitude, spectra, or flux.
     """
     kwargs["interaction_process"] = kwargs.get("interaction_process", ip.Diffusion)
     kwargs["photosphere"] = kwargs.get("photosphere", photosphere.TemperatureFloor)
@@ -376,26 +510,56 @@ def sn_nickel_fallback(time, redshift, mej, f_nickel, logl1, tr, **kwargs):
 @citation_wrapper('https://ui.adsabs.harvard.edu/abs/2018ApJS..236....6G/abstract')
 def sn_exponential_powerlaw(time, redshift, lbol_0, alpha_1, alpha_2, tpeak_d, **kwargs):
     """
-    :param time: observer frame time in days
-    :param redshift: source redshift
-    :param lbol_0: bolometric luminosity scale in cgs
-    :param alpha_1: first exponent
-    :param alpha_2: second exponent
-    :param tpeak_d: peak time in days
-    :param kwargs: Must be all the kwargs required by the specific interaction_process, photosphere, sed methods used
-        e.g., for Diffusion and TemperatureFloor: kappa, kappa_gamma, mej (solar masses), vej (km/s), floor temperature
-    :param interaction_process: Default is Diffusion.
-            Can also be None in which case the output is just the raw engine luminosity, or another interaction process.
-    :param photosphere: Default is TemperatureFloor.
-            kwargs must vej or relevant parameters if using different photosphere model
-    :param sed: Default is blackbody.
-    :param frequency: Required if output_format is 'flux_density'.
-        frequency to calculate - Must be same length as time array or a single number).
-    :param bands: Required if output_format is 'magnitude' or 'flux'.
-    :param output_format: 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
-    :param lambda_array: Optional argument to set your desired wavelength array (in Angstroms) to evaluate the SED on.
-    :param cosmology: Cosmology to use for luminosity distance calculation. Defaults to Planck18. Must be a astropy.cosmology object.
-    :return: set by output format - 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
+    Supernova model with exponential power-law light curve.
+
+    Parameters
+    ----------
+    time : np.ndarray
+        Observer frame time in days.
+    redshift : float
+        Source redshift.
+    lbol_0 : float
+        Bolometric luminosity scale in erg/s.
+    alpha_1 : float
+        First power-law exponent.
+    alpha_2 : float
+        Second power-law exponent.
+    tpeak_d : float
+        Peak time in days.
+    **kwargs : dict
+        Additional keyword arguments:
+
+        - interaction_process : class
+            Interaction process class. Default is Diffusion.
+        - photosphere : class
+            Photosphere model. Default is TemperatureFloor.
+        - sed : class
+            SED model. Default is Blackbody.
+        - kappa : float
+            Opacity (required for Diffusion).
+        - kappa_gamma : float
+            Gamma-ray opacity (required for Diffusion).
+        - mej : float
+            Ejecta mass in solar masses.
+        - vej : float
+            Ejecta velocity in km/s.
+        - temperature_floor : float
+            Floor temperature in K.
+        - frequency : np.ndarray or float
+            Required if output_format is 'flux_density'.
+        - bands : str or list
+            Required if output_format is 'magnitude' or 'flux'.
+        - output_format : str
+            'flux_density', 'magnitude', 'spectra', or 'flux'.
+        - lambda_array : np.ndarray
+            Wavelength array in Angstroms. Default is np.geomspace(100, 60000, 100).
+        - cosmology : astropy.cosmology object
+            Cosmology to use. Default is Planck18.
+
+    Returns
+    -------
+    output
+        Format set by output_format: flux density (mJy), magnitude, spectra, or flux.
     """
     kwargs['interaction_process'] = kwargs.get("interaction_process", ip.Diffusion)
     kwargs['photosphere'] = kwargs.get("photosphere", photosphere.TemperatureFloor)
@@ -439,11 +603,28 @@ def sn_exponential_powerlaw(time, redshift, lbol_0, alpha_1, alpha_2, tpeak_d, *
 
 def _nickelcobalt_engine(time, f_nickel, mej, **kwargs):
     """
-    :param time: time in days
-    :param f_nickel: fraction of nickel mass
-    :param mej: total ejecta mass in solar masses
-    :param kwargs: None
-    :return: bolometric_luminosity
+    Nickel-56 and Cobalt-56 radioactive decay engine.
+
+    Parameters
+    ----------
+    time : np.ndarray
+        Time in days.
+    f_nickel : float
+        Fraction of nickel mass.
+    mej : float
+        Total ejecta mass in solar masses.
+    **kwargs : dict
+        Additional keyword arguments (not used).
+
+    Returns
+    -------
+    lbol : np.ndarray
+        Bolometric luminosity in erg/s.
+
+    Notes
+    -----
+    Based on Nadyozhin 1994ApJS...92..527N.
+    Uses Ni-56 and Co-56 luminosities and lifetimes.
     """
     '1994ApJS...92..527N'
     ni56_lum = 6.45e43
@@ -457,19 +638,46 @@ def _nickelcobalt_engine(time, f_nickel, mej, **kwargs):
 def _compute_mass_and_nickel(vmin, esn, mej, f_nickel, f_mixing, mass_len,
                             vmax, delta=0.0, n=12.0):
     """
-    Compute the mass and nickel distributions following a broken power-law
-    density profile inspired by Matzner & McKee (1999)
+    Compute mass and nickel distributions for broken power-law density profile.
 
-    :param vmin: minimum velocity in km/s
-    :param esn: supernova explosion energy in foe
-    :param mej: total ejecta mass in solar masses
-    :param f_nickel: fraction of nickel mass
-    :param f_mixing: fraction of nickel mass that is mixed
-    :param mass_len: number of mass shells
-    :param vmax: maximum velocity in km/s
-    :param delta: inner density profile exponent (actual mass dist is 2 - delta)
-    :param n: outer density profile exponent (actual mass dist is 2 - n)
-    :return: vel in km/s, v_m in cm/s, m_array in solar masses, ni_array in solar masses (total nickel mass is f_nickel*mej)
+    Following Matzner & McKee (1999) broken power-law density profile.
+
+    Parameters
+    ----------
+    vmin : float
+        Minimum velocity in km/s.
+    esn : float
+        Supernova explosion energy in foe (10^51 erg).
+    mej : float
+        Total ejecta mass in solar masses.
+    f_nickel : float
+        Fraction of nickel mass.
+    f_mixing : float
+        Fraction of nickel mass that is mixed.
+    mass_len : int
+        Number of mass shells.
+    vmax : float
+        Maximum velocity in km/s.
+    delta : float, optional
+        Inner density profile exponent. Actual mass distribution is 2 - delta. Default is 0.0.
+    n : float, optional
+        Outer density profile exponent. Actual mass distribution is 2 - n. Default is 12.0.
+
+    Returns
+    -------
+    vel : np.ndarray
+        Velocity grid in km/s.
+    v_m : np.ndarray
+        Velocity grid in cm/s.
+    m_array : np.ndarray
+        Mass distribution in solar masses.
+    ni_array : np.ndarray
+        Nickel distribution in solar masses. Total nickel mass is f_nickel * mej.
+
+    Notes
+    -----
+    Uses a broken power-law density profile with a break velocity derived from
+    Matzner & McKee (1999) shock speed.
     """
     # Create velocity grid in km/s and convert to cm/s.
     vel = np.geomspace(vmin, vmax, mass_len) # km/s
@@ -518,27 +726,74 @@ def _compute_mass_and_nickel(vmin, esn, mej, f_nickel, f_mixing, mass_len,
 def _nickelmixing(time, mej, esn, kappa, kappa_gamma, f_nickel, f_mixing,
                   temperature_floor, **kwargs):
     """
-    :param time: time array to evaluate model on in source frame in seconds
-    :param mej: ejecta mass in solar masses
-    :param esn: explosion energy in foe
-    :param beta: velocity power law slope (M ∝ v^-beta)
-    :param kappa: gray opacity at high temperatures (κ_max) [cm²/g], if use_gray_opacity is True, this is your kappa.
-    :param kappa_gamma: gamma-ray opacity (assumed constant)
-    :param f_nickel: fraction of total ejecta mass that is nickel
-    :param f_mixing: fraction of nickel mass that is mixed, a low value puts all the nickel in the first shell.
-    :param temperature_floor: temperature floor in K, also used as the transition T_crit.
-    :param kwargs: Additional keyword arguments:
-    :param use_broken_powerlaw (bool): whether to use a broken power-law for the mass and nickel distribution, True by default.
-    :param use_gray_opacity (bool): whether to use gray opacity, defaults to True.
-    :param delta (float): inner density profile exponent, used if use_broken_powerlaw is True.
-    :param nn (float): outer density profile exponent, used if use_broken_powerlaw is True.
-    :param beta (float): velocity power law slope, defaults to 3.0. Only used if use_broken_powerlaw is False.
-    :param mass_len (int): number of mass shells, defaults to 200.
-    :param vmax (float): maximum velocity in km/s, defaults to 100000.
-    :param vmin_frac (float): fraction of characteristic velocity that is the minimum velocity, defaults to 1.0.
-    :param kappa_min (float): minimum opacity when cool (default: 0.05 cm²/g).
-    :param kappa_n   (float): exponent controlling the transition (default: 4.0).
-    :return: namedtuple with time_temp (days), lbol, t_photosphere, r_photosphere, tau, and v_photosphere.
+    Multi-shell nickel mixing model with stratified ejecta.
+
+    Computes the light curve evolution with nickel mixing using a multi-shell
+    approach with energy balance and diffusion.
+
+    Parameters
+    ----------
+    time : np.ndarray
+        Time array in source frame in seconds.
+    mej : float
+        Ejecta mass in solar masses.
+    esn : float
+        Explosion energy in foe (10^51 erg).
+    kappa : float
+        Gray opacity at high temperatures (κ_max) in cm²/g.
+        If use_gray_opacity is True, this is the constant opacity.
+    kappa_gamma : float
+        Gamma-ray opacity (assumed constant) in cm²/g.
+    f_nickel : float
+        Fraction of total ejecta mass that is nickel.
+    f_mixing : float
+        Fraction of nickel mass that is mixed.
+        Low values put all nickel in the first shell.
+    temperature_floor : float
+        Temperature floor in K, also used as the transition T_crit.
+    **kwargs : dict
+        Additional keyword arguments:
+
+        - use_broken_powerlaw : bool
+            Whether to use a broken power-law for mass and nickel distribution. Default is True.
+        - use_gray_opacity : bool
+            Whether to use gray opacity. Default is True.
+        - delta : float
+            Inner density profile exponent. Used if use_broken_powerlaw is True. Default is 1.0.
+        - nn : float
+            Outer density profile exponent. Used if use_broken_powerlaw is True. Default is 12.0.
+        - beta : float
+            Velocity power law slope (M ∝ v^-beta). Used if use_broken_powerlaw is False. Default is 3.0.
+        - mass_len : int
+            Number of mass shells. Default is 1000.
+        - vmax : float
+            Maximum velocity in km/s. Default is 250000.
+        - vmin_frac : float
+            Fraction of characteristic velocity that is the minimum velocity. Default is 0.2.
+        - kappa_min : float
+            Minimum opacity when cool. Default is 0.001 cm²/g.
+        - kappa_n : float
+            Exponent controlling opacity transition. Default is 10.
+
+    Returns
+    -------
+    output : namedtuple
+        Named tuple with the following fields:
+
+        - time_temp : np.ndarray
+            Time in days.
+        - lbol : np.ndarray
+            Bolometric luminosity in erg/s.
+        - t_photosphere : np.ndarray
+            Photospheric temperature in K.
+        - r_photosphere : np.ndarray
+            Photospheric radius in cm.
+        - tau : np.ndarray
+            Optical depth (2D array: shells × time).
+        - v_photosphere : np.ndarray
+            Photospheric velocity in cm/s.
+        - energy_v : np.ndarray
+            Energy per shell (2D array: shells × time).
     """
     # Constants assumed defined elsewhere: day_to_s, solar_mass, km_cgs, speed_of_light, sigma_sb.
     tdays = time / day_to_s
@@ -697,22 +952,45 @@ def _nickelmixing(time, mej, esn, kappa, kappa_gamma, f_nickel, f_mixing,
 def nickelmixing_bolometric(time, mej, esn, kappa, kappa_gamma, f_nickel, f_mixing,
                             temperature_floor, **kwargs):
     """
-    A model for the bolometric light curve of a supernova with nickel mixing
+    Bolometric light curve model for supernova with nickel mixing.
 
-    :param time: time in source frame in days
-    :param mej: ejecta mass in solar masses
-    :param esn: energy of explosion in foe
-    :param kappa: gray opacity
-    :param kappa_gamma: gamma-ray opacity
-    :param f_nickel: fraction of nickel mass
-    :param f_mixing: fraction of nickel mass that is mixed, a low value puts all the nickel in the first shell.
-    :param kwargs: bolometric luminosity in erg/s
-    :param beta: power law slope for mass distribution; m = m_0 * (v/v_min)^(-beta)
-    :param stop_time: time to stop ODE at, default is 300 days
-    :param mass_len: number of mass shells, defaults to 200
-    :param vmax: maximum velocity in km/s, defaults to 100000
-    :param dense_resolution: resolution of dense time array, default is 1000
-    :return: bolometric luminosity
+    Parameters
+    ----------
+    time : np.ndarray
+        Time in source frame in days.
+    mej : float
+        Ejecta mass in solar masses.
+    esn : float
+        Explosion energy in foe (10^51 erg).
+    kappa : float
+        Gray opacity in cm²/g.
+    kappa_gamma : float
+        Gamma-ray opacity in cm²/g.
+    f_nickel : float
+        Fraction of nickel mass.
+    f_mixing : float
+        Fraction of nickel mass that is mixed.
+        Low values put all nickel in the first shell.
+    temperature_floor : float
+        Floor temperature in K.
+    **kwargs : dict
+        Additional keyword arguments:
+
+        - beta : float
+            Power law slope for mass distribution (m = m_0 * (v/v_min)^(-beta)).
+        - stop_time : float
+            Time to stop calculation. Default is 300 days.
+        - mass_len : int
+            Number of mass shells. Default is 200.
+        - vmax : float
+            Maximum velocity in km/s. Default is 100000.
+        - dense_resolution : int
+            Resolution of dense time array. Default is 1000.
+
+    Returns
+    -------
+    lbol : np.ndarray
+        Bolometric luminosity in erg/s.
     """
     dense_resolution = kwargs.get("dense_resolution", 1000)
     stop_time = kwargs.get("stop_time", 300)
@@ -729,30 +1007,59 @@ def nickelmixing_bolometric(time, mej, esn, kappa, kappa_gamma, f_nickel, f_mixi
 def nickelmixing(time, redshift, mej, esn, kappa, kappa_gamma, f_nickel, f_mixing,
                  temperature_floor, **kwargs):
     """
-    A model for the radioactive decay of a supernova with nickel mixing
+    Supernova model with radioactive decay and nickel mixing.
 
-    :param time: time in observer frame in days
-    :param redshift: source redshift
-    :param mej: ejecta mass in solar masses
-    :param esn: energy of explosion in foe
-    :param vmax: maximum velocity of ejecta in km/s
-    :param kappa: gray opacity
-    :param kappa_gamma: gamma-ray opacity
-    :param f_nickel: fraction of nickel mass
-    :param f_mixing: fraction of nickel mass that is mixed, a low value puts all the nickel in the first shell.
-    :param kwargs: additional keyword arguments
-    :param beta: power law slope for mass distribution; m = m_0 * (v/v_min)^(-beta)
-    :param mass_len: number of mass shells, defaults to 200
-    :param vmax: maximum velocity in km/s, defaults to 100000
-    :param stop_time: time to stop ODE at, default is 300 days
-    :param dense_resolution: resolution of dense time array, default is 1000
-    :param frequency: Required if output_format is 'flux_density'.
-    frequency to calculate - Must be same length as time array or a single number).
-    :param bands: Required if output_format is 'magnitude' or 'flux'.
-    :param output_format: 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
-    :param lambda_array: Optional argument to set your desired wavelength array (in Angstroms) to evaluate the SED on.
-    :param cosmology: Cosmology to use for luminosity distance calculation. Defaults to Planck18. Must be a astropy.cosmology object.
-    :return: set by output format - 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
+    Multi-shell model including nickel mixing and stratified ejecta.
+
+    Parameters
+    ----------
+    time : np.ndarray
+        Observer frame time in days.
+    redshift : float
+        Source redshift.
+    mej : float
+        Ejecta mass in solar masses.
+    esn : float
+        Explosion energy in foe (10^51 erg).
+    kappa : float
+        Gray opacity in cm²/g.
+    kappa_gamma : float
+        Gamma-ray opacity in cm²/g.
+    f_nickel : float
+        Fraction of nickel mass.
+    f_mixing : float
+        Fraction of nickel mass that is mixed.
+        Low values put all nickel in the first shell.
+    temperature_floor : float
+        Floor temperature in K.
+    **kwargs : dict
+        Additional keyword arguments:
+
+        - beta : float
+            Power law slope for mass distribution (m = m_0 * (v/v_min)^(-beta)).
+        - mass_len : int
+            Number of mass shells. Default is 200.
+        - vmax : float
+            Maximum velocity in km/s. Default is 100000.
+        - stop_time : float
+            Time to stop calculation. Default is 300 days.
+        - dense_resolution : int
+            Resolution of dense time array. Default is 1000.
+        - frequency : np.ndarray or float
+            Required if output_format is 'flux_density'.
+        - bands : str or list
+            Required if output_format is 'magnitude' or 'flux'.
+        - output_format : str
+            'flux_density', 'magnitude', 'spectra', or 'flux'.
+        - lambda_array : np.ndarray
+            Wavelength array in Angstroms. Default is np.geomspace(100, 60000, 100).
+        - cosmology : astropy.cosmology object
+            Cosmology to use. Note: Currently uses FlatLambdaCDM(H0=73, Om0=0.3).
+
+    Returns
+    -------
+    output
+        Format set by output_format: flux density (mJy), magnitude, spectra, or flux.
     """
     # cosmology = kwargs.get('cosmology', cosmo)
     from astropy.cosmology import FlatLambdaCDM
@@ -804,14 +1111,39 @@ def nickelmixing(time, redshift, mej, esn, kappa, kappa_gamma, f_nickel, f_mixin
 @citation_wrapper('https://ui.adsabs.harvard.edu/abs/1982ApJ...253..785A/abstract')
 def arnett_bolometric(time, f_nickel, mej, **kwargs):
     """
-    :param time: time in days
-    :param f_nickel: fraction of nickel mass
-    :param mej: total ejecta mass in solar masses
-    :param kwargs: Must be all the kwargs required by the specific interaction_process
-    :param interaction_process: Default is Diffusion.
-        Can also be None in which case the output is just the raw engine luminosity, or another interaction process.
-        e.g., for Diffusion: kappa, kappa_gamma, vej (km/s), temperature_floor
-    :return: bolometric_luminosity
+    Bolometric Arnett model for nickel-powered supernovae.
+
+    Classic Arnett (1982) model for radioactive decay heating.
+
+    Parameters
+    ----------
+    time : np.ndarray
+        Time in days.
+    f_nickel : float
+        Fraction of nickel mass.
+    mej : float
+        Total ejecta mass in solar masses.
+    **kwargs : dict
+        Additional keyword arguments:
+
+        - interaction_process : class
+            Interaction process class. Default is Diffusion.
+            Can be None for raw engine luminosity.
+        - kappa : float
+            Opacity (required for Diffusion).
+        - kappa_gamma : float
+            Gamma-ray opacity (required for Diffusion).
+        - vej : float
+            Ejecta velocity in km/s (required for Diffusion).
+        - temperature_floor : float
+            Floor temperature in K (required for Diffusion).
+        - dense_resolution : int
+            Resolution of dense time array. Default is 1000.
+
+    Returns
+    -------
+    lbol : np.ndarray
+        Bolometric luminosity in erg/s.
     """
     _interaction_process = kwargs.get("interaction_process", ip.Diffusion)
     lbol = _nickelcobalt_engine(time=time, f_nickel=f_nickel, mej=mej)
@@ -826,24 +1158,56 @@ def arnett_bolometric(time, f_nickel, mej, **kwargs):
 @citation_wrapper('https://ui.adsabs.harvard.edu/abs/1982ApJ...253..785A/abstract')
 def arnett(time, redshift, f_nickel, mej, **kwargs):
     """
-    :param time: time in days
-    :param redshift: source redshift
-    :param f_nickel: fraction of nickel mass
-    :param mej: total ejecta mass in solar masses
-    :param kwargs: Must be all the kwargs required by the specific interaction_process, photosphere, sed methods used
-         e.g., for Diffusion and TemperatureFloor: kappa, kappa_gamma, vej (km/s), temperature_floor
-    :param interaction_process: Default is Diffusion.
-            Can also be None in which case the output is just the raw engine luminosity, or another interaction process.
-    :param photosphere: Default is TemperatureFloor.
-            kwargs must have vej or relevant parameters if using different photosphere model
-    :param sed: Default is blackbody.
-    :param frequency: Required if output_format is 'flux_density'.
-        frequency to calculate - Must be same length as time array or a single number).
-    :param bands: Required if output_format is 'magnitude' or 'flux'.
-    :param output_format: 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
-    :param lambda_array: Optional argument to set your desired wavelength array (in Angstroms) to evaluate the SED on.
-    :param cosmology: Cosmology to use for luminosity distance calculation. Defaults to Planck18. Must be a astropy.cosmology object.
-    :return: set by output format - 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
+    Arnett model for nickel-powered supernovae.
+
+    Classic Arnett (1982) model for radioactive decay heating with photosphere and SED.
+
+    Parameters
+    ----------
+    time : np.ndarray
+        Observer frame time in days.
+    redshift : float
+        Source redshift.
+    f_nickel : float
+        Fraction of nickel mass.
+    mej : float
+        Total ejecta mass in solar masses.
+    **kwargs : dict
+        Additional keyword arguments:
+
+        - interaction_process : class
+            Interaction process class. Default is Diffusion.
+        - photosphere : class
+            Photosphere model. Default is TemperatureFloor.
+        - sed : class
+            SED model. Default is Blackbody.
+        - kappa : float
+            Opacity (required for Diffusion).
+        - kappa_gamma : float
+            Gamma-ray opacity (required for Diffusion).
+        - vej : float
+            Ejecta velocity in km/s.
+        - temperature_floor : float
+            Floor temperature in K.
+        - frequency : np.ndarray or float
+            Required if output_format is 'flux_density'.
+        - bands : str or list
+            Required if output_format is 'magnitude' or 'flux'.
+        - output_format : str
+            'flux_density', 'magnitude', 'spectra', or 'flux'.
+        - lambda_array : np.ndarray
+            Wavelength array in Angstroms. Default is np.geomspace(100, 60000, 100).
+        - cosmology : astropy.cosmology object
+            Cosmology to use. Default is Planck18.
+
+    Returns
+    -------
+    output
+        Format set by output_format: flux density (mJy), magnitude, spectra, or flux.
+
+    Notes
+    -----
+    Based on Arnett (1982), ApJ 253, 785.
     """
     kwargs['interaction_process'] = kwargs.get("interaction_process", ip.Diffusion)
     kwargs['photosphere'] = kwargs.get("photosphere", photosphere.TemperatureFloor)
@@ -888,67 +1252,101 @@ def arnett_with_features(time, redshift, f_nickel, mej, **kwargs):
     """
     A version of the arnett model where SED has time-evolving spectral features.
 
-    :param time: time in days
-    :param redshift: source redshift
-    :param f_nickel: fraction of nickel mass
-    :param mej: total ejecta mass in solar masses
-    :param kwargs: Must be all the kwargs required by the specific interaction_process, photosphere, sed methods used
-         e.g., for Diffusion and TemperatureFloor: kappa, kappa_gamma, vej (km/s), temperature_floor
-    :param interaction_process: Default is Diffusion.
-            Can also be None in which case the output is just the raw engine luminosity, or another interaction process.
-    :param photosphere: Default is TemperatureFloor.
-            kwargs must have vej or relevant parameters if using different photosphere model
-    :param sed: Default is BlackbodyWithFeatures for Type Ia spectra.
-    :param frequency: Required if output_format is 'flux_density'.
-        frequency to calculate - Must be same length as time array or a single number).
-    :param bands: Required if output_format is 'magnitude' or 'flux'.
-    :param output_format: 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
-    :param lambda_array: Optional argument to set your desired wavelength array (in Angstroms) to evaluate the SED on.
-    :param cosmology: Cosmology to use for luminosity distance calculation. Defaults to Planck18. Must be a astropy.cosmology object.
-    :param feature_list: Optional list of spectral features. If None, uses default Type Ia features.
+    Parameters
+    ----------
+    time : np.ndarray
+        Observer frame time in days.
+    redshift : float
+        Source redshift.
+    f_nickel : float
+        Fraction of nickel mass.
+    mej : float
+        Total ejecta mass in solar masses.
+    **kwargs : dict
+        Additional keyword arguments:
 
+        - interaction_process : class
+            Interaction process class. Default is Diffusion.
+            Can also be None for raw engine luminosity.
+        - photosphere : class
+            Photosphere model. Default is TemperatureFloor.
+        - sed : class
+            SED model. Default is BlackbodyWithSpectralFeatures.
+        - kappa : float
+            Opacity in cm^2/g (required for Diffusion).
+        - kappa_gamma : float
+            Gamma-ray opacity in cm^2/g (required for Diffusion).
+        - vej : float
+            Ejecta velocity in km/s (required for Diffusion and TemperatureFloor).
+        - temperature_floor : float
+            Floor temperature in K (required for TemperatureFloor).
+        - frequency : np.ndarray or float
+            Required if output_format is 'flux_density'.
+        - bands : str or list
+            Required if output_format is 'magnitude' or 'flux'.
+        - output_format : str
+            'flux_density', 'magnitude', 'spectra', or 'flux'.
+        - lambda_array : np.ndarray
+            Wavelength array in Angstroms. Default is np.geomspace(100, 60000, 100).
+        - cosmology : astropy.cosmology object
+            Cosmology to use. Default is Planck18.
+        - feature_list : list, optional
+            Optional list of spectral features. If None, uses default Type Ia features.
+        - evolution_mode : str
+            'smooth' or 'sharp'. Default is 'smooth'.
+        - use_default_features : bool
+            If True and no custom features found, use defaults. Default is True.
+
+    Returns
+    -------
+    output
+        Format set by output_format: flux density (mJy), magnitude, spectra, or flux.
+
+    Notes
+    -----
     Feature Parameters (dynamically numbered):
     Features are defined by groups of parameters with pattern: {param}_feature_{N}
     where N starts from 1. All features with the same N are grouped together.
 
     Required for each feature N:
-    :param rest_wavelength_feature_N: Central wavelength in Angstroms
-    :param sigma_feature_N: Gaussian width in Angstroms
-    :param amplitude_feature_N: Amplitude (negative=absorption, positive=emission), percentage of continuum (e.g., -0.4 = 40% absorption)
-    :param t_start_feature_N: Start time in source-frame days
-    :param t_end_feature_N: End time in source-frame days
+        - rest_wavelength_feature_N : float
+            Central wavelength in Angstroms
+        - sigma_feature_N : float
+            Gaussian width in Angstroms
+        - amplitude_feature_N : float
+            Amplitude (negative=absorption, positive=emission), percentage of continuum (e.g., -0.4 = 40% absorption)
+        - t_start_feature_N : float
+            Start time in source-frame days
+        - t_end_feature_N : float
+            End time in source-frame days
 
     Optional for each feature N (smooth mode only):
-    :param t_rise_feature_N: Rise time in source-frame days (default: 2.0)
-    :param t_fall_feature_N: Fall time in source-frame days (default: 5.0)
+        - t_rise_feature_N : float
+            Rise time in source-frame days (default: 2.0)
+        - t_fall_feature_N : float
+            Fall time in source-frame days (default: 5.0)
 
-    General parameters:
-    :param evolution_mode: 'smooth' or 'sharp' (default: 'smooth')
-    :param use_default_features: If True and no custom features found, use defaults (default: True)
-
-    Examples:
+    Examples
     --------
-    # Single custom feature
-    result = model(time, z, f_ni, mej,
-                   rest_wavelength_feature_1=6355.0,
-                   sigma_feature_1=400.0,
-                   amplitude_feature_1=-0.4,
-                   t_start_feature_1=0,
-                   t_end_feature_1=30,
-                   output_format='magnitude', bands='lsstg')
+    Single custom feature:
+    >>> result = model(time, z, f_ni, mej,
+    ...                rest_wavelength_feature_1=6355.0,
+    ...                sigma_feature_1=400.0,
+    ...                amplitude_feature_1=-0.4,
+    ...                t_start_feature_1=0,
+    ...                t_end_feature_1=30,
+    ...                output_format='magnitude', bands='lsstg')
 
-    # Multiple features
-    result = model(time, z, f_ni, mej,
-                   rest_wavelength_feature_1=6355.0, sigma_feature_1=400.0,
-                   amplitude_feature_1=-0.4, t_start_feature_1=0, t_end_feature_1=40,
-                   rest_wavelength_feature_2=3934.0, sigma_feature_2=300.0,
-                   amplitude_feature_2=-0.5, t_start_feature_2=0, t_end_feature_2=60,
-                   rest_wavelength_feature_3=8600.0, sigma_feature_3=500.0,
-                   amplitude_feature_3=-0.3, t_start_feature_3=0, t_end_feature_3=50,
-                   evolution_mode='smooth',
-                   output_format='magnitude', bands='lsstg')
-
-    :return: set by output format - 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
+    Multiple features:
+    >>> result = model(time, z, f_ni, mej,
+    ...                rest_wavelength_feature_1=6355.0, sigma_feature_1=400.0,
+    ...                amplitude_feature_1=-0.4, t_start_feature_1=0, t_end_feature_1=40,
+    ...                rest_wavelength_feature_2=3934.0, sigma_feature_2=300.0,
+    ...                amplitude_feature_2=-0.5, t_start_feature_2=0, t_end_feature_2=60,
+    ...                rest_wavelength_feature_3=8600.0, sigma_feature_3=500.0,
+    ...                amplitude_feature_3=-0.3, t_start_feature_3=0, t_end_feature_3=50,
+    ...                evolution_mode='smooth',
+    ...                output_format='magnitude', bands='lsstg')
     """
     kwargs['interaction_process'] = kwargs.get("interaction_process", ip.Diffusion)
     kwargs['photosphere'] = kwargs.get("photosphere", photosphere.TemperatureFloor)
@@ -1027,22 +1425,42 @@ def arnett_with_features(time, redshift, f_nickel, mej, **kwargs):
 def shock_cooling_and_arnett_bolometric(time, log10_mass, log10_radius, log10_energy,
                              f_nickel, mej, vej, kappa, kappa_gamma, temperature_floor, **kwargs):
     """
-    Bolometric luminosity of shock cooling and arnett model
+    Combined shock cooling and Arnett bolometric luminosity model.
 
-    :param time: time in days in source frame
-    :param log10_mass: log10 mass of extended material in solar masses
-    :param log10_radius: log10 radius of extended material in cm
-    :param log10_energy: log10 energy of extended material in ergs
-    :param f_nickel: fraction of nickel mass
-    :param mej: total ejecta mass in solar masses
-    :param vej: velocity of ejecta in km/s
-    :param kappa: opacity in cm^2/g
-    :param kappa_gamma: gamma-ray opacity in cm^2/g
-    :param temperature_floor: temperature floor in K
-    :param kwargs: Additional keyword arguments
-    :param nn: density power law slope
-    :param delta: inner density power law slope
-    :return: bolometric luminosity in erg/s
+    Parameters
+    ----------
+    time : np.ndarray
+        Time in days in source frame.
+    log10_mass : float
+        Log10 mass of extended material in solar masses.
+    log10_radius : float
+        Log10 radius of extended material in cm.
+    log10_energy : float
+        Log10 energy of extended material in erg.
+    f_nickel : float
+        Fraction of nickel mass.
+    mej : float
+        Total ejecta mass in solar masses.
+    vej : float
+        Velocity of ejecta in km/s.
+    kappa : float
+        Opacity in cm²/g.
+    kappa_gamma : float
+        Gamma-ray opacity in cm²/g.
+    temperature_floor : float
+        Temperature floor in K.
+    **kwargs : dict
+        Additional keyword arguments:
+
+        - nn : float
+            Density power law slope.
+        - delta : float
+            Inner density power law slope.
+
+    Returns
+    -------
+    lbol : np.ndarray
+        Bolometric luminosity in erg/s.
     """
     from redback.transient_models.shock_powered_models import shock_cooling_bolometric
     lbol_1 = shock_cooling_bolometric(time=time * day_to_s, log10_mass=log10_mass, log10_radius=log10_radius,
@@ -1056,32 +1474,58 @@ def shock_cooling_and_arnett_bolometric(time, log10_mass, log10_radius, log10_en
 def shock_cooling_and_arnett(time, redshift, log10_mass, log10_radius, log10_energy,
                              f_nickel, mej, vej, kappa, kappa_gamma, temperature_floor, **kwargs):
     """
-    Photometric light curve of shock cooling and arnett model
+    Photometric light curve of shock cooling and arnett model.
 
-    :param time: time in days
-    :param redshift: source redshift
-    :param log10_mass: log10 mass of extended material in solar masses
-    :param log10_radius: log10 radius of extended material in cm
-    :param log10_energy: log10 energy of extended material in ergs
-    :param f_nickel: fraction of nickel mass
-    :param mej: total ejecta mass in solar masses
-    :param vej: velocity of ejecta in km/s
-    :param kappa: opacity in cm^2/g
-    :param kappa_gamma: gamma-ray opacity in cm^2/g
-    :param temperature_floor: temperature floor in K
-    :param kwargs: Additional keyword arguments
-    :param nn: density power law slope
-    :param delta: inner density power law slope
-    :param photosphere: Default is TemperatureFloor.
-            kwargs must have vej or relevant parameters if using different photosphere model
-    :param sed: Default is blackbody.
-    :param frequency: Required if output_format is 'flux_density'.
-        frequency to calculate - Must be same length as time array or a single number).
-    :param bands: Required if output_format is 'magnitude' or 'flux'.
-    :param output_format: 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
-    :param lambda_array: Optional argument to set your desired wavelength array (in Angstroms) to evaluate the SED on.
-    :param cosmology: Cosmology to use for luminosity distance calculation. Defaults to Planck18. Must be a astropy.cosmology object.
-    :return: set by output format - 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
+    Parameters
+    ----------
+    time : np.ndarray
+        Observer frame time in days.
+    redshift : float
+        Source redshift.
+    log10_mass : float
+        Log10 mass of extended material in solar masses.
+    log10_radius : float
+        Log10 radius of extended material in cm.
+    log10_energy : float
+        Log10 energy of extended material in erg.
+    f_nickel : float
+        Fraction of nickel mass.
+    mej : float
+        Total ejecta mass in solar masses.
+    vej : float
+        Velocity of ejecta in km/s.
+    kappa : float
+        Opacity in cm^2/g.
+    kappa_gamma : float
+        Gamma-ray opacity in cm^2/g.
+    temperature_floor : float
+        Temperature floor in K.
+    **kwargs : dict
+        Additional keyword arguments:
+
+        - nn : float
+            Density power law slope.
+        - delta : float
+            Inner density power law slope.
+        - photosphere : class
+            Photosphere model. Default is TemperatureFloor.
+        - sed : class
+            SED model. Default is Blackbody.
+        - frequency : np.ndarray or float
+            Required if output_format is 'flux_density'.
+        - bands : str or list
+            Required if output_format is 'magnitude' or 'flux'.
+        - output_format : str
+            'flux_density', 'magnitude', 'spectra', or 'flux'.
+        - lambda_array : np.ndarray
+            Wavelength array in Angstroms. Default is np.geomspace(100, 60000, 100).
+        - cosmology : astropy.cosmology object
+            Cosmology to use. Default is Planck18.
+
+    Returns
+    -------
+    output
+        Format set by output_format: flux density (mJy), magnitude, spectra, or flux.
     """
     kwargs['photosphere'] = kwargs.get("photosphere", photosphere.TemperatureFloor)
     kwargs['sed'] = kwargs.get("sed", sed.Blackbody)
@@ -1129,18 +1573,33 @@ def shock_cooling_and_arnett(time, redshift, log10_mass, log10_radius, log10_ene
 @citation_wrapper('https://academic.oup.com/mnras/article/522/2/2764/7086123#443111844, https://ui.adsabs.harvard.edu/abs/1982ApJ...253..785A/abstract')
 def shockcooling_morag_and_arnett_bolometric(time, v_shock, m_env, mej, f_rho, f_nickel, radius, kappa, **kwargs):
     """
-    Assumes Shock cooling following Morag+ and arnett model for radioactive decay
+    Shock cooling following Morag+ and Arnett model for radioactive decay.
 
-    :param time: time in source frame in days
-    :param v_shock: shock speed in km/s, also the ejecta velocity in the arnett calculation
-    :param m_env: envelope mass in solar masses
-    :param mej: ejecta mass in solar masses
-    :param f_rho: f_rho. Typically, of order unity
-    :param f_nickel: fraction of nickel mass
-    :param radius: star/envelope radius in units of 10^13 cm
-    :param kappa: opacity in cm^2/g
-    :param kwargs: Additional parameters required by model
-    :return: bolometric luminosity in erg/s
+    Parameters
+    ----------
+    time : np.ndarray
+        Time in source frame in days.
+    v_shock : float
+        Shock speed in km/s, also the ejecta velocity in the Arnett calculation.
+    m_env : float
+        Envelope mass in solar masses.
+    mej : float
+        Ejecta mass in solar masses.
+    f_rho : float
+        f_rho parameter. Typically of order unity.
+    f_nickel : float
+        Fraction of nickel mass.
+    radius : float
+        Star/envelope radius in units of 10^13 cm.
+    kappa : float
+        Opacity in cm^2/g.
+    **kwargs : dict
+        Additional keyword arguments required by the model.
+
+    Returns
+    -------
+    lbol : np.ndarray
+        Bolometric luminosity in erg/s.
     """
     from redback.transient_models.shock_powered_models import shockcooling_morag_bolometric
     f_rho_m = f_rho * mej
@@ -1154,25 +1613,46 @@ def shockcooling_morag_and_arnett_bolometric(time, v_shock, m_env, mej, f_rho, f
 @citation_wrapper('https://academic.oup.com/mnras/article/522/2/2764/7086123#443111844, https://ui.adsabs.harvard.edu/abs/1982ApJ...253..785A/abstract')
 def shockcooling_morag_and_arnett(time, redshift, v_shock, m_env, mej, f_rho, f_nickel, radius, kappa, **kwargs):
     """
-    Assumes Shock cooling following Morag+ and arnett model for radioactive decay
+    Shock cooling following Morag+ and Arnett model for radioactive decay.
 
-    :param time: time in observer frame in days
-    :param redshift: source redshift
-    :param v_shock: shock speed in km/s, also the ejecta velocity in the arnett calculation
-    :param m_env: envelope mass in solar masses
-    :param mej: ejecta mass in solar masses
-    :param f_rho: f_rho. Typically, of order unity
-    :param f_nickel: fraction of nickel mass
-    :param radius: star/envelope radius in units of 10^13 cm
-    :param kappa: opacity in cm^2/g
-    :param kwargs: Additional parameters required by model
-    :param frequency: Required if output_format is 'flux_density'.
-        frequency to calculate - Must be same length as time array or a single number).
-    :param bands: Required if output_format is 'magnitude' or 'flux'.
-    :param output_format: 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
-    :param lambda_array: Optional argument to set your desired wavelength array (in Angstroms) to evaluate the SED on.
-    :param cosmology: Cosmology to use for luminosity distance calculation. Defaults to Planck18. Must be a astropy.cosmology object.
-    :return: set by output format - 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
+    Parameters
+    ----------
+    time : np.ndarray
+        Observer frame time in days.
+    redshift : float
+        Source redshift.
+    v_shock : float
+        Shock speed in km/s, also the ejecta velocity in the Arnett calculation.
+    m_env : float
+        Envelope mass in solar masses.
+    mej : float
+        Ejecta mass in solar masses.
+    f_rho : float
+        f_rho parameter. Typically of order unity.
+    f_nickel : float
+        Fraction of nickel mass.
+    radius : float
+        Star/envelope radius in units of 10^13 cm.
+    kappa : float
+        Opacity in cm^2/g.
+    **kwargs : dict
+        Additional keyword arguments:
+
+        - frequency : np.ndarray or float
+            Required if output_format is 'flux_density'.
+        - bands : str or list
+            Required if output_format is 'magnitude' or 'flux'.
+        - output_format : str
+            'flux_density', 'magnitude', 'spectra', or 'flux'.
+        - lambda_array : np.ndarray
+            Wavelength array in Angstroms. Default is np.geomspace(100, 60000, 100).
+        - cosmology : astropy.cosmology object
+            Cosmology to use. Default is Planck18.
+
+    Returns
+    -------
+    output
+        Format set by output_format: flux density (mJy), magnitude, spectra, or flux.
     """
     cosmology = kwargs.get('cosmology', cosmo)
     dl = cosmology.luminosity_distance(redshift).cgs.value
@@ -1213,20 +1693,38 @@ def shockcooling_morag_and_arnett(time, redshift, v_shock, m_env, mej, f_rho, f_
 @citation_wrapper('https://iopscience.iop.org/article/10.3847/1538-4357/aa64df, https://ui.adsabs.harvard.edu/abs/1982ApJ...253..785A/abstract')
 def shockcooling_sapirwaxman_and_arnett_bolometric(time, v_shock, m_env, mej, f_rho, f_nickel, radius, kappa, **kwargs):
     """
-    Assumes Shock cooling following Sapir and Waxman and arnett model for radioactive decay
+    Shock cooling following Sapir and Waxman and Arnett model for radioactive decay.
 
-    :param time: time in source frame in days
-    :param v_shock: shock speed in km/s, also the ejecta velocity in the arnett calculation
-    :param m_env: envelope mass in solar masses
-    :param mej: ejecta mass in solar masses
-    :param f_rho: f_rho. Typically, of order unity
-    :param f_nickel: fraction of nickel mass
-    :param radius: star/envelope radius in units of 10^13 cm
-    :param kappa: opacity in cm^2/g
-    :param kwargs: Additional parameters required by model
-    :param n: index of progenitor density profile, 1.5 (default) or 3.0
-    :param RW: If True, use the simplified Rabinak & Waxman formulation (off by default)
-    :return: bolometric luminosity in erg/s
+    Parameters
+    ----------
+    time : np.ndarray
+        Time in source frame in days.
+    v_shock : float
+        Shock speed in km/s, also the ejecta velocity in the Arnett calculation.
+    m_env : float
+        Envelope mass in solar masses.
+    mej : float
+        Ejecta mass in solar masses.
+    f_rho : float
+        f_rho parameter. Typically of order unity.
+    f_nickel : float
+        Fraction of nickel mass.
+    radius : float
+        Star/envelope radius in units of 10^13 cm.
+    kappa : float
+        Opacity in cm^2/g.
+    **kwargs : dict
+        Additional keyword arguments:
+
+        - n : float
+            Index of progenitor density profile, 1.5 (default) or 3.0.
+        - RW : bool
+            If True, use the simplified Rabinak & Waxman formulation (off by default).
+
+    Returns
+    -------
+    lbol : np.ndarray
+        Bolometric luminosity in erg/s.
     """
     from redback.transient_models.shock_powered_models import shockcooling_sapirandwaxman_bolometric
     f_rho_m = f_rho * mej
@@ -1240,26 +1738,50 @@ def shockcooling_sapirwaxman_and_arnett_bolometric(time, v_shock, m_env, mej, f_
 @citation_wrapper('https://iopscience.iop.org/article/10.3847/1538-4357/aa64df, https://ui.adsabs.harvard.edu/abs/1982ApJ...253..785A/abstract')
 def shockcooling_sapirwaxman_and_arnett(time, redshift, v_shock, m_env, mej, f_rho, f_nickel, radius, kappa, **kwargs):
     """
-    Assumes Shock cooling following Sapir and Waxman and arnett model for radioactive decay
+    Shock cooling following Sapir and Waxman and Arnett model for radioactive decay.
 
-    :param time: time in source frame in days
-    :param v_shock: shock speed in km/s, also the ejecta velocity in the arnett calculation
-    :param m_env: envelope mass in solar masses
-    :param mej: ejecta mass in solar masses
-    :param f_rho: f_rho. Typically, of order unity
-    :param f_nickel: fraction of nickel mass
-    :param radius: star/envelope radius in units of 10^13 cm
-    :param kappa: opacity in cm^2/g
-    :param kwargs: Additional parameters required by model
-    :param n: index of progenitor density profile, 1.5 (default) or 3.0
-    :param RW: If True, use the simplified Rabinak & Waxman formulation (off by default)
-    :param frequency: Required if output_format is 'flux_density'.
-        frequency to calculate - Must be same length as time array or a single number).
-    :param bands: Required if output_format is 'magnitude' or 'flux'.
-    :param output_format: 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
-    :param lambda_array: Optional argument to set your desired wavelength array (in Angstroms) to evaluate the SED on.
-    :param cosmology: Cosmology to use for luminosity distance calculation. Defaults to Planck18. Must be a astropy.cosmology object.
-    :return: set by output format - 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
+    Parameters
+    ----------
+    time : np.ndarray
+        Observer frame time in days.
+    redshift : float
+        Source redshift.
+    v_shock : float
+        Shock speed in km/s, also the ejecta velocity in the Arnett calculation.
+    m_env : float
+        Envelope mass in solar masses.
+    mej : float
+        Ejecta mass in solar masses.
+    f_rho : float
+        f_rho parameter. Typically of order unity.
+    f_nickel : float
+        Fraction of nickel mass.
+    radius : float
+        Star/envelope radius in units of 10^13 cm.
+    kappa : float
+        Opacity in cm^2/g.
+    **kwargs : dict
+        Additional keyword arguments:
+
+        - n : float
+            Index of progenitor density profile, 1.5 (default) or 3.0.
+        - RW : bool
+            If True, use the simplified Rabinak & Waxman formulation (off by default).
+        - frequency : np.ndarray or float
+            Required if output_format is 'flux_density'.
+        - bands : str or list
+            Required if output_format is 'magnitude' or 'flux'.
+        - output_format : str
+            'flux_density', 'magnitude', 'spectra', or 'flux'.
+        - lambda_array : np.ndarray
+            Wavelength array in Angstroms. Default is np.geomspace(100, 60000, 100).
+        - cosmology : astropy.cosmology object
+            Cosmology to use. Default is Planck18.
+
+    Returns
+    -------
+    output
+        Format set by output_format: flux density (mJy), magnitude, spectra, or flux.
     """
     cosmology = kwargs.get('cosmology', cosmo)
     dl = cosmology.luminosity_distance(redshift).cgs.value
@@ -1302,16 +1824,41 @@ def shockcooling_sapirwaxman_and_arnett(time, redshift, v_shock, m_env, mej, f_r
 @citation_wrapper('redback')
 def basic_magnetar_powered_bolometric(time, p0, bp, mass_ns, theta_pb, **kwargs):
     """
-    :param time: time in days in source frame
-    :param p0: initial spin period
-    :param bp: polar magnetic field strength in Gauss
-    :param mass_ns: mass of neutron star in solar masses
-    :param theta_pb: angle between spin and magnetic field axes
-    :param kwargs: Must be all the kwargs required by the specific interaction_process
-             e.g., for Diffusion: kappa, kappa_gamma, vej (km/s), temperature_floor
-    :param interaction_process: Default is Diffusion.
-        Can also be None in which case the output is just the raw engine luminosity, or another interaction process.
-    :return: bolometric_luminosity
+    Basic magnetar-powered bolometric luminosity model.
+
+    Parameters
+    ----------
+    time : np.ndarray
+        Time in days in source frame.
+    p0 : float
+        Initial spin period in seconds.
+    bp : float
+        Polar magnetic field strength in Gauss.
+    mass_ns : float
+        Mass of neutron star in solar masses.
+    theta_pb : float
+        Angle between spin and magnetic field axes in radians.
+    **kwargs : dict
+        Additional keyword arguments:
+
+        - interaction_process : class
+            Interaction process class. Default is Diffusion.
+            Can also be None for raw engine luminosity.
+        - kappa : float
+            Opacity in cm^2/g (required for Diffusion).
+        - kappa_gamma : float
+            Gamma-ray opacity in cm^2/g (required for Diffusion).
+        - vej : float
+            Ejecta velocity in km/s (required for Diffusion).
+        - temperature_floor : float
+            Floor temperature in K (required for Diffusion).
+        - dense_resolution : int
+            Resolution of dense time array. Default is 1000.
+
+    Returns
+    -------
+    lbol : np.ndarray
+        Bolometric luminosity in erg/s.
     """
     _interaction_process = kwargs.get("interaction_process", ip.Diffusion)
     lbol = basic_magnetar(time=time * day_to_s, p0=p0, bp=bp, mass_ns=mass_ns, theta_pb=theta_pb)
@@ -1326,26 +1873,55 @@ def basic_magnetar_powered_bolometric(time, p0, bp, mass_ns, theta_pb, **kwargs)
 @citation_wrapper('https://ui.adsabs.harvard.edu/abs/2017ApJ...850...55N/abstract')
 def basic_magnetar_powered(time, redshift, p0, bp, mass_ns, theta_pb,**kwargs):
     """
-    :param time: time in days in observer frame
-    :param redshift: source redshift
-    :param p0: initial spin period
-    :param bp: polar magnetic field strength in Gauss
-    :param mass_ns: mass of neutron star in solar masses
-    :param theta_pb: angle between spin and magnetic field axes
-    :param kwargs: Must be all the kwargs required by the specific interaction_process, photosphere, sed methods used
-         e.g., for Diffusion and TemperatureFloor: kappa, kappa_gamma, vej (km/s), temperature_floor
-    :param interaction_process: Default is Diffusion.
-            Can also be None in which case the output is just the raw engine luminosity, or another interaction process.
-    :param photosphere: Default is TemperatureFloor.
-            kwargs must have vej or relevant parameters if using different photosphere model
-    :param sed: Default is blackbody.
-    :param frequency: Required if output_format is 'flux_density'.
-        frequency to calculate - Must be same length as time array or a single number.
-    :param bands: Required if output_format is 'magnitude' or 'flux'.
-    :param output_format: 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
-    :param lambda_array: Optional argument to set your desired wavelength array (in Angstroms) to evaluate the SED on.
-    :param cosmology: Cosmology to use for luminosity distance calculation. Defaults to Planck18. Must be a astropy.cosmology object.
-    :return: set by output format - 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
+    Basic magnetar-powered supernova model.
+
+    Parameters
+    ----------
+    time : np.ndarray
+        Observer frame time in days.
+    redshift : float
+        Source redshift.
+    p0 : float
+        Initial spin period in seconds.
+    bp : float
+        Polar magnetic field strength in Gauss.
+    mass_ns : float
+        Mass of neutron star in solar masses.
+    theta_pb : float
+        Angle between spin and magnetic field axes in radians.
+    **kwargs : dict
+        Additional keyword arguments:
+
+        - interaction_process : class
+            Interaction process class. Default is Diffusion.
+            Can also be None for raw engine luminosity.
+        - photosphere : class
+            Photosphere model. Default is TemperatureFloor.
+        - sed : class
+            SED model. Default is Blackbody.
+        - kappa : float
+            Opacity in cm^2/g (required for Diffusion).
+        - kappa_gamma : float
+            Gamma-ray opacity in cm^2/g (required for Diffusion).
+        - vej : float
+            Ejecta velocity in km/s (required for Diffusion and TemperatureFloor).
+        - temperature_floor : float
+            Floor temperature in K (required for TemperatureFloor).
+        - frequency : np.ndarray or float
+            Required if output_format is 'flux_density'.
+        - bands : str or list
+            Required if output_format is 'magnitude' or 'flux'.
+        - output_format : str
+            'flux_density', 'magnitude', 'spectra', or 'flux'.
+        - lambda_array : np.ndarray
+            Wavelength array in Angstroms. Default is np.geomspace(100, 60000, 100).
+        - cosmology : astropy.cosmology object
+            Cosmology to use. Default is Planck18.
+
+    Returns
+    -------
+    output
+        Format set by output_format: flux density (mJy), magnitude, spectra, or flux.
     """
     kwargs['interaction_process'] = kwargs.get("interaction_process", ip.Diffusion)
     kwargs['photosphere'] = kwargs.get("photosphere", photosphere.TemperatureFloor)
@@ -1387,18 +1963,41 @@ def basic_magnetar_powered(time, redshift, p0, bp, mass_ns, theta_pb,**kwargs):
 @citation_wrapper('redback')
 def slsn_bolometric(time, p0, bp, mass_ns, theta_pb,**kwargs):
     """
-    Same as basic magnetar_powered but with constraint on rotational_energy/kinetic_energy and nebula phase
+    Superluminous supernova (SLSN) bolometric luminosity model with magnetar constraint.
 
-    :param time: time in days in source frame
-    :param p0: initial spin period
-    :param bp: polar magnetic field strength in Gauss
-    :param mass_ns: mass of neutron star in solar masses
-    :param theta_pb: angle between spin and magnetic field axes
-    :param kwargs: Must be all the kwargs required by the specific interaction_process
-             e.g., for Diffusion: kappa, kappa_gamma, vej (km/s), temperature_floor
-    :param interaction_process: Default is Diffusion.
-            Can also be None in which case the output is just the raw engine luminosity, or another interaction process.
-    :return: bolometric_luminosity
+    Same as basic_magnetar_powered but with constraint on rotational_energy/kinetic_energy and nebula phase.
+
+    Parameters
+    ----------
+    time : np.ndarray
+        Time in days in source frame.
+    p0 : float
+        Initial spin period in seconds.
+    bp : float
+        Polar magnetic field strength in Gauss.
+    mass_ns : float
+        Mass of neutron star in solar masses.
+    theta_pb : float
+        Angle between spin and magnetic field axes in radians.
+    **kwargs : dict
+        Additional keyword arguments:
+
+        - interaction_process : class
+            Interaction process class. Default is Diffusion.
+            Can also be None for raw engine luminosity.
+        - kappa : float
+            Opacity in cm^2/g (required for Diffusion).
+        - kappa_gamma : float
+            Gamma-ray opacity in cm^2/g (required for Diffusion).
+        - vej : float
+            Ejecta velocity in km/s (required for Diffusion).
+        - temperature_floor : float
+            Floor temperature in K (required for Diffusion).
+
+    Returns
+    -------
+    lbol : np.ndarray
+        Bolometric luminosity in erg/s.
     """
     return basic_magnetar_powered_bolometric(time=time, p0=p0, bp=bp, mass_ns=mass_ns,
                                              theta_pb=theta_pb, **kwargs)
@@ -1407,29 +2006,59 @@ def slsn_bolometric(time, p0, bp, mass_ns, theta_pb,**kwargs):
 @citation_wrapper('https://ui.adsabs.harvard.edu/abs/2017ApJ...850...55N/abstract')
 def slsn(time, redshift, p0, bp, mass_ns, theta_pb,**kwargs):
     """
-    Same as basic magnetar_powered but with constraint on rotational_energy/kinetic_energy and nebula phase
+    Superluminous supernova (SLSN) model with magnetar constraint.
 
-    :param time: time in days in observer frame
-    :param redshift: source redshift
-    :param p0: initial spin period
-    :param bp: polar magnetic field strength in Gauss
-    :param mass_ns: mass of neutron star in solar masses
-    :param theta_pb: angle between spin and magnetic field axes
-    :param kwargs: Must be all the kwargs required by the specific interaction_process, photosphere, sed methods used
-             e.g., for Diffusion and TemperatureFloor: kappa, kappa_gamma, vej (km/s), temperature_floor
-             and CutoffBlackbody: cutoff_wavelength, default is 3000 Angstrom
-    :param interaction_process: Default is Diffusion.
-            Can also be None in which case the output is just the raw engine luminosity, or another interaction process.
-    :param photosphere: Default is TemperatureFloor.
-            kwargs must have vej or relevant parameters if using different photosphere model
-    :param sed: Default is CutoffBlackbody.
-    :param frequency: Required if output_format is 'flux_density'.
-        frequency to calculate - Must be same length as time array or a single number).
-    :param bands: Required if output_format is 'magnitude' or 'flux'.
-    :param output_format: 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
-    :param lambda_array: Optional argument to set your desired wavelength array (in Angstroms) to evaluate the SED on.
-    :param cosmology: Cosmology to use for luminosity distance calculation. Defaults to Planck18. Must be a astropy.cosmology object.
-    :return: set by output format - 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
+    Same as basic_magnetar_powered but with constraint on rotational_energy/kinetic_energy and nebula phase.
+
+    Parameters
+    ----------
+    time : np.ndarray
+        Observer frame time in days.
+    redshift : float
+        Source redshift.
+    p0 : float
+        Initial spin period in seconds.
+    bp : float
+        Polar magnetic field strength in Gauss.
+    mass_ns : float
+        Mass of neutron star in solar masses.
+    theta_pb : float
+        Angle between spin and magnetic field axes in radians.
+    **kwargs : dict
+        Additional keyword arguments:
+
+        - interaction_process : class
+            Interaction process class. Default is Diffusion.
+            Can also be None for raw engine luminosity.
+        - photosphere : class
+            Photosphere model. Default is TemperatureFloor.
+        - sed : class
+            SED model. Default is CutoffBlackbody.
+        - kappa : float
+            Opacity in cm^2/g (required for Diffusion).
+        - kappa_gamma : float
+            Gamma-ray opacity in cm^2/g (required for Diffusion).
+        - vej : float
+            Ejecta velocity in km/s (required for Diffusion and TemperatureFloor).
+        - temperature_floor : float
+            Floor temperature in K (required for TemperatureFloor).
+        - cutoff_wavelength : float
+            Cutoff wavelength in Angstroms for CutoffBlackbody. Default is 3000.
+        - frequency : np.ndarray or float
+            Required if output_format is 'flux_density'.
+        - bands : str or list
+            Required if output_format is 'magnitude' or 'flux'.
+        - output_format : str
+            'flux_density', 'magnitude', 'spectra', or 'flux'.
+        - lambda_array : np.ndarray
+            Wavelength array in Angstroms. Default is np.geomspace(100, 60000, 100).
+        - cosmology : astropy.cosmology object
+            Cosmology to use. Default is Planck18.
+
+    Returns
+    -------
+    output
+        Format set by output_format: flux density (mJy), magnitude, spectra, or flux.
     """
     kwargs['interaction_process'] = kwargs.get("interaction_process", ip.Diffusion)
     kwargs['photosphere'] = kwargs.get("photosphere", photosphere.TemperatureFloor)
@@ -1480,28 +2109,59 @@ def slsn(time, redshift, p0, bp, mass_ns, theta_pb,**kwargs):
 @citation_wrapper('https://ui.adsabs.harvard.edu/abs/2018ApJS..236....6G/abstract')
 def magnetar_nickel(time, redshift, f_nickel, mej, p0, bp, mass_ns, theta_pb, **kwargs):
     """
-    :param time: time in days in observer frame
-    :param f_nickel: fraction of nickel mass
-    :param mej: total ejecta mass in solar masses
-    :param redshift: source redshift
-    :param p0: initial spin period
-    :param bp: polar magnetic field strength in Gauss
-    :param mass_ns: mass of neutron star in solar masses
-    :param theta_pb: angle between spin and magnetic field axes
-    :param kwargs: Must be all the kwargs required by the specific interaction_process, photosphere, sed methods used
-             e.g., for Diffusion and TemperatureFloor: kappa, kappa_gamma, vej (km/s), temperature_floor
-    :param interaction_process: Default is Diffusion.
-            Can also be None in which case the output is just the raw engine luminosity, or another interaction process.
-    :param photosphere: Default is TemperatureFloor.
-            kwargs must have vej or relevant parameters if using different photosphere model
-    :param sed: Default is blackbody.
-    :param frequency: Required if output_format is 'flux_density'.
-        frequency to calculate - Must be same length as time array or a single number).
-    :param bands: Required if output_format is 'magnitude' or 'flux'.
-    :param output_format: 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
-    :param lambda_array: Optional argument to set your desired wavelength array (in Angstroms) to evaluate the SED on.
-    :param cosmology: Cosmology to use for luminosity distance calculation. Defaults to Planck18. Must be a astropy.cosmology object.
-    :return: set by output format - 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
+    Magnetar-powered supernova with nickel decay.
+
+    Parameters
+    ----------
+    time : np.ndarray
+        Observer frame time in days.
+    redshift : float
+        Source redshift.
+    f_nickel : float
+        Fraction of nickel mass.
+    mej : float
+        Total ejecta mass in solar masses.
+    p0 : float
+        Initial spin period in seconds.
+    bp : float
+        Polar magnetic field strength in Gauss.
+    mass_ns : float
+        Mass of neutron star in solar masses.
+    theta_pb : float
+        Angle between spin and magnetic field axes in radians.
+    **kwargs : dict
+        Additional keyword arguments:
+
+        - interaction_process : class
+            Interaction process class. Default is Diffusion.
+            Can also be None for raw engine luminosity.
+        - photosphere : class
+            Photosphere model. Default is TemperatureFloor.
+        - sed : class
+            SED model. Default is Blackbody.
+        - kappa : float
+            Opacity in cm^2/g (required for Diffusion).
+        - kappa_gamma : float
+            Gamma-ray opacity in cm^2/g (required for Diffusion).
+        - vej : float
+            Ejecta velocity in km/s (required for Diffusion and TemperatureFloor).
+        - temperature_floor : float
+            Floor temperature in K (required for TemperatureFloor).
+        - frequency : np.ndarray or float
+            Required if output_format is 'flux_density'.
+        - bands : str or list
+            Required if output_format is 'magnitude' or 'flux'.
+        - output_format : str
+            'flux_density', 'magnitude', 'spectra', or 'flux'.
+        - lambda_array : np.ndarray
+            Wavelength array in Angstroms. Default is np.geomspace(100, 60000, 100).
+        - cosmology : astropy.cosmology object
+            Cosmology to use. Default is Planck18.
+
+    Returns
+    -------
+    output
+        Format set by output_format: flux density (mJy), magnitude, spectra, or flux.
     """
     kwargs['interaction_process'] = kwargs.get("interaction_process", ip.Diffusion)
     kwargs['photosphere'] = kwargs.get("photosphere", photosphere.TemperatureFloor)
@@ -1560,17 +2220,38 @@ def magnetar_nickel(time, redshift, f_nickel, mej, p0, bp, mass_ns, theta_pb, **
 @citation_wrapper('redback')
 def homologous_expansion_supernova_model_bolometric(time, mej, ek, **kwargs):
     """
-    Assumes homologous expansion to transform kinetic energy to ejecta velocity
+    Homologous expansion supernova bolometric luminosity model.
 
-    :param time: time in days in source frame
-    :param mej: ejecta mass in solar masses
-    :param ek: kinetic energy in ergs
-    :param kwargs: Must be all the kwargs required by the specific interaction_process
-        e.g., for Diffusion: kappa, kappa_gamma, vej (km/s), temperature_floor
-        'base model' from homologous_expansion_models list
-    :param interaction_process: Default is Diffusion.
-        Can also be None in which case the output is just the raw engine luminosity, or another interaction process.
-    :return: bolometric_luminosity
+    Assumes homologous expansion to transform kinetic energy to ejecta velocity.
+
+    Parameters
+    ----------
+    time : np.ndarray
+        Time in days in source frame.
+    mej : float
+        Ejecta mass in solar masses.
+    ek : float
+        Kinetic energy in erg.
+    **kwargs : dict
+        Additional keyword arguments:
+
+        - interaction_process : class
+            Interaction process class. Default is Diffusion.
+            Can also be None for raw engine luminosity.
+        - base_model : str or function
+            Base model from homologous_expansion_models list. Default is 'arnett_bolometric'.
+        - kappa : float
+            Opacity in cm^2/g (required for Diffusion).
+        - kappa_gamma : float
+            Gamma-ray opacity in cm^2/g (required for Diffusion).
+        - temperature_floor : float
+            Floor temperature in K (required for Diffusion).
+
+    Returns
+    -------
+    lbol : np.ndarray or tuple
+        Bolometric luminosity in erg/s. If output_format is in ['spectra', 'flux', 'flux_density', 'magnitude'],
+        returns (lbol, kwargs) tuple.
     """
     from redback.model_library import modules_dict  # import model library in function to avoid circular dependency
     base_model = kwargs.get('base_model', 'arnett_bolometric')
@@ -1596,17 +2277,38 @@ def homologous_expansion_supernova_model_bolometric(time, mej, ek, **kwargs):
 @citation_wrapper('redback')
 def thin_shell_supernova_model_bolometric(time, mej, ek, **kwargs):
     """
-    Assumes thin shell ejecta to transform kinetic energy into ejecta velocity
+    Thin shell ejecta supernova bolometric luminosity model.
 
-    :param time: time in days in source frame
-    :param mej: ejecta mass in solar masses
-    :param ek: kinetic energy in ergs
-    :param kwargs: Must be all the kwargs required by the specific interaction_process
-             e.g., for Diffusion: kappa, kappa_gamma, vej (km/s), temperature_floor,
-             'base model' from homologous_expansion_models list
-    :param interaction_process: Default is Diffusion.
-            Can also be None in which case the output is just the raw engine luminosity, or another interaction process.
-    :return: bolometric_luminosity
+    Assumes thin shell ejecta to transform kinetic energy into ejecta velocity.
+
+    Parameters
+    ----------
+    time : np.ndarray
+        Time in days in source frame.
+    mej : float
+        Ejecta mass in solar masses.
+    ek : float
+        Kinetic energy in erg.
+    **kwargs : dict
+        Additional keyword arguments:
+
+        - interaction_process : class
+            Interaction process class. Default is Diffusion.
+            Can also be None for raw engine luminosity.
+        - base_model : str or function
+            Base model from homologous_expansion_models list. Default is 'arnett_bolometric'.
+        - kappa : float
+            Opacity in cm^2/g (required for Diffusion).
+        - kappa_gamma : float
+            Gamma-ray opacity in cm^2/g (required for Diffusion).
+        - temperature_floor : float
+            Floor temperature in K (required for Diffusion).
+
+    Returns
+    -------
+    lbol : np.ndarray or tuple
+        Bolometric luminosity in erg/s. If output_format is in ['spectra', 'flux', 'flux_density', 'magnitude'],
+        returns (lbol, kwargs) tuple.
     """
     from redback.model_library import modules_dict  # import model library in function to avoid circular dependency
     base_model = kwargs.get('base_model', 'arnett_bolometric')
@@ -1634,27 +2336,53 @@ def thin_shell_supernova_model_bolometric(time, mej, ek, **kwargs):
 @citation_wrapper('redback')
 def homologous_expansion_supernova(time, redshift, mej, ek, **kwargs):
     """
-    Assumes homologous expansion to transform kinetic energy to ejecta velocity
+    Homologous expansion supernova model.
 
-    :param time: time in days in observer frame
-    :param redshift: source redshift
-    :param mej: ejecta mass in solar masses
-    :param ek: kinetic energy in ergs
-    :param kwargs: Must be all the kwargs required by the specific interaction_process, photosphere, sed methods used
-        e.g., for Diffusion and TemperatureFloor: kappa, kappa_gamma, vej (km/s), temperature_floor
-        'base model' from homologous_expansion_models list
-    :param interaction_process: Default is Diffusion.
-            Can also be None in which case the output is just the raw engine luminosity, or another interaction process.
-    :param photosphere: Default is TemperatureFloor.
-            kwargs must have vej or relevant parameters if using different photosphere model
-    :param sed: Default is blackbody.
-    :param frequency: Required if output_format is 'flux_density'.
-        frequency to calculate - Must be same length as time array or a single number).
-    :param bands: Required if output_format is 'magnitude' or 'flux'.
-    :param output_format: 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
-    :param lambda_array: Optional argument to set your desired wavelength array (in Angstroms) to evaluate the SED on.
-    :param cosmology: Cosmology to use for luminosity distance calculation. Defaults to Planck18. Must be a astropy.cosmology object.
-    :return: set by output format - 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
+    Assumes homologous expansion to transform kinetic energy to ejecta velocity.
+
+    Parameters
+    ----------
+    time : np.ndarray
+        Observer frame time in days.
+    redshift : float
+        Source redshift.
+    mej : float
+        Ejecta mass in solar masses.
+    ek : float
+        Kinetic energy in erg.
+    **kwargs : dict
+        Additional keyword arguments:
+
+        - interaction_process : class
+            Interaction process class. Default is Diffusion.
+            Can also be None for raw engine luminosity.
+        - photosphere : class
+            Photosphere model. Default is TemperatureFloor.
+        - sed : class
+            SED model. Default is Blackbody.
+        - base_model : str or function
+            Base model from homologous_expansion_models list. Default is 'arnett_bolometric'.
+        - kappa : float
+            Opacity in cm^2/g (required for Diffusion).
+        - kappa_gamma : float
+            Gamma-ray opacity in cm^2/g (required for Diffusion).
+        - temperature_floor : float
+            Floor temperature in K (required for Diffusion and TemperatureFloor).
+        - frequency : np.ndarray or float
+            Required if output_format is 'flux_density'.
+        - bands : str or list
+            Required if output_format is 'magnitude' or 'flux'.
+        - output_format : str
+            'flux_density', 'magnitude', 'spectra', or 'flux'.
+        - lambda_array : np.ndarray
+            Wavelength array in Angstroms. Default is np.geomspace(100, 60000, 100).
+        - cosmology : astropy.cosmology object
+            Cosmology to use. Default is Planck18.
+
+    Returns
+    -------
+    output
+        Format set by output_format: flux density (mJy), magnitude, spectra, or flux.
     """
     kwargs['interaction_process'] = kwargs.get("interaction_process", ip.Diffusion)
     kwargs['photosphere'] = kwargs.get("photosphere", photosphere.TemperatureFloor)
@@ -1699,27 +2427,53 @@ def homologous_expansion_supernova(time, redshift, mej, ek, **kwargs):
 @citation_wrapper('redback')
 def thin_shell_supernova(time, redshift, mej, ek, **kwargs):
     """
-    Assumes thin shell ejecta to transform kinetic energy into ejecta velocity
+    Thin shell ejecta supernova model.
 
-    :param time: time in days in observer frame
-    :param redshift: source redshift
-    :param mej: ejecta mass in solar masses
-    :param ek: kinetic energy in ergs
-    :param kwargs: Must be all the kwargs required by the specific interaction_process, photosphere, sed methods used
-             e.g., for Diffusion and TemperatureFloor: kappa, kappa_gamma, vej (km/s), temperature_floor
-             'base model' from homologous_expansion_models list
-    :param interaction_process: Default is Diffusion.
-            Can also be None in which case the output is just the raw engine luminosity, or another interaction process.
-    :param photosphere: Default is TemperatureFloor.
-            kwargs must have vej or relevant parameters if using different photosphere model
-    :param sed: Default is blackbody.
-    :param frequency: Required if output_format is 'flux_density'.
-        frequency to calculate - Must be same length as time array or a single number).
-    :param bands: Required if output_format is 'magnitude' or 'flux'.
-    :param output_format: 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
-    :param lambda_array: Optional argument to set your desired wavelength array (in Angstroms) to evaluate the SED on.
-    :param cosmology: Cosmology to use for luminosity distance calculation. Defaults to Planck18. Must be a astropy.cosmology object.
-    :return: set by output format - 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
+    Assumes thin shell ejecta to transform kinetic energy into ejecta velocity.
+
+    Parameters
+    ----------
+    time : np.ndarray
+        Observer frame time in days.
+    redshift : float
+        Source redshift.
+    mej : float
+        Ejecta mass in solar masses.
+    ek : float
+        Kinetic energy in erg.
+    **kwargs : dict
+        Additional keyword arguments:
+
+        - interaction_process : class
+            Interaction process class. Default is Diffusion.
+            Can also be None for raw engine luminosity.
+        - photosphere : class
+            Photosphere model. Default is TemperatureFloor.
+        - sed : class
+            SED model. Default is Blackbody.
+        - base_model : str or function
+            Base model from homologous_expansion_models list. Default is 'arnett_bolometric'.
+        - kappa : float
+            Opacity in cm^2/g (required for Diffusion).
+        - kappa_gamma : float
+            Gamma-ray opacity in cm^2/g (required for Diffusion).
+        - temperature_floor : float
+            Floor temperature in K (required for Diffusion and TemperatureFloor).
+        - frequency : np.ndarray or float
+            Required if output_format is 'flux_density'.
+        - bands : str or list
+            Required if output_format is 'magnitude' or 'flux'.
+        - output_format : str
+            'flux_density', 'magnitude', 'spectra', or 'flux'.
+        - lambda_array : np.ndarray
+            Wavelength array in Angstroms. Default is np.geomspace(100, 60000, 100).
+        - cosmology : astropy.cosmology object
+            Cosmology to use. Default is Planck18.
+
+    Returns
+    -------
+    output
+        Format set by output_format: flux density (mJy), magnitude, spectra, or flux.
     """
     kwargs['interaction_process'] = kwargs.get("interaction_process", ip.Diffusion)
     kwargs['photosphere'] = kwargs.get("photosphere", photosphere.TemperatureFloor)
@@ -1762,19 +2516,40 @@ def thin_shell_supernova(time, redshift, mej, ek, **kwargs):
 
 def _csm_engine(time, mej, csm_mass, vej, eta, rho, kappa, r0, **kwargs):
     """
-    :param time: time in days in source frame
-    :param mej: ejecta mass in solar masses
-    :param csm_mass: csm mass in solar masses
-    :param vej: ejecta velocity in km/s
-    :param eta: csm density profile exponent
-    :param rho: csm density profile amplitude
-    :param kappa: opacity
-    :param r0: radius of csm shell in AU
-    :param kwargs:
-            efficiency: in converting between kinetic energy and luminosity, default 0.5
-            delta: default 1,
-            nn: default 12,
-    :return: named tuple with 'lbol','r_photosphere' 'mass_csm_threshold'
+    CSM interaction engine calculating bolometric luminosity from CSM shock.
+
+    Parameters
+    ----------
+    time : np.ndarray
+        Time in days in source frame.
+    mej : float
+        Ejecta mass in solar masses.
+    csm_mass : float
+        CSM mass in solar masses.
+    vej : float
+        Ejecta velocity in km/s.
+    eta : float
+        CSM density profile exponent.
+    rho : float
+        CSM density profile amplitude.
+    kappa : float
+        Opacity in cm^2/g.
+    r0 : float
+        Radius of CSM shell in AU.
+    **kwargs : dict
+        Additional keyword arguments:
+
+        - efficiency : float
+            Efficiency in converting between kinetic energy and luminosity. Default is 0.5.
+        - delta : float
+            Inner density power law slope. Default is 1.
+        - nn : float
+            Ejecta density profile index. Default is 12.
+
+    Returns
+    -------
+    csm_output : namedtuple
+        Named tuple with 'lbol', 'r_photosphere', 'mass_csm_threshold'.
     """
     mej = mej * solar_mass
     csm_mass = csm_mass * solar_mass
@@ -1848,22 +2623,45 @@ def _csm_engine(time, mej, csm_mass, vej, eta, rho, kappa, r0, **kwargs):
 @citation_wrapper('https://ui.adsabs.harvard.edu/abs/2013ApJ...773...76C/abstract, https://ui.adsabs.harvard.edu/abs/2017ApJ...849...70V/abstract, https://ui.adsabs.harvard.edu/abs/2020RNAAS...4...16J/abstract')
 def csm_interaction_bolometric(time, mej, csm_mass, vej, eta, rho, kappa, r0, **kwargs):
     """
-    :param time: time in days in source frame
-    :param mej: ejecta mass in solar masses
-    :param csm_mass: csm mass in solar masses
-    :param vej: ejecta velocity in km/s
-    :param eta: csm density profile exponent
-    :param rho: csm density profile amplitude
-    :param kappa: opacity
-    :param r0: radius of csm shell in AU
-    :param kwargs:
-            efficiency: in converting between kinetic energy and luminosity, default 0.5
-            delta: default 1,
-            nn: default 12,
-            If interaction process is different kwargs must include other keyword arguments that are required.
-    :param interaction_process: Default is CSMDiffusion.
-        Can also be None in which case the output is just the raw engine luminosity, or another interaction process.
-    :return: bolometric_luminosity
+    CSM interaction bolometric luminosity model.
+
+    Parameters
+    ----------
+    time : np.ndarray
+        Time in days in source frame.
+    mej : float
+        Ejecta mass in solar masses.
+    csm_mass : float
+        CSM mass in solar masses.
+    vej : float
+        Ejecta velocity in km/s.
+    eta : float
+        CSM density profile exponent.
+    rho : float
+        CSM density profile amplitude.
+    kappa : float
+        Opacity in cm^2/g.
+    r0 : float
+        Radius of CSM shell in AU.
+    **kwargs : dict
+        Additional keyword arguments:
+
+        - efficiency : float
+            Efficiency in converting between kinetic energy and luminosity. Default is 0.5.
+        - delta : float
+            Inner density power law slope. Default is 1.
+        - nn : float
+            Ejecta density profile index. Default is 12.
+        - interaction_process : class
+            Interaction process class. Default is CSMDiffusion.
+            Can also be None for raw engine luminosity.
+        - dense_resolution : int
+            Resolution of dense time array. Default is 1000.
+
+    Returns
+    -------
+    lbol : np.ndarray
+        Bolometric luminosity in erg/s.
     """
     _interaction_process = kwargs.get("interaction_process", ip.CSMDiffusion)
 
@@ -1889,30 +2687,57 @@ def csm_interaction_bolometric(time, mej, csm_mass, vej, eta, rho, kappa, r0, **
 @citation_wrapper('https://ui.adsabs.harvard.edu/abs/2013ApJ...773...76C/abstract, https://ui.adsabs.harvard.edu/abs/2017ApJ...849...70V/abstract, https://ui.adsabs.harvard.edu/abs/2020RNAAS...4...16J/abstract')
 def csm_interaction(time, redshift, mej, csm_mass, vej, eta, rho, kappa, r0, **kwargs):
     """
-    :param time: time in days in observer frame
-    :param redshift: source redshift
-    :param mej: ejecta mass in solar masses
-    :param csm_mass: csm mass in solar masses
-    :param vej: ejecta velocity in km/s
-    :param eta: csm density profile exponent
-    :param rho: csm density profile amplitude
-    :param kappa: opacity
-    :param r0: radius of csm shell in AU
-    :param kwargs: Must be all the kwargs required by the specific interaction_process, photosphere, sed methods used
-             e.g., for Diffusion and TemperatureFloor: kappa_gamma, temperature_floor
-             'base model' from homologous_expansion_models list
-    :param interaction_process: Default is CSMDiffusion.
-            Can also be None in which case the output is just the raw engine luminosity, or another interaction process.
-    :param photosphere: Default is TemperatureFloor.
-            kwargs must have vej or relevant parameters if using different photosphere model
-    :param sed: Default is blackbody.
-    :param frequency: Required if output_format is 'flux_density'.
-        frequency to calculate - Must be same length as time array or a single number).
-    :param bands: Required if output_format is 'magnitude' or 'flux'.
-    :param output_format: 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
-    :param lambda_array: Optional argument to set your desired wavelength array (in Angstroms) to evaluate the SED on.
-    :param cosmology: Cosmology to use for luminosity distance calculation. Defaults to Planck18. Must be a astropy.cosmology object.
-    :return: set by output format - 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
+    CSM interaction model.
+
+    Parameters
+    ----------
+    time : np.ndarray
+        Observer frame time in days.
+    redshift : float
+        Source redshift.
+    mej : float
+        Ejecta mass in solar masses.
+    csm_mass : float
+        CSM mass in solar masses.
+    vej : float
+        Ejecta velocity in km/s.
+    eta : float
+        CSM density profile exponent.
+    rho : float
+        CSM density profile amplitude.
+    kappa : float
+        Opacity in cm^2/g.
+    r0 : float
+        Radius of CSM shell in AU.
+    **kwargs : dict
+        Additional keyword arguments:
+
+        - interaction_process : class
+            Interaction process class. Default is CSMDiffusion.
+            Can also be None for raw engine luminosity.
+        - photosphere : class
+            Photosphere model. Default is TemperatureFloor.
+        - sed : class
+            SED model. Default is Blackbody.
+        - kappa_gamma : float
+            Gamma-ray opacity in cm^2/g.
+        - temperature_floor : float
+            Floor temperature in K.
+        - frequency : np.ndarray or float
+            Required if output_format is 'flux_density'.
+        - bands : str or list
+            Required if output_format is 'magnitude' or 'flux'.
+        - output_format : str
+            'flux_density', 'magnitude', 'spectra', or 'flux'.
+        - lambda_array : np.ndarray
+            Wavelength array in Angstroms. Default is np.geomspace(100, 60000, 100).
+        - cosmology : astropy.cosmology object
+            Cosmology to use. Default is Planck18.
+
+    Returns
+    -------
+    output
+        Format set by output_format: flux density (mJy), magnitude, spectra, or flux.
     """
     kwargs['interaction_process'] = kwargs.get("interaction_process", ip.CSMDiffusion)
     kwargs['photosphere'] = kwargs.get("photosphere", photosphere.TemperatureFloor)
@@ -1961,26 +2786,52 @@ def csm_interaction(time, redshift, mej, csm_mass, vej, eta, rho, kappa, r0, **k
 @citation_wrapper('https://ui.adsabs.harvard.edu/abs/2018ApJS..236....6G/abstract')
 def csm_nickel(time, redshift, mej, f_nickel, csm_mass, ek, eta, rho, kappa, r0, **kwargs):
     """
-    Assumes csm and nickel engine with homologous expansion
+    CSM interaction with nickel decay and homologous expansion.
 
-    :param time: time in days in observer frame
-    :param redshift: source redshift
-    :param mej: ejecta mass in solar masses
-    :param csm_mass: csm mass in solar masses
-    :param ek: kinetic energy in ergs
-    :param eta: csm density profile exponent
-    :param rho: csm density profile amplitude
-    :param kappa: opacity
-    :param r0: radius of csm shell in AU
-    :param kwargs: kappa_gamma, temperature_floor, and any kwarg to
-                change any other input physics/parameters from default.
-    :param frequency: Required if output_format is 'flux_density'.
-        frequency to calculate - Must be same length as time array or a single number).
-    :param bands: Required if output_format is 'magnitude' or 'flux'.
-    :param output_format: 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
-    :param lambda_array: Optional argument to set your desired wavelength array (in Angstroms) to evaluate the SED on.
-    :param cosmology: Cosmology to use for luminosity distance calculation. Defaults to Planck18. Must be a astropy.cosmology object.
-    :return: set by output format - 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
+    Parameters
+    ----------
+    time : np.ndarray
+        Observer frame time in days.
+    redshift : float
+        Source redshift.
+    mej : float
+        Ejecta mass in solar masses.
+    f_nickel : float
+        Fraction of nickel mass.
+    csm_mass : float
+        CSM mass in solar masses.
+    ek : float
+        Kinetic energy in erg.
+    eta : float
+        CSM density profile exponent.
+    rho : float
+        CSM density profile amplitude.
+    kappa : float
+        Opacity in cm^2/g.
+    r0 : float
+        Radius of CSM shell in AU.
+    **kwargs : dict
+        Additional keyword arguments:
+
+        - kappa_gamma : float
+            Gamma-ray opacity in cm^2/g.
+        - temperature_floor : float
+            Floor temperature in K.
+        - frequency : np.ndarray or float
+            Required if output_format is 'flux_density'.
+        - bands : str or list
+            Required if output_format is 'magnitude' or 'flux'.
+        - output_format : str
+            'flux_density', 'magnitude', 'spectra', or 'flux'.
+        - lambda_array : np.ndarray
+            Wavelength array in Angstroms. Default is np.geomspace(100, 60000, 100).
+        - cosmology : astropy.cosmology object
+            Cosmology to use. Default is Planck18.
+
+    Returns
+    -------
+    output
+        Format set by output_format: flux density (mJy), magnitude, spectra, or flux.
     """
     cosmology = kwargs.get('cosmology', cosmo)
     dl = cosmology.luminosity_distance(redshift).cgs.value
@@ -2032,26 +2883,58 @@ def csm_nickel(time, redshift, mej, f_nickel, csm_mass, ek, eta, rho, kappa, r0,
 @citation_wrapper('https://ui.adsabs.harvard.edu/abs/2018ApJS..236....6G/abstract')
 def type_1a(time, redshift, f_nickel, mej, **kwargs):
     """
-    A nickel powered explosion with line absorption and cutoff blackbody SED for SNe 1A.
+    Type Ia supernova model with line absorption and cutoff blackbody SED.
 
-    :param time: time in days in observer frame
-    :param redshift: source redshift
-    :param f_nickel: fraction of nickel mass
-    :param mej: ejecta mass in solar masses
-    :param kwargs: kappa, kappa_gamma, vej (km/s),
-        temperature_floor (K), cutoff_wavelength (default is 3000 Angstrom)
-    :param line_wavelength: line wavelength in angstrom, default is 7.5e3 Angstrom in observer frame
-    :param line_width: line width in angstrom, default is 500
-    :param line_time: line time, default is 50
-    :param line_duration: line duration, default is 25
-    :param line_amplitude: line amplitude, default is 0.3
-    :param frequency: Required if output_format is 'flux_density'.
-        frequency to calculate - Must be same length as time array or a single number.
-    :param bands: Required if output_format is 'magnitude' or 'flux'.
-    :param output_format: 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
-    :param lambda_array: Optional argument to set your desired wavelength array (in Angstroms) to evaluate the SED on.
-    :param cosmology: cosmology to use for luminosity distance calculation. Defaults to Planck18. Must be an astropy.cosmology object.
-    :return: set by output format - 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
+    A nickel powered explosion with line absorption and cutoff blackbody SED for SNe Ia.
+
+    Parameters
+    ----------
+    time : np.ndarray
+        Observer frame time in days.
+    redshift : float
+        Source redshift.
+    f_nickel : float
+        Fraction of nickel mass.
+    mej : float
+        Ejecta mass in solar masses.
+    **kwargs : dict
+        Additional keyword arguments:
+
+        - kappa : float
+            Opacity in cm^2/g.
+        - kappa_gamma : float
+            Gamma-ray opacity in cm^2/g.
+        - vej : float
+            Ejecta velocity in km/s.
+        - temperature_floor : float
+            Floor temperature in K.
+        - cutoff_wavelength : float
+            Cutoff wavelength in Angstroms. Default is 3000.
+        - line_wavelength : float
+            Line wavelength in Angstroms. Default is 7500 in observer frame.
+        - line_width : float
+            Line width in Angstroms. Default is 500.
+        - line_time : float
+            Line time in days. Default is 50.
+        - line_duration : float
+            Line duration in days. Default is 25.
+        - line_amplitude : float
+            Line amplitude. Default is 0.3.
+        - frequency : np.ndarray or float
+            Required if output_format is 'flux_density'.
+        - bands : str or list
+            Required if output_format is 'magnitude' or 'flux'.
+        - output_format : str
+            'flux_density', 'magnitude', 'spectra', or 'flux'.
+        - lambda_array : np.ndarray
+            Wavelength array in Angstroms. Default is np.geomspace(100, 60000, 100).
+        - cosmology : astropy.cosmology object
+            Cosmology to use. Default is Planck18.
+
+    Returns
+    -------
+    output
+        Format set by output_format: flux density (mJy), magnitude, spectra, or flux.
     """
     cosmology = kwargs.get('cosmology', cosmo)
     dl = cosmology.luminosity_distance(redshift).cgs.value
@@ -2117,22 +3000,54 @@ def type_1a(time, redshift, f_nickel, mej, **kwargs):
 @citation_wrapper('https://ui.adsabs.harvard.edu/abs/2018ApJS..236....6G/abstract')
 def type_1c(time, redshift, f_nickel, mej, pp, **kwargs):
     """
-    A nickel powered explosion with synchrotron and blackbody SED's for SNe 1C.
+    Type Ic supernova model with synchrotron and blackbody SEDs.
 
-    :param time: time in days in observer frame
-    :param redshift: source redshift
-    :param f_nickel: fraction of nickel mass
-    :param mej: ejecta mass in solar masses
-    :param pp: power law index for synchrotron
-    :param kwargs: kappa, kappa_gamma, vej (km/s), temperature_floor (K), nu_max (default is 1e9 Hz)
-        source_radius (default is 1e13), f0: synchrotron normalisation (default is 1e-26).
-    :param frequency: Required if output_format is 'flux_density'.
-        frequency to calculate - Must be same length as time array or a single number).
-    :param bands: Required if output_format is 'magnitude' or 'flux'.
-    :param output_format: 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
-    :param lambda_array: Optional argument to set your desired wavelength array (in Angstroms) to evaluate the SED on.
-    :param cosmology: Cosmology to use for luminosity distance calculation. Defaults to Planck18. Must be a astropy.cosmology object.
-    :return: set by output format - 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
+    A nickel powered explosion with synchrotron and blackbody SEDs for SNe Ic.
+
+    Parameters
+    ----------
+    time : np.ndarray
+        Observer frame time in days.
+    redshift : float
+        Source redshift.
+    f_nickel : float
+        Fraction of nickel mass.
+    mej : float
+        Ejecta mass in solar masses.
+    pp : float
+        Power law index for synchrotron.
+    **kwargs : dict
+        Additional keyword arguments:
+
+        - kappa : float
+            Opacity in cm^2/g.
+        - kappa_gamma : float
+            Gamma-ray opacity in cm^2/g.
+        - vej : float
+            Ejecta velocity in km/s.
+        - temperature_floor : float
+            Floor temperature in K.
+        - nu_max : float
+            Maximum frequency for synchrotron in Hz. Default is 1e9.
+        - f0 : float
+            Synchrotron normalization. Default is 1e-26.
+        - source_radius : float
+            Source radius in cm. Default is 1e13.
+        - frequency : np.ndarray or float
+            Required if output_format is 'flux_density'.
+        - bands : str or list
+            Required if output_format is 'magnitude' or 'flux'.
+        - output_format : str
+            'flux_density', 'magnitude', 'spectra', or 'flux'.
+        - lambda_array : np.ndarray
+            Wavelength array in Angstroms. Default is np.geomspace(100, 60000, 100).
+        - cosmology : astropy.cosmology object
+            Cosmology to use. Default is Planck18.
+
+    Returns
+    -------
+    output
+        Format set by output_format: flux density (mJy), magnitude, spectra, or flux.
     """
     nu_max = kwargs.get('nu_max', 1e9)
     f0 = kwargs.get('f0', 1e-26)
@@ -2179,15 +3094,37 @@ def type_1c(time, redshift, f_nickel, mej, pp, **kwargs):
 @citation_wrapper('redback')
 def general_magnetar_slsn_bolometric(time, l0, tsd, nn, **kwargs):
     """
-    :param time: time in days in source frame
-    :param l0: magnetar energy normalisation in ergs
-    :param tsd: magnetar spin down damping timescale in source frame days
-    :param nn: braking index
-    :param kwargs: Must be all the kwargs required by the specific interaction_process,
-             e.g., for Diffusion: kappa, kappa_gamma, vej (km/s)
-    :param interaction_process: Default is Diffusion.
-            Can also be None in which case the output is just the raw engine luminosity, or another interaction process.
-    :return: bolometric_luminosity
+    General magnetar-powered SLSN bolometric luminosity model.
+
+    Parameters
+    ----------
+    time : np.ndarray
+        Time in days in source frame.
+    l0 : float
+        Magnetar energy normalization in erg.
+    tsd : float
+        Magnetar spin-down damping timescale in source frame days.
+    nn : float
+        Braking index.
+    **kwargs : dict
+        Additional keyword arguments:
+
+        - interaction_process : class
+            Interaction process class. Default is Diffusion.
+            Can also be None for raw engine luminosity.
+        - kappa : float
+            Opacity in cm^2/g (required for Diffusion).
+        - kappa_gamma : float
+            Gamma-ray opacity in cm^2/g (required for Diffusion).
+        - vej : float
+            Ejecta velocity in km/s (required for Diffusion).
+        - dense_resolution : int
+            Resolution of dense time array. Default is 1000.
+
+    Returns
+    -------
+    lbol : np.ndarray
+        Bolometric luminosity in erg/s.
     """
     _interaction_process = kwargs.get("interaction_process", ip.Diffusion)
 
@@ -2204,25 +3141,53 @@ def general_magnetar_slsn_bolometric(time, l0, tsd, nn, **kwargs):
 @citation_wrapper('redback')
 def general_magnetar_slsn(time, redshift, l0, tsd, nn, ** kwargs):
     """
-    :param time: time in days in observer frame
-    :param redshift: source redshift
-    :param l0: magnetar energy normalisation in ergs
-    :param tsd: magnetar spin down damping timescale in source frame in days
-    :param nn: braking index
-    :param kwargs: Must be all the kwargs required by the specific interaction_process, photosphere, sed methods used
-             e.g., for Diffusion and TemperatureFloor: kappa, kappa_gamma, vej (km/s), temperature_floor
-    :param interaction_process: Default is Diffusion.
-            Can also be None in which case the output is just the raw engine luminosity, or another interaction process.
-    :param photosphere: Default is TemperatureFloor.
-            kwargs must have vej or relevant parameters if using different photosphere model
-    :param sed: Default is blackbody.
-    :param frequency: Required if output_format is 'flux_density'.
-        frequency to calculate - Must be same length as time array or a single number).
-    :param bands: Required if output_format is 'magnitude' or 'flux'.
-    :param output_format: 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
-    :param lambda_array: Optional argument to set your desired wavelength array (in Angstroms) to evaluate the SED on.
-    :param cosmology: Cosmology to use for luminosity distance calculation. Defaults to Planck18. Must be a astropy.cosmology object.
-    :return: set by output format - 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
+    General magnetar-powered SLSN model.
+
+    Parameters
+    ----------
+    time : np.ndarray
+        Observer frame time in days.
+    redshift : float
+        Source redshift.
+    l0 : float
+        Magnetar energy normalization in erg.
+    tsd : float
+        Magnetar spin-down damping timescale in source frame days.
+    nn : float
+        Braking index.
+    **kwargs : dict
+        Additional keyword arguments:
+
+        - interaction_process : class
+            Interaction process class. Default is Diffusion.
+            Can also be None for raw engine luminosity.
+        - photosphere : class
+            Photosphere model. Default is TemperatureFloor.
+        - sed : class
+            SED model. Default is Blackbody.
+        - kappa : float
+            Opacity in cm^2/g (required for Diffusion).
+        - kappa_gamma : float
+            Gamma-ray opacity in cm^2/g (required for Diffusion).
+        - vej : float
+            Ejecta velocity in km/s (required for Diffusion and TemperatureFloor).
+        - temperature_floor : float
+            Floor temperature in K (required for TemperatureFloor).
+        - frequency : np.ndarray or float
+            Required if output_format is 'flux_density'.
+        - bands : str or list
+            Required if output_format is 'magnitude' or 'flux'.
+        - output_format : str
+            'flux_density', 'magnitude', 'spectra', or 'flux'.
+        - lambda_array : np.ndarray
+            Wavelength array in Angstroms. Default is np.geomspace(100, 60000, 100).
+        - cosmology : astropy.cosmology object
+            Cosmology to use. Default is Planck18.
+
+    Returns
+    -------
+    output
+        Format set by output_format: flux density (mJy), magnitude, spectra, or flux.
     """
     kwargs['interaction_process'] = kwargs.get("interaction_process", ip.Diffusion)
     kwargs['photosphere'] = kwargs.get("photosphere", photosphere.TemperatureFloor)
