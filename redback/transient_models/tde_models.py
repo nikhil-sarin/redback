@@ -716,9 +716,9 @@ def tde_analytical(time, redshift, l0, t_0_turn, **kwargs):
     :return: set by output format - 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
     """
     # Custom SED default for cutoff blackbody
-    kwargs.setdefault('interaction_process', ip.Diffusion)
-    kwargs.setdefault('photosphere', photosphere.TemperatureFloor)
-    kwargs.setdefault('sed', sed.CutoffBlackbody)
+    kwargs['interaction_process'] = kwargs.get('interaction_process', ip.Diffusion)
+    kwargs['photosphere'] = kwargs.get('photosphere', photosphere.TemperatureFloor)
+    kwargs['sed'] = kwargs.get('sed', sed.CutoffBlackbody)
     cutoff_wavelength = kwargs.get('cutoff_wavelength', 3000)
     cosmology, dl = get_cosmology_defaults(redshift, kwargs)
 
@@ -1167,9 +1167,9 @@ def tde_fallback(time, redshift, mbh6, mstar, tvisc, bb, eta, leddlimit, rph0, l
     """
 
     # TDE-specific defaults for Viscous interaction and TDEPhotosphere
-    kwargs.setdefault('interaction_process', ip.Viscous)
-    kwargs.setdefault('photosphere', photosphere.TDEPhotosphere)
-    kwargs.setdefault('sed', sed.Blackbody)
+    kwargs['interaction_process'] = kwargs.get('interaction_process', ip.Viscous)
+    kwargs['photosphere'] = kwargs.get('photosphere', photosphere.TDEPhotosphere)
+    kwargs['sed'] = kwargs.get('sed', sed.Blackbody)
     cosmology, dl = get_cosmology_defaults(redshift, kwargs)
 
     if kwargs['output_format'] == 'flux_density':

@@ -946,9 +946,9 @@ def arnett_with_features(time, redshift, f_nickel, mej, **kwargs):
     :return: set by output format - 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
     """
     # Custom SED default for features
-    kwargs.setdefault('interaction_process', ip.Diffusion)
-    kwargs.setdefault('photosphere', photosphere.TemperatureFloor)
-    kwargs.setdefault('sed', sed.BlackbodyWithSpectralFeatures)
+    kwargs['interaction_process'] = kwargs.get('interaction_process', ip.Diffusion)
+    kwargs['photosphere'] = kwargs.get('photosphere', photosphere.TemperatureFloor)
+    kwargs['sed'] = kwargs.get('sed', sed.BlackbodyWithSpectralFeatures)
     cosmology, dl = get_cosmology_defaults(redshift, kwargs)
 
     # Build feature list from numbered parameters
@@ -1078,8 +1078,8 @@ def shock_cooling_and_arnett(time, redshift, log10_mass, log10_radius, log10_ene
     :param cosmology: Cosmology to use for luminosity distance calculation. Defaults to Planck18. Must be a astropy.cosmology object.
     :return: set by output format - 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
     """
-    kwargs.setdefault('photosphere', photosphere.TemperatureFloor)
-    kwargs.setdefault('sed', sed.Blackbody)
+    kwargs['photosphere'] = kwargs.get('photosphere', photosphere.TemperatureFloor)
+    kwargs['sed'] = kwargs.get('sed', sed.Blackbody)
     cosmology, dl = get_cosmology_defaults(redshift, kwargs)
 
     if kwargs['output_format'] == 'flux_density':
@@ -1421,9 +1421,9 @@ def slsn(time, redshift, p0, bp, mass_ns, theta_pb,**kwargs):
     :return: set by output format - 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
     """
     # Custom SED default for cutoff blackbody
-    kwargs.setdefault('interaction_process', ip.Diffusion)
-    kwargs.setdefault('photosphere', photosphere.TemperatureFloor)
-    kwargs.setdefault('sed', sed.CutoffBlackbody)
+    kwargs['interaction_process'] = kwargs.get('interaction_process', ip.Diffusion)
+    kwargs['photosphere'] = kwargs.get('photosphere', photosphere.TemperatureFloor)
+    kwargs['sed'] = kwargs.get('sed', sed.CutoffBlackbody)
     cutoff_wavelength = kwargs.get('cutoff_wavelength', 3000)
     cosmology, dl = get_cosmology_defaults(redshift, kwargs)
 
@@ -1572,7 +1572,7 @@ def homologous_expansion_supernova_model_bolometric(time, mej, ek, **kwargs):
     v_ejecta = np.sqrt(10.0 * ek / (3.0 * mej * solar_mass)) / km_cgs
     kwargs['vej'] = v_ejecta
     kwargs['mej'] = mej
-    kwargs.setdefault('interaction_process', ip.Diffusion)
+    kwargs['interaction_process'] = kwargs.get('interaction_process', ip.Diffusion)
     lbol = function(time, **kwargs)
     if kwargs['output_format'] in ['spectra', 'flux', 'flux_density', 'magnitude']:
         return lbol, kwargs
@@ -1609,7 +1609,7 @@ def thin_shell_supernova_model_bolometric(time, mej, ek, **kwargs):
     kwargs['vej'] = v_ejecta
     kwargs['mej'] = mej
 
-    kwargs.setdefault('interaction_process', ip.Diffusion)
+    kwargs['interaction_process'] = kwargs.get('interaction_process', ip.Diffusion)
     lbol = function(time, **kwargs)
     if kwargs['output_format'] in ['spectra', 'flux', 'flux_density', 'magnitude']:
         return lbol, kwargs
@@ -1895,9 +1895,9 @@ def csm_interaction(time, redshift, mej, csm_mass, vej, eta, rho, kappa, r0, **k
     :return: set by output format - 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
     """
     # CSMDiffusion default differs from standard Diffusion
-    kwargs.setdefault('interaction_process', ip.CSMDiffusion)
-    kwargs.setdefault('photosphere', photosphere.TemperatureFloor)
-    kwargs.setdefault('sed', sed.Blackbody)
+    kwargs['interaction_process'] = kwargs.get('interaction_process', ip.CSMDiffusion)
+    kwargs['photosphere'] = kwargs.get('photosphere', photosphere.TemperatureFloor)
+    kwargs['sed'] = kwargs.get('sed', sed.Blackbody)
     cosmology, dl = get_cosmology_defaults(redshift, kwargs)
 
     if kwargs['output_format'] == 'flux_density':
