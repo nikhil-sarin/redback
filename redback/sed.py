@@ -876,7 +876,7 @@ class Line(_SED):
         """
         Compute and set the modified SED (flux density) with proper units.
         Assumes:
-          - self.SED.sed has shape (n_freq, n_time) (e.g., (100,300))
+          - self.SED.flux_density has shape (n_freq, n_time) (e.g., (100,300))
           - self.time and self.luminosity are processed so that the time‐axis is the second axis.
         """
         # Transpose time and luminosity to have time along the second axis
@@ -888,20 +888,102 @@ class Line(_SED):
             -0.5 * ((time_vals - self.line_time) / self.line_duration) ** 2
         )
 
-        # Get the baseline SED (shape (n_freq, n_time))
-        sed_base = self.SED.sed
+        # Get the baseline flux density (shape (n_freq, n_time))
+        # This already has proper units (either mJy or erg/s/cm^2/Hz depending on the SED class)
+        flux_base = self.SED.flux_density
 
-        # Modify the SED by attenuating with the time-dependent factor
-        sed_modified = sed_base * (1 - amplitude_time)
+        # Strip units for manipulation, then restore later
+        if hasattr(flux_base, 'unit'):
+            flux_base_value = flux_base.to(uu.erg / uu.s / uu.cm ** 2 / uu.Hz).value
+        else:
+            flux_base_value = flux_base
 
-        # Compute additional scaling factors as needed (example below)
-        amplitude_scaled = amplitude_time * lum_vals / (self.line_width * np.sqrt(2 * np.pi))
+        # Modify the flux density by attenuating with the time-dependent factor
+        flux_modified = flux_base_value * (1 - amplitude_time)
+
+        # Compute additional line emission scaled by luminosity
+        # Convert luminosity to flux at distance, then scale by Gaussian line profile
+        # Line is emitted isotropically, so flux = L / (4 * pi * d_L^2)
+        # Divide by line_width to convert from total line luminosity to flux density per unit wavelength
+        # Then multiply by wavelength/frequency conversion to get flux density per unit frequency
+        amplitude_scaled = amplitude_time * lum_vals / (4 * np.pi * self.luminosity_distance ** 2)
+        amplitude_scaled /= (self.line_width * np.sqrt(2 * np.pi))  # line_width in Angstrom
+        # Now amplitude_scaled is in erg/s/cm^2/Angstrom
+
         line_profile = np.exp(-0.5 * ((self.wavelength - self.line_wavelength) / self.line_width) ** 2)
-        sed_modified += amplitude_scaled * line_profile
 
-        # IMPORTANT: Convert sed_modified (a numpy array) to an astropy Quantity.
-        # Here, we assume the flux density is in units of erg/s/cm^2/Hz.
-        self._flux_density = sed_modified * uu.erg / uu.s / uu.cm ** 2 / uu.Hz
+        # Convert from per-Angstrom to per-Hz using |d(lambda)/d(nu)| = lambda^2/c
+        # self.wavelength is in Angstrom, so convert to cm first
+        # F_nu [erg/s/cm^2/Hz] = F_lambda [erg/s/cm^2/Angstrom] * (lambda_cm)^2 / c
+        # where lambda_cm = lambda_Angstrom * angstrom_cgs (angstrom_cgs = 10^-8)
+        wavelength_cm = self.wavelength * angstrom_cgs  # Convert from Angstrom to cm
+
+        # Multiply amplitude by lambda^2/c conversion and line profile
+        # amplitude_scaled has shape (1, n_time), wavelength_cm and line_profile have shape (n_freq, n_time)
+        flux_modified += amplitude_scaled * line_profile * (wavelength_cm ** 2) / speed_of_light
+
+        # Convert result to proper units
+        self._flux_density = flux_modified * uu.erg / uu.s / uu.cm ** 2 / uu.Hz
+
+def flux_density_to_spectrum(flux_density, redshift, lambda_observer_frame):
+    """
+    Convert flux density in observer frame to spectrum in erg/cm^2/s/Angstrom.
+
+    This function consolidates the common pattern used across many transient models
+    for converting flux density (from blackbody or other sources) to spectra.
+
+    :param flux_density: Flux density array in erg/s/Hz/cm^2 (astropy Quantity or array)
+                         Shape can be (n_times, n_frequencies) or (n_frequencies, n_times)
+    :param redshift: Cosmological redshift (dimensionless)
+    :param lambda_observer_frame: Observer frame wavelength array in Angstrom
+    :return: Spectrum in erg/cm^2/s/Angstrom with astropy units
+    """
+    # Ensure flux_density has units if it doesn't already
+    if not hasattr(flux_density, 'unit'):
+        flux_density = flux_density * uu.erg / uu.s / uu.Hz / uu.cm ** 2
+
+    # Apply redshift correction and convert to spectrum units
+    spectra = (flux_density / (1 + redshift)).to(uu.mJy).to(
+        uu.erg / uu.cm ** 2 / uu.s / uu.Angstrom,
+        equivalencies=uu.spectral_density(wav=lambda_observer_frame * uu.Angstrom)
+    )
+
+    return spectra
+
+
+def blackbody_to_spectrum(temperature, r_photosphere, frequency, dl, redshift, lambda_observer_frame):
+    """
+    Create a blackbody spectrum directly from physical parameters.
+
+    This is a convenience wrapper that combines blackbody_to_flux_density with
+    flux_density_to_spectrum, consolidating the most common pattern used across
+    transient models.
+
+    :param temperature: Effective temperature in Kelvin (can be array for multiple times)
+    :param r_photosphere: Photosphere radius in cm (can be array for multiple times)
+    :param frequency: Frequency array in Hz (source frame). Shape should be (n_frequencies, 1) for broadcasting
+    :param dl: Luminosity distance in cm
+    :param redshift: Cosmological redshift (dimensionless)
+    :param lambda_observer_frame: Observer frame wavelength array in Angstrom
+    :return: Spectrum in erg/cm^2/s/Angstrom with shape (n_times, n_frequencies)
+    """
+    # Calculate flux density in source frame
+    fmjy = blackbody_to_flux_density(
+        temperature=temperature,
+        r_photosphere=r_photosphere,
+        dl=dl,
+        frequency=frequency
+    )
+
+    # Transpose if needed to get (n_times, n_frequencies) shape
+    if fmjy.ndim == 2 and fmjy.shape[0] == len(frequency):
+        fmjy = fmjy.T
+
+    # Convert to spectrum
+    spectra = flux_density_to_spectrum(fmjy, redshift, lambda_observer_frame)
+
+    return spectra
+
 
 def get_correct_output_format_from_spectra(time, time_eval, spectra, lambda_array, **kwargs):
     """

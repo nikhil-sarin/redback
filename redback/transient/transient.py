@@ -1611,7 +1611,8 @@ class OpticalTransient(Transient):
                 T = 10 ** logT
                 R = 10 ** logR
                 # Compute the model flux density in erg/s/cm^2/Hz.
-                model_flux_cgs = redback.sed.blackbody_to_flux_density(T, R, distance, freq)
+                # freq is in rest frame, so we need to apply cosmological dimming factor
+                model_flux_cgs = redback.sed.blackbody_to_flux_density(T, R, distance, freq) / (1 + redshift)
                 # Convert to mJy. (1 Jy = 1e-23 erg/s/cm^2/Hz; 1 mJy = 1e-3 Jy = 1e-26 erg/s/cm^2/Hz)
                 model_flux_mjy = (model_flux_cgs / (1e-26 * uu.erg / uu.s / uu.cm**2 / uu.Hz)).value
                 return model_flux_mjy
@@ -1640,8 +1641,9 @@ class OpticalTransient(Transient):
                 T = 10 ** logT
                 R = 10 ** logR
                 # Compute the model SED (flux density in erg/s/cm^2/Hz).
-                model_flux = redback.sed.blackbody_to_flux_density(T, R, distance, frequency)
-                # Convert the SED to per-Å units.
+                # Apply cosmological dimming factor for observer-frame flux
+                model_flux = redback.sed.blackbody_to_flux_density(T, R, distance, frequency) / (1 + redshift)
+                # Convert the SED to per-Å units
                 _spectra = model_flux.to(uu.erg / uu.cm ** 2 / uu.s / uu.Angstrom,
                                          equivalencies=uu.spectral_density(wav=lambda_obs * uu.Angstrom))
                 spectra = np.zeros((5, 300))

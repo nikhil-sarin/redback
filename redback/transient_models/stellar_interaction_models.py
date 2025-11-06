@@ -1,7 +1,7 @@
 import numpy as np
 from collections import namedtuple
-import redback.interaction_processes as ip
 import redback.sed as sed
+from redback.sed import flux_density_to_spectrum
 import redback.photosphere as photosphere
 from astropy.cosmology import Planck18 as cosmo
 from redback.utils import calc_kcorrected_properties, citation_wrapper, lambda_to_nu
@@ -273,7 +273,7 @@ def wr_bh_merger(time, redshift, M_star, M_bh, M_fast, M_pre, v_fast, v_slow, al
         sed_slow = kwargs['sed'](temperature=temp_slow, r_photosphere=rad_slow, 
                                             frequency=frequency, luminosity_distance=dl)
         flux_density = sed_fast.flux_density + sed_slow.flux_density
-        return flux_density.to(uu.mJy).value
+        return flux_density.to(uu.mJy).value / (1 + redshift)
     
     else:
         time_obs = time
@@ -310,8 +310,7 @@ def wr_bh_merger(time, redshift, M_star, M_bh, M_fast, M_pre, v_fast, v_slow, al
                     frequency=frequency[:,None], luminosity_distance=dl)
         fmjy = sed_fast.flux_density + sed_slow.flux_density
         fmjy = fmjy.T
-        spectra = fmjy.to(uu.mJy).to(uu.erg / uu.cm ** 2 / uu.s / uu.Angstrom,
-                                     equivalencies=uu.spectral_density(wav=lambda_observer_frame * uu.Angstrom))
+        spectra = flux_density_to_spectrum(fmjy, redshift, lambda_observer_frame)
         if kwargs['output_format'] == 'spectra':
             return namedtuple('output', ['time', 'lambdas', 'spectra'])(time=time_observer_frame,
                                                                           lambdas=lambda_observer_frame,
