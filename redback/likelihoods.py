@@ -11,21 +11,22 @@ class _RedbackLikelihood(bilby.Likelihood):
     def __init__(self, x: np.ndarray, y: np.ndarray, function: callable, kwargs: dict = None, priors=None,
                  fiducial_parameters=None) -> None:
         """
+        Base Redback likelihood class.
 
-        :param x: The x values.
-        :type x: np.ndarray
-        :param y: The y values.
-        :type y: np.ndarray
-        :param function: The model/function that we want to fit.
-        :type function: callable
-        :param kwargs: Any additional keywords for 'function'.
-        :type kwargs: Union[dict, None]
-        :param priors: The priors for the parameters. Default to None if not provided.
-        Only necessary if using maximum likelihood estimation functionality.
-        :type priors: Union[dict, None]
-        :param fiducial_parameters: The starting guesses for model parameters to
-        use in the optimization for maximum likelihood estimation. Default to None if not provided.
-        :type fiducial_parameters: Union[dict, None]
+        Parameters
+        ----------
+        x : np.ndarray
+            The x values
+        y : np.ndarray
+            The y values
+        function : callable
+            The model/function that we want to fit
+        kwargs : dict, optional
+            Any additional keywords for 'function'
+        priors : dict, optional
+            The priors for the parameters. Only necessary if using maximum likelihood estimation functionality
+        fiducial_parameters : dict, optional
+            The starting guesses for model parameters to use in the optimization for maximum likelihood estimation
         """
         self.x = x
         self.y = y
@@ -88,13 +89,23 @@ class _RedbackLikelihood(bilby.Likelihood):
     def find_maximum_likelihood_parameters(self, iterations=5, maximization_kwargs=None, method='Nelder-Mead',
                                            break_threshold=1e-3):
         """
-        Estimate the maximum likelihood
+        Estimate the maximum likelihood.
 
-        :param iterations: Iterations to run the minimizer for before stopping. Default is 5.
-        :param maximization_kwargs: Any extra keyword arguments passed to the scipy minimize function
-        :param method: Minimize method to use. Default is 'Nelder-Mead'
-        :param break_threshold: The threshold for the difference in log likelihood to break the loop. Default is 1e-3.
-        :return: Dictionary of maximum likelihood parameters
+        Parameters
+        ----------
+        iterations : int, optional
+            Iterations to run the minimizer for before stopping (default is 5)
+        maximization_kwargs : dict, optional
+            Any extra keyword arguments passed to the scipy minimize function
+        method : str, optional
+            Minimize method to use (default is 'Nelder-Mead')
+        break_threshold : float, optional
+            The threshold for the difference in log likelihood to break the loop (default is 1e-3)
+
+        Returns
+        -------
+        dict
+            Dictionary of maximum likelihood parameters
         """
         from scipy.optimize import minimize
         parameter_bounds = self.get_bounds_from_priors(self.priors)
@@ -131,28 +142,30 @@ class GaussianLikelihood(_RedbackLikelihood):
             self, x: np.ndarray, y: np.ndarray, sigma: Union[float, None, np.ndarray],
             function: callable, kwargs: dict = None, priors=None,
                  fiducial_parameters=None) -> None:
-        """A general Gaussian likelihood - the parameters are inferred from the arguments of function.
+        """
+        A general Gaussian likelihood.
 
-        :param x: The x values.
-        :type x: np.ndarray
-        :param y: The y values.
-        :type y: np.ndarray
-        :param sigma: The standard deviation of the noise.
-        :type sigma: Union[float, None, np.ndarray]
-        :param function:
+        The parameters are inferred from the arguments of function.
+
+        Parameters
+        ----------
+        x : np.ndarray
+            The x values
+        y : np.ndarray
+            The y values
+        sigma : float, None, or np.ndarray
+            The standard deviation of the noise
+        function : callable
             The python function to fit to the data. Note, this must take the
             dependent variable as its first argument. The other arguments
             will require a prior and will be sampled over (unless a fixed
-            value is given).
-        :type function: callable
-        :param kwargs: Any additional keywords for 'function'.
-        :type kwargs: dict
-        :param priors: The priors for the parameters. Default to None if not provided.
-        Only necessary if using maximum likelihood estimation functionality.
-        :type priors: Union[dict, None]
-        :param fiducial_parameters: The starting guesses for model parameters to
-        use in the optimization for maximum likelihood estimation. Default to None if not provided.
-        :type fiducial_parameters: Union[dict, None]
+            value is given)
+        kwargs : dict, optional
+            Any additional keywords for 'function'
+        priors : dict, optional
+            The priors for the parameters. Only necessary if using maximum likelihood estimation functionality
+        fiducial_parameters : dict, optional
+            The starting guesses for model parameters to use in the optimization for maximum likelihood estimation
         """
 
         self._noise_log_likelihood = None
@@ -220,40 +233,42 @@ class GaussianLikelihoodWithUpperLimits(GaussianLikelihood):
             fiducial_parameters=None, detections: Union[np.ndarray, None] = None,
             upper_limit_sigma: Union[float, np.ndarray] = 3.0,
             data_mode: str = 'flux') -> None:
-        """A Gaussian likelihood that handles upper limits - extends the base GaussianLikelihood.
+        """
+        A Gaussian likelihood that handles upper limits.
 
-        :param x: The x values.
-        :type x: np.ndarray
-        :param y: The y values. For upper limits, these are the reported limit values.
-        :type y: np.ndarray
-        :param sigma: The standard deviation of the noise for detections.
-        :type sigma: Union[float, None, np.ndarray]
-        :param function:
+        Extends the base GaussianLikelihood to handle non-detections.
+
+        Parameters
+        ----------
+        x : np.ndarray
+            The x values
+        y : np.ndarray
+            The y values. For upper limits, these are the reported limit values
+        sigma : float, None, or np.ndarray
+            The standard deviation of the noise for detections
+        function : callable
             The python function to fit to the data. Note, this must take the
             dependent variable as its first argument. The other arguments
             will require a prior and will be sampled over (unless a fixed
-            value is given).
-        :type function: callable
-        :param kwargs: Any additional keywords for 'function'.
-        :type kwargs: dict
-        :param priors: The priors for the parameters. Default to None if not provided.
-        Only necessary if using maximum likelihood estimation functionality.
-        :type priors: Union[dict, None]
-        :param fiducial_parameters: The starting guesses for model parameters to
-        use in the optimization for maximum likelihood estimation. Default to None if not provided.
-        :type fiducial_parameters: Union[dict, None]
-        :param detections: Array indicating which data points are detections.
-        Can be boolean (True/False) or integer (1/0). 1 = detection, 0 = upper limit.
-        If None, all data points are treated as detections.
-        :type detections: Union[np.ndarray, None]
-        :param upper_limit_sigma: The sigma level for upper limits. Can be a single value
-        (e.g., 3.0 for all 3-sigma limits) or an array with different sigma levels for each
-        upper limit. Default is 3.0.
-        :type upper_limit_sigma: Union[float, np.ndarray]
-        :param data_mode: Whether data is in 'flux' or 'magnitude' units. This affects
-        how upper limits are interpreted. For flux: upper limit means "true value < limit".
-        For magnitude: upper limit means "true value > limit" (fainter than limit).
-        :type data_mode: str
+            value is given)
+        kwargs : dict, optional
+            Any additional keywords for 'function'
+        priors : dict, optional
+            The priors for the parameters. Only necessary if using maximum likelihood estimation functionality
+        fiducial_parameters : dict, optional
+            The starting guesses for model parameters to use in the optimization for maximum likelihood estimation
+        detections : np.ndarray or None, optional
+            Array indicating which data points are detections.
+            Can be boolean (True/False) or integer (1/0). 1 = detection, 0 = upper limit.
+            If None, all data points are treated as detections
+        upper_limit_sigma : float or np.ndarray, optional
+            The sigma level for upper limits. Can be a single value
+            (e.g., 3.0 for all 3-sigma limits) or an array with different sigma levels for each
+            upper limit (default is 3.0)
+        data_mode : str, optional
+            Whether data is in 'flux' or 'magnitude' units. This affects
+            how upper limits are interpreted. For flux: upper limit means "true value < limit".
+            For magnitude: upper limit means "true value > limit" (fainter than limit) (default is 'flux')
         """
 
         # Initialize the parent class first
@@ -651,32 +666,38 @@ class StudentTLikelihood(GaussianLikelihood):
             self, x: np.ndarray, y: np.ndarray, sigma: Union[float, None, np.ndarray],
             function: callable, kwargs: dict = None, priors=None, fiducial_parameters=None) -> None:
         """
-        A Student-t likelihood that handles outliers by assuming that the data are distributed
-        according to a Student-t distribution. The probability density function for each residual is
-        given by:
+        A Student-t likelihood that handles outliers.
+
+        Assumes that the data are distributed according to a Student-t distribution.
+        The probability density function for each residual is given by:
 
             p(r | ν, σ) = Γ((ν+1)/2) / [√(νπ) σ Γ(ν/2)] · [1 + (r/σ)²/ν]^(–(ν+1)/2)
 
         where ν (nu) is the degrees of freedom and σ is the scale (standard deviation).
 
-        :param x: The x values.
-        :type x: np.ndarray
-        :param y: The y values.
-        :type y: np.ndarray
-        :param sigma: The scale (standard deviation) for the model residuals.
-        :type sigma: Union[float, None, np.ndarray]
-        :param function:
+        Parameters
+        ----------
+        x : np.ndarray
+            The x values
+        y : np.ndarray
+            The y values
+        sigma : float, None, or np.ndarray
+            The scale (standard deviation) for the model residuals
+        function : callable
             The python function to fit to the data. Note, this must take the
             dependent variable as its first argument. The other arguments will require a prior
-            and will be sampled over (unless a fixed value is given).
-        :type function: callable
-        :param kwargs: Any additional keywords for 'function'.
-        :type kwargs: dict
-        :param nu: The degrees of freedom for the Student-t distribution. Default to 3.0.
-        :param priors: The priors for the parameters. Default to None if not provided.
-        :type priors: Union[dict, None]
-        :param fiducial_parameters: The starting guesses for model parameters to use in the optimization.
-        :type fiducial_parameters: Union[dict, None]
+            and will be sampled over (unless a fixed value is given)
+        kwargs : dict, optional
+            Any additional keywords for 'function'
+        priors : dict, optional
+            The priors for the parameters
+        fiducial_parameters : dict, optional
+            The starting guesses for model parameters to use in the optimization
+
+        Notes
+        -----
+        The degrees of freedom (nu) for the Student-t distribution defaults to 3.0 if not
+        provided in the parameters.
         """
         self._noise_log_likelihood = None
         super().__init__(x=x, y=y, sigma=sigma, function=function, kwargs=kwargs, priors=priors,
@@ -911,32 +932,38 @@ class StudentTLikelihood(GaussianLikelihood):
             self, x: np.ndarray, y: np.ndarray, sigma: Union[float, None, np.ndarray],
             function: callable, kwargs: dict = None, priors=None, fiducial_parameters=None) -> None:
         """
-        A Student-t likelihood that handles outliers by assuming that the data are distributed
-        according to a Student-t distribution. The probability density function for each residual is
-        given by:
+        A Student-t likelihood that handles outliers.
+
+        Assumes that the data are distributed according to a Student-t distribution.
+        The probability density function for each residual is given by:
 
             p(r | ν, σ) = Γ((ν+1)/2) / [√(νπ) σ Γ(ν/2)] · [1 + (r/σ)²/ν]^(–(ν+1)/2)
 
         where ν (nu) is the degrees of freedom and σ is the scale (standard deviation).
 
-        :param x: The x values.
-        :type x: np.ndarray
-        :param y: The y values.
-        :type y: np.ndarray
-        :param sigma: The scale (standard deviation) for the model residuals.
-        :type sigma: Union[float, None, np.ndarray]
-        :param function:
+        Parameters
+        ----------
+        x : np.ndarray
+            The x values
+        y : np.ndarray
+            The y values
+        sigma : float, None, or np.ndarray
+            The scale (standard deviation) for the model residuals
+        function : callable
             The python function to fit to the data. Note, this must take the
             dependent variable as its first argument. The other arguments will require a prior
-            and will be sampled over (unless a fixed value is given).
-        :type function: callable
-        :param kwargs: Any additional keywords for 'function'.
-        :type kwargs: dict
-        :param nu: The degrees of freedom for the Student-t distribution. Default to 3.0.
-        :param priors: The priors for the parameters. Default to None if not provided.
-        :type priors: Union[dict, None]
-        :param fiducial_parameters: The starting guesses for model parameters to use in the optimization.
-        :type fiducial_parameters: Union[dict, None]
+            and will be sampled over (unless a fixed value is given)
+        kwargs : dict, optional
+            Any additional keywords for 'function'
+        priors : dict, optional
+            The priors for the parameters
+        fiducial_parameters : dict, optional
+            The starting guesses for model parameters to use in the optimization
+
+        Notes
+        -----
+        The degrees of freedom (nu) for the Student-t distribution defaults to 3.0 if not
+        provided in the parameters.
         """
         self._noise_log_likelihood = None
         super().__init__(x=x, y=y, sigma=sigma, function=function, kwargs=kwargs, priors=priors,
@@ -1067,23 +1094,31 @@ class GaussianLikelihoodQuadratureNoise(GaussianLikelihood):
             self, x: np.ndarray, y: np.ndarray, sigma_i: Union[float, None, np.ndarray],
             function: callable, kwargs: dict = None, priors=None, fiducial_parameters=None) -> None:
         """
-        A general Gaussian likelihood - the parameters are inferred from the
-        arguments of function
+        A general Gaussian likelihood with quadrature noise.
 
-        :type x: np.ndarray
-        :param y: The y values.
-        :type y: np.ndarray
-        :param sigma_i: The standard deviation of the noise. This is part of the full noise.
-                        The sigma used in the likelihood is sigma = sqrt(sigma_i^2 + sigma^2)
-        :type sigma_i: Union[float, None, np.ndarray]
-        :param function:
+        The parameters are inferred from the arguments of function. The total sigma used in
+        the likelihood is sigma = sqrt(sigma_i^2 + sigma^2).
+
+        Parameters
+        ----------
+        x : np.ndarray
+            The x values
+        y : np.ndarray
+            The y values
+        sigma_i : float, None, or np.ndarray
+            The standard deviation of the noise. This is part of the full noise.
+            The sigma used in the likelihood is sigma = sqrt(sigma_i^2 + sigma^2)
+        function : callable
             The python function to fit to the data. Note, this must take the
             dependent variable as its first argument. The other arguments
             will require a prior and will be sampled over (unless a fixed
-            value is given).
-        :type function: callable
-        :param kwargs: Any additional keywords for 'function'.
-        :type kwargs: dict
+            value is given)
+        kwargs : dict, optional
+            Any additional keywords for 'function'
+        priors : dict, optional
+            The priors for the parameters
+        fiducial_parameters : dict, optional
+            The starting guesses for model parameters to use in the optimization
         """
         self.sigma_i = sigma_i
         # These lines of code infer the parameters from the provided function
@@ -1339,29 +1374,29 @@ class PoissonLikelihood(_RedbackLikelihood):
             self, time: np.ndarray, counts: np.ndarray, function: callable, integrated_rate_function: bool = True,
             dt: Union[float, np.ndarray] = None, kwargs: dict = None, priors=None, fiducial_parameters=None) -> None:
         """
-        :param time: The time values.
-        :type time: np.ndarray
-        :param counts: The number of counts for the time value.
-        :type counts: np.ndarray
-        :param function: The python function to fit to the data.
-        :type function: callable
-        :param integrated_rate_function:
+        Poisson likelihood for count data.
+
+        Parameters
+        ----------
+        time : np.ndarray
+            The time values
+        counts : np.ndarray
+            The number of counts for the time value
+        function : callable
+            The python function to fit to the data
+        integrated_rate_function : bool, optional
             Whether the function returns an integrated rate over the `dt` in the bins.
             This should be true if you multiply the rate with `dt` in the function and false if the function
-            returns a rate per unit time. (Default value = True)
-        :type integrated_rate_function: bool
-        :param dt:
+            returns a rate per unit time (default is True)
+        dt : float, None, or np.ndarray, optional
             Array of each bin size or single value if all bins are of the same size. If None, assume that
-            `dt` is constant and calculate it from the first two elements of `time`.
-        :type dt: Union[float, None, np.ndarray]
-        :param kwargs: Any additional keywords for 'function'.
-        :type kwargs: dict
-        :param priors: The priors for the parameters. Default to None if not provided.
-        Only necessary if using maximum likelihood estimation functionality.
-        :type priors: Union[dict, None]
-        :param fiducial_parameters: The starting guesses for model parameters to
-        use in the optimization for maximum likelihood estimation. Default to None if not provided.
-        :type fiducial_parameters: Union[dict, None]
+            `dt` is constant and calculate it from the first two elements of `time`
+        kwargs : dict, optional
+            Any additional keywords for 'function'
+        priors : dict, optional
+            The priors for the parameters. Only necessary if using maximum likelihood estimation functionality
+        fiducial_parameters : dict, optional
+            The starting guesses for model parameters to use in the optimization for maximum likelihood estimation
         """
         super(PoissonLikelihood, self).__init__(x=time, y=counts, function=function, kwargs=kwargs, priors=priors,
                                                fiducial_parameters=fiducial_parameters)

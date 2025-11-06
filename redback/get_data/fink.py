@@ -26,13 +26,34 @@ class FinkDataGetter(DataGetter):
 
     def __init__(self, transient: str, transient_type: str) -> None:
         """
-        Constructor class for a data getter. The instance will be able to downloaded the specified Swift data.
+        Initialize a Fink data getter to download ZTF photometric data.
 
-        :param transient: Telephone number of GRB, e.g., 'GRB140903A' or '140903A' are valid inputs.
-        :type transient: str
-        :param transient_type: Type of the transient. Must be from
-                               `redback.get_data.open_data.FinkDataGetter.VALID_TRANSIENT_TYPES`.
-        :type transient_type: str
+        Parameters
+        ----------
+        transient : str
+            ZTF object identifier, e.g., 'ZTF21aaeyldq', 'ZTF18abokyfk'
+        transient_type : str
+            Type of the transient. Must be from
+            `redback.get_data.fink.FinkDataGetter.VALID_TRANSIENT_TYPES`.
+            Options are 'afterglow', 'kilonova', 'supernova', 'tidal_disruption_event', or 'unknown'
+
+        Examples
+        --------
+        Get ZTF data for a kilonova from Fink:
+
+        >>> from redback.get_data.fink import FinkDataGetter
+        >>> getter = FinkDataGetter('ZTF21aaeyldq', 'kilonova')
+        >>> data = getter.get_data()
+
+        Get ZTF data for a supernova:
+
+        >>> getter = FinkDataGetter('ZTF18abokyfk', 'supernova')
+        >>> data = getter.get_data()
+
+        Get data for an unknown transient type:
+
+        >>> getter = FinkDataGetter('ZTF20abcdefg', 'unknown')
+        >>> data = getter.get_data()
         """
         super().__init__(transient, transient_type)
         self.directory_path, self.raw_file_path, self.processed_file_path = \
@@ -42,21 +63,39 @@ class FinkDataGetter(DataGetter):
     @property
     def url(self) -> str:
         """
-        :return: The fink raw data url.
-        :rtype: str
+        Get the Fink API URL.
+
+        Returns
+        -------
+        str
+            The Fink API endpoint URL
         """
         return "https://api.fink-portal.org/api/v1/objects"
 
     @property
     def objectId(self) -> str:
         """
-        :return: The object ID i.e., the transient name
-        :rtype: str
+        Get the object ID.
+
+        Returns
+        -------
+        str
+            The ZTF object ID (transient name)
         """
         return self.transient
 
     def collect_data(self) -> None:
-        """Downloads the data from astrocats and saves it into the raw file path."""
+        """
+        Download data from Fink API and save to raw file path.
+
+        Queries the Fink API for the object and retrieves all available
+        photometry including upper limits.
+
+        Raises
+        ------
+        ValueError
+            If the transient does not exist in the Fink database
+        """
         if os.path.isfile(self.raw_file_path):
             logger.warning('The raw data file already exists.')
             return None
@@ -75,11 +114,18 @@ class FinkDataGetter(DataGetter):
         logger.info(f"Retrieved data for {self.transient}.")
 
     def convert_raw_data_to_csv(self) -> Union[pd.DataFrame, None]:
-        """Converts the raw data into processed data and saves it into the processed file path.
-        The data columns are in `OpenDataGetter.PROCESSED_FILE_COLUMNS`.
+        """
+        Convert raw Fink data to processed CSV format.
 
-        :return: The processed data.
-        :rtype: pandas.DataFrame
+        Converts ZTF aperture magnitudes to flux and flux density,
+        and calculates time relative to the first detection. Filters
+        for valid detections only.
+
+        Returns
+        -------
+        pandas.DataFrame or None
+            The processed data with time, magnitude, flux, flux density,
+            and associated errors in ZTF bands (g, r, i)
         """
         if os.path.isfile(self.processed_file_path):
             logger.warning('The processed data file already exists. Returning.')

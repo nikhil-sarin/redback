@@ -17,6 +17,17 @@ dirname = os.path.dirname(__file__)
 
 
 class Afterglow(Transient):
+    """
+    Class for GRB afterglow data.
+
+    Inherits from Transient and provides GRB-specific data loading and processing,
+    including automatic metadata retrieval and prompt emission truncation.
+
+    Attributes
+    ----------
+    DATA_MODES : list
+        Valid data modes: ['luminosity', 'flux', 'flux_density', 'magnitude'].
+    """
     DATA_MODES = ['luminosity', 'flux', 'flux_density', 'magnitude']
 
     def __init__(
@@ -31,66 +42,79 @@ class Afterglow(Transient):
             optical_data: bool = False, **kwargs: None) -> None:
 
         """
-        This is a general constructor for the Afterglow class. Note that you only need to give data corresponding to
-        the data mode you are using. For luminosity data provide times in the rest frame, if using a phase model
-        provide time in MJD, else use the default time (observer frame).
+        General constructor for the Afterglow class.
 
-        :param name: Telephone number of GRB, e.g., 'GRB140903A' or '140903A' are valid inputs
-        :type name: str
-        :param data_mode: Data mode. Must be one from `Afterglow.DATA_MODES`.
-        :type data_mode: str, optional
-        :param time: Times in the observer frame.
-        :type time: np.ndarray, optional
-        :param time_err: Time errors in the observer frame.
-        :type time_err: np.ndarray, optional
-        :param time_mjd: Times in MJD. Used if using phase model.
-        :type time_mjd: np.ndarray, optional
-        :param time_mjd_err: Time errors in MJD. Used if using phase model.
-        :type time_mjd_err: np.ndarray, optional
-        :param time_rest_frame: Times in the rest frame. Used for luminosity data.
-        :type time_rest_frame: np.ndarray, optional
-        :param time_rest_frame_err: Time errors in the rest frame. Used for luminosity data.
-        :type time_rest_frame_err: np.ndarray, optional
-        :param Lum50: Luminosity values.
-        :type Lum50: np.ndarray, optional
-        :param Lum50_err: Luminosity error values.
-        :type Lum50_err: np.ndarray, optional
-        :param flux: Flux values.
-        :type flux: np.ndarray, optional
-        :type flux_err: np.ndarray, optional
-        :param flux_err: Flux error values.
-        :param flux_density: Flux density values.
-        :type flux_density: np.ndarray, optional
-        :param flux_density_err: Flux density error values.
-        :type flux_density_err: np.ndarray, optional
-        :param magnitude: Magnitude values for photometry data.
-        :type magnitude: np.ndarray, optional
-        :param magnitude_err: Magnitude error values for photometry data.
-        :type magnitude_err: np.ndarray, optional
-        :param redshift: Redshift value. Will be read from the metadata table if not given.
-        :type redshift: float
-        :param photon_index: Photon index value. Will be read from the metadata table if not given.
-        :type photon_index: float
-        :param use_phase_model: Whether we are using a phase model.
-        :type use_phase_model: bool
-        :param optical_data: Whether we are fitting optical data, useful for plotting.
-        :type optical_data: bool, optional
-        :param frequency: Array of band frequencies in photometry data.
-        :type frequency: np.ndarray, optional
-        :param system: System values.
-        :type system: np.ndarray, optional
-        :param bands: Band values.
-        :type bands: np.ndarray, optional
-        :param active_bands: List or array of active bands to be used in the analysis. Use all available bands if 'all' is given.
-        :type active_bands: Union[list, np.ndarray]
-        :param plotting_order: Order in which to plot the bands/and how unique bands are stored.
-        :type plotting_order: Union[np.ndarray, str], optional
-        :param kwargs:
-            Additional classes that can be customised to fulfil the truncation on flux to luminosity conversion:
-            FluxToLuminosityConverter: Conversion class to convert fluxes to luminosities.
-                                       If not given use `FluxToLuminosityConverter` in this module.
-            Truncator: Truncation class that truncates the data. If not given use `Truncator` in this module.
-        :type kwargs: None, optional
+        Note that you only need to provide data corresponding to the data mode you are using.
+        For luminosity data provide times in the rest frame, if using a phase model provide
+        time in MJD, otherwise use the default time (observer frame). Metadata such as redshift
+        and photon index will be automatically loaded if not provided.
+
+        Parameters
+        ----------
+        name : str
+            Telephone number of GRB, e.g., 'GRB140903A' or '140903A' are valid inputs.
+        data_mode : str, optional
+            Data mode. Must be one from `Afterglow.DATA_MODES` (default is 'flux').
+        time : np.ndarray, optional
+            Times in the observer frame.
+        time_err : np.ndarray, optional
+            Time errors in the observer frame.
+        time_mjd : np.ndarray, optional
+            Times in MJD. Used if using phase model.
+        time_mjd_err : np.ndarray, optional
+            Time errors in MJD. Used if using phase model.
+        time_rest_frame : np.ndarray, optional
+            Times in the rest frame. Used for luminosity data.
+        time_rest_frame_err : np.ndarray, optional
+            Time errors in the rest frame. Used for luminosity data.
+        Lum50 : np.ndarray, optional
+            Luminosity values in units of 10^50 erg/s.
+        Lum50_err : np.ndarray, optional
+            Luminosity error values.
+        flux : np.ndarray, optional
+            Flux values in erg/cm^2/s.
+        flux_err : np.ndarray, optional
+            Flux error values.
+        flux_density : np.ndarray, optional
+            Flux density values in mJy.
+        flux_density_err : np.ndarray, optional
+            Flux density error values.
+        magnitude : np.ndarray, optional
+            Magnitude values for photometry data.
+        magnitude_err : np.ndarray, optional
+            Magnitude error values for photometry data.
+        redshift : float, optional
+            Redshift value. Will be read from the metadata table if not given (default is np.nan).
+        photon_index : float, optional
+            Photon index value. Will be read from the metadata table if not given (default is np.nan).
+        frequency : np.ndarray, optional
+            Array of band frequencies in photometry data.
+        bands : np.ndarray, optional
+            Band values.
+        system : np.ndarray, optional
+            System values.
+        active_bands : Union[np.ndarray, str], optional
+            List or array of active bands to be used in the analysis. Use all available bands
+            if 'all' is given (default is 'all').
+        plotting_order : Union[np.ndarray, str], optional
+            Order in which to plot the bands and how unique bands are stored.
+        use_phase_model : bool, optional
+            Whether we are using a phase model (default is False).
+        optical_data : bool, optional
+            Whether we are fitting optical data, useful for plotting (default is False).
+        **kwargs : dict, optional
+            Additional classes that can be customised:
+            - FluxToLuminosityConverter: Conversion class to convert fluxes to luminosities.
+              If not given use `FluxToLuminosityConverter` in this module.
+            - Truncator: Truncation class that truncates the data. If not given use
+              `Truncator` in this module.
+
+        Examples
+        --------
+        >>> import redback
+        >>> afterglow = redback.afterglow.Afterglow(name='GRB140903A', data_mode='flux')
+        >>> # Automatic loading from Swift
+        >>> afterglow = redback.afterglow.Afterglow.from_swift_grb('GRB140903A')
         """
 
         name = f"GRB{name.lstrip('GRB')}"
@@ -116,21 +140,34 @@ class Afterglow(Transient):
             cls, name: str, data_mode: str = 'flux', truncate: bool = True,
             truncate_method: str = 'prompt_time_error', **kwargs) -> Afterglow:
         """
+        Constructor to build Afterglow object from Swift GRB data.
 
-        :param name: Telephone number of SGRB, e.g., 'GRB140903A' or '140903A' are valid inputs
-        :type name: str
-        :param data_mode: Data mode. Must be one from `Afterglow.DATA_MODES`. (Default value = 'flux')
-        :type data_mode: str, optional
-        :param truncate: Whether to truncate the data. (Default value = True)
-        :type truncate: bool
-        :param truncate_method: Must be from `Truncator.TRUNCATE_METHODS`. (Default value = 'prompt_time_error')
-        :type truncate_method: str
-        :param kwargs: Additional keywords to pass into Afterglow.__init__
-        :type kwargs: dict
+        Automatically downloads and processes Swift X-ray telescope data, retrieves
+        metadata (redshift, photon index, T90), and truncates prompt emission if requested.
 
-        :return: The Afterglow object.
-        :rtype: Afterglow
+        Parameters
+        ----------
+        name : str
+            Telephone number of GRB, e.g., 'GRB140903A' or '140903A' are valid inputs.
+        data_mode : str, optional
+            Data mode. Must be one from `Afterglow.DATA_MODES` (default is 'flux').
+        truncate : bool, optional
+            Whether to truncate the data to remove prompt emission (default is True).
+        truncate_method : str, optional
+            Must be from `Truncator.TRUNCATE_METHODS` (default is 'prompt_time_error').
+        **kwargs : dict, optional
+            Additional keywords to pass into Afterglow.__init__.
 
+        Returns
+        -------
+        Afterglow
+            The Afterglow object with Swift data loaded and processed.
+
+        Examples
+        --------
+        >>> afterglow = Afterglow.from_swift_grb('GRB140903A', truncate=True)
+        >>> # Load without truncation
+        >>> afterglow = Afterglow.from_swift_grb('GRB140903A', truncate=False)
         """
         afterglow = cls(name=name, data_mode=data_mode)
 
@@ -191,15 +228,21 @@ class Afterglow(Transient):
 
     @staticmethod
     def load_data(name: str, data_mode: str = None) -> tuple:
-        """Loads and returns data from a csv file
+        """
+        Load GRB afterglow data from CSV file.
 
-        :param name: Telephone number of SGRB, e.g., 'GRB140903A' or '140903A' are valid inputs
-        :type name: str
-        :param data_mode: Data mode. Must be one from `Afterglow.DATA_MODES`. (Default value = None)
-        :type data_mode: str, optional
+        Parameters
+        ----------
+        name : str
+            Telephone number of GRB, e.g., 'GRB140903A' or '140903A' are valid inputs.
+        data_mode : str, optional
+            Data mode. Must be one from `Afterglow.DATA_MODES`.
 
-        :return: A tuple with x, x_err, y, y_err data
-        :rtype: tuple
+        Returns
+        -------
+        tuple
+            A tuple with (x, x_err, y, y_err) data where x is time and y is the data
+            corresponding to the selected data_mode.
         """
         directory_structure = afterglow_directory_structure(grb=f"GRB{name.lstrip('GRB')}", data_mode=data_mode)
 
@@ -211,11 +254,15 @@ class Afterglow(Transient):
         return x, x_err, y, y_err
 
     def truncate(self, truncate_method: str = 'prompt_time_error') -> None:
-        """Truncate the data using the specified method. See `redback.transient.afterglow.Truncator` for
-        documentation of the truncation methods.
+        """
+        Truncate the data using the specified method.
 
-        :param truncate_method: Must be from `Truncator.TRUNCATE_METHODS`. (Default value = 'prompt_time_error')
-        :type truncate_method: str
+        See `redback.transient.afterglow.Truncator` for documentation of the truncation methods.
+
+        Parameters
+        ----------
+        truncate_method : str, optional
+            Must be from `Truncator.TRUNCATE_METHODS` (default is 'prompt_time_error').
         """
         truncator = self.Truncator(x=self.x, x_err=self.x_err, y=self.y, y_err=self.y_err, time=self.time,
                                    time_err=self.time_err, truncate_method=truncate_method)
@@ -379,29 +426,46 @@ class LGRB(Afterglow):
 
 
 class Truncator(object):
-    """ """
+    """
+    Truncation class for removing prompt emission from GRB afterglow data.
+
+    This class can be subclassed and passed into `Afterglow` if user-specific
+    truncation is desired.
+
+    Attributes
+    ----------
+    TRUNCATE_METHODS : list
+        Valid truncation methods: ['prompt_time_error', 'left_of_max', 'default'].
+    """
     TRUNCATE_METHODS = ['prompt_time_error', 'left_of_max', 'default']
 
     def __init__(
             self, x: np.ndarray, x_err: np.ndarray, y: np.ndarray, y_err: np.ndarray, time: np.ndarray,
             time_err: np.ndarray, truncate_method: str = 'prompt_time_error') -> None:
-        """Truncation class for the truncation behaviour in `Afterglow`. This class can be subclassed and passed
-        into `Afterglow` if user specific truncation is desired.
+        """
+        Initialize the Truncator.
 
-        :param x: X-axis (time) data.
-        :type x: np.ndarray
-        :param x_err: X-axis (time)  error data.
-        :type x_err: np.ndarray
-        :param y: Y-axis (flux/flux density/ counts) data
-        :type y: np.ndarray
-        :param y_err: Y-axis (flux/flux density/ counts) error data
-        :type y_err: np.ndarray
-        :param time: Time to be used for default truncation method.
-        :type time: np.ndarray
-        :param time_err: Time error to be used for default truncation method.
-        :type time_err: np.ndarray
-        :param truncate_method: Must be from Truncator.TRUNCATE_METHODS.
-        :type truncate_method: str, optional
+        Parameters
+        ----------
+        x : np.ndarray
+            X-axis (time) data.
+        x_err : np.ndarray
+            X-axis (time) error data.
+        y : np.ndarray
+            Y-axis (flux/flux density/counts) data.
+        y_err : np.ndarray
+            Y-axis (flux/flux density/counts) error data.
+        time : np.ndarray
+            Time to be used for default truncation method.
+        time_err : np.ndarray
+            Time error to be used for default truncation method.
+        truncate_method : str, optional
+            Must be from Truncator.TRUNCATE_METHODS (default is 'prompt_time_error').
+
+        Examples
+        --------
+        >>> truncator = Truncator(x, x_err, y, y_err, time, time_err, 'prompt_time_error')
+        >>> x_trunc, x_err_trunc, y_trunc, y_err_trunc = truncator.truncate()
         """
         self.x = x
         self.x_err = x_err
@@ -412,10 +476,13 @@ class Truncator(object):
         self.truncate_method = truncate_method
 
     def truncate(self) -> tuple:
-        """Executes the truncation and returns data as a tuple.
+        """
+        Execute the truncation and return data as a tuple.
 
-        :return: The truncated data (x, x_err, y, y_err)
-        :rtype: tuple
+        Returns
+        -------
+        tuple
+            The truncated data in format (x, x_err, y, y_err).
         """
         if self.truncate_method == 'prompt_time_error':
             return self.truncate_prompt_time_error()
@@ -425,10 +492,15 @@ class Truncator(object):
             return self.truncate_default()
 
     def truncate_prompt_time_error(self) -> tuple:
-        """Truncate using the prompt time error method. Does not data points after 2.0 seconds.
+        """
+        Truncate using the prompt time error method.
 
-        :return: The truncated data (x, x_err, y, y_err)
-        :rtype: tuple
+        Removes data points with time errors > 0.0025 s and times < 2.0 s.
+
+        Returns
+        -------
+        tuple
+            The truncated data in format (x, x_err, y, y_err).
         """
         mask1 = self.x_err[0, :] > 0.0025
         mask2 = self.x < 2.0
@@ -473,6 +545,17 @@ class Truncator(object):
 
 
 class FluxToLuminosityConverter(object):
+    """
+    Flux to luminosity conversion class for GRB afterglows.
+
+    This class can be subclassed and passed into `Afterglow` if user-specific
+    conversion is desired.
+
+    Attributes
+    ----------
+    CONVERSION_METHODS : list
+        Valid conversion methods: ['analytical', 'numerical'].
+    """
     CONVERSION_METHODS = ["analytical", "numerical"]
 
     def __init__(
@@ -480,28 +563,38 @@ class FluxToLuminosityConverter(object):
             flux_err: np.ndarray, counts_to_flux_absorbed: float = 1., counts_to_flux_unabsorbed: float = 1.,
             conversion_method: str = "analytical") -> None:
         """
-        Flux to luminosity conversion class for the conversion behaviour in `Afterglow`.
-        This class can be subclassed and passed into `Afterglow` if user specific conversion is desired.
+        Initialize the FluxToLuminosityConverter.
 
-        :param redshift: The redshift value to use.
-        :type redshift: np.ndarray
-        :param photon_index: The photon index value to use.
-        :type photon_index: np.ndarray
-        :param time: Time data.
-        :type time: np.ndarray
-        :param time_err: Time error data.
-        :type time_err: np.ndarray
-        :param flux: Flux data.
-        :type flux: np.ndarray
-        :param flux_err: Flux error data.
-        :type flux_err: np.ndarray
-        :param counts_to_flux_absorbed: Absorbed counts to flux ratio - a conversion of the count rate to flux.
-        :type counts_to_flux_absorbed: float
-        :param counts_to_flux_unabsorbed: Unabsorbed counts to flux ratio - a conversion of the count rate to flux.
-        :type counts_to_flux_unabsorbed: float
-        :param conversion_method: The conversion method to use.
-                                  Must be from `FluxToLuminosityConverter.CONVERSION_METHODS`
-        :type conversion_method: str, optional
+        Parameters
+        ----------
+        redshift : float
+            The redshift value to use.
+        photon_index : float
+            The photon index value to use.
+        time : np.ndarray
+            Time data in seconds.
+        time_err : np.ndarray
+            Time error data in seconds.
+        flux : np.ndarray
+            Flux data in erg/cm^2/s.
+        flux_err : np.ndarray
+            Flux error data in erg/cm^2/s.
+        counts_to_flux_absorbed : float, optional
+            Absorbed counts to flux ratio - a conversion of the count rate to flux
+            (default is 1.0).
+        counts_to_flux_unabsorbed : float, optional
+            Unabsorbed counts to flux ratio - a conversion of the count rate to flux
+            (default is 1.0).
+        conversion_method : str, optional
+            The conversion method to use. Must be from `FluxToLuminosityConverter.CONVERSION_METHODS`
+            (default is 'analytical').
+
+        Examples
+        --------
+        >>> converter = FluxToLuminosityConverter(
+        ...     redshift=0.75, photon_index=2.0, time=times, time_err=time_errs,
+        ...     flux=fluxes, flux_err=flux_errs, conversion_method='analytical')
+        >>> time_rf, time_rf_err, lum, lum_err = converter.convert_flux_to_luminosity()
         """
         self.redshift = redshift
         self.photon_index = photon_index
@@ -567,10 +660,14 @@ class FluxToLuminosityConverter(object):
             return sherpa.calc_kcorr(self.redshift, obs_elow, obs_ehigh, bol_elow, bol_ehigh, id=1)
 
     def convert_flux_to_luminosity(self) -> tuple:
-        """Calculates k-correction and converts the flux to luminosity.
+        """
+        Calculate k-correction and convert the flux to luminosity.
 
-        :return: The rest frame times and luminosities in the format (x, x_err, y, y_err).
-        :rtype: tuple
+        Returns
+        -------
+        tuple
+            The rest frame times and luminosities in format (time_rest_frame,
+            time_rest_frame_err, Lum50, Lum50_err).
         """
         k_corr = self.get_k_correction()
         self._calculate_rest_frame_time_and_luminosity(

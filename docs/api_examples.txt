@@ -1,0 +1,434 @@
+==================
+API Usage Examples
+==================
+
+This page provides quick examples of using the main :code:`redback` API functions.
+
+Getting Data
+============
+
+Retrieve transient data from various catalogs using the :code:`get_data` module:
+
+From Open Transient Catalog
+----------------------------
+
+.. code-block:: python
+
+    import redback
+
+    # Get supernova data
+    supernova = redback.get_data.get_supernova_data_from_open_transient_catalog_data(
+        transient='SN2011kl'
+    )
+
+    # Get kilonova data
+    kilonova = redback.get_data.get_kilonova_data_from_open_transient_catalog_data(
+        transient='AT2017gfo'
+    )
+
+From Swift
+----------
+
+.. code-block:: python
+
+    import redback
+
+    # Get GRB afterglow data
+    afterglow = redback.get_data.get_bat_xrt_afterglow_data_from_swift(
+        grb='GRB070809',
+        data_mode='flux'
+    )
+
+From FINK
+---------
+
+.. code-block:: python
+
+    import redback
+
+    # Get data from FINK broker
+    transient = redback.get_data.get_lasair_data(
+        transient='ZTF19abanrhr',
+        transient_type='supernova'
+    )
+
+Creating Transient Objects
+===========================
+
+Create transient objects from your own data:
+
+.. code-block:: python
+
+    import redback
+    import numpy as np
+
+    # Create an optical transient
+    time = np.array([1, 2, 3, 4, 5])
+    magnitude = np.array([20.0, 19.5, 19.0, 19.2, 19.5])
+    magnitude_err = np.array([0.1, 0.1, 0.1, 0.1, 0.1])
+    bands = np.array(['r', 'r', 'r', 'r', 'r'])
+
+    transient = redback.transient.OpticalTransient(
+        name='MyTransient',
+        time=time,
+        magnitude=magnitude,
+        magnitude_err=magnitude_err,
+        bands=bands,
+        data_mode='magnitude'
+    )
+
+Fitting Models
+==============
+
+Fit physical models to transient data:
+
+Basic Fitting
+-------------
+
+.. code-block:: python
+
+    import redback
+
+    # Get data
+    supernova = redback.get_data.get_supernova_data_from_open_transient_catalog_data('SN2011kl')
+
+    # Fit an Arnett model
+    result = redback.fit_model(
+        transient=supernova,
+        model='arnett',
+        nlive=1000,
+        sampler='dynesty'
+    )
+
+    # Plot the results
+    result.plot_lightcurve(model='arnett')
+    result.plot_corner()
+
+With Custom Priors
+------------------
+
+.. code-block:: python
+
+    import redback
+    import bilby
+
+    # Define custom priors
+    priors = bilby.prior.PriorDict()
+    priors['redshift'] = bilby.prior.DeltaFunction(0.677)
+    priors['mej'] = bilby.prior.Uniform(0.1, 10, 'mej')
+    priors['vej'] = bilby.prior.Uniform(1000, 20000, 'vej')
+
+    # Get data
+    supernova = redback.get_data.get_supernova_data_from_open_transient_catalog_data('SN2011kl')
+
+    # Fit with custom priors
+    result = redback.fit_model(
+        transient=supernova,
+        model='arnett',
+        prior=priors,
+        nlive=1000
+    )
+
+Using Models as Functions
+==========================
+
+Call models directly without fitting:
+
+.. code-block:: python
+
+    import redback
+    import numpy as np
+    import matplotlib.pyplot as plt
+
+    # Get model function
+    model = redback.model_library.all_models_dict['arnett']
+
+    # Define parameters
+    time = np.linspace(1, 100, 100)
+    parameters = {
+        'redshift': 0.01,
+        'mej': 5.0,
+        'vej': 6000.0,
+        'kappa': 0.2,
+        'kappa_gamma': 1e4,
+        'temperature_floor': 3000.0
+    }
+
+    # Call model
+    magnitude = model(time, **parameters)
+
+    # Plot
+    plt.plot(time, magnitude)
+    plt.gca().invert_yaxis()
+    plt.xlabel('Time (days)')
+    plt.ylabel('Magnitude')
+    plt.show()
+
+Analysis and Plotting
+=====================
+
+Analyze and visualize results:
+
+Plot Lightcurves
+----------------
+
+.. code-block:: python
+
+    import redback
+
+    # Get transient and parameters
+    supernova = redback.get_data.get_supernova_data_from_open_transient_catalog_data('SN2011kl')
+    parameters = {'redshift': 0.677, 'mej': 5.0, 'vej': 6000.0}
+
+    # Plot lightcurve with parameters
+    fig = redback.analysis.plot_lightcurve(
+        transient=supernova,
+        parameters=parameters,
+        model='arnett'
+    )
+
+Plot Spectra
+------------
+
+.. code-block:: python
+
+    import redback
+    import numpy as np
+
+    # Define model and parameters
+    parameters = {
+        'redshift': 0.01,
+        'mej': 0.05,
+        'vej': 0.2,
+        'kappa': 10.0
+    }
+    times = np.array([1, 3, 5, 10])
+
+    # Plot spectrum evolution
+    ax = redback.analysis.plot_spectrum(
+        model='arnett',
+        parameters=parameters,
+        time_to_plot=times
+    )
+
+Gaussian Process Fitting
+-------------------------
+
+.. code-block:: python
+
+    import redback
+
+    # Get transient
+    supernova = redback.get_data.get_supernova_data_from_open_transient_catalog_data('SN2011kl')
+
+    # Fit Gaussian Process
+    gp_output = supernova.fit_gp()
+
+    # Plot GP fit
+    fig, ax = supernova.plot_data()
+    ax = redback.analysis.plot_gp_lightcurves(
+        transient=supernova,
+        gp_output=gp_output,
+        axes=ax
+    )
+
+Simulating Transients
+======================
+
+Simulate transient observations:
+
+Basic Simulation
+----------------
+
+.. code-block:: python
+
+    import redback
+
+    # Simulate a kilonova
+    model = 'one_component_kilonova_model'
+    parameters = {
+        'mej': 0.05,
+        'vej': 0.2,
+        'kappa': 10.0
+    }
+
+    kilonova = redback.simulate_transients.SimulateOpticalTransient.simulate_transient(
+        model=model,
+        parameters=parameters,
+        redshift=0.01
+    )
+
+    # Plot simulated data
+    kilonova.plot_data()
+
+Survey Simulation
+-----------------
+
+.. code-block:: python
+
+    import redback
+
+    # Simulate ZTF observation
+    model = 'arnett'
+    parameters = {
+        'mej': 5.0,
+        'vej': 6000.0,
+        'kappa': 0.2
+    }
+
+    transient = redback.simulate_transients.simulate_single_transient_in_ztf(
+        model=model,
+        parameters=parameters,
+        redshift=0.05,
+        name='SimulatedSN'
+    )
+
+Working with Results
+====================
+
+Load and manipulate result objects:
+
+Reading Results
+---------------
+
+.. code-block:: python
+
+    import redback
+
+    # Read in previously saved result
+    result = redback.result.read_in_result(
+        outdir='outdir/arnett/',
+        label='SN2011kl',
+        extension='json'
+    )
+
+    # Access posterior samples
+    posterior = result.posterior
+    print(posterior.columns)
+
+    # Get maximum likelihood parameters
+    max_likelihood_params = result.get_max_likelihood_params()
+
+Combining Results
+-----------------
+
+.. code-block:: python
+
+    import redback
+
+    # For joint GW+EM analysis
+    # Read both results
+    em_result = redback.result.read_in_result(
+        outdir='outdir/afterglow/',
+        label='GRB170817A'
+    )
+
+    gw_result = bilby.result.read_in_result(
+        outdir='outdir/gw/',
+        label='GW170817'
+    )
+
+    # Combine for joint analysis
+    joint_result = redback.likelihoods.create_joint_likelihood(
+        em_result=em_result,
+        gw_result=gw_result
+    )
+
+Custom Models
+=============
+
+Create and use custom models:
+
+.. code-block:: python
+
+    import redback
+    import numpy as np
+
+    # Define custom model function
+    def my_custom_model(time, amplitude, decay_rate, **kwargs):
+        """A simple exponential decay model."""
+        return amplitude * np.exp(-decay_rate * time)
+
+    # Use custom model in fitting
+    import bilby
+
+    # Define priors for custom model
+    priors = bilby.prior.PriorDict()
+    priors['amplitude'] = bilby.prior.Uniform(0, 100, 'amplitude')
+    priors['decay_rate'] = bilby.prior.Uniform(0.01, 1, 'decay_rate')
+
+    # Get data
+    transient = redback.get_data.get_supernova_data_from_open_transient_catalog_data('SN2011kl')
+
+    # Fit custom model
+    result = redback.fit_model(
+        transient=transient,
+        model=my_custom_model,
+        prior=priors,
+        nlive=1000
+    )
+
+Accessing Model Library
+========================
+
+Browse available models:
+
+.. code-block:: python
+
+    import redback
+
+    # List all available models
+    all_models = redback.model_library.all_models_dict.keys()
+    print(list(all_models))
+
+    # Get models by category
+    supernova_models = redback.model_library.supernova_models
+    kilonova_models = redback.model_library.kilonova_models
+    afterglow_models = redback.model_library.afterglow_models
+
+    # Get model documentation
+    model_func = redback.model_library.all_models_dict['arnett']
+    print(model_func.__doc__)
+
+Advanced Features
+=================
+
+Blackbody Parameter Estimation
+-------------------------------
+
+.. code-block:: python
+
+    import redback
+
+    # Get transient
+    transient = redback.get_data.get_supernova_data_from_open_transient_catalog_data('SN2011kl')
+
+    # Estimate blackbody parameters
+    bb_params = transient.estimate_bb_params()
+
+    # bb_params is a DataFrame with temperature, radius, and their errors
+    print(bb_params)
+
+Bolometric Luminosity Calculation
+----------------------------------
+
+.. code-block:: python
+
+    import redback
+
+    # Get transient
+    transient = redback.get_data.get_supernova_data_from_open_transient_catalog_data('SN2011kl')
+
+    # Calculate bolometric luminosity
+    lbol = transient.calculate_lbol()
+
+    # Plot bolometric luminosity
+    import matplotlib.pyplot as plt
+    plt.errorbar(lbol['time'], lbol['lbol'], yerr=lbol['lbol_err'])
+    plt.yscale('log')
+    plt.xlabel('Time (days)')
+    plt.ylabel('Bolometric Luminosity (erg/s)')
+    plt.show()
+
+For more detailed examples, see the :doc:`examples` section and the
+`examples folder <https://github.com/nikhil-sarin/redback/tree/master/examples>`_ in the repository.

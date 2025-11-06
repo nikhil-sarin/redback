@@ -30,13 +30,34 @@ class OpenDataGetter(DataGetter):
     DATA_MODE = 'flux_density'
 
     def __init__(self, transient: str, transient_type: str) -> None:
-        """Constructor class for a data getter. The instance will be able to download the specified Swift data.
+        """
+        Initialize an Open Access Catalog data getter to download photometric data.
 
-        :param transient: Telephone number of GRB, e.g., 'GRB140903A' or '140903A' are valid inputs.
-        :type transient: str
-        :param transient_type: Type of the transient.
-                               Must be from `redback.get_data.open_data.OpenDataGetter.VALID_TRANSIENT_TYPES`.
-        :type transient_type: str
+        Parameters
+        ----------
+        transient : str
+            Transient name, e.g., 'SN2011kl', 'AT2017gfo', 'PS1-10jh'
+        transient_type : str
+            Type of the transient. Must be from `redback.get_data.open_data.OpenDataGetter.VALID_TRANSIENT_TYPES`.
+            Options are 'kilonova', 'supernova', or 'tidal_disruption_event'
+
+        Examples
+        --------
+        Get kilonova data for AT2017gfo:
+
+        >>> from redback.get_data.open_data import OpenDataGetter
+        >>> getter = OpenDataGetter('AT2017gfo', 'kilonova')
+        >>> data = getter.get_data()
+
+        Get supernova data for SN2011kl:
+
+        >>> getter = OpenDataGetter('SN2011kl', 'supernova')
+        >>> data = getter.get_data()
+
+        Get tidal disruption event data:
+
+        >>> getter = OpenDataGetter('PS1-10jh', 'tidal_disruption_event')
+        >>> data = getter.get_data()
         """
         super().__init__(transient, transient_type)
         self.directory_path, self.raw_file_path, self.processed_file_path = \
@@ -46,8 +67,12 @@ class OpenDataGetter(DataGetter):
     @property
     def url(self) -> str:
         """
-        :return: The astrocats raw data url.
-        :rtype: str
+        Get the astrocats API URL for photometric data.
+
+        Returns
+        -------
+        str
+            The astrocats raw data API URL
         """
         return f"https://api.astrocats.space/{self.transient}/photometry/time+magnitude+e_" \
                f"magnitude+band+system?e_magnitude&band&time&format=csv"
@@ -55,8 +80,12 @@ class OpenDataGetter(DataGetter):
     @property
     def metadata_url(self) -> str:
         """
-        :return: The astrocats metadata url.
-        :rtype: str
+        Get the astrocats API URL for transient metadata.
+
+        Returns
+        -------
+        str
+            The astrocats metadata API URL
         """
         return f"https://api.astrocats.space/{self.transient}/" \
                f"timeofmerger+discoverdate+redshift+ra+dec+host+alias?format=CSV"
@@ -64,13 +93,24 @@ class OpenDataGetter(DataGetter):
     @property
     def metadata_path(self):
         """
-        :return: The path to the metadata file.
-        :rtype: str
+        Get the local path to the metadata file.
+
+        Returns
+        -------
+        str
+            The path to the metadata CSV file
         """
         return f"{self.directory_path}{self.transient}_metadata.csv"
 
     def collect_data(self) -> None:
-        """Downloads the data from astrocats and saves it into the raw file path."""
+        """
+        Download data from astrocats and save to raw file path.
+
+        Raises
+        ------
+        ValueError
+            If the transient does not exist in the astrocats catalog
+        """
         if os.path.isfile(self.raw_file_path):
             logger.warning('The raw data file already exists.')
             return None
@@ -86,11 +126,17 @@ class OpenDataGetter(DataGetter):
 
 
     def convert_raw_data_to_csv(self) -> Union[pd.DataFrame, None]:
-        """Converts the raw data into processed data and saves it into the processed file path.
-        The data columns are in `OpenDataGetter.PROCESSED_FILE_COLUMNS`.
+        """
+        Convert raw astrocats data to processed CSV format.
 
-        :return: The processed data.
-        :rtype: pandas.DataFrame
+        Converts magnitudes to flux and flux density, and calculates
+        time relative to the event.
+
+        Returns
+        -------
+        pandas.DataFrame or None
+            The processed data with time, magnitude, flux, flux density,
+            and associated errors in multiple bands
         """
         if os.path.isfile(self.processed_file_path):
             logger.warning('The processed data file already exists. Returning.')
@@ -127,19 +173,20 @@ class OpenDataGetter(DataGetter):
         return data
 
     def get_time_of_event(self, data: pd.DataFrame, metadata: pd.DataFrame) -> Time:
-        """Infers the time of the event from the given data.
+        """
+        Infer the time of the event from the given data and metadata.
 
-        :param data: The half-processed data.
-        :type data: pandas.DataFrame
-        :param metadata: The metadata.
-        :type metadata: pandas.DataFrame
-        :param data: pd.DataFrame: 
-        :param metadata: pd.DataFrame: 
+        Parameters
+        ----------
+        data : pandas.DataFrame
+            The partially-processed photometric data
+        metadata : pandas.DataFrame
+            The transient metadata from astrocats
 
         Returns
         -------
-        astropy.time.Time: The time of the event in the astropy format.
-
+        astropy.time.Time
+            The time of the event in MJD format
         """
         time_of_event = metadata['timeofmerger'].iloc[0]
         if np.isnan(time_of_event):
@@ -154,11 +201,15 @@ class OpenDataGetter(DataGetter):
 
     def get_t0_from_grb(self) -> float:
         """
-        Tries to infer the event time from the GRB catalog.
+        Infer the event time from the GRB catalog.
+
+        Searches the GRB catalog for an associated GRB to find
+        the merger/event time.
 
         Returns
         -------
-        float: The event time.
+        float
+            The event time in MJD
         """
         grb_alias = self.get_grb_alias()
         catalog = sqlite3.connect('tables/GRBcatalog.sqlite')
@@ -170,11 +221,14 @@ class OpenDataGetter(DataGetter):
 
     def get_grb_alias(self) -> Union[re.Match, None]:
         """
-        Tries to get the GRB alias from the Open Access Catalog metadata table.
+        Get the GRB alias from the Open Access Catalog metadata table.
+
+        Searches the metadata for an associated GRB name.
 
         Returns
         -------
-        Union[re.Match, None]: The grb alias if found, else None.
+        str or None
+            The GRB alias if found, else None
         """
         metadata = pd.read_csv('tables/OAC_metadata.csv')
         transient = metadata[metadata['event'] == self.transient]

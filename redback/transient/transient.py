@@ -19,11 +19,26 @@ class Spectrum(object):
         """
         A class to store spectral data.
 
-        :param angstroms: Wavelength in angstroms.
-        :param flux_density: flux density in ergs/s/cm^2/angstrom.
-        :param flux_density_err: flux density error in ergs/s/cm^2/angstrom.
-        :param time: Time of the spectrum. Could be a phase or time since burst. Only used for plotting.
-        :param name: Name of the spectrum.
+        Parameters
+        ----------
+        angstroms : np.ndarray
+            Wavelength in angstroms.
+        flux_density : np.ndarray
+            Flux density in ergs/s/cm^2/angstrom.
+        flux_density_err : np.ndarray
+            Flux density error in ergs/s/cm^2/angstrom.
+        time : str, optional
+            Time of the spectrum. Could be a phase or time since burst. Only used for plotting.
+        name : str, optional
+            Name of the spectrum (default is '').
+
+        Examples
+        --------
+        >>> import numpy as np
+        >>> wavelengths = np.linspace(4000, 8000, 100)
+        >>> flux = np.ones(100) * 1e-17
+        >>> flux_err = flux * 0.1
+        >>> spectrum = Spectrum(wavelengths, flux, flux_err, time="10 days", name="AT2021xyz")
         """
 
         self.angstroms = angstroms
@@ -41,33 +56,58 @@ class Spectrum(object):
     @property
     def xlabel(self) -> str:
         """
-        :return: xlabel used in plotting functions
-        :rtype: str
+        The x-axis label for plotting functions.
+
+        Returns
+        -------
+        str
+            Wavelength label in LaTeX format.
         """
         return r'Wavelength [$\mathrm{\AA}$]'
 
     @property
     def ylabel(self) -> str:
         """
-        :return: ylabel used in plotting functions
-        :rtype: str
+        The y-axis label for plotting functions.
+
+        Returns
+        -------
+        str
+            Flux label in LaTeX format.
         """
         return r'Flux ($10^{-17}$ erg s$^{-1}$ cm$^{-2}$ $\mathrm{\AA}$)'
 
     def plot_data(self, axes: matplotlib.axes.Axes = None, filename: str = None, outdir: str = None, save: bool = True,
             show: bool = True, color: str = 'k', **kwargs) -> matplotlib.axes.Axes:
-        """Plots the Transient data and returns Axes.
+        """
+        Plot the spectrum data.
 
-        :param axes: Matplotlib axes to plot the lightcurve into. Useful for user specific modifications to the plot.
-        :param filename: Name of the file to be plotted in.
-        :param outdir: The directory in which to save the file in.
-        :param save: Whether to save the plot. (Default value = True)
-        :param show: Whether to show the plot. (Default value = True)
-        :param color: Color of the data.
-        :param kwargs: Additional keyword arguments to pass in the Plotter methods.
-        Available in the online documentation under at `redback.plotting.Plotter`.
-        `print(Transient.plot_data.__doc__)` to see all options!
-        :return: The axes with the plot.
+        Parameters
+        ----------
+        axes : matplotlib.axes.Axes, optional
+            Matplotlib axes to plot into. Useful for user specific modifications.
+        filename : str, optional
+            Name of the file to save the plot.
+        outdir : str, optional
+            Directory in which to save the file.
+        save : bool, optional
+            Whether to save the plot (default is True).
+        show : bool, optional
+            Whether to show the plot (default is True).
+        color : str, optional
+            Color of the data (default is 'k').
+        **kwargs : dict, optional
+            Additional keyword arguments to pass to the Plotter methods.
+            Available in the online documentation at `redback.plotting.Plotter`.
+
+        Returns
+        -------
+        matplotlib.axes.Axes
+            The axes with the plot.
+
+        Examples
+        --------
+        >>> spectrum.plot_data(color='blue', save=False)
         """
 
         plotter = SpectrumPlotter(spectrum=self, color=color, filename=filename, outdir=outdir, **kwargs)
@@ -78,20 +118,35 @@ class Spectrum(object):
             save: bool = True, show: bool = True, random_models: int = 100, posterior: pd.DataFrame = None,
             model_kwargs: dict = None, **kwargs: None) -> matplotlib.axes.Axes:
         """
-        :param model: The model used to plot the lightcurve.
-        :param filename: The output filename. Otherwise, use default which starts with the name
-                         attribute and ends with *lightcurve.png.
-        :param axes: Axes to plot in if given.
-        :param save:Whether to save the plot.
-        :param show: Whether to show the plot.
-        :param random_models: Number of random posterior samples plotted faintly. (Default value = 100)
-        :param posterior: Posterior distribution to which to draw samples from. Is optional but must be given.
-        :param outdir: Out directory in which to save the plot. Default is the current working directory.
-        :param model_kwargs: Additional keyword arguments to be passed into the model.
-        :param kwargs: Additional keyword arguments to pass in the Plotter methods.
-        Available in the online documentation under at `redback.plotting.Plotter`.
-        `print(Transient.plot_lightcurve.__doc__)` to see all options!
-        :return: The axes.
+        Plot the spectrum with model predictions.
+
+        Parameters
+        ----------
+        model : callable
+            The model function used to generate predictions.
+        filename : str, optional
+            Output filename. If None, uses default based on the name attribute.
+        outdir : str, optional
+            Directory to save the plot. Default is current working directory.
+        axes : matplotlib.axes.Axes, optional
+            Axes to plot in if provided.
+        save : bool, optional
+            Whether to save the plot (default is True).
+        show : bool, optional
+            Whether to show the plot (default is True).
+        random_models : int, optional
+            Number of random posterior samples plotted faintly (default is 100).
+        posterior : pd.DataFrame, optional
+            Posterior distribution from which to draw samples. Must be provided if plotting model.
+        model_kwargs : dict, optional
+            Additional keyword arguments to pass into the model.
+        **kwargs : dict, optional
+            Additional keyword arguments to pass to Plotter methods.
+
+        Returns
+        -------
+        matplotlib.axes.Axes
+            The axes with the plot.
         """
         plotter = SpectrumPlotter(
             spectrum=self, model=model, filename=filename, outdir=outdir,
@@ -102,19 +157,33 @@ class Spectrum(object):
                       save: bool = True, show: bool = True, posterior: pd.DataFrame = None,
                       model_kwargs: dict = None, **kwargs: None) -> matplotlib.axes.Axes:
         """
-        :param model: The model used to plot the lightcurve.
-        :param filename: The output filename. Otherwise, use default which starts with the name
-                         attribute and ends with *lightcurve.png.
-        :param axes: Axes to plot in if given.
-        :param save:Whether to save the plot.
-        :param show: Whether to show the plot.
-        :param posterior: Posterior distribution to which to draw samples from. Is optional but must be given.
-        :param outdir: Out directory in which to save the plot. Default is the current working directory.
-        :param model_kwargs: Additional keyword arguments to be passed into the model.
-        :param kwargs: Additional keyword arguments to pass in the Plotter methods.
-        Available in the online documentation under at `redback.plotting.Plotter`.
-        `print(Transient.plot_residual.__doc__)` to see all options!
-        :return: The axes.
+        Plot residuals between spectrum data and model predictions.
+
+        Parameters
+        ----------
+        model : callable
+            The model function used to generate predictions.
+        filename : str, optional
+            Output filename. If None, uses default based on the name attribute.
+        outdir : str, optional
+            Directory to save the plot. Default is current working directory.
+        axes : matplotlib.axes.Axes, optional
+            Axes to plot in if provided.
+        save : bool, optional
+            Whether to save the plot (default is True).
+        show : bool, optional
+            Whether to show the plot (default is True).
+        posterior : pd.DataFrame, optional
+            Posterior distribution from which to draw samples. Must be provided.
+        model_kwargs : dict, optional
+            Additional keyword arguments to pass into the model.
+        **kwargs : dict, optional
+            Additional keyword arguments to pass to Plotter methods.
+
+        Returns
+        -------
+        matplotlib.axes.Axes
+            The axes with the plot.
         """
         plotter = SpectrumPlotter(
             spectrum=self, model=model, filename=filename, outdir=outdir,
@@ -150,73 +219,91 @@ class Transient(object):
             name: str = '', photon_index: float = np.nan, use_phase_model: bool = False,
             optical_data: bool = False, frequency: np.ndarray = None, system: np.ndarray = None, bands: np.ndarray = None,
             active_bands: Union[np.ndarray, str] = None, plotting_order: Union[np.ndarray, str] = None, **kwargs: None) -> None:
-        """This is a general constructor for the Transient class. Note that you only need to give data corresponding to
-        the data mode you are using. For luminosity data provide times in the rest frame, if using a phase model
-        provide time in MJD, else use the default time (observer frame).
+        """
+        General constructor for the Transient class.
 
-        :param time: Times in the observer frame.
-        :type time: np.ndarray, optional
-        :param time_err: Time errors in the observer frame.
-        :type time_err: np.ndarray, optional
-        :param time_mjd: Times in MJD. Used if using phase model.
-        :type time_mjd: np.ndarray, optional
-        :param time_mjd_err: Time errors in MJD. Used if using phase model.
-        :type time_mjd_err: np.ndarray, optional
-        :param time_rest_frame: Times in the rest frame. Used for luminosity data.
-        :type time_rest_frame: np.ndarray, optional
-        :param time_rest_frame_err: Time errors in the rest frame. Used for luminosity data.
-        :type time_rest_frame_err: np.ndarray, optional
-        :param Lum50: Luminosity values.
-        :type Lum50: np.ndarray, optional
-        :param Lum50_err: Luminosity error values.
-        :type Lum50_err: np.ndarray, optional
-        :param flux: Flux values.
-        :type flux: np.ndarray, optional
-        :param flux_err: Flux error values.
-        :type flux_err: np.ndarray, optional
-        :param flux_density: Flux density values.
-        :type flux_density: np.ndarray, optional
-        :param flux_density_err: Flux density error values.
-        :type flux_density_err: np.ndarray, optional
-        :param magnitude: Magnitude values for photometry data.
-        :type magnitude: np.ndarray, optional
-        :param magnitude_err: Magnitude error values for photometry data.
-        :type magnitude_err: np.ndarray, optional
-        :param counts: Counts for prompt data.
-        :type counts: np.ndarray, optional
-        :param ttes: Time-tagged events data for unbinned prompt data.
-        :type ttes: np.ndarray, optional
-        :param bin_size: Bin size for binning time-tagged event data.
-        :type bin_size: float, optional
-        :param redshift: Redshift value.
-        :type redshift: float, optional
-        :param data_mode: Data mode. Must be one from `Transient.DATA_MODES`.
-        :type data_mode: str, optional
-        :param name: Name of the transient.
-        :type name: str, optional
-        :param photon_index: Photon index value.
-        :type photon_index: float, optional
-        :param use_phase_model: Whether we are using a phase model.
-        :type use_phase_model: bool, optional
-        :param optical_data: Whether we are fitting optical data, useful for plotting.
-        :type optical_data: bool, optional
-        :param frequency: Array of band frequencies in photometry data.
-        :type frequency: np.ndarray, optional
-        :param system: System values.
-        :type system: np.ndarray, optional
-        :param bands: Band values.
-        :type bands: np.ndarray, optional
-        :param active_bands: List or array of active bands to be used in the analysis.
-                             Use all available bands if 'all' is given.
-        :type active_bands: Union[list, np.ndarray], optional
-        :param plotting_order: Order in which to plot the bands/and how unique bands are stored.
-        :type plotting_order: Union[np.ndarray, str], optional
-        :param kwargs: Additional callables:
-                       bands_to_frequency: Conversion function to convert a list of bands to frequencies.
-                                           Use redback.utils.bands_to_frequency if not given.
-                       bin_ttes: Binning function for time-tagged event data.
-                                 Use redback.utils.bands_to_frequency if not given.
-        :type kwargs: None, optional
+        Note that you only need to provide data corresponding to the data mode you are using.
+        For luminosity data provide times in the rest frame, if using a phase model provide
+        time in MJD, otherwise use the default time (observer frame).
+
+        Parameters
+        ----------
+        time : np.ndarray, optional
+            Times in the observer frame.
+        time_err : np.ndarray, optional
+            Time errors in the observer frame.
+        time_mjd : np.ndarray, optional
+            Times in MJD. Used if using phase model.
+        time_mjd_err : np.ndarray, optional
+            Time errors in MJD. Used if using phase model.
+        time_rest_frame : np.ndarray, optional
+            Times in the rest frame. Used for luminosity data.
+        time_rest_frame_err : np.ndarray, optional
+            Time errors in the rest frame. Used for luminosity data.
+        Lum50 : np.ndarray, optional
+            Luminosity values in units of 10^50 erg/s.
+        Lum50_err : np.ndarray, optional
+            Luminosity error values.
+        flux : np.ndarray, optional
+            Flux values in erg/cm^2/s.
+        flux_err : np.ndarray, optional
+            Flux error values.
+        flux_density : np.ndarray, optional
+            Flux density values in mJy.
+        flux_density_err : np.ndarray, optional
+            Flux density error values.
+        magnitude : np.ndarray, optional
+            Magnitude values for photometry data.
+        magnitude_err : np.ndarray, optional
+            Magnitude error values for photometry data.
+        counts : np.ndarray, optional
+            Counts for prompt data.
+        ttes : np.ndarray, optional
+            Time-tagged events data for unbinned prompt data.
+        bin_size : float, optional
+            Bin size for binning time-tagged event data.
+        redshift : float, optional
+            Redshift value (default is np.nan).
+        data_mode : str, optional
+            Data mode. Must be one from `Transient.DATA_MODES`.
+        name : str, optional
+            Name of the transient (default is '').
+        photon_index : float, optional
+            Photon index value (default is np.nan).
+        use_phase_model : bool, optional
+            Whether we are using a phase model (default is False).
+        optical_data : bool, optional
+            Whether we are fitting optical data, useful for plotting (default is False).
+        frequency : np.ndarray, optional
+            Array of band frequencies in photometry data.
+        system : np.ndarray, optional
+            System values.
+        bands : np.ndarray, optional
+            Band values.
+        active_bands : Union[np.ndarray, str], optional
+            List or array of active bands to be used in the analysis.
+            Use all available bands if 'all' is given.
+        plotting_order : Union[np.ndarray, str], optional
+            Order in which to plot the bands and how unique bands are stored.
+        **kwargs : dict, optional
+            Additional callables:
+            - bands_to_frequency: Conversion function to convert a list of bands to frequencies.
+              Use redback.utils.bands_to_frequency if not given.
+            - bin_ttes: Binning function for time-tagged event data.
+              Use redback.utils.bin_ttes if not given.
+
+        Examples
+        --------
+        >>> import numpy as np
+        >>> import redback
+        >>> # Create a simple transient with magnitude data
+        >>> time = np.linspace(0, 50, 20)
+        >>> mag = np.linspace(18, 21, 20)
+        >>> mag_err = np.ones(20) * 0.1
+        >>> bands = np.array(['r'] * 20)
+        >>> transient = redback.transient.Transient(
+        ...     time=time, magnitude=mag, magnitude_err=mag_err,
+        ...     bands=bands, data_mode='magnitude', name='SN2021abc')
         """
         self.bin_size = bin_size
         self.bin_ttes = kwargs.get("bin_ttes", redback.utils.bin_ttes)
@@ -264,16 +351,25 @@ class Transient(object):
 
     @staticmethod
     def load_data_generic(processed_file_path, data_mode="magnitude"):
-        """Loads data from specified directory and file, and returns it as a tuple.
+        """
+        Load data from specified directory and file.
 
-        :param processed_file_path: Path to the processed file to load
-        :type processed_file_path: str
-        :param data_mode: Name of the data mode.
-                          Must be from ['magnitude', 'flux_density', 'all']. Default is magnitude.
-        :type data_mode: str, optional
+        Parameters
+        ----------
+        processed_file_path : str
+            Path to the processed file to load.
+        data_mode : str, optional
+            Name of the data mode. Must be from ['magnitude', 'flux_density', 'all'].
+            Default is 'magnitude'.
 
-        :return: Six elements when querying magnitude or flux_density data, Eight for 'all'.
-        :rtype: tuple
+        Returns
+        -------
+        tuple
+            Five elements when querying magnitude or flux_density data, seven for 'all'.
+            Format depends on data_mode:
+            - magnitude: (time_days, time_mjd, magnitude, magnitude_err, bands)
+            - flux_density: (time_days, time_mjd, flux_density, flux_density_err, bands)
+            - all: (time_days, time_mjd, flux_density, flux_density_err, magnitude, magnitude_err, bands)
         """
         DATA_MODES = ['luminosity', 'flux', 'flux_density', 'magnitude', 'counts', 'ttes', 'all']
         df = pd.read_csv(processed_file_path)
@@ -297,22 +393,31 @@ class Transient(object):
     def from_lasair_data(
             cls, name: str, data_mode: str = "magnitude", active_bands: Union[np.ndarray, str] = 'all',
             use_phase_model: bool = False, plotting_order: Union[np.ndarray, str] = None) -> Transient:
-        """Constructor method to built object from LASAIR data.
+        """
+        Constructor method to build object from LASAIR data.
 
-        :param name: Name of the transient.
-        :type name: str
-        :param data_mode: Data mode used. Must be from `OpticalTransient.DATA_MODES`. Default is magnitude.
-        :type data_mode: str, optional
-        :param active_bands: Sets active bands based on array given.
-                             If argument is 'all', all unique bands in `self.bands` will be used.
-        :type active_bands: Union[np.ndarray, str]
-        :param plotting_order: Order in which to plot the bands/and how unique bands are stored.
-        :type plotting_order: Union[np.ndarray, str], optional
-        :param use_phase_model: Whether to use a phase model.
-        :type use_phase_model: bool, optional
+        Parameters
+        ----------
+        name : str
+            Name of the transient.
+        data_mode : str, optional
+            Data mode used. Must be from `OpticalTransient.DATA_MODES` (default is 'magnitude').
+        active_bands : Union[np.ndarray, str], optional
+            Sets active bands based on array given. If 'all', all unique bands in `self.bands`
+            will be used (default is 'all').
+        use_phase_model : bool, optional
+            Whether to use a phase model (default is False).
+        plotting_order : Union[np.ndarray, str], optional
+            Order in which to plot the bands and how unique bands are stored.
 
-        :return: A class instance.
-        :rtype: OpticalTransient
+        Returns
+        -------
+        Transient
+            A class instance with LASAIR data loaded.
+
+        Examples
+        --------
+        >>> transient = Transient.from_lasair_data('AT2021xyz', data_mode='magnitude')
         """
         if cls.__name__ == "TDE":
             transient_type = "tidal_disruption_event"
@@ -467,81 +572,126 @@ class Transient(object):
     @property
     def x(self) -> np.ndarray:
         """
-        :return: The time values given the active data mode.
-        :rtype: np.ndarray
+        The time values for the active data mode.
+
+        Returns
+        -------
+        np.ndarray
+            Time values appropriate for the current data mode.
         """
         return getattr(self, self._time_attribute_name)
 
     @x.setter
     def x(self, x: np.ndarray) -> None:
-        """Sets the time values for the active data mode.
-        :param x: The desired time values.
-        :type x: np.ndarray
+        """
+        Set the time values for the active data mode.
+
+        Parameters
+        ----------
+        x : np.ndarray
+            The desired time values.
         """
         setattr(self, self._time_attribute_name, x)
 
     @property
     def x_err(self) -> np.ndarray:
         """
-        :return: The time error values given the active data mode.
-        :rtype: np.ndarray
+        The time error values for the active data mode.
+
+        Returns
+        -------
+        np.ndarray
+            Time error values appropriate for the current data mode.
         """
         return getattr(self, self._time_err_attribute_name)
 
     @x_err.setter
     def x_err(self, x_err: np.ndarray) -> None:
-        """Sets the time error values for the active data mode.
-        :param x_err: The desired time error values.
-        :type x_err: np.ndarray
+        """
+        Set the time error values for the active data mode.
+
+        Parameters
+        ----------
+        x_err : np.ndarray
+            The desired time error values.
         """
         setattr(self, self._time_err_attribute_name, x_err)
 
     @property
     def y(self) -> np.ndarray:
         """
-        :return: The y values given the active data mode.
-        :rtype: np.ndarray
+        The y values for the active data mode.
+
+        Returns
+        -------
+        np.ndarray
+            Y values appropriate for the current data mode (luminosity, flux, magnitude, etc.).
         """
 
         return getattr(self, self._y_attribute_name)
 
     @y.setter
     def y(self, y: np.ndarray) -> None:
-        """Sets the y values for the active data mode.
-        :param y: The desired y values.
-        :type y: np.ndarray
+        """
+        Set the y values for the active data mode.
+
+        Parameters
+        ----------
+        y : np.ndarray
+            The desired y values.
         """
         setattr(self, self._y_attribute_name, y)
 
     @property
     def y_err(self) -> np.ndarray:
         """
-        :return: The y error values given the active data mode.
-        :rtype: np.ndarray
+        The y error values for the active data mode.
+
+        Returns
+        -------
+        np.ndarray
+            Y error values appropriate for the current data mode.
         """
         return getattr(self, self._y_err_attribute_name)
 
     @y_err.setter
     def y_err(self, y_err: np.ndarray) -> None:
-        """Sets the y error values for the active data mode.
-        :param y_err: The desired y error values.
-        :type y_err: np.ndarray
+        """
+        Set the y error values for the active data mode.
+
+        Parameters
+        ----------
+        y_err : np.ndarray
+            The desired y error values.
         """
         setattr(self, self._y_err_attribute_name, y_err)
 
     @property
     def data_mode(self) -> str:
         """
-        :return: The currently active data mode (one in `Transient.DATA_MODES`).
-        :rtype: str
+        The currently active data mode.
+
+        Returns
+        -------
+        str
+            One of the modes in `Transient.DATA_MODES`.
         """
         return self._data_mode
 
     @data_mode.setter
     def data_mode(self, data_mode: str) -> None:
         """
-        :param data_mode: One of the data modes in `Transient.DATA_MODES`.
-        :type data_mode: str
+        Set the active data mode.
+
+        Parameters
+        ----------
+        data_mode : str
+            One of the data modes in `Transient.DATA_MODES`.
+
+        Raises
+        ------
+        ValueError
+            If data_mode is not in `Transient.DATA_MODES`.
         """
         if data_mode in self.DATA_MODES or data_mode is None:
             self._data_mode = data_mode
@@ -551,8 +701,12 @@ class Transient(object):
     @property
     def xlabel(self) -> str:
         """
-        :return: xlabel used in plotting functions
-        :rtype: str
+        The x-axis label for plotting functions.
+
+        Returns
+        -------
+        str
+            Time label appropriate for the model type.
         """
         if self.use_phase_model:
             return r"Time [MJD]"
@@ -562,8 +716,17 @@ class Transient(object):
     @property
     def ylabel(self) -> str:
         """
-        :return: ylabel used in plotting functions
-        :rtype: str
+        The y-axis label for plotting functions.
+
+        Returns
+        -------
+        str
+            Label appropriate for the current data mode.
+
+        Raises
+        ------
+        ValueError
+            If no data mode is specified.
         """
         try:
             return self.ylabel_dict[self.data_mode]
@@ -572,14 +735,18 @@ class Transient(object):
 
     def set_bands_and_frequency(
             self, bands: Union[None, list, np.ndarray], frequency: Union[None, list, np.ndarray]):
-        """Sets bands and frequencies at the same time to keep the logic consistent. If both are given use those values.
-        If only frequencies are given, use them also as band names.
-        If only bands are given, try to convert them to frequencies.
+        """
+        Set bands and frequencies simultaneously to maintain consistency.
 
-        :param bands: The bands, e.g. ['g', 'i'].
-        :type bands: Union[None, list, np.ndarray]
-        :param frequency: The frequencies associated with the bands i.e., the effective frequency.
-        :type frequency: Union[None, list, np.ndarray]
+        If both are given, use those values. If only frequencies are given, use them
+        also as band names. If only bands are given, try to convert them to frequencies.
+
+        Parameters
+        ----------
+        bands : Union[None, list, np.ndarray]
+            The bands, e.g., ['g', 'i'].
+        frequency : Union[None, list, np.ndarray]
+            The frequencies associated with the bands (i.e., the effective frequency).
         """
         if (bands is None and frequency is None) or (bands is not None and frequency is not None):
             self._bands = bands
@@ -594,16 +761,25 @@ class Transient(object):
     @property
     def frequency(self) -> np.ndarray:
         """
-        :return: Used band frequencies
-        :rtype: np.ndarray
+        The band frequencies used.
+
+        Returns
+        -------
+        np.ndarray
+            Array of band frequencies.
         """
         return self._frequency
 
     @frequency.setter
     def frequency(self, frequency: np.ndarray) -> None:
         """
-        :param frequency: Set band frequencies if an array is given. Otherwise, convert bands to frequencies.
-        :type frequency: np.ndarray
+        Set band frequencies.
+
+        Parameters
+        ----------
+        frequency : np.ndarray
+            Array of frequencies. If given, sets band frequencies. Otherwise, convert
+            bands to frequencies.
         """
         self.set_bands_and_frequency(bands=self.bands, frequency=frequency)
 
@@ -618,41 +794,60 @@ class Transient(object):
     @property
     def filtered_frequencies(self) -> np.array:
         """
-        :return: The frequencies only associated with the active bands.
-        :rtype: np.ndarray
+        The frequencies associated with only the active bands.
+
+        Returns
+        -------
+        np.ndarray
+            Array of frequencies for active bands.
         """
         return self.frequency[self.filtered_indices]
 
     @property
     def filtered_sncosmo_bands(self) -> np.array:
         """
-        :return: The sncosmo bands only associated with the active bands.
-        :rtype: np.ndarray
+        The sncosmo band names associated with only the active bands.
+
+        Returns
+        -------
+        np.ndarray
+            Array of sncosmo band names for active bands.
         """
         return self.sncosmo_bands[self.filtered_indices]
 
     @property
     def filtered_bands(self) -> np.array:
         """
-        :return: The band names only associated with the active bands.
-        :rtype: np.ndarray
+        The band names associated with only the active bands.
+
+        Returns
+        -------
+        np.ndarray
+            Array of band names for active bands.
         """
         return self.bands[self.filtered_indices]
 
     @property
     def active_bands(self) -> list:
         """
-        :return: List of active bands used.
-        :rtype list:
+        List of active bands currently in use.
+
+        Returns
+        -------
+        list
+            Active band names.
         """
         return self._active_bands
 
     @active_bands.setter
     def active_bands(self, active_bands: Union[list, str, None]) -> None:
         """
-        :param active_bands: Sets active bands based on list given.
-                             If argument is 'all', all unique bands in `self.bands` will be used.
-        :type active_bands: Union[list, str]
+        Set the active bands.
+
+        Parameters
+        ----------
+        active_bands : Union[list, str, None]
+            List of active bands. If 'all', all unique bands in `self.bands` will be used.
         """
         if str(active_bands) == 'all':
             self._active_bands = list(np.unique(self.bands))
@@ -662,17 +857,30 @@ class Transient(object):
     @property
     def filtered_indices(self) -> Union[list, None]:
         """
-        :return: The list indices in `bands` associated with the active bands.
-        :rtype: Union[list, None]
+        Indices in `bands` associated with the active bands.
+
+        Returns
+        -------
+        Union[list, None]
+            Boolean list indicating which indices correspond to active bands.
         """
         if self.bands is None:
             return list(np.arange(len(self.x)))
         return [b in self.active_bands for b in self.bands]
 
     def get_filtered_data(self) -> tuple:
-        """Used to filter flux density, photometry or integrated flux data, so we only use data that is using the active bands.
-        :return: A tuple with the filtered data. Format is (x, x_err, y, y_err)
-        :rtype: tuple
+        """
+        Filter flux density, photometry or integrated flux data to only use active bands.
+
+        Returns
+        -------
+        tuple
+            Filtered data in format (x, x_err, y, y_err).
+
+        Raises
+        ------
+        ValueError
+            If transient is not in flux density, magnitude, or flux data mode.
         """
         if any([self.flux_data, self.magnitude_data, self.flux_density_data]):
             filtered_x = self.x[self.filtered_indices]
@@ -690,8 +898,12 @@ class Transient(object):
     @property
     def unique_bands(self) -> np.ndarray:
         """
-        :return: All bands that we get from the data, eliminating all duplicates.
-        :rtype: np.ndarray
+        All unique bands from the data.
+
+        Returns
+        -------
+        np.ndarray
+            Array of unique band names with duplicates removed.
         """
         if self.plotting_order is not None:
             return self.plotting_order
@@ -701,8 +913,12 @@ class Transient(object):
     @property
     def unique_frequencies(self) -> np.ndarray:
         """
-        :return: All frequencies that we get from the data, eliminating all duplicates.
-        :rtype: np.ndarray
+        All unique frequencies from the data.
+
+        Returns
+        -------
+        np.ndarray
+            Array of unique frequencies with duplicates removed.
         """
         try:
             if isinstance(self.unique_bands[0], (float, int)):
@@ -714,44 +930,77 @@ class Transient(object):
     @property
     def list_of_band_indices(self) -> list:
         """
-        :return: Indices that map between bands in the data and the unique bands we obtain.
-        :rtype: list
+        Indices mapping bands in data to unique bands.
+
+        Returns
+        -------
+        list
+            List of arrays containing indices for each unique band.
         """
         return [np.where(self.bands == np.array(b))[0] for b in self.unique_bands]
 
     @property
     def default_filters(self) -> list:
         """
-        :return: Default list of filters to use.
-        :rtype: list
+        Default list of filters to use.
+
+        Returns
+        -------
+        list
+            Default filter names.
         """
         return ["g", "r", "i", "z", "y", "J", "H", "K"]
 
     @staticmethod
     def get_colors(filters: Union[np.ndarray, list]) -> matplotlib.colors.Colormap:
         """
-        :param filters: Array of list of filters to use in the plot.
-        :type filters: Union[np.ndarray, list]
-        :return: Colormap with one color for each filter.
-        :rtype: matplotlib.colors.Colormap
+        Generate a colormap for the given filters.
+
+        Parameters
+        ----------
+        filters : Union[np.ndarray, list]
+            Array or list of filter names to use in the plot.
+
+        Returns
+        -------
+        matplotlib.colors.Colormap
+            Colormap with one color for each filter.
         """
         return matplotlib.cm.rainbow(np.linspace(0, 1, len(filters)))
 
     def plot_data(self, axes: matplotlib.axes.Axes = None, filename: str = None, outdir: str = None, save: bool = True,
             show: bool = True, plot_others: bool = True, color: str = 'k', **kwargs) -> matplotlib.axes.Axes:
-        """Plots the Transient data and returns Axes.
+        """
+        Plot the transient data.
 
-        :param axes: Matplotlib axes to plot the lightcurve into. Useful for user specific modifications to the plot.
-        :param filename: Name of the file to be plotted in.
-        :param outdir: The directory in which to save the file in.
-        :param save: Whether to save the plot. (Default value = True)
-        :param show: Whether to show the plot. (Default value = True)
-        :param plot_others: Whether to plot inactive bands. (Default value = True)
-        :param color: Color of the data.
-        :param kwargs: Additional keyword arguments to pass in the Plotter methods.
-        Available in the online documentation under at `redback.plotting.Plotter`.
-        `print(Transient.plot_data.__doc__)` to see all options!
-        :return: The axes with the plot.
+        Parameters
+        ----------
+        axes : matplotlib.axes.Axes, optional
+            Matplotlib axes to plot into. Useful for user specific modifications.
+        filename : str, optional
+            Name of the file to save the plot.
+        outdir : str, optional
+            Directory in which to save the file.
+        save : bool, optional
+            Whether to save the plot (default is True).
+        show : bool, optional
+            Whether to show the plot (default is True).
+        plot_others : bool, optional
+            Whether to plot inactive bands (default is True).
+        color : str, optional
+            Color of the data (default is 'k').
+        **kwargs : dict, optional
+            Additional keyword arguments to pass to Plotter methods.
+
+        Returns
+        -------
+        matplotlib.axes.Axes
+            The axes with the plot.
+
+        Examples
+        --------
+        >>> transient.plot_data(color='red', save=False)
+        >>> transient.plot_data(axes=my_axes, plot_others=False)
         """
 
         if self.flux_data:
@@ -782,21 +1031,41 @@ class Transient(object):
             nrows: int = None, figsize: tuple = None, filters: list = None, **kwargs: None) \
             -> matplotlib.axes.Axes:
         """
-        :param figure: Figure can be given if defaults are not satisfying.
-        :param axes: Axes can be given if defaults are not satisfying.
-        :param filename: Name of the file to be plotted in.
-        :param outdir: The directory in which to save the file in.
-        :param save: Whether to save the plot. (Default value = True)
-        :param show: Whether to show the plot. (Default value = True)
-        :param ncols: Number of columns to use on the plot. Default is 2.
-        :param nrows: Number of rows to use on the plot. If None are given this will
-                      be inferred from ncols and the number of filters.
-        :param figsize: Size of the figure. A default based on ncols and nrows will be used if None is given.
-        :param filters: Which bands to plot. Will use default filters if None is given.
-        :param kwargs: Additional keyword arguments to pass in the Plotter methods.
-        Available in the online documentation under at `redback.plotting.Plotter`.
-        `print(Transient.plot_multiband.__doc__)` to see all options!
-        :return: The axes.
+        Plot data for multiple bands in separate panels.
+
+        Parameters
+        ----------
+        figure : matplotlib.figure.Figure, optional
+            Figure to plot on. Created if not provided.
+        axes : matplotlib.axes.Axes, optional
+            Axes array to plot on. Created if not provided.
+        filename : str, optional
+            Name of the file to save the plot.
+        outdir : str, optional
+            Directory in which to save the file.
+        save : bool, optional
+            Whether to save the plot (default is True).
+        show : bool, optional
+            Whether to show the plot (default is True).
+        ncols : int, optional
+            Number of columns in the plot grid (default is 2).
+        nrows : int, optional
+            Number of rows in the plot grid. Inferred from ncols and number of filters if None.
+        figsize : tuple, optional
+            Figure size. Default based on ncols and nrows if None.
+        filters : list, optional
+            Which bands to plot. Uses default filters if None.
+        **kwargs : dict, optional
+            Additional keyword arguments to pass to Plotter methods.
+
+        Returns
+        -------
+        matplotlib.axes.Axes
+            The axes array with the plots.
+
+        Examples
+        --------
+        >>> transient.plot_multiband(ncols=3, filters=['g', 'r', 'i'])
         """
         if self.data_mode not in ['flux_density', 'magnitude', 'flux']:
             raise ValueError(
@@ -819,20 +1088,41 @@ class Transient(object):
             save: bool = True, show: bool = True, random_models: int = 100, posterior: pd.DataFrame = None,
             model_kwargs: dict = None, **kwargs: None) -> matplotlib.axes.Axes:
         """
-        :param model: The model used to plot the lightcurve.
-        :param filename: The output filename. Otherwise, use default which starts with the name
-                         attribute and ends with *lightcurve.png.
-        :param axes: Axes to plot in if given.
-        :param save:Whether to save the plot.
-        :param show: Whether to show the plot.
-        :param random_models: Number of random posterior samples plotted faintly. (Default value = 100)
-        :param posterior: Posterior distribution to which to draw samples from. Is optional but must be given.
-        :param outdir: Out directory in which to save the plot. Default is the current working directory.
-        :param model_kwargs: Additional keyword arguments to be passed into the model.
-        :param kwargs: Additional keyword arguments to pass in the Plotter methods.
-        Available in the online documentation under at `redback.plotting.Plotter`.
-        `print(Transient.plot_lightcurve.__doc__)` to see all options!
-        :return: The axes.
+        Plot lightcurve with model predictions from posterior samples.
+
+        Parameters
+        ----------
+        model : callable
+            The model function used to generate predictions.
+        filename : str, optional
+            Output filename. Uses default based on name attribute if None.
+        outdir : str, optional
+            Directory to save the plot. Default is current working directory.
+        axes : matplotlib.axes.Axes, optional
+            Axes to plot in if provided.
+        save : bool, optional
+            Whether to save the plot (default is True).
+        show : bool, optional
+            Whether to show the plot (default is True).
+        random_models : int, optional
+            Number of random posterior samples plotted faintly (default is 100).
+        posterior : pd.DataFrame, optional
+            Posterior distribution from which to draw samples. Must be provided.
+        model_kwargs : dict, optional
+            Additional keyword arguments to pass into the model.
+        **kwargs : dict, optional
+            Additional keyword arguments to pass to Plotter methods.
+
+        Returns
+        -------
+        matplotlib.axes.Axes
+            The axes with the plot.
+
+        Examples
+        --------
+        >>> import redback
+        >>> model = redback.model_library.all_models_dict['arnett']
+        >>> transient.plot_lightcurve(model=model, posterior=result.posterior, random_models=200)
         """
         if self.flux_data:
             if self.optical_data:
@@ -867,19 +1157,42 @@ class Transient(object):
                       save: bool = True, show: bool = True, posterior: pd.DataFrame = None,
                       model_kwargs: dict = None, **kwargs: None) -> matplotlib.axes.Axes:
         """
-        :param model: The model used to plot the lightcurve.
-        :param filename: The output filename. Otherwise, use default which starts with the name
-                         attribute and ends with *lightcurve.png.
-        :param axes: Axes to plot in if given.
-        :param save:Whether to save the plot.
-        :param show: Whether to show the plot.
-        :param posterior: Posterior distribution to which to draw samples from. Is optional but must be given.
-        :param outdir: Out directory in which to save the plot. Default is the current working directory.
-        :param model_kwargs: Additional keyword arguments to be passed into the model.
-        :param kwargs: Additional keyword arguments to pass in the Plotter methods.
-        Available in the online documentation under at `redback.plotting.Plotter`.
-        `print(Transient.plot_residual.__doc__)` to see all options!
-        :return: The axes.
+        Plot residuals between data and model predictions.
+
+        Parameters
+        ----------
+        model : callable
+            The model function used to generate predictions.
+        filename : str, optional
+            Output filename. Uses default based on name attribute if None.
+        outdir : str, optional
+            Directory to save the plot. Default is current working directory.
+        axes : matplotlib.axes.Axes, optional
+            Axes to plot in if provided.
+        save : bool, optional
+            Whether to save the plot (default is True).
+        show : bool, optional
+            Whether to show the plot (default is True).
+        posterior : pd.DataFrame, optional
+            Posterior distribution from which to draw samples. Must be provided.
+        model_kwargs : dict, optional
+            Additional keyword arguments to pass into the model.
+        **kwargs : dict, optional
+            Additional keyword arguments to pass to Plotter methods.
+
+        Returns
+        -------
+        matplotlib.axes.Axes
+            The axes with the plot.
+
+        Raises
+        ------
+        ValueError
+            If data mode does not support residual plotting.
+
+        Examples
+        --------
+        >>> transient.plot_residual(model=model, posterior=result.posterior)
         """
         if self.flux_data:
             plotter = IntegratedFluxPlotter(
@@ -901,13 +1214,48 @@ class Transient(object):
 
     def fit_gp(self, mean_model, kernel, prior=None, use_frequency=True):
         """
-        Fit a GP to the data using george and scipy minimization.
+        Fit a Gaussian Process to the data using george and scipy minimization.
 
-        :param mean_model: Mean model to use in the GP fit. Can be a string to refer to a redback model, a callable, or None
-        :param kernel: George GP to use. User must ensure this is set up correctly.
-        :param prior: Prior to use when fitting with a mean model.
-        :param use_frequency: Whether to use the effective frequency in a 2D GP fit. Cannot be used with most mean models.
-        :return: Named tuple with George GP object and additional useful data.
+        Parameters
+        ----------
+        mean_model : Union[str, callable, None]
+            Mean model for the GP fit. Can be a string referring to a redback model,
+            a callable function, or None for no mean model.
+        kernel : george.kernels.Kernel
+            George GP kernel. User must ensure this is set up correctly for the
+            desired dimensionality (1D or 2D).
+        prior : bilby.core.prior.PriorDict, optional
+            Prior to use when fitting with a mean model. Required if mean_model is not None.
+        use_frequency : bool, optional
+            Whether to use the effective frequency in a 2D GP fit (default is True).
+            Cannot be used with most mean models.
+
+        Returns
+        -------
+        namedtuple
+            Named tuple with fields:
+            - gp : george.GP or dict
+                George GP object(s) with fitted hyperparameters.
+            - scaled_y : np.ndarray or dict
+                Scaled y-values used in the fit.
+            - y_scaler : float
+                Scaling factor applied to y-values.
+            - use_frequency : bool
+                Whether frequency was used in the fit.
+            - mean_model : Union[str, callable, None]
+                The mean model used.
+
+        Examples
+        --------
+        >>> import george
+        >>> from george import kernels
+        >>> kernel = kernels.Matern32Kernel(1.0)
+        >>> gp_result = transient.fit_gp(mean_model=None, kernel=kernel, use_frequency=False)
+        >>> # Fit with a mean model
+        >>> import redback
+        >>> kernel = kernels.ExpSquaredKernel(1.0)
+        >>> prior = redback.priors.get_priors('arnett')
+        >>> gp_result = transient.fit_gp(mean_model='arnett', kernel=kernel, prior=prior)
         """
         try:
             import george
@@ -1031,22 +1379,41 @@ class Transient(object):
             save: bool = True, show: bool = True, random_models: int = 100, posterior: pd.DataFrame = None,
             model_kwargs: dict = None, **kwargs: object) -> matplotlib.axes.Axes:
         """
-        :param model: The model used to plot the lightcurve.
-        :param filename: The output filename. Otherwise, use default which starts with the name
-                         attribute and ends with *lightcurve.png.
-        :param figure: Figure can be given if defaults are not satisfying.
-        :param axes: Axes to plot in if given.
-        :param save:Whether to save the plot.
-        :param show: Whether to show the plot.
-        :param random_models: Number of random posterior samples plotted faintly. (Default value = 100)
-        :param posterior: Posterior distribution to which to draw samples from. Is optional but must be given.
-        :param outdir: Out directory in which to save the plot. Default is the current working directory.
-        :param model_kwargs: Additional keyword arguments to be passed into the model.
-        :param kwargs: Additional keyword arguments to pass in the Plotter methods.
-        Available in the online documentation under at `redback.plotting.Plotter`.
-        `print(Transient.plot_multiband_lightcurve.__doc__)` to see all options!
+        Plot multiband lightcurve with model predictions in separate panels.
 
-        :return: The axes.
+        Parameters
+        ----------
+        model : callable
+            The model function used to generate predictions.
+        filename : str, optional
+            Output filename. Uses default based on name attribute if None.
+        outdir : str, optional
+            Directory to save the plot. Default is current working directory.
+        figure : matplotlib.figure.Figure, optional
+            Figure to plot on. Created if not provided.
+        axes : matplotlib.axes.Axes, optional
+            Axes array to plot on. Created if not provided.
+        save : bool, optional
+            Whether to save the plot (default is True).
+        show : bool, optional
+            Whether to show the plot (default is True).
+        random_models : int, optional
+            Number of random posterior samples plotted faintly (default is 100).
+        posterior : pd.DataFrame, optional
+            Posterior distribution from which to draw samples. Must be provided.
+        model_kwargs : dict, optional
+            Additional keyword arguments to pass into the model.
+        **kwargs : dict, optional
+            Additional keyword arguments to pass to Plotter methods.
+
+        Returns
+        -------
+        matplotlib.axes.Axes
+            The axes array with the plots.
+
+        Examples
+        --------
+        >>> transient.plot_multiband_lightcurve(model=model, posterior=result.posterior)
         """
         if self.data_mode not in ['flux_density', 'magnitude', 'flux']:
             raise ValueError(
@@ -1080,20 +1447,41 @@ class Transient(object):
 
 
 class OpticalTransient(Transient):
+    """
+    Class for optical transient data (supernovae, kilonovae, TDEs, etc.).
+
+    Inherits from Transient and provides optical-specific data loading and processing.
+
+    Attributes
+    ----------
+    DATA_MODES : list
+        Valid data modes: ['flux', 'flux_density', 'magnitude', 'luminosity'].
+    """
     DATA_MODES = ['flux', 'flux_density', 'magnitude', 'luminosity']
 
     @staticmethod
     def load_data(processed_file_path, data_mode="magnitude"):
-        """Loads data from specified directory and file, and returns it as a tuple.
+        """
+        Load optical data from specified file.
 
-        :param processed_file_path: Path to the processed file to load
-        :type processed_file_path: str
-        :param data_mode: Name of the data mode.
-                          Must be from ['magnitude', 'flux_density', 'all']. Default is magnitude.
-        :type data_mode: str, optional
+        Parameters
+        ----------
+        processed_file_path : str
+            Path to the processed file to load.
+        data_mode : str, optional
+            Name of the data mode. Must be from ['magnitude', 'flux_density', 'flux', 'all'].
+            Default is 'magnitude'.
 
-        :return: Six elements when querying magnitude or flux_density data, Eight for 'all'
-        :rtype: tuple
+        Returns
+        -------
+        tuple
+            Six elements when querying magnitude, flux_density, or flux data.
+            Ten elements for 'all' mode.
+            Format depends on data_mode:
+            - magnitude: (time_days, time_mjd, magnitude, magnitude_err, bands, system)
+            - flux_density: (time_days, time_mjd, flux_density, flux_density_err, bands, system)
+            - flux: (time_days, time_mjd, flux, flux_err, bands, system)
+            - all: (time_days, time_mjd, flux_density, flux_density_err, magnitude, magnitude_err, flux, flux_err, bands, system)
         """
         df = pd.read_csv(processed_file_path)
         time_days = np.array(df["time (days)"])
@@ -1203,23 +1591,32 @@ class OpticalTransient(Transient):
     def from_open_access_catalogue(
             cls, name: str, data_mode: str = "magnitude", active_bands: Union[np.ndarray, str] = 'all',
             plotting_order: Union[np.ndarray, str] = None, use_phase_model: bool = False) -> OpticalTransient:
-        """Constructor method to built object from Open Access Catalogue
+        """
+        Constructor to build object from Open Access Catalogue data.
 
-        :param name: Name of the transient.
-        :type name: str
-        :param data_mode: Data mode used. Must be from `OpticalTransient.DATA_MODES`. Default is magnitude.
-        :type data_mode: str, optional
-        :param active_bands:
-            Sets active bands based on array given.
-            If argument is 'all', all unique bands in `self.bands` will be used.
-        :type active_bands: Union[np.ndarray, str]
-        :param plotting_order: Order in which to plot the bands/and how unique bands are stored.
-        :type plotting_order: Union[np.ndarray, str], optional
-        :param use_phase_model: Whether to use a phase model.
-        :type use_phase_model: bool, optional
+        Parameters
+        ----------
+        name : str
+            Name of the transient.
+        data_mode : str, optional
+            Data mode used. Must be from `OpticalTransient.DATA_MODES` (default is 'magnitude').
+        active_bands : Union[np.ndarray, str], optional
+            Sets active bands based on array given. If 'all', all unique bands
+            in `self.bands` will be used (default is 'all').
+        plotting_order : Union[np.ndarray, str], optional
+            Order in which to plot the bands and how unique bands are stored.
+        use_phase_model : bool, optional
+            Whether to use a phase model (default is False).
 
-        :return: A class instance
-        :rtype: OpticalTransient
+        Returns
+        -------
+        OpticalTransient
+            A class instance with Open Access Catalogue data loaded.
+
+        Examples
+        --------
+        >>> from redback.transient import Supernova
+        >>> sn = Supernova.from_open_access_catalogue('SN2011fe', data_mode='magnitude')
         """
         if cls.__name__ == "TDE":
             transient_type = "tidal_disruption_event"

@@ -43,19 +43,42 @@ class SwiftDataGetter(GRBDataGetter):
     def __init__(
             self, grb: str, transient_type: str, data_mode: str,
             instrument: str = 'BAT+XRT', bin_size: str = None) -> None:
-        """Constructor class for a data getter. The instance will be able to download the specified Swift data.
+        """
+        Initialize a Swift data getter to download Swift BAT/XRT data.
 
-        :param grb: Telephone number of GRB, e.g., 'GRB140903A' or '140903A' are valid inputs.
-        :type grb: str
-        :param transient_type: Type of the transient. Should be 'prompt' or 'afterglow'.
-        :type transient_type: str
-        :param data_mode: Data mode must be from `redback.get_data.swift.SwiftDataGetter.VALID_DATA_MODES`.
-        :type data_mode: str
-        :param instrument: Instrument(s) to use.
-                           Must be from `redback.get_data.swift.SwiftDataGetter.VALID_INSTRUMENTS`.
-        :type instrument: str
-        :param bin_size: Bin size. Must be from `redback.get_data.swift.SwiftDataGetter.SWIFT_PROMPT_BIN_SIZES`.
-        :type bin_size: str
+        Parameters
+        ----------
+        grb : str
+            GRB identifier, e.g., 'GRB140903A' or '140903A' are valid inputs
+        transient_type : str
+            Type of the transient. Should be 'prompt' or 'afterglow'
+        data_mode : str
+            Data mode must be from `redback.get_data.swift.SwiftDataGetter.VALID_DATA_MODES`.
+            Options are 'flux', 'flux_density', or 'prompt'
+        instrument : str, optional
+            Instrument(s) to use. Must be from `redback.get_data.swift.SwiftDataGetter.VALID_INSTRUMENTS`.
+            Options are 'BAT+XRT' or 'XRT' (default is 'BAT+XRT')
+        bin_size : str, optional
+            Bin size for prompt data. Must be from `redback.get_data.swift.SwiftDataGetter.SWIFT_PROMPT_BIN_SIZES`.
+            Options are '1s', '2ms', '8ms', '16ms', '64ms', '256ms' (default is None)
+
+        Examples
+        --------
+        Get Swift afterglow flux data for GRB 170817A:
+
+        >>> from redback.get_data.swift import SwiftDataGetter
+        >>> getter = SwiftDataGetter('GRB170817A', 'afterglow', 'flux')
+        >>> data = getter.get_data()
+
+        Get Swift prompt emission data with 64ms binning:
+
+        >>> getter = SwiftDataGetter('GRB140903A', 'prompt', 'prompt', bin_size='64ms')
+        >>> data = getter.get_data()
+
+        Get XRT-only afterglow flux density data:
+
+        >>> getter = SwiftDataGetter('GRB170817A', 'afterglow', 'flux_density', instrument='XRT')
+        >>> data = getter.get_data()
         """
         super().__init__(grb=grb, transient_type=transient_type)
         self.grb = grb
@@ -66,18 +89,27 @@ class SwiftDataGetter(GRBDataGetter):
 
     @property
     def data_mode(self) -> str:
-        """Ensures the data mode to be from `SwiftDataGetter.VALID_DATA_MODES`.
+        """
+        Get the data mode.
 
-        :return: The data mode
-        :rtype: str
+        Ensures the data mode is from `SwiftDataGetter.VALID_DATA_MODES`.
+
+        Returns
+        -------
+        str
+            The data mode ('flux', 'flux_density', or 'prompt')
         """
         return self._data_mode
 
     @data_mode.setter
     def data_mode(self, data_mode: str) -> None:
         """
-        :param data_mode: The data mode.
-        :type data_mode: str
+        Set the data mode.
+
+        Parameters
+        ----------
+        data_mode : str
+            The data mode. Must be from VALID_DATA_MODES
         """
         if data_mode not in self.VALID_DATA_MODES:
             raise ValueError("Swift does not have {} data".format(self.data_mode))
@@ -86,18 +118,26 @@ class SwiftDataGetter(GRBDataGetter):
     @property
     def instrument(self) -> str:
         """
-        Ensures the data mode to be from `SwiftDataGetter.VALID_INSTRUMENTS`.
+        Get the instrument.
 
-        :return: The instrument
-        :rtype: str
+        Ensures the instrument is from `SwiftDataGetter.VALID_INSTRUMENTS`.
+
+        Returns
+        -------
+        str
+            The instrument ('BAT+XRT' or 'XRT')
         """
         return self._instrument
 
     @instrument.setter
     def instrument(self, instrument: str) -> None:
         """
-        :param instrument: The instrument
-        :type: str
+        Set the instrument.
+
+        Parameters
+        ----------
+        instrument : str
+            The instrument. Must be from VALID_INSTRUMENTS
         """
         if instrument not in self.VALID_INSTRUMENTS:
             raise ValueError("Swift does not have {} instrument mode".format(self.instrument))
@@ -105,20 +145,25 @@ class SwiftDataGetter(GRBDataGetter):
 
     @property
     def trigger(self) -> str:
-        """Gets the trigger number based on the GRB name.
+        """
+        Get the Swift trigger number based on the GRB name.
 
-        :return: The trigger number.
-        :rtype: str
+        Returns
+        -------
+        str
+            The Swift trigger number
         """
         logger.info('Getting trigger number')
         return redback.get_data.utils.get_trigger_number(self.stripped_grb)
 
     def get_swift_id_from_grb(self) -> str:
         """
-        Gets the Swift ID from the GRB number.
+        Get the Swift ID from the GRB number.
 
-        :return: The Swift ID
-        :rtype: str
+        Returns
+        -------
+        str
+            The Swift observation ID
         """
         data = astropy.io.ascii.read(f'{dirname.rstrip("get_data/")}/tables/summary_general_swift_bat.txt')
         triggers = list(data['col2'])
@@ -132,8 +177,12 @@ class SwiftDataGetter(GRBDataGetter):
     @property
     def grb_website(self) -> str:
         """
-        :return: The GRB website depending on the data mode and instrument.
-        :rtype: str
+        Get the Swift GRB data URL.
+
+        Returns
+        -------
+        str
+            The GRB website URL depending on the data mode and instrument
         """
         if self.transient_type == 'prompt':
             return f"https://swift.gsfc.nasa.gov/results/batgrbcat/{self.grb}/data_product/" \
@@ -145,10 +194,18 @@ class SwiftDataGetter(GRBDataGetter):
 
     def get_data(self) -> pd.DataFrame:
         """
-        Downloads the raw data and produces a processed .csv file.
+        Download the raw Swift data and produce a processed .csv file.
 
-        :return: The processed data
-        :rtype: pandas.DataFrame
+        Returns
+        -------
+        pandas.DataFrame
+            The processed data with time, flux/flux density, and error columns
+
+        Examples
+        --------
+        >>> from redback.get_data.swift import SwiftDataGetter
+        >>> getter = SwiftDataGetter('GRB170817A', 'afterglow', 'flux')
+        >>> data = getter.get_data()
         """
         if self.instrument == "BAT+XRT":
             logger.warning(
@@ -162,8 +219,12 @@ class SwiftDataGetter(GRBDataGetter):
 
     def create_directory_structure(self) -> redback.get_data.directory.DirectoryStructure:
         """
-        :return: A namedtuple with the directory path, raw file path, and processed file path.
-        :rtype: redback.get_data.directory.DirectoyStructure
+        Create the directory structure for storing data.
+
+        Returns
+        -------
+        redback.get_data.directory.DirectoryStructure
+            A namedtuple with the directory path, raw file path, and processed file path
         """
         if self.transient_type == 'afterglow':
             return redback.get_data.directory.afterglow_directory_structure(
@@ -173,7 +234,14 @@ class SwiftDataGetter(GRBDataGetter):
                     grb=self.grb, bin_size=self.bin_size)
 
     def collect_data(self) -> None:
-        """Downloads the data from the Swift website and saves it into the raw file path."""
+        """
+        Download data from the Swift website and save to raw file path.
+
+        Raises
+        ------
+        redback.redback_errors.WebsiteExist
+            If the GRB does not have Swift data available
+        """
         if os.path.isfile(self.raw_file_path):
             logger.warning('The raw data file already exists. Returning.')
             return
@@ -192,9 +260,11 @@ class SwiftDataGetter(GRBDataGetter):
                 self.download_flux_density_data()
 
     def download_flux_density_data(self) -> None:
-        """Downloads flux density data from the Swift website.
-        Uses the PhantomJS headless browser to click through the website.
-        Properly quits the driver.
+        """
+        Download flux density data from the Swift website.
+
+        Uses a headless browser to navigate the Swift burst analyzer website
+        and download flux density data. Properly quits the driver after use.
         """
         driver = fetch_driver()
         try:
@@ -217,9 +287,11 @@ class SwiftDataGetter(GRBDataGetter):
             urllib.request.urlcleanup()
 
     def download_integrated_flux_data(self) -> None:
-        """Downloads integrated flux density data from the Swift website.
-        Uses the PhantomJS headless browser to click through the website.
-        Properly quits the driver.
+        """
+        Download integrated flux data from the Swift website.
+
+        Uses a headless browser to navigate the Swift burst analyzer website
+        and download integrated flux data. Properly quits the driver after use.
         """
         driver = fetch_driver()
         try:
@@ -255,7 +327,12 @@ class SwiftDataGetter(GRBDataGetter):
             urllib.request.urlcleanup()
 
     def download_directly(self) -> None:
-        """Downloads prompt or XRT data directly without using PhantomJS if possible."""
+        """
+        Download prompt or XRT data directly without using a headless browser.
+
+        Used for data that can be downloaded directly via URL without
+        interactive web page navigation.
+        """
         try:
             urllib.request.urlretrieve(self.grb_website, self.raw_file_path)
             logger.info(f'Congratulations, you now have raw {self.instrument} {self.transient_type} '
@@ -268,10 +345,16 @@ class SwiftDataGetter(GRBDataGetter):
             urllib.request.urlcleanup()
 
     def convert_raw_data_to_csv(self) -> Union[pd.DataFrame, None]:
-        """Converts the raw data into processed data and saves it into the processed file path.
+        """
+        Convert raw data to processed CSV format.
 
-        :return: The processed data
-        :rtype: pandas.DataFrame
+        Parses the raw Swift data and converts it into a standardized
+        CSV format with proper column names and units.
+
+        Returns
+        -------
+        pandas.DataFrame or None
+            The processed data with standardized columns
         """
 
         if os.path.isfile(self.processed_file_path):
@@ -285,11 +368,15 @@ class SwiftDataGetter(GRBDataGetter):
             return self.convert_raw_prompt_data_to_csv()
 
     def convert_xrt_data_to_csv(self) -> pd.DataFrame:
-        """Converts the raw XRT data into processed data and saves it into the processed file path.
-        The column names are in `SwiftDataGetter.XRT_DATA_KEYS`
+        """
+        Convert raw XRT data to processed CSV format.
 
-        :return: The processed data.
-        :rtype: pandas.DataFrame
+        The column names are defined in `SwiftDataGetter.XRT_DATA_KEYS`.
+
+        Returns
+        -------
+        pandas.DataFrame
+            The processed XRT data with columns for time, flux, and errors
         """
         data = np.loadtxt(self.raw_file_path, comments=['!', 'READ', 'NO'])
         data = {key: data[:, i] for i, key in enumerate(self.XRT_DATA_KEYS)}
@@ -299,10 +386,15 @@ class SwiftDataGetter(GRBDataGetter):
         return data
 
     def convert_raw_afterglow_data_to_csv(self) -> pd.DataFrame:
-        """Converts the raw afterglow data into processed data and saves it into the processed file path.
+        """
+        Convert raw afterglow data to processed CSV format.
 
-        :return: The processed data.
-        :rtype: pandas.DataFrame
+        Routes to the appropriate conversion method based on data_mode.
+
+        Returns
+        -------
+        pandas.DataFrame
+            The processed afterglow data
         """
         if self.data_mode == 'flux':
             return self.convert_integrated_flux_data_to_csv()
@@ -310,11 +402,15 @@ class SwiftDataGetter(GRBDataGetter):
             return self.convert_flux_density_data_to_csv()
 
     def convert_raw_prompt_data_to_csv(self) -> pd.DataFrame:
-        """Converts the raw prompt data into processed data and saves it into the processed file path.
-        The column names are in `SwiftDataGetter.PROMPT_DATA_KEYS`
+        """
+        Convert raw prompt emission data to processed CSV format.
 
-        :return: The processed data.
-        :rtype: pandas.DataFrame
+        The column names are defined in `SwiftDataGetter.PROMPT_DATA_KEYS`.
+
+        Returns
+        -------
+        pandas.DataFrame
+            The processed prompt emission data with multiple energy bands
         """
         data = np.loadtxt(self.raw_file_path)
         df = pd.DataFrame(data=data, columns=self.PROMPT_DATA_KEYS)
@@ -322,11 +418,15 @@ class SwiftDataGetter(GRBDataGetter):
         return df
 
     def convert_integrated_flux_data_to_csv(self) -> pd.DataFrame:
-        """Converts the flux data into processed data and saves it into the processed file path.
-        The column names are in `SwiftDataGetter.INTEGRATED_FLUX_KEYS`
+        """
+        Convert integrated flux data to processed CSV format.
 
-        :return: The processed data.
-        :rtype: pandas.DataFrame
+        The column names are defined in `SwiftDataGetter.INTEGRATED_FLUX_KEYS`.
+
+        Returns
+        -------
+        pandas.DataFrame
+            The processed integrated flux data from BAT and XRT instruments
         """
         data = {key: [] for key in self.INTEGRATED_FLUX_KEYS}
         with open(self.raw_file_path) as f:
@@ -348,11 +448,15 @@ class SwiftDataGetter(GRBDataGetter):
         return df
 
     def convert_flux_density_data_to_csv(self) -> pd.DataFrame:
-        """Converts the flux data into processed data and saves it into the processed file path.
-        The column names are in `SwiftDataGetter.FLUX_DENSITY_KEYS`
+        """
+        Convert flux density data to processed CSV format.
 
-        :return: The processed data.
-        :rtype: pandas.DataFrame
+        The column names are defined in `SwiftDataGetter.FLUX_DENSITY_KEYS`.
+
+        Returns
+        -------
+        pandas.DataFrame
+            The processed flux density data in mJy units
         """
         data = {key: [] for key in self.FLUX_DENSITY_KEYS}
         with open(self.raw_file_path) as f:

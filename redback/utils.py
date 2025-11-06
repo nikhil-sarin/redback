@@ -31,9 +31,17 @@ def find_nearest(array, value):
     """
     Find the nearest value in an array to a given value.
 
-    :param array: array to search
-    :param value: value to search for
-    :return: array element closest to value and index of that element
+    Parameters
+    ----------
+    array : array_like
+        Array to search
+    value : float
+        Value to search for
+
+    Returns
+    -------
+    tuple
+        (array element closest to value, index of that element)
     """
     array = np.asarray(array)
     idx = (np.abs(array - value)).argmin()
@@ -49,13 +57,20 @@ def download_pointing_tables():
 
 def sncosmo_bandname_from_band(bands, warning_style='softest'):
     """
-    Convert redback data band names to sncosmo compatible band names
+    Convert redback data band names to sncosmo compatible band names.
 
-    :param bands: List of bands.
-    :type bands: list[str]
-    :param warning_style: How to handle warnings. 'soft' will raise a warning, 'hard' will raise an error.
-    :return: An array of sncosmo compatible bandnames associated with the given bands.
-    :rtype: np.ndarray
+    Parameters
+    ----------
+    bands : list of str
+        List of bands
+    warning_style : str, optional
+        How to handle warnings. 'soft' will raise a warning, 'hard' will raise an error
+        (default is 'softest')
+
+    Returns
+    -------
+    np.ndarray
+        Array of sncosmo compatible bandnames associated with the given bands
     """
     if bands is None:
         bands = []
@@ -81,10 +96,17 @@ def sncosmo_bandname_from_band(bands, warning_style='softest'):
 
 def check_kwargs_validity(kwargs):
     """
-    Check the validity of the kwargs passed to a model
+    Check the validity of the kwargs passed to a model.
 
-    :param kwargs:
-    :return:
+    Parameters
+    ----------
+    kwargs : dict or None
+        Keyword arguments passed to a model
+
+    Returns
+    -------
+    dict
+        Validated and potentially modified kwargs dictionary
     """
     if kwargs == None:
         logger.info("No kwargs passed to function")
@@ -114,9 +136,17 @@ def check_kwargs_validity(kwargs):
 
 def citation_wrapper(r):
     """
-    Wrapper for citation function to allow functions to have a citation attribute
-    :param r: proxy argument
-    :return: wrapped function
+    Wrapper for citation function to allow functions to have a citation attribute.
+
+    Parameters
+    ----------
+    r : str
+        Citation string to attach to the function
+
+    Returns
+    -------
+    callable
+        Wrapped function with citation attribute
     """
 
     def wrapper(f):
@@ -127,11 +157,19 @@ def citation_wrapper(r):
 
 def calc_effective_width_hz_from_angstrom(effective_width, effective_wavelength):
     """
-    Calculate the effective width in Hz from the effective wavelength in Angstrom
+    Calculate the effective width in Hz from the effective wavelength in Angstrom.
 
-    :param effective_width: effective_width in Angstrom
-    :param effective_wavelength: effective wavelength in Angstrom
-    :return: effective width in Hz
+    Parameters
+    ----------
+    effective_width : float
+        Effective width in Angstrom
+    effective_wavelength : float
+        Effective wavelength in Angstrom
+
+    Returns
+    -------
+    float
+        Effective width in Hz
     """
     wavelength_m = effective_wavelength * 1.0e-10
     effective_width_m = effective_width * 1.0e-10
@@ -140,11 +178,21 @@ def calc_effective_width_hz_from_angstrom(effective_width, effective_wavelength)
 
 def calc_tfb(binding_energy_const, mbh_6, stellar_mass):
     """
-    Calculate the fall back timescale for a SMBH disrupting a stellar mass object
-    :param binding_energy_const:
-    :param mbh_6: SMBH mass in 10^6 solar masses
-    :param stellar_mass: stellar mass in solar masses
-    :return: fall back time in seconds
+    Calculate the fall back timescale for a SMBH disrupting a stellar mass object.
+
+    Parameters
+    ----------
+    binding_energy_const : float
+        Binding energy constant
+    mbh_6 : float
+        SMBH mass in 10^6 solar masses
+    stellar_mass : float
+        Stellar mass in solar masses
+
+    Returns
+    -------
+    float
+        Fall back time in seconds
     """
     tfb = 58. * (3600. * 24.) * (mbh_6 ** (0.5)) * (stellar_mass ** (0.2)) * ((binding_energy_const / 0.8) ** (-1.5))
     return tfb
@@ -154,14 +202,26 @@ def calculate_normalisation(unique_frequency, model_1, model_2, tref, model_1_di
     """
     Calculate the normalisation for smoothly joining two models together at a reference time.
 
-    :param unique_frequency: An array of unique frequencies. Can be None in which case we assume there is only one normalisation.
-    :param model_1: must be redback model with a normalisation parameter
-    :param model_2: any redback model
-    :param tref: time which transition from model_1 to model_2 takes place
-    :param model_1_dict: dictionary of parameters and values for model 1
-    :param model_2: dictionary of parameters and values for model 1
-    :return: normalisation, namedtuple corresponding to the normalisation for the specific frequency.
-    Could be bolometric luminosity, magnitude, or frequency
+    Parameters
+    ----------
+    unique_frequency : array_like or None
+        An array of unique frequencies. Can be None in which case we assume there is only one normalisation
+    model_1 : str
+        Must be redback model with a normalisation parameter
+    model_2 : str
+        Any redback model
+    tref : float
+        Time at which transition from model_1 to model_2 takes place
+    model_1_dict : dict
+        Dictionary of parameters and values for model 1
+    model_2_dict : dict
+        Dictionary of parameters and values for model 2
+
+    Returns
+    -------
+    namedtuple
+        Normalisation namedtuple corresponding to the normalisation for the specific frequency.
+        Could be bolometric luminosity, magnitude, or frequency
     """
     from redback.model_library import all_models_dict
     f1 = all_models_dict[model_1](time=tref, a_1=1, **model_1_dict)
@@ -180,11 +240,19 @@ def calculate_normalisation(unique_frequency, model_1, model_2, tref, model_1_di
 
 def get_csm_properties(nn, eta):
     """
-    Calculate CSM properties for CSM interacting models
+    Calculate CSM properties for CSM interacting models.
 
-    :param nn: csm norm
-    :param eta: csm density profile exponent
-    :return: csm_properties named tuple
+    Parameters
+    ----------
+    nn : float
+        CSM norm
+    eta : float
+        CSM density profile exponent
+
+    Returns
+    -------
+    namedtuple
+        CSM properties named tuple with fields AA, Bf, Br
     """
     csm_properties = namedtuple('csm_properties', ['AA', 'Bf', 'Br'])
     filepath = f"{dirname}/tables/csm_table.txt"
@@ -240,37 +308,72 @@ def fnu_to_flambda(f_nu, wavelength_A):
     """
     Convert flux density from erg/s/cm^2/Hz to erg/s/cm^2/Angstrom.
 
-    :param f_nu: flux density in erg/s/cm^2/Hz
-    :param wavelength_A: wavelength in Angstrom
-    :return: flux density in erg/s/cm^2/Angstrom
+    Parameters
+    ----------
+    f_nu : float or array_like
+        Flux density in erg/s/cm^2/Hz
+    wavelength_A : float or array_like
+        Wavelength in Angstrom
+
+    Returns
+    -------
+    float or array_like
+        Flux density in erg/s/cm^2/Angstrom
     """
     return f_nu * speed_of_light * 1e8 / wavelength_A ** 2
 
 
 def lambda_to_nu(wavelength):
     """
-    :param wavelength: wavelength in Angstrom
-    :return: frequency in Hertz
+    Convert wavelength to frequency.
+
+    Parameters
+    ----------
+    wavelength : float or array_like
+        Wavelength in Angstrom
+
+    Returns
+    -------
+    float or array_like
+        Frequency in Hertz
     """
     return speed_of_light_si / (wavelength * 1.e-10)
 
 
 def nu_to_lambda(frequency):
     """
-    :param frequency: frequency in Hertz
-    :return: wavelength in Angstrom
+    Convert frequency to wavelength.
+
+    Parameters
+    ----------
+    frequency : float or array_like
+        Frequency in Hertz
+
+    Returns
+    -------
+    float or array_like
+        Wavelength in Angstrom
     """
     return 1.e10 * (speed_of_light_si / frequency)
 
 
 def calc_kcorrected_properties(frequency, redshift, time):
     """
-    Perform k-correction
+    Perform k-correction.
 
-    :param frequency: observer frame frequency
-    :param redshift: source redshift
-    :param time: observer frame time
-    :return: k-corrected frequency and source frame time
+    Parameters
+    ----------
+    frequency : float or array_like
+        Observer frame frequency
+    redshift : float
+        Source redshift
+    time : float or array_like
+        Observer frame time
+
+    Returns
+    -------
+    tuple
+        (k-corrected frequency, source frame time)
     """
     time = time / (1 + redshift)
     frequency = frequency * (1 + redshift)
@@ -279,30 +382,51 @@ def calc_kcorrected_properties(frequency, redshift, time):
 
 def mjd_to_jd(mjd):
     """
-    Convert MJD to JD
+    Convert Modified Julian Date to Julian Date.
 
-    :param mjd: mjd time
-    :return: JD time
+    Parameters
+    ----------
+    mjd : float or array_like
+        Modified Julian Date
+
+    Returns
+    -------
+    float or array_like
+        Julian Date
     """
     return Time(mjd, format="mjd").jd
 
 
 def jd_to_mjd(jd):
     """
-    Convert JD to MJD
+    Convert Julian Date to Modified Julian Date.
 
-    :param jd: jd time
-    :return: MJD time
+    Parameters
+    ----------
+    jd : float or array_like
+        Julian Date
+
+    Returns
+    -------
+    float or array_like
+        Modified Julian Date
     """
     return Time(jd, format="jd").mjd
 
 
 def jd_to_date(jd):
     """
-    Convert JD to date
+    Convert Julian Date to calendar date.
 
-    :param jd: jd time
-    :return: date
+    Parameters
+    ----------
+    jd : float
+        Julian Date
+
+    Returns
+    -------
+    tuple
+        (year, month, day)
     """
     year, month, day, _, _, _ = Time(jd, format="jd").to_value("ymdhms")
     return year, month, day
@@ -310,10 +434,17 @@ def jd_to_date(jd):
 
 def mjd_to_date(mjd):
     """
-    Convert MJD to date
+    Convert Modified Julian Date to calendar date.
 
-    :param mjd: mjd time
-    :return: data
+    Parameters
+    ----------
+    mjd : float
+        Modified Julian Date
+
+    Returns
+    -------
+    tuple
+        (year, month, day)
     """
     year, month, day, _, _, _ = Time(mjd, format="mjd").to_value("ymdhms")
     return year, month, day
@@ -321,36 +452,63 @@ def mjd_to_date(mjd):
 
 def date_to_jd(year, month, day):
     """
-    Convert date to JD
+    Convert calendar date to Julian Date.
 
-    :param year:
-    :param month:
-    :param day:
-    :return: JD time
+    Parameters
+    ----------
+    year : int
+        Year
+    month : int
+        Month
+    day : int
+        Day
+
+    Returns
+    -------
+    float
+        Julian Date
     """
     return Time(dict(year=year, month=month, day=day), format="ymdhms").jd
 
 
 def date_to_mjd(year, month, day):
     """
-    Convert date to MJD
+    Convert calendar date to Modified Julian Date.
 
-    :param year:
-    :param month:
-    :param day:
-    :return: MJD time
+    Parameters
+    ----------
+    year : int
+        Year
+    month : int
+        Month
+    day : int
+        Day
+
+    Returns
+    -------
+    float
+        Modified Julian Date
     """
     return Time(dict(year=year, month=month, day=day), format="ymdhms").mjd
 
 
 def deceleration_timescale(e0, g0, n0):
     """
-    Calculate the deceleration timescale for an afterglow
+    Calculate the deceleration timescale for an afterglow.
 
-    :param e0: kinetic energy of afterglow
-    :param g0: lorentz factor of afterglow
-    :param n0: nism number density
-    :return: peak time in seconds
+    Parameters
+    ----------
+    e0 : float
+        Kinetic energy of afterglow
+    g0 : float
+        Lorentz factor of afterglow
+    n0 : float
+        NISM number density
+
+    Returns
+    -------
+    float
+        Peak time in seconds
     """
     e0 = e0
     gamma0 = g0
@@ -363,31 +521,53 @@ def deceleration_timescale(e0, g0, n0):
 
 def calc_flux_density_from_ABmag(magnitudes):
     """
-    Calculate flux density from AB magnitude assuming monochromatic AB filter
+    Calculate flux density from AB magnitude assuming monochromatic AB filter.
 
-    :param magnitudes:
-    :return: flux density
+    Parameters
+    ----------
+    magnitudes : float or array_like
+        AB magnitudes
+
+    Returns
+    -------
+    astropy.units.Quantity
+        Flux density in mJy
     """
     return (magnitudes * uu.ABmag).to(uu.mJy)
 
 
 def calc_ABmag_from_flux_density(fluxdensity):
     """
-    Calculate AB magnitude from flux density assuming monochromatic AB filter
+    Calculate AB magnitude from flux density assuming monochromatic AB filter.
 
-    :param fluxdensity:
-    :return: AB magnitude
+    Parameters
+    ----------
+    fluxdensity : float or array_like
+        Flux density in mJy
+
+    Returns
+    -------
+    astropy.units.Quantity
+        AB magnitude
     """
     return (fluxdensity * uu.mJy).to(uu.ABmag)
 
 
 def calc_flux_density_from_vegamag(magnitudes, zeropoint):
     """
-    Calculate flux density from Vega magnitude assuming Vega filter
+    Calculate flux density from Vega magnitude assuming Vega filter.
 
-    :param magnitudes:
-    :param zeropoint: Vega zeropoint for a given filter in Jy
-    :return: flux density in mJy
+    Parameters
+    ----------
+    magnitudes : float or array_like
+        Vega magnitudes
+    zeropoint : float
+        Vega zeropoint for a given filter in Jy
+
+    Returns
+    -------
+    float or array_like
+        Flux density in mJy
     """
     zeropoint = zeropoint * 1000
     flux_density = zeropoint * 10 ** (magnitudes / -2.5)
@@ -396,11 +576,19 @@ def calc_flux_density_from_vegamag(magnitudes, zeropoint):
 
 def calc_vegamag_from_flux_density(fluxdensity, zeropoint):
     """
-    Calculate Vega magnitude from flux density assuming Vega filter
+    Calculate Vega magnitude from flux density assuming Vega filter.
 
-    :param fluxdensity: in mJy
-    :param zeropoint: Vega zeropoint for a given filter in Jy
-    :return: Vega magnitude
+    Parameters
+    ----------
+    fluxdensity : float or array_like
+        Flux density in mJy
+    zeropoint : float
+        Vega zeropoint for a given filter in Jy
+
+    Returns
+    -------
+    float or array_like
+        Vega magnitude
     """
     zeropoint = zeropoint * 1000
     magnitude = -2.5 * np.log10(fluxdensity / zeropoint)
@@ -438,11 +626,21 @@ def convert_apparent_mag_to_absolute(app_magnitude, redshift, **kwargs):
     """
     Convert apparent magnitude to absolute magnitude assuming planck18 cosmology.
 
-    :param app_magnitude: AB/Vega apparent magnitude
-    :param redshift: redshift
-    :param kwargs: Additional kwargs
-    :param cosmology: Cosmology object if not using default
-    :return: absolute magnitude
+    Parameters
+    ----------
+    app_magnitude : float or array_like
+        AB/Vega apparent magnitude
+    redshift : float
+        Redshift
+    **kwargs : dict, optional
+        Additional keyword arguments
+    cosmology : astropy.cosmology object, optional
+        Cosmology object if not using default (passed through kwargs)
+
+    Returns
+    -------
+    float or array_like
+        Absolute magnitude
     """
     from astropy.cosmology import Planck18
     import astropy.units as uu
@@ -459,10 +657,19 @@ def convert_apparent_mag_to_absolute(app_magnitude, redshift, **kwargs):
 
 def convert_absolute_mag_to_apparent(magnitude, distance):
     """
-    Convert absolute magnitude to apparent
+    Convert absolute magnitude to apparent magnitude.
 
-    :param magnitude: AB absolute magnitude
-    :param distance: Distance in parsecs
+    Parameters
+    ----------
+    magnitude : float or array_like
+        AB absolute magnitude
+    distance : float
+        Distance in parsecs
+
+    Returns
+    -------
+    float or array_like
+        Apparent magnitude
     """
     app_mag = magnitude + 5 * (np.log10(distance) - 1)
     return app_mag
@@ -566,13 +773,23 @@ def abmag_to_flux_density_and_error_inmjy(m_AB, sigma_m):
 def calc_flux_density_error_from_monochromatic_magnitude(magnitude, magnitude_error, reference_flux,
                                                          magnitude_system='AB'):
     """
-    Calculate flux density error from magnitude error
+    Calculate flux density error from magnitude error.
 
-    :param magnitude: magnitude
-    :param magnitude_error: magnitude error
-    :param reference_flux: reference flux density
-    :param magnitude_system: magnitude system
-    :return: Flux density error
+    Parameters
+    ----------
+    magnitude : float or array_like
+        Magnitude
+    magnitude_error : float or array_like
+        Magnitude error
+    reference_flux : float
+        Reference flux density
+    magnitude_system : str, optional
+        Magnitude system (default is 'AB')
+
+    Returns
+    -------
+    float or array_like
+        Flux density error
     """
     if magnitude_system == 'AB':
         reference_flux = 3631
@@ -584,12 +801,21 @@ def calc_flux_density_error_from_monochromatic_magnitude(magnitude, magnitude_er
 
 def calc_flux_error_from_magnitude(magnitude, magnitude_error, reference_flux):
     """
-    Calculate flux error from magnitude error
+    Calculate flux error from magnitude error.
 
-    :param magnitude: magnitude
-    :param magnitude_error: magnitude error
-    :param reference_flux: reference flux density
-    :return: Flux error
+    Parameters
+    ----------
+    magnitude : float or array_like
+        Magnitude
+    magnitude_error : float or array_like
+        Magnitude error
+    reference_flux : float
+        Reference flux density
+
+    Returns
+    -------
+    float or array_like
+        Flux error
     """
     prefactor = np.log(10) / (-2.5)
     dfdm = prefactor * reference_flux * np.exp(prefactor * magnitude)
@@ -599,10 +825,17 @@ def calc_flux_error_from_magnitude(magnitude, magnitude_error, reference_flux):
 
 def bands_to_zeropoint(bands):
     """
-    Bands to zero point
+    Convert bands to zeropoint values.
 
-    :param bands: list of bands
-    :return: zeropoint for magnitude to flux density calculation
+    Parameters
+    ----------
+    bands : list of str
+        List of bands
+
+    Returns
+    -------
+    float or array_like
+        Zeropoint for magnitude to flux density calculation
     """
     reference_flux = bands_to_reference_flux(bands)
     zeropoint = 10 ** (reference_flux / -2.5)
@@ -611,11 +844,19 @@ def bands_to_zeropoint(bands):
 
 def bandpass_magnitude_to_flux(magnitude, bands):
     """
-    Convert magnitude to flux
+    Convert magnitude to flux.
 
-    :param magnitude: magnitude
-    :param bands: bandpass
-    :return: flux
+    Parameters
+    ----------
+    magnitude : float or array_like
+        Magnitude
+    bands : str or list of str
+        Bandpass
+
+    Returns
+    -------
+    float or array_like
+        Flux
     """
     reference_flux = bands_to_reference_flux(bands)
     maggi = 10.0 ** (magnitude / (-2.5))
@@ -738,11 +979,19 @@ def magnitude_error_from_flux_error(bandflux, bandflux_error):
 
 def bandpass_flux_to_magnitude(flux, bands):
     """
-    Convert flux to magnitude
+    Convert flux to magnitude.
 
-    :param flux: flux
-    :param bands: bandpass
-    :return: magnitude
+    Parameters
+    ----------
+    flux : float or array_like
+        Flux
+    bands : str or list of str
+        Bandpass
+
+    Returns
+    -------
+    float or array_like
+        Magnitude
     """
     reference_flux = bands_to_reference_flux(bands)
     maggi = flux / reference_flux
@@ -754,10 +1003,15 @@ def bands_to_reference_flux(bands):
     """
     Looks up the reference flux for a given band from the filters table.
 
-    :param bands: List of bands.
-    :type bands: list[str]
-    :return: An array of reference flux associated with the given bands.
-    :rtype: np.ndarray
+    Parameters
+    ----------
+    bands : list of str
+        List of bands
+
+    Returns
+    -------
+    np.ndarray
+        Array of reference flux associated with the given bands
     """
     if bands is None:
         bands = []
@@ -777,12 +1031,17 @@ def bands_to_reference_flux(bands):
 
 def bands_to_frequency(bands):
     """
-    Converts a list of bands into an array of frequency in Hz
+    Converts a list of bands into an array of frequency in Hz.
 
-    :param bands: List of bands.
-    :type bands: list[str]
-    :return: An array of frequency associated with the given bands.
-    :rtype: np.ndarray
+    Parameters
+    ----------
+    bands : list of str
+        List of bands
+
+    Returns
+    -------
+    np.ndarray
+        Array of frequency in Hz associated with the given bands
     """
     if bands is None:
         bands = []
@@ -799,12 +1058,17 @@ def bands_to_frequency(bands):
 
 def bands_to_effective_width(bands):
     """
-    Converts a list of bands into an array of effective width in Hz
+    Converts a list of bands into an array of effective width in Hz.
 
-    :param bands: List of bands.
-    :type bands: list[str]
-    :return: An array of effective width associated with the given bands.
-    :rtype: np.ndarray
+    Parameters
+    ----------
+    bands : list of str
+        List of bands
+
+    Returns
+    -------
+    np.ndarray
+        Array of effective width in Hz associated with the given bands
     """
     if bands is None:
         bands = []
@@ -822,12 +1086,17 @@ def bands_to_effective_width(bands):
 
 def frequency_to_bandname(frequency):
     """
-    Converts a list of frequencies into an array corresponding band names
+    Converts a list of frequencies into an array of corresponding band names.
 
-    :param frequency: List of bands.
-    :type frequency: list[str]
-    :return: An array of bandnames associated with the given frequency.
-    :rtype: np.ndarray
+    Parameters
+    ----------
+    frequency : list of float
+        List of frequencies
+
+    Returns
+    -------
+    np.ndarray
+        Array of bandnames associated with the given frequency
     """
     if frequency is None:
         frequency = []
@@ -853,11 +1122,19 @@ def fetch_driver():
 
 def calc_credible_intervals(samples, interval=0.9):
     """
-    Calculate credible intervals from samples
+    Calculate credible intervals from samples.
 
-    :param samples: samples array
-    :param interval: credible interval to calculate
-    :return: lower_bound, upper_bound, median
+    Parameters
+    ----------
+    samples : array_like
+        Samples array
+    interval : float, optional
+        Credible interval to calculate (default is 0.9)
+
+    Returns
+    -------
+    tuple
+        (lower_bound, upper_bound, median)
     """
     if not 0 <= interval <= 1:
         raise ValueError
@@ -908,12 +1185,21 @@ def calc_one_dimensional_median_and_error_bar(samples, quantiles=(0.16, 0.84), f
 
 def kde_scipy(x, bandwidth=0.05, **kwargs):
     """
-    Kernel Density Estimation with Scipy
+    Kernel Density Estimation with Scipy.
 
-    :param x: samples
-    :param bandwidth: bandwidth of the kernel
-    :param kwargs: Any extra kwargs passed to scipy.kde
-    :return: gaussian kde object
+    Parameters
+    ----------
+    x : array_like
+        Samples
+    bandwidth : float, optional
+        Bandwidth of the kernel (default is 0.05)
+    **kwargs : dict, optional
+        Any extra kwargs passed to scipy.kde
+
+    Returns
+    -------
+    gaussian_kde
+        Gaussian KDE object
     """
     # Note that scipy weights its bandwidth by the covariance of the
     # input data.  To make the results comparable to the other methods,
@@ -924,13 +1210,23 @@ def kde_scipy(x, bandwidth=0.05, **kwargs):
 
 def cdf(x, plot=True, *args, **kwargs):
     """
-    Cumulative distribution function
+    Cumulative distribution function.
 
-    :param x: samples
-    :param plot: whether to plot the cdf
-    :param args: extra args passed to plt.plot
-    :param kwargs: extra kwargs passed to plt.plot
-    :return: x, y or plot
+    Parameters
+    ----------
+    x : array_like
+        Samples
+    plot : bool, optional
+        Whether to plot the CDF (default is True)
+    *args : tuple
+        Extra args passed to plt.plot
+    **kwargs : dict
+        Extra kwargs passed to plt.plot
+
+    Returns
+    -------
+    tuple or plot
+        If plot=False: (x, y), if plot=True: plot object
     """
     x, y = sorted(x), np.arange(len(x)) / len(x)
     return plt.plot(x, y, *args, **kwargs) if plot else (x, y)
@@ -938,11 +1234,19 @@ def cdf(x, plot=True, *args, **kwargs):
 
 def bin_ttes(ttes, bin_size):
     """
-    Bin TimeTaggedEvents into bins of size bin_size
+    Bin TimeTaggedEvents into bins of size bin_size.
 
-    :param ttes: time tagged events
-    :param bin_size: bin sizes
-    :return: times and counts in bins
+    Parameters
+    ----------
+    ttes : array_like
+        Time tagged events
+    bin_size : float
+        Bin sizes
+
+    Returns
+    -------
+    tuple
+        (times, counts in bins)
     """
     counts, bin_edges = np.histogram(ttes, np.arange(ttes[0], ttes[-1], bin_size))
     times = np.array([bin_edges[i] + (bin_edges[i + 1] - bin_edges[i]) / 2 for i in range(len(bin_edges) - 1)])
@@ -951,10 +1255,17 @@ def bin_ttes(ttes, bin_size):
 
 def find_path(path):
     """
-    Find the path of some data in the package
+    Find the path of some data in the package.
 
-    :param path:
-    :return:
+    Parameters
+    ----------
+    path : str
+        Path string, use 'default' for default data directory
+
+    Returns
+    -------
+    str
+        Absolute path to the data
     """
     if path == 'default':
         return os.path.join(dirname, '../data/GRBData')
@@ -964,17 +1275,22 @@ def find_path(path):
 
 def setup_logger(outdir='.', label=None, log_level='INFO'):
     """
-    Setup logging output: call at the start of the script to use
+    Setup logging output: call at the start of the script to use.
 
-    :param outdir: If supplied, write the logging output to outdir/label.log
-    :type outdir: str
-    :param label: If supplied, write the logging output to outdir/label.log
-    :type label: str
-    :param log_level:
-        ['debug', 'info', 'warning']
-        Either a string from the list above, or an integer as specified
+    Parameters
+    ----------
+    outdir : str, optional
+        If supplied, write the logging output to outdir/label.log (default is '.')
+    label : str, optional
+        If supplied, write the logging output to outdir/label.log (default is None)
+    log_level : str or int, optional
+        Either a string from ['debug', 'info', 'warning'], or an integer as specified
         in https://docs.python.org/2/library/logging.html#logging-levels
-        (Default value = 'INFO')
+        (default is 'INFO')
+
+    Returns
+    -------
+    None
     """
     log_file = f'{outdir}/{label}.log'
     with contextlib.suppress(FileNotFoundError):
@@ -1072,11 +1388,21 @@ def get_functions_dict(module):
 
 def interpolated_barnes_and_kasen_thermalisation_efficiency(mej, vej):
     """
-    Uses Barnes+2016 and interpolation to calculate the r-process thermalisation efficiency
-    depending on the input mass and velocity
-    :param mej: ejecta mass in solar masses
-    :param vej: initial ejecta velocity as a fraction of speed of light
-    :return: av, bv, dv constants in the thermalisation efficiency equation Eq 25 in Metzger 2017
+    Uses Barnes+2016 and interpolation to calculate the r-process thermalisation efficiency.
+
+    Depends on the input mass and velocity.
+
+    Parameters
+    ----------
+    mej : float
+        Ejecta mass in solar masses
+    vej : float
+        Initial ejecta velocity as a fraction of speed of light
+
+    Returns
+    -------
+    tuple
+        (av, bv, dv) constants in the thermalisation efficiency equation Eq 25 in Metzger 2017
     """
     v_array = np.asarray([0.1, 0.2, 0.3, 0.4])
     mass_array = np.asarray([1.e-3, 5.e-3, 1.e-2, 5.e-2, 1.e-1])
@@ -1390,10 +1716,20 @@ def _calculate_rosswogkorobkin24_qdot(time_array, ejecta_velocity, electron_frac
 
 def electron_fraction_from_kappa(kappa):
     """
-    Uses interpolation from Tanaka+19 to calculate
-    the electron fraction based on the temperature independent gray opacity
-    :param kappa: temperature independent gray opacity
-    :return: electron_fraction
+    Calculate electron fraction from opacity using Tanaka+19 interpolation.
+
+    Uses interpolation from Tanaka+19 to calculate the electron fraction based on
+    the temperature independent gray opacity.
+
+    Parameters
+    ----------
+    kappa : float
+        Temperature independent gray opacity
+
+    Returns
+    -------
+    float
+        Electron fraction
     """
 
     kappa_array = np.array([35, 32.2, 22.3, 5.60, 5.36, 3.30, 0.96, 0.5])
@@ -1405,10 +1741,20 @@ def electron_fraction_from_kappa(kappa):
 
 def kappa_from_electron_fraction(ye):
     """
-    Uses interpolation from Tanaka+19 to calculate
-    the opacity based on the electron fraction
-    :param ye: electron fraction
-    :return: electron_fraction
+    Calculate opacity from electron fraction using Tanaka+19 interpolation.
+
+    Uses interpolation from Tanaka+19 to calculate the opacity based on
+    the electron fraction.
+
+    Parameters
+    ----------
+    ye : float
+        Electron fraction
+
+    Returns
+    -------
+    float
+        Temperature independent gray opacity (kappa)
     """
     kappa_array = np.array([35, 32.2, 22.3, 5.60, 5.36, 3.30, 0.96, 0.5])
     ye_array = np.array([0.10, 0.15, 0.2, 0.25, 0.30, 0.35, 0.4, 0.5])
@@ -1419,18 +1765,34 @@ def kappa_from_electron_fraction(ye):
 
 def lorentz_factor_from_velocity(velocity):
     """
-    Calculates the Lorentz factor for a given velocity
-    :param velocity: velocity in cm/s
-    :return: Lorentz factor
+    Calculate the Lorentz factor for a given velocity.
+
+    Parameters
+    ----------
+    velocity : float
+        Velocity in cm/s
+
+    Returns
+    -------
+    float
+        Lorentz factor
     """
     return 1 / np.sqrt(1 - (velocity / speed_of_light) ** 2)
 
 
 def velocity_from_lorentz_factor(lorentz_factor):
     """
-    Calculates the velocity for a given Lorentz factor
-    :param Lorentz_factor: relativistic Lorentz factor
-    :return: velocity in cm/s
+    Calculate the velocity for a given Lorentz factor.
+
+    Parameters
+    ----------
+    lorentz_factor : float
+        Relativistic Lorentz factor
+
+    Returns
+    -------
+    float
+        Velocity in cm/s
     """
 
     return speed_of_light * np.sqrt(1 - 1 / lorentz_factor ** 2)

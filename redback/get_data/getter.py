@@ -9,28 +9,46 @@ class DataGetter(object):
         self.transient_type = transient_type
 
     def get_data(self) -> pd.DataFrame:
-        """Downloads the raw data and produces a processed .csv file.
+        """
+        Download raw data and produce a processed .csv file.
 
-        :return: The processed data
-        :rtype: pandas.DataFrame
+        Returns
+        -------
+        pandas.DataFrame
+            The processed data with standardized columns
+
+        Examples
+        --------
+        >>> from redback.get_data.swift import SwiftDataGetter
+        >>> getter = SwiftDataGetter('GRB170817A', 'afterglow', 'flux')
+        >>> data = getter.get_data()
         """
         self.collect_data()
         return self.convert_raw_data_to_csv()
 
     @property
     def transient_type(self) -> str:
-        """Checks if the transient type is valid when setting.
+        """
+        Get the transient type.
 
-        :return: The transient type.
-        :rtype: str
+        Checks if the transient type is valid when setting.
+
+        Returns
+        -------
+        str
+            The transient type
         """
         return self._transient_type
 
     @transient_type.setter
     def transient_type(self, transient_type: str) -> None:
         """
-        :param transient_type: The transient type.
-        :type transient_type: str
+        Set the transient type.
+
+        Parameters
+        ----------
+        transient_type : str
+            The transient type. Must be in VALID_TRANSIENT_TYPES
         """
         if transient_type not in self.VALID_TRANSIENT_TYPES:
             raise ValueError("Transient type does not have Lasair data.")
@@ -46,23 +64,35 @@ class GRBDataGetter(DataGetter):
     @property
     def grb(self) -> str:
         """
-        :return: The GRB number with prepended 'GRB'.
-        :rtype: str
+        Get the GRB name with prepended 'GRB'.
+
+        Returns
+        -------
+        str
+            The GRB name with 'GRB' prefix
         """
         return self.transient
 
     @grb.setter
     def grb(self, grb: str) -> None:
         """
-        :param grb: The GRB name with or without the prepended 'GRB'
-        :type grb: str
+        Set the GRB name.
+
+        Parameters
+        ----------
+        grb : str
+            The GRB name with or without the prepended 'GRB'
         """
         self.transient = "GRB" + grb.lstrip("GRB")
 
     @property
     def stripped_grb(self) -> str:
         """
-        :return: The GRB number without prepended 'GRB'.
-        :rtype: str
+        Get the GRB number without prepended 'GRB'.
+
+        Returns
+        -------
+        str
+            The GRB number without 'GRB' prefix
         """
         return self.grb.lstrip('GRB')

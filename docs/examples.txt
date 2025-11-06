@@ -2,29 +2,98 @@
 Examples
 ============
 
-We provide several examples so users can get a more practical grasp of how to use :code:`redback`. Some examples are listed below:
+We provide several examples so users can get a more practical grasp of how to use :code:`redback`.
 
-- `Getting data <https://github.com/nikhil-sarin/redback/blob/master/examples/getting_data_with_redback.py>`_
-- `Creating transient objects <https://github.com/nikhil-sarin/redback/blob/master/examples/creating_transient_objects.py>`_
-- `Simulate single transient in ztf <https://github.com/nikhil-sarin/redback/blob/master/examples/simulate_single_transient_in_ztf.py>`_
-- `Simulate survey <https://github.com/nikhil-sarin/redback/blob/master/examples/simulate_survey.py>`_
-- `Simulate basic transient observations <https://github.com/nikhil-sarin/redback/blob/master/examples/simulate_basic_transient.py>`_
-- `Using models as a function <https://github.com/nikhil-sarin/redback/blob/master/examples/Using_models_as_function.py>`_
-- `Using SNCosmo models for plotting and fitting data <https://github.com/nikhil-sarin/redback/blob/master/examples/using_sncosmo_models_to_fit.py>`_
-- `Modifying models <https://github.com/nikhil-sarin/redback/blob/master/examples/create_your_own_ejecta_relation.py>`_
-- `Fitting with homologous expansion <https://github.com/nikhil-sarin/redback/blob/master/examples/supernova_homologous_expansion_example.py>`_
-- `Joint Afterglow and Gravitational-wave analysis <https://github.com/nikhil-sarin/redback/blob/master/examples/joint_em_gw_example.py>`_
-- `Gaussian process with a base model <https://github.com/nikhil-sarin/redback/blob/master/examples/magnetar_example_with_gaussian_process.py>`_
-- `broadband_afterglow_private_data_example <https://github.com/nikhil-sarin/redback/blob/master/examples/broadband_afterglow_private_data_example.py>`_
-- `fit_your_own_model_example <https://github.com/nikhil-sarin/redback/blob/master/examples/fit_your_own_model_example.py>`_
-- `kilonova_example <https://github.com/nikhil-sarin/redback/blob/master/examples/kilonova_example.py>`_
-- `magnetar_boosted_example <https://github.com/nikhil-sarin/redback/blob/master/examples/magnetar_boosted_example.py>`_
-- `magnetar_example <https://github.com/nikhil-sarin/redback/blob/master/examples/magnetar_example.py>`_
-- `prompt_example <https://github.com/nikhil-sarin/redback/blob/master/examples/prompt_example.py>`_
-- `supernova_example <https://github.com/nikhil-sarin/redback/blob/master/examples/supernova_example.py>`_
-- `tde_example <https://github.com/nikhil-sarin/redback/blob/master/examples/tde_example.py>`_
-- `SN2011kl_sample_in_t0_example <https://github.com/nikhil-sarin/redback/blob/master/examples/SN2011kl_sample_in_t0_example.py>`_
+Jupyter Notebook Tutorials
+===========================
 
-We have also written a more tutorial style `jupyter notebook <https://github.com/nikhil-sarin/redback/blob/master/examples/RedbackTutorial.ipynb>`_
-demonstrating the bulk of the functionality of :code:`redback`. There are many more examples in the `examples <https://github.com/nikhil-sarin/redback/blob/master/examples>`_ folder of the repository.
-Please check it out!
+We have written comprehensive tutorial-style Jupyter notebooks demonstrating the functionality of :code:`redback`:
+
+- `Main Redback Tutorial <https://github.com/nikhil-sarin/redback/blob/master/examples/RedbackTutorial.ipynb>`_ - Comprehensive introduction to redback
+- `Gaussian Process Tutorial <https://github.com/nikhil-sarin/redback/blob/master/examples/GP_tutorial_with_redback.ipynb>`_ - Using Gaussian processes with redback
+- `Redback Paper Plots <https://github.com/nikhil-sarin/redback/blob/master/examples/RedbackPaperPlots.ipynb>`_ - Reproducing plots from the redback paper
+- `Target of Opportunity Simulations <https://github.com/nikhil-sarin/redback/blob/master/examples/ToOSimulations_with_redback.ipynb>`_ - Simulating ToO observations
+- `Estimating Blackbody Properties <https://github.com/nikhil-sarin/redback/blob/master/examples/estimating_blackbody_properties_with_redback.ipynb>`_ - Blackbody parameter estimation
+- `Estimating Bolometric Luminosity <https://github.com/nikhil-sarin/redback/blob/master/examples/estimating_lbols.ipynb>`_ - Calculating luminosities
+- `Handling Non-detections <https://github.com/nikhil-sarin/redback/blob/master/examples/handling_non_detections.ipynb>`_ - Working with upper limits
+- `Analyzing Spectra <https://github.com/nikhil-sarin/redback/blob/master/examples/analyse_spectrums.ipynb>`_ - Spectral analysis
+
+Getting Started Examples
+=========================
+
+Basic usage and data retrieval:
+
+- `Getting Data <https://github.com/nikhil-sarin/redback/blob/master/examples/getting_data_with_redback.py>`_ - Retrieving transient data from catalogs
+- `Get Fink Data <https://github.com/nikhil-sarin/redback/blob/master/examples/get_fink_data.py>`_ - Accessing data from the Fink broker
+- `Creating Transient Objects <https://github.com/nikhil-sarin/redback/blob/master/examples/creating_transient_objects.py>`_ - Creating and manipulating transient objects
+- `Using Models as a Function <https://github.com/nikhil-sarin/redback/blob/master/examples/using_model_as_a_function.py>`_ - Calling models directly
+
+Transient-Specific Examples
+============================
+
+Examples for different types of transients:
+
+**Supernovae**
+
+- `Supernova Example <https://github.com/nikhil-sarin/redback/blob/master/examples/supernova_example.py>`_ - Basic supernova fitting
+- `Supernova with Homologous Expansion <https://github.com/nikhil-sarin/redback/blob/master/examples/supernova_homologous_expansion_example.py>`_ - Fitting with homologous expansion
+- `SN2011kl Example <https://github.com/nikhil-sarin/redback/blob/master/examples/SN2011kl_sample_in_t0_example.py>`_ - Sampling in explosion time
+- `Supernova with Unknown Explosion Date <https://github.com/nikhil-sarin/redback/blob/master/examples/supernova_with_unknown_explosion_date.py>`_ - Handling unknown t0
+
+**Kilonovae**
+
+- `Kilonova Example <https://github.com/nikhil-sarin/redback/blob/master/examples/kilonova_example.py>`_ - Basic kilonova fitting
+- `Simulate Kilonova <https://github.com/nikhil-sarin/redback/blob/master/examples/simulate_kilonova.py>`_ - Simulating kilonova observations
+- `Simulate Kilonova Population <https://github.com/nikhil-sarin/redback/blob/master/examples/simulate_kilonova_population.py>`_ - Population synthesis
+
+**Magnetars**
+
+- `Magnetar Example <https://github.com/nikhil-sarin/redback/blob/master/examples/magnetar_example.py>`_ - Basic magnetar model fitting
+- `Magnetar Boosted Example <https://github.com/nikhil-sarin/redback/blob/master/examples/magnetar_boosted_example.py>`_ - Boosted magnetar models
+- `Magnetar with Gaussian Process <https://github.com/nikhil-sarin/redback/blob/master/examples/magnetar_example_with_gaussian_process.py>`_ - Gaussian process with base model
+
+**Afterglows**
+
+- `Broadband Afterglow with Private Data <https://github.com/nikhil-sarin/redback/blob/master/examples/broadband_afterglow_private_data_example.py>`_ - Using custom data
+
+**Tidal Disruption Events**
+
+- `TDE Example <https://github.com/nikhil-sarin/redback/blob/master/examples/tde_example.py>`_ - Tidal disruption event fitting
+
+**Prompt Emission**
+
+- `Prompt Example <https://github.com/nikhil-sarin/redback/blob/master/examples/prompt_example.py>`_ - Prompt emission analysis
+
+Simulation Examples
+====================
+
+Simulating transient observations:
+
+- `Simulate Basic Transient <https://github.com/nikhil-sarin/redback/blob/master/examples/simulate_basic_transient.py>`_ - Basic transient simulation
+- `Simulate Single Transient in ZTF <https://github.com/nikhil-sarin/redback/blob/master/examples/simulate_single_transient_in_ztf.py>`_ - ZTF survey simulation
+- `Simulate Single Transient in Rubin <https://github.com/nikhil-sarin/redback/blob/master/examples/simulate_single_transient_in_rubin.py>`_ - Rubin Observatory simulation
+- `Simulate Survey <https://github.com/nikhil-sarin/redback/blob/master/examples/simulate_survey.py>`_ - Full survey simulation
+
+Advanced Fitting Examples
+==========================
+
+Custom models and advanced features:
+
+- `Fit Your Own Model <https://github.com/nikhil-sarin/redback/blob/master/examples/fit_your_own_model_example.py>`_ - Using custom models
+- `Create Your Own Ejecta Relation <https://github.com/nikhil-sarin/redback/blob/master/examples/create_your_own_ejecta_relation.py>`_ - Custom ejecta relations
+- `Calling a Model with Inbuilt Constraints <https://github.com/nikhil-sarin/redback/blob/master/examples/calling_a_model_with_inbuilt_constraints.py>`_ - Using model constraints
+- `Bolometric Luminosity Fitting <https://github.com/nikhil-sarin/redback/blob/master/examples/bolometric_luminosity_fitting.py>`_ - Fitting bolometric light curves
+- `Non-detection Example <https://github.com/nikhil-sarin/redback/blob/master/examples/non_detection_example.py>`_ - Handling non-detections
+- `Gaussian Rise Example <https://github.com/nikhil-sarin/redback/blob/master/examples/gaussianrise_example.py>`_ - Gaussian rise phenomenological model
+- `Mixture Model Likelihoods <https://github.com/nikhil-sarin/redback/blob/master/examples/MixtureModelLikelihoods.py>`_ - Using mixture model likelihoods
+
+Integration Examples
+=====================
+
+Working with external tools and joint analyses:
+
+- `Using SNCosmo Models <https://github.com/nikhil-sarin/redback/blob/master/examples/using_sncosmo_models_to_fit.py>`_ - SNCosmo integration
+- `SALT2 Interface <https://github.com/nikhil-sarin/redback/blob/master/examples/salt2_interface.py>`_ - Using SALT2 models
+- `Joint GRB and Gravitational Wave Analysis <https://github.com/nikhil-sarin/redback/blob/master/examples/joint_grb_gw_example.py>`_ - Combined EM and GW analysis
+
+All examples are available in the `examples folder <https://github.com/nikhil-sarin/redback/blob/master/examples>`_ of the repository.

@@ -87,55 +87,102 @@ class Plotter(object):
 
     def __init__(self, transient: Union[redback.transient.Transient, None], **kwargs) -> None:
         """
-        :param transient: An instance of `redback.transient.Transient`. Contains the data to be plotted.
-        :param kwargs: Additional kwargs the plotter uses. -------
-        :keyword capsize: Same as matplotlib capsize.
-        :keyword bands_to_plot: List of bands to plot in plot lightcurve and multiband lightcurve. Default is active bands.
-        :keyword legend_location: Same as matplotlib legend location.
-        :keyword legend_cols: Same as matplotlib legend columns.
-        :keyword color: Color of the data points.
-        :keyword band_colors: A dictionary with the colors of the bands.
-        :keyword band_labels: List with the names of the bands.
-        :keyword band_scaling: Dict with the scaling for each band. First entry should be {type: '+' or 'x'} for different types.
-        :keyword dpi: Same as matplotlib dpi.
-        :keyword elinewidth: same as matplotlib elinewidth
-        :keyword errorbar_fmt: 'fmt' argument of `ax.errorbar`.
-        :keyword model: str or callable, the model to plot.
-        :keyword ms: Same as matplotlib markersize.
-        :keyword axis_tick_params_pad: `pad` argument in calls to `ax.tick_params` when setting the axes.
-        :keyword max_likelihood_alpha: `alpha` argument, i.e. transparency, when plotting the max likelihood curve.
-        :keyword random_sample_alpha: `alpha` argument, i.e. transparency, when plotting random sample curves.
-        :keyword uncertainty_band_alpha: `alpha` argument, i.e. transparency, when plotting a credible band.
-        :keyword max_likelihood_color: Color of the maximum likelihood curve.
-        :keyword random_sample_color: Color of the random sample curves.
-        :keyword bbox_inches: Setting for saving plots. Default is 'tight'.
-        :keyword linewidth: Same as matplotlib linewidth
-        :keyword zorder: Same as matplotlib zorder
-        :keyword xy: For `ax.annotate' x and y coordinates of the point to annotate.
-        :keyword xycoords: The coordinate system `xy` is given in. Default is 'axes fraction'
-        :keyword horizontalalignment: Horizontal alignment of the annotation. Default is 'right'
-        :keyword annotation_size: `size` argument of of `ax.annotate`.
-        :keyword fontsize_axes: Font size of the x and y labels.
-        :keyword fontsize_legend: Font size of the legend.
-        :keyword fontsize_figure: Font size of the figure. Relevant for multiband plots.
-                                  Used on `supxlabel` and `supylabel`.
-        :keyword fontsize_ticks: Font size of the axis ticks.
-        :keyword hspace: Argument for `subplots_adjust`, sets horizontal spacing between panels.
-        :keyword wspace: Argument for `subplots_adjust`, sets horizontal spacing between panels.
-        :keyword plot_others: Whether to plot additional bands in the data plot, all in the same colors
-        :keyword random_models: Number of random draws to use to calculate credible bands or to plot.
-        :keyword uncertainty_mode: 'random_models': Plot random draws from the available parameter sets.
-                                   'credible_intervals': Plot a credible interval that is calculated based
-                                   on the available parameter sets.
-        :keyword reference_mjd_date: Date to use as reference point for the x axis.
-                                    Default is the first date in the data.
-        :keyword credible_interval_level: 0.9: Plot the 90% credible interval.
-        :keyword plot_max_likelihood: Plots the draw corresponding to the maximum likelihood. Default is 'True'.
-        :keyword set_same_color_per_subplot: Sets the lightcurve to be the same color as the data per subplot. Default is 'True'.
-        :keyword xlim_high_multiplier: Adjust the maximum xlim based on available x values.
-        :keyword xlim_low_multiplier: Adjust the minimum xlim based on available x values.
-        :keyword ylim_high_multiplier: Adjust the maximum ylim based on available x values.
-        :keyword ylim_low_multiplier: Adjust the minimum ylim based on available x values.
+        Initialize the Plotter.
+
+        Parameters
+        ----------
+        transient : redback.transient.Transient or None
+            An instance of `redback.transient.Transient`. Contains the data to be plotted
+        **kwargs : dict
+            Additional kwargs the plotter uses
+        capsize : float, optional
+            Same as matplotlib capsize (passed through kwargs)
+        bands_to_plot : list of str, optional
+            List of bands to plot in plot lightcurve and multiband lightcurve. Default is active bands
+        legend_location : str, optional
+            Same as matplotlib legend location (default is 'best')
+        legend_cols : int, optional
+            Same as matplotlib legend columns (default is 2)
+        color : str, optional
+            Color of the data points (default is 'k')
+        band_colors : dict, optional
+            A dictionary with the colors of the bands
+        band_labels : list, optional
+            List with the names of the bands
+        band_scaling : dict, optional
+            Dict with the scaling for each band. First entry should be {type: '+' or 'x'} for different types
+        dpi : int, optional
+            Same as matplotlib dpi (default is 300)
+        elinewidth : float, optional
+            Same as matplotlib elinewidth (default is 2)
+        errorbar_fmt : str, optional
+            'fmt' argument of `ax.errorbar` (default is 'o')
+        model : str or callable, optional
+            The model to plot
+        ms : float, optional
+            Same as matplotlib markersize (default is 5)
+        axis_tick_params_pad : float, optional
+            `pad` argument in calls to `ax.tick_params` when setting the axes (default is 10)
+        max_likelihood_alpha : float, optional
+            `alpha` argument, i.e. transparency, when plotting the max likelihood curve (default is 0.65)
+        random_sample_alpha : float, optional
+            `alpha` argument, i.e. transparency, when plotting random sample curves (default is 0.05)
+        uncertainty_band_alpha : float, optional
+            `alpha` argument, i.e. transparency, when plotting a credible band (default is 0.4)
+        max_likelihood_color : str, optional
+            Color of the maximum likelihood curve (default is 'blue')
+        random_sample_color : str, optional
+            Color of the random sample curves (default is 'red')
+        bbox_inches : str, optional
+            Setting for saving plots (default is 'tight')
+        linewidth : float, optional
+            Same as matplotlib linewidth (default is 2)
+        zorder : int, optional
+            Same as matplotlib zorder (default is -1)
+        xy : tuple, optional
+            For `ax.annotate' x and y coordinates of the point to annotate (default is (0.95, 0.9))
+        xycoords : str, optional
+            The coordinate system `xy` is given in (default is 'axes fraction')
+        horizontalalignment : str, optional
+            Horizontal alignment of the annotation (default is 'right')
+        annotation_size : float, optional
+            `size` argument of `ax.annotate` (default is 20)
+        fontsize_axes : float, optional
+            Font size of the x and y labels (default is 18)
+        fontsize_legend : float, optional
+            Font size of the legend (default is 18)
+        fontsize_figure : float, optional
+            Font size of the figure. Relevant for multiband plots. Used on `supxlabel` and `supylabel` (default is 30)
+        fontsize_ticks : float, optional
+            Font size of the axis ticks (default is 16)
+        hspace : float, optional
+            Argument for `subplots_adjust`, sets horizontal spacing between panels (default is 0.04)
+        wspace : float, optional
+            Argument for `subplots_adjust`, sets vertical spacing between panels (default is 0.15)
+        plot_others : bool, optional
+            Whether to plot additional bands in the data plot, all in the same colors (default is True)
+        random_models : int, optional
+            Number of random draws to use to calculate credible bands or to plot (default is 100)
+        uncertainty_mode : str, optional
+            'random_models': Plot random draws from the available parameter sets.
+            'credible_intervals': Plot a credible interval that is calculated based
+            on the available parameter sets (default is 'random_models')
+        reference_mjd_date : float, optional
+            Date to use as reference point for the x axis. Default is the first date in the data
+        credible_interval_level : float, optional
+            Credible interval level, e.g., 0.9 for 90% credible interval (default is 0.9)
+        plot_max_likelihood : bool, optional
+            Plots the draw corresponding to the maximum likelihood (default is True)
+        set_same_color_per_subplot : bool, optional
+            Sets the lightcurve to be the same color as the data per subplot (default is True)
+        xlim_high_multiplier : float, optional
+            Adjust the maximum xlim based on available x values (default is 2.0)
+        xlim_low_multiplier : float, optional
+            Adjust the minimum xlim based on available x values (default is 0.5)
+        ylim_high_multiplier : float, optional
+            Adjust the maximum ylim based on available y values (default is 2.0)
+        ylim_low_multiplier : float, optional
+            Adjust the minimum ylim based on available y values (default is 0.5)
         """
         self.transient = transient
         self.kwargs = kwargs or dict()
@@ -317,51 +364,94 @@ class SpecPlotter(object):
 
     def __init__(self, spectrum: Union[redback.transient.Spectrum, None], **kwargs) -> None:
         """
-        :param spectrum: An instance of `redback.transient.Spectrum`. Contains the data to be plotted.
-        :param kwargs: Additional kwargs the plotter uses. -------
-        :keyword capsize: Same as matplotlib capsize.
-        :keyword elinewidth: same as matplotlib elinewidth
-        :keyword errorbar_fmt: 'fmt' argument of `ax.errorbar`.
-        :keyword ms: Same as matplotlib markersize.
-        :keyword legend_location: Same as matplotlib legend location.
-        :keyword legend_cols: Same as matplotlib legend columns.
-        :keyword color: Color of the data points.
-        :keyword dpi: Same as matplotlib dpi.
-        :keyword model: str or callable, the model to plot.
-        :keyword ms: Same as matplotlib markersize.
-        :keyword axis_tick_params_pad: `pad` argument in calls to `ax.tick_params` when setting the axes.
-        :keyword max_likelihood_alpha: `alpha` argument, i.e. transparency, when plotting the max likelihood curve.
-        :keyword random_sample_alpha: `alpha` argument, i.e. transparency, when plotting random sample curves.
-        :keyword uncertainty_band_alpha: `alpha` argument, i.e. transparency, when plotting a credible band.
-        :keyword max_likelihood_color: Color of the maximum likelihood curve.
-        :keyword random_sample_color: Color of the random sample curves.
-        :keyword bbox_inches: Setting for saving plots. Default is 'tight'.
-        :keyword linewidth: Same as matplotlib linewidth
-        :keyword zorder: Same as matplotlib zorder
-        :keyword yscale: Same as matplotlib yscale, default is linear
-        :keyword xy: For `ax.annotate' x and y coordinates of the point to annotate.
-        :keyword xycoords: The coordinate system `xy` is given in. Default is 'axes fraction'
-        :keyword horizontalalignment: Horizontal alignment of the annotation. Default is 'right'
-        :keyword annotation_size: `size` argument of of `ax.annotate`.
-        :keyword fontsize_axes: Font size of the x and y labels.
-        :keyword fontsize_legend: Font size of the legend.
-        :keyword fontsize_figure: Font size of the figure. Relevant for multiband plots.
-                                  Used on `supxlabel` and `supylabel`.
-        :keyword fontsize_ticks: Font size of the axis ticks.
-        :keyword hspace: Argument for `subplots_adjust`, sets horizontal spacing between panels.
-        :keyword wspace: Argument for `subplots_adjust`, sets horizontal spacing between panels.
-        :keyword plot_others: Whether to plot additional bands in the data plot, all in the same colors
-        :keyword random_models: Number of random draws to use to calculate credible bands or to plot.
-        :keyword uncertainty_mode: 'random_models': Plot random draws from the available parameter sets.
-                                   'credible_intervals': Plot a credible interval that is calculated based
-                                   on the available parameter sets.
-        :keyword credible_interval_level: 0.9: Plot the 90% credible interval.
-        :keyword plot_max_likelihood: Plots the draw corresponding to the maximum likelihood. Default is 'True'.
-        :keyword set_same_color_per_subplot: Sets the lightcurve to be the same color as the data per subplot. Default is 'True'.
-        :keyword xlim_high_multiplier: Adjust the maximum xlim based on available x values.
-        :keyword xlim_low_multiplier: Adjust the minimum xlim based on available x values.
-        :keyword ylim_high_multiplier: Adjust the maximum ylim based on available x values.
-        :keyword ylim_low_multiplier: Adjust the minimum ylim based on available x values.
+        Initialize the SpecPlotter.
+
+        Parameters
+        ----------
+        spectrum : redback.transient.Spectrum or None
+            An instance of `redback.transient.Spectrum`. Contains the data to be plotted
+        **kwargs : dict
+            Additional kwargs the plotter uses
+        capsize : float, optional
+            Same as matplotlib capsize (default is 0.)
+        elinewidth : float, optional
+            Same as matplotlib elinewidth (default is 2)
+        errorbar_fmt : str, optional
+            'fmt' argument of `ax.errorbar` (default is 'x')
+        ms : float, optional
+            Same as matplotlib markersize (default is 1)
+        legend_location : str, optional
+            Same as matplotlib legend location (default is 'best')
+        legend_cols : int, optional
+            Same as matplotlib legend columns (default is 2)
+        color : str, optional
+            Color of the data points (default is 'k')
+        dpi : int, optional
+            Same as matplotlib dpi (default is 300)
+        model : str or callable, optional
+            The model to plot
+        axis_tick_params_pad : float, optional
+            `pad` argument in calls to `ax.tick_params` when setting the axes (default is 10)
+        max_likelihood_alpha : float, optional
+            `alpha` argument, i.e. transparency, when plotting the max likelihood curve (default is 0.65)
+        random_sample_alpha : float, optional
+            `alpha` argument, i.e. transparency, when plotting random sample curves (default is 0.05)
+        uncertainty_band_alpha : float, optional
+            `alpha` argument, i.e. transparency, when plotting a credible band (default is 0.4)
+        max_likelihood_color : str, optional
+            Color of the maximum likelihood curve (default is 'blue')
+        random_sample_color : str, optional
+            Color of the random sample curves (default is 'red')
+        bbox_inches : str, optional
+            Setting for saving plots (default is 'tight')
+        linewidth : float, optional
+            Same as matplotlib linewidth (default is 2)
+        zorder : int, optional
+            Same as matplotlib zorder (default is -1)
+        yscale : str, optional
+            Same as matplotlib yscale (default is 'linear')
+        xy : tuple, optional
+            For `ax.annotate' x and y coordinates of the point to annotate (default is (0.95, 0.9))
+        xycoords : str, optional
+            The coordinate system `xy` is given in (default is 'axes fraction')
+        horizontalalignment : str, optional
+            Horizontal alignment of the annotation (default is 'right')
+        annotation_size : float, optional
+            `size` argument of `ax.annotate` (default is 20)
+        fontsize_axes : float, optional
+            Font size of the x and y labels (default is 18)
+        fontsize_legend : float, optional
+            Font size of the legend (default is 18)
+        fontsize_figure : float, optional
+            Font size of the figure. Relevant for multiband plots. Used on `supxlabel` and `supylabel` (default is 30)
+        fontsize_ticks : float, optional
+            Font size of the axis ticks (default is 16)
+        hspace : float, optional
+            Argument for `subplots_adjust`, sets horizontal spacing between panels (default is 0.04)
+        wspace : float, optional
+            Argument for `subplots_adjust`, sets vertical spacing between panels (default is 0.15)
+        plot_others : bool, optional
+            Whether to plot additional bands in the data plot, all in the same colors
+        random_models : int, optional
+            Number of random draws to use to calculate credible bands or to plot (default is 100)
+        uncertainty_mode : str, optional
+            'random_models': Plot random draws from the available parameter sets.
+            'credible_intervals': Plot a credible interval that is calculated based
+            on the available parameter sets (default is 'random_models')
+        credible_interval_level : float, optional
+            Credible interval level, e.g., 0.9 for 90% credible interval (default is 0.9)
+        plot_max_likelihood : bool, optional
+            Plots the draw corresponding to the maximum likelihood (default is True)
+        set_same_color_per_subplot : bool, optional
+            Sets the lightcurve to be the same color as the data per subplot (default is True)
+        xlim_high_multiplier : float, optional
+            Adjust the maximum xlim based on available x values (default is 1.05)
+        xlim_low_multiplier : float, optional
+            Adjust the minimum xlim based on available x values (default is 0.9)
+        ylim_high_multiplier : float, optional
+            Adjust the maximum ylim based on available y values (default is 1.1)
+        ylim_low_multiplier : float, optional
+            Adjust the minimum ylim based on available y values (default is 0.5)
         """
         self.transient = spectrum
         self.kwargs = kwargs or dict()

@@ -15,43 +15,63 @@ dirname = os.path.dirname(__file__)
 
 
 class PromptTimeSeries(Transient):
+    """
+    Class for GRB prompt emission time series data.
+
+    Inherits from Transient and provides prompt emission-specific data loading and processing
+    for BATSE and Swift data.
+
+    Attributes
+    ----------
+    DATA_MODES : list
+        Valid data modes: ['counts', 'ttes'].
+    """
     DATA_MODES = ['counts', 'ttes']
 
     def __init__(
-            self, name: str, bin_size: float = 1, ttes: np.ndarray = None, time: np.ndarray = None, 
-            time_err: np.ndarray = None, time_rest_frame: np.ndarray = None, time_rest_frame_err: np.ndarray = None, 
+            self, name: str, bin_size: float = 1, ttes: np.ndarray = None, time: np.ndarray = None,
+            time_err: np.ndarray = None, time_rest_frame: np.ndarray = None, time_rest_frame_err: np.ndarray = None,
             counts: np.ndarray = None, channel_tags: np.ndarray = None, data_mode: str = 'ttes',
-            trigger_number: str = None, channels: Union[np.ndarray, str] = "all", instrument: str = "batse", 
+            trigger_number: str = None, channels: Union[np.ndarray, str] = "all", instrument: str = "batse",
             **kwargs: None) -> None:
         """
-        :param name: Telephone number of GRB, e.g., 'GRB140903A' or '140903A' are valid inputs
-        :type name: str
-        :param bin_size: Bin size for binning time-tagged event data.
-        :type bin_size: float
-        :param ttes: Time-tagged events data for unbinned prompt data.
-        :type ttes: np.ndarray, optional
-        :param time: Times in the observer frame.
-        :type time: np.ndarray, optional
-        :param time_err: Time errors in the observer frame.
-        :type time_err: np.ndarray, optional
-        :param time_rest_frame: Times in the rest frame. Used for luminosity data.
-        :type time_rest_frame: np.ndarray, optional
-        :param time_rest_frame_err: Time errors in the rest frame. Used for luminosity data.
-        :type time_rest_frame_err: np.ndarray, optional
-        :param counts: The number of counts at each given time.
-        :type counts: np.ndarray, optional
-        :param channel_tags: The channel tag associated with each time.
-        :type channel_tags: np.ndarray, optional
-        :param data_mode: Data mode. Must be one from `PromptTimeSeries.DATA_MODES`.
-        :type data_mode: str
-        :param trigger_number: BATSE trigger number.
-        :type trigger_number: str
-        :param channels: Array of channels to use. Use all channels if 'all' is given.
-        :type channels: Union[np.ndarray, float]
-        :param instrument: Instrument we use. Default is 'batse'.
-        :type instrument: str, optional
-        :param kwargs: Any other kwargs.
-        :type kwargs: None
+        General constructor for the PromptTimeSeries class.
+
+        Parameters
+        ----------
+        name : str
+            Telephone number of GRB, e.g., 'GRB140903A' or '140903A' are valid inputs.
+        bin_size : float, optional
+            Bin size for binning time-tagged event data (default is 1).
+        ttes : np.ndarray, optional
+            Time-tagged events data for unbinned prompt data.
+        time : np.ndarray, optional
+            Times in the observer frame.
+        time_err : np.ndarray, optional
+            Time errors in the observer frame.
+        time_rest_frame : np.ndarray, optional
+            Times in the rest frame. Used for luminosity data.
+        time_rest_frame_err : np.ndarray, optional
+            Time errors in the rest frame. Used for luminosity data.
+        counts : np.ndarray, optional
+            The number of counts at each given time.
+        channel_tags : np.ndarray, optional
+            The channel tag associated with each time.
+        data_mode : str, optional
+            Data mode. Must be one from `PromptTimeSeries.DATA_MODES` (default is 'ttes').
+        trigger_number : str, optional
+            BATSE trigger number.
+        channels : Union[np.ndarray, str], optional
+            Array of channels to use. Use all channels if 'all' is given (default is 'all').
+        instrument : str, optional
+            Instrument we use. Must be 'batse' or 'swift' (default is 'batse').
+        **kwargs : dict, optional
+            Any other keyword arguments.
+
+        Examples
+        --------
+        >>> import redback
+        >>> prompt = PromptTimeSeries.from_batse_grb_name('GRB910425', channels=[0, 1, 2, 3])
         """
         super().__init__(time=time, time_err=time_err, time_rest_frame=time_rest_frame,
                          time_rest_frame_err=time_rest_frame_err, counts=counts, ttes=ttes, bin_size=bin_size,
@@ -71,17 +91,28 @@ class PromptTimeSeries(Transient):
     @classmethod
     def from_batse_grb_name(
             cls, name: str, trigger_number: str = None, channels: Union[np.ndarray, str] = "all") -> PromptTimeSeries:
-        """Constructor that loads batse data given a trigger number.
+        """
+        Constructor that loads BATSE data given a GRB name.
 
-        :param name: Name of the transient.
-        :type name: str
-        :param trigger_number: BATSE trigger number.
-        :type trigger_number: str
-        :param channels: Array of channels to use. Use all channels if 'all' is given.
-        :type channels: Union[np.ndarray, float]
+        Parameters
+        ----------
+        name : str
+            Name of the transient (e.g., 'GRB910425').
+        trigger_number : str, optional
+            BATSE trigger number. If None, will be inferred from the name.
+        channels : Union[np.ndarray, str], optional
+            Array of channels to use. Use all channels if 'all' is given (default is 'all').
 
-        :return: An instance of `PromptTimeSeries`.
-        :rtype: PromptTimeSeries
+        Returns
+        -------
+        PromptTimeSeries
+            An instance with BATSE data loaded.
+
+        Examples
+        --------
+        >>> prompt = PromptTimeSeries.from_batse_grb_name('GRB910425')
+        >>> # Use specific channels
+        >>> prompt = PromptTimeSeries.from_batse_grb_name('GRB910425', channels=[0, 1])
         """
         time, dt, counts = cls.load_batse_data(name=name, channels=channels)
         return cls(name=name, bin_size=dt, time=time, counts=counts, data_mode="counts",
@@ -89,15 +120,20 @@ class PromptTimeSeries(Transient):
 
     @staticmethod
     def load_batse_data(name: str, channels: Union[np.ndarray, str]) -> tuple:
-        """Load batse data given a transient name.
+        """
+        Load BATSE data given a transient name.
 
-        :type name: str
-        :param name: Name of the GRB, e.g. GRB123456.
-        :param channels: Array of channels to use. Use all channels if 'all' is given.
-        :type channels: Union[np.ndarray, float]
+        Parameters
+        ----------
+        name : str
+            Name of the GRB (e.g., 'GRB910425').
+        channels : Union[np.ndarray, str]
+            Array of channels to use. Use all channels if 'all' is given.
 
-        :return: Time, time step size, and counts in the format (time, dt, counts)
-        :rtype tuple:
+        Returns
+        -------
+        tuple
+            Time, time step size, and counts in format (time, dt, counts).
         """
         name = f"GRB{name.lstrip('GRB')}"
         directory_structure = batse_prompt_directory_structure(grb=name)
@@ -150,10 +186,17 @@ class PromptTimeSeries(Transient):
             self._trigger_number = str(trigger_number)
 
     def plot_data(self, **kwargs: None) -> None:
-        """Simple plot of the data.
+        """
+        Simple plot of the prompt emission data.
 
-        :param kwargs: Placeholder.
-        :type kwargs: None
+        Parameters
+        ----------
+        **kwargs : dict, optional
+            Additional keyword arguments (currently unused).
+
+        Examples
+        --------
+        >>> prompt.plot_data()
         """
         plt.step(self.time, self.counts / self.bin_size)
         plt.ylabel('Counts')
@@ -165,22 +208,30 @@ class PromptTimeSeries(Transient):
             self, model: callable, axes: matplotlib.axes.Axes = None, save: bool = True, show: bool = True,
             random_models: int = 1000, posterior: pd.DataFrame = None, outdir: str = None, **kwargs: None) -> None:
         """
-        :param model: The model we are using
-        :type model: callable
-        :param axes: Axes to plot into. Currently a placeholder.
-        :type axes: matplotlib.axes.Axes, optional
-        :param save: Whether to save the plot. Default is `True`. Currently, a placeholder.
-        :type save: bool, option
-        :param show: Whether to show the plot. Default is `True`. Currently, a placeholder.
-        :type show: bool, optional
-        :param random_models: Number of random posterior samples to use for plots. Default is 1000.
-        :type random_models: int, optional
-        :param posterior: Posterior from which to draw samples from.
-        :type posterior: pd.DataFrame, optional
-        :param outdir: Out directory to save the plot in. Currently, a placeholder.
-        :type outdir: str
-        :param kwargs: All other plotting kwargs. Currently, a placeholder.
-        :type kwargs: None
+        Plot the prompt emission lightcurve with model predictions.
+
+        Parameters
+        ----------
+        model : callable
+            The model function to use for predictions.
+        axes : matplotlib.axes.Axes, optional
+            Axes to plot into. Currently a placeholder.
+        save : bool, optional
+            Whether to save the plot (default is True). Currently a placeholder.
+        show : bool, optional
+            Whether to show the plot (default is True). Currently a placeholder.
+        random_models : int, optional
+            Number of random posterior samples to use for plots (default is 1000).
+        posterior : pd.DataFrame, optional
+            Posterior from which to draw samples.
+        outdir : str, optional
+            Directory to save the plot in. Currently a placeholder.
+        **kwargs : dict, optional
+            All other plotting keyword arguments. Currently a placeholder.
+
+        Examples
+        --------
+        >>> prompt.plot_lightcurve(model=my_model, posterior=result.posterior)
         """
         plt.clf()
         plt.step(self.time, self.counts / self.bin_size)
@@ -217,31 +268,47 @@ class PromptTimeSeries(Transient):
     @property
     def t90(self) -> float:
         """
-        :return: The t90 data.
-        :rtype: float
+        The T90 duration of the GRB.
+
+        Returns
+        -------
+        float
+            The T90 value in seconds.
         """
         return self.data['t90'][self._data_index]
 
     @property
     def t90_error(self) -> float:
         """
-        :return: The t90 error value.
-        :rtype: float
+        The T90 error.
+
+        Returns
+        -------
+        float
+            The T90 error value in seconds.
         """
         return self.data['t90_error'][self._data_index]
 
     @property
     def t90_start(self) -> float:
         """
-        :return: The t90 start value.
-        :rtype: float
+        The T90 start time.
+
+        Returns
+        -------
+        float
+            The T90 start time in seconds.
         """
         return self.data['t90_start'][self._data_index]
 
     @property
     def t90_end(self) -> float:
         """
-        :return: The t90 end value.
-        :rtype: float
+        The T90 end time.
+
+        Returns
+        -------
+        float
+            The T90 end time in seconds (t90_start + t90).
         """
         return self.t90_start + self.t90

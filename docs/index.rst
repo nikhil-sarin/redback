@@ -22,6 +22,7 @@ Welcome to REDBACK's documentation!
    fitting
    results
    joint_likelihood
+   api_examples
    examples
    acknowledgements
    contributing

@@ -10,15 +10,29 @@ from redback.utils import logger
 
 def get_priors(model, times=None, y=None, yerr=None, dt=None, **kwargs):
     """
-    Get the prior for the given model. If the model is a prompt model, the times, y, and yerr must be provided.
+    Get the prior for the given model.
 
-    :param model: String referring to a name of a model implemented in Redback.
-    :param times: Time array
-    :param y: Y values, arbitrary units
-    :param yerr: Error on y values, arbitrary units
-    :param dt: time interval
-    :param kwargs: Extra arguments to be passed to the prior function
-    :return: priors: PriorDict object
+    If the model is a prompt model, the times, y, and yerr must be provided.
+
+    Parameters
+    ----------
+    model : str
+        String referring to a name of a model implemented in Redback
+    times : array_like, optional
+        Time array
+    y : array_like, optional
+        Y values, arbitrary units
+    yerr : array_like, optional
+        Error on y values, arbitrary units
+    dt : float or array_like, optional
+        Time interval
+    **kwargs : dict, optional
+        Extra arguments to be passed to the prior function
+
+    Returns
+    -------
+    bilby.core.prior.PriorDict
+        PriorDict object for the model
     """
     prompt_prior_functions = dict(gaussian_prompt=get_gaussian_priors, skew_gaussian=get_skew_gaussian_priors,
                                   skew_exponential=get_skew_exponential_priors, fred=get_fred_priors,

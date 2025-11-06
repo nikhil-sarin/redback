@@ -25,25 +25,62 @@ def fit_model(
         resume: bool = True, save_format: str = "json", model_kwargs: dict = None, plot=True, **kwargs)\
         -> redback.result.RedbackResult:
     """
-    :param transient: The transient to be fitted
-    :param model: Name of the model to fit to data or a function.
-    :param outdir: Output directory. Will default to a sensible structure if not given.
-    :param label: Result file labels. Will use the model name if not given.
-    :param sampler: The sampling backend. Nested samplers are encouraged to allow evidence calculation.
-                    (Default value = 'dynesty')
-    :param nlive: Number of live points.
-    :param prior: Priors to use during sampling. If not given, we use the default priors for the given model.
-    :param walks: Number of `dynesty` random walks.
-    :param truncate: Flag to confirm whether to truncate the prompt emission data
-    :param use_photon_index_prior: flag to turn off/on photon index prior and fits according to the curvature effect
-    :param truncate_method: method of truncation
-    :param resume: Whether to resume the run from a checkpoint if available.
-    :param save_format: The format to save the result in. (Default value = 'json'_
-    :param model_kwargs: Additional keyword arguments for the model.
-    :param clean: If True, rerun the fitting, if false try to use previous results in the output directory.
-    :param plot: If True, create corner and lightcurve plot
-    :param kwargs: Additional parameters that will be passed to the sampler via bilby
-    :return: Redback result object, transient specific data object
+    Fit a model to transient data using Bayesian inference.
+
+    This is the main fitting function in redback. It handles various transient types
+    and automatically selects the appropriate likelihood and fitting procedure.
+
+    Parameters
+    ----------
+    transient : redback.transient.transient.Transient
+        The transient object containing observational data to be fitted.
+    model : str or callable
+        Name of the model to fit to data (as a string) or a custom model function.
+    outdir : str, optional
+        Output directory for results. Defaults to a sensible structure if not given.
+    label : str, optional
+        Result file label. Uses the transient name if not given.
+    sampler : str, optional
+        The sampling backend. Nested samplers (like 'dynesty') are encouraged
+        to allow evidence calculation (default is 'dynesty').
+    nlive : int, optional
+        Number of live points for nested sampling (default is 2000).
+    prior : dict, optional
+        Priors to use during sampling. If not given, uses default priors for the model.
+    walks : int, optional
+        Number of random walks for dynesty (default is 200).
+    truncate : bool, optional
+        Flag to confirm whether to truncate the prompt emission data (default is True).
+    use_photon_index_prior : bool, optional
+        Flag to turn on photon index prior for GRB fits (default is False).
+    truncate_method : str, optional
+        Method of truncation (default is 'prompt_time_error').
+    resume : bool, optional
+        Whether to resume the run from a checkpoint if available (default is True).
+    save_format : str, optional
+        Format to save the result in (default is 'json').
+    model_kwargs : dict, optional
+        Additional keyword arguments for the model.
+    plot : bool, optional
+        If True, create corner and lightcurve plots (default is True).
+    **kwargs : dict
+        Additional parameters passed to the sampler via bilby. Supported options include:
+
+        - clean : bool
+            If True, rerun fitting; if False, try to use previous results in outdir.
+
+    Returns
+    -------
+    RedbackResult
+        Redback result object containing posterior samples and metadata.
+
+    Examples
+    --------
+    >>> import redback
+    >>> transient = redback.get_data.get_supernova_data_from_open_transient_catalog_data("SN2011kl")
+    >>> model = "arnett"
+    >>> result = redback.fit_model(transient=transient, model=model, nlive=500)
+    >>> result.plot_lightcurve(model=model)
     """
     if isinstance(model, str):
         modelname = model

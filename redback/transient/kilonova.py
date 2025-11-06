@@ -10,6 +10,16 @@ dirname = os.path.dirname(__file__)
 
 
 class Kilonova(OpticalTransient):
+    """
+    Class for kilonova transient data.
+
+    Inherits from OpticalTransient and provides kilonova-specific data loading and processing.
+
+    Attributes
+    ----------
+    DATA_MODES : list
+        Valid data modes: ['flux_density', 'magnitude', 'luminosity', 'flux'].
+    """
 
     DATA_MODES = ['flux_density', 'magnitude', 'luminosity', 'flux']
 
@@ -22,65 +32,69 @@ class Kilonova(OpticalTransient):
             bands: np.ndarray = None, system: np.ndarray = None, active_bands: Union[np.ndarray, str] = 'all',
             plotting_order: Union[np.ndarray, str] = None, use_phase_model: bool = False,
             optical_data: bool = True, **kwargs: None) -> None:
-        """This is a general constructor for the Kilonova class. Note that you only need to give data corresponding to
-        the data mode you are using. For luminosity data provide times in the rest frame, if using a phase model
-        provide time in MJD, else use the default time (observer frame).
+        """
+        General constructor for the Kilonova class.
 
+        Note that you only need to provide data corresponding to the data mode you are using.
+        For luminosity data provide times in the rest frame, if using a phase model provide
+        time in MJD, otherwise use the default time (observer frame).
 
-        :param name: Name of the transient.
-        :type name: str
-        :param data_mode: Data mode. Must be one from `Afterglow.DATA_MODES`.
-        :type data_mode: str, optional
-        :param time: Times in the observer frame.
-        :type time: np.ndarray, optional
-        :param time_err: Time errors in the observer frame.
-        :type time_err: np.ndarray, optional
-        :param time_mjd: Times in MJD. Used if using phase model.
-        :type time_mjd: np.ndarray, optional
-        :param time_mjd_err: Time errors in MJD. Used if using phase model.
-        :type time_mjd_err: np.ndarray, optional
-        :param time_rest_frame: Times in the rest frame. Used for luminosity data.
-        :type time_rest_frame: np.ndarray, optional
-        :param time_rest_frame_err: Time errors in the rest frame. Used for luminosity data.
-        :type time_rest_frame_err: np.ndarray, optional
-        :param Lum50: Luminosity values.
-        :type Lum50: np.ndarray, optional
-        :param Lum50_err: Luminosity error values.
-        :type Lum50_err: np.ndarray, optional
-        :param flux: Flux values.
-        :type flux: np.ndarray, optional
-        :type flux_err: np.ndarray, optional
-        :param flux_err: Flux error values.
-        :param flux_density: Flux density values.
-        :type flux_density: np.ndarray, optional
-        :param flux_density_err: Flux density error values.
-        :type flux_density_err: np.ndarray, optional
-        :param magnitude: Magnitude values for photometry data.
-        :type magnitude: np.ndarray, optional
-        :param magnitude_err: Magnitude error values for photometry data.
-        :type magnitude_err: np.ndarray, optional
-        :param redshift: Redshift value. Will be read from the metadata table if not given.
-        :type redshift: float
-        :param photon_index: Photon index value. Will be read from the metadata table if not given.
-        :type photon_index: float
-        :param use_phase_model: Whether we are using a phase model.
-        :type use_phase_model: bool
-        :param optical_data: Whether we are fitting optical data, useful for plotting.
-        :type optical_data: bool, optional
-        :param frequency: Array of band frequencies in photometry data.
-        :type frequency: np.ndarray, optional
-        :param system: System values.
-        :type system: np.ndarray, optional
-        :param bands: Band values.
-        :type bands: np.ndarray, optional
-        :param active_bands: List or array of active bands to be used in the analysis. Use all available bands if 'all' is given.
-        :type active_bands: Union[list, np.ndarray]
-        :param plotting_order: Order in which to plot the bands/and how unique bands are stored.
-        :type plotting_order: Union[np.ndarray, str], optional
-        :param kwargs: Additional callables:
-                        bands_to_frequency: Conversion function to convert a list of bands to frequencies. Use
-                        redback.utils.bands_to_frequency if not given.
-        :type kwargs: None
+        Parameters
+        ----------
+        name : str
+            Name of the transient (e.g., 'AT2017gfo').
+        data_mode : str, optional
+            Data mode. Must be one from `Kilonova.DATA_MODES` (default is 'magnitude').
+        time : np.ndarray, optional
+            Times in the observer frame.
+        time_err : np.ndarray, optional
+            Time errors in the observer frame.
+        time_mjd : np.ndarray, optional
+            Times in MJD. Used if using phase model.
+        time_mjd_err : np.ndarray, optional
+            Time errors in MJD. Used if using phase model.
+        time_rest_frame : np.ndarray, optional
+            Times in the rest frame. Used for luminosity data.
+        time_rest_frame_err : np.ndarray, optional
+            Time errors in the rest frame. Used for luminosity data.
+        Lum50 : np.ndarray, optional
+            Luminosity values in units of 10^50 erg/s.
+        Lum50_err : np.ndarray, optional
+            Luminosity error values.
+        flux_density : np.ndarray, optional
+            Flux density values in mJy.
+        flux_density_err : np.ndarray, optional
+            Flux density error values.
+        magnitude : np.ndarray, optional
+            Magnitude values for photometry data.
+        magnitude_err : np.ndarray, optional
+            Magnitude error values for photometry data.
+        redshift : float, optional
+            Redshift value (default is np.nan).
+        photon_index : float, optional
+            Photon index value (default is np.nan).
+        bands : np.ndarray, optional
+            Band values.
+        system : np.ndarray, optional
+            System values.
+        active_bands : Union[np.ndarray, str], optional
+            List or array of active bands to be used in the analysis. Use all available
+            bands if 'all' is given (default is 'all').
+        plotting_order : Union[np.ndarray, str], optional
+            Order in which to plot the bands and how unique bands are stored.
+        use_phase_model : bool, optional
+            Whether we are using a phase model (default is False).
+        optical_data : bool, optional
+            Whether we are fitting optical data, useful for plotting (default is True).
+        **kwargs : dict, optional
+            Additional callables:
+            - bands_to_frequency: Conversion function to convert a list of bands to frequencies.
+              Use redback.utils.bands_to_frequency if not given.
+
+        Examples
+        --------
+        >>> import redback
+        >>> kilonova = redback.kilonova.Kilonova.from_open_access_catalogue('AT2017gfo')
         """
 
         super().__init__(time=time, time_err=time_err, time_rest_frame=time_rest_frame, time_mjd=time_mjd,
