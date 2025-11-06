@@ -1,0 +1,181 @@
+"""This file holds the functions to call the LearnedSurrogateModel models.
+
+LearnedSurrogateModel are models from the redback_surrogates package that
+have been trained to emulate more complex transient models and saved in ONNX format.
+
+The workflow for these models is to load the model from an ONNX file using
+the LearnedSurrogateModel.from_onnx_file() method, then use the
+make_learned_model_callable() function to create a callable function that can be used
+to evaluate the model given time and parameters.
+"""
+import astropy.units as uu
+import numpy as np
+import re
+
+from astropy.cosmology import Planck18 as cosmo  # noqa
+from collections import namedtuple
+from functools import partial
+from scipy.interpolate import RegularGridInterpolator
+
+import redback.sed as sed
+from redback.utils import calc_kcorrected_properties, lambda_to_nu
+
+
+def make_learned_model_callable(model):
+    """
+    This function takes in a LearnedSurrogateModel instance and returns a callable function
+    that can be used to evaluate the model given time and parameters.
+
+    The function's signature will match the expected format for redback with time as the
+    first argument, followed by each of the model parameters and then any additional keyword
+    arguments.
+
+    :param model: LearnedSurrogateModel instance
+    :return: Callable function to evaluate the model
+    """
+    # Make sure all the model's parameter names are safe to use as function arguments.
+    identifier_re = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
+    for name in model.param_names:
+        if not identifier_re.match(name):
+            raise ValueError(
+                f"Parameter name '{name}' is invalid. Parameter names can "
+                "only contain alphanumeric characters and underscores."
+            )
+
+    # Build the complete function string. We have already checked that the parameter names are safe.
+    param_str = ", ".join(model.param_names)
+    param_dict_str = (
+        "{" + ", ".join([f"'{name}': {name}" for name in model.param_names]) + "}"
+    )
+    function_code = (
+        f"def _dynamic_predict_grid(time, {param_str}, *, model=None, **kwargs):\n"
+        f"    param_dict = {param_dict_str}\n"
+        f"    return learned_surrogate_eval(model, time, param_dict, **kwargs)\n"
+    )
+
+    # Execute the function definition and bind it to this instance. Note that we can only do exec
+    # safely here only because we checked the parameter names earlier to ensure they are safe.
+    local_namespace = {"model": model}
+    exec(function_code, globals(), local_namespace)
+
+    # Use partial to bind the model to the function so the user doesn't have to pass it in.
+    callable_func = partial(local_namespace["_dynamic_predict_grid"], model=model)
+    return callable_func
+
+
+def learned_surrogate_eval(model, time, params, **kwargs):
+    """
+    This is a common evaluation function for LearnedSurrogateModel models that can be called
+    from each model's wrapper function.
+
+    :param model: LearnedSurrogateModel instance
+    :param time: Time in days in observer frame
+    :param params: Dictionary of model parameters. Must include 'redshift' key.
+    :param kwargs: Additional parameters for the model, such as:
+    :param frequency: Required if output_format is 'flux_density'.
+        frequency to calculate - Must be same length as time array or a single number).
+    :param bands: Required if output_format is 'magnitude' or 'flux'.
+    :param output_format: 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
+    :param lambda_array: Optional argument to set your desired wavelength array (in Angstroms) to evaluate the SED on.
+    :param cosmology: Cosmology to use for luminosity distance calculation. Defaults to Planck18. Must be a astropy.cosmology object.
+    :return: set by output format - 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
+    """
+    cosmology = kwargs.get('cosmology', cosmo)
+    redshift = params.get('redshift', 0.0)
+    dl = cosmology.luminosity_distance(redshift).cgs
+
+    # Get the rest-frame spectrum using this model.
+    rest_spectrum = model.predict_spectra_grid(**params)
+    standard_freqs = model.wavelengths  # Angstrom in rest frame
+    standard_times = model.times  # days in rest frame
+
+    # Apply cosmological dimming
+    observed_spectrum = rest_spectrum / (4 * np.pi * dl ** 2)
+
+    # Handle different output formats
+    if kwargs.get('output_format') == 'flux_density':
+        # Use redback's K-correction utilities
+        frequency = kwargs['frequency']
+        frequency, time = calc_kcorrected_properties(frequency=frequency, time=time, redshift=redshift)
+
+        # Convert wavelengths to frequencies for interpolation
+        nu_array = lambda_to_nu(standard_freqs)
+
+        # Convert spectrum from erg/s/Hz to erg/s/cm²/Hz (already done above)
+        # Convert to wavelength density for astropy conversion
+        spectra_lambda = spectra_lambda.to(uu.erg / uu.cm ** 2 / uu.s / uu.Angstrom)
+
+        # Convert to mJy using astropy
+        fmjy = spectra_lambda.to(
+            uu.mJy,
+            equivalencies=uu.spectral_density(wav=standard_freqs * uu.Angstrom)
+        ).value
+
+        # Create interpolator
+        flux_interpolator = RegularGridInterpolator(
+            (standard_times, nu_array),
+            fmjy,
+            bounds_error=False,
+            fill_value=0.0
+        )
+
+        # Prepare points for interpolation
+        if isinstance(frequency, (int, float)):
+            frequency = np.ones_like(time) * frequency
+
+        # Create points for evaluation
+        points = np.column_stack((time, frequency))
+
+        # Return interpolated flux
+        return flux_interpolator(points)
+
+    else:
+        # Create denser grid for output (in rest frame)
+        new_rest_times = np.geomspace(np.min(standard_times), np.max(standard_times), 200)
+        new_rest_freqs = np.geomspace(np.min(standard_freqs), np.max(standard_freqs), 200)
+
+        # Create interpolator for the spectrum in rest frame
+        spectra_func = RegularGridInterpolator(
+            (standard_times, standard_freqs),
+            observed_spectrum.value,
+            bounds_error=False,
+            fill_value=0.0
+        )
+
+        # Create meshgrid for new grid points
+        tt_mesh, ff_mesh = np.meshgrid(new_rest_times, new_rest_freqs, indexing='ij')
+        points_to_evaluate = np.column_stack((tt_mesh.ravel(), ff_mesh.ravel()))
+
+        # Interpolate spectrum onto new grid
+        interpolated_values = spectra_func(points_to_evaluate)
+        interpolated_spectrum = interpolated_values.reshape(tt_mesh.shape) * observed_spectrum.unit
+
+        # Convert times to observer frame
+        time_observer_frame = new_rest_times * (1 + redshift)
+
+        # Convert wavelengths to observer frame
+        lambda_observer_frame = new_rest_freqs * (1 + redshift)
+
+        # Convert spectrum units using astropy
+        interpolated_spectrum = interpolated_spectrum.to(
+            uu.erg / uu.cm ** 2 / uu.s / uu.Angstrom,
+            equivalencies=uu.spectral_density(wav=lambda_observer_frame * uu.Angstrom)
+        )
+
+        # Create output structure
+        if kwargs.get('output_format') == 'spectra':
+            return namedtuple('output', ['time', 'lambdas', 'spectra'])(
+                time=time_observer_frame,
+                lambdas=lambda_observer_frame,
+                spectra=interpolated_spectrum
+            )
+        else:
+            # Get correct output format using redback utility
+            return sed.get_correct_output_format_from_spectra(
+                time=time,  # Original observer frame time for evaluation
+                time_eval=time_observer_frame,
+                spectra=interpolated_spectrum,
+                lambda_array=lambda_observer_frame,
+                time_spline_degree=1,
+                **kwargs
+            )
