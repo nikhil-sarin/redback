@@ -147,6 +147,88 @@ def salt2(time, redshift, x0, x1, c, peak_time, **kwargs):
     out = sncosmo_models(time=time, redshift=redshift, model_kwargs=model_kwargs, **kwargs)
     return out
 
+@citation_wrapper('https://arxiv.org/abs/1908.05228, SN1998bw papers..., sncosmo, redback')
+def sn1998bw_template(time, redshift, amplitude, **kwargs):
+    """
+    A wrapper to the SN1998bw template. Only valid between 1100-11000 Angstrom and 0.01 to 90 days post explosion in rest frame
+
+    Parameters
+    ----------
+    time
+        time in days in observer frame (post explosion)
+    redshift
+        redshift
+    amplitude
+        amplitude scaling factor, where 1.0 is the original brightness of SN1998bw; and f_lambda is scaled by this factor
+    kwargs
+        Additional keyword arguments required by redback.
+    frequency
+        Required if output_format is 'flux_density'. frequency to calculate - Must be same length as time array or a single number).
+    bands
+        Required if output_format is 'magnitude' or 'flux'.
+    output_format
+        'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
+    cosmology
+        Cosmology to use for luminosity distance calculation. Defaults to Planck18. Must be a astropy.cosmology object.
+    Returns
+    -------
+        set by output format - 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
+
+    """
+    import sncosmo
+    model = sncosmo.Model(source='v19-1998bw')
+    original_redshift = 0.0085
+    cosmology = kwargs.get("cosmology", cosmo)
+    original_dl = (43*uu.Mpc).to(uu.cm).value
+
+    # From roughly matching to Galama+ or Clocchiatti+1998bw light curves
+    original_peak_time = 15
+    model.set(z=original_redshift, t0=original_peak_time)
+    model.set_source_peakmag(14.25, band='bessellb', magsys='ab')
+    tts = np.geomspace(0.01, 90, 200)
+    lls = np.linspace(1620, 11000, 300)
+    f_lambda = model.flux(tts, lls) #erg/s/cm^2/Angstrom.
+    l_lambda = f_lambda * 4 * np.pi * original_dl**2  # erg/s/Angstrom
+
+    # We consider this the rest frame spectrum of 1998bw. Now we can redshift it and scale it.
+    time_obs = tts * (1 + redshift)
+    lambda_obs = lls * (1 + redshift)
+    dl_new = cosmology.luminosity_distance(redshift).cgs.value
+    f_lambda_obs = l_lambda / (4 * np.pi * dl_new**2)
+    f_lambda_obs = amplitude * f_lambda_obs * (1 + redshift) # accounting for bandwidth stretching
+    f_lambda_obs = f_lambda_obs * uu.erg / uu.s / uu.cm ** 2 / uu.Angstrom
+    if kwargs['output_format'] == 'flux_density':
+        frequency = kwargs['frequency']
+        # work in obs frame
+        ff_array = lambda_to_nu(lambda_obs)
+
+        # Convert flux density to mJy
+        fmjy = f_lambda_obs.to(uu.mJy, equivalencies=uu.spectral_density(wav=lambda_obs * uu.Angstrom)).value
+        # Create interpolator on obs frame grid
+        flux_interpolator = RegularGridInterpolator(
+            (time_obs, ff_array),
+            fmjy,
+            bounds_error=False,
+            fill_value=0.0)
+
+        # Prepare points for interpolation
+        if isinstance(frequency, (int, float)):
+            frequency = np.ones_like(time) * frequency
+
+        # Create points for evaluation
+        points = np.column_stack((time, frequency))
+
+        # Return interpolated flux density with (1+z) correction for observer frame
+        return flux_interpolator(points)
+    elif kwargs['output_format'] == 'spectra':
+        return namedtuple('output', ['time', 'lambdas', 'spectra'])(time=time_obs,
+                                                                    lambdas=lambda_obs,
+                                                                    spectra=f_lambda_obs)
+    else:
+        return sed.get_correct_output_format_from_spectra(time=time, time_eval=time_obs,
+                                                          spectra=f_lambda_obs, lambda_array=lambda_obs,
+                                                          **kwargs)
+
 @citation_wrapper('redback')
 def exponential_powerlaw_bolometric(time, lbol_0, alpha_1, alpha_2, tpeak_d, **kwargs):
     """
