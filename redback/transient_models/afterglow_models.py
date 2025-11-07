@@ -1867,7 +1867,7 @@ def twocomponent_redback_refreshed(time, redshift, thv, loge0, thc, thj, g1, et,
 @citation_wrapper('redback, https://ui.adsabs.harvard.edu/abs/2019ApJ...883...48L/abstract')
 def powerlaw_redback_refreshed(time, redshift, thv, loge0, thc, thj, g1, et, s1,
                                logn0, p, logepse, logepsb, g0, xiN, **kwargs):
-    """A Classic refreshed powerlaw structured jet implemented directly in redback.
+    r"""A Classic refreshed powerlaw structured jet implemented directly in redback.
     Tophat with powerlaw energy proportional to theta^ss and lorentz factor proportional to theta^aa outside core.
     Based on Lamb et al. 2019 and other work.
     Look at the RedbackAfterglowRefreshed class for more details/implementation.
@@ -1977,7 +1977,7 @@ For a proper calculation of the magnitude use the sed variant models.
 @citation_wrapper('redback, https://ui.adsabs.harvard.edu/abs/2019ApJ...883...48L/abstract')
 def alternativepowerlaw_redback_refreshed(time, redshift, thv, loge0, thc, thj, g1, et, s1,
                                           logn0, p, logepse, logepsb, g0, xiN, **kwargs):
-    """An alternative refreshed powerlaw structured jet implemented directly in redback. Profile follows (theta/thc^2)^0.5^(-s or -a).
+    r"""An alternative refreshed powerlaw structured jet implemented directly in redback. Profile follows (theta/thc^2)^0.5^(-s or -a).
     Based on Lamb et al. 2019.
     Look at the RedbackAfterglowRefreshed class for more details/implementation.
 
@@ -2086,7 +2086,7 @@ For a proper calculation of the magnitude use the sed variant models.
 @citation_wrapper('redback, https://ui.adsabs.harvard.edu/abs/2019ApJ...883...48L/abstract')
 def doublegaussian_redback_refreshed(time, redshift, thv, loge0, thc, thj, g1, et, s1,
                                      logn0, p, logepse, logepsb, g0, xiN, **kwargs):
-    """Double Gaussian structured, refreshed jet implemented directly in redback.
+    r"""Double Gaussian structured, refreshed jet implemented directly in redback.
     Based on Lamb et al. 2019 and other work.
     Look at the RedbackAfterglowRefreshed class for more details/implementation.
 

@@ -363,7 +363,7 @@ class Afterglow(Transient):
                 string = string.replace(r, "")
                 new_float = float(string)
         except ValueError:
-            new_float = float(re.findall("\d+\.\d+", string)[0])
+            new_float = float(re.findall(r"\d+\.\d+", string)[0])
         return new_float
 
     def analytical_flux_to_luminosity(self) -> None:

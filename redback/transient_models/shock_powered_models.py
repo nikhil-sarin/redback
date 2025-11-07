@@ -11,7 +11,7 @@ from redback.utils import calc_kcorrected_properties, citation_wrapper, lambda_t
 
 
 def _shockcooling_morag(time, v_shock, m_env, f_rho_m, radius, kappa):
-    """
+    r"""
     Compute shock-cooling parameters from the model of Morag, Sapir, & Waxman.
 
     This function calculates the bolometric luminosity, effective temperature, and
@@ -268,7 +268,7 @@ def shockcooling_morag(time, redshift, v_shock, m_env, f_rho_m, radius, kappa, *
                                                               spectra=spectra, lambda_array=lambda_observer_frame,
                                                               **kwargs)
 def _shockcooling_sapirandwaxman(time, v_shock, m_env, f_rho_m, radius, kappa, nn=1.5, RW=False):
-    """
+    r"""
     Calculate shock-cooling properties following the Sapir & Waxman (and Rabinak & Waxman) model.
 
     The model equations (with time t in days) are given as follows:
