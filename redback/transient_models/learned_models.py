@@ -14,7 +14,6 @@ import re
 
 from astropy.cosmology import Planck18 as cosmo  # noqa
 from collections import namedtuple
-from functools import partial
 from scipy.interpolate import RegularGridInterpolator
 
 import redback.sed as sed
@@ -83,12 +82,14 @@ def _eval_learned_surrogate(model, time, params, **kwargs):
     redshift = params.get('redshift', 0.0)
     dl = cosmology.luminosity_distance(redshift).cgs
 
-    # Get the rest-frame spectrum using typeII_spectra
+    # Get the rest-frame spectrum from the model.
+    # These will always be f_lambda in erg/s/Angstrom
     luminosity_density = model.predict_spectra_grid(**params)
     lambda_rest = model.wavelengths  # Angstrom in rest frame
     time_rest = model.times  # days in rest frame
 
-    # Apply cosmological dimming: L_nu / (4*pi*d_L^2) gives flux that still needs (1+z) correction
+    # Apply cosmological dimming: L_nu / (4*pi*d_L^2) gives flux that
+    # still needs (1+z) correction. Units are now erg/s/Hz/cm^2
     flux_density = luminosity_density / (4 * np.pi * dl ** 2)
 
     # Handle different output formats
@@ -101,7 +102,8 @@ def _eval_learned_surrogate(model, time, params, **kwargs):
         nu_rest = lambda_to_nu(lambda_rest)
 
         # Convert flux density to mJy
-        fmjy = flux_density.to(uu.mJy).value
+        conversion_factor = (1.0 * uu.erg / uu.s / uu.Hz / (uu.cm ** 2)).to(uu.mJy).value
+        fmjy = conversion_factor * flux_density
 
         # Create interpolator on rest-frame grid
         flux_interpolator = RegularGridInterpolator(
