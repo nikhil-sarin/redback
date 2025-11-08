@@ -95,6 +95,48 @@ def get_swift_data(
 
     :return: The processed data.
     :rtype: pandas.DataFrame
+
+    **Example Usage:**
+
+    .. code-block:: python
+
+        import redback
+
+        # Download BAT+XRT afterglow data
+        redback.get_data.get_swift_data(
+            grb='GRB140903A',
+            transient_type='afterglow',
+            data_mode='flux',
+            instrument='BAT+XRT'
+        )
+
+        # Load the data into a transient object
+        afterglow = redback.transient.Afterglow.from_swift_grb(
+            name='GRB140903A',
+            data_mode='flux'
+        )
+
+        # Download XRT-only data
+        redback.get_data.get_swift_data(
+            grb='140903A',  # Can omit 'GRB' prefix
+            transient_type='afterglow',
+            data_mode='flux',
+            instrument='XRT'
+        )
+
+        # Download prompt data with specific binning
+        redback.get_data.get_swift_data(
+            grb='GRB140903A',
+            transient_type='prompt',
+            data_mode='prompt',
+            bin_size='64ms'
+        )
+
+        # Load prompt data
+        prompt = redback.transient.PromptTimeSeries.from_swift_grb(
+            name='GRB140903A',
+            bin_size='64ms'
+        )
     """
     getter = SwiftDataGetter(
         grb=grb, transient_type=transient_type, data_mode=data_mode,
@@ -208,6 +250,46 @@ def get_lasair_data(
 
     :return: The processed data.
     :rtype: pandas.DataFrame
+
+    **Example Usage:**
+
+    .. code-block:: python
+
+        import redback
+
+        # Download ZTF supernova data from LASAIR
+        redback.get_data.get_lasair_data(
+            transient='ZTF21abcdefg',
+            transient_type='supernova'
+        )
+
+        # Load the data
+        sn = redback.transient.Supernova.from_lasair_data(
+            name='ZTF21abcdefg',
+            data_mode='magnitude'
+        )
+
+        # Plot the data
+        sn.plot_data()
+
+        # Download TDE data
+        redback.get_data.get_lasair_data(
+            transient='ZTF19aagqkrq',
+            transient_type='tidal_disruption_event'
+        )
+
+        # Load TDE
+        tde = redback.transient.TDE.from_lasair_data(
+            name='ZTF19aagqkrq',
+            data_mode='magnitude'
+        )
+
+        # Fit a model
+        result = redback.fit_model(
+            transient=tde,
+            model='exponential_powerlaw',
+            model_kwargs={'output_format': 'magnitude'}
+        )
     """
     getter = LasairDataGetter(
         transient_type=transient_type, transient=transient)
@@ -244,9 +326,51 @@ def get_open_transient_catalog_data(
     :type transient_type: str
     :param kwargs: Placeholder to prevent TypeErrors.
     :type kwargs: None
-    
+
     :return: The processed data.
     :rtype: pandas.DataFrame
+
+    **Example Usage:**
+
+    .. code-block:: python
+
+        import redback
+
+        # Download supernova data
+        redback.get_data.get_open_transient_catalog_data(
+            transient='SN2011fe',
+            transient_type='supernova'
+        )
+
+        # Load the supernova
+        sn = redback.transient.Supernova.from_open_access_catalogue(
+            name='SN2011fe',
+            data_mode='magnitude'
+        )
+
+        # Download kilonova data
+        redback.get_data.get_open_transient_catalog_data(
+            transient='AT2017gfo',
+            transient_type='kilonova'
+        )
+
+        # Load kilonova
+        kn = redback.transient.Kilonova.from_open_access_catalogue(
+            name='AT2017gfo',
+            data_mode='magnitude'
+        )
+
+        # Download TDE data
+        redback.get_data.get_open_transient_catalog_data(
+            transient='PS18kh',
+            transient_type='tidal_disruption_event'
+        )
+
+        # Load TDE
+        tde = redback.transient.TDE.from_open_access_catalogue(
+            name='PS18kh',
+            data_mode='flux_density'
+        )
     """
     getter = OpenDataGetter(
         transient_type=transient_type, transient=transient)

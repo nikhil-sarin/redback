@@ -76,6 +76,42 @@ class Supernova(OpticalTransient):
                         bands_to_frequency: Conversion function to convert a list of bands to frequencies. Use
                         redback.utils.bands_to_frequency if not given.
         :type kwargs: None
+
+        **Example Usage:**
+
+        .. code-block:: python
+
+            import redback
+
+            # Download and load supernova data from Open Access Catalogue
+            redback.get_data.get_open_access_data(transient='SN2011fe', transient_type='supernova')
+
+            # Load the supernova
+            sn = redback.transient.Supernova.from_open_access_catalogue(
+                name='SN2011fe',
+                data_mode='magnitude',
+                active_bands='all'
+            )
+
+            # Plot the data
+            sn.plot_data()
+
+            # Fit a model
+            result = redback.fit_model(
+                transient=sn,
+                model='arnett',
+                nlive=1000
+            )
+
+            # Plot the fitted lightcurve
+            result.plot_lightcurve()
+
+            # Example with specific bands
+            sn = redback.transient.Supernova.from_open_access_catalogue(
+                name='SN2011fe',
+                data_mode='flux_density',
+                active_bands=['B', 'V', 'R']
+            )
         """
 
         super().__init__(time=time, time_err=time_err, time_rest_frame=time_rest_frame, time_mjd=time_mjd,

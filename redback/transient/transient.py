@@ -24,6 +24,32 @@ class Spectrum(object):
         :param flux_density_err: flux density error in ergs/s/cm^2/angstrom.
         :param time: Time of the spectrum. Could be a phase or time since burst. Only used for plotting.
         :param name: Name of the spectrum.
+
+        **Example Usage:**
+
+        .. code-block:: python
+
+            import numpy as np
+            from redback.transient import Spectrum
+
+            # Create wavelength array (in Angstroms)
+            wavelengths = np.linspace(3000, 9000, 100)
+
+            # Create flux density and error arrays
+            flux = np.random.normal(1e-15, 1e-16, 100)
+            flux_err = np.random.normal(1e-16, 1e-17, 100)
+
+            # Create spectrum object
+            spectrum = Spectrum(
+                angstroms=wavelengths,
+                flux_density=flux,
+                flux_density_err=flux_err,
+                time='10 days',
+                name='SN2023abc'
+            )
+
+            # Plot the spectrum
+            spectrum.plot_data()
         """
 
         self.angstroms = angstroms
@@ -68,6 +94,24 @@ class Spectrum(object):
         Available in the online documentation under at `redback.plotting.Plotter`.
         `print(Transient.plot_data.__doc__)` to see all options!
         :return: The axes with the plot.
+
+        **Example Usage:**
+
+        .. code-block:: python
+
+            import numpy as np
+            from redback.transient import Spectrum
+
+            # Create a spectrum
+            spectrum = Spectrum(
+                angstroms=np.linspace(3000, 9000, 100),
+                flux_density=np.random.normal(1e-15, 1e-16, 100),
+                flux_density_err=np.random.normal(1e-16, 1e-17, 100),
+                name='SN2023abc'
+            )
+
+            # Plot the spectrum data
+            axes = spectrum.plot_data(color='blue', show=True)
         """
 
         plotter = SpectrumPlotter(spectrum=self, color=color, filename=filename, outdir=outdir, **kwargs)
@@ -217,6 +261,49 @@ class Transient(object):
                        bin_ttes: Binning function for time-tagged event data.
                                  Use redback.utils.bands_to_frequency if not given.
         :type kwargs: None, optional
+
+        **Example Usage:**
+
+        .. code-block:: python
+
+            import numpy as np
+            from redback.transient import Transient
+
+            # Create a simple luminosity transient
+            time = np.linspace(1, 100, 50)  # days
+            luminosity = np.random.normal(10, 1, 50)  # 10^50 erg/s
+            lum_err = np.random.normal(1, 0.1, 50)
+
+            transient = Transient(
+                time_rest_frame=time,
+                Lum50=luminosity,
+                Lum50_err=lum_err,
+                data_mode='luminosity',
+                name='GRB123456',
+                redshift=0.5
+            )
+
+            # Plot the data
+            transient.plot_data()
+
+            # Example with magnitude data
+            import numpy as np
+            from redback.transient import Transient
+
+            time_obs = np.linspace(0, 50, 30)
+            mags = np.random.normal(20, 0.5, 30)
+            mag_errs = np.random.normal(0.1, 0.01, 30)
+            bands = np.array(['g', 'r', 'i'] * 10)
+
+            transient = Transient(
+                time=time_obs,
+                magnitude=mags,
+                magnitude_err=mag_errs,
+                bands=bands,
+                data_mode='magnitude',
+                name='SN2023xyz',
+                active_bands='all'
+            )
         """
         self.bin_size = bin_size
         self.bin_ttes = kwargs.get("bin_ttes", redback.utils.bin_ttes)
@@ -313,6 +400,33 @@ class Transient(object):
 
         :return: A class instance.
         :rtype: OpticalTransient
+
+        **Example Usage:**
+
+        .. code-block:: python
+
+            from redback.transient import Transient
+            import redback
+
+            # First, download data from LASAIR
+            redback.get_data.get_lasair_data(transient='ZTF21abcdefg')
+
+            # Create transient object from LASAIR data
+            transient = Transient.from_lasair_data(
+                name='ZTF21abcdefg',
+                data_mode='magnitude',
+                active_bands='all'
+            )
+
+            # Plot the light curve
+            transient.plot_data()
+
+            # Use only specific bands
+            transient = Transient.from_lasair_data(
+                name='ZTF21abcdefg',
+                data_mode='flux_density',
+                active_bands=['g', 'r']
+            )
         """
         if cls.__name__ == "TDE":
             transient_type = "tidal_disruption_event"
@@ -752,6 +866,35 @@ class Transient(object):
         Available in the online documentation under at `redback.plotting.Plotter`.
         `print(Transient.plot_data.__doc__)` to see all options!
         :return: The axes with the plot.
+
+        **Example Usage:**
+
+        .. code-block:: python
+
+            import redback
+            from redback.transient import Transient
+
+            # Load data from LASAIR
+            redback.get_data.get_lasair_data(transient='ZTF21abcdefg')
+            transient = Transient.from_lasair_data(
+                name='ZTF21abcdefg',
+                data_mode='magnitude'
+            )
+
+            # Plot all the data
+            transient.plot_data(show=True, save=False)
+
+            # Plot only active bands without showing others
+            transient.active_bands = ['g', 'r']
+            transient.plot_data(plot_others=False, color='red')
+
+            # Save to specific directory
+            transient.plot_data(
+                filename='my_lightcurve.png',
+                outdir='./plots/',
+                save=True,
+                show=False
+            )
         """
 
         if self.flux_data:
@@ -833,6 +976,43 @@ class Transient(object):
         Available in the online documentation under at `redback.plotting.Plotter`.
         `print(Transient.plot_lightcurve.__doc__)` to see all options!
         :return: The axes.
+
+        **Example Usage:**
+
+        .. code-block:: python
+
+            import redback
+            from redback.transient import Transient
+
+            # Download and load data
+            redback.get_data.get_lasair_data(transient='ZTF21abcdefg')
+            transient = Transient.from_lasair_data(
+                name='ZTF21abcdefg',
+                data_mode='magnitude'
+            )
+
+            # Fit a model
+            model = 'arnett'
+            priors = redback.priors.get_priors(model)
+            result = redback.fit_model(
+                transient=transient,
+                model=model,
+                prior=priors
+            )
+
+            # Plot lightcurve with posterior samples
+            transient.plot_lightcurve(
+                model=redback.model_library.all_models_dict[model],
+                posterior=result.posterior,
+                random_models=100
+            )
+
+            # Plot with specific model kwargs
+            transient.plot_lightcurve(
+                model=redback.model_library.all_models_dict['exponential_powerlaw'],
+                posterior=result.posterior,
+                model_kwargs={'output_format': 'magnitude'}
+            )
         """
         if self.flux_data:
             if self.optical_data:
@@ -1220,6 +1400,40 @@ class OpticalTransient(Transient):
 
         :return: A class instance
         :rtype: OpticalTransient
+
+        **Example Usage:**
+
+        .. code-block:: python
+
+            import redback
+            from redback.transient import OpticalTransient
+
+            # Download data from Open Access Catalogue
+            redback.get_data.get_open_access_data(transient='SN2011fe', transient_type='supernova')
+
+            # Load the data
+            sn = OpticalTransient.from_open_access_catalogue(
+                name='SN2011fe',
+                data_mode='magnitude',
+                active_bands='all'
+            )
+
+            # Plot the light curve
+            sn.plot_data()
+
+            # Load with specific bands
+            sn = OpticalTransient.from_open_access_catalogue(
+                name='SN2011fe',
+                data_mode='flux_density',
+                active_bands=['B', 'V', 'R', 'I']
+            )
+
+            # Use phase model
+            sn = OpticalTransient.from_open_access_catalogue(
+                name='SN2011fe',
+                data_mode='magnitude',
+                use_phase_model=True
+            )
         """
         if cls.__name__ == "TDE":
             transient_type = "tidal_disruption_event"

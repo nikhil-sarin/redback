@@ -44,6 +44,53 @@ def sncosmo_models(time, redshift, model_kwargs=None, **kwargs):
     :param peak_abs_mag_band: Band corresponding to the peak abs mag limit, default to standard::b. Must be in SNCosmo
     :param magnitude_system: Mag system; default ab
     :return: set by output format - 'flux_density', 'magnitude', 'flux', 'sncosmo_source'
+
+    **Example Usage:**
+
+    .. code-block:: python
+
+        import numpy as np
+        import redback
+
+        # Load supernova data
+        sn = redback.transient.Supernova.from_open_access_catalogue(
+            name='SN2011fe',
+            data_mode='magnitude'
+        )
+
+        # Use SALT2 model for magnitude prediction
+        time = np.linspace(0, 50, 100)
+        mags = redback.transient_models.sncosmo_models(
+            time=time,
+            redshift=0.001,
+            model_kwargs={'x0': 1e-5, 'x1': 0.5, 'c': 0.1},
+            sncosmo_model='salt2',
+            peak_time=10.0,
+            bands=['bessellb'],
+            output_format='magnitude'
+        )
+
+        # Fit with SNCosmo model
+        result = redback.fit_model(
+            transient=sn,
+            model='sncosmo_models',
+            model_kwargs={
+                'sncosmo_model': 'salt2',
+                'output_format': 'magnitude'
+            }
+        )
+
+        # Use different SNCosmo model with custom settings
+        mags = redback.transient_models.sncosmo_models(
+            time=time,
+            redshift=0.01,
+            sncosmo_model='hsiao',
+            peak_time=15.0,
+            use_set_peak_magnitude=True,
+            peak_abs_mag=-19.3,
+            bands=['sdssg'],
+            output_format='magnitude'
+        )
     """
     import sncosmo
     peak_time = kwargs.get('peak_time', 0)

@@ -130,7 +130,26 @@ class RedbackResult(Result):
 
     def plot_lightcurve(self, model: Union[callable, str] = None, **kwargs: None) -> matplotlib.axes.Axes:
         """ Reconstructs the transient and calls the specific `plot_lightcurve` method.
-        Detailed documentation appears below by running `print(plot_lightcurve.__doc__)` """
+        Detailed documentation appears below by running `print(plot_lightcurve.__doc__)`
+
+        **Example Usage:**
+
+        .. code-block:: python
+
+            import redback
+
+            # After fitting a model
+            result = redback.fit_model(transient=my_transient, model='arnett')
+
+            # Plot the lightcurve with the fitted model
+            result.plot_lightcurve()
+
+            # Plot with specific styling
+            result.plot_lightcurve(random_models=200, save=True, filename='my_fit.png')
+
+            # Plot with a different model
+            result.plot_lightcurve(model='exponential_powerlaw')
+        """
         if model is None:
             model = model_library.all_models_dict[self.model]
         return self.transient.plot_lightcurve(model=model, posterior=self.posterior,
@@ -182,6 +201,8 @@ def read_in_result(
         filename: str = None, outdir: str = None, label: str = None,
         extension: str = 'json', gzip: bool = False) -> RedbackResult:
     """
+    Read in a previously saved RedbackResult object.
+
     :param filename: Filename with entire path of result to open.
     :type filename: str, optional
     :param outdir: If filename is not given, directory of the result.
@@ -197,6 +218,44 @@ def read_in_result(
 
     :return: The loaded redback result.
     :rtype: RedbackResult
+
+    **Example Usage:**
+
+    .. code-block:: python
+
+        import redback
+
+        # Read result from a specific file
+        result = redback.result.read_in_result(
+            filename='/path/to/my_result.json'
+        )
+
+        # Read using directory and label
+        result = redback.result.read_in_result(
+            outdir='./results/SN2011fe/arnett/',
+            label='SN2011fe',
+            extension='json'
+        )
+
+        # Read HDF5 file
+        result = redback.result.read_in_result(
+            outdir='./results/',
+            label='my_fit',
+            extension='hdf5'
+        )
+
+        # Access posterior samples
+        print(result.posterior)
+
+        # Plot the lightcurve
+        result.plot_lightcurve()
+
+        # Plot corner plot
+        result.plot_corner()
+
+        # Access metadata
+        print(result.model)
+        print(result.log_evidence)
     """
     filename = _determine_file_name(filename, outdir, label, extension, gzip)
 
