@@ -620,7 +620,7 @@ class SimulateOpticalTransient(object):
         """
         Calculate properties of the transient at the overlapping pointings for a single transient.
 
-        :param overlapping_database:
+        :param overlapping_database: Database of overlapping pointings
         :return: Dataframe of observations including non-detections/upper limits
         """
         times = overlapping_database['expMJD'].values - t0_transient

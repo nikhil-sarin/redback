@@ -83,8 +83,8 @@ def check_kwargs_validity(kwargs):
     """
     Check the validity of the kwargs passed to a model
 
-    :param kwargs:
-    :return:
+    :param kwargs: Additional keyword arguments passed to the model
+    :return: Validated kwargs dictionary
     """
     if kwargs == None:
         logger.info("No kwargs passed to function")
@@ -141,7 +141,8 @@ def calc_effective_width_hz_from_angstrom(effective_width, effective_wavelength)
 def calc_tfb(binding_energy_const, mbh_6, stellar_mass):
     """
     Calculate the fall back timescale for a SMBH disrupting a stellar mass object
-    :param binding_energy_const:
+
+    :param binding_energy_const: Binding energy constant
     :param mbh_6: SMBH mass in 10^6 solar masses
     :param stellar_mass: stellar mass in solar masses
     :return: fall back time in seconds
@@ -323,9 +324,9 @@ def date_to_jd(year, month, day):
     """
     Convert date to JD
 
-    :param year:
-    :param month:
-    :param day:
+    :param year: Year value
+    :param month: Month value (1-12)
+    :param day: Day value
     :return: JD time
     """
     return Time(dict(year=year, month=month, day=day), format="ymdhms").jd
@@ -335,9 +336,9 @@ def date_to_mjd(year, month, day):
     """
     Convert date to MJD
 
-    :param year:
-    :param month:
-    :param day:
+    :param year: Year value
+    :param month: Month value (1-12)
+    :param day: Day value
     :return: MJD time
     """
     return Time(dict(year=year, month=month, day=day), format="ymdhms").mjd
@@ -365,7 +366,7 @@ def calc_flux_density_from_ABmag(magnitudes):
     """
     Calculate flux density from AB magnitude assuming monochromatic AB filter
 
-    :param magnitudes:
+    :param magnitudes: AB magnitude values
     :return: flux density
     """
     return (magnitudes * uu.ABmag).to(uu.mJy)
@@ -375,7 +376,7 @@ def calc_ABmag_from_flux_density(fluxdensity):
     """
     Calculate AB magnitude from flux density assuming monochromatic AB filter
 
-    :param fluxdensity:
+    :param fluxdensity: Flux density values in mJy
     :return: AB magnitude
     """
     return (fluxdensity * uu.mJy).to(uu.ABmag)
@@ -385,7 +386,7 @@ def calc_flux_density_from_vegamag(magnitudes, zeropoint):
     """
     Calculate flux density from Vega magnitude assuming Vega filter
 
-    :param magnitudes:
+    :param magnitudes: Vega magnitude values
     :param zeropoint: Vega zeropoint for a given filter in Jy
     :return: flux density in mJy
     """
@@ -729,7 +730,7 @@ def magnitude_error_from_flux_error(bandflux, bandflux_error):
             The flux error propagated into the magnitude system.
     """
     # Compute the per-band magnitude errors
-    mask1 = bandflux == np.nan
+    mask1 = np.isnan(bandflux)
     mask2 = abs(bandflux) <= 1.0e-20
     magnitude_error = abs((2.5 / np.log(10)) * (bandflux_error / bandflux))
     magnitude_error[mask1 | mask2] = np.nan
@@ -953,8 +954,8 @@ def find_path(path):
     """
     Find the path of some data in the package
 
-    :param path:
-    :return:
+    :param path: Path to data in the package, or 'default' for default path
+    :return: Resolved path to the data
     """
     if path == 'default':
         return os.path.join(dirname, '../data/GRBData')
@@ -970,8 +971,7 @@ def setup_logger(outdir='.', label=None, log_level='INFO'):
     :type outdir: str
     :param label: If supplied, write the logging output to outdir/label.log
     :type label: str
-    :param log_level:
-        ['debug', 'info', 'warning']
+    :param log_level: Logging level. Can be ['debug', 'info', 'warning']
         Either a string from the list above, or an integer as specified
         in https://docs.python.org/2/library/logging.html#logging-levels
         (Default value = 'INFO')
