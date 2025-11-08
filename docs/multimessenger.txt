@@ -156,6 +156,225 @@ For comparison with joint analysis, you can fit each messenger independently::
     optical_result = individual_results['optical']
     xray_result = individual_results['xray']
 
+Joint Spectrum and Photometry Analysis
+=======================================
+
+A common use case in transient astronomy is jointly fitting spectroscopic and photometric data from the same object. This combines:
+
+- **Photometry**: Multi-band lightcurves constraining time evolution and integrated properties
+- **Spectroscopy**: Detailed spectral energy distribution constraining temperature, composition, and line features
+
+By fitting both jointly, physical parameters can be better constrained as the data types provide complementary information.
+
+Basic Approach
+--------------
+
+Since :code:`Spectrum` and :code:`Transient` are different classes in redback, the recommended approach for joint spectrum + photometry fitting is to use custom likelihoods::
+
+    import redback
+    from redback.multimessenger import MultiMessengerTransient
+    from redback.transient_models import kilonova_models, spectral_models
+
+    # Load or create photometry data
+    photometry = redback.transient.Transient(
+        time=phot_times,
+        magnitude=mags,
+        magnitude_err=mag_errs,
+        bands=bands,
+        data_mode='magnitude'
+    )
+
+    # Load or create spectrum at a specific epoch
+    spectrum = redback.transient.Spectrum(
+        angstroms=wavelengths,
+        flux_density=flux,
+        flux_density_err=flux_err,
+        time='3 days'
+    )
+
+    # Build likelihoods
+    phot_likelihood = redback.likelihoods.GaussianLikelihood(
+        x=photometry.time,
+        y=photometry.magnitude,
+        sigma=photometry.magnitude_err,
+        function=kilonova_models.arnett_bolometric,
+        kwargs={'output_format': 'magnitude', 'bands': photometry.bands}
+    )
+
+    spec_likelihood = redback.likelihoods.GaussianLikelihood(
+        x=spectrum.angstroms,
+        y=spectrum.flux_density,
+        sigma=spectrum.flux_density_err,
+        function=spectral_models.blackbody_spectrum,
+        kwargs={}
+    )
+
+    # Create multi-messenger object with custom likelihoods
+    mm_transient = MultiMessengerTransient(
+        custom_likelihoods={
+            'photometry': phot_likelihood,
+            'spectrum': spec_likelihood
+        },
+        name='joint_spec_phot'
+    )
+
+Setting Up Priors
+-----------------
+
+Define priors for parameters used by both photometry and spectrum models::
+
+    import bilby
+
+    priors = bilby.core.prior.PriorDict()
+
+    # Shared parameters (constrained by both data types)
+    priors['redshift'] = 0.01  # Fixed if known
+    priors['mej'] = bilby.core.prior.Uniform(0.01, 0.1)  # ejecta mass
+    priors['vej'] = bilby.core.prior.Uniform(0.1, 0.3)   # ejecta velocity
+
+    # Spectrum-specific parameters (epoch-dependent)
+    priors['temperature'] = bilby.core.prior.Uniform(3000, 10000)  # at t_spec
+    priors['r_phot'] = bilby.core.prior.LogUniform(1e13, 1e15)     # photosphere size
+
+Running Joint Analysis
+----------------------
+
+Use :code:`bilby.run_sampler` directly with a joint likelihood::
+
+    import bilby
+
+    # Combine likelihoods
+    joint_likelihood = bilby.core.likelihood.JointLikelihood(
+        phot_likelihood,
+        spec_likelihood
+    )
+
+    # Run joint fit
+    result = bilby.run_sampler(
+        likelihood=joint_likelihood,
+        priors=priors,
+        sampler='dynesty',
+        nlive=2000,
+        outdir='./results_joint_spec_phot',
+        label='joint_spectrum_photometry'
+    )
+
+Multiple Spectra at Different Epochs
+-------------------------------------
+
+If you have spectra at multiple epochs, create separate likelihoods with epoch-dependent parameters::
+
+    # Spectra at 1, 3, and 7 days
+    spectrum_1d = redback.transient.Spectrum(wave, flux_1d, err_1d, time='1 day')
+    spectrum_3d = redback.transient.Spectrum(wave, flux_3d, err_3d, time='3 days')
+    spectrum_7d = redback.transient.Spectrum(wave, flux_7d, err_7d, time='7 days')
+
+    # Create likelihoods with epoch-specific parameters
+    # Use lambda functions or wrappers to map parameters correctly
+    spec_1d_likelihood = redback.likelihoods.GaussianLikelihood(
+        x=spectrum_1d.angstroms,
+        y=spectrum_1d.flux_density,
+        sigma=spectrum_1d.flux_density_err,
+        function=lambda wave, temp_1d, r_phot_1d, **kw:
+            spectral_models.blackbody_spectrum(
+                wave, temperature=temp_1d, r_phot=r_phot_1d, **kw
+            )
+    )
+    # Similar for 3d and 7d...
+
+    # Set up priors for all epochs
+    priors = bilby.core.prior.PriorDict()
+    priors['mej'] = ...      # Shared across all
+    priors['temp_1d'] = ...  # Epoch-specific
+    priors['temp_3d'] = ...  # Epoch-specific
+    priors['temp_7d'] = ...  # Epoch-specific
+    priors['r_phot_1d'] = ...
+    priors['r_phot_3d'] = ...
+    priors['r_phot_7d'] = ...
+
+    # Combine all likelihoods
+    joint_likelihood = bilby.core.likelihood.JointLikelihood(
+        phot_likelihood,
+        spec_1d_likelihood,
+        spec_3d_likelihood,
+        spec_7d_likelihood
+    )
+
+Best Practices
+--------------
+
+1. **Time synchronization**
+
+   - Ensure spectrum epochs align with photometry time grid
+   - Use consistent time reference (e.g., explosion time, discovery)
+   - Account for any time delays between different observations
+
+2. **Parameter consistency**
+
+   - Share physical parameters (mass, velocity, composition)
+   - Allow epoch-dependent parameters to vary (temperature, radius)
+   - For temperature evolution, consider parametric models: :math:`T(t) \propto t^{-\alpha}`
+
+3. **Model selection**
+
+   - Start with simple models (blackbody spectrum + analytic lightcurve)
+   - Add complexity as justified by data quality
+   - For detailed analysis, use consistent radiative transfer for both photometry and spectra
+
+4. **Wavelength coverage**
+
+   - Verify spectrum wavelength range overlaps with photometric bands
+   - Consider filter transmission functions when comparing
+   - Account for extinction/reddening consistently
+
+5. **Systematic uncertainties**
+
+   - Include flux calibration uncertainties
+   - Consider host galaxy contamination
+   - Account for atmospheric/instrumental effects
+
+Example Workflow
+----------------
+
+See :code:`examples/joint_spectrum_photometry_example.py` for a complete worked example demonstrating:
+
+- Simulating multi-band photometry and spectrum
+- Building appropriate likelihoods
+- Setting up shared and epoch-specific priors
+- Running individual and joint fits for comparison
+- Handling multiple spectra at different epochs
+
+Comparison with Individual Fits
+--------------------------------
+
+Joint fitting typically provides:
+
+- **Tighter constraints** on shared parameters due to complementary information
+- **Breaking degeneracies** (e.g., ejecta mass vs. velocity)
+- **Consistency checks** - if joint fit has much lower evidence than individual fits, models may be inconsistent
+- **Better predictions** for unobserved wavelengths/epochs
+
+Compare results::
+
+    # Run photometry-only fit
+    phot_result = bilby.run_sampler(phot_likelihood, priors=phot_priors, ...)
+
+    # Run spectrum-only fit
+    spec_result = bilby.run_sampler(spec_likelihood, priors=spec_priors, ...)
+
+    # Run joint fit
+    joint_result = bilby.run_sampler(joint_likelihood, priors=joint_priors, ...)
+
+    # Compare evidence
+    print(f"Photometry ln(Z): {phot_result.log_evidence:.2f}")
+    print(f"Spectrum ln(Z): {spec_result.log_evidence:.2f}")
+    print(f"Joint ln(Z): {joint_result.log_evidence:.2f}")
+
+    # Compare posteriors
+    import corner
+    fig = corner.corner(joint_result.posterior, color='blue', labels=param_labels)
+    corner.corner(phot_result.posterior, fig=fig, color='red')
+
 Advanced: Including Gravitational Wave Data
 ============================================
 
@@ -276,7 +495,14 @@ Complete worked examples are available in :code:`examples/`:
    - Demonstrates individual vs. joint fitting
    - Shows how shared parameters improve constraints
 
-2. :code:`joint_grb_gw_example.py`
+2. :code:`joint_spectrum_photometry_example.py`
+
+   - Joint photometry + spectroscopy analysis
+   - Simulates multi-band lightcurves and spectrum at specific epoch
+   - Shows how to use custom likelihoods for different data types
+   - Demonstrates handling multiple spectra at different epochs
+
+3. :code:`joint_grb_gw_example.py`
 
    - Joint GW + GRB afterglow analysis
    - Shows integration with :code:`bilby.gw`
@@ -359,4 +585,5 @@ For more information on multi-messenger analysis:
 
 - Abbott et al. 2017 (GW170817): ApJL 848, L12
 - Coughlin et al. 2018 (Multi-messenger Bayesian PE): MNRAS 480, 3871
-- See also :code:`examples/joint_grb_gw_example.py` for implementation details
+- See also :code:`examples/joint_grb_gw_example.py` for GW+EM implementation details
+- See also :code:`examples/analyse_spectrums.ipynb` for basic spectrum fitting workflow
