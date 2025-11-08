@@ -6,6 +6,7 @@ from redback.utils import logger, calc_flux_density_error_from_monochromatic_mag
 from itertools import repeat
 import astropy.units as uu
 from scipy.spatial import KDTree
+from scipy import stats, integrate, interpolate
 import os
 import bilby
 import random
@@ -883,3 +884,520 @@ class SimulateFullOpticalSurvey(SimulateOpticalTransient):
         for ii, transient_name in enumerate(transient_names):
             transient = self.list_of_observations[ii]
             transient.to_csv('simulated_survey/' + transient_name + '.csv', index=False)
+
+
+class TransientPopulation(object):
+    """
+    Container class for transient populations with analysis capabilities
+    """
+    def __init__(self, parameters, metadata=None, light_curves=None):
+        """
+        Initialize a TransientPopulation container
+
+        :param parameters: DataFrame of transient parameters
+        :param metadata: dict, Optional metadata about the population (rate, cosmology, etc.)
+        :param light_curves: list, Optional list of light curve data for each transient
+        """
+        self.parameters = parameters
+        self.metadata = metadata if metadata is not None else {}
+        self.light_curves = light_curves
+        self.n_transients = len(parameters)
+
+    def __len__(self):
+        return self.n_transients
+
+    def __repr__(self):
+        return f"TransientPopulation({self.n_transients} transients)"
+
+    @property
+    def redshifts(self):
+        """Get redshift array"""
+        if 'redshift' in self.parameters.columns:
+            return self.parameters['redshift'].values
+        return None
+
+    @property
+    def detected(self):
+        """Get subset of detected transients"""
+        if 'detected' in self.parameters.columns:
+            return self.parameters[self.parameters['detected'] == True]
+        return self.parameters
+
+    @property
+    def detection_fraction(self):
+        """Calculate detection fraction"""
+        if 'detected' in self.parameters.columns:
+            return np.sum(self.parameters['detected']) / len(self.parameters)
+        return 1.0  # Assume all detected if not specified
+
+    def get_redshift_distribution(self, bins=20):
+        """
+        Get redshift distribution
+
+        :param bins: Number of bins for histogram
+        :return: tuple of (bin_edges, counts, bin_centers)
+        """
+        if self.redshifts is None:
+            logger.warning("No redshift information in population")
+            return None, None, None
+
+        counts, edges = np.histogram(self.redshifts, bins=bins)
+        centers = (edges[:-1] + edges[1:]) / 2
+        return edges, counts, centers
+
+    def get_parameter_distribution(self, param_name, bins=20):
+        """
+        Get distribution of any parameter
+
+        :param param_name: Name of parameter
+        :param bins: Number of bins
+        :return: tuple of (bin_edges, counts, bin_centers)
+        """
+        if param_name not in self.parameters.columns:
+            logger.warning(f"Parameter {param_name} not in population")
+            return None, None, None
+
+        values = self.parameters[param_name].values
+        counts, edges = np.histogram(values, bins=bins)
+        centers = (edges[:-1] + edges[1:]) / 2
+        return edges, counts, centers
+
+    def save(self, filename='population.csv', save_metadata=True):
+        """
+        Save population to file
+
+        :param filename: Output filename
+        :param save_metadata: Whether to save metadata as well
+        """
+        bilby.utils.check_directory_exists_and_if_not_mkdir('populations')
+        path = f'populations/{filename}'
+        self.parameters.to_csv(path, index=False)
+        logger.info(f"Saved population to {path}")
+
+        if save_metadata and self.metadata:
+            import json
+            metadata_path = path.replace('.csv', '_metadata.json')
+            with open(metadata_path, 'w') as f:
+                # Convert numpy types to python types for JSON serialization
+                clean_metadata = {}
+                for key, val in self.metadata.items():
+                    if isinstance(val, (np.integer, np.floating)):
+                        clean_metadata[key] = float(val)
+                    elif isinstance(val, np.ndarray):
+                        clean_metadata[key] = val.tolist()
+                    else:
+                        clean_metadata[key] = val
+                json.dump(clean_metadata, f, indent=2)
+            logger.info(f"Saved metadata to {metadata_path}")
+
+    @classmethod
+    def load(cls, filename='population.csv'):
+        """
+        Load population from file
+
+        :param filename: Input filename
+        :return: TransientPopulation object
+        """
+        path = f'populations/{filename}'
+        parameters = pd.read_csv(path)
+
+        # Try to load metadata
+        metadata = None
+        metadata_path = path.replace('.csv', '_metadata.json')
+        if os.path.exists(metadata_path):
+            import json
+            with open(metadata_path, 'r') as f:
+                metadata = json.load(f)
+
+        return cls(parameters, metadata=metadata)
+
+
+class PopulationSynthesizer(object):
+    """
+    Advanced population synthesis with realistic distributions and selection effects
+
+    This class provides survey-agnostic population synthesis with:
+    - Volumetric rate evolution with redshift
+    - Realistic parameter sampling from priors
+    - Optional selection effects and detection efficiency
+    - Cosmology-aware redshift sampling
+    - Rate inference capabilities
+    """
+
+    def __init__(self, model, prior=None, rate=1e-6, rate_evolution='constant',
+                 cosmology='Planck18', seed=42):
+        """
+        Initialize PopulationSynthesizer
+
+        :param model: String corresponding to redback model or callable function
+        :param prior: bilby.core.prior.PriorDict or string name of prior file
+            If None, will attempt to load default prior for the model
+        :param rate: Volumetric rate in Gpc^-3 yr^-1 at z=0 (for constant rate)
+            or callable function rate(z) for redshift-dependent rates
+        :param rate_evolution: String specifying rate evolution model
+            Options: 'constant', 'powerlaw', 'sfr_like', or callable
+            - 'constant': R(z) = R0
+            - 'powerlaw': R(z) = R0 * (1+z)^alpha (requires alpha in metadata)
+            - 'sfr_like': R(z) follows star formation rate (Madau & Dickinson 2014)
+        :param cosmology: Cosmology to use ('Planck18', 'Planck15', etc.) or astropy cosmology object
+        :param seed: Random seed for reproducibility
+        """
+        # Set model
+        if isinstance(model, str):
+            if model in redback.model_library.all_models_dict:
+                self.model = redback.model_library.all_models_dict[model]
+                self.model_name = model
+            else:
+                raise ValueError(f"Model {model} not found in redback model library")
+        elif callable(model):
+            self.model = model
+            self.model_name = 'custom'
+        else:
+            raise ValueError("Model must be string or callable")
+
+        # Set prior
+        if prior is None:
+            # Try to load default prior for model
+            if self.model_name != 'custom':
+                self.prior = redback.priors.get_priors(self.model_name)
+                logger.info(f"Loaded default prior for {self.model_name}")
+            else:
+                raise ValueError("Must provide prior for custom models")
+        elif isinstance(prior, str):
+            self.prior = redback.priors.get_priors(prior)
+        elif isinstance(prior, bilby.core.prior.PriorDict):
+            self.prior = prior
+        else:
+            raise ValueError("Prior must be None, string, or bilby.core.prior.PriorDict")
+
+        # Set cosmology
+        if isinstance(cosmology, str):
+            from astropy.cosmology import default_cosmology
+            self.cosmology = default_cosmology.get_cosmology_from_string(cosmology)
+            self.cosmology_name = cosmology
+        else:
+            self.cosmology = cosmology
+            self.cosmology_name = 'custom'
+
+        # Set rate and rate evolution
+        if callable(rate):
+            self.rate_function = rate
+            self.base_rate = None
+        else:
+            self.base_rate = rate * uu.Gpc**-3 * uu.yr**-1
+            self.rate_function = self._create_rate_function(rate_evolution)
+
+        self.rate_evolution = rate_evolution
+        self.seed = seed
+        self.rng = np.random.RandomState(seed=seed)
+        random.seed(seed)
+
+    def _create_rate_function(self, evolution_model):
+        """
+        Create rate evolution function
+
+        :param evolution_model: String or callable defining evolution
+        :return: Function R(z) in units of Gpc^-3 yr^-1
+        """
+        if evolution_model == 'constant':
+            def rate_func(z):
+                return self.base_rate.value * np.ones_like(z)
+            return rate_func
+
+        elif evolution_model == 'powerlaw':
+            # R(z) = R0 * (1+z)^alpha
+            # Default alpha=2.7 similar to GW merger rate evolution
+            alpha = 2.7
+            def rate_func(z):
+                return self.base_rate.value * (1 + z)**alpha
+            return rate_func
+
+        elif evolution_model == 'sfr_like':
+            # Star formation rate evolution from Madau & Dickinson 2014
+            def rate_func(z):
+                return self.base_rate.value * 0.015 * (1+z)**2.7 / (1 + ((1+z)/2.9)**5.6)
+            return rate_func
+
+        elif callable(evolution_model):
+            return evolution_model
+
+        else:
+            raise ValueError(f"Unknown rate evolution model: {evolution_model}")
+
+    def _sample_redshifts(self, n_events, z_max=None):
+        """
+        Sample redshifts from volumetric rate with cosmology
+
+        :param n_events: Number of events to sample
+        :param z_max: Maximum redshift (if None, use prior maximum)
+        :return: Array of redshifts
+        """
+        if z_max is None:
+            if 'redshift' in self.prior:
+                z_max = self.prior['redshift'].maximum
+            else:
+                z_max = 2.0  # Default
+                logger.warning(f"No redshift in prior, using z_max={z_max}")
+
+        # Create PDF: dN/dz ∝ R(z) * dV_c/dz
+        z_array = np.linspace(0, z_max, 1000)
+
+        # Differential comoving volume
+        dVc_dz = self.cosmology.differential_comoving_volume(z_array).value  # Mpc^3 sr^-1
+
+        # Rate at each redshift
+        rate_z = self.rate_function(z_array)  # Gpc^-3 yr^-1
+
+        # PDF (unnormalized)
+        pdf = rate_z * dVc_dz / (1 + z_array)  # Include (1+z)^-1 for time dilation
+        pdf /= np.trapz(pdf, z_array)  # Normalize
+
+        # Sample from this distribution
+        cdf = np.cumsum(pdf)
+        cdf = cdf / cdf[-1]
+
+        # Inverse CDF sampling
+        u = self.rng.uniform(0, 1, n_events)
+        redshifts = np.interp(u, cdf, z_array)
+
+        return redshifts
+
+    def _sample_intrinsic_params(self, n_events):
+        """
+        Sample intrinsic parameters from prior
+
+        :param n_events: Number of events
+        :return: DataFrame of parameters
+        """
+        # Sample from prior, excluding redshift (we handle that separately)
+        params = self.prior.sample(n_events)
+
+        return params
+
+    def _calculate_detection_probability(self, params, survey_config):
+        """
+        Calculate detection probability for a transient
+
+        :param params: Dictionary of transient parameters
+        :param survey_config: Dictionary with survey parameters
+            Must include 'limiting_mag' and 'bands' at minimum
+        :return: Detection probability (0 to 1)
+        """
+        # This is a simplified model - can be extended
+        # For now, use peak magnitude vs limiting magnitude
+
+        if 'limiting_mag' not in survey_config:
+            logger.warning("No limiting_mag in survey_config, assuming all detected")
+            return 1.0
+
+        # Generate light curve to find peak magnitude
+        # This is expensive - in practice you might want to cache or approximate
+        times = np.linspace(0, 100, 100)  # days
+
+        try:
+            # Try to get magnitude
+            if 'bands' in survey_config:
+                band = survey_config['bands'][0]
+                model_kwargs = {'bands': np.array([band] * len(times)),
+                              'output_format': 'magnitude'}
+                params_with_kwargs = {**params, **model_kwargs}
+                mags = self.model(times, **params_with_kwargs)
+                peak_mag = np.min(mags[np.isfinite(mags)])
+            else:
+                # Assume flux output, convert to magnitude
+                output = self.model(times, **params)
+                # Simple approximation for detection
+                peak_flux = np.max(output)
+                if peak_flux <= 0:
+                    return 0.0
+                return 1.0  # Simplified
+        except:
+            # If we can't evaluate, assume detectable
+            logger.debug("Could not evaluate model for detection probability")
+            return 1.0
+
+        # Sigmoid function for detection efficiency
+        lim_mag = survey_config['limiting_mag']
+        # 50% detection at limiting magnitude, sharp falloff
+        detection_prob = 1.0 / (1.0 + np.exp(2.0 * (peak_mag - lim_mag)))
+
+        return detection_prob
+
+    def simulate_population(self, n_years=10, n_events=None, z_max=None,
+                           include_selection_effects=False, survey_config=None,
+                           include_lightcurves=False, model_kwargs=None):
+        """
+        Simulate a realistic transient population
+
+        :param n_years: Number of years to simulate (used to calculate expected events from rate)
+        :param n_events: Fixed number of events (overrides n_years if specified)
+        :param z_max: Maximum redshift to sample
+        :param include_selection_effects: Whether to apply detection efficiency cuts
+        :param survey_config: Dictionary with survey parameters for selection effects
+            Example: {'limiting_mag': 22.5, 'bands': ['lsstr'], 'area_sqdeg': 18000}
+        :param include_lightcurves: Whether to generate light curves (expensive)
+        :param model_kwargs: Additional kwargs to pass to model
+        :return: TransientPopulation object
+        """
+        logger.info(f"Simulating transient population with {self.model_name}")
+
+        # Determine number of events
+        if n_events is None:
+            # Calculate from rate
+            if z_max is None:
+                z_max = self.prior['redshift'].maximum if 'redshift' in self.prior else 2.0
+
+            # Integrate rate over volume and time
+            z_array = np.linspace(0, z_max, 100)
+            dVc_dz = self.cosmology.differential_comoving_volume(z_array).value
+            rate_z = self.rate_function(z_array)
+
+            # Total rate over all space
+            integrand = rate_z * dVc_dz * 4 * np.pi / (1e9)**3  # Convert Mpc^3 to Gpc^3
+            total_rate_per_year = np.trapz(integrand, z_array)  # Events per year
+
+            expected_events = total_rate_per_year * n_years
+            n_events = self.rng.poisson(expected_events)
+            logger.info(f"Expected {expected_events:.1f} events in {n_years} years, drew {n_events}")
+
+        if n_events == 0:
+            logger.warning("No events generated!")
+            return TransientPopulation(pd.DataFrame(), metadata={'n_years': n_years})
+
+        # Sample redshifts
+        redshifts = self._sample_redshifts(n_events, z_max=z_max)
+
+        # Sample intrinsic parameters
+        params_df = self._sample_intrinsic_params(n_events)
+        params_df['redshift'] = redshifts
+
+        # Apply selection effects if requested
+        if include_selection_effects and survey_config is not None:
+            logger.info("Applying selection effects...")
+            detected = []
+            detection_probs = []
+
+            for idx in range(len(params_df)):
+                params = params_df.iloc[idx].to_dict()
+                det_prob = self._calculate_detection_probability(params, survey_config)
+                detection_probs.append(det_prob)
+                # Stochastically detect based on probability
+                is_detected = self.rng.uniform() < det_prob
+                detected.append(is_detected)
+
+            params_df['detection_probability'] = detection_probs
+            params_df['detected'] = detected
+
+            n_detected = np.sum(detected)
+            logger.info(f"Detected {n_detected}/{n_events} transients ({100*n_detected/n_events:.1f}%)")
+
+        # Generate light curves if requested (expensive!)
+        light_curves = None
+        if include_lightcurves:
+            logger.info("Generating light curves (this may take a while)...")
+            light_curves = []
+            for idx in range(len(params_df)):
+                params = params_df.iloc[idx].to_dict()
+                # Generate light curve
+                times = np.linspace(0, 100, 100)
+                if model_kwargs is None:
+                    model_kwargs = {}
+                lc = self.model(times, **params, **model_kwargs)
+                light_curves.append({'times': times, 'flux': lc})
+
+        # Create metadata
+        metadata = {
+            'model': self.model_name,
+            'n_years': n_years,
+            'n_events': n_events,
+            'rate': self.base_rate.value if self.base_rate is not None else 'custom',
+            'rate_evolution': self.rate_evolution,
+            'cosmology': self.cosmology_name,
+            'include_selection_effects': include_selection_effects,
+            'seed': self.seed
+        }
+
+        if survey_config is not None:
+            metadata['survey_config'] = survey_config
+
+        return TransientPopulation(params_df, metadata=metadata, light_curves=light_curves)
+
+    def infer_rate(self, observed_sample, efficiency_function=None, z_bins=10,
+                   prior_range=(1e-8, 1e-4), method='maximum_likelihood'):
+        """
+        Infer volumetric rate from observed sample
+
+        This accounts for selection effects via the efficiency function
+
+        :param observed_sample: DataFrame or TransientPopulation of observed transients
+            Must have 'redshift' column
+        :param efficiency_function: Callable epsilon(z) giving detection efficiency vs redshift
+            If None, assumes perfect detection (epsilon=1)
+        :param z_bins: Number of redshift bins for rate estimation
+        :param prior_range: Tuple of (min, max) for rate prior in Gpc^-3 yr^-1
+        :param method: 'maximum_likelihood' or 'bayesian'
+        :return: Dictionary with rate estimate and uncertainties
+        """
+        logger.info("Inferring volumetric rate from observed sample...")
+
+        # Extract redshifts
+        if isinstance(observed_sample, TransientPopulation):
+            redshifts = observed_sample.redshifts
+        elif isinstance(observed_sample, pd.DataFrame):
+            if 'redshift' not in observed_sample.columns:
+                raise ValueError("observed_sample must have 'redshift' column")
+            redshifts = observed_sample['redshift'].values
+        else:
+            redshifts = np.array(observed_sample)
+
+        n_obs = len(redshifts)
+        z_max = np.max(redshifts)
+
+        # Create redshift bins
+        z_edges = np.linspace(0, z_max, z_bins + 1)
+        z_centers = (z_edges[:-1] + z_edges[1:]) / 2
+
+        # Count observed events in each bin
+        n_in_bins, _ = np.histogram(redshifts, bins=z_edges)
+
+        # Calculate expected number in each bin for unit rate
+        # N_expected(z) = R * integral[dVc/dz * epsilon(z) * T_obs, z_i, z_i+1]
+
+        if efficiency_function is None:
+            # Perfect detection
+            efficiency_function = lambda z: np.ones_like(z)
+
+        # Assume 1 year observation time (rate will scale)
+        T_obs = 1.0  # years
+
+        # Expected events per bin for R=1 Gpc^-3 yr^-1
+        expected_per_unit_rate = np.zeros(z_bins)
+        for i in range(z_bins):
+            z_range = np.linspace(z_edges[i], z_edges[i+1], 20)
+            if len(z_range) > 1:
+                dVc_dz = self.cosmology.differential_comoving_volume(z_range).value
+                eff = efficiency_function(z_range)
+                # 4π sr for full sky, convert to Gpc^3
+                integrand = dVc_dz * eff * 4 * np.pi / (1e9)**3 / (1 + z_range)
+                expected_per_unit_rate[i] = np.trapz(integrand, z_range) * T_obs
+
+        # Maximum likelihood estimate
+        # For Poisson: R_ML = N_obs / sum(expected_per_unit_rate)
+        total_expected_per_unit = np.sum(expected_per_unit_rate)
+        rate_ml = n_obs / total_expected_per_unit if total_expected_per_unit > 0 else 0
+
+        # Uncertainty (Poisson)
+        rate_uncertainty = np.sqrt(n_obs) / total_expected_per_unit if total_expected_per_unit > 0 else 0
+
+        results = {
+            'rate_ml': rate_ml,
+            'rate_uncertainty': rate_uncertainty,
+            'n_observed': n_obs,
+            'z_bins': z_centers,
+            'n_in_bins': n_in_bins,
+            'expected_per_unit_rate': expected_per_unit_rate
+        }
+
+        logger.info(f"Inferred rate: {rate_ml:.2e} ± {rate_uncertainty:.2e} Gpc^-3 yr^-1")
+
+        return results
