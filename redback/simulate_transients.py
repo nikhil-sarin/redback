@@ -1228,7 +1228,8 @@ class PopulationSynthesizer(object):
         return expected_events
 
     def generate_population(self, n_years=10, n_events=None, z_max=None,
-                           time_range=None, include_sky_position=True):
+                           time_range=None, include_sky_position=True,
+                           rate_weighted_redshifts=True):
         """
         Generate population parameters according to volumetric rate and priors
 
@@ -1241,6 +1242,9 @@ class PopulationSynthesizer(object):
         :param time_range: Tuple of (start_time_mjd, end_time_mjd) for event times
             If None, uses (60000, 60000 + n_years*365.25)
         :param include_sky_position: Whether to add RA/DEC (isotropic)
+        :param rate_weighted_redshifts: If True (default), sample redshifts weighted by
+            volumetric rate R(z) * dVc/dz / (1+z). If False, sample directly from
+            prior (useful with bilby.gw.prior.UniformComovingVolume for simple forecasts)
         :return: pandas DataFrame with all parameters (including redshift, ra, dec, t0_mjd_transient)
         """
         logger.info(f"Generating population parameters for {self.model_name}")
@@ -1252,6 +1256,10 @@ class PopulationSynthesizer(object):
         # Determine number of events
         if n_events is None:
             # Calculate from rate (Poisson draw)
+            # Only makes sense with rate-weighted redshifts
+            if not rate_weighted_redshifts:
+                raise ValueError("Cannot calculate n_events from rate when rate_weighted_redshifts=False. "
+                               "Please specify n_events explicitly.")
             expected_events = self._calculate_expected_events(n_years, z_max)
             n_events = self.rng.poisson(expected_events)
             logger.info(f"Expected {expected_events:.1f} events in {n_years} years, drew {n_events}")
@@ -1262,8 +1270,18 @@ class PopulationSynthesizer(object):
             logger.warning("No events generated!")
             return pd.DataFrame()
 
-        # Sample redshifts (weighted by rate and volume)
-        redshifts = self._sample_redshifts(n_events, z_max=z_max)
+        # Sample redshifts
+        if rate_weighted_redshifts:
+            # Sample weighted by rate and cosmological volume
+            redshifts = self._sample_redshifts(n_events, z_max=z_max)
+        else:
+            # Sample directly from prior (e.g., UniformComovingVolume)
+            if 'redshift' not in self.prior:
+                raise ValueError("Prior must contain 'redshift' when rate_weighted_redshifts=False")
+            logger.info("Sampling redshifts directly from prior (not rate-weighted)")
+            # Sample n_events redshifts from the prior
+            temp_samples = self.prior.sample(n_events)
+            redshifts = temp_samples['redshift']
 
         # Sample intrinsic parameters from priors
         params_df = self._sample_intrinsic_params(n_events)
@@ -1396,7 +1414,8 @@ class PopulationSynthesizer(object):
 
     def simulate_population(self, n_years=10, n_events=None, z_max=None,
                            time_range=None, include_selection_effects=False,
-                           survey_config=None, include_lightcurves=False, model_kwargs=None):
+                           survey_config=None, include_lightcurves=False, model_kwargs=None,
+                           rate_weighted_redshifts=True):
         """
         Convenience method to generate and optionally filter a transient population
 
@@ -1413,6 +1432,8 @@ class PopulationSynthesizer(object):
             Example: {'limiting_mag': 22.5, 'bands': ['lsstr'], 'area_sqdeg': 18000}
         :param include_lightcurves: Whether to generate light curves (expensive)
         :param model_kwargs: Additional kwargs to pass to model
+        :param rate_weighted_redshifts: If True (default), sample redshifts weighted by
+            volumetric rate. If False, sample directly from prior
         :return: TransientPopulation object
         """
         logger.info(f"Simulating transient population with {self.model_name}")
@@ -1423,7 +1444,8 @@ class PopulationSynthesizer(object):
             n_events=n_events,
             z_max=z_max,
             time_range=time_range,
-            include_sky_position=True
+            include_sky_position=True,
+            rate_weighted_redshifts=rate_weighted_redshifts
         )
 
         if len(params_df) == 0:
