@@ -170,9 +170,9 @@ def get_prompt_data_from_fermi(*args: None, **kwargs: None) -> pd.DataFrame:
 
     :param args: Placeholder
     :type args: None
-    :param kwargs: 
+    :param kwargs: Placeholder to prevent TypeErrors.
     :type kwargs: None
-    
+
     :return: The processed data.
     :rtype: pandas.DataFrame
     """
@@ -185,7 +185,7 @@ def get_prompt_data_from_konus(*args: list, **kwargs: None) -> pd.DataFrame:
 
     :param args: Placeholder
     :type args: None
-    :param kwargs: 
+    :param kwargs: Placeholder to prevent TypeErrors.
     :type kwargs: None
     
     :return: The processed data.

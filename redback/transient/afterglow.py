@@ -530,7 +530,7 @@ class FluxToLuminosityConverter(object):
     def get_isotropic_bolometric_flux(self, k_corr: float) -> float:
         """Calculates the isotropic bolometric flux given the k-correction
 
-        :param k_corr: 
+        :param k_corr: K-correction factor
         :type k_corr: float
         """
         return (self.luminosity_distance ** 2.) * 4. * np.pi * k_corr

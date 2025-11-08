@@ -724,6 +724,7 @@ class GaussianLikelihoodQuadratureNoise(GaussianLikelihood):
         A general Gaussian likelihood - the parameters are inferred from the
         arguments of function
 
+        :param x: The x values.
         :type x: np.ndarray
         :param y: The y values.
         :type y: np.ndarray

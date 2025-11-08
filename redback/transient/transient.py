@@ -82,7 +82,7 @@ class Spectrum(object):
         :param filename: The output filename. Otherwise, use default which starts with the name
                          attribute and ends with *lightcurve.png.
         :param axes: Axes to plot in if given.
-        :param save:Whether to save the plot.
+        :param save: Whether to save the plot.
         :param show: Whether to show the plot.
         :param random_models: Number of random posterior samples plotted faintly. (Default value = 100)
         :param posterior: Posterior distribution to which to draw samples from. Is optional but must be given.
@@ -106,7 +106,7 @@ class Spectrum(object):
         :param filename: The output filename. Otherwise, use default which starts with the name
                          attribute and ends with *lightcurve.png.
         :param axes: Axes to plot in if given.
-        :param save:Whether to save the plot.
+        :param save: Whether to save the plot.
         :param show: Whether to show the plot.
         :param posterior: Posterior distribution to which to draw samples from. Is optional but must be given.
         :param outdir: Out directory in which to save the plot. Default is the current working directory.
@@ -823,7 +823,7 @@ class Transient(object):
         :param filename: The output filename. Otherwise, use default which starts with the name
                          attribute and ends with *lightcurve.png.
         :param axes: Axes to plot in if given.
-        :param save:Whether to save the plot.
+        :param save: Whether to save the plot.
         :param show: Whether to show the plot.
         :param random_models: Number of random posterior samples plotted faintly. (Default value = 100)
         :param posterior: Posterior distribution to which to draw samples from. Is optional but must be given.
@@ -871,7 +871,7 @@ class Transient(object):
         :param filename: The output filename. Otherwise, use default which starts with the name
                          attribute and ends with *lightcurve.png.
         :param axes: Axes to plot in if given.
-        :param save:Whether to save the plot.
+        :param save: Whether to save the plot.
         :param show: Whether to show the plot.
         :param posterior: Posterior distribution to which to draw samples from. Is optional but must be given.
         :param outdir: Out directory in which to save the plot. Default is the current working directory.
@@ -1036,7 +1036,7 @@ class Transient(object):
                          attribute and ends with *lightcurve.png.
         :param figure: Figure can be given if defaults are not satisfying.
         :param axes: Axes to plot in if given.
-        :param save:Whether to save the plot.
+        :param save: Whether to save the plot.
         :param show: Whether to show the plot.
         :param random_models: Number of random posterior samples plotted faintly. (Default value = 100)
         :param posterior: Posterior distribution to which to draw samples from. Is optional but must be given.
@@ -1181,8 +1181,7 @@ class OpticalTransient(Transient):
         :type use_phase_model: bool, optional
         :param optical_data: Whether we are fitting optical data, useful for plotting.
         :type optical_data: bool, optional
-        :param kwargs:
-            Additional callables:
+        :param kwargs: Additional callables:
             bands_to_frequency: Conversion function to convert a list of bands to frequencies. Use
                                   redback.utils.bands_to_frequency if not given.
         :type kwargs: dict, optional
@@ -1209,8 +1208,7 @@ class OpticalTransient(Transient):
         :type name: str
         :param data_mode: Data mode used. Must be from `OpticalTransient.DATA_MODES`. Default is magnitude.
         :type data_mode: str, optional
-        :param active_bands:
-            Sets active bands based on array given.
+        :param active_bands: Sets active bands based on array given.
             If argument is 'all', all unique bands in `self.bands` will be used.
         :type active_bands: Union[np.ndarray, str]
         :param plotting_order: Order in which to plot the bands/and how unique bands are stored.
