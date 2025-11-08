@@ -1208,6 +1208,8 @@ class PopulationSynthesizer(object):
         """
         Calculate expected number of events from volumetric rate
 
+        The observed rate must account for cosmological time dilation via (1+z)^-1
+
         :param n_years: Observation time in years
         :param z_max: Maximum redshift
         :return: Expected number of events
@@ -1218,8 +1220,9 @@ class PopulationSynthesizer(object):
         rate_z = self.rate_function(z_array)
 
         # Total rate over all space (4π sr full sky)
-        integrand = rate_z * dVc_dz * 4 * np.pi / (1e9)**3  # Convert Mpc^3 to Gpc^3
-        total_rate_per_year = np.trapz(integrand, z_array)  # Events per year
+        # Include (1+z)^-1 for time dilation - events at higher z occur slower in observer frame
+        integrand = rate_z * dVc_dz / (1 + z_array) * 4 * np.pi / (1e9)**3  # Convert Mpc^3 to Gpc^3
+        total_rate_per_year = np.trapz(integrand, z_array)  # Events per year in observer frame
 
         expected_events = total_rate_per_year * n_years
         return expected_events
