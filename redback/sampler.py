@@ -25,8 +25,6 @@ def fit_model(
         resume: bool = True, save_format: str = "json", model_kwargs: dict = None, plot=True, **kwargs)\
         -> redback.result.RedbackResult:
     """
-    Main function for fitting models to transient data using Bayesian inference.
-
     :param transient: The transient to be fitted
     :param model: Name of the model to fit to data or a function.
     :param outdir: Output directory. Will default to a sensible structure if not given.
@@ -46,72 +44,6 @@ def fit_model(
     :param plot: If True, create corner and lightcurve plot
     :param kwargs: Additional parameters that will be passed to the sampler via bilby
     :return: Redback result object, transient specific data object
-
-    **Example Usage:**
-
-    .. code-block:: python
-
-        import redback
-
-        # Download and load supernova data
-        redback.get_data.get_open_access_data(transient='SN2011fe', transient_type='supernova')
-        supernova = redback.transient.Supernova.from_open_access_catalogue(
-            name='SN2011fe',
-            data_mode='magnitude'
-        )
-
-        # Fit an Arnett model with default priors
-        model = 'arnett'
-        result = redback.fit_model(
-            transient=supernova,
-            model=model,
-            nlive=1000,
-            plot=True
-        )
-
-        # Access posterior samples
-        print(result.posterior)
-
-        # Plot the corner plot
-        result.plot_corner()
-
-        # Fit with custom priors
-        import bilby
-        priors = redback.priors.get_priors(model)
-        priors['redshift'] = bilby.prior.Uniform(0.0, 0.1, 'redshift')
-
-        result = redback.fit_model(
-            transient=supernova,
-            model=model,
-            prior=priors,
-            nlive=2000,
-            sampler='dynesty'
-        )
-
-        # Fit a GRB afterglow
-        redback.get_data.get_bat_xrt_afterglow_data('GRB123456')
-        afterglow = redback.transient.Afterglow.from_swift_grb(
-            name='GRB123456',
-            data_mode='flux'
-        )
-
-        result = redback.fit_model(
-            transient=afterglow,
-            model='tophat',
-            model_kwargs={'output_format': 'flux'},
-            nlive=1500
-        )
-
-        # Use a custom model function
-        def my_custom_model(time, amplitude, timescale, **kwargs):
-            return amplitude * np.exp(-time / timescale)
-
-        result = redback.fit_model(
-            transient=supernova,
-            model=my_custom_model,
-            prior=my_priors,
-            model_kwargs={'output_format': 'magnitude'}
-        )
     """
     if isinstance(model, str):
         modelname = model

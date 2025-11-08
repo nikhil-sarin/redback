@@ -58,9 +58,9 @@ class RedbackResult(Result):
         :type sampler_kwargs: dict, optional
         :param injection_parameters: True parameters if the dataset is simulated.
         :type injection_parameters: dict, optional
-        :type meta_data: dict, optional
         :param meta_data: Additional dictionary. Contains the data used during the run and
                           is used to reconstruct the `Transient` object used during the run.
+        :type meta_data: dict, optional
         :param posterior: Posterior samples with log likelihood and log prior values.
         :type posterior: pd.Dataframe, optional
         :param samples: An array of the output posterior samples.
@@ -73,9 +73,9 @@ class RedbackResult(Result):
         :type log_evidence_err: float, optional
         :param information_gain: The information gain calculated.
         :type information_gain: float, optional
-        :param log_noise_evidence:The log noise evidence.
+        :param log_noise_evidence: The log noise evidence.
         :type log_noise_evidence: float, optional
-        :param log_bayes_factor:The log Bayes factor if we sampled using the likelihood ratio.
+        :param log_bayes_factor: The log Bayes factor if we sampled using the likelihood ratio.
         :type log_bayes_factor: float, optional
         :param log_likelihood_evaluations: The evaluations of the likelihood for each sample point
         :type log_likelihood_evaluations: np.ndarray, optional
@@ -101,7 +101,7 @@ class RedbackResult(Result):
         :type parameter_labels_with_unit: list, optional
         :param version: Version information for software used to generate the result. Note,
                         this information is generated when the result object is initialized.
-        :type version: str,
+        :type version: str
         """
         super(RedbackResult, self).__init__(
             label=label, outdir=outdir, sampler=sampler,
@@ -130,26 +130,7 @@ class RedbackResult(Result):
 
     def plot_lightcurve(self, model: Union[callable, str] = None, **kwargs: None) -> matplotlib.axes.Axes:
         """ Reconstructs the transient and calls the specific `plot_lightcurve` method.
-        Detailed documentation appears below by running `print(plot_lightcurve.__doc__)`
-
-        **Example Usage:**
-
-        .. code-block:: python
-
-            import redback
-
-            # After fitting a model
-            result = redback.fit_model(transient=my_transient, model='arnett')
-
-            # Plot the lightcurve with the fitted model
-            result.plot_lightcurve()
-
-            # Plot with specific styling
-            result.plot_lightcurve(random_models=200, save=True, filename='my_fit.png')
-
-            # Plot with a different model
-            result.plot_lightcurve(model='exponential_powerlaw')
-        """
+        Detailed documentation appears below by running `print(plot_lightcurve.__doc__)` """
         if model is None:
             model = model_library.all_models_dict[self.model]
         return self.transient.plot_lightcurve(model=model, posterior=self.posterior,
@@ -201,61 +182,21 @@ def read_in_result(
         filename: str = None, outdir: str = None, label: str = None,
         extension: str = 'json', gzip: bool = False) -> RedbackResult:
     """
-    Read in a previously saved RedbackResult object.
-
     :param filename: Filename with entire path of result to open.
     :type filename: str, optional
     :param outdir: If filename is not given, directory of the result.
     :type outdir: str, optional
     :param label: If filename is not given, label of the result.
     :type label: str, optional
-    :type extension: str, optional
     :param extension: If filename is not given, filename extension.
                       Must be in ('json', 'hdf5', 'h5', 'pkl', 'pickle', 'gz').
                       (Default value = 'json')
+    :type extension: str, optional
     :param gzip: If the file is compressed with gzip. Default is False.
     :type gzip: bool, optional
 
     :return: The loaded redback result.
     :rtype: RedbackResult
-
-    **Example Usage:**
-
-    .. code-block:: python
-
-        import redback
-
-        # Read result from a specific file
-        result = redback.result.read_in_result(
-            filename='/path/to/my_result.json'
-        )
-
-        # Read using directory and label
-        result = redback.result.read_in_result(
-            outdir='./results/SN2011fe/arnett/',
-            label='SN2011fe',
-            extension='json'
-        )
-
-        # Read HDF5 file
-        result = redback.result.read_in_result(
-            outdir='./results/',
-            label='my_fit',
-            extension='hdf5'
-        )
-
-        # Access posterior samples
-        print(result.posterior)
-
-        # Plot the lightcurve
-        result.plot_lightcurve()
-
-        # Plot corner plot
-        result.plot_corner()
-
-        # Access metadata
-        print(result.model)
-        print(result.log_evidence)
     """
     filename = _determine_file_name(filename, outdir, label, extension, gzip)
 
