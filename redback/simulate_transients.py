@@ -1174,6 +1174,174 @@ class PopulationSynthesizer(object):
 
         return params
 
+    def _sample_sky_positions(self, n_events):
+        """
+        Sample isotropic sky positions (RA, DEC)
+
+        :param n_events: Number of events
+        :return: tuple of (ra, dec) arrays in radians
+        """
+        # RA: uniform [0, 2π]
+        ra = self.rng.uniform(0, 2 * np.pi, n_events)
+
+        # DEC: cos(dec) uniform [-π/2, π/2]
+        # Sample from uniform in sin(dec) then take arcsin
+        dec = np.arcsin(self.rng.uniform(-1, 1, n_events))
+
+        return ra, dec
+
+    def _sample_event_times(self, n_events, time_range):
+        """
+        Sample event times uniformly in time range
+
+        For a Poisson process, event times are uniform in the observation window
+
+        :param n_events: Number of events
+        :param time_range: Tuple of (start_time, end_time) in MJD
+        :return: Array of event times in MJD
+        """
+        start_time, end_time = time_range
+        event_times = self.rng.uniform(start_time, end_time, n_events)
+        return np.sort(event_times)
+
+    def _calculate_expected_events(self, n_years, z_max):
+        """
+        Calculate expected number of events from volumetric rate
+
+        :param n_years: Observation time in years
+        :param z_max: Maximum redshift
+        :return: Expected number of events
+        """
+        # Integrate rate over volume and time
+        z_array = np.linspace(0, z_max, 100)
+        dVc_dz = self.cosmology.differential_comoving_volume(z_array).value
+        rate_z = self.rate_function(z_array)
+
+        # Total rate over all space (4π sr full sky)
+        integrand = rate_z * dVc_dz * 4 * np.pi / (1e9)**3  # Convert Mpc^3 to Gpc^3
+        total_rate_per_year = np.trapz(integrand, z_array)  # Events per year
+
+        expected_events = total_rate_per_year * n_years
+        return expected_events
+
+    def generate_population(self, n_years=10, n_events=None, z_max=None,
+                           time_range=None, include_sky_position=True):
+        """
+        Generate population parameters according to volumetric rate and priors
+
+        This method generates a pure parameter DataFrame that can be passed to
+        any simulation tool (redback SimulateOpticalTransient, custom tools, etc.)
+
+        :param n_years: Number of years to observe (used with rate to calculate n_events)
+        :param n_events: Fixed number of events (overrides n_years if specified)
+        :param z_max: Maximum redshift (if None, use prior maximum)
+        :param time_range: Tuple of (start_time_mjd, end_time_mjd) for event times
+            If None, uses (60000, 60000 + n_years*365.25)
+        :param include_sky_position: Whether to add RA/DEC (isotropic)
+        :return: pandas DataFrame with all parameters (including redshift, ra, dec, t0_mjd_transient)
+        """
+        logger.info(f"Generating population parameters for {self.model_name}")
+
+        # Determine redshift range
+        if z_max is None:
+            z_max = self.prior['redshift'].maximum if 'redshift' in self.prior else 2.0
+
+        # Determine number of events
+        if n_events is None:
+            # Calculate from rate (Poisson draw)
+            expected_events = self._calculate_expected_events(n_years, z_max)
+            n_events = self.rng.poisson(expected_events)
+            logger.info(f"Expected {expected_events:.1f} events in {n_years} years, drew {n_events}")
+        else:
+            logger.info(f"Generating fixed {n_events} events")
+
+        if n_events == 0:
+            logger.warning("No events generated!")
+            return pd.DataFrame()
+
+        # Sample redshifts (weighted by rate and volume)
+        redshifts = self._sample_redshifts(n_events, z_max=z_max)
+
+        # Sample intrinsic parameters from priors
+        params_df = self._sample_intrinsic_params(n_events)
+
+        # Add redshift
+        params_df['redshift'] = redshifts
+
+        # Add luminosity distance
+        params_df['luminosity_distance'] = self.cosmology.luminosity_distance(redshifts).value  # Mpc
+
+        # Add sky positions (isotropic)
+        if include_sky_position:
+            ra, dec = self._sample_sky_positions(n_events)
+            params_df['ra'] = ra
+            params_df['dec'] = dec
+
+        # Add event times (t0)
+        if time_range is None:
+            # Default: start at MJD 60000, span n_years
+            time_range = (60000.0, 60000.0 + n_years * 365.25)
+
+        event_times = self._sample_event_times(n_events, time_range)
+        params_df['t0_mjd_transient'] = event_times
+
+        logger.info(f"Generated {n_events} events with redshifts [{redshifts.min():.3f}, {redshifts.max():.3f}]")
+
+        return params_df
+
+    def apply_detection_criteria(self, population, detection_function, **kwargs):
+        """
+        Apply custom detection criteria to a population
+
+        This is a flexible post-processing method that allows users to define
+        their own detection logic based on the population parameters.
+
+        :param population: pandas DataFrame from generate_population() or TransientPopulation
+        :param detection_function: Callable that takes (row, **kwargs) and returns bool or float [0,1]
+            - If returns bool: True = detected, False = not detected
+            - If returns float: Interpreted as detection probability, stochastically applied
+            - Function signature: detection_function(row, **kwargs) -> bool or float
+        :param kwargs: Additional arguments passed to detection_function
+        :return: pandas DataFrame with added 'detected' and optionally 'detection_probability' columns
+        """
+        logger.info("Applying custom detection criteria...")
+
+        # Extract DataFrame if TransientPopulation
+        if isinstance(population, TransientPopulation):
+            params_df = population.parameters.copy()
+        elif isinstance(population, pd.DataFrame):
+            params_df = population.copy()
+        else:
+            raise ValueError("population must be DataFrame or TransientPopulation")
+
+        detected = []
+        detection_probs = []
+
+        for idx in range(len(params_df)):
+            row = params_df.iloc[idx]
+            result = detection_function(row, **kwargs)
+
+            # Handle boolean vs probability return
+            if isinstance(result, bool):
+                detected.append(result)
+                detection_probs.append(1.0 if result else 0.0)
+            elif isinstance(result, (int, float)):
+                # Interpret as probability
+                detection_probs.append(float(result))
+                # Stochastically apply
+                is_detected = self.rng.uniform() < result
+                detected.append(is_detected)
+            else:
+                raise ValueError(f"detection_function must return bool or float, got {type(result)}")
+
+        params_df['detection_probability'] = detection_probs
+        params_df['detected'] = detected
+
+        n_detected = np.sum(detected)
+        logger.info(f"Detected {n_detected}/{len(params_df)} transients ({100*n_detected/len(params_df):.1f}%)")
+
+        return params_df
+
     def _calculate_detection_probability(self, params, survey_config):
         """
         Calculate detection probability for a transient
@@ -1224,14 +1392,19 @@ class PopulationSynthesizer(object):
         return detection_prob
 
     def simulate_population(self, n_years=10, n_events=None, z_max=None,
-                           include_selection_effects=False, survey_config=None,
-                           include_lightcurves=False, model_kwargs=None):
+                           time_range=None, include_selection_effects=False,
+                           survey_config=None, include_lightcurves=False, model_kwargs=None):
         """
-        Simulate a realistic transient population
+        Convenience method to generate and optionally filter a transient population
+
+        This is a wrapper around generate_population() and apply_detection_criteria()
+        that returns a TransientPopulation object. For more control, use the
+        individual methods directly.
 
         :param n_years: Number of years to simulate (used to calculate expected events from rate)
         :param n_events: Fixed number of events (overrides n_years if specified)
         :param z_max: Maximum redshift to sample
+        :param time_range: Tuple of (start_mjd, end_mjd) for event times
         :param include_selection_effects: Whether to apply detection efficiency cuts
         :param survey_config: Dictionary with survey parameters for selection effects
             Example: {'limiting_mag': 22.5, 'bands': ['lsstr'], 'area_sqdeg': 18000}
@@ -1241,55 +1414,29 @@ class PopulationSynthesizer(object):
         """
         logger.info(f"Simulating transient population with {self.model_name}")
 
-        # Determine number of events
-        if n_events is None:
-            # Calculate from rate
-            if z_max is None:
-                z_max = self.prior['redshift'].maximum if 'redshift' in self.prior else 2.0
+        # Generate population parameters
+        params_df = self.generate_population(
+            n_years=n_years,
+            n_events=n_events,
+            z_max=z_max,
+            time_range=time_range,
+            include_sky_position=True
+        )
 
-            # Integrate rate over volume and time
-            z_array = np.linspace(0, z_max, 100)
-            dVc_dz = self.cosmology.differential_comoving_volume(z_array).value
-            rate_z = self.rate_function(z_array)
-
-            # Total rate over all space
-            integrand = rate_z * dVc_dz * 4 * np.pi / (1e9)**3  # Convert Mpc^3 to Gpc^3
-            total_rate_per_year = np.trapz(integrand, z_array)  # Events per year
-
-            expected_events = total_rate_per_year * n_years
-            n_events = self.rng.poisson(expected_events)
-            logger.info(f"Expected {expected_events:.1f} events in {n_years} years, drew {n_events}")
-
-        if n_events == 0:
-            logger.warning("No events generated!")
+        if len(params_df) == 0:
             return TransientPopulation(pd.DataFrame(), metadata={'n_years': n_years})
-
-        # Sample redshifts
-        redshifts = self._sample_redshifts(n_events, z_max=z_max)
-
-        # Sample intrinsic parameters
-        params_df = self._sample_intrinsic_params(n_events)
-        params_df['redshift'] = redshifts
 
         # Apply selection effects if requested
         if include_selection_effects and survey_config is not None:
-            logger.info("Applying selection effects...")
-            detected = []
-            detection_probs = []
+            # Use built-in detection probability calculator
+            def detection_func(row, config):
+                return self._calculate_detection_probability(row.to_dict(), config)
 
-            for idx in range(len(params_df)):
-                params = params_df.iloc[idx].to_dict()
-                det_prob = self._calculate_detection_probability(params, survey_config)
-                detection_probs.append(det_prob)
-                # Stochastically detect based on probability
-                is_detected = self.rng.uniform() < det_prob
-                detected.append(is_detected)
-
-            params_df['detection_probability'] = detection_probs
-            params_df['detected'] = detected
-
-            n_detected = np.sum(detected)
-            logger.info(f"Detected {n_detected}/{n_events} transients ({100*n_detected/n_events:.1f}%)")
+            params_df = self.apply_detection_criteria(
+                params_df,
+                detection_function=detection_func,
+                config=survey_config
+            )
 
         # Generate light curves if requested (expensive!)
         light_curves = None
@@ -1309,7 +1456,7 @@ class PopulationSynthesizer(object):
         metadata = {
             'model': self.model_name,
             'n_years': n_years,
-            'n_events': n_events,
+            'n_events': len(params_df),
             'rate': self.base_rate.value if self.base_rate is not None else 'custom',
             'rate_evolution': self.rate_evolution,
             'cosmology': self.cosmology_name,
