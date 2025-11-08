@@ -1,0 +1,362 @@
+============================
+Multi-Messenger Analysis
+============================
+
+Overview
+========
+
+Multi-messenger astronomy combines observations from different "messengers" (electromagnetic radiation, gravitational waves, neutrinos, cosmic rays) to provide a more complete picture of astrophysical transients. :code:`redback` provides dedicated infrastructure for multi-messenger analysis through the :code:`MultiMessengerTransient` class.
+
+The key advantage of multi-messenger analysis is that different messengers can probe different aspects of the same physical system, and shared parameters can be jointly constrained by all available data. For example, in a binary neutron star merger:
+
+- **Gravitational waves** constrain masses, spins, and distance
+- **Kilonova emission** (optical/IR) constrains ejecta properties and viewing angle
+- **Gamma-ray burst afterglow** (X-ray/radio) constrains jet properties and viewing angle
+- **Viewing angle** and **distance** are shared across all messengers
+
+The :code:`MultiMessengerTransient` class
+==========================================
+
+Basic Usage
+-----------
+
+The :code:`MultiMessengerTransient` class provides a high-level interface for combining data from multiple messengers::
+
+    import redback
+    from redback.multimessenger import MultiMessengerTransient
+
+    # Create transient objects for each messenger
+    optical_transient = redback.get_data.get_kilonova_data_from_open_transient_catalog_data(
+        transient='AT2017gfo'
+    )
+
+    # Assuming we have X-ray and radio data as well
+    xray_transient = redback.transient.Transient(...)
+    radio_transient = redback.transient.Transient(...)
+
+    # Create multi-messenger object
+    mm_transient = MultiMessengerTransient(
+        optical_transient=optical_transient,
+        xray_transient=xray_transient,
+        radio_transient=radio_transient,
+        name='AT2017gfo'
+    )
+
+Supported Messengers
+--------------------
+
+The class supports multiple types of data:
+
+1. **Electromagnetic transients** (optical, X-ray, radio, UV, infrared)
+   - Provided as :code:`redback.transient.Transient` objects
+   - Can use any redback transient class (Kilonova, Afterglow, Supernova, etc.)
+
+2. **Gravitational waves**
+   - Provided as pre-constructed :code:`bilby.gw.likelihood` objects
+   - Use standard :code:`bilby.gw` workflow to create the likelihood
+
+3. **Neutrinos**
+   - Provided as custom :code:`bilby.Likelihood` objects
+
+4. **Custom likelihoods**
+   - Any custom likelihood inheriting from :code:`bilby.Likelihood`
+
+Joint Analysis
+==============
+
+The :code:`fit_joint()` method performs parameter estimation using all available data::
+
+    import bilby
+
+    # Define models for each messenger
+    models = {
+        'optical': 'two_component_kilonova_model',
+        'xray': 'tophat',  # afterglow model
+        'radio': 'tophat'
+    }
+
+    # Define priors (including shared parameters)
+    priors = bilby.core.prior.PriorDict()
+    priors['viewing_angle'] = bilby.core.prior.Uniform(0, 1.57)
+    priors['redshift'] = 0.01  # Fixed
+
+    # Kilonova-specific parameters
+    priors['mej_1'] = bilby.core.prior.Uniform(0.01, 0.1)
+    priors['vej_1'] = bilby.core.prior.Uniform(0.1, 0.3)
+    # ... more priors ...
+
+    # Afterglow-specific parameters
+    priors['loge0'] = bilby.core.prior.Uniform(50, 54)
+    priors['logn0'] = bilby.core.prior.Uniform(-3, 2)
+    # ... more priors ...
+
+    # Specify model kwargs
+    model_kwargs = {
+        'optical': {'output_format': 'magnitude'},
+        'xray': {'output_format': 'flux_density', 'frequency': xray_freq},
+        'radio': {'output_format': 'flux_density', 'frequency': radio_freq}
+    }
+
+    # Run joint analysis
+    result = mm_transient.fit_joint(
+        models=models,
+        priors=priors,
+        shared_params=['viewing_angle', 'redshift'],
+        model_kwargs=model_kwargs,
+        nlive=2000,
+        sampler='dynesty',
+        outdir='./results_joint'
+    )
+
+Shared Parameters
+-----------------
+
+The :code:`shared_params` argument specifies which parameters are shared across messengers. These parameters will use the same value for all models, allowing different data sets to jointly constrain them.
+
+Common shared parameters include:
+
+- :code:`viewing_angle`: Observer's viewing angle (affects both EM and GW signals)
+- :code:`luminosity_distance`: Distance to source
+- :code:`redshift`: Cosmological redshift
+- :code:`time_of_merger`: Reference time for all emissions
+
+Individual Fits for Comparison
+===============================
+
+For comparison with joint analysis, you can fit each messenger independently::
+
+    individual_models = {
+        'optical': 'two_component_kilonova_model',
+        'xray': 'tophat',
+        'radio': 'tophat'
+    }
+
+    # Define separate priors for each messenger
+    optical_priors = bilby.core.prior.PriorDict()
+    # ... optical-specific priors ...
+
+    xray_priors = bilby.core.prior.PriorDict()
+    # ... X-ray-specific priors ...
+
+    individual_priors = {
+        'optical': optical_priors,
+        'xray': xray_priors,
+        'radio': radio_priors
+    }
+
+    # Fit each independently
+    individual_results = mm_transient.fit_individual(
+        models=individual_models,
+        priors=individual_priors,
+        model_kwargs=model_kwargs,
+        nlive=2000
+    )
+
+    # Access individual results
+    optical_result = individual_results['optical']
+    xray_result = individual_results['xray']
+
+Advanced: Including Gravitational Wave Data
+============================================
+
+For GW+EM analysis, construct a gravitational wave likelihood using :code:`bilby.gw` and pass it to the :code:`MultiMessengerTransient`::
+
+    import bilby.gw
+
+    # Set up GW analysis (following bilby.gw workflow)
+    duration = 32
+    sampling_frequency = 2048
+
+    waveform_generator = bilby.gw.WaveformGenerator(
+        duration=duration,
+        sampling_frequency=sampling_frequency,
+        frequency_domain_source_model=bilby.gw.source.lal_binary_neutron_star,
+        waveform_arguments={'waveform_approximant': 'IMRPhenomPv2_NRTidal'}
+    )
+
+    # Set up interferometers
+    interferometers = bilby.gw.detector.InterferometerList(['H1', 'L1', 'V1'])
+    interferometers.set_strain_data_from_power_spectral_densities(
+        sampling_frequency=sampling_frequency,
+        duration=duration
+    )
+
+    # Create GW likelihood
+    gw_likelihood = bilby.gw.likelihood.GravitationalWaveTransient(
+        interferometers=interferometers,
+        waveform_generator=waveform_generator
+    )
+
+    # Create multi-messenger object with GW data
+    mm_transient = MultiMessengerTransient(
+        optical_transient=optical_transient,
+        xray_transient=xray_transient,
+        gw_likelihood=gw_likelihood,
+        name='GW170817'
+    )
+
+    # Define priors including GW parameters
+    priors = bilby.core.prior.PriorDict()
+
+    # GW parameters
+    priors['chirp_mass'] = bilby.core.prior.Gaussian(1.2, 0.1)
+    priors['mass_ratio'] = bilby.core.prior.Uniform(0.5, 1.0)
+    priors['luminosity_distance'] = bilby.gw.prior.UniformSourceFrame(10, 250)
+    priors['theta_jn'] = bilby.core.prior.Uniform(0, 3.14159)  # GW viewing angle
+    # ... other GW parameters ...
+
+    # EM parameters
+    priors['mej'] = bilby.core.prior.Uniform(0.01, 0.1)
+    # ... other EM parameters ...
+
+    # Run joint GW+EM analysis
+    result = mm_transient.fit_joint(
+        models={'optical': kilonova_model, 'xray': afterglow_model},
+        priors=priors,
+        shared_params=['luminosity_distance', 'theta_jn'],  # Link GW and EM
+        nlive=2000
+    )
+
+Note that :code:`theta_jn` in gravitational wave analysis often corresponds to the viewing angle in electromagnetic models, though the exact relationship depends on the jet geometry and assumptions.
+
+Utility Functions
+=================
+
+create_joint_prior
+------------------
+
+The :code:`create_joint_prior()` utility helps construct prior dictionaries for joint analysis::
+
+    from redback.multimessenger import create_joint_prior
+
+    # Define individual priors
+    optical_priors = bilby.core.prior.PriorDict({
+        'viewing_angle': bilby.core.prior.Uniform(0, 1.57),
+        'mej': bilby.core.prior.Uniform(0.01, 0.1)
+    })
+
+    xray_priors = bilby.core.prior.PriorDict({
+        'viewing_angle': bilby.core.prior.Uniform(0, 1.57),
+        'logn0': bilby.core.prior.Uniform(-3, 2)
+    })
+
+    # Create joint prior with shared viewing_angle
+    joint_prior = create_joint_prior(
+        individual_priors={'optical': optical_priors, 'xray': xray_priors},
+        shared_params=['viewing_angle']
+    )
+
+    # Result:
+    # joint_prior['viewing_angle']  -> shared prior
+    # joint_prior['optical_mej']    -> optical-specific
+    # joint_prior['xray_logn0']     -> X-ray-specific
+
+Adding/Removing Messengers
+---------------------------
+
+You can dynamically add or remove messengers::
+
+    # Add a new messenger
+    mm_transient.add_messenger('uv', transient=uv_transient)
+
+    # Or add with a pre-constructed likelihood
+    mm_transient.add_messenger('neutrino', likelihood=neutrino_likelihood)
+
+    # Remove a messenger
+    mm_transient.remove_messenger('radio')
+
+Examples
+========
+
+Complete worked examples are available in :code:`examples/`:
+
+1. :code:`multimessenger_example.py`
+
+   - Simulates optical kilonova + X-ray afterglow + radio afterglow
+   - Demonstrates individual vs. joint fitting
+   - Shows how shared parameters improve constraints
+
+2. :code:`joint_grb_gw_example.py`
+
+   - Joint GW + GRB afterglow analysis
+   - Shows integration with :code:`bilby.gw`
+   - Demonstrates parameter linking between GW and EM
+
+Best Practices
+==============
+
+1. **Start with individual fits**
+
+   Fit each messenger independently first to:
+
+   - Verify your models are appropriate
+   - Check for any data quality issues
+   - Understand individual parameter constraints
+   - Use as comparison for joint analysis
+
+2. **Choose shared parameters carefully**
+
+   Only share parameters that are physically the same across messengers:
+
+   - Viewing angle (if jet is aligned with binary orbital axis)
+   - Distance/redshift (always shared for same source)
+   - Event time (with appropriate time delays)
+
+3. **Use informative priors**
+
+   For shared parameters, use priors that reflect physical constraints:
+
+   - Distance: use :code:`bilby.gw.prior.UniformSourceFrame` for GW sources
+   - Viewing angle: consider constraints from non-detection in certain bands
+
+4. **Check model compatibility**
+
+   Ensure your models are compatible in their parameterization:
+
+   - Same definition of viewing angle
+   - Consistent reference time
+   - Same distance definition (luminosity vs. comoving)
+
+5. **Validate with simulations**
+
+   Test your analysis pipeline on simulated data:
+
+   - Inject known parameters
+   - Verify recovery in joint analysis
+   - Check that shared parameters are correctly constrained
+
+6. **Compare evidence**
+
+   Use Bayes factors to compare:
+
+   - Joint model vs. independent models
+   - Different choices of shared parameters
+   - Different physical models
+
+Common Pitfalls
+===============
+
+1. **Inconsistent parameter definitions**
+
+   Different models may use different conventions (e.g., viewing angle from jet axis vs. orbital axis). Create wrapper functions to translate between conventions.
+
+2. **Time reference mismatch**
+
+   Ensure all data use consistent time references (e.g., time of merger, trigger time).
+
+3. **Correlated systematic errors**
+
+   Joint analysis assumes independent data. Be cautious if systematic errors are correlated across messengers.
+
+4. **Over-constraining with incompatible models**
+
+   If your models are inconsistent or incomplete, joint analysis may give misleading results.
+
+References
+==========
+
+For more information on multi-messenger analysis:
+
+- Abbott et al. 2017 (GW170817): ApJL 848, L12
+- Coughlin et al. 2018 (Multi-messenger Bayesian PE): MNRAS 480, 3871
+- See also :code:`examples/joint_grb_gw_example.py` for implementation details
