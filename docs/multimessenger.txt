@@ -375,6 +375,218 @@ Compare results::
     fig = corner.corner(joint_result.posterior, color='blue', labels=param_labels)
     corner.corner(phot_result.posterior, fig=fig, color='red')
 
+Joint Galaxy and Transient Spectrum Analysis
+=============================================
+
+When observing transients embedded in bright host galaxies, the observed spectrum contains contributions from both the transient and the underlying galaxy. Properly accounting for this contamination is critical for accurate parameter inference.
+
+Why This Matters
+-----------------
+
+Host galaxy contamination can significantly bias transient parameters:
+
+- **Continuum shape**: Galaxy stellar continuum affects transient temperature/SED fits
+- **Line features**: Galaxy emission/absorption lines can mimic or hide transient features
+- **Flux normalization**: Incorrect flux leads to wrong luminosity, radius estimates
+- **Common scenarios**: Supernovae (especially SNe Ia), TDEs, transients in galaxy centers
+
+Combined Model Approach
+------------------------
+
+The most straightforward approach is to model the observed spectrum as the sum of galaxy and transient components::
+
+    def combined_galaxy_transient_model(wavelength, redshift,
+                                       galaxy_temperature, galaxy_luminosity,
+                                       transient_temperature, transient_r_phot,
+                                       **kwargs):
+        '''Combined model: observed spectrum = galaxy + transient'''
+
+        # Galaxy component (stellar continuum)
+        galaxy_flux = galaxy_spectrum_model(
+            wavelength, redshift, galaxy_temperature, galaxy_luminosity
+        )
+
+        # Transient component (e.g., SN photosphere)
+        transient_flux = transient_spectrum_model(
+            wavelength, redshift, transient_temperature, transient_r_phot
+        )
+
+        # Observed spectrum is the sum
+        return galaxy_flux + transient_flux
+
+    # Create likelihood with combined model
+    combined_likelihood = redback.likelihoods.GaussianLikelihood(
+        x=wavelengths,
+        y=observed_flux,
+        sigma=flux_errors,
+        function=combined_galaxy_transient_model,
+        kwargs={}
+    )
+
+Setting Up Priors
+-----------------
+
+Define priors for both galaxy and transient parameters::
+
+    priors = bilby.core.prior.PriorDict()
+
+    # Shared parameter: redshift (typically well-known from galaxy)
+    priors['redshift'] = bilby.core.prior.Gaussian(0.05, 0.001)
+
+    # Galaxy parameters
+    priors['galaxy_temperature'] = bilby.core.prior.Uniform(4000, 7000)  # K
+    priors['galaxy_luminosity'] = bilby.core.prior.Uniform(0.5, 10.0)
+
+    # Transient parameters
+    priors['transient_temperature'] = bilby.core.prior.Uniform(5000, 15000)  # K
+    priors['transient_r_phot'] = bilby.core.prior.LogUniform(1e14, 1e16)  # cm
+
+The shared redshift provides a strong constraint linking both components.
+
+Running the Analysis
+--------------------
+
+::
+
+    result = bilby.run_sampler(
+        likelihood=combined_likelihood,
+        priors=priors,
+        sampler='dynesty',
+        nlive=1000,
+        outdir='./results_galaxy_transient',
+        label='joint_galaxy_transient'
+    )
+
+    # Extract best-fit components
+    best_params = result.posterior.iloc[result.posterior['log_likelihood'].idxmax()]
+
+    galaxy_component = galaxy_spectrum_model(wavelengths, **best_params)
+    transient_component = transient_spectrum_model(wavelengths, **best_params)
+
+Comparison with Transient-Only Fit
+-----------------------------------
+
+Ignoring the galaxy leads to biased parameters. Compare fits with/without galaxy::
+
+    # Biased fit (transient only)
+    transient_only_likelihood = redback.likelihoods.GaussianLikelihood(
+        x=wavelengths, y=observed_flux, sigma=flux_errors,
+        function=transient_spectrum_model
+    )
+    result_biased = bilby.run_sampler(transient_only_likelihood, transient_priors, ...)
+
+    # Correct fit (galaxy + transient)
+    result_correct = bilby.run_sampler(combined_likelihood, full_priors, ...)
+
+    # Evidence comparison
+    print(f"Transient-only ln(Z): {result_biased.log_evidence:.2f}")
+    print(f"Joint model ln(Z): {result_correct.log_evidence:.2f}")
+    print(f"Bayes factor: {result_correct.log_evidence - result_biased.log_evidence:.2f}")
+
+The joint model should show much higher evidence if galaxy contamination is significant.
+
+Adding Galaxy Emission Lines
+-----------------------------
+
+For more realistic galaxy modeling, include emission lines::
+
+    def galaxy_with_lines_model(wavelength, redshift,
+                                galaxy_temperature, galaxy_luminosity,
+                                h_alpha_flux, h_beta_flux, oiii_flux,
+                                line_width, **kwargs):
+        '''Galaxy model with continuum + emission lines'''
+
+        # Stellar continuum
+        continuum = galaxy_continuum_model(...)
+
+        # Common emission lines
+        h_alpha = gaussian_line(wavelength, 6563 * (1+redshift), h_alpha_flux, line_width)
+        h_beta = gaussian_line(wavelength, 4861 * (1+redshift), h_beta_flux, line_width)
+        oiii = gaussian_line(wavelength, 5007 * (1+redshift), oiii_flux, line_width)
+
+        return continuum + h_alpha + h_beta + oiii
+
+    def gaussian_line(wavelength, center, amplitude, width):
+        '''Gaussian emission line profile'''
+        return amplitude * np.exp(-0.5 * ((wavelength - center) / width)**2)
+
+Add priors for emission line parameters::
+
+    priors['h_alpha_flux'] = bilby.core.prior.LogUniform(1e-17, 1e-15)
+    priors['h_beta_flux'] = bilby.core.prior.LogUniform(1e-18, 1e-16)
+    priors['oiii_flux'] = bilby.core.prior.LogUniform(1e-18, 1e-16)
+    priors['line_width'] = bilby.core.prior.Uniform(1, 5)  # Angstroms
+
+Best Practices
+--------------
+
+1. **Pre-explosion data**
+
+   - If available, use pre-explosion galaxy spectrum to constrain galaxy parameters
+   - Can fix galaxy parameters or use as informative priors
+   - Reduces degeneracies between galaxy and transient
+
+2. **Model selection**
+
+   - Start simple: blackbody or power-law continuum for both components
+   - Add complexity as justified: emission lines, absorption features
+   - Use stellar population synthesis for galaxy (e.g., FSPS, BC03)
+   - Use radiative transfer for transient (e.g., TARDIS, CMFGEN)
+
+3. **When to use joint fitting**
+
+   - Transient is bright relative to galaxy (SNR > 10)
+   - No pre-explosion spectrum available for template subtraction
+   - Transient and galaxy spectra overlap significantly
+   - Need physical model for both components
+
+4. **Alternative approaches**
+
+   - **Template subtraction**: If pre-explosion spectrum exists, subtract scaled template
+   - **Spectral decomposition**: Use tools like STARLIGHT or pPXF first
+   - **Spatial separation**: Extract spatially separated spectra if PSF resolution allows
+
+5. **Systematic checks**
+
+   - Compare to pre-explosion imaging/spectroscopy
+   - Verify galaxy parameters are consistent across multiple epochs
+   - Check transient parameters match photometric evolution
+   - Account for extinction (Galactic + host)
+
+6. **Validation**
+
+   - Plot decomposition showing galaxy, transient, and total components
+   - Check residuals for systematic structure
+   - Compare posterior distributions with/without galaxy model
+   - Use simulations to verify parameter recovery
+
+Example Workflow
+----------------
+
+See :code:`examples/joint_galaxy_transient_spectrum_example.py` for a complete demonstration including:
+
+- Simulating composite spectrum (galaxy + transient)
+- Setting up combined model
+- Comparing fits with/without galaxy model
+- Visualizing spectral decomposition
+- Showing parameter biases when galaxy is ignored
+- Advanced topics: emission lines, systematic uncertainties
+
+Common Applications
+-------------------
+
+**Supernova spectroscopy**
+  Type Ia SNe in bright host galaxies require careful galaxy subtraction. Joint fitting allows proper separation and uncertainty propagation.
+
+**Tidal Disruption Events (TDEs)**
+  TDEs occur in galaxy centers, often with strong AGN or stellar contamination. Joint modeling separates transient from persistent emission.
+
+**Kilonovae**
+  While typically in fainter hosts, nearby events may require galaxy modeling, especially in red bands where older stellar populations contribute.
+
+**AGN outbursts**
+  Separating variable AGN component from host galaxy requires joint modeling of both persistent and transient features.
+
 Advanced: Including Gravitational Wave Data
 ============================================
 
@@ -502,7 +714,15 @@ Complete worked examples are available in :code:`examples/`:
    - Shows how to use custom likelihoods for different data types
    - Demonstrates handling multiple spectra at different epochs
 
-3. :code:`joint_grb_gw_example.py`
+3. :code:`joint_galaxy_transient_spectrum_example.py`
+
+   - Joint galaxy + transient spectrum analysis
+   - Shows how to separate host galaxy contamination from transient
+   - Demonstrates combined model approach (galaxy + transient)
+   - Compares biased (transient-only) vs. unbiased (joint) fits
+   - Includes emission line modeling
+
+4. :code:`joint_grb_gw_example.py`
 
    - Joint GW + GRB afterglow analysis
    - Shows integration with :code:`bilby.gw`
