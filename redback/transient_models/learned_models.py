@@ -35,7 +35,7 @@ def make_learned_model_callable(model):
     # Make sure all the model's parameter names are safe to use as function arguments.
     identifier_re = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
     for name in model.param_names:
-        if not identifier_re.match(name):
+        if not isinstance(name, str) or not identifier_re.match(name):
             raise ValueError(
                 f"Parameter name '{name}' is invalid. Parameter names can "
                 "only contain alphanumeric characters and underscores."

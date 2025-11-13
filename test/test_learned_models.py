@@ -52,3 +52,17 @@ class TestLearnedModels(unittest.TestCase):
             frequency=3000.0,
         )
         assert spectra1.shape == (len(model.times),)
+
+        # Check that we can evaluate the function for spectra output. There should
+        # be three components: time, lambdas, and spectra
+        spectra2 = func(
+            time=model.times,
+            freq=1.0,
+            amp=1e10,
+            center=3100.0,  # Peak at 3100 Angstroms
+            width=1000.0,  # 1000 Angstrom stddev
+            redshift=0.5,
+            output_format="spectra",
+        )
+        assert len(spectra2) == 3
+        assert spectra2.spectra.shape == (len(spectra2.time), len(spectra2.lambdas))
