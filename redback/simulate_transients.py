@@ -710,17 +710,19 @@ class SimulateOpticalTransient(object):
 
         :param transient_names: list of transient names. Default is None which will label transients as event_0, etc
         :param kwargs: kwargs for the save_transient function
+        :param directory: directory to save the injection file. Default is 'simulated'
         :param injection_file_path: path to save the injection file
         :return: None
         """
-        injection_file_name = kwargs.get('injection_file_path', 'simulated/population_injection_parameters.csv')
+        directory = kwargs.get('directory', 'simulated')
+        injection_file_name = kwargs.get('injection_file_path', f'{directory}/population_injection_parameters.csv')
         if transient_names is None:
             transient_names = ['event_' + str(x) for x in range(len(self.list_of_observations))]
-        bilby.utils.check_directory_exists_and_if_not_mkdir('simulated')
+        bilby.utils.check_directory_exists_and_if_not_mkdir(directory)
         self.parameters.to_csv(injection_file_name, index=False)
         for ii, transient_name in enumerate(transient_names):
             transient = self.list_of_observations[ii]
-            transient.to_csv('simulated/' + transient_name + '.csv', index=False)
+            transient.to_csv(directory + '/' + transient_name + '.csv', index=False)
 
     def save_transient(self, name):
         """
