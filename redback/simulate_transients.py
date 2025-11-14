@@ -132,6 +132,293 @@ class SimulateGenericTransient(object):
         self.parameters=pd.DataFrame.from_dict([self.parameters])
         self.parameters.to_csv(injection_path, index=False)
 
+
+class SimulateTransientWithCadence(object):
+    """
+    Simulate transient with specified observation cadence and SNR-based cuts
+
+    This class bridges the gap between SimulateGenericTransient (too simple)
+    and SimulateOpticalTransient (requires full pointing database).
+
+    Perfect for:
+    - Using PopulationSynthesizer parameters
+    - Survey planning without full pointing database
+    - Testing different cadence strategies
+    - Simple SNR-based detection modeling
+    """
+
+    def __init__(self, model, parameters, cadence_config, model_kwargs=None,
+                 snr_threshold=5, noise_type='limiting_mag', seed=1234,
+                 apply_snr_cut=True, **kwargs):
+        """
+        Initialize transient simulation with cadence
+
+        :param model: String corresponding to redback model or callable function
+        :param parameters: Dictionary of parameters describing transient
+            Can be from PopulationSynthesizer.generate_population()
+            Must include 't0_mjd_transient' or 't0' for explosion time
+        :param cadence_config: Dictionary specifying observation cadence
+            Required keys:
+                'bands': list of filter names (e.g., ['g', 'r', 'i'])
+                'cadence_days': float or dict, days between observations
+                    If float: same cadence for all bands
+                    If dict: {'g': 3, 'r': 2, 'i': 1} - per-band cadences
+                'duration_days': float, total observation duration
+                'limiting_mags': dict, 5-sigma limiting magnitudes per band
+                    Example: {'g': 22.5, 'r': 23.0, 'i': 22.0}
+            Optional keys:
+                'start_offset_days': float, days after t0 to start observing (default: 0)
+                'band_sequence': list, observation sequence if alternating bands
+                    Example: ['g', 'r', 'i', 'g', 'r', 'i', ...]
+        :param model_kwargs: Additional kwargs for model
+        :param snr_threshold: SNR threshold for detection (default: 5)
+        :param noise_type: How to calculate noise
+            'limiting_mag': From limiting magnitude (default, most realistic)
+            'gaussian': Gaussian with fixed sigma
+            'gaussianmodel': Gaussian proportional to model flux
+        :param seed: Random seed for reproducibility
+        :param apply_snr_cut: Whether to mark non-detections (SNR < threshold)
+        :param kwargs: Additional arguments
+        """
+        # Set model
+        if isinstance(model, str):
+            if model in redback.model_library.all_models_dict:
+                self.model = redback.model_library.all_models_dict[model]
+                self.model_name = model
+            else:
+                raise ValueError(f"Model {model} not found in redback model library")
+        elif callable(model):
+            self.model = model
+            self.model_name = 'custom'
+        else:
+            raise ValueError("Model must be string or callable")
+
+        self.parameters = parameters
+        self.cadence_config = cadence_config
+        self.model_kwargs = model_kwargs if model_kwargs is not None else {}
+        self.snr_threshold = snr_threshold
+        self.noise_type = noise_type
+        self.apply_snr_cut = apply_snr_cut
+        self.seed = seed
+        self.rng = np.random.RandomState(seed=seed)
+        random.seed(seed)
+
+        # Validate cadence config
+        self._validate_cadence_config()
+
+        # Get explosion time
+        if 't0_mjd_transient' in parameters:
+            self.t0 = parameters['t0_mjd_transient']
+        elif 't0' in parameters:
+            self.t0 = parameters['t0']
+        else:
+            self.t0 = 0.0
+            logger.warning("No t0_mjd_transient or t0 in parameters, using 0")
+
+        # Generate observation schedule
+        self.observations = self._generate_observations()
+
+        # Calculate model at observation times
+        self._evaluate_model()
+
+        # Add noise and apply SNR cuts
+        self._add_noise_and_cuts()
+
+    def _validate_cadence_config(self):
+        """Validate cadence configuration"""
+        required = ['bands', 'cadence_days', 'duration_days', 'limiting_mags']
+        for key in required:
+            if key not in self.cadence_config:
+                raise ValueError(f"cadence_config must contain '{key}'")
+
+        # Check limiting_mags has all bands
+        for band in self.cadence_config['bands']:
+            if band not in self.cadence_config['limiting_mags']:
+                raise ValueError(f"limiting_mags must include band '{band}'")
+
+    def _generate_observations(self):
+        """Generate observation schedule based on cadence"""
+        bands = self.cadence_config['bands']
+        cadence_days = self.cadence_config['cadence_days']
+        duration = self.cadence_config['duration_days']
+        start_offset = self.cadence_config.get('start_offset_days', 0)
+
+        # Handle per-band cadences
+        if isinstance(cadence_days, (int, float)):
+            # Same cadence for all bands
+            cadence_dict = {band: cadence_days for band in bands}
+        else:
+            cadence_dict = cadence_days
+
+        # Generate observation times for each band
+        obs_times = []
+        obs_bands = []
+
+        if 'band_sequence' in self.cadence_config:
+            # Use specified band sequence
+            band_seq = self.cadence_config['band_sequence']
+            # Find minimum cadence
+            min_cadence = min(cadence_dict.values())
+
+            t = start_offset
+            idx = 0
+            while t <= duration:
+                obs_times.append(t)
+                obs_bands.append(band_seq[idx % len(band_seq)])
+                t += min_cadence
+                idx += 1
+        else:
+            # Independent cadences per band
+            for band in bands:
+                cadence = cadence_dict[band]
+                t = start_offset
+                while t <= duration:
+                    obs_times.append(t)
+                    obs_bands.append(band)
+                    t += cadence
+
+        # Sort by time
+        sorted_indices = np.argsort(obs_times)
+        obs_times = np.array(obs_times)[sorted_indices]
+        obs_bands = np.array(obs_bands)[sorted_indices]
+
+        # Create DataFrame
+        obs_df = pd.DataFrame({
+            'time_since_t0': obs_times,
+            'time_mjd': obs_times + self.t0,
+            'band': obs_bands,
+            'limiting_mag': [self.cadence_config['limiting_mags'][b] for b in obs_bands]
+        })
+
+        logger.info(f"Generated {len(obs_df)} observations over {duration} days in {len(bands)} bands")
+
+        return obs_df
+
+    def _evaluate_model(self):
+        """Evaluate model at observation times"""
+        times = self.observations['time_since_t0'].values
+        bands = self.observations['band'].values
+
+        # Prepare model kwargs
+        eval_kwargs = self.parameters.copy()
+        eval_kwargs.update(self.model_kwargs)
+        eval_kwargs['bands'] = bands
+        eval_kwargs['output_format'] = 'magnitude'
+
+        # Evaluate model
+        try:
+            magnitudes = self.model(times, **eval_kwargs)
+            self.observations['model_magnitude'] = magnitudes
+
+            # Also calculate flux for SNR calculations
+            self.observations['model_flux'] = redback.utils.bandpass_magnitude_to_flux(
+                magnitude=magnitudes,
+                bands=bands
+            )
+        except Exception as e:
+            logger.error(f"Error evaluating model: {e}")
+            raise
+
+    def _add_noise_and_cuts(self):
+        """Add noise and apply SNR cuts"""
+        n_obs = len(self.observations)
+
+        if self.noise_type == 'limiting_mag':
+            # Realistic: noise from limiting magnitude
+            limiting_mags = self.observations['limiting_mag'].values
+            bands = self.observations['band'].values
+
+            # Sky noise flux at limiting magnitude (5-sigma)
+            ref_flux = redback.utils.bands_to_reference_flux(bands)
+            limiting_flux = redback.utils.bandpass_magnitude_to_flux(limiting_mags, bands)
+
+            # 5-sigma limiting flux, so 1-sigma noise is limiting_flux / 5
+            flux_error = limiting_flux / 5.0
+
+            # Add noise to model flux
+            model_flux = self.observations['model_flux'].values
+            observed_flux = model_flux + self.rng.normal(0, flux_error, n_obs)
+
+            # Calculate SNR
+            snr = model_flux / flux_error
+
+            # Convert back to magnitude
+            observed_mag = redback.utils.bandpass_flux_to_magnitude(observed_flux, bands)
+            mag_error = redback.utils.magnitude_error_from_flux_error(observed_flux, flux_error)
+
+            self.observations['magnitude'] = observed_mag
+            self.observations['magnitude_error'] = mag_error
+            self.observations['flux'] = observed_flux
+            self.observations['flux_error'] = flux_error
+            self.observations['snr'] = snr
+
+        elif self.noise_type == 'gaussian':
+            # Simple Gaussian noise (less realistic)
+            model_mag = self.observations['model_magnitude'].values
+            noise_level = 0.1  # default 0.1 mag
+
+            mag_error = np.ones(n_obs) * noise_level
+            observed_mag = model_mag + self.rng.normal(0, noise_level, n_obs)
+
+            self.observations['magnitude'] = observed_mag
+            self.observations['magnitude_error'] = mag_error
+            # Approximate SNR
+            self.observations['snr'] = 1.0 / mag_error
+
+        elif self.noise_type == 'gaussianmodel':
+            # Noise proportional to model
+            model_mag = self.observations['model_magnitude'].values
+            noise_factor = 0.05  # 5% default
+
+            mag_error = noise_factor * np.abs(model_mag)
+            observed_mag = model_mag + self.rng.normal(0, mag_error, n_obs)
+
+            self.observations['magnitude'] = observed_mag
+            self.observations['magnitude_error'] = mag_error
+            self.observations['snr'] = 1.0 / noise_factor
+
+        # Apply SNR cut
+        if self.apply_snr_cut:
+            detected = self.observations['snr'] >= self.snr_threshold
+            self.observations['detected'] = detected
+
+            n_detected = np.sum(detected)
+            logger.info(f"Detected {n_detected}/{n_obs} observations (SNR >= {self.snr_threshold})")
+        else:
+            self.observations['detected'] = True
+
+    @property
+    def detected_observations(self):
+        """Return only detected observations"""
+        if 'detected' in self.observations.columns:
+            return self.observations[self.observations['detected'] == True]
+        return self.observations
+
+    def save_transient(self, name):
+        """
+        Save transient observations to CSV
+
+        :param name: Name for output files
+        """
+        bilby.utils.check_directory_exists_and_if_not_mkdir('simulated')
+
+        # Save observations
+        obs_path = f'simulated/{name}_observations.csv'
+        self.observations.to_csv(obs_path, index=False)
+
+        # Save parameters
+        param_path = f'simulated/{name}_parameters.csv'
+        params_df = pd.DataFrame([self.parameters])
+        params_df.to_csv(param_path, index=False)
+
+        # Save cadence config
+        import json
+        config_path = f'simulated/{name}_cadence_config.json'
+        with open(config_path, 'w') as f:
+            json.dump(self.cadence_config, f, indent=2)
+
+        logger.info(f"Saved transient to simulated/{name}_*")
+
 class SimulateOpticalTransient(object):
     def __init__(self, model, parameters, pointings_database=None,
                  survey='Rubin_10yr_baseline',sncosmo_kwargs=None, obs_buffer=5.0,
