@@ -117,3 +117,39 @@ def get_fred_extended_priors(times, y, yerr, **kwargs):
     priors = get_fred_priors(times=times, y=y, yerr=yerr, **kwargs)
     priors['gamma'] = bilby.core.prior.LogUniform(minimum=1e-3, maximum=1e3, name=r"$\gamma$")
     priors['nu'] = bilby.core.prior.LogUniform(minimum=1e-3, maximum=1e3, name=r"$\nu")
+
+
+def get_lensing_priors(nimages=2, dt_min=0.0, dt_max=1000.0, mu_min=0.1, mu_max=100.0, **kwargs):
+    """
+    Get priors for gravitational lensing parameters.
+
+    :param nimages: Number of lensed images (default: 2)
+    :param dt_min: Minimum time delay in days (default: 0.0)
+    :param dt_max: Maximum time delay in days (default: 1000.0)
+    :param mu_min: Minimum magnification factor (default: 0.1)
+    :param mu_max: Maximum magnification factor (default: 100.0)
+    :param kwargs: Additional keyword arguments
+    :return: PriorDict with lensing parameters
+
+    Example:
+        >>> lensing_priors = get_lensing_priors(nimages=3)
+        >>> base_priors = get_priors('arnett')
+        >>> combined_priors = {**base_priors, **lensing_priors}
+    """
+    priors = bilby.core.prior.PriorDict()
+
+    for i in range(1, nimages + 1):
+        # First image is typically the reference (dt=0)
+        if i == 1:
+            priors[f'dt_{i}'] = bilby.core.prior.DeltaFunction(
+                peak=0.0, name=f'dt_{i}', latex_label=rf'$\Delta t_{i}$ (days)')
+        else:
+            priors[f'dt_{i}'] = bilby.core.prior.Uniform(
+                minimum=dt_min, maximum=dt_max, name=f'dt_{i}',
+                latex_label=rf'$\Delta t_{i}$ (days)')
+
+        priors[f'mu_{i}'] = bilby.core.prior.LogUniform(
+            minimum=mu_min, maximum=mu_max, name=f'mu_{i}',
+            latex_label=rf'$\mu_{i}$')
+
+    return priors
