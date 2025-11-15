@@ -2,6 +2,8 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 import pandas as pd
+from typing import Union, Optional
+from pathlib import Path
 
 import redback.model_library
 from redback.utils import logger, find_nearest, bands_to_frequency
@@ -468,3 +470,467 @@ def generate_new_transient_data_from_gp(gp_out, t_new, transient, **kwargs):
                                                            Lum50=y_pred, Lum50_err=y_err,
                                                            time_rest_frame=tts, data_mode=data_mode)
     return new_transient
+
+
+class SpectralTemplateMatcher(object):
+    """
+    Match spectra to template library (similar to SNID).
+
+    This class provides functionality for spectral template matching,
+    allowing classification of transients based on spectral features.
+    Templates can be loaded from a custom library or generated from
+    redback spectral models.
+    """
+
+    def __init__(self, template_library_path: Optional[Union[str, Path]] = None,
+                 templates: Optional[list] = None) -> None:
+        """
+        Initialize the SpectralTemplateMatcher with a template library.
+
+        :param template_library_path: Path to a directory containing template files.
+            Each template file should be a CSV or text file with columns for
+            wavelength (in Angstroms) and flux. If None, uses built-in templates.
+        :param templates: List of template dictionaries to use directly. Each template
+            should have keys: 'wavelength', 'flux', 'type', 'phase', and optionally 'name'.
+        """
+        if templates is not None:
+            self.templates = templates
+        elif template_library_path is not None:
+            self.templates = self._load_templates(template_library_path)
+        else:
+            self.templates = self._load_default_templates()
+
+        logger.info(f"Loaded {len(self.templates)} templates into the matcher")
+
+    def _load_default_templates(self) -> list:
+        """
+        Load built-in default templates.
+
+        Currently generates simple blackbody templates at different temperatures
+        to serve as a baseline. Users should provide their own template library
+        for production use.
+
+        :return: List of template dictionaries
+        """
+        logger.info("Loading default blackbody templates")
+        templates = []
+
+        # Generate simple blackbody templates at different temperatures
+        wavelengths = np.linspace(3000, 10000, 1000)  # Angstroms
+
+        # Type Ia-like templates (hotter)
+        for phase in [-10, -5, 0, 5, 10, 15, 20]:
+            # Temperature evolution: peak around max light
+            temp = 12000 - 200 * phase  # Simple temperature evolution
+            temp = max(temp, 5000)  # Minimum temperature
+            flux = self._blackbody_flux(wavelengths, temp)
+            templates.append({
+                'wavelength': wavelengths,
+                'flux': flux / np.max(flux),  # Normalize
+                'type': 'Ia',
+                'phase': phase,
+                'name': f'Ia_phase_{phase}'
+            })
+
+        # Type II-like templates (cooler)
+        for phase in [0, 10, 20, 30, 50]:
+            temp = 8000 - 50 * phase
+            temp = max(temp, 4000)
+            flux = self._blackbody_flux(wavelengths, temp)
+            templates.append({
+                'wavelength': wavelengths,
+                'flux': flux / np.max(flux),
+                'type': 'II',
+                'phase': phase,
+                'name': f'II_phase_{phase}'
+            })
+
+        # Type Ib/c-like templates
+        for phase in [-5, 0, 5, 10, 15]:
+            temp = 10000 - 150 * phase
+            temp = max(temp, 5500)
+            flux = self._blackbody_flux(wavelengths, temp)
+            templates.append({
+                'wavelength': wavelengths,
+                'flux': flux / np.max(flux),
+                'type': 'Ib/c',
+                'phase': phase,
+                'name': f'Ibc_phase_{phase}'
+            })
+
+        return templates
+
+    def _blackbody_flux(self, wavelength: np.ndarray, temperature: float) -> np.ndarray:
+        """
+        Calculate blackbody flux for given wavelength and temperature.
+
+        :param wavelength: Wavelength array in Angstroms
+        :param temperature: Temperature in Kelvin
+        :return: Flux array (arbitrary units, will be normalized)
+        """
+        from redback.constants import planck, speed_of_light, boltzmann_constant
+
+        # Convert wavelength to cm
+        wavelength_cm = wavelength * 1e-8
+
+        # Planck function
+        h = planck
+        c = speed_of_light
+        k = boltzmann_constant
+
+        # B_lambda (erg/s/cm^2/cm/sr)
+        exponent = (h * c) / (wavelength_cm * k * temperature)
+        # Avoid overflow
+        exponent = np.clip(exponent, None, 700)
+        flux = (2 * h * c**2 / wavelength_cm**5) / (np.exp(exponent) - 1)
+
+        return flux
+
+    def _load_templates(self, library_path: Union[str, Path]) -> list:
+        """
+        Load templates from a directory of files.
+
+        Expected file format: CSV or whitespace-separated with columns:
+        wavelength (Angstroms), flux
+
+        File naming convention: {type}_{phase}.csv or {type}_{phase}.dat
+        e.g., Ia_+5.csv, II_10.dat
+
+        :param library_path: Path to template library directory
+        :return: List of template dictionaries
+        """
+        library_path = Path(library_path)
+        if not library_path.exists():
+            raise FileNotFoundError(f"Template library path not found: {library_path}")
+
+        templates = []
+
+        # Look for CSV and DAT files
+        template_files = list(library_path.glob("*.csv")) + list(library_path.glob("*.dat"))
+
+        if len(template_files) == 0:
+            raise ValueError(f"No template files found in {library_path}")
+
+        for file_path in template_files:
+            try:
+                # Try to parse filename for type and phase
+                stem = file_path.stem
+                parts = stem.split('_')
+                if len(parts) >= 2:
+                    sn_type = parts[0]
+                    phase_str = parts[1].replace('+', '')
+                    try:
+                        phase = float(phase_str)
+                    except ValueError:
+                        phase = 0.0
+                else:
+                    sn_type = stem
+                    phase = 0.0
+
+                # Load data
+                if file_path.suffix == '.csv':
+                    data = np.loadtxt(file_path, delimiter=',', skiprows=1)
+                else:
+                    data = np.loadtxt(file_path)
+
+                wavelength = data[:, 0]
+                flux = data[:, 1]
+
+                # Normalize flux
+                flux = flux / np.max(flux)
+
+                templates.append({
+                    'wavelength': wavelength,
+                    'flux': flux,
+                    'type': sn_type,
+                    'phase': phase,
+                    'name': stem
+                })
+
+                logger.info(f"Loaded template: {stem}")
+
+            except Exception as e:
+                logger.warning(f"Failed to load template {file_path}: {e}")
+                continue
+
+        return templates
+
+    def add_template(self, wavelength: np.ndarray, flux: np.ndarray,
+                     sn_type: str, phase: float, name: Optional[str] = None) -> None:
+        """
+        Add a single template to the library.
+
+        :param wavelength: Wavelength array in Angstroms
+        :param flux: Flux array (will be normalized)
+        :param sn_type: Type classification (e.g., 'Ia', 'II', 'Ib/c')
+        :param phase: Phase in days from maximum light
+        :param name: Optional name for the template
+        """
+        if name is None:
+            name = f"{sn_type}_phase_{phase}"
+
+        flux_normalized = flux / np.max(flux)
+
+        self.templates.append({
+            'wavelength': wavelength,
+            'flux': flux_normalized,
+            'type': sn_type,
+            'phase': phase,
+            'name': name
+        })
+
+        logger.info(f"Added template: {name}")
+
+    def match_spectrum(self, spectrum, redshift_range: tuple = (0, 0.5),
+                       n_redshift_points: int = 50,
+                       method: str = 'correlation',
+                       return_all_matches: bool = False) -> Union[dict, list]:
+        """
+        Find best-matching template for an observed spectrum.
+
+        :param spectrum: Spectrum object with angstroms and flux_density attributes
+        :param redshift_range: Tuple of (z_min, z_max) for redshift search
+        :param n_redshift_points: Number of redshift values to try
+        :param method: Matching method - 'correlation' (Pearson), 'chi2', or 'both'
+        :param return_all_matches: If True, return sorted list of all matches
+        :return: Best match dictionary with keys:
+            - 'type': Supernova type classification
+            - 'phase': Phase in days from maximum
+            - 'redshift': Best-fit redshift
+            - 'correlation': Pearson correlation coefficient
+            - 'chi2': Chi-squared value (if method includes chi2)
+            - 'template_name': Name of matched template
+        """
+        from scipy.interpolate import interp1d
+        from scipy.stats import pearsonr
+
+        if len(self.templates) == 0:
+            raise ValueError("No templates loaded. Add templates before matching.")
+
+        all_matches = []
+
+        # Get observed spectrum data
+        obs_wavelength = spectrum.angstroms
+        obs_flux = spectrum.flux_density
+
+        # Normalize observed spectrum
+        obs_flux_norm = obs_flux / np.max(np.abs(obs_flux))
+
+        # Check if we have errors
+        has_errors = hasattr(spectrum, 'flux_density_err') and spectrum.flux_density_err is not None
+        if has_errors:
+            obs_flux_err = spectrum.flux_density_err
+
+        # Try each template at different redshifts
+        for template in self.templates:
+            for z in np.linspace(redshift_range[0], redshift_range[1], n_redshift_points):
+                # Redshift template wavelengths to observed frame
+                template_wave_obs = template['wavelength'] * (1 + z)
+
+                # Check for wavelength overlap
+                min_overlap = max(np.min(template_wave_obs), np.min(obs_wavelength))
+                max_overlap = min(np.max(template_wave_obs), np.max(obs_wavelength))
+
+                if max_overlap <= min_overlap:
+                    continue  # No overlap
+
+                # Interpolate template to observed wavelengths
+                interp_func = interp1d(template_wave_obs, template['flux'],
+                                       bounds_error=False, fill_value=np.nan)
+                template_flux_interp = interp_func(obs_wavelength)
+
+                # Mask invalid values
+                valid_mask = ~np.isnan(template_flux_interp) & ~np.isnan(obs_flux_norm)
+                valid_mask &= (template_flux_interp != 0)
+
+                if np.sum(valid_mask) < 10:
+                    continue  # Not enough valid points
+
+                obs_valid = obs_flux_norm[valid_mask]
+                template_valid = template_flux_interp[valid_mask]
+
+                # Calculate correlation
+                match_result = {
+                    'type': template['type'],
+                    'phase': template['phase'],
+                    'redshift': z,
+                    'template_name': template.get('name', f"{template['type']}_p{template['phase']}"),
+                    'n_valid_points': int(np.sum(valid_mask))
+                }
+
+                if method in ['correlation', 'both']:
+                    try:
+                        corr, p_value = pearsonr(obs_valid, template_valid)
+                        match_result['correlation'] = corr
+                        match_result['p_value'] = p_value
+                    except Exception:
+                        match_result['correlation'] = -1
+                        match_result['p_value'] = 1.0
+
+                if method in ['chi2', 'both']:
+                    if has_errors:
+                        obs_err_valid = obs_flux_err[valid_mask]
+                        # Scale template to match observed flux
+                        scale = np.sum(obs_valid * template_valid / obs_err_valid**2) / \
+                                np.sum(template_valid**2 / obs_err_valid**2)
+                        scaled_template = scale * template_valid
+                        chi2 = np.sum(((obs_valid - scaled_template) / obs_err_valid)**2)
+                        reduced_chi2 = chi2 / (len(obs_valid) - 1)
+                        match_result['chi2'] = chi2
+                        match_result['reduced_chi2'] = reduced_chi2
+                        match_result['scale_factor'] = scale
+                    else:
+                        # Without errors, use variance
+                        scale = np.sum(obs_valid * template_valid) / np.sum(template_valid**2)
+                        scaled_template = scale * template_valid
+                        residuals = obs_valid - scaled_template
+                        chi2 = np.sum(residuals**2) / np.var(obs_valid)
+                        match_result['chi2'] = chi2
+                        match_result['scale_factor'] = scale
+
+                all_matches.append(match_result)
+
+        if len(all_matches) == 0:
+            logger.warning("No valid matches found. Check wavelength coverage and templates.")
+            return None
+
+        # Sort by best match
+        if method == 'chi2':
+            all_matches.sort(key=lambda x: x.get('chi2', np.inf))
+            best_match = all_matches[0]
+        elif method == 'correlation':
+            all_matches.sort(key=lambda x: -x.get('correlation', -1))
+            best_match = all_matches[0]
+        else:  # both
+            # Rank by correlation primarily
+            all_matches.sort(key=lambda x: -x.get('correlation', -1))
+            best_match = all_matches[0]
+
+        if return_all_matches:
+            return all_matches
+        else:
+            return best_match
+
+    def classify_spectrum(self, spectrum, redshift_range: tuple = (0, 0.5),
+                          n_redshift_points: int = 50,
+                          top_n: int = 5) -> dict:
+        """
+        Classify a spectrum and provide confidence metrics.
+
+        :param spectrum: Spectrum object to classify
+        :param redshift_range: Tuple of (z_min, z_max) for redshift search
+        :param n_redshift_points: Number of redshift values to try
+        :param top_n: Number of top matches to consider for classification
+        :return: Classification result dictionary with:
+            - 'best_type': Most likely type
+            - 'best_phase': Phase of best match
+            - 'best_redshift': Redshift of best match
+            - 'correlation': Correlation of best match
+            - 'type_probabilities': Dict of type likelihoods based on top matches
+            - 'top_matches': List of top N matches
+        """
+        all_matches = self.match_spectrum(spectrum, redshift_range=redshift_range,
+                                          n_redshift_points=n_redshift_points,
+                                          method='correlation',
+                                          return_all_matches=True)
+
+        if all_matches is None or len(all_matches) == 0:
+            return {'best_type': None, 'error': 'No valid matches found'}
+
+        # Get top N matches
+        top_matches = all_matches[:min(top_n, len(all_matches))]
+
+        # Calculate type probabilities from correlations
+        type_scores = {}
+        for match in top_matches:
+            sn_type = match['type']
+            corr = match.get('correlation', 0)
+            # Weight by correlation squared (higher correlation = more weight)
+            weight = max(0, corr)**2
+            if sn_type in type_scores:
+                type_scores[sn_type] += weight
+            else:
+                type_scores[sn_type] = weight
+
+        # Normalize to probabilities
+        total_score = sum(type_scores.values())
+        if total_score > 0:
+            type_probabilities = {k: v / total_score for k, v in type_scores.items()}
+        else:
+            type_probabilities = {k: 0 for k in type_scores}
+
+        best_match = top_matches[0]
+
+        return {
+            'best_type': best_match['type'],
+            'best_phase': best_match['phase'],
+            'best_redshift': best_match['redshift'],
+            'correlation': best_match['correlation'],
+            'type_probabilities': type_probabilities,
+            'top_matches': top_matches
+        }
+
+    def plot_match(self, spectrum, match_result: dict, axes=None, **kwargs) -> matplotlib.axes.Axes:
+        """
+        Plot observed spectrum against best-matching template.
+
+        :param spectrum: Observed Spectrum object
+        :param match_result: Result dictionary from match_spectrum
+        :param axes: Optional matplotlib axes to plot on
+        :param kwargs: Additional plotting arguments
+        :return: Matplotlib axes object
+        """
+        from scipy.interpolate import interp1d
+
+        ax = axes or plt.gca()
+
+        # Get observed spectrum
+        obs_wavelength = spectrum.angstroms
+        obs_flux = spectrum.flux_density / np.max(spectrum.flux_density)
+
+        # Find matching template
+        template = None
+        for t in self.templates:
+            if t.get('name') == match_result.get('template_name'):
+                template = t
+                break
+
+        if template is None:
+            # Try to find by type and phase
+            for t in self.templates:
+                if t['type'] == match_result['type'] and t['phase'] == match_result['phase']:
+                    template = t
+                    break
+
+        if template is None:
+            raise ValueError("Could not find matching template")
+
+        # Redshift template
+        z = match_result['redshift']
+        template_wave_obs = template['wavelength'] * (1 + z)
+
+        # Interpolate template to observed wavelengths for comparison
+        interp_func = interp1d(template_wave_obs, template['flux'],
+                               bounds_error=False, fill_value=np.nan)
+        template_flux_interp = interp_func(obs_wavelength)
+
+        # Scale template to match observed flux
+        valid_mask = ~np.isnan(template_flux_interp)
+        if 'scale_factor' in match_result:
+            scale = match_result['scale_factor']
+        else:
+            scale = np.nansum(obs_flux * template_flux_interp) / np.nansum(template_flux_interp**2)
+
+        # Plot
+        ax.plot(obs_wavelength, obs_flux, 'k-', label='Observed', alpha=0.8, lw=1.5)
+        ax.plot(obs_wavelength, scale * template_flux_interp, 'r--',
+                label=f"Template: {match_result['type']} (phase={match_result['phase']:.0f}d, z={z:.3f})",
+                alpha=0.8, lw=1.5)
+
+        ax.set_xlabel(r'Wavelength ($\mathrm{\AA}$)')
+        ax.set_ylabel('Normalized Flux')
+        title = f"Best Match: {match_result['type']}, r={match_result.get('correlation', 0):.3f}"
+        ax.set_title(title)
+        ax.legend(loc='best')
+
+        return ax
