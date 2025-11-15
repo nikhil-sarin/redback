@@ -934,3 +934,400 @@ class SpectralTemplateMatcher(object):
         ax.legend(loc='best')
 
         return ax
+
+    @staticmethod
+    def get_available_template_sources() -> dict:
+        """
+        Get information about available template sources.
+
+        :return: Dictionary with source names and their descriptions/URLs
+        """
+        return {
+            'snid_templates_2.0': {
+                'description': 'Official SNID templates v2.0 from Blondin & Tonry',
+                'url': 'https://people.lam.fr/blondin.stephane/software/snid/',
+                'download_url': 'https://people.lam.fr/blondin.stephane/software/snid/templates-2.0.tgz',
+                'citation': 'Blondin & Tonry 2007, ApJ, 666, 1024'
+            },
+            'super_snid': {
+                'description': 'Super-SNID expanded templates (841 spectra, 161 objects)',
+                'url': 'https://github.com/dkjmagill/QUB-SNID-Templates',
+                'zenodo_doi': '10.5281/zenodo.15167198',
+                'citation': 'Magill et al. 2025'
+            },
+            'sesn_templates': {
+                'description': 'Stripped-envelope SN templates from METAL collaboration',
+                'url': 'https://github.com/metal-sn/SESNtemple',
+                'citation': 'Williamson et al. 2023, Yesmin et al. 2024'
+            },
+            'open_supernova_catalog': {
+                'description': 'Open Supernova Catalog API',
+                'url': 'https://sne.space/',
+                'api': 'https://api.sne.space/',
+                'citation': 'Guillochon et al. 2017'
+            },
+            'wiserep': {
+                'description': 'Weizmann Interactive Supernova Data Repository',
+                'url': 'https://www.wiserep.org/',
+                'citation': 'Yaron & Gal-Yam 2012'
+            }
+        }
+
+    @classmethod
+    def download_templates_from_osc(cls, sn_types: list = None,
+                                     max_per_type: int = 10,
+                                     cache_dir: Optional[Union[str, Path]] = None) -> 'SpectralTemplateMatcher':
+        """
+        Download spectral templates from the Open Supernova Catalog.
+
+        :param sn_types: List of SN types to download (e.g., ['Ia', 'II', 'Ib', 'Ic'])
+            If None, downloads common types.
+        :param max_per_type: Maximum number of spectra per type
+        :param cache_dir: Directory to cache downloaded templates. If None, uses
+            ~/.redback/spectral_templates/
+        :return: SpectralTemplateMatcher instance with downloaded templates
+        """
+        import urllib.request
+        import json
+
+        if sn_types is None:
+            sn_types = ['Ia', 'II', 'Ib', 'Ic', 'IIn', 'Ic-BL']
+
+        if cache_dir is None:
+            cache_dir = Path.home() / '.redback' / 'spectral_templates' / 'osc'
+        else:
+            cache_dir = Path(cache_dir)
+
+        cache_dir.mkdir(parents=True, exist_ok=True)
+
+        templates = []
+
+        logger.info(f"Downloading templates from Open Supernova Catalog for types: {sn_types}")
+
+        for sn_type in sn_types:
+            logger.info(f"Fetching Type {sn_type} supernovae...")
+            try:
+                # Query OSC API for supernovae of this type
+                # The API returns basic info; we need to get spectra separately
+                api_url = f"https://api.sne.space/catalog?claimedtype={sn_type}&spectra&format=json"
+                api_url = api_url.replace(' ', '%20')
+
+                with urllib.request.urlopen(api_url, timeout=30) as response:
+                    data = json.loads(response.read().decode())
+
+                count = 0
+                for sn_name, sn_data in data.items():
+                    if count >= max_per_type:
+                        break
+
+                    if 'spectra' not in sn_data or len(sn_data['spectra']) == 0:
+                        continue
+
+                    # Get the first spectrum with data
+                    for spec_entry in sn_data['spectra']:
+                        if 'data' not in spec_entry:
+                            continue
+
+                        try:
+                            spec_data = spec_entry['data']
+                            wavelengths = []
+                            fluxes = []
+
+                            for point in spec_data:
+                                if len(point) >= 2:
+                                    wavelengths.append(float(point[0]))
+                                    fluxes.append(float(point[1]))
+
+                            if len(wavelengths) < 50:
+                                continue
+
+                            wavelengths = np.array(wavelengths)
+                            fluxes = np.array(fluxes)
+
+                            # Normalize
+                            fluxes = fluxes / np.max(np.abs(fluxes))
+
+                            # Extract phase if available
+                            phase = 0.0
+                            if 'time' in spec_entry:
+                                try:
+                                    phase = float(spec_entry['time'])
+                                except (ValueError, TypeError):
+                                    pass
+
+                            templates.append({
+                                'wavelength': wavelengths,
+                                'flux': fluxes,
+                                'type': sn_type,
+                                'phase': phase,
+                                'name': f"{sn_name}_{sn_type}_phase{phase:.0f}"
+                            })
+
+                            count += 1
+                            logger.info(f"  Downloaded {sn_name} spectrum")
+                            break  # Only take first spectrum per SN
+
+                        except Exception as e:
+                            logger.warning(f"  Failed to parse spectrum for {sn_name}: {e}")
+                            continue
+
+                logger.info(f"Downloaded {count} Type {sn_type} templates")
+
+            except Exception as e:
+                logger.warning(f"Failed to download Type {sn_type} templates: {e}")
+                continue
+
+        if len(templates) == 0:
+            logger.warning("No templates downloaded. Using default templates.")
+            return cls()
+
+        return cls(templates=templates)
+
+    @staticmethod
+    def parse_snid_template_file(file_path: Union[str, Path]) -> dict:
+        """
+        Parse a SNID template file (.lnw format).
+
+        SNID template files have a specific format:
+        - Header lines starting with '#' or containing metadata
+        - Data lines with wavelength and flux columns
+
+        :param file_path: Path to .lnw or .dat template file
+        :return: Dictionary with wavelength, flux, type, phase, and name
+        """
+        file_path = Path(file_path)
+
+        wavelengths = []
+        fluxes = []
+        sn_type = 'Unknown'
+        phase = 0.0
+        name = file_path.stem
+
+        # Parse filename for metadata (common SNID naming: sn1999aa_Ia_+5.lnw)
+        parts = name.split('_')
+        if len(parts) >= 2:
+            # Try to extract type
+            for part in parts[1:]:
+                if part in ['Ia', 'Ib', 'Ic', 'II', 'IIn', 'IIP', 'IIL', 'Ic-BL', 'Ia-pec']:
+                    sn_type = part
+                elif part.startswith('+') or part.startswith('-') or part.replace('.', '').isdigit():
+                    try:
+                        phase = float(part.replace('+', ''))
+                    except ValueError:
+                        pass
+
+        with open(file_path, 'r') as f:
+            for line in f:
+                line = line.strip()
+                if not line or line.startswith('#'):
+                    # Check for metadata in comments
+                    if 'Type:' in line or 'type:' in line:
+                        try:
+                            sn_type = line.split(':')[1].strip()
+                        except IndexError:
+                            pass
+                    if 'Phase:' in line or 'phase:' in line:
+                        try:
+                            phase = float(line.split(':')[1].strip())
+                        except (IndexError, ValueError):
+                            pass
+                    continue
+
+                try:
+                    parts = line.split()
+                    if len(parts) >= 2:
+                        wavelengths.append(float(parts[0]))
+                        fluxes.append(float(parts[1]))
+                except ValueError:
+                    continue
+
+        if len(wavelengths) == 0:
+            raise ValueError(f"No valid data found in {file_path}")
+
+        wavelengths = np.array(wavelengths)
+        fluxes = np.array(fluxes)
+
+        # Normalize
+        fluxes = fluxes / np.max(np.abs(fluxes))
+
+        return {
+            'wavelength': wavelengths,
+            'flux': fluxes,
+            'type': sn_type,
+            'phase': phase,
+            'name': name
+        }
+
+    @classmethod
+    def from_snid_template_directory(cls, directory: Union[str, Path],
+                                      file_pattern: str = "*.lnw") -> 'SpectralTemplateMatcher':
+        """
+        Create a SpectralTemplateMatcher from a directory of SNID template files.
+
+        :param directory: Path to directory containing SNID template files
+        :param file_pattern: Glob pattern for template files (default: "*.lnw")
+        :return: SpectralTemplateMatcher instance
+        """
+        directory = Path(directory)
+        if not directory.exists():
+            raise FileNotFoundError(f"Directory not found: {directory}")
+
+        template_files = list(directory.glob(file_pattern))
+        if len(template_files) == 0:
+            # Try other common extensions
+            template_files = (list(directory.glob("*.lnw")) +
+                            list(directory.glob("*.dat")) +
+                            list(directory.glob("*.txt")))
+
+        if len(template_files) == 0:
+            raise ValueError(f"No template files found in {directory}")
+
+        templates = []
+        for file_path in template_files:
+            try:
+                template = cls.parse_snid_template_file(file_path)
+                templates.append(template)
+                logger.info(f"Loaded SNID template: {file_path.name}")
+            except Exception as e:
+                logger.warning(f"Failed to load {file_path}: {e}")
+                continue
+
+        logger.info(f"Loaded {len(templates)} SNID templates from {directory}")
+        return cls(templates=templates)
+
+    @staticmethod
+    def download_github_templates(repo_url: str,
+                                   branch: str = "master",
+                                   subdirectory: str = "",
+                                   cache_dir: Optional[Union[str, Path]] = None) -> Path:
+        """
+        Download template files from a GitHub repository.
+
+        :param repo_url: GitHub repository URL (e.g., 'https://github.com/metal-sn/SESNtemple')
+        :param branch: Branch name (default: 'master')
+        :param subdirectory: Subdirectory within repo containing templates
+        :param cache_dir: Local directory to cache files. If None, uses ~/.redback/spectral_templates/
+        :return: Path to downloaded template directory
+        """
+        import urllib.request
+        import zipfile
+        import tempfile
+
+        if cache_dir is None:
+            cache_dir = Path.home() / '.redback' / 'spectral_templates'
+        else:
+            cache_dir = Path(cache_dir)
+
+        cache_dir.mkdir(parents=True, exist_ok=True)
+
+        # Parse repo URL to get owner and repo name
+        parts = repo_url.rstrip('/').split('/')
+        repo_name = parts[-1]
+        owner = parts[-2]
+
+        # Create unique cache directory for this repo
+        repo_cache = cache_dir / f"{owner}_{repo_name}"
+
+        if repo_cache.exists() and any(repo_cache.iterdir()):
+            logger.info(f"Using cached templates from {repo_cache}")
+            if subdirectory:
+                return repo_cache / subdirectory
+            return repo_cache
+
+        # Download zip archive
+        zip_url = f"https://github.com/{owner}/{repo_name}/archive/refs/heads/{branch}.zip"
+        logger.info(f"Downloading templates from {zip_url}")
+
+        try:
+            with tempfile.NamedTemporaryFile(suffix='.zip', delete=False) as tmp_file:
+                urllib.request.urlretrieve(zip_url, tmp_file.name)
+                tmp_path = tmp_file.name
+
+            # Extract zip
+            with zipfile.ZipFile(tmp_path, 'r') as zip_ref:
+                zip_ref.extractall(cache_dir)
+
+            # Rename extracted directory
+            extracted_dir = cache_dir / f"{repo_name}-{branch}"
+            if extracted_dir.exists():
+                if repo_cache.exists():
+                    import shutil
+                    shutil.rmtree(repo_cache)
+                extracted_dir.rename(repo_cache)
+
+            Path(tmp_path).unlink()  # Clean up zip file
+
+            logger.info(f"Templates downloaded to {repo_cache}")
+
+            if subdirectory:
+                return repo_cache / subdirectory
+            return repo_cache
+
+        except Exception as e:
+            logger.error(f"Failed to download templates: {e}")
+            raise
+
+    @classmethod
+    def from_sesn_templates(cls, cache_dir: Optional[Union[str, Path]] = None) -> 'SpectralTemplateMatcher':
+        """
+        Create matcher from METAL/SESNtemple stripped-envelope SN templates.
+
+        Downloads templates from: https://github.com/metal-sn/SESNtemple
+
+        :param cache_dir: Local cache directory (default: ~/.redback/spectral_templates/)
+        :return: SpectralTemplateMatcher instance
+        """
+        template_dir = cls.download_github_templates(
+            'https://github.com/metal-sn/SESNtemple',
+            subdirectory='SNIDtemplates',
+            cache_dir=cache_dir
+        )
+
+        return cls.from_snid_template_directory(template_dir)
+
+    def save_templates(self, output_dir: Union[str, Path], format: str = 'csv') -> None:
+        """
+        Save current templates to disk for later use.
+
+        :param output_dir: Directory to save templates
+        :param format: Output format ('csv' or 'dat')
+        """
+        output_dir = Path(output_dir)
+        output_dir.mkdir(parents=True, exist_ok=True)
+
+        for template in self.templates:
+            filename = f"{template['name']}.{format}"
+            filepath = output_dir / filename
+
+            data = np.column_stack([template['wavelength'], template['flux']])
+
+            if format == 'csv':
+                np.savetxt(filepath, data, delimiter=',', header='wavelength,flux',
+                          comments='# Type: {}\n# Phase: {}\n'.format(
+                              template['type'], template['phase']))
+            else:
+                np.savetxt(filepath, data,
+                          header=f"Type: {template['type']}\nPhase: {template['phase']}")
+
+        logger.info(f"Saved {len(self.templates)} templates to {output_dir}")
+
+    def filter_templates(self, types: Optional[list] = None,
+                         phase_range: Optional[tuple] = None) -> 'SpectralTemplateMatcher':
+        """
+        Create a new matcher with filtered templates.
+
+        :param types: List of SN types to include (e.g., ['Ia', 'Ib'])
+        :param phase_range: Tuple of (min_phase, max_phase) in days
+        :return: New SpectralTemplateMatcher with filtered templates
+        """
+        filtered = self.templates.copy()
+
+        if types is not None:
+            filtered = [t for t in filtered if t['type'] in types]
+
+        if phase_range is not None:
+            min_phase, max_phase = phase_range
+            filtered = [t for t in filtered if min_phase <= t['phase'] <= max_phase]
+
+        logger.info(f"Filtered to {len(filtered)} templates")
+        return SpectralTemplateMatcher(templates=filtered)
