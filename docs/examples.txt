@@ -24,6 +24,7 @@ We provide several examples so users can get a more practical grasp of how to us
 - `supernova_example <https://github.com/nikhil-sarin/redback/blob/master/examples/supernova_example.py>`_
 - `tde_example <https://github.com/nikhil-sarin/redback/blob/master/examples/tde_example.py>`_
 - `SN2011kl_sample_in_t0_example <https://github.com/nikhil-sarin/redback/blob/master/examples/SN2011kl_sample_in_t0_example.py>`_
+- `spectral_template_matching_example <https://github.com/nikhil-sarin/redback/blob/master/examples/spectral_template_matching_example.py>`_
 
 We have also written a more tutorial style `jupyter notebook <https://github.com/nikhil-sarin/redback/blob/master/examples/RedbackTutorial.ipynb>`_
 demonstrating the bulk of the functionality of :code:`redback`. There are many more examples in the `examples <https://github.com/nikhil-sarin/redback/blob/master/examples>`_ folder of the repository.
