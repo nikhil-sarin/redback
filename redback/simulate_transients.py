@@ -140,16 +140,22 @@ class SimulateTransientWithCadence(object):
     This class bridges the gap between SimulateGenericTransient (too simple)
     and SimulateOpticalTransient (requires full pointing database).
 
+    Supports:
+    - Optical observations (bands, magnitudes)
+    - Radio observations (frequencies, flux densities)
+    - X-ray observations (frequencies, flux densities)
+
     Perfect for:
     - Using PopulationSynthesizer parameters
     - Survey planning without full pointing database
     - Testing different cadence strategies
     - Simple SNR-based detection modeling
+    - Multi-wavelength follow-up campaigns
     """
 
     def __init__(self, model, parameters, cadence_config, model_kwargs=None,
                  snr_threshold=5, noise_type='limiting_mag', seed=1234,
-                 apply_snr_cut=True, **kwargs):
+                 apply_snr_cut=True, observation_mode='optical', **kwargs):
         """
         Initialize transient simulation with cadence
 
@@ -158,26 +164,37 @@ class SimulateTransientWithCadence(object):
             Can be from PopulationSynthesizer.generate_population()
             Must include 't0_mjd_transient' or 't0' for explosion time
         :param cadence_config: Dictionary specifying observation cadence
-            Required keys:
-                'bands': list of filter names (e.g., ['g', 'r', 'i'])
-                'cadence_days': float or dict, days between observations
-                    If float: same cadence for all bands
-                    If dict: {'g': 3, 'r': 2, 'i': 1} - per-band cadences
-                'duration_days': float, total observation duration
-                'limiting_mags': dict, 5-sigma limiting magnitudes per band
-                    Example: {'g': 22.5, 'r': 23.0, 'i': 22.0}
-            Optional keys:
-                'start_offset_days': float, days after t0 to start observing (default: 0)
-                'band_sequence': list, observation sequence if alternating bands
-                    Example: ['g', 'r', 'i', 'g', 'r', 'i', ...]
+
+            For OPTICAL (observation_mode='optical'):
+                Required keys:
+                    'bands': list of filter names (e.g., ['g', 'r', 'i'])
+                    'cadence_days': float or dict, days between observations
+                    'duration_days': float, total observation duration
+                    'limiting_mags': dict, 5-sigma limiting magnitudes per band
+                Optional keys:
+                    'start_offset_days': float, days after t0 to start observing
+                    'band_sequence': list, observation sequence if alternating
+
+            For RADIO/X-RAY (observation_mode='radio' or 'xray'):
+                Required keys:
+                    'frequencies': list/array of frequencies in Hz
+                    'cadence_days': float or dict, days between observations
+                    'duration_days': float, total observation duration
+                    'sensitivity': dict or float, 5-sigma sensitivity in Jy or erg/cm^2/s
+                        If dict: {freq1: sens1, freq2: sens2}
+                        If float: same for all frequencies
+                Optional keys:
+                    'start_offset_days': float, days after t0 to start observing
+                    'frequency_sequence': list, observation sequence if alternating
+
         :param model_kwargs: Additional kwargs for model
         :param snr_threshold: SNR threshold for detection (default: 5)
         :param noise_type: How to calculate noise
-            'limiting_mag': From limiting magnitude (default, most realistic)
-            'gaussian': Gaussian with fixed sigma
-            'gaussianmodel': Gaussian proportional to model flux
+            For optical: 'limiting_mag', 'gaussian', 'gaussianmodel'
+            For radio/X-ray: 'sensitivity', 'gaussian', 'gaussianmodel'
         :param seed: Random seed for reproducibility
         :param apply_snr_cut: Whether to mark non-detections (SNR < threshold)
+        :param observation_mode: 'optical', 'radio', or 'xray' (default: 'optical')
         :param kwargs: Additional arguments
         """
         # Set model
@@ -199,9 +216,17 @@ class SimulateTransientWithCadence(object):
         self.snr_threshold = snr_threshold
         self.noise_type = noise_type
         self.apply_snr_cut = apply_snr_cut
+        self.observation_mode = observation_mode
         self.seed = seed
         self.rng = np.random.RandomState(seed=seed)
         random.seed(seed)
+
+        # Auto-detect mode if not specified
+        if 'bands' in cadence_config and 'frequencies' not in cadence_config:
+            self.observation_mode = 'optical'
+        elif 'frequencies' in cadence_config and 'bands' not in cadence_config:
+            if observation_mode == 'optical':
+                self.observation_mode = 'radio'  # Default to radio for frequencies
 
         # Validate cadence config
         self._validate_cadence_config()
@@ -226,18 +251,34 @@ class SimulateTransientWithCadence(object):
 
     def _validate_cadence_config(self):
         """Validate cadence configuration"""
-        required = ['bands', 'cadence_days', 'duration_days', 'limiting_mags']
-        for key in required:
-            if key not in self.cadence_config:
-                raise ValueError(f"cadence_config must contain '{key}'")
+        if self.observation_mode == 'optical':
+            required = ['bands', 'cadence_days', 'duration_days', 'limiting_mags']
+            for key in required:
+                if key not in self.cadence_config:
+                    raise ValueError(f"cadence_config must contain '{key}' for optical mode")
 
-        # Check limiting_mags has all bands
-        for band in self.cadence_config['bands']:
-            if band not in self.cadence_config['limiting_mags']:
-                raise ValueError(f"limiting_mags must include band '{band}'")
+            # Check limiting_mags has all bands
+            for band in self.cadence_config['bands']:
+                if band not in self.cadence_config['limiting_mags']:
+                    raise ValueError(f"limiting_mags must include band '{band}'")
+
+        elif self.observation_mode in ['radio', 'xray']:
+            required = ['frequencies', 'cadence_days', 'duration_days', 'sensitivity']
+            for key in required:
+                if key not in self.cadence_config:
+                    raise ValueError(f"cadence_config must contain '{key}' for {self.observation_mode} mode")
+        else:
+            raise ValueError(f"observation_mode must be 'optical', 'radio', or 'xray'")
 
     def _generate_observations(self):
         """Generate observation schedule based on cadence"""
+        if self.observation_mode == 'optical':
+            return self._generate_optical_observations()
+        else:
+            return self._generate_radio_xray_observations()
+
+    def _generate_optical_observations(self):
+        """Generate optical observation schedule"""
         bands = self.cadence_config['bands']
         cadence_days = self.cadence_config['cadence_days']
         duration = self.cadence_config['duration_days']
@@ -245,19 +286,16 @@ class SimulateTransientWithCadence(object):
 
         # Handle per-band cadences
         if isinstance(cadence_days, (int, float)):
-            # Same cadence for all bands
             cadence_dict = {band: cadence_days for band in bands}
         else:
             cadence_dict = cadence_days
 
-        # Generate observation times for each band
+        # Generate observation times
         obs_times = []
         obs_bands = []
 
         if 'band_sequence' in self.cadence_config:
-            # Use specified band sequence
             band_seq = self.cadence_config['band_sequence']
-            # Find minimum cadence
             min_cadence = min(cadence_dict.values())
 
             t = start_offset
@@ -268,7 +306,6 @@ class SimulateTransientWithCadence(object):
                 t += min_cadence
                 idx += 1
         else:
-            # Independent cadences per band
             for band in bands:
                 cadence = cadence_dict[band]
                 t = start_offset
@@ -290,13 +327,82 @@ class SimulateTransientWithCadence(object):
             'limiting_mag': [self.cadence_config['limiting_mags'][b] for b in obs_bands]
         })
 
-        logger.info(f"Generated {len(obs_df)} observations over {duration} days in {len(bands)} bands")
+        logger.info(f"Generated {len(obs_df)} optical observations over {duration} days in {len(bands)} bands")
+
+        return obs_df
+
+    def _generate_radio_xray_observations(self):
+        """Generate radio/X-ray observation schedule"""
+        frequencies = np.array(self.cadence_config['frequencies'])
+        cadence_days = self.cadence_config['cadence_days']
+        duration = self.cadence_config['duration_days']
+        start_offset = self.cadence_config.get('start_offset_days', 0)
+        sensitivity = self.cadence_config['sensitivity']
+
+        # Handle per-frequency cadences
+        if isinstance(cadence_days, (int, float)):
+            cadence_dict = {freq: cadence_days for freq in frequencies}
+        else:
+            cadence_dict = cadence_days
+
+        # Handle per-frequency sensitivity
+        if isinstance(sensitivity, (int, float)):
+            sensitivity_dict = {freq: sensitivity for freq in frequencies}
+        else:
+            sensitivity_dict = sensitivity
+
+        # Generate observation times
+        obs_times = []
+        obs_frequencies = []
+
+        if 'frequency_sequence' in self.cadence_config:
+            freq_seq = self.cadence_config['frequency_sequence']
+            min_cadence = min(cadence_dict.values())
+
+            t = start_offset
+            idx = 0
+            while t <= duration:
+                obs_times.append(t)
+                obs_frequencies.append(freq_seq[idx % len(freq_seq)])
+                t += min_cadence
+                idx += 1
+        else:
+            for freq in frequencies:
+                cadence = cadence_dict[freq]
+                t = start_offset
+                while t <= duration:
+                    obs_times.append(t)
+                    obs_frequencies.append(freq)
+                    t += cadence
+
+        # Sort by time
+        sorted_indices = np.argsort(obs_times)
+        obs_times = np.array(obs_times)[sorted_indices]
+        obs_frequencies = np.array(obs_frequencies)[sorted_indices]
+
+        # Create DataFrame
+        obs_df = pd.DataFrame({
+            'time_since_t0': obs_times,
+            'time_mjd': obs_times + self.t0,
+            'frequency': obs_frequencies,
+            'sensitivity': [sensitivity_dict[f] for f in obs_frequencies]
+        })
+
+        logger.info(f"Generated {len(obs_df)} {self.observation_mode} observations over {duration} days at {len(frequencies)} frequencies")
 
         return obs_df
 
     def _evaluate_model(self):
         """Evaluate model at observation times"""
         times = self.observations['time_since_t0'].values
+
+        if self.observation_mode == 'optical':
+            self._evaluate_optical_model(times)
+        else:
+            self._evaluate_radio_xray_model(times)
+
+    def _evaluate_optical_model(self, times):
+        """Evaluate optical model at observation times"""
         bands = self.observations['band'].values
 
         # Prepare model kwargs
@@ -316,11 +422,36 @@ class SimulateTransientWithCadence(object):
                 bands=bands
             )
         except Exception as e:
-            logger.error(f"Error evaluating model: {e}")
+            logger.error(f"Error evaluating optical model: {e}")
+            raise
+
+    def _evaluate_radio_xray_model(self, times):
+        """Evaluate radio/X-ray model at observation times"""
+        frequencies = self.observations['frequency'].values
+
+        # Prepare model kwargs
+        eval_kwargs = self.parameters.copy()
+        eval_kwargs.update(self.model_kwargs)
+        eval_kwargs['frequency'] = frequencies
+        eval_kwargs['output_format'] = 'flux_density'
+
+        # Evaluate model
+        try:
+            flux_densities = self.model(times, **eval_kwargs)
+            self.observations['model_flux_density'] = flux_densities
+        except Exception as e:
+            logger.error(f"Error evaluating {self.observation_mode} model: {e}")
             raise
 
     def _add_noise_and_cuts(self):
         """Add noise and apply SNR cuts"""
+        if self.observation_mode == 'optical':
+            self._add_optical_noise_and_cuts()
+        else:
+            self._add_radio_xray_noise_and_cuts()
+
+    def _add_optical_noise_and_cuts(self):
+        """Add noise and SNR cuts for optical observations"""
         n_obs = len(self.observations)
 
         if self.noise_type == 'limiting_mag':
@@ -384,6 +515,57 @@ class SimulateTransientWithCadence(object):
 
             n_detected = np.sum(detected)
             logger.info(f"Detected {n_detected}/{n_obs} observations (SNR >= {self.snr_threshold})")
+        else:
+            self.observations['detected'] = True
+
+    def _add_radio_xray_noise_and_cuts(self):
+        """Add noise and SNR cuts for radio/X-ray observations"""
+        n_obs = len(self.observations)
+        model_flux = self.observations['model_flux_density'].values
+        sensitivity = self.observations['sensitivity'].values
+
+        if self.noise_type == 'sensitivity':
+            # Realistic: noise from sensitivity limit (5-sigma)
+            # 5-sigma sensitivity → 1-sigma noise = sensitivity / 5
+            flux_error = sensitivity / 5.0
+
+            # Add noise to model flux
+            observed_flux = model_flux + self.rng.normal(0, flux_error, n_obs)
+
+            # Calculate SNR
+            snr = model_flux / flux_error
+
+            self.observations['flux_density'] = observed_flux
+            self.observations['flux_density_error'] = flux_error
+            self.observations['snr'] = snr
+
+        elif self.noise_type == 'gaussian':
+            # Simple Gaussian noise
+            noise_level = 0.1  # default in Jy
+            flux_error = np.ones(n_obs) * noise_level
+            observed_flux = model_flux + self.rng.normal(0, noise_level, n_obs)
+
+            self.observations['flux_density'] = observed_flux
+            self.observations['flux_density_error'] = flux_error
+            self.observations['snr'] = model_flux / flux_error
+
+        elif self.noise_type == 'gaussianmodel':
+            # Noise proportional to model
+            noise_factor = 0.1  # 10% default
+            flux_error = noise_factor * np.abs(model_flux)
+            observed_flux = model_flux + self.rng.normal(0, flux_error, n_obs)
+
+            self.observations['flux_density'] = observed_flux
+            self.observations['flux_density_error'] = flux_error
+            self.observations['snr'] = 1.0 / noise_factor
+
+        # Apply SNR cut
+        if self.apply_snr_cut:
+            detected = self.observations['snr'] >= self.snr_threshold
+            self.observations['detected'] = detected
+
+            n_detected = np.sum(detected)
+            logger.info(f"Detected {n_detected}/{n_obs} {self.observation_mode} observations (SNR >= {self.snr_threshold})")
         else:
             self.observations['detected'] = True
 

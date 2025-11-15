@@ -4,10 +4,10 @@ Simulation
 
 A key aspect of inference workflows is testing the pipeline on synthetic data.
 This hugely beneficial in both verifying the inference methodology and understanding selection effects and the role of survey strategies.
-In :code:`redback`, we provide 3 different ways to simulate data as part of the simulation module.
+In :code:`redback`, we provide several ways to simulate data as part of the simulation module.
 Although, we emphasize that as all the models are callable functions, the user can bypass this module to create their own synthetic data by calling the models directly.
 
-In particular the 3 methods are:
+In particular the methods are:
 
 - SimulateGenericTransient: This is a generic transient model that can be used to simulate any transient model and is suited to producing more ToO style of observations.
   The user specifies a large array of times and observations filters (if simulating photometry) and the method will sample randomly in those times and filters to create synthetic data with noise consistent with user input.
@@ -18,6 +18,11 @@ In particular the 3 methods are:
 - SimulateFullOpticalSurvey: Simulate a full survey. In this method, the user will provide a rate, a prior corresponding to the population, a survey duration etc.
   The class will then draw sources following the rate, place them isotropically in the sky and uniform in comoving volume and simulate the survey.
   All observations are saved in a table, which can be probed to understand the detection rate/non-detections etc.
+- SimulateTransientWithCadence: Simulate transients with realistic observing cadences and SNR-based detection cuts across optical, radio, and X-ray wavelengths.
+  This provides a middle ground between generic simulation and full survey simulation, perfect for testing follow-up strategies and cadence optimization.
+- PopulationSynthesizer: Generate realistic transient populations with cosmologically-motivated distributions, volumetric rate evolution, and proper time dilation handling.
+  This provides a modular framework where parameter generation is separated from observation simulation, allowing parameters to be used with any simulation tool.
+- TransientPopulation: A container class for managing simulated populations with built-in analysis capabilities and save/load functionality.
 
 Use simulated data to test the inference pipeline
 -------------------------
@@ -32,7 +37,238 @@ Which can then be used in fitting as any other transient object. Or simply to us
 Where `my_kilonova` is a previously simulated kilonova.
 
 
+PopulationSynthesizer and TransientPopulation
+-------------------------
+
+The :code:`PopulationSynthesizer` class provides a modular framework for generating realistic transient populations with cosmologically-motivated distributions.
+Unlike :code:`SimulateFullOpticalSurvey` which couples population generation with survey simulation, :code:`PopulationSynthesizer` separates parameter generation from observation simulation.
+This allows the generated parameters to be used with any simulation tool in :code:`redback` or elsewhere.
+
+**Key Features:**
+
+- **Volumetric rate evolution**: Supports constant, power-law (R(z) ∝ (1+z)^α), SFR-like (Madau & Dickinson 2014), and custom callable rate functions
+- **Cosmologically correct**: Properly accounts for time dilation with R_obs(z) = R_src(z) / (1+z)
+- **Flexible sampling modes**:
+
+  * Rate-weighted redshifts (default): Samples redshifts from R(z) × dVc/dz / (1+z), number of events from Poisson distribution
+  * Simple forecasting: Samples N events from redshift prior (e.g., UniformComovingVolume), useful for forecasts without committing to specific rates
+
+- **Isotropic sky positions**: Uniform RA/DEC sampling
+- **Poisson timing**: Uniform explosion times in observer frame (correct for Poisson processes)
+- **Automatic distances**: Luminosity and comoving distances from redshift
+- **Custom detection criteria**: Flexible post-processing with user-defined detection functions
+- **Rate inference**: Infer volumetric rates from observed samples accounting for selection effects
+
+**Example Usage:**
+
+.. code:: python
+
+    from redback.simulate_transients import PopulationSynthesizer
+
+    # Create synthesizer with power-law rate evolution
+    synth = PopulationSynthesizer(
+        model='one_component_kilonova_model',
+        rate=1e-6,  # Gpc^-3 yr^-1
+        rate_evolution='powerlaw',
+        rate_params={'alpha': 2.7},
+        cosmology='Planck18'
+    )
+
+    # Generate population parameters (pure generation, no observation simulation)
+    params = synth.generate_population(
+        n_years=10,
+        z_max=0.5,
+        include_sky_position=True
+    )
+    # Returns DataFrame with: redshift, ra, dec, t0_mjd_transient,
+    # luminosity_distance, comoving_distance, + all model parameters
+
+    # Apply custom detection criteria
+    def my_detection_function(row, limiting_mag=23.0):
+        # Custom logic based on row parameters
+        return True  # or False, or probability [0,1]
+
+    detected = synth.apply_detection_criteria(
+        params, my_detection_function, limiting_mag=23.0
+    )
+
+    # Infer rate from observed sample
+    inferred_rate = synth.infer_rate(
+        observed_sample=detected,
+        efficiency_function=lambda z: 0.9 if z < 0.1 else 0.5
+    )
+
+The :code:`TransientPopulation` class is a container for managing populations with built-in analysis:
+
+.. code:: python
+
+    from redback.simulate_transients import TransientPopulation
+
+    population = TransientPopulation(
+        parameters=params,
+        metadata={'survey': 'LSST', 'model': 'kilonova'}
+    )
+
+    print(f"Detection fraction: {population.detection_fraction:.2%}")
+    print(f"Median redshift: {np.median(population.redshifts):.3f}")
+    population.save('my_population.csv')
+
+SimulateTransientWithCadence
+-------------------------
+
+The :code:`SimulateTransientWithCadence` class provides realistic observing cadences with SNR-based detection cuts across multiple wavelengths.
+This bridges the gap between :code:`SimulateGenericTransient` (ToO-style) and :code:`SimulateOpticalTransient` (full survey), making it perfect for:
+
+- Testing follow-up strategies
+- Optimizing observing cadences
+- Survey planning without full pointing databases
+- Multi-wavelength campaign design
+
+**Multi-Wavelength Support:**
+
+- **Optical**: Photometric bands (g, r, i, z, y), magnitudes, limiting magnitudes
+- **Radio**: Frequencies (Hz), flux densities (Jy), sensitivity limits
+- **X-ray**: Frequencies (Hz), flux/energy densities, sensitivity limits
+
+**Key Features:**
+
+- Flexible cadence patterns (uniform, per-band/frequency, alternating sequences)
+- SNR-based detection thresholds
+- Realistic noise modeling (limiting magnitudes for optical, sensitivity for radio/X-ray)
+- Auto-detection of observation mode from configuration
+- Works seamlessly with PopulationSynthesizer parameters
+- Delayed start capabilities (for late discoveries)
+
+**Optical Example:**
+
+.. code:: python
+
+    from redback.simulate_transients import SimulateTransientWithCadence
+
+    # Define cadence configuration
+    cadence_config = {
+        'bands': ['g', 'r', 'i'],
+        'cadence_days': {'g': 3, 'r': 1, 'i': 5},  # Different per band
+        'duration_days': 30,
+        'limiting_mags': {'g': 22.5, 'r': 23.0, 'i': 22.5}
+    }
+
+    # Simulate observations
+    sim = SimulateTransientWithCadence(
+        model='one_component_kilonova_model',
+        parameters=event_params,  # From PopulationSynthesizer or dict
+        cadence_config=cadence_config,
+        snr_threshold=5,
+        noise_type='limiting_mag'
+    )
+
+    print(f"Total observations: {len(sim.observations)}")
+    print(f"Detections (SNR>=5): {len(sim.detected_observations)}")
+
+**Radio Example:**
+
+.. code:: python
+
+    # Radio cadence: Multi-frequency monitoring
+    radio_cadence = {
+        'frequencies': [1.4e9, 5e9, 15e9],  # Hz (L, C, Ku bands)
+        'cadence_days': 7,  # Weekly observations
+        'duration_days': 200,
+        'sensitivity': {
+            1.4e9: 0.05,  # 50 μJy at L-band
+            5e9: 0.03,    # 30 μJy at C-band
+            15e9: 0.04    # 40 μJy at Ku-band
+        }
+    }
+
+    sim_radio = SimulateTransientWithCadence(
+        model='afterglow',
+        parameters=grb_params,
+        cadence_config=radio_cadence,
+        snr_threshold=5,
+        observation_mode='radio'  # Auto-detected from 'frequencies' key
+    )
+
+**X-ray Example:**
+
+.. code:: python
+
+    # X-ray monitoring
+    keV_to_Hz = 2.417989e17
+    xray_cadence = {
+        'frequencies': [1.0 * keV_to_Hz, 5.0 * keV_to_Hz],
+        'cadence_days': 3,
+        'duration_days': 150,
+        'sensitivity': 1e-14  # erg/cm^2/s
+    }
+
+    sim_xray = SimulateTransientWithCadence(
+        model='tde_analytical',
+        parameters=tde_params,
+        cadence_config=xray_cadence,
+        snr_threshold=3,
+        observation_mode='xray'
+    )
+
+Integration Examples
+-------------------------
+
+The new classes work seamlessly together and with existing :code:`redback` tools:
+
+**PopulationSynthesizer → SimulateOpticalTransient:**
+
+.. code:: python
+
+    # Generate parameters
+    synth = PopulationSynthesizer(model='kilonova', rate=1e-6)
+    params = synth.generate_population(n_events=10)
+
+    # Pass to full survey simulation
+    simulator = SimulateOpticalTransient.simulate_transient_population_in_rubin(
+        model='one_component_kilonova_model',
+        parameters=params.to_dict('list'),
+        model_kwargs={'output_format': 'sncosmo_source'}
+    )
+
+**PopulationSynthesizer → SimulateTransientWithCadence:**
+
+.. code:: python
+
+    # Generate population
+    params = synth.generate_population(n_events=100, z_max=0.3)
+
+    # Simulate each event with cadence
+    detected_events = []
+    for idx in range(len(params)):
+        sim = SimulateTransientWithCadence(
+            model='kilonova',
+            parameters=params.iloc[idx].to_dict(),
+            cadence_config=my_cadence,
+            snr_threshold=5
+        )
+        if len(sim.detected_observations) >= 3:  # Require multiple detections
+            detected_events.append(sim)
+
+    # Analyze detection efficiency
+    efficiency = len(detected_events) / len(params)
+
+**SimulateTransientWithCadence → redback.fit_model:**
+
+.. code:: python
+
+    # Simulate observations
+    sim = SimulateTransientWithCadence(...)
+
+    # Fit the detected observations
+    transient = redback.Transient.from_simulated_optical_data(sim.detected_observations)
+    result = redback.fit_model(transient=transient, model='kilonova', ...)
+
+Examples
+-------------------------
+
 We have written several examples to demonstrate the different simulation methods of :code:`redback`. Specifically,
+
+**Basic Simulation:**
 
 - `Simulate basic transient <https://github.com/nikhil-sarin/redback/blob/master/examples/simulate_basic_transient.py>`_:
   Which shows how to use the SimulateGenericTransient class.
@@ -46,5 +282,21 @@ We have written several examples to demonstrate the different simulation methods
   Which shows how to use the SimulateOpticalTransient class to simulate a population of kilonovae in Rubin.
 - `Simulate survey <https://github.com/nikhil-sarin/redback/blob/master/examples/simulate_survey.py>`_:
   Which shows how to use the SimulateFullOpticalSurvey class to simulate a full survey.
+
+**Population Synthesis:**
+
+- `Simulate population modular <https://github.com/nikhil-sarin/redback/blob/master/examples/simulate_population_modular.py>`_:
+  Demonstrates PopulationSynthesizer with modular parameter generation, custom detection functions, rate inference, and integration with other simulation tools.
+- `Simple population forecast <https://github.com/nikhil-sarin/redback/blob/master/examples/simple_population_forecast.py>`_:
+  Shows how to use rate_weighted_redshifts=False for simple forecasting without committing to specific rate models, using UniformComovingVolume prior.
+
+**Cadence Simulation:**
+
+- `Simulate with cadence <https://github.com/nikhil-sarin/redback/blob/master/examples/simulate_with_cadence.py>`_:
+  Comprehensive examples of SimulateTransientWithCadence for optical observations with uniform, per-band, and alternating cadence patterns.
+- `Simulate radio/X-ray cadence <https://github.com/nikhil-sarin/redback/blob/master/examples/simulate_radio_xray_cadence.py>`_:
+  Shows radio and X-ray observations with SimulateTransientWithCadence including GRB afterglows, kilonova radio follow-up, TDE X-ray monitoring, and multi-frequency strategies.
+- `Simulate radio/X-ray <https://github.com/nikhil-sarin/redback/blob/master/examples/simulate_radio_xray.py>`_:
+  Demonstrates radio and X-ray simulation with SimulateGenericTransient for comparison.
 
 We note that although above examples are mostly written for kilonovae. All :code:`redback` models can be used by the simulation classes.
