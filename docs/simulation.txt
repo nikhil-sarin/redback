@@ -20,6 +20,8 @@ In particular the methods are:
   All observations are saved in a table, which can be probed to understand the detection rate/non-detections etc.
 - SimulateTransientWithCadence: Simulate transients with realistic observing cadences and SNR-based detection cuts across optical, radio, and X-ray wavelengths.
   This provides a middle ground between generic simulation and full survey simulation, perfect for testing follow-up strategies and cadence optimization.
+- SimulateGammaRayTransient: Simulate gamma-ray observations with photon counting statistics including time-tagged events (TTE) and binned photon counts.
+  Supports energy-dependent detector response, background modeling, and proper Poisson statistics. Ideal for GRB prompt emission, magnetar bursts, and fast transients.
 - PopulationSynthesizer: Generate realistic transient populations with cosmologically-motivated distributions, volumetric rate evolution, and proper time dilation handling.
   This provides a modular framework where parameter generation is separated from observation simulation, allowing parameters to be used with any simulation tool.
 - TransientPopulation: A container class for managing simulated populations with built-in analysis capabilities and save/load functionality.
@@ -210,6 +212,176 @@ This bridges the gap between :code:`SimulateGenericTransient` (ToO-style) and :c
         observation_mode='xray'
     )
 
+SimulateGammaRayTransient
+-------------------------
+
+The :code:`SimulateGammaRayTransient` class simulates gamma-ray observations with photon counting statistics.
+Unlike flux-based simulations, this class generates individual photon events and binned counts, properly accounting for Poisson noise and detector response.
+
+**Key Features:**
+
+- **Time-tagged events (TTE)**: Individual photon arrival times and energies using thinning algorithm for non-homogeneous Poisson processes
+- **Binned photon counts**: Count rates in time bins and energy channels with proper Poisson statistics
+- **Energy-dependent response**: Flexible effective area specification (constant, tabulated, or functional)
+- **Background modeling**: Constant or energy-dependent background rates
+- **High time resolution**: Sub-millisecond timing for fast variability studies
+- **Source/background separation**: Track which events are from source vs background
+
+**Use Cases:**
+
+- GRB prompt emission (Fermi/GBM, Swift/BAT)
+- Magnetar bursts and flares
+- X-ray/gamma-ray afterglows
+- Pulsar timing and QPO searches
+- Fast transient characterization
+- Parameter recovery studies
+
+**Basic Example:**
+
+.. code:: python
+
+    from redback.simulate_transients import SimulateGammaRayTransient
+    import numpy as np
+
+    # Define energy channels (e.g., Fermi/GBM)
+    energy_edges = [10, 50, 100, 300, 1000]  # keV
+
+    # Simulate GRB prompt emission
+    sim = SimulateGammaRayTransient(
+        model='prompt_afterglow',  # Or other GRB model
+        parameters={'luminosity': 1e52, 'redshift': 0.5, ...},
+        energy_edges=energy_edges,
+        time_range=(-1, 100),  # -1s to 100s relative to trigger
+        effective_area=120,  # cm^2 (Fermi/GBM typical)
+        background_rate=0.1,  # counts/s/keV
+        time_resolution=0.001,  # 1 ms sampling
+        seed=42
+    )
+
+    # Generate time-tagged events
+    events = sim.generate_time_tagged_events()
+    print(f"Total events: {len(events)}")
+    print(f"Source events: {sum(~events['is_background'])}")
+
+    # Generate binned light curve
+    time_bins = np.logspace(-1, 2, 50)  # Logarithmic binning
+    binned = sim.generate_binned_counts(time_bins=time_bins)
+
+**Energy-Dependent Detector Response:**
+
+.. code:: python
+
+    # Method 1: Constant effective area
+    sim = SimulateGammaRayTransient(..., effective_area=100)
+
+    # Method 2: Dictionary (linear interpolation)
+    area_dict = {
+        10: 50,    # 50 cm^2 at 10 keV
+        50: 120,   # 120 cm^2 at 50 keV
+        100: 130,  # 130 cm^2 at 100 keV
+        500: 80,   # 80 cm^2 at 500 keV
+        1000: 40   # 40 cm^2 at 1000 keV
+    }
+    sim = SimulateGammaRayTransient(..., effective_area=area_dict)
+
+    # Method 3: Callable function (most flexible)
+    def fermi_gbm_area(energy_keV):
+        """Approximate Fermi/GBM effective area"""
+        peak_area = 120  # cm^2
+        if energy_keV < 10:
+            return 20
+        elif energy_keV > 800:
+            return 30
+        else:
+            return peak_area * np.exp(-((np.log10(energy_keV) - 2)**2) / 2)
+
+    sim = SimulateGammaRayTransient(..., effective_area=fermi_gbm_area)
+
+**Time-Tagged Events Example:**
+
+.. code:: python
+
+    # Generate individual photon events
+    events = sim.generate_time_tagged_events(max_events=1000000)
+
+    # Events DataFrame contains:
+    # - time: Photon arrival time (seconds)
+    # - energy: Photon energy (keV)
+    # - energy_channel: Channel index
+    # - is_background: Boolean flag
+
+    # Filter source events only
+    source_events = events[~events['is_background']]
+
+    # Energy-resolved timing
+    e_range = (50, 100)  # 50-100 keV
+    mask = (events['energy'] >= e_range[0]) & (events['energy'] < e_range[1])
+    events_filtered = events[mask]
+
+    # Custom time binning
+    custom_bins = np.array([0, 1, 2, 5, 10, 20, 50, 100])
+    counts, _ = np.histogram(events_filtered['time'], bins=custom_bins)
+
+**Binned Counts Example:**
+
+.. code:: python
+
+    # Energy-integrated light curve
+    time_bins = np.logspace(-2, 3, 100)  # 10ms to 1000s
+    binned = sim.generate_binned_counts(
+        time_bins=time_bins,
+        energy_integrated=True
+    )
+    # Returns: time_center, counts, counts_error, count_rate, count_rate_error
+
+    # Per-energy-channel light curves
+    binned_channels = sim.generate_binned_counts(
+        time_bins=time_bins,
+        energy_integrated=False
+    )
+    # Additional columns: energy_channel, energy_low, energy_high, energy_center
+
+    # Extract specific energy channel
+    channel_0 = binned_channels[binned_channels['energy_channel'] == 0]
+
+**Saving and Loading:**
+
+.. code:: python
+
+    # Save time-tagged events
+    sim.save_time_tagged_events(filename='my_grb')
+    # Creates: simulated/my_grb_tte.csv
+    #          simulated/my_grb_tte_metadata.json
+
+    # Save binned counts
+    sim.save_binned_counts(filename='my_grb_binned')
+    # Creates: simulated/my_grb_binned.csv
+
+    # Load for analysis
+    import pandas as pd
+    events = pd.read_csv('simulated/my_grb_tte.csv')
+    binned = pd.read_csv('simulated/my_grb_binned.csv')
+
+**Typical Detector Configurations:**
+
+.. code:: python
+
+    # Fermi/GBM (8-1000 keV, ~120 cm^2)
+    energy_edges_gbm = [8, 25, 50, 100, 300, 1000]
+    effective_area_gbm = 120
+
+    # Swift/BAT (15-150 keV, ~5200 cm^2)
+    energy_edges_bat = [15, 25, 50, 100, 150]
+    effective_area_bat = 5200
+
+    # INTEGRAL/SPI (18-8000 keV, ~500 cm^2)
+    energy_edges_spi = [18, 40, 100, 400, 1000, 8000]
+    effective_area_spi = 500
+
+    # NuSTAR (3-79 keV, ~800 cm^2)
+    energy_edges_nustar = [3, 10, 20, 40, 79]
+    effective_area_nustar = 800
+
 Integration Examples
 -------------------------
 
@@ -298,5 +470,10 @@ We have written several examples to demonstrate the different simulation methods
   Shows radio and X-ray observations with SimulateTransientWithCadence including GRB afterglows, kilonova radio follow-up, TDE X-ray monitoring, and multi-frequency strategies.
 - `Simulate radio/X-ray <https://github.com/nikhil-sarin/redback/blob/master/examples/simulate_radio_xray.py>`_:
   Demonstrates radio and X-ray simulation with SimulateGenericTransient for comparison.
+
+**Gamma-Ray Photon Counting:**
+
+- `Simulate gamma-ray <https://github.com/nikhil-sarin/redback/blob/master/examples/simulate_gamma_ray.py>`_:
+  Demonstrates SimulateGammaRayTransient for photon counting observations including time-tagged events (TTE), binned counts, energy-dependent detector response, and typical detector configurations (Fermi/GBM, Swift/BAT, etc.). Covers GRB prompt emission, magnetar bursts, timing analysis, and parameter recovery studies.
 
 We note that although above examples are mostly written for kilonovae. All :code:`redback` models can be used by the simulation classes.

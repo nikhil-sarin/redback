@@ -2042,3 +2042,487 @@ class PopulationSynthesizer(object):
         logger.info(f"Inferred rate: {rate_ml:.2e} ± {rate_uncertainty:.2e} Gpc^-3 yr^-1")
 
         return results
+
+
+class SimulateGammaRayTransient(object):
+    """
+    Simulate gamma-ray observations with photon counting statistics
+
+    This class generates realistic gamma-ray observations including:
+    - Time-tagged events (TTE): Individual photon arrival times and energies
+    - Binned photon counts: Count rates in time bins and energy channels
+    - Energy-dependent detector response (effective area)
+    - Background modeling (constant or time-varying)
+    - Proper Poisson statistics for photon counting
+
+    Useful for:
+    - GRB prompt emission (Fermi/GBM, Swift/BAT)
+    - Magnetar bursts and flares
+    - Pulsar timing
+    - X-ray/gamma-ray afterglows
+    - Fast transients requiring high time resolution
+
+    Parameters
+    ----------
+    model : str or callable
+        Redback model name or callable function that returns flux
+    parameters : dict
+        Dictionary of model parameters
+    energy_edges : array-like
+        Energy bin edges in keV (e.g., [10, 50, 100, 300, 1000])
+    time_range : tuple
+        (t_start, t_end) in seconds relative to trigger time
+    effective_area : float, dict, or callable, optional
+        Detector effective area in cm^2. Can be:
+        - Float: Constant effective area for all energies
+        - Dict: {energy_keV: area_cm2} mapping
+        - Callable: function(energy_keV) -> area_cm2
+        Default: 100 cm^2 (typical for Fermi/GBM)
+    background_rate : float, dict, or callable, optional
+        Background count rate in counts/s/keV. Can be:
+        - Float: Constant background for all energies
+        - Dict: {energy_keV: rate} mapping
+        - Callable: function(energy_keV) -> rate
+        Default: 0.1 counts/s/keV
+    time_resolution : float, optional
+        Time resolution in seconds for sampling (default: 0.001 s = 1 ms)
+    seed : int, optional
+        Random seed for reproducibility
+
+    Examples
+    --------
+    Basic GRB simulation:
+
+    >>> energy_edges = [10, 50, 100, 300, 1000]  # keV
+    >>> sim = SimulateGammaRayTransient(
+    ...     model='grb_afterglow',
+    ...     parameters={'luminosity': 1e52, 'theta_core': 0.1, ...},
+    ...     energy_edges=energy_edges,
+    ...     time_range=(-1, 100),  # -1s to 100s
+    ...     effective_area=120,  # cm^2
+    ...     background_rate=0.1  # counts/s/keV
+    ... )
+    >>> events = sim.generate_time_tagged_events()
+    >>> binned = sim.generate_binned_counts(time_bins=np.logspace(-1, 2, 50))
+    """
+
+    def __init__(self, model, parameters, energy_edges, time_range,
+                 effective_area=100, background_rate=0.1,
+                 time_resolution=0.001, seed=42):
+
+        if model in redback.model_library.all_models_dict:
+            self.model = redback.model_library.all_models_dict[model]
+        else:
+            self.model = model
+
+        self.parameters = parameters
+        self.energy_edges = np.array(energy_edges)
+        self.n_energy_bins = len(self.energy_edges) - 1
+        self.energy_centers = np.sqrt(self.energy_edges[:-1] * self.energy_edges[1:])  # Geometric mean
+
+        self.t_start, self.t_end = time_range
+        self.time_resolution = time_resolution
+        self.seed = seed
+        self.random_state = np.random.RandomState(seed=seed)
+
+        # Setup effective area
+        if callable(effective_area):
+            self.effective_area_func = effective_area
+        elif isinstance(effective_area, dict):
+            energies = np.array(list(effective_area.keys()))
+            areas = np.array(list(effective_area.values()))
+            self.effective_area_func = interpolate.interp1d(
+                energies, areas, kind='linear',
+                bounds_error=False, fill_value='extrapolate'
+            )
+        else:
+            # Constant effective area
+            self.effective_area_func = lambda e: np.ones_like(e) * effective_area
+
+        # Setup background rate
+        if callable(background_rate):
+            self.background_rate_func = background_rate
+        elif isinstance(background_rate, dict):
+            energies = np.array(list(background_rate.keys()))
+            rates = np.array(list(background_rate.values()))
+            self.background_rate_func = interpolate.interp1d(
+                energies, rates, kind='linear',
+                bounds_error=False, fill_value='extrapolate'
+            )
+        else:
+            # Constant background
+            self.background_rate_func = lambda e: np.ones_like(e) * background_rate
+
+        self.time_tagged_events = None
+        self.binned_counts = None
+
+    def _evaluate_model_flux(self, times, energies):
+        """
+        Evaluate model flux at given times and energies
+
+        Parameters
+        ----------
+        times : array-like
+            Times in seconds
+        energies : array-like
+            Energies in keV
+
+        Returns
+        -------
+        flux : array-like
+            Photon flux in photons/cm^2/s/keV
+        """
+        # Convert keV to Hz for redback models
+        keV_to_Hz = 2.417989e17  # 1 keV = 2.418e17 Hz
+        frequencies = energies * keV_to_Hz
+
+        # Check if model accepts frequency array
+        model_kwargs = self.parameters.copy()
+        model_kwargs['frequency'] = frequencies
+        model_kwargs['output_format'] = 'flux_density'
+
+        try:
+            # Try with frequency array
+            flux = self.model(times, **model_kwargs)
+            # Convert from Jy to photons/cm^2/s/keV
+            # flux_density [Jy] -> photon flux [photons/cm^2/s/keV]
+            # F_nu [Jy] = 10^-23 erg/s/cm^2/Hz
+            # Photon energy E = h*nu
+            # Photon flux = F_nu / (h * nu) [photons/cm^2/s/Hz]
+            # Convert Hz to keV: dE/dnu = h
+            h_erg_s = 6.62607e-27  # erg*s
+            keV_to_erg = 1.60218e-9  # erg/keV
+            photon_flux = flux * 1e-23 / (h_erg_s * frequencies) / keV_to_Hz
+            return photon_flux
+        except:
+            logger.warning("Model may not support frequency arrays properly. Using per-energy evaluation.")
+            # Fallback: evaluate per energy
+            flux = np.zeros(len(times))
+            for i, (t, f) in enumerate(zip(times, frequencies)):
+                model_kwargs_single = self.parameters.copy()
+                model_kwargs_single['frequency'] = f
+                model_kwargs_single['output_format'] = 'flux_density'
+                flux[i] = self.model(np.array([t]), **model_kwargs_single)[0]
+
+            h_erg_s = 6.62607e-27
+            keV_to_erg = 1.60218e-9
+            photon_flux = flux * 1e-23 / (h_erg_s * frequencies) / keV_to_Hz
+            return photon_flux
+
+    def generate_time_tagged_events(self, max_events=1000000):
+        """
+        Generate time-tagged photon events (arrival times and energies)
+
+        Uses thinning algorithm (Lewis & Shedler 1979) for non-homogeneous
+        Poisson process to sample photon arrival times from the model light curve.
+
+        Parameters
+        ----------
+        max_events : int, optional
+            Maximum number of events to generate (safety limit)
+
+        Returns
+        -------
+        events : pandas.DataFrame
+            DataFrame with columns:
+            - 'time': Photon arrival time (seconds)
+            - 'energy': Photon energy (keV)
+            - 'energy_channel': Energy channel index (0 to n_energy_bins-1)
+            - 'is_background': Boolean indicating if event is from background
+        """
+        logger.info("Generating time-tagged events...")
+
+        all_times = []
+        all_energies = []
+        all_channels = []
+        all_is_background = []
+
+        # Generate events for each energy channel
+        for ch_idx in range(self.n_energy_bins):
+            e_low = self.energy_edges[ch_idx]
+            e_high = self.energy_edges[ch_idx + 1]
+            e_center = self.energy_centers[ch_idx]
+            de = e_high - e_low
+
+            # Get effective area and background for this energy
+            eff_area = self.effective_area_func(e_center)
+            bkg_rate = self.background_rate_func(e_center)
+
+            # Create fine time grid for model evaluation
+            t_grid = np.arange(self.t_start, self.t_end, self.time_resolution)
+            e_grid = np.full_like(t_grid, e_center)
+
+            # Evaluate model photon flux [photons/cm^2/s/keV]
+            photon_flux = self._evaluate_model_flux(t_grid, e_grid)
+
+            # Convert to count rate [counts/s]
+            # Count rate = photon_flux * effective_area * dE
+            count_rate_source = photon_flux * eff_area * de
+            count_rate_bkg = bkg_rate * de * eff_area  # Background also scaled by area
+            count_rate_total = count_rate_source + count_rate_bkg
+
+            # Find maximum count rate for thinning
+            max_rate = np.max(count_rate_total)
+            if max_rate <= 0:
+                continue
+
+            # Expected number of events (with safety factor)
+            expected_n = max_rate * (self.t_end - self.t_start) * 1.2
+
+            if expected_n > max_events:
+                logger.warning(f"Channel {ch_idx}: Expected {expected_n:.0f} events, limiting to {max_events}")
+                expected_n = max_events
+
+            # Generate candidate events from homogeneous Poisson process
+            n_candidates = self.random_state.poisson(expected_n)
+            if n_candidates == 0:
+                continue
+
+            candidate_times = self.random_state.uniform(
+                self.t_start, self.t_end, size=n_candidates
+            )
+
+            # Thinning: accept events with probability rate(t) / max_rate
+            # Interpolate count rate at candidate times
+            rate_interp = np.interp(candidate_times, t_grid, count_rate_total)
+            acceptance_prob = rate_interp / max_rate
+
+            # Accept events
+            accepted = self.random_state.uniform(size=n_candidates) < acceptance_prob
+            event_times = candidate_times[accepted]
+
+            # Determine which events are background vs source
+            # For each event, probability of being background = rate_bkg / rate_total
+            rate_total_at_events = np.interp(event_times, t_grid, count_rate_total)
+            rate_bkg_at_events = count_rate_bkg  # Constant
+            bkg_fraction = rate_bkg_at_events / rate_total_at_events
+            is_background = self.random_state.uniform(size=len(event_times)) < bkg_fraction
+
+            # Sample energies uniformly within channel
+            # (More sophisticated: sample from detector response matrix)
+            event_energies = self.random_state.uniform(e_low, e_high, size=len(event_times))
+
+            all_times.extend(event_times)
+            all_energies.extend(event_energies)
+            all_channels.extend([ch_idx] * len(event_times))
+            all_is_background.extend(is_background)
+
+            logger.info(f"Channel {ch_idx} ({e_low:.1f}-{e_high:.1f} keV): "
+                       f"{len(event_times)} events ({np.sum(~is_background)} source, "
+                       f"{np.sum(is_background)} background)")
+
+        # Create DataFrame and sort by time
+        events = pd.DataFrame({
+            'time': all_times,
+            'energy': all_energies,
+            'energy_channel': all_channels,
+            'is_background': all_is_background
+        })
+        events = events.sort_values('time').reset_index(drop=True)
+
+        self.time_tagged_events = events
+        logger.info(f"Generated {len(events)} total time-tagged events")
+
+        return events
+
+    def generate_binned_counts(self, time_bins, energy_integrated=False):
+        """
+        Generate binned photon counts
+
+        Parameters
+        ----------
+        time_bins : array-like
+            Time bin edges in seconds
+        energy_integrated : bool, optional
+            If True, return energy-integrated counts (single light curve)
+            If False, return counts per energy channel (default)
+
+        Returns
+        -------
+        binned_data : pandas.DataFrame
+            DataFrame with columns:
+            - 'time_start': Bin start time
+            - 'time_end': Bin end time
+            - 'time_center': Bin center time
+            - 'dt': Bin width
+            - 'counts': Total counts in bin
+            - 'counts_error': Poisson error (sqrt(counts))
+            - 'count_rate': Count rate (counts/s)
+            - 'count_rate_error': Count rate error
+            - 'energy_channel': Energy channel index (if energy_integrated=False)
+        """
+        logger.info("Generating binned photon counts...")
+
+        time_bins = np.array(time_bins)
+        n_time_bins = len(time_bins) - 1
+
+        if energy_integrated:
+            # Single light curve integrating all energies
+            results = []
+
+            for i in range(n_time_bins):
+                t_low = time_bins[i]
+                t_high = time_bins[i + 1]
+                t_center = (t_low + t_high) / 2
+                dt = t_high - t_low
+
+                # Sum counts from all energy channels
+                total_counts = 0
+
+                for ch_idx in range(self.n_energy_bins):
+                    e_low = self.energy_edges[ch_idx]
+                    e_high = self.energy_edges[ch_idx + 1]
+                    e_center = self.energy_centers[ch_idx]
+                    de = e_high - e_low
+
+                    # Get effective area and background
+                    eff_area = self.effective_area_func(e_center)
+                    bkg_rate = self.background_rate_func(e_center)
+
+                    # Evaluate model at bin center
+                    photon_flux = self._evaluate_model_flux(
+                        np.array([t_center]), np.array([e_center])
+                    )[0]
+
+                    # Expected counts = (source + background) * time
+                    expected_source = photon_flux * eff_area * de * dt
+                    expected_bkg = bkg_rate * de * eff_area * dt
+                    expected_total = expected_source + expected_bkg
+
+                    # Sample from Poisson
+                    counts = self.random_state.poisson(expected_total)
+                    total_counts += counts
+
+                counts_error = np.sqrt(max(total_counts, 1))
+                count_rate = total_counts / dt
+                count_rate_error = counts_error / dt
+
+                results.append({
+                    'time_start': t_low,
+                    'time_end': t_high,
+                    'time_center': t_center,
+                    'dt': dt,
+                    'counts': total_counts,
+                    'counts_error': counts_error,
+                    'count_rate': count_rate,
+                    'count_rate_error': count_rate_error
+                })
+
+            binned_data = pd.DataFrame(results)
+
+        else:
+            # Separate light curves per energy channel
+            results = []
+
+            for ch_idx in range(self.n_energy_bins):
+                e_low = self.energy_edges[ch_idx]
+                e_high = self.energy_edges[ch_idx + 1]
+                e_center = self.energy_centers[ch_idx]
+                de = e_high - e_low
+
+                # Get effective area and background
+                eff_area = self.effective_area_func(e_center)
+                bkg_rate = self.background_rate_func(e_center)
+
+                for i in range(n_time_bins):
+                    t_low = time_bins[i]
+                    t_high = time_bins[i + 1]
+                    t_center = (t_low + t_high) / 2
+                    dt = t_high - t_low
+
+                    # Evaluate model at bin center
+                    photon_flux = self._evaluate_model_flux(
+                        np.array([t_center]), np.array([e_center])
+                    )[0]
+
+                    # Expected counts
+                    expected_source = photon_flux * eff_area * de * dt
+                    expected_bkg = bkg_rate * de * eff_area * dt
+                    expected_total = expected_source + expected_bkg
+
+                    # Sample from Poisson
+                    counts = self.random_state.poisson(expected_total)
+                    counts_error = np.sqrt(max(counts, 1))
+                    count_rate = counts / dt
+                    count_rate_error = counts_error / dt
+
+                    results.append({
+                        'time_start': t_low,
+                        'time_end': t_high,
+                        'time_center': t_center,
+                        'dt': dt,
+                        'counts': counts,
+                        'counts_error': counts_error,
+                        'count_rate': count_rate,
+                        'count_rate_error': count_rate_error,
+                        'energy_channel': ch_idx,
+                        'energy_low': e_low,
+                        'energy_high': e_high,
+                        'energy_center': e_center
+                    })
+
+            binned_data = pd.DataFrame(results)
+
+        self.binned_counts = binned_data
+        logger.info(f"Generated binned counts: {n_time_bins} time bins, "
+                   f"{'energy-integrated' if energy_integrated else f'{self.n_energy_bins} energy channels'}")
+
+        return binned_data
+
+    def save_time_tagged_events(self, filename='gamma_ray_events'):
+        """
+        Save time-tagged events to CSV
+
+        Parameters
+        ----------
+        filename : str
+            Base filename (without .csv extension)
+        """
+        if self.time_tagged_events is None:
+            raise ValueError("No time-tagged events generated. Run generate_time_tagged_events() first.")
+
+        # Create simulated directory if it doesn't exist
+        output_dir = 'simulated'
+        os.makedirs(output_dir, exist_ok=True)
+
+        # Save events
+        filepath = os.path.join(output_dir, f'{filename}_tte.csv')
+        self.time_tagged_events.to_csv(filepath, index=False)
+        logger.info(f"Saved time-tagged events to {filepath}")
+
+        # Save metadata
+        metadata = {
+            'model': str(self.model),
+            'parameters': self.parameters,
+            'energy_edges': self.energy_edges.tolist(),
+            'time_range': [self.t_start, self.t_end],
+            'n_events': len(self.time_tagged_events),
+            'seed': self.seed
+        }
+
+        import json
+        metadata_path = os.path.join(output_dir, f'{filename}_tte_metadata.json')
+        with open(metadata_path, 'w') as f:
+            json.dump(metadata, f, indent=2, default=str)
+        logger.info(f"Saved metadata to {metadata_path}")
+
+    def save_binned_counts(self, filename='gamma_ray_binned'):
+        """
+        Save binned counts to CSV
+
+        Parameters
+        ----------
+        filename : str
+            Base filename (without .csv extension)
+        """
+        if self.binned_counts is None:
+            raise ValueError("No binned counts generated. Run generate_binned_counts() first.")
+
+        # Create simulated directory if it doesn't exist
+        output_dir = 'simulated'
+        os.makedirs(output_dir, exist_ok=True)
+
+        # Save binned data
+        filepath = os.path.join(output_dir, f'{filename}.csv')
+        self.binned_counts.to_csv(filepath, index=False)
+        logger.info(f"Saved binned counts to {filepath}")
