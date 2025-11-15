@@ -1,0 +1,746 @@
+import unittest
+import tempfile
+import numpy as np
+import matplotlib.pyplot as plt
+from pathlib import Path
+from shutil import rmtree
+from unittest.mock import patch, MagicMock, mock_open
+import json
+
+from redback.analysis import SpectralTemplateMatcher
+from redback.transient.transient import Spectrum
+
+
+class TestSpectralTemplateMatcherInit(unittest.TestCase):
+    """Test initialization of SpectralTemplateMatcher"""
+
+    def test_init_default_templates(self):
+        """Test initialization with default templates"""
+        matcher = SpectralTemplateMatcher()
+        self.assertIsInstance(matcher.templates, list)
+        self.assertGreater(len(matcher.templates), 0)
+        # Check that we have templates for different types
+        types = set(t['type'] for t in matcher.templates)
+        self.assertIn('Ia', types)
+        self.assertIn('II', types)
+        self.assertIn('Ib/c', types)
+
+    def test_init_with_custom_templates(self):
+        """Test initialization with custom templates"""
+        custom_templates = [
+            {
+                'wavelength': np.linspace(3000, 10000, 100),
+                'flux': np.ones(100),
+                'type': 'Custom',
+                'phase': 0,
+                'name': 'custom_template'
+            }
+        ]
+        matcher = SpectralTemplateMatcher(templates=custom_templates)
+        self.assertEqual(len(matcher.templates), 1)
+        self.assertEqual(matcher.templates[0]['type'], 'Custom')
+
+    def test_init_with_template_library_path(self):
+        """Test initialization with template library path"""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            # Create a test CSV template file
+            template_path = Path(tmpdir)
+            test_file = template_path / 'Ia_+5.csv'
+            data = np.column_stack([
+                np.linspace(3000, 10000, 100),
+                np.random.random(100)
+            ])
+            np.savetxt(test_file, data, delimiter=',', header='wavelength,flux')
+
+            matcher = SpectralTemplateMatcher(template_library_path=tmpdir)
+            self.assertGreater(len(matcher.templates), 0)
+
+    def test_default_template_structure(self):
+        """Test that default templates have correct structure"""
+        matcher = SpectralTemplateMatcher()
+        for template in matcher.templates:
+            self.assertIn('wavelength', template)
+            self.assertIn('flux', template)
+            self.assertIn('type', template)
+            self.assertIn('phase', template)
+            self.assertIn('name', template)
+            self.assertIsInstance(template['wavelength'], np.ndarray)
+            self.assertIsInstance(template['flux'], np.ndarray)
+            # Check normalization
+            self.assertAlmostEqual(np.max(template['flux']), 1.0, places=5)
+
+
+class TestSpectralTemplateMatcherAddTemplate(unittest.TestCase):
+    """Test adding templates to the matcher"""
+
+    def setUp(self):
+        self.matcher = SpectralTemplateMatcher()
+        self.initial_count = len(self.matcher.templates)
+
+    def test_add_template_basic(self):
+        """Test adding a single template"""
+        wavelength = np.linspace(3000, 10000, 100)
+        flux = np.random.random(100)
+
+        self.matcher.add_template(
+            wavelength=wavelength,
+            flux=flux,
+            sn_type='Ia-pec',
+            phase=3.5,
+            name='test_template'
+        )
+
+        self.assertEqual(len(self.matcher.templates), self.initial_count + 1)
+        new_template = self.matcher.templates[-1]
+        self.assertEqual(new_template['type'], 'Ia-pec')
+        self.assertEqual(new_template['phase'], 3.5)
+        self.assertEqual(new_template['name'], 'test_template')
+
+    def test_add_template_auto_name(self):
+        """Test adding template with automatic name generation"""
+        wavelength = np.linspace(3000, 10000, 100)
+        flux = np.random.random(100)
+
+        self.matcher.add_template(
+            wavelength=wavelength,
+            flux=flux,
+            sn_type='II',
+            phase=10.0
+        )
+
+        new_template = self.matcher.templates[-1]
+        self.assertEqual(new_template['name'], 'II_phase_10.0')
+
+    def test_add_template_normalization(self):
+        """Test that added templates are normalized"""
+        wavelength = np.linspace(3000, 10000, 100)
+        flux = np.random.random(100) * 100  # Not normalized
+
+        self.matcher.add_template(
+            wavelength=wavelength,
+            flux=flux,
+            sn_type='Ib',
+            phase=0
+        )
+
+        new_template = self.matcher.templates[-1]
+        self.assertAlmostEqual(np.max(new_template['flux']), 1.0, places=5)
+
+
+class TestSpectralTemplateMatcherMatching(unittest.TestCase):
+    """Test spectrum matching functionality"""
+
+    def setUp(self):
+        self.matcher = SpectralTemplateMatcher()
+        # Create a test spectrum
+        self.wavelengths = np.linspace(3500, 9000, 500)
+        # Create a simple blackbody-like spectrum
+        temp = 11000
+        h, c, k = 6.626e-27, 3e10, 1.38e-16
+        wavelength_cm = self.wavelengths * 1e-8
+        exponent = np.clip((h * c) / (wavelength_cm * k * temp), None, 700)
+        self.flux = (1 / wavelength_cm**5) / (np.exp(exponent) - 1)
+        self.flux = self.flux / np.max(self.flux)
+        self.flux_err = 0.05 * self.flux
+
+        self.spectrum = Spectrum(
+            angstroms=self.wavelengths,
+            flux_density=self.flux,
+            flux_density_err=self.flux_err,
+            name="Test_SN"
+        )
+
+    def test_match_spectrum_returns_dict(self):
+        """Test that match_spectrum returns a dictionary"""
+        result = self.matcher.match_spectrum(self.spectrum)
+        self.assertIsInstance(result, dict)
+
+    def test_match_spectrum_has_required_keys(self):
+        """Test that result has all required keys"""
+        result = self.matcher.match_spectrum(self.spectrum)
+        required_keys = ['type', 'phase', 'redshift', 'correlation', 'template_name']
+        for key in required_keys:
+            self.assertIn(key, result)
+
+    def test_match_spectrum_correlation_range(self):
+        """Test that correlation is in valid range"""
+        result = self.matcher.match_spectrum(self.spectrum)
+        self.assertGreaterEqual(result['correlation'], -1)
+        self.assertLessEqual(result['correlation'], 1)
+
+    def test_match_spectrum_redshift_range(self):
+        """Test that redshift is in specified range"""
+        z_min, z_max = 0.0, 0.3
+        result = self.matcher.match_spectrum(
+            self.spectrum,
+            redshift_range=(z_min, z_max)
+        )
+        self.assertGreaterEqual(result['redshift'], z_min)
+        self.assertLessEqual(result['redshift'], z_max)
+
+    def test_match_spectrum_chi2_method(self):
+        """Test chi-squared matching method"""
+        result = self.matcher.match_spectrum(self.spectrum, method='chi2')
+        self.assertIn('chi2', result)
+        self.assertIn('scale_factor', result)
+
+    def test_match_spectrum_both_method(self):
+        """Test both correlation and chi-squared"""
+        result = self.matcher.match_spectrum(self.spectrum, method='both')
+        self.assertIn('correlation', result)
+        self.assertIn('chi2', result)
+
+    def test_match_spectrum_return_all_matches(self):
+        """Test returning all matches"""
+        all_matches = self.matcher.match_spectrum(
+            self.spectrum,
+            return_all_matches=True
+        )
+        self.assertIsInstance(all_matches, list)
+        self.assertGreater(len(all_matches), 1)
+        # Check sorting by correlation
+        correlations = [m['correlation'] for m in all_matches]
+        self.assertEqual(correlations, sorted(correlations, reverse=True))
+
+    def test_match_spectrum_different_grid_sizes(self):
+        """Test with different redshift grid sizes"""
+        result_coarse = self.matcher.match_spectrum(
+            self.spectrum,
+            n_redshift_points=10
+        )
+        result_fine = self.matcher.match_spectrum(
+            self.spectrum,
+            n_redshift_points=100
+        )
+        # Both should return valid results
+        self.assertIsInstance(result_coarse, dict)
+        self.assertIsInstance(result_fine, dict)
+
+    def test_match_spectrum_empty_templates_raises_error(self):
+        """Test that empty templates raises ValueError"""
+        empty_matcher = SpectralTemplateMatcher(templates=[])
+        with self.assertRaises(ValueError):
+            empty_matcher.match_spectrum(self.spectrum)
+
+
+class TestSpectralTemplateMatcherClassification(unittest.TestCase):
+    """Test classification functionality"""
+
+    def setUp(self):
+        self.matcher = SpectralTemplateMatcher()
+        wavelengths = np.linspace(3500, 9000, 500)
+        flux = np.ones(500)
+        flux_err = 0.05 * flux
+        self.spectrum = Spectrum(
+            angstroms=wavelengths,
+            flux_density=flux,
+            flux_density_err=flux_err,
+            name="Test_SN"
+        )
+
+    def test_classify_spectrum_returns_dict(self):
+        """Test that classify_spectrum returns a dictionary"""
+        result = self.matcher.classify_spectrum(self.spectrum)
+        self.assertIsInstance(result, dict)
+
+    def test_classify_spectrum_has_required_keys(self):
+        """Test that result has all required keys"""
+        result = self.matcher.classify_spectrum(self.spectrum)
+        required_keys = ['best_type', 'best_phase', 'best_redshift',
+                        'correlation', 'type_probabilities', 'top_matches']
+        for key in required_keys:
+            self.assertIn(key, result)
+
+    def test_classify_spectrum_type_probabilities_sum_to_one(self):
+        """Test that type probabilities sum to approximately 1"""
+        result = self.matcher.classify_spectrum(self.spectrum)
+        total_prob = sum(result['type_probabilities'].values())
+        self.assertAlmostEqual(total_prob, 1.0, places=5)
+
+    def test_classify_spectrum_top_n_parameter(self):
+        """Test that top_n parameter works"""
+        result = self.matcher.classify_spectrum(self.spectrum, top_n=3)
+        self.assertLessEqual(len(result['top_matches']), 3)
+
+    def test_classify_spectrum_probabilities_non_negative(self):
+        """Test that all probabilities are non-negative"""
+        result = self.matcher.classify_spectrum(self.spectrum)
+        for prob in result['type_probabilities'].values():
+            self.assertGreaterEqual(prob, 0)
+
+
+class TestSpectralTemplateMatcherPlotting(unittest.TestCase):
+    """Test plotting functionality"""
+
+    def setUp(self):
+        self.matcher = SpectralTemplateMatcher()
+        wavelengths = np.linspace(3500, 9000, 500)
+        flux = np.ones(500)
+        flux_err = 0.05 * flux
+        self.spectrum = Spectrum(
+            angstroms=wavelengths,
+            flux_density=flux,
+            flux_density_err=flux_err,
+            name="Test_SN"
+        )
+        self.match_result = self.matcher.match_spectrum(self.spectrum)
+
+    def test_plot_match_returns_axes(self):
+        """Test that plot_match returns matplotlib axes"""
+        fig, ax = plt.subplots()
+        result_ax = self.matcher.plot_match(self.spectrum, self.match_result, axes=ax)
+        self.assertIsNotNone(result_ax)
+        plt.close(fig)
+
+    def test_plot_match_creates_plot_without_axes(self):
+        """Test that plot_match works without providing axes"""
+        fig, ax = plt.subplots()
+        result_ax = self.matcher.plot_match(self.spectrum, self.match_result)
+        self.assertIsNotNone(result_ax)
+        plt.close('all')
+
+    def test_plot_match_has_labels(self):
+        """Test that plot has proper labels"""
+        fig, ax = plt.subplots()
+        result_ax = self.matcher.plot_match(self.spectrum, self.match_result, axes=ax)
+        self.assertIn('Wavelength', result_ax.get_xlabel())
+        self.assertIn('Flux', result_ax.get_ylabel())
+        plt.close(fig)
+
+    def test_plot_match_has_legend(self):
+        """Test that plot has a legend"""
+        fig, ax = plt.subplots()
+        result_ax = self.matcher.plot_match(self.spectrum, self.match_result, axes=ax)
+        legend = result_ax.get_legend()
+        self.assertIsNotNone(legend)
+        plt.close(fig)
+
+    def test_plot_match_invalid_template_raises_error(self):
+        """Test that invalid template raises ValueError"""
+        bad_result = {'type': 'NonExistent', 'phase': 999, 'redshift': 0.1}
+        with self.assertRaises(ValueError):
+            self.matcher.plot_match(self.spectrum, bad_result)
+
+
+class TestSpectralTemplateMatcherTemplateIO(unittest.TestCase):
+    """Test template loading and saving functionality"""
+
+    def setUp(self):
+        self.matcher = SpectralTemplateMatcher()
+        self.temp_dir = tempfile.mkdtemp()
+
+    def tearDown(self):
+        rmtree(self.temp_dir)
+
+    def test_save_templates_csv(self):
+        """Test saving templates in CSV format"""
+        self.matcher.save_templates(self.temp_dir, format='csv')
+        saved_files = list(Path(self.temp_dir).glob('*.csv'))
+        self.assertEqual(len(saved_files), len(self.matcher.templates))
+
+    def test_save_templates_dat(self):
+        """Test saving templates in DAT format"""
+        self.matcher.save_templates(self.temp_dir, format='dat')
+        saved_files = list(Path(self.temp_dir).glob('*.dat'))
+        self.assertEqual(len(saved_files), len(self.matcher.templates))
+
+    def test_load_templates_csv(self):
+        """Test loading templates from CSV files"""
+        # Save templates first
+        self.matcher.save_templates(self.temp_dir, format='csv')
+        # Load them back
+        loaded_matcher = SpectralTemplateMatcher(template_library_path=self.temp_dir)
+        self.assertEqual(len(loaded_matcher.templates), len(self.matcher.templates))
+
+    def test_load_templates_nonexistent_path(self):
+        """Test that nonexistent path raises FileNotFoundError"""
+        with self.assertRaises(FileNotFoundError):
+            SpectralTemplateMatcher(template_library_path='/nonexistent/path')
+
+    def test_load_templates_empty_directory(self):
+        """Test that empty directory raises ValueError"""
+        empty_dir = Path(self.temp_dir) / 'empty'
+        empty_dir.mkdir()
+        with self.assertRaises(ValueError):
+            SpectralTemplateMatcher(template_library_path=str(empty_dir))
+
+    def test_parse_snid_template_file(self):
+        """Test parsing SNID template file"""
+        # Create a test SNID-like file
+        snid_file = Path(self.temp_dir) / 'sn1999aa_Ia_+5.dat'
+        wavelengths = np.linspace(3000, 10000, 100)
+        fluxes = np.random.random(100)
+        data = np.column_stack([wavelengths, fluxes])
+        np.savetxt(snid_file, data)
+
+        template = SpectralTemplateMatcher.parse_snid_template_file(snid_file)
+        self.assertEqual(template['type'], 'Ia')
+        self.assertEqual(template['phase'], 5.0)
+        self.assertEqual(template['name'], 'sn1999aa_Ia_+5')
+
+    def test_parse_snid_template_with_comments(self):
+        """Test parsing SNID file with metadata comments"""
+        snid_file = Path(self.temp_dir) / 'test_template.dat'
+        with open(snid_file, 'w') as f:
+            f.write("# Type: IIn\n")
+            f.write("# Phase: -3.5\n")
+            for w, flux in zip(np.linspace(3000, 10000, 50), np.random.random(50)):
+                f.write(f"{w} {flux}\n")
+
+        template = SpectralTemplateMatcher.parse_snid_template_file(snid_file)
+        self.assertEqual(template['type'], 'IIn')
+        self.assertEqual(template['phase'], -3.5)
+
+    def test_from_snid_template_directory(self):
+        """Test creating matcher from SNID template directory"""
+        # Create test SNID files
+        for sn_type in ['Ia', 'II']:
+            for phase in [0, 5]:
+                filename = f'{sn_type}_{phase}.dat'
+                filepath = Path(self.temp_dir) / filename
+                data = np.column_stack([
+                    np.linspace(3000, 10000, 50),
+                    np.random.random(50)
+                ])
+                np.savetxt(filepath, data)
+
+        matcher = SpectralTemplateMatcher.from_snid_template_directory(self.temp_dir)
+        self.assertEqual(len(matcher.templates), 4)
+
+
+class TestSpectralTemplateMatcherFiltering(unittest.TestCase):
+    """Test template filtering functionality"""
+
+    def setUp(self):
+        self.matcher = SpectralTemplateMatcher()
+
+    def test_filter_by_type(self):
+        """Test filtering templates by type"""
+        filtered = self.matcher.filter_templates(types=['Ia'])
+        for template in filtered.templates:
+            self.assertEqual(template['type'], 'Ia')
+
+    def test_filter_by_multiple_types(self):
+        """Test filtering by multiple types"""
+        filtered = self.matcher.filter_templates(types=['Ia', 'II'])
+        types = set(t['type'] for t in filtered.templates)
+        self.assertTrue(types.issubset({'Ia', 'II'}))
+
+    def test_filter_by_phase_range(self):
+        """Test filtering by phase range"""
+        phase_min, phase_max = -5, 10
+        filtered = self.matcher.filter_templates(phase_range=(phase_min, phase_max))
+        for template in filtered.templates:
+            self.assertGreaterEqual(template['phase'], phase_min)
+            self.assertLessEqual(template['phase'], phase_max)
+
+    def test_filter_combined(self):
+        """Test filtering by both type and phase"""
+        filtered = self.matcher.filter_templates(
+            types=['Ia'],
+            phase_range=(-5, 5)
+        )
+        for template in filtered.templates:
+            self.assertEqual(template['type'], 'Ia')
+            self.assertGreaterEqual(template['phase'], -5)
+            self.assertLessEqual(template['phase'], 5)
+
+    def test_filter_returns_new_instance(self):
+        """Test that filter returns a new instance"""
+        filtered = self.matcher.filter_templates(types=['Ia'])
+        self.assertIsInstance(filtered, SpectralTemplateMatcher)
+        self.assertIsNot(filtered, self.matcher)
+
+    def test_filter_no_matches(self):
+        """Test filtering with no matching templates"""
+        filtered = self.matcher.filter_templates(types=['NonExistent'])
+        self.assertEqual(len(filtered.templates), 0)
+
+
+class TestSpectralTemplateMatcherAvailableSources(unittest.TestCase):
+    """Test available template sources functionality"""
+
+    def test_get_available_template_sources_returns_dict(self):
+        """Test that get_available_template_sources returns a dictionary"""
+        sources = SpectralTemplateMatcher.get_available_template_sources()
+        self.assertIsInstance(sources, dict)
+
+    def test_get_available_template_sources_has_known_sources(self):
+        """Test that known sources are present"""
+        sources = SpectralTemplateMatcher.get_available_template_sources()
+        expected_sources = ['snid_templates_2.0', 'super_snid', 'sesn_templates',
+                           'open_supernova_catalog', 'wiserep']
+        for source in expected_sources:
+            self.assertIn(source, sources)
+
+    def test_get_available_template_sources_structure(self):
+        """Test that each source has required information"""
+        sources = SpectralTemplateMatcher.get_available_template_sources()
+        for name, info in sources.items():
+            self.assertIn('description', info)
+            self.assertIn('url', info)
+            self.assertIn('citation', info)
+
+
+class TestSpectralTemplateMatcherDownload(unittest.TestCase):
+    """Test template download functionality (with mocking)"""
+
+    def setUp(self):
+        self.temp_dir = tempfile.mkdtemp()
+
+    def tearDown(self):
+        rmtree(self.temp_dir)
+
+    @patch('urllib.request.urlopen')
+    def test_download_templates_from_osc_with_mock(self, mock_urlopen):
+        """Test downloading from OSC with mocked API response"""
+        # Create mock response
+        mock_data = {
+            'SN2011fe': {
+                'spectra': [{
+                    'data': [[3000 + i, np.random.random()] for i in range(100)],
+                    'time': '5.0'
+                }]
+            }
+        }
+        mock_response = MagicMock()
+        mock_response.read.return_value = json.dumps(mock_data).encode()
+        mock_response.__enter__ = MagicMock(return_value=mock_response)
+        mock_response.__exit__ = MagicMock(return_value=False)
+        mock_urlopen.return_value = mock_response
+
+        matcher = SpectralTemplateMatcher.download_templates_from_osc(
+            sn_types=['Ia'],
+            max_per_type=1,
+            cache_dir=self.temp_dir
+        )
+        self.assertGreater(len(matcher.templates), 0)
+
+    @patch('urllib.request.urlopen')
+    def test_download_templates_from_osc_handles_empty_response(self, mock_urlopen):
+        """Test handling empty API response"""
+        mock_data = {}
+        mock_response = MagicMock()
+        mock_response.read.return_value = json.dumps(mock_data).encode()
+        mock_response.__enter__ = MagicMock(return_value=mock_response)
+        mock_response.__exit__ = MagicMock(return_value=False)
+        mock_urlopen.return_value = mock_response
+
+        matcher = SpectralTemplateMatcher.download_templates_from_osc(
+            sn_types=['Ia'],
+            max_per_type=1,
+            cache_dir=self.temp_dir
+        )
+        # Should fall back to default templates
+        self.assertGreater(len(matcher.templates), 0)
+
+    @patch('urllib.request.urlretrieve')
+    @patch('zipfile.ZipFile')
+    def test_download_github_templates(self, mock_zipfile, mock_retrieve):
+        """Test downloading from GitHub repository"""
+        # Create a mock directory structure
+        repo_dir = Path(self.temp_dir) / 'SESNtemple-master'
+        repo_dir.mkdir(parents=True)
+        (repo_dir / 'SNIDtemplates').mkdir()
+
+        # Mock zipfile extraction
+        mock_zip_instance = MagicMock()
+        mock_zipfile.return_value.__enter__ = MagicMock(return_value=mock_zip_instance)
+        mock_zipfile.return_value.__exit__ = MagicMock(return_value=False)
+
+        def mock_retrievezip(url, path):
+            pass
+
+        mock_retrieve.side_effect = mock_retrievezip
+
+        # Since we're mocking, just test the cache directory logic
+        template_dir = SpectralTemplateMatcher.download_github_templates(
+            'https://github.com/metal-sn/SESNtemple',
+            cache_dir=self.temp_dir
+        )
+        # Check that it returns a Path
+        self.assertIsInstance(template_dir, Path)
+
+
+class TestSpectralTemplateMatcherBlackbodyFlux(unittest.TestCase):
+    """Test blackbody flux calculation"""
+
+    def setUp(self):
+        self.matcher = SpectralTemplateMatcher()
+
+    def test_blackbody_flux_shape(self):
+        """Test that blackbody flux has correct shape"""
+        wavelength = np.linspace(3000, 10000, 100)
+        flux = self.matcher._blackbody_flux(wavelength, 10000)
+        self.assertEqual(flux.shape, wavelength.shape)
+
+    def test_blackbody_flux_positive(self):
+        """Test that blackbody flux is positive"""
+        wavelength = np.linspace(3000, 10000, 100)
+        flux = self.matcher._blackbody_flux(wavelength, 10000)
+        self.assertTrue(np.all(flux > 0))
+
+    def test_blackbody_flux_temperature_dependence(self):
+        """Test that higher temperature gives higher peak flux"""
+        wavelength = np.linspace(3000, 10000, 100)
+        flux_low_temp = self.matcher._blackbody_flux(wavelength, 5000)
+        flux_high_temp = self.matcher._blackbody_flux(wavelength, 15000)
+        # Higher temperature should have higher total flux
+        self.assertGreater(np.sum(flux_high_temp), np.sum(flux_low_temp))
+
+    def test_blackbody_flux_wien_displacement(self):
+        """Test that peak wavelength follows Wien's law approximately"""
+        wavelength = np.linspace(1000, 20000, 1000)
+        # Wien's law: lambda_max * T ≈ 2.898e7 Angstrom*K
+        for temp in [5000, 10000, 15000]:
+            flux = self.matcher._blackbody_flux(wavelength, temp)
+            peak_wavelength = wavelength[np.argmax(flux)]
+            wien_product = peak_wavelength * temp
+            # Should be around 2.9e7 Angstrom*K
+            self.assertGreater(wien_product, 2.0e7)
+            self.assertLess(wien_product, 4.0e7)
+
+
+class TestSpectralTemplateMatcherEdgeCases(unittest.TestCase):
+    """Test edge cases and error handling"""
+
+    def setUp(self):
+        self.matcher = SpectralTemplateMatcher()
+
+    def test_match_spectrum_no_overlap(self):
+        """Test matching when there's no wavelength overlap"""
+        # Create spectrum outside template range
+        wavelengths = np.linspace(100, 200, 100)  # Far UV, no overlap
+        flux = np.ones(100)
+        flux_err = 0.1 * flux
+        spectrum = Spectrum(
+            angstroms=wavelengths,
+            flux_density=flux,
+            flux_density_err=flux_err,
+            name="NoOverlap"
+        )
+        result = self.matcher.match_spectrum(spectrum)
+        # Should return None when no valid matches
+        self.assertIsNone(result)
+
+    def test_match_spectrum_very_few_points(self):
+        """Test matching with very few spectral points"""
+        wavelengths = np.array([4000, 5000, 6000])
+        flux = np.array([1.0, 1.0, 1.0])
+        flux_err = np.array([0.1, 0.1, 0.1])
+        spectrum = Spectrum(
+            angstroms=wavelengths,
+            flux_density=flux,
+            flux_density_err=flux_err,
+            name="FewPoints"
+        )
+        # Should still work, though may return None if not enough overlap
+        result = self.matcher.match_spectrum(spectrum)
+        # Result can be None or dict depending on overlap
+        self.assertTrue(result is None or isinstance(result, dict))
+
+    def test_classify_empty_matches(self):
+        """Test classification when no matches found"""
+        # Create spectrum with no overlap
+        wavelengths = np.linspace(100, 200, 100)
+        flux = np.ones(100)
+        flux_err = 0.1 * flux
+        spectrum = Spectrum(
+            angstroms=wavelengths,
+            flux_density=flux,
+            flux_density_err=flux_err,
+            name="NoOverlap"
+        )
+        result = self.matcher.classify_spectrum(spectrum)
+        # Should handle gracefully
+        self.assertIn('best_type', result)
+        self.assertIsNone(result['best_type'])
+
+    def test_add_template_with_nan_flux(self):
+        """Test adding template with NaN values"""
+        wavelength = np.linspace(3000, 10000, 100)
+        flux = np.random.random(100)
+        flux[50] = np.nan  # Add NaN
+
+        # This should still work but may cause issues in matching
+        self.matcher.add_template(
+            wavelength=wavelength,
+            flux=flux,
+            sn_type='Test',
+            phase=0
+        )
+        self.assertGreater(len(self.matcher.templates), 0)
+
+
+class TestSpectralTemplateMatcherIntegration(unittest.TestCase):
+    """Integration tests for complete workflows"""
+
+    def setUp(self):
+        self.temp_dir = tempfile.mkdtemp()
+
+    def tearDown(self):
+        rmtree(self.temp_dir)
+
+    def test_full_workflow(self):
+        """Test complete workflow: create, match, classify, plot, save"""
+        # Create matcher
+        matcher = SpectralTemplateMatcher()
+
+        # Create test spectrum
+        wavelengths = np.linspace(3500, 9000, 500)
+        flux = np.ones(500)
+        flux_err = 0.05 * flux
+        spectrum = Spectrum(
+            angstroms=wavelengths,
+            flux_density=flux,
+            flux_density_err=flux_err,
+            name="Test_SN"
+        )
+
+        # Match
+        match_result = matcher.match_spectrum(spectrum)
+        self.assertIsInstance(match_result, dict)
+
+        # Classify
+        classification = matcher.classify_spectrum(spectrum)
+        self.assertIsInstance(classification, dict)
+
+        # Plot
+        fig, ax = plt.subplots()
+        matcher.plot_match(spectrum, match_result, axes=ax)
+        plt.close(fig)
+
+        # Save
+        matcher.save_templates(self.temp_dir)
+        saved_files = list(Path(self.temp_dir).glob('*.csv'))
+        self.assertGreater(len(saved_files), 0)
+
+        # Load
+        new_matcher = SpectralTemplateMatcher(template_library_path=self.temp_dir)
+        self.assertEqual(len(new_matcher.templates), len(matcher.templates))
+
+    def test_filter_then_match_workflow(self):
+        """Test filtering templates then matching"""
+        matcher = SpectralTemplateMatcher()
+
+        # Filter to only Type Ia
+        filtered_matcher = matcher.filter_templates(types=['Ia'])
+
+        # Create spectrum
+        wavelengths = np.linspace(3500, 9000, 500)
+        flux = np.ones(500)
+        flux_err = 0.05 * flux
+        spectrum = Spectrum(
+            angstroms=wavelengths,
+            flux_density=flux,
+            flux_density_err=flux_err,
+            name="Test_SN"
+        )
+
+        # Match with filtered templates
+        result = filtered_matcher.match_spectrum(spectrum)
+        self.assertEqual(result['type'], 'Ia')
+
+
+if __name__ == '__main__':
+    unittest.main()
