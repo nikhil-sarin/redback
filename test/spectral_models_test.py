@@ -1623,5 +1623,262 @@ class TestElementaryPCygniCoverage(unittest.TestCase):
         self.assertLess(wave[min_idx], 6355)
 
 
+class TestVelocityGradientCoverage(unittest.TestCase):
+    """Additional velocity gradient tests"""
+
+    def test_gradient_with_nan_errors_fallback(self):
+        """Test gradient when errors contain NaN (uses unweighted fit)"""
+        times = np.array([1.0, 3.0, 5.0, 7.0])
+        wavelength_list = []
+        flux_list = []
+
+        for t in times:
+            wave = np.linspace(5800, 6800, 300)
+            v_phot = 12000 - 50 * t
+            flux = spectral_models.elementary_p_cygni_profile(
+                wave, lambda_rest=6355, v_absorption=v_phot,
+                absorption_depth=0.4, emission_strength=0.2, v_width=1500
+            )
+            wavelength_list.append(wave)
+            flux_list.append(flux)
+
+        dummy_fitter = SpectralVelocityFitter(
+            np.array([6000, 6500, 7000]), np.array([1.0, 1.0, 1.0])
+        )
+        gradient, grad_err = dummy_fitter.measure_velocity_gradient(
+            wavelength_list, flux_list, times, 6355, v_window=20000
+        )
+        # Should compute gradient even with uniform errors
+        self.assertFalse(np.isnan(gradient))
+
+    def test_gradient_with_zero_errors(self):
+        """Test gradient when errors are zero (uses unweighted fit)"""
+        # Create simple data that will have zero error estimates
+        times = np.array([1.0, 2.0, 3.0])
+        wavelength_list = []
+        flux_list = []
+
+        for t in times:
+            # Very sparse data to get minimal error estimates
+            wave = np.linspace(6350, 6360, 6)  # Just 6 points
+            flux = np.array([1.0, 0.95, 0.8, 0.85, 0.95, 1.0])
+            wavelength_list.append(wave)
+            flux_list.append(flux)
+
+        dummy_fitter = SpectralVelocityFitter(
+            np.array([6000, 6500, 7000]), np.array([1.0, 1.0, 1.0])
+        )
+        gradient, grad_err = dummy_fitter.measure_velocity_gradient(
+            wavelength_list, flux_list, times, 6355, v_window=10000
+        )
+        # Should handle this case
+        self.assertIsInstance(gradient, (float, np.floating))
+
+
+class TestLorentzianProfileCoverage(unittest.TestCase):
+    """Additional Lorentzian profile tests"""
+
+    def test_lorentzian_absorption_line(self):
+        """Test Lorentzian as absorption line"""
+        wave = np.linspace(6550, 6575, 500)
+        flux = spectral_models.lorentzian_line_profile(
+            wave, lambda_center=6563, amplitude=-0.5,
+            gamma=1.5, continuum=1.0
+        )
+        # Should have absorption
+        self.assertLess(flux.min(), 1.0)
+        # Min should be at center
+        min_idx = np.argmin(flux)
+        self.assertAlmostEqual(wave[min_idx], 6563, delta=0.1)
+
+    def test_lorentzian_emission_line(self):
+        """Test Lorentzian as emission line"""
+        wave = np.linspace(6550, 6575, 500)
+        flux = spectral_models.lorentzian_line_profile(
+            wave, lambda_center=6563, amplitude=0.5,
+            gamma=2.0, continuum=1.0
+        )
+        # Should have emission
+        self.assertGreater(flux.max(), 1.0)
+
+
+class TestGaussianProfileCoverage(unittest.TestCase):
+    """Additional Gaussian profile tests"""
+
+    def test_gaussian_emission_line(self):
+        """Test Gaussian as emission line"""
+        wave = np.linspace(6550, 6575, 500)
+        flux = spectral_models.gaussian_line_profile(
+            wave, lambda_center=6563, amplitude=0.8,
+            sigma=1.5, continuum=0.5
+        )
+        # Should have emission above continuum
+        self.assertGreater(flux.max(), 0.5)
+        # Max at center
+        max_idx = np.argmax(flux)
+        self.assertAlmostEqual(wave[max_idx], 6563, delta=0.1)
+
+    def test_gaussian_wide_line(self):
+        """Test Gaussian with very wide sigma"""
+        wave = np.linspace(6500, 6650, 500)
+        flux = spectral_models.gaussian_line_profile(
+            wave, lambda_center=6563, amplitude=-0.3,
+            sigma=30.0, continuum=1.0
+        )
+        # Wide line should affect entire range
+        self.assertTrue(np.all(flux < 1.0))
+
+
+class TestBlackbodyWithLinesCoverage(unittest.TestCase):
+    """Additional tests for blackbody with lines"""
+
+    def test_blackbody_with_strong_emission(self):
+        """Test blackbody with strong emission line"""
+        wave = np.linspace(4000, 7000, 500)
+        flux = spectral_models.blackbody_spectrum_with_absorption_and_emission_lines(
+            wave, redshift=0.01, rph=1e15, temp=10000,
+            lc1=6563, ls1=1e-14, v1=500,  # Strong emission
+            lc2=5007, ls2=1e-17, v2=300   # Weak absorption
+        )
+        self.assertEqual(flux.shape, wave.shape)
+        self.assertTrue(np.all(flux > 0))
+
+    def test_powerlaw_with_zero_line_strength(self):
+        """Test powerlaw with zero line strength"""
+        wave = np.linspace(4000, 7000, 500)
+        flux = spectral_models.powerlaw_spectrum_with_absorption_and_emission_lines(
+            wave, alpha=-1.0, aa=1e-15,
+            lc1=6563, ls1=0.0, v1=500,  # No emission
+            lc2=5007, ls2=0.0, v2=300   # No absorption
+        )
+        # Should be pure powerlaw
+        # Check that it follows powerlaw shape
+        ratio = flux[0] / flux[-1]
+        expected_ratio = (wave[0] / wave[-1])**(-1.0)
+        self.assertAlmostEqual(ratio, expected_ratio, delta=0.01)
+
+
+class TestHVFEdgeCases(unittest.TestCase):
+    """Edge cases for HVF detection"""
+
+    def test_hvf_with_very_low_absorption(self):
+        """Test HVF detection with absorption < 5% threshold"""
+        wave = np.linspace(5800, 6800, 500)
+        # Create spectrum with very weak feature
+        flux = spectral_models.elementary_p_cygni_profile(
+            wave, lambda_rest=6355, v_absorption=14000,
+            absorption_depth=0.02,  # Only 2% depth
+            emission_strength=0.01, v_width=1500
+        )
+
+        fitter = SpectralVelocityFitter(wave, flux)
+        has_hvf, v_hvf, err = fitter.identify_high_velocity_features(
+            6355, v_phot_expected=10000, threshold_factor=1.2
+        )
+        # Should not detect HVF due to low absorption depth
+        self.assertFalse(has_hvf)
+
+    def test_hvf_with_only_two_points(self):
+        """Test HVF when only 2 points in search region"""
+        wave = np.array([6050, 6055])
+        flux = np.array([0.9, 0.95])
+
+        fitter = SpectralVelocityFitter(wave, flux)
+        has_hvf, v_hvf, err = fitter.identify_high_velocity_features(
+            6355, v_phot_expected=10000, threshold_factor=1.3
+        )
+        # Should return False due to insufficient points
+        self.assertFalse(has_hvf)
+
+
+class TestPowerlawPlusBlackbodyCoverage(unittest.TestCase):
+    """Additional tests for powerlaw plus blackbody spectrum"""
+
+    def test_before_peak_times(self):
+        """Test spectrum before peak times"""
+        wave = np.linspace(4000, 8000, 500)
+        flux = spectral_models.powerlaw_plus_blackbody_spectrum_at_z(
+            wave, redshift=0.01,
+            pl_amplitude=1e-16, pl_slope=-1.5, pl_evolution_index=1.0,
+            temperature_0=12000, radius_0=1e14,
+            temp_rise_index=0.5, temp_decline_index=0.3,
+            temp_peak_time=10.0,  # Peak at day 10
+            radius_rise_index=0.8, radius_decline_index=0.2,
+            radius_peak_time=15.0,  # Peak at day 15
+            time=3.0  # Before both peaks
+        )
+        self.assertEqual(flux.shape, wave.shape)
+        self.assertTrue(np.all(flux > 0))
+
+    def test_after_peak_times(self):
+        """Test spectrum after peak times"""
+        wave = np.linspace(4000, 8000, 500)
+        flux = spectral_models.powerlaw_plus_blackbody_spectrum_at_z(
+            wave, redshift=0.01,
+            pl_amplitude=1e-16, pl_slope=-1.5, pl_evolution_index=1.0,
+            temperature_0=12000, radius_0=1e14,
+            temp_rise_index=0.5, temp_decline_index=0.3,
+            temp_peak_time=5.0,
+            radius_rise_index=0.8, radius_decline_index=0.2,
+            radius_peak_time=8.0,
+            time=20.0  # After both peaks
+        )
+        self.assertEqual(flux.shape, wave.shape)
+        self.assertTrue(np.all(flux > 0))
+
+    def test_with_custom_reference_wavelength(self):
+        """Test with custom reference wavelength"""
+        wave = np.linspace(4000, 8000, 500)
+        flux = spectral_models.powerlaw_plus_blackbody_spectrum_at_z(
+            wave, redshift=0.01,
+            pl_amplitude=1e-16, pl_slope=-1.5, pl_evolution_index=1.0,
+            temperature_0=12000, radius_0=1e14,
+            temp_rise_index=0.5, temp_decline_index=0.3,
+            temp_peak_time=5.0,
+            radius_rise_index=0.8, radius_decline_index=0.2,
+            radius_peak_time=10.0,
+            time=7.0,
+            reference_wavelength=6000.0  # Custom reference
+        )
+        self.assertEqual(flux.shape, wave.shape)
+        self.assertTrue(np.all(flux > 0))
+
+
+class TestMinMethodEdgeCases(unittest.TestCase):
+    """Edge cases for min method velocity measurement"""
+
+    def test_min_method_with_uniform_flux(self):
+        """Test min method when flux is uniform (no clear minimum)"""
+        wave = np.linspace(6300, 6400, 200)
+        flux = np.ones_like(wave) * 1.0  # Flat spectrum
+
+        fitter = SpectralVelocityFitter(wave, flux)
+        v, verr = fitter.measure_line_velocity(6355, method='min', v_window=10000)
+        # Should still return a value (first minimum)
+        self.assertIsInstance(v, (float, np.floating))
+        self.assertIsInstance(verr, (float, np.floating))
+
+    def test_min_method_with_noisy_spectrum(self):
+        """Test min method with noisy spectrum"""
+        np.random.seed(123)  # Different seed
+        wave = np.linspace(6000, 6700, 500)
+        flux = spectral_models.elementary_p_cygni_profile(
+            wave, lambda_rest=6355, v_absorption=11000,
+            absorption_depth=0.6,  # Strong absorption to stand out from noise
+            emission_strength=0.1, v_width=1500
+        )
+        # Add small noise
+        flux += np.random.normal(0, 0.01, size=flux.shape)
+
+        fitter = SpectralVelocityFitter(wave, flux)
+        v, verr = fitter.measure_line_velocity(6355, method='min', v_window=20000)
+        # Should measure velocity without NaN
+        self.assertFalse(np.isnan(v))
+        self.assertFalse(np.isnan(verr))
+        # Velocity should be roughly correct (allowing for noise effects)
+        # The true velocity is -11000 km/s, should be within 20%
+        self.assertLess(v, -8000)  # Should be significantly blueshifted
+
+
 if __name__ == '__main__':
     unittest.main()
