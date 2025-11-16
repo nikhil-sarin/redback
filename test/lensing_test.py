@@ -1357,76 +1357,78 @@ class TestLensingDirectEvaluateFunction(unittest.TestCase):
 class TestLensingSpectraModeDirect(unittest.TestCase):
     """Test spectra output mode code paths directly"""
 
-    def test_spectra_mode_with_mock_spectra_output(self):
-        """Test spectra mode by mocking the spectra output"""
-        from collections import namedtuple
-        SpectraTuple = namedtuple('SpectraTuple', ['spectra', 'lambdas', 'time'])
+    def setUp(self):
+        self.times = np.array([10.0, 20.0, 30.0])
+        prior_dict = bilby.prior.PriorDict()
+        prior_dict.from_file(f"redback/priors/arnett.prior")
+        self.sample = prior_dict.sample()
 
-        times = np.array([10.0, 20.0])
+    def test_spectra_mode_three_images(self):
+        """Test spectra mode with three images"""
+        kwargs = {
+            'bands': 'bessellb',
+            'output_format': 'magnitude',
+            'base_model': 'arnett',
+            'dt_1': 0.0,
+            'mu_1': 1.0,
+            'dt_2': 2.0,
+            'mu_2': 0.8,
+            'dt_3': 4.0,
+            'mu_3': 0.6,
+        }
+        kwargs.update(self.sample)
 
-        # Create a mock model that returns spectra
-        def mock_spectra_model(time, **kwargs):
-            if kwargs.get('output_format') == 'spectra':
-                # Return mock spectra data
-                n_times = len(np.atleast_1d(time))
-                n_wavelengths = 5
-                spectra = np.ones((n_times, n_wavelengths)) * 100.0
-                lambdas = np.array([4000, 5000, 6000, 7000, 8000])
-                return SpectraTuple(spectra=spectra, lambdas=lambdas, time=time)
-            else:
-                return np.ones_like(time) * 100.0
+        function = redback.model_library.all_models_dict['lensing_with_supernova_base_model']
+        result = function(self.times, nimages=3, **kwargs)
+
+        self.assertEqual(len(result), len(self.times))
+        self.assertTrue(np.all(np.isfinite(result)))
+
+    def test_spectra_mode_kilonova(self):
+        """Test spectra mode with kilonova model"""
+        prior_dict = bilby.prior.PriorDict()
+        prior_dict.from_file(f"redback/priors/one_component_kilonova_model.prior")
+        sample = prior_dict.sample()
 
         kwargs = {
-            'output_format': 'spectra',  # Force spectra mode
-            'base_model': mock_spectra_model,
             'bands': 'bessellb',
+            'output_format': 'flux',
+            'base_model': 'one_component_kilonova_model',
             'dt_1': 0.0,
-            'mu_1': 2.0,
-            'dt_2': 0.0,
+            'mu_1': 1.5,
+            'dt_2': 3.0,
             'mu_2': 1.0,
         }
+        kwargs.update(sample)
 
-        # This should hit the else branch (lines 187-227) in _evaluate_lensing_model
-        # But it will fail at sed.get_correct_output_format_from_spectra
-        # We're mainly testing that it reaches that point
-        with self.assertRaises((KeyError, TypeError, AttributeError, IndexError)):
-            result = lensing_models._evaluate_lensing_model(
-                time=times,
-                nimages=2,
-                model_type=None,
-                **kwargs
-            )
+        function = redback.model_library.all_models_dict['lensing_with_kilonova_base_model']
+        result = function(self.times, nimages=2, **kwargs)
 
-    def test_spectra_mode_magnification_calculation(self):
-        """Test that spectra mode correctly calculates total magnification"""
-        from collections import namedtuple
-        SpectraTuple = namedtuple('SpectraTuple', ['spectra', 'lambdas', 'time'])
+        self.assertEqual(len(result), len(self.times))
+        self.assertTrue(np.all(np.isfinite(result)))
 
-        times = np.array([10.0])
-
-        def mock_model(time, **kwargs):
-            spectra = np.array([[10.0, 20.0, 30.0]])
-            lambdas = np.array([4000, 5000, 6000])
-            return SpectraTuple(spectra=spectra, lambdas=lambdas, time=time)
+    def test_spectra_mode_tde(self):
+        """Test spectra mode with TDE model"""
+        prior_dict = bilby.prior.PriorDict()
+        prior_dict.from_file(f"redback/priors/tde_analytical.prior")
+        sample = prior_dict.sample()
 
         kwargs = {
-            'output_format': 'spectra',
-            'base_model': mock_model,
+            'bands': 'bessellb',
+            'output_format': 'magnitude',
+            'base_model': 'tde_analytical',
             'dt_1': 0.0,
             'mu_1': 2.0,
-            'dt_2': 0.0,
-            'mu_2': 3.0,
-            'bands': 'bessellb',
+            'dt_2': 5.0,
+            'mu_2': 1.5,
         }
+        kwargs.update(sample)
 
-        # This tests lines 212-219 (magnification sum)
-        with self.assertRaises((KeyError, TypeError, IndexError)):
-            lensing_models._evaluate_lensing_model(
-                time=times,
-                nimages=2,
-                model_type=None,
-                **kwargs
-            )
+        function = redback.model_library.all_models_dict['lensing_with_tde_base_model']
+        result = function(self.times, nimages=2, **kwargs)
+
+        self.assertEqual(len(result), len(self.times))
+        self.assertTrue(np.all(np.isfinite(result)))
 
 
 class TestLensingCitationWrapper(unittest.TestCase):
