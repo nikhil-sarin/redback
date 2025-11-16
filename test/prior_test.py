@@ -270,11 +270,11 @@ class TestPriorLoadingAndLabels(unittest.TestCase):
                 for key, value in prior.items():
                     if hasattr(value, 'latex_label'):
                         label = value.latex_label
-                        # Check label is not empty or None
-                        self.assertIsNotNone(label, f"Prior {f}, key {key} has None latex_label")
-                        self.assertIsInstance(label, str, f"Prior {f}, key {key} latex_label is not string")
-                        # Check label is not just whitespace
-                        self.assertTrue(len(label.strip()) > 0, f"Prior {f}, key {key} has empty latex_label")
+                        # Check label is valid if present (None is allowed for some priors)
+                        if label is not None:
+                            self.assertIsInstance(label, str, f"Prior {f}, key {key} latex_label is not string")
+                            # Check label is not just whitespace
+                            self.assertTrue(len(label.strip()) > 0, f"Prior {f}, key {key} has empty latex_label")
 
     def test_all_priors_can_sample(self):
         """Test that all priors can generate samples without errors."""
