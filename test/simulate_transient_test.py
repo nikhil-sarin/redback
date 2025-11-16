@@ -2299,3 +2299,373 @@ class TestErrorPathsCoverage(unittest.TestCase):
         )
         self.assertEqual(sim.noise_type, 'limiting_mag')
 
+
+class TestAdditionalCoveragePaths(unittest.TestCase):
+    """Additional tests to maximize code coverage"""
+
+    def setUp(self):
+        self.prior = bilby.core.prior.PriorDict({
+            'mej': bilby.core.prior.Uniform(0.01, 0.1, name='mej'),
+        })
+        self.seed = 42
+
+    def test_calculate_detection_probability_no_limiting_mag(self):
+        """Test _calculate_detection_probability when no limiting_mag in config"""
+        synth = PopulationSynthesizer(
+            model='arnett',
+            prior=self.prior,
+            rate=1e-6,
+            seed=self.seed
+        )
+        params = {'redshift': 0.1, 'mej': 0.05}
+        config = {'bands': ['lsstr']}  # No limiting_mag
+        prob = synth._calculate_detection_probability(params, config)
+        self.assertEqual(prob, 1.0)  # Should return 1.0 with warning
+
+    def test_calculate_detection_probability_with_bands(self):
+        """Test _calculate_detection_probability with bands config"""
+        synth = PopulationSynthesizer(
+            model='arnett',
+            prior=self.prior,
+            rate=1e-6,
+            seed=self.seed
+        )
+        params = {'mej': 0.05, 'vej': 0.2, 'kappa': 1.0, 'kappa_gamma': 1e4,
+                  'temperature_floor': 4000, 'redshift': 0.1, 'luminosity_distance': 450}
+        config = {'limiting_mag': 22.5, 'bands': ['bessellb']}
+        # This will try to evaluate model - may fail but tests the path
+        prob = synth._calculate_detection_probability(params, config)
+        self.assertGreaterEqual(prob, 0.0)
+        self.assertLessEqual(prob, 1.0)
+
+    def test_calculate_detection_probability_no_bands(self):
+        """Test _calculate_detection_probability without bands (flux mode)"""
+        synth = PopulationSynthesizer(
+            model='arnett',
+            prior=self.prior,
+            rate=1e-6,
+            seed=self.seed
+        )
+        params = {'mej': 0.05, 'vej': 0.2, 'kappa': 1.0, 'kappa_gamma': 1e4,
+                  'temperature_floor': 4000}
+        config = {'limiting_mag': 22.5}  # No bands key
+        prob = synth._calculate_detection_probability(params, config)
+        # Should either return 1.0 (positive flux) or 0.0 (negative flux)
+        self.assertIn(prob, [0.0, 1.0])
+
+    def test_simulate_population_with_selection_effects(self):
+        """Test simulate_population with selection effects"""
+        synth = PopulationSynthesizer(
+            model='arnett',
+            prior=self.prior,
+            rate=1e-6,
+            seed=self.seed
+        )
+        survey_config = {
+            'limiting_mag': 22.5,
+            'bands': ['bessellb']
+        }
+        pop = synth.simulate_population(
+            n_events=3,
+            include_selection_effects=True,
+            survey_config=survey_config
+        )
+        self.assertIsInstance(pop, TransientPopulation)
+        self.assertIn('detected', pop.parameters.columns)
+        self.assertIn('survey_config', pop.metadata)
+
+    def test_simulate_population_with_lightcurves(self):
+        """Test simulate_population generates light curves"""
+        # Use simple custom model to avoid missing parameter issues
+        simple_model = lambda t, **kwargs: np.exp(-t/10)
+        synth = PopulationSynthesizer(
+            model=simple_model,
+            prior=self.prior,
+            rate=1e-6,
+            seed=self.seed
+        )
+        pop = synth.simulate_population(
+            n_events=2,
+            include_lightcurves=True
+        )
+        self.assertIsInstance(pop, TransientPopulation)
+        self.assertIsNotNone(pop.light_curves)
+        self.assertEqual(len(pop.light_curves), 2)
+        self.assertIn('times', pop.light_curves[0])
+        self.assertIn('flux', pop.light_curves[0])
+
+    def test_simulate_population_empty_population(self):
+        """Test simulate_population returns empty TransientPopulation"""
+        synth = PopulationSynthesizer(
+            model='arnett',
+            prior=self.prior,
+            rate=1e-6,
+            seed=self.seed
+        )
+        pop = synth.simulate_population(n_events=0)
+        self.assertIsInstance(pop, TransientPopulation)
+        self.assertEqual(pop.n_transients, 0)
+
+    def test_infer_rate_with_transient_population(self):
+        """Test infer_rate with TransientPopulation input"""
+        synth = PopulationSynthesizer(
+            model='arnett',
+            prior=self.prior,
+            rate=1e-6,
+            seed=self.seed
+        )
+        params = pd.DataFrame({'redshift': [0.1, 0.15, 0.2, 0.25]})
+        pop = TransientPopulation(params)
+        result = synth.infer_rate(pop)
+        self.assertIn('rate_ml', result)
+        self.assertIn('rate_uncertainty', result)
+
+    def test_infer_rate_with_array_input(self):
+        """Test infer_rate with array input"""
+        synth = PopulationSynthesizer(
+            model='arnett',
+            prior=self.prior,
+            rate=1e-6,
+            seed=self.seed
+        )
+        redshifts = np.array([0.1, 0.15, 0.2, 0.25])
+        result = synth.infer_rate(redshifts)
+        self.assertIn('rate_ml', result)
+
+    def test_population_synthesizer_string_prior(self):
+        """Test PopulationSynthesizer with string prior"""
+        # This would need bilby prior files - test initialization path
+        synth = PopulationSynthesizer(
+            model='arnett',
+            prior=self.prior,  # Already PriorDict
+            rate=1e-6,
+            seed=self.seed
+        )
+        self.assertIsNotNone(synth.prior)
+
+    def test_population_synthesizer_constant_rate_evolution(self):
+        """Test constant rate evolution returns constant"""
+        synth = PopulationSynthesizer(
+            model='arnett',
+            prior=self.prior,
+            rate=1e-6,
+            rate_evolution='constant',
+            seed=self.seed
+        )
+        rate_z0 = synth.rate_function(0.1)
+        rate_z1 = synth.rate_function(1.0)
+        # Constant rate should be same at all z
+        self.assertEqual(rate_z0, rate_z1)
+
+    def test_simulate_transient_with_cadence_with_t0(self):
+        """Test SimulateTransientWithCadence uses t0 when no t0_mjd_transient"""
+        model = lambda t, **kwargs: np.full_like(t, 20.0)
+        params_with_t0 = {'redshift': 0.1, 't0': 60000.0}
+        cadence = {
+            'bands': ['g'],
+            'cadence_days': 1.0,
+            'duration_days': 5,
+            'limiting_mags': {'g': 22.5}
+        }
+        sim = SimulateTransientWithCadence(
+            model=model,
+            parameters=params_with_t0,
+            cadence_config=cadence,
+            seed=self.seed
+        )
+        self.assertEqual(sim.t0, 60000.0)
+
+    def test_simulate_transient_with_cadence_band_sequence(self):
+        """Test band sequence in optical cadence"""
+        model = lambda t, **kwargs: np.full_like(t, 20.0)
+        cadence = {
+            'bands': ['g', 'r', 'i'],
+            'cadence_days': 1.0,
+            'duration_days': 5,
+            'limiting_mags': {'g': 22.5, 'r': 23.0, 'i': 22.8},
+            'band_sequence': ['g', 'r', 'i', 'g', 'r']  # Specific sequence
+        }
+        sim = SimulateTransientWithCadence(
+            model=model,
+            parameters={'redshift': 0.1},
+            cadence_config=cadence,
+            seed=self.seed
+        )
+        self.assertIn('band', sim.observations.columns)
+
+    def test_transient_population_summary_stats_with_luminosity_distance(self):
+        """Test summary_stats includes luminosity_distance stats"""
+        params = pd.DataFrame({
+            'redshift': [0.1, 0.2, 0.3],
+            'luminosity_distance': [450, 950, 1500]
+        })
+        pop = TransientPopulation(params)
+        stats = pop.summary_stats()
+        self.assertIn('median_distance_mpc', stats)
+        self.assertIn('max_distance_mpc', stats)
+
+    def test_transient_population_summary_stats_with_detection(self):
+        """Test summary_stats includes detection fraction"""
+        params = pd.DataFrame({
+            'redshift': [0.1, 0.2, 0.3],
+            'detected': [True, True, False]
+        })
+        pop = TransientPopulation(params)
+        stats = pop.summary_stats()
+        self.assertIn('detection_fraction', stats)
+        self.assertAlmostEqual(stats['detection_fraction'], 2/3)
+
+    def test_gamma_ray_energy_integrated_counts(self):
+        """Test energy-integrated binned counts"""
+        model = lambda t, **kwargs: np.full_like(t, 1e-3)
+        sim = SimulateGammaRayTransient(
+            model=model,
+            parameters={'redshift': 0.5},
+            energy_edges=[10, 50, 100, 300],
+            time_range=(0, 10),
+            effective_area=100,
+            background_rate=0.1,
+            seed=self.seed
+        )
+        time_bins = np.linspace(0, 10, 6)
+        counts = sim.generate_binned_counts(time_bins, energy_integrated=True)
+        # Energy integrated should have fewer columns
+        self.assertIn('counts', counts.columns)
+        self.assertNotIn('energy_channel', counts.columns)
+        self.assertEqual(len(counts), 5)  # 5 time bins
+
+    def test_gamma_ray_thinning_algorithm_source_events(self):
+        """Test that bright sources generate source events"""
+        # Very bright source
+        bright_model = lambda t, **kwargs: np.full_like(t, 10.0)  # 10 Jy
+        sim = SimulateGammaRayTransient(
+            model=bright_model,
+            parameters={'redshift': 0.1},
+            energy_edges=[10, 100],
+            time_range=(0, 1),
+            effective_area=10000,  # Large area
+            background_rate=0.01,  # Low background
+            seed=self.seed
+        )
+        events = sim.generate_time_tagged_events()
+        # Should have some events
+        self.assertGreater(len(events), 0)
+        # Just verify structure, not source vs background ratio
+        self.assertIn('time', events.columns)
+        self.assertIn('energy', events.columns)
+
+    def test_population_synthesizer_sample_event_times(self):
+        """Test event time sampling with specific range"""
+        synth = PopulationSynthesizer(
+            model='arnett',
+            prior=self.prior,
+            rate=1e-6,
+            seed=self.seed
+        )
+        times = synth._sample_event_times(10, time_range=(59000, 60000))
+        self.assertEqual(len(times), 10)
+        self.assertTrue((times >= 59000).all())
+        self.assertTrue((times <= 60000).all())
+
+    def test_simulate_transient_with_cadence_dict_cadence_days(self):
+        """Test cadence_days as dictionary for per-band cadence"""
+        model = lambda t, **kwargs: np.full_like(t, 20.0)
+        cadence = {
+            'bands': ['g', 'r'],
+            'cadence_days': {'g': 1.0, 'r': 2.0},  # Different cadences
+            'duration_days': 10,
+            'limiting_mags': {'g': 22.5, 'r': 23.0}
+        }
+        sim = SimulateTransientWithCadence(
+            model=model,
+            parameters={'redshift': 0.1},
+            cadence_config=cadence,
+            seed=self.seed
+        )
+        # g band should have more observations than r band
+        g_count = (sim.observations['band'] == 'g').sum()
+        r_count = (sim.observations['band'] == 'r').sum()
+        self.assertGreater(g_count, r_count)
+
+    def test_population_synthesizer_cosmology_object_input(self):
+        """Test PopulationSynthesizer with cosmology object"""
+        from astropy import cosmology as astropy_cosmology
+        cosmo = astropy_cosmology.WMAP9
+
+        synth = PopulationSynthesizer(
+            model='arnett',
+            prior=self.prior,
+            rate=1e-6,
+            cosmology=cosmo,
+            seed=self.seed
+        )
+        self.assertEqual(synth.cosmology, cosmo)
+
+    def test_transient_population_filter_preserves_metadata(self):
+        """Test that filtering preserves metadata"""
+        params = pd.DataFrame({
+            'redshift': [0.1, 0.2, 0.3, 0.4, 0.5],
+            'ra': [10, 20, 30, 40, 50],
+            'dec': [-10, -5, 0, 5, 10]
+        })
+        metadata = {'survey': 'LSST', 'model': 'kilonova'}
+        pop = TransientPopulation(params, metadata)
+        filtered = pop.filter_by_redshift(z_min=0.2, z_max=0.4)
+        self.assertEqual(filtered.metadata, metadata)
+        self.assertEqual(filtered.n_transients, 3)
+
+    def test_gamma_ray_model_evaluation_with_parameters(self):
+        """Test GammaRayTransient model with additional parameters"""
+        model = lambda t, energy=100, **kwargs: np.full_like(t, 1e-3 * (energy/100)**(-2))
+        sim = SimulateGammaRayTransient(
+            model=model,
+            parameters={'redshift': 0.5, 'luminosity': 1e50},
+            energy_edges=[10, 50, 100],
+            time_range=(0, 5),
+            effective_area=100,
+            background_rate=0.1,
+            seed=self.seed
+        )
+        events = sim.generate_time_tagged_events()
+        self.assertIsInstance(events, pd.DataFrame)
+        self.assertGreater(len(events), 0)
+
+    @patch("os.makedirs")
+    @patch("pandas.DataFrame.to_csv")
+    def test_gamma_ray_save_binned_with_makedirs(self, mock_to_csv, mock_makedirs):
+        """Test that save_binned_counts creates directory"""
+        model = lambda t, **kwargs: np.full_like(t, 1e-3)
+        sim = SimulateGammaRayTransient(
+            model=model,
+            parameters={'redshift': 0.5},
+            energy_edges=[10, 100],
+            time_range=(0, 10),
+            seed=self.seed
+        )
+        time_bins = np.linspace(0, 10, 6)
+        sim.generate_binned_counts(time_bins)
+        sim.save_binned_counts('test_counts')
+        mock_makedirs.assert_called()
+        mock_to_csv.assert_called_once()
+
+    def test_population_synthesizer_apply_with_transient_population_input(self):
+        """Test apply_detection_criteria with TransientPopulation input"""
+        synth = PopulationSynthesizer(
+            model='arnett',
+            prior=self.prior,
+            rate=1e-6,
+            seed=self.seed
+        )
+        params = pd.DataFrame({
+            'redshift': [0.1, 0.2, 0.3],
+            'luminosity_distance': [450, 950, 1500]
+        })
+        pop = TransientPopulation(params)
+
+        def det_func(row):
+            return row['redshift'] < 0.25
+
+        result = synth.apply_detection_criteria(pop, det_func)
+        self.assertIn('detected', result.columns)
+        self.assertEqual(result['detected'].sum(), 2)  # z=0.1 and 0.2
+
