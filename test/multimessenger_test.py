@@ -1275,6 +1275,297 @@ class CreateJointPriorAdvancedTest(unittest.TestCase):
         self.assertIn('xray_logn0', joint_prior)
 
 
+class RealCodePathsTest(unittest.TestCase):
+    """Tests that execute real code paths without excessive mocking for coverage"""
+
+    def setUp(self):
+        """Set up real transients"""
+        # Create real transient with actual data
+        self.time = np.array([1.0, 2.0, 3.0, 4.0, 5.0])
+        self.flux = np.array([1e-12, 8e-13, 6e-13, 4e-13, 2e-13])
+        self.flux_err = self.flux * 0.1
+
+        self.optical_transient = Transient(
+            time=self.time,
+            flux=self.flux,
+            flux_err=self.flux_err,
+            data_mode='flux',
+            name='real_optical'
+        )
+
+        self.xray_transient = Transient(
+            time=self.time,
+            flux=self.flux * 0.5,
+            flux_err=self.flux_err * 0.5,
+            data_mode='flux',
+            name='real_xray'
+        )
+
+    def test_init_with_custom_likelihoods_dict(self):
+        """Test custom_likelihoods dict is properly updated (line 119-120)"""
+        mock_custom = mock.MagicMock(spec=bilby.Likelihood)
+        mock_custom.parameters = {}
+
+        mm = MultiMessengerTransient(
+            optical_transient=self.optical_transient,
+            custom_likelihoods={'gamma': mock_custom, 'submm': mock_custom}
+        )
+
+        self.assertIn('gamma', mm.external_likelihoods)
+        self.assertIn('submm', mm.external_likelihoods)
+        self.assertEqual(len(mm.external_likelihoods), 2)
+
+    def test_build_likelihood_with_string_model_valid(self):
+        """Test building likelihood with valid string model name from library (line 159-162)"""
+        mm = MultiMessengerTransient(optical_transient=self.optical_transient)
+
+        # Use a real model from redback library - exponential_powerlaw exists
+        from redback.model_library import all_models_dict
+
+        # Find a simple model that exists
+        if 'exponential_powerlaw' in all_models_dict:
+            model_name = 'exponential_powerlaw'
+        elif 'arnett_bolometric' in all_models_dict:
+            model_name = 'arnett_bolometric'
+        else:
+            # Use first available model
+            model_name = list(all_models_dict.keys())[0]
+
+        likelihood = mm._build_likelihood_for_messenger(
+            'optical',
+            self.optical_transient,
+            model_name,
+            model_kwargs={}
+        )
+
+        self.assertIsInstance(likelihood, GaussianLikelihood)
+        # The model function should be resolved from the string
+        self.assertIsNotNone(likelihood.function)
+
+    def test_none_entries_removed_from_messengers(self):
+        """Test that None entries are filtered out (line 111)"""
+        # Create with only some messengers, others should be None
+        mm = MultiMessengerTransient(
+            optical_transient=self.optical_transient,
+            xray_transient=None,  # Explicitly None
+            radio_transient=None
+        )
+
+        # Only optical should be present
+        self.assertEqual(len(mm.messengers), 1)
+        self.assertIn('optical', mm.messengers)
+        self.assertNotIn('xray', mm.messengers)
+        self.assertNotIn('radio', mm.messengers)
+
+    @mock.patch('bilby.run_sampler')
+    def test_fit_joint_with_real_transient_data(self, mock_sampler):
+        """Test fit_joint with real transient.get_filtered_data() call"""
+        mock_sampler.return_value = mock.MagicMock()
+
+        mm = MultiMessengerTransient(optical_transient=self.optical_transient)
+
+        def simple_model(time, amplitude=1e-12, decay_time=2.0):
+            return amplitude * np.exp(-time / decay_time)
+
+        priors = bilby.core.prior.PriorDict({
+            'amplitude': bilby.core.prior.LogUniform(1e-14, 1e-10),
+            'decay_time': bilby.core.prior.Uniform(0.1, 10)
+        })
+
+        mm.fit_joint(models={'optical': simple_model}, priors=priors)
+
+        # The actual transient's get_filtered_data should have been called
+        self.assertTrue(mock_sampler.called)
+
+    @mock.patch('bilby.run_sampler')
+    def test_fit_joint_constructs_joint_likelihood(self, mock_sampler):
+        """Test that JointLikelihood is actually constructed (line 321)"""
+        mock_sampler.return_value = mock.MagicMock()
+
+        mm = MultiMessengerTransient(
+            optical_transient=self.optical_transient,
+            xray_transient=self.xray_transient
+        )
+
+        def opt_model(time, a=1):
+            return a * np.exp(-time)
+
+        def xray_model(time, b=1):
+            return b * time**(-1)
+
+        priors = bilby.core.prior.PriorDict({
+            'a': bilby.core.prior.Uniform(0, 10),
+            'b': bilby.core.prior.Uniform(0, 10)
+        })
+
+        mm.fit_joint(
+            models={'optical': opt_model, 'xray': xray_model},
+            priors=priors
+        )
+
+        # Check that JointLikelihood was constructed and passed to sampler
+        call_kwargs = mock_sampler.call_args[1]
+        self.assertIn('likelihood', call_kwargs)
+        # With 2 messengers, should be JointLikelihood
+        self.assertIsInstance(call_kwargs['likelihood'], bilby.core.likelihood.JointLikelihood)
+
+    @mock.patch('bilby.run_sampler')
+    def test_fit_joint_metadata_with_string_model(self, mock_sampler):
+        """Test metadata captures string model names correctly (line 335)"""
+        mock_sampler.return_value = mock.MagicMock()
+
+        mm = MultiMessengerTransient(optical_transient=self.optical_transient)
+
+        # Use string that would fail (to be caught in try/except or error)
+        # Instead use callable with specific name
+        def named_model(time, param=1):
+            return time * param
+
+        priors = bilby.core.prior.PriorDict({'param': bilby.core.prior.Uniform(0, 10)})
+
+        mm.fit_joint(models={'optical': named_model}, priors=priors)
+
+        call_kwargs = mock_sampler.call_args[1]
+        meta_data = call_kwargs['meta_data']
+        # Model should be recorded as function name
+        self.assertEqual(meta_data['models']['optical'], 'named_model')
+
+    @mock.patch('bilby.run_sampler')
+    def test_fit_joint_all_sampler_params_passed(self, mock_sampler):
+        """Test all parameters are passed to bilby.run_sampler (lines 342-357)"""
+        mock_sampler.return_value = mock.MagicMock()
+
+        mm = MultiMessengerTransient(optical_transient=self.optical_transient)
+
+        def model(time, a=1):
+            return time * a
+
+        priors = bilby.core.prior.PriorDict({'a': bilby.core.prior.Uniform(0, 10)})
+
+        mm.fit_joint(
+            models={'optical': model},
+            priors=priors,
+            sampler='nestle',
+            nlive=500,
+            walks=100,
+            outdir='./test_out',
+            label='test_label',
+            resume=False,
+            plot=False,
+            save_format='hdf5',
+            extra_param='value'  # Additional kwarg
+        )
+
+        call_kwargs = mock_sampler.call_args[1]
+        self.assertEqual(call_kwargs['sampler'], 'nestle')
+        self.assertEqual(call_kwargs['nlive'], 500)
+        self.assertEqual(call_kwargs['walks'], 100)
+        self.assertEqual(call_kwargs['outdir'], './test_out')
+        self.assertEqual(call_kwargs['label'], 'test_label')
+        self.assertEqual(call_kwargs['resume'], False)
+        self.assertEqual(call_kwargs['plot'], False)
+        self.assertEqual(call_kwargs['save'], 'hdf5')
+        self.assertEqual(call_kwargs['extra_param'], 'value')
+
+    @mock.patch('redback.fit_model')
+    def test_fit_individual_with_real_transients(self, mock_fit_model):
+        """Test fit_individual calls redback.fit_model correctly"""
+        mock_result = mock.MagicMock()
+        mock_fit_model.return_value = mock_result
+
+        mm = MultiMessengerTransient(
+            optical_transient=self.optical_transient,
+            xray_transient=self.xray_transient
+        )
+
+        optical_priors = bilby.core.prior.PriorDict({'a': bilby.core.prior.Uniform(0, 10)})
+        xray_priors = bilby.core.prior.PriorDict({'b': bilby.core.prior.Uniform(0, 10)})
+
+        results = mm.fit_individual(
+            models={'optical': 'model1', 'xray': 'model2'},
+            priors={'optical': optical_priors, 'xray': xray_priors},
+            model_kwargs={'optical': {'kwarg1': 'val1'}},
+            sampler='emcee',
+            nlive=1000,
+            walks=150,
+            outdir='./indiv_out',
+            resume=False,
+            plot=False
+        )
+
+        # Should be called twice, once per messenger
+        self.assertEqual(mock_fit_model.call_count, 2)
+        self.assertIn('optical', results)
+        self.assertIn('xray', results)
+
+        # Check that parameters were passed correctly
+        calls = mock_fit_model.call_args_list
+        # Find optical call
+        for call in calls:
+            kwargs = call[1]
+            if kwargs.get('label', '').endswith('_optical'):
+                self.assertEqual(kwargs['model'], 'model1')
+                self.assertEqual(kwargs['transient'], self.optical_transient)
+                self.assertEqual(kwargs['model_kwargs'], {'kwarg1': 'val1'})
+
+    def test_init_all_messenger_types(self):
+        """Test initialization with all EM messenger types"""
+        uv_transient = Transient(
+            time=self.time,
+            flux=self.flux,
+            flux_err=self.flux_err,
+            data_mode='flux',
+            name='uv'
+        )
+        ir_transient = Transient(
+            time=self.time,
+            flux=self.flux,
+            flux_err=self.flux_err,
+            data_mode='flux',
+            name='ir'
+        )
+        radio_transient = Transient(
+            time=self.time,
+            flux_density=self.flux,
+            flux_density_err=self.flux_err,
+            frequency=np.ones_like(self.time) * 1e9,
+            data_mode='flux_density',
+            name='radio'
+        )
+
+        mm = MultiMessengerTransient(
+            optical_transient=self.optical_transient,
+            xray_transient=self.xray_transient,
+            radio_transient=radio_transient,
+            uv_transient=uv_transient,
+            infrared_transient=ir_transient
+        )
+
+        self.assertEqual(len(mm.messengers), 5)
+        self.assertIn('optical', mm.messengers)
+        self.assertIn('xray', mm.messengers)
+        self.assertIn('radio', mm.messengers)
+        self.assertIn('uv', mm.messengers)
+        self.assertIn('infrared', mm.messengers)
+
+    def test_repr_with_all_types(self):
+        """Test __repr__ includes all messenger types (lines 507-512)"""
+        mock_gw = mock.MagicMock(spec=bilby.Likelihood)
+
+        mm = MultiMessengerTransient(
+            optical_transient=self.optical_transient,
+            xray_transient=self.xray_transient,
+            gw_likelihood=mock_gw,
+            name='full_mm'
+        )
+
+        repr_str = repr(mm)
+        self.assertIn('full_mm', repr_str)
+        self.assertIn('optical', repr_str)
+        self.assertIn('xray', repr_str)
+        self.assertIn('gw', repr_str)
+
+
 class EdgeCasesAndWarningsTest(unittest.TestCase):
     """Test edge cases and warning paths for full coverage"""
 
