@@ -1473,9 +1473,10 @@ class TestPromptTimeSeriesTransient(unittest.TestCase):
         import shutil
         shutil.rmtree('GRBData', ignore_errors=True)
 
-    @mock.patch('redback.get_data.directory.get_batse_trigger_from_grb')
-    @mock.patch('redback.get_data.directory.batse_prompt_directory_structure')
-    def test_prompt_batse_initialization(self, mock_dir, mock_trigger):
+    @mock.patch('redback.transient.prompt.PromptTimeSeries._set_data')
+    @mock.patch('redback.transient.prompt.get_batse_trigger_from_grb')
+    @mock.patch('redback.transient.prompt.batse_prompt_directory_structure')
+    def test_prompt_batse_initialization(self, mock_dir, mock_trigger, mock_set_data):
         """Test that PromptTimeSeries initialization logs instrument and data mode."""
         mock_trigger.return_value = 12345
         mock_dir.return_value = mock.MagicMock(
@@ -1483,6 +1484,7 @@ class TestPromptTimeSeriesTransient(unittest.TestCase):
             raw_file_path='GRBData/prompt/flux/test.fits.gz',
             processed_file_path='GRBData/prompt/flux/test.csv'
         )
+        mock_set_data.return_value = None
 
         prompt = redback.transient.PromptTimeSeries(
             name=self.name,
@@ -1498,14 +1500,18 @@ class TestPromptTimeSeriesTransient(unittest.TestCase):
         self.assertEqual(prompt.instrument, 'batse')
         self.assertEqual(prompt.data_mode, 'counts')
 
-    @mock.patch('redback.get_data.directory.swift_prompt_directory_structure')
-    def test_prompt_swift_initialization(self, mock_dir):
+    @mock.patch('redback.transient.prompt.PromptTimeSeries._set_data')
+    @mock.patch('redback.transient.prompt.get_batse_trigger_from_grb')
+    @mock.patch('redback.transient.prompt.swift_prompt_directory_structure')
+    def test_prompt_swift_initialization(self, mock_dir, mock_trigger, mock_set_data):
         """Test PromptTimeSeries with Swift instrument."""
         mock_dir.return_value = mock.MagicMock(
             directory_path='GRBData/prompt/flux/',
             raw_file_path='GRBData/prompt/flux/test.dat',
             processed_file_path='GRBData/prompt/flux/test.csv'
         )
+        mock_trigger.return_value = 12345
+        mock_set_data.return_value = None
 
         prompt = redback.transient.PromptTimeSeries(
             name=self.name,
@@ -1532,10 +1538,11 @@ class TestPromptTimeSeriesTransient(unittest.TestCase):
                 instrument='invalid_instrument'
             )
 
+    @mock.patch('redback.transient.prompt.PromptTimeSeries._set_data')
     @mock.patch('redback.transient.prompt.PromptTimeSeries.load_batse_data')
-    @mock.patch('redback.get_data.directory.get_batse_trigger_from_grb')
-    @mock.patch('redback.get_data.directory.batse_prompt_directory_structure')
-    def test_from_batse_grb_name_logs_loading(self, mock_dir, mock_trigger, mock_load):
+    @mock.patch('redback.transient.prompt.get_batse_trigger_from_grb')
+    @mock.patch('redback.transient.prompt.batse_prompt_directory_structure')
+    def test_from_batse_grb_name_logs_loading(self, mock_dir, mock_trigger, mock_load, mock_set_data):
         """Test that from_batse_grb_name logs data loading."""
         mock_trigger.return_value = 12345
         mock_dir.return_value = mock.MagicMock(
@@ -1544,6 +1551,7 @@ class TestPromptTimeSeriesTransient(unittest.TestCase):
             processed_file_path='GRBData/prompt/flux/test.csv'
         )
         mock_load.return_value = (self.time, self.bin_size, self.counts)
+        mock_set_data.return_value = None
 
         prompt = redback.transient.PromptTimeSeries.from_batse_grb_name(
             name='GRB123456',
