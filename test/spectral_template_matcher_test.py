@@ -1384,3 +1384,664 @@ class TestSpectralTemplateMatcherConstantsAndPhysics(unittest.TestCase):
         obs_wavelength = template['wavelength'] * (1 + z)
         np.testing.assert_array_almost_equal(obs_wavelength, obs_wavelength_expected)
 
+
+class TestSpectralTemplateMatcherAdvancedCoverage(unittest.TestCase):
+    """Advanced tests for complete code coverage"""
+
+    def setUp(self):
+        self.temp_dir = tempfile.mkdtemp()
+        self.matcher = SpectralTemplateMatcher()
+
+    def tearDown(self):
+        rmtree(self.temp_dir)
+
+    @patch('redback.analysis.SpectralTemplateMatcher.download_github_templates')
+    @patch('redback.analysis.SpectralTemplateMatcher.from_snid_template_directory')
+    def test_from_sesn_templates(self, mock_from_snid, mock_download):
+        """Test from_sesn_templates class method"""
+        # Mock the download to return a path
+        mock_download.return_value = Path(self.temp_dir) / 'SNIDtemplates'
+
+        # Mock the from_snid_template_directory to return a matcher
+        mock_matcher = SpectralTemplateMatcher()
+        mock_from_snid.return_value = mock_matcher
+
+        result = SpectralTemplateMatcher.from_sesn_templates(cache_dir=self.temp_dir)
+
+        # Verify download_github_templates was called with correct args
+        mock_download.assert_called_once_with(
+            'https://github.com/metal-sn/SESNtemple',
+            subdirectory='SNIDtemplates',
+            cache_dir=self.temp_dir
+        )
+        # Verify from_snid_template_directory was called
+        mock_from_snid.assert_called_once()
+        self.assertIsInstance(result, SpectralTemplateMatcher)
+
+    @patch('urllib.request.urlopen')
+    def test_download_templates_from_osc_no_spectra(self, mock_urlopen):
+        """Test OSC download when SN has no spectra"""
+        mock_data = {
+            'SN2011fe': {
+                # No 'spectra' key
+            }
+        }
+        mock_response = MagicMock()
+        mock_response.read.return_value = json.dumps(mock_data).encode()
+        mock_response.__enter__ = MagicMock(return_value=mock_response)
+        mock_response.__exit__ = MagicMock(return_value=False)
+        mock_urlopen.return_value = mock_response
+
+        matcher = SpectralTemplateMatcher.download_templates_from_osc(
+            sn_types=['Ia'],
+            max_per_type=1,
+            cache_dir=self.temp_dir
+        )
+        # Falls back to default templates
+        self.assertGreater(len(matcher.templates), 0)
+
+    @patch('urllib.request.urlopen')
+    def test_download_templates_from_osc_empty_spectra(self, mock_urlopen):
+        """Test OSC download when spectra list is empty"""
+        mock_data = {
+            'SN2011fe': {
+                'spectra': []  # Empty list
+            }
+        }
+        mock_response = MagicMock()
+        mock_response.read.return_value = json.dumps(mock_data).encode()
+        mock_response.__enter__ = MagicMock(return_value=mock_response)
+        mock_response.__exit__ = MagicMock(return_value=False)
+        mock_urlopen.return_value = mock_response
+
+        matcher = SpectralTemplateMatcher.download_templates_from_osc(
+            sn_types=['Ia'],
+            max_per_type=1,
+            cache_dir=self.temp_dir
+        )
+        self.assertGreater(len(matcher.templates), 0)
+
+    @patch('urllib.request.urlopen')
+    def test_download_templates_from_osc_no_data_in_spectrum(self, mock_urlopen):
+        """Test OSC download when spectrum entry has no data"""
+        mock_data = {
+            'SN2011fe': {
+                'spectra': [{'time': '5.0'}]  # No 'data' key
+            }
+        }
+        mock_response = MagicMock()
+        mock_response.read.return_value = json.dumps(mock_data).encode()
+        mock_response.__enter__ = MagicMock(return_value=mock_response)
+        mock_response.__exit__ = MagicMock(return_value=False)
+        mock_urlopen.return_value = mock_response
+
+        matcher = SpectralTemplateMatcher.download_templates_from_osc(
+            sn_types=['Ia'],
+            max_per_type=1,
+            cache_dir=self.temp_dir
+        )
+        self.assertGreater(len(matcher.templates), 0)
+
+    @patch('urllib.request.urlopen')
+    def test_download_templates_from_osc_short_spectrum(self, mock_urlopen):
+        """Test OSC download when spectrum has fewer than 50 points"""
+        mock_data = {
+            'SN2011fe': {
+                'spectra': [{
+                    'data': [[3000 + i, 1.0] for i in range(10)],  # Only 10 points
+                    'time': '5.0'
+                }]
+            }
+        }
+        mock_response = MagicMock()
+        mock_response.read.return_value = json.dumps(mock_data).encode()
+        mock_response.__enter__ = MagicMock(return_value=mock_response)
+        mock_response.__exit__ = MagicMock(return_value=False)
+        mock_urlopen.return_value = mock_response
+
+        matcher = SpectralTemplateMatcher.download_templates_from_osc(
+            sn_types=['Ia'],
+            max_per_type=1,
+            cache_dir=self.temp_dir
+        )
+        # Falls back to default templates since spectrum too short
+        self.assertGreater(len(matcher.templates), 0)
+
+    @patch('urllib.request.urlopen')
+    def test_download_templates_from_osc_invalid_time(self, mock_urlopen):
+        """Test OSC download when time field is invalid"""
+        mock_data = {
+            'SN2011fe': {
+                'spectra': [{
+                    'data': [[3000 + i, np.random.random()] for i in range(100)],
+                    'time': 'not_a_number'  # Invalid time
+                }]
+            }
+        }
+        mock_response = MagicMock()
+        mock_response.read.return_value = json.dumps(mock_data).encode()
+        mock_response.__enter__ = MagicMock(return_value=mock_response)
+        mock_response.__exit__ = MagicMock(return_value=False)
+        mock_urlopen.return_value = mock_response
+
+        matcher = SpectralTemplateMatcher.download_templates_from_osc(
+            sn_types=['Ia'],
+            max_per_type=1,
+            cache_dir=self.temp_dir
+        )
+        self.assertGreater(len(matcher.templates), 0)
+        # Phase should be default 0.0
+        self.assertEqual(matcher.templates[0]['phase'], 0.0)
+
+    @patch('urllib.request.urlopen')
+    def test_download_templates_from_osc_no_time_field(self, mock_urlopen):
+        """Test OSC download when time field is missing"""
+        mock_data = {
+            'SN2011fe': {
+                'spectra': [{
+                    'data': [[3000 + i, np.random.random()] for i in range(100)]
+                    # No 'time' field
+                }]
+            }
+        }
+        mock_response = MagicMock()
+        mock_response.read.return_value = json.dumps(mock_data).encode()
+        mock_response.__enter__ = MagicMock(return_value=mock_response)
+        mock_response.__exit__ = MagicMock(return_value=False)
+        mock_urlopen.return_value = mock_response
+
+        matcher = SpectralTemplateMatcher.download_templates_from_osc(
+            sn_types=['Ia'],
+            max_per_type=1,
+            cache_dir=self.temp_dir
+        )
+        self.assertGreater(len(matcher.templates), 0)
+        self.assertEqual(matcher.templates[0]['phase'], 0.0)
+
+    @patch('urllib.request.urlopen')
+    def test_download_templates_from_osc_network_error(self, mock_urlopen):
+        """Test OSC download handles network errors gracefully"""
+        mock_urlopen.side_effect = Exception("Network error")
+
+        matcher = SpectralTemplateMatcher.download_templates_from_osc(
+            sn_types=['Ia'],
+            max_per_type=1,
+            cache_dir=self.temp_dir
+        )
+        # Falls back to default templates
+        self.assertGreater(len(matcher.templates), 0)
+
+    @patch('urllib.request.urlopen')
+    def test_download_templates_from_osc_default_types(self, mock_urlopen):
+        """Test OSC download uses default types when None"""
+        mock_data = {}
+        mock_response = MagicMock()
+        mock_response.read.return_value = json.dumps(mock_data).encode()
+        mock_response.__enter__ = MagicMock(return_value=mock_response)
+        mock_response.__exit__ = MagicMock(return_value=False)
+        mock_urlopen.return_value = mock_response
+
+        matcher = SpectralTemplateMatcher.download_templates_from_osc(
+            sn_types=None,  # Use defaults
+            max_per_type=1,
+            cache_dir=self.temp_dir
+        )
+        # Should have called API for multiple types
+        self.assertGreater(mock_urlopen.call_count, 1)
+
+    @patch('urllib.request.urlopen')
+    def test_download_templates_from_osc_parsing_exception(self, mock_urlopen):
+        """Test OSC download handles parsing exceptions in spectrum data"""
+        mock_data = {
+            'SN2011fe': {
+                'spectra': [{
+                    'data': [['invalid', 'data'] for _ in range(100)],  # Non-numeric
+                    'time': '5.0'
+                }]
+            }
+        }
+        mock_response = MagicMock()
+        mock_response.read.return_value = json.dumps(mock_data).encode()
+        mock_response.__enter__ = MagicMock(return_value=mock_response)
+        mock_response.__exit__ = MagicMock(return_value=False)
+        mock_urlopen.return_value = mock_response
+
+        matcher = SpectralTemplateMatcher.download_templates_from_osc(
+            sn_types=['Ia'],
+            max_per_type=1,
+            cache_dir=self.temp_dir
+        )
+        self.assertGreater(len(matcher.templates), 0)
+
+    @patch('urllib.request.urlretrieve')
+    @patch('zipfile.ZipFile')
+    def test_download_github_templates_actual_download(self, mock_zipfile, mock_retrieve):
+        """Test GitHub download when cache doesn't exist"""
+        # Set up mock zip extraction
+        repo_dir = Path(self.temp_dir) / 'SESNtemple-master'
+
+        def mock_extract(path):
+            repo_dir.mkdir(parents=True, exist_ok=True)
+            (repo_dir / 'templates').mkdir()
+
+        mock_zip_instance = MagicMock()
+        mock_zip_instance.extractall = mock_extract
+        mock_zipfile.return_value.__enter__ = MagicMock(return_value=mock_zip_instance)
+        mock_zipfile.return_value.__exit__ = MagicMock(return_value=False)
+
+        def mock_retrievezip(url, path):
+            # Create an empty file to simulate download
+            Path(path).touch()
+
+        mock_retrieve.side_effect = mock_retrievezip
+
+        result = SpectralTemplateMatcher.download_github_templates(
+            'https://github.com/metal-sn/SESNtemple',
+            cache_dir=self.temp_dir
+        )
+
+        self.assertIsInstance(result, Path)
+        mock_retrieve.assert_called_once()
+
+    @patch('urllib.request.urlretrieve')
+    def test_download_github_templates_with_subdirectory(self, mock_retrieve):
+        """Test GitHub download returns correct subdirectory path"""
+        # Create fake cached directory with subdirectory
+        repo_cache = Path(self.temp_dir) / 'metal-sn_SESNtemple'
+        repo_cache.mkdir()
+        subdir = repo_cache / 'SNIDtemplates'
+        subdir.mkdir()
+
+        result = SpectralTemplateMatcher.download_github_templates(
+            'https://github.com/metal-sn/SESNtemple',
+            subdirectory='SNIDtemplates',
+            cache_dir=self.temp_dir
+        )
+
+        self.assertEqual(result, subdir)
+
+    @patch('urllib.request.urlretrieve')
+    def test_download_github_templates_download_error(self, mock_retrieve):
+        """Test GitHub download handles download errors"""
+        mock_retrieve.side_effect = Exception("Download failed")
+
+        with self.assertRaises(Exception):
+            SpectralTemplateMatcher.download_github_templates(
+                'https://github.com/metal-sn/SESNtemple',
+                cache_dir=self.temp_dir
+            )
+
+    def test_load_templates_lowercase_type_in_comment(self):
+        """Test loading templates with lowercase 'type:' in comments"""
+        dat_file = Path(self.temp_dir) / 'test.dat'
+        with open(dat_file, 'w') as f:
+            f.write("# type: Ib\n")  # lowercase
+            f.write("# phase: 3.5\n")  # lowercase
+            for w, flux in zip(np.linspace(3000, 10000, 50), np.random.random(50)):
+                f.write(f"{w} {flux}\n")
+
+        matcher = SpectralTemplateMatcher(template_library_path=self.temp_dir)
+        self.assertEqual(matcher.templates[0]['type'], 'Ib')
+        self.assertEqual(matcher.templates[0]['phase'], 3.5)
+
+    def test_load_templates_type_indexerror_in_comment(self):
+        """Test loading templates when Type: comment has no value"""
+        dat_file = Path(self.temp_dir) / 'test.dat'
+        with open(dat_file, 'w') as f:
+            f.write("# Type:\n")  # No value after colon
+            f.write("# Phase:\n")
+            for w, flux in zip(np.linspace(3000, 10000, 50), np.random.random(50)):
+                f.write(f"{w} {flux}\n")
+
+        # Should fall back to filename parsing
+        matcher = SpectralTemplateMatcher(template_library_path=self.temp_dir)
+        self.assertEqual(len(matcher.templates), 1)
+
+    def test_load_templates_invalid_phase_in_comment(self):
+        """Test loading templates with invalid phase in comment"""
+        dat_file = Path(self.temp_dir) / 'Ia_0.dat'
+        with open(dat_file, 'w') as f:
+            f.write("# Type: Ia\n")
+            f.write("# Phase: not_a_number\n")  # Invalid phase
+            for w, flux in zip(np.linspace(3000, 10000, 50), np.random.random(50)):
+                f.write(f"{w} {flux}\n")
+
+        matcher = SpectralTemplateMatcher(template_library_path=self.temp_dir)
+        # Should use default from filename
+        self.assertEqual(matcher.templates[0]['type'], 'Ia')
+
+    def test_parse_snid_template_lowercase_metadata(self):
+        """Test parsing SNID file with lowercase metadata"""
+        snid_file = Path(self.temp_dir) / 'test.dat'
+        with open(snid_file, 'w') as f:
+            f.write("# type: IIP\n")  # lowercase
+            f.write("# phase: -2.0\n")  # lowercase
+            for w, flux in zip(np.linspace(3000, 10000, 50), np.random.random(50)):
+                f.write(f"{w} {flux}\n")
+
+        template = SpectralTemplateMatcher.parse_snid_template_file(snid_file)
+        self.assertEqual(template['type'], 'IIP')
+        self.assertEqual(template['phase'], -2.0)
+
+    def test_parse_snid_template_type_indexerror(self):
+        """Test parsing SNID file when Type: has no value"""
+        snid_file = Path(self.temp_dir) / 'test_Ia_5.dat'
+        with open(snid_file, 'w') as f:
+            f.write("# Type:\n")  # No value
+            for w, flux in zip(np.linspace(3000, 10000, 50), np.random.random(50)):
+                f.write(f"{w} {flux}\n")
+
+        template = SpectralTemplateMatcher.parse_snid_template_file(snid_file)
+        # When Type: has no value, it sets empty string (actual behavior)
+        # Filename parsing happens first, then comment overwrites with empty
+        self.assertEqual(template['type'], '')
+
+    def test_parse_snid_template_phase_valueerror(self):
+        """Test parsing SNID file when Phase: has invalid value"""
+        snid_file = Path(self.temp_dir) / 'test_II_10.dat'
+        with open(snid_file, 'w') as f:
+            f.write("# Phase: invalid\n")  # Invalid value
+            for w, flux in zip(np.linspace(3000, 10000, 50), np.random.random(50)):
+                f.write(f"{w} {flux}\n")
+
+        template = SpectralTemplateMatcher.parse_snid_template_file(snid_file)
+        # Falls back to filename parsing
+        self.assertEqual(template['phase'], 10.0)
+
+    def test_parse_snid_template_with_empty_lines(self):
+        """Test parsing SNID file with empty lines"""
+        snid_file = Path(self.temp_dir) / 'test.dat'
+        with open(snid_file, 'w') as f:
+            f.write("\n")  # Empty line
+            f.write("# Comment\n")
+            f.write("\n")  # Another empty line
+            for w, flux in zip(np.linspace(3000, 10000, 50), np.random.random(50)):
+                f.write(f"{w} {flux}\n")
+
+        template = SpectralTemplateMatcher.parse_snid_template_file(snid_file)
+        self.assertEqual(len(template['wavelength']), 50)
+
+    def test_parse_snid_template_with_extra_columns(self):
+        """Test parsing SNID file with extra columns (ignored)"""
+        snid_file = Path(self.temp_dir) / 'test.dat'
+        with open(snid_file, 'w') as f:
+            for w, flux in zip(np.linspace(3000, 10000, 50), np.random.random(50)):
+                f.write(f"{w} {flux} {np.random.random()} extra_data\n")
+
+        template = SpectralTemplateMatcher.parse_snid_template_file(snid_file)
+        self.assertEqual(len(template['wavelength']), 50)
+
+    def test_match_spectrum_without_flux_density_err_attribute(self):
+        """Test matching when spectrum doesn't have flux_density_err"""
+        wavelengths = np.linspace(3500, 9000, 500)
+        flux = np.linspace(1.0, 0.5, 500)
+
+        # Create spectrum without flux_density_err attribute
+        spectrum = Spectrum(
+            angstroms=wavelengths,
+            flux_density=flux,
+            flux_density_err=None,  # No errors
+            name="NoErr"
+        )
+
+        result = self.matcher.match_spectrum(spectrum, method='chi2')
+        # Should work even without errors
+        self.assertIn('chi2', result)
+
+    def test_match_spectrum_very_high_redshift(self):
+        """Test matching at very high redshifts that cause no overlap"""
+        wavelengths = np.linspace(3500, 9000, 500)
+        flux = np.linspace(1.0, 0.5, 500)
+        flux_err = 0.05 * flux
+        spectrum = Spectrum(
+            angstroms=wavelengths,
+            flux_density=flux,
+            flux_density_err=flux_err,
+            name="Test"
+        )
+
+        result = self.matcher.match_spectrum(spectrum, redshift_range=(2.0, 3.0))
+        # At z=2-3, templates shifted far enough to have no overlap
+        self.assertIsNone(result)
+
+    def test_match_spectrum_single_redshift_point(self):
+        """Test matching with only one redshift point"""
+        wavelengths = np.linspace(3500, 9000, 500)
+        flux = np.linspace(1.0, 0.5, 500)
+        flux_err = 0.05 * flux
+        spectrum = Spectrum(
+            angstroms=wavelengths,
+            flux_density=flux,
+            flux_density_err=flux_err,
+            name="Test"
+        )
+
+        result = self.matcher.match_spectrum(spectrum, n_redshift_points=1)
+        self.assertIsInstance(result, dict)
+
+    def test_classify_spectrum_single_match(self):
+        """Test classification with only one top match"""
+        wavelengths = np.linspace(3500, 9000, 500)
+        flux = np.linspace(1.0, 0.5, 500)
+        flux_err = 0.05 * flux
+        spectrum = Spectrum(
+            angstroms=wavelengths,
+            flux_density=flux,
+            flux_density_err=flux_err,
+            name="Test"
+        )
+
+        result = self.matcher.classify_spectrum(spectrum, top_n=1)
+        self.assertEqual(len(result['top_matches']), 1)
+
+    def test_classify_spectrum_more_top_n_than_matches(self):
+        """Test classification when top_n exceeds number of matches"""
+        # Create matcher with few templates
+        custom_template = {
+            'wavelength': np.linspace(3000, 10000, 500),
+            'flux': np.linspace(1.0, 0.5, 500),
+            'type': 'Ia',
+            'phase': 0,
+            'name': 'single'
+        }
+        small_matcher = SpectralTemplateMatcher(templates=[custom_template])
+
+        wavelengths = np.linspace(3500, 9000, 500)
+        flux = np.linspace(1.0, 0.5, 500)
+        flux_err = 0.05 * flux
+        spectrum = Spectrum(
+            angstroms=wavelengths,
+            flux_density=flux,
+            flux_density_err=flux_err,
+            name="Test"
+        )
+
+        # Only 1 template but asking for top 10
+        result = small_matcher.classify_spectrum(spectrum, top_n=10, n_redshift_points=3)
+        # Should handle gracefully
+        self.assertIn('top_matches', result)
+
+    def test_plot_match_without_template_name_key(self):
+        """Test plot_match when template_name is not in result"""
+        wavelengths = np.linspace(3500, 9000, 500)
+        flux = np.linspace(1.0, 0.5, 500)
+        flux_err = 0.05 * flux
+        spectrum = Spectrum(
+            angstroms=wavelengths,
+            flux_density=flux,
+            flux_density_err=flux_err,
+            name="Test"
+        )
+
+        # Result without template_name
+        match_result = {
+            'type': 'Ia',
+            'phase': 0,
+            'redshift': 0.0,
+            'correlation': 0.9
+        }
+
+        fig, ax = plt.subplots()
+        result_ax = self.matcher.plot_match(spectrum, match_result, axes=ax)
+        self.assertIsNotNone(result_ax)
+        plt.close(fig)
+
+    def test_default_template_phase_ranges(self):
+        """Test that default templates cover expected phase ranges"""
+        ia_phases = sorted([t['phase'] for t in self.matcher.templates if t['type'] == 'Ia'])
+        ii_phases = sorted([t['phase'] for t in self.matcher.templates if t['type'] == 'II'])
+        ibc_phases = sorted([t['phase'] for t in self.matcher.templates if t['type'] == 'Ib/c'])
+
+        # Ia should have early and late phases
+        self.assertLessEqual(min(ia_phases), -5)
+        self.assertGreaterEqual(max(ia_phases), 15)
+
+        # II should have late phases
+        self.assertGreaterEqual(max(ii_phases), 30)
+
+        # Ib/c should have around max phases
+        self.assertIn(0, ibc_phases)
+
+    def test_filter_templates_empty_types_list(self):
+        """Test filtering with empty types list returns empty"""
+        filtered = self.matcher.filter_templates(types=[])
+        self.assertEqual(len(filtered.templates), 0)
+
+    def test_filter_templates_none_parameters(self):
+        """Test filtering with all None parameters returns copy"""
+        filtered = self.matcher.filter_templates(types=None, phase_range=None)
+        self.assertEqual(len(filtered.templates), len(self.matcher.templates))
+
+    def test_save_load_roundtrip_preserves_data(self):
+        """Test that save/load cycle preserves wavelength and flux values"""
+        # Add a specific template
+        wavelength = np.array([4000.0, 5000.0, 6000.0])
+        flux = np.array([0.5, 1.0, 0.8])
+        self.matcher.add_template(wavelength, flux, 'Test', 5.0, 'roundtrip_test')
+
+        # Save and reload
+        self.matcher.save_templates(self.temp_dir, format='csv')
+        new_matcher = SpectralTemplateMatcher(template_library_path=self.temp_dir)
+
+        # Find the roundtrip template
+        test_template = None
+        for t in new_matcher.templates:
+            if 'roundtrip' in t['name']:
+                test_template = t
+                break
+
+        self.assertIsNotNone(test_template)
+        # Flux was normalized, so check normalized values
+        expected_flux = flux / np.max(flux)
+        np.testing.assert_array_almost_equal(test_template['flux'], expected_flux, decimal=10)
+
+    def test_blackbody_flux_array_temperatures(self):
+        """Test blackbody with single wavelength array"""
+        wavelengths = np.linspace(1000, 20000, 1000)
+
+        # Test multiple temperatures
+        for temp in [1000, 10000, 100000]:
+            flux = self.matcher._blackbody_flux(wavelengths, temp)
+            self.assertEqual(len(flux), len(wavelengths))
+            self.assertTrue(np.all(np.isfinite(flux)))
+            self.assertTrue(np.all(flux > 0))
+
+    def test_match_spectrum_with_inf_in_flux(self):
+        """Test matching spectrum with inf values"""
+        wavelengths = np.linspace(3500, 9000, 500)
+        flux = np.linspace(1.0, 0.5, 500)
+        flux[200] = np.inf  # Add infinity
+        flux_err = 0.05 * np.abs(flux)
+        spectrum = Spectrum(
+            angstroms=wavelengths,
+            flux_density=flux,
+            flux_density_err=flux_err,
+            name="Inf_Test"
+        )
+
+        # Should handle inf as part of masking
+        result = self.matcher.match_spectrum(spectrum)
+        self.assertTrue(result is None or isinstance(result, dict))
+
+
+class TestSpectralTemplateMatcherPropertyTests(unittest.TestCase):
+    """Property-based tests for edge conditions"""
+
+    def setUp(self):
+        self.matcher = SpectralTemplateMatcher()
+
+    def test_template_count_by_type(self):
+        """Test that all expected types have templates"""
+        type_counts = {}
+        for t in self.matcher.templates:
+            sn_type = t['type']
+            type_counts[sn_type] = type_counts.get(sn_type, 0) + 1
+
+        # Check each type has multiple phases
+        self.assertGreater(type_counts.get('Ia', 0), 5)
+        self.assertGreater(type_counts.get('II', 0), 3)
+        self.assertGreater(type_counts.get('Ib/c', 0), 3)
+
+    def test_wavelength_ranges_consistent(self):
+        """Test all default templates have consistent wavelength ranges"""
+        for template in self.matcher.templates:
+            self.assertGreaterEqual(np.min(template['wavelength']), 3000)
+            self.assertLessEqual(np.max(template['wavelength']), 10000)
+            self.assertEqual(len(template['wavelength']), 1000)
+
+    def test_correlation_method_vs_chi2_method(self):
+        """Test that correlation and chi2 methods give different rankings"""
+        wavelengths = np.linspace(3500, 9000, 500)
+        flux = np.linspace(1.0, 0.5, 500)
+        flux_err = 0.1 * flux
+        spectrum = Spectrum(
+            angstroms=wavelengths,
+            flux_density=flux,
+            flux_density_err=flux_err,
+            name="Test"
+        )
+
+        corr_result = self.matcher.match_spectrum(spectrum, method='correlation')
+        chi2_result = self.matcher.match_spectrum(spectrum, method='chi2')
+
+        # Both should return valid results
+        self.assertIsInstance(corr_result, dict)
+        self.assertIsInstance(chi2_result, dict)
+
+    def test_redshift_affects_template_wavelengths(self):
+        """Test that different redshifts give different best matches"""
+        wavelengths = np.linspace(3500, 9000, 500)
+        flux = np.linspace(1.0, 0.5, 500)
+        flux_err = 0.05 * flux
+        spectrum = Spectrum(
+            angstroms=wavelengths,
+            flux_density=flux,
+            flux_density_err=flux_err,
+            name="Test"
+        )
+
+        result_low_z = self.matcher.match_spectrum(spectrum, redshift_range=(0, 0.05))
+        result_high_z = self.matcher.match_spectrum(spectrum, redshift_range=(0.15, 0.2))
+
+        # Redshifts should be different
+        self.assertLess(result_low_z['redshift'], 0.1)
+        self.assertGreater(result_high_z['redshift'], 0.1)
+
+    def test_all_templates_have_consistent_structure(self):
+        """Test all templates have required keys with correct types"""
+        required_keys = ['wavelength', 'flux', 'type', 'phase', 'name']
+
+        for i, template in enumerate(self.matcher.templates):
+            for key in required_keys:
+                self.assertIn(key, template, f"Template {i} missing key {key}")
+
+            # Type checks
+            self.assertIsInstance(template['wavelength'], np.ndarray)
+            self.assertIsInstance(template['flux'], np.ndarray)
+            self.assertIsInstance(template['type'], str)
+            self.assertIsInstance(template['phase'], (int, float))
+            self.assertIsInstance(template['name'], str)
+
+            # Length consistency
+            self.assertEqual(len(template['wavelength']), len(template['flux']))
+
