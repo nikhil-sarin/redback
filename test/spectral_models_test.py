@@ -1880,5 +1880,206 @@ class TestMinMethodEdgeCases(unittest.TestCase):
         self.assertLess(v, -8000)  # Should be significantly blueshifted
 
 
+class TestVelocityMeasurementBranchCoverage(unittest.TestCase):
+    """Test specific branches in velocity measurement"""
+
+    def test_min_method_very_few_points_n_err_path(self):
+        """Test n_err calculation when len(wave_line) // 4 is small"""
+        wave = np.array([6350.0, 6353.0, 6355.0, 6357.0, 6360.0, 6363.0, 6365.0])
+        flux = np.array([1.0, 0.95, 0.85, 0.7, 0.85, 0.95, 1.0])
+
+        fitter = SpectralVelocityFitter(wave, flux)
+        v, verr = fitter.measure_line_velocity(6355, v_window=10000)
+        self.assertFalse(np.isnan(v))
+        self.assertGreater(verr, 0)
+
+    def test_centroid_with_emission_line(self):
+        """Test centroid method with an emission line"""
+        wave = np.linspace(6560, 6566, 200)
+        # Create emission peak
+        flux = spectral_models.gaussian_line_profile(
+            wave, lambda_center=6563, amplitude=1.0,
+            sigma=1.0, continuum=1.0
+        )
+
+        fitter = SpectralVelocityFitter(wave, flux)
+        v, verr = fitter.measure_line_velocity(
+            6563, method='centroid', v_window=10000
+        )
+        # Should still return valid values for emission
+        self.assertIsInstance(v, (float, np.floating))
+        self.assertIsInstance(verr, (float, np.floating))
+
+    def test_fit_method_with_good_p_cygni_data(self):
+        """Test fit method that successfully fits P-Cygni profile"""
+        wave = np.linspace(6000, 6700, 500)
+        flux = spectral_models.p_cygni_profile(
+            wave, lambda_rest=6355, tau_sobolev=3.0,
+            v_phot=10000, continuum_flux=1.0
+        )
+
+        fitter = SpectralVelocityFitter(wave, flux)
+        v, verr = fitter.measure_line_velocity(6355, method='fit', v_window=30000)
+        self.assertFalse(np.isnan(v))
+        self.assertIsInstance(verr, (float, np.floating))
+
+
+class TestSpectrumCombinations(unittest.TestCase):
+    """Test various combinations and edge cases"""
+
+    def test_voigt_profile_large_amplitude(self):
+        """Test Voigt with very large amplitude"""
+        wave = np.linspace(6560, 6570, 500)
+        flux = spectral_models.voigt_profile(
+            wave, lambda_center=6563, amplitude=10.0,
+            sigma_gaussian=0.5, gamma_lorentz=0.2, continuum=0.0
+        )
+        self.assertAlmostEqual(flux.max(), 10.0, delta=0.1)
+
+    def test_pcygni_no_absorption_region_sampled(self):
+        """Test P-Cygni when no absorption region wavelengths present"""
+        wave = np.linspace(7000, 7500, 100)
+        flux = spectral_models.p_cygni_profile(
+            wave, lambda_rest=6355, tau_sobolev=3.0,
+            v_phot=10000, continuum_flux=1.0
+        )
+        np.testing.assert_array_almost_equal(flux, np.ones_like(flux), decimal=1)
+
+    def test_pcygni_no_emission_region_sampled(self):
+        """Test P-Cygni when no emission region is sampled"""
+        wave = np.linspace(5900, 6200, 100)
+        flux = spectral_models.p_cygni_profile(
+            wave, lambda_rest=6355, tau_sobolev=3.0,
+            v_phot=10000, continuum_flux=1.0
+        )
+        self.assertLessEqual(flux.max(), 1.05)
+
+    def test_synow_very_low_tau(self):
+        """Test SYNOW with very low optical depth"""
+        wave = np.linspace(5800, 6800, 500)
+        flux = spectral_models.synow_line_model(
+            wave, lambda_rest=6355, tau_ref=0.01,
+            v_phot=10000, v_max=25000
+        )
+        self.assertGreater(flux.min(), 0.95)
+
+
+class TestIntegrationAndValidation(unittest.TestCase):
+    """Integration tests to validate physical behavior"""
+
+    def test_si_ii_velocity_measurement_roundtrip(self):
+        """Test that we can create P-Cygni and measure correct velocity"""
+        known_velocity = 12000
+        wave = np.linspace(5800, 7000, 1000)
+
+        flux = spectral_models.elementary_p_cygni_profile(
+            wave, lambda_rest=6355, v_absorption=known_velocity,
+            absorption_depth=0.5, emission_strength=0.2, v_width=1500
+        )
+
+        fitter = SpectralVelocityFitter(wave, flux)
+        measured_v, verr = fitter.measure_line_velocity(6355, method='min', v_window=25000)
+        self.assertAlmostEqual(-measured_v, known_velocity, delta=500)
+
+    def test_multiple_line_spectrum_structure(self):
+        """Test that multiple P-Cygni lines create correct structure"""
+        wave = np.linspace(3500, 7000, 2000)
+        lines = [
+            {'ion': 'Ca II', 'lambda': 3945, 'tau': 4.0},
+            {'ion': 'Fe II', 'lambda': 5169, 'tau': 2.0},
+            {'ion': 'Si II', 'lambda': 6355, 'tau': 3.0},
+        ]
+
+        flux = spectral_models.blackbody_spectrum_with_p_cygni_lines(
+            wave, redshift=0.01, rph=1e15, temp=10000,
+            line_list=lines, v_phot=11000
+        )
+
+        deriv = np.diff(flux)
+        sign_changes = np.where(np.diff(np.sign(deriv)))[0]
+        self.assertGreaterEqual(len(sign_changes), 3)
+
+    def test_velocity_gradient_physical_behavior(self):
+        """Test that velocity gradient has correct sign"""
+        times = np.array([1.0, 5.0, 10.0, 15.0])
+        wavelength_list = []
+        flux_list = []
+
+        for t in times:
+            wave = np.linspace(5800, 6800, 300)
+            v_phot = 14000 - 200 * t
+            flux = spectral_models.elementary_p_cygni_profile(
+                wave, lambda_rest=6355, v_absorption=v_phot,
+                absorption_depth=0.4, emission_strength=0.15, v_width=1500
+            )
+            wavelength_list.append(wave)
+            flux_list.append(flux)
+
+        dummy_fitter = SpectralVelocityFitter(
+            np.array([6000, 6500, 7000]), np.array([1.0, 1.0, 1.0])
+        )
+        gradient, grad_err = dummy_fitter.measure_velocity_gradient(
+            wavelength_list, flux_list, times, 6355, v_window=20000
+        )
+        self.assertGreater(gradient, 100)
+
+    def test_blackbody_spectrum_temperature_effect(self):
+        """Test that higher temperature shifts blackbody peak"""
+        wave = np.linspace(3000, 10000, 1000)
+
+        flux_cold = spectral_models.blackbody_spectrum_at_z(
+            wave, redshift=0.01, rph=1e15, temp=5000
+        )
+        flux_hot = spectral_models.blackbody_spectrum_at_z(
+            wave, redshift=0.01, rph=1e15, temp=15000
+        )
+
+        peak_cold = wave[np.argmax(flux_cold)]
+        peak_hot = wave[np.argmax(flux_hot)]
+        self.assertGreater(peak_cold, peak_hot)
+
+
+class TestAdditionalEdgeCases(unittest.TestCase):
+    """Additional edge cases for complete coverage"""
+
+    def test_spectrum_with_voigt_single_line(self):
+        """Test Voigt absorption with single line"""
+        wave = np.linspace(6550, 6575, 500)
+        lines = [{'lambda': 6563, 'depth': 0.3, 'sigma': 1.0, 'gamma': 0.3}]
+        flux = spectral_models.spectrum_with_voigt_absorption_lines(wave, 1.0, lines)
+        self.assertLess(flux.min(), 0.75)
+
+    def test_elementary_pcygni_with_narrow_width(self):
+        """Test elementary P-Cygni with very narrow velocity width"""
+        wave = np.linspace(6200, 6500, 500)
+        flux = spectral_models.elementary_p_cygni_profile(
+            wave, lambda_rest=6355, v_absorption=11000,
+            absorption_depth=0.5, emission_strength=0.3, v_width=500
+        )
+        self.assertEqual(flux.shape, wave.shape)
+        self.assertLess(flux.min(), 1.0)
+
+    def test_pcygni_with_zero_tau(self):
+        """Test P-Cygni with zero optical depth"""
+        wave = np.linspace(6000, 6700, 500)
+        flux = spectral_models.p_cygni_profile(
+            wave, lambda_rest=6355, tau_sobolev=0.0,
+            v_phot=10000, continuum_flux=1.0
+        )
+        np.testing.assert_array_almost_equal(flux, np.ones_like(flux), decimal=5)
+
+    def test_multiline_with_high_redshift(self):
+        """Test multi-line P-Cygni at high redshift"""
+        wave = np.linspace(7000, 15000, 1000)
+        lines = [{'ion': 'Si II', 'lambda': 6355, 'tau': 2.0}]
+        flux = spectral_models.multi_line_p_cygni_spectrum(
+            wave, redshift=1.0,
+            continuum_model='blackbody', line_list=lines, v_phot=10000,
+            r_phot=1e15, temperature=10000
+        )
+        self.assertEqual(flux.shape, wave.shape)
+        self.assertGreater(flux.std(), 0)
+
+
 if __name__ == '__main__':
     unittest.main()
