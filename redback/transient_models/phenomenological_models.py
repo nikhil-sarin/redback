@@ -189,7 +189,7 @@ def villar_sne(time, aa, cc, t0, tau_rise, tau_fall, gamma, nu, **kwargs):
     :param tau_fall: exponential fall time
     :param gamma: plateau duration
     :param nu: related to beta and between 0 an 1; nu = -beta/gamma / A
-    :param kwargs:
+    :param kwargs: Additional keyword arguments including output_format and frequency/bands
     :return: flux in units set by AA
     """
     mask1 = time < t0 + gamma
@@ -637,7 +637,7 @@ def exponential_powerlaw(time, a_1, alpha_1, alpha_2, tpeak, **kwargs):
     :param alpha_1: first exponent
     :param alpha_2: second exponent
     :param tpeak: peak time in seconds
-    :param kwargs:
+    :param kwargs: Additional keyword arguments
     :return: In whatever units set by a_1
     """
     total = a_1 * (1 - np.exp(-time/tpeak))**alpha_1 * (time/tpeak)**(-alpha_2)

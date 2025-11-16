@@ -1770,7 +1770,7 @@ def _csm_engine(time, mej, csm_mass, vej, eta, rho, kappa, r0, **kwargs):
     :param rho: csm density profile amplitude
     :param kappa: opacity
     :param r0: radius of csm shell in AU
-    :param kwargs:
+    :param kwargs: Additional keyword arguments:
             efficiency: in converting between kinetic energy and luminosity, default 0.5
             delta: default 1,
             nn: default 12,
@@ -1856,7 +1856,7 @@ def csm_interaction_bolometric(time, mej, csm_mass, vej, eta, rho, kappa, r0, **
     :param rho: csm density profile amplitude
     :param kappa: opacity
     :param r0: radius of csm shell in AU
-    :param kwargs:
+    :param kwargs: Additional keyword arguments:
             efficiency: in converting between kinetic energy and luminosity, default 0.5
             delta: default 1,
             nn: default 12,
