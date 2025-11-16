@@ -9,6 +9,15 @@ import redback
 
 dirname = os.path.dirname(__file__)
 
+
+def _george_available():
+    """Check if george module is available."""
+    try:
+        import george
+        return True
+    except ImportError:
+        return False
+
 import redback.get_data.directory as directory
 
 _original_spec_dir_struct = directory.spectrum_directory_structure
@@ -959,6 +968,8 @@ class TestLoadTransient(unittest.TestCase):
         with self.assertRaises(ValueError):
             redback.transient.Transient.load_data_generic(self.mock_file_path, data_mode="invalid_mode")
 
+
+@unittest.skipUnless(_george_available(), "george module required for GP tests")
 class TestFitGP(unittest.TestCase):
     def setUp(self) -> None:
         self.transient = redback.transient.Transient()

@@ -2,9 +2,21 @@ import unittest
 from unittest import mock
 from unittest.mock import MagicMock, patch
 import numpy as np
+import requests
 from redback.simulate_transients import (SimulateGenericTransient, SimulateOpticalTransient, SimulateFullOpticalSurvey,
     make_pointing_table_from_average_cadence)
 import bilby
+
+
+def _network_available():
+    """Check if network access is available."""
+    try:
+        # Try to access a network resource to check availability
+        response = requests.get("https://www.google.com/", timeout=5)
+        return response.status_code != 403
+    except Exception:
+        return False
+
 
 class TestSimulateGenericTransient(unittest.TestCase):
     def setUp(self) -> None:
@@ -110,6 +122,8 @@ class TestSimulateGenericTransient(unittest.TestCase):
             mock_to_csv.assert_any_call("simulated/test_name.csv", index=False)
             mock_to_csv.assert_any_call("simulated/test_name_injection_parameters.csv", index=False)
 
+
+@unittest.skipUnless(_network_available(), "Network access required for sncosmo data")
 class TestSimulateOpticalTransient(unittest.TestCase):
 
     def setUp(self) -> None:
