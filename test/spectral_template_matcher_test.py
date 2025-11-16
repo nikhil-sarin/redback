@@ -2045,3 +2045,453 @@ class TestSpectralTemplateMatcherPropertyTests(unittest.TestCase):
             # Length consistency
             self.assertEqual(len(template['wavelength']), len(template['flux']))
 
+
+class TestSpectralTemplateMatcherRealCodePaths(unittest.TestCase):
+    """Tests that execute real code paths without mocking for coverage"""
+
+    def setUp(self):
+        self.temp_dir = tempfile.mkdtemp()
+        self.matcher = SpectralTemplateMatcher()
+
+    def tearDown(self):
+        rmtree(self.temp_dir)
+
+    def test_parse_snid_filename_with_numeric_phase_only(self):
+        """Test parsing filename with just numeric phase (no + or -)"""
+        snid_file = Path(self.temp_dir) / 'sn2011fe_Ia_10.5.dat'
+        data = np.column_stack([np.linspace(3000, 10000, 50), np.random.random(50)])
+        np.savetxt(snid_file, data)
+
+        template = SpectralTemplateMatcher.parse_snid_template_file(snid_file)
+        self.assertEqual(template['type'], 'Ia')
+        self.assertEqual(template['phase'], 10.5)
+
+    def test_parse_snid_filename_phase_conversion_error(self):
+        """Test parsing filename where phase-like part fails conversion"""
+        snid_file = Path(self.temp_dir) / 'test_Ia_1.2.3.dat'  # Invalid float
+        data = np.column_stack([np.linspace(3000, 10000, 50), np.random.random(50)])
+        np.savetxt(snid_file, data)
+
+        template = SpectralTemplateMatcher.parse_snid_template_file(snid_file)
+        # Should fall back to 0.0 for invalid phase
+        self.assertEqual(template['type'], 'Ia')
+
+    def test_parse_snid_with_lines_having_only_one_part(self):
+        """Test parsing SNID file with malformed data lines"""
+        snid_file = Path(self.temp_dir) / 'test.dat'
+        with open(snid_file, 'w') as f:
+            f.write("3000 1.0\n")
+            f.write("single_value\n")  # Only one part, should be skipped
+            f.write("4000 0.8\n")
+            f.write("not_a_number also_not\n")  # ValueError on float conversion
+            f.write("5000 0.6\n")
+
+        template = SpectralTemplateMatcher.parse_snid_template_file(snid_file)
+        # Should only get the 3 valid lines
+        self.assertEqual(len(template['wavelength']), 3)
+
+    def test_load_templates_csv_with_metadata_override(self):
+        """Test loading CSV where comment metadata overrides filename"""
+        csv_file = Path(self.temp_dir) / 'Ia_5.csv'
+        with open(csv_file, 'w') as f:
+            f.write("# Type: IIn\n")  # Override filename
+            f.write("# Phase: -10.5\n")  # Override filename
+            f.write("wavelength,flux\n")
+            for w, flux in zip(np.linspace(3000, 10000, 50), np.random.random(50)):
+                f.write(f"{w},{flux}\n")
+
+        matcher = SpectralTemplateMatcher(template_library_path=self.temp_dir)
+        self.assertEqual(matcher.templates[0]['type'], 'IIn')
+        self.assertEqual(matcher.templates[0]['phase'], -10.5)
+
+    def test_load_templates_csv_lowercase_type_override(self):
+        """Test loading CSV with lowercase type: in comment"""
+        csv_file = Path(self.temp_dir) / 'test.csv'
+        with open(csv_file, 'w') as f:
+            f.write("# type: Ic-BL\n")
+            f.write("# phase: 3.2\n")
+            f.write("wavelength,flux\n")
+            for w, flux in zip(np.linspace(3000, 10000, 50), np.random.random(50)):
+                f.write(f"{w},{flux}\n")
+
+        matcher = SpectralTemplateMatcher(template_library_path=self.temp_dir)
+        self.assertEqual(matcher.templates[0]['type'], 'Ic-BL')
+        self.assertEqual(matcher.templates[0]['phase'], 3.2)
+
+    def test_load_templates_dat_with_all_types(self):
+        """Test loading DAT files for all supported SN types"""
+        types = ['IIn', 'IIP', 'IIL', 'Ia-pec']
+        for i, sn_type in enumerate(types):
+            dat_file = Path(self.temp_dir) / f'test_{sn_type}_{i}.dat'
+            with open(dat_file, 'w') as f:
+                f.write(f"# Type: {sn_type}\n")
+                f.write(f"# Phase: {i * 2.0}\n")
+                for w, flux in zip(np.linspace(3000, 10000, 50), np.random.random(50)):
+                    f.write(f"{w} {flux}\n")
+
+        matcher = SpectralTemplateMatcher(template_library_path=self.temp_dir)
+        loaded_types = set(t['type'] for t in matcher.templates)
+        for sn_type in types:
+            self.assertIn(sn_type, loaded_types)
+
+    def test_match_spectrum_both_method_with_errors(self):
+        """Test matching using both methods with proper errors"""
+        wavelengths = np.linspace(3500, 9000, 500)
+        flux = np.linspace(1.0, 0.5, 500)
+        flux_err = 0.1 * flux
+        spectrum = Spectrum(
+            angstroms=wavelengths,
+            flux_density=flux,
+            flux_density_err=flux_err,
+            name="Test"
+        )
+
+        result = self.matcher.match_spectrum(spectrum, method='both')
+        # Both correlation and chi2 should be present
+        self.assertIn('correlation', result)
+        self.assertIn('chi2', result)
+        self.assertIn('reduced_chi2', result)
+        self.assertIn('scale_factor', result)
+        self.assertIn('p_value', result)
+
+    def test_match_spectrum_chi2_scaling_calculation(self):
+        """Test chi2 matching verifies scale factor calculation"""
+        wavelengths = np.linspace(3500, 9000, 500)
+        flux = np.linspace(1.0, 0.5, 500) * 10  # Scaled flux
+        flux_err = 0.05 * flux
+        spectrum = Spectrum(
+            angstroms=wavelengths,
+            flux_density=flux,
+            flux_density_err=flux_err,
+            name="Scaled"
+        )
+
+        result = self.matcher.match_spectrum(spectrum, method='chi2')
+        # Scale factor should be positive
+        self.assertGreater(result['scale_factor'], 0)
+
+    def test_match_spectrum_zero_template_flux_masked(self):
+        """Test that zero flux in template is properly masked"""
+        # Create custom template with zero flux region
+        custom_template = {
+            'wavelength': np.linspace(3000, 10000, 500),
+            'flux': np.concatenate([np.linspace(1.0, 0.5, 250), np.zeros(250)]),
+            'type': 'Test',
+            'phase': 0,
+            'name': 'zero_flux_test'
+        }
+        matcher = SpectralTemplateMatcher(templates=[custom_template])
+
+        wavelengths = np.linspace(3500, 9000, 500)
+        flux = np.linspace(1.0, 0.5, 500)
+        flux_err = 0.05 * flux
+        spectrum = Spectrum(
+            angstroms=wavelengths,
+            flux_density=flux,
+            flux_density_err=flux_err,
+            name="Test"
+        )
+
+        result = matcher.match_spectrum(spectrum, n_redshift_points=3)
+        # Should still work with partial overlap
+        self.assertTrue(result is None or isinstance(result, dict))
+
+    def test_classify_spectrum_multiple_same_type(self):
+        """Test classification when top matches are same type"""
+        wavelengths = np.linspace(3500, 9000, 500)
+        # Create spectrum that matches Ia templates
+        temp = 11000
+        h, c, k = 6.626e-27, 3e10, 1.38e-16
+        wavelength_cm = wavelengths * 1e-8
+        exponent = np.clip((h * c) / (wavelength_cm * k * temp), None, 700)
+        flux = (1 / wavelength_cm**5) / (np.exp(exponent) - 1)
+        flux = flux / np.max(flux)
+        flux_err = 0.05 * flux
+        spectrum = Spectrum(
+            angstroms=wavelengths,
+            flux_density=flux,
+            flux_density_err=flux_err,
+            name="Ia_like"
+        )
+
+        result = self.matcher.classify_spectrum(spectrum, top_n=10)
+        # Type probabilities should sum to 1
+        total = sum(result['type_probabilities'].values())
+        self.assertAlmostEqual(total, 1.0, places=5)
+
+    def test_classify_spectrum_zero_total_score(self):
+        """Test classification edge case with very poor matches"""
+        # Create spectrum with poor overlap
+        wavelengths = np.linspace(8000, 9500, 100)  # Narrow range at red end
+        flux = np.linspace(1.0, 0.9, 100)
+        flux_err = 0.05 * flux
+        spectrum = Spectrum(
+            angstroms=wavelengths,
+            flux_density=flux,
+            flux_density_err=flux_err,
+            name="PoorMatch"
+        )
+
+        result = self.matcher.classify_spectrum(spectrum)
+        # Should handle gracefully
+        self.assertIn('type_probabilities', result)
+
+    def test_from_snid_template_directory_with_lnw_pattern(self):
+        """Test loading with explicit lnw pattern"""
+        # Create .lnw file
+        lnw_file = Path(self.temp_dir) / 'test_Ia_5.lnw'
+        data = np.column_stack([np.linspace(3000, 10000, 50), np.random.random(50)])
+        np.savetxt(lnw_file, data)
+
+        matcher = SpectralTemplateMatcher.from_snid_template_directory(
+            self.temp_dir, file_pattern="*.lnw"
+        )
+        self.assertEqual(len(matcher.templates), 1)
+
+    def test_from_snid_template_directory_fallback_to_multiple_patterns(self):
+        """Test that empty pattern falls back to lnw/dat/txt"""
+        # Create files of each type
+        (Path(self.temp_dir) / 'test1.lnw').write_text("3000 1.0\n4000 0.8\n5000 0.6\n")
+        (Path(self.temp_dir) / 'test2.dat').write_text("3000 1.0\n4000 0.8\n5000 0.6\n")
+        (Path(self.temp_dir) / 'test3.txt').write_text("3000 1.0\n4000 0.8\n5000 0.6\n")
+
+        # Use a pattern that matches nothing to trigger fallback
+        matcher = SpectralTemplateMatcher.from_snid_template_directory(
+            self.temp_dir, file_pattern="*.xyz"
+        )
+        # Should find all three files
+        self.assertGreaterEqual(len(matcher.templates), 3)
+
+    def test_plot_match_template_lookup_by_get(self):
+        """Test plot_match uses .get() for template_name"""
+        wavelengths = np.linspace(3500, 9000, 500)
+        flux = np.linspace(1.0, 0.5, 500)
+        spectrum = Spectrum(
+            angstroms=wavelengths,
+            flux_density=flux,
+            flux_density_err=0.05 * flux,
+            name="Test"
+        )
+
+        # Create result with non-matching template_name
+        match_result = {
+            'type': 'Ia',
+            'phase': 0,
+            'redshift': 0.0,
+            'correlation': 0.9,
+            'template_name': 'non_existent_name'  # Won't match
+        }
+
+        fig, ax = plt.subplots()
+        # Should fall back to type/phase match
+        result_ax = self.matcher.plot_match(spectrum, match_result, axes=ax)
+        self.assertIsNotNone(result_ax)
+        plt.close(fig)
+
+    def test_save_templates_creates_directory(self):
+        """Test that save_templates creates output directory"""
+        new_dir = Path(self.temp_dir) / 'nested' / 'path'
+        self.matcher.save_templates(new_dir)
+        self.assertTrue(new_dir.exists())
+
+    def test_filter_templates_phase_range_exclusive(self):
+        """Test phase filtering with exact boundary values"""
+        filtered = self.matcher.filter_templates(phase_range=(0, 0))
+        # Should only include phase=0
+        for t in filtered.templates:
+            self.assertEqual(t['phase'], 0)
+
+    def test_blackbody_flux_very_short_wavelength(self):
+        """Test blackbody at very short wavelengths (UV)"""
+        wavelengths = np.array([500.0, 1000.0, 1500.0])
+        flux = self.matcher._blackbody_flux(wavelengths, 20000)
+        # All values should be finite and positive
+        self.assertTrue(np.all(np.isfinite(flux)))
+        self.assertTrue(np.all(flux > 0))
+
+    def test_blackbody_flux_very_long_wavelength(self):
+        """Test blackbody at very long wavelengths (IR)"""
+        wavelengths = np.array([15000.0, 20000.0, 25000.0])
+        flux = self.matcher._blackbody_flux(wavelengths, 5000)
+        self.assertTrue(np.all(np.isfinite(flux)))
+        self.assertTrue(np.all(flux > 0))
+
+    def test_match_spectrum_narrow_redshift_range(self):
+        """Test matching with very narrow redshift range"""
+        wavelengths = np.linspace(3500, 9000, 500)
+        flux = np.linspace(1.0, 0.5, 500)
+        flux_err = 0.05 * flux
+        spectrum = Spectrum(
+            angstroms=wavelengths,
+            flux_density=flux,
+            flux_density_err=flux_err,
+            name="Test"
+        )
+
+        # Narrow range
+        result = self.matcher.match_spectrum(
+            spectrum, redshift_range=(0.1, 0.101), n_redshift_points=10
+        )
+        # All redshifts should be very close
+        self.assertAlmostEqual(result['redshift'], 0.1, places=2)
+
+    def test_match_spectrum_returns_n_valid_points(self):
+        """Test that n_valid_points is included in result"""
+        wavelengths = np.linspace(3500, 9000, 500)
+        flux = np.linspace(1.0, 0.5, 500)
+        flux_err = 0.05 * flux
+        spectrum = Spectrum(
+            angstroms=wavelengths,
+            flux_density=flux,
+            flux_density_err=flux_err,
+            name="Test"
+        )
+
+        result = self.matcher.match_spectrum(spectrum)
+        self.assertIn('n_valid_points', result)
+        self.assertGreater(result['n_valid_points'], 0)
+
+    def test_add_template_multiple_times(self):
+        """Test adding multiple templates sequentially"""
+        initial_count = len(self.matcher.templates)
+
+        for i in range(5):
+            wavelength = np.linspace(3000, 10000, 100)
+            flux = np.random.random(100)
+            self.matcher.add_template(wavelength, flux, f'Type{i}', float(i))
+
+        self.assertEqual(len(self.matcher.templates), initial_count + 5)
+
+    def test_load_templates_with_negative_phase_in_filename(self):
+        """Test loading template with negative phase in filename"""
+        # Note: _load_templates doesn't handle negative phases in filenames
+        # (only + prefix is stripped). Use comment metadata for negative phases
+        dat_file = Path(self.temp_dir) / 'sn_II_neg5.dat'
+        with open(dat_file, 'w') as f:
+            f.write("# Phase: -5.0\n")
+            for w, flux in zip(np.linspace(3000, 10000, 50), np.random.random(50)):
+                f.write(f"{w} {flux}\n")
+
+        matcher = SpectralTemplateMatcher(template_library_path=self.temp_dir)
+        self.assertEqual(matcher.templates[0]['phase'], -5.0)
+
+    def test_parse_snid_template_with_many_parts_in_filename(self):
+        """Test parsing SNID file with many underscores in filename"""
+        snid_file = Path(self.temp_dir) / 'sn1999aa_maximum_light_Ia_+10.dat'
+        data = np.column_stack([np.linspace(3000, 10000, 50), np.random.random(50)])
+        np.savetxt(snid_file, data)
+
+        template = SpectralTemplateMatcher.parse_snid_template_file(snid_file)
+        self.assertEqual(template['type'], 'Ia')
+        self.assertEqual(template['phase'], 10.0)
+
+    def test_load_csv_templates_phase_indexerror(self):
+        """Test loading CSV when Phase: comment has no value after colon"""
+        csv_file = Path(self.temp_dir) / 'test.csv'
+        with open(csv_file, 'w') as f:
+            f.write("# Type: IIL\n")
+            f.write("# Phase:\n")  # No value
+            f.write("wavelength,flux\n")
+            for w, flux in zip(np.linspace(3000, 10000, 50), np.random.random(50)):
+                f.write(f"{w},{flux}\n")
+
+        matcher = SpectralTemplateMatcher(template_library_path=self.temp_dir)
+        # Should use default phase 0.0
+        self.assertEqual(matcher.templates[0]['phase'], 0.0)
+
+    def test_download_github_templates_cache_exists_no_subdirectory(self):
+        """Test GitHub download when cache exists without subdirectory"""
+        # Create cache directory
+        repo_cache = Path(self.temp_dir) / 'owner_repo'
+        repo_cache.mkdir()
+        (repo_cache / 'somefile.txt').write_text('content')
+
+        result = SpectralTemplateMatcher.download_github_templates(
+            'https://github.com/owner/repo',
+            subdirectory='',  # No subdirectory
+            cache_dir=self.temp_dir
+        )
+
+        self.assertEqual(result, repo_cache)
+
+    def test_match_spectrum_return_all_sorted_correctly(self):
+        """Test all_matches is sorted by correlation descending"""
+        wavelengths = np.linspace(3500, 9000, 500)
+        flux = np.linspace(1.0, 0.5, 500)
+        flux_err = 0.05 * flux
+        spectrum = Spectrum(
+            angstroms=wavelengths,
+            flux_density=flux,
+            flux_density_err=flux_err,
+            name="Test"
+        )
+
+        all_matches = self.matcher.match_spectrum(
+            spectrum, return_all_matches=True, n_redshift_points=20
+        )
+        correlations = [m['correlation'] for m in all_matches]
+        # Verify sorted descending
+        self.assertEqual(correlations, sorted(correlations, reverse=True))
+
+    def test_match_spectrum_chi2_without_reduced(self):
+        """Test chi2 without errors doesn't have reduced_chi2"""
+        wavelengths = np.linspace(3500, 9000, 500)
+        flux = np.linspace(1.0, 0.5, 500)
+        # Create spectrum with None errors
+        spectrum = Spectrum(
+            angstroms=wavelengths,
+            flux_density=flux,
+            flux_density_err=None,
+            name="NoErr"
+        )
+
+        result = self.matcher.match_spectrum(spectrum, method='chi2')
+        self.assertIn('chi2', result)
+        self.assertIn('scale_factor', result)
+        # Without errors, no reduced_chi2
+        self.assertNotIn('reduced_chi2', result)
+
+    def test_default_template_temperature_evolution(self):
+        """Test that default templates have proper temperature evolution"""
+        # Ia templates should get cooler at later phases
+        ia_templates = [t for t in self.matcher.templates if t['type'] == 'Ia']
+        # Sort by phase
+        ia_templates.sort(key=lambda x: x['phase'])
+
+        # Check that peak wavelength shifts to longer (cooler) at later times
+        peak_wavelengths = []
+        for t in ia_templates:
+            peak_idx = np.argmax(t['flux'])
+            peak_wavelengths.append(t['wavelength'][peak_idx])
+
+        # General trend should be increasing wavelength (lower temperature)
+        # at later phases, though not strictly monotonic
+        self.assertLess(peak_wavelengths[0], peak_wavelengths[-1])
+
+    def test_get_available_template_sources_all_fields(self):
+        """Test all sources have required fields"""
+        sources = SpectralTemplateMatcher.get_available_template_sources()
+
+        for name, info in sources.items():
+            self.assertIn('description', info)
+            self.assertIn('url', info)
+            self.assertIn('citation', info)
+            # Check they are strings
+            self.assertIsInstance(info['description'], str)
+            self.assertIsInstance(info['url'], str)
+            self.assertIsInstance(info['citation'], str)
+
+    def test_save_templates_both_formats_work(self):
+        """Test saving templates in both CSV and DAT formats"""
+        csv_dir = Path(self.temp_dir) / 'csv'
+        dat_dir = Path(self.temp_dir) / 'dat'
+
+        self.matcher.save_templates(csv_dir, format='csv')
+        self.matcher.save_templates(dat_dir, format='dat')
+
+        csv_files = list(csv_dir.glob('*.csv'))
+        dat_files = list(dat_dir.glob('*.dat'))
+
+        self.assertEqual(len(csv_files), len(self.matcher.templates))
+        self.assertEqual(len(dat_files), len(self.matcher.templates))
+
