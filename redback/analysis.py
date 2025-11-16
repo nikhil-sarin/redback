@@ -853,7 +853,7 @@ class SpectralVelocityFitter:
         return False, None, None
 
     def measure_velocity_gradient(self, wavelength_list, flux_list, times,
-                                   line_wavelength=6355):
+                                   line_wavelength=6355, **kwargs):
         """
         Measure velocity gradient dv/dt from time series of spectra
 
@@ -867,6 +867,9 @@ class SpectralVelocityFitter:
             Observation times (days)
         line_wavelength : float
             Which line to use
+        kwargs : dict
+            Additional parameters passed to measure_line_velocity
+            (e.g., v_window, method)
 
         Returns
         -------
@@ -882,7 +885,7 @@ class SpectralVelocityFitter:
         for peculiar objects.
         """
         times, velocities, errors = self.photospheric_velocity_evolution(
-            wavelength_list, flux_list, times, line_wavelength
+            wavelength_list, flux_list, times, line_wavelength, **kwargs
         )
 
         # Remove NaN values

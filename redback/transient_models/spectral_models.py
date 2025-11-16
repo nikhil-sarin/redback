@@ -371,44 +371,51 @@ def p_cygni_profile(wavelength, lambda_rest, tau_sobolev, v_phot,
     if v_max is None:
         v_max = 1.5 * v_phot
 
-    # Velocity shift from line center
+    # Velocity shift from line center (negative = blueshift)
     v = c_kms * (wavelength - lambda_rest) / lambda_rest
 
-    # Normalized velocity in units of photospheric velocity
-    x = v / v_phot
-
-    # Source function
+    # Source function ratio
     if source_function == 'thermal':
-        S = 1.0
+        S = 0.5  # Typical thermal source function ratio
     elif source_function == 'scattering':
-        S = 0.5  # Typical scattering source function
+        S = 0.3  # Pure scattering source function
     else:
         S = float(source_function)
 
     # Initialize flux array
     flux = np.ones_like(wavelength, dtype=float) * continuum_flux
 
-    # P-Cygni profile calculation (Jeffery & Branch 1990 formalism)
+    # P-Cygni profile calculation
     # Absorption component (blueshifted side, -v_max < v < 0)
-    x_max = v_max / v_phot
-    absorption_region = (x < 0) & (np.abs(x) < x_max)
+    # Absorption occurs for material moving toward us
+    absorption_region = (v < 0) & (v > -v_max)
 
-    # Optical depth profile: tau(x) = tau_0 * exp(-x^2) for Gaussian velocity law
-    tau_profile = tau_sobolev * np.exp(-x[absorption_region]**2)
+    if np.any(absorption_region):
+        # Optical depth profile: peaks at v ~ v_phot
+        # Use a profile that has maximum absorption at photospheric velocity
+        v_abs = np.abs(v[absorption_region])
 
-    # Absorption: I = I_continuum * exp(-tau) + S * (1 - exp(-tau))
-    flux[absorption_region] = continuum_flux * np.exp(-tau_profile) + S * continuum_flux * (1 - np.exp(-tau_profile))
+        # Gaussian profile centered at v_phot
+        tau_profile = tau_sobolev * np.exp(-((v_abs - v_phot) / (0.3 * v_phot))**2)
 
-    # Emission component (redshifted side, 0 < x < x_max)
-    emission_region = (x > 0) & (x < x_max)
+        # Pure absorption: I = I_continuum * exp(-tau)
+        # With partial source function filling: I = I_cont * exp(-tau) + S * B * (1 - exp(-tau))
+        flux[absorption_region] = continuum_flux * (
+            np.exp(-tau_profile) + S * (1 - np.exp(-tau_profile))
+        )
 
-    # Emission from resonance scattering
-    # Solid angle factor for emission
-    omega_emission = 0.5 * (1 - np.sqrt(1 - 1/(x[emission_region] + 1)**2))
-    tau_emission = tau_sobolev * np.exp(-x[emission_region]**2)
+    # Emission component (redshifted side, 0 < v < v_phot)
+    emission_region = (v > 0) & (v < 0.5 * v_phot)
 
-    # Add emission above continuum
-    flux[emission_region] = continuum_flux * (1 + S * tau_emission * omega_emission)
+    if np.any(emission_region):
+        # Emission from resonance scattering in receding material
+        v_em = v[emission_region]
+
+        # Emission strength decreases away from rest wavelength
+        emission_factor = np.exp(-(v_em / (0.2 * v_phot))**2)
+
+        # Add emission above continuum
+        flux[emission_region] = continuum_flux * (1 + 0.3 * S * tau_sobolev * emission_factor)
 
     return flux
 
