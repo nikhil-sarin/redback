@@ -1275,5 +1275,570 @@ class CreateJointPriorAdvancedTest(unittest.TestCase):
         self.assertIn('xray_logn0', joint_prior)
 
 
+class EdgeCasesAndWarningsTest(unittest.TestCase):
+    """Test edge cases and warning paths for full coverage"""
+
+    def setUp(self):
+        """Set up mock transients"""
+        self.mock_transient = mock.MagicMock(spec=Transient)
+        self.mock_transient.get_filtered_data.return_value = (
+            np.array([1.0, 2.0, 3.0]),  # x
+            None,  # x_err
+            np.array([10.0, 20.0, 30.0]),  # y
+            np.array([1.0, 2.0, 3.0])  # y_err
+        )
+
+    def test_build_likelihood_with_time_errors(self):
+        """Test likelihood building when time errors are present (line 178-180)"""
+        mock_transient_with_xerr = mock.MagicMock(spec=Transient)
+        mock_transient_with_xerr.get_filtered_data.return_value = (
+            np.array([1.0, 2.0, 3.0]),  # x
+            np.array([0.1, 0.2, 0.3]),  # x_err - non-zero time errors
+            np.array([10.0, 20.0, 30.0]),  # y
+            np.array([1.0, 2.0, 3.0])  # y_err
+        )
+
+        mm = MultiMessengerTransient(optical_transient=mock_transient_with_xerr)
+
+        def dummy_model(x, param1=1.0):
+            return x * param1
+
+        likelihood = mm._build_likelihood_for_messenger(
+            'optical', mock_transient_with_xerr, dummy_model
+        )
+
+        self.assertIsInstance(likelihood, GaussianLikelihood)
+        self.assertEqual(len(likelihood.x), 3)
+
+    def test_build_likelihood_with_zero_time_errors(self):
+        """Test likelihood building when time errors are all zeros"""
+        mock_transient_zero_xerr = mock.MagicMock(spec=Transient)
+        mock_transient_zero_xerr.get_filtered_data.return_value = (
+            np.array([1.0, 2.0, 3.0]),  # x
+            np.array([0.0, 0.0, 0.0]),  # x_err - all zeros
+            np.array([10.0, 20.0, 30.0]),  # y
+            np.array([1.0, 2.0, 3.0])  # y_err
+        )
+
+        mm = MultiMessengerTransient(optical_transient=mock_transient_zero_xerr)
+
+        def dummy_model(x, param1=1.0):
+            return x * param1
+
+        likelihood = mm._build_likelihood_for_messenger(
+            'optical', mock_transient_zero_xerr, dummy_model
+        )
+
+        self.assertIsInstance(likelihood, GaussianLikelihood)
+
+    @mock.patch('bilby.run_sampler')
+    def test_fit_joint_missing_model_for_messenger(self, mock_sampler):
+        """Test warning when no model is specified for a messenger (line 305)"""
+        mock_sampler.return_value = mock.MagicMock()
+
+        mock_optical = mock.MagicMock(spec=Transient)
+        mock_optical.get_filtered_data.return_value = (
+            np.array([1.0]), None, np.array([10.0]), np.array([1.0])
+        )
+        mock_xray = mock.MagicMock(spec=Transient)
+        mock_xray.get_filtered_data.return_value = (
+            np.array([1.0]), None, np.array([10.0]), np.array([1.0])
+        )
+
+        mm = MultiMessengerTransient(
+            optical_transient=mock_optical,
+            xray_transient=mock_xray
+        )
+
+        def opt_model(x, a=1):
+            return x * a
+
+        # Only provide model for optical, not xray
+        priors = bilby.core.prior.PriorDict({'a': bilby.core.prior.Uniform(0, 10)})
+
+        with mock.patch('redback.multimessenger.logger') as mock_logger:
+            mm.fit_joint(models={'optical': opt_model}, priors=priors)
+            # Check warning was logged
+            warning_calls = [call for call in mock_logger.warning.call_args_list
+                           if 'No model specified' in str(call)]
+            self.assertTrue(len(warning_calls) > 0)
+
+    @mock.patch('bilby.run_sampler')
+    def test_fit_joint_single_likelihood_warning(self, mock_sampler):
+        """Test warning when only single likelihood is present (line 317)"""
+        mock_sampler.return_value = mock.MagicMock()
+
+        mock_optical = mock.MagicMock(spec=Transient)
+        mock_optical.get_filtered_data.return_value = (
+            np.array([1.0]), None, np.array([10.0]), np.array([1.0])
+        )
+
+        mm = MultiMessengerTransient(optical_transient=mock_optical)
+
+        def opt_model(x, a=1):
+            return x * a
+
+        priors = bilby.core.prior.PriorDict({'a': bilby.core.prior.Uniform(0, 10)})
+
+        with mock.patch('redback.multimessenger.logger') as mock_logger:
+            mm.fit_joint(models={'optical': opt_model}, priors=priors)
+            # Check warning about single likelihood was logged
+            warning_calls = [call for call in mock_logger.warning.call_args_list
+                           if 'single' in str(call).lower()]
+            self.assertTrue(len(warning_calls) > 0)
+
+    @mock.patch('bilby.run_sampler')
+    def test_fit_joint_with_shared_params_logging(self, mock_sampler):
+        """Test that shared parameters are logged (line 328-329)"""
+        mock_sampler.return_value = mock.MagicMock()
+
+        mock_optical = mock.MagicMock(spec=Transient)
+        mock_optical.get_filtered_data.return_value = (
+            np.array([1.0]), None, np.array([10.0]), np.array([1.0])
+        )
+
+        mm = MultiMessengerTransient(optical_transient=mock_optical)
+
+        def opt_model(x, a=1):
+            return x * a
+
+        priors = bilby.core.prior.PriorDict({'a': bilby.core.prior.Uniform(0, 10)})
+
+        with mock.patch('redback.multimessenger.logger') as mock_logger:
+            mm.fit_joint(
+                models={'optical': opt_model},
+                priors=priors,
+                shared_params=['viewing_angle', 'distance']
+            )
+            # Check info about shared params was logged
+            info_calls = [call for call in mock_logger.info.call_args_list
+                         if 'Shared parameters' in str(call) or 'shared' in str(call).lower()]
+            self.assertTrue(len(info_calls) > 0)
+
+    @mock.patch('bilby.run_sampler')
+    def test_fit_joint_callable_model_in_metadata(self, mock_sampler):
+        """Test that callable models use __name__ in metadata (line 335)"""
+        mock_result = mock.MagicMock()
+        mock_sampler.return_value = mock_result
+
+        mock_optical = mock.MagicMock(spec=Transient)
+        mock_optical.get_filtered_data.return_value = (
+            np.array([1.0]), None, np.array([10.0]), np.array([1.0])
+        )
+
+        mm = MultiMessengerTransient(optical_transient=mock_optical)
+
+        def my_custom_model(x, a=1):
+            return x * a
+
+        priors = bilby.core.prior.PriorDict({'a': bilby.core.prior.Uniform(0, 10)})
+
+        mm.fit_joint(models={'optical': my_custom_model}, priors=priors)
+
+        # Check that metadata was passed correctly with callable's __name__
+        call_kwargs = mock_sampler.call_args[1]
+        self.assertIn('meta_data', call_kwargs)
+        self.assertEqual(call_kwargs['meta_data']['models']['optical'], 'my_custom_model')
+
+    @mock.patch('redback.fit_model')
+    def test_fit_individual_missing_prior_warning(self, mock_fit_model):
+        """Test warning when no prior specified for messenger (line 427-429)"""
+        mock_fit_model.return_value = mock.MagicMock()
+
+        mock_optical = mock.MagicMock(spec=Transient)
+        mock_xray = mock.MagicMock(spec=Transient)
+
+        mm = MultiMessengerTransient(
+            optical_transient=mock_optical,
+            xray_transient=mock_xray
+        )
+
+        optical_priors = bilby.core.prior.PriorDict({'a': bilby.core.prior.Uniform(0, 10)})
+
+        with mock.patch('redback.multimessenger.logger') as mock_logger:
+            results = mm.fit_individual(
+                models={'optical': 'model1', 'xray': 'model2'},
+                priors={'optical': optical_priors}  # No prior for xray
+            )
+            # Check warning was logged
+            warning_calls = [call for call in mock_logger.warning.call_args_list
+                           if 'No prior specified' in str(call)]
+            self.assertTrue(len(warning_calls) > 0)
+            # Only optical should be fitted
+            self.assertIn('optical', results)
+            self.assertNotIn('xray', results)
+
+    @mock.patch('redback.fit_model')
+    def test_fit_individual_missing_model_warning(self, mock_fit_model):
+        """Test warning when no model specified for messenger (line 424)"""
+        mock_fit_model.return_value = mock.MagicMock()
+
+        mock_optical = mock.MagicMock(spec=Transient)
+        mock_xray = mock.MagicMock(spec=Transient)
+
+        mm = MultiMessengerTransient(
+            optical_transient=mock_optical,
+            xray_transient=mock_xray
+        )
+
+        optical_priors = bilby.core.prior.PriorDict({'a': bilby.core.prior.Uniform(0, 10)})
+        xray_priors = bilby.core.prior.PriorDict({'b': bilby.core.prior.Uniform(0, 10)})
+
+        with mock.patch('redback.multimessenger.logger') as mock_logger:
+            results = mm.fit_individual(
+                models={'optical': 'model1'},  # No model for xray
+                priors={'optical': optical_priors, 'xray': xray_priors}
+            )
+            # Check warning was logged
+            warning_calls = [call for call in mock_logger.warning.call_args_list
+                           if 'No model specified' in str(call)]
+            self.assertTrue(len(warning_calls) > 0)
+            # Only optical should be fitted
+            self.assertIn('optical', results)
+            self.assertNotIn('xray', results)
+
+    def test_remove_messenger_not_found_warning(self):
+        """Test warning when trying to remove non-existent messenger (line 504-505)"""
+        mm = MultiMessengerTransient(optical_transient=self.mock_transient)
+
+        with mock.patch('redback.multimessenger.logger') as mock_logger:
+            mm.remove_messenger('nonexistent')
+            # Check warning was logged
+            warning_calls = [call for call in mock_logger.warning.call_args_list
+                           if 'not found' in str(call)]
+            self.assertTrue(len(warning_calls) > 0)
+
+    def test_remove_transient_messenger(self):
+        """Test removing a transient (not external likelihood) messenger (line 498-500)"""
+        mock_optical = mock.MagicMock(spec=Transient)
+        mock_xray = mock.MagicMock(spec=Transient)
+
+        mm = MultiMessengerTransient(
+            optical_transient=mock_optical,
+            xray_transient=mock_xray
+        )
+
+        self.assertIn('optical', mm.messengers)
+        mm.remove_messenger('optical')
+        self.assertNotIn('optical', mm.messengers)
+        self.assertIn('xray', mm.messengers)
+
+    def test_create_joint_prior_uses_first_messenger_prior(self):
+        """Test that first messenger's prior is used for shared param (line 564-568)"""
+        optical_priors = bilby.core.prior.PriorDict()
+        optical_priors['viewing_angle'] = bilby.core.prior.Uniform(0, 1.57, name='viewing_angle')
+        optical_priors['mej'] = bilby.core.prior.Uniform(0.01, 0.1)
+
+        xray_priors = bilby.core.prior.PriorDict()
+        xray_priors['viewing_angle'] = bilby.core.prior.Uniform(0, 3.14, name='viewing_angle')  # Different range
+        xray_priors['logn0'] = bilby.core.prior.Uniform(-3, 2)
+
+        with mock.patch('redback.multimessenger.logger') as mock_logger:
+            joint_prior = create_joint_prior(
+                individual_priors={'optical': optical_priors, 'xray': xray_priors},
+                shared_params=['viewing_angle']
+            )
+            # Should use optical's prior (first messenger)
+            self.assertEqual(joint_prior['viewing_angle'].maximum, 1.57)
+            # Check logger info was called about using first messenger's prior
+            info_calls = [call for call in mock_logger.info.call_args_list
+                         if 'optical' in str(call) and 'viewing_angle' in str(call)]
+            self.assertTrue(len(info_calls) > 0)
+
+    def test_create_joint_prior_messenger_specific_prefixes(self):
+        """Test that non-shared params get messenger prefixes (line 573-576)"""
+        optical_priors = bilby.core.prior.PriorDict()
+        optical_priors['mej'] = bilby.core.prior.Uniform(0.01, 0.1)
+        optical_priors['vej'] = bilby.core.prior.Uniform(0.1, 0.3)
+
+        xray_priors = bilby.core.prior.PriorDict()
+        xray_priors['logn0'] = bilby.core.prior.Uniform(-3, 2)
+        xray_priors['p'] = bilby.core.prior.Uniform(2.0, 3.0)
+
+        joint_prior = create_joint_prior(
+            individual_priors={'optical': optical_priors, 'xray': xray_priors},
+            shared_params=[]
+        )
+
+        # All params should have messenger prefixes
+        self.assertIn('optical_mej', joint_prior)
+        self.assertIn('optical_vej', joint_prior)
+        self.assertIn('xray_logn0', joint_prior)
+        self.assertIn('xray_p', joint_prior)
+        # Original names should not be in joint prior
+        self.assertNotIn('mej', joint_prior)
+        self.assertNotIn('logn0', joint_prior)
+
+    @mock.patch('bilby.run_sampler')
+    def test_fit_joint_with_dict_priors_conversion(self, mock_sampler):
+        """Test that dict priors are converted to PriorDict (line 324-325)"""
+        mock_sampler.return_value = mock.MagicMock()
+
+        mock_optical = mock.MagicMock(spec=Transient)
+        mock_optical.get_filtered_data.return_value = (
+            np.array([1.0]), None, np.array([10.0]), np.array([1.0])
+        )
+
+        mm = MultiMessengerTransient(optical_transient=mock_optical)
+
+        def opt_model(x, a=1):
+            return x * a
+
+        # Provide priors as plain dict
+        priors = {'a': bilby.core.prior.Uniform(0, 10)}
+
+        mm.fit_joint(models={'optical': opt_model}, priors=priors)
+
+        # Should succeed without error
+        self.assertTrue(mock_sampler.called)
+
+    @mock.patch('bilby.run_sampler')
+    def test_fit_joint_creates_output_directory(self, mock_sampler):
+        """Test that output directory is created (line 288)"""
+        mock_sampler.return_value = mock.MagicMock()
+
+        mock_optical = mock.MagicMock(spec=Transient)
+        mock_optical.get_filtered_data.return_value = (
+            np.array([1.0]), None, np.array([10.0]), np.array([1.0])
+        )
+
+        mm = MultiMessengerTransient(optical_transient=mock_optical)
+
+        def opt_model(x, a=1):
+            return x * a
+
+        priors = bilby.core.prior.PriorDict({'a': bilby.core.prior.Uniform(0, 10)})
+
+        import tempfile
+        import os
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            test_outdir = os.path.join(tmpdir, 'new_output_dir')
+            self.assertFalse(os.path.exists(test_outdir))
+
+            mm.fit_joint(
+                models={'optical': opt_model},
+                priors=priors,
+                outdir=test_outdir
+            )
+
+            # Directory should have been created
+            self.assertTrue(os.path.exists(test_outdir))
+
+    @mock.patch('redback.fit_model')
+    def test_fit_individual_creates_output_directory(self, mock_fit_model):
+        """Test that fit_individual creates output directory (line 418)"""
+        mock_fit_model.return_value = mock.MagicMock()
+
+        mock_optical = mock.MagicMock(spec=Transient)
+
+        mm = MultiMessengerTransient(optical_transient=mock_optical)
+
+        optical_priors = bilby.core.prior.PriorDict({'a': bilby.core.prior.Uniform(0, 10)})
+
+        import tempfile
+        import os
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            test_outdir = os.path.join(tmpdir, 'individual_output')
+            self.assertFalse(os.path.exists(test_outdir))
+
+            mm.fit_individual(
+                models={'optical': 'model1'},
+                priors={'optical': optical_priors},
+                outdir=test_outdir
+            )
+
+            # Directory should have been created
+            self.assertTrue(os.path.exists(test_outdir))
+
+    def test_init_logging(self):
+        """Test that initialization logs info (line 122-123)"""
+        with mock.patch('redback.multimessenger.logger') as mock_logger:
+            mm = MultiMessengerTransient(
+                optical_transient=self.mock_transient,
+                name='test_mm'
+            )
+            # Check info was logged about initialization
+            info_calls = [call for call in mock_logger.info.call_args_list
+                         if 'Initialized' in str(call) or 'test_mm' in str(call)]
+            self.assertTrue(len(info_calls) > 0)
+
+    def test_add_messenger_logging(self):
+        """Test that adding messenger logs info (line 484, 487)"""
+        mm = MultiMessengerTransient()
+
+        with mock.patch('redback.multimessenger.logger') as mock_logger:
+            mm.add_messenger('gamma', transient=self.mock_transient)
+            # Check info was logged
+            info_calls = [call for call in mock_logger.info.call_args_list
+                         if 'Added' in str(call) and 'gamma' in str(call)]
+            self.assertTrue(len(info_calls) > 0)
+
+    def test_add_external_likelihood_logging(self):
+        """Test that adding external likelihood logs info"""
+        mm = MultiMessengerTransient()
+        mock_likelihood = mock.MagicMock(spec=bilby.Likelihood)
+
+        with mock.patch('redback.multimessenger.logger') as mock_logger:
+            mm.add_messenger('custom', likelihood=mock_likelihood)
+            # Check info was logged
+            info_calls = [call for call in mock_logger.info.call_args_list
+                         if 'Added' in str(call) and 'external' in str(call)]
+            self.assertTrue(len(info_calls) > 0)
+
+    def test_remove_messenger_logging(self):
+        """Test that removing messenger logs info (line 500, 503)"""
+        mm = MultiMessengerTransient(optical_transient=self.mock_transient)
+
+        with mock.patch('redback.multimessenger.logger') as mock_logger:
+            mm.remove_messenger('optical')
+            # Check info was logged
+            info_calls = [call for call in mock_logger.info.call_args_list
+                         if 'Removed' in str(call) and 'optical' in str(call)]
+            self.assertTrue(len(info_calls) > 0)
+
+    @mock.patch('bilby.run_sampler')
+    def test_fit_joint_external_likelihood_logging(self, mock_sampler):
+        """Test that adding external likelihoods logs info (line 309)"""
+        mock_sampler.return_value = mock.MagicMock()
+
+        mock_gw_likelihood = mock.MagicMock(spec=bilby.Likelihood)
+        mock_gw_likelihood.parameters = {}
+
+        mm = MultiMessengerTransient(gw_likelihood=mock_gw_likelihood)
+
+        priors = bilby.core.prior.PriorDict({'a': bilby.core.prior.Uniform(0, 10)})
+
+        with mock.patch('redback.multimessenger.logger') as mock_logger:
+            mm.fit_joint(models={}, priors=priors)
+            # Check info was logged about adding external likelihood
+            info_calls = [call for call in mock_logger.info.call_args_list
+                         if 'Adding external likelihood' in str(call)]
+            self.assertTrue(len(info_calls) > 0)
+
+    @mock.patch('bilby.run_sampler')
+    def test_fit_joint_combining_likelihoods_logging(self, mock_sampler):
+        """Test that combining likelihoods logs info (line 320)"""
+        mock_sampler.return_value = mock.MagicMock()
+
+        mock_optical = mock.MagicMock(spec=Transient)
+        mock_optical.get_filtered_data.return_value = (
+            np.array([1.0]), None, np.array([10.0]), np.array([1.0])
+        )
+        mock_xray = mock.MagicMock(spec=Transient)
+        mock_xray.get_filtered_data.return_value = (
+            np.array([1.0]), None, np.array([10.0]), np.array([1.0])
+        )
+
+        mm = MultiMessengerTransient(
+            optical_transient=mock_optical,
+            xray_transient=mock_xray
+        )
+
+        def opt_model(x, a=1):
+            return x * a
+
+        def xray_model(x, b=1):
+            return x * b
+
+        priors = bilby.core.prior.PriorDict({
+            'a': bilby.core.prior.Uniform(0, 10),
+            'b': bilby.core.prior.Uniform(0, 10)
+        })
+
+        with mock.patch('redback.multimessenger.logger') as mock_logger:
+            mm.fit_joint(
+                models={'optical': opt_model, 'xray': xray_model},
+                priors=priors
+            )
+            # Check info was logged about combining likelihoods
+            info_calls = [call for call in mock_logger.info.call_args_list
+                         if 'Combining' in str(call) and 'likelihood' in str(call)]
+            self.assertTrue(len(info_calls) > 0)
+
+    @mock.patch('bilby.run_sampler')
+    def test_fit_joint_sampler_start_logging(self, mock_sampler):
+        """Test that starting sampler logs info (line 341)"""
+        mock_sampler.return_value = mock.MagicMock()
+
+        mock_optical = mock.MagicMock(spec=Transient)
+        mock_optical.get_filtered_data.return_value = (
+            np.array([1.0]), None, np.array([10.0]), np.array([1.0])
+        )
+
+        mm = MultiMessengerTransient(optical_transient=mock_optical)
+
+        def opt_model(x, a=1):
+            return x * a
+
+        priors = bilby.core.prior.PriorDict({'a': bilby.core.prior.Uniform(0, 10)})
+
+        with mock.patch('redback.multimessenger.logger') as mock_logger:
+            mm.fit_joint(models={'optical': opt_model}, priors=priors)
+            # Check info was logged about starting sampler
+            info_calls = [call for call in mock_logger.info.call_args_list
+                         if 'Starting' in str(call) and 'sampler' in str(call)]
+            self.assertTrue(len(info_calls) > 0)
+
+    @mock.patch('bilby.run_sampler')
+    def test_fit_joint_complete_logging(self, mock_sampler):
+        """Test that joint analysis completion logs info (line 359)"""
+        mock_sampler.return_value = mock.MagicMock()
+
+        mock_optical = mock.MagicMock(spec=Transient)
+        mock_optical.get_filtered_data.return_value = (
+            np.array([1.0]), None, np.array([10.0]), np.array([1.0])
+        )
+
+        mm = MultiMessengerTransient(optical_transient=mock_optical)
+
+        def opt_model(x, a=1):
+            return x * a
+
+        priors = bilby.core.prior.PriorDict({'a': bilby.core.prior.Uniform(0, 10)})
+
+        with mock.patch('redback.multimessenger.logger') as mock_logger:
+            mm.fit_joint(models={'optical': opt_model}, priors=priors)
+            # Check info was logged about completion
+            info_calls = [call for call in mock_logger.info.call_args_list
+                         if 'complete' in str(call).lower()]
+            self.assertTrue(len(info_calls) > 0)
+
+    @mock.patch('redback.fit_model')
+    def test_fit_individual_per_messenger_logging(self, mock_fit_model):
+        """Test that fitting each messenger logs info (line 435, 455)"""
+        mock_fit_model.return_value = mock.MagicMock()
+
+        mock_optical = mock.MagicMock(spec=Transient)
+        mm = MultiMessengerTransient(optical_transient=mock_optical)
+
+        optical_priors = bilby.core.prior.PriorDict({'a': bilby.core.prior.Uniform(0, 10)})
+
+        with mock.patch('redback.multimessenger.logger') as mock_logger:
+            mm.fit_individual(
+                models={'optical': 'model1'},
+                priors={'optical': optical_priors}
+            )
+            # Check info was logged about fitting and completion
+            fitting_calls = [call for call in mock_logger.info.call_args_list
+                            if 'Fitting' in str(call) or 'Completed' in str(call)]
+            self.assertTrue(len(fitting_calls) >= 2)
+
+    def test_build_likelihood_logging(self):
+        """Test that building likelihood logs info (line 180, 189)"""
+        mm = MultiMessengerTransient(optical_transient=self.mock_transient)
+
+        def dummy_model(x, param1=1.0):
+            return x * param1
+
+        with mock.patch('redback.multimessenger.logger') as mock_logger:
+            mm._build_likelihood_for_messenger('optical', self.mock_transient, dummy_model)
+            # Check info was logged
+            info_calls = [call for call in mock_logger.info.call_args_list
+                         if 'Built likelihood' in str(call)]
+            self.assertTrue(len(info_calls) > 0)
+
+
 if __name__ == '__main__':
     unittest.main()
