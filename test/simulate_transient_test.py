@@ -698,7 +698,7 @@ class TestTransientPopulation(unittest.TestCase):
         self.assertIsInstance(filtered, TransientPopulation)
         self.assertEqual(filtered.n_transients, 2)  # z=0.2 and z=0.3
 
-    @patch("os.makedirs")
+    @patch("bilby.utils.check_directory_exists_and_if_not_mkdir")
     @patch("pandas.DataFrame.to_csv")
     def test_save_without_metadata(self, mock_to_csv, mock_makedirs):
         """Test save method without metadata"""
@@ -707,7 +707,7 @@ class TestTransientPopulation(unittest.TestCase):
         mock_makedirs.assert_called()
         mock_to_csv.assert_called_once()
 
-    @patch("os.makedirs")
+    @patch("bilby.utils.check_directory_exists_and_if_not_mkdir")
     @patch("builtins.open", new_callable=mock.mock_open)
     @patch("pandas.DataFrame.to_csv")
     def test_save_with_metadata(self, mock_to_csv, mock_open, mock_makedirs):
@@ -883,7 +883,7 @@ class TestSimulateTransientWithCadence(unittest.TestCase):
         detected = sim.detected_observations
         self.assertLessEqual(len(detected), len(sim.observations))
 
-    @patch("os.makedirs")
+    @patch("bilby.utils.check_directory_exists_and_if_not_mkdir")
     @patch("pandas.DataFrame.to_csv")
     def test_save_transient(self, mock_to_csv, mock_makedirs):
         """Test saving transient data"""

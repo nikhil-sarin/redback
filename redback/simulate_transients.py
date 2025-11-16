@@ -228,6 +228,14 @@ class SimulateTransientWithCadence(object):
             if observation_mode == 'optical':
                 self.observation_mode = 'radio'  # Default to radio for frequencies
 
+        # Auto-convert noise_type if it doesn't match observation_mode
+        if self.observation_mode in ['radio', 'xray'] and self.noise_type == 'limiting_mag':
+            self.noise_type = 'sensitivity'
+            logger.info(f"Auto-converted noise_type to 'sensitivity' for {self.observation_mode} mode")
+        elif self.observation_mode == 'optical' and self.noise_type == 'sensitivity':
+            self.noise_type = 'limiting_mag'
+            logger.info(f"Auto-converted noise_type to 'limiting_mag' for optical mode")
+
         # Validate cadence config
         self._validate_cadence_config()
 
@@ -1459,6 +1467,72 @@ class TransientPopulation(object):
                 json.dump(clean_metadata, f, indent=2)
             logger.info(f"Saved metadata to {metadata_path}")
 
+    @property
+    def sky_positions(self):
+        """Get sky positions (RA, DEC) tuple"""
+        if 'ra' in self.parameters.columns and 'dec' in self.parameters.columns:
+            return self.parameters['ra'].values, self.parameters['dec'].values
+        return None, None
+
+    def summary_stats(self):
+        """
+        Get summary statistics for the population
+
+        :return: Dictionary of summary statistics
+        """
+        stats = {
+            'n_transients': self.n_transients
+        }
+
+        if 'redshift' in self.parameters.columns:
+            z = self.parameters['redshift'].values
+            stats['median_redshift'] = np.median(z)
+            stats['mean_redshift'] = np.mean(z)
+            stats['min_redshift'] = np.min(z)
+            stats['max_redshift'] = np.max(z)
+
+        if 'detected' in self.parameters.columns:
+            stats['n_detected'] = np.sum(self.parameters['detected'])
+            stats['detection_fraction'] = self.detection_fraction
+
+        if 'luminosity_distance' in self.parameters.columns:
+            dl = self.parameters['luminosity_distance'].values
+            stats['median_distance_mpc'] = np.median(dl)
+            stats['max_distance_mpc'] = np.max(dl)
+
+        return stats
+
+    def filter_by_redshift(self, z_min=None, z_max=None):
+        """
+        Filter population by redshift range
+
+        :param z_min: Minimum redshift (default: no minimum)
+        :param z_max: Maximum redshift (default: no maximum)
+        :return: New TransientPopulation with filtered parameters
+        """
+        if 'redshift' not in self.parameters.columns:
+            raise ValueError("Cannot filter by redshift: no redshift column in parameters")
+
+        mask = np.ones(len(self.parameters), dtype=bool)
+
+        if z_min is not None:
+            mask &= self.parameters['redshift'] >= z_min
+        if z_max is not None:
+            mask &= self.parameters['redshift'] <= z_max
+
+        filtered_params = self.parameters[mask].reset_index(drop=True)
+
+        # Filter light curves if they exist
+        filtered_lcs = None
+        if self.light_curves is not None:
+            filtered_lcs = [self.light_curves[i] for i in range(len(mask)) if mask[i]]
+
+        return TransientPopulation(
+            parameters=filtered_params,
+            metadata=self.metadata,
+            light_curves=filtered_lcs
+        )
+
     @classmethod
     def load(cls, filename='population.csv'):
         """
@@ -1494,7 +1568,7 @@ class PopulationSynthesizer(object):
     """
 
     def __init__(self, model, prior=None, rate=1e-6, rate_evolution='constant',
-                 cosmology='Planck18', seed=42):
+                 rate_params=None, cosmology='Planck18', seed=42):
         """
         Initialize PopulationSynthesizer
 
@@ -1506,8 +1580,9 @@ class PopulationSynthesizer(object):
         :param rate_evolution: String specifying rate evolution model
             Options: 'constant', 'powerlaw', 'sfr_like', or callable
             - 'constant': R(z) = R0
-            - 'powerlaw': R(z) = R0 * (1+z)^alpha (requires alpha in metadata)
+            - 'powerlaw': R(z) = R0 * (1+z)^alpha (requires alpha in rate_params)
             - 'sfr_like': R(z) follows star formation rate (Madau & Dickinson 2014)
+        :param rate_params: Dictionary of parameters for rate evolution (e.g., {'alpha': 2.7})
         :param cosmology: Cosmology to use ('Planck18', 'Planck15', etc.) or astropy cosmology object
         :param seed: Random seed for reproducibility
         """
@@ -1541,12 +1616,20 @@ class PopulationSynthesizer(object):
 
         # Set cosmology
         if isinstance(cosmology, str):
-            from astropy.cosmology import default_cosmology
-            self.cosmology = default_cosmology.get_cosmology_from_string(cosmology)
+            # Import specific cosmology by name
+            from astropy import cosmology as astropy_cosmology
+            try:
+                self.cosmology = getattr(astropy_cosmology, cosmology)
+            except AttributeError:
+                raise ValueError(f"Cosmology {cosmology} not found in astropy.cosmology")
             self.cosmology_name = cosmology
         else:
             self.cosmology = cosmology
             self.cosmology_name = 'custom'
+
+        # Store rate parameters
+        self.rate_params = rate_params or {}
+        self.rate = rate  # Store base rate
 
         # Set rate and rate evolution
         if callable(rate):
@@ -1576,7 +1659,7 @@ class PopulationSynthesizer(object):
         elif evolution_model == 'powerlaw':
             # R(z) = R0 * (1+z)^alpha
             # Default alpha=2.7 similar to GW merger rate evolution
-            alpha = 2.7
+            alpha = self.rate_params.get('alpha', 2.7)
             def rate_func(z):
                 return self.base_rate.value * (1 + z)**alpha
             return rate_func
@@ -1641,7 +1724,10 @@ class PopulationSynthesizer(object):
         # Sample from prior, excluding redshift (we handle that separately)
         params = self.prior.sample(n_events)
 
-        return params
+        # Convert to DataFrame
+        params_df = pd.DataFrame(params)
+
+        return params_df
 
     def _sample_sky_positions(self, n_events):
         """
@@ -1758,8 +1844,9 @@ class PopulationSynthesizer(object):
         # Add redshift
         params_df['redshift'] = redshifts
 
-        # Add luminosity distance
+        # Add luminosity distance and comoving distance
         params_df['luminosity_distance'] = self.cosmology.luminosity_distance(redshifts).value  # Mpc
+        params_df['comoving_distance'] = self.cosmology.comoving_distance(redshifts).value  # Mpc
 
         # Add sky positions (isotropic)
         if include_sky_position:
@@ -1812,10 +1899,10 @@ class PopulationSynthesizer(object):
             result = detection_function(row, **kwargs)
 
             # Handle boolean vs probability return
-            if isinstance(result, bool):
-                detected.append(result)
+            if isinstance(result, (bool, np.bool_)):
+                detected.append(bool(result))
                 detection_probs.append(1.0 if result else 0.0)
-            elif isinstance(result, (int, float)):
+            elif isinstance(result, (int, float, np.integer, np.floating)):
                 # Interpret as probability
                 detection_probs.append(float(result))
                 # Stochastically apply
