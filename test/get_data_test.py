@@ -1363,6 +1363,263 @@ NO NO NO
         with self.assertRaises(redback.redback_errors.WebsiteExist):
             self.getter.download_xrt_data_via_api()
 
+    @mock.patch('redback.get_data.swift.SWIFTTOOLS_AVAILABLE', True)
+    @mock.patch('redback.get_data.swift.udg')
+    def test_full_xrt_api_flow(self, mock_udg):
+        """Integration test: Full XRT API data flow from download to CSV."""
+        # Remove existing files
+        if os.path.isfile(self.getter.raw_file_path):
+            os.remove(self.getter.raw_file_path)
+        if os.path.isfile(self.getter.processed_file_path):
+            os.remove(self.getter.processed_file_path)
+
+        self.getter.instrument = "XRT"
+        mock_df = pd.DataFrame({
+            'Time': [100.0, 200.0, 300.0],
+            'TimePos': [10.0, 20.0, 30.0],
+            'TimeNeg': [10.0, 20.0, 30.0],
+            'Flux': [1e-11, 2e-11, 3e-11],
+            'FluxPos': [1e-12, 2e-12, 3e-12],
+            'FluxNeg': [1e-12, 2e-12, 3e-12]
+        })
+        mock_udg.getLightCurves.return_value = {
+            'Datasets': ['PC_incbad_CURVE'],
+            'PC_incbad_CURVE': mock_df
+        }
+
+        # Run full flow
+        result = self.getter.get_data()
+
+        # Verify results
+        self.assertIsInstance(result, pd.DataFrame)
+        self.assertEqual(len(result), 3)
+        self.assertIn('Time [s]', result.columns)
+        self.assertIn('Flux [erg cm^{-2} s^{-1}]', result.columns)
+        self.assertTrue(os.path.isfile(self.getter.raw_file_path))
+        self.assertTrue(os.path.isfile(self.getter.processed_file_path))
+
+    @mock.patch('redback.get_data.swift.SWIFTTOOLS_AVAILABLE', True)
+    @mock.patch('redback.get_data.swift.udg')
+    def test_full_bat_xrt_api_flow_flux(self, mock_udg):
+        """Integration test: Full BAT+XRT API data flow for flux mode."""
+        # Remove existing files
+        if os.path.isfile(self.getter.raw_file_path):
+            os.remove(self.getter.raw_file_path)
+        if os.path.isfile(self.getter.processed_file_path):
+            os.remove(self.getter.processed_file_path)
+
+        self.getter.instrument = "BAT+XRT"
+        self.getter.data_mode = "flux"
+        mock_data = {
+            'XRT': {
+                'binning1': {
+                    'band1': pd.DataFrame({
+                        'Time': [1000.0, 2000.0],
+                        'TimePos': [100.0, 200.0],
+                        'TimeNeg': [100.0, 200.0],
+                        'Flux': [1e-11, 2e-11],
+                        'FluxPos': [1e-12, 2e-12],
+                        'FluxNeg': [1e-12, 2e-12]
+                    })
+                }
+            },
+            'BAT': {
+                'binning1': {
+                    'band1': pd.DataFrame({
+                        'Time': [10.0, 20.0],
+                        'TimePos': [1.0, 2.0],
+                        'TimeNeg': [1.0, 2.0],
+                        'Flux': [1e-10, 2e-10],
+                        'FluxPos': [1e-11, 2e-11],
+                        'FluxNeg': [1e-11, 2e-11]
+                    })
+                }
+            }
+        }
+        mock_udg.getBurstAnalyser.return_value = mock_data
+
+        # Run full flow
+        result = self.getter.get_data()
+
+        # Verify results
+        self.assertIsInstance(result, pd.DataFrame)
+        self.assertEqual(len(result), 4)  # 2 XRT + 2 BAT
+        self.assertIn('Time [s]', result.columns)
+        self.assertIn('Instrument', result.columns)
+
+    @mock.patch('redback.get_data.swift.SWIFTTOOLS_AVAILABLE', True)
+    @mock.patch('redback.get_data.swift.udg')
+    def test_full_bat_xrt_api_flow_flux_density(self, mock_udg):
+        """Integration test: Full BAT+XRT API data flow for flux density mode."""
+        # Change to flux_density mode
+        self.getter.instrument = "BAT+XRT"
+        self.getter.data_mode = "flux_density"
+
+        # Update directory structure for new data_mode
+        self.getter.directory_path, self.getter.raw_file_path, self.getter.processed_file_path = \
+            self.getter.create_directory_structure()
+
+        # Remove existing files
+        if os.path.isfile(self.getter.raw_file_path):
+            os.remove(self.getter.raw_file_path)
+        if os.path.isfile(self.getter.processed_file_path):
+            os.remove(self.getter.processed_file_path)
+
+        mock_data = {
+            'XRT': {
+                'binning1': {
+                    'density_band': pd.DataFrame({
+                        'Time': [1000.0, 2000.0],
+                        'TimePos': [100.0, 200.0],
+                        'TimeNeg': [100.0, 200.0],
+                        'Flux': [0.001, 0.002],  # In Jy
+                        'FluxPos': [0.0001, 0.0002],
+                        'FluxNeg': [0.0001, 0.0002]
+                    })
+                }
+            }
+        }
+        mock_udg.getBurstAnalyser.return_value = mock_data
+
+        # Run full flow
+        result = self.getter.get_data()
+
+        # Verify results
+        self.assertIsInstance(result, pd.DataFrame)
+        self.assertIn('Flux [mJy]', result.columns)
+        # Check unit conversion happened
+        self.assertGreater(result['Flux [mJy]'].iloc[0], 0.1)
+
+    @mock.patch('redback.get_data.swift.SWIFTTOOLS_AVAILABLE', True)
+    @mock.patch('redback.get_data.swift.udg')
+    @mock.patch("os.path.isfile")
+    @mock.patch('redback.get_data.swift.fetch_driver')
+    @mock.patch('requests.get')
+    def test_api_fallback_to_legacy_complete_flow(self, mock_get, mock_driver, mock_isfile, mock_udg):
+        """Integration test: API failure triggers complete legacy fallback."""
+        mock_isfile.return_value = False
+        self.getter.instrument = "XRT"
+
+        # API fails
+        mock_udg.getLightCurves.side_effect = Exception("API unavailable")
+
+        # Legacy method works
+        mock_get.return_value = MagicMock()
+        mock_get.return_value.text = "Valid data"
+
+        # Mock the urlretrieve to create a valid raw file
+        with mock.patch("urllib.request.urlretrieve") as mock_retrieve:
+            def create_raw_file(url, path):
+                # Create a valid XRT data file
+                data = "! Comment\n! READ\n100.0 10.0 10.0 1e-11 1e-12 1e-12\n200.0 20.0 20.0 2e-11 2e-12 2e-12"
+                with open(path, 'w') as f:
+                    f.write(data)
+            mock_retrieve.side_effect = create_raw_file
+
+            with mock.patch("urllib.request.urlcleanup"):
+                self.getter.collect_data()
+
+        # Verify API was tried and failed
+        mock_udg.getLightCurves.assert_called_once()
+
+    def test_convert_xrt_api_data_missing_flux_columns(self):
+        """Test XRT API conversion handles missing optional columns gracefully."""
+        self.getter.instrument = "XRT"
+        # Only time columns, missing flux
+        self.getter._api_data = pd.DataFrame({
+            'Time': [100.0, 200.0],
+            'TimePos': [10.0, 20.0],
+            'TimeNeg': [10.0, 20.0]
+        })
+
+        result = self.getter.convert_xrt_api_data_to_csv()
+
+        # Should still create file with available columns
+        self.assertIn('Time [s]', result.columns)
+        self.assertTrue(os.path.isfile(self.getter.processed_file_path))
+
+    def test_convert_burst_analyser_empty_dataframes(self):
+        """Test Burst Analyser conversion handles empty dataframes."""
+        self.getter.instrument = "BAT+XRT"
+        self.getter.data_mode = "flux"
+        self.getter._api_data = {
+            'XRT': {
+                'binning1': {
+                    'band1': pd.DataFrame()  # Empty dataframe
+                }
+            }
+        }
+
+        with self.assertRaises(ValueError):
+            self.getter.convert_burst_analyser_api_data_to_csv()
+
+    def test_convert_burst_analyser_bat_only(self):
+        """Test Burst Analyser API data conversion with only BAT data."""
+        self.getter.instrument = "BAT+XRT"
+        self.getter.data_mode = "flux"
+        self.getter._api_data = {
+            'BAT': {
+                'binning1': {
+                    'band1': pd.DataFrame({
+                        'Time': [10.0, 20.0],
+                        'TimePos': [1.0, 2.0],
+                        'TimeNeg': [1.0, 2.0],
+                        'Flux': [1e-10, 2e-10],
+                        'FluxPos': [1e-11, 2e-11],
+                        'FluxNeg': [1e-11, 2e-11]
+                    })
+                }
+            }
+        }
+
+        result = self.getter.convert_burst_analyser_api_data_to_csv()
+
+        self.assertEqual(len(result), 2)
+        self.assertEqual(result['Instrument'].iloc[0], 'BAT')
+
+    @mock.patch('redback.get_data.swift.SWIFTTOOLS_AVAILABLE', False)
+    @mock.patch('requests.get')
+    @mock.patch("urllib.request.urlretrieve")
+    @mock.patch("urllib.request.urlcleanup")
+    def test_legacy_xrt_complete_flow(self, mock_cleanup, mock_retrieve, mock_get):
+        """Integration test: Complete legacy XRT flow when API unavailable."""
+        # Remove file if exists so collect_data will try to download
+        if os.path.isfile(self.getter.raw_file_path):
+            os.remove(self.getter.raw_file_path)
+
+        self.getter.instrument = "XRT"
+        mock_get.return_value = MagicMock()
+        mock_get.return_value.text = "Valid data"
+
+        def create_raw_file(url, path):
+            data = "! Comment\n! READ\n100.0 10.0 10.0 1e-11 1e-12 1e-12\n200.0 20.0 20.0 2e-11 2e-12 2e-12"
+            with open(path, 'w') as f:
+                f.write(data)
+        mock_retrieve.side_effect = create_raw_file
+
+        self.getter.collect_data()
+
+        mock_retrieve.assert_called_once()
+        self.assertTrue(os.path.isfile(self.getter.raw_file_path))
+
+    def test_get_swift_id_from_grb_long_id(self):
+        """Test get_swift_id_from_grb with already long ID."""
+        with mock.patch("astropy.io.ascii.read") as ascii_read:
+            swift_id = "12345678901"  # Already 11 digits
+            ascii_read.return_value = dict(col1=[f"GRB{self.grb}"], col2=[swift_id])
+            result = self.getter.get_swift_id_from_grb()
+            self.assertEqual(swift_id, result)
+
+    @mock.patch("redback.get_data.utils.get_trigger_number")
+    def test_trigger_property(self, mock_trigger):
+        """Test trigger property caches correctly."""
+        mock_trigger.return_value = "123456"
+        trigger1 = self.getter.trigger
+        trigger2 = self.getter.trigger
+        self.assertEqual(trigger1, trigger2)
+        # Called each time since it's a property
+        self.assertEqual(mock_trigger.call_count, 2)
+
 
 class TestLasairDataGetter(unittest.TestCase):
 
