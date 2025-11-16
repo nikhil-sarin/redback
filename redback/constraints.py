@@ -1,7 +1,7 @@
 import numpy as np
 import redback.eos as eos
 from redback.constants import *
-from redback.utils import calc_tfb, logger
+from redback.utils import calc_tfb
 from scipy.interpolate import interp1d
 
 def slsn_constraint(parameters):
@@ -26,13 +26,9 @@ def slsn_constraint(parameters):
     # ensure rotational energy is greater than total output energy
     erot_ratio = total_energy/rotational_energy
     converted_parameters['erot_constraint'] = erot_ratio
-    if np.any(erot_ratio > 1):
-        logger.warning(f"SLSN constraint violated: total energy ({total_energy:.2e}) > rotational energy ({rotational_energy:.2e})")
     # ensure t_nebula is greater than 100 days
     tnebula_constraint = tnebula - 100
     converted_parameters['t_nebula_min'] = tnebula_constraint
-    if np.any(tnebula_constraint < 0):
-        logger.warning(f"SLSN t_nebula constraint violated: nebula phase begins at {tnebula:.1f} days (< 100 days)")
     return converted_parameters
 
 def basic_magnetar_powered_sn_constraints(parameters):
@@ -115,8 +111,6 @@ def tde_constraints(parameters):
     schwarzchild_radius = (2 * graviational_constant * mass_bh * solar_mass /(speed_of_light**2))/au_cgs
     disruption_ratio = schwarzchild_radius/rp
     converted_parameters['disruption_radius'] = disruption_ratio
-    if np.any(disruption_ratio > 1):
-        logger.warning(f"TDE constraint violated: pericenter radius ({rp:.2e} AU) < Schwarzschild radius ({schwarzchild_radius:.2e} AU)")
     return converted_parameters
 
 def gaussianrise_tde_constraints(parameters):
