@@ -16,6 +16,17 @@ jobs:
 
     steps:
     - uses: actions/checkout@v4
+    - name: Free Disk Space
+      run: |
+        echo "Disk space before cleanup:"
+        df -h
+        sudo rm -rf /usr/share/dotnet
+        sudo rm -rf /usr/local/lib/android
+        sudo rm -rf /opt/ghc
+        sudo rm -rf /opt/hostedtoolcache/CodeQL
+        sudo docker image prune --all --force
+        echo "Disk space after cleanup:"
+        df -h
     - name: Set up Python 3.11
       uses: actions/setup-python@v4
       with:
@@ -25,11 +36,13 @@ jobs:
         sudo apt-get update
         sudo apt install texlive-latex-extra
         sudo apt-get install dvipng texlive-latex-extra texlive-fonts-recommended cm-super
+        sudo apt-get clean
+        sudo rm -rf /var/lib/apt/lists/*
         python -m pip install --upgrade pip
-        pip install flake8 pytest
-        if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
-        if [ -f optional_requirements.txt ]; then pip install -r optional_requirements.txt; fi
-        pip install flake8 pytest pytest-cov coverage coverage-badge coveralls
+        pip install --no-cache-dir flake8 pytest
+        if [ -f requirements.txt ]; then pip install --no-cache-dir -r requirements.txt; fi
+        if [ -f optional_requirements.txt ]; then pip install --no-cache-dir -r optional_requirements.txt; fi
+        pip install --no-cache-dir flake8 pytest pytest-cov coverage coverage-badge coveralls
     - name: Run tests
       run: |
         coverage run -m pytest test/model_test.py
