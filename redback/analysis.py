@@ -627,11 +627,35 @@ class SpectralTemplateMatcher(object):
                     sn_type = stem
                     phase = 0.0
 
-                # Load data
+                # Load data - first check for metadata in comments
+                with open(file_path, 'r') as f:
+                    for line in f:
+                        line = line.strip()
+                        if line.startswith('#'):
+                            # Check for metadata in comments
+                            if 'Type:' in line or 'type:' in line:
+                                try:
+                                    sn_type = line.split(':')[1].strip()
+                                except IndexError:
+                                    pass
+                            if 'Phase:' in line or 'phase:' in line:
+                                try:
+                                    phase = float(line.split(':')[1].strip())
+                                except (IndexError, ValueError):
+                                    pass
+
                 if file_path.suffix == '.csv':
-                    data = np.loadtxt(file_path, delimiter=',', skiprows=1)
+                    # Count comment lines and header row to skip
+                    skip_count = 0
+                    with open(file_path, 'r') as f:
+                        for line in f:
+                            if line.strip().startswith('#') or line.strip().startswith('wavelength'):
+                                skip_count += 1
+                            else:
+                                break
+                    data = np.loadtxt(file_path, delimiter=',', skiprows=skip_count)
                 else:
-                    data = np.loadtxt(file_path)
+                    data = np.loadtxt(file_path, comments='#')
 
                 wavelength = data[:, 0]
                 flux = data[:, 1]
@@ -1302,9 +1326,13 @@ class SpectralTemplateMatcher(object):
             data = np.column_stack([template['wavelength'], template['flux']])
 
             if format == 'csv':
-                np.savetxt(filepath, data, delimiter=',', header='wavelength,flux',
-                          comments='# Type: {}\n# Phase: {}\n'.format(
-                              template['type'], template['phase']))
+                # Save with metadata as comments, then header, then data
+                with open(filepath, 'w') as f:
+                    f.write(f"# Type: {template['type']}\n")
+                    f.write(f"# Phase: {template['phase']}\n")
+                    f.write("wavelength,flux\n")
+                    for row in data:
+                        f.write(f"{row[0]},{row[1]}\n")
             else:
                 np.savetxt(filepath, data,
                           header=f"Type: {template['type']}\nPhase: {template['phase']}")

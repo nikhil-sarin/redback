@@ -229,7 +229,8 @@ class TestSpectralTemplateMatcherClassification(unittest.TestCase):
     def setUp(self):
         self.matcher = SpectralTemplateMatcher()
         wavelengths = np.linspace(3500, 9000, 500)
-        flux = np.ones(500)
+        # Use non-constant flux to avoid undefined correlation
+        flux = np.linspace(1.0, 0.5, 500)  # Decreasing flux
         flux_err = 0.05 * flux
         self.spectrum = Spectrum(
             angstroms=wavelengths,
@@ -275,7 +276,8 @@ class TestSpectralTemplateMatcherPlotting(unittest.TestCase):
     def setUp(self):
         self.matcher = SpectralTemplateMatcher()
         wavelengths = np.linspace(3500, 9000, 500)
-        flux = np.ones(500)
+        # Use non-constant flux to avoid undefined correlation
+        flux = np.linspace(1.0, 0.5, 500)  # Decreasing flux
         flux_err = 0.05 * flux
         self.spectrum = Spectrum(
             angstroms=wavelengths,
@@ -686,9 +688,9 @@ class TestSpectralTemplateMatcherIntegration(unittest.TestCase):
         # Create matcher
         matcher = SpectralTemplateMatcher()
 
-        # Create test spectrum
+        # Create test spectrum with non-constant flux
         wavelengths = np.linspace(3500, 9000, 500)
-        flux = np.ones(500)
+        flux = np.linspace(1.0, 0.5, 500)  # Decreasing flux
         flux_err = 0.05 * flux
         spectrum = Spectrum(
             angstroms=wavelengths,
@@ -726,9 +728,9 @@ class TestSpectralTemplateMatcherIntegration(unittest.TestCase):
         # Filter to only Type Ia
         filtered_matcher = matcher.filter_templates(types=['Ia'])
 
-        # Create spectrum
+        # Create spectrum with non-constant flux
         wavelengths = np.linspace(3500, 9000, 500)
-        flux = np.ones(500)
+        flux = np.linspace(1.0, 0.5, 500)  # Decreasing flux
         flux_err = 0.05 * flux
         spectrum = Spectrum(
             angstroms=wavelengths,
