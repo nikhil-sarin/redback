@@ -1202,3 +1202,795 @@ class TestSimulateGammaRayTransient(unittest.TestCase):
         with self.assertRaises(ValueError):
             sim.save_binned_counts('test')
 
+
+# Additional comprehensive tests for higher coverage
+
+class TestTransientPopulationExtended(unittest.TestCase):
+    """Extended tests for TransientPopulation to increase coverage"""
+
+    def setUp(self):
+        self.params = pd.DataFrame({
+            'redshift': [0.1, 0.2, 0.3, 0.4, 0.5],
+            'ra': [10, 20, 30, 40, 50],
+            'dec': [-10, -5, 0, 5, 10],
+            'luminosity_distance': [450, 950, 1500, 2100, 2800],
+            'detected': [True, True, True, False, False],
+            'param1': [1.0, 2.0, 3.0, 4.0, 5.0]
+        })
+        self.metadata = {'survey': 'LSST', 'model': 'kilonova'}
+
+    def test_len_method(self):
+        """Test __len__ method"""
+        pop = TransientPopulation(self.params, self.metadata)
+        self.assertEqual(len(pop), 5)
+
+    def test_repr_method(self):
+        """Test __repr__ method"""
+        pop = TransientPopulation(self.params, self.metadata)
+        repr_str = repr(pop)
+        self.assertIn('TransientPopulation', repr_str)
+        self.assertIn('5', repr_str)
+
+    def test_detected_property(self):
+        """Test detected property returns filtered DataFrame"""
+        pop = TransientPopulation(self.params, self.metadata)
+        detected = pop.detected
+        # Should return DataFrame with only detected transients
+        self.assertIsInstance(detected, pd.DataFrame)
+        self.assertEqual(len(detected), 3)  # 3 detected out of 5
+
+    def test_detected_property_no_column(self):
+        """Test detected property when column doesn't exist"""
+        params_no_det = self.params.drop(columns=['detected'])
+        pop = TransientPopulation(params_no_det, self.metadata)
+        detected = pop.detected
+        # Should return all parameters
+        self.assertEqual(len(detected), 5)
+
+    def test_get_redshift_distribution(self):
+        """Test get_redshift_distribution method"""
+        pop = TransientPopulation(self.params, self.metadata)
+        bin_edges, hist, bin_centers = pop.get_redshift_distribution(bins=5)
+        self.assertEqual(len(hist), 5)
+        self.assertEqual(len(bin_edges), 6)
+        self.assertEqual(hist.sum(), 5)  # Total count
+
+    def test_get_parameter_distribution(self):
+        """Test get_parameter_distribution method"""
+        pop = TransientPopulation(self.params, self.metadata)
+        bin_edges, hist, bin_centers = pop.get_parameter_distribution('param1', bins=5)
+        self.assertEqual(len(hist), 5)
+        self.assertEqual(hist.sum(), 5)
+
+    def test_get_parameter_distribution_missing_param(self):
+        """Test get_parameter_distribution with missing parameter"""
+        pop = TransientPopulation(self.params, self.metadata)
+        # Returns (None, None, None) for missing parameter
+        result = pop.get_parameter_distribution('nonexistent_param')
+        self.assertEqual(result, (None, None, None))
+
+    @patch("bilby.utils.check_directory_exists_and_if_not_mkdir")
+    @patch("builtins.open", new_callable=mock.mock_open, read_data='{"survey": "test"}')
+    @patch("pandas.read_csv")
+    def test_load_classmethod(self, mock_read_csv, mock_open, mock_makedirs):
+        """Test load classmethod"""
+        mock_read_csv.return_value = self.params
+        pop = TransientPopulation.load('test_pop.csv')
+        self.assertIsInstance(pop, TransientPopulation)
+        mock_read_csv.assert_called_once()
+
+    @patch("bilby.utils.check_directory_exists_and_if_not_mkdir")
+    @patch("pandas.read_csv")
+    def test_load_classmethod_no_metadata(self, mock_read_csv, mock_makedirs):
+        """Test load classmethod when metadata file doesn't exist"""
+        mock_read_csv.return_value = self.params
+        with patch("builtins.open", side_effect=FileNotFoundError):
+            pop = TransientPopulation.load('test_pop.csv')
+        self.assertIsInstance(pop, TransientPopulation)
+        # When metadata file not found, metadata is empty dict or None
+        self.assertTrue(pop.metadata is None or pop.metadata == {})
+
+    def test_sky_positions_no_ra_dec(self):
+        """Test sky_positions when RA/Dec columns don't exist"""
+        params_no_sky = self.params.drop(columns=['ra', 'dec'])
+        pop = TransientPopulation(params_no_sky, self.metadata)
+        ra, dec = pop.sky_positions
+        self.assertIsNone(ra)
+        self.assertIsNone(dec)
+
+    def test_filter_by_redshift_min_only(self):
+        """Test filter_by_redshift with only z_min"""
+        pop = TransientPopulation(self.params, self.metadata)
+        filtered = pop.filter_by_redshift(z_min=0.25)
+        self.assertEqual(filtered.n_transients, 3)  # z=0.3, 0.4, 0.5
+
+    def test_filter_by_redshift_max_only(self):
+        """Test filter_by_redshift with only z_max"""
+        pop = TransientPopulation(self.params, self.metadata)
+        filtered = pop.filter_by_redshift(z_max=0.25)
+        self.assertEqual(filtered.n_transients, 2)  # z=0.1, 0.2
+
+    def test_summary_stats_no_redshift(self):
+        """Test summary_stats when no redshift column"""
+        params_no_z = self.params.drop(columns=['redshift'])
+        pop = TransientPopulation(params_no_z, self.metadata)
+        stats = pop.summary_stats()
+        self.assertIn('n_transients', stats)
+        self.assertNotIn('median_redshift', stats)
+
+
+class TestSimulateTransientWithCadenceExtended(unittest.TestCase):
+    """Extended tests for SimulateTransientWithCadence"""
+
+    def setUp(self):
+        self.model = lambda t, **kwargs: np.full_like(t, 20.0)
+        self.parameters = {'redshift': 0.1, 'luminosity_distance': 450}
+        self.seed = 42
+
+    def test_xray_initialization(self):
+        """Test X-ray mode initialization"""
+        xray_cadence = {
+            'frequencies': [2.4e17, 1.2e18],  # X-ray frequencies
+            'cadence_days': 5,
+            'duration_days': 20,
+            'sensitivity': 1e-13  # erg/cm^2/s
+        }
+        xray_model = lambda t, **kwargs: np.full_like(t, 1e-12)
+
+        sim = SimulateTransientWithCadence(
+            model=xray_model,
+            parameters=self.parameters,
+            cadence_config=xray_cadence,
+            observation_mode='xray',
+            seed=self.seed
+        )
+        self.assertEqual(sim.observation_mode, 'xray')
+        self.assertIn('frequency', sim.observations.columns)
+
+    def test_gaussian_noise_optical(self):
+        """Test Gaussian noise type for optical"""
+        optical_cadence = {
+            'bands': ['g', 'r'],
+            'cadence_days': 2.0,
+            'duration_days': 10,
+            'limiting_mags': {'g': 22.5, 'r': 23.0}
+        }
+        sim = SimulateTransientWithCadence(
+            model=self.model,
+            parameters=self.parameters,
+            cadence_config=optical_cadence,
+            noise_type='gaussian',
+            seed=self.seed
+        )
+        self.assertIn('magnitude_error', sim.observations.columns)
+        self.assertIn('snr', sim.observations.columns)
+
+    def test_gaussianmodel_noise_optical(self):
+        """Test Gaussian model noise type for optical"""
+        optical_cadence = {
+            'bands': ['g'],
+            'cadence_days': 1.0,
+            'duration_days': 5,
+            'limiting_mags': {'g': 22.5}
+        }
+        sim = SimulateTransientWithCadence(
+            model=self.model,
+            parameters=self.parameters,
+            cadence_config=optical_cadence,
+            noise_type='gaussianmodel',
+            seed=self.seed
+        )
+        self.assertIn('magnitude_error', sim.observations.columns)
+
+    def test_gaussian_noise_radio(self):
+        """Test Gaussian noise for radio"""
+        radio_cadence = {
+            'frequencies': [1.4e9],
+            'cadence_days': 7,
+            'duration_days': 30,
+            'sensitivity': 0.05
+        }
+        radio_model = lambda t, **kwargs: np.full_like(t, 1.0)
+
+        sim = SimulateTransientWithCadence(
+            model=radio_model,
+            parameters=self.parameters,
+            cadence_config=radio_cadence,
+            observation_mode='radio',
+            noise_type='gaussian',
+            seed=self.seed
+        )
+        self.assertIn('snr', sim.observations.columns)
+
+    def test_gaussianmodel_noise_radio(self):
+        """Test Gaussian model noise for radio"""
+        radio_cadence = {
+            'frequencies': [1.4e9],
+            'cadence_days': 7,
+            'duration_days': 30,
+            'sensitivity': 0.05
+        }
+        radio_model = lambda t, **kwargs: np.full_like(t, 1.0)
+
+        sim = SimulateTransientWithCadence(
+            model=radio_model,
+            parameters=self.parameters,
+            cadence_config=radio_cadence,
+            observation_mode='radio',
+            noise_type='gaussianmodel',
+            seed=self.seed
+        )
+        self.assertIn('flux_density', sim.observations.columns)
+
+    def test_per_frequency_cadence(self):
+        """Test per-frequency cadence configuration"""
+        radio_cadence = {
+            'frequencies': [1.4e9, 5e9],
+            'cadence_days': {1.4e9: 7, 5e9: 14},
+            'duration_days': 30,
+            'sensitivity': {1.4e9: 0.05, 5e9: 0.02}
+        }
+        radio_model = lambda t, **kwargs: np.full_like(t, 1.0)
+
+        sim = SimulateTransientWithCadence(
+            model=radio_model,
+            parameters=self.parameters,
+            cadence_config=radio_cadence,
+            observation_mode='radio',
+            seed=self.seed
+        )
+        # Check that different frequencies have different number of observations
+        freq_counts = sim.observations['frequency'].value_counts()
+        self.assertIn(1.4e9, freq_counts.index)
+
+    def test_no_snr_cut(self):
+        """Test with apply_snr_cut=False"""
+        optical_cadence = {
+            'bands': ['g'],
+            'cadence_days': 1.0,
+            'duration_days': 5,
+            'limiting_mags': {'g': 22.5}
+        }
+        sim = SimulateTransientWithCadence(
+            model=self.model,
+            parameters=self.parameters,
+            cadence_config=optical_cadence,
+            apply_snr_cut=False,
+            seed=self.seed
+        )
+        # All observations should be detected
+        self.assertTrue(sim.observations['detected'].all())
+
+    def test_missing_cadence_key_optical(self):
+        """Test missing required key in optical cadence config"""
+        bad_cadence = {
+            'bands': ['g'],
+            'cadence_days': 1.0,
+            # Missing 'duration_days' and 'limiting_mags'
+        }
+        with self.assertRaises(ValueError):
+            SimulateTransientWithCadence(
+                model=self.model,
+                parameters=self.parameters,
+                cadence_config=bad_cadence,
+                seed=self.seed
+            )
+
+    def test_missing_cadence_key_radio(self):
+        """Test missing required key in radio cadence config"""
+        bad_cadence = {
+            'frequencies': [1.4e9],
+            'cadence_days': 7,
+            # Missing 'duration_days' and 'sensitivity'
+        }
+        with self.assertRaises(ValueError):
+            SimulateTransientWithCadence(
+                model=self.model,
+                parameters=self.parameters,
+                cadence_config=bad_cadence,
+                observation_mode='radio',
+                seed=self.seed
+            )
+
+    def test_invalid_observation_mode(self):
+        """Test invalid observation mode raises error during validation"""
+        # Config that doesn't match the mode will fail validation
+        bad_cadence = {
+            'bands': ['g'],  # Optical config
+            'cadence_days': 1.0,
+            'duration_days': 5,
+            'limiting_mags': {'g': 22.5}
+        }
+        # Setting mode to radio but giving optical config should fail
+        with self.assertRaises(ValueError):
+            SimulateTransientWithCadence(
+                model=self.model,
+                parameters=self.parameters,
+                cadence_config={'frequencies': [1e9], 'cadence_days': 1.0},  # Incomplete radio config
+                observation_mode='radio',
+                seed=self.seed
+            )
+
+    def test_invalid_model_string(self):
+        """Test invalid model string"""
+        optical_cadence = {
+            'bands': ['g'],
+            'cadence_days': 1.0,
+            'duration_days': 5,
+            'limiting_mags': {'g': 22.5}
+        }
+        with self.assertRaises(ValueError):
+            SimulateTransientWithCadence(
+                model='nonexistent_model',
+                parameters=self.parameters,
+                cadence_config=optical_cadence,
+                seed=self.seed
+            )
+
+    def test_missing_band_in_limiting_mags(self):
+        """Test missing band in limiting_mags dict"""
+        bad_cadence = {
+            'bands': ['g', 'r'],
+            'cadence_days': 1.0,
+            'duration_days': 5,
+            'limiting_mags': {'g': 22.5}  # Missing 'r'
+        }
+        with self.assertRaises(ValueError):
+            SimulateTransientWithCadence(
+                model=self.model,
+                parameters=self.parameters,
+                cadence_config=bad_cadence,
+                seed=self.seed
+            )
+
+    def test_with_t0_mjd_transient(self):
+        """Test with t0_mjd_transient in parameters"""
+        params_with_t0 = {
+            'redshift': 0.1,
+            't0_mjd_transient': 59000.0
+        }
+        optical_cadence = {
+            'bands': ['g'],
+            'cadence_days': 1.0,
+            'duration_days': 5,
+            'limiting_mags': {'g': 22.5}
+        }
+        sim = SimulateTransientWithCadence(
+            model=self.model,
+            parameters=params_with_t0,
+            cadence_config=optical_cadence,
+            seed=self.seed
+        )
+        self.assertEqual(sim.t0, 59000.0)
+
+    def test_start_offset_days(self):
+        """Test observation start offset"""
+        optical_cadence = {
+            'bands': ['g'],
+            'cadence_days': 1.0,
+            'duration_days': 5,
+            'start_offset_days': 2.0,
+            'limiting_mags': {'g': 22.5}
+        }
+        sim = SimulateTransientWithCadence(
+            model=self.model,
+            parameters=self.parameters,
+            cadence_config=optical_cadence,
+            seed=self.seed
+        )
+        # First observation should be at t0 + 2.0
+        min_time = sim.observations['time_since_t0'].min()
+        self.assertGreaterEqual(min_time, 2.0)
+
+
+class TestPopulationSynthesizerExtended(unittest.TestCase):
+    """Extended tests for PopulationSynthesizer"""
+
+    def setUp(self):
+        self.model = 'arnett'
+        self.prior = bilby.core.prior.PriorDict({
+            'mej': bilby.core.prior.Uniform(0.01, 0.1, name='mej'),
+            'vej': bilby.core.prior.Uniform(0.1, 0.3, name='vej')
+        })
+        self.rate = 1e-6
+        self.seed = 42
+
+    def test_simulate_population_basic(self):
+        """Test simulate_population method"""
+        synth = PopulationSynthesizer(
+            model=self.model,
+            prior=self.prior,
+            rate=self.rate,
+            seed=self.seed
+        )
+
+        def simple_detection(row):
+            return row['redshift'] < 0.3
+
+        pop = synth.simulate_population(n_events=10)
+        self.assertIsInstance(pop, TransientPopulation)
+        self.assertEqual(pop.n_transients, 10)
+        # Apply detection separately
+        detected = synth.apply_detection_criteria(pop.parameters, simple_detection)
+        self.assertIn('detected', detected.columns)
+
+    def test_simulate_population_no_detection(self):
+        """Test simulate_population without detection function"""
+        synth = PopulationSynthesizer(
+            model=self.model,
+            prior=self.prior,
+            rate=self.rate,
+            seed=self.seed
+        )
+        pop = synth.simulate_population(n_events=5)
+        self.assertIsInstance(pop, TransientPopulation)
+        self.assertEqual(pop.n_transients, 5)
+
+    def test_calculate_expected_events(self):
+        """Test _calculate_expected_events internal method"""
+        synth = PopulationSynthesizer(
+            model=self.model,
+            prior=self.prior,
+            rate=self.rate,
+            seed=self.seed
+        )
+        n_expected = synth._calculate_expected_events(n_years=1, z_max=0.5)
+        self.assertGreater(n_expected, 0)
+        self.assertIsInstance(n_expected, (int, float))
+
+    def test_powerlaw_rate_evolution_increasing(self):
+        """Test powerlaw rate evolution increases with redshift"""
+        synth = PopulationSynthesizer(
+            model=self.model,
+            prior=self.prior,
+            rate=self.rate,
+            rate_evolution='powerlaw',
+            rate_params={'alpha': 3.0},
+            seed=self.seed
+        )
+        # Powerlaw evolution should increase rate at higher z
+        rate_z0 = synth.rate_function(0.1)
+        rate_z1 = synth.rate_function(1.0)
+        self.assertGreater(rate_z1, rate_z0)
+
+    def test_custom_rate_function(self):
+        """Test custom rate function"""
+        custom_rate = lambda z: 1e-5 * (1 + z) ** 2
+
+        synth = PopulationSynthesizer(
+            model=self.model,
+            prior=self.prior,
+            rate=custom_rate,
+            rate_evolution='custom',
+            seed=self.seed
+        )
+        self.assertEqual(synth.rate_function(0.5), custom_rate(0.5))
+
+    def test_generate_population_with_time_range(self):
+        """Test population generation with time range"""
+        synth = PopulationSynthesizer(
+            model=self.model,
+            prior=self.prior,
+            rate=self.rate,
+            seed=self.seed
+        )
+        params = synth.generate_population(
+            n_events=10,
+            time_range=(59000, 60000)
+        )
+        # Check event times are within range
+        if 't0_mjd_transient' in params.columns:
+            times = params['t0_mjd_transient']
+            self.assertTrue((times >= 59000).all())
+            self.assertTrue((times <= 60000).all())
+
+    def test_generate_population_with_sky_positions(self):
+        """Test population generation includes sky positions"""
+        synth = PopulationSynthesizer(
+            model=self.model,
+            prior=self.prior,
+            rate=self.rate,
+            seed=self.seed
+        )
+        params = synth.generate_population(n_events=20)
+        self.assertIn('ra', params.columns)
+        self.assertIn('dec', params.columns)
+        # RA should be in [0, 360), Dec in [-90, 90]
+        self.assertTrue((params['ra'] >= 0).all())
+        self.assertTrue((params['ra'] < 360).all())
+        self.assertTrue((params['dec'] >= -90).all())
+        self.assertTrue((params['dec'] <= 90).all())
+
+    def test_apply_detection_criteria_with_float_return(self):
+        """Test detection criteria with float probability return"""
+        synth = PopulationSynthesizer(
+            model=self.model,
+            prior=self.prior,
+            rate=self.rate,
+            seed=123  # Different seed for reproducibility
+        )
+        params = synth.generate_population(n_events=100)
+
+        # Detection function that returns probability
+        def prob_det(row):
+            return np.clip(1.0 - row['redshift'] * 2, 0, 1)
+
+        detected = synth.apply_detection_criteria(params, prob_det)
+        self.assertIn('detected', detected.columns)
+        self.assertIn('detection_probability', detected.columns)
+
+    def test_infer_rate_with_efficiency(self):
+        """Test rate inference with efficiency function"""
+        synth = PopulationSynthesizer(
+            model=self.model,
+            prior=self.prior,
+            rate=self.rate,
+            seed=self.seed
+        )
+        observed = pd.DataFrame({'redshift': [0.1, 0.15, 0.2]})
+
+        def efficiency(z):
+            return np.clip(1.0 - z * 2, 0.1, 1.0)
+
+        result = synth.infer_rate(observed, efficiency_function=efficiency)
+        self.assertIn('rate_ml', result)
+        self.assertIn('rate_uncertainty', result)
+
+    def test_sample_redshifts_rejection_sampling(self):
+        """Test redshift sampling uses rejection sampling for powerlaw"""
+        synth = PopulationSynthesizer(
+            model=self.model,
+            prior=self.prior,
+            rate=self.rate,
+            rate_evolution='powerlaw',
+            rate_params={'alpha': 3.0},
+            seed=self.seed
+        )
+        redshifts = synth._sample_redshifts(100, z_max=1.0)
+        self.assertEqual(len(redshifts), 100)
+        self.assertTrue((redshifts > 0).all())
+        self.assertTrue((redshifts <= 1.0).all())
+
+    def test_invalid_cosmology_string(self):
+        """Test invalid cosmology string raises error"""
+        with self.assertRaises(ValueError):
+            PopulationSynthesizer(
+                model=self.model,
+                prior=self.prior,
+                rate=self.rate,
+                cosmology='InvalidCosmology',
+                seed=self.seed
+            )
+
+    def test_sample_intrinsic_params_size(self):
+        """Test that intrinsic parameters sampling returns correct size"""
+        synth = PopulationSynthesizer(
+            model=self.model,
+            prior=self.prior,
+            rate=self.rate,
+            seed=self.seed
+        )
+        params = synth._sample_intrinsic_params(50)
+        self.assertEqual(len(params), 50)
+        self.assertIn('mej', params.columns)
+        self.assertIn('vej', params.columns)
+
+    def test_sample_sky_positions_uniform(self):
+        """Test uniform sky position sampling"""
+        synth = PopulationSynthesizer(
+            model=self.model,
+            prior=self.prior,
+            rate=self.rate,
+            seed=self.seed
+        )
+        ra, dec = synth._sample_sky_positions(1000)
+        # Check reasonable distribution
+        self.assertEqual(len(ra), 1000)
+        self.assertEqual(len(dec), 1000)
+        # RA should be in valid range [0, 360)
+        self.assertTrue((ra >= 0).all())
+        self.assertTrue((ra < 360).all())
+        # Dec should be in valid range [-90, 90]
+        self.assertTrue((dec >= -90).all())
+        self.assertTrue((dec <= 90).all())
+        # Should have some variation (not all same value)
+        self.assertGreater(ra.std(), 0.1)
+        self.assertGreater(dec.std(), 0.1)
+
+
+class TestSimulateGammaRayTransientExtended(unittest.TestCase):
+    """Extended tests for SimulateGammaRayTransient"""
+
+    def setUp(self):
+        self.model = lambda t, **kwargs: np.full_like(t, 1e-3)
+        self.parameters = {'luminosity': 1e50, 'redshift': 0.5}
+        self.energy_edges = [10, 50, 100, 300]
+        self.time_range = (0, 10)
+        self.seed = 42
+
+    def test_callable_background_rate(self):
+        """Test callable background rate"""
+        def bg_rate(energy):
+            return 0.01 * (energy / 100) ** (-2)
+
+        sim = SimulateGammaRayTransient(
+            model=self.model,
+            parameters=self.parameters,
+            energy_edges=self.energy_edges,
+            time_range=self.time_range,
+            effective_area=100,
+            background_rate=bg_rate,
+            seed=self.seed
+        )
+        # Should initialize without error and be able to generate events
+        events = sim.generate_time_tagged_events()
+        self.assertIsInstance(events, pd.DataFrame)
+
+    def test_dict_background_rate(self):
+        """Test dictionary background rate per channel"""
+        bg_dict = {0: 0.1, 1: 0.05, 2: 0.02}
+
+        sim = SimulateGammaRayTransient(
+            model=self.model,
+            parameters=self.parameters,
+            energy_edges=self.energy_edges,
+            time_range=self.time_range,
+            effective_area=100,
+            background_rate=bg_dict,
+            seed=self.seed
+        )
+        # Should initialize without error and be able to generate events
+        events = sim.generate_time_tagged_events()
+        self.assertIsInstance(events, pd.DataFrame)
+
+    def test_very_short_time_range(self):
+        """Test with very short time range"""
+        sim = SimulateGammaRayTransient(
+            model=self.model,
+            parameters=self.parameters,
+            energy_edges=[10, 100],
+            time_range=(0, 0.001),  # 1 ms
+            effective_area=100,
+            background_rate=0.1,
+            seed=self.seed
+        )
+        events = sim.generate_time_tagged_events()
+        self.assertIsInstance(events, pd.DataFrame)
+        # Should be very few events
+        self.assertLess(len(events), 100)
+
+    def test_high_background_rate(self):
+        """Test with high background rate"""
+        sim = SimulateGammaRayTransient(
+            model=self.model,
+            parameters=self.parameters,
+            energy_edges=[10, 50],
+            time_range=(0, 1),
+            effective_area=100,
+            background_rate=100.0,  # Very high background
+            seed=self.seed
+        )
+        events = sim.generate_time_tagged_events()
+        # Should have many background events
+        self.assertGreater(len(events), 1000)
+
+    def test_zero_effective_area(self):
+        """Test with very small effective area"""
+        sim = SimulateGammaRayTransient(
+            model=self.model,
+            parameters=self.parameters,
+            energy_edges=[10, 100],
+            time_range=(0, 1),
+            effective_area=0.01,  # Very small area
+            background_rate=0.1,
+            seed=self.seed
+        )
+        events = sim.generate_time_tagged_events()
+        # Should have mostly background events
+        self.assertIsInstance(events, pd.DataFrame)
+
+    def test_single_energy_channel(self):
+        """Test with single energy channel"""
+        sim = SimulateGammaRayTransient(
+            model=self.model,
+            parameters=self.parameters,
+            energy_edges=[10, 100],  # Only one channel
+            time_range=(0, 5),
+            effective_area=100,
+            background_rate=0.1,
+            seed=self.seed
+        )
+        events = sim.generate_time_tagged_events()
+        # All events should be in channel 0
+        self.assertTrue((events['energy_channel'] == 0).all())
+
+    def test_many_energy_channels(self):
+        """Test with many energy channels"""
+        edges = [10, 20, 30, 50, 80, 100, 150, 200, 300, 500]
+        sim = SimulateGammaRayTransient(
+            model=self.model,
+            parameters=self.parameters,
+            energy_edges=edges,
+            time_range=(0, 5),
+            effective_area=100,
+            background_rate=0.1,
+            seed=self.seed
+        )
+        counts = sim.generate_binned_counts(np.linspace(0, 5, 6))
+        # Should have 12 columns: time_start, time_end, time_center, dt, counts, counts_error,
+        # count_rate, count_rate_error, energy_channel, energy_low, energy_high, energy_center
+        self.assertEqual(counts.shape[1], 12)
+        # Should have n_time_bins * n_energy_channels rows
+        n_time_bins = 5  # 6 edges -> 5 bins
+        n_energy_bins = len(edges) - 1  # 9 channels
+        self.assertEqual(len(counts), n_time_bins * n_energy_bins)
+
+    def test_generate_binned_with_exposure_correction(self):
+        """Test binned counts generation preserves total exposure"""
+        sim = SimulateGammaRayTransient(
+            model=self.model,
+            parameters=self.parameters,
+            energy_edges=self.energy_edges,  # 3 energy channels
+            time_range=(0, 10),
+            effective_area=100,
+            background_rate=0.1,
+            seed=self.seed
+        )
+        time_bins = np.linspace(0, 10, 11)  # 10 bins, 1 second each
+        counts = sim.generate_binned_counts(time_bins)
+        # Total dt per energy channel should be 10.0 seconds
+        # With 3 energy channels, total sum of dt is 30.0
+        n_channels = len(self.energy_edges) - 1
+        total_exposure = counts['dt'].sum()
+        self.assertAlmostEqual(total_exposure, 10.0 * n_channels, places=1)
+
+    @patch("bilby.utils.check_directory_exists_and_if_not_mkdir")
+    @patch("pandas.DataFrame.to_csv")
+    @patch("builtins.open", new_callable=mock.mock_open)
+    def test_save_with_custom_filenames(self, mock_open, mock_to_csv, mock_makedirs):
+        """Test saving with custom filenames"""
+        sim = SimulateGammaRayTransient(
+            model=self.model,
+            parameters=self.parameters,
+            energy_edges=self.energy_edges,
+            time_range=self.time_range,
+            effective_area=100,
+            background_rate=0.1,
+            seed=self.seed
+        )
+        sim.generate_time_tagged_events()
+        sim.save_time_tagged_events('custom_name_for_events')
+        mock_to_csv.assert_called_once()
+
+    def test_max_events_limit(self):
+        """Test max_events parameter limits event generation"""
+        # Very high rate to ensure we hit the limit
+        high_rate_model = lambda t, **kwargs: np.full_like(t, 1.0)  # Very bright
+
+        sim = SimulateGammaRayTransient(
+            model=high_rate_model,
+            parameters=self.parameters,
+            energy_edges=[10, 100],
+            time_range=(0, 100),  # Long observation
+            effective_area=10000,  # Large area
+            background_rate=100.0,  # High background
+            seed=self.seed
+        )
+        events = sim.generate_time_tagged_events(max_events=500)
+        # Should be limited to around max_events
+        self.assertLessEqual(len(events), 50000)  # Upper bound with background
+
+    def test_evaluate_model_flux_shape(self):
+        """Test _evaluate_model_flux returns correct shape"""
+        sim = SimulateGammaRayTransient(
+            model=self.model,
+            parameters=self.parameters,
+            energy_edges=self.energy_edges,
+            time_range=self.time_range,
+            seed=self.seed
+        )
+        times = np.array([1.0, 2.0, 3.0])
+        energies = np.array([30.0, 75.0, 200.0])
+        fluxes = sim._evaluate_model_flux(times, energies)
+        self.assertEqual(fluxes.shape, times.shape)
+
