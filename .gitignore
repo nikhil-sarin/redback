@@ -28,3 +28,4 @@ docs/api/*
 #setups from other programs
 .spyproject/*
 .ipynb_checkpoints
+.coverage
