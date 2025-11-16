@@ -178,13 +178,23 @@ class MultiMessengerTransient:
         if x_err is not None and np.any(x_err > 0):
             # If time errors are present, use a likelihood that can handle them
             logger.info(f"Building {likelihood_type} for {messenger} with time errors")
-            likelihood = likelihood_class(
-                x=x, y=y, sigma=y_err, function=model_func, kwargs=model_kwargs
-            )
+            if likelihood_type == 'GaussianLikelihoodQuadratureNoise':
+                likelihood = likelihood_class(
+                    x=x, y=y, sigma_i=y_err, function=model_func, kwargs=model_kwargs
+                )
+            else:
+                likelihood = likelihood_class(
+                    x=x, y=y, sigma=y_err, function=model_func, kwargs=model_kwargs
+                )
         else:
-            likelihood = likelihood_class(
-                x=x, y=y, sigma=y_err, function=model_func, kwargs=model_kwargs
-            )
+            if likelihood_type == 'GaussianLikelihoodQuadratureNoise':
+                likelihood = likelihood_class(
+                    x=x, y=y, sigma_i=y_err, function=model_func, kwargs=model_kwargs
+                )
+            else:
+                likelihood = likelihood_class(
+                    x=x, y=y, sigma=y_err, function=model_func, kwargs=model_kwargs
+                )
 
         logger.info(f"Built likelihood for {messenger} messenger with model {model_func.__name__}")
         return likelihood
