@@ -240,7 +240,67 @@ class TestConstraints(unittest.TestCase):
         self.assertTrue(np.all(cs <= 1.15))
 
 
+class TestPriorLoadingAndLabels(unittest.TestCase):
+    """Test that all priors load correctly and have valid latex labels."""
+
+    def setUp(self) -> None:
+        self.path_to_files = f"{_dirname}/../redback/priors/"
+        # Filter out directories, only keep files
+        all_items = listdir(self.path_to_files)
+        self.prior_files = [f for f in all_items if os.path.isfile(os.path.join(self.path_to_files, f))]
+
+    def tearDown(self) -> None:
+        pass
+
+    def get_prior(self, file):
+        prior_dict = bilby.prior.PriorDict()
+        prior_dict.from_file(f"{self.path_to_files}{file}")
+        return prior_dict
+
+    def test_all_priors_load_and_have_valid_labels(self):
+        """Test that all prior files load correctly and have valid latex labels."""
+        for f in self.prior_files:
+            with self.subTest(prior_file=f):
+                # Test loading
+                prior = self.get_prior(f)
+                self.assertIsInstance(prior, bilby.prior.PriorDict)
+                self.assertGreater(len(prior), 0, f"Prior {f} is empty")
+
+                # Test latex labels exist and are valid for all parameters
+                for key, value in prior.items():
+                    if hasattr(value, 'latex_label'):
+                        label = value.latex_label
+                        # Check label is not empty or None
+                        self.assertIsNotNone(label, f"Prior {f}, key {key} has None latex_label")
+                        self.assertIsInstance(label, str, f"Prior {f}, key {key} latex_label is not string")
+                        # Check label is not just whitespace
+                        self.assertTrue(len(label.strip()) > 0, f"Prior {f}, key {key} has empty latex_label")
+
+    def test_all_priors_can_sample(self):
+        """Test that all priors can generate samples without errors."""
+        for f in self.prior_files:
+            with self.subTest(prior_file=f):
+                prior = self.get_prior(f)
+                # Test sampling works (just 1 sample for speed)
+                samples = prior.sample(1)
+                self.assertIsInstance(samples, dict)
+                self.assertGreater(len(samples), 0)
+
+    def test_prior_parameter_names_valid(self):
+        """Test that all prior parameter names are valid Python identifiers."""
+        for f in self.prior_files:
+            with self.subTest(prior_file=f):
+                prior = self.get_prior(f)
+                for key in prior.keys():
+                    # Parameter names should be valid identifiers (no spaces, special chars, etc.)
+                    self.assertIsInstance(key, str)
+                    self.assertGreater(len(key), 0)
+                    # Should not contain problematic characters
+                    self.assertNotIn(' ', key, f"Prior {f} has parameter with space: {key}")
+
+
 class TestCornerPlotPriorSamples(unittest.TestCase):
+    """Test corner plotting works for a sample of priors."""
     outdir = "testing_corner"
 
     @classmethod
@@ -290,12 +350,13 @@ class TestCornerPlotPriorSamples(unittest.TestCase):
                                    max_autocorrelation_time=0, use_ratio=False,
                                    version=None)
 
-    def test_plot_priors(self):
-        # Sample only 10 prior files for CI speed (was 152 files)
+    def test_corner_plot_sample(self):
+        """Test corner plotting works for a small sample of priors."""
+        # Only plot 3 priors for visual regression testing
         import random
         random.seed(42)
-        sampled_files = random.sample(self.prior_files, min(10, len(self.prior_files)))
+        sampled_files = random.sample(self.prior_files, min(3, len(self.prior_files)))
         for f in sampled_files:
-            print(f)
-            res = self.get_result(file=f)
-            res.plot_corner()
+            with self.subTest(prior_file=f):
+                res = self.get_result(file=f)
+                res.plot_corner()
