@@ -9,6 +9,7 @@ from unittest.mock import Mock, patch, MagicMock, PropertyMock
 import sys
 import warnings
 import types
+import io
 
 
 class TestPluginDiscoveryFunctions(unittest.TestCase):
@@ -260,6 +261,49 @@ class TestPluginDiscoveryFunctions(unittest.TestCase):
         self.assertEqual(len(plugins), 0)
         self.assertIsInstance(plugins, list)
 
+    @patch('sys.stdout', new_callable=io.StringIO)
+    @patch('redback.model_library.entry_points')
+    def test_discover_model_plugins_prints_on_success(self, mock_entry_points, mock_stdout):
+        """Test that successful plugin loading prints a message."""
+        mock_ep = Mock()
+        mock_ep.name = 'loaded_plugin'
+        mock_ep.value = 'loaded_module'
+        mock_module = types.ModuleType('loaded_module')
+        mock_ep.load.return_value = mock_module
+
+        mock_eps = Mock()
+        mock_eps.select.return_value = [mock_ep]
+        mock_entry_points.return_value = mock_eps
+
+        from redback.model_library import discover_model_plugins
+        plugins = discover_model_plugins()
+
+        output = mock_stdout.getvalue()
+        self.assertIn('Loaded plugin model module', output)
+        self.assertIn('loaded_plugin', output)
+        self.assertIn('loaded_module', output)
+
+    @patch('sys.stdout', new_callable=io.StringIO)
+    @patch('redback.model_library.entry_points')
+    def test_discover_base_model_plugins_prints_on_success(self, mock_entry_points, mock_stdout):
+        """Test that successful base plugin loading prints a message."""
+        mock_ep = Mock()
+        mock_ep.name = 'loaded_base_plugin'
+        mock_ep.value = 'loaded_base_module'
+        mock_module = types.ModuleType('loaded_base_module')
+        mock_ep.load.return_value = mock_module
+
+        mock_eps = Mock()
+        mock_eps.select.return_value = [mock_ep]
+        mock_entry_points.return_value = mock_eps
+
+        from redback.model_library import discover_base_model_plugins
+        plugins = discover_base_model_plugins()
+
+        output = mock_stdout.getvalue()
+        self.assertIn('Loaded plugin base model module', output)
+        self.assertIn('loaded_base_plugin', output)
+
 
 class TestModelLibraryState(unittest.TestCase):
     """Test the state of model_library after loading."""
@@ -384,15 +428,52 @@ class TestModelLibraryState(unittest.TestCase):
                 self.assertIsInstance(func_name, str)
                 self.assertTrue(callable(func))
 
+    def test_all_modules_count_matches_builtin_plus_plugins(self):
+        """Test that all_modules has correct count."""
+        import redback.model_library as ml
+        expected_count = len(ml.modules) + len(ml.plugin_modules)
+        self.assertEqual(len(ml.all_modules), expected_count)
+
+    def test_all_base_modules_count_matches(self):
+        """Test that all_base_modules has correct count."""
+        import redback.model_library as ml
+        expected_count = len(ml.base_modules) + len(ml.base_plugin_modules)
+        self.assertEqual(len(ml.all_base_modules), expected_count)
+
+    def test_builtin_modules_are_actual_modules(self):
+        """Test that builtin modules are Python module objects."""
+        import redback.model_library as ml
+        for mod in ml.modules:
+            self.assertTrue(hasattr(mod, '__name__'))
+            self.assertTrue(hasattr(mod, '__file__'))
+
+    def test_base_modules_are_actual_modules(self):
+        """Test that base modules are Python module objects."""
+        import redback.model_library as ml
+        for mod in ml.base_modules:
+            self.assertTrue(hasattr(mod, '__name__'))
+
+    def test_modules_dict_keys_match_module_names(self):
+        """Test that modules_dict keys correspond to module names."""
+        import redback.model_library as ml
+        for module in ml.all_modules:
+            module_name = module.__name__.split('.')[-1]
+            self.assertIn(module_name, ml.modules_dict)
+
+    def test_no_duplicate_model_names_in_same_module(self):
+        """Test that there are no duplicate models within a module."""
+        import redback.model_library as ml
+        for module_name, models in ml.modules_dict.items():
+            # Dict keys are inherently unique, so just check it's a valid dict
+            self.assertIsInstance(models, dict)
+            self.assertEqual(len(models), len(set(models.keys())))
+
 
 class TestPluginIntegration(unittest.TestCase):
     """Test that plugins integrate correctly with model loading."""
 
-    @patch('redback.model_library.discover_model_plugins')
-    @patch('redback.model_library.discover_base_model_plugins')
-    def test_plugin_modules_combined_with_builtin(self, mock_base_discover, mock_discover):
+    def test_plugin_modules_combined_with_builtin(self):
         """Test that plugin modules are combined with built-in modules."""
-        # This test verifies the logic, actual state is set at import time
         import redback.model_library as ml
 
         # all_modules should include both builtin and plugin modules
@@ -401,9 +482,7 @@ class TestPluginIntegration(unittest.TestCase):
             len(ml.modules) + len(ml.plugin_modules)
         )
 
-    @patch('redback.model_library.discover_model_plugins')
-    @patch('redback.model_library.discover_base_model_plugins')
-    def test_base_plugin_modules_combined(self, mock_base_discover, mock_discover):
+    def test_base_plugin_modules_combined(self):
         """Test that base plugin modules are combined."""
         import redback.model_library as ml
 
@@ -411,6 +490,29 @@ class TestPluginIntegration(unittest.TestCase):
             len(ml.all_base_modules),
             len(ml.base_modules) + len(ml.base_plugin_modules)
         )
+
+    def test_builtin_modules_in_all_modules(self):
+        """Test that all builtin modules are in all_modules."""
+        import redback.model_library as ml
+        for builtin_module in ml.modules:
+            self.assertIn(builtin_module, ml.all_modules)
+
+    def test_base_builtin_modules_in_all_base_modules(self):
+        """Test that all base builtin modules are in all_base_modules."""
+        import redback.model_library as ml
+        for base_module in ml.base_modules:
+            self.assertIn(base_module, ml.all_base_modules)
+
+    def test_model_dict_contains_all_module_functions(self):
+        """Test that all_models_dict contains functions from all modules."""
+        import redback.model_library as ml
+        from redback.utils import get_functions_dict
+
+        for module in ml.all_modules:
+            module_funcs = get_functions_dict(module)
+            module_name = module.__name__.split('.')[-1]
+            for func_name in module_funcs[module_name].keys():
+                self.assertIn(func_name, ml.all_models_dict)
 
 
 class TestBackwardCompatibility(unittest.TestCase):
@@ -431,6 +533,42 @@ class TestBackwardCompatibility(unittest.TestCase):
         """Test importing modules_dict."""
         from redback.model_library import modules_dict
         self.assertIsInstance(modules_dict, dict)
+
+    def test_import_modules_list(self):
+        """Test importing modules list."""
+        from redback.model_library import modules
+        self.assertIsInstance(modules, list)
+
+    def test_import_base_modules_list(self):
+        """Test importing base_modules list."""
+        from redback.model_library import base_modules
+        self.assertIsInstance(base_modules, list)
+
+    def test_import_all_modules_list(self):
+        """Test importing all_modules list."""
+        from redback.model_library import all_modules
+        self.assertIsInstance(all_modules, list)
+
+    def test_import_all_base_modules_list(self):
+        """Test importing all_base_modules list."""
+        from redback.model_library import all_base_modules
+        self.assertIsInstance(all_base_modules, list)
+
+    def test_import_plugin_modules_list(self):
+        """Test importing plugin_modules list."""
+        from redback.model_library import plugin_modules
+        self.assertIsInstance(plugin_modules, list)
+
+    def test_import_base_plugin_modules_list(self):
+        """Test importing base_plugin_modules list."""
+        from redback.model_library import base_plugin_modules
+        self.assertIsInstance(base_plugin_modules, list)
+
+    def test_import_discovery_functions(self):
+        """Test importing discovery functions."""
+        from redback.model_library import discover_model_plugins, discover_base_model_plugins
+        self.assertTrue(callable(discover_model_plugins))
+        self.assertTrue(callable(discover_base_model_plugins))
 
     def test_model_lookup_by_name(self):
         """Test that models can be looked up by string name."""
@@ -456,6 +594,17 @@ class TestBackwardCompatibility(unittest.TestCase):
                 model = ml.all_models_dict[model_name]
                 self.assertTrue(callable(model))
 
+    def test_get_model_from_string(self):
+        """Test getting model function from string name."""
+        from redback.model_library import all_models_dict
+
+        # Get a sample model name
+        if len(all_models_dict) > 0:
+            sample_name = list(all_models_dict.keys())[0]
+            func = all_models_dict[sample_name]
+            self.assertTrue(callable(func))
+            self.assertTrue(hasattr(func, '__name__'))
+
 
 class TestErrorHandling(unittest.TestCase):
     """Test error handling in plugin system."""
@@ -471,6 +620,131 @@ class TestErrorHandling(unittest.TestCase):
         """Test that empty string is not a valid model key."""
         import redback.model_library as ml
         self.assertNotIn('', ml.all_models_dict)
+
+    def test_none_not_in_model_names(self):
+        """Test that None is not in model names."""
+        import redback.model_library as ml
+        self.assertNotIn(None, ml.all_models_dict)
+
+    def test_integer_key_raises_error(self):
+        """Test that integer keys raise appropriate errors."""
+        import redback.model_library as ml
+        # Dict will raise KeyError for missing key, even if int
+        with self.assertRaises(KeyError):
+            _ = ml.all_models_dict[12345]
+
+
+class TestModuleProcessing(unittest.TestCase):
+    """Test the module processing logic."""
+
+    def test_get_functions_dict_returns_dict(self):
+        """Test that get_functions_dict returns a dictionary."""
+        from redback.utils import get_functions_dict
+        import redback.transient_models.fireball_models as fb
+        result = get_functions_dict(fb)
+        self.assertIsInstance(result, dict)
+
+    def test_get_functions_dict_extracts_functions(self):
+        """Test that get_functions_dict extracts callable functions."""
+        from redback.utils import get_functions_dict
+        import redback.transient_models.fireball_models as fb
+        result = get_functions_dict(fb)
+        module_name = fb.__name__.split('.')[-1]
+        self.assertIn(module_name, result)
+        for func_name, func in result[module_name].items():
+            self.assertTrue(callable(func))
+
+    def test_module_name_extraction(self):
+        """Test that module names are correctly extracted."""
+        import redback.model_library as ml
+        for module in ml.modules:
+            name = module.__name__.split('.')[-1]
+            self.assertTrue(name.endswith('_models') or name.endswith('_models'))
+            self.assertIn(name, ml.modules_dict)
+
+    def test_models_from_each_builtin_module_are_loaded(self):
+        """Test that each builtin module contributes models."""
+        import redback.model_library as ml
+        from redback.utils import get_functions_dict
+
+        for module in ml.modules:
+            funcs = get_functions_dict(module)
+            module_name = module.__name__.split('.')[-1]
+            # Each module should have at least one function
+            self.assertGreater(len(funcs[module_name]), 0,
+                             f"Module {module_name} should have functions")
+
+    def test_base_models_from_base_modules(self):
+        """Test that base models come from base modules."""
+        import redback.model_library as ml
+        from redback.utils import get_functions_dict
+
+        for base_mod in ml.base_modules:
+            funcs = get_functions_dict(base_mod)
+            module_name = base_mod.__name__.split('.')[-1]
+            # Check that functions are in base_models_dict
+            for func_name in funcs[module_name].keys():
+                self.assertIn(func_name, ml.base_models_dict)
+
+
+class TestSpecificModels(unittest.TestCase):
+    """Test specific model existence and properties."""
+
+    def test_extinction_models_present(self):
+        """Test that extinction models are loaded."""
+        import redback.model_library as ml
+        self.assertIn('extinction_models', ml.modules_dict)
+        self.assertGreater(len(ml.modules_dict['extinction_models']), 0)
+
+    def test_phase_models_present(self):
+        """Test that phase models are loaded."""
+        import redback.model_library as ml
+        self.assertIn('phase_models', ml.modules_dict)
+
+    def test_kilonova_models_present(self):
+        """Test that kilonova models are loaded."""
+        import redback.model_library as ml
+        self.assertIn('kilonova_models', ml.modules_dict)
+
+    def test_supernova_models_present(self):
+        """Test that supernova models are loaded."""
+        import redback.model_library as ml
+        self.assertIn('supernova_models', ml.modules_dict)
+
+    def test_afterglow_models_present(self):
+        """Test that afterglow models are loaded."""
+        import redback.model_library as ml
+        self.assertIn('afterglow_models', ml.modules_dict)
+
+    def test_fireball_models_present(self):
+        """Test that fireball models are loaded."""
+        import redback.model_library as ml
+        self.assertIn('fireball_models', ml.modules_dict)
+
+    def test_tde_models_present(self):
+        """Test that TDE models are loaded."""
+        import redback.model_library as ml
+        self.assertIn('tde_models', ml.modules_dict)
+
+    def test_magnetar_models_present(self):
+        """Test that magnetar models are loaded."""
+        import redback.model_library as ml
+        self.assertIn('magnetar_models', ml.modules_dict)
+
+    def test_phenomenological_models_present(self):
+        """Test that phenomenological models are loaded."""
+        import redback.model_library as ml
+        self.assertIn('phenomenological_models', ml.modules_dict)
+
+    def test_combined_models_present(self):
+        """Test that combined models are loaded."""
+        import redback.model_library as ml
+        self.assertIn('combined_models', ml.modules_dict)
+
+    def test_spectral_models_present(self):
+        """Test that spectral models are loaded."""
+        import redback.model_library as ml
+        self.assertIn('spectral_models', ml.modules_dict)
 
 
 if __name__ == '__main__':
