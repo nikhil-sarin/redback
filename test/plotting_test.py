@@ -1312,3 +1312,624 @@ class TestSpectrumPlotterCustomization(unittest.TestCase):
         calls = mock_ax.plot.call_args_list
         self.assertTrue(len(calls) > 0)
 
+
+class TestPlotterEdgeCases(unittest.TestCase):
+    """Tests for edge cases and additional coverage."""
+
+    def setUp(self) -> None:
+        self.dummy_transient = DummyTransient(name="TestTransient", directory_path="/dummy/path")
+
+    def tearDown(self) -> None:
+        plt.close('all')
+        mock.patch.stopall()
+
+    def test_all_supported_save_formats(self):
+        """Test all supported save formats."""
+        formats = ["png", "pdf", "svg", "eps", "jpg", "jpeg", "tif", "tiff"]
+        for fmt in formats:
+            plotter = Plotter(self.dummy_transient, save_format=fmt)
+            self.assertEqual(plotter.save_format, fmt)
+
+    def test_all_linestyle_variations(self):
+        """Test all matplotlib linestyle variations."""
+        linestyles = ["-", "--", "-.", ":", "solid", "dashed", "dashdot", "dotted"]
+        for ls in linestyles:
+            plotter = Plotter(self.dummy_transient, linestyle=ls)
+            self.assertEqual(plotter.linestyle, ls)
+
+    def test_all_markerfillstyle_variations(self):
+        """Test all matplotlib marker fill styles."""
+        fillstyles = ["full", "left", "right", "bottom", "top", "none"]
+        for fs in fillstyles:
+            plotter = Plotter(self.dummy_transient, markerfillstyle=fs)
+            self.assertEqual(plotter.markerfillstyle, fs)
+
+    def test_tick_direction_variations(self):
+        """Test all tick direction options."""
+        directions = ["in", "out", "inout"]
+        for d in directions:
+            plotter = Plotter(self.dummy_transient, tick_direction=d)
+            self.assertEqual(plotter.tick_direction, d)
+
+    def test_scale_options(self):
+        """Test all axis scale options."""
+        scales = ["linear", "log", "symlog", "logit"]
+        for scale in scales:
+            plotter = Plotter(self.dummy_transient, xscale=scale, yscale=scale)
+            self.assertEqual(plotter.xscale, scale)
+            self.assertEqual(plotter.yscale, scale)
+
+    def test_apply_axis_customizations_with_default_tick_params(self):
+        """Test _apply_axis_customizations with only default tick params (no length/width)."""
+        plotter = Plotter(self.dummy_transient)
+        mock_ax = MagicMock()
+        plotter._apply_axis_customizations(mock_ax)
+        call_kwargs = mock_ax.tick_params.call_args[1]
+        self.assertNotIn('length', call_kwargs)
+        self.assertNotIn('width', call_kwargs)
+        self.assertEqual(call_kwargs['direction'], 'in')
+
+    def test_apply_axis_customizations_with_partial_tick_params(self):
+        """Test _apply_axis_customizations with only tick_length set."""
+        plotter = Plotter(self.dummy_transient, tick_length=5.0)
+        mock_ax = MagicMock()
+        plotter._apply_axis_customizations(mock_ax)
+        call_kwargs = mock_ax.tick_params.call_args[1]
+        self.assertIn('length', call_kwargs)
+        self.assertNotIn('width', call_kwargs)
+        self.assertEqual(call_kwargs['length'], 5.0)
+
+    def test_apply_axis_customizations_with_only_tick_width(self):
+        """Test _apply_axis_customizations with only tick_width set."""
+        plotter = Plotter(self.dummy_transient, tick_width=2.0)
+        mock_ax = MagicMock()
+        plotter._apply_axis_customizations(mock_ax)
+        call_kwargs = mock_ax.tick_params.call_args[1]
+        self.assertNotIn('length', call_kwargs)
+        self.assertIn('width', call_kwargs)
+        self.assertEqual(call_kwargs['width'], 2.0)
+
+    def test_save_format_with_multiple_dots_in_path(self):
+        """Test save format handles paths with multiple dots correctly."""
+        plotter = Plotter(self.dummy_transient, save_format="pdf")
+        filepath = "/path/to/my.file.name.png"
+        with patch('matplotlib.pyplot.savefig') as mock_savefig, \
+             patch('matplotlib.pyplot.tight_layout'):
+            plotter._save_and_show(filepath, save=True, show=False)
+            expected_path = "/path/to/my.file.name.pdf"
+            self.assertEqual(mock_savefig.call_args[0][0], expected_path)
+
+    def test_legend_alpha_range(self):
+        """Test legend framealpha with various values."""
+        alphas = [0.0, 0.25, 0.5, 0.75, 1.0]
+        for alpha in alphas:
+            plotter = Plotter(self.dummy_transient, legend_framealpha=alpha)
+            self.assertEqual(plotter.legend_framealpha, alpha)
+
+    def test_grid_alpha_range(self):
+        """Test grid alpha with various values."""
+        alphas = [0.0, 0.1, 0.3, 0.5, 0.7, 1.0]
+        for alpha in alphas:
+            plotter = Plotter(self.dummy_transient, grid_alpha=alpha)
+            self.assertEqual(plotter.grid_alpha, alpha)
+
+    def test_grid_with_various_colors(self):
+        """Test grid with various color specifications."""
+        colors = ["gray", "red", "blue", "#FF0000", (0.5, 0.5, 0.5), "k"]
+        for color in colors:
+            plotter = Plotter(self.dummy_transient, grid_color=color)
+            self.assertEqual(plotter.grid_color, color)
+
+    def test_title_with_latex(self):
+        """Test title with LaTeX formatting."""
+        latex_title = r"$\alpha$ = 0.5, $\beta$ = 1.0"
+        plotter = Plotter(self.dummy_transient, title=latex_title)
+        self.assertEqual(plotter.title, latex_title)
+
+    def test_empty_string_title(self):
+        """Test with empty string title."""
+        plotter = Plotter(self.dummy_transient, title="")
+        self.assertEqual(plotter.title, "")
+
+
+class TestSpecPlotterEdgeCases(unittest.TestCase):
+    """Edge case tests for SpecPlotter."""
+
+    def setUp(self) -> None:
+        angstroms = np.array([4000, 5000, 6000])
+        flux_density = np.array([1e-17, 2e-17, 3e-17])
+        flux_density_err = np.array([0.1e-17, 0.1e-17, 0.1e-17])
+        self.spectrum = Spectrum(angstroms, flux_density, flux_density_err, name="test_spectrum")
+        self.spectrum.directory_structure = SimpleNamespace(directory_path='/dummy/path')
+
+    def tearDown(self) -> None:
+        plt.close('all')
+        mock.patch.stopall()
+
+    @patch('matplotlib.pyplot.savefig')
+    @patch('matplotlib.pyplot.tight_layout')
+    def test_spec_plotter_save_with_pdf_format(self, mock_tight_layout, mock_savefig):
+        """Test SpecPlotter saving with PDF format."""
+        plotter = SpecPlotter(self.spectrum, save_format="pdf")
+        filepath = "/path/to/spectrum.png"
+        plotter._save_and_show(filepath, save=True, show=False)
+        expected_path = "/path/to/spectrum.pdf"
+        self.assertEqual(mock_savefig.call_args[0][0], expected_path)
+
+    @patch('matplotlib.pyplot.savefig')
+    @patch('matplotlib.pyplot.tight_layout')
+    def test_spec_plotter_save_transparent(self, mock_tight_layout, mock_savefig):
+        """Test SpecPlotter saving with transparent background."""
+        plotter = SpecPlotter(self.spectrum, transparent=True)
+        filepath = "/path/to/spectrum.png"
+        plotter._save_and_show(filepath, save=True, show=False)
+        call_kwargs = mock_savefig.call_args[1]
+        self.assertEqual(call_kwargs['transparent'], True)
+        self.assertEqual(call_kwargs['facecolor'], 'none')
+
+    def test_spec_plotter_apply_axis_customizations_no_title(self):
+        """Test SpecPlotter _apply_axis_customizations without title."""
+        plotter = SpecPlotter(self.spectrum)
+        mock_ax = MagicMock()
+        plotter._apply_axis_customizations(mock_ax)
+        mock_ax.set_title.assert_not_called()
+
+    def test_spec_plotter_apply_axis_customizations_no_grid(self):
+        """Test SpecPlotter _apply_axis_customizations without grid."""
+        plotter = SpecPlotter(self.spectrum, show_grid=False)
+        mock_ax = MagicMock()
+        plotter._apply_axis_customizations(mock_ax)
+        mock_ax.grid.assert_not_called()
+
+    def test_spec_plotter_all_tick_params(self):
+        """Test SpecPlotter with all tick parameters."""
+        plotter = SpecPlotter(self.spectrum,
+                             tick_direction="inout",
+                             tick_length=10.0,
+                             tick_width=3.0)
+        mock_ax = MagicMock()
+        plotter._apply_axis_customizations(mock_ax)
+        call_kwargs = mock_ax.tick_params.call_args[1]
+        self.assertEqual(call_kwargs['direction'], 'inout')
+        self.assertEqual(call_kwargs['length'], 10.0)
+        self.assertEqual(call_kwargs['width'], 3.0)
+
+
+class TestIntegratedFluxPlotterEdgeCases(unittest.TestCase):
+    """Edge case tests for IntegratedFluxPlotter."""
+
+    def setUp(self) -> None:
+        self.transient_mock = MagicMock(spec=Transient)
+        self.transient_mock.x = np.logspace(0, 2, 10)
+        self.transient_mock.y = np.logspace(0, 2, 10)
+        self.transient_mock.ylabel = "Test YLabel"
+        self.transient_mock.name = "Test Transient"
+        self.transient_mock.use_phase_model = False
+        self.transient_mock.directory_structure = MagicMock()
+        self.transient_mock.directory_structure.directory_path = "/mock/path"
+
+        self.mock_model = MagicMock()
+        self.mock_model.__name__ = "MockModel"
+
+    def tearDown(self) -> None:
+        plt.close('all')
+        mock.patch.stopall()
+
+    @patch.object(IntegratedFluxPlotter, '_x_err', new_callable=PropertyMock)
+    @patch.object(IntegratedFluxPlotter, '_y_err', new_callable=PropertyMock)
+    @patch.object(IntegratedFluxPlotter, '_xlim_low', new_callable=PropertyMock)
+    @patch.object(IntegratedFluxPlotter, '_xlim_high', new_callable=PropertyMock)
+    @patch.object(IntegratedFluxPlotter, '_ylim_low', new_callable=PropertyMock)
+    @patch.object(IntegratedFluxPlotter, '_ylim_high', new_callable=PropertyMock)
+    @patch.object(IntegratedFluxPlotter, '_save_and_show')
+    @patch('matplotlib.pyplot.gca')
+    def test_plot_data_with_default_scales(self, mock_gca, mock_save, mock_ylim_high,
+                                            mock_ylim_low, mock_xlim_high, mock_xlim_low,
+                                            mock_y_err, mock_x_err):
+        """Test plot_data uses default log scales when not specified."""
+        mock_x_err.return_value = None
+        mock_y_err.return_value = np.zeros(10)
+        mock_xlim_low.return_value = 1
+        mock_xlim_high.return_value = 100
+        mock_ylim_low.return_value = 1
+        mock_ylim_high.return_value = 100
+
+        plotter = IntegratedFluxPlotter(transient=self.transient_mock, model=self.mock_model)
+
+        mock_ax = MagicMock()
+        mock_gca.return_value = mock_ax
+        plotter.plot_data(save=False, show=False)
+
+        mock_ax.set_xscale.assert_called_once_with("log")
+        mock_ax.set_yscale.assert_called_once_with("log")
+
+    @patch.object(IntegratedFluxPlotter, '_x_err', new_callable=PropertyMock)
+    @patch.object(IntegratedFluxPlotter, '_y_err', new_callable=PropertyMock)
+    @patch.object(IntegratedFluxPlotter, '_xlim_low', new_callable=PropertyMock)
+    @patch.object(IntegratedFluxPlotter, '_xlim_high', new_callable=PropertyMock)
+    @patch.object(IntegratedFluxPlotter, '_ylim_low', new_callable=PropertyMock)
+    @patch.object(IntegratedFluxPlotter, '_ylim_high', new_callable=PropertyMock)
+    @patch.object(IntegratedFluxPlotter, '_save_and_show')
+    @patch('matplotlib.pyplot.gca')
+    def test_plot_data_with_title(self, mock_gca, mock_save, mock_ylim_high,
+                                   mock_ylim_low, mock_xlim_high, mock_xlim_low,
+                                   mock_y_err, mock_x_err):
+        """Test plot_data applies title correctly."""
+        mock_x_err.return_value = None
+        mock_y_err.return_value = np.zeros(10)
+        mock_xlim_low.return_value = 1
+        mock_xlim_high.return_value = 100
+        mock_ylim_low.return_value = 1
+        mock_ylim_high.return_value = 100
+
+        plotter = IntegratedFluxPlotter(
+            transient=self.transient_mock,
+            model=self.mock_model,
+            title="My Plot Title",
+            title_fontsize=24
+        )
+
+        mock_ax = MagicMock()
+        mock_gca.return_value = mock_ax
+        plotter.plot_data(save=False, show=False)
+
+        mock_ax.set_title.assert_called_once_with("My Plot Title", fontsize=24)
+
+    @patch.object(IntegratedFluxPlotter, '_x_err', new_callable=PropertyMock)
+    @patch.object(IntegratedFluxPlotter, '_y_err', new_callable=PropertyMock)
+    @patch.object(IntegratedFluxPlotter, '_xlim_low', new_callable=PropertyMock)
+    @patch.object(IntegratedFluxPlotter, '_xlim_high', new_callable=PropertyMock)
+    @patch.object(IntegratedFluxPlotter, '_ylim_low', new_callable=PropertyMock)
+    @patch.object(IntegratedFluxPlotter, '_ylim_high', new_callable=PropertyMock)
+    @patch.object(IntegratedFluxPlotter, '_save_and_show')
+    @patch('matplotlib.pyplot.gca')
+    def test_plot_data_with_grid(self, mock_gca, mock_save, mock_ylim_high,
+                                  mock_ylim_low, mock_xlim_high, mock_xlim_low,
+                                  mock_y_err, mock_x_err):
+        """Test plot_data applies grid correctly."""
+        mock_x_err.return_value = None
+        mock_y_err.return_value = np.zeros(10)
+        mock_xlim_low.return_value = 1
+        mock_xlim_high.return_value = 100
+        mock_ylim_low.return_value = 1
+        mock_ylim_high.return_value = 100
+
+        plotter = IntegratedFluxPlotter(
+            transient=self.transient_mock,
+            model=self.mock_model,
+            show_grid=True,
+            grid_alpha=0.7,
+            grid_color="red"
+        )
+
+        mock_ax = MagicMock()
+        mock_gca.return_value = mock_ax
+        plotter.plot_data(save=False, show=False)
+
+        mock_ax.grid.assert_called_once()
+        grid_kwargs = mock_ax.grid.call_args
+        self.assertEqual(grid_kwargs[1]['alpha'], 0.7)
+        self.assertEqual(grid_kwargs[1]['color'], "red")
+
+    def test_plot_lightcurves_credible_intervals_mode(self):
+        """Test _plot_lightcurves with credible_intervals mode."""
+        plotter = IntegratedFluxPlotter(
+            transient=self.transient_mock,
+            model=self.mock_model,
+            uncertainty_mode="credible_intervals",
+            credible_interval_level=0.95
+        )
+
+        mock_ax = MagicMock()
+        times = np.linspace(1, 100, 10)
+
+        # Mock posterior
+        mock_posterior = pd.DataFrame({
+            'log_likelihood': [1, 2, 3],
+            'param': [0.1, 0.2, 0.3]
+        })
+        plotter.kwargs['posterior'] = mock_posterior
+        plotter.kwargs['random_models'] = 3
+
+        # Mock model to return arrays
+        self.mock_model.return_value = np.ones(10)
+
+        with patch('redback.utils.calc_credible_intervals') as mock_ci:
+            mock_ci.return_value = (np.zeros(10), np.ones(10), np.ones(10))
+            plotter._plot_lightcurves(mock_ax, times)
+
+        mock_ax.fill_between.assert_called_once()
+
+    def test_plot_lightcurves_without_max_likelihood(self):
+        """Test _plot_lightcurves with plot_max_likelihood=False."""
+        plotter = IntegratedFluxPlotter(
+            transient=self.transient_mock,
+            model=self.mock_model,
+            plot_max_likelihood=False
+        )
+
+        mock_ax = MagicMock()
+        times = np.linspace(1, 100, 10)
+
+        # Mock posterior
+        mock_posterior = pd.DataFrame({
+            'log_likelihood': [1, 2, 3],
+            'param': [0.1, 0.2, 0.3]
+        })
+        plotter.kwargs['posterior'] = mock_posterior
+        plotter.kwargs['random_models'] = 2
+
+        # Mock model
+        self.mock_model.return_value = np.ones(10)
+
+        plotter._plot_lightcurves(mock_ax, times)
+
+        # Only random samples should be plotted, not max likelihood
+        calls = mock_ax.plot.call_args_list
+        # Should be 2 calls for random samples, no call for max likelihood
+        self.assertEqual(len(calls), 2)
+
+
+class TestMagnitudePlotterEdgeCases(unittest.TestCase):
+    """Edge case tests for MagnitudePlotter."""
+
+    def setUp(self) -> None:
+        self.mock_transient = MagicMock(spec=Transient)
+        self.mock_transient.use_phase_model = False
+        self.mock_transient.name = "Test"
+        self.mock_transient.active_bands = ["r", "g"]
+        self.mock_transient.x = np.array([0, 1, 2, 3])
+        self.mock_transient.x_err = None
+        self.mock_transient.y = np.array([10, 9, 8, 7])
+        self.mock_transient.y_err = np.array([0.1, 0.2, 0.1, 0.2])
+        self.mock_transient.list_of_band_indices = [[0, 1], [2, 3]]
+        self.mock_transient.unique_bands = ["r", "g"]
+        self.mock_transient.get_colors = MagicMock(return_value=["red", "green"])
+        self.mock_transient.ylabel = "Magnitude"
+        self.mock_transient.xlabel = "Time [days]"
+        self.mock_transient.magnitude_data = True
+        self.mock_transient.directory_structure = MagicMock()
+        self.mock_transient.directory_structure.directory_path = "/mock/path"
+
+    def tearDown(self) -> None:
+        plt.close('all')
+        mock.patch.stopall()
+
+    def test_set_y_axis_multiband_data_with_custom_yscale(self):
+        """Test _set_y_axis_multiband_data respects custom yscale."""
+        plotter = MagnitudePlotter(self.mock_transient, yscale="symlog")
+        mock_ax = MagicMock()
+        plotter._set_y_axis_multiband_data(mock_ax, [0, 1])
+        mock_ax.set_yscale.assert_called_once_with("symlog")
+
+    def test_set_y_axis_multiband_data_default_for_magnitude(self):
+        """Test _set_y_axis_multiband_data uses linear for magnitude by default."""
+        plotter = MagnitudePlotter(self.mock_transient)
+        mock_ax = MagicMock()
+        plotter._set_y_axis_multiband_data(mock_ax, [0, 1])
+        mock_ax.set_yscale.assert_called_once_with("linear")
+
+    def test_set_y_axis_data_non_magnitude_data(self):
+        """Test _set_y_axis_data for non-magnitude data."""
+        self.mock_transient.magnitude_data = False
+        plotter = MagnitudePlotter(self.mock_transient)
+        mock_ax = MagicMock()
+        plotter._set_y_axis_data(mock_ax)
+        mock_ax.set_yscale.assert_called_once_with("log")
+        mock_ax.invert_yaxis.assert_not_called()
+
+    def test_set_y_axis_multiband_non_magnitude_data(self):
+        """Test _set_y_axis_multiband_data for non-magnitude data."""
+        self.mock_transient.magnitude_data = False
+        plotter = MagnitudePlotter(self.mock_transient)
+        mock_ax = MagicMock()
+        plotter._set_y_axis_multiband_data(mock_ax, [0, 1])
+        mock_ax.set_yscale.assert_called_once_with("log")
+        mock_ax.invert_yaxis.assert_not_called()
+
+    def test_set_x_axis_with_phase_model(self):
+        """Test _set_x_axis uses log scale for phase model by default."""
+        self.mock_transient.use_phase_model = True
+        plotter = MagnitudePlotter(self.mock_transient)
+        mock_ax = MagicMock()
+        plotter._set_x_axis(mock_ax)
+        mock_ax.set_xscale.assert_called_once_with("log")
+
+    def test_set_x_axis_custom_scale_overrides_phase_model(self):
+        """Test custom xscale overrides phase model default."""
+        self.mock_transient.use_phase_model = True
+        plotter = MagnitudePlotter(self.mock_transient, xscale="linear")
+        mock_ax = MagicMock()
+        plotter._set_x_axis(mock_ax)
+        mock_ax.set_xscale.assert_called_once_with("linear")
+
+    @patch('matplotlib.pyplot.gca')
+    @patch.object(MagnitudePlotter, '_save_and_show')
+    @patch.object(MagnitudePlotter, '_apply_axis_customizations')
+    def test_plot_data_calls_apply_customizations(self, mock_apply, mock_save, mock_gca):
+        """Test plot_data calls _apply_axis_customizations."""
+        plotter = MagnitudePlotter(self.mock_transient)
+
+        mock_ax = MagicMock()
+        mock_gca.return_value = mock_ax
+
+        plotter.plot_data(save=False, show=False)
+
+        mock_apply.assert_called_once_with(mock_ax)
+
+
+class TestSpectrumPlotterEdgeCases(unittest.TestCase):
+    """Edge case tests for SpectrumPlotter."""
+
+    def setUp(self) -> None:
+        self.mock_transient = mock.MagicMock()
+        self.mock_transient.angstroms = np.linspace(4000, 7000, 200)
+        self.mock_transient.flux_density = np.sin(self.mock_transient.angstroms / 1000) * 1e-17
+        self.mock_transient.flux_density_err = np.full_like(self.mock_transient.flux_density, 0.1e-17)
+        self.mock_transient.xlabel = "Wavelength [Å]"
+        self.mock_transient.ylabel = r"Flux ($10^{-17}$ erg s$^{-1}$ cm$^{-2}$ $\AA^{-1}$)"
+        self.mock_transient.plot_with_time_label = False
+        self.mock_transient.name = "TestSpectrum"
+
+    def tearDown(self) -> None:
+        plt.close('all')
+        mock.patch.stopall()
+
+    @patch.object(SpectrumPlotter, '_save_and_show')
+    def test_plot_data_default_xscale(self, mock_save):
+        """Test plot_data uses linear scale by default."""
+        plotter = SpectrumPlotter(spectrum=self.mock_transient)
+
+        mock_ax = MagicMock()
+        plotter.plot_data(axes=mock_ax, save=False, show=False)
+
+        mock_ax.set_xscale.assert_called_once_with("linear")
+
+    @patch.object(SpectrumPlotter, '_save_and_show')
+    def test_plot_data_with_time_label(self, mock_save):
+        """Test plot_data with time label."""
+        self.mock_transient.plot_with_time_label = True
+        self.mock_transient.time = "100s"
+        plotter = SpectrumPlotter(spectrum=self.mock_transient)
+
+        mock_ax = MagicMock()
+        plotter.plot_data(axes=mock_ax, save=False, show=False)
+
+        # Check that annotate was called with time label
+        mock_ax.annotate.assert_called_once()
+        call_args = mock_ax.annotate.call_args
+        self.assertEqual(call_args[0][0], "100s")
+
+    @patch.object(SpectrumPlotter, '_save_and_show')
+    def test_plot_data_with_title(self, mock_save):
+        """Test plot_data applies title correctly."""
+        plotter = SpectrumPlotter(
+            spectrum=self.mock_transient,
+            title="Spectrum Plot",
+            title_fontsize=18
+        )
+
+        mock_ax = MagicMock()
+        plotter.plot_data(axes=mock_ax, save=False, show=False)
+
+        mock_ax.set_title.assert_called_once_with("Spectrum Plot", fontsize=18)
+
+    @patch.object(SpectrumPlotter, '_save_and_show')
+    def test_plot_data_with_grid(self, mock_save):
+        """Test plot_data applies grid correctly."""
+        plotter = SpectrumPlotter(
+            spectrum=self.mock_transient,
+            show_grid=True,
+            grid_color="blue",
+            grid_alpha=0.4
+        )
+
+        mock_ax = MagicMock()
+        plotter.plot_data(axes=mock_ax, save=False, show=False)
+
+        mock_ax.grid.assert_called_once()
+        grid_kwargs = mock_ax.grid.call_args[1]
+        self.assertEqual(grid_kwargs['color'], "blue")
+        self.assertEqual(grid_kwargs['alpha'], 0.4)
+
+    def test_plot_spectrums_credible_intervals_mode(self):
+        """Test _plot_spectrums with credible_intervals mode."""
+        mock_posterior = pd.DataFrame({
+            'log_likelihood': [1, 2, 3],
+            'param': [0.1, 0.2, 0.3]
+        })
+
+        def mock_model_func(angstroms, **kwargs):
+            return np.ones_like(angstroms) * 1e-17
+
+        mock_model = mock.MagicMock(side_effect=mock_model_func)
+        mock_model.__name__ = "MockModel"
+
+        plotter = SpectrumPlotter(
+            spectrum=self.mock_transient,
+            posterior=mock_posterior,
+            model=mock_model,
+            uncertainty_mode="credible_intervals"
+        )
+
+        mock_ax = MagicMock()
+        angstroms = np.linspace(4000, 7000, 100)
+
+        with patch('redback.utils.calc_credible_intervals') as mock_ci:
+            mock_ci.return_value = (np.zeros(100) * 1e-17, np.ones(100) * 1e-17, np.ones(100) * 1e-17)
+            plotter._plot_spectrums(mock_ax, angstroms)
+
+        mock_ax.fill_between.assert_called_once()
+
+    def test_plot_spectrums_without_max_likelihood(self):
+        """Test _plot_spectrums with plot_max_likelihood=False."""
+        mock_posterior = pd.DataFrame({
+            'log_likelihood': [1, 2, 3],
+            'param': [0.1, 0.2, 0.3]
+        })
+
+        def mock_model_func(angstroms, **kwargs):
+            return np.ones_like(angstroms) * 1e-17
+
+        mock_model = mock.MagicMock(side_effect=mock_model_func)
+        mock_model.__name__ = "MockModel"
+
+        plotter = SpectrumPlotter(
+            spectrum=self.mock_transient,
+            posterior=mock_posterior,
+            model=mock_model,
+            plot_max_likelihood=False
+        )
+
+        mock_ax = MagicMock()
+        angstroms = np.linspace(4000, 7000, 100)
+
+        plotter._plot_spectrums(mock_ax, angstroms)
+
+        # Only random samples should be plotted
+        calls = mock_ax.plot.call_args_list
+        self.assertEqual(len(calls), 100)  # Default random_models is 100
+
+
+class TestSaveAndShowIntegration(unittest.TestCase):
+    """Integration tests for _save_and_show functionality."""
+
+    def setUp(self) -> None:
+        self.dummy_transient = DummyTransient(name="TestTransient", directory_path="/dummy/path")
+
+    def tearDown(self) -> None:
+        plt.close('all')
+        mock.patch.stopall()
+
+    @patch('matplotlib.pyplot.tight_layout')
+    def test_no_save_no_show(self, mock_tight_layout):
+        """Test _save_and_show with save=False and show=False."""
+        plotter = Plotter(self.dummy_transient)
+        filepath = "/path/to/file.png"
+
+        with patch('matplotlib.pyplot.savefig') as mock_savefig, \
+             patch('matplotlib.pyplot.show') as mock_show:
+            plotter._save_and_show(filepath, save=False, show=False)
+            mock_savefig.assert_not_called()
+            mock_show.assert_not_called()
+
+    @patch('matplotlib.pyplot.savefig')
+    @patch('matplotlib.pyplot.tight_layout')
+    def test_save_uses_dpi_setting(self, mock_tight_layout, mock_savefig):
+        """Test that save uses custom dpi setting."""
+        plotter = Plotter(self.dummy_transient, dpi=600)
+        filepath = "/path/to/file.png"
+        plotter._save_and_show(filepath, save=True, show=False)
+        call_kwargs = mock_savefig.call_args[1]
+        self.assertEqual(call_kwargs['dpi'], 600)
+
+    @patch('matplotlib.pyplot.savefig')
+    @patch('matplotlib.pyplot.tight_layout')
+    def test_save_uses_bbox_inches_setting(self, mock_tight_layout, mock_savefig):
+        """Test that save uses custom bbox_inches setting."""
+        plotter = Plotter(self.dummy_transient, bbox_inches="standard")
+        filepath = "/path/to/file.png"
+        plotter._save_and_show(filepath, save=True, show=False)
+        call_kwargs = mock_savefig.call_args[1]
+        self.assertEqual(call_kwargs['bbox_inches'], "standard")
+
