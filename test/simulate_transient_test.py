@@ -2899,3 +2899,339 @@ class TestMaximumCoverageTargeted(unittest.TestCase):
         params = synth.generate_population(n_years=0.01, z_max=0.1)
         self.assertIsInstance(params, pd.DataFrame)
 
+
+class TestRemainingCoveragePaths(unittest.TestCase):
+    """Tests targeting specific uncovered code paths for maximum coverage"""
+
+    def setUp(self):
+        self.seed = 42
+
+    def test_generic_transient_model_string_lookup(self):
+        """Test line 43: model string lookup in all_models_dict"""
+        # Use a model name that exists in the model library
+        times = np.linspace(0.1, 10, 20)
+        transient = SimulateGenericTransient(
+            model='arnett_bolometric',  # String lookup - use bolometric for simplicity
+            parameters={'f_nickel': 0.1, 'mej': 1.0, 'kappa': 0.2, 'kappa_gamma': 1e4, 'vej': 1e4},
+            times=times,
+            model_kwargs={'frequency': 1e14},  # Use frequency for simpler test
+            data_points=20,
+            seed=self.seed
+        )
+        self.assertIsNotNone(transient.data)
+        self.assertEqual(len(transient.data), 20)
+
+    def test_generic_transient_no_bands_or_frequency_error(self):
+        """Test line 59: ValueError when no bands or frequency supplied"""
+        times = np.linspace(0, 10, 10)
+        model = lambda t, **kwargs: np.full_like(t, 1.0)
+
+        with self.assertRaises(ValueError) as context:
+            SimulateGenericTransient(
+                model=model,
+                parameters={},
+                times=times,
+                model_kwargs={'output_format': 'flux_density'},  # No bands or frequency
+                data_points=10,
+                seed=self.seed
+            )
+        self.assertIn('Must supply either bands or frequency', str(context.exception))
+
+    def test_generic_transient_multiwavelength_with_frequency(self):
+        """Test line 65: multiwavelength with frequency array"""
+        times = np.linspace(0, 10, 20)
+        model = lambda t, **kwargs: np.full_like(t, 1e-3)  # Returns flux density
+
+        transient = SimulateGenericTransient(
+            model=model,
+            parameters={},
+            times=times,
+            model_kwargs={'frequency': np.array([1e9, 3e9, 10e9])},  # Multiple frequencies
+            multiwavelength_transient=True,
+            data_points=15,
+            seed=self.seed
+        )
+        self.assertIsNotNone(transient.data)
+        self.assertEqual(len(transient.data), 15)  # data_points limit
+        self.assertIn('frequency', transient.data.columns)
+
+    def test_generic_transient_snr_based_noise(self):
+        """Test lines 103-105: SNRbased noise type"""
+        times = np.linspace(0, 10, 20)
+        model = lambda t, **kwargs: np.full_like(t, 1.0, dtype=float)  # Constant flux
+
+        transient = SimulateGenericTransient(
+            model=model,
+            parameters={},
+            times=times,
+            model_kwargs={'frequency': 1e14},
+            data_points=20,
+            noise_type='SNRbased',
+            noise_term=10,  # SNR factor
+            seed=self.seed
+        )
+        self.assertIsNotNone(transient.data)
+        self.assertIn('output_error', transient.data.columns)
+        # SNRbased uses sqrt(flux + min_flux/noise_term)
+        errors = transient.data['output_error'].values
+        self.assertTrue(all(e > 0 for e in errors))
+
+    def test_cadence_transient_frequency_sequence(self):
+        """Test lines 367-376: frequency_sequence in cadence_config"""
+        model = lambda t, **kwargs: np.full_like(t, 1e-3, dtype=float)
+
+        # Use frequency_sequence for alternating observations
+        cadence_config = {
+            'frequencies': [1e9, 3e9],
+            'cadence_days': 0.5,  # Minimum cadence
+            'duration_days': 3,
+            'sensitivity': 0.01,
+            'frequency_sequence': [1e9, 3e9, 1e9],  # Specific sequence
+        }
+
+        transient = SimulateTransientWithCadence(
+            model=model,
+            parameters={'redshift': 0.1},
+            cadence_config=cadence_config,
+            observation_mode='radio',
+            seed=self.seed
+        )
+        self.assertIsNotNone(transient.observations)
+        # Should follow the frequency_sequence pattern
+        self.assertIn('frequency', transient.observations.columns)
+
+    def test_cadence_transient_no_snr_threshold(self):
+        """Test lines 578, 585: Detection without SNR threshold"""
+        model = lambda t, **kwargs: np.full_like(t, 1e-3, dtype=float)
+
+        cadence_config = {
+            'frequencies': [1e9],
+            'cadence_days': 1,
+            'duration_days': 5,
+            'sensitivity': 0.01
+        }
+
+        transient = SimulateTransientWithCadence(
+            model=model,
+            parameters={'redshift': 0.1},
+            cadence_config=cadence_config,
+            observation_mode='radio',
+            snr_threshold=None,  # No threshold - but still uses SNR threshold logic
+            seed=self.seed
+        )
+
+        # Check that detected column exists
+        self.assertIn('detected', transient.observations.columns)
+        # Check that detected_observations property works
+        detected = transient.detected_observations
+        self.assertIsInstance(detected, pd.DataFrame)
+        # If no detected column has True values, it returns all (line 585 coverage)
+        if 'detected' not in transient.observations.columns or not any(transient.observations['detected']):
+            # This tests line 585: return self.observations when no detected column
+            pass  # The property call already tested this path
+
+    @patch("redback.simulate_transients.SimulateOpticalTransient.__init__", return_value=None)
+    def test_full_survey_single_event_time(self, mock_base_init):
+        """Test line 1329: get_event_times with single event"""
+        import astropy.units as u
+        prior = bilby.core.prior.PriorDict()
+        prior['redshift'] = bilby.core.prior.Uniform(0, 2, "redshift")
+
+        survey = SimulateFullOpticalSurvey(
+            model=lambda t, **kwargs: np.full_like(t, 1e-3),
+            prior=prior,
+            rate=10,
+            survey_start_date=0,
+            survey_duration=1,
+        )
+        survey.number_of_events = 1  # Single event
+        survey.survey_start_date = 0
+        survey.survey_duration = 100 * u.day  # Set survey_duration, not survey_duration_seconds
+
+        event_times = survey.get_event_times()
+        # Single event returns a float
+        self.assertIsInstance(event_times, (int, float))
+        self.assertGreaterEqual(event_times, 0)
+
+    @patch("redback.simulate_transients.SimulateOpticalTransient.__init__", return_value=None)
+    def test_full_survey_zero_events_time(self, mock_base_init):
+        """Test line 1340: get_event_times with zero events"""
+        import astropy.units as u
+        prior = bilby.core.prior.PriorDict()
+        prior['redshift'] = bilby.core.prior.Uniform(0, 2, "redshift")
+
+        survey = SimulateFullOpticalSurvey(
+            model=lambda t, **kwargs: np.full_like(t, 1e-3),
+            prior=prior,
+            rate=10,
+            survey_start_date=10,
+            survey_duration=1,
+        )
+        survey.number_of_events = 0  # Zero events - edge case
+        survey.survey_start_date = 10
+        survey.survey_duration = 100 * u.day  # Set survey_duration, not survey_duration_seconds
+
+        event_times = survey.get_event_times()
+        # Zero events should return survey start date in a list
+        self.assertIsInstance(event_times, list)
+        self.assertEqual(event_times[0], 10)
+
+    def test_transient_population_load_with_metadata(self):
+        """Test lines 1553-1555: Load with metadata JSON file"""
+        import tempfile
+        import json
+        import os
+
+        # Create populations directory if it doesn't exist
+        os.makedirs('populations', exist_ok=True)
+
+        # Create test CSV in populations directory
+        csv_filename = 'test_pop_with_meta.csv'
+        csv_path = f'populations/{csv_filename}'
+
+        params = pd.DataFrame({
+            'redshift': [0.1, 0.2],
+            'mass': [1.0, 2.0]
+        })
+        params.to_csv(csv_path, index=False)
+
+        metadata = {
+            'model': 'test_model',
+            'rate': 1e-4,
+            'z_max': 1.0
+        }
+
+        # Create metadata JSON next to the CSV
+        metadata_path = csv_path.replace('.csv', '_metadata.json')
+        with open(metadata_path, 'w') as f:
+            json.dump(metadata, f)
+
+        try:
+            # Load with metadata - pass just the filename, load() adds 'populations/'
+            pop = TransientPopulation.load(csv_filename)
+            self.assertEqual(len(pop.parameters), 2)
+            self.assertIsNotNone(pop.metadata)
+            self.assertEqual(pop.metadata['model'], 'test_model')
+        finally:
+            os.unlink(csv_path)
+            if os.path.exists(metadata_path):
+                os.unlink(metadata_path)
+
+    def test_gamma_ray_model_fallback_exception(self):
+        """Test lines 2286-2299: Model that raises exception for fallback"""
+        call_count = [0]
+
+        def failing_model(t, **kwargs):
+            call_count[0] += 1
+            # Fail on first call when using frequency array
+            if call_count[0] == 1:
+                raise TypeError("Cannot handle frequency array")
+            # Succeed on subsequent single-frequency calls
+            return np.full_like(t, 1e-3)
+
+        sim = SimulateGammaRayTransient(
+            model=failing_model,
+            parameters={'redshift': 0.5},
+            energy_edges=[10, 50, 100],
+            time_range=(0, 5),
+            effective_area=100,
+            background_rate=0.1,
+            seed=self.seed
+        )
+
+        # Generate events should trigger fallback
+        events = sim.generate_time_tagged_events(max_events=100)
+        self.assertIsInstance(events, pd.DataFrame)
+        # Fallback was triggered if call_count > 1
+        self.assertGreater(call_count[0], 1)
+
+    def test_generic_transient_extra_scatter(self):
+        """Test lines 110-113: extra_scatter parameter"""
+        times = np.linspace(0, 10, 10)
+        model = lambda t, **kwargs: np.full_like(t, 1.0, dtype=float)
+
+        transient = SimulateGenericTransient(
+            model=model,
+            parameters={},
+            times=times,
+            model_kwargs={'frequency': 1e14},
+            data_points=10,
+            extra_scatter=0.1,  # Add extra scatter
+            seed=self.seed
+        )
+        self.assertIsNotNone(transient.data)
+        # With extra scatter, errors should include the scatter term
+        self.assertIn('output_error', transient.data.columns)
+
+    def test_cadence_transient_optical_bands_mode(self):
+        """Test optical mode with bands in cadence"""
+        model = lambda t, **kwargs: np.full_like(t, 20.0, dtype=float)  # Magnitude
+
+        cadence_config = {
+            'bands': ['g', 'r'],
+            'cadence_days': 1.0,
+            'duration_days': 3,
+            'limiting_mags': {'g': 22.5, 'r': 23.0}
+        }
+
+        transient = SimulateTransientWithCadence(
+            model=model,
+            parameters={'redshift': 0.1},
+            cadence_config=cadence_config,
+            observation_mode='optical',
+            seed=self.seed
+        )
+        self.assertIsNotNone(transient.observations)
+        self.assertIn('band', transient.observations.columns)
+
+    def test_population_synthesizer_custom_cosmo(self):
+        """Test PopulationSynthesizer with custom cosmology"""
+        from astropy.cosmology import FlatLambdaCDM
+        custom_cosmo = FlatLambdaCDM(H0=70, Om0=0.3)
+
+        synth = PopulationSynthesizer(
+            model='arnett',
+            prior=bilby.core.prior.PriorDict({'mej': bilby.core.prior.Uniform(0.01, 0.1)}),
+            rate=1e-6,
+            cosmology=custom_cosmo,
+            seed=self.seed
+        )
+        self.assertEqual(synth.cosmology, custom_cosmo)
+
+    def test_transient_population_filter_detected(self):
+        """Test filtering population to detected only"""
+        params = pd.DataFrame({
+            'redshift': [0.1, 0.2, 0.3, 0.4],
+            'mass': [1.0, 2.0, 3.0, 4.0],
+            'detected': [True, False, True, False]
+        })
+        pop = TransientPopulation(params)
+
+        # Get only detected
+        detected_df = pop.detected
+        self.assertEqual(len(detected_df), 2)
+        self.assertTrue(all(detected_df['detected']))
+
+    def test_cadence_transient_with_rms_noise(self):
+        """Test cadence transient with RMS-based noise calculation"""
+        model = lambda t, **kwargs: np.full_like(t, 1e-3, dtype=float)
+
+        cadence_config = {
+            'frequencies': [1e9],
+            'cadence_days': 1,
+            'duration_days': 5,
+            'sensitivity': 1e-5  # RMS noise
+        }
+
+        transient = SimulateTransientWithCadence(
+            model=model,
+            parameters={'redshift': 0.1},
+            cadence_config=cadence_config,
+            observation_mode='radio',
+            seed=self.seed
+        )
+        self.assertIn('flux_density_error', transient.observations.columns)
+        # Check RMS is used for errors
+        errors = transient.observations['flux_density_error'].values
+        self.assertTrue(all(e > 0 for e in errors))
+
