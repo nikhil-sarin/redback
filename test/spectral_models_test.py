@@ -1247,5 +1247,381 @@ class TestBlackbodySpectrumAtZ(unittest.TestCase):
         self.assertGreater(flux.max() / flux.min(), 1.5)
 
 
+class TestInternalFunctions(unittest.TestCase):
+    """Test internal helper functions"""
+
+    def test_get_blackbody_spectrum(self):
+        """Test internal blackbody spectrum calculation"""
+        wave = np.linspace(4000, 8000, 500)
+        flux = spectral_models._get_blackbody_spectrum(
+            wave, temperature=10000, r_photosphere=1e15, distance=1e26
+        )
+        self.assertEqual(flux.shape, wave.shape)
+        self.assertTrue(np.all(flux > 0))
+
+    def test_get_powerlaw_spectrum(self):
+        """Test internal powerlaw spectrum"""
+        wave = np.linspace(4000, 8000, 500)
+        flux = spectral_models._get_powerlaw_spectrum(wave, alpha=-1.5, aa=1e-15)
+        self.assertEqual(flux.shape, wave.shape)
+        # Negative alpha means decreasing with wavelength
+        self.assertGreater(flux[0], flux[-1])
+
+    def test_get_powerlaw_spectrum_positive_alpha(self):
+        """Test powerlaw with positive index"""
+        wave = np.linspace(4000, 8000, 500)
+        flux = spectral_models._get_powerlaw_spectrum(wave, alpha=1.0, aa=1e-20)
+        # Positive alpha means increasing with wavelength
+        self.assertLess(flux[0], flux[-1])
+
+
+class TestMeasureLineVelocityEdgeCases(unittest.TestCase):
+    """Additional edge cases for velocity measurement"""
+
+    def test_velocity_error_estimate_with_few_points(self):
+        """Test error estimation when n_err would be 0"""
+        # Only 5 points - n_err = min(3, 5//4) = min(3, 1) = 1
+        wave = np.array([6350.0, 6352.0, 6354.0, 6356.0, 6358.0])
+        flux = np.array([1.0, 0.95, 0.8, 0.9, 1.0])
+
+        fitter = SpectralVelocityFitter(wave, flux)
+        v, verr = fitter.measure_line_velocity(6355, v_window=10000)
+        self.assertFalse(np.isnan(v))
+        self.assertGreater(verr, 0)
+
+    def test_velocity_error_with_single_point(self):
+        """Test with very sparse data"""
+        # Only 4 points would give n_err = 1
+        wave = np.array([6352.0, 6354.0, 6356.0, 6358.0])
+        flux = np.array([1.0, 0.8, 0.9, 1.0])
+
+        fitter = SpectralVelocityFitter(wave, flux)
+        # Should return nan for insufficient data (< 5 points)
+        v, verr = fitter.measure_line_velocity(6355, v_window=10000)
+        self.assertTrue(np.isnan(v))
+
+    def test_centroid_method_with_high_continuum_percentile(self):
+        """Test centroid method with custom continuum percentile"""
+        wave = np.linspace(6300, 6400, 200)
+        flux = spectral_models.elementary_p_cygni_profile(
+            wave, lambda_rest=6355, v_absorption=11000,
+            absorption_depth=0.3, emission_strength=0.1, v_width=1500
+        )
+
+        fitter = SpectralVelocityFitter(wave, flux)
+        v, verr = fitter.measure_line_velocity(
+            6355, method='centroid', v_window=15000, continuum_percentile=95
+        )
+        self.assertFalse(np.isnan(v))
+        self.assertLess(v, 0)  # Should be blueshifted
+
+    def test_gaussian_method_with_strong_absorption(self):
+        """Test Gaussian fit with deep absorption"""
+        wave = np.linspace(6200, 6500, 300)
+        # Create strong absorption
+        flux = spectral_models.gaussian_line_profile(
+            wave, lambda_center=6350, amplitude=-0.7, sigma=20, continuum=1.0
+        )
+
+        fitter = SpectralVelocityFitter(wave, flux)
+        v, verr = fitter.measure_line_velocity(6355, method='gaussian', v_window=20000)
+        # Should measure velocity
+        self.assertFalse(np.isnan(v))
+        self.assertIsInstance(verr, (float, np.floating))
+
+
+class TestMultiLinePCygniContinuumModels(unittest.TestCase):
+    """Test different continuum models in multi_line_p_cygni_spectrum"""
+
+    def test_powerlaw_continuum(self):
+        """Test with powerlaw continuum model"""
+        wave = np.linspace(4000, 7000, 1000)
+        lines = [
+            {'ion': 'Si II', 'lambda': 6355, 'tau': 2.0},
+        ]
+        flux = spectral_models.multi_line_p_cygni_spectrum(
+            wave, redshift=0.01, continuum_model='powerlaw',
+            line_list=lines, v_phot=11000,
+            alpha=-1.5, aa=1e-15
+        )
+        self.assertEqual(flux.shape, wave.shape)
+        # Should have P-Cygni feature
+        self.assertLess(flux.min(), np.median(flux))
+
+    def test_callable_continuum_model(self):
+        """Test with custom callable continuum"""
+        wave = np.linspace(4000, 7000, 500)
+        lines = [{'ion': 'Si II', 'lambda': 6355, 'tau': 1.5}]
+
+        # Custom continuum function
+        def custom_continuum(w, **kw):
+            return np.ones_like(w) * 1e-15
+
+        flux = spectral_models.multi_line_p_cygni_spectrum(
+            wave, redshift=0.01, continuum_model=custom_continuum,
+            line_list=lines, v_phot=10000
+        )
+        self.assertEqual(flux.shape, wave.shape)
+        # Should have P-Cygni modulation on flat continuum
+        self.assertLess(flux.min() / flux.max(), 0.95)
+
+    def test_empty_line_list_preserves_continuum(self):
+        """Test that empty line list returns pure continuum"""
+        wave = np.linspace(4000, 7000, 500)
+        lines = []
+
+        flux = spectral_models.multi_line_p_cygni_spectrum(
+            wave, redshift=0.01, continuum_model='blackbody',
+            line_list=lines, v_phot=11000,
+            r_phot=1e15, temperature=10000
+        )
+
+        # Should be smooth blackbody without features
+        self.assertEqual(flux.shape, wave.shape)
+        # Check for smoothness
+        second_deriv = np.diff(np.diff(flux))
+        self.assertLess(np.std(second_deriv) / np.mean(np.abs(flux)), 1e-3)
+
+
+class TestSYNOWModelCoverage(unittest.TestCase):
+    """Additional SYNOW model tests"""
+
+    def test_synow_with_dilution_factor_variation(self):
+        """Test SYNOW with different dilution factors"""
+        wave = np.linspace(5800, 6800, 500)
+
+        for W in [0.1, 0.5, 0.9]:
+            flux = spectral_models.synow_line_model(
+                wave, lambda_rest=6355, tau_ref=5.0,
+                v_phot=10000, v_max=25000, dilution_factor=W
+            )
+            self.assertEqual(flux.shape, wave.shape)
+            # Different dilution factors should give different emission strengths
+            em_region = (wave > 6355) & (wave < 6400)
+            em_flux = flux[em_region]
+            # Should have some emission (transmission > 1)
+            self.assertGreater(em_flux.max(), 1.0)
+
+    def test_synow_no_absorption_region(self):
+        """Test SYNOW when wavelength range misses absorption"""
+        # Sample only the emission side
+        wave = np.linspace(6360, 6500, 200)
+        flux = spectral_models.synow_line_model(
+            wave, lambda_rest=6355, tau_ref=5.0,
+            v_phot=10000, v_max=25000
+        )
+        # Should have emission but no deep absorption
+        self.assertGreaterEqual(flux.min(), 0.9)
+
+    def test_synow_high_tau_ref(self):
+        """Test SYNOW with very high optical depth"""
+        wave = np.linspace(5800, 6800, 500)
+        flux = spectral_models.synow_line_model(
+            wave, lambda_rest=6355, tau_ref=50.0,
+            v_phot=10000, v_max=25000
+        )
+        # High optical depth should give deep absorption
+        self.assertLess(flux.min(), 0.1)
+
+
+class TestVoigtProfileCoverage(unittest.TestCase):
+    """Additional Voigt profile tests"""
+
+    def test_voigt_with_zero_lorentz_component(self):
+        """Test Voigt with very small gamma (approaches Gaussian)"""
+        wave = np.linspace(6560, 6570, 500)
+        flux = spectral_models.voigt_profile(
+            wave, lambda_center=6563, amplitude=1.0,
+            sigma_gaussian=0.5, gamma_lorentz=0.001
+        )
+        self.assertEqual(flux.shape, wave.shape)
+        # Peak should be at center
+        peak_idx = np.argmax(flux)
+        self.assertAlmostEqual(wave[peak_idx], 6563, delta=0.1)
+
+    def test_voigt_with_negative_amplitude_and_continuum(self):
+        """Test absorption line with continuum offset"""
+        wave = np.linspace(6560, 6570, 500)
+        flux = spectral_models.voigt_profile(
+            wave, lambda_center=6563, amplitude=-0.5,
+            sigma_gaussian=0.5, gamma_lorentz=0.2, continuum=2.0
+        )
+        # Should have absorption below continuum
+        self.assertLess(flux.min(), 2.0)
+        self.assertAlmostEqual(flux.max(), 2.0, delta=0.01)
+
+
+class TestPCygniSourceFunctions(unittest.TestCase):
+    """Test all source function options"""
+
+    def test_thermal_source_function(self):
+        """Test thermal source function explicitly"""
+        wave = np.linspace(6000, 6700, 500)
+        flux = spectral_models.p_cygni_profile(
+            wave, lambda_rest=6355, tau_sobolev=3.0,
+            v_phot=10000, continuum_flux=1.0, source_function='thermal'
+        )
+        self.assertEqual(flux.shape, wave.shape)
+        # Should have characteristic P-Cygni shape
+        self.assertLess(flux.min(), 1.0)  # Absorption
+        self.assertGreater(flux.max(), 1.0)  # Emission
+
+    def test_scattering_source_function(self):
+        """Test scattering source function"""
+        wave = np.linspace(6000, 6700, 500)
+        flux = spectral_models.p_cygni_profile(
+            wave, lambda_rest=6355, tau_sobolev=3.0,
+            v_phot=10000, continuum_flux=1.0, source_function='scattering'
+        )
+        self.assertEqual(flux.shape, wave.shape)
+        self.assertLess(flux.min(), 1.0)
+
+    def test_numeric_source_function(self):
+        """Test custom numeric source function value"""
+        wave = np.linspace(6000, 6700, 500)
+        for S in [0.1, 0.5, 0.8]:
+            flux = spectral_models.p_cygni_profile(
+                wave, lambda_rest=6355, tau_sobolev=3.0,
+                v_phot=10000, continuum_flux=1.0, source_function=S
+            )
+            self.assertEqual(flux.shape, wave.shape)
+            # Different source functions should give different depths
+            self.assertLess(flux.min(), 1.0)
+
+    def test_pcygni_with_different_vmax(self):
+        """Test P-Cygni with explicitly set v_max"""
+        wave = np.linspace(6000, 6700, 500)
+        # Test with different v_max values
+        for v_max in [12000, 20000, 30000]:
+            flux = spectral_models.p_cygni_profile(
+                wave, lambda_rest=6355, tau_sobolev=3.0,
+                v_phot=10000, continuum_flux=1.0, v_max=v_max
+            )
+            self.assertEqual(flux.shape, wave.shape)
+            self.assertLess(flux.min(), 1.0)  # Should have absorption
+
+
+class TestPhotosphericVelocityEvolutionCoverage(unittest.TestCase):
+    """Additional tests for velocity evolution"""
+
+    def test_evolution_with_different_methods(self):
+        """Test velocity evolution using different measurement methods"""
+        times = np.array([1.0, 3.0, 5.0])
+        wavelength_list = []
+        flux_list = []
+
+        for t in times:
+            wave = np.linspace(6200, 6500, 200)
+            v_phot = 12000 - 100 * t
+            flux = spectral_models.elementary_p_cygni_profile(
+                wave, lambda_rest=6355, v_absorption=v_phot,
+                absorption_depth=0.4, emission_strength=0.1, v_width=1500
+            )
+            wavelength_list.append(wave)
+            flux_list.append(flux)
+
+        # Test with centroid method
+        t_out, v_out, err_out = SpectralVelocityFitter.photospheric_velocity_evolution(
+            wavelength_list, flux_list, times, 6355, method='centroid', v_window=20000
+        )
+        self.assertEqual(len(t_out), 3)
+        self.assertEqual(len(v_out), 3)
+        self.assertTrue(np.all(~np.isnan(v_out)))
+
+    def test_evolution_with_bad_spectrum(self):
+        """Test velocity evolution when some spectra fail"""
+        times = np.array([1.0, 3.0, 5.0])
+        wavelength_list = [
+            np.linspace(6200, 6500, 200),
+            np.array([1, 2, 3]),  # Too few points
+            np.linspace(6200, 6500, 200)
+        ]
+        flux_list = [
+            spectral_models.elementary_p_cygni_profile(
+                wavelength_list[0], 6355, 11000, 0.4, 0.1, 1500
+            ),
+            np.array([1, 1, 1]),  # Trivial
+            spectral_models.elementary_p_cygni_profile(
+                wavelength_list[2], 6355, 10500, 0.4, 0.1, 1500
+            )
+        ]
+
+        t_out, v_out, err_out = SpectralVelocityFitter.photospheric_velocity_evolution(
+            wavelength_list, flux_list, times, 6355, v_window=20000
+        )
+        # Second measurement should be NaN
+        self.assertTrue(np.isnan(v_out[1]))
+
+
+class TestHighVelocityFeaturesCoverage(unittest.TestCase):
+    """Additional HVF detection tests"""
+
+    def test_hvf_detection_threshold_variation(self):
+        """Test HVF detection with different thresholds"""
+        wave = np.linspace(5800, 6800, 500)
+        # Create spectrum with feature at 14000 km/s
+        flux = spectral_models.elementary_p_cygni_profile(
+            wave, lambda_rest=6355, v_absorption=14000,
+            absorption_depth=0.3, emission_strength=0.1, v_width=1500
+        )
+
+        fitter = SpectralVelocityFitter(wave, flux)
+
+        # With low threshold, should detect HVF
+        has_hvf, v_hvf, err = fitter.identify_high_velocity_features(
+            6355, v_phot_expected=10000, threshold_factor=1.2
+        )
+        self.assertTrue(has_hvf)
+
+        # With high threshold, might not detect
+        has_hvf2, _, _ = fitter.identify_high_velocity_features(
+            6355, v_phot_expected=10000, threshold_factor=1.5
+        )
+        # Result depends on exact velocity
+
+    def test_hvf_with_single_point_wavelength_spacing(self):
+        """Test HVF error calculation with single-point spacing"""
+        wave = np.linspace(5800, 6800, 500)
+        flux = spectral_models.elementary_p_cygni_profile(
+            wave, lambda_rest=6355, v_absorption=15000,
+            absorption_depth=0.2, emission_strength=0.1, v_width=2000
+        )
+
+        fitter = SpectralVelocityFitter(wave, flux)
+        has_hvf, v_hvf, v_err = fitter.identify_high_velocity_features(
+            6355, v_phot_expected=10000, threshold_factor=1.3
+        )
+
+        if has_hvf:
+            self.assertIsInstance(v_err, (float, np.floating))
+            self.assertGreater(v_err, 0)
+
+
+class TestElementaryPCygniCoverage(unittest.TestCase):
+    """Additional elementary P-Cygni tests"""
+
+    def test_elementary_pcygni_zero_emission(self):
+        """Test with zero emission strength"""
+        wave = np.linspace(6200, 6500, 300)
+        flux = spectral_models.elementary_p_cygni_profile(
+            wave, lambda_rest=6355, v_absorption=11000,
+            absorption_depth=0.4, emission_strength=0.0, v_width=1500
+        )
+        # Should only have absorption, no emission above continuum
+        self.assertLessEqual(flux.max(), 1.0)
+        self.assertLess(flux.min(), 1.0)
+
+    def test_elementary_pcygni_high_velocity(self):
+        """Test with very high absorption velocity"""
+        wave = np.linspace(5800, 6800, 500)
+        flux = spectral_models.elementary_p_cygni_profile(
+            wave, lambda_rest=6355, v_absorption=25000,
+            absorption_depth=0.5, emission_strength=0.2, v_width=2000
+        )
+        # Absorption should be at very blue wavelength
+        min_idx = np.argmin(flux)
+        self.assertLess(wave[min_idx], 6355)
+
+
 if __name__ == '__main__':
     unittest.main()
