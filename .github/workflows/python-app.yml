@@ -77,7 +77,6 @@ jobs:
         if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
         if [ -f optional_requirements.txt ]; then pip install -r optional_requirements.txt; fi
         pip uninstall -y numba
-        pip install coverage==6.5.0
     - name: Run tests (Group ${{ matrix.test-group }})
       run: |
         pytest ${{ matrix.test-files }} --cov=redback --cov-report=xml --durations=10
@@ -99,7 +98,7 @@ jobs:
         cache: 'pip'
     - name: Install coverage tools
       run: |
-        pip install coverage==6.5.0 coverage-badge coveralls
+        pip install coverage coverage-badge coveralls
     - name: Download all coverage data
       uses: actions/download-artifact@v4
       with:
