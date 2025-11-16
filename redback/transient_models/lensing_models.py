@@ -81,19 +81,22 @@ def _get_correct_function(base_model, model_type=None):
     :return: function; function to evaluate
     """
     from redback.model_library import modules_dict  # import model library in function to avoid circular dependency
-    lensing_base_models = lensing_model_library[model_type]
-    module_library = model_library[model_type]
 
     if isfunction(base_model):
         function = base_model
-
-    elif base_model not in lensing_base_models:
-        logger.warning('{} is not implemented as a base model'.format(base_model))
-        raise ValueError('Please choose a different base model')
-    elif isinstance(base_model, str):
-        function = modules_dict[module_library][base_model]
+    elif model_type is None:
+        raise ValueError("model_type must be specified when base_model is a string")
     else:
-        raise ValueError("Not a valid base model.")
+        lensing_base_models = lensing_model_library[model_type]
+        module_library = model_library[model_type]
+
+        if base_model not in lensing_base_models:
+            logger.warning('{} is not implemented as a base model'.format(base_model))
+            raise ValueError('Please choose a different base model')
+        elif isinstance(base_model, str):
+            function = modules_dict[module_library][base_model]
+        else:
+            raise ValueError("Not a valid base model.")
 
     return function
 
@@ -110,8 +113,9 @@ def _perform_lensing(time, flux_density_or_spectra_function, nimages, **kwargs):
         - mu_i: magnification factor for image i (dimensionless)
     :return: combined flux density from all lensed images
     """
+    time = np.atleast_1d(time)
     # Initialize output as zeros
-    lensed_output = None
+    lensed_output = np.zeros_like(time, dtype=float)
 
     # Sum contributions from all images
     for i in range(1, nimages + 1):
@@ -125,14 +129,15 @@ def _perform_lensing(time, flux_density_or_spectra_function, nimages, **kwargs):
         # Shift time by the time delay
         shifted_time = time - dt
 
-        # Evaluate base model at shifted time
-        image_flux = flux_density_or_spectra_function(shifted_time)
-
-        # Apply magnification and add to total
-        if lensed_output is None:
-            lensed_output = mu * image_flux
-        else:
-            lensed_output += mu * image_flux
+        # Only evaluate for positive times (event hasn't started yet for negative times)
+        valid_mask = shifted_time > 0
+        if np.any(valid_mask):
+            valid_shifted_time = shifted_time[valid_mask]
+            # Evaluate base model at shifted time
+            image_flux = flux_density_or_spectra_function(valid_shifted_time)
+            # Apply magnification and add to total
+            lensed_output[valid_mask] += mu * np.atleast_1d(image_flux)
+        # For negative times, contribution is 0 (event hasn't occurred yet)
 
     return lensed_output
 
@@ -183,6 +188,7 @@ def _evaluate_lensing_model(time, nimages=2, model_type=None, **kwargs):
         temp_kwargs = kwargs.copy()
         temp_kwargs['output_format'] = 'spectra'
         time_obs = time
+        time = np.atleast_1d(time)
 
         # Remove lensing parameters from temp_kwargs
         for i in range(1, nimages + 1):
@@ -192,7 +198,9 @@ def _evaluate_lensing_model(time, nimages=2, model_type=None, **kwargs):
         function = _get_correct_function(base_model=base_model, model_type=model_type)
 
         # For spectra output, we need to handle it differently
-        # Get the first image to determine the structure
+        # Note: Time delays are not applied in spectra mode because the spectra is computed on
+        # an internal dense time grid. Only magnification is applied here.
+        # For proper time-delayed spectra, use flux_density output mode.
         spectra_tuple = function(time, **temp_kwargs)
 
         # Initialize combined spectra
@@ -200,22 +208,15 @@ def _evaluate_lensing_model(time, nimages=2, model_type=None, **kwargs):
         lambdas = spectra_tuple.lambdas
         time_observer_frame = spectra_tuple.time
 
-        # Sum contributions from all images
+        # Sum contributions from all images (magnification only, no time delays in spectra mode)
+        total_mu = 0.0
         for i in range(1, nimages + 1):
-            dt_key = f'dt_{i}'
             mu_key = f'mu_{i}'
-
-            dt = kwargs.get(dt_key, 0.0 if i == 1 else 0.0)
             mu = kwargs.get(mu_key, 1.0 if i == 1 else 0.0)
+            total_mu += mu
 
-            # Shift time by the time delay
-            shifted_time = time - dt
-
-            # Evaluate base model at shifted time
-            image_spectra = function(shifted_time, **temp_kwargs)
-
-            # Apply magnification and add to total
-            flux_density += mu * image_spectra.spectra
+        # Apply total magnification
+        flux_density = total_mu * spectra_tuple.spectra
 
         return sed.get_correct_output_format_from_spectra(
             time=time_obs,

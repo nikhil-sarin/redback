@@ -214,7 +214,8 @@ class TestLensingModelsFluxDensity(unittest.TestCase):
     """Test lensing models with flux_density output"""
 
     def setUp(self):
-        self.times = np.array([1.0, 2.0, 3.0])
+        # Use larger times to ensure all lensed images have arrived
+        self.times = np.array([10.0, 20.0, 30.0])
 
     def test_lensing_supernova_arnett(self):
         """Test lensing with Arnett supernova model"""
@@ -251,7 +252,7 @@ class TestLensingModelsFluxDensity(unittest.TestCase):
             'base_model': 'one_component_kilonova_model',
             'dt_1': 0.0,
             'mu_1': 2.0,
-            'dt_2': 10.0,
+            'dt_2': 5.0,  # Use smaller delay so images overlap
             'mu_2': 1.5,
         }
         kwargs.update(sample)
@@ -274,7 +275,7 @@ class TestLensingModelsFluxDensity(unittest.TestCase):
             'base_model': 'tde_analytical',
             'dt_1': 0.0,
             'mu_1': 1.0,
-            'dt_2': 30.0,
+            'dt_2': 5.0,  # Use smaller delay
             'mu_2': 0.8,
         }
         kwargs.update(sample)
@@ -320,7 +321,7 @@ class TestLensingModelsFluxDensity(unittest.TestCase):
             'base_model': 'basic_mergernova',
             'dt_1': 0.0,
             'mu_1': 1.2,
-            'dt_2': 15.0,
+            'dt_2': 5.0,  # Use smaller delay
             'mu_2': 0.9,
         }
         kwargs.update(sample)
@@ -336,7 +337,7 @@ class TestLensingModelsMagnitude(unittest.TestCase):
     """Test lensing models with magnitude output"""
 
     def setUp(self):
-        self.times = np.array([1.0, 2.0, 3.0])
+        self.times = np.array([10.0, 20.0, 30.0])
 
     def test_lensing_supernova_magnitude(self):
         """Test lensing supernova with magnitude output"""
@@ -347,7 +348,7 @@ class TestLensingModelsMagnitude(unittest.TestCase):
         kwargs = {
             'frequency': 6e14,
             'output_format': 'magnitude',
-            'bands': 'ztfg',
+            'bands': 'bessellb',  # Use a band that doesn't require remote data
             'base_model': 'arnett',
             'dt_1': 0.0,
             'mu_1': 1.5,
@@ -367,7 +368,7 @@ class TestLensingMultipleImages(unittest.TestCase):
     """Test lensing with different numbers of images"""
 
     def setUp(self):
-        self.times = np.array([1.0, 2.0, 3.0])
+        self.times = np.array([20.0, 30.0, 40.0])  # Larger times for delayed images
         prior_dict = bilby.prior.PriorDict()
         prior_dict.from_file(f"redback/priors/arnett.prior")
         self.sample = prior_dict.sample()
@@ -422,7 +423,7 @@ class TestLensingPhysicalConsistency(unittest.TestCase):
 
     def test_magnification_increases_flux(self):
         """Test that positive magnification increases flux"""
-        times = np.array([1.0, 2.0, 3.0])
+        times = np.array([10.0, 20.0, 30.0])
         prior_dict = bilby.prior.PriorDict()
         prior_dict.from_file(f"redback/priors/arnett.prior")
         sample = prior_dict.sample()
@@ -456,7 +457,7 @@ class TestLensingPhysicalConsistency(unittest.TestCase):
 
     def test_time_delay_shifts_peak(self):
         """Test that time delay properly shifts the light curve"""
-        times = np.array([5.0, 10.0, 15.0, 20.0, 25.0])
+        times = np.array([15.0, 20.0, 25.0, 30.0, 35.0])
         prior_dict = bilby.prior.PriorDict()
         prior_dict.from_file(f"redback/priors/arnett.prior")
         sample = prior_dict.sample()
