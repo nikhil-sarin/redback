@@ -1994,3 +1994,308 @@ class TestSimulateGammaRayTransientExtended(unittest.TestCase):
         fluxes = sim._evaluate_model_flux(times, energies)
         self.assertEqual(fluxes.shape, times.shape)
 
+
+class TestErrorPathsCoverage(unittest.TestCase):
+    """Tests for error paths and edge cases to increase coverage"""
+
+    def setUp(self):
+        self.prior = bilby.core.prior.PriorDict({
+            'mej': bilby.core.prior.Uniform(0.01, 0.1, name='mej'),
+        })
+        self.seed = 42
+
+    def test_invalid_observation_mode_string(self):
+        """Test invalid observation mode raises error"""
+        model = lambda t, **kwargs: np.full_like(t, 20.0)
+        # Create config that will fail validation for the mode
+        cadence = {
+            'bands': ['g'],
+            'cadence_days': 1.0,
+            'duration_days': 5,
+            'limiting_mags': {'g': 22.5}
+        }
+        # Force invalid mode after auto-detection
+        with self.assertRaises(ValueError) as ctx:
+            sim = SimulateTransientWithCadence(
+                model=model,
+                parameters={'redshift': 0.1},
+                cadence_config={'custom_key': 'value'},  # Invalid config
+                observation_mode='radio',
+                seed=self.seed
+            )
+        self.assertIn("must contain", str(ctx.exception))
+
+    def test_population_synthesizer_invalid_model_string(self):
+        """Test PopulationSynthesizer with invalid model string"""
+        with self.assertRaises(ValueError) as ctx:
+            PopulationSynthesizer(
+                model='nonexistent_model_xyz',
+                prior=self.prior,
+                rate=1e-6,
+                seed=self.seed
+            )
+        self.assertIn("not found", str(ctx.exception))
+
+    def test_population_synthesizer_invalid_model_type(self):
+        """Test PopulationSynthesizer with invalid model type"""
+        with self.assertRaises(ValueError) as ctx:
+            PopulationSynthesizer(
+                model=123,  # Not string or callable
+                prior=self.prior,
+                rate=1e-6,
+                seed=self.seed
+            )
+        self.assertIn("must be string or callable", str(ctx.exception))
+
+    def test_population_synthesizer_custom_model_no_prior(self):
+        """Test custom model requires prior"""
+        custom_model = lambda t, **kwargs: t
+        with self.assertRaises(ValueError) as ctx:
+            PopulationSynthesizer(
+                model=custom_model,
+                prior=None,
+                rate=1e-6,
+                seed=self.seed
+            )
+        self.assertIn("Must provide prior", str(ctx.exception))
+
+    def test_population_synthesizer_invalid_prior_type(self):
+        """Test invalid prior type raises error"""
+        with self.assertRaises(ValueError) as ctx:
+            PopulationSynthesizer(
+                model='arnett',
+                prior=[1, 2, 3],  # Invalid type
+                rate=1e-6,
+                seed=self.seed
+            )
+        self.assertIn("Prior must be", str(ctx.exception))
+
+    def test_population_synthesizer_unknown_rate_evolution(self):
+        """Test unknown rate evolution model raises error"""
+        with self.assertRaises(ValueError) as ctx:
+            PopulationSynthesizer(
+                model='arnett',
+                prior=self.prior,
+                rate=1e-6,
+                rate_evolution='invalid_evolution',
+                seed=self.seed
+            )
+        self.assertIn("Unknown rate evolution", str(ctx.exception))
+
+    def test_transient_population_filter_no_redshift(self):
+        """Test filter_by_redshift when no redshift column"""
+        params_no_z = pd.DataFrame({
+            'ra': [10, 20],
+            'dec': [-10, -5]
+        })
+        pop = TransientPopulation(params_no_z)
+        with self.assertRaises(ValueError) as ctx:
+            pop.filter_by_redshift(z_min=0.1)
+        self.assertIn("Cannot filter by redshift", str(ctx.exception))
+
+    def test_population_synthesizer_apply_invalid_population_type(self):
+        """Test apply_detection_criteria with invalid population type"""
+        synth = PopulationSynthesizer(
+            model='arnett',
+            prior=self.prior,
+            rate=1e-6,
+            seed=self.seed
+        )
+
+        def det_func(row):
+            return True
+
+        with self.assertRaises(ValueError) as ctx:
+            synth.apply_detection_criteria([1, 2, 3], det_func)
+        self.assertIn("must be DataFrame", str(ctx.exception))
+
+    def test_population_synthesizer_apply_invalid_return_type(self):
+        """Test apply_detection_criteria with invalid return type from function"""
+        synth = PopulationSynthesizer(
+            model='arnett',
+            prior=self.prior,
+            rate=1e-6,
+            seed=self.seed
+        )
+        params = pd.DataFrame({
+            'redshift': [0.1],
+            'luminosity_distance': [450]
+        })
+
+        def bad_det_func(row):
+            return "invalid"  # Returns string instead of bool/float
+
+        with self.assertRaises(ValueError) as ctx:
+            synth.apply_detection_criteria(params, bad_det_func)
+        self.assertIn("must return bool or float", str(ctx.exception))
+
+    def test_population_synthesizer_infer_rate_no_redshift(self):
+        """Test infer_rate when sample has no redshift column"""
+        synth = PopulationSynthesizer(
+            model='arnett',
+            prior=self.prior,
+            rate=1e-6,
+            seed=self.seed
+        )
+        bad_sample = pd.DataFrame({'other_column': [1, 2, 3]})
+        with self.assertRaises(ValueError) as ctx:
+            synth.infer_rate(bad_sample)
+        self.assertIn("must have 'redshift'", str(ctx.exception))
+
+    def test_transient_population_get_redshift_distribution_no_z(self):
+        """Test get_redshift_distribution when no redshift"""
+        params_no_z = pd.DataFrame({'ra': [10, 20]})
+        pop = TransientPopulation(params_no_z)
+        result = pop.get_redshift_distribution()
+        self.assertEqual(result, (None, None, None))
+
+    def test_population_synthesizer_generate_no_prior_redshift_warning(self):
+        """Test warning when prior has no redshift and rate_weighted=False"""
+        synth = PopulationSynthesizer(
+            model='arnett',
+            prior=self.prior,  # No redshift in prior
+            rate=1e-6,
+            seed=self.seed
+        )
+        # This should raise an error because prior must contain redshift when rate_weighted=False
+        with self.assertRaises(ValueError) as ctx:
+            synth.generate_population(
+                n_events=5,
+                rate_weighted_redshifts=False
+            )
+        self.assertIn("Prior must contain 'redshift'", str(ctx.exception))
+
+    def test_population_synthesizer_generate_rate_weighted_no_n_events(self):
+        """Test error when rate_weighted=False but no n_events specified"""
+        synth = PopulationSynthesizer(
+            model='arnett',
+            prior=self.prior,
+            rate=1e-6,
+            seed=self.seed
+        )
+        # Cannot calculate n_events from rate when rate_weighted=False
+        with self.assertRaises(ValueError) as ctx:
+            synth.generate_population(
+                n_years=1,
+                rate_weighted_redshifts=False
+            )
+        self.assertIn("Cannot calculate n_events", str(ctx.exception))
+
+    def test_simulate_transient_with_cadence_model_error_optical(self):
+        """Test error handling when optical model fails"""
+        def failing_model(t, **kwargs):
+            raise RuntimeError("Model evaluation failed")
+
+        cadence = {
+            'bands': ['g'],
+            'cadence_days': 1.0,
+            'duration_days': 5,
+            'limiting_mags': {'g': 22.5}
+        }
+        with self.assertRaises(RuntimeError):
+            SimulateTransientWithCadence(
+                model=failing_model,
+                parameters={'redshift': 0.1},
+                cadence_config=cadence,
+                seed=self.seed
+            )
+
+    def test_simulate_transient_with_cadence_model_error_radio(self):
+        """Test error handling when radio model fails"""
+        def failing_model(t, **kwargs):
+            raise RuntimeError("Model evaluation failed")
+
+        cadence = {
+            'frequencies': [1.4e9],
+            'cadence_days': 7,
+            'duration_days': 30,
+            'sensitivity': 0.05
+        }
+        with self.assertRaises(RuntimeError):
+            SimulateTransientWithCadence(
+                model=failing_model,
+                parameters={'redshift': 0.1},
+                cadence_config=cadence,
+                observation_mode='radio',
+                seed=self.seed
+            )
+
+    def test_population_synthesizer_simulate_population_with_model_name(self):
+        """Test simulate_population stores model name in metadata"""
+        synth = PopulationSynthesizer(
+            model='arnett',
+            prior=self.prior,
+            rate=1e-6,
+            seed=self.seed
+        )
+        pop = synth.simulate_population(n_events=5)
+        self.assertIsInstance(pop, TransientPopulation)
+        self.assertIn('model', pop.metadata)
+        self.assertEqual(pop.metadata['model'], 'arnett')
+
+    def test_transient_population_with_light_curves(self):
+        """Test TransientPopulation stores light_curves"""
+        params = pd.DataFrame({'redshift': [0.1, 0.2]})
+        light_curves = {'lc1': [1, 2, 3], 'lc2': [4, 5, 6]}
+        pop = TransientPopulation(params, light_curves=light_curves)
+        self.assertEqual(pop.light_curves, light_curves)
+
+    def test_gamma_ray_save_binned_counts_without_generation(self):
+        """Test saving binned counts without generating raises error"""
+        model = lambda t, **kwargs: np.full_like(t, 1e-3)
+        sim = SimulateGammaRayTransient(
+            model=model,
+            parameters={'redshift': 0.5},
+            energy_edges=[10, 100],
+            time_range=(0, 10),
+            seed=self.seed
+        )
+        with self.assertRaises(ValueError) as ctx:
+            sim.save_binned_counts('test')
+        self.assertIn("No binned counts generated", str(ctx.exception))
+
+    def test_gamma_ray_save_tte_without_generation(self):
+        """Test saving TTE without generating raises error"""
+        model = lambda t, **kwargs: np.full_like(t, 1e-3)
+        sim = SimulateGammaRayTransient(
+            model=model,
+            parameters={'redshift': 0.5},
+            energy_edges=[10, 100],
+            time_range=(0, 10),
+            seed=self.seed
+        )
+        with self.assertRaises(ValueError) as ctx:
+            sim.save_time_tagged_events('test')
+        self.assertIn("No time-tagged events generated", str(ctx.exception))
+
+    def test_population_synthesizer_no_events_generated_warning(self):
+        """Test warning when no events are generated"""
+        synth = PopulationSynthesizer(
+            model='arnett',
+            prior=self.prior,
+            rate=1e-100,  # Extremely low rate
+            seed=self.seed
+        )
+        # Force n_events to 0
+        params = synth.generate_population(n_events=0)
+        self.assertEqual(len(params), 0)
+
+    def test_simulate_transient_with_cadence_auto_convert_sensitivity_to_limiting_mag(self):
+        """Test auto-conversion of sensitivity to limiting_mag for optical"""
+        model = lambda t, **kwargs: np.full_like(t, 20.0)
+        cadence = {
+            'bands': ['g'],
+            'cadence_days': 1.0,
+            'duration_days': 5,
+            'limiting_mags': {'g': 22.5}
+        }
+        # Force noise_type to sensitivity (should auto-convert)
+        sim = SimulateTransientWithCadence(
+            model=model,
+            parameters={'redshift': 0.1},
+            cadence_config=cadence,
+            noise_type='sensitivity',  # Will be converted
+            seed=self.seed
+        )
+        self.assertEqual(sim.noise_type, 'limiting_mag')
+
