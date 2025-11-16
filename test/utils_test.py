@@ -727,3 +727,44 @@ class TestGetDefaultSnIaFeatures(unittest.TestCase):
             assert -1.0 <= feature['amplitude'] <= 1.0
             # Most SN Ia features are absorption (negative)
             assert feature['amplitude'] != 0
+
+
+class TestSEDErrorHandling(unittest.TestCase):
+    """Tests for SED module error handling and logging."""
+
+    def test_bandflux_zp_without_zpsys_logs_error(self):
+        """Test that providing zp without zpsys logs error and raises ValueError."""
+        from redback import sed
+        from unittest.mock import MagicMock
+
+        mock_model = MagicMock()
+        mock_band = 'bessellb'
+        time_or_phase = np.array([1.0])
+        zp = 25.0
+        zpsys = None
+
+        with self.assertRaises(ValueError) as context:
+            sed._bandflux_redback(mock_model, mock_band, time_or_phase, zp, zpsys)
+        self.assertIn('zpsys', str(context.exception))
+
+    def test_bandflux_single_wavelength_range_error_logs(self):
+        """Test that wavelength range mismatch logs error."""
+        from redback import sed
+        from unittest.mock import MagicMock
+
+        # Create mock model with narrow wavelength range
+        mock_model = MagicMock()
+        mock_model.minwave.return_value = 5000.0
+        mock_model.maxwave.return_value = 6000.0
+
+        # Create mock band that extends beyond model range
+        mock_band = MagicMock()
+        mock_band.minwave.return_value = 4000.0  # Outside model range
+        mock_band.maxwave.return_value = 6000.0
+        mock_band.name = 'test_band'
+
+        time_or_phase = np.array([1.0])
+
+        with self.assertRaises(ValueError) as context:
+            sed._bandflux_single_redback(mock_model, mock_band, time_or_phase)
+        self.assertIn('outside spectral range', str(context.exception))

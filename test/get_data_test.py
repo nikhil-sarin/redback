@@ -704,3 +704,105 @@ class TestFinkDataGetter(unittest.TestCase):
         json = {'objectId': self.getter.objectId, 'output-format': 'csv', 'withupperlim': 'True'}
         self.getter.collect_data()
         post.assert_called_with(url=self.getter.url, json=json)
+
+
+class TestUtilsLogging(unittest.TestCase):
+    """Tests for logging in get_data/utils.py module."""
+
+    def test_get_trigger_number_not_found_logs_error(self):
+        """Test that trigger not found logs error and raises exception."""
+        with self.assertRaises(redback.get_data.utils.TriggerNotFoundError):
+            redback.get_data.utils.get_trigger_number("NONEXISTENT999999")
+
+    def test_get_batse_trigger_not_found_logs_error(self):
+        """Test that BATSE trigger not found logs error and raises exception."""
+        with self.assertRaises(ValueError):
+            redback.get_data.utils.get_batse_trigger_from_grb("NONEXISTENT999999")
+
+    def test_get_batse_trigger_success(self):
+        """Test successful BATSE trigger lookup."""
+        # GRB910425A should be in the BATSE table
+        trigger = redback.get_data.utils.get_batse_trigger_from_grb("910425A")
+        self.assertIsInstance(trigger, int)
+
+
+class TestBATSEDataGetterLogging(unittest.TestCase):
+    """Tests for logging in BATSE data getter."""
+
+    @classmethod
+    def setUpClass(cls) -> None:
+        _delete_downloaded_files()
+
+    @classmethod
+    def tearDownClass(cls) -> None:
+        _delete_downloaded_files()
+
+    def setUp(self):
+        self.grb = "GRB000526"
+        self.getter = redback.get_data.BATSEDataGetter(grb=self.grb)
+
+    def tearDown(self):
+        _delete_downloaded_files()
+
+    @mock.patch("urllib.request.urlretrieve")
+    def test_collect_data_success_logs_info(self, mock_urlretrieve):
+        """Test that successful data collection logs info messages."""
+        mock_urlretrieve.return_value = None
+        self.getter.collect_data()
+        mock_urlretrieve.assert_called_once_with(self.getter.url, self.getter.raw_file_path)
+
+    @mock.patch("urllib.request.urlretrieve")
+    def test_collect_data_failure_logs_error(self, mock_urlretrieve):
+        """Test that failed data collection logs error."""
+        mock_urlretrieve.side_effect = Exception("Network error")
+        with self.assertRaises(Exception):
+            self.getter.collect_data()
+
+    @mock.patch("astropy.io.fits.open")
+    @mock.patch.object(redback.get_data.BATSEDataGetter, "_get_columns")
+    def test_convert_raw_data_success_logs_info(self, mock_get_cols, mock_fits_open):
+        """Test that successful conversion logs info."""
+        mock_get_cols.return_value = np.zeros((10, 10))
+        mock_fits_open.return_value.__enter__ = MagicMock()
+        mock_fits_open.return_value.__exit__ = MagicMock()
+
+        # Create dummy raw file
+        import os
+        os.makedirs(os.path.dirname(self.getter.raw_file_path), exist_ok=True)
+        with open(self.getter.raw_file_path, 'w') as f:
+            f.write("dummy")
+
+        df = self.getter.convert_raw_data_to_csv()
+        self.assertIsInstance(df, pd.DataFrame)
+
+    @mock.patch("astropy.io.fits.open")
+    def test_convert_raw_data_failure_logs_error(self, mock_fits_open):
+        """Test that failed conversion logs error."""
+        mock_fits_open.side_effect = Exception("Invalid FITS file")
+        with self.assertRaises(Exception):
+            self.getter.convert_raw_data_to_csv()
+
+
+class TestDirectoryLogging(unittest.TestCase):
+    """Tests for logging in directory structure creation."""
+
+    @classmethod
+    def tearDownClass(cls) -> None:
+        _delete_downloaded_files()
+
+    def test_swift_prompt_invalid_bin_size_logs_error(self):
+        """Test that invalid bin size logs error before raising ValueError."""
+        with self.assertRaises(ValueError) as context:
+            redback.get_data.directory.swift_prompt_directory_structure(
+                grb='GRB123456', bin_size='invalid_bin_size'
+            )
+        self.assertIn('invalid_bin_size', str(context.exception))
+
+    def test_spectrum_directory_structure_creates_correctly(self):
+        """Test spectrum directory structure is created with logging."""
+        structure = redback.get_data.directory.spectrum_directory_structure(transient='test_spectrum')
+        self.assertEqual(structure.directory_path, 'spectrum/')
+        self.assertIn('test_spectrum', structure.raw_file_path)
+        self.assertIn('test_spectrum', structure.processed_file_path)
+        # Clean up
+        shutil.rmtree('spectrum', ignore_errors=True)
