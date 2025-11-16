@@ -233,9 +233,6 @@ def read_in_result(
             result = RedbackResult.from_hdf5(filename=filename)
         elif ("pkl" in extension) or ("pickle" in extension):
             result = RedbackResult.from_pickle(filename=filename)
-        elif extension is None:
-            logger.error("No filetype extension provided")
-            raise ValueError("No filetype extension provided")
         else:
             logger.error(f"Unsupported filetype: {extension}. Supported types: json, hdf5, h5, pkl, pickle")
             raise ValueError("Filetype {} not understood".format(extension))

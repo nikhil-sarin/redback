@@ -192,6 +192,90 @@ class TestRedbackResultPlotting(unittest.TestCase):
             self.result.plot_lightcurve()
             mock_transient.plot_lightcurve.assert_called_once()
 
+    @patch('redback.result.model_library.all_models_dict')
+    def test_plot_spectrum_uses_stored_model(self, mock_models):
+        """Test that plot_spectrum uses stored model when none provided."""
+        mock_model = MagicMock()
+        mock_models.__getitem__ = MagicMock(return_value=mock_model)
+
+        mock_transient = MagicMock()
+        mock_transient.plot_spectrum = MagicMock(return_value=None)
+
+        with patch.object(result.RedbackResult, 'transient', mock_transient):
+            self.result.plot_spectrum()
+            mock_transient.plot_spectrum.assert_called_once()
+
+    @patch('redback.result.model_library.all_models_dict')
+    def test_plot_residual_uses_stored_model(self, mock_models):
+        """Test that plot_residual uses stored model when none provided."""
+        mock_model = MagicMock()
+        mock_models.__getitem__ = MagicMock(return_value=mock_model)
+
+        mock_transient = MagicMock()
+        mock_transient.plot_residual = MagicMock(return_value=None)
+
+        with patch.object(result.RedbackResult, 'transient', mock_transient):
+            self.result.plot_residual()
+            mock_transient.plot_residual.assert_called_once()
+
+    @patch('redback.result.model_library.all_models_dict')
+    def test_plot_multiband_lightcurve_uses_stored_model(self, mock_models):
+        """Test that plot_multiband_lightcurve uses stored model when none provided."""
+        mock_model = MagicMock()
+        mock_models.__getitem__ = MagicMock(return_value=mock_model)
+
+        mock_transient = MagicMock()
+        mock_transient.plot_multiband_lightcurve = MagicMock(return_value=None)
+
+        with patch.object(result.RedbackResult, 'transient', mock_transient):
+            self.result.plot_multiband_lightcurve()
+            mock_transient.plot_multiband_lightcurve.assert_called_once()
+
+    def test_plot_data_delegates_to_transient(self):
+        """Test that plot_data delegates to transient."""
+        mock_transient = MagicMock()
+        mock_transient.plot_data = MagicMock(return_value=None)
+
+        with patch.object(result.RedbackResult, 'transient', mock_transient):
+            self.result.plot_data()
+            mock_transient.plot_data.assert_called_once()
+
+    def test_plot_multiband_delegates_to_transient(self):
+        """Test that plot_multiband delegates to transient."""
+        mock_transient = MagicMock()
+        mock_transient.plot_multiband = MagicMock(return_value=None)
+
+        with patch.object(result.RedbackResult, 'transient', mock_transient):
+            self.result.plot_multiband()
+            mock_transient.plot_multiband.assert_called_once()
+
+
+class TestReadInResultEdgeCases(unittest.TestCase):
+
+    def test_read_in_result_no_extension_logs_error(self):
+        """Test that read_in_result with no extension logs error and raises ValueError."""
+        with patch('redback.result._determine_file_name') as mock_determine:
+            # Mock a filename with no extension
+            mock_determine.return_value = 'test_file'
+            with patch('redback.result.os.path.exists') as mock_exists:
+                mock_exists.return_value = True
+
+                with self.assertRaises(ValueError) as context:
+                    result.read_in_result(filename='test_file')
+                # Empty extension goes to unsupported filetype branch
+                self.assertIn('Filetype', str(context.exception))
+
+    def test_read_in_result_unsupported_extension_logs_error(self):
+        """Test that read_in_result with unsupported extension logs error."""
+        with patch('redback.result._determine_file_name') as mock_determine:
+            mock_determine.return_value = 'test_file.xyz'
+            with patch('redback.result.os.path.exists') as mock_exists:
+                mock_exists.return_value = True
+
+                with self.assertRaises(ValueError) as context:
+                    result.read_in_result(filename='test_file.xyz')
+                self.assertIn('Filetype', str(context.exception))
+
 
 class TestPlotModels(unittest.TestCase):
 
