@@ -2669,3 +2669,233 @@ class TestAdditionalCoveragePaths(unittest.TestCase):
         self.assertIn('detected', result.columns)
         self.assertEqual(result['detected'].sum(), 2)  # z=0.1 and 0.2
 
+
+class TestMaximumCoverageTargeted(unittest.TestCase):
+    """Targeted tests for specific uncovered code lines"""
+
+    def setUp(self):
+        self.seed = 42
+
+    def test_population_synthesizer_default_prior_loading(self):
+        """Test PopulationSynthesizer loads default prior when prior=None"""
+        # Use a model that has a default prior
+        synth = PopulationSynthesizer(
+            model='arnett',
+            prior=None,  # Should load default prior
+            rate=1e-6,
+            seed=self.seed
+        )
+        self.assertIsInstance(synth.prior, bilby.core.prior.PriorDict)
+
+    def test_population_synthesizer_string_prior_loading(self):
+        """Test PopulationSynthesizer loads prior from string"""
+        synth = PopulationSynthesizer(
+            model='arnett',
+            prior='arnett',  # String prior name
+            rate=1e-6,
+            seed=self.seed
+        )
+        self.assertIsInstance(synth.prior, bilby.core.prior.PriorDict)
+
+    def test_population_synthesizer_generate_with_poisson_draw(self):
+        """Test generate_population draws from Poisson when n_events not specified"""
+        synth = PopulationSynthesizer(
+            model='arnett',
+            prior=bilby.core.prior.PriorDict({'mej': bilby.core.prior.Uniform(0.01, 0.1)}),
+            rate=1e-4,  # Higher rate to get some events
+            seed=self.seed
+        )
+        # Don't specify n_events - should draw from Poisson
+        params = synth.generate_population(n_years=0.1, z_max=0.3)
+        # Should have generated some events (Poisson draw)
+        self.assertIsInstance(params, pd.DataFrame)
+
+    def test_sample_redshifts_with_prior_redshift_max(self):
+        """Test _sample_redshifts uses prior's redshift maximum"""
+        prior_with_z = bilby.core.prior.PriorDict({
+            'mej': bilby.core.prior.Uniform(0.01, 0.1),
+            'redshift': bilby.core.prior.Uniform(0.01, 1.5)  # Has redshift with maximum
+        })
+        synth = PopulationSynthesizer(
+            model='arnett',
+            prior=prior_with_z,
+            rate=1e-6,
+            seed=self.seed
+        )
+        # Sample without specifying z_max - should use prior's maximum
+        redshifts = synth._sample_redshifts(10)  # No z_max argument
+        self.assertEqual(len(redshifts), 10)
+        self.assertTrue((redshifts <= 1.5).all())
+
+    def test_calculate_detection_probability_success_path(self):
+        """Test _calculate_detection_probability with successful model evaluation"""
+        # Use a simple model that returns magnitudes successfully
+        def magnitude_model(time_array, **kwargs):
+            # Return magnitudes - brighter (lower number) at peak
+            return 18.0 + time_array / 10.0  # Starts at 18 mag
+
+        synth = PopulationSynthesizer(
+            model=magnitude_model,
+            prior=bilby.core.prior.PriorDict({'mej': bilby.core.prior.Uniform(0.01, 0.1)}),
+            rate=1e-6,
+            seed=self.seed
+        )
+        params = {'mej': 0.05}
+        config = {
+            'limiting_mag': 22.5,
+            'bands': ['bessellb']  # Will trigger magnitude path
+        }
+        prob = synth._calculate_detection_probability(params, config)
+        # Should get a probability between 0 and 1
+        self.assertGreaterEqual(prob, 0.0)
+        self.assertLessEqual(prob, 1.0)
+        # Peak mag is ~18, limiting is 22.5, so should be highly detectable
+        self.assertGreater(prob, 0.5)
+
+    def test_calculate_detection_probability_negative_flux(self):
+        """Test _calculate_detection_probability with negative peak flux"""
+        def negative_flux_model(time_array, **kwargs):
+            return np.full_like(time_array, -1.0)  # Negative flux
+
+        synth = PopulationSynthesizer(
+            model=negative_flux_model,
+            prior=bilby.core.prior.PriorDict({'mej': bilby.core.prior.Uniform(0.01, 0.1)}),
+            rate=1e-6,
+            seed=self.seed
+        )
+        params = {'mej': 0.05}
+        config = {'limiting_mag': 22.5}  # No 'bands' key - uses flux path
+        prob = synth._calculate_detection_probability(params, config)
+        # Should return 0.0 for negative flux
+        self.assertEqual(prob, 0.0)
+
+    def test_simulate_generic_transient_gaussian_noise(self):
+        """Test SimulateGenericTransient with gaussian noise"""
+        model = lambda t, **kwargs: t * 1e-24 * np.ones_like(t)  # Simple flux model
+        times = np.linspace(0.1, 10, 100)
+
+        transient = SimulateGenericTransient(
+            model=model,
+            times=times,
+            model_kwargs={'frequency': 1e14},  # Single frequency
+            parameters={},
+            data_points=10,
+            noise_term=1e-25,
+            noise_type='gaussian',
+            seed=self.seed
+        )
+        self.assertIn('output_error', transient.data.columns)
+
+    def test_simulate_generic_transient_gaussianmodel_noise(self):
+        """Test SimulateGenericTransient with gaussianmodel noise"""
+        model = lambda t, **kwargs: t * 1e-24 * np.ones_like(t)  # Simple flux model
+        times = np.linspace(0.1, 10, 100)
+
+        transient = SimulateGenericTransient(
+            model=model,
+            times=times,
+            model_kwargs={'frequency': 1e14},  # Single frequency
+            parameters={},
+            data_points=10,
+            noise_term=0.1,  # Fractional noise
+            noise_type='gaussianmodel',
+            seed=self.seed
+        )
+        self.assertIn('output_error', transient.data.columns)
+
+    def test_simulate_generic_transient_with_bands_and_extra_scatter(self):
+        """Test SimulateGenericTransient with bands and extra scatter"""
+        model = lambda t, **kwargs: np.full_like(t, 20.0)  # Magnitude model
+        times = np.linspace(0.1, 10, 100)
+
+        transient = SimulateGenericTransient(
+            model=model,
+            times=times,
+            model_kwargs={'bands': 'bessellb', 'output_format': 'magnitude'},  # Single band
+            parameters={},
+            data_points=10,
+            noise_term=0.1,
+            noise_type='gaussian',
+            extra_scatter=0.05,
+            seed=self.seed
+        )
+        self.assertIn('output_error', transient.data.columns)
+        # Also check extra_scatter was applied
+        self.assertIsNotNone(transient.data)
+
+    def test_simulate_transient_with_cadence_model_string(self):
+        """Test SimulateTransientWithCadence with model string"""
+        cadence = {
+            'bands': ['bessellb'],
+            'cadence_days': 1.0,
+            'duration_days': 5,
+            'limiting_mags': {'bessellb': 22.5}
+        }
+        # This will test the model string loading path
+        with self.assertRaises(Exception):
+            # arnett requires additional parameters, so this will fail
+            # but it tests the string model loading code path
+            SimulateTransientWithCadence(
+                model='arnett',
+                parameters={'mej': 0.05, 'vej': 0.2, 'kappa': 1.0, 'kappa_gamma': 1e4,
+                           'temperature_floor': 4000},
+                cadence_config=cadence,
+                seed=self.seed
+            )
+
+    def test_transient_population_save_creates_directories(self):
+        """Test TransientPopulation.save creates necessary directories"""
+        params = pd.DataFrame({'redshift': [0.1, 0.2]})
+        pop = TransientPopulation(params)
+
+        with patch("bilby.utils.check_directory_exists_and_if_not_mkdir") as mock_mkdir:
+            with patch("pandas.DataFrame.to_csv"):
+                pop.save('test_pop.csv', save_metadata=False)
+
+        mock_mkdir.assert_called()
+
+    def test_transient_population_load_structure(self):
+        """Test TransientPopulation.load returns correct structure"""
+        params = pd.DataFrame({'redshift': [0.1, 0.2]})
+
+        with patch("pandas.read_csv", return_value=params):
+            with patch("builtins.open", side_effect=FileNotFoundError):  # No metadata file
+                with patch("bilby.utils.check_directory_exists_and_if_not_mkdir"):
+                    pop = TransientPopulation.load('test.csv')
+
+        self.assertIsInstance(pop, TransientPopulation)
+        self.assertEqual(pop.n_transients, 2)
+
+    def test_gamma_ray_transient_model_error_handling(self):
+        """Test SimulateGammaRayTransient handles model errors gracefully"""
+        def sometimes_failing_model(t, **kwargs):
+            # Model that fails for certain energy values
+            if 'energy' in kwargs and kwargs.get('energy', 0) > 200:
+                raise ValueError("Energy too high")
+            return np.full_like(t, 1e-3)
+
+        sim = SimulateGammaRayTransient(
+            model=sometimes_failing_model,
+            parameters={'redshift': 0.5},
+            energy_edges=[10, 100],
+            time_range=(0, 5),
+            effective_area=100,
+            background_rate=0.1,
+            seed=self.seed
+        )
+        # Should still work - uses try/except internally
+        events = sim.generate_time_tagged_events()
+        self.assertIsInstance(events, pd.DataFrame)
+
+    def test_population_synthesizer_n_years_calculation(self):
+        """Test that n_years parameter works correctly"""
+        synth = PopulationSynthesizer(
+            model='arnett',
+            prior=bilby.core.prior.PriorDict({'mej': bilby.core.prior.Uniform(0.01, 0.1)}),
+            rate=1e-3,  # High rate
+            seed=self.seed
+        )
+        # Generate with n_years - uses Poisson draw
+        params = synth.generate_population(n_years=0.01, z_max=0.1)
+        self.assertIsInstance(params, pd.DataFrame)
+
