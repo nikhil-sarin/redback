@@ -1933,3 +1933,544 @@ class TestSaveAndShowIntegration(unittest.TestCase):
         call_kwargs = mock_savefig.call_args[1]
         self.assertEqual(call_kwargs['bbox_inches'], "standard")
 
+
+class TestSpecPlotterSaveAndShow(unittest.TestCase):
+    """Tests for SpecPlotter _save_and_show method to ensure code coverage."""
+
+    def setUp(self) -> None:
+        angstroms = np.array([4000, 5000, 6000])
+        flux_density = np.array([1e-17, 2e-17, 3e-17])
+        flux_density_err = np.array([0.1e-17, 0.1e-17, 0.1e-17])
+        self.spectrum = Spectrum(angstroms, flux_density, flux_density_err, name="test_spectrum")
+
+    def tearDown(self) -> None:
+        plt.close('all')
+        mock.patch.stopall()
+
+    @patch('matplotlib.pyplot.savefig')
+    @patch('matplotlib.pyplot.tight_layout')
+    def test_save_with_default_format(self, mock_tight_layout, mock_savefig):
+        """Test SpecPlotter _save_and_show saves with default png format."""
+        plotter = SpecPlotter(self.spectrum)
+        filepath = "/path/to/file.png"
+        plotter._save_and_show(filepath, save=True, show=False)
+        mock_savefig.assert_called_once()
+        call_args = mock_savefig.call_args
+        self.assertTrue(call_args[0][0].endswith('.png'))
+
+    @patch('matplotlib.pyplot.savefig')
+    @patch('matplotlib.pyplot.tight_layout')
+    def test_save_with_pdf_format(self, mock_tight_layout, mock_savefig):
+        """Test SpecPlotter _save_and_show saves with pdf format."""
+        plotter = SpecPlotter(self.spectrum, save_format="pdf")
+        filepath = "/path/to/file.png"
+        plotter._save_and_show(filepath, save=True, show=False)
+        call_args = mock_savefig.call_args
+        self.assertTrue(call_args[0][0].endswith('.pdf'))
+
+    @patch('matplotlib.pyplot.savefig')
+    @patch('matplotlib.pyplot.tight_layout')
+    def test_save_with_svg_format(self, mock_tight_layout, mock_savefig):
+        """Test SpecPlotter _save_and_show saves with svg format."""
+        plotter = SpecPlotter(self.spectrum, save_format="svg")
+        filepath = "/path/to/file"
+        plotter._save_and_show(filepath, save=True, show=False)
+        call_args = mock_savefig.call_args
+        self.assertTrue(call_args[0][0].endswith('.svg'))
+
+    @patch('matplotlib.pyplot.savefig')
+    @patch('matplotlib.pyplot.tight_layout')
+    def test_save_with_transparent_background(self, mock_tight_layout, mock_savefig):
+        """Test SpecPlotter _save_and_show saves with transparent background."""
+        plotter = SpecPlotter(self.spectrum, transparent=True)
+        filepath = "/path/to/file.png"
+        plotter._save_and_show(filepath, save=True, show=False)
+        call_kwargs = mock_savefig.call_args[1]
+        self.assertTrue(call_kwargs['transparent'])
+        self.assertEqual(call_kwargs['facecolor'], 'none')
+
+    @patch('matplotlib.pyplot.savefig')
+    @patch('matplotlib.pyplot.tight_layout')
+    def test_save_with_opaque_background(self, mock_tight_layout, mock_savefig):
+        """Test SpecPlotter _save_and_show saves with opaque background."""
+        plotter = SpecPlotter(self.spectrum, transparent=False)
+        filepath = "/path/to/file.png"
+        plotter._save_and_show(filepath, save=True, show=False)
+        call_kwargs = mock_savefig.call_args[1]
+        self.assertFalse(call_kwargs['transparent'])
+        self.assertEqual(call_kwargs['facecolor'], 'white')
+
+    @patch('matplotlib.pyplot.show')
+    @patch('matplotlib.pyplot.tight_layout')
+    def test_show_only(self, mock_tight_layout, mock_show):
+        """Test SpecPlotter _save_and_show shows without saving."""
+        plotter = SpecPlotter(self.spectrum)
+        filepath = "/path/to/file.png"
+        with patch('matplotlib.pyplot.savefig') as mock_savefig:
+            plotter._save_and_show(filepath, save=False, show=True)
+            mock_savefig.assert_not_called()
+            mock_show.assert_called_once()
+
+    @patch('matplotlib.pyplot.tight_layout')
+    def test_no_save_no_show(self, mock_tight_layout):
+        """Test SpecPlotter _save_and_show with save=False and show=False."""
+        plotter = SpecPlotter(self.spectrum)
+        filepath = "/path/to/file.png"
+        with patch('matplotlib.pyplot.savefig') as mock_savefig, \
+             patch('matplotlib.pyplot.show') as mock_show:
+            plotter._save_and_show(filepath, save=False, show=False)
+            mock_savefig.assert_not_called()
+            mock_show.assert_not_called()
+
+    @patch('matplotlib.pyplot.savefig')
+    @patch('matplotlib.pyplot.tight_layout')
+    def test_save_with_custom_dpi(self, mock_tight_layout, mock_savefig):
+        """Test SpecPlotter _save_and_show uses custom dpi."""
+        plotter = SpecPlotter(self.spectrum, dpi=600)
+        filepath = "/path/to/file.png"
+        plotter._save_and_show(filepath, save=True, show=False)
+        call_kwargs = mock_savefig.call_args[1]
+        self.assertEqual(call_kwargs['dpi'], 600)
+
+    @patch('matplotlib.pyplot.savefig')
+    @patch('matplotlib.pyplot.tight_layout')
+    def test_save_replaces_extension_correctly(self, mock_tight_layout, mock_savefig):
+        """Test SpecPlotter _save_and_show replaces file extension correctly."""
+        plotter = SpecPlotter(self.spectrum, save_format="eps")
+        filepath = "/path/to/file.png"
+        plotter._save_and_show(filepath, save=True, show=False)
+        call_args = mock_savefig.call_args
+        self.assertEqual(call_args[0][0], "/path/to/file.eps")
+
+    @patch('matplotlib.pyplot.savefig')
+    @patch('matplotlib.pyplot.tight_layout')
+    def test_save_without_extension_in_filepath(self, mock_tight_layout, mock_savefig):
+        """Test SpecPlotter _save_and_show adds extension when filepath has none."""
+        plotter = SpecPlotter(self.spectrum, save_format="tiff")
+        filepath = "/path/to/file"
+        plotter._save_and_show(filepath, save=True, show=False)
+        call_args = mock_savefig.call_args
+        self.assertEqual(call_args[0][0], "/path/to/file.tiff")
+
+
+class TestSpecPlotterApplyAxisCustomizations(unittest.TestCase):
+    """Tests for SpecPlotter _apply_axis_customizations method to ensure code coverage."""
+
+    def setUp(self) -> None:
+        angstroms = np.array([4000, 5000, 6000])
+        flux_density = np.array([1e-17, 2e-17, 3e-17])
+        flux_density_err = np.array([0.1e-17, 0.1e-17, 0.1e-17])
+        self.spectrum = Spectrum(angstroms, flux_density, flux_density_err, name="test_spectrum")
+
+    def tearDown(self) -> None:
+        plt.close('all')
+        mock.patch.stopall()
+
+    def test_apply_grid_enabled(self):
+        """Test SpecPlotter _apply_axis_customizations applies grid when enabled."""
+        plotter = SpecPlotter(self.spectrum, show_grid=True, grid_alpha=0.5,
+                             grid_color="blue", grid_linestyle="-", grid_linewidth=1.0)
+        mock_ax = MagicMock()
+        plotter._apply_axis_customizations(mock_ax)
+        mock_ax.grid.assert_called_once_with(
+            True, alpha=0.5, color="blue", linestyle="-", linewidth=1.0
+        )
+
+    def test_apply_grid_disabled(self):
+        """Test SpecPlotter _apply_axis_customizations does not apply grid when disabled."""
+        plotter = SpecPlotter(self.spectrum, show_grid=False)
+        mock_ax = MagicMock()
+        plotter._apply_axis_customizations(mock_ax)
+        mock_ax.grid.assert_not_called()
+
+    def test_apply_title(self):
+        """Test SpecPlotter _apply_axis_customizations applies title when set."""
+        plotter = SpecPlotter(self.spectrum, title="Spectrum Plot", title_fontsize=24)
+        mock_ax = MagicMock()
+        plotter._apply_axis_customizations(mock_ax)
+        mock_ax.set_title.assert_called_once_with("Spectrum Plot", fontsize=24)
+
+    def test_no_title_when_not_set(self):
+        """Test SpecPlotter _apply_axis_customizations does not apply title when not set."""
+        plotter = SpecPlotter(self.spectrum, title=None)
+        mock_ax = MagicMock()
+        plotter._apply_axis_customizations(mock_ax)
+        mock_ax.set_title.assert_not_called()
+
+    def test_tick_params_with_custom_direction(self):
+        """Test SpecPlotter _apply_axis_customizations applies tick direction."""
+        plotter = SpecPlotter(self.spectrum, tick_direction="out")
+        mock_ax = MagicMock()
+        plotter._apply_axis_customizations(mock_ax)
+        mock_ax.tick_params.assert_called_once()
+        call_kwargs = mock_ax.tick_params.call_args[1]
+        self.assertEqual(call_kwargs['direction'], 'out')
+
+    def test_tick_params_with_length(self):
+        """Test SpecPlotter _apply_axis_customizations applies tick length."""
+        plotter = SpecPlotter(self.spectrum, tick_length=8.0)
+        mock_ax = MagicMock()
+        plotter._apply_axis_customizations(mock_ax)
+        call_kwargs = mock_ax.tick_params.call_args[1]
+        self.assertEqual(call_kwargs['length'], 8.0)
+
+    def test_tick_params_with_width(self):
+        """Test SpecPlotter _apply_axis_customizations applies tick width."""
+        plotter = SpecPlotter(self.spectrum, tick_width=2.0)
+        mock_ax = MagicMock()
+        plotter._apply_axis_customizations(mock_ax)
+        call_kwargs = mock_ax.tick_params.call_args[1]
+        self.assertEqual(call_kwargs['width'], 2.0)
+
+    def test_tick_params_with_both_length_and_width(self):
+        """Test SpecPlotter _apply_axis_customizations applies both tick length and width."""
+        plotter = SpecPlotter(self.spectrum, tick_length=6.0, tick_width=1.5)
+        mock_ax = MagicMock()
+        plotter._apply_axis_customizations(mock_ax)
+        call_kwargs = mock_ax.tick_params.call_args[1]
+        self.assertEqual(call_kwargs['length'], 6.0)
+        self.assertEqual(call_kwargs['width'], 1.5)
+
+    def test_hide_spines(self):
+        """Test SpecPlotter _apply_axis_customizations hides spines when show_spines=False."""
+        plotter = SpecPlotter(self.spectrum, show_spines=False)
+        mock_ax = MagicMock()
+        mock_spines = {
+            'top': MagicMock(),
+            'bottom': MagicMock(),
+            'left': MagicMock(),
+            'right': MagicMock()
+        }
+        mock_ax.spines = mock_spines
+        plotter._apply_axis_customizations(mock_ax)
+        for spine in mock_spines.values():
+            spine.set_visible.assert_called_once_with(False)
+
+    def test_spine_linewidth(self):
+        """Test SpecPlotter _apply_axis_customizations sets spine linewidth."""
+        plotter = SpecPlotter(self.spectrum, spine_linewidth=2.5)
+        mock_ax = MagicMock()
+        mock_spines = {
+            'top': MagicMock(),
+            'bottom': MagicMock(),
+            'left': MagicMock(),
+            'right': MagicMock()
+        }
+        mock_ax.spines = mock_spines
+        plotter._apply_axis_customizations(mock_ax)
+        for spine in mock_spines.values():
+            spine.set_linewidth.assert_called_once_with(2.5)
+
+    def test_spine_linewidth_not_set_when_none(self):
+        """Test SpecPlotter _apply_axis_customizations does not set spine linewidth when None."""
+        plotter = SpecPlotter(self.spectrum, show_spines=True, spine_linewidth=None)
+        mock_ax = MagicMock()
+        mock_spines = {
+            'top': MagicMock(),
+            'bottom': MagicMock(),
+            'left': MagicMock(),
+            'right': MagicMock()
+        }
+        mock_ax.spines = mock_spines
+        plotter._apply_axis_customizations(mock_ax)
+        for spine in mock_spines.values():
+            spine.set_linewidth.assert_not_called()
+            spine.set_visible.assert_not_called()
+
+    def test_all_customizations_combined(self):
+        """Test SpecPlotter _apply_axis_customizations with all options enabled."""
+        plotter = SpecPlotter(self.spectrum,
+                             show_grid=True, grid_alpha=0.4, grid_color="green",
+                             grid_linestyle=":", grid_linewidth=0.8,
+                             title="Combined Test", title_fontsize=22,
+                             tick_direction="inout", tick_length=7.0, tick_width=1.2,
+                             spine_linewidth=1.8)
+        mock_ax = MagicMock()
+        mock_spines = {
+            'top': MagicMock(),
+            'bottom': MagicMock(),
+            'left': MagicMock(),
+            'right': MagicMock()
+        }
+        mock_ax.spines = mock_spines
+        plotter._apply_axis_customizations(mock_ax)
+
+        mock_ax.grid.assert_called_once_with(
+            True, alpha=0.4, color="green", linestyle=":", linewidth=0.8
+        )
+        mock_ax.set_title.assert_called_once_with("Combined Test", fontsize=22)
+        call_kwargs = mock_ax.tick_params.call_args[1]
+        self.assertEqual(call_kwargs['direction'], 'inout')
+        self.assertEqual(call_kwargs['length'], 7.0)
+        self.assertEqual(call_kwargs['width'], 1.2)
+        for spine in mock_spines.values():
+            spine.set_linewidth.assert_called_once_with(1.8)
+
+
+class TestPlotterImplementationCoverage(unittest.TestCase):
+    """Additional tests to ensure implementation code paths are covered."""
+
+    def setUp(self) -> None:
+        self.dummy_transient = DummyTransient(name="CoverageTest", directory_path="/coverage/path")
+
+    def tearDown(self) -> None:
+        plt.close('all')
+        mock.patch.stopall()
+
+    def test_save_and_show_filepath_with_multiple_dots(self):
+        """Test _save_and_show handles filepath with multiple dots correctly."""
+        plotter = Plotter(self.dummy_transient, save_format="pdf")
+        filepath = "/path/to/file.data.png"
+        with patch('matplotlib.pyplot.tight_layout'), \
+             patch('matplotlib.pyplot.savefig') as mock_savefig:
+            plotter._save_and_show(filepath, save=True, show=False)
+            call_args = mock_savefig.call_args
+            # Should replace the last extension
+            self.assertEqual(call_args[0][0], "/path/to/file.data.pdf")
+
+    def test_apply_axis_customizations_default_tick_direction(self):
+        """Test _apply_axis_customizations uses default tick direction."""
+        plotter = Plotter(self.dummy_transient)  # Default tick_direction="in"
+        mock_ax = MagicMock()
+        plotter._apply_axis_customizations(mock_ax)
+        call_kwargs = mock_ax.tick_params.call_args[1]
+        self.assertEqual(call_kwargs['direction'], 'in')
+
+    def test_apply_axis_customizations_no_optional_params(self):
+        """Test _apply_axis_customizations without optional tick params."""
+        plotter = Plotter(self.dummy_transient, tick_length=None, tick_width=None)
+        mock_ax = MagicMock()
+        plotter._apply_axis_customizations(mock_ax)
+        call_kwargs = mock_ax.tick_params.call_args[1]
+        self.assertNotIn('length', call_kwargs)
+        self.assertNotIn('width', call_kwargs)
+
+    def test_save_format_jpeg(self):
+        """Test _save_and_show with jpeg format."""
+        plotter = Plotter(self.dummy_transient, save_format="jpeg")
+        filepath = "/path/to/file.png"
+        with patch('matplotlib.pyplot.tight_layout'), \
+             patch('matplotlib.pyplot.savefig') as mock_savefig:
+            plotter._save_and_show(filepath, save=True, show=False)
+            call_args = mock_savefig.call_args
+            self.assertEqual(call_args[0][0], "/path/to/file.jpeg")
+
+    def test_save_format_jpg(self):
+        """Test _save_and_show with jpg format."""
+        plotter = Plotter(self.dummy_transient, save_format="jpg")
+        filepath = "/path/to/file"
+        with patch('matplotlib.pyplot.tight_layout'), \
+             patch('matplotlib.pyplot.savefig') as mock_savefig:
+            plotter._save_and_show(filepath, save=True, show=False)
+            call_args = mock_savefig.call_args
+            self.assertEqual(call_args[0][0], "/path/to/file.jpg")
+
+    def test_transparent_true_with_pdf(self):
+        """Test transparent background with PDF format."""
+        plotter = Plotter(self.dummy_transient, save_format="pdf", transparent=True)
+        filepath = "/path/to/file"
+        with patch('matplotlib.pyplot.tight_layout'), \
+             patch('matplotlib.pyplot.savefig') as mock_savefig:
+            plotter._save_and_show(filepath, save=True, show=False)
+            call_kwargs = mock_savefig.call_args[1]
+            self.assertTrue(call_kwargs['transparent'])
+            self.assertEqual(call_kwargs['facecolor'], 'none')
+
+    def test_show_called_after_save(self):
+        """Test that show is called after save when both are True."""
+        plotter = Plotter(self.dummy_transient)
+        filepath = "/path/to/file.png"
+        with patch('matplotlib.pyplot.tight_layout'), \
+             patch('matplotlib.pyplot.savefig') as mock_savefig, \
+             patch('matplotlib.pyplot.show') as mock_show:
+            plotter._save_and_show(filepath, save=True, show=True)
+            mock_savefig.assert_called_once()
+            mock_show.assert_called_once()
+
+    def test_grid_options_all_defaults(self):
+        """Test that grid options have correct defaults."""
+        plotter = Plotter(self.dummy_transient)
+        self.assertFalse(plotter.show_grid)
+        self.assertEqual(plotter.grid_alpha, 0.3)
+        self.assertEqual(plotter.grid_color, "gray")
+        self.assertEqual(plotter.grid_linestyle, "--")
+        self.assertEqual(plotter.grid_linewidth, 0.5)
+
+    def test_legend_options_all_defaults(self):
+        """Test that legend options have correct defaults."""
+        plotter = Plotter(self.dummy_transient)
+        self.assertTrue(plotter.legend_frameon)
+        self.assertFalse(plotter.legend_shadow)
+        self.assertTrue(plotter.legend_fancybox)
+        self.assertEqual(plotter.legend_framealpha, 0.8)
+
+    def test_linestyle_options_all_defaults(self):
+        """Test that linestyle options have correct defaults."""
+        plotter = Plotter(self.dummy_transient)
+        self.assertEqual(plotter.linestyle, "-")
+        self.assertEqual(plotter.max_likelihood_linestyle, "-")
+        self.assertEqual(plotter.random_sample_linestyle, "-")
+
+    def test_marker_options_all_defaults(self):
+        """Test that marker options have correct defaults."""
+        plotter = Plotter(self.dummy_transient)
+        self.assertEqual(plotter.markerfillstyle, "full")
+        self.assertIsNone(plotter.markeredgecolor)
+        self.assertEqual(plotter.markeredgewidth, 1.0)
+
+    def test_axis_scale_options_defaults(self):
+        """Test that axis scale options have correct defaults."""
+        plotter = Plotter(self.dummy_transient)
+        self.assertIsNone(plotter.xscale)
+        self.assertIsNone(plotter.yscale)
+
+    def test_title_options_defaults(self):
+        """Test that title options have correct defaults."""
+        plotter = Plotter(self.dummy_transient)
+        self.assertIsNone(plotter.title)
+        self.assertEqual(plotter.title_fontsize, 20)
+
+
+class TestSpecPlotterImplementationCoverage(unittest.TestCase):
+    """Additional tests to ensure SpecPlotter implementation code paths are covered."""
+
+    def setUp(self) -> None:
+        angstroms = np.array([4000, 5000, 6000])
+        flux_density = np.array([1e-17, 2e-17, 3e-17])
+        flux_density_err = np.array([0.1e-17, 0.1e-17, 0.1e-17])
+        self.spectrum = Spectrum(angstroms, flux_density, flux_density_err, name="test_spectrum")
+
+    def tearDown(self) -> None:
+        plt.close('all')
+        mock.patch.stopall()
+
+    def test_spec_plotter_grid_options_defaults(self):
+        """Test that SpecPlotter grid options have correct defaults."""
+        plotter = SpecPlotter(self.spectrum)
+        self.assertFalse(plotter.show_grid)
+        self.assertEqual(plotter.grid_alpha, 0.3)
+        self.assertEqual(plotter.grid_color, "gray")
+        self.assertEqual(plotter.grid_linestyle, "--")
+        self.assertEqual(plotter.grid_linewidth, 0.5)
+
+    def test_spec_plotter_legend_options_defaults(self):
+        """Test that SpecPlotter legend options have correct defaults."""
+        plotter = SpecPlotter(self.spectrum)
+        self.assertTrue(plotter.legend_frameon)
+        self.assertFalse(plotter.legend_shadow)
+        self.assertTrue(plotter.legend_fancybox)
+        self.assertEqual(plotter.legend_framealpha, 0.8)
+
+    def test_spec_plotter_linestyle_options_defaults(self):
+        """Test that SpecPlotter linestyle options have correct defaults."""
+        plotter = SpecPlotter(self.spectrum)
+        self.assertEqual(plotter.linestyle, "-")
+        self.assertEqual(plotter.max_likelihood_linestyle, "-")
+        self.assertEqual(plotter.random_sample_linestyle, "-")
+
+    def test_spec_plotter_marker_options_defaults(self):
+        """Test that SpecPlotter marker options have correct defaults."""
+        plotter = SpecPlotter(self.spectrum)
+        self.assertEqual(plotter.markerfillstyle, "full")
+        self.assertIsNone(plotter.markeredgecolor)
+        self.assertEqual(plotter.markeredgewidth, 1.0)
+
+    def test_spec_plotter_axis_scale_options_defaults(self):
+        """Test that SpecPlotter axis scale options have correct defaults."""
+        plotter = SpecPlotter(self.spectrum)
+        self.assertIsNone(plotter.xscale)
+        # yscale has a different default in SpecPlotter
+        self.assertEqual(plotter.yscale, "linear")
+
+    def test_spec_plotter_title_options_defaults(self):
+        """Test that SpecPlotter title options have correct defaults."""
+        plotter = SpecPlotter(self.spectrum)
+        self.assertIsNone(plotter.title)
+        self.assertEqual(plotter.title_fontsize, 20)
+
+    def test_spec_plotter_tick_options_defaults(self):
+        """Test that SpecPlotter tick options have correct defaults."""
+        plotter = SpecPlotter(self.spectrum)
+        self.assertEqual(plotter.tick_direction, "in")
+        self.assertIsNone(plotter.tick_length)
+        self.assertIsNone(plotter.tick_width)
+
+    def test_spec_plotter_spine_options_defaults(self):
+        """Test that SpecPlotter spine options have correct defaults."""
+        plotter = SpecPlotter(self.spectrum)
+        self.assertTrue(plotter.show_spines)
+        self.assertIsNone(plotter.spine_linewidth)
+
+    def test_spec_plotter_save_format_defaults(self):
+        """Test that SpecPlotter save_format options have correct defaults."""
+        plotter = SpecPlotter(self.spectrum)
+        self.assertEqual(plotter.save_format, "png")
+        self.assertFalse(plotter.transparent)
+
+    def test_spec_plotter_custom_grid_options(self):
+        """Test that SpecPlotter respects custom grid options."""
+        plotter = SpecPlotter(self.spectrum, show_grid=True, grid_alpha=0.8,
+                             grid_color="red", grid_linestyle=":", grid_linewidth=2.0)
+        self.assertTrue(plotter.show_grid)
+        self.assertEqual(plotter.grid_alpha, 0.8)
+        self.assertEqual(plotter.grid_color, "red")
+        self.assertEqual(plotter.grid_linestyle, ":")
+        self.assertEqual(plotter.grid_linewidth, 2.0)
+
+    def test_spec_plotter_custom_legend_options(self):
+        """Test that SpecPlotter respects custom legend options."""
+        plotter = SpecPlotter(self.spectrum, legend_frameon=False, legend_shadow=True,
+                             legend_fancybox=False, legend_framealpha=0.5)
+        self.assertFalse(plotter.legend_frameon)
+        self.assertTrue(plotter.legend_shadow)
+        self.assertFalse(plotter.legend_fancybox)
+        self.assertEqual(plotter.legend_framealpha, 0.5)
+
+    def test_spec_plotter_custom_linestyle_options(self):
+        """Test that SpecPlotter respects custom linestyle options."""
+        plotter = SpecPlotter(self.spectrum, linestyle="--",
+                             max_likelihood_linestyle=":", random_sample_linestyle="-.")
+        self.assertEqual(plotter.linestyle, "--")
+        self.assertEqual(plotter.max_likelihood_linestyle, ":")
+        self.assertEqual(plotter.random_sample_linestyle, "-.")
+
+    def test_spec_plotter_custom_marker_options(self):
+        """Test that SpecPlotter respects custom marker options."""
+        plotter = SpecPlotter(self.spectrum, markerfillstyle="none",
+                             markeredgecolor="black", markeredgewidth=2.0)
+        self.assertEqual(plotter.markerfillstyle, "none")
+        self.assertEqual(plotter.markeredgecolor, "black")
+        self.assertEqual(plotter.markeredgewidth, 2.0)
+
+    def test_spec_plotter_custom_axis_scale_options(self):
+        """Test that SpecPlotter respects custom axis scale options."""
+        plotter = SpecPlotter(self.spectrum, xscale="log", yscale="log")
+        self.assertEqual(plotter.xscale, "log")
+        self.assertEqual(plotter.yscale, "log")
+
+    def test_spec_plotter_custom_title_options(self):
+        """Test that SpecPlotter respects custom title options."""
+        plotter = SpecPlotter(self.spectrum, title="Custom Title", title_fontsize=30)
+        self.assertEqual(plotter.title, "Custom Title")
+        self.assertEqual(plotter.title_fontsize, 30)
+
+    def test_spec_plotter_custom_tick_options(self):
+        """Test that SpecPlotter respects custom tick options."""
+        plotter = SpecPlotter(self.spectrum, tick_direction="out",
+                             tick_length=10.0, tick_width=2.5)
+        self.assertEqual(plotter.tick_direction, "out")
+        self.assertEqual(plotter.tick_length, 10.0)
+        self.assertEqual(plotter.tick_width, 2.5)
+
+    def test_spec_plotter_custom_spine_options(self):
+        """Test that SpecPlotter respects custom spine options."""
+        plotter = SpecPlotter(self.spectrum, show_spines=False, spine_linewidth=3.0)
+        self.assertFalse(plotter.show_spines)
+        self.assertEqual(plotter.spine_linewidth, 3.0)
+
+    def test_spec_plotter_custom_save_format_options(self):
+        """Test that SpecPlotter respects custom save_format options."""
+        plotter = SpecPlotter(self.spectrum, save_format="svg", transparent=True)
+        self.assertEqual(plotter.save_format, "svg")
+        self.assertTrue(plotter.transparent)
+
