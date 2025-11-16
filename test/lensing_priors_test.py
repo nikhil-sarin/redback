@@ -76,7 +76,7 @@ class TestLensingPriors(unittest.TestCase):
     def test_load_prior_files(self):
         """Test loading prior files from disk"""
         prior_dict = bilby.prior.PriorDict()
-        prior_dict.from_file('redback/priors/lensing_two_images.prior')
+        prior_dict.from_file('redback/priors/non_default_priors/lensing_two_images.prior')
 
         self.assertIn('dt_1', prior_dict)
         self.assertIn('mu_1', prior_dict)
@@ -86,7 +86,7 @@ class TestLensingPriors(unittest.TestCase):
     def test_load_three_image_prior_file(self):
         """Test loading three-image prior file"""
         prior_dict = bilby.prior.PriorDict()
-        prior_dict.from_file('redback/priors/lensing_three_images.prior')
+        prior_dict.from_file('redback/priors/non_default_priors/lensing_three_images.prior')
 
         self.assertEqual(len(prior_dict), 6)
         sample = prior_dict.sample()
@@ -96,7 +96,7 @@ class TestLensingPriors(unittest.TestCase):
     def test_load_four_image_prior_file(self):
         """Test loading four-image prior file"""
         prior_dict = bilby.prior.PriorDict()
-        prior_dict.from_file('redback/priors/lensing_four_images.prior')
+        prior_dict.from_file('redback/priors/non_default_priors/lensing_four_images.prior')
 
         self.assertEqual(len(prior_dict), 8)
         sample = prior_dict.sample()
