@@ -616,6 +616,480 @@ class TestSwiftDataGetter(unittest.TestCase):
         self.getter.convert_raw_afterglow_data_to_csv.assert_not_called()
         self.getter.convert_raw_prompt_data_to_csv.assert_called_once()
 
+    def test_convert_raw_data_to_csv_uses_api_data_xrt(self):
+        self.getter.instrument = "XRT"
+        self.getter._api_data = pd.DataFrame({'Time': [1, 2, 3]})
+        self.getter.convert_xrt_api_data_to_csv = MagicMock(return_value=pd.DataFrame())
+        self.getter.convert_raw_data_to_csv()
+        self.getter.convert_xrt_api_data_to_csv.assert_called_once()
+
+    def test_convert_raw_data_to_csv_uses_api_data_bat_xrt(self):
+        self.getter.instrument = "BAT+XRT"
+        self.getter._api_data = {'XRT': {'binning': {'band': pd.DataFrame()}}}
+        self.getter.convert_burst_analyser_api_data_to_csv = MagicMock(return_value=pd.DataFrame())
+        self.getter.convert_raw_data_to_csv()
+        self.getter.convert_burst_analyser_api_data_to_csv.assert_called_once()
+
+    @mock.patch('redback.get_data.swift.SWIFTTOOLS_AVAILABLE', True)
+    @mock.patch('redback.get_data.swift.udg')
+    def test_download_xrt_data_via_api_success(self, mock_udg):
+        """Test successful XRT data download via API."""
+        mock_df = pd.DataFrame({
+            'Time': [100, 200, 300],
+            'TimePos': [10, 20, 30],
+            'TimeNeg': [10, 20, 30],
+            'Flux': [1e-11, 2e-11, 3e-11],
+            'FluxPos': [1e-12, 2e-12, 3e-12],
+            'FluxNeg': [1e-12, 2e-12, 3e-12]
+        })
+        mock_udg.getLightCurves.return_value = {
+            'Datasets': ['PC_incbad_CURVE'],
+            'PC_incbad_CURVE': mock_df
+        }
+
+        result = self.getter.download_xrt_data_via_api()
+        mock_udg.getLightCurves.assert_called_once_with(
+            GRBName=self.getter.grb,
+            saveData=False,
+            returnData=True,
+            silent=True
+        )
+        self.assertIsInstance(result, pd.DataFrame)
+        self.assertEqual(len(result), 3)
+
+    @mock.patch('redback.get_data.swift.SWIFTTOOLS_AVAILABLE', True)
+    @mock.patch('redback.get_data.swift.udg')
+    def test_download_xrt_data_via_api_wt_fallback(self, mock_udg):
+        """Test XRT API falls back to WT curve when PC not available."""
+        mock_df = pd.DataFrame({'Time': [100, 200]})
+        mock_udg.getLightCurves.return_value = {
+            'Datasets': ['WT_incbad_CURVE'],
+            'WT_incbad_CURVE': mock_df
+        }
+
+        result = self.getter.download_xrt_data_via_api()
+        self.assertIsInstance(result, pd.DataFrame)
+
+    @mock.patch('redback.get_data.swift.SWIFTTOOLS_AVAILABLE', True)
+    @mock.patch('redback.get_data.swift.udg')
+    def test_download_xrt_data_via_api_no_datasets(self, mock_udg):
+        """Test XRT API raises error when no datasets available."""
+        mock_udg.getLightCurves.return_value = {'Datasets': []}
+
+        with self.assertRaises(redback.redback_errors.WebsiteExist):
+            self.getter.download_xrt_data_via_api()
+
+    @mock.patch('redback.get_data.swift.SWIFTTOOLS_AVAILABLE', True)
+    @mock.patch('redback.get_data.swift.udg')
+    def test_download_xrt_data_via_api_no_suitable_curve(self, mock_udg):
+        """Test XRT API raises error when no suitable curve found."""
+        mock_udg.getLightCurves.return_value = {
+            'Datasets': ['OTHER_DATA'],
+            'OTHER_DATA': pd.DataFrame()
+        }
+
+        with self.assertRaises(redback.redback_errors.WebsiteExist):
+            self.getter.download_xrt_data_via_api()
+
+    @mock.patch('redback.get_data.swift.SWIFTTOOLS_AVAILABLE', False)
+    def test_download_xrt_data_via_api_not_available(self):
+        """Test XRT API raises ImportError when swifttools not available."""
+        with self.assertRaises(ImportError):
+            self.getter.download_xrt_data_via_api()
+
+    @mock.patch('redback.get_data.swift.SWIFTTOOLS_AVAILABLE', True)
+    @mock.patch('redback.get_data.swift.udg')
+    def test_download_xrt_data_via_api_exception_handling(self, mock_udg):
+        """Test XRT API properly re-raises exceptions."""
+        mock_udg.getLightCurves.side_effect = Exception("API Error")
+
+        with self.assertRaises(Exception):
+            self.getter.download_xrt_data_via_api()
+
+    @mock.patch('redback.get_data.swift.SWIFTTOOLS_AVAILABLE', True)
+    @mock.patch('redback.get_data.swift.udg')
+    def test_download_burst_analyser_data_via_api_success(self, mock_udg):
+        """Test successful Burst Analyser data download via API."""
+        mock_data = {
+            'XRT': {
+                'binning1': {
+                    'band1': pd.DataFrame({'Time': [100, 200]})
+                }
+            },
+            'BAT': {
+                'binning1': {
+                    'band1': pd.DataFrame({'Time': [10, 20]})
+                }
+            }
+        }
+        mock_udg.getBurstAnalyser.return_value = mock_data
+
+        result = self.getter.download_burst_analyser_data_via_api()
+        mock_udg.getBurstAnalyser.assert_called_once_with(
+            GRBName=self.getter.grb,
+            saveData=False,
+            returnData=True,
+            silent=True
+        )
+        self.assertIsInstance(result, dict)
+        self.assertIn('XRT', result)
+        self.assertIn('BAT', result)
+
+    @mock.patch('redback.get_data.swift.SWIFTTOOLS_AVAILABLE', True)
+    @mock.patch('redback.get_data.swift.udg')
+    def test_download_burst_analyser_data_via_api_empty(self, mock_udg):
+        """Test Burst Analyser API raises error when data is empty."""
+        mock_udg.getBurstAnalyser.return_value = {}
+
+        with self.assertRaises(redback.redback_errors.WebsiteExist):
+            self.getter.download_burst_analyser_data_via_api()
+
+    @mock.patch('redback.get_data.swift.SWIFTTOOLS_AVAILABLE', True)
+    @mock.patch('redback.get_data.swift.udg')
+    def test_download_burst_analyser_data_via_api_none(self, mock_udg):
+        """Test Burst Analyser API raises error when data is None."""
+        mock_udg.getBurstAnalyser.return_value = None
+
+        with self.assertRaises(redback.redback_errors.WebsiteExist):
+            self.getter.download_burst_analyser_data_via_api()
+
+    @mock.patch('redback.get_data.swift.SWIFTTOOLS_AVAILABLE', False)
+    def test_download_burst_analyser_data_via_api_not_available(self):
+        """Test Burst Analyser API raises ImportError when swifttools not available."""
+        with self.assertRaises(ImportError):
+            self.getter.download_burst_analyser_data_via_api()
+
+    @mock.patch('redback.get_data.swift.SWIFTTOOLS_AVAILABLE', True)
+    @mock.patch('redback.get_data.swift.udg')
+    def test_download_burst_analyser_data_via_api_exception_handling(self, mock_udg):
+        """Test Burst Analyser API properly re-raises exceptions."""
+        mock_udg.getBurstAnalyser.side_effect = Exception("API Error")
+
+        with self.assertRaises(Exception):
+            self.getter.download_burst_analyser_data_via_api()
+
+    def test_convert_xrt_api_data_to_csv_standard_columns(self):
+        """Test XRT API data conversion with standard column names."""
+        self.getter.instrument = "XRT"
+        self.getter._api_data = pd.DataFrame({
+            'Time': [100.0, 200.0, 300.0],
+            'TimePos': [10.0, 20.0, 30.0],
+            'TimeNeg': [10.0, 20.0, 30.0],
+            'Flux': [1e-11, 2e-11, 3e-11],
+            'FluxPos': [1e-12, 2e-12, 3e-12],
+            'FluxNeg': [1e-12, 2e-12, 3e-12]
+        })
+
+        result = self.getter.convert_xrt_api_data_to_csv()
+
+        self.assertIn('Time [s]', result.columns)
+        self.assertIn('Flux [erg cm^{-2} s^{-1}]', result.columns)
+        self.assertIn('Pos. flux err [erg cm^{-2} s^{-1}]', result.columns)
+        self.assertEqual(len(result), 3)
+        self.assertTrue(os.path.isfile(self.getter.processed_file_path))
+
+    def test_convert_xrt_api_data_to_csv_alternative_time_column(self):
+        """Test XRT API data conversion with alternative time column name."""
+        self.getter.instrument = "XRT"
+        self.getter._api_data = pd.DataFrame({
+            'T': [100.0, 200.0],
+            'TimePos': [10.0, 20.0],
+            'TimeNeg': [10.0, 20.0],
+            'Flux': [1e-11, 2e-11],
+            'FluxPos': [1e-12, 2e-12],
+            'FluxNeg': [1e-12, 2e-12]
+        })
+
+        result = self.getter.convert_xrt_api_data_to_csv()
+
+        self.assertIn('Time [s]', result.columns)
+        self.assertEqual(result['Time [s]'].iloc[0], 100.0)
+
+    def test_convert_xrt_api_data_to_csv_met_time_column(self):
+        """Test XRT API data conversion with MET time column name."""
+        self.getter.instrument = "XRT"
+        self.getter._api_data = pd.DataFrame({
+            'MET': [100.0, 200.0],
+            'TimePos': [10.0, 20.0],
+            'TimeNeg': [10.0, 20.0],
+            'Flux': [1e-11, 2e-11],
+            'FluxPos': [1e-12, 2e-12],
+            'FluxNeg': [1e-12, 2e-12]
+        })
+
+        result = self.getter.convert_xrt_api_data_to_csv()
+
+        self.assertIn('Time [s]', result.columns)
+
+    def test_convert_xrt_api_data_to_csv_filters_zero_errors(self):
+        """Test XRT API data conversion filters out zero flux errors."""
+        self.getter.instrument = "XRT"
+        self.getter._api_data = pd.DataFrame({
+            'Time': [100.0, 200.0, 300.0],
+            'TimePos': [10.0, 20.0, 30.0],
+            'TimeNeg': [10.0, 20.0, 30.0],
+            'Flux': [1e-11, 2e-11, 3e-11],
+            'FluxPos': [1e-12, 0.0, 3e-12],  # Second row has zero error
+            'FluxNeg': [1e-12, 2e-12, 3e-12]
+        })
+
+        result = self.getter.convert_xrt_api_data_to_csv()
+
+        self.assertEqual(len(result), 2)  # Should filter out row with zero error
+
+    def test_convert_xrt_api_data_to_csv_no_data(self):
+        """Test XRT API data conversion raises error when no API data available."""
+        self.getter.instrument = "XRT"
+
+        with self.assertRaises(ValueError):
+            self.getter.convert_xrt_api_data_to_csv()
+
+    def test_convert_xrt_api_data_to_csv_none_data(self):
+        """Test XRT API data conversion raises error when API data is None."""
+        self.getter.instrument = "XRT"
+        self.getter._api_data = None
+
+        with self.assertRaises(ValueError):
+            self.getter.convert_xrt_api_data_to_csv()
+
+    def test_convert_burst_analyser_api_data_to_csv_flux_mode(self):
+        """Test Burst Analyser API data conversion in flux mode."""
+        self.getter.instrument = "BAT+XRT"
+        self.getter.data_mode = "flux"
+        self.getter._api_data = {
+            'XRT': {
+                'binning1': {
+                    'band1': pd.DataFrame({
+                        'Time': [1000.0, 2000.0],
+                        'TimePos': [100.0, 200.0],
+                        'TimeNeg': [100.0, 200.0],
+                        'Flux': [1e-11, 2e-11],
+                        'FluxPos': [1e-12, 2e-12],
+                        'FluxNeg': [1e-12, 2e-12]
+                    })
+                }
+            },
+            'BAT': {
+                'binning1': {
+                    'band1': pd.DataFrame({
+                        'Time': [10.0, 20.0],
+                        'TimePos': [1.0, 2.0],
+                        'TimeNeg': [1.0, 2.0],
+                        'Flux': [1e-10, 2e-10],
+                        'FluxPos': [1e-11, 2e-11],
+                        'FluxNeg': [1e-11, 2e-11]
+                    })
+                }
+            }
+        }
+
+        result = self.getter.convert_burst_analyser_api_data_to_csv()
+
+        self.assertIn('Time [s]', result.columns)
+        self.assertIn('Flux [erg cm^{-2} s^{-1}]', result.columns)
+        self.assertIn('Instrument', result.columns)
+        self.assertEqual(len(result), 4)  # 2 XRT + 2 BAT
+        self.assertTrue(os.path.isfile(self.getter.processed_file_path))
+
+    def test_convert_burst_analyser_api_data_to_csv_xrt_only(self):
+        """Test Burst Analyser API data conversion with only XRT data."""
+        self.getter.instrument = "BAT+XRT"
+        self.getter.data_mode = "flux"
+        self.getter._api_data = {
+            'XRT': {
+                'binning1': {
+                    'band1': pd.DataFrame({
+                        'Time': [1000.0],
+                        'TimePos': [100.0],
+                        'TimeNeg': [100.0],
+                        'Flux': [1e-11],
+                        'FluxPos': [1e-12],
+                        'FluxNeg': [1e-12]
+                    })
+                }
+            }
+        }
+
+        result = self.getter.convert_burst_analyser_api_data_to_csv()
+
+        self.assertEqual(len(result), 1)
+        self.assertEqual(result['Instrument'].iloc[0], 'XRT')
+
+    def test_convert_burst_analyser_api_data_to_csv_flux_density_mode(self):
+        """Test Burst Analyser API data conversion in flux density mode."""
+        self.getter.instrument = "BAT+XRT"
+        self.getter.data_mode = "flux_density"
+        self.getter._api_data = {
+            'XRT': {
+                'binning1': {
+                    'density_band': pd.DataFrame({
+                        'Time': [1000.0, 2000.0],
+                        'TimePos': [100.0, 200.0],
+                        'TimeNeg': [100.0, 200.0],
+                        'Flux': [0.001, 0.002],  # In Jy, should be converted
+                        'FluxPos': [0.0001, 0.0002],
+                        'FluxNeg': [0.0001, 0.0002]
+                    })
+                }
+            }
+        }
+
+        result = self.getter.convert_burst_analyser_api_data_to_csv()
+
+        self.assertIn('Time [s]', result.columns)
+        self.assertIn('Flux [mJy]', result.columns)
+        # Check unit conversion (should multiply by 1000)
+        self.assertGreater(result['Flux [mJy]'].iloc[0], 0.1)
+
+    def test_convert_burst_analyser_api_data_to_csv_flux_density_no_conversion(self):
+        """Test Burst Analyser API data conversion without unit conversion."""
+        self.getter.instrument = "BAT+XRT"
+        self.getter.data_mode = "flux_density"
+        self.getter._api_data = {
+            'XRT': {
+                'binning1': {
+                    'density_band': pd.DataFrame({
+                        'Time': [1000.0],
+                        'TimePos': [100.0],
+                        'TimeNeg': [100.0],
+                        'Flux': [1.0],  # Already in mJy
+                        'FluxPos': [0.1],
+                        'FluxNeg': [0.1]
+                    })
+                }
+            }
+        }
+
+        result = self.getter.convert_burst_analyser_api_data_to_csv()
+
+        # No conversion should happen if median > 0.1
+        self.assertEqual(result['Flux [mJy]'].iloc[0], 1.0)
+
+    def test_convert_burst_analyser_api_data_to_csv_no_data(self):
+        """Test Burst Analyser API data conversion raises error when no API data."""
+        self.getter.instrument = "BAT+XRT"
+        self.getter.data_mode = "flux"
+
+        with self.assertRaises(ValueError):
+            self.getter.convert_burst_analyser_api_data_to_csv()
+
+    def test_convert_burst_analyser_api_data_to_csv_empty_instruments(self):
+        """Test Burst Analyser API data conversion raises error when instruments empty."""
+        self.getter.instrument = "BAT+XRT"
+        self.getter.data_mode = "flux"
+        self.getter._api_data = {}
+
+        with self.assertRaises(ValueError):
+            self.getter.convert_burst_analyser_api_data_to_csv()
+
+    def test_convert_burst_analyser_api_data_to_csv_no_flux_density_data(self):
+        """Test Burst Analyser API data conversion raises error when no flux density data."""
+        self.getter.instrument = "BAT+XRT"
+        self.getter.data_mode = "flux_density"
+        self.getter._api_data = {
+            'XRT': {
+                'binning1': {
+                    'band1': pd.DataFrame()  # No density in name
+                }
+            }
+        }
+
+        with self.assertRaises(ValueError):
+            self.getter.convert_burst_analyser_api_data_to_csv()
+
+    def test_convert_burst_analyser_api_data_to_csv_unsupported_mode(self):
+        """Test Burst Analyser API data conversion raises error for unsupported mode."""
+        self.getter.instrument = "BAT+XRT"
+        self.getter._data_mode = "unsupported"
+        self.getter._api_data = {'XRT': {}}
+
+        with self.assertRaises(ValueError):
+            self.getter.convert_burst_analyser_api_data_to_csv()
+
+    def test_convert_burst_analyser_api_data_to_csv_with_t_column(self):
+        """Test Burst Analyser API data conversion with 'T' column name."""
+        self.getter.instrument = "BAT+XRT"
+        self.getter.data_mode = "flux"
+        self.getter._api_data = {
+            'XRT': {
+                'binning1': {
+                    'band1': pd.DataFrame({
+                        'T': [1000.0],  # Alternative name
+                        'TimePos': [100.0],
+                        'TimeNeg': [100.0],
+                        'Flux': [1e-11],
+                        'FluxPos': [1e-12],
+                        'FluxNeg': [1e-12]
+                    })
+                }
+            }
+        }
+
+        result = self.getter.convert_burst_analyser_api_data_to_csv()
+
+        self.assertIn('Time [s]', result.columns)
+
+    @mock.patch("os.path.isfile")
+    @mock.patch('redback.get_data.swift.SWIFTTOOLS_AVAILABLE', True)
+    def test_collect_data_api_fallback_on_exception(self, isfile):
+        """Test that collect_data falls back to legacy when API raises exception."""
+        isfile.return_value = False
+        self.getter.instrument = "XRT"
+
+        # Make API method fail
+        self.getter.download_xrt_data_via_api = MagicMock(side_effect=Exception("API failed"))
+        self.getter.download_directly = MagicMock()
+
+        self.getter.collect_data()
+
+        # Should fall back to legacy method
+        self.getter.download_xrt_data_via_api.assert_called_once()
+        self.getter.download_directly.assert_called_once()
+
+    @mock.patch("os.path.isfile")
+    @mock.patch('redback.get_data.swift.SWIFTTOOLS_AVAILABLE', True)
+    def test_collect_data_bat_xrt_api_fallback_on_exception(self, isfile):
+        """Test BAT+XRT collect_data falls back to legacy when API fails."""
+        isfile.return_value = False
+        self.getter.instrument = "BAT+XRT"
+        self.getter.data_mode = "flux"
+
+        # Make API method fail
+        self.getter.download_burst_analyser_data_via_api = MagicMock(side_effect=Exception("API failed"))
+        self.getter.download_integrated_flux_data = MagicMock()
+
+        self.getter.collect_data()
+
+        # Should fall back to legacy method
+        self.getter.download_burst_analyser_data_via_api.assert_called_once()
+        self.getter.download_integrated_flux_data.assert_called_once()
+
+    @mock.patch("os.path.isfile")
+    @mock.patch('requests.get')
+    def test_collect_data_prompt_no_api(self, get, isfile):
+        """Test prompt data collection doesn't use API."""
+        isfile.return_value = False
+        self.getter.transient_type = "prompt"
+        get.return_value = MagicMock()
+        get.return_value.text = "Some valid response"
+        self.getter.download_directly = MagicMock()
+
+        self.getter.collect_data()
+
+        self.getter.download_directly.assert_called_once()
+
+    @mock.patch("os.path.isfile")
+    @mock.patch('requests.get')
+    def test_collect_data_prompt_no_lightcurve(self, get, isfile):
+        """Test prompt data collection raises error when no lightcurve."""
+        isfile.return_value = False
+        self.getter.transient_type = "prompt"
+        get.return_value = MagicMock()
+        get.return_value.text = "No Light curve available"
+
+        with self.assertRaises(redback.redback_errors.WebsiteExist):
+            self.getter.collect_data()
+
 
 class TestLasairDataGetter(unittest.TestCase):
 
