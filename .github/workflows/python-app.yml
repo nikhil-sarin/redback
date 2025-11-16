@@ -80,11 +80,15 @@ jobs:
     - name: Run tests (Group ${{ matrix.test-group }})
       run: |
         pytest ${{ matrix.test-files }} --cov=redback --cov-report=xml --durations=10
+        # Rename .coverage file to include group number for later combination
+        mv .coverage .coverage.${{ matrix.test-group }}
     - name: Upload coverage data
       uses: actions/upload-artifact@v4
       with:
         name: coverage-data-${{ matrix.test-group }}
-        path: coverage.xml
+        path: |
+          coverage.xml
+          .coverage.${{ matrix.test-group }}
 
   coverage:
     needs: test
@@ -107,10 +111,17 @@ jobs:
     - name: Combine coverage reports
       run: |
         pip install coverage[toml]
-        # Convert XML reports to .coverage files and combine
-        python -m coverage combine || true
+        # List downloaded files for debugging
+        echo "Downloaded coverage files:"
+        ls -la .coverage.* 2>/dev/null || echo "No .coverage files found"
+        ls -la *.xml 2>/dev/null || echo "No XML files found"
+        # Combine .coverage database files from all test groups
+        python -m coverage combine .coverage.* || true
+        # Generate combined XML report
         coverage xml -o combined-coverage.xml || true
         coverage html || true
+        # Show combined coverage summary
+        coverage report || true
     - name: Archive production artifacts
       uses: actions/upload-artifact@v4
       with:
@@ -119,8 +130,10 @@ jobs:
           htmlcov
     - name: Coveralls
       run: |
-        # Use one of the coverage reports for coveralls
-        cp coverage-data-*/coverage.xml . 2>/dev/null || true
+        # Use the combined coverage report for coveralls
+        if [ -f combined-coverage.xml ]; then
+          cp combined-coverage.xml coverage.xml
+        fi
         coveralls --service=github || true
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
