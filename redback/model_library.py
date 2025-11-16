@@ -1,7 +1,6 @@
-import importlib
 import sys
 import warnings
-from typing import Dict, List, Any
+from typing import List, Any
 
 from redback.transient_models import afterglow_models, \
     extinction_models, kilonova_models, fireball_models, \
