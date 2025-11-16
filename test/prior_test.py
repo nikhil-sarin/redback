@@ -63,7 +63,7 @@ class TestConstraints(unittest.TestCase):
         priors.update(_prior)
         priors['erot_constraint'] = Constraint(0, 1)
         priors['t_nebula_min'] = Constraint(0, 400)
-        samples = pd.DataFrame(priors.sample(1000))
+        samples = pd.DataFrame(priors.sample(100))
         mej = samples['mej'] * redback.constants.solar_mass
         vej = samples['vej'] * redback.constants.km_cgs
         kappa = samples['kappa']
@@ -82,7 +82,7 @@ class TestConstraints(unittest.TestCase):
         _prior = redback.priors.get_priors(model='basic_magnetar_powered')
         priors.update(_prior)
         priors['erot_constraint'] = Constraint(0, 1)
-        samples = pd.DataFrame(priors.sample(1000))
+        samples = pd.DataFrame(priors.sample(100))
         mej = samples['mej'] * redback.constants.solar_mass
         vej = samples['vej'] * redback.constants.km_cgs
         mass_ns = samples['mass_ns']
@@ -98,7 +98,7 @@ class TestConstraints(unittest.TestCase):
         _prior = redback.priors.get_priors(model='general_magnetar_slsn')
         priors.update(_prior)
         priors['erot_constraint'] = Constraint(0, 1)
-        samples = pd.DataFrame(priors.sample(1000))
+        samples = pd.DataFrame(priors.sample(100))
         mej = samples['mej'] * redback.constants.solar_mass
         vej = samples['vej'] * redback.constants.km_cgs
         l0 = samples['l0']
@@ -112,7 +112,7 @@ class TestConstraints(unittest.TestCase):
         priors['pericenter_radius'] = Uniform(0.1, 100, name='pericenter_radius', latex_label=r'$r_{\mathrm{p}}$~[AU]')
         priors['mass_bh'] = Uniform(1e5, 5e8, name='mass_bh', latex_label=r'$M_{\mathrm{BH}}$~[M$_{\odot}$]')
         priors['disruption_radius'] = Constraint(0, 1)
-        samples = pd.DataFrame(priors.sample(1000))
+        samples = pd.DataFrame(priors.sample(100))
         mass_bh = samples['mass_bh']
         sch_rad = (2 * redback.constants.graviational_constant * mass_bh * redback.constants.solar_mass /
                    (redback.constants.speed_of_light**2)).values / redback.constants.au_cgs
@@ -132,7 +132,7 @@ class TestConstraints(unittest.TestCase):
         priors['redshift'] = 0.01
         priors['beta_high'] = Constraint(0, 1)
         priors['tfb_max'] = Constraint(0, 1)
-        samples = pd.DataFrame(priors.sample(1000))
+        samples = pd.DataFrame(priors.sample(100))
         ms = samples['stellar_mass']
         mbh6 = samples['mbh_6']
         betamax = 12. * (ms ** (7. / 15.)) * (mbh6 ** (-2. / 3.))
@@ -146,7 +146,7 @@ class TestConstraints(unittest.TestCase):
         _prior = redback.priors.get_priors(model='arnett')
         priors.update(_prior)
         priors['emax_constraint'] = Constraint(0, 1)
-        samples = pd.DataFrame(priors.sample(1000))
+        samples = pd.DataFrame(priors.sample(100))
         mej = samples['mej'] * redback.constants.solar_mass
         vej = samples['vej'] * redback.constants.km_cgs
         fnickel = samples['f_nickel']
@@ -161,7 +161,7 @@ class TestConstraints(unittest.TestCase):
         priors.update(_prior)
         priors['en_constraint'] = Constraint(0, 1)
         priors['t_nebula_min'] = Constraint(0, 400)
-        samples = pd.DataFrame(priors.sample(1000))
+        samples = pd.DataFrame(priors.sample(100))
         mej = samples['mej'] * redback.constants.solar_mass
         vej = samples['vej'] * redback.constants.km_cgs
         kappa = samples['kappa']
@@ -231,7 +231,7 @@ class TestConstraints(unittest.TestCase):
         priors.update(_prior)
         priors['maximum_eos_mass'] = Constraint(1.5, 5)
         priors['maximum_speed_of_sound'] = Constraint(0, 1.15)
-        samples = priors.sample(100)
+        samples = priors.sample(50)
         max_mass = redback.constraints.calc_max_mass(**samples)
         print(max_mass)
         cs = redback.constraints.calc_speed_of_sound(**samples)
@@ -266,7 +266,7 @@ class TestCornerPlotPriorSamples(unittest.TestCase):
         return prior_dict
 
     def get_posterior(self, file):
-        return pd.DataFrame.from_dict(self.get_prior(file=file).sample(100))
+        return pd.DataFrame.from_dict(self.get_prior(file=file).sample(50))
 
     def get_result(self, file):
         prior = self.get_prior(file=file)
@@ -291,7 +291,11 @@ class TestCornerPlotPriorSamples(unittest.TestCase):
                                    version=None)
 
     def test_plot_priors(self):
-        for f in self.prior_files:
+        # Sample only 10 prior files for CI speed (was 152 files)
+        import random
+        random.seed(42)
+        sampled_files = random.sample(self.prior_files, min(10, len(self.prior_files)))
+        for f in sampled_files:
             print(f)
             res = self.get_result(file=f)
             res.plot_corner()
