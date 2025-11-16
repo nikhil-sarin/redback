@@ -2081,5 +2081,149 @@ class TestAdditionalEdgeCases(unittest.TestCase):
         self.assertGreater(flux.std(), 0)
 
 
+class TestSpectralVelocityFitterFullCoverage(unittest.TestCase):
+    """Ensure complete code path coverage for SpectralVelocityFitter"""
+
+    def test_all_measurement_methods(self):
+        """Test all four velocity measurement methods explicitly"""
+        wave = np.linspace(6000, 6700, 500)
+        flux = spectral_models.p_cygni_profile(
+            wave, lambda_rest=6355, tau_sobolev=3.0,
+            v_phot=10000, continuum_flux=1.0
+        )
+        fitter = SpectralVelocityFitter(wave, flux)
+
+        # Test min method
+        v_min, err_min = fitter.measure_line_velocity(6355, method='min', v_window=20000)
+        self.assertFalse(np.isnan(v_min))
+
+        # Test centroid method
+        v_cent, err_cent = fitter.measure_line_velocity(6355, method='centroid', v_window=20000)
+        self.assertFalse(np.isnan(v_cent))
+
+        # Test gaussian method
+        v_gauss, err_gauss = fitter.measure_line_velocity(6355, method='gaussian', v_window=20000)
+        self.assertFalse(np.isnan(v_gauss))
+
+        # Test fit method (P-Cygni)
+        v_fit, err_fit = fitter.measure_line_velocity(6355, method='fit', v_window=20000)
+        self.assertFalse(np.isnan(v_fit))
+
+    def test_from_spectrum_object_no_errors(self):
+        """Test from_spectrum_object when flux_density_err is None"""
+        class MockSpectrum:
+            angstroms = np.linspace(6000, 7000, 100)
+            flux_density = np.ones(100)
+
+        fitter = SpectralVelocityFitter.from_spectrum_object(MockSpectrum())
+        self.assertIsNone(fitter.flux_err)
+
+    def test_from_spectrum_object_with_errors(self):
+        """Test from_spectrum_object when flux_density_err exists"""
+        class MockSpectrum:
+            angstroms = np.linspace(6000, 7000, 100)
+            flux_density = np.ones(100)
+            flux_density_err = np.ones(100) * 0.01
+
+        fitter = SpectralVelocityFitter.from_spectrum_object(MockSpectrum())
+        self.assertIsNotNone(fitter.flux_err)
+
+    def test_measure_multiple_lines_exception_path(self):
+        """Test that exceptions in measure_multiple_lines are caught"""
+        wave = np.linspace(6000, 7000, 100)
+        flux = np.ones(100)
+        fitter = SpectralVelocityFitter(wave, flux)
+
+        # One line is way outside range, will cause an issue
+        lines = {'Good': 6500, 'Bad': 1000}
+        result = fitter.measure_multiple_lines(lines, v_window=5000)
+
+        # Should have both keys, but Bad should be NaN
+        self.assertIn('Good', result)
+        self.assertIn('Bad', result)
+        self.assertTrue(np.isnan(result['Bad'][0]))
+
+    def test_photospheric_velocity_evolution_static_method(self):
+        """Test that photospheric_velocity_evolution works as static method"""
+        times = np.array([1.0, 2.0])
+        wave_list = [np.linspace(6300, 6400, 100), np.linspace(6300, 6400, 100)]
+        flux_list = [np.ones(100), np.ones(100)]
+
+        # Call as static method
+        t, v, e = SpectralVelocityFitter.photospheric_velocity_evolution(
+            wave_list, flux_list, times, line_wavelength=6355, v_window=10000
+        )
+        self.assertEqual(len(t), 2)
+        self.assertEqual(len(v), 2)
+        self.assertEqual(len(e), 2)
+
+    def test_identify_hvf_len_check(self):
+        """Test HVF detection when wave_hvf has exactly 3 points"""
+        # Create spectrum where HVF search region has very few points
+        wave = np.array([6100.0, 6150.0, 6180.0, 6355.0, 6400.0])
+        flux = np.array([0.85, 0.9, 0.95, 1.0, 1.0])  # Weak absorption at blue end
+
+        fitter = SpectralVelocityFitter(wave, flux)
+        has_hvf, v_hvf, v_err = fitter.identify_high_velocity_features(
+            6355, v_phot_expected=10000, threshold_factor=1.3
+        )
+        # Should process this case (>= 3 points in region)
+        self.assertIsInstance(has_hvf, bool)
+
+    def test_velocity_gradient_weighted_vs_unweighted(self):
+        """Test velocity gradient with valid errors uses weighted fit"""
+        times = np.array([1.0, 3.0, 5.0, 7.0])
+        wave_list = []
+        flux_list = []
+
+        for t in times:
+            wave = np.linspace(6200, 6500, 300)
+            v = 12000 - 70 * t
+            flux = spectral_models.elementary_p_cygni_profile(
+                wave, 6355, v, 0.4, 0.1, 1500
+            )
+            wave_list.append(wave)
+            flux_list.append(flux)
+
+        fitter = SpectralVelocityFitter(np.array([6000]), np.array([1.0]))
+        grad, grad_err = fitter.measure_velocity_gradient(
+            wave_list, flux_list, times, 6355, v_window=20000
+        )
+
+        # Should compute gradient
+        self.assertFalse(np.isnan(grad))
+        # Gradient error should be finite for > 2 points
+        self.assertFalse(np.isnan(grad_err))
+
+    def test_init_with_different_array_types(self):
+        """Test __init__ converts to numpy arrays"""
+        # Pass lists instead of arrays
+        wave = [6000.0, 6100.0, 6200.0]
+        flux = [1.0, 0.9, 1.0]
+
+        fitter = SpectralVelocityFitter(wave, flux)
+        self.assertIsInstance(fitter.wavelength, np.ndarray)
+        self.assertIsInstance(fitter.flux, np.ndarray)
+
+    def test_init_with_flux_errors(self):
+        """Test __init__ stores flux_err correctly"""
+        wave = np.array([6000.0, 6100.0, 6200.0])
+        flux = np.array([1.0, 0.9, 1.0])
+        flux_err = np.array([0.01, 0.01, 0.01])
+
+        fitter = SpectralVelocityFitter(wave, flux, flux_err)
+        self.assertIsNotNone(fitter.flux_err)
+        self.assertIsInstance(fitter.flux_err, np.ndarray)
+
+    def test_invalid_method_raises_error(self):
+        """Test that invalid method raises ValueError"""
+        wave = np.linspace(6300, 6400, 100)
+        flux = np.ones(100)
+
+        fitter = SpectralVelocityFitter(wave, flux)
+        with self.assertRaises(ValueError):
+            fitter.measure_line_velocity(6355, method='invalid_method', v_window=10000)
+
+
 if __name__ == '__main__':
     unittest.main()
