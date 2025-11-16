@@ -28,7 +28,7 @@ jobs:
             test-files: "test/prior_test.py test/likelihood_test.py test/sampler_test.py test/photosphere_test.py"
           # Group 4: Lighter tests
           - test-group: 4
-            test-files: "test/transient_test.py test/result_test.py test/utils_test.py test/constants_test.py test/examples_test.py test/model_library_test.py test/simulate_transient_test.py"
+            test-files: "test/transient_test.py test/result_test.py test/utils_test.py test/constants_test.py test/examples_test.py test/model_library_test.py test/simulate_transient_test.py test/spectral_models_test.py"
 
     steps:
     - uses: actions/checkout@v4
