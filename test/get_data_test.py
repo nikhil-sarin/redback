@@ -477,6 +477,7 @@ class TestSwiftDataGetter(unittest.TestCase):
 
     @mock.patch("os.path.isfile")
     @mock.patch('requests.get')
+    @mock.patch('redback.get_data.swift.SWIFTTOOLS_AVAILABLE', False)
     def test_collect_data_no_lightcurve_available(self, get, isfile):
         isfile.return_value = False
         get.return_value = MagicMock()
@@ -485,6 +486,7 @@ class TestSwiftDataGetter(unittest.TestCase):
             self.getter.collect_data()
 
     @mock.patch("os.path.isfile")
+    @mock.patch('redback.get_data.swift.SWIFTTOOLS_AVAILABLE', False)
     def test_collect_data_xrt(self, isfile):
         isfile.return_value = False
         self.getter.instrument = "XRT"
@@ -495,6 +497,16 @@ class TestSwiftDataGetter(unittest.TestCase):
         self.getter.download_directly.assert_called_once()
         self.getter.download_integrated_flux_data.assert_not_called()
         self.getter.download_flux_density_data.assert_not_called()
+
+    @mock.patch("os.path.isfile")
+    def test_collect_data_xrt_via_api(self, isfile):
+        isfile.return_value = False
+        self.getter.instrument = "XRT"
+        self.getter.download_xrt_data_via_api = MagicMock(return_value=MagicMock())
+        self.getter.download_directly = MagicMock()
+        self.getter.collect_data()
+        self.getter.download_xrt_data_via_api.assert_called_once()
+        self.getter.download_directly.assert_not_called()
 
     @mock.patch("os.path.isfile")
     def test_collect_data_prompt(self, isfile):
@@ -509,6 +521,7 @@ class TestSwiftDataGetter(unittest.TestCase):
         self.getter.download_flux_density_data.assert_not_called()
 
     @mock.patch("os.path.isfile")
+    @mock.patch('redback.get_data.swift.SWIFTTOOLS_AVAILABLE', False)
     def test_collect_data_afterglow_flux(self, isfile):
         isfile.return_value = False
         self.getter.instrument = 'BAT+XRT'
@@ -523,6 +536,19 @@ class TestSwiftDataGetter(unittest.TestCase):
         self.getter.download_flux_density_data.assert_not_called()
 
     @mock.patch("os.path.isfile")
+    def test_collect_data_afterglow_flux_via_api(self, isfile):
+        isfile.return_value = False
+        self.getter.instrument = 'BAT+XRT'
+        self.getter.transient_type = 'afterglow'
+        self.getter.data_mode = 'flux'
+        self.getter.download_burst_analyser_data_via_api = MagicMock(return_value=MagicMock())
+        self.getter.download_integrated_flux_data = MagicMock()
+        self.getter.collect_data()
+        self.getter.download_burst_analyser_data_via_api.assert_called_once()
+        self.getter.download_integrated_flux_data.assert_not_called()
+
+    @mock.patch("os.path.isfile")
+    @mock.patch('redback.get_data.swift.SWIFTTOOLS_AVAILABLE', False)
     def test_collect_data_afterglow_flux_density(self, isfile):
         isfile.return_value = False
         self.getter.instrument = 'BAT+XRT'
@@ -535,6 +561,18 @@ class TestSwiftDataGetter(unittest.TestCase):
         self.getter.download_directly.assert_not_called()
         self.getter.download_integrated_flux_data.assert_not_called()
         self.getter.download_flux_density_data.assert_called_once()
+
+    @mock.patch("os.path.isfile")
+    def test_collect_data_afterglow_flux_density_via_api(self, isfile):
+        isfile.return_value = False
+        self.getter.instrument = 'BAT+XRT'
+        self.getter.transient_type = 'afterglow'
+        self.getter.data_mode = 'flux_density'
+        self.getter.download_burst_analyser_data_via_api = MagicMock(return_value=MagicMock())
+        self.getter.download_flux_density_data = MagicMock()
+        self.getter.collect_data()
+        self.getter.download_burst_analyser_data_via_api.assert_called_once()
+        self.getter.download_flux_density_data.assert_not_called()
 
     def _mock_converter_functions(self):
         self.getter.convert_xrt_data_to_csv = MagicMock()
