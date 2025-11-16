@@ -1090,6 +1090,279 @@ class TestSwiftDataGetter(unittest.TestCase):
         with self.assertRaises(redback.redback_errors.WebsiteExist):
             self.getter.collect_data()
 
+    def test_get_data_bat_xrt_warning(self):
+        """Test get_data logs warning for BAT+XRT instrument."""
+        self.getter.instrument = "BAT+XRT"
+        self.getter.collect_data = MagicMock()
+        self.getter.convert_raw_data_to_csv = MagicMock(return_value=pd.DataFrame())
+
+        with mock.patch.object(redback.utils.logger, 'warning') as mock_warning:
+            self.getter.get_data()
+            mock_warning.assert_called()
+            args = mock_warning.call_args[0][0]
+            self.assertIn("BAT and XRT", args)
+
+    def test_get_data_xrt_warning(self):
+        """Test get_data logs warning for XRT-only instrument."""
+        self.getter.instrument = "XRT"
+        self.getter.collect_data = MagicMock()
+        self.getter.convert_raw_data_to_csv = MagicMock(return_value=pd.DataFrame())
+
+        with mock.patch.object(redback.utils.logger, 'warning') as mock_warning:
+            self.getter.get_data()
+            mock_warning.assert_called()
+            args = mock_warning.call_args[0][0]
+            self.assertIn("XRT data", args)
+
+    @mock.patch("numpy.loadtxt")
+    def test_convert_xrt_data_to_csv(self, mock_loadtxt):
+        """Test legacy XRT data conversion from raw file."""
+        self.getter.instrument = "XRT"
+        # Simulate raw XRT data (6 columns)
+        mock_data = np.array([
+            [100.0, 10.0, 10.0, 1e-11, 1e-12, 1e-12],
+            [200.0, 20.0, 20.0, 2e-11, 0.0, 2e-12],  # Zero error row should be filtered
+            [300.0, 30.0, 30.0, 3e-11, 3e-12, 3e-12]
+        ])
+        mock_loadtxt.return_value = mock_data
+
+        result = self.getter.convert_xrt_data_to_csv()
+
+        self.assertEqual(len(result), 2)  # One row filtered out
+        self.assertIn('Time [s]', result.columns)
+        self.assertIn('Flux [erg cm^{-2} s^{-1}]', result.columns)
+        self.assertTrue(os.path.isfile(self.getter.processed_file_path))
+
+    @mock.patch("numpy.loadtxt")
+    def test_convert_raw_prompt_data_to_csv(self, mock_loadtxt):
+        """Test legacy prompt data conversion from raw file."""
+        self.getter.transient_type = "prompt"
+        # Simulate raw prompt data (11 columns)
+        mock_data = np.array([
+            [100.0, 1.0, 0.1, 2.0, 0.2, 3.0, 0.3, 4.0, 0.4, 5.0, 0.5],
+            [200.0, 1.1, 0.11, 2.1, 0.21, 3.1, 0.31, 4.1, 0.41, 5.1, 0.51]
+        ])
+        mock_loadtxt.return_value = mock_data
+
+        result = self.getter.convert_raw_prompt_data_to_csv()
+
+        self.assertEqual(len(result), 2)
+        self.assertIn('Time [s]', result.columns)
+        self.assertIn('flux_15_25 [counts/s/det]', result.columns)
+        self.assertTrue(os.path.isfile(self.getter.processed_file_path))
+
+    def test_convert_integrated_flux_data_to_csv(self):
+        """Test legacy integrated flux data conversion from raw file."""
+        self.getter.instrument = "BAT+XRT"
+        self.getter.data_mode = "flux"
+
+        # Create mock raw data file
+        raw_data = """Header lines to skip
+More header
+NO NO NO
+! XRT
+100.0\t10.0\t10.0\t1e-11\t1e-12\t1e-12
+200.0\t20.0\t20.0\t2e-11\t2e-12\t2e-12
+! BAT
+-50.0\t5.0\t5.0\t1e-10\t1e-11\t1e-11
+"""
+        with open(self.getter.raw_file_path, 'w') as f:
+            f.write(raw_data)
+
+        result = self.getter.convert_integrated_flux_data_to_csv()
+
+        self.assertEqual(len(result), 3)
+        self.assertIn('Time [s]', result.columns)
+        self.assertIn('Instrument', result.columns)
+        self.assertTrue(os.path.isfile(self.getter.processed_file_path))
+
+    def test_convert_flux_density_data_to_csv(self):
+        """Test legacy flux density data conversion from raw file."""
+        self.getter.instrument = "BAT+XRT"
+        self.getter.data_mode = "flux_density"
+
+        # Create mock raw data file (flux density in Jy, will be converted to mJy)
+        raw_data = """Header lines to skip
+More header
+NO NO NO
+100.0\t10.0\t10.0\t0.001\t0.0001\t0.0001
+200.0\t20.0\t20.0\t0.002\t0.0002\t0.0002
+"""
+        with open(self.getter.raw_file_path, 'w') as f:
+            f.write(raw_data)
+
+        result = self.getter.convert_flux_density_data_to_csv()
+
+        self.assertEqual(len(result), 2)
+        self.assertIn('Flux [mJy]', result.columns)
+        # Check unit conversion (multiplied by 1000)
+        self.assertEqual(result['Flux [mJy]'].iloc[0], 1.0)  # 0.001 * 1000
+        self.assertEqual(result['Flux [mJy]'].iloc[1], 2.0)  # 0.002 * 1000
+        self.assertTrue(os.path.isfile(self.getter.processed_file_path))
+
+    def test_convert_raw_afterglow_data_to_csv_flux(self):
+        """Test convert_raw_afterglow_data_to_csv routes to flux conversion."""
+        self.getter.data_mode = "flux"
+        self.getter.convert_integrated_flux_data_to_csv = MagicMock(return_value=pd.DataFrame())
+        self.getter.convert_flux_density_data_to_csv = MagicMock()
+
+        self.getter.convert_raw_afterglow_data_to_csv()
+
+        self.getter.convert_integrated_flux_data_to_csv.assert_called_once()
+        self.getter.convert_flux_density_data_to_csv.assert_not_called()
+
+    def test_convert_raw_afterglow_data_to_csv_flux_density(self):
+        """Test convert_raw_afterglow_data_to_csv routes to flux density conversion."""
+        self.getter.data_mode = "flux_density"
+        self.getter.convert_integrated_flux_data_to_csv = MagicMock()
+        self.getter.convert_flux_density_data_to_csv = MagicMock(return_value=pd.DataFrame())
+
+        self.getter.convert_raw_afterglow_data_to_csv()
+
+        self.getter.convert_integrated_flux_data_to_csv.assert_not_called()
+        self.getter.convert_flux_density_data_to_csv.assert_called_once()
+
+    @mock.patch("urllib.request.urlretrieve")
+    @mock.patch("urllib.request.urlcleanup")
+    def test_download_directly_success(self, mock_cleanup, mock_urlretrieve):
+        """Test direct download succeeds."""
+        self.getter.download_directly()
+
+        mock_urlretrieve.assert_called_once()
+        mock_cleanup.assert_called_once()
+
+    @mock.patch("urllib.request.urlretrieve")
+    @mock.patch("urllib.request.urlcleanup")
+    def test_download_directly_failure(self, mock_cleanup, mock_urlretrieve):
+        """Test direct download handles failure gracefully."""
+        mock_urlretrieve.side_effect = Exception("Network error")
+
+        # Should not raise, just log warning
+        self.getter.download_directly()
+
+        mock_cleanup.assert_called_once()
+
+    @mock.patch("redback.get_data.swift.fetch_driver")
+    @mock.patch("urllib.request.urlretrieve")
+    @mock.patch("urllib.request.urlcleanup")
+    def test_download_flux_density_data_success(self, mock_cleanup, mock_urlretrieve, mock_driver):
+        """Test flux density download with Selenium driver."""
+        mock_driver_instance = MagicMock()
+        mock_driver.return_value = mock_driver_instance
+        mock_driver_instance.current_url = "http://test.url/data.csv"
+
+        self.getter.download_flux_density_data()
+
+        mock_driver_instance.get.assert_called_once()
+        mock_driver_instance.quit.assert_called()
+        mock_cleanup.assert_called_once()
+
+    @mock.patch("redback.get_data.swift.fetch_driver")
+    @mock.patch("urllib.request.urlcleanup")
+    def test_download_flux_density_data_failure(self, mock_cleanup, mock_driver):
+        """Test flux density download handles driver failure."""
+        mock_driver_instance = MagicMock()
+        mock_driver.return_value = mock_driver_instance
+        mock_driver_instance.get.side_effect = Exception("Driver error")
+
+        # Should not raise, just log warning
+        self.getter.download_flux_density_data()
+
+        mock_driver_instance.quit.assert_called()
+        mock_cleanup.assert_called_once()
+
+    @mock.patch("redback.get_data.swift.fetch_driver")
+    @mock.patch("redback.get_data.swift.check_element")
+    @mock.patch("urllib.request.urlretrieve")
+    @mock.patch("urllib.request.urlcleanup")
+    def test_download_integrated_flux_data_success(self, mock_cleanup, mock_urlretrieve, mock_check, mock_driver):
+        """Test integrated flux download with Selenium driver."""
+        mock_driver_instance = MagicMock()
+        mock_driver.return_value = mock_driver_instance
+        mock_driver_instance.current_url = "http://test.url/data.csv"
+        mock_check.return_value = True
+
+        self.getter.download_integrated_flux_data()
+
+        mock_driver_instance.get.assert_called_once()
+        mock_driver_instance.quit.assert_called()
+        mock_cleanup.assert_called_once()
+
+    @mock.patch("redback.get_data.swift.fetch_driver")
+    @mock.patch("urllib.request.urlcleanup")
+    def test_download_integrated_flux_data_failure(self, mock_cleanup, mock_driver):
+        """Test integrated flux download handles driver failure."""
+        mock_driver_instance = MagicMock()
+        mock_driver.return_value = mock_driver_instance
+        mock_driver_instance.get.side_effect = Exception("Driver error")
+
+        # Should not raise, just log warning
+        self.getter.download_integrated_flux_data()
+
+        mock_driver_instance.quit.assert_called()
+        mock_cleanup.assert_called_once()
+
+    @mock.patch('redback.get_data.swift.SWIFTTOOLS_AVAILABLE', True)
+    def test_collect_data_writes_marker_file_xrt(self):
+        """Test that API data collection writes marker file for XRT."""
+        # Remove the file if it exists so we can test the write
+        if os.path.isfile(self.getter.raw_file_path):
+            os.remove(self.getter.raw_file_path)
+
+        self.getter.instrument = "XRT"
+        mock_df = pd.DataFrame({'Time': [100]})
+        self.getter.download_xrt_data_via_api = MagicMock(return_value=mock_df)
+
+        self.getter.collect_data()
+
+        self.assertTrue(hasattr(self.getter, '_api_data'))
+        self.assertTrue(os.path.isfile(self.getter.raw_file_path))
+        with open(self.getter.raw_file_path, 'r') as f:
+            content = f.read()
+            self.assertIn('swifttools API', content)
+
+    @mock.patch('redback.get_data.swift.SWIFTTOOLS_AVAILABLE', True)
+    def test_collect_data_writes_marker_file_bat_xrt(self):
+        """Test that API data collection writes marker file for BAT+XRT."""
+        # Remove the file if it exists so we can test the write
+        if os.path.isfile(self.getter.raw_file_path):
+            os.remove(self.getter.raw_file_path)
+
+        self.getter.instrument = "BAT+XRT"
+        mock_data = {'XRT': {}, 'BAT': {}}
+        self.getter.download_burst_analyser_data_via_api = MagicMock(return_value=mock_data)
+
+        self.getter.collect_data()
+
+        self.assertTrue(hasattr(self.getter, '_api_data'))
+        self.assertTrue(os.path.isfile(self.getter.raw_file_path))
+        with open(self.getter.raw_file_path, 'r') as f:
+            content = f.read()
+            self.assertIn('swifttools API', content)
+
+    def test_stripped_grb_property(self):
+        """Test stripped_grb removes GRB prefix."""
+        self.assertEqual(self.getter.stripped_grb, "050202")
+
+    def test_grb_setter_adds_prefix(self):
+        """Test setting grb without prefix adds GRB prefix."""
+        self.getter.grb = "123456"
+        self.assertEqual(self.getter.grb, "GRB123456")
+
+    def test_grb_setter_keeps_prefix(self):
+        """Test setting grb with prefix keeps it."""
+        self.getter.grb = "GRB999999"
+        self.assertEqual(self.getter.grb, "GRB999999")
+
+    @mock.patch('redback.get_data.swift.SWIFTTOOLS_AVAILABLE', True)
+    @mock.patch('redback.get_data.swift.udg')
+    def test_download_xrt_data_via_api_missing_datasets_key(self, mock_udg):
+        """Test XRT API handles missing 'Datasets' key."""
+        mock_udg.getLightCurves.return_value = {}
+
+        with self.assertRaises(redback.redback_errors.WebsiteExist):
+            self.getter.download_xrt_data_via_api()
+
 
 class TestLasairDataGetter(unittest.TestCase):
 
