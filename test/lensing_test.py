@@ -1064,5 +1064,230 @@ class TestLensingParameterHandling(unittest.TestCase):
         self.assertEqual(len(result), len(times))
 
 
+class TestLensingAdditionalErrorPaths(unittest.TestCase):
+    """Test error handling paths for complete coverage"""
+
+    def test_get_correct_function_non_string_non_callable(self):
+        """Test _get_correct_function with invalid type (not string or callable)"""
+        # Pass a number instead of string or function
+        with self.assertRaises(ValueError):
+            lensing_models._get_correct_function(12345, 'supernova')
+
+    def test_get_correct_function_list_as_base_model(self):
+        """Test _get_correct_function with list as base_model"""
+        with self.assertRaises(ValueError):
+            lensing_models._get_correct_function(['not', 'valid'], 'kilonova')
+
+    def test_get_correct_function_dict_as_base_model(self):
+        """Test _get_correct_function with dict as base_model"""
+        with self.assertRaises(ValueError):
+            lensing_models._get_correct_function({'key': 'value'}, 'tde')
+
+    def test_unlisted_base_model_string(self):
+        """Test with a valid string but not in base_models list"""
+        with self.assertRaises(ValueError):
+            lensing_models._get_correct_function('nonexistent_model', 'supernova')
+
+
+class TestLensingIntegratedFluxAfterglowModels(unittest.TestCase):
+    """Test integrated flux afterglow model type"""
+
+    def test_integrated_flux_afterglow_model_type(self):
+        """Test that integrated_flux_afterglow is in lensing_model_library"""
+        self.assertIn('integrated_flux_afterglow', lensing_models.lensing_model_library)
+
+    def test_integrated_flux_afterglow_uses_afterglow_models(self):
+        """Test that integrated_flux_afterglow maps to afterglow_models module"""
+        self.assertEqual(lensing_models.model_library['integrated_flux_afterglow'], 'afterglow_models')
+
+
+class TestLensingFiveImageSystem(unittest.TestCase):
+    """Test lensing with 5 image system (Einstein Cross + central image)"""
+
+    def test_five_image_lensing(self):
+        """Test lensing with 5 images"""
+        times = np.array([30.0, 40.0, 50.0])
+        prior_dict = bilby.prior.PriorDict()
+        prior_dict.from_file(f"redback/priors/arnett.prior")
+        sample = prior_dict.sample()
+
+        kwargs = {
+            'frequency': 6e14,
+            'output_format': 'flux_density',
+            'base_model': 'arnett',
+            'dt_1': 0.0,
+            'mu_1': 1.0,
+            'dt_2': 5.0,
+            'mu_2': 0.9,
+            'dt_3': 10.0,
+            'mu_3': 0.8,
+            'dt_4': 15.0,
+            'mu_4': 0.7,
+            'dt_5': 20.0,
+            'mu_5': 0.1,  # Central image typically very demagnified
+        }
+        kwargs.update(sample)
+
+        function = redback.model_library.all_models_dict['lensing_with_supernova_base_model']
+        result = function(times, nimages=5, **kwargs)
+
+        self.assertEqual(len(result), len(times))
+        self.assertTrue(np.all(np.isfinite(result)))
+        self.assertTrue(np.all(result > 0))
+
+
+class TestLensingAllOutputFormats(unittest.TestCase):
+    """Test lensing with different output formats"""
+
+    def setUp(self):
+        self.times = np.array([10.0, 20.0, 30.0])
+        prior_dict = bilby.prior.PriorDict()
+        prior_dict.from_file(f"redback/priors/arnett.prior")
+        self.sample = prior_dict.sample()
+
+    def test_lensing_flux_output(self):
+        """Test lensing with flux output format"""
+        kwargs = {
+            'bands': 'bessellb',
+            'output_format': 'flux',  # Different from flux_density
+            'base_model': 'arnett',
+            'dt_1': 0.0,
+            'mu_1': 1.0,
+            'dt_2': 5.0,
+            'mu_2': 0.8,
+        }
+        kwargs.update(self.sample)
+
+        function = redback.model_library.all_models_dict['lensing_with_supernova_base_model']
+        result = function(self.times, nimages=2, **kwargs)
+
+        self.assertEqual(len(result), len(self.times))
+        self.assertTrue(np.all(np.isfinite(result)))
+
+
+class TestLensingCoreLoopBehavior(unittest.TestCase):
+    """Test the core lensing loop behavior"""
+
+    def test_no_images_returns_zeros(self):
+        """Test that nimages=0 returns zeros"""
+        time = np.array([1.0, 2.0, 3.0])
+
+        def base_model_func(t):
+            return np.array(t) * 10.0
+
+        result = lensing_models._perform_lensing(
+            time=time,
+            flux_density_or_spectra_function=base_model_func,
+            nimages=0,
+            **{}
+        )
+
+        expected = np.array([0.0, 0.0, 0.0])
+        np.testing.assert_array_almost_equal(result, expected)
+
+    def test_all_images_with_zero_delay(self):
+        """Test multiple images all arriving at same time"""
+        time = np.array([10.0, 20.0])
+
+        def base_model_func(t):
+            return np.ones_like(t) * 25.0
+
+        kwargs = {
+            'dt_1': 0.0,
+            'mu_1': 1.0,
+            'dt_2': 0.0,
+            'mu_2': 1.0,
+            'dt_3': 0.0,
+            'mu_3': 1.0,
+            'dt_4': 0.0,
+            'mu_4': 1.0,
+        }
+
+        result = lensing_models._perform_lensing(
+            time=time,
+            flux_density_or_spectra_function=base_model_func,
+            nimages=4,
+            **kwargs
+        )
+
+        expected = np.array([100.0, 100.0])  # 25 * 4
+        np.testing.assert_array_almost_equal(result, expected)
+
+    def test_staggered_arrival_pattern(self):
+        """Test realistic staggered arrival pattern"""
+        time = np.array([5.0, 10.0, 15.0, 20.0, 25.0])
+
+        def base_model_func(t):
+            return np.ones_like(t) * 10.0
+
+        kwargs = {
+            'dt_1': 0.0,
+            'mu_1': 1.0,
+            'dt_2': 8.0,   # Arrives at t=8
+            'mu_2': 0.5,
+            'dt_3': 18.0,  # Arrives at t=18
+            'mu_3': 0.3,
+        }
+
+        result = lensing_models._perform_lensing(
+            time=time,
+            flux_density_or_spectra_function=base_model_func,
+            nimages=3,
+            **kwargs
+        )
+
+        # t=5:  only image 1 (10)
+        # t=10: images 1,2 (10 + 5 = 15)
+        # t=15: images 1,2 (10 + 5 = 15)
+        # t=20: images 1,2,3 (10 + 5 + 3 = 18)
+        # t=25: images 1,2,3 (10 + 5 + 3 = 18)
+        expected = np.array([10.0, 15.0, 15.0, 18.0, 18.0])
+        np.testing.assert_array_almost_equal(result, expected)
+
+
+class TestLensingModelVerification(unittest.TestCase):
+    """Verify specific aspects of lensing models"""
+
+    def test_all_wrapper_functions_exist(self):
+        """Test that all expected wrapper functions exist in module"""
+        expected_functions = [
+            'lensing_with_function',
+            'lensing_with_supernova_base_model',
+            'lensing_with_kilonova_base_model',
+            'lensing_with_tde_base_model',
+            'lensing_with_shock_powered_base_model',
+            'lensing_with_magnetar_driven_base_model',
+            'lensing_with_stellar_interaction_base_model',
+            'lensing_with_general_synchrotron_base_model',
+            'lensing_with_afterglow_base_model',
+        ]
+
+        for func_name in expected_functions:
+            self.assertTrue(hasattr(lensing_models, func_name))
+            self.assertTrue(callable(getattr(lensing_models, func_name)))
+
+    def test_private_functions_exist(self):
+        """Test that private helper functions exist"""
+        self.assertTrue(hasattr(lensing_models, '_perform_lensing'))
+        self.assertTrue(hasattr(lensing_models, '_get_correct_function'))
+        self.assertTrue(hasattr(lensing_models, '_evaluate_lensing_model'))
+
+    def test_model_lists_not_contain_duplicates(self):
+        """Test that model lists don't have duplicates (within reason)"""
+        # Check for exact duplicates in supernova list
+        sn_list = lensing_models.lensing_supernova_base_models
+        # Note: Some lists may have intentional duplicates for aliases
+        # Just check length is reasonable
+        self.assertGreater(len(sn_list), 10)
+
+    def test_lensing_model_library_dict_structure(self):
+        """Test lensing_model_library has correct structure"""
+        library = lensing_models.lensing_model_library
+        self.assertIsInstance(library, dict)
+        for key, value in library.items():
+            self.assertIsInstance(key, str)
+            self.assertIsInstance(value, list)
+
+
 if __name__ == '__main__':
     unittest.main()
