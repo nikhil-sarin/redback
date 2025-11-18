@@ -95,13 +95,17 @@ jobs:
         fi
         echo "Coverage files after rename:"
         ls -la .coverage* coverage.xml
-    - name: Upload coverage data
+    - name: Upload coverage XML
       uses: actions/upload-artifact@v4
       with:
-        name: coverage-data-${{ matrix.test-group }}
-        path: |
-          coverage.xml
-          .coverage.${{ matrix.test-group }}
+        name: coverage-xml-${{ matrix.test-group }}
+        path: coverage.xml
+        if-no-files-found: error
+    - name: Upload coverage database
+      uses: actions/upload-artifact@v4
+      with:
+        name: coverage-db-${{ matrix.test-group }}
+        path: .coverage.${{ matrix.test-group }}
         if-no-files-found: error
 
   coverage:
@@ -117,10 +121,10 @@ jobs:
     - name: Install coverage tools
       run: |
         pip install coverage coverage-badge coveralls
-    - name: Download all coverage data
+    - name: Download coverage database files
       uses: actions/download-artifact@v4
       with:
-        pattern: coverage-data-*
+        pattern: coverage-db-*
         path: coverage-artifacts
     - name: Combine coverage reports
       run: |
@@ -135,13 +139,12 @@ jobs:
         done
         echo "Finding all files recursively:"
         find coverage-artifacts -type f
-        echo "Finding all .coverage files:"
-        find coverage-artifacts -name ".coverage.*"
         # Copy all .coverage.* files to current directory
-        find coverage-artifacts -name ".coverage.*" -exec cp {} . \;
+        echo "Copying .coverage files to current directory..."
+        find coverage-artifacts -name ".coverage.*" -exec cp -v {} . \;
         # List what we have now
         echo "Coverage files in current directory:"
-        ls -la .coverage.* || echo "No .coverage files found!"
+        ls -la .coverage.* 2>/dev/null || echo "No .coverage files found!"
         # Combine all .coverage.* files into a single .coverage database
         python -m coverage combine .coverage.*
         # Generate combined XML report
