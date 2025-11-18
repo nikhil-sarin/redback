@@ -79,36 +79,15 @@ jobs:
         pip uninstall -y numba
     - name: Run tests (Group ${{ matrix.test-group }})
       run: |
-        # Run pytest with coverage, explicitly requesting both database and XML
-        pytest ${{ matrix.test-files }} --cov=redback --cov-report= --durations=10
-        # Generate XML report from the .coverage database
-        coverage xml
-        # Debug: Check what files were created
-        echo "All files in current directory after pytest:"
-        ls -la | grep -E "(coverage|\.cov)" || echo "No coverage files found"
-        # Verify .coverage file exists
-        if [ ! -f .coverage ]; then
-          echo "ERROR: .coverage file not found!"
-          echo "Listing ALL files in current directory:"
-          ls -la
-          exit 1
-        fi
-        # Rename .coverage file to avoid conflicts when combining
-        echo "Renaming .coverage to .coverage.${{ matrix.test-group }}"
-        mv .coverage .coverage.${{ matrix.test-group }}
-        echo "Coverage files after rename:"
-        ls -la .coverage* coverage.xml
-    - name: Upload coverage XML
-      uses: actions/upload-artifact@v4
-      with:
-        name: coverage-xml-${{ matrix.test-group }}
-        path: coverage.xml
-        if-no-files-found: error
+        # Run pytest with coverage in parallel mode (configured in .coveragerc)
+        pytest ${{ matrix.test-files }} --cov=redback --cov-report=term --durations=10
+        echo "Coverage files created:"
+        ls -la .coverage*
     - name: Upload coverage database
       uses: actions/upload-artifact@v4
       with:
         name: coverage-db-${{ matrix.test-group }}
-        path: .coverage.${{ matrix.test-group }}
+        path: .coverage.*
         if-no-files-found: error
 
   coverage:
@@ -132,29 +111,17 @@ jobs:
     - name: Combine coverage reports
       run: |
         pip install coverage[toml]
-        # Debug: Show what was downloaded
-        echo "Downloaded artifacts structure:"
-        ls -la coverage-artifacts/
-        echo "Contents of each artifact directory:"
-        for dir in coverage-artifacts/*/; do
-          echo "=== $dir ==="
-          ls -la "$dir"
-        done
-        echo "Finding all files recursively:"
-        find coverage-artifacts -type f
-        # Copy all .coverage.* files to current directory
-        echo "Copying .coverage files to current directory..."
+        # Copy all .coverage.* files from artifacts to current directory
+        echo "Copying coverage files from artifacts..."
         find coverage-artifacts -name ".coverage.*" -exec cp -v {} . \;
-        # List what we have now
-        echo "Coverage files in current directory:"
-        ls -la .coverage.* 2>/dev/null || echo "No .coverage files found!"
-        # Combine all .coverage.* files into a single .coverage database
-        python -m coverage combine .coverage.*
-        # Generate combined XML report
+        # List what we have
+        echo "Coverage files to combine:"
+        ls -la .coverage.*
+        # Combine coverage files (no arguments needed - finds all .coverage.* files)
+        coverage combine
+        # Generate reports
         coverage xml -o combined-coverage.xml
-        # Generate HTML report for artifact upload
         coverage html
-        # Show coverage summary
         coverage report
     - name: Archive production artifacts
       uses: actions/upload-artifact@v4
