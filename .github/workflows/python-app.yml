@@ -89,6 +89,7 @@ jobs:
         name: coverage-db-${{ matrix.test-group }}
         path: .coverage.*
         if-no-files-found: error
+        include-hidden-files: true
 
   coverage:
     needs: test
