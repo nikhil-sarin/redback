@@ -28,7 +28,7 @@ jobs:
             test-files: "test/prior_test.py test/likelihood_test.py test/sampler_test.py test/photosphere_test.py"
           # Group 4: Lighter tests
           - test-group: 4
-            test-files: "test/transient_test.py test/result_test.py test/utils_test.py test/constants_test.py test/examples_test.py test/model_library_test.py test/simulate_transient_test.py"
+            test-files: "test/transient_test.py test/result_test.py test/utils_test.py test/constants_test.py test/examples_test.py test/model_library_test.py test/simulate_transient_test.py test/test_on_ref_results.py"
 
     steps:
     - uses: actions/checkout@v4
@@ -79,12 +79,17 @@ jobs:
         pip uninstall -y numba
     - name: Run tests (Group ${{ matrix.test-group }})
       run: |
-        pytest ${{ matrix.test-files }} --cov=redback --cov-report=xml --durations=10
-    - name: Upload coverage data
+        # Run pytest with coverage - pytest-cov creates a .coverage file
+        pytest ${{ matrix.test-files }} --cov=redback --cov-report= --durations=10
+        echo "Coverage file created:"
+        ls -la .coverage
+    - name: Upload coverage database
       uses: actions/upload-artifact@v4
       with:
-        name: coverage-data-${{ matrix.test-group }}
-        path: coverage.xml
+        name: coverage-db-${{ matrix.test-group }}
+        path: .coverage
+        if-no-files-found: error
+        include-hidden-files: true
 
   coverage:
     needs: test
@@ -99,18 +104,33 @@ jobs:
     - name: Install coverage tools
       run: |
         pip install coverage coverage-badge coveralls
-    - name: Download all coverage data
+    - name: Download coverage database files
       uses: actions/download-artifact@v4
       with:
-        pattern: coverage-data-*
-        merge-multiple: true
+        pattern: coverage-db-*
+        path: coverage-artifacts
     - name: Combine coverage reports
       run: |
         pip install coverage[toml]
-        # Convert XML reports to .coverage files and combine
-        python -m coverage combine || true
-        coverage xml -o combined-coverage.xml || true
-        coverage html || true
+        # Each artifact has a .coverage file in its own directory
+        # Copy and rename them to .coverage.1, .coverage.2, etc.
+        echo "Downloaded artifacts:"
+        ls -la coverage-artifacts/
+        for dir in coverage-artifacts/coverage-db-*/; do
+          group=$(basename "$dir" | sed 's/coverage-db-//')
+          if [ -f "$dir/.coverage" ]; then
+            cp -v "$dir/.coverage" ".coverage.$group"
+          fi
+        done
+        # List what we have
+        echo "Coverage files to combine:"
+        ls -la .coverage.*
+        # Combine coverage files
+        coverage combine
+        # Generate reports
+        coverage xml -o combined-coverage.xml
+        coverage html
+        coverage report
     - name: Archive production artifacts
       uses: actions/upload-artifact@v4
       with:
@@ -119,8 +139,8 @@ jobs:
           htmlcov
     - name: Coveralls
       run: |
-        # Use one of the coverage reports for coveralls
-        cp coverage-data-*/coverage.xml . 2>/dev/null || true
-        coveralls --service=github || true
+        # Upload the combined coverage report to Coveralls
+        coveralls --service=github
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        COVERALLS_FLAG_NAME: combined
