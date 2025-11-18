@@ -79,20 +79,23 @@ jobs:
         pip uninstall -y numba
     - name: Run tests (Group ${{ matrix.test-group }})
       run: |
-        pytest ${{ matrix.test-files }} --cov=redback --cov-report=xml --durations=10
+        # Run pytest with coverage, explicitly requesting both database and XML
+        pytest ${{ matrix.test-files }} --cov=redback --cov-report= --durations=10
+        # Generate XML report from the .coverage database
+        coverage xml
         # Debug: Check what files were created
         echo "All files in current directory after pytest:"
-        ls -la
-        # Rename .coverage file to avoid conflicts when combining
-        echo "Coverage files before rename:"
-        ls -la .coverage* || echo "No .coverage files found"
-        if [ -f .coverage ]; then
-          mv .coverage .coverage.${{ matrix.test-group }}
-          echo "Successfully renamed .coverage to .coverage.${{ matrix.test-group }}"
-        else
+        ls -la | grep -E "(coverage|\.cov)" || echo "No coverage files found"
+        # Verify .coverage file exists
+        if [ ! -f .coverage ]; then
           echo "ERROR: .coverage file not found!"
+          echo "Listing ALL files in current directory:"
+          ls -la
           exit 1
         fi
+        # Rename .coverage file to avoid conflicts when combining
+        echo "Renaming .coverage to .coverage.${{ matrix.test-group }}"
+        mv .coverage .coverage.${{ matrix.test-group }}
         echo "Coverage files after rename:"
         ls -la .coverage* coverage.xml
     - name: Upload coverage XML
