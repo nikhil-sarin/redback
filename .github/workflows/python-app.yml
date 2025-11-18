@@ -79,15 +79,15 @@ jobs:
         pip uninstall -y numba
     - name: Run tests (Group ${{ matrix.test-group }})
       run: |
-        # Run pytest with coverage in parallel mode (configured in .coveragerc)
-        pytest ${{ matrix.test-files }} --cov=redback --cov-report=term --durations=10
-        echo "Coverage files created:"
-        ls -la .coverage*
+        # Run pytest with coverage - pytest-cov creates a .coverage file
+        pytest ${{ matrix.test-files }} --cov=redback --cov-report= --durations=10
+        echo "Coverage file created:"
+        ls -la .coverage
     - name: Upload coverage database
       uses: actions/upload-artifact@v4
       with:
         name: coverage-db-${{ matrix.test-group }}
-        path: .coverage.*
+        path: .coverage
         if-no-files-found: error
         include-hidden-files: true
 
@@ -112,13 +112,20 @@ jobs:
     - name: Combine coverage reports
       run: |
         pip install coverage[toml]
-        # Copy all .coverage.* files from artifacts to current directory
-        echo "Copying coverage files from artifacts..."
-        find coverage-artifacts -name ".coverage.*" -exec cp -v {} . \;
+        # Each artifact has a .coverage file in its own directory
+        # Copy and rename them to .coverage.1, .coverage.2, etc.
+        echo "Downloaded artifacts:"
+        ls -la coverage-artifacts/
+        for dir in coverage-artifacts/coverage-db-*/; do
+          group=$(basename "$dir" | sed 's/coverage-db-//')
+          if [ -f "$dir/.coverage" ]; then
+            cp -v "$dir/.coverage" ".coverage.$group"
+          fi
+        done
         # List what we have
         echo "Coverage files to combine:"
         ls -la .coverage.*
-        # Combine coverage files (no arguments needed - finds all .coverage.* files)
+        # Combine coverage files
         coverage combine
         # Generate reports
         coverage xml -o combined-coverage.xml
