@@ -169,7 +169,15 @@ def _nicholl_bns_get_quantities(mass_1, mass_2, lambda_s, kappa_red, kappa_blue,
     # Fit for disk velocity using Metzger and Fernandez
     vdisk_max = 0.15
     vdisk_min = 0.03
-    vfit = np.polyfit([mtov, prompt_threshold_mass], [vdisk_max, vdisk_min], deg=1)
+    # Compute linear interpolation coefficients directly to avoid np.polyfit SVD issues
+    # when mtov and prompt_threshold_mass are very close
+    if abs(prompt_threshold_mass - mtov) < 1e-10:
+        # Degenerate case: use midpoint velocity
+        vfit_slope = 0.0
+        vfit_intercept = (vdisk_max + vdisk_min) / 2
+    else:
+        vfit_slope = (vdisk_min - vdisk_max) / (prompt_threshold_mass - mtov)
+        vfit_intercept = vdisk_max - vfit_slope * mtov
 
     # Get average opacity of 'purple' (disk) component
     # Mass-averaged Ye as a function of remnant lifetime from Lippuner 2017
@@ -183,12 +191,12 @@ def _nicholl_bns_get_quantities(mass_1, mass_2, lambda_s, kappa_red, kappa_blue,
         # smooth interpolation
         Yfit = np.polyfit([mtov, 1.2 * mtov], [0.38, 0.34], deg=1)
         Ye = Yfit[0] * m_total + Yfit[1]
-        vdisk = vfit[0] * m_total + vfit[1]
+        vdisk = vfit_slope * m_total + vfit_intercept
     elif m_total < prompt_threshold_mass:
         # short-lived (hypermassive) NS, Ye = 0.25-0.34, smooth interpolation
         Yfit = np.polyfit([1.2 * mtov, prompt_threshold_mass], [0.34, 0.25], deg=1)
         Ye = Yfit[0] * m_total + Yfit[1]
-        vdisk = vfit[0] * m_total + vfit[1]
+        vdisk = vfit_slope * m_total + vfit_intercept
     else:
         # prompt collapse to BH, disk is red
         Ye = 0.25
