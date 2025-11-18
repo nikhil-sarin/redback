@@ -80,12 +80,21 @@ jobs:
     - name: Run tests (Group ${{ matrix.test-group }})
       run: |
         pytest ${{ matrix.test-files }} --cov=redback --cov-report=xml --durations=10
+        # Debug: Check what files were created
+        echo "All files in current directory after pytest:"
+        ls -la
         # Rename .coverage file to avoid conflicts when combining
         echo "Coverage files before rename:"
         ls -la .coverage* || echo "No .coverage files found"
-        mv .coverage .coverage.${{ matrix.test-group }}
+        if [ -f .coverage ]; then
+          mv .coverage .coverage.${{ matrix.test-group }}
+          echo "Successfully renamed .coverage to .coverage.${{ matrix.test-group }}"
+        else
+          echo "ERROR: .coverage file not found!"
+          exit 1
+        fi
         echo "Coverage files after rename:"
-        ls -la .coverage* coverage.xml || echo "Files not found"
+        ls -la .coverage* coverage.xml
     - name: Upload coverage data
       uses: actions/upload-artifact@v4
       with:
@@ -93,6 +102,7 @@ jobs:
         path: |
           coverage.xml
           .coverage.${{ matrix.test-group }}
+        if-no-files-found: error
 
   coverage:
     needs: test
@@ -118,13 +128,20 @@ jobs:
         # Debug: Show what was downloaded
         echo "Downloaded artifacts structure:"
         ls -la coverage-artifacts/
+        echo "Contents of each artifact directory:"
+        for dir in coverage-artifacts/*/; do
+          echo "=== $dir ==="
+          ls -la "$dir"
+        done
+        echo "Finding all files recursively:"
+        find coverage-artifacts -type f
         echo "Finding all .coverage files:"
         find coverage-artifacts -name ".coverage.*"
         # Copy all .coverage.* files to current directory
         find coverage-artifacts -name ".coverage.*" -exec cp {} . \;
         # List what we have now
         echo "Coverage files in current directory:"
-        ls -la .coverage.*
+        ls -la .coverage.* || echo "No .coverage files found!"
         # Combine all .coverage.* files into a single .coverage database
         python -m coverage combine .coverage.*
         # Generate combined XML report
