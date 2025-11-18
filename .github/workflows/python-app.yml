@@ -81,7 +81,11 @@ jobs:
       run: |
         pytest ${{ matrix.test-files }} --cov=redback --cov-report=xml --durations=10
         # Rename .coverage file to avoid conflicts when combining
+        echo "Coverage files before rename:"
+        ls -la .coverage* || echo "No .coverage files found"
         mv .coverage .coverage.${{ matrix.test-group }}
+        echo "Coverage files after rename:"
+        ls -la .coverage* coverage.xml || echo "Files not found"
     - name: Upload coverage data
       uses: actions/upload-artifact@v4
       with:
@@ -107,13 +111,20 @@ jobs:
       uses: actions/download-artifact@v4
       with:
         pattern: coverage-data-*
-        merge-multiple: true
+        path: coverage-artifacts
     - name: Combine coverage reports
       run: |
         pip install coverage[toml]
-        # List all downloaded .coverage files
-        echo "Downloaded coverage files:"
-        ls -la .coverage.* || echo "No .coverage files found"
+        # Debug: Show what was downloaded
+        echo "Downloaded artifacts structure:"
+        ls -la coverage-artifacts/
+        echo "Finding all .coverage files:"
+        find coverage-artifacts -name ".coverage.*"
+        # Copy all .coverage.* files to current directory
+        find coverage-artifacts -name ".coverage.*" -exec cp {} . \;
+        # List what we have now
+        echo "Coverage files in current directory:"
+        ls -la .coverage.*
         # Combine all .coverage.* files into a single .coverage database
         python -m coverage combine .coverage.*
         # Generate combined XML report
