@@ -443,7 +443,8 @@ class TestRedbackResultEdgeCases(unittest.TestCase):
             label='test',
             outdir=self.tempdir,
             priors=priors,
-            posterior=posterior
+            posterior=posterior,
+            search_parameter_keys=['param1', 'param2']  # Required for bilby Result
         )
 
         self.assertIsNotNone(res.priors)

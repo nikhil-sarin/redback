@@ -438,8 +438,8 @@ class TestGetCorrectOutputFormatFromSpectra(unittest.TestCase):
         mock_source_class.return_value = mock_source
 
         time = np.array([1.0, 2.0])
-        time_eval = np.array([1.0, 1.5, 2.0])
-        spectra = np.ones((3, 100)) * 1e-15 * uu.erg / uu.cm**2 / uu.s / uu.Angstrom
+        time_eval = np.array([1.0, 1.5, 2.0, 3.0, 4.0, 5.0, 6.0])  # Need more rows for spectra[5]
+        spectra = np.ones((7, 100)) * 1e-15 * uu.erg / uu.cm**2 / uu.s / uu.Angstrom
         lambda_array = np.linspace(3000, 9000, 100)
 
         with patch('redback.utils.bandpass_magnitude_to_flux', return_value=1e-10):
@@ -457,8 +457,8 @@ class TestGetCorrectOutputFormatFromSpectra(unittest.TestCase):
         mock_source_class.return_value = mock_source
 
         time = np.array([1.0, 2.0])
-        time_eval = np.array([1.0, 1.5, 2.0])
-        spectra = np.ones((3, 100)) * 1e-15 * uu.erg / uu.cm**2 / uu.s / uu.Angstrom
+        time_eval = np.array([1.0, 1.5, 2.0, 3.0, 4.0, 5.0, 6.0])  # Need more rows for spectra[5]
+        spectra = np.ones((7, 100)) * 1e-15 * uu.erg / uu.cm**2 / uu.s / uu.Angstrom
         lambda_array = np.linspace(3000, 9000, 100)
 
         result = sed.get_correct_output_format_from_spectra(
@@ -491,8 +491,8 @@ class TestGetCorrectOutputFormatFromSpectra(unittest.TestCase):
         mock_source_class.return_value = mock_source
 
         time = np.array([1.0, 2.0])
-        time_eval = np.array([1.0, 1.5, 2.0])
-        spectra = np.ones((3, 100)) * 1e-15 * uu.erg / uu.cm**2 / uu.s / uu.Angstrom
+        time_eval = np.array([1.0, 1.5, 2.0, 3.0, 4.0, 5.0, 6.0])  # Need more rows for spectra[5]
+        spectra = np.ones((7, 100)) * 1e-15 * uu.erg / uu.cm**2 / uu.s / uu.Angstrom
         lambda_array = np.linspace(3000, 9000, 100)
 
         with self.assertRaises(ValueError):
