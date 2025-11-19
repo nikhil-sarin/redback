@@ -400,11 +400,14 @@ class TestRedbackTimeSeriesSource(unittest.TestCase):
 
     def test_initialization(self):
         """Test RedbackTimeSeriesSource initialization"""
-        phase = np.array([0.0, 1.0, 2.0])
+        # Need at least 4 phase points for degree 3 spline
+        phase = np.array([0.0, 1.0, 2.0, 3.0, 4.0])
         wave = np.array([4000.0, 5000.0, 6000.0])
         flux = np.array([[1e-10, 2e-10, 1.5e-10],
                         [1.2e-10, 2.2e-10, 1.7e-10],
-                        [1.1e-10, 2.1e-10, 1.6e-10]])
+                        [1.1e-10, 2.1e-10, 1.6e-10],
+                        [1.3e-10, 2.3e-10, 1.8e-10],
+                        [1.0e-10, 2.0e-10, 1.5e-10]])
 
         source = sed.RedbackTimeSeriesSource(phase=phase, wave=wave, flux=flux)
 
