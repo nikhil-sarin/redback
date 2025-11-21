@@ -35,7 +35,7 @@ Another feature we somtimes require is some form of band scaling, this is partic
 
 .. code:: python
 
-    ax = result.plot_data(show=False, band_scaling={'type':'+', r':0, 'g':1, 'i':3})
+    ax = result.plot_data(show=False, band_scaling={'type':'+', 'r':0, 'g':1, 'i':3})
     ax.set_xscale('linear')
 
 This will scale the data with a (addition) and change the labels appropriately. You can also do this with multiplication by changing the 'type' key to 'x'.

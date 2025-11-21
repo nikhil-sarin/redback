@@ -745,6 +745,12 @@ class MagnitudePlotter(Plotter):
                 if band_label_generator is None:
                     if band in self.band_scaling:
                         label = band + ' ' + self.band_scaling.get("type") + ' ' + str(self.band_scaling.get(band))
+                        if self.band_scaling.get("type") == 'x':
+                            if self.band_scaling.get(band) == 1:
+                                label = band
+                        elif self.band_scaling.get("type") == '+':
+                            if self.band_scaling.get(band) == 0:
+                                label = band
                     else:
                         label = band   
                 else:
