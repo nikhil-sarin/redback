@@ -1,7 +1,14 @@
 import redback.transient_models.extinction_models as em
 import redback.transient_models as tm
 from redback.utils import nu_to_lambda
+from redback.utils import lambda_to_nu
+from redback.utils import day_to_s
 from redback.utils import citation_wrapper
+from redback.sed import get_correct_output_format_from_spectra
+import astropy.units as uu
+from collections import namedtuple
+import numpy as np
+
 
 @citation_wrapper('https://ui.adsabs.harvard.edu/abs/2020ApJ...896..166R/abstract, https://ui.adsabs.harvard.edu/abs/2020ApJ...891..152H/abstract')
 def tophat_and_twolayerstratified(time, redshift, av, thv, loge0, thc, logn0, p, logepse,
@@ -205,4 +212,72 @@ def afterglow_and_optical(time, redshift, av, **model_kwargs):
     combined = em._perform_extinction(flux_density=combined, angstroms=angstroms, av_host=av, rv_host=r_v,
                                       redshift=redshift, **kwargs)
     return combined
+
+@citation_wrapper('redback, and any citations for the specific model you use')
+def afterglow_kilonova_sed(time, redshift, av, **model_kwargs):
+    """
+    function to combine the flux density signals of an afterglow and kilonova model with extinction added
     
+    :param time: time in days in observer frame
+    :param redshift: source redshift
+    :param av: V-band extinction from host galaxy in magnitudes
+    :param model_kwargs: kwargs shared by models including frequency, lambda_array, and r_v (extinction parameter defaults to 3.1)
+    :param afterglow_kwargs: dictionary of parameters required by the afterglow transient model specified by 'base_model'
+        and any additional keyword arguments. Refer to model documentation for details.
+    :param kilonova_kwargs: dictionary of parameters required by the kilonova transient model specified by 'base_model'
+        and any additional keyword arguments. Note the base model must correspond to the given model type. Refer to model documentation
+        for details.
+    :param lambda_array: wavelength array in Angstroms, defaults to np.geomspace(100, 60000, 150)
+    :param output_format: output format ('flux_density', 'magnitude', 'spectra'), defaults to 'flux_density'
+    :return: combined afterglow and kilonova model output in the requested format. If output_format is 'spectra', 
+        returns namedtuple with time, lambdas, and spectra. Otherwise returns array in the specified format.
+    """
+
+    from redback.model_library import all_models_dict
+
+    kilonova_kwargs = model_kwargs['kilonova_kwargs']
+    afterglow_kwargs = model_kwargs['afterglow_kwargs']
+
+    temp_kwargs = model_kwargs.copy()
+    max_time = np.maximum(time.max(), 100)
+    time_observer_frame = np.geomspace(0.1, max_time, 100)
+    lambda_observer_frame = temp_kwargs.get('lambda_array', np.geomspace(100, 60000, 150))
+    frequency = lambda_to_nu(lambda_observer_frame)
+    times_mesh, frequency_mesh = np.meshgrid(time_observer_frame, frequency)
+    temp_kwargs['frequency'] = frequency_mesh
+    temp_kwargs['output_format'] = 'flux_density'
+
+    _afterglow_kwargs = afterglow_kwargs.copy()
+    _afterglow_kwargs.update(temp_kwargs)
+
+    _kilonova_kwargs = kilonova_kwargs.copy()
+    _kilonova_kwargs.update(temp_kwargs)
+
+    afterglow_function = all_models_dict[_afterglow_kwargs['base_model']]
+    afterglow = afterglow_function(time=times_mesh, redshift=redshift,  **_afterglow_kwargs).T
+
+    kilonova_function = all_models_dict[_kilonova_kwargs['base_model']]
+    capped_times = np.where(times_mesh > 7e6/day_to_s, 7e6/day_to_s, times_mesh)
+    kilonova = kilonova_function(
+        time=capped_times, 
+        redshift=redshift, **_kilonova_kwargs).T
+    
+    combined = afterglow + kilonova
+
+    rest_frame_frequency = frequency * (1 + redshift)
+    r_v = model_kwargs.get('r_v', 3.1)
+    # correct for extinction
+    angstroms = nu_to_lambda(rest_frame_frequency)
+    combined = em._perform_extinction(flux_density=combined, angstroms=angstroms, av_host=av, rv_host=r_v,
+                                      redshift=redshift, **model_kwargs)
+    fmjy = combined * uu.mJy
+    spectra = fmjy.to(uu.erg / uu.cm ** 2 / uu.s / uu.Angstrom,
+                     equivalencies=uu.spectral_density(wav=lambda_observer_frame * uu.Angstrom))
+    if model_kwargs['output_format'] == 'spectra':
+        return namedtuple('output', ['time', 'lambdas', 'spectra'])(time=time_observer_frame,
+                                                                    lambdas=lambda_observer_frame,
+                                                                    spectra=spectra)
+    else:
+        return get_correct_output_format_from_spectra(time=time, time_eval=time_observer_frame,
+                                                      spectra=spectra, lambda_array=lambda_observer_frame,
+                                                      **model_kwargs)
