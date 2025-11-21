@@ -22,9 +22,4 @@ pdf.compression: 9
 savefig.format: pdf
 savefig.dpi: 300
 
-font.family: serif
-font.serif: Computer Modern
-text.usetex: True
-axes.formatter.use_mathtext: True
-axes.formatter.useoffset: False
-axes.formatter.limits : -3, 3
+font.family: sans-serif

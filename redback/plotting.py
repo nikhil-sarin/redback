@@ -609,8 +609,8 @@ class MagnitudePlotter(Plotter):
     xlim_low_phase_model_multiplier = KwargsAccessorWithDefault("xlim_low_multiplier", 0.9)
     xlim_high_phase_model_multiplier = KwargsAccessorWithDefault("xlim_high_multiplier", 1.1)
     xlim_high_multiplier = KwargsAccessorWithDefault("xlim_high_multiplier", 1.2)
-    ylim_low_magnitude_multiplier = KwargsAccessorWithDefault("ylim_low_multiplier", 0.8)
-    ylim_high_magnitude_multiplier = KwargsAccessorWithDefault("ylim_high_multiplier", 1.2)
+    ylim_low_magnitude_multiplier = KwargsAccessorWithDefault("ylim_low_multiplier", 0.95)
+    ylim_high_magnitude_multiplier = KwargsAccessorWithDefault("ylim_high_multiplier", 1.05)
     ncols = KwargsAccessorWithDefault("ncols", 2)
 
     @property
@@ -689,7 +689,7 @@ class MagnitudePlotter(Plotter):
 
     def _set_x_axis(self, axes: matplotlib.axes.Axes) -> None:
         if self.transient.use_phase_model:
-            axes.set_xscale("log")
+            axes.set_xscale("linear")
         axes.set_xlim(self._xlim_low, self._xlim_high)
 
     @property
