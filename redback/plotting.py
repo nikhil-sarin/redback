@@ -609,8 +609,8 @@ class MagnitudePlotter(Plotter):
     xlim_low_phase_model_multiplier = KwargsAccessorWithDefault("xlim_low_multiplier", 0.9)
     xlim_high_phase_model_multiplier = KwargsAccessorWithDefault("xlim_high_multiplier", 1.1)
     xlim_high_multiplier = KwargsAccessorWithDefault("xlim_high_multiplier", 1.2)
-    ylim_low_magnitude_multiplier = KwargsAccessorWithDefault("ylim_low_multiplier", 0.8)
-    ylim_high_magnitude_multiplier = KwargsAccessorWithDefault("ylim_high_multiplier", 1.2)
+    ylim_low_magnitude_multiplier = KwargsAccessorWithDefault("ylim_low_multiplier", 0.95)
+    ylim_high_magnitude_multiplier = KwargsAccessorWithDefault("ylim_high_multiplier", 1.05)
     ncols = KwargsAccessorWithDefault("ncols", 2)
 
     @property
@@ -689,7 +689,7 @@ class MagnitudePlotter(Plotter):
 
     def _set_x_axis(self, axes: matplotlib.axes.Axes) -> None:
         if self.transient.use_phase_model:
-            axes.set_xscale("log")
+            axes.set_xscale("linear")
         axes.set_xlim(self._xlim_low, self._xlim_high)
 
     @property
@@ -745,6 +745,12 @@ class MagnitudePlotter(Plotter):
                 if band_label_generator is None:
                     if band in self.band_scaling:
                         label = band + ' ' + self.band_scaling.get("type") + ' ' + str(self.band_scaling.get(band))
+                        if self.band_scaling.get("type") == 'x':
+                            if self.band_scaling.get(band) == 1:
+                                label = band
+                        elif self.band_scaling.get("type") == '+':
+                            if self.band_scaling.get(band) == 0:
+                                label = band
                     else:
                         label = band   
                 else:

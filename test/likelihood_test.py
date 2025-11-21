@@ -353,3 +353,161 @@ class MaximumLikelihoodTest(unittest.TestCase):
         maxl_parameters = self.likelihood.find_maximum_likelihood_parameters()
         self.assertAlmostEqual(maxl_parameters['m'], self.m, places=0)
         self.assertAlmostEqual(maxl_parameters['c'], self.c, places=0)
+
+class GaussianLikelihoodWithUpperLimitsTest(unittest.TestCase):
+    """Test GaussianLikelihoodWithUpperLimits class"""
+
+    def setUp(self):
+        self.x = np.array([0, 1, 2, 3, 4])
+        self.y = np.array([0.5, 1.2, 2.1, 3.5, 4.8])
+        self.sigma = np.array([0.1, 0.1, 0.1, 0.1, 0.1])
+        self.detections = np.array([True, True, True, False, False])
+        self.upper_limit_sigma = 2.0
+
+        def func(x, param_1, **kwargs):
+            return x * param_1
+
+        self.function = func
+        self.kwargs = {}
+        self.likelihood = likelihoods.GaussianLikelihoodWithUpperLimits(
+            x=self.x, y=self.y, sigma=self.sigma, function=self.function,
+            detections=self.detections, upper_limit_sigma=self.upper_limit_sigma,
+            kwargs=self.kwargs)
+
+    def test_initialization(self):
+        """Test basic initialization"""
+        self.assertEqual(len(self.likelihood.x), 5)
+        self.assertTrue(hasattr(self.likelihood, 'detections'))
+        self.assertEqual(self.likelihood.upper_limit_sigma, 2.0)
+
+    def test_detections_setter_validation(self):
+        """Test that detections setter validates length"""
+        with self.assertRaises(ValueError):
+            self.likelihood.detections = np.array([True, False])  # Wrong length
+
+    def test_upper_limit_sigma_setter_scalar(self):
+        """Test upper_limit_sigma setter with scalar"""
+        self.likelihood.upper_limit_sigma = 3.0
+        result = self.likelihood.get_upper_limit_sigma_values()
+        np.testing.assert_array_equal(result, np.array([3.0, 3.0]))
+
+    def test_upper_limit_sigma_setter_array(self):
+        """Test upper_limit_sigma setter with array"""
+        self.likelihood.upper_limit_sigma = np.array([2.0, 3.0])
+        result = self.likelihood.get_upper_limit_sigma_values()
+        np.testing.assert_array_equal(result, np.array([2.0, 3.0]))
+
+    def test_upper_limit_sigma_wrong_length(self):
+        """Test upper_limit_sigma with wrong length raises error"""
+        with self.assertRaises(ValueError):
+            self.likelihood.upper_limit_sigma = np.array([1.0, 2.0, 3.0])
+
+
+class MixtureGaussianLikelihoodTest(unittest.TestCase):
+    """Test MixtureGaussianLikelihood class for outlier detection"""
+
+    def setUp(self):
+        self.x = np.array([0, 1, 2, 3, 4, 5, 6, 7, 8, 9])
+        # Add one outlier at index 5
+        self.y = np.array([0.1, 1.0, 2.1, 2.9, 4.1, 15.0, 6.0, 7.1, 7.9, 9.0])
+        self.sigma = np.array([0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2])
+
+        def func(x, param_1, **kwargs):
+            return x * param_1
+
+        self.function = func
+        self.kwargs = {}
+        self.likelihood = likelihoods.MixtureGaussianLikelihood(
+            x=self.x, y=self.y, sigma=self.sigma, function=self.function,
+            kwargs=self.kwargs)
+
+    def test_initialization(self):
+        """Test that object can be instantiated"""
+        self.assertEqual(len(self.likelihood.x), 10)
+        # Test that p_in and p_out methods exist
+        self.assertTrue(hasattr(self.likelihood, 'p_in'))
+        self.assertTrue(hasattr(self.likelihood, 'p_out'))
+
+
+class GaussianLikelihoodWithFractionalNoiseTest(unittest.TestCase):
+    """Test GaussianLikelihoodWithFractionalNoise class"""
+
+    def setUp(self):
+        self.x = np.array([0, 1, 2, 3, 4])
+        self.y = np.array([1.0, 2.0, 4.0, 8.0, 16.0])
+        self.sigma_i = np.array([0.1, 0.2, 0.4, 0.8, 1.6])
+
+        def func(x, param_1, **kwargs):
+            return 2.0 ** x
+
+        self.function = func
+        self.kwargs = {}
+        self.likelihood = likelihoods.GaussianLikelihoodWithFractionalNoise(
+            x=self.x, y=self.y, sigma_i=self.sigma_i, function=self.function,
+            kwargs=self.kwargs)
+
+    def test_initialization_has_sigma_i(self):
+        """Test that sigma_i is stored"""
+        self.assertTrue(hasattr(self.likelihood, 'sigma_i'))
+        np.testing.assert_array_equal(self.likelihood.sigma_i, self.sigma_i)
+
+
+class GaussianLikelihoodWithSystematicNoiseTest(unittest.TestCase):
+    """Test GaussianLikelihoodWithSystematicNoise class"""
+
+    def setUp(self):
+        self.x = np.array([0, 1, 2, 3, 4])
+        self.y = np.array([0.5, 1.5, 2.5, 3.5, 4.5])
+        self.sigma_i = np.array([0.1, 0.1, 0.1, 0.1, 0.1])
+
+        def func(x, param_1, **kwargs):
+            return x + param_1
+
+        self.function = func
+        self.kwargs = {}
+        self.likelihood = likelihoods.GaussianLikelihoodWithSystematicNoise(
+            x=self.x, y=self.y, sigma_i=self.sigma_i, function=self.function,
+            kwargs=self.kwargs)
+
+    def test_initialization_has_sigma_i(self):
+        """Test that sigma_i is stored"""
+        self.assertTrue(hasattr(self.likelihood, 'sigma_i'))
+        np.testing.assert_array_equal(self.likelihood.sigma_i, self.sigma_i)
+
+
+class GaussianLikelihoodValidationTest(unittest.TestCase):
+    """Test validation and error handling in likelihood classes"""
+
+    def setUp(self):
+        self.x = np.array([0, 1, 2])
+        self.y = np.array([0, 1, 2])
+
+        def func(x, param_1, **kwargs):
+            return x * param_1
+
+        self.function = func
+        self.kwargs = {}
+
+    def test_sigma_2d_wrong_shape(self):
+        """Test that 2D sigma with wrong shape raises ValueError"""
+        wrong_sigma = np.array([[1, 0], [0, 1]])  # 2x2 instead of 3x3
+        with self.assertRaises(ValueError):
+            likelihood = likelihoods.GaussianLikelihood(
+                x=self.x, y=self.y, sigma=wrong_sigma, function=self.function,
+                kwargs=self.kwargs)
+
+    def test_model_output_property(self):
+        """Test model_output property"""
+        likelihood = likelihoods.GaussianLikelihood(
+            x=self.x, y=self.y, sigma=1.0, function=self.function,
+            kwargs=self.kwargs)
+        
+        # Set parameters
+        likelihood.parameters = {'param_1': 2.0}
+        model_output = likelihood.model_output
+        expected = self.x * 2.0
+        np.testing.assert_array_almost_equal(model_output, expected)
+
+
+if __name__ == '__main__':
+    unittest.main()
