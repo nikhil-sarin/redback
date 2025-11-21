@@ -1339,3 +1339,223 @@ class TestFromLasairTransient(unittest.TestCase):
                 active_bands="all",
                 use_phase_model=False
             )
+
+class TestTransientProperties(unittest.TestCase):
+    """Test Transient class properties that aren't well covered"""
+
+    def setUp(self):
+        self.time = np.array([1, 2, 3, 4, 5])
+        self.flux = np.array([1e-12, 2e-12, 1.5e-12, 1e-12, 0.5e-12])
+        self.flux_err = np.array([1e-13, 2e-13, 1.5e-13, 1e-13, 0.5e-13])
+        self.bands = np.array(['r', 'g', 'i', 'r', 'g'])
+        
+    def test_filtered_frequencies(self):
+        """Test filtered_frequencies property"""
+        transient = redback.transient.Transient(
+            time=self.time, flux=self.flux, flux_err=self.flux_err,
+            bands=self.bands, data_mode='flux', name='TestTransient',
+            active_bands=['r', 'g', 'i'])
+
+        # Should have filtered_frequencies attribute
+        self.assertTrue(hasattr(transient, 'filtered_frequencies'))
+
+    def test_filtered_sncosmo_bands(self):
+        """Test filtered_sncosmo_bands property"""
+        transient = redback.transient.Transient(
+            time=self.time, flux=self.flux, flux_err=self.flux_err,
+            bands=self.bands, data_mode='flux', name='TestTransient',
+            active_bands=['r', 'g', 'i'])
+
+        # Should have filtered_sncosmo_bands attribute
+        self.assertTrue(hasattr(transient, 'filtered_sncosmo_bands'))
+
+    def test_filtered_bands(self):
+        """Test filtered_bands property"""
+        transient = redback.transient.Transient(
+            time=self.time, flux=self.flux, flux_err=self.flux_err,
+            bands=self.bands, data_mode='flux', name='TestTransient',
+            active_bands=['r', 'g', 'i'])
+
+        filtered_bands = transient.filtered_bands
+        # Should return some bands
+        self.assertIsNotNone(filtered_bands)
+
+    def test_unique_frequencies(self):
+        """Test unique_frequencies property"""
+        transient = redback.transient.Transient(
+            time=self.time, flux=self.flux, flux_err=self.flux_err,
+            bands=self.bands, data_mode='flux', name='TestTransient')
+        
+        unique_freq = transient.unique_frequencies
+        # Should have some unique frequencies
+        self.assertIsNotNone(unique_freq)
+
+
+class TestTransientInitializationEdgeCases(unittest.TestCase):
+    """Test edge cases in Transient initialization"""
+
+    def test_has_time_mjd_attribute(self):
+        """Test that Transient can store time_mjd"""
+        time = np.array([1.0, 2.0, 3.0])
+        time_mjd = np.array([58000.0, 58001.0, 58002.0])
+        flux = np.array([1e-12, 2e-12, 1.5e-12])
+        flux_err = np.array([1e-13, 2e-13, 1.5e-13])
+
+        transient = redback.transient.Transient(
+            time=time, time_mjd=time_mjd, flux=flux, flux_err=flux_err,
+            data_mode='flux', name='TestTransient')
+
+        # Should have time_mjd attribute
+        self.assertTrue(hasattr(transient, 'time_mjd'))
+
+    def test_init_with_time_rest_frame(self):
+        """Test initialization with time_rest_frame"""
+        time_rest = np.array([1.0, 2.0, 3.0])
+        flux = np.array([1e-12, 2e-12, 1.5e-12])
+        flux_err = np.array([1e-13, 2e-13, 1.5e-13])
+        
+        transient = redback.transient.Transient(
+            time_rest_frame=time_rest, flux=flux, flux_err=flux_err,
+            data_mode='flux', name='TestTransient', redshift=0.1)
+        
+        # Should have observer frame time
+        self.assertTrue(hasattr(transient, 'time'))
+
+
+class TestOpticalTransientProperties(unittest.TestCase):
+    """Test OpticalTransient specific properties and methods"""
+
+    def setUp(self):
+        self.time = np.array([1.0, 2.0, 3.0, 4.0, 5.0])
+        self.magnitude = np.array([18.0, 19.0, 19.5, 20.0, 20.5])
+        self.magnitude_err = np.array([0.1, 0.1, 0.1, 0.1, 0.1])
+        self.bands = np.array(['r', 'r', 'r', 'r', 'r'])
+
+    def test_event_table_property(self):
+        """Test that event_table property exists"""
+        optical = redback.transient.OpticalTransient(
+            time=self.time, magnitude=self.magnitude,
+            magnitude_err=self.magnitude_err, bands=self.bands,
+            data_mode='magnitude', name='TestOptical', redshift=0.1)
+        
+        # Should have event_table property
+        self.assertTrue(hasattr(optical, 'event_table'))
+
+
+class TestTransientSetBandsAndFrequency(unittest.TestCase):
+    """Test set_bands_and_frequency method"""
+
+    def test_set_bands_and_frequency_with_bands(self):
+        """Test that method exists and can be called"""
+        time = np.array([1.0, 2.0, 3.0])
+        flux = np.array([1e-12, 2e-12, 1.5e-12])
+        flux_err = np.array([1e-13, 2e-13, 1.5e-13])
+        bands = np.array(['r', 'r', 'r'])
+
+        transient = redback.transient.Transient(
+            time=time, flux=flux, flux_err=flux_err, bands=bands,
+            data_mode='flux', name='Test')
+
+        # Method should exist
+        self.assertTrue(hasattr(transient, 'set_bands_and_frequency'))
+
+        # Should be able to call it with arguments
+        transient.set_bands_and_frequency(bands=bands, frequency=None)
+
+
+class TestTransientBasicAttributes(unittest.TestCase):
+    """Test basic Transient attributes"""
+
+    def test_has_basic_attributes(self):
+        """Test that Transient has basic required attributes"""
+        time = np.array([1.0, 2.0, 3.0])
+        flux = np.array([1e-12, 2e-12, 1.5e-12])
+        flux_err = np.array([1e-13, 2e-13, 1.5e-13])
+
+        transient = redback.transient.Transient(
+            time=time, flux=flux, flux_err=flux_err,
+            data_mode='flux', name='Test')
+
+        # Should have basic attributes
+        self.assertTrue(hasattr(transient, 'time'))
+        self.assertTrue(hasattr(transient, 'flux'))
+        self.assertTrue(hasattr(transient, 'flux_err'))
+        self.assertTrue(hasattr(transient, 'name'))
+        self.assertEqual(transient.name, 'Test')
+
+
+class TestSpectrumProperties(unittest.TestCase):
+    """Test Spectrum class properties"""
+
+    def setUp(self):
+        self.angstroms = np.array([4000, 5000, 6000])
+        self.flux_density = np.array([1e-17, 2e-17, 3e-17])
+        self.flux_density_err = np.array([1e-18, 1e-18, 1e-18])
+
+    def test_ylabel_property(self):
+        """Test ylabel property formatting"""
+        spectrum = redback.transient.Spectrum(
+            self.angstroms, self.flux_density, self.flux_density_err)
+        
+        # Should have ylabel
+        self.assertTrue(hasattr(spectrum, 'ylabel'))
+        self.assertIsNotNone(spectrum.ylabel)
+        # Should contain units
+        self.assertIn('erg', spectrum.ylabel)
+
+
+class TestOpticalTransientEstimationMethods(unittest.TestCase):
+    """Test OpticalTransient estimation methods with simple data"""
+
+    def setUp(self):
+        # Create multiband data
+        times = []
+        mags = []
+        mag_errs = []
+        bands_list = []
+        
+        # Add data for multiple epochs and bands
+        for t in [1.0, 2.0, 3.0]:
+            for band in ['g', 'r']:
+                times.append(t)
+                mags.append(19.0)
+                mag_errs.append(0.1)
+                bands_list.append(band)
+        
+        self.optical = redback.transient.OpticalTransient(
+            time=np.array(times),
+            magnitude=np.array(mags),
+            magnitude_err=np.array(mag_errs),
+            bands=np.array(bands_list),
+            data_mode='magnitude',
+            name='TestOptical',
+            redshift=0.1)
+
+    def test_estimate_bb_params_exists(self):
+        """Test that estimate_bb_params method exists"""
+        self.assertTrue(hasattr(self.optical, 'estimate_bb_params'))
+
+    def test_estimate_bolometric_luminosity_exists(self):
+        """Test that estimate_bolometric_luminosity method exists"""
+        self.assertTrue(hasattr(self.optical, 'estimate_bolometric_luminosity'))
+
+
+class TestTransientDataModeValidation(unittest.TestCase):
+    """Test data_mode validation"""
+
+    def test_valid_data_modes(self):
+        """Test that valid data modes work"""
+        time = np.array([1.0, 2.0, 3.0])
+        flux = np.array([1e-12, 2e-12, 1.5e-12])
+        flux_err = np.array([1e-13, 2e-13, 1.5e-13])
+        
+        # These should all work
+        for mode in ['flux', 'luminosity', 'flux_density']:
+            transient = redback.transient.Transient(
+                time=time, flux=flux, flux_err=flux_err,
+                data_mode=mode, name='Test')
+            self.assertEqual(transient.data_mode, mode)
+
+
+if __name__ == '__main__':
+    unittest.main()
