@@ -18,6 +18,13 @@ from redback.get_data.getter import GRBDataGetter
 from redback.utils import fetch_driver, check_element
 from redback.utils import logger
 
+try:
+    import swifttools.ukssdc.data.GRB as udg
+    SWIFTTOOLS_AVAILABLE = True
+except ImportError:
+    SWIFTTOOLS_AVAILABLE = False
+    logger.warning("swifttools not available. Falling back to legacy data retrieval methods.")
+
 dirname = os.path.dirname(__file__)
 
 
@@ -178,12 +185,47 @@ class SwiftDataGetter(GRBDataGetter):
             logger.warning('The raw data file already exists. Returning.')
             return
 
+        # For prompt emission, continue using direct download (no API available yet)
+        if self.transient_type == "prompt":
+            response = requests.get(self.grb_website)
+            if 'No Light curve available' in response.text:
+                raise redback.redback_errors.WebsiteExist(
+                    f'Problem loading the website for GRB{self.stripped_grb}. '
+                    f'Are you sure GRB {self.stripped_grb} has Swift data?')
+            self.download_directly()
+            return
+
+        # For afterglow data, use API if available, otherwise fall back to legacy methods
+        if SWIFTTOOLS_AVAILABLE and self.transient_type == 'afterglow':
+            try:
+                if self.instrument == 'XRT':
+                    # Use API to download XRT data
+                    df = self.download_xrt_data_via_api()
+                    # Store the data temporarily - will be processed in convert method
+                    self._api_data = df
+                    # Create a marker file to indicate API data was used
+                    with open(self.raw_file_path, 'w') as f:
+                        f.write('# Data retrieved via swifttools API\n')
+                elif self.instrument == 'BAT+XRT':
+                    # Use API to download Burst Analyser data
+                    ba_data = self.download_burst_analyser_data_via_api()
+                    # Store the data temporarily - will be processed in convert method
+                    self._api_data = ba_data
+                    # Create a marker file to indicate API data was used
+                    with open(self.raw_file_path, 'w') as f:
+                        f.write('# Data retrieved via swifttools API\n')
+                return
+            except Exception as e:
+                logger.warning(f'API data retrieval failed: {e}. Falling back to legacy method.')
+                # Fall through to legacy methods
+
+        # Legacy methods - will be used if API is not available or fails
         response = requests.get(self.grb_website)
         if 'No Light curve available' in response.text:
             raise redback.redback_errors.WebsiteExist(
                 f'Problem loading the website for GRB{self.stripped_grb}. '
                 f'Are you sure GRB {self.stripped_grb} has Swift data?')
-        if self.instrument == 'XRT' or self.transient_type == "prompt":
+        if self.instrument == 'XRT':
             self.download_directly()
         elif self.transient_type == 'afterglow':
             if self.data_mode == 'flux':
@@ -267,6 +309,92 @@ class SwiftDataGetter(GRBDataGetter):
         finally:
             urllib.request.urlcleanup()
 
+    def download_xrt_data_via_api(self) -> pd.DataFrame:
+        """Downloads XRT data using the swifttools API.
+
+        :return: The XRT lightcurve data
+        :rtype: pandas.DataFrame
+        """
+        if not SWIFTTOOLS_AVAILABLE:
+            raise ImportError("swifttools is required for API-based data retrieval. "
+                            "Please install it with: pip install swifttools")
+
+        try:
+            logger.info(f'Downloading XRT data for {self.grb} using swifttools API')
+            # Get the lightcurve data using swifttools
+            # We use saveData=False and returnData=True to get the data directly
+            lc_data = udg.getLightCurves(
+                GRBName=self.grb,
+                saveData=False,
+                returnData=True,
+                silent=True
+            )
+
+            # The API returns a dict with different lightcurve datasets
+            # For XRT flux data, we want the PC (Photon Counting) curve
+            if 'Datasets' not in lc_data or len(lc_data['Datasets']) == 0:
+                raise redback.redback_errors.WebsiteExist(
+                    f'No XRT lightcurve data available for {self.grb}')
+
+            # Try to get PC curve first, fall back to WT if not available
+            pc_curve = None
+            wt_curve = None
+
+            for dataset in lc_data['Datasets']:
+                if 'PC' in dataset and 'CURVE' in dataset:
+                    pc_curve = dataset
+                    break
+                elif 'WT' in dataset and 'CURVE' in dataset:
+                    wt_curve = dataset
+
+            curve_name = pc_curve if pc_curve else wt_curve
+
+            if curve_name is None:
+                raise redback.redback_errors.WebsiteExist(
+                    f'No suitable XRT lightcurve data found for {self.grb}')
+
+            df = lc_data[curve_name]
+            logger.info(f'Successfully downloaded XRT data for {self.grb} using {curve_name}')
+
+            return df
+
+        except Exception as e:
+            logger.warning(f'Failed to download XRT data via API for {self.grb}: {e}')
+            raise
+
+    def download_burst_analyser_data_via_api(self) -> dict:
+        """Downloads BAT+XRT Burst Analyser data using the swifttools API.
+
+        :return: The Burst Analyser data dictionary
+        :rtype: dict
+        """
+        if not SWIFTTOOLS_AVAILABLE:
+            raise ImportError("swifttools is required for API-based data retrieval. "
+                            "Please install it with: pip install swifttools")
+
+        try:
+            logger.info(f'Downloading Burst Analyser data for {self.grb} using swifttools API')
+
+            # Get the Burst Analyser data using swifttools
+            ba_data = udg.getBurstAnalyser(
+                GRBName=self.grb,
+                saveData=False,
+                returnData=True,
+                silent=True
+            )
+
+            if not ba_data or len(ba_data) == 0:
+                raise redback.redback_errors.WebsiteExist(
+                    f'No Burst Analyser data available for {self.grb}')
+
+            logger.info(f'Successfully downloaded Burst Analyser data for {self.grb}')
+
+            return ba_data
+
+        except Exception as e:
+            logger.warning(f'Failed to download Burst Analyser data via API for {self.grb}: {e}')
+            raise
+
     def convert_raw_data_to_csv(self) -> Union[pd.DataFrame, None]:
         """Converts the raw data into processed data and saves it into the processed file path.
 
@@ -277,6 +405,15 @@ class SwiftDataGetter(GRBDataGetter):
         if os.path.isfile(self.processed_file_path):
             logger.warning('The processed data file already exists. Returning.')
             return pd.read_csv(self.processed_file_path)
+
+        # Check if we have API data stored
+        if hasattr(self, '_api_data') and self._api_data is not None:
+            if self.instrument == 'XRT':
+                return self.convert_xrt_api_data_to_csv()
+            elif self.instrument == 'BAT+XRT':
+                return self.convert_burst_analyser_api_data_to_csv()
+
+        # Fall back to legacy conversion methods
         if self.instrument == 'XRT':
             return self.convert_xrt_data_to_csv()
         elif self.transient_type == 'afterglow':
@@ -372,3 +509,192 @@ class SwiftDataGetter(GRBDataGetter):
         df = pd.DataFrame(data=data)
         df.to_csv(self.processed_file_path, index=False, sep=',')
         return df
+
+    def convert_xrt_api_data_to_csv(self) -> pd.DataFrame:
+        """Converts XRT data from the swifttools API into the expected CSV format.
+
+        :return: The processed data.
+        :rtype: pandas.DataFrame
+        """
+        if not hasattr(self, '_api_data') or self._api_data is None:
+            raise ValueError("No API data available to convert")
+
+        df = self._api_data
+
+        # The API returns data with column names like 'Time', 'TimePos', 'TimeNeg', 'Rate', 'RatePos', 'RateNeg'
+        # We need to convert this to match the expected format
+        # Expected columns: 'Time [s]', "Pos. time err [s]", "Neg. time err [s]",
+        #                   "Flux [erg cm^{-2} s^{-1}]", "Pos. flux err [erg cm^{-2} s^{-1}]",
+        #                   "Neg. flux err [erg cm^{-2} s^{-1}]"
+
+        # Create mapping from API column names to expected column names
+        column_mapping = {
+            'Time': 'Time [s]',
+            'TimePos': 'Pos. time err [s]',
+            'TimeNeg': 'Neg. time err [s]',
+            'Flux': 'Flux [erg cm^{-2} s^{-1}]',
+            'FluxPos': 'Pos. flux err [erg cm^{-2} s^{-1}]',
+            'FluxNeg': 'Neg. flux err [erg cm^{-2} s^{-1}]'
+        }
+
+        # Rename columns if they exist in the dataframe
+        data = {}
+        for api_col, expected_col in column_mapping.items():
+            if api_col in df.columns:
+                data[expected_col] = df[api_col].values
+            else:
+                logger.warning(f'Column {api_col} not found in API data, searching for alternatives')
+
+        # If we didn't find the expected columns, try alternative names
+        if 'Time [s]' not in data:
+            if 'T' in df.columns:
+                data['Time [s]'] = df['T'].values
+            elif 'MET' in df.columns:
+                data['Time [s]'] = df['MET'].values
+
+        # Create a new dataframe with the expected format
+        processed_df = pd.DataFrame(data)
+
+        # Filter out rows with zero or invalid flux errors (matching legacy behavior)
+        if 'Pos. flux err [erg cm^{-2} s^{-1}]' in processed_df.columns:
+            processed_df = processed_df[processed_df['Pos. flux err [erg cm^{-2} s^{-1}]'] != 0.]
+
+        processed_df.to_csv(self.processed_file_path, index=False, sep=',')
+        logger.info(f'Converted XRT API data to CSV format for {self.grb}')
+
+        return processed_df
+
+    def convert_burst_analyser_api_data_to_csv(self) -> pd.DataFrame:
+        """Converts Burst Analyser data from the swifttools API into the expected CSV format.
+
+        :return: The processed data.
+        :rtype: pandas.DataFrame
+        """
+        if not hasattr(self, '_api_data') or self._api_data is None:
+            raise ValueError("No API data available to convert")
+
+        ba_data = self._api_data
+
+        # The Burst Analyser data is structured hierarchically by instrument, binning, and band
+        # We need to extract and combine the BAT and XRT data appropriately
+
+        # For flux mode, we want integrated flux data
+        if self.data_mode == 'flux':
+            # Try to get the combined BAT+XRT flux data
+            # The structure is: ba_data['BAT']['binning_method']['band'] or ba_data['XRT']['binning_method']['band']
+
+            all_data = []
+
+            # Extract XRT data
+            if 'XRT' in ba_data:
+                for binning in ba_data['XRT']:
+                    for band in ba_data['XRT'][binning]:
+                        df = ba_data['XRT'][binning][band]
+                        if isinstance(df, pd.DataFrame) and len(df) > 0:
+                            # Add instrument label
+                            df_copy = df.copy()
+                            df_copy['Instrument'] = 'XRT'
+                            all_data.append(df_copy)
+                            break  # Use first available band
+                    if all_data:
+                        break  # Use first available binning
+
+            # Extract BAT data
+            if 'BAT' in ba_data:
+                for binning in ba_data['BAT']:
+                    for band in ba_data['BAT'][binning]:
+                        df = ba_data['BAT'][binning][band]
+                        if isinstance(df, pd.DataFrame) and len(df) > 0:
+                            # Add instrument label
+                            df_copy = df.copy()
+                            df_copy['Instrument'] = 'BAT'
+                            all_data.append(df_copy)
+                            break  # Use first available band
+                    if all_data and len(all_data) > 1:  # We have both XRT and BAT
+                        break  # Use first available binning
+
+            if not all_data:
+                raise ValueError(f"No suitable Burst Analyser data found for {self.grb}")
+
+            # Combine all data
+            combined_df = pd.concat(all_data, ignore_index=True)
+
+            # Map to expected column names for integrated flux
+            # Expected: 'Time [s]', "Pos. time err [s]", "Neg. time err [s]",
+            #           "Flux [erg cm^{-2} s^{-1}]", "Pos. flux err [erg cm^{-2} s^{-1}]",
+            #           "Neg. flux err [erg cm^{-2} s^{-1}]", "Instrument"
+
+            column_mapping = {
+                'Time': 'Time [s]',
+                'T': 'Time [s]',
+                'TimePos': 'Pos. time err [s]',
+                'TimeNeg': 'Neg. time err [s]',
+                'Flux': 'Flux [erg cm^{-2} s^{-1}]',
+                'FluxPos': 'Pos. flux err [erg cm^{-2} s^{-1}]',
+                'FluxNeg': 'Neg. flux err [erg cm^{-2} s^{-1}]'
+            }
+
+            # Rename columns
+            for old_name, new_name in column_mapping.items():
+                if old_name in combined_df.columns and new_name not in combined_df.columns:
+                    combined_df.rename(columns={old_name: new_name}, inplace=True)
+
+            # Select only the expected columns
+            expected_columns = self.INTEGRATED_FLUX_KEYS
+            final_df = combined_df[[col for col in expected_columns if col in combined_df.columns]]
+
+        elif self.data_mode == 'flux_density':
+            # For flux density mode, extract the appropriate data
+            # Similar logic but for flux density instead of flux
+            all_data = []
+
+            if 'XRT' in ba_data:
+                for binning in ba_data['XRT']:
+                    for band in ba_data['XRT'][binning]:
+                        if 'density' in band.lower():
+                            df = ba_data['XRT'][binning][band]
+                            if isinstance(df, pd.DataFrame) and len(df) > 0:
+                                all_data.append(df)
+                                break
+                    if all_data:
+                        break
+
+            if not all_data:
+                raise ValueError(f"No flux density data found for {self.grb}")
+
+            combined_df = all_data[0]
+
+            # Map to expected column names for flux density
+            column_mapping = {
+                'Time': 'Time [s]',
+                'T': 'Time [s]',
+                'TimePos': 'Pos. time err [s]',
+                'TimeNeg': 'Neg. time err [s]',
+                'Flux': 'Flux [mJy]',
+                'FluxPos': 'Pos. flux err [mJy]',
+                'FluxNeg': 'Neg. flux err [mJy]'
+            }
+
+            # Rename columns
+            for old_name, new_name in column_mapping.items():
+                if old_name in combined_df.columns and new_name not in combined_df.columns:
+                    combined_df.rename(columns={old_name: new_name}, inplace=True)
+
+            # Convert flux density units if needed (API might return different units)
+            if 'Flux [mJy]' in combined_df.columns:
+                # Check if values are very small (indicating they might be in Jy instead of mJy)
+                if combined_df['Flux [mJy]'].median() < 0.1:
+                    combined_df['Flux [mJy]'] = combined_df['Flux [mJy]'] * 1000
+                    combined_df['Pos. flux err [mJy]'] = combined_df['Pos. flux err [mJy]'] * 1000
+                    combined_df['Neg. flux err [mJy]'] = combined_df['Neg. flux err [mJy]'] * 1000
+
+            expected_columns = self.FLUX_DENSITY_KEYS
+            final_df = combined_df[[col for col in expected_columns if col in combined_df.columns]]
+
+        else:
+            raise ValueError(f"Unsupported data mode: {self.data_mode}")
+
+        final_df.to_csv(self.processed_file_path, index=False, sep=',')
+        logger.info(f'Converted Burst Analyser API data to CSV format for {self.grb}')
+
+        return final_df

@@ -10,12 +10,29 @@ from os.path import dirname
 import pandas as pd
 from pathlib import Path
 from shutil import rmtree
+import shutil
 import redback
 from redback.analysis import (plot_evolution_parameters, plot_spectrum, plot_gp_lightcurves,
                               fit_temperature_and_radius_gp, generate_new_transient_data_from_gp)
 
 _dirname = dirname(__file__)
 
+
+def _latex_available():
+    """Check if LaTeX is available for matplotlib."""
+    return shutil.which('latex') is not None
+
+
+def _george_available():
+    """Check if george module is available."""
+    try:
+        from george.kernels import ExpSquaredKernel
+        return True
+    except ImportError:
+        return False
+
+
+@unittest.skipUnless(_latex_available(), "LaTeX required for plotting tests")
 class TestPlotModels(unittest.TestCase):
     outdir = "testing_plotting"
 
@@ -66,6 +83,8 @@ class TestPlotModels(unittest.TestCase):
                 redback.analysis.plot_multiband_lightcurve(transient=transient, parameters=posterior,
                                                  model=model_name, model_kwargs=kwargs)
 
+
+@unittest.skipUnless(_latex_available(), "LaTeX required for plotting tests")
 class TestPlotDifferentBands(unittest.TestCase):
     outdir = "testing_plotting"
 
@@ -116,6 +135,8 @@ class TestPlotDifferentBands(unittest.TestCase):
                 redback.analysis.plot_multiband_lightcurve(transient=transient, parameters=posterior,
                                                  model=model_name, model_kwargs=kwargs)
 
+
+@unittest.skipUnless(_latex_available(), "LaTeX required for plotting tests")
 class TestMagnitudePlot(unittest.TestCase):
     outdir = "testing_plotting"
 
@@ -166,6 +187,8 @@ class TestMagnitudePlot(unittest.TestCase):
                 redback.analysis.plot_multiband_lightcurve(transient=transient, parameters=posterior,
                                                  model=model_name, model_kwargs=kwargs)
 
+
+@unittest.skipUnless(_latex_available(), "LaTeX required for plotting tests")
 class TestFluxPlot(unittest.TestCase):
     outdir = "testing_plotting"
 
@@ -216,6 +239,8 @@ class TestFluxPlot(unittest.TestCase):
                 redback.analysis.plot_multiband_lightcurve(transient=transient, parameters=posterior,
                                                  model=model_name, model_kwargs=kwargs)
 
+
+@unittest.skipUnless(_latex_available(), "LaTeX required for plotting tests")
 class TestPlotPhaseModels(unittest.TestCase):
     outdir = "testing_plotting"
 
@@ -439,6 +464,8 @@ class TestPlotGPLightcurves(unittest.TestCase):
         self.assertGreater(len(ax_out.get_lines()), 0)
         plt.close(fig)
 
+
+@unittest.skipUnless(_george_available(), "george module required for GP tests")
 class TestFitTemperatureAndRadiusGP(unittest.TestCase):
     def setUp(self):
         # Build a simple DataFrame with the required columns.
