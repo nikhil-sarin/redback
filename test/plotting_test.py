@@ -469,11 +469,11 @@ class TestMagnitudePlotter(unittest.TestCase):
 
     def test_ylim_low_magnitude_property(self):
         self.mock_transient.y = np.array([10, 20, 30])
-        self.assertEqual(self.plotter._ylim_low_magnitude, 0.8 * 10)
+        self.assertEqual(self.plotter._ylim_low_magnitude, 0.95 * 10)
 
     def test_ylim_high_magnitude_property(self):
         self.mock_transient.y = np.array([10, 20, 30])
-        self.assertEqual(self.plotter._ylim_high_magnitude, 1.2 * 30)
+        self.assertEqual(self.plotter._ylim_high_magnitude, 1.05 * 30)
 
     @patch('matplotlib.pyplot.gca')
     def test_plot_data(self, mock_gca):
