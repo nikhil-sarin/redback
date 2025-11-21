@@ -31,7 +31,29 @@ Such as a dictionary to replace the default colours that are plotted to one of y
     ax.set_ylabel("Flux")
     ax.set_xscale('log')
 
+Another feature we somtimes require is some form of band scaling, this is particularly valuable when making lightcurves with multiple bands. We can do this via,
+
+.. code:: python
+
+    ax = result.plot_data(show=False, band_scaling={'type':'+', r':0, 'g':1, 'i':3})
+    ax.set_xscale('linear')
+
+This will scale the data with a (addition) and change the labels appropriately. You can also do this with multiplication by changing the 'type' key to 'x'.
+
 We note that many of these properties can also be modified by passing in the relevant kwargs to the plotting function.
 Please look at the Plotting API for more details on kwargs that can be passed in and plotting functionality that can be modified.
 
 Of course, thanks to the modularity, one can also call the model themselves and format the data how they want to and plot how they wish to.
+
+For more advanced plotting, please see the Plotting API.
+
+Turning off latex rendering
+--------------------------------
+
+By default, :code:`redback` uses latex to render all the labels in the plots. In general, plotting without Latex rendering is faster.
+If you wish to turn this off, you can do so by modifying the matplotlib rcParams before calling any plotting functions.
+
+.. code:: python
+
+    import matplotlib as mpl
+    mpl.rcParams['text.usetex'] = False
