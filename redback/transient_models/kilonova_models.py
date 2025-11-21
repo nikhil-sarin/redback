@@ -592,7 +592,7 @@ def mosfit_kilonova(time, redshift, mej_1, vej_1, temperature_floor_1, kappa_1,
         frequency = kwargs['frequency']
         frequency, time = calc_kcorrected_properties(frequency=frequency, redshift=redshift, time=time)
 
-        ff = np.zeros(len(time))
+        ff = np.zeros(np.shape(time))
         for x in range(3):
             lbols = _mosfit_kilonova_one_component_lbol(time=time_temp,
                                                         mej=mej[x], vej=vej[x])
@@ -1036,7 +1036,7 @@ def three_component_kilonova_model(time, redshift, mej_1, vej_1, temperature_flo
         # convert to source frame time and frequency
         frequency, time = calc_kcorrected_properties(frequency=frequency, redshift=redshift, time=time)
 
-        ff = np.zeros(len(time))
+        ff = np.zeros(np.shape(time))
         for x in range(3):
             temp_kwargs = {}
             temp_kwargs['temperature_floor'] = temperature_floor[x]
@@ -1128,7 +1128,7 @@ def two_component_kilonova_model(time, redshift, mej_1, vej_1, temperature_floor
         # convert to source frame time and frequency
         frequency, time = calc_kcorrected_properties(frequency=frequency, redshift=redshift, time=time)
 
-        ff = np.zeros(len(time))
+        ff = np.zeros(np.shape(time))
         for x in range(2):
             temp_kwargs = {}
             temp_kwargs['temperature_floor'] = temperature_floor[x]
@@ -1652,7 +1652,7 @@ def two_comp_kne_rosswog_heatingrate(time, redshift, mej_1, vej_1, temperature_f
         # convert to source frame time and frequency
         frequency, time = calc_kcorrected_properties(frequency=frequency, redshift=redshift, time=time)
 
-        ff = np.zeros(len(time))
+        ff = np.zeros(np.shape(time))
         for x in range(2):
             temp_kwargs = {}
             if 'heating_rate_fudge' in kwargs:
