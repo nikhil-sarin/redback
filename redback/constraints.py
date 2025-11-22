@@ -24,9 +24,11 @@ def slsn_constraint(parameters):
     neutrino_energy = 1e51
     total_energy = kinetic_energy + neutrino_energy
     # ensure rotational energy is greater than total output energy
-    converted_parameters['erot_constraint'] = total_energy/rotational_energy
+    erot_ratio = total_energy/rotational_energy
+    converted_parameters['erot_constraint'] = erot_ratio
     # ensure t_nebula is greater than 100 days
-    converted_parameters['t_nebula_min'] = tnebula - 100
+    tnebula_constraint = tnebula - 100
+    converted_parameters['t_nebula_min'] = tnebula_constraint
     return converted_parameters
 
 def basic_magnetar_powered_sn_constraints(parameters):
@@ -107,7 +109,8 @@ def tde_constraints(parameters):
     rp = parameters['pericenter_radius']
     mass_bh = parameters['mass_bh']
     schwarzchild_radius = (2 * graviational_constant * mass_bh * solar_mass /(speed_of_light**2))/au_cgs
-    converted_parameters['disruption_radius'] = schwarzchild_radius/rp
+    disruption_ratio = schwarzchild_radius/rp
+    converted_parameters['disruption_radius'] = disruption_ratio
     return converted_parameters
 
 def gaussianrise_tde_constraints(parameters):
