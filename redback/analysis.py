@@ -2,6 +2,8 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 import pandas as pd
+from typing import Union, Optional
+from pathlib import Path
 
 import redback.model_library
 from redback.utils import logger, find_nearest, bands_to_frequency
@@ -468,3 +470,892 @@ def generate_new_transient_data_from_gp(gp_out, t_new, transient, **kwargs):
                                                            Lum50=y_pred, Lum50_err=y_err,
                                                            time_rest_frame=tts, data_mode=data_mode)
     return new_transient
+
+
+class SpectralTemplateMatcher(object):
+    """
+    Match spectra to template library (similar to SNID).
+
+    This class provides functionality for spectral template matching,
+    allowing classification of transients based on spectral features.
+    Templates can be loaded from a custom library or generated from
+    redback spectral models.
+    """
+
+    def __init__(self, template_library_path: Optional[Union[str, Path]] = None,
+                 templates: Optional[list] = None) -> None:
+        """
+        Initialize the SpectralTemplateMatcher with a template library.
+
+        :param template_library_path: Path to a directory containing template files.
+            Each template file should be a CSV or text file with columns for
+            wavelength (in Angstroms) and flux. If None, uses built-in templates.
+        :param templates: List of template dictionaries to use directly. Each template
+            should have keys: 'wavelength', 'flux', 'type', 'phase', and optionally 'name'.
+        """
+        if templates is not None:
+            self.templates = templates
+        elif template_library_path is not None:
+            self.templates = self._load_templates(template_library_path)
+        else:
+            self.templates = self._load_default_templates()
+
+        logger.info(f"Loaded {len(self.templates)} templates into the matcher")
+
+    def _load_default_templates(self) -> list:
+        """
+        Load built-in default templates.
+
+        Currently generates simple blackbody templates at different temperatures
+        to serve as a baseline. Users should provide their own template library
+        for production use.
+
+        :return: List of template dictionaries
+        """
+        logger.info("Loading default blackbody templates")
+        templates = []
+
+        # Generate simple blackbody templates at different temperatures
+        wavelengths = np.linspace(3000, 10000, 1000)  # Angstroms
+
+        # Type Ia-like templates (hotter)
+        for phase in [-10, -5, 0, 5, 10, 15, 20]:
+            # Temperature evolution: peak around max light
+            temp = 12000 - 200 * phase  # Simple temperature evolution
+            temp = max(temp, 5000)  # Minimum temperature
+            flux = self._blackbody_flux(wavelengths, temp)
+            templates.append({
+                'wavelength': wavelengths,
+                'flux': flux / np.max(flux),  # Normalize
+                'type': 'Ia',
+                'phase': phase,
+                'name': f'Ia_phase_{phase}'
+            })
+
+        # Type II-like templates (cooler)
+        for phase in [0, 10, 20, 30, 50]:
+            temp = 8000 - 50 * phase
+            temp = max(temp, 4000)
+            flux = self._blackbody_flux(wavelengths, temp)
+            templates.append({
+                'wavelength': wavelengths,
+                'flux': flux / np.max(flux),
+                'type': 'II',
+                'phase': phase,
+                'name': f'II_phase_{phase}'
+            })
+
+        # Type Ib/c-like templates
+        for phase in [-5, 0, 5, 10, 15]:
+            temp = 10000 - 150 * phase
+            temp = max(temp, 5500)
+            flux = self._blackbody_flux(wavelengths, temp)
+            templates.append({
+                'wavelength': wavelengths,
+                'flux': flux / np.max(flux),
+                'type': 'Ib/c',
+                'phase': phase,
+                'name': f'Ibc_phase_{phase}'
+            })
+
+        return templates
+
+    def _blackbody_flux(self, wavelength: np.ndarray, temperature: float) -> np.ndarray:
+        """
+        Calculate blackbody flux for given wavelength and temperature.
+
+        :param wavelength: Wavelength array in Angstroms
+        :param temperature: Temperature in Kelvin
+        :return: Flux array (arbitrary units, will be normalized)
+        """
+        from redback.constants import planck, speed_of_light, boltzmann_constant
+
+        # Convert wavelength to cm
+        wavelength_cm = wavelength * 1e-8
+
+        # Planck function
+        h = planck
+        c = speed_of_light
+        k = boltzmann_constant
+
+        # B_lambda (erg/s/cm^2/cm/sr)
+        exponent = (h * c) / (wavelength_cm * k * temperature)
+        # Avoid overflow
+        exponent = np.clip(exponent, None, 700)
+        flux = (2 * h * c**2 / wavelength_cm**5) / (np.exp(exponent) - 1)
+
+        return flux
+
+    def _load_templates(self, library_path: Union[str, Path]) -> list:
+        """
+        Load templates from a directory of files.
+
+        Expected file format: CSV or whitespace-separated with columns:
+        wavelength (Angstroms), flux
+
+        File naming convention: {type}_{phase}.csv or {type}_{phase}.dat
+        e.g., Ia_+5.csv, II_10.dat
+
+        :param library_path: Path to template library directory
+        :return: List of template dictionaries
+        """
+        library_path = Path(library_path)
+        if not library_path.exists():
+            raise FileNotFoundError(f"Template library path not found: {library_path}")
+
+        templates = []
+
+        # Look for CSV and DAT files
+        template_files = list(library_path.glob("*.csv")) + list(library_path.glob("*.dat"))
+
+        if len(template_files) == 0:
+            raise ValueError(f"No template files found in {library_path}")
+
+        for file_path in template_files:
+            try:
+                # Try to parse filename for type and phase
+                stem = file_path.stem
+                parts = stem.split('_')
+                if len(parts) >= 2:
+                    sn_type = parts[0]
+                    phase_str = parts[1].replace('+', '')
+                    try:
+                        phase = float(phase_str)
+                    except ValueError:
+                        phase = 0.0
+                else:
+                    sn_type = stem
+                    phase = 0.0
+
+                # Load data - first check for metadata in comments
+                with open(file_path, 'r') as f:
+                    for line in f:
+                        line = line.strip()
+                        if line.startswith('#'):
+                            # Check for metadata in comments
+                            if 'Type:' in line or 'type:' in line:
+                                try:
+                                    sn_type = line.split(':')[1].strip()
+                                except IndexError:
+                                    pass
+                            if 'Phase:' in line or 'phase:' in line:
+                                try:
+                                    phase = float(line.split(':')[1].strip())
+                                except (IndexError, ValueError):
+                                    pass
+
+                if file_path.suffix == '.csv':
+                    # Count comment lines and header row to skip
+                    skip_count = 0
+                    with open(file_path, 'r') as f:
+                        for line in f:
+                            if line.strip().startswith('#') or line.strip().startswith('wavelength'):
+                                skip_count += 1
+                            else:
+                                break
+                    data = np.loadtxt(file_path, delimiter=',', skiprows=skip_count)
+                else:
+                    data = np.loadtxt(file_path, comments='#')
+
+                wavelength = data[:, 0]
+                flux = data[:, 1]
+
+                # Normalize flux
+                flux = flux / np.max(flux)
+
+                templates.append({
+                    'wavelength': wavelength,
+                    'flux': flux,
+                    'type': sn_type,
+                    'phase': phase,
+                    'name': stem
+                })
+
+                logger.info(f"Loaded template: {stem}")
+
+            except Exception as e:
+                logger.warning(f"Failed to load template {file_path}: {e}")
+                continue
+
+        return templates
+
+    def add_template(self, wavelength: np.ndarray, flux: np.ndarray,
+                     sn_type: str, phase: float, name: Optional[str] = None) -> None:
+        """
+        Add a single template to the library.
+
+        :param wavelength: Wavelength array in Angstroms
+        :param flux: Flux array (will be normalized)
+        :param sn_type: Type classification (e.g., 'Ia', 'II', 'Ib/c')
+        :param phase: Phase in days from maximum light
+        :param name: Optional name for the template
+        """
+        if name is None:
+            name = f"{sn_type}_phase_{phase}"
+
+        flux_normalized = flux / np.max(flux)
+
+        self.templates.append({
+            'wavelength': wavelength,
+            'flux': flux_normalized,
+            'type': sn_type,
+            'phase': phase,
+            'name': name
+        })
+
+        logger.info(f"Added template: {name}")
+
+    def match_spectrum(self, spectrum, redshift_range: tuple = (0, 0.5),
+                       n_redshift_points: int = 50,
+                       method: str = 'correlation',
+                       return_all_matches: bool = False) -> Union[dict, list]:
+        """
+        Find best-matching template for an observed spectrum.
+
+        :param spectrum: Spectrum object with angstroms and flux_density attributes
+        :param redshift_range: Tuple of (z_min, z_max) for redshift search
+        :param n_redshift_points: Number of redshift values to try
+        :param method: Matching method - 'correlation' (Pearson), 'chi2', or 'both'
+        :param return_all_matches: If True, return sorted list of all matches
+        :return: Best match dictionary with keys:
+            - 'type': Supernova type classification
+            - 'phase': Phase in days from maximum
+            - 'redshift': Best-fit redshift
+            - 'correlation': Pearson correlation coefficient
+            - 'chi2': Chi-squared value (if method includes chi2)
+            - 'template_name': Name of matched template
+        """
+        from scipy.interpolate import interp1d
+        from scipy.stats import pearsonr
+
+        if len(self.templates) == 0:
+            raise ValueError("No templates loaded. Add templates before matching.")
+
+        all_matches = []
+
+        # Get observed spectrum data
+        obs_wavelength = spectrum.angstroms
+        obs_flux = spectrum.flux_density
+
+        # Normalize observed spectrum
+        obs_flux_norm = obs_flux / np.max(np.abs(obs_flux))
+
+        # Check if we have errors
+        has_errors = hasattr(spectrum, 'flux_density_err') and spectrum.flux_density_err is not None
+        if has_errors:
+            obs_flux_err = spectrum.flux_density_err
+
+        # Try each template at different redshifts
+        for template in self.templates:
+            for z in np.linspace(redshift_range[0], redshift_range[1], n_redshift_points):
+                # Redshift template wavelengths to observed frame
+                template_wave_obs = template['wavelength'] * (1 + z)
+
+                # Check for wavelength overlap
+                min_overlap = max(np.min(template_wave_obs), np.min(obs_wavelength))
+                max_overlap = min(np.max(template_wave_obs), np.max(obs_wavelength))
+
+                if max_overlap <= min_overlap:
+                    continue  # No overlap
+
+                # Interpolate template to observed wavelengths
+                interp_func = interp1d(template_wave_obs, template['flux'],
+                                       bounds_error=False, fill_value=np.nan)
+                template_flux_interp = interp_func(obs_wavelength)
+
+                # Mask invalid values
+                valid_mask = ~np.isnan(template_flux_interp) & ~np.isnan(obs_flux_norm)
+                valid_mask &= (template_flux_interp != 0)
+
+                if np.sum(valid_mask) < 10:
+                    continue  # Not enough valid points
+
+                obs_valid = obs_flux_norm[valid_mask]
+                template_valid = template_flux_interp[valid_mask]
+
+                # Calculate correlation
+                match_result = {
+                    'type': template['type'],
+                    'phase': template['phase'],
+                    'redshift': z,
+                    'template_name': template.get('name', f"{template['type']}_p{template['phase']}"),
+                    'n_valid_points': int(np.sum(valid_mask))
+                }
+
+                if method in ['correlation', 'both']:
+                    try:
+                        corr, p_value = pearsonr(obs_valid, template_valid)
+                        match_result['correlation'] = corr
+                        match_result['p_value'] = p_value
+                    except Exception:
+                        match_result['correlation'] = -1
+                        match_result['p_value'] = 1.0
+
+                if method in ['chi2', 'both']:
+                    if has_errors:
+                        obs_err_valid = obs_flux_err[valid_mask]
+                        # Scale template to match observed flux
+                        scale = np.sum(obs_valid * template_valid / obs_err_valid**2) / \
+                                np.sum(template_valid**2 / obs_err_valid**2)
+                        scaled_template = scale * template_valid
+                        chi2 = np.sum(((obs_valid - scaled_template) / obs_err_valid)**2)
+                        reduced_chi2 = chi2 / (len(obs_valid) - 1)
+                        match_result['chi2'] = chi2
+                        match_result['reduced_chi2'] = reduced_chi2
+                        match_result['scale_factor'] = scale
+                    else:
+                        # Without errors, use variance
+                        scale = np.sum(obs_valid * template_valid) / np.sum(template_valid**2)
+                        scaled_template = scale * template_valid
+                        residuals = obs_valid - scaled_template
+                        chi2 = np.sum(residuals**2) / np.var(obs_valid)
+                        match_result['chi2'] = chi2
+                        match_result['scale_factor'] = scale
+
+                all_matches.append(match_result)
+
+        if len(all_matches) == 0:
+            logger.warning("No valid matches found. Check wavelength coverage and templates.")
+            return None
+
+        # Sort by best match
+        if method == 'chi2':
+            all_matches.sort(key=lambda x: x.get('chi2', np.inf))
+            best_match = all_matches[0]
+        elif method == 'correlation':
+            all_matches.sort(key=lambda x: -x.get('correlation', -1))
+            best_match = all_matches[0]
+        else:  # both
+            # Rank by correlation primarily
+            all_matches.sort(key=lambda x: -x.get('correlation', -1))
+            best_match = all_matches[0]
+
+        if return_all_matches:
+            return all_matches
+        else:
+            return best_match
+
+    def classify_spectrum(self, spectrum, redshift_range: tuple = (0, 0.5),
+                          n_redshift_points: int = 50,
+                          top_n: int = 5) -> dict:
+        """
+        Classify a spectrum and provide confidence metrics.
+
+        :param spectrum: Spectrum object to classify
+        :param redshift_range: Tuple of (z_min, z_max) for redshift search
+        :param n_redshift_points: Number of redshift values to try
+        :param top_n: Number of top matches to consider for classification
+        :return: Classification result dictionary with:
+            - 'best_type': Most likely type
+            - 'best_phase': Phase of best match
+            - 'best_redshift': Redshift of best match
+            - 'correlation': Correlation of best match
+            - 'type_probabilities': Dict of type likelihoods based on top matches
+            - 'top_matches': List of top N matches
+        """
+        all_matches = self.match_spectrum(spectrum, redshift_range=redshift_range,
+                                          n_redshift_points=n_redshift_points,
+                                          method='correlation',
+                                          return_all_matches=True)
+
+        if all_matches is None or len(all_matches) == 0:
+            return {'best_type': None, 'error': 'No valid matches found'}
+
+        # Get top N matches
+        top_matches = all_matches[:min(top_n, len(all_matches))]
+
+        # Calculate type probabilities from correlations
+        type_scores = {}
+        for match in top_matches:
+            sn_type = match['type']
+            corr = match.get('correlation', 0)
+            # Weight by correlation squared (higher correlation = more weight)
+            weight = max(0, corr)**2
+            if sn_type in type_scores:
+                type_scores[sn_type] += weight
+            else:
+                type_scores[sn_type] = weight
+
+        # Normalize to probabilities
+        total_score = sum(type_scores.values())
+        if total_score > 0:
+            type_probabilities = {k: v / total_score for k, v in type_scores.items()}
+        else:
+            type_probabilities = {k: 0 for k in type_scores}
+
+        best_match = top_matches[0]
+
+        return {
+            'best_type': best_match['type'],
+            'best_phase': best_match['phase'],
+            'best_redshift': best_match['redshift'],
+            'correlation': best_match['correlation'],
+            'type_probabilities': type_probabilities,
+            'top_matches': top_matches
+        }
+
+    def plot_match(self, spectrum, match_result: dict, axes=None, **kwargs) -> matplotlib.axes.Axes:
+        """
+        Plot observed spectrum against best-matching template.
+
+        :param spectrum: Observed Spectrum object
+        :param match_result: Result dictionary from match_spectrum
+        :param axes: Optional matplotlib axes to plot on
+        :param kwargs: Additional plotting arguments
+        :return: Matplotlib axes object
+        """
+        from scipy.interpolate import interp1d
+
+        ax = axes or plt.gca()
+
+        # Get observed spectrum
+        obs_wavelength = spectrum.angstroms
+        obs_flux = spectrum.flux_density / np.max(spectrum.flux_density)
+
+        # Find matching template
+        template = None
+        for t in self.templates:
+            if t.get('name') == match_result.get('template_name'):
+                template = t
+                break
+
+        if template is None:
+            # Try to find by type and phase
+            for t in self.templates:
+                if t['type'] == match_result['type'] and t['phase'] == match_result['phase']:
+                    template = t
+                    break
+
+        if template is None:
+            raise ValueError("Could not find matching template")
+
+        # Redshift template
+        z = match_result['redshift']
+        template_wave_obs = template['wavelength'] * (1 + z)
+
+        # Interpolate template to observed wavelengths for comparison
+        interp_func = interp1d(template_wave_obs, template['flux'],
+                               bounds_error=False, fill_value=np.nan)
+        template_flux_interp = interp_func(obs_wavelength)
+
+        # Scale template to match observed flux
+        valid_mask = ~np.isnan(template_flux_interp)
+        if 'scale_factor' in match_result:
+            scale = match_result['scale_factor']
+        else:
+            scale = np.nansum(obs_flux * template_flux_interp) / np.nansum(template_flux_interp**2)
+
+        # Plot
+        ax.plot(obs_wavelength, obs_flux, 'k-', label='Observed', alpha=0.8, lw=1.5)
+        ax.plot(obs_wavelength, scale * template_flux_interp, 'r--',
+                label=f"Template: {match_result['type']} (phase={match_result['phase']:.0f}d, z={z:.3f})",
+                alpha=0.8, lw=1.5)
+
+        ax.set_xlabel(r'Wavelength ($\mathrm{\AA}$)')
+        ax.set_ylabel('Normalized Flux')
+        title = f"Best Match: {match_result['type']}, r={match_result.get('correlation', 0):.3f}"
+        ax.set_title(title)
+        ax.legend(loc='best')
+
+        return ax
+
+    @staticmethod
+    def get_available_template_sources() -> dict:
+        """
+        Get information about available template sources.
+
+        :return: Dictionary with source names and their descriptions/URLs
+        """
+        return {
+            'snid_templates_2.0': {
+                'description': 'Official SNID templates v2.0 from Blondin & Tonry',
+                'url': 'https://people.lam.fr/blondin.stephane/software/snid/',
+                'download_url': 'https://people.lam.fr/blondin.stephane/software/snid/templates-2.0.tgz',
+                'citation': 'Blondin & Tonry 2007, ApJ, 666, 1024'
+            },
+            'super_snid': {
+                'description': 'Super-SNID expanded templates (841 spectra, 161 objects)',
+                'url': 'https://github.com/dkjmagill/QUB-SNID-Templates',
+                'zenodo_doi': '10.5281/zenodo.15167198',
+                'citation': 'Magill et al. 2025'
+            },
+            'sesn_templates': {
+                'description': 'Stripped-envelope SN templates from METAL collaboration',
+                'url': 'https://github.com/metal-sn/SESNtemple',
+                'citation': 'Williamson et al. 2023, Yesmin et al. 2024'
+            },
+            'open_supernova_catalog': {
+                'description': 'Open Supernova Catalog API',
+                'url': 'https://sne.space/',
+                'api': 'https://api.sne.space/',
+                'citation': 'Guillochon et al. 2017'
+            },
+            'wiserep': {
+                'description': 'Weizmann Interactive Supernova Data Repository',
+                'url': 'https://www.wiserep.org/',
+                'citation': 'Yaron & Gal-Yam 2012'
+            }
+        }
+
+    @classmethod
+    def download_templates_from_osc(cls, sn_types: list = None,
+                                     max_per_type: int = 10,
+                                     cache_dir: Optional[Union[str, Path]] = None) -> 'SpectralTemplateMatcher':
+        """
+        Download spectral templates from the Open Supernova Catalog.
+
+        :param sn_types: List of SN types to download (e.g., ['Ia', 'II', 'Ib', 'Ic'])
+            If None, downloads common types.
+        :param max_per_type: Maximum number of spectra per type
+        :param cache_dir: Directory to cache downloaded templates. If None, uses
+            ~/.redback/spectral_templates/
+        :return: SpectralTemplateMatcher instance with downloaded templates
+        """
+        import urllib.request
+        import json
+
+        if sn_types is None:
+            sn_types = ['Ia', 'II', 'Ib', 'Ic', 'IIn', 'Ic-BL']
+
+        if cache_dir is None:
+            cache_dir = Path.home() / '.redback' / 'spectral_templates' / 'osc'
+        else:
+            cache_dir = Path(cache_dir)
+
+        cache_dir.mkdir(parents=True, exist_ok=True)
+
+        templates = []
+
+        logger.info(f"Downloading templates from Open Supernova Catalog for types: {sn_types}")
+
+        for sn_type in sn_types:
+            logger.info(f"Fetching Type {sn_type} supernovae...")
+            try:
+                # Query OSC API for supernovae of this type
+                # The API returns basic info; we need to get spectra separately
+                api_url = f"https://api.sne.space/catalog?claimedtype={sn_type}&spectra&format=json"
+                api_url = api_url.replace(' ', '%20')
+
+                with urllib.request.urlopen(api_url, timeout=30) as response:
+                    data = json.loads(response.read().decode())
+
+                count = 0
+                for sn_name, sn_data in data.items():
+                    if count >= max_per_type:
+                        break
+
+                    if 'spectra' not in sn_data or len(sn_data['spectra']) == 0:
+                        continue
+
+                    # Get the first spectrum with data
+                    for spec_entry in sn_data['spectra']:
+                        if 'data' not in spec_entry:
+                            continue
+
+                        try:
+                            spec_data = spec_entry['data']
+                            wavelengths = []
+                            fluxes = []
+
+                            for point in spec_data:
+                                if len(point) >= 2:
+                                    wavelengths.append(float(point[0]))
+                                    fluxes.append(float(point[1]))
+
+                            if len(wavelengths) < 50:
+                                continue
+
+                            wavelengths = np.array(wavelengths)
+                            fluxes = np.array(fluxes)
+
+                            # Normalize
+                            fluxes = fluxes / np.max(np.abs(fluxes))
+
+                            # Extract phase if available
+                            phase = 0.0
+                            if 'time' in spec_entry:
+                                try:
+                                    phase = float(spec_entry['time'])
+                                except (ValueError, TypeError):
+                                    pass
+
+                            templates.append({
+                                'wavelength': wavelengths,
+                                'flux': fluxes,
+                                'type': sn_type,
+                                'phase': phase,
+                                'name': f"{sn_name}_{sn_type}_phase{phase:.0f}"
+                            })
+
+                            count += 1
+                            logger.info(f"  Downloaded {sn_name} spectrum")
+                            break  # Only take first spectrum per SN
+
+                        except Exception as e:
+                            logger.warning(f"  Failed to parse spectrum for {sn_name}: {e}")
+                            continue
+
+                logger.info(f"Downloaded {count} Type {sn_type} templates")
+
+            except Exception as e:
+                logger.warning(f"Failed to download Type {sn_type} templates: {e}")
+                continue
+
+        if len(templates) == 0:
+            logger.warning("No templates downloaded. Using default templates.")
+            return cls()
+
+        return cls(templates=templates)
+
+    @staticmethod
+    def parse_snid_template_file(file_path: Union[str, Path]) -> dict:
+        """
+        Parse a SNID template file (.lnw format).
+
+        SNID template files have a specific format:
+        - Header lines starting with '#' or containing metadata
+        - Data lines with wavelength and flux columns
+
+        :param file_path: Path to .lnw or .dat template file
+        :return: Dictionary with wavelength, flux, type, phase, and name
+        """
+        file_path = Path(file_path)
+
+        wavelengths = []
+        fluxes = []
+        sn_type = 'Unknown'
+        phase = 0.0
+        name = file_path.stem
+
+        # Parse filename for metadata (common SNID naming: sn1999aa_Ia_+5.lnw)
+        parts = name.split('_')
+        if len(parts) >= 2:
+            # Try to extract type
+            for part in parts[1:]:
+                if part in ['Ia', 'Ib', 'Ic', 'II', 'IIn', 'IIP', 'IIL', 'Ic-BL', 'Ia-pec']:
+                    sn_type = part
+                elif part.startswith('+') or part.startswith('-') or part.replace('.', '').isdigit():
+                    try:
+                        phase = float(part.replace('+', ''))
+                    except ValueError:
+                        pass
+
+        with open(file_path, 'r') as f:
+            for line in f:
+                line = line.strip()
+                if not line or line.startswith('#'):
+                    # Check for metadata in comments
+                    if 'Type:' in line or 'type:' in line:
+                        try:
+                            sn_type = line.split(':')[1].strip()
+                        except IndexError:
+                            pass
+                    if 'Phase:' in line or 'phase:' in line:
+                        try:
+                            phase = float(line.split(':')[1].strip())
+                        except (IndexError, ValueError):
+                            pass
+                    continue
+
+                try:
+                    parts = line.split()
+                    if len(parts) >= 2:
+                        wavelengths.append(float(parts[0]))
+                        fluxes.append(float(parts[1]))
+                except ValueError:
+                    continue
+
+        if len(wavelengths) == 0:
+            raise ValueError(f"No valid data found in {file_path}")
+
+        wavelengths = np.array(wavelengths)
+        fluxes = np.array(fluxes)
+
+        # Normalize
+        fluxes = fluxes / np.max(np.abs(fluxes))
+
+        return {
+            'wavelength': wavelengths,
+            'flux': fluxes,
+            'type': sn_type,
+            'phase': phase,
+            'name': name
+        }
+
+    @classmethod
+    def from_snid_template_directory(cls, directory: Union[str, Path],
+                                      file_pattern: str = "*.lnw") -> 'SpectralTemplateMatcher':
+        """
+        Create a SpectralTemplateMatcher from a directory of SNID template files.
+
+        :param directory: Path to directory containing SNID template files
+        :param file_pattern: Glob pattern for template files (default: "*.lnw")
+        :return: SpectralTemplateMatcher instance
+        """
+        directory = Path(directory)
+        if not directory.exists():
+            raise FileNotFoundError(f"Directory not found: {directory}")
+
+        template_files = list(directory.glob(file_pattern))
+        if len(template_files) == 0:
+            # Try other common extensions
+            template_files = (list(directory.glob("*.lnw")) +
+                            list(directory.glob("*.dat")) +
+                            list(directory.glob("*.txt")))
+
+        if len(template_files) == 0:
+            raise ValueError(f"No template files found in {directory}")
+
+        templates = []
+        for file_path in template_files:
+            try:
+                template = cls.parse_snid_template_file(file_path)
+                templates.append(template)
+                logger.info(f"Loaded SNID template: {file_path.name}")
+            except Exception as e:
+                logger.warning(f"Failed to load {file_path}: {e}")
+                continue
+
+        logger.info(f"Loaded {len(templates)} SNID templates from {directory}")
+        return cls(templates=templates)
+
+    @staticmethod
+    def download_github_templates(repo_url: str,
+                                   branch: str = "master",
+                                   subdirectory: str = "",
+                                   cache_dir: Optional[Union[str, Path]] = None) -> Path:
+        """
+        Download template files from a GitHub repository.
+
+        :param repo_url: GitHub repository URL (e.g., 'https://github.com/metal-sn/SESNtemple')
+        :param branch: Branch name (default: 'master')
+        :param subdirectory: Subdirectory within repo containing templates
+        :param cache_dir: Local directory to cache files. If None, uses ~/.redback/spectral_templates/
+        :return: Path to downloaded template directory
+        """
+        import urllib.request
+        import zipfile
+        import tempfile
+
+        if cache_dir is None:
+            cache_dir = Path.home() / '.redback' / 'spectral_templates'
+        else:
+            cache_dir = Path(cache_dir)
+
+        cache_dir.mkdir(parents=True, exist_ok=True)
+
+        # Parse repo URL to get owner and repo name
+        parts = repo_url.rstrip('/').split('/')
+        repo_name = parts[-1]
+        owner = parts[-2]
+
+        # Create unique cache directory for this repo
+        repo_cache = cache_dir / f"{owner}_{repo_name}"
+
+        if repo_cache.exists() and any(repo_cache.iterdir()):
+            logger.info(f"Using cached templates from {repo_cache}")
+            if subdirectory:
+                return repo_cache / subdirectory
+            return repo_cache
+
+        # Download zip archive
+        zip_url = f"https://github.com/{owner}/{repo_name}/archive/refs/heads/{branch}.zip"
+        logger.info(f"Downloading templates from {zip_url}")
+
+        try:
+            with tempfile.NamedTemporaryFile(suffix='.zip', delete=False) as tmp_file:
+                urllib.request.urlretrieve(zip_url, tmp_file.name)
+                tmp_path = tmp_file.name
+
+            # Extract zip
+            with zipfile.ZipFile(tmp_path, 'r') as zip_ref:
+                zip_ref.extractall(cache_dir)
+
+            # Rename extracted directory
+            extracted_dir = cache_dir / f"{repo_name}-{branch}"
+            if extracted_dir.exists():
+                if repo_cache.exists():
+                    import shutil
+                    shutil.rmtree(repo_cache)
+                extracted_dir.rename(repo_cache)
+
+            Path(tmp_path).unlink()  # Clean up zip file
+
+            logger.info(f"Templates downloaded to {repo_cache}")
+
+            if subdirectory:
+                return repo_cache / subdirectory
+            return repo_cache
+
+        except Exception as e:
+            logger.error(f"Failed to download templates: {e}")
+            raise
+
+    @classmethod
+    def from_sesn_templates(cls, cache_dir: Optional[Union[str, Path]] = None) -> 'SpectralTemplateMatcher':
+        """
+        Create matcher from METAL/SESNtemple stripped-envelope SN templates.
+
+        Downloads templates from: https://github.com/metal-sn/SESNtemple
+
+        :param cache_dir: Local cache directory (default: ~/.redback/spectral_templates/)
+        :return: SpectralTemplateMatcher instance
+        """
+        template_dir = cls.download_github_templates(
+            'https://github.com/metal-sn/SESNtemple',
+            subdirectory='SNIDtemplates',
+            cache_dir=cache_dir
+        )
+
+        return cls.from_snid_template_directory(template_dir)
+
+    def save_templates(self, output_dir: Union[str, Path], format: str = 'csv') -> None:
+        """
+        Save current templates to disk for later use.
+
+        :param output_dir: Directory to save templates
+        :param format: Output format ('csv' or 'dat')
+        """
+        output_dir = Path(output_dir)
+        output_dir.mkdir(parents=True, exist_ok=True)
+
+        for template in self.templates:
+            filename = f"{template['name']}.{format}"
+            filepath = output_dir / filename
+
+            data = np.column_stack([template['wavelength'], template['flux']])
+
+            if format == 'csv':
+                # Save with metadata as comments, then header, then data
+                with open(filepath, 'w') as f:
+                    f.write(f"# Type: {template['type']}\n")
+                    f.write(f"# Phase: {template['phase']}\n")
+                    f.write("wavelength,flux\n")
+                    for row in data:
+                        f.write(f"{row[0]},{row[1]}\n")
+            else:
+                np.savetxt(filepath, data,
+                          header=f"Type: {template['type']}\nPhase: {template['phase']}")
+
+        logger.info(f"Saved {len(self.templates)} templates to {output_dir}")
+
+    def filter_templates(self, types: Optional[list] = None,
+                         phase_range: Optional[tuple] = None) -> 'SpectralTemplateMatcher':
+        """
+        Create a new matcher with filtered templates.
+
+        :param types: List of SN types to include (e.g., ['Ia', 'Ib'])
+        :param phase_range: Tuple of (min_phase, max_phase) in days
+        :return: New SpectralTemplateMatcher with filtered templates
+        """
+        filtered = self.templates.copy()
+
+        if types is not None:
+            filtered = [t for t in filtered if t['type'] in types]
+
+        if phase_range is not None:
+            min_phase, max_phase = phase_range
+            filtered = [t for t in filtered if min_phase <= t['phase'] <= max_phase]
+
+        logger.info(f"Filtered to {len(filtered)} templates")
+        return SpectralTemplateMatcher(templates=filtered)
