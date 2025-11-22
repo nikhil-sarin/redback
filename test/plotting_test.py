@@ -1728,20 +1728,20 @@ class TestMagnitudePlotterEdgeCases(unittest.TestCase):
         mock_ax.invert_yaxis.assert_not_called()
 
     def test_set_x_axis_with_phase_model(self):
-        """Test _set_x_axis uses log scale for phase model by default."""
+        """Test _set_x_axis uses linear scale for phase model by default."""
         self.mock_transient.use_phase_model = True
         plotter = MagnitudePlotter(self.mock_transient)
         mock_ax = MagicMock()
         plotter._set_x_axis(mock_ax)
-        mock_ax.set_xscale.assert_called_once_with("log")
+        mock_ax.set_xscale.assert_called_once_with("linear")
 
     def test_set_x_axis_custom_scale_overrides_phase_model(self):
         """Test custom xscale overrides phase model default."""
         self.mock_transient.use_phase_model = True
-        plotter = MagnitudePlotter(self.mock_transient, xscale="linear")
+        plotter = MagnitudePlotter(self.mock_transient, xscale="log")
         mock_ax = MagicMock()
         plotter._set_x_axis(mock_ax)
-        mock_ax.set_xscale.assert_called_once_with("linear")
+        mock_ax.set_xscale.assert_called_once_with("log")
 
     @patch('matplotlib.pyplot.gca')
     @patch.object(MagnitudePlotter, '_save_and_show')
