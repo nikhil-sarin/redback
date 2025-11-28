@@ -34,6 +34,7 @@ setup(
         "regex",
         "sncosmo",
         "afterglowpy",
+        "swifttools",
     ],
     extras_require={
         'all': [
