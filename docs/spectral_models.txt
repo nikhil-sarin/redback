@@ -1,0 +1,346 @@
+================================
+Spectral Line Profile Models
+================================
+
+Redback provides a comprehensive suite of spectral line profile models for analyzing supernova spectra and other transients with expanding photospheres. These models are particularly useful for Type Ia supernovae, core-collapse supernovae, and other events showing P-Cygni profiles.
+
+Line Profile Functions
+======================
+
+Voigt Profile
+-------------
+
+The Voigt profile is a convolution of Gaussian (thermal broadening) and Lorentzian (natural/pressure broadening) components:
+
+.. code:: python
+
+    from redback.transient_models import spectral_models
+    import numpy as np
+
+    wavelength = np.linspace(6560, 6570, 1000)
+    flux = spectral_models.voigt_profile(
+        wavelength,
+        lambda_center=6563.0,  # H-alpha
+        amplitude=1.0,
+        sigma_gaussian=0.5,    # Thermal broadening
+        gamma_lorentz=0.2,     # Natural/pressure broadening
+        continuum=0.0
+    )
+
+This uses the Faddeeva function for accurate computation.
+
+Gaussian and Lorentzian Profiles
+----------------------------------
+
+Pure Gaussian and Lorentzian profiles are also available:
+
+.. code:: python
+
+    # Gaussian profile (thermal broadening only)
+    flux_gauss = spectral_models.gaussian_line_profile(
+        wavelength, lambda_center=6563, amplitude=-0.5, sigma=2.0, continuum=1.0
+    )
+
+    # Lorentzian profile (natural line shape)
+    flux_lorentz = spectral_models.lorentzian_line_profile(
+        wavelength, lambda_center=6563, amplitude=-0.3, gamma=1.5, continuum=1.0
+    )
+
+
+P-Cygni Profiles
+=================
+
+P-Cygni profiles are the characteristic signature of expanding atmospheres, showing blueshifted absorption and emission near the rest wavelength.
+
+Physical P-Cygni Model
+-----------------------
+
+Based on the Sobolev approximation (valid when thermal velocity << expansion velocity):
+
+.. code:: python
+
+    wavelength = np.linspace(5000, 7000, 1000)
+
+    flux = spectral_models.p_cygni_profile(
+        wavelength,
+        lambda_rest=6355,      # Si II rest wavelength
+        tau_sobolev=3.0,       # Optical depth
+        v_phot=11000,          # Photospheric velocity in km/s
+        continuum_flux=1.0,
+        source_function='thermal',  # or 'scattering' or float
+        v_max=16500            # Optional: max velocity (default 1.5*v_phot)
+    )
+
+Parameters:
+
+- **tau_sobolev**: Sobolev optical depth (0.1-100). Higher values give deeper absorption.
+- **v_phot**: Photospheric velocity in km/s. Determines the absorption minimum position.
+- **source_function**: 'thermal' (LTE), 'scattering' (electron scattering), or custom float.
+
+Elementary P-Cygni Model
+-------------------------
+
+A simpler parameterization using Gaussian components, useful for quick fitting:
+
+.. code:: python
+
+    flux = spectral_models.elementary_p_cygni_profile(
+        wavelength,
+        lambda_rest=6355,
+        v_absorption=11000,      # Velocity of absorption minimum
+        absorption_depth=0.4,    # Fractional depth (0-1)
+        emission_strength=0.2,   # Emission above continuum
+        v_width=1500,            # Velocity width in km/s
+        continuum_flux=1.0
+    )
+
+Multi-Line Spectra
+===================
+
+Generate realistic supernova spectra with multiple P-Cygni features:
+
+.. code:: python
+
+    # Define line list for Type Ia SN
+    line_list = [
+        {'ion': 'Ca II H&K', 'lambda': 3945, 'tau': 5.0},
+        {'ion': 'Si II', 'lambda': 6355, 'tau': 3.0},
+        {'ion': 'S II', 'lambda': 5640, 'tau': 2.0},
+        {'ion': 'Fe II', 'lambda': 5169, 'tau': 2.5}
+    ]
+
+    wavelength = np.linspace(3500, 8500, 3000)
+
+    # With blackbody continuum
+    spectrum = spectral_models.blackbody_spectrum_with_p_cygni_lines(
+        angstroms=wavelength,
+        redshift=0.01,
+        rph=1e15,              # Photosphere radius in cm
+        temp=11000,            # Temperature in K
+        line_list=line_list,
+        v_phot=11000           # km/s
+    )
+
+    # Or with custom continuum
+    spectrum = spectral_models.multi_line_p_cygni_spectrum(
+        wavelength=wavelength,
+        redshift=0.01,
+        continuum_model='blackbody',  # or 'powerlaw' or callable
+        line_list=line_list,
+        v_phot=11000,
+        r_phot=1e15,
+        temperature=11000
+    )
+
+SYNOW-Style Models
+-------------------
+
+For direct analysis following the SYNOW methodology:
+
+.. code:: python
+
+    transmission = spectral_models.synow_line_model(
+        wavelength,
+        lambda_rest=6355,
+        tau_ref=5.0,           # Reference optical depth
+        v_phot=10000,          # Photospheric velocity
+        v_max=25000,           # Maximum velocity
+        n_power=7              # Power-law index (default 7)
+    )
+
+Voigt Absorption Lines
+-----------------------
+
+Add multiple Voigt absorption lines to any continuum:
+
+.. code:: python
+
+    line_params = [
+        {'lambda': 6563, 'depth': 0.3, 'sigma': 2.0, 'gamma': 0.5},
+        {'lambda': 6583, 'depth': 0.1, 'sigma': 1.5, 'gamma': 0.3}
+    ]
+
+    flux = spectral_models.spectrum_with_voigt_absorption_lines(
+        wavelength, continuum_flux=1.0, line_params_list=line_params
+    )
+
+
+Velocity Measurements
+======================
+
+The :code:`SpectralVelocityFitter` class provides tools for measuring expansion velocities from spectral features.
+
+Basic Usage
+------------
+
+.. code:: python
+
+    from redback.analysis import SpectralVelocityFitter
+
+    # Create fitter from wavelength and flux arrays
+    fitter = SpectralVelocityFitter(wavelength, flux)
+
+    # Or from a spectrum object
+    # fitter = SpectralVelocityFitter.from_spectrum_object(spectrum)
+
+    # Measure Si II 6355 velocity
+    v, v_err = fitter.measure_line_velocity(6355, method='min')
+    print(f"Si II velocity: {v:.0f} +/- {v_err:.0f} km/s")
+
+Measurement Methods
+--------------------
+
+Several methods are available:
+
+- **min**: Find minimum flux (standard method)
+- **centroid**: Flux-weighted centroid
+- **gaussian**: Fit Gaussian to absorption
+- **fit**: Fit full P-Cygni profile
+
+.. code:: python
+
+    # Compare methods
+    for method in ['min', 'centroid', 'gaussian', 'fit']:
+        v, err = fitter.measure_line_velocity(6355, method=method)
+        print(f"{method}: {v:.0f} +/- {err:.0f} km/s")
+
+Additional parameters:
+
+.. code:: python
+
+    v, err = fitter.measure_line_velocity(
+        6355,
+        method='min',
+        v_window=5000,            # Search window in km/s
+        continuum_percentile=90   # For continuum estimation
+    )
+
+Multiple Line Measurements
+---------------------------
+
+Measure velocities for multiple ions simultaneously:
+
+.. code:: python
+
+    lines = {
+        'Si II 6355': 6355,
+        'Ca II H&K': 3934,
+        'Fe II 5169': 5169,
+        'S II': 5640
+    }
+
+    velocities = fitter.measure_multiple_lines(lines, method='min')
+
+    for ion_name, (v, verr) in velocities.items():
+        print(f"{ion_name}: {v:.0f} +/- {verr:.0f} km/s")
+
+Velocity Evolution
+-------------------
+
+Track photospheric velocity evolution across a time series of spectra:
+
+.. code:: python
+
+    # wavelength_list: list of wavelength arrays
+    # flux_list: list of flux arrays
+    # times: observation times in days
+
+    times, velocities, errors = SpectralVelocityFitter.photospheric_velocity_evolution(
+        wavelength_list, flux_list, times,
+        line_wavelength=6355,  # Si II
+        method='min'
+    )
+
+    # Plot velocity evolution
+    import matplotlib.pyplot as plt
+    plt.errorbar(times, -velocities/1000, yerr=errors/1000, fmt='o-')
+    plt.xlabel('Days since explosion')
+    plt.ylabel('Velocity (1000 km/s)')
+
+Velocity Gradient
+------------------
+
+Measure the velocity decline rate (dv/dt):
+
+.. code:: python
+
+    gradient, gradient_err = fitter.measure_velocity_gradient(
+        wavelength_list, flux_list, times, line_wavelength=6355
+    )
+
+    print(f"Velocity gradient: {gradient:.1f} +/- {gradient_err:.1f} km/s/day")
+
+Typical values for normal SNe Ia are -50 to -100 km/s/day.
+
+High-Velocity Features
+-----------------------
+
+Detect high-velocity features (HVFs) in spectra:
+
+.. code:: python
+
+    has_hvf, v_hvf, v_hvf_err = fitter.identify_high_velocity_features(
+        line_rest_wavelength=6355,
+        v_phot_expected=11000,   # Expected photospheric velocity
+        threshold_factor=1.3     # Factor above v_phot for HVF classification
+    )
+
+    if has_hvf:
+        print(f"HVF detected at {-v_hvf:.0f} +/- {v_hvf_err:.0f} km/s")
+
+
+Example Workflow
+=================
+
+Complete workflow for Type Ia SN spectral analysis:
+
+.. code:: python
+
+    import numpy as np
+    from redback.transient_models import spectral_models
+    from redback.analysis import SpectralVelocityFitter
+
+    # 1. Load or simulate spectrum
+    wavelength = np.linspace(3500, 9000, 3000)
+    lines = [
+        {'ion': 'Si II', 'lambda': 6355, 'tau': 3.0},
+        {'ion': 'Ca II', 'lambda': 3945, 'tau': 5.0}
+    ]
+    spectrum = spectral_models.blackbody_spectrum_with_p_cygni_lines(
+        wavelength, redshift=0.01, rph=1e15, temp=11000,
+        line_list=lines, v_phot=11500
+    )
+
+    # 2. Measure velocities
+    fitter = SpectralVelocityFitter(wavelength, spectrum)
+
+    lines_to_measure = {
+        'Si II 6355': 6355,
+        'Ca II H&K': 3934
+    }
+    velocities = fitter.measure_multiple_lines(lines_to_measure)
+
+    # 3. Check for HVFs
+    has_hvf, v_hvf, _ = fitter.identify_high_velocity_features(6355, 11000)
+
+    # 4. Print results
+    print("Photospheric Velocities:")
+    for ion, (v, err) in velocities.items():
+        print(f"  {ion}: {-v:.0f} +/- {err:.0f} km/s")
+
+    if has_hvf:
+        print(f"  HVF Si II: {-v_hvf:.0f} km/s")
+
+
+References
+===========
+
+The spectral models are based on:
+
+- Kasen & Branch 2001 (ApJ, 560, 439) - Analytic inversion of P-Cygni profiles
+- Jeffery & Branch 1990 - P-Cygni atlas
+- Branch et al. 2002 (ApJ, 566, 1005) - Direct analysis of SN spectra (SYNOW)
+- Fisher et al. 1997 (ApJ, 481, L89) - SYNOW introduction
+- Schreier 2018 (JQSRT, 213, 13) - Voigt function review
+
+See the API documentation for complete function signatures and additional options.
