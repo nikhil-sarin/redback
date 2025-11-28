@@ -19,6 +19,7 @@ Welcome to REDBACK's documentation!
    dependency_injections
    plotting
    analysis
+   spectral_template_matching
    fitting
    results
    joint_likelihood
