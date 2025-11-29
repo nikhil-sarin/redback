@@ -52,6 +52,18 @@ setup(
             "pyphot==1.6.0",
         ]
     },
+    entry_points={
+        # Example of how to register model modules as plugins
+        # External packages can use these entry point groups to register their models
+        # 'redback.model.modules': [
+        #     # Format: 'plugin_name = package.module'
+        #     # 'example_models = redback_example_plugin.models',
+        # ],
+        # 'redback.model.base_modules': [
+        #     # Base models used as building blocks
+        #     # 'example_base_models = redback_example_plugin.base_models',
+        # ],
+    },
     python_requires=">=3.10",
     classifiers=[
         "Programming Language :: Python :: 3",
