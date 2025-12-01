@@ -711,7 +711,7 @@ def thermal_synchrotron_v2_lnu(time, bG_sh, log_Mdot_vwind, n_ism, logepse, loge
     Mdot_over_vw = 4.0 * np.pi * mu * proton_mass * R**2 * n_ism + Md_vw_cgs
     n = Md_vw_cgs / (4.0 * np.pi * mu * proton_mass * R**2) + n_ism
     
-    if Gamma.any==1.0:
+    if np.any(Gamma==1.0):
         # fix bG << 1 case where numerical accuracy fails
         Theta = (2.0 / 3.0) * epsilon_T * (9.0 * mu * proton_mass / (32.0 * mu_e * electron_mass)) * ((16.0 / 9.0) * bG**2)
         Gamma_minus_one = 0.5 * bG**2
