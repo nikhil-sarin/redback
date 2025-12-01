@@ -91,7 +91,7 @@ def _nicholl_bns_get_quantities(mass_1, mass_2, lambda_s, kappa_red, kappa_blue,
     c_1 = -49.43355
     d_1 = 16.1144
     n = -2.5484
-    dynamical_ejecta_mass = 1e-3 * (a_1 * ((mass_2 / mass_1) ** (1 / 3) * (1 - 2 * compactness_1) / compactness_2 * mass_baryonic_1 +
+    dynamical_ejecta_mass = 1e-3 * (a_1 * ((mass_2 / mass_1) ** (1 / 3) * (1 - 2 * compactness_1) / compactness_1 * mass_baryonic_1 +
                             (mass_1 / mass_2) ** (1 / 3) * (1 - 2 * compactness_2) / compactness_2 * mass_baryonic_2) +
                      b_1 * ((mass_2 / mass_1) ** n * mass_baryonic_1 + (mass_1 / mass_2) ** n * mass_baryonic_2) +
                      c_1 * (mass_baryonic_1 - mass_1 + mass_baryonic_2 - mass_2) + d_1)
