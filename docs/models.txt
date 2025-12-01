@@ -11,14 +11,14 @@ For a full up to date list of models implemented in :code:`redback`, look at the
 
 - Afterglow models: Can output in flux density/magnitude
 
-    - Several varieties of afterglow models implemented directly in redback following Lamb et al. 2018 and other work. Includes wind-like mediums and complex jet structures
+    - Several varieties of afterglow models implemented directly in redback following Lamb et al. 2018 and other work. Includes wind-like mediums and complex jet structures. SSA etc.
     - Several jet structures but with refreshed shocks and the suite of options available for the set of models above.
     - All structured jet models implemented in `afterglowpy <https://afterglowpy.readthedocs.io/en/latest/>`_. Must install afterglowpy to use these models.
     - Some varieties of Kilonova afterglow models e.g., Sarin et al. 2022, Nakar and Piran 2011
     - Jetsimpy
     - Several more...
 
-- Kilonova models: Can output in flux density/magnitude/flux
+- Kilonova models: Can output in flux density/magnitude/flux/spectra
 
     - One/two/three component kilonova models
     - two_layer_stratified_kilonova
@@ -37,7 +37,7 @@ For a full up to date list of models implemented in :code:`redback`, look at the
     - Surrogates of different numerical simulations
     - Lots more...
 
-- Supernova models: Can output in flux density/magnitude/bolometric luminosity
+- Supernova models: Can output in flux density/magnitude/bolometric luminosity/spectra
 
     - Arnett
     - CSM
@@ -51,7 +51,7 @@ For a full up to date list of models implemented in :code:`redback`, look at the
     - Every model provided by `SNcosmo <https://sncosmo.readthedocs.io/en/stable/index.html>`_
     - Several more...
 
-- Shock models: Can output in flux density/magnitude/bolometric luminosity
+- Shock models: Can output in flux density/magnitude/bolometric luminosity/spectra
 
     - Shock cooling
     - Thermal synchrotron
@@ -96,6 +96,17 @@ For a full up to date list of models implemented in :code:`redback`, look at the
     - 1-6 component piecewise power law
     - exponential_powerlaw
     - Gaussian rise
+    - Evolving blackbody
+    - Blackbody + powerlaw
+    - Several more ...
+
+- Spectral energy distributions (SEDs)
+
+    - Blackbody
+    - Powerlaw
+    - Synchrotron
+    - Afterglow SED
+    - Spectral features
     - Several more ...
 
 - Combined models
@@ -119,6 +130,11 @@ Alongside these models we also include some general models which can many of the
 - Integrated flux afterglow models
 - Gaussian process base model:
 
+Model optimizations
+-------------------------
+Some models in :code:`redback` have been optimized for speed using `numba <https://numba.pydata.org/>`_
+or available with a fortran, or another optimized backend. Please see the API docs for more details on which models have been optimized and how to use these optimized versions.
+Numba is an optional dependency of :code:`redback`, while other models may require users to install additional packages or precompile code.
 
 Using :code:`redback` models as functions
 -------------------------
@@ -247,7 +263,7 @@ For example, to include extinction in the :code:`arnett` model, users can do the
                             mw_law=mw_law, output_format=output_format,
                             bands=bands, base_model=base_model, **parameters)
 
-In v1.13, we changed the way extinction is handled in :code:`redback` models.
+In v1.12.1, we changed the way extinction is handled in :code:`redback` models.
 The older interface was similar except users only had the option to pass a single extinction av and rv corresponding to the host extinction, with the extinction law fixed to Fitzpatrick 1999.
 
 
@@ -277,6 +293,12 @@ The flux_density output for all models is the flux density at the effective freq
 Redback assumes flux_density is always in mJy, luminosity is always in erg/s with some models returning the output in 1e50 erg/s (for numerical stability), and magnitude is always in AB mag.
 Flux is always in erg/s/cm^2.
 
+A note about general assumptions in :code:`redback` models.
+-------------------------
+In :code:`redback`, we generally solve for the physics of the model in the rest frame of the transient, then transformed onto the users desired time/frequency/bandpass.
+Each model functions somewhat differently. Generally, for thermal transients, this ultimately involves calculating a spectrum via;
 
-
+F_nu_obs(nu_obs, t_obs) = L_nu_rest(nu_rest, t_rest) / (4 pi D_L^2 (1+z)). Where nu_rest is the rest frame frequency, t_rest is the rest frame time, D_L is the luminosity distance and z is the redshift.
+We typically use the redshift and some cosmology (default to Planck18) to estimate the luminosity distance as opposed to having two independent parameters.
+This behaviour could be bypassed by using a custom cosmology dependency injection. See `here <https://redback.readthedocs.io/en/latest/dependency_injections.html>`_ for more details.
 

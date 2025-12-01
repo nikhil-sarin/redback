@@ -49,7 +49,7 @@ def fit_model(
         modelname = model
         model = all_models_dict[model]
 
-    if transient.data_mode in ["flux_density", "magnitude"]:
+    if transient.data_mode in ["flux_density", "magnitude", "flux"]:
         if model_kwargs["output_format"] != transient.data_mode:
             raise ValueError(
                 f"Transient data mode {transient.data_mode} is inconsistent with "

@@ -253,8 +253,8 @@ def _t0_thin_shell_predeceleration(time, **kwargs):
     """
     Assume pre-deceleration behaviour is in thin-shell regime and follows Sari and Piran 1997
 
-    :param time:
-    :param kwargs:
+    :param time: Time array
+    :param kwargs: Additional keyword arguments including loge0, logn0, g0, m, etc.
     :return: flux or magnitude
     """
     e0 = 10 ** kwargs['loge0']

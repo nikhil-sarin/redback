@@ -58,9 +58,9 @@ class RedbackResult(Result):
         :type sampler_kwargs: dict, optional
         :param injection_parameters: True parameters if the dataset is simulated.
         :type injection_parameters: dict, optional
-        :type meta_data: dict, optional
         :param meta_data: Additional dictionary. Contains the data used during the run and
                           is used to reconstruct the `Transient` object used during the run.
+        :type meta_data: dict, optional
         :param posterior: Posterior samples with log likelihood and log prior values.
         :type posterior: pd.Dataframe, optional
         :param samples: An array of the output posterior samples.
@@ -73,9 +73,9 @@ class RedbackResult(Result):
         :type log_evidence_err: float, optional
         :param information_gain: The information gain calculated.
         :type information_gain: float, optional
-        :param log_noise_evidence:The log noise evidence.
+        :param log_noise_evidence: The log noise evidence.
         :type log_noise_evidence: float, optional
-        :param log_bayes_factor:The log Bayes factor if we sampled using the likelihood ratio.
+        :param log_bayes_factor: The log Bayes factor if we sampled using the likelihood ratio.
         :type log_bayes_factor: float, optional
         :param log_likelihood_evaluations: The evaluations of the likelihood for each sample point
         :type log_likelihood_evaluations: np.ndarray, optional
@@ -101,7 +101,7 @@ class RedbackResult(Result):
         :type parameter_labels_with_unit: list, optional
         :param version: Version information for software used to generate the result. Note,
                         this information is generated when the result object is initialized.
-        :type version: str,
+        :type version: str
         """
         super(RedbackResult, self).__init__(
             label=label, outdir=outdir, sampler=sampler,
@@ -188,10 +188,10 @@ def read_in_result(
     :type outdir: str, optional
     :param label: If filename is not given, label of the result.
     :type label: str, optional
-    :type extension: str, optional
     :param extension: If filename is not given, filename extension.
                       Must be in ('json', 'hdf5', 'h5', 'pkl', 'pickle', 'gz').
                       (Default value = 'json')
+    :type extension: str, optional
     :param gzip: If the file is compressed with gzip. Default is False.
     :type gzip: bool, optional
 

@@ -10,31 +10,130 @@ on:
     branches: [ master ]
 
 jobs:
-  build:
-
+  test:
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        test-group: [1, 2, 3, 4]
+        include:
+          # Group 1: Heavy tests (model_test is largest ~83KB)
+          - test-group: 1
+            test-files: "test/model_test.py test/wrapper_test.py"
+          # Group 2: Medium tests
+          - test-group: 2
+            test-files: "test/get_data_test.py test/analysis_test.py test/plotting_test.py"
+          # Group 3: Medium tests
+          - test-group: 3
+            test-files: "test/prior_test.py test/likelihood_test.py test/sampler_test.py test/photosphere_test.py"
+          # Group 4: Lighter tests
+          - test-group: 4
+            test-files: "test/transient_test.py test/result_test.py test/utils_test.py test/constants_test.py test/examples_test.py test/model_library_test.py test/simulate_transient_test.py test/test_on_ref_results.py test/filters_test.py test/fireball_models_test.py test/gaussianprocess_models_test.py test/priors_test.py test/prompt_models_test.py test/wrappers_test.py test/constraints_test.py test/ejecta_relations_test.py test/sed_test.py test/interaction_processes_test.py"
+          # Group 5: More Medium tests
+          - test-group: 5
+            test-files: "test/test_learned_models.py"
 
     steps:
     - uses: actions/checkout@v4
-    - name: Set up Python 3.10.4
+    - name: Free Disk Space
+      run: |
+        echo "Disk space before cleanup:"
+        df -h
+        sudo rm -rf /usr/share/dotnet
+        sudo rm -rf /usr/local/lib/android
+        sudo rm -rf /opt/ghc
+        sudo rm -rf /opt/hostedtoolcache/CodeQL
+        sudo docker image prune --all --force
+        echo "Disk space after cleanup:"
+        df -h
+    - name: Set up Python 3.13
       uses: actions/setup-python@v4
       with:
-        python-version: 3.10.4
+        python-version: 3.13
+        cache: 'pip'
+        cache-dependency-path: |
+          setup.py
+          requirements.txt
+          optional_requirements.txt
+    - name: Cache apt packages
+      uses: actions/cache@v4
+      id: cache-apt
+      with:
+        path: ~/apt-cache
+        key: ${{ runner.os }}-apt-texlive-v2
+    - name: Install system dependencies
+      run: |
+        if [ "${{ steps.cache-apt.outputs.cache-hit }}" != "true" ]; then
+          sudo apt-get update
+          sudo apt-get install -y --download-only dvipng texlive-latex-extra texlive-fonts-recommended cm-super
+          mkdir -p ~/apt-cache
+          sudo cp /var/cache/apt/archives/*.deb ~/apt-cache/ 2>/dev/null || true
+        fi
+        sudo cp ~/apt-cache/*.deb /var/cache/apt/archives/ 2>/dev/null || true
+        sudo apt-get install -y dvipng texlive-latex-extra texlive-fonts-recommended cm-super
+        sudo apt-get clean
+        sudo rm -rf /var/lib/apt/lists/*
     - name: Install dependencies
       run: |
-        sudo apt-get update
-        sudo apt install texlive-latex-extra
-        sudo apt-get install dvipng texlive-latex-extra texlive-fonts-recommended cm-super
         python -m pip install --upgrade pip
-        pip install flake8 pytest
+        pip install flake8 pytest pytest-cov
         if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
         if [ -f optional_requirements.txt ]; then pip install -r optional_requirements.txt; fi
-        pip install flake8 pytest pytest-cov coverage coverage-badge coveralls
-    - name: Run tests
+        pip uninstall -y numba
+    - name: Run tests (Group ${{ matrix.test-group }})
       run: |
-        coverage run -m pytest test/ --durations=10 --ignore=test/reference_files_test.py
-        coverage lcov
+        # Run pytest with coverage - pytest-cov creates a .coverage file
+        pytest ${{ matrix.test-files }} --cov=redback --cov-report= --durations=10
+        echo "Coverage file created:"
+        ls -la .coverage
+    - name: Upload coverage database
+      uses: actions/upload-artifact@v4
+      with:
+        name: coverage-db-${{ matrix.test-group }}
+        path: .coverage
+        if-no-files-found: error
+        include-hidden-files: true
+
+  coverage:
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    - name: Set up Python 3.13
+      uses: actions/setup-python@v4
+      with:
+        python-version: 3.13
+        cache: 'pip'
+    - name: Install coverage tools
+      run: |
+        pip install coverage coverage-badge coveralls
+    - name: Download coverage database files
+      uses: actions/download-artifact@v4
+      with:
+        pattern: coverage-db-*
+        path: coverage-artifacts
+    - name: Combine coverage reports
+      run: |
+        pip install coverage[toml]
+        # Each artifact has a .coverage file in its own directory
+        # Copy and rename them to .coverage.1, .coverage.2, etc.
+        echo "Downloaded artifacts:"
+        ls -la coverage-artifacts/
+        for dir in coverage-artifacts/coverage-db-*/; do
+          group=$(basename "$dir" | sed 's/coverage-db-//')
+          if [ -f "$dir/.coverage" ]; then
+            cp -v "$dir/.coverage" ".coverage.$group"
+          fi
+        done
+        # List what we have
+        echo "Coverage files to combine:"
+        ls -la .coverage.*
+        # Combine coverage files
+        coverage combine
+        # Generate reports
+        coverage xml -o combined-coverage.xml
         coverage html
+        coverage report
     - name: Archive production artifacts
       uses: actions/upload-artifact@v4
       with:
@@ -42,6 +141,9 @@ jobs:
         path: |
           htmlcov
     - name: Coveralls
-      run: coveralls --service=github
+      run: |
+        # Upload the combined coverage report to Coveralls
+        coveralls --service=github
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        COVERALLS_FLAG_NAME: combined
