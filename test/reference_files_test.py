@@ -2,10 +2,20 @@ import filecmp
 import os
 import shutil
 import unittest
+import requests
 
 import redback
 
 _dirname = os.path.dirname(__file__)
+
+
+def _network_available():
+    """Check if network access is available."""
+    try:
+        response = requests.get("https://www.swift.ac.uk/", timeout=5)
+        return response.status_code != 403
+    except Exception:
+        return False
 
 
 def _delete_downloaded_files():
@@ -13,6 +23,7 @@ def _delete_downloaded_files():
         shutil.rmtree(folder, ignore_errors=True)
 
 
+@unittest.skipUnless(_network_available(), "Network access required for integration tests")
 class TestReferenceFiles(unittest.TestCase):
 
     @classmethod
