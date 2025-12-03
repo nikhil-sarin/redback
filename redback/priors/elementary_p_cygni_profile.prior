@@ -1,0 +1,6 @@
+lambda_rest = Uniform(3000, 10000, name='lambda_rest', latex_label=r'$\lambda_{\mathrm{rest}}$')
+v_absorption = Uniform(5000, 30000, name='v_absorption', latex_label=r'$v_{\mathrm{abs}}$')
+absorption_depth = Uniform(0.01, 0.99, name='absorption_depth', latex_label=r'$d_{\mathrm{abs}}$')
+emission_strength = Uniform(0.0, 0.5, name='emission_strength', latex_label=r'$s_{\mathrm{em}}$')
+v_width = Uniform(500, 5000, name='v_width', latex_label=r'$\sigma_v$')
+continuum_flux = LogUniform(1e-20, 1e-10, name='continuum_flux', latex_label=r'$F_{\mathrm{cont}}$')

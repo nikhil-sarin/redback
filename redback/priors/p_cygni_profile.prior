@@ -1,0 +1,4 @@
+lambda_rest = Uniform(3000, 10000, name='lambda_rest', latex_label=r'$\lambda_{\mathrm{rest}}$')
+tau_sobolev = LogUniform(0.1, 100, name='tau_sobolev', latex_label=r'$\tau_{\mathrm{Sobolev}}$')
+v_phot = Uniform(1000, 30000, name='v_phot', latex_label=r'$v_{\mathrm{phot}}$')
+continuum_flux = LogUniform(1e-20, 1e-10, name='continuum_flux', latex_label=r'$F_{\mathrm{cont}}$')
