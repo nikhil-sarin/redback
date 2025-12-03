@@ -4,6 +4,8 @@ import numpy as np
 
 import astropy.io.ascii
 
+from redback.utils import logger
+
 _dirname = os.path.dirname(__file__)
 
 
@@ -16,11 +18,14 @@ def get_trigger_number(grb: str) -> str:
     :rtype: str
     """
     grb = grb.lstrip('GRB')
+    logger.debug(f"Looking up trigger number for GRB {grb}")
     grb_table = get_grb_table()
     trigger = grb_table.query('GRB == @grb')['Trigger Number']
     if len(trigger) == 0:
+        logger.error(f"Trigger number not found for GRB {grb} in GRB table")
         raise TriggerNotFoundError(f"The trigger for {grb} does not exist in the table.")
     else:
+        logger.debug(f"Found trigger number {trigger.values[0]} for GRB {grb}")
         return trigger.values[0]
 
 
@@ -49,9 +54,15 @@ def get_batse_trigger_from_grb(grb: str) -> int:
     :rtype: int
     """
     grb = "GRB" + grb.lstrip("GRB")
+    logger.debug(f"Looking up BATSE trigger for {grb}")
 
     ALPHABET = "ABCDEFGHIJKLMNOP"
-    dat = astropy.io.ascii.read(f"{_dirname}/../tables/BATSE_trigger_table.txt")
+    try:
+        dat = astropy.io.ascii.read(f"{_dirname}/../tables/BATSE_trigger_table.txt")
+    except Exception as e:
+        logger.error(f"Failed to read BATSE trigger table: {e}")
+        raise
+
     batse_triggers = list(dat['col1'])
     object_labels = list(dat['col2'])
 
@@ -67,8 +78,14 @@ def get_batse_trigger_from_grb(grb: str) -> int:
             for i, loc in enumerate(location):
                 object_labels[loc] = object_labels[loc] + ALPHABET[i]
 
-    index = object_labels.index(grb)
-    return int(batse_triggers[index])
+    try:
+        index = object_labels.index(grb)
+        trigger = int(batse_triggers[index])
+        logger.debug(f"Found BATSE trigger {trigger} for {grb}")
+        return trigger
+    except ValueError:
+        logger.error(f"GRB {grb} not found in BATSE trigger table")
+        raise ValueError(f"GRB {grb} not found in BATSE trigger table")
 
 def convert_ztf_difference_magnitude_to_apparent_magnitude(filters, diff_mag, diff_mag_err,
                                                            status, ref_mag, ref_mag_err):

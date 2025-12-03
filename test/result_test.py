@@ -283,11 +283,15 @@ class TestReadInResult(unittest.TestCase):
 
     @patch('redback.result.RedbackResult.from_json')
     @patch('redback.result._determine_file_name')
-    def test_read_json_result(self, mock_determine_filename, mock_from_json):
+    @patch('redback.result.os.path.exists')
+    def test_read_json_result(self, mock_exists, mock_determine_filename, mock_from_json):
         """Test reading JSON result"""
         test_filename = os.path.join(self.tempdir, 'test_result.json')
         mock_determine_filename.return_value = test_filename
+        mock_exists.return_value = True
         mock_result = MagicMock(spec=RedbackResult)
+        mock_result.label = "test"
+        mock_result.model = "test_model"
         mock_from_json.return_value = mock_result
 
         result = read_in_result(filename=test_filename)
@@ -297,11 +301,15 @@ class TestReadInResult(unittest.TestCase):
 
     @patch('redback.result.RedbackResult.from_hdf5')
     @patch('redback.result._determine_file_name')
-    def test_read_hdf5_result(self, mock_determine_filename, mock_from_hdf5):
+    @patch('redback.result.os.path.exists')
+    def test_read_hdf5_result(self, mock_exists, mock_determine_filename, mock_from_hdf5):
         """Test reading HDF5 result"""
         test_filename = os.path.join(self.tempdir, 'test_result.hdf5')
         mock_determine_filename.return_value = test_filename
+        mock_exists.return_value = True
         mock_result = MagicMock(spec=RedbackResult)
+        mock_result.label = "test"
+        mock_result.model = "test_model"
         mock_from_hdf5.return_value = mock_result
 
         result = read_in_result(filename=test_filename)
@@ -311,11 +319,15 @@ class TestReadInResult(unittest.TestCase):
 
     @patch('redback.result.RedbackResult.from_hdf5')
     @patch('redback.result._determine_file_name')
-    def test_read_h5_result(self, mock_determine_filename, mock_from_hdf5):
+    @patch('redback.result.os.path.exists')
+    def test_read_h5_result(self, mock_exists, mock_determine_filename, mock_from_hdf5):
         """Test reading .h5 result"""
         test_filename = os.path.join(self.tempdir, 'test_result.h5')
         mock_determine_filename.return_value = test_filename
+        mock_exists.return_value = True
         mock_result = MagicMock(spec=RedbackResult)
+        mock_result.label = "test"
+        mock_result.model = "test_model"
         mock_from_hdf5.return_value = mock_result
 
         result = read_in_result(filename=test_filename)
@@ -325,11 +337,15 @@ class TestReadInResult(unittest.TestCase):
 
     @patch('redback.result.RedbackResult.from_pickle')
     @patch('redback.result._determine_file_name')
-    def test_read_pickle_result(self, mock_determine_filename, mock_from_pickle):
+    @patch('redback.result.os.path.exists')
+    def test_read_pickle_result(self, mock_exists, mock_determine_filename, mock_from_pickle):
         """Test reading pickle result"""
         test_filename = os.path.join(self.tempdir, 'test_result.pkl')
         mock_determine_filename.return_value = test_filename
+        mock_exists.return_value = True
         mock_result = MagicMock(spec=RedbackResult)
+        mock_result.label = "test"
+        mock_result.model = "test_model"
         mock_from_pickle.return_value = mock_result
 
         result = read_in_result(filename=test_filename)
@@ -339,11 +355,15 @@ class TestReadInResult(unittest.TestCase):
 
     @patch('redback.result.RedbackResult.from_pickle')
     @patch('redback.result._determine_file_name')
-    def test_read_pickle_alt_extension(self, mock_determine_filename, mock_from_pickle):
+    @patch('redback.result.os.path.exists')
+    def test_read_pickle_alt_extension(self, mock_exists, mock_determine_filename, mock_from_pickle):
         """Test reading .pickle result"""
         test_filename = os.path.join(self.tempdir, 'test_result.pickle')
         mock_determine_filename.return_value = test_filename
+        mock_exists.return_value = True
         mock_result = MagicMock(spec=RedbackResult)
+        mock_result.label = "test"
+        mock_result.model = "test_model"
         mock_from_pickle.return_value = mock_result
 
         result = read_in_result(filename=test_filename)
@@ -353,11 +373,15 @@ class TestReadInResult(unittest.TestCase):
 
     @patch('redback.result.RedbackResult.from_json')
     @patch('redback.result._determine_file_name')
-    def test_read_gzipped_json(self, mock_determine_filename, mock_from_json):
+    @patch('redback.result.os.path.exists')
+    def test_read_gzipped_json(self, mock_exists, mock_determine_filename, mock_from_json):
         """Test reading gzipped JSON result"""
         test_filename = os.path.join(self.tempdir, 'test_result.json.gz')
         mock_determine_filename.return_value = test_filename
+        mock_exists.return_value = True
         mock_result = MagicMock(spec=RedbackResult)
+        mock_result.label = "test"
+        mock_result.model = "test_model"
         mock_from_json.return_value = mock_result
 
         result = read_in_result(filename=test_filename)
@@ -366,10 +390,12 @@ class TestReadInResult(unittest.TestCase):
         self.assertEqual(result, mock_result)
 
     @patch('redback.result._determine_file_name')
-    def test_read_invalid_extension(self, mock_determine_filename):
+    @patch('redback.result.os.path.exists')
+    def test_read_invalid_extension(self, mock_exists, mock_determine_filename):
         """Test that invalid extension raises ValueError"""
         test_filename = os.path.join(self.tempdir, 'test_result.invalid')
         mock_determine_filename.return_value = test_filename
+        mock_exists.return_value = True
 
         with self.assertRaises(ValueError) as context:
             read_in_result(filename=test_filename)
@@ -378,11 +404,15 @@ class TestReadInResult(unittest.TestCase):
 
     @patch('redback.result.RedbackResult.from_json')
     @patch('redback.result._determine_file_name')
-    def test_read_with_label_outdir(self, mock_determine_filename, mock_from_json):
+    @patch('redback.result.os.path.exists')
+    def test_read_with_label_outdir(self, mock_exists, mock_determine_filename, mock_from_json):
         """Test reading with outdir and label instead of filename"""
         test_filename = os.path.join(self.tempdir, 'test_label_result.json')
         mock_determine_filename.return_value = test_filename
+        mock_exists.return_value = True
         mock_result = MagicMock(spec=RedbackResult)
+        mock_result.label = "test"
+        mock_result.model = "test_model"
         mock_from_json.return_value = mock_result
 
         result = read_in_result(outdir=self.tempdir, label='test_label', extension='json')
@@ -394,11 +424,15 @@ class TestReadInResult(unittest.TestCase):
 
     @patch('redback.result.RedbackResult.from_json')
     @patch('redback.result._determine_file_name')
-    def test_read_with_gzip_flag(self, mock_determine_filename, mock_from_json):
+    @patch('redback.result.os.path.exists')
+    def test_read_with_gzip_flag(self, mock_exists, mock_determine_filename, mock_from_json):
         """Test reading with gzip flag"""
         test_filename = os.path.join(self.tempdir, 'test_result.json.gz')
         mock_determine_filename.return_value = test_filename
+        mock_exists.return_value = True
         mock_result = MagicMock(spec=RedbackResult)
+        mock_result.label = "test"
+        mock_result.model = "test_model"
         mock_from_json.return_value = mock_result
 
         result = read_in_result(
