@@ -236,8 +236,8 @@ def afterglow_kilonova_sed(time, redshift, av, **model_kwargs):
 
     from redback.model_library import all_models_dict
 
-    kilonova_kwargs = model_kwargs['kilonova_kwargs']
-    afterglow_kwargs = model_kwargs['afterglow_kwargs']
+    kilonova_kwargs = model_kwargs.get('kilonova_kwargs', {'base_model': 'mosfit_kilonova'})
+    afterglow_kwargs = model_kwargs.get('afterglow_kwargs', {'base_model': 'tophat'})
 
     temp_kwargs = model_kwargs.copy()
     max_time = np.maximum(time.max(), 100)
@@ -279,7 +279,8 @@ def afterglow_kilonova_sed(time, redshift, av, **model_kwargs):
     )
     
     # Create grid points matching afterglow's time and lambda arrays
-    points = np.array([afterglow.time, afterglow.lambdas]).T.reshape(-1, 2)
+    time_grid, lambda_grid = np.meshgrid(afterglow.time, afterglow.lambdas, indexing='ij')
+    points = np.column_stack([time_grid.ravel(), lambda_grid.ravel()])
     
     # Interpolate kilonova to afterglow grid
     kilonova_interpolated = interpolator(points).reshape(afterglow.spectra.shape)
