@@ -181,7 +181,10 @@ def csm_constraints(parameters):
     csm_mass = parameters['csm_mass']
     kappa = parameters['kappa']
     r0 = parameters['r0']
-    vej = parameters['vej']
+    if 'vej' not in parameters:
+        vej = (parameters['ek'] / (0.3 * mej * solar_mass)) ** 0.5 / km_cgs
+    else:
+        vej = parameters['vej']
     if hasattr(parameters['mej'], "__len__"):
         nn = parameters.get('nn', np.ones(len(mej)) * 8.)
         delta = parameters.get('delta', np.ones(len(mej)))
