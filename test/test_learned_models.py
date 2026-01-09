@@ -13,7 +13,7 @@ class _DummyModel:
     center, and width) in erg/s/Hz.
     """
     def __init__(self):
-        self.param_names = ["freq", "amp", "center", "width"]
+        self.param_names = ["freq", "amp", "center", "width", "redshift"]
         self.times = np.arange(-10, 50, 1)
         self.wavelengths = np.arange(1000, 10000, 200)
 
