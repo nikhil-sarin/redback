@@ -157,13 +157,8 @@ def _eval_learned_surrogate(model, time, params, **kwargs):
         time_observer_frame = time_rest_dense * (1 + redshift)
         lambda_observer_frame = lambda_rest_dense * (1 + redshift)
 
-        # Apply (1+z) correction to flux and convert units
-        # After dividing by (1+z), flux is in observer frame at observer-frame wavelengths
-        flux_observer = interpolated_flux / (1 + redshift)
-        spectra = flux_observer.to(
-            uu.erg / uu.cm ** 2 / uu.s / uu.Angstrom,
-            equivalencies=uu.spectral_density(wav=lambda_observer_frame * uu.Angstrom)
-        )
+        # Move to the observer frame and switch to spectra units.
+        spectra = sed.flux_density_to_spectrum(interpolated_flux, redshift, lambda_observer_frame)
 
         # Create output structure
         if kwargs.get('output_format') == 'spectra':
