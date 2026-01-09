@@ -38,7 +38,7 @@ class TestLearnedModels(unittest.TestCase):
         # then the model parameters).
         func = make_learned_model_callable(model)
         assert isinstance(func, types.FunctionType)
-        assert inspect.getfullargspec(func).args == ["time", "freq", "amp", "center", "width"]
+        assert inspect.getfullargspec(func).args == ["time", "freq", "amp", "center", "width", "redshift"]
 
         # Check that we can evaluate the function.
         spectra1 = func(
