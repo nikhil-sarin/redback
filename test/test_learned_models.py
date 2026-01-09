@@ -17,7 +17,7 @@ class _DummyModel:
         self.times = np.arange(-10, 50, 1)
         self.wavelengths = np.arange(1000, 10000, 200)
 
-    def predict_spectra_grid(self, freq=1.0, amp=1.0, center=5000.0, width=1000.0):
+    def predict_spectra_grid(self, freq=1.0, amp=1.0, center=5000.0, width=1000.0, redshift=1e-8):
         """A dummy predict method that returns a grid based on input parameters."""
         gaussian_envelope = np.exp(-((self.wavelengths - center) ** 2) / (2 * width**2))
         sine_wave = amp * (1.0 + np.sin(2 * np.pi * freq * self.times))
