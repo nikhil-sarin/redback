@@ -41,6 +41,10 @@ def make_learned_model_callable(model):
                 "only contain alphanumeric characters and underscores."
             )
 
+    # Redshift is a required parameter for cosmological calculations.
+    if "redshift" not in model.param_names:
+        raise ValueError("Model parameter names must include 'redshift'.")
+
     # Build the complete function string. We have already checked that the parameter names are safe.
     param_str = ", ".join(model.param_names)
     param_dict_str = (
@@ -80,6 +84,8 @@ def _eval_learned_surrogate(model, time, params, **kwargs):
     """
     cosmology = kwargs.get('cosmology', cosmo)
     redshift = params.get('redshift', 0.0)
+    if redshift <= 0.0:
+        raise ValueError(f"Redshift must be positive and non-zero. Got {redshift}.")
     dl = cosmology.luminosity_distance(redshift).cgs
 
     # Get the rest-frame spectrum from the model.
