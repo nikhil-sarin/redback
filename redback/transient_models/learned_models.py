@@ -83,8 +83,11 @@ def _eval_learned_surrogate(model, time, params, **kwargs):
     dl = cosmology.luminosity_distance(redshift).cgs
 
     # Get the rest-frame spectrum from the model.
-    # These will always be f_lambda in erg/s/Angstrom
+    # These will always be f_lambda in erg/s/Hz
     luminosity_density = model.predict_spectra_grid(**params)
+    if not hasattr(luminosity_density, 'unit'):
+        luminosity_density = luminosity_density * uu.erg / uu.s / uu.Hz
+
     lambda_rest = model.wavelengths  # Angstrom in rest frame
     time_rest = model.times  # days in rest frame
 
