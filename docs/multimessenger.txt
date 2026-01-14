@@ -1,0 +1,809 @@
+============================
+Multi-Messenger Analysis
+============================
+
+Overview
+========
+
+Multi-messenger astronomy combines observations from different "messengers" (electromagnetic radiation, gravitational waves, neutrinos, cosmic rays) to provide a more complete picture of astrophysical transients. :code:`redback` provides dedicated infrastructure for multi-messenger analysis through the :code:`MultiMessengerTransient` class.
+
+The key advantage of multi-messenger analysis is that different messengers can probe different aspects of the same physical system, and shared parameters can be jointly constrained by all available data. For example, in a binary neutron star merger:
+
+- **Gravitational waves** constrain masses, spins, and distance
+- **Kilonova emission** (optical/IR) constrains ejecta properties and viewing angle
+- **Gamma-ray burst afterglow** (X-ray/radio) constrains jet properties and viewing angle
+- **Viewing angle** and **distance** are shared across all messengers
+
+The :code:`MultiMessengerTransient` class
+==========================================
+
+Basic Usage
+-----------
+
+The :code:`MultiMessengerTransient` class provides a high-level interface for combining data from multiple messengers::
+
+    import redback
+    from redback.multimessenger import MultiMessengerTransient
+
+    # Create transient objects for each messenger
+    optical_transient = redback.get_data.get_kilonova_data_from_open_transient_catalog_data(
+        transient='AT2017gfo'
+    )
+
+    # Assuming we have X-ray and radio data as well
+    xray_transient = redback.transient.Transient(...)
+    radio_transient = redback.transient.Transient(...)
+
+    # Create multi-messenger object
+    mm_transient = MultiMessengerTransient(
+        optical_transient=optical_transient,
+        xray_transient=xray_transient,
+        radio_transient=radio_transient,
+        name='AT2017gfo'
+    )
+
+Supported Messengers
+--------------------
+
+The class supports multiple types of data:
+
+1. **Electromagnetic transients** (optical, X-ray, radio, UV, infrared)
+   - Provided as :code:`redback.transient.Transient` objects
+   - Can use any redback transient class (Kilonova, Afterglow, Supernova, etc.)
+
+2. **Gravitational waves**
+   - Provided as pre-constructed :code:`bilby.gw.likelihood` objects
+   - Use standard :code:`bilby.gw` workflow to create the likelihood
+
+3. **Neutrinos**
+   - Provided as custom :code:`bilby.Likelihood` objects
+
+4. **Custom likelihoods**
+   - Any custom likelihood inheriting from :code:`bilby.Likelihood`
+
+Joint Analysis
+==============
+
+The :code:`fit_joint()` method performs parameter estimation using all available data::
+
+    import bilby
+
+    # Define models for each messenger
+    models = {
+        'optical': 'two_component_kilonova_model',
+        'xray': 'tophat',  # afterglow model
+        'radio': 'tophat'
+    }
+
+    # Define priors (including shared parameters)
+    priors = bilby.core.prior.PriorDict()
+    priors['viewing_angle'] = bilby.core.prior.Uniform(0, 1.57)
+    priors['redshift'] = 0.01  # Fixed
+
+    # Kilonova-specific parameters
+    priors['mej_1'] = bilby.core.prior.Uniform(0.01, 0.1)
+    priors['vej_1'] = bilby.core.prior.Uniform(0.1, 0.3)
+    # ... more priors ...
+
+    # Afterglow-specific parameters
+    priors['loge0'] = bilby.core.prior.Uniform(50, 54)
+    priors['logn0'] = bilby.core.prior.Uniform(-3, 2)
+    # ... more priors ...
+
+    # Specify model kwargs
+    model_kwargs = {
+        'optical': {'output_format': 'magnitude'},
+        'xray': {'output_format': 'flux_density', 'frequency': xray_freq},
+        'radio': {'output_format': 'flux_density', 'frequency': radio_freq}
+    }
+
+    # Run joint analysis
+    result = mm_transient.fit_joint(
+        models=models,
+        priors=priors,
+        shared_params=['viewing_angle', 'redshift'],
+        model_kwargs=model_kwargs,
+        nlive=2000,
+        sampler='dynesty',
+        outdir='./results_joint'
+    )
+
+Shared Parameters
+-----------------
+
+The :code:`shared_params` argument specifies which parameters are shared across messengers. These parameters will use the same value for all models, allowing different data sets to jointly constrain them.
+
+Common shared parameters include:
+
+- :code:`viewing_angle`: Observer's viewing angle (affects both EM and GW signals)
+- :code:`luminosity_distance`: Distance to source
+- :code:`redshift`: Cosmological redshift
+- :code:`time_of_merger`: Reference time for all emissions
+
+Individual Fits for Comparison
+===============================
+
+For comparison with joint analysis, you can fit each messenger independently::
+
+    individual_models = {
+        'optical': 'two_component_kilonova_model',
+        'xray': 'tophat',
+        'radio': 'tophat'
+    }
+
+    # Define separate priors for each messenger
+    optical_priors = bilby.core.prior.PriorDict()
+    # ... optical-specific priors ...
+
+    xray_priors = bilby.core.prior.PriorDict()
+    # ... X-ray-specific priors ...
+
+    individual_priors = {
+        'optical': optical_priors,
+        'xray': xray_priors,
+        'radio': radio_priors
+    }
+
+    # Fit each independently
+    individual_results = mm_transient.fit_individual(
+        models=individual_models,
+        priors=individual_priors,
+        model_kwargs=model_kwargs,
+        nlive=2000
+    )
+
+    # Access individual results
+    optical_result = individual_results['optical']
+    xray_result = individual_results['xray']
+
+Joint Spectrum and Photometry Analysis
+=======================================
+
+A common use case in transient astronomy is jointly fitting spectroscopic and photometric data from the same object. This combines:
+
+- **Photometry**: Multi-band lightcurves constraining time evolution and integrated properties
+- **Spectroscopy**: Detailed spectral energy distribution constraining temperature, composition, and line features
+
+By fitting both jointly, physical parameters can be better constrained as the data types provide complementary information.
+
+Basic Approach
+--------------
+
+Since :code:`Spectrum` and :code:`Transient` are different classes in redback, the recommended approach for joint spectrum + photometry fitting is to use custom likelihoods::
+
+    import redback
+    from redback.multimessenger import MultiMessengerTransient
+    from redback.transient_models import kilonova_models, spectral_models
+
+    # Load or create photometry data
+    photometry = redback.transient.Transient(
+        time=phot_times,
+        magnitude=mags,
+        magnitude_err=mag_errs,
+        bands=bands,
+        data_mode='magnitude'
+    )
+
+    # Load or create spectrum at a specific epoch
+    spectrum = redback.transient.Spectrum(
+        angstroms=wavelengths,
+        flux_density=flux,
+        flux_density_err=flux_err,
+        time='3 days'
+    )
+
+    # Build likelihoods
+    phot_likelihood = redback.likelihoods.GaussianLikelihood(
+        x=photometry.time,
+        y=photometry.magnitude,
+        sigma=photometry.magnitude_err,
+        function=kilonova_models.arnett_bolometric,
+        kwargs={'output_format': 'magnitude', 'bands': photometry.bands}
+    )
+
+    spec_likelihood = redback.likelihoods.GaussianLikelihood(
+        x=spectrum.angstroms,
+        y=spectrum.flux_density,
+        sigma=spectrum.flux_density_err,
+        function=spectral_models.blackbody_spectrum,
+        kwargs={}
+    )
+
+    # Create multi-messenger object with custom likelihoods
+    mm_transient = MultiMessengerTransient(
+        custom_likelihoods={
+            'photometry': phot_likelihood,
+            'spectrum': spec_likelihood
+        },
+        name='joint_spec_phot'
+    )
+
+Setting Up Priors
+-----------------
+
+Define priors for parameters used by both photometry and spectrum models::
+
+    import bilby
+
+    priors = bilby.core.prior.PriorDict()
+
+    # Shared parameters (constrained by both data types)
+    priors['redshift'] = 0.01  # Fixed if known
+    priors['mej'] = bilby.core.prior.Uniform(0.01, 0.1)  # ejecta mass
+    priors['vej'] = bilby.core.prior.Uniform(0.1, 0.3)   # ejecta velocity
+
+    # Spectrum-specific parameters (epoch-dependent)
+    priors['temperature'] = bilby.core.prior.Uniform(3000, 10000)  # at t_spec
+    priors['r_phot'] = bilby.core.prior.LogUniform(1e13, 1e15)     # photosphere size
+
+Running Joint Analysis
+----------------------
+
+Use :code:`bilby.run_sampler` directly with a joint likelihood::
+
+    import bilby
+
+    # Combine likelihoods
+    joint_likelihood = bilby.core.likelihood.JointLikelihood(
+        phot_likelihood,
+        spec_likelihood
+    )
+
+    # Run joint fit
+    result = bilby.run_sampler(
+        likelihood=joint_likelihood,
+        priors=priors,
+        sampler='dynesty',
+        nlive=2000,
+        outdir='./results_joint_spec_phot',
+        label='joint_spectrum_photometry'
+    )
+
+Multiple Spectra at Different Epochs
+-------------------------------------
+
+If you have spectra at multiple epochs, create separate likelihoods with epoch-dependent parameters::
+
+    # Spectra at 1, 3, and 7 days
+    spectrum_1d = redback.transient.Spectrum(wave, flux_1d, err_1d, time='1 day')
+    spectrum_3d = redback.transient.Spectrum(wave, flux_3d, err_3d, time='3 days')
+    spectrum_7d = redback.transient.Spectrum(wave, flux_7d, err_7d, time='7 days')
+
+    # Create likelihoods with epoch-specific parameters
+    # Use lambda functions or wrappers to map parameters correctly
+    spec_1d_likelihood = redback.likelihoods.GaussianLikelihood(
+        x=spectrum_1d.angstroms,
+        y=spectrum_1d.flux_density,
+        sigma=spectrum_1d.flux_density_err,
+        function=lambda wave, temp_1d, r_phot_1d, **kw:
+            spectral_models.blackbody_spectrum(
+                wave, temperature=temp_1d, r_phot=r_phot_1d, **kw
+            )
+    )
+    # Similar for 3d and 7d...
+
+    # Set up priors for all epochs
+    priors = bilby.core.prior.PriorDict()
+    priors['mej'] = ...      # Shared across all
+    priors['temp_1d'] = ...  # Epoch-specific
+    priors['temp_3d'] = ...  # Epoch-specific
+    priors['temp_7d'] = ...  # Epoch-specific
+    priors['r_phot_1d'] = ...
+    priors['r_phot_3d'] = ...
+    priors['r_phot_7d'] = ...
+
+    # Combine all likelihoods
+    joint_likelihood = bilby.core.likelihood.JointLikelihood(
+        phot_likelihood,
+        spec_1d_likelihood,
+        spec_3d_likelihood,
+        spec_7d_likelihood
+    )
+
+Best Practices
+--------------
+
+1. **Time synchronization**
+
+   - Ensure spectrum epochs align with photometry time grid
+   - Use consistent time reference (e.g., explosion time, discovery)
+   - Account for any time delays between different observations
+
+2. **Parameter consistency**
+
+   - Share physical parameters (mass, velocity, composition)
+   - Allow epoch-dependent parameters to vary (temperature, radius)
+   - For temperature evolution, consider parametric models: :math:`T(t) \propto t^{-\alpha}`
+
+3. **Model selection**
+
+   - Start with simple models (blackbody spectrum + analytic lightcurve)
+   - Add complexity as justified by data quality
+   - For detailed analysis, use consistent radiative transfer for both photometry and spectra
+
+4. **Wavelength coverage**
+
+   - Verify spectrum wavelength range overlaps with photometric bands
+   - Consider filter transmission functions when comparing
+   - Account for extinction/reddening consistently
+
+5. **Systematic uncertainties**
+
+   - Include flux calibration uncertainties
+   - Consider host galaxy contamination
+   - Account for atmospheric/instrumental effects
+
+Example Workflow
+----------------
+
+See :code:`examples/joint_spectrum_photometry_example.py` for a complete worked example demonstrating:
+
+- Simulating multi-band photometry and spectrum
+- Building appropriate likelihoods
+- Setting up shared and epoch-specific priors
+- Running individual and joint fits for comparison
+- Handling multiple spectra at different epochs
+
+Comparison with Individual Fits
+--------------------------------
+
+Joint fitting typically provides:
+
+- **Tighter constraints** on shared parameters due to complementary information
+- **Breaking degeneracies** (e.g., ejecta mass vs. velocity)
+- **Consistency checks** - if joint fit has much lower evidence than individual fits, models may be inconsistent
+- **Better predictions** for unobserved wavelengths/epochs
+
+Compare results::
+
+    # Run photometry-only fit
+    phot_result = bilby.run_sampler(phot_likelihood, priors=phot_priors, ...)
+
+    # Run spectrum-only fit
+    spec_result = bilby.run_sampler(spec_likelihood, priors=spec_priors, ...)
+
+    # Run joint fit
+    joint_result = bilby.run_sampler(joint_likelihood, priors=joint_priors, ...)
+
+    # Compare evidence
+    print(f"Photometry ln(Z): {phot_result.log_evidence:.2f}")
+    print(f"Spectrum ln(Z): {spec_result.log_evidence:.2f}")
+    print(f"Joint ln(Z): {joint_result.log_evidence:.2f}")
+
+    # Compare posteriors
+    import corner
+    fig = corner.corner(joint_result.posterior, color='blue', labels=param_labels)
+    corner.corner(phot_result.posterior, fig=fig, color='red')
+
+Joint Galaxy and Transient Spectrum Analysis
+=============================================
+
+When observing transients embedded in bright host galaxies, the observed spectrum contains contributions from both the transient and the underlying galaxy. Properly accounting for this contamination is critical for accurate parameter inference.
+
+Why This Matters
+-----------------
+
+Host galaxy contamination can significantly bias transient parameters:
+
+- **Continuum shape**: Galaxy stellar continuum affects transient temperature/SED fits
+- **Line features**: Galaxy emission/absorption lines can mimic or hide transient features
+- **Flux normalization**: Incorrect flux leads to wrong luminosity, radius estimates
+- **Common scenarios**: Supernovae (especially SNe Ia), TDEs, transients in galaxy centers
+
+Combined Model Approach
+------------------------
+
+The most straightforward approach is to model the observed spectrum as the sum of galaxy and transient components::
+
+    def combined_galaxy_transient_model(wavelength, redshift,
+                                       galaxy_temperature, galaxy_luminosity,
+                                       transient_temperature, transient_r_phot,
+                                       **kwargs):
+        '''Combined model: observed spectrum = galaxy + transient'''
+
+        # Galaxy component (stellar continuum)
+        galaxy_flux = galaxy_spectrum_model(
+            wavelength, redshift, galaxy_temperature, galaxy_luminosity
+        )
+
+        # Transient component (e.g., SN photosphere)
+        transient_flux = transient_spectrum_model(
+            wavelength, redshift, transient_temperature, transient_r_phot
+        )
+
+        # Observed spectrum is the sum
+        return galaxy_flux + transient_flux
+
+    # Create likelihood with combined model
+    combined_likelihood = redback.likelihoods.GaussianLikelihood(
+        x=wavelengths,
+        y=observed_flux,
+        sigma=flux_errors,
+        function=combined_galaxy_transient_model,
+        kwargs={}
+    )
+
+Setting Up Priors
+-----------------
+
+Define priors for both galaxy and transient parameters::
+
+    priors = bilby.core.prior.PriorDict()
+
+    # Shared parameter: redshift (typically well-known from galaxy)
+    priors['redshift'] = bilby.core.prior.Gaussian(0.05, 0.001)
+
+    # Galaxy parameters
+    priors['galaxy_temperature'] = bilby.core.prior.Uniform(4000, 7000)  # K
+    priors['galaxy_luminosity'] = bilby.core.prior.Uniform(0.5, 10.0)
+
+    # Transient parameters
+    priors['transient_temperature'] = bilby.core.prior.Uniform(5000, 15000)  # K
+    priors['transient_r_phot'] = bilby.core.prior.LogUniform(1e14, 1e16)  # cm
+
+The shared redshift provides a strong constraint linking both components.
+
+Running the Analysis
+--------------------
+
+::
+
+    result = bilby.run_sampler(
+        likelihood=combined_likelihood,
+        priors=priors,
+        sampler='dynesty',
+        nlive=1000,
+        outdir='./results_galaxy_transient',
+        label='joint_galaxy_transient'
+    )
+
+    # Extract best-fit components
+    best_params = result.posterior.iloc[result.posterior['log_likelihood'].idxmax()]
+
+    galaxy_component = galaxy_spectrum_model(wavelengths, **best_params)
+    transient_component = transient_spectrum_model(wavelengths, **best_params)
+
+Comparison with Transient-Only Fit
+-----------------------------------
+
+Ignoring the galaxy leads to biased parameters. Compare fits with/without galaxy::
+
+    # Biased fit (transient only)
+    transient_only_likelihood = redback.likelihoods.GaussianLikelihood(
+        x=wavelengths, y=observed_flux, sigma=flux_errors,
+        function=transient_spectrum_model
+    )
+    result_biased = bilby.run_sampler(transient_only_likelihood, transient_priors, ...)
+
+    # Correct fit (galaxy + transient)
+    result_correct = bilby.run_sampler(combined_likelihood, full_priors, ...)
+
+    # Evidence comparison
+    print(f"Transient-only ln(Z): {result_biased.log_evidence:.2f}")
+    print(f"Joint model ln(Z): {result_correct.log_evidence:.2f}")
+    print(f"Bayes factor: {result_correct.log_evidence - result_biased.log_evidence:.2f}")
+
+The joint model should show much higher evidence if galaxy contamination is significant.
+
+Adding Galaxy Emission Lines
+-----------------------------
+
+For more realistic galaxy modeling, include emission lines::
+
+    def galaxy_with_lines_model(wavelength, redshift,
+                                galaxy_temperature, galaxy_luminosity,
+                                h_alpha_flux, h_beta_flux, oiii_flux,
+                                line_width, **kwargs):
+        '''Galaxy model with continuum + emission lines'''
+
+        # Stellar continuum
+        continuum = galaxy_continuum_model(...)
+
+        # Common emission lines
+        h_alpha = gaussian_line(wavelength, 6563 * (1+redshift), h_alpha_flux, line_width)
+        h_beta = gaussian_line(wavelength, 4861 * (1+redshift), h_beta_flux, line_width)
+        oiii = gaussian_line(wavelength, 5007 * (1+redshift), oiii_flux, line_width)
+
+        return continuum + h_alpha + h_beta + oiii
+
+    def gaussian_line(wavelength, center, amplitude, width):
+        '''Gaussian emission line profile'''
+        return amplitude * np.exp(-0.5 * ((wavelength - center) / width)**2)
+
+Add priors for emission line parameters::
+
+    priors['h_alpha_flux'] = bilby.core.prior.LogUniform(1e-17, 1e-15)
+    priors['h_beta_flux'] = bilby.core.prior.LogUniform(1e-18, 1e-16)
+    priors['oiii_flux'] = bilby.core.prior.LogUniform(1e-18, 1e-16)
+    priors['line_width'] = bilby.core.prior.Uniform(1, 5)  # Angstroms
+
+Best Practices
+--------------
+
+1. **Pre-explosion data**
+
+   - If available, use pre-explosion galaxy spectrum to constrain galaxy parameters
+   - Can fix galaxy parameters or use as informative priors
+   - Reduces degeneracies between galaxy and transient
+
+2. **Model selection**
+
+   - Start simple: blackbody or power-law continuum for both components
+   - Add complexity as justified: emission lines, absorption features
+   - Use stellar population synthesis for galaxy (e.g., FSPS, BC03)
+   - Use radiative transfer for transient (e.g., TARDIS, CMFGEN)
+
+3. **When to use joint fitting**
+
+   - Transient is bright relative to galaxy (SNR > 10)
+   - No pre-explosion spectrum available for template subtraction
+   - Transient and galaxy spectra overlap significantly
+   - Need physical model for both components
+
+4. **Alternative approaches**
+
+   - **Template subtraction**: If pre-explosion spectrum exists, subtract scaled template
+   - **Spectral decomposition**: Use tools like STARLIGHT or pPXF first
+   - **Spatial separation**: Extract spatially separated spectra if PSF resolution allows
+
+5. **Systematic checks**
+
+   - Compare to pre-explosion imaging/spectroscopy
+   - Verify galaxy parameters are consistent across multiple epochs
+   - Check transient parameters match photometric evolution
+   - Account for extinction (Galactic + host)
+
+6. **Validation**
+
+   - Plot decomposition showing galaxy, transient, and total components
+   - Check residuals for systematic structure
+   - Compare posterior distributions with/without galaxy model
+   - Use simulations to verify parameter recovery
+
+Example Workflow
+----------------
+
+See :code:`examples/joint_galaxy_transient_spectrum_example.py` for a complete demonstration including:
+
+- Simulating composite spectrum (galaxy + transient)
+- Setting up combined model
+- Comparing fits with/without galaxy model
+- Visualizing spectral decomposition
+- Showing parameter biases when galaxy is ignored
+- Advanced topics: emission lines, systematic uncertainties
+
+Common Applications
+-------------------
+
+**Supernova spectroscopy**
+  Type Ia SNe in bright host galaxies require careful galaxy subtraction. Joint fitting allows proper separation and uncertainty propagation.
+
+**Tidal Disruption Events (TDEs)**
+  TDEs occur in galaxy centers, often with strong AGN or stellar contamination. Joint modeling separates transient from persistent emission.
+
+**Kilonovae**
+  While typically in fainter hosts, nearby events may require galaxy modeling, especially in red bands where older stellar populations contribute.
+
+**AGN outbursts**
+  Separating variable AGN component from host galaxy requires joint modeling of both persistent and transient features.
+
+Advanced: Including Gravitational Wave Data
+============================================
+
+For GW+EM analysis, construct a gravitational wave likelihood using :code:`bilby.gw` and pass it to the :code:`MultiMessengerTransient`::
+
+    import bilby.gw
+
+    # Set up GW analysis (following bilby.gw workflow)
+    duration = 32
+    sampling_frequency = 2048
+
+    waveform_generator = bilby.gw.WaveformGenerator(
+        duration=duration,
+        sampling_frequency=sampling_frequency,
+        frequency_domain_source_model=bilby.gw.source.lal_binary_neutron_star,
+        waveform_arguments={'waveform_approximant': 'IMRPhenomPv2_NRTidal'}
+    )
+
+    # Set up interferometers
+    interferometers = bilby.gw.detector.InterferometerList(['H1', 'L1', 'V1'])
+    interferometers.set_strain_data_from_power_spectral_densities(
+        sampling_frequency=sampling_frequency,
+        duration=duration
+    )
+
+    # Create GW likelihood
+    gw_likelihood = bilby.gw.likelihood.GravitationalWaveTransient(
+        interferometers=interferometers,
+        waveform_generator=waveform_generator
+    )
+
+    # Create multi-messenger object with GW data
+    mm_transient = MultiMessengerTransient(
+        optical_transient=optical_transient,
+        xray_transient=xray_transient,
+        gw_likelihood=gw_likelihood,
+        name='GW170817'
+    )
+
+    # Define priors including GW parameters
+    priors = bilby.core.prior.PriorDict()
+
+    # GW parameters
+    priors['chirp_mass'] = bilby.core.prior.Gaussian(1.2, 0.1)
+    priors['mass_ratio'] = bilby.core.prior.Uniform(0.5, 1.0)
+    priors['luminosity_distance'] = bilby.gw.prior.UniformSourceFrame(10, 250)
+    priors['theta_jn'] = bilby.core.prior.Uniform(0, 3.14159)  # GW viewing angle
+    # ... other GW parameters ...
+
+    # EM parameters
+    priors['mej'] = bilby.core.prior.Uniform(0.01, 0.1)
+    # ... other EM parameters ...
+
+    # Run joint GW+EM analysis
+    result = mm_transient.fit_joint(
+        models={'optical': kilonova_model, 'xray': afterglow_model},
+        priors=priors,
+        shared_params=['luminosity_distance', 'theta_jn'],  # Link GW and EM
+        nlive=2000
+    )
+
+Note that :code:`theta_jn` in gravitational wave analysis often corresponds to the viewing angle in electromagnetic models, though the exact relationship depends on the jet geometry and assumptions.
+
+Utility Functions
+=================
+
+create_joint_prior
+------------------
+
+The :code:`create_joint_prior()` utility helps construct prior dictionaries for joint analysis::
+
+    from redback.multimessenger import create_joint_prior
+
+    # Define individual priors
+    optical_priors = bilby.core.prior.PriorDict({
+        'viewing_angle': bilby.core.prior.Uniform(0, 1.57),
+        'mej': bilby.core.prior.Uniform(0.01, 0.1)
+    })
+
+    xray_priors = bilby.core.prior.PriorDict({
+        'viewing_angle': bilby.core.prior.Uniform(0, 1.57),
+        'logn0': bilby.core.prior.Uniform(-3, 2)
+    })
+
+    # Create joint prior with shared viewing_angle
+    joint_prior = create_joint_prior(
+        individual_priors={'optical': optical_priors, 'xray': xray_priors},
+        shared_params=['viewing_angle']
+    )
+
+    # Result:
+    # joint_prior['viewing_angle']  -> shared prior
+    # joint_prior['optical_mej']    -> optical-specific
+    # joint_prior['xray_logn0']     -> X-ray-specific
+
+Adding/Removing Messengers
+---------------------------
+
+You can dynamically add or remove messengers::
+
+    # Add a new messenger
+    mm_transient.add_messenger('uv', transient=uv_transient)
+
+    # Or add with a pre-constructed likelihood
+    mm_transient.add_messenger('neutrino', likelihood=neutrino_likelihood)
+
+    # Remove a messenger
+    mm_transient.remove_messenger('radio')
+
+Examples
+========
+
+Complete worked examples are available in :code:`examples/`:
+
+1. :code:`multimessenger_example.py`
+
+   - Simulates optical kilonova + X-ray afterglow + radio afterglow
+   - Demonstrates individual vs. joint fitting
+   - Shows how shared parameters improve constraints
+
+2. :code:`joint_spectrum_photometry_example.py`
+
+   - Joint photometry + spectroscopy analysis
+   - Simulates multi-band lightcurves and spectrum at specific epoch
+   - Shows how to use custom likelihoods for different data types
+   - Demonstrates handling multiple spectra at different epochs
+
+3. :code:`joint_galaxy_transient_spectrum_example.py`
+
+   - Joint galaxy + transient spectrum analysis
+   - Shows how to separate host galaxy contamination from transient
+   - Demonstrates combined model approach (galaxy + transient)
+   - Compares biased (transient-only) vs. unbiased (joint) fits
+   - Includes emission line modeling
+
+4. :code:`joint_grb_gw_example.py`
+
+   - Joint GW + GRB afterglow analysis
+   - Shows integration with :code:`bilby.gw`
+   - Demonstrates parameter linking between GW and EM
+
+Best Practices
+==============
+
+1. **Start with individual fits**
+
+   Fit each messenger independently first to:
+
+   - Verify your models are appropriate
+   - Check for any data quality issues
+   - Understand individual parameter constraints
+   - Use as comparison for joint analysis
+
+2. **Choose shared parameters carefully**
+
+   Only share parameters that are physically the same across messengers:
+
+   - Viewing angle (if jet is aligned with binary orbital axis)
+   - Distance/redshift (always shared for same source)
+   - Event time (with appropriate time delays)
+
+3. **Use informative priors**
+
+   For shared parameters, use priors that reflect physical constraints:
+
+   - Distance: use :code:`bilby.gw.prior.UniformSourceFrame` for GW sources
+   - Viewing angle: consider constraints from non-detection in certain bands
+
+4. **Check model compatibility**
+
+   Ensure your models are compatible in their parameterization:
+
+   - Same definition of viewing angle
+   - Consistent reference time
+   - Same distance definition (luminosity vs. comoving)
+
+5. **Validate with simulations**
+
+   Test your analysis pipeline on simulated data:
+
+   - Inject known parameters
+   - Verify recovery in joint analysis
+   - Check that shared parameters are correctly constrained
+
+6. **Compare evidence**
+
+   Use Bayes factors to compare:
+
+   - Joint model vs. independent models
+   - Different choices of shared parameters
+   - Different physical models
+
+Common Pitfalls
+===============
+
+1. **Inconsistent parameter definitions**
+
+   Different models may use different conventions (e.g., viewing angle from jet axis vs. orbital axis). Create wrapper functions to translate between conventions.
+
+2. **Time reference mismatch**
+
+   Ensure all data use consistent time references (e.g., time of merger, trigger time).
+
+3. **Correlated systematic errors**
+
+   Joint analysis assumes independent data. Be cautious if systematic errors are correlated across messengers.
+
+4. **Over-constraining with incompatible models**
+
+   If your models are inconsistent or incomplete, joint analysis may give misleading results.
+
+References
+==========
+
+For more information on multi-messenger analysis:
+
+- Abbott et al. 2017 (GW170817): ApJL 848, L12
+- Coughlin et al. 2018 (Multi-messenger Bayesian PE): MNRAS 480, 3871
+- See also :code:`examples/joint_grb_gw_example.py` for GW+EM implementation details
+- See also :code:`examples/analyse_spectrums.ipynb` for basic spectrum fitting workflow
