@@ -5,6 +5,7 @@ from redback.utils import lambda_to_nu
 from redback.utils import day_to_s
 from redback.utils import citation_wrapper
 from redback.sed import get_correct_output_format_from_spectra
+from redback.sed import calc_ABmag_from_flux_density
 import astropy.units as uu
 from scipy.interpolate import RegularGridInterpolator
 from collections import namedtuple
@@ -240,11 +241,10 @@ def afterglow_kilonova_sed(time, redshift, av, **model_kwargs):
     afterglow_kwargs = model_kwargs.get('afterglow_kwargs', {'base_model': 'tophat'})
 
     temp_kwargs = model_kwargs.copy()
-    max_time = np.maximum(time.max(), 100)
-    time_observer_frame = np.geomspace(0.1, max_time, 300)
+    temp_kwargs.pop('base_model', None)
     lambda_observer_frame = temp_kwargs.get('lambda_array', np.geomspace(100, 60000, 200))
     frequency = lambda_to_nu(lambda_observer_frame)
-    times_mesh, frequency_mesh = np.meshgrid(time_observer_frame, frequency)
+    times_mesh, frequency_mesh = np.meshgrid(time, frequency)
     temp_kwargs['frequency'] = frequency_mesh
 
     _afterglow_kwargs = afterglow_kwargs.copy()
@@ -256,7 +256,7 @@ def afterglow_kilonova_sed(time, redshift, av, **model_kwargs):
     fmjy = afterglow * uu.mJy
     spectra = fmjy.to(uu.erg / uu.cm ** 2 / uu.s / uu.Angstrom,
                       equivalencies=uu.spectral_density(wav=lambda_observer_frame * uu.Angstrom))
-    afterglow = namedtuple('output', ['time', 'lambdas', 'spectra'])(time=time_observer_frame,
+    afterglow = namedtuple('output', ['time', 'lambdas', 'spectra'])(time=time,
                                                          lambdas=lambda_observer_frame,
                                                          spectra=spectra)
 
@@ -303,10 +303,22 @@ def afterglow_kilonova_sed(time, redshift, av, **model_kwargs):
     spectra = fmjy.to(uu.erg / uu.cm ** 2 / uu.s / uu.Angstrom,
                      equivalencies=uu.spectral_density(wav=lambda_observer_frame * uu.Angstrom))
     if model_kwargs['output_format'] == 'spectra':
-        return namedtuple('output', ['time', 'lambdas', 'spectra'])(time=time_observer_frame,
+        return namedtuple('output', ['time', 'lambdas', 'spectra'])(time=time,
                                                                     lambdas=lambda_observer_frame,
                                                                     spectra=spectra)
     else:
-        return get_correct_output_format_from_spectra(time=time, time_eval=time_observer_frame,
-                                                      spectra=spectra, lambda_array=lambda_observer_frame,
-                                                      **model_kwargs)
+        if ('bands' in model_kwargs.keys()) or (model_kwargs['output_format'] == 'sncosmo_source'):
+            return get_correct_output_format_from_spectra(time=time, time_eval=time,
+                                                        spectra=spectra, lambda_array=lambda_observer_frame,
+                                                        **model_kwargs)
+        elif 'frequency' in model_kwargs.keys():
+            lambda_to_eval = nu_to_lambda(model_kwargs['frequency'])
+            flux_density = np.array([np.interp(lambda_to_eval, lambda_observer_frame, spectrum.value, left=0, right=0) for spectrum in spectra])
+            if model_kwargs['output_format'] == 'flux_density':
+                return flux_density
+            elif model_kwargs['output_format'] == 'magnitude':
+                return calc_ABmag_from_flux_density(flux_density)
+            else:
+                raise ValueError("Output format must be 'flux_density' or 'magnitude' when providing 'frequency'.")
+        else:
+            raise ValueError("Must provide either 'bands' or 'frequency' in model_kwargs to get non-spectra output.")
