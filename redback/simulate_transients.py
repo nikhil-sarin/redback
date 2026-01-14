@@ -630,7 +630,7 @@ class SimulateOpticalTransient(object):
         bandflux_errors = redback.utils.bandflux_error_from_limiting_mag(overlapping_database['fiveSigmaDepth'].values,
                                                                          ref_flux)
         if self.add_source_noise:
-            bandflux_errors = np.sqrt(bandflux_errors**2 + self.source_noise_factor*flux**2)
+            bandflux_errors = np.sqrt(bandflux_errors**2 + self.source_noise_factor**2*flux**2)
         # what can be preprocessed
         observed_flux = np.random.normal(loc=flux, scale=bandflux_errors)
         magnitudes = redback.utils.bandpass_flux_to_magnitude(observed_flux, filters)

@@ -15,7 +15,8 @@ extinction_model_functions = {'supernova':extinction_models.extinction_with_supe
                               'afterglow':extinction_models.extinction_with_afterglow_base_model,
                               'tde':extinction_models.extinction_with_tde_base_model,
                               'magnetar_driven':extinction_models.extinction_with_magnetar_driven_base_model,
-                              'shock_powered':extinction_models.extinction_with_shock_powered_base_model}
+                              'shock_powered':extinction_models.extinction_with_shock_powered_base_model,
+                              'stellar_interaction':extinction_models.extinction_with_stellar_interaction_base_model}
 
 @citation_wrapper('redback')
 def t0_base_model(time, t0, **kwargs):
@@ -212,6 +213,19 @@ def t0_shock_powered_extinction(time, t0, av_host, **kwargs):
     """
     summary = _t0_with_extinction(time=time, t0=t0, av_host=av_host, model_type='shock_powered', **kwargs)
     return summary.observable
+    
+@citation_wrapper('redback')
+def t0_stellar_interaction_extinction(time, t0, av, **kwargs):
+    """
+    :param time: time in mjd
+    :param t0: start time in mjd
+    :param av: absolute mag extinction
+    :param kwargs: Must be all the parameters required by the base_model specified using kwargs['base_model']
+        and r_v, default is 3.1
+    :return: flux_density or magnitude depending on kwargs['output_format']
+    """
+    summary = _t0_with_extinction(time=time, t0=t0, av=av, model_type='stellar_interaction', **kwargs)
+    return summary.observable    
 
 @citation_wrapper('https://ui.adsabs.harvard.edu/abs/2021arXiv210601556S/abstract')
 def t0_afterglow_extinction_model_d2g(time, lognh, factor, **kwargs):
