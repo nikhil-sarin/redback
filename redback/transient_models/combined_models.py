@@ -4,8 +4,8 @@ from redback.utils import nu_to_lambda
 from redback.utils import lambda_to_nu
 from redback.utils import day_to_s
 from redback.utils import citation_wrapper
+from redback.utils import calc_ABmag_from_flux_density
 from redback.sed import get_correct_output_format_from_spectra
-from redback.sed import calc_ABmag_from_flux_density
 import astropy.units as uu
 from scipy.interpolate import RegularGridInterpolator
 from collections import namedtuple
