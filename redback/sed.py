@@ -4,7 +4,7 @@ import numpy as np
 from sncosmo import TimeSeriesSource
 
 from redback.constants import *
-from redback.utils import nu_to_lambda, bandpass_magnitude_to_flux
+from redback.utils import nu_to_lambda, bandpass_magnitude_to_flux, calc_flux_density_from_ABmag
 
 
 def _bandflux_single_redback(model, band, time_or_phase):
@@ -962,8 +962,8 @@ def get_correct_output_format_from_spectra(time, time_eval, spectra, lambda_arra
     """
     # clean up spectrum to remove nonsensical values before creating sncosmo source
     spectra = np.nan_to_num(spectra)
-    spectra[spectra.value == np.nan_to_num(np.inf)] = 1e-30 * np.mean(spectra[5])
-    spectra[spectra.value == 0.] = 1e-30 * np.mean(spectra[5])
+    spectra[spectra.value == np.nan_to_num(np.inf)] = 1e-30 * np.mean(spectra[int(len(spectra)/2)])
+    spectra[spectra.value == 0.] = 1e-30 * np.mean(spectra[int(len(spectra)/2)])
     time_spline_degree = kwargs.get('time_spline_degree', 3)
     source = RedbackTimeSeriesSource(phase=time_eval, wave=lambda_array, flux=spectra,
                                      time_spline_degree=time_spline_degree)
@@ -971,6 +971,10 @@ def get_correct_output_format_from_spectra(time, time_eval, spectra, lambda_arra
         bands = kwargs['bands']
         magnitude = source.bandmag(phase=time, band=bands, magsys='ab')
         return bandpass_magnitude_to_flux(magnitude=magnitude, bands=bands)
+    elif kwargs['output_format'] == 'flux_density':
+        bands = kwargs['bands']
+        magnitude = source.bandmag(phase=time, band=bands, magsys='ab')
+        return calc_flux_density_from_ABmag(magnitude)
     elif kwargs['output_format'] == 'magnitude':
         bands = kwargs['bands']
         magnitude = source.bandmag(phase=time, band=bands, magsys='ab')
