@@ -1,0 +1,4 @@
+lambda_center = Uniform(3000, 10000, name='lambda_center', latex_label=r'$\lambda_{\mathrm{center}}$')
+amplitude = Uniform(-1, 1, name='amplitude', latex_label=r'$A$')
+gamma = LogUniform(0.1, 50, name='gamma', latex_label=r'$\gamma$')
+continuum = LogUniform(1e-20, 1e-10, name='continuum', latex_label=r'$F_{\mathrm{cont}}$')

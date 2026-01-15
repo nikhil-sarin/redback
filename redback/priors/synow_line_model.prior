@@ -1,0 +1,6 @@
+lambda_rest = Uniform(3000, 10000, name='lambda_rest', latex_label=r'$\lambda_{\mathrm{rest}}$')
+tau_ref = LogUniform(0.1, 100, name='tau_ref', latex_label=r'$\tau_{\mathrm{ref}}$')
+v_phot = Uniform(5000, 30000, name='v_phot', latex_label=r'$v_{\mathrm{phot}}$')
+v_max = Uniform(10000, 50000, name='v_max', latex_label=r'$v_{\mathrm{max}}$')
+n_power = Uniform(3, 15, name='n_power', latex_label=r'$n$')
+dilution_factor = Uniform(0.1, 1.0, name='dilution_factor', latex_label=r'$W$')
