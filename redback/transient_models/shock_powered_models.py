@@ -751,7 +751,7 @@ def shock_cooling(time, redshift, log10_mass, log10_radius, log10_energy, **kwar
                                              dl=dl, frequency=frequency)
         return flux_density.to(uu.mJy).value / (1 + redshift)
     else:
-        time_temp = np.linspace(1e-2, 60, 100)
+        time_temp = np.geomspace(1e-1, 30, 100)
         lambda_observer_frame = kwargs.get('lambda_array', np.geomspace(100, 60000, 100))
 
         time_observer_frame = time_temp
