@@ -15,14 +15,14 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        test-group: [1, 2, 3, 4]
+        test-group: [1, 2, 3, 4, 5]
         include:
           # Group 1: Heavy tests (model_test is largest ~83KB)
           - test-group: 1
             test-files: "test/model_test.py test/wrapper_test.py"
           # Group 2: Medium tests
           - test-group: 2
-            test-files: "test/get_data_test.py test/analysis_test.py test/plotting_test.py"
+            test-files: "test/get_data_test.py test/analysis_test.py test/plotting_test.py test/spectral_template_matcher_test.py"
           # Group 3: Medium tests
           - test-group: 3
             test-files: "test/prior_test.py test/likelihood_test.py test/sampler_test.py test/photosphere_test.py"

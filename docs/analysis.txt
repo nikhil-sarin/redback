@@ -24,5 +24,19 @@ Here
 - model is the model we wish to plot. This can be a string or a function.
 - model_kwargs is a dictionary of keyword arguments to pass to the model function.
 
+Spectral Template Matching
+==========================
+
+The :code:`SpectralTemplateMatcher` class provides SNID-like spectral classification:
+
+.. code:: python
+
+    from redback.analysis import SpectralTemplateMatcher
+
+    matcher = SpectralTemplateMatcher()
+    result = matcher.match_spectrum(spectrum, redshift_range=(0, 0.3))
+    print(f"Type: {result['type']}, z={result['redshift']:.3f}")
+
+For detailed documentation on spectral template matching, see :doc:`spectral_template_matching`.
 
 Please look at the API for the other methods available in the :code:`Analysis` class.
