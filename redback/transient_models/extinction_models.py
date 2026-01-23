@@ -483,7 +483,7 @@ def extinction_afterglow_galactic_dust_to_gas_ratio(time, lognh, factor=2.21, **
 
     :param time: time in observer frame in days
     :param lognh: log10 hydrogen column density
-    :param factor: factor to convert nh to av_host i.e., av_host = nh/factor (default 2.21)
+    :param factor: factor to convert nh to av i.e., av = nh/factor (default 2.21)
     :param kwargs: Must be all the parameters required by the base_model specified using kwargs['base_model'] plus:
         - redshift: source redshift (required)
         - av_mw: MW V-band extinction in magnitudes (default 0.0)
