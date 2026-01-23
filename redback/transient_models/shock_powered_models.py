@@ -1122,7 +1122,7 @@ def _shocked_cocoon_csm(E_eng, t_eng, theta_0, M_csm, R_csm, kappa, **kwargs):
     N1 = 20
     N2 = 20
     start = 0.9
-    time_factor = 1.05**(20/N2)
+    time_factor = 1.1**(20/N2)
     beta_d_log = np.logspace(np.log10(beta_out * start), np.log10(beta_in), N1)
     beta_d_extra = np.full(N2, beta_in)
     beta_d_values = np.concatenate([beta_d_log, beta_d_extra])
