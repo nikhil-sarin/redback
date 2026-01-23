@@ -34,9 +34,10 @@ extinction_supernova_base_models = ['sn_exponential_powerlaw', 'arnett', 'shock_
                                     'csm_shock_and_arnett', 'shocked_cocoon_and_arnett',
                                     'csm_shock_and_arnett_two_rphots', 'nickelmixing',
                                     'sn_nickel_fallback', 'shockcooling_morag_and_arnett',
-                                    'shockcooling_sapirandwaxman_and_arnett',
+                                    'shockcooling_sapirwaxman_and_arnett',
                                     'csm_shock_and_arnett', 'shocked_cocoon_and_arnett',
-                                    'csm_shock_and_arnett_two_rphots', 'typeII_surrogate_sarin25']
+                                    'csm_shock_and_arnett_two_rphots', 'typeII_surrogate_sarin25',
+                                    'shocked_cocoon_csm_and_arnett']
 extinction_kilonova_base_models = ['nicholl_bns', 'mosfit_rprocess', 'mosfit_kilonova',
                                    'power_law_stratified_kilonova','bulla_bns_kilonova',
                                    'bulla_nsbh_kilonova', 'kasen_bns_kilonova','two_layer_stratified_kilonova',
@@ -55,7 +56,7 @@ extinction_magnetar_driven_base_models = ['basic_mergernova', 'general_mergernov
                                           'general_metzger_magnetar_driven', 'general_metzger_magnetar_driven_thermalisation',
                                           'general_metzger_magnetar_driven_evolution']
 extinction_shock_powered_base_models = ['shocked_cocoon', 'shock_cooling', 'csm_shock_breakout',
-                                        'shockcooling_morag', 'shockcooling_sapirandwaxman']
+                                        'shockcooling_morag', 'shockcooling_sapirandwaxman', 'shocked_cocoon_csm']
 extinction_stellar_interaction_models = ['wr_bh_merger']
 
 extinction_model_library = {'kilonova': extinction_kilonova_base_models,
@@ -101,14 +102,14 @@ def _get_correct_function(base_model, model_type=None):
 
     return function
 
-def _perform_extinction(flux_density, angstroms, av_host, rv_host, av_mw=0.0, rv_mw=3.1,
+def _perform_extinction(flux_density, angstroms, av, rv_host, av_mw=0.0, rv_mw=3.1,
                         host_law='fitzpatrick99', mw_law='fitzpatrick99', **kwargs):
     """
     Apply host galaxy and/or Milky Way extinction to flux density
 
     :param flux_density: flux density in mJy outputted by the model
     :param angstroms: wavelength in angstroms (observer frame)
-    :param av_host: V-band extinction from host galaxy in magnitudes
+    :param av: V-band extinction from host galaxy in magnitudes
     :param rv_host: extinction parameter for host galaxy (default 3.1)
     :param av_mw: V-band extinction from Milky Way in magnitudes
     :param rv_mw: extinction parameter for Milky Way (default 3.1)
@@ -146,7 +147,7 @@ def _perform_extinction(flux_density, angstroms, av_host, rv_host, av_mw=0.0, rv
     flux_extincted = flux_density.copy() if hasattr(flux_density, 'copy') else np.array(flux_density)
 
     # Apply host galaxy extinction (in rest frame)
-    if av_host > 0:
+    if av > 0:
         # Convert observer frame to rest frame wavelengths
         angstroms_rest = angstroms / (1 + redshift)
 
@@ -156,15 +157,15 @@ def _perform_extinction(flux_density, angstroms, av_host, rv_host, av_mw=0.0, rv
         # Calculate extinction - handle different function signatures
         try:
             if host_law in ['fitzpatrick99', 'fm07', 'odonnell94', 'ccm89']:
-                mag_extinction_host = host_extinction_func(angstroms_rest, av_host, rv_host)
+                mag_extinction_host = host_extinction_func(angstroms_rest, av, rv_host)
             elif host_law == 'calzetti00':
                 # Calzetti law doesn't use R_V parameter
-                mag_extinction_host = host_extinction_func(angstroms_rest, av_host)
+                mag_extinction_host = host_extinction_func(angstroms_rest, av)
         except Exception as e:
             raise ValueError(f"Error applying {host_law} extinction law: {e}")
 
         # Cap extreme extinction values
-        if av_host < 10:
+        if av < 10:
             mask = mag_extinction_host > 10
             mag_extinction_host[mask] = 0
 
@@ -196,12 +197,12 @@ def _perform_extinction(flux_density, angstroms, av_host, rv_host, av_mw=0.0, rv
     return flux_extincted
 
 
-def _evaluate_extinction_model(time, av_host, av_mw=0.0, model_type=None, **kwargs):
+def _evaluate_extinction_model(time, av, av_mw=0.0, model_type=None, **kwargs):
     """
     Generalised evaluate extinction function with host and MW extinction
 
     :param time: time in days
-    :param av_host: V-band extinction from host galaxy in magnitudes
+    :param av: V-band extinction from host galaxy in magnitudes
     :param av_mw: V-band extinction from Milky Way in magnitudes
     :param model_type: None, or one of the types implemented
     :param kwargs: Must include all parameters for base_model plus:
@@ -238,7 +239,7 @@ def _evaluate_extinction_model(time, av_host, av_mw=0.0, model_type=None, **kwar
         flux_density = _perform_extinction(
             flux_density=flux_density,
             angstroms=angstroms,
-            av_host=av_host,
+            av=av,
             rv_host=rv_host,
             av_mw=av_mw,
             rv_mw=rv_mw,
@@ -263,7 +264,7 @@ def _evaluate_extinction_model(time, av_host, av_mw=0.0, model_type=None, **kwar
         flux_density = _perform_extinction(
             flux_density=flux_density,
             angstroms=lambdas,
-            av_host=av_host,
+            av=av,
             rv_host=rv_host,
             av_mw=av_mw,
             rv_mw=rv_mw,
@@ -281,12 +282,12 @@ def _evaluate_extinction_model(time, av_host, av_mw=0.0, model_type=None, **kwar
         )
 
 @citation_wrapper('redback')
-def extinction_with_function(time, av_host, **kwargs):
+def extinction_with_function(time, av, **kwargs):
     """
     Extinction model when using your own specified function
 
     :param time: time in observer frame in days
-    :param av_host: V-band extinction from host galaxy in magnitudes
+    :param av: V-band extinction from host galaxy in magnitudes
     :param kwargs: Must be all the parameters required by the base_model specified using kwargs['base_model'] plus:
         - redshift: source redshift (required)
         - av_mw: MW V-band extinction in magnitudes (default 0.0)
@@ -297,16 +298,16 @@ def extinction_with_function(time, av_host, **kwargs):
         Available extinction laws: 'fitzpatrick99', 'fm07', 'calzetti00', 'odonnell94', 'ccm89'
     :return: set by kwargs['output_format'] - 'flux_density', 'magnitude', 'flux', 'spectra' with extinction applied
     """
-    output = _evaluate_extinction_model(time=time, av_host=av_host, model_type=None, **kwargs)
+    output = _evaluate_extinction_model(time=time, av=av, model_type=None, **kwargs)
     return output
 
 @citation_wrapper('redback')
-def extinction_with_supernova_base_model(time, av_host, **kwargs):
+def extinction_with_supernova_base_model(time, av, **kwargs):
     """
     Extinction with models implemented in supernova_models
 
     :param time: time in observer frame in days
-    :param av_host: V-band extinction from host galaxy in magnitudes
+    :param av: V-band extinction from host galaxy in magnitudes
     :param kwargs: Must be all the parameters required by the base_model specified using kwargs['base_model'] plus:
         - redshift: source redshift (required)
         - av_mw: MW V-band extinction in magnitudes (default 0.0)
@@ -317,16 +318,16 @@ def extinction_with_supernova_base_model(time, av_host, **kwargs):
         Available extinction laws: 'fitzpatrick99', 'fm07', 'calzetti00', 'odonnell94', 'ccm89'
     :return: set by kwargs['output_format'] - 'flux_density', 'magnitude', 'flux', 'spectra' with extinction applied
     """
-    output = _evaluate_extinction_model(time=time, av_host=av_host, model_type='supernova', **kwargs)
+    output = _evaluate_extinction_model(time=time, av=av, model_type='supernova', **kwargs)
     return output
 
 @citation_wrapper('redback')
-def extinction_with_kilonova_base_model(time, av_host, **kwargs):
+def extinction_with_kilonova_base_model(time, av, **kwargs):
     """
     Extinction with models implemented in kilonova_models
 
     :param time: time in observer frame in days
-    :param av_host: V-band extinction from host galaxy in magnitudes
+    :param av: V-band extinction from host galaxy in magnitudes
     :param kwargs: Must be all the parameters required by the base_model specified using kwargs['base_model'] plus:
         - redshift: source redshift (required)
         - av_mw: MW V-band extinction in magnitudes (default 0.0)
@@ -337,16 +338,16 @@ def extinction_with_kilonova_base_model(time, av_host, **kwargs):
         Available extinction laws: 'fitzpatrick99', 'fm07', 'calzetti00', 'odonnell94', 'ccm89'
     :return: set by kwargs['output_format'] - 'flux_density', 'magnitude', 'flux', 'spectra' with extinction applied
     """
-    output = _evaluate_extinction_model(time=time, av_host=av_host, model_type='kilonova', **kwargs)
+    output = _evaluate_extinction_model(time=time, av=av, model_type='kilonova', **kwargs)
     return output
 
 @citation_wrapper('redback')
-def extinction_with_tde_base_model(time, av_host, **kwargs):
+def extinction_with_tde_base_model(time, av, **kwargs):
     """
     Extinction with models implemented in tde_models
 
     :param time: time in observer frame in days
-    :param av_host: V-band extinction from host galaxy in magnitudes
+    :param av: V-band extinction from host galaxy in magnitudes
     :param kwargs: Must be all the parameters required by the base_model specified using kwargs['base_model'] plus:
         - redshift: source redshift (required)
         - av_mw: MW V-band extinction in magnitudes (default 0.0)
@@ -357,16 +358,16 @@ def extinction_with_tde_base_model(time, av_host, **kwargs):
         Available extinction laws: 'fitzpatrick99', 'fm07', 'calzetti00', 'odonnell94', 'ccm89'
     :return: set by kwargs['output_format'] - 'flux_density', 'magnitude', 'flux', 'spectra' with extinction applied
     """
-    output = _evaluate_extinction_model(time=time, av_host=av_host, model_type='tde', **kwargs)
+    output = _evaluate_extinction_model(time=time, av=av, model_type='tde', **kwargs)
     return output
 
 @citation_wrapper('redback')
-def extinction_with_shock_powered_base_model(time, av_host, **kwargs):
+def extinction_with_shock_powered_base_model(time, av, **kwargs):
     """
     Extinction with models implemented in shock_powered_models
 
     :param time: time in observer frame in days
-    :param av_host: V-band extinction from host galaxy in magnitudes
+    :param av: V-band extinction from host galaxy in magnitudes
     :param kwargs: Must be all the parameters required by the base_model specified using kwargs['base_model'] plus:
         - redshift: source redshift (required)
         - av_mw: MW V-band extinction in magnitudes (default 0.0)
@@ -377,16 +378,16 @@ def extinction_with_shock_powered_base_model(time, av_host, **kwargs):
         Available extinction laws: 'fitzpatrick99', 'fm07', 'calzetti00', 'odonnell94', 'ccm89'
     :return: set by kwargs['output_format'] - 'flux_density', 'magnitude', 'flux', 'spectra' with extinction applied
     """
-    output = _evaluate_extinction_model(time=time, av_host=av_host, model_type='shock_powered', **kwargs)
+    output = _evaluate_extinction_model(time=time, av=av, model_type='shock_powered', **kwargs)
     return output
 
 @citation_wrapper('redback')
-def extinction_with_magnetar_driven_base_model(time, av_host, **kwargs):
+def extinction_with_magnetar_driven_base_model(time, av, **kwargs):
     """
     Extinction with models implemented in magnetar_driven_ejecta_models
 
     :param time: time in observer frame in days
-    :param av_host: V-band extinction from host galaxy in magnitudes
+    :param av: V-band extinction from host galaxy in magnitudes
     :param kwargs: Must be all the parameters required by the base_model specified using kwargs['base_model'] plus:
         - redshift: source redshift (required)
         - av_mw: MW V-band extinction in magnitudes (default 0.0)
@@ -397,16 +398,16 @@ def extinction_with_magnetar_driven_base_model(time, av_host, **kwargs):
         Available extinction laws: 'fitzpatrick99', 'fm07', 'calzetti00', 'odonnell94', 'ccm89'
     :return: set by kwargs['output_format'] - 'flux_density', 'magnitude', 'flux', 'spectra' with extinction applied
     """
-    output = _evaluate_extinction_model(time=time, av_host=av_host, model_type='magnetar_driven', **kwargs)
+    output = _evaluate_extinction_model(time=time, av=av, model_type='magnetar_driven', **kwargs)
     return output
 
 @citation_wrapper('redback')
-def extinction_with_stellar_interaction_base_model(time, av_host, **kwargs):
+def extinction_with_stellar_interaction_base_model(time, av, **kwargs):
     """
     Extinction with models implemented in stellar_interaction_models
 
     :param time: time in observer frame in days
-    :param av_host: V-band extinction from host galaxy in magnitudes
+    :param av: V-band extinction from host galaxy in magnitudes
     :param kwargs: Must be all the parameters required by the base_model specified using kwargs['base_model'] plus:
         - redshift: source redshift (required)
         - av_mw: MW V-band extinction in magnitudes (default 0.0)
@@ -417,7 +418,7 @@ def extinction_with_stellar_interaction_base_model(time, av_host, **kwargs):
         Available extinction laws: 'fitzpatrick99', 'fm07', 'calzetti00', 'odonnell94', 'ccm89'
     :return: set by kwargs['output_format'] - 'flux_density', 'magnitude', 'flux', 'spectra' with extinction applied
     """
-    output = _evaluate_extinction_model(time=time, av_host=av_host, model_type='stellar_interaction', **kwargs)
+    output = _evaluate_extinction_model(time=time, av=av, model_type='stellar_interaction', **kwargs)
     return output
 
 @citation_wrapper('redback')
@@ -435,12 +436,12 @@ def extinction_with_stellar_interaction_base_model(time, av, **kwargs):
     return output
 
 @citation_wrapper('redback')
-def extinction_with_general_synchrotron_base_model(time, av_host, **kwargs):
+def extinction_with_general_synchrotron_base_model(time, av, **kwargs):
     """
     Extinction with models implemented in general_synchrotron_models
 
     :param time: time in observer frame in days
-    :param av_host: V-band extinction from host galaxy in magnitudes
+    :param av: V-band extinction from host galaxy in magnitudes
     :param kwargs: Must be all the parameters required by the base_model specified using kwargs['base_model'] plus:
         - redshift: source redshift (required)
         - av_mw: MW V-band extinction in magnitudes (default 0.0)
@@ -451,16 +452,16 @@ def extinction_with_general_synchrotron_base_model(time, av_host, **kwargs):
         Available extinction laws: 'fitzpatrick99', 'fm07', 'calzetti00', 'odonnell94', 'ccm89'
     :return: set by kwargs['output_format'] - 'flux_density', 'magnitude', 'flux', 'spectra' with extinction applied
     """
-    output = _evaluate_extinction_model(time=time, av_host=av_host, model_type='general_synchrotron', **kwargs)
+    output = _evaluate_extinction_model(time=time, av=av, model_type='general_synchrotron', **kwargs)
     return output
 
 @citation_wrapper('https://ui.adsabs.harvard.edu/abs/2021arXiv210601556S/abstract')
-def extinction_with_afterglow_base_model(time, av_host, **kwargs):
+def extinction_with_afterglow_base_model(time, av, **kwargs):
     """
     Extinction with models implemented in afterglow_models
 
     :param time: time in observer frame in days
-    :param av_host: V-band extinction from host galaxy in magnitudes
+    :param av: V-band extinction from host galaxy in magnitudes
     :param kwargs: Must be all the parameters required by the base_model specified using kwargs['base_model'] plus:
         - redshift: source redshift (required)
         - av_mw: MW V-band extinction in magnitudes (default 0.0)
@@ -472,7 +473,7 @@ def extinction_with_afterglow_base_model(time, av_host, **kwargs):
     :return: set by kwargs['output_format'] - 'flux_density', 'magnitude', 'flux', 'spectra' with extinction applied
         Note that only sed variant models can take magnitude as an output
     """
-    output = _evaluate_extinction_model(time=time, av_host=av_host, model_type='afterglow', **kwargs)
+    output = _evaluate_extinction_model(time=time, av=av, model_type='afterglow', **kwargs)
     return output
 
 @citation_wrapper('https://ui.adsabs.harvard.edu/abs/2021arXiv210601556S/abstract')
@@ -496,7 +497,7 @@ def extinction_afterglow_galactic_dust_to_gas_ratio(time, lognh, factor=2.21, **
     factor = factor * 1e21
     nh = 10 ** lognh
     av = nh / factor
-    output = extinction_with_afterglow_base_model(time=time, av_host=av, **kwargs)
+    output = extinction_with_afterglow_base_model(time=time, av=av, **kwargs)
     return output
 
 
