@@ -1147,7 +1147,7 @@ def _shocked_cocoon_csm(E_eng, t_eng, theta_0, M_csm, R_csm, kappa, **kwargs):
     T_values = (Lbol_values / (4.0 * np.pi * cc.sigma_sb * Rph_values**2.0))**0.25    
     
     output = namedtuple('output', ['time_array', 'L_bolometric', 'r_photosphere', 'T_photosphere', 'beta_d', 'beta_ph', 'Ei_d'])
-    output.time_array = time_values/day_to_s
+    output.time_array = time_values/cc.day_to_s
     output.L_bolometric = Lbol_values
     output.r_photosphere = Rph_values
     output.T_photosphere = T_values  
