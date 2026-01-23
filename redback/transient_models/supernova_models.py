@@ -2915,7 +2915,7 @@ def shocked_cocoon_csm_and_arnett(time, redshift, E_eng, t_eng, theta_0, M_csm, 
         Rph = output.r_photosphere
 
         zarr = np.zeros(30)
-        tadd = np.linspace(t_array[-1]+5,1000,30)
+        tadd = np.linspace(t_array[-1]+5,t_array[-1]+1000,30)
         Rlate = np.ones(30)*1e16
         t_obs = np.concatenate(([0], t_array, tadd))
         T = np.concatenate(([0], T, zarr))

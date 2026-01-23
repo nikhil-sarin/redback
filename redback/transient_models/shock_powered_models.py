@@ -1122,7 +1122,7 @@ def _shocked_cocoon_csm(E_eng, t_eng, theta_0, M_csm, R_csm, kappa, **kwargs):
     N1 = 20
     N2 = 20
     start = 0.9
-    time_factor = 1.1**(20/N2)
+    time_factor = 1.05**(20/N2)
     beta_d_log = np.logspace(np.log10(beta_out * start), np.log10(beta_in), N1)
     beta_d_extra = np.full(N2, beta_in)
     beta_d_values = np.concatenate([beta_d_log, beta_d_extra])
@@ -1175,10 +1175,10 @@ def shocked_cocoon_csm_bolometric(time, E_eng, t_eng, theta_0, M_csm, R_csm, kap
     
     t_array = output.time_array
     Lbol_array = output.L_bolometric
-    zarr = np.zeros(30)
-    tadd = np.linspace(t_array[-1]+5,1000,30)
+    zarr = np.zeros(30)+1.0
+    tadd = np.linspace(t_array[-1]+5,t_array[-1]+1000,30)
     t_array = np.concatenate(([0], t_array, tadd))
-    Lbol_array = np.concatenate(([0], Lbol_array, zarr))
+    Lbol_array = np.concatenate(([1], Lbol_array, zarr))
 
     lbol_func = interp1d(t_array, y=Lbol_array)
     time = time
@@ -1219,8 +1219,8 @@ def shocked_cocoon_csm(time, redshift, E_eng, t_eng, theta_0, M_csm, R_csm, kapp
         T = output.T_photosphere
         Rph = output.r_photosphere
 
-        zarr = np.zeros(30)
-        tadd = np.linspace(t_array[-1]+5,1000,30)
+        zarr = np.zeros(30)+1.0
+        tadd = np.linspace(t_array[-1]+5,t_array[-1]+1000,30)
         Rlate = np.ones(30)*1e16
         t_obs = np.concatenate(([0], t_array, tadd))
         T = np.concatenate(([0], T, zarr))
@@ -1244,7 +1244,7 @@ def shocked_cocoon_csm(time, redshift, E_eng, t_eng, theta_0, M_csm, R_csm, kapp
         Rph = output.r_photosphere
 
         zarr = np.zeros(30)
-        tadd = np.linspace(t_array[-1]+5,1000,30)
+        tadd = np.linspace(t_array[-1]+5,t_array[-1]+1000,30)
         Rlate = np.ones(30)*1e16
         t_obs = np.concatenate(([0], t_array, tadd))
         T = np.concatenate(([0], T, zarr))
