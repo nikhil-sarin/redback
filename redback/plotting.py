@@ -85,6 +85,50 @@ class Plotter(object):
     ylim_high_multiplier = KwargsAccessorWithDefault("ylim_high_multiplier", 2.0)
     ylim_low_multiplier = KwargsAccessorWithDefault("ylim_low_multiplier", 0.5)
 
+    # Grid options
+    show_grid = KwargsAccessorWithDefault("show_grid", False)
+    grid_alpha = KwargsAccessorWithDefault("grid_alpha", 0.3)
+    grid_color = KwargsAccessorWithDefault("grid_color", "gray")
+    grid_linestyle = KwargsAccessorWithDefault("grid_linestyle", "--")
+    grid_linewidth = KwargsAccessorWithDefault("grid_linewidth", 0.5)
+
+    # Save format and transparency
+    save_format = KwargsAccessorWithDefault("save_format", "png")
+    transparent = KwargsAccessorWithDefault("transparent", False)
+
+    # Axis scale options
+    xscale = KwargsAccessorWithDefault("xscale", None)
+    yscale = KwargsAccessorWithDefault("yscale", None)
+
+    # Title options
+    title = KwargsAccessorWithDefault("title", None)
+    title_fontsize = KwargsAccessorWithDefault("title_fontsize", 20)
+
+    # Line style options
+    linestyle = KwargsAccessorWithDefault("linestyle", "-")
+    max_likelihood_linestyle = KwargsAccessorWithDefault("max_likelihood_linestyle", "-")
+    random_sample_linestyle = KwargsAccessorWithDefault("random_sample_linestyle", "-")
+
+    # Marker options
+    markerfillstyle = KwargsAccessorWithDefault("markerfillstyle", "full")
+    markeredgecolor = KwargsAccessorWithDefault("markeredgecolor", None)
+    markeredgewidth = KwargsAccessorWithDefault("markeredgewidth", 1.0)
+
+    # Legend customization
+    legend_frameon = KwargsAccessorWithDefault("legend_frameon", True)
+    legend_shadow = KwargsAccessorWithDefault("legend_shadow", False)
+    legend_fancybox = KwargsAccessorWithDefault("legend_fancybox", True)
+    legend_framealpha = KwargsAccessorWithDefault("legend_framealpha", 0.8)
+
+    # Tick customization
+    tick_direction = KwargsAccessorWithDefault("tick_direction", "in")
+    tick_length = KwargsAccessorWithDefault("tick_length", None)
+    tick_width = KwargsAccessorWithDefault("tick_width", None)
+
+    # Spine options
+    show_spines = KwargsAccessorWithDefault("show_spines", True)
+    spine_linewidth = KwargsAccessorWithDefault("spine_linewidth", None)
+
     def __init__(self, transient: Union[redback.transient.Transient, None], **kwargs) -> None:
         """
         :param transient: An instance of `redback.transient.Transient`. Contains the data to be plotted.
@@ -136,6 +180,32 @@ class Plotter(object):
         :keyword xlim_low_multiplier: Adjust the minimum xlim based on available x values.
         :keyword ylim_high_multiplier: Adjust the maximum ylim based on available x values.
         :keyword ylim_low_multiplier: Adjust the minimum ylim based on available x values.
+        :keyword show_grid: Whether to show grid lines. Default is False.
+        :keyword grid_alpha: Transparency of grid lines. Default is 0.3.
+        :keyword grid_color: Color of grid lines. Default is 'gray'.
+        :keyword grid_linestyle: Line style of grid lines. Default is '--'.
+        :keyword grid_linewidth: Line width of grid lines. Default is 0.5.
+        :keyword save_format: Format for saving plots (e.g., 'png', 'pdf', 'svg', 'eps'). Default is 'png'.
+        :keyword transparent: Whether to save plots with transparent background. Default is False.
+        :keyword xscale: X-axis scale ('linear', 'log', 'symlog', 'logit'). Default is None (auto-determined).
+        :keyword yscale: Y-axis scale ('linear', 'log', 'symlog', 'logit'). Default is None (auto-determined).
+        :keyword title: Title for the plot. Default is None (no title).
+        :keyword title_fontsize: Font size for the title. Default is 20.
+        :keyword linestyle: Line style for model curves. Default is '-'.
+        :keyword max_likelihood_linestyle: Line style for max likelihood curve. Default is '-'.
+        :keyword random_sample_linestyle: Line style for random sample curves. Default is '-'.
+        :keyword markerfillstyle: Fill style for markers ('full', 'left', 'right', 'bottom', 'top', 'none'). Default is 'full'.
+        :keyword markeredgecolor: Edge color for markers. Default is None (same as face color).
+        :keyword markeredgewidth: Edge width for markers. Default is 1.0.
+        :keyword legend_frameon: Whether to draw a frame around the legend. Default is True.
+        :keyword legend_shadow: Whether to draw a shadow behind the legend. Default is False.
+        :keyword legend_fancybox: Whether to use rounded corners for legend frame. Default is True.
+        :keyword legend_framealpha: Transparency of legend frame. Default is 0.8.
+        :keyword tick_direction: Direction of tick marks ('in', 'out', 'inout'). Default is 'in'.
+        :keyword tick_length: Length of tick marks. Default is None (matplotlib default).
+        :keyword tick_width: Width of tick marks. Default is None (matplotlib default).
+        :keyword show_spines: Whether to show plot spines (borders). Default is True.
+        :keyword spine_linewidth: Width of plot spines. Default is None (matplotlib default).
         """
         self.transient = transient
         self.kwargs = kwargs or dict()
@@ -261,9 +331,47 @@ class Plotter(object):
     def _save_and_show(self, filepath: str, save: bool, show: bool) -> None:
         plt.tight_layout()
         if save:
-            plt.savefig(filepath, dpi=self.dpi, bbox_inches=self.bbox_inches, transparent=False, facecolor='white')
+            # Update filepath extension if save_format is specified
+            if '.' in filepath:
+                filepath = filepath.rsplit('.', 1)[0] + f'.{self.save_format}'
+            else:
+                filepath = f'{filepath}.{self.save_format}'
+
+            facecolor = 'none' if self.transparent else 'white'
+            plt.savefig(filepath, dpi=self.dpi, bbox_inches=self.bbox_inches,
+                       transparent=self.transparent, facecolor=facecolor)
         if show:
             plt.show()
+
+    def _apply_axis_customizations(self, ax: matplotlib.axes.Axes) -> None:
+        """Apply common axis customizations like grid, title, ticks, and spines."""
+        # Grid
+        if self.show_grid:
+            ax.grid(True, alpha=self.grid_alpha, color=self.grid_color,
+                   linestyle=self.grid_linestyle, linewidth=self.grid_linewidth)
+
+        # Title
+        if self.title is not None:
+            ax.set_title(self.title, fontsize=self.title_fontsize)
+
+        # Tick customization
+        tick_params = {'axis': 'both', 'which': 'both',
+                      'pad': self.axis_tick_params_pad,
+                      'labelsize': self.fontsize_ticks,
+                      'direction': self.tick_direction}
+        if self.tick_length is not None:
+            tick_params['length'] = self.tick_length
+        if self.tick_width is not None:
+            tick_params['width'] = self.tick_width
+        ax.tick_params(**tick_params)
+
+        # Spine customization
+        if not self.show_spines:
+            for spine in ax.spines.values():
+                spine.set_visible(False)
+        elif self.spine_linewidth is not None:
+            for spine in ax.spines.values():
+                spine.set_linewidth(self.spine_linewidth)
 
 class SpecPlotter(object):
     """
@@ -315,6 +423,49 @@ class SpecPlotter(object):
     ylim_high_multiplier = KwargsAccessorWithDefault("ylim_high_multiplier", 1.1)
     ylim_low_multiplier = KwargsAccessorWithDefault("ylim_low_multiplier", 0.5)
 
+    # Grid options
+    show_grid = KwargsAccessorWithDefault("show_grid", False)
+    grid_alpha = KwargsAccessorWithDefault("grid_alpha", 0.3)
+    grid_color = KwargsAccessorWithDefault("grid_color", "gray")
+    grid_linestyle = KwargsAccessorWithDefault("grid_linestyle", "--")
+    grid_linewidth = KwargsAccessorWithDefault("grid_linewidth", 0.5)
+
+    # Save format and transparency
+    save_format = KwargsAccessorWithDefault("save_format", "png")
+    transparent = KwargsAccessorWithDefault("transparent", False)
+
+    # Axis scale options (xscale can be customized too)
+    xscale = KwargsAccessorWithDefault("xscale", None)
+
+    # Title options
+    title = KwargsAccessorWithDefault("title", None)
+    title_fontsize = KwargsAccessorWithDefault("title_fontsize", 20)
+
+    # Line style options
+    linestyle = KwargsAccessorWithDefault("linestyle", "-")
+    max_likelihood_linestyle = KwargsAccessorWithDefault("max_likelihood_linestyle", "-")
+    random_sample_linestyle = KwargsAccessorWithDefault("random_sample_linestyle", "-")
+
+    # Marker options
+    markerfillstyle = KwargsAccessorWithDefault("markerfillstyle", "full")
+    markeredgecolor = KwargsAccessorWithDefault("markeredgecolor", None)
+    markeredgewidth = KwargsAccessorWithDefault("markeredgewidth", 1.0)
+
+    # Legend customization
+    legend_frameon = KwargsAccessorWithDefault("legend_frameon", True)
+    legend_shadow = KwargsAccessorWithDefault("legend_shadow", False)
+    legend_fancybox = KwargsAccessorWithDefault("legend_fancybox", True)
+    legend_framealpha = KwargsAccessorWithDefault("legend_framealpha", 0.8)
+
+    # Tick customization
+    tick_direction = KwargsAccessorWithDefault("tick_direction", "in")
+    tick_length = KwargsAccessorWithDefault("tick_length", None)
+    tick_width = KwargsAccessorWithDefault("tick_width", None)
+
+    # Spine options
+    show_spines = KwargsAccessorWithDefault("show_spines", True)
+    spine_linewidth = KwargsAccessorWithDefault("spine_linewidth", None)
+
     def __init__(self, spectrum: Union[redback.transient.Spectrum, None], **kwargs) -> None:
         """
         :param spectrum: An instance of `redback.transient.Spectrum`. Contains the data to be plotted.
@@ -362,6 +513,31 @@ class SpecPlotter(object):
         :keyword xlim_low_multiplier: Adjust the minimum xlim based on available x values.
         :keyword ylim_high_multiplier: Adjust the maximum ylim based on available x values.
         :keyword ylim_low_multiplier: Adjust the minimum ylim based on available x values.
+        :keyword show_grid: Whether to show grid lines. Default is False.
+        :keyword grid_alpha: Transparency of grid lines. Default is 0.3.
+        :keyword grid_color: Color of grid lines. Default is 'gray'.
+        :keyword grid_linestyle: Line style of grid lines. Default is '--'.
+        :keyword grid_linewidth: Line width of grid lines. Default is 0.5.
+        :keyword save_format: Format for saving plots (e.g., 'png', 'pdf', 'svg', 'eps'). Default is 'png'.
+        :keyword transparent: Whether to save plots with transparent background. Default is False.
+        :keyword xscale: X-axis scale ('linear', 'log', 'symlog', 'logit'). Default is None (auto-determined).
+        :keyword title: Title for the plot. Default is None (no title).
+        :keyword title_fontsize: Font size for the title. Default is 20.
+        :keyword linestyle: Line style for model curves. Default is '-'.
+        :keyword max_likelihood_linestyle: Line style for max likelihood curve. Default is '-'.
+        :keyword random_sample_linestyle: Line style for random sample curves. Default is '-'.
+        :keyword markerfillstyle: Fill style for markers ('full', 'left', 'right', 'bottom', 'top', 'none'). Default is 'full'.
+        :keyword markeredgecolor: Edge color for markers. Default is None (same as face color).
+        :keyword markeredgewidth: Edge width for markers. Default is 1.0.
+        :keyword legend_frameon: Whether to draw a frame around the legend. Default is True.
+        :keyword legend_shadow: Whether to draw a shadow behind the legend. Default is False.
+        :keyword legend_fancybox: Whether to use rounded corners for legend frame. Default is True.
+        :keyword legend_framealpha: Transparency of legend frame. Default is 0.8.
+        :keyword tick_direction: Direction of tick marks ('in', 'out', 'inout'). Default is 'in'.
+        :keyword tick_length: Length of tick marks. Default is None (matplotlib default).
+        :keyword tick_width: Width of tick marks. Default is None (matplotlib default).
+        :keyword show_spines: Whether to show plot spines (borders). Default is True.
+        :keyword spine_linewidth: Width of plot spines. Default is None (matplotlib default).
         """
         self.transient = spectrum
         self.kwargs = kwargs or dict()
@@ -463,9 +639,47 @@ class SpecPlotter(object):
     def _save_and_show(self, filepath: str, save: bool, show: bool) -> None:
         plt.tight_layout()
         if save:
-            plt.savefig(filepath, dpi=self.dpi, bbox_inches=self.bbox_inches, transparent=False, facecolor='white')
+            # Update filepath extension if save_format is specified
+            if '.' in filepath:
+                filepath = filepath.rsplit('.', 1)[0] + f'.{self.save_format}'
+            else:
+                filepath = f'{filepath}.{self.save_format}'
+
+            facecolor = 'none' if self.transparent else 'white'
+            plt.savefig(filepath, dpi=self.dpi, bbox_inches=self.bbox_inches,
+                       transparent=self.transparent, facecolor=facecolor)
         if show:
             plt.show()
+
+    def _apply_axis_customizations(self, ax: matplotlib.axes.Axes) -> None:
+        """Apply common axis customizations like grid, title, ticks, and spines."""
+        # Grid
+        if self.show_grid:
+            ax.grid(True, alpha=self.grid_alpha, color=self.grid_color,
+                   linestyle=self.grid_linestyle, linewidth=self.grid_linewidth)
+
+        # Title
+        if self.title is not None:
+            ax.set_title(self.title, fontsize=self.title_fontsize)
+
+        # Tick customization
+        tick_params = {'axis': 'both', 'which': 'both',
+                      'pad': self.axis_tick_params_pad,
+                      'labelsize': self.fontsize_ticks,
+                      'direction': self.tick_direction}
+        if self.tick_length is not None:
+            tick_params['length'] = self.tick_length
+        if self.tick_width is not None:
+            tick_params['width'] = self.tick_width
+        ax.tick_params(**tick_params)
+
+        # Spine customization
+        if not self.show_spines:
+            for spine in ax.spines.values():
+                spine.set_visible(False)
+        elif self.spine_linewidth is not None:
+            for spine in ax.spines.values():
+                spine.set_linewidth(self.spine_linewidth)
 
 
 class IntegratedFluxPlotter(Plotter):
@@ -495,10 +709,13 @@ class IntegratedFluxPlotter(Plotter):
         ax = axes or plt.gca()
 
         ax.errorbar(self.transient.x, self.transient.y, xerr=self._x_err, yerr=self._y_err,
-                    fmt=self.errorbar_fmt, c=self.color, ms=self.ms, elinewidth=self.elinewidth, capsize=self.capsize)
+                    fmt=self.errorbar_fmt, c=self.color, ms=self.ms, elinewidth=self.elinewidth, capsize=self.capsize,
+                    fillstyle=self.markerfillstyle, markeredgecolor=self.markeredgecolor,
+                    markeredgewidth=self.markeredgewidth)
 
-        ax.set_xscale('log')
-        ax.set_yscale('log')
+        # Apply custom scales if specified, otherwise use defaults
+        ax.set_xscale(self.xscale if self.xscale is not None else 'log')
+        ax.set_yscale(self.yscale if self.yscale is not None else 'log')
 
         ax.set_xlim(self._xlim_low, self._xlim_high)
         ax.set_ylim(self._ylim_low, self._ylim_high)
@@ -509,7 +726,8 @@ class IntegratedFluxPlotter(Plotter):
             self.transient.name, xy=self.xy, xycoords=self.xycoords,
             horizontalalignment=self.horizontalalignment, size=self.annotation_size)
 
-        ax.tick_params(axis='both', which='both', pad=self.axis_tick_params_pad, labelsize=self.fontsize_ticks)
+        # Apply new customizations
+        self._apply_axis_customizations(ax)
 
         self._save_and_show(filepath=self._data_plot_filepath, save=save, show=show)
         return ax
@@ -542,14 +760,15 @@ class IntegratedFluxPlotter(Plotter):
     def _plot_lightcurves(self, axes: matplotlib.axes.Axes, times: np.ndarray) -> None:
         if self.plot_max_likelihood:
             ys = self.model(times, **self._max_like_params, **self._model_kwargs)
-            axes.plot(times, ys, color=self.max_likelihood_color, alpha=self.max_likelihood_alpha, lw=self.linewidth)
+            axes.plot(times, ys, color=self.max_likelihood_color, alpha=self.max_likelihood_alpha,
+                     lw=self.linewidth, linestyle=self.max_likelihood_linestyle)
 
         random_ys_list = [self.model(times, **random_params, **self._model_kwargs)
                           for random_params in self._get_random_parameters()]
         if self.uncertainty_mode == "random_models":
             for ys in random_ys_list:
-                axes.plot(times, ys, color=self.random_sample_color, alpha=self.random_sample_alpha, lw=self.linewidth,
-                          zorder=self.zorder)
+                axes.plot(times, ys, color=self.random_sample_color, alpha=self.random_sample_alpha,
+                         lw=self.linewidth, linestyle=self.random_sample_linestyle, zorder=self.zorder)
         elif self.uncertainty_mode == "credible_intervals":
             lower_bound, upper_bound, _ = redback.utils.calc_credible_intervals(samples=random_ys_list, interval=self.credible_interval_level)
             axes.fill_between(
@@ -557,8 +776,8 @@ class IntegratedFluxPlotter(Plotter):
 
     def _plot_single_lightcurve(self, axes: matplotlib.axes.Axes, times: np.ndarray, params: dict) -> None:
         ys = self.model(times, **params, **self._model_kwargs)
-        axes.plot(times, ys, color=self.random_sample_color, alpha=self.random_sample_alpha, lw=self.linewidth,
-                  zorder=self.zorder)
+        axes.plot(times, ys, color=self.random_sample_color, alpha=self.random_sample_alpha,
+                 lw=self.linewidth, linestyle=self.random_sample_linestyle, zorder=self.zorder)
 
     def plot_residuals(
             self, axes: matplotlib.axes.Axes = None, save: bool = True, show: bool = True) -> matplotlib.axes.Axes:
@@ -581,10 +800,14 @@ class IntegratedFluxPlotter(Plotter):
         ys = self.model(self.transient.x, **self._max_like_params, **self._model_kwargs)
         axes[1].errorbar(
             self.transient.x, self.transient.y - ys, xerr=self._x_err, yerr=self._y_err,
-            fmt=self.errorbar_fmt, c=self.color, ms=self.ms, elinewidth=self.elinewidth, capsize=self.capsize)
+            fmt=self.errorbar_fmt, c=self.color, ms=self.ms, elinewidth=self.elinewidth, capsize=self.capsize,
+            fillstyle=self.markerfillstyle, markeredgecolor=self.markeredgecolor,
+            markeredgewidth=self.markeredgewidth)
         axes[1].set_yscale("log")
         axes[1].set_ylabel("Residual", fontsize=self.fontsize_axes)
-        axes[1].tick_params(axis='both', which='both', pad=self.axis_tick_params_pad, labelsize=self.fontsize_ticks)
+
+        # Apply new customizations
+        self._apply_axis_customizations(axes[1])
 
         self._save_and_show(filepath=self._residual_plot_filepath, save=save, show=show)
         return axes
@@ -672,24 +895,31 @@ class MagnitudePlotter(Plotter):
         if self.transient.magnitude_data:
             ax.set_ylim(self._ylim_low_magnitude, self._ylim_high_magnitude)
             ax.invert_yaxis()
-            ax.set_yscale('linear')
+            # Apply custom yscale if specified, otherwise use default
+            ax.set_yscale(self.yscale if self.yscale is not None else 'linear')
         else:
             ax.set_ylim(self._ylim_low, self._ylim_high)
-            ax.set_yscale("log")
+            # Apply custom yscale if specified, otherwise use default
+            ax.set_yscale(self.yscale if self.yscale is not None else "log")
 
     def _set_y_axis_multiband_data(self, ax: matplotlib.axes.Axes, indices: list) -> None:
         if self.transient.magnitude_data:
             ax.set_ylim(self._ylim_low_magnitude, self._ylim_high_magnitude)
             ax.invert_yaxis()
-            ax.set_yscale('linear')
+            # Apply custom yscale if specified, otherwise use default
+            ax.set_yscale(self.yscale if self.yscale is not None else 'linear')
         else:
             ax.set_ylim(self._get_ylim_low_with_indices(indices=indices),
                         self._get_ylim_high_with_indices(indices=indices))
-            ax.set_yscale("log")
+            # Apply custom yscale if specified, otherwise use default
+            ax.set_yscale(self.yscale if self.yscale is not None else "log")
 
     def _set_x_axis(self, axes: matplotlib.axes.Axes) -> None:
-        if self.transient.use_phase_model:
-            axes.set_xscale("linear")
+        # Apply custom xscale if specified, otherwise use default behavior
+        if self.xscale is not None:
+            axes.set_xscale(self.xscale)
+        elif self.transient.use_phase_model:
+            axes.set_xscale("linear")  # Keep master's default for phase model
         axes.set_xlim(self._xlim_low, self._xlim_high)
 
     @property
@@ -770,19 +1000,25 @@ class MagnitudePlotter(Plotter):
                         self.transient.x[indices] - self._reference_mjd_date, self.transient.y[indices] * self.band_scaling.get(band),
                         xerr=self._get_x_err(indices), yerr=self.transient.y_err[indices] * self.band_scaling.get(band),
                         fmt=self.errorbar_fmt, ms=self.ms, color=color,
-                        elinewidth=self.elinewidth, capsize=self.capsize, label=label)
+                        elinewidth=self.elinewidth, capsize=self.capsize, label=label,
+                        fillstyle=self.markerfillstyle, markeredgecolor=self.markeredgecolor,
+                        markeredgewidth=self.markeredgewidth)
                 elif self.band_scaling.get("type") == '+':
                     ax.errorbar(
                         self.transient.x[indices] - self._reference_mjd_date, self.transient.y[indices] + self.band_scaling.get(band),
                         xerr=self._get_x_err(indices), yerr=self.transient.y_err[indices],
                         fmt=self.errorbar_fmt, ms=self.ms, color=color,
-                        elinewidth=self.elinewidth, capsize=self.capsize, label=label)
+                        elinewidth=self.elinewidth, capsize=self.capsize, label=label,
+                        fillstyle=self.markerfillstyle, markeredgecolor=self.markeredgecolor,
+                        markeredgewidth=self.markeredgewidth)
             else:
                 ax.errorbar(
                     self.transient.x[indices] - self._reference_mjd_date, self.transient.y[indices],
                     xerr=self._get_x_err(indices), yerr=self.transient.y_err[indices],
                     fmt=self.errorbar_fmt, ms=self.ms, color=color,
-                    elinewidth=self.elinewidth, capsize=self.capsize, label=label)
+                    elinewidth=self.elinewidth, capsize=self.capsize, label=label,
+                    fillstyle=self.markerfillstyle, markeredgecolor=self.markeredgecolor,
+                    markeredgewidth=self.markeredgewidth)
 
         self._set_x_axis(axes=ax)
         self._set_y_axis_data(ax)
@@ -790,8 +1026,13 @@ class MagnitudePlotter(Plotter):
         ax.set_xlabel(self._xlabel, fontsize=self.fontsize_axes)
         ax.set_ylabel(self._ylabel, fontsize=self.fontsize_axes)
 
-        ax.tick_params(axis='both', which='both', pad=self.axis_tick_params_pad, labelsize=self.fontsize_ticks)
-        ax.legend(ncol=self.legend_cols, loc=self.legend_location, fontsize=self.fontsize_legend)
+        # Apply new customizations
+        self._apply_axis_customizations(ax)
+
+        # Legend with new customization options
+        ax.legend(ncol=self.legend_cols, loc=self.legend_location, fontsize=self.fontsize_legend,
+                 frameon=self.legend_frameon, shadow=self.legend_shadow,
+                 fancybox=self.legend_fancybox, framealpha=self.legend_framealpha)
 
         self._save_and_show(filepath=self._data_plot_filepath, save=save, show=show)
         return ax
@@ -837,11 +1078,14 @@ class MagnitudePlotter(Plotter):
                 ys = self.model(times, **self._max_like_params, **self._model_kwargs)
                 if band in self.band_scaling:
                     if self.band_scaling.get("type") == 'x':
-                        axes.plot(times - self._reference_mjd_date, ys * self.band_scaling.get(band), color=color_max, alpha=self.max_likelihood_alpha, lw=self.linewidth)
+                        axes.plot(times - self._reference_mjd_date, ys * self.band_scaling.get(band), color=color_max,
+                                 alpha=self.max_likelihood_alpha, lw=self.linewidth, linestyle=self.max_likelihood_linestyle)
                     elif self.band_scaling.get("type") == '+':
-                        axes.plot(times - self._reference_mjd_date, ys + self.band_scaling.get(band), color=color_max, alpha=self.max_likelihood_alpha, lw=self.linewidth)
-                else:        
-                    axes.plot(times - self._reference_mjd_date, ys, color=color_max, alpha=self.max_likelihood_alpha, lw=self.linewidth)
+                        axes.plot(times - self._reference_mjd_date, ys + self.band_scaling.get(band), color=color_max,
+                                 alpha=self.max_likelihood_alpha, lw=self.linewidth, linestyle=self.max_likelihood_linestyle)
+                else:
+                    axes.plot(times - self._reference_mjd_date, ys, color=color_max,
+                             alpha=self.max_likelihood_alpha, lw=self.linewidth, linestyle=self.max_likelihood_linestyle)
 
             random_ys_list = [self.model(times, **random_params, **self._model_kwargs)
                               for random_params in self._get_random_parameters()]
@@ -849,11 +1093,14 @@ class MagnitudePlotter(Plotter):
                 for ys in random_ys_list:
                     if band in self.band_scaling:
                         if self.band_scaling.get("type") == 'x':
-                            axes.plot(times - self._reference_mjd_date, ys * self.band_scaling.get(band), color=color_sample, alpha=self.random_sample_alpha, lw=self.linewidth, zorder=-1)
+                            axes.plot(times - self._reference_mjd_date, ys * self.band_scaling.get(band), color=color_sample,
+                                     alpha=self.random_sample_alpha, lw=self.linewidth, linestyle=self.random_sample_linestyle, zorder=-1)
                         elif self.band_scaling.get("type") == '+':
-                            axes.plot(times - self._reference_mjd_date, ys + self.band_scaling.get(band), color=color_sample, alpha=self.random_sample_alpha, lw=self.linewidth, zorder=-1)
+                            axes.plot(times - self._reference_mjd_date, ys + self.band_scaling.get(band), color=color_sample,
+                                     alpha=self.random_sample_alpha, lw=self.linewidth, linestyle=self.random_sample_linestyle, zorder=-1)
                     else:
-                        axes.plot(times - self._reference_mjd_date, ys, color=color_sample, alpha=self.random_sample_alpha, lw=self.linewidth, zorder=-1)
+                        axes.plot(times - self._reference_mjd_date, ys, color=color_sample,
+                                 alpha=self.random_sample_alpha, lw=self.linewidth, linestyle=self.random_sample_linestyle, zorder=-1)
             elif self.uncertainty_mode == "credible_intervals":
                 if band in self.band_scaling:
                     if self.band_scaling.get("type") == 'x':
@@ -920,13 +1167,20 @@ class MagnitudePlotter(Plotter):
             axes[ii].errorbar(
                 self.transient.x[indices] - self._reference_mjd_date, self.transient.y[indices], xerr=x_err,
                 yerr=self.transient.y_err[indices], fmt=self.errorbar_fmt, ms=self.ms, color=color,
-                elinewidth=self.elinewidth, capsize=self.capsize,
-                label=label)
+                elinewidth=self.elinewidth, capsize=self.capsize, label=label,
+                fillstyle=self.markerfillstyle, markeredgecolor=self.markeredgecolor,
+                markeredgewidth=self.markeredgewidth)
 
             self._set_x_axis(axes[ii])
             self._set_y_axis_multiband_data(axes[ii], indices)
-            axes[ii].legend(ncol=self.legend_cols, loc=self.legend_location, fontsize=self.fontsize_legend)
-            axes[ii].tick_params(axis='both', which='both', pad=self.axis_tick_params_pad, labelsize=self.fontsize_ticks)
+
+            # Apply new customizations
+            self._apply_axis_customizations(axes[ii])
+
+            # Legend with new customization options
+            axes[ii].legend(ncol=self.legend_cols, loc=self.legend_location, fontsize=self.fontsize_legend,
+                           frameon=self.legend_frameon, shadow=self.legend_shadow,
+                           fancybox=self.legend_fancybox, framealpha=self.legend_framealpha)
             ii += 1
 
         figure.supxlabel(self._xlabel, fontsize=self.fontsize_figure)
@@ -1004,13 +1258,14 @@ class MagnitudePlotter(Plotter):
                 ys = self.model(times, **self._max_like_params, **new_model_kwargs)
                 axes[ii].plot(
                     times - self._reference_mjd_date, ys, color=color_max,
-                    alpha=self.max_likelihood_alpha, lw=self.linewidth)
+                    alpha=self.max_likelihood_alpha, lw=self.linewidth, linestyle=self.max_likelihood_linestyle)
             random_ys_list = [self.model(times, **random_params, **new_model_kwargs)
                               for random_params in self._get_random_parameters()]
             if self.uncertainty_mode == "random_models":
                 for random_ys in random_ys_list:
                     axes[ii].plot(times - self._reference_mjd_date, random_ys, color=color_sample,
-                                  alpha=self.random_sample_alpha, lw=self.linewidth, zorder=self.zorder)
+                                  alpha=self.random_sample_alpha, lw=self.linewidth,
+                                  linestyle=self.random_sample_linestyle, zorder=self.zorder)
             elif self.uncertainty_mode == "credible_intervals":
                 lower_bound, upper_bound, _ = redback.utils.calc_credible_intervals(samples=random_ys_list, interval=self.credible_interval_level)
                 axes[ii].fill_between(
@@ -1060,6 +1315,11 @@ class SpectrumPlotter(SpecPlotter):
             label = self.transient.time
         else:
             label = self.transient.name
+        ax.plot(self.transient.angstroms, self.transient.flux_density/1e-17, color=self.color,
+                lw=self.linewidth, linestyle=self.linestyle)
+
+        # Apply custom scales if specified, otherwise use defaults
+        ax.set_xscale(self.xscale if self.xscale is not None else 'linear')
         if plot_format == 'standard':
             ax.plot(self.transient.angstroms, self.transient.flux_density / 1e-17, color=self.color,
                     lw=self.linewidth)
@@ -1079,7 +1339,8 @@ class SpectrumPlotter(SpecPlotter):
             label, xy=self.xy, xycoords=self.xycoords,
             horizontalalignment=self.horizontalalignment, size=self.annotation_size)
 
-        ax.tick_params(axis='both', which='both', pad=self.axis_tick_params_pad, labelsize=self.fontsize_ticks)
+        # Apply new customizations
+        self._apply_axis_customizations(ax)
 
         self._save_and_show(filepath=self._data_plot_filepath, save=save, show=show)
         return ax
@@ -1116,14 +1377,14 @@ class SpectrumPlotter(SpecPlotter):
         if self.plot_max_likelihood:
             ys = self.model(angstroms, **self._max_like_params, **self._model_kwargs)
             axes.plot(angstroms, ys/1e-17, color=self.max_likelihood_color, alpha=self.max_likelihood_alpha,
-                      lw=self.linewidth)
+                      lw=self.linewidth, linestyle=self.max_likelihood_linestyle)
 
         random_ys_list = [self.model(angstroms, **random_params, **self._model_kwargs)
                           for random_params in self._get_random_parameters()]
         if self.uncertainty_mode == "random_models":
             for ys in random_ys_list:
                 axes.plot(angstroms, ys/1e-17, color=self.random_sample_color, alpha=self.random_sample_alpha,
-                          lw=self.linewidth, zorder=self.zorder)
+                          lw=self.linewidth, linestyle=self.random_sample_linestyle, zorder=self.zorder)
         elif self.uncertainty_mode == "credible_intervals":
             lower_bound, upper_bound, _ = redback.utils.calc_credible_intervals(samples=random_ys_list,
                                                                                 interval=self.credible_interval_level)
@@ -1151,10 +1412,14 @@ class SpectrumPlotter(SpecPlotter):
         ys = self.model(self.transient.angstroms, **self._max_like_params, **self._model_kwargs)
         axes[1].errorbar(
             self.transient.angstroms, self.transient.flux_density - ys, yerr=self.transient.flux_density_err,
-            fmt=self.errorbar_fmt, c=self.color, ms=self.ms, elinewidth=self.elinewidth, capsize=self.capsize)
+            fmt=self.errorbar_fmt, c=self.color, ms=self.ms, elinewidth=self.elinewidth, capsize=self.capsize,
+            fillstyle=self.markerfillstyle, markeredgecolor=self.markeredgecolor,
+            markeredgewidth=self.markeredgewidth)
         axes[1].set_yscale('linear')
         axes[1].set_ylabel("Residual", fontsize=self.fontsize_axes)
-        axes[1].tick_params(axis='both', which='both', pad=self.axis_tick_params_pad, labelsize=self.fontsize_ticks)
+
+        # Apply new customizations
+        self._apply_axis_customizations(axes[1])
 
         self._save_and_show(filepath=self._residual_plot_filepath, save=save, show=show)
         return axes
