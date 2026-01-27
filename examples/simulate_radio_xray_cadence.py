@@ -1,20 +1,19 @@
 """
 Example: Radio/X-ray Observations with SimulateTransientWithCadence
 
-This demonstrates the NEW capability to simulate radio and X-ray observations
+This demonstrates the capability to simulate radio and X-ray observations
 with realistic cadences and SNR-based detection cuts using SimulateTransientWithCadence.
 
 Perfect for:
-- Radio/X-ray follow-up campaigns
+- Radio/X-ray follow-up campaigns with some pre-defined cadence; perhaps a survey
 - Multi-frequency monitoring strategies
 - Survey planning for radio/X-ray facilities
 - Testing detection thresholds
 """
 
-import numpy as np
 import pandas as pd
+import matplotlib.pyplot as plt
 from redback.simulate_transients import PopulationSynthesizer, SimulateTransientWithCadence
-import redback
 
 print("="*70)
 print("RADIO/X-RAY OBSERVATIONS WITH CADENCE & SNR CUTS")
@@ -24,7 +23,7 @@ print("="*70)
 # Example 1: GRB Afterglow Radio Monitoring with Cadence
 # ============================================================================
 print("\n" + "="*70)
-print("Example 1: GRB Afterglow Radio Monitoring Campaign")
+print("Example 1: GRB Afterglow Radio Monitoring Campaign (Tophat)")
 print("="*70)
 
 # GRB parameters
@@ -37,6 +36,7 @@ grb_params = {
     'p': 2.2,
     'logepse': -1.0,
     'logepsb': -2.0,
+    'ksin': 1,
     'g0': 1000,
     't0_mjd_transient': 60000.0
 }
@@ -45,11 +45,12 @@ grb_params = {
 radio_cadence = {
     'frequencies': [1.4e9, 5e9, 15e9],  # Hz
     'cadence_days': 7,  # Weekly observations
-    'duration_days': 200,  # Monitor for 200 days
+    'duration_days': 60,  # Monitor for 60 days
+    'start_offset_days': 1.0,
     'sensitivity': {
-        1.4e9: 0.05,  # 50 μJy at L-band
-        5e9: 0.03,    # 30 μJy at C-band
-        15e9: 0.04    # 40 μJy at Ku-band
+        1.4e9: 5e-5,  # 50 μJy at L-band
+        5e9: 3e-5,    # 30 μJy at C-band
+        15e9: 4e-5    # 40 μJy at Ku-band
     }
 }
 
@@ -57,11 +58,12 @@ print("\nRadio monitoring configuration:")
 print(f"  Frequencies: 1.4, 5, 15 GHz")
 print(f"  Cadence: {radio_cadence['cadence_days']} days")
 print(f"  Duration: {radio_cadence['duration_days']} days")
-print(f"  Sensitivities: {list(radio_cadence['sensitivity'].values())} mJy")
+print(f"  Sensitivities: {list(radio_cadence['sensitivity'].values())} Jy")
 
 # Simulate radio observations
+# Use a tophat jet model with moderate cadence
 sim_grb_radio = SimulateTransientWithCadence(
-    model='afterglow',
+    model='tophat',
     parameters=grb_params,
     cadence_config=radio_cadence,
     snr_threshold=5,
@@ -86,23 +88,18 @@ for freq in radio_cadence['frequencies']:
 
 
 # ============================================================================
-# Example 2: Kilonova Radio Follow-up with Variable Cadence
+# Example 2: GRB Radio Follow-up with Variable Cadence
 # ============================================================================
 print("\n" + "="*70)
-print("Example 2: Kilonova Radio - Dense Early, Sparse Late")
+print("Example 2: GRB Radio - Dense Early, Sparse Late")
 print("="*70)
 
-# Generate kilonova with PopulationSynthesizer
-synth = PopulationSynthesizer(
-    model='kilonova_afterglow',
-    rate=1e-6,
-    seed=123
-)
+# Use a second GRB parameter set for cadence variation
+grb_dense_params = grb_params.copy()
+grb_dense_params['redshift'] = 0.3
+grb_dense_params['t0_mjd_transient'] = 60010.0
 
-kn_params_df = synth.generate_population(n_events=1, z_max=0.1)
-kn_params = kn_params_df.iloc[0].to_dict()
-
-print(f"\nKilonova at z={kn_params['redshift']:.4f}")
+print(f"\nGRB at z={grb_dense_params['redshift']:.2f}")
 
 # Variable cadence: frequent early, sparse late
 kn_radio_cadence = {
@@ -112,12 +109,13 @@ kn_radio_cadence = {
         22e9: 5   # K-band every 5 days
     },
     'duration_days': 100,
-    'sensitivity': 0.02  # 20 μJy for all frequencies
+    'start_offset_days': 1.0,
+    'sensitivity': 2e-5  # 20 μJy for all frequencies
 }
 
 sim_kn_radio = SimulateTransientWithCadence(
-    model='kilonova_afterglow',
-    parameters=kn_params,
+    model='tophat',
+    parameters=grb_dense_params,
     cadence_config=kn_radio_cadence,
     snr_threshold=5,
     noise_type='sensitivity',
@@ -133,13 +131,21 @@ print(f"Detections: {len(sim_kn_radio.detected_observations)}")
 # Example 3: X-ray Monitoring of TDE
 # ============================================================================
 print("\n" + "="*70)
-print("Example 3: X-ray Monitoring of Tidal Disruption Event")
+print("Example 3: X-ray Monitoring of a TDE-like Tophat Jet")
 print("="*70)
 
-# TDE parameters
 tde_params = {
-    'redshift': 0.03,
-    't0_mjd_transient': 60100.0
+    'redshift': 0.01,
+    't0_mjd_transient': 60100.0,
+    'thv': 0.3,
+    'loge0': 50.0,
+    'thc': 0.2,
+    'logn0': -1.0,
+    'p': 2.2,
+    'logepse': -1.2,
+    'logepsb': -3.0,
+    'ksin': 1,
+    'g0': 5.0
 }
 
 # X-ray cadence: dense early, sparse late
@@ -152,7 +158,7 @@ xray_cadence = {
         1.0 * keV_to_Hz: 2,  # Soft band every 2 days
         5.0 * keV_to_Hz: 3   # Hard band every 3 days
     },
-    'duration_days': 150,
+    'duration_days': 60,
     'start_offset_days': 0.1,  # Start 0.1 days after discovery
     'sensitivity': 1e-14  # erg/cm^2/s (typical Swift sensitivity)
 }
@@ -160,10 +166,10 @@ xray_cadence = {
 print("\nX-ray monitoring:")
 print(f"  Soft band (~1 keV): every 2 days")
 print(f"  Hard band (~5 keV): every 3 days")
-print(f"  Duration: 150 days")
+print(f"  Duration: {xray_cadence['duration_days']} days")
 
 sim_tde_xray = SimulateTransientWithCadence(
-    model='tde_analytical',
+    model='tophat',
     parameters=tde_params,
     cadence_config=xray_cadence,
     snr_threshold=3,  # Lower threshold for X-ray
@@ -174,6 +180,58 @@ sim_tde_xray = SimulateTransientWithCadence(
 
 print(f"\nTotal observations: {len(sim_tde_xray.observations)}")
 print(f"Detections (SNR >= 3): {len(sim_tde_xray.detected_observations)}")
+
+
+# ============================================================================
+# Plotting: Cadence Light Curves
+# ============================================================================
+print("\n" + "="*70)
+print("Plotting Cadence Light Curves")
+print("="*70)
+
+fig, axes = plt.subplots(1, 2, figsize=(12, 5))
+
+ax_radio = axes[0]
+for freq in radio_cadence['frequencies']:
+    data = sim_grb_radio.observations[sim_grb_radio.observations['frequency'] == freq]
+    ax_radio.errorbar(
+        data['time_since_t0'],
+        data['flux_density'],
+        yerr=data['flux_density_error'],
+        fmt='o',
+        label=f"{freq/1e9:.1f} GHz",
+        alpha=0.7
+    )
+ax_radio.set_xscale('log')
+ax_radio.set_yscale('log')
+ax_radio.set_xlabel('Time (days)')
+ax_radio.set_ylabel('Flux Density (Jy)')
+ax_radio.set_title('Radio Cadence (GRB Tophat)')
+ax_radio.legend()
+ax_radio.grid(True, alpha=0.3)
+
+ax_xray = axes[1]
+for freq in xray_cadence['frequencies']:
+    data = sim_tde_xray.observations[sim_tde_xray.observations['frequency'] == freq]
+    ax_xray.errorbar(
+        data['time_since_t0'],
+        data['flux_density'],
+        yerr=data['flux_density_error'],
+        fmt='o',
+        label=f"{freq/keV_to_Hz:.1f} keV",
+        alpha=0.7
+    )
+ax_xray.set_xscale('log')
+ax_xray.set_yscale('log')
+ax_xray.set_xlabel('Time (days)')
+ax_xray.set_ylabel('Flux Density (Jy)')
+ax_xray.set_title('X-ray Cadence (TDE Tophat)')
+ax_xray.legend()
+ax_xray.grid(True, alpha=0.3)
+
+plt.tight_layout()
+plt.savefig('radio_xray_cadence_results.png', dpi=150, bbox_inches='tight')
+print("✓ Saved plot to radio_xray_cadence_results.png")
 
 
 # ============================================================================
@@ -188,12 +246,13 @@ rotating_cadence = {
     'frequencies': [1.4e9, 5e9, 15e9],
     'cadence_days': 2,  # Base cadence
     'duration_days': 60,
+    'start_offset_days': 1.0,
     'frequency_sequence': [1.4e9, 5e9, 15e9],  # Rotate through frequencies
-    'sensitivity': 0.05  # Same for all
+    'sensitivity': 5e-5  # Same for all
 }
 
 sim_rotating = SimulateTransientWithCadence(
-    model='afterglow',
+    model='tophat',
     parameters=grb_params,
     cadence_config=rotating_cadence,
     snr_threshold=5,
@@ -214,7 +273,7 @@ print("="*70)
 
 # Generate population
 grb_synth = PopulationSynthesizer(
-    model='afterglow',
+    model='tophat',
     rate=1e-7,
     seed=111
 )
@@ -228,7 +287,8 @@ simple_radio_cadence = {
     'frequencies': [5e9],  # Just 5 GHz
     'cadence_days': 7,
     'duration_days': 100,
-    'sensitivity': 0.05
+    'start_offset_days': 1.0,
+    'sensitivity': 5e-5
 }
 
 detection_count = 0
@@ -236,7 +296,7 @@ for idx in range(len(grb_pop)):
     grb = grb_pop.iloc[idx].to_dict()
 
     sim = SimulateTransientWithCadence(
-        model='afterglow',
+        model='tophat',
         parameters=grb,
         cadence_config=simple_radio_cadence,
         snr_threshold=5,
@@ -298,7 +358,7 @@ cadence_config = {
     'frequencies': [1.4e9, 5e9, 15e9],  # Hz
     'cadence_days': 7,  # or dict for per-frequency
     'duration_days': 200,
-    'sensitivity': 0.05,  # Jy (or dict for per-frequency)
+    'sensitivity': 5e-5,  # Jy (or dict for per-frequency)
     'start_offset_days': 0,  # optional
     'frequency_sequence': [...]  # optional, for alternating
 }
@@ -307,7 +367,7 @@ cadence_config = {
 Usage:
 ```python
 sim = SimulateTransientWithCadence(
-    model='afterglow',
+    model=radio_powerlaw,
     parameters=params,
     cadence_config=radio_cadence,
     snr_threshold=5,
