@@ -116,9 +116,7 @@ def pwn(time, redshift, mej, l0, tau_sd, nn, eps_b, gamma_b, **kwargs):
     """
     #get parameter values or use defaults
     E_sn = kwargs.get('E_k', 1.0e51)
-    kappa = kwargs.get('kappa', 0.1)
-    if 'kappa' in kwargs:
-        del kwargs['kappa']
+    kappa = kwargs.pop('kappa', 0.1)
     kappa_gamma = kwargs.get('kappa_gamma', 0.01)
     kwargs['kappa_gamma'] = kappa_gamma
     q1 = kwargs.get('q1',1.5)
@@ -133,7 +131,6 @@ def pwn(time, redshift, mej, l0, tau_sd, nn, eps_b, gamma_b, **kwargs):
     cosmology = kwargs.get('cosmology', cosmo)
     dl = cosmology.luminosity_distance(redshift).cgs.value
     pair_cascade_switch = kwargs.get('pair_cascade_switch', False)
-    use_r_process = kwargs.get('use_r_process', False)
     nu_M=3.8e22*np.ones(2500)
 
     #initial values and dynamics
@@ -148,8 +145,7 @@ def pwn(time, redshift, mej, l0, tau_sd, nn, eps_b, gamma_b, **kwargs):
                                           beta=v_init, ejecta_radius=ejecta_radius,
                                           kappa=kappa, n_ism=n_ism, magnetar_luminosity=magnetar_luminosity,
                                           pair_cascade_switch=pair_cascade_switch,
-                                          use_gamma_ray_opacity=True, **kwargs)                                                                                
-    vej = velocity_from_lorentz_factor(output.lorentz_factor)/km_cgs 
+                                          use_gamma_ray_opacity=True, **kwargs)
 
     #calculating synchrotron quantites
     int_lsd = integrate.cumulative_trapezoid(magnetar_luminosity, time_temp,initial=0)
@@ -191,10 +187,9 @@ def pwn(time, redshift, mej, l0, tau_sd, nn, eps_b, gamma_b, **kwargs):
         F_nu = _calc_photoelectric_abs(frequency, Zbar, mej, r_arr.T, F_nu)
 
     #interpolate for each time
-    fnu_func = {}
     fnu_func = interp1d(time_temp/day_to_s, y=F_nu.T)
     fnu = np.diag(fnu_func(time))   
-    fmjy = np.array(fnu) / 1.0e-26       
+    fmjy = np.array(fnu) / 1.0e-26 / (1.0 + redshift)
     
     return fmjy
     
@@ -567,7 +562,7 @@ def synchrotron_massloss(time, redshift, v_s, log_Mdot_vwind, logepsb, logepse, 
 
     if (np.min(frequency) < np.max(nu_ssa)):
         msk = (frequency < nu_ssa)
-        flux_density[msk] = Fv_ssa[msk] * (frequency[msk] / nu_ssa[msk]) ** 2.5 / 1.0e-26 
+        flux_density[msk] = Fv_ssa[msk] * (frequency[msk] / nu_ssa[msk]) ** 2.5 / 1.0e-26 / (1 + redshift)
         
     return flux_density    
 
@@ -618,7 +613,7 @@ def synchrotron_ism(time, redshift, v_s, logn0, logepsb, logepse, p, **kwargs):
 
     if (np.min(frequency) < np.max(nu_ssa)):
         msk = (frequency < nu_ssa)
-        flux_density[msk] = Fv_ssa[msk] * (frequency[msk] / nu_ssa[msk]) ** 2.5 / 1.0e-26 
+        flux_density[msk] = Fv_ssa[msk] * (frequency[msk] / nu_ssa[msk]) ** 2.5 / 1.0e-26 / (1 + redshift)
         
     return flux_density   
 
@@ -670,8 +665,10 @@ def synchrotron_pldensity(time, redshift, v_s, logA, s, logepsb, logepse, p, **k
     Fv_ssa = Fv0 * (nu_ssa / nu_L) ** (1-beta)
 
     if (np.min(frequency) < np.max(nu_ssa)):
+        if len(frequency) == 1:
+            frequency = np.ones(len(nu_ssa)) * frequency
         msk = (frequency < nu_ssa)
-        flux_density[msk] = Fv_ssa[msk] * (frequency[msk] / nu_ssa[msk]) ** 2.5 / 1.0e-26 
+        flux_density[msk] = Fv_ssa[msk] * (frequency[msk] / nu_ssa[msk]) ** 2.5 / 1.0e-26 / (1 + redshift)
         
     return flux_density
 
@@ -714,7 +711,7 @@ def thermal_synchrotron_v2_lnu(time, bG_sh, log_Mdot_vwind, n_ism, logepse, loge
     Mdot_over_vw = 4.0 * np.pi * mu * proton_mass * R**2 * n_ism + Md_vw_cgs
     n = Md_vw_cgs / (4.0 * np.pi * mu * proton_mass * R**2) + n_ism
     
-    if Gamma==1:
+    if np.any(Gamma==1.0):
         # fix bG << 1 case where numerical accuracy fails
         Theta = (2.0 / 3.0) * epsilon_T * (9.0 * mu * proton_mass / (32.0 * mu_e * electron_mass)) * ((16.0 / 9.0) * bG**2)
         Gamma_minus_one = 0.5 * bG**2
@@ -804,5 +801,5 @@ def thermal_synchrotron_v2_fluxdensity(time, redshift, bG_sh, log_Mdot_vwind, n_
     cosmology = kwargs.get('cosmology', cosmo)
     dl = cosmology.luminosity_distance(redshift).cgs.value
     lnu = thermal_synchrotron_v2_lnu(time, bG_sh, log_Mdot_vwind, n_ism, logepse, logepsb, xi, p, **new_kwargs)
-    flux_density = lnu / (4.0 * np.pi * dl**2)/1.0e-26
+    flux_density = lnu / (4.0 * np.pi * dl**2)/1.0e-26 / (1 + redshift)
     return flux_density           
