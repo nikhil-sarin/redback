@@ -13,6 +13,7 @@ Perfect for:
 
 import numpy as np
 import pandas as pd
+import matplotlib.pyplot as plt
 from redback.simulate_transients import PopulationSynthesizer, SimulateTransientWithCadence
 import redback
 
@@ -35,7 +36,7 @@ synth = PopulationSynthesizer(
 )
 
 # Generate one event
-params = synth.generate_population(n_events=1, z_max=0.1)
+params = synth.generate_population(n_events=1, z_max=0.02)
 single_event = params.iloc[0].to_dict()
 
 print(f"\nEvent parameters:")
@@ -46,13 +47,13 @@ if 'mej' in single_event:
 
 # Define simple cadence: observe every 2 days in g,r,i
 cadence_config = {
-    'bands': ['g', 'r', 'i'],
+    'bands': ['lsstg', 'lsstr', 'lssti'],
     'cadence_days': 2.0,  # Every 2 days
     'duration_days': 30,   # For 30 days
     'limiting_mags': {
-        'g': 22.5,
-        'r': 23.0,
-        'i': 22.5
+        'lsstg': 24.5,
+        'lsstr': 24.5,
+        'lssti': 24.0
     }
 }
 
@@ -72,6 +73,22 @@ print(f"Detected {len(sim.detected_observations)} observations (SNR >= 5)")
 print(f"\nFirst few observations:")
 print(sim.observations[['time_since_t0', 'band', 'magnitude', 'snr', 'detected']].head(10))
 
+# Quick plot for the first transient
+print("\nSaving example light curve plot...")
+fig, ax = plt.subplots(figsize=(7, 4))
+for band in cadence_config['bands']:
+    band_data = sim.observations[sim.observations['band'] == band]
+    ax.scatter(band_data['time_since_t0'], band_data['magnitude'], label=band, alpha=0.7)
+ax.invert_yaxis()
+ax.set_xlabel('Time (days)')
+ax.set_ylabel('AB Magnitude')
+ax.set_title('Simulated Kilonova Light Curve')
+ax.legend()
+ax.grid(True, alpha=0.3)
+plt.tight_layout()
+plt.savefig('cadence_simulation_results.png', dpi=150, bbox_inches='tight')
+print("✓ Saved plot to cadence_simulation_results.png")
+
 
 # ============================================================================
 # Example 2: Different Cadences Per Band
@@ -80,12 +97,12 @@ print("\n" + "="*70)
 print("Example 2: Different Cadences Per Band")
 print("="*70)
 
-# g-band: every 3 days, r-band: every 1 day, i-band: every 5 days
+# lsstg: every 3 days, lsstr: every 1 day, lssti: every 5 days
 cadence_per_band = {
-    'bands': ['g', 'r', 'i'],
-    'cadence_days': {'g': 3, 'r': 1, 'i': 5},  # Different per band
+    'bands': ['lsstg', 'lsstr', 'lssti'],
+    'cadence_days': {'lsstg': 3, 'lsstr': 1, 'lssti': 5},  # Different per band
     'duration_days': 50,
-    'limiting_mags': {'g': 22.5, 'r': 23.0, 'i': 22.0}
+    'limiting_mags': {'lsstg': 24.5, 'lsstr': 24.5, 'lssti': 24.0}
 }
 
 sim2 = SimulateTransientWithCadence(
@@ -97,7 +114,7 @@ sim2 = SimulateTransientWithCadence(
 )
 
 print(f"\nTotal observations: {len(sim2.observations)}")
-for band in ['g', 'r', 'i']:
+for band in ['lsstg', 'lsstr', 'lssti']:
     n_band = len(sim2.observations[sim2.observations['band'] == band])
     n_det = len(sim2.detected_observations[sim2.detected_observations['band'] == band])
     print(f"  {band}-band: {n_band} observations, {n_det} detected")
@@ -112,11 +129,11 @@ print("="*70)
 
 # Observe in g-r-i-g-r-i pattern every night
 cadence_sequence = {
-    'bands': ['g', 'r', 'i'],
+    'bands': ['lsstg', 'lsstr', 'lssti'],
     'cadence_days': 1.0,  # Base cadence
     'duration_days': 20,
-    'limiting_mags': {'g': 22.5, 'r': 23.0, 'i': 22.5},
-    'band_sequence': ['g', 'r', 'i']  # Repeating pattern
+    'limiting_mags': {'lsstg': 24.5, 'lsstr': 24.5, 'lssti': 24.0},
+    'band_sequence': ['lsstg', 'lsstr', 'lssti']  # Repeating pattern
 }
 
 sim3 = SimulateTransientWithCadence(
@@ -140,16 +157,16 @@ print("Example 4: Simulate Population with Cadence")
 print("="*70)
 
 # Generate 10 events
-population_params = synth.generate_population(n_events=10, z_max=0.3)
+population_params = synth.generate_population(n_events=10, z_max=0.1)
 
 print(f"\nSimulating {len(population_params)} events with cadence...")
 
 # Simple cadence for all
 simple_cadence = {
-    'bands': ['r'],  # Just r-band for speed
+    'bands': ['lsstr'],  # Just r-band for speed
     'cadence_days': 3,
     'duration_days': 40,
-    'limiting_mags': {'r': 23.0}
+    'limiting_mags': {'lsstr': 24.5}
 }
 
 n_detected_events = 0
@@ -186,10 +203,10 @@ print("Example 5: Impact of SNR Threshold")
 print("="*70)
 
 test_cadence = {
-    'bands': ['r'],
+    'bands': ['lsstr'],
     'cadence_days': 2,
     'duration_days': 30,
-    'limiting_mags': {'r': 23.0}
+    'limiting_mags': {'lsstr': 24.5}
 }
 
 snr_thresholds = [3, 5, 7, 10]
@@ -217,11 +234,11 @@ print("="*70)
 
 # Start observing 5 days after explosion
 delayed_cadence = {
-    'bands': ['g', 'r', 'i'],
+    'bands': ['lsstg', 'lsstr', 'lssti'],
     'cadence_days': 1,
     'duration_days': 20,
     'start_offset_days': 5,  # Start 5 days after t0
-    'limiting_mags': {'g': 22.5, 'r': 23.0, 'i': 22.5}
+    'limiting_mags': {'lsstg': 24.5, 'lsstr': 24.5, 'lssti': 24.0}
 }
 
 sim_delayed = SimulateTransientWithCadence(
@@ -272,7 +289,7 @@ print("Example 8: Complete Workflow")
 print("="*70)
 
 print("""
-Complete workflow combining all tools:
+A workflow combining all tools:
 
 1. Generate population with PopulationSynthesizer:
    - Specify rate, rate evolution, cosmology
