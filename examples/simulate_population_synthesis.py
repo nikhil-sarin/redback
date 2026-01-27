@@ -29,9 +29,9 @@ synth = PopulationSynthesizer(
     seed=42
 )
 
-# Simulate a population over 10 years
+# Simulate a population with a fixed sample size for a stable demo
 population = synth.simulate_population(
-    n_years=10,
+    n_events=50,
     include_selection_effects=False
 )
 
@@ -58,9 +58,9 @@ synth_sn = PopulationSynthesizer(
     seed=123
 )
 
-# Simulate population
+# Simulate population with a fixed size to ensure non-zero counts
 population_sn = synth_sn.simulate_population(
-    n_years=5,
+    n_events=300,
     z_max=1.5
 )
 
@@ -72,6 +72,16 @@ edges, counts, centers = population_sn.get_redshift_distribution(bins=15)
 print(f"\nRedshift distribution (first 5 bins):")
 for i in range(min(5, len(centers))):
     print(f"  z={centers[i]:.2f}: {counts[i]} events")
+
+# Plot redshift distribution
+plt.figure(figsize=(7, 4))
+plt.bar(centers, counts, width=(edges[1] - edges[0]), alpha=0.7)
+plt.xlabel('Redshift')
+plt.ylabel('Count')
+plt.title('Supernova Redshift Distribution')
+plt.tight_layout()
+plt.savefig('population_synthesis_redshift.png', dpi=150, bbox_inches='tight')
+print("\n✓ Saved plot to population_synthesis_redshift.png")
 
 
 # Example 3: Population with selection effects (LSST-like survey)
@@ -95,9 +105,9 @@ lsst_config = {
     'area_sqdeg': 18000  # Full survey area
 }
 
-# Simulate with selection effects
+# Simulate with selection effects (fixed size for stability)
 population_detected = synth_lsst.simulate_population(
-    n_years=10,
+    n_events=300,
     include_selection_effects=True,
     survey_config=lsst_config
 )
@@ -118,18 +128,19 @@ if 'detected' in population_detected.parameters.columns:
 # Example 4: Rate inference
 print("\n" + "=" * 60)
 print("Example 4: Infer Rate from Observed Sample")
+print("Note: This is again a a simple example of rate inference. It does not do any hierarchical modeling.")
 print("=" * 60)
 
 # Create a "true" population
 synth_true = PopulationSynthesizer(
     model='one_component_kilonova_model',
-    rate=5e-7,  # True rate
+    rate=600,  # True rate (set for a stable demo)
     rate_evolution='constant',
     seed=789
 )
 
-true_population = synth_true.simulate_population(n_years=10)
-print(f"True rate: {5e-7:.2e} Gpc^-3 yr^-1")
+true_population = synth_true.simulate_population(n_events=200)
+print(f"True rate: {600:.2e} Gpc^-3 yr^-1")
 print(f"Observed {len(true_population)} events")
 
 # Infer the rate back
