@@ -2278,11 +2278,10 @@ class SimulateHighEnergyTransient(object):
             # F_nu [Jy] = 10^-23 erg/s/cm^2/Hz
             # Photon energy E = h*nu
             # Photon flux = F_nu / (h * nu) [photons/cm^2/s/Hz]
-            # Convert Hz to keV: dE/dnu = h
+            # Convert Hz to keV: dnu/dE_keV = keV_to_Hz
             h_erg_s = 6.62607e-27  # erg*s
-            keV_to_erg = 1.60218e-9  # erg/keV
             flux_jy = flux_mjy * 1e-3
-            photon_flux = flux_jy * 1e-23 / (h_erg_s * frequencies) / keV_to_Hz
+            photon_flux = flux_jy * 1e-23 / (h_erg_s * frequencies) * keV_to_Hz
             return photon_flux
         except:
             logger.warning("Model may not support frequency arrays properly. Using per-energy evaluation.")
@@ -2295,9 +2294,8 @@ class SimulateHighEnergyTransient(object):
                 flux[i] = self.model(np.array([t]), **model_kwargs_single)[0]
 
             h_erg_s = 6.62607e-27
-            keV_to_erg = 1.60218e-9
             flux_jy = flux * 1e-3
-            photon_flux = flux_jy * 1e-23 / (h_erg_s * frequencies) / keV_to_Hz
+            photon_flux = flux_jy * 1e-23 / (h_erg_s * frequencies) * keV_to_Hz
             return photon_flux
 
 

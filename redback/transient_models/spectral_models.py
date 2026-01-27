@@ -184,16 +184,18 @@ def powerlaw_plus_blackbody_spectrum_at_z(angstroms, redshift, pl_amplitude, pl_
 
 
 @citation_wrapper('https://ui.adsabs.harvard.edu/abs/1993ApJ...413..281B/abstract')
-def band_function_high_energy(energies_keV, redshift, log10_norm, alpha, beta, e_peak, **kwargs):
+def band_function_high_energy(energies_keV, log10_norm, alpha, beta, e_peak, redshift=0.0, **kwargs):
     """
     Band function (Band et al. 1993) spectrum.
 
     :param energies_keV: energy array in keV (observer frame)
-    :param redshift: redshift
     :param log10_norm: log10 photon flux normalization at 100 keV (photons/cm^2/s/keV)
     :param alpha: low-energy photon index
     :param beta: high-energy photon index
     :param e_peak: peak energy in keV
+    :param redshift: optional redshift. If provided (>0), parameters are treated as rest-frame
+                     and energies are shifted accordingly. If set to 0, parameters are
+                     treated as observer-frame (typical when z is unknown).
     :return: flux density in mJy
     """
     energies_rest = numpy.asarray(energies_keV) * (1 + redshift)
