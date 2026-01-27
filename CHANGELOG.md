@@ -1,5 +1,16 @@
 # All notable changes will be documented in this file
 
+## [1.13.1] 2026-01-27
+Version 1.13.1 release of redback
+
+## Changed
+* Automatically link __version__ to setup.py for single source of truth
+
+## What's Changed
+* Automatically link __version__ to setup.py by @nikhil-sarin in https://github.com/nikhil-sarin/redback/pull/336
+
+**Full Changelog**: https://github.com/nikhil-sarin/redback/compare/v1.13.0...v1.13.1
+
 ## [1.13.0] 2026-01-27
 Version 1.13.0 release of redback
 
