@@ -3,7 +3,7 @@ import pandas as pd
 from redback.transient_models.phenomenological_models import exponential_powerlaw, fallback_lbol
 from redback.transient_models.magnetar_models import magnetar_only, basic_magnetar
 from redback.transient_models.magnetar_driven_ejecta_models import _ejecta_dynamics_and_interaction
-from redback.transient_models.shock_powered_models import  _shocked_cocoon, _csm_shock_breakout
+from redback.transient_models.shock_powered_models import  _shocked_cocoon, _csm_shock_breakout, _shocked_cocoon_csm, shocked_cocoon_csm_bolometric, shocked_cocoon_csm
 import redback.interaction_processes as ip
 import redback.sed as sed
 from redback.sed import flux_density_to_spectrum, blackbody_to_spectrum
@@ -2866,3 +2866,97 @@ def typeII_surrogate_sarin25(time, redshift, progenitor, ni_mass, log10_mdot, be
                 time_spline_degree=1,
                 **kwargs
             )
+
+@citation_wrapper('https://ui.adsabs.harvard.edu/abs/2025ApJ...986L...4H/abstract, https://ui.adsabs.harvard.edu/abs/2025ApJ...988...30H/abstract, https://ui.adsabs.harvard.edu/abs/1982ApJ...253..785A/abstract')
+def shocked_cocoon_csm_and_arnett_bolometric(time, E_eng, t_eng, theta_0, M_csm, R_csm, kappa, f_nickel, mej, vej, **kwargs):
+    """
+    :param time: time in source frame in days
+    :param E_eng: jet energy (erg)
+    :param t_eng: jet activity timescale (s)
+    :param theta_0: jet opening angle (radians)
+    :param M_csm: CSM mass (solar masses)
+    :param R_csm: CSM outer radius (cm)
+    :param kappa: opacity (cm^2/g)
+    :param f_nickel: Fraction of ejecta made of 56Ni
+    :param mej: ejecta mass (solar masses)
+    :param vej: ejecta velocity (km/s) 
+    :param kwargs: Extra parameters used by model e.g., kappa_gamma, temperature_floor, and any kwarg to
+                change any other input physics/parameters from default.
+    :return: bolometric luminosity'
+    """
+    coc_lbol = shocked_cocoon_csm_bolometric(time = time, E_eng = E_eng, t_eng = t_eng, 
+                                 theta_0 = theta_0, M_csm = M_csm, R_csm = R_csm, kappa = kappa, **kwargs)
+    sn_lbol = arnett_bolometric(time=time, f_nickel=f_nickel, mej=mej, vej=vej,
+                                 interaction_process=ip.Diffusion, kappa=kappa, **kwargs)
+    return coc_lbol + sn_lbol                          
+
+@citation_wrapper('https://ui.adsabs.harvard.edu/abs/2025ApJ...986L...4H/abstract, https://ui.adsabs.harvard.edu/abs/2025ApJ...988...30H/abstract, https://ui.adsabs.harvard.edu/abs/1982ApJ...253..785A/abstract')
+def shocked_cocoon_csm_and_arnett(time, redshift, E_eng, t_eng, theta_0, M_csm, R_csm, kappa, f_nickel, mej, vej, **kwargs):
+    """
+    :param time: time in observer frame in days
+    :param redshift: redshift
+    :param E_eng: jet energy (erg)
+    :param t_eng: jet activity timescale (s)
+    :param theta_0: jet opening angle (radians)
+    :param M_csm: CSM mass (solar masses)
+    :param R_csm: CSM outer radius (cm)
+    :param kappa: opacity (cm^2/g)
+    :param f_nickel: Fraction of ejecta made of 56Ni
+    :param mej: ejecta mass (solar masses)
+    :param vej: ejecta velocity (km/s) 
+    :param kwargs: Extra parameters used by model e.g., kappa_gamma, temperature_floor, and any kwarg to
+                change any other input physics/parameters from default.
+    :param frequency: Required if output_format is 'flux_density'.
+        frequency to calculate - Must be same length as time array or a single number).
+    :param bands: Required if output_format is 'magnitude' or 'flux'.
+    :param output_format: 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
+    :param lambda_array: Optional argument to set your desired wavelength array (in Angstroms) to evaluate the SED on.
+    :param cosmology: Cosmology to use for luminosity distance calculation. Defaults to Planck18. Must be a astropy.cosmology object.
+    :return: set by output format - 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
+    """
+    cosmology = kwargs.get('cosmology', cosmo)
+    dl = cosmology.luminosity_distance(redshift).cgs.value
+    
+    if kwargs['output_format'] == 'flux_density':
+        coc_fmjy = shocked_cocoon_csm(time = time, redshift = redshift, E_eng = E_eng, t_eng = t_eng, 
+                                 theta_0 = theta_0, M_csm = M_csm, R_csm = R_csm, kappa = kappa, **kwargs)  
+        sn_fmjy = arnett(time=time, redshift = redshift, f_nickel=f_nickel, mej=mej, vej=vej,
+                                 interaction_process=ip.Diffusion, kappa=kappa, **kwargs)
+        return coc_fmjy + sn_fmjy  
+    else: 
+        time_obs = time
+        lambda_observer_frame = kwargs.get('frequency_array', np.geomspace(100, 60000, 200))  
+        output = _shocked_cocoon_csm(E_eng = E_eng, t_eng = t_eng, theta_0 = theta_0, 
+                                        M_csm = M_csm, R_csm = R_csm, kappa = kappa, **kwargs)  
+        t_array = output.time_array
+        T = output.T_photosphere
+        Rph = output.r_photosphere
+
+        zarr = np.zeros(30)
+        tadd = np.linspace(t_array[-1]+5,t_array[-1]+1000,30)
+        Rlate = np.ones(30)*1e16
+        t_obs = np.concatenate(([0], t_array, tadd))
+        T = np.concatenate(([0], T, zarr))
+        Rph = np.concatenate(([0], Rph, Rlate))    
+        
+        time_observer_frame = t_obs * (1. + redshift)
+        frequency, time = calc_kcorrected_properties(frequency=lambda_to_nu(lambda_observer_frame),
+                                                     redshift=redshift, time=time_observer_frame)
+        fmjy = sed.blackbody_to_flux_density(temperature=T,
+                                             r_photosphere=Rph, frequency=frequency[:, None], dl=dl)  
+        lbol = arnett_bolometric(time=time, f_nickel=f_nickel, mej=mej, vej=vej,
+                                 interaction_process=ip.Diffusion, kappa=kappa, **kwargs)
+        photo = photosphere.TemperatureFloor(time=time, luminosity=lbol, vej=vej, **kwargs)
+        sed_1 = sed.Blackbody(temperature=photo.photosphere_temperature,
+                              r_photosphere=photo.r_photosphere, frequency=frequency[:, None], luminosity_distance=dl)
+        fmjy += sed_1.flux_density
+        fmjy = fmjy.T                                                                            
+        spectra = flux_density_to_spectrum(fmjy, redshift, lambda_observer_frame)
+        if kwargs['output_format'] == 'spectra':
+            return namedtuple('output', ['time', 'lambdas', 'spectra'])(time=time_observer_frame,
+                                                                        lambdas=lambda_observer_frame,
+                                                                        spectra=spectra)
+        else:
+            return sed.get_correct_output_format_from_spectra(time=time_obs, time_eval=time_observer_frame,
+                                                              spectra=spectra, lambda_array=lambda_observer_frame,
+                                                              **kwargs)
