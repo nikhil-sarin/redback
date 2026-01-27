@@ -15,6 +15,7 @@ The key advantage is separation of concerns:
 
 import numpy as np
 import pandas as pd
+import matplotlib.pyplot as plt
 from redback.simulate_transients import PopulationSynthesizer, TransientPopulation
 import redback
 
@@ -40,15 +41,18 @@ synth = PopulationSynthesizer(
 
 # Generate just the parameters (no detection modeling, no light curves)
 params_df = synth.generate_population(
-    n_years=10,
+    n_events=5,
     z_max=0.5,
     time_range=(60000, 60365.25)  # MJD range for 1 year
 )
 
 print(f"\nGenerated {len(params_df)} events")
 print(f"Columns: {list(params_df.columns)}")
-print(f"\nFirst event parameters:")
-print(params_df.iloc[0])
+if len(params_df) > 0:
+    print(f"\nFirst event parameters:")
+    print(params_df.iloc[0])
+else:
+    print("\nNo events generated; increase n_events or rate.")
 
 # This DataFrame can now be passed to ANY simulation tool!
 print(f"\nThis DataFrame is ready to pass to:")
@@ -68,19 +72,19 @@ print("="*70)
 params_df_small = synth.generate_population(n_events=3, z_max=0.2)
 
 print(f"\nGenerated {len(params_df_small)} events for simulation")
-print("\nNow you can pass these to SimulateOpticalTransient:")
-print("""
+print("\nSimulating Rubin survey observations...")
 from redback.simulate_transients import SimulateOpticalTransient
 
-# Use the generated parameters with survey simulation
 simulator = SimulateOpticalTransient.simulate_transient_population_in_rubin(
     model='one_component_kilonova_model',
     parameters=params_df_small.to_dict('list'),  # Convert to dict format
     model_kwargs={'output_format': 'sncosmo_source'}
 )
 
-# Now you have full survey observations with cadences, non-detections, etc.
-""")
+print("Simulation complete.")
+print(f"  Events simulated: {len(simulator.parameters)}")
+print(f"  Observation tables: {len(simulator.list_of_observations)}")
+print(f"  Observations in first event: {len(simulator.list_of_observations[0])}")
 
 
 # ============================================================================
@@ -148,6 +152,7 @@ n_detected = params_complex['detected'].sum()
 print(f"\nComplex detection (z<0.5 AND mej>0.02):")
 print(f"  Total: {len(params_complex)}")
 print(f"  Detected: {n_detected} ({100*n_detected/len(params_complex):.1f}%)")
+print("You could of course just do this manually as well, the results are all in the DataFrame.")
 
 
 # ============================================================================
@@ -155,10 +160,11 @@ print(f"  Detected: {n_detected} ({100*n_detected/len(params_complex):.1f}%)")
 # ============================================================================
 print("\n" + "="*70)
 print("Example 4: Rate Inference from Detected Sample")
+print("Note: This is a simplified demo for illustration purposes, not a full statistical treatment.")
 print("="*70)
 
 # Generate a "true" population with known rate
-true_rate = 5e-7  # Gpc^-3 yr^-1
+true_rate = 2.0  # Gpc^-3 yr^-1 (set for a stable demo sample)
 synth_true = PopulationSynthesizer(
     model='one_component_kilonova_model',
     rate=true_rate,
@@ -166,10 +172,10 @@ synth_true = PopulationSynthesizer(
     seed=123
 )
 
-# Generate population
-true_pop = synth_true.generate_population(n_years=10, z_max=1.0)
+# Generate population (fixed sample size for a stable demo)
+true_pop = synth_true.generate_population(n_events=200, z_max=1.0)
 print(f"\nTrue rate: {true_rate:.2e} Gpc^-3 yr^-1")
-print(f"Generated {len(true_pop)} events")
+print(f"Generated {len(true_pop)} events (fixed sample)")
 
 # Apply some detection efficiency (redshift-dependent)
 def efficiency_detection(row):
@@ -183,24 +189,30 @@ detected_pop = synth_true.apply_detection_criteria(
 
 # Get detected sample
 detected_only = detected_pop[detected_pop['detected'] == True]
-print(f"Detected {len(detected_only)} events ({100*len(detected_only)/len(detected_pop):.1f}%)")
+if len(detected_pop) > 0:
+    print(f"Detected {len(detected_only)} events ({100*len(detected_only)/len(detected_pop):.1f}%)")
+else:
+    print("Detected 0 events (no population generated)")
 
 # Define efficiency function for rate inference
 def efficiency_func(z):
     """Must match what was used in detection"""
     return 1.0 / (1.0 + (z / 0.3)**3)
 
-# Infer rate
-rate_results = synth_true.infer_rate(
-    observed_sample=detected_only,
-    efficiency_function=efficiency_func,
-    z_bins=10
-)
+if len(detected_only) > 0:
+    # Infer rate
+    rate_results = synth_true.infer_rate(
+        observed_sample=detected_only,
+        efficiency_function=efficiency_func,
+        z_bins=10
+    )
 
-print(f"\nRate Inference Results:")
-print(f"  Inferred rate: {rate_results['rate_ml']:.2e} ± {rate_results['rate_uncertainty']:.2e} Gpc^-3 yr^-1")
-print(f"  True rate:     {true_rate:.2e} Gpc^-3 yr^-1")
-print(f"  Fractional error: {abs(rate_results['rate_ml'] - true_rate)/true_rate:.1%}")
+    print(f"\nRate Inference Results:")
+    print(f"  Inferred rate: {rate_results['rate_ml']:.2e} ± {rate_results['rate_uncertainty']:.2e} Gpc^-3 yr^-1")
+    print(f"  True rate:     {true_rate:.2e} Gpc^-3 yr^-1")
+    print(f"  Fractional error: {abs(rate_results['rate_ml'] - true_rate)/true_rate:.1%}")
+else:
+    print("\nRate inference skipped (no detected events).")
 
 
 # ============================================================================
@@ -246,6 +258,27 @@ for i in range(len(z_centers)):
         n_det_in_bin = (detected_large[mask]['detected'] == True).sum()
         eff = n_det_in_bin / n_in_bin
         print(f"{z_centers[i]:<10.2f} {n_in_bin:<10} {n_det_in_bin:<12} {eff:<12.3f}")
+
+# Plot efficiency curve
+efficiencies = []
+for i in range(len(z_centers)):
+    mask = (detected_large['redshift'] >= z_bins[i]) & (detected_large['redshift'] < z_bins[i+1])
+    n_in_bin = mask.sum()
+    if n_in_bin > 0:
+        n_det_in_bin = (detected_large[mask]['detected'] == True).sum()
+        efficiencies.append(n_det_in_bin / n_in_bin)
+    else:
+        efficiencies.append(0.0)
+
+plt.figure(figsize=(7, 4))
+plt.plot(z_centers, efficiencies, marker='o')
+plt.xlabel('Redshift')
+plt.ylabel('Detection Efficiency')
+plt.title('Detection Efficiency vs Redshift')
+plt.grid(True, alpha=0.3)
+plt.tight_layout()
+plt.savefig('population_detection_efficiency.png', dpi=150, bbox_inches='tight')
+print("\n✓ Saved plot to population_detection_efficiency.png")
 
 
 # ============================================================================
@@ -323,7 +356,7 @@ print("""
    - infer_rate() → Independent rate inference
 
 2. FLEXIBILITY:
-   - Parameters can go to ANY simulation tool
+   - Parameters can go to any simulation tool e.g., in-house redback or lightcurve lynx, or batched sims 
    - Custom detection logic easily implemented
    - Multiple post-processing passes possible
 
