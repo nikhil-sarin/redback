@@ -41,6 +41,10 @@ def make_learned_model_callable(model):
                 "only contain alphanumeric characters and underscores."
             )
 
+    # Redshift is a required parameter for cosmological calculations.
+    if "redshift" not in model.param_names:
+        raise ValueError("Model parameter names must include 'redshift'.")
+
     # Build the complete function string. We have already checked that the parameter names are safe.
     param_str = ", ".join(model.param_names)
     param_dict_str = (
@@ -80,11 +84,16 @@ def _eval_learned_surrogate(model, time, params, **kwargs):
     """
     cosmology = kwargs.get('cosmology', cosmo)
     redshift = params.get('redshift', 0.0)
+    if redshift <= 0.0:
+        raise ValueError(f"Redshift must be positive and non-zero. Got {redshift}.")
     dl = cosmology.luminosity_distance(redshift).cgs
 
     # Get the rest-frame spectrum from the model.
-    # These will always be f_lambda in erg/s/Angstrom
+    # These will always be f_lambda in erg/s/Hz
     luminosity_density = model.predict_spectra_grid(**params)
+    if not hasattr(luminosity_density, 'unit'):
+        luminosity_density = luminosity_density * uu.erg / uu.s / uu.Hz
+
     lambda_rest = model.wavelengths  # Angstrom in rest frame
     time_rest = model.times  # days in rest frame
 
@@ -148,13 +157,8 @@ def _eval_learned_surrogate(model, time, params, **kwargs):
         time_observer_frame = time_rest_dense * (1 + redshift)
         lambda_observer_frame = lambda_rest_dense * (1 + redshift)
 
-        # Apply (1+z) correction to flux and convert units
-        # After dividing by (1+z), flux is in observer frame at observer-frame wavelengths
-        flux_observer = interpolated_flux / (1 + redshift)
-        spectra = flux_observer.to(
-            uu.erg / uu.cm ** 2 / uu.s / uu.Angstrom,
-            equivalencies=uu.spectral_density(wav=lambda_observer_frame * uu.Angstrom)
-        )
+        # Move to the observer frame and switch to spectra units.
+        spectra = sed.flux_density_to_spectrum(interpolated_flux, redshift, lambda_observer_frame)
 
         # Create output structure
         if kwargs.get('output_format') == 'spectra':
