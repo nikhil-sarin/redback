@@ -1,7 +1,7 @@
 import numpy
 from astropy.cosmology import Planck18 as cosmo
 import redback.constants as cc
-from redback.utils import lambda_to_nu, fnu_to_flambda
+from redback.utils import lambda_to_nu, fnu_to_flambda, citation_wrapper
 import redback.sed as sed
 import redback.transient_models.phenomenological_models as pm
 
@@ -181,3 +181,76 @@ def powerlaw_plus_blackbody_spectrum_at_z(angstroms, redshift, pl_amplitude, pl_
         return flux_lambda_obs.value
     else:
         return flux_lambda_obs
+
+
+@citation_wrapper('https://ui.adsabs.harvard.edu/abs/1993ApJ...413..281B/abstract')
+def band_function_high_energy(energies_keV, log10_norm, alpha, beta, e_peak, redshift=0.0, **kwargs):
+    """
+    Band function (Band et al. 1993) spectrum.
+
+    :param energies_keV: energy array in keV (observer frame)
+    :param log10_norm: log10 photon flux normalization at 100 keV (photons/cm^2/s/keV)
+    :param alpha: low-energy photon index
+    :param beta: high-energy photon index
+    :param e_peak: peak energy in keV
+    :param redshift: optional redshift. If provided (>0), parameters are treated as rest-frame
+                     and energies are shifted accordingly. If set to 0, parameters are
+                     treated as observer-frame (typical when z is unknown).
+    :return: flux density in mJy
+    """
+    energies_rest = numpy.asarray(energies_keV) * (1 + redshift)
+
+    norm = 10 ** log10_norm
+    e_break = (alpha - beta) * e_peak / (2 + alpha)
+
+    photon_flux = numpy.zeros_like(energies_rest)
+    low_e = energies_rest < e_break
+    if numpy.any(low_e):
+        photon_flux[low_e] = norm * (energies_rest[low_e] / 100.0) ** alpha * numpy.exp(-energies_rest[low_e] / e_peak)
+
+    high_e = energies_rest >= e_break
+    if numpy.any(high_e):
+        photon_flux[high_e] = norm * ((alpha - beta) * e_peak / (100.0 * (2 + alpha))) ** (alpha - beta) * \
+                              numpy.exp(beta - alpha) * (energies_rest[high_e] / 100.0) ** beta
+
+    keV_to_Hz = 2.417989e17
+    keV_to_erg = 1.60218e-9
+    energy_flux = photon_flux * energies_rest * keV_to_erg
+    flux_density_erg = energy_flux / keV_to_Hz
+    flux_density_mjy = flux_density_erg * 1e26 / (1 + redshift)
+
+    return flux_density_mjy
+
+
+@citation_wrapper('https://ui.adsabs.harvard.edu/abs/1978ppap.book.....R/abstract')
+def blackbody_high_energy(energies_keV, redshift, r_photosphere_rs, kT, **kwargs):
+    """
+    Blackbody spectrum for high-energy transients.
+
+    :param energies_keV: energy array in keV (observer frame)
+    :param redshift: redshift
+    :param r_photosphere_rs: photosphere radius in solar radii (rest frame)
+    :param kT: temperature in keV (rest frame)
+    :return: flux density in mJy
+    """
+    energies_rest = numpy.asarray(energies_keV) * (1 + redshift)
+
+    solar_radius_cm = 6.957e10
+    radius_cm = r_photosphere_rs * solar_radius_cm
+    keV_to_erg = 1.60218e-9
+    cosmology = kwargs.get('cosmology', cosmo)
+    dl_cm = cosmology.luminosity_distance(redshift).cgs.value
+    energy_erg = energies_rest * keV_to_erg
+
+    temperature_k = kT * 1.16045e7
+    frequency_rest = energy_erg / cc.planck
+
+    flux_density = sed.blackbody_to_flux_density(temperature=temperature_k,
+                                                 r_photosphere=radius_cm,
+                                                 dl=dl_cm,
+                                                 frequency=frequency_rest)
+
+    if hasattr(flux_density, 'value'):
+        flux_density = flux_density.value
+
+    return flux_density * 1e26 / (1 + redshift)
