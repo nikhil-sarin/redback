@@ -20,7 +20,7 @@ In particular the methods are:
   All observations are saved in a table, which can be probed to understand the detection rate/non-detections etc.
 - SimulateTransientWithCadence: Simulate transients with realistic observing cadences and SNR-based detection cuts across optical, radio, and X-ray wavelengths.
   This provides a middle ground between generic simulation and full survey simulation, perfect for testing follow-up strategies and cadence optimization.
-- SimulateGammaRayTransient: Simulate gamma-ray observations with photon counting statistics including time-tagged events (TTE) and binned photon counts.
+- SimulateHighEnergyTransient: Simulate gamma-ray observations with photon counting statistics including time-tagged events (TTE) and binned photon counts.
   Supports energy-dependent detector response, background modeling, and proper Poisson statistics. Ideal for GRB prompt emission, magnetar bursts, and fast transients.
 - PopulationSynthesizer: Generate realistic transient populations with cosmologically-motivated distributions, volumetric rate evolution, and proper time dilation handling.
   This provides a modular framework where parameter generation is separated from observation simulation, allowing parameters to be used with any simulation tool.
@@ -212,10 +212,10 @@ This bridges the gap between :code:`SimulateGenericTransient` (ToO-style) and :c
         observation_mode='xray'
     )
 
-SimulateGammaRayTransient
+SimulateHighEnergyTransient
 -------------------------
 
-The :code:`SimulateGammaRayTransient` class simulates gamma-ray observations with photon counting statistics.
+The :code:`SimulateHighEnergyTransient` class simulates gamma-ray observations with photon counting statistics.
 Unlike flux-based simulations, this class generates individual photon events and binned counts, properly accounting for Poisson noise and detector response.
 
 **Key Features:**
@@ -240,14 +240,14 @@ Unlike flux-based simulations, this class generates individual photon events and
 
 .. code:: python
 
-    from redback.simulate_transients import SimulateGammaRayTransient
+    from redback.simulate_transients import SimulateHighEnergyTransient
     import numpy as np
 
     # Define energy channels (e.g., Fermi/GBM)
     energy_edges = [10, 50, 100, 300, 1000]  # keV
 
     # Simulate GRB prompt emission
-    sim = SimulateGammaRayTransient(
+    sim = SimulateHighEnergyTransient(
         model='prompt_afterglow',  # Or other GRB model
         parameters={'luminosity': 1e52, 'redshift': 0.5, ...},
         energy_edges=energy_edges,
@@ -272,7 +272,7 @@ Unlike flux-based simulations, this class generates individual photon events and
 .. code:: python
 
     # Method 1: Constant effective area
-    sim = SimulateGammaRayTransient(..., effective_area=100)
+    sim = SimulateHighEnergyTransient(..., effective_area=100)
 
     # Method 2: Dictionary (linear interpolation)
     area_dict = {
@@ -282,7 +282,7 @@ Unlike flux-based simulations, this class generates individual photon events and
         500: 80,   # 80 cm^2 at 500 keV
         1000: 40   # 40 cm^2 at 1000 keV
     }
-    sim = SimulateGammaRayTransient(..., effective_area=area_dict)
+    sim = SimulateHighEnergyTransient(..., effective_area=area_dict)
 
     # Method 3: Callable function (most flexible)
     def fermi_gbm_area(energy_keV):
@@ -295,7 +295,7 @@ Unlike flux-based simulations, this class generates individual photon events and
         else:
             return peak_area * np.exp(-((np.log10(energy_keV) - 2)**2) / 2)
 
-    sim = SimulateGammaRayTransient(..., effective_area=fermi_gbm_area)
+    sim = SimulateHighEnergyTransient(..., effective_area=fermi_gbm_area)
 
 **Time-Tagged Events Example:**
 
@@ -474,6 +474,6 @@ We have written several examples to demonstrate the different simulation methods
 **Gamma-Ray Photon Counting:**
 
 - `Simulate gamma-ray <https://github.com/nikhil-sarin/redback/blob/master/examples/simulate_gamma_ray.py>`_:
-  Demonstrates SimulateGammaRayTransient for photon counting observations including time-tagged events (TTE), binned counts, energy-dependent detector response, and typical detector configurations (Fermi/GBM, Swift/BAT, etc.). Covers GRB prompt emission, magnetar bursts, timing analysis, and parameter recovery studies.
+  Demonstrates SimulateHighEnergyTransient for photon counting observations including time-tagged events (TTE), binned counts, energy-dependent detector response, and typical detector configurations (Fermi/GBM, Swift/BAT, etc.). Covers GRB prompt emission, magnetar bursts, timing analysis, and parameter recovery studies.
 
 We note that although above examples are mostly written for kilonovae. All :code:`redback` models can be used by the simulation classes.

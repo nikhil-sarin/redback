@@ -5,7 +5,7 @@ import numpy as np
 import pandas as pd
 from redback.simulate_transients import (SimulateGenericTransient, SimulateOpticalTransient, SimulateFullOpticalSurvey,
     make_pointing_table_from_average_cadence, PopulationSynthesizer, TransientPopulation,
-    SimulateTransientWithCadence, SimulateGammaRayTransient)
+    SimulateTransientWithCadence, SimulateHighEnergyTransient)
 import bilby
 
 class TestSimulateGenericTransient(unittest.TestCase):
@@ -900,8 +900,8 @@ class TestSimulateTransientWithCadence(unittest.TestCase):
         self.assertGreaterEqual(mock_to_csv.call_count, 2)
 
 
-class TestSimulateGammaRayTransient(unittest.TestCase):
-    """Test suite for SimulateGammaRayTransient class"""
+class TestSimulateHighEnergyTransient(unittest.TestCase):
+    """Test suite for SimulateHighEnergyTransient class"""
 
     def setUp(self) -> None:
         # Mock model that returns flux density (Jy)
@@ -914,8 +914,8 @@ class TestSimulateGammaRayTransient(unittest.TestCase):
         self.seed = 42
 
     def test_initialization(self):
-        """Test SimulateGammaRayTransient initialization"""
-        sim = SimulateGammaRayTransient(
+        """Test SimulateHighEnergyTransient initialization"""
+        sim = SimulateHighEnergyTransient(
             model=self.model,
             parameters=self.parameters,
             energy_edges=self.energy_edges,
@@ -931,7 +931,7 @@ class TestSimulateGammaRayTransient(unittest.TestCase):
 
     def test_energy_centers_geometric_mean(self):
         """Test that energy centers are geometric means of bin edges"""
-        sim = SimulateGammaRayTransient(
+        sim = SimulateHighEnergyTransient(
             model=self.model,
             parameters=self.parameters,
             energy_edges=self.energy_edges,
@@ -944,7 +944,7 @@ class TestSimulateGammaRayTransient(unittest.TestCase):
 
     def test_constant_effective_area(self):
         """Test constant effective area setup"""
-        sim = SimulateGammaRayTransient(
+        sim = SimulateHighEnergyTransient(
             model=self.model,
             parameters=self.parameters,
             energy_edges=self.energy_edges,
@@ -959,7 +959,7 @@ class TestSimulateGammaRayTransient(unittest.TestCase):
     def test_dict_effective_area(self):
         """Test dictionary effective area setup"""
         area_dict = {10: 50, 100: 120, 1000: 40}
-        sim = SimulateGammaRayTransient(
+        sim = SimulateHighEnergyTransient(
             model=self.model,
             parameters=self.parameters,
             energy_edges=self.energy_edges,
@@ -974,7 +974,7 @@ class TestSimulateGammaRayTransient(unittest.TestCase):
     def test_callable_effective_area(self):
         """Test callable effective area setup"""
         area_func = lambda e: 100 * np.exp(-e / 500)
-        sim = SimulateGammaRayTransient(
+        sim = SimulateHighEnergyTransient(
             model=self.model,
             parameters=self.parameters,
             energy_edges=self.energy_edges,
@@ -988,7 +988,7 @@ class TestSimulateGammaRayTransient(unittest.TestCase):
 
     def test_constant_background_rate(self):
         """Test constant background rate setup"""
-        sim = SimulateGammaRayTransient(
+        sim = SimulateHighEnergyTransient(
             model=self.model,
             parameters=self.parameters,
             energy_edges=self.energy_edges,
@@ -1000,7 +1000,7 @@ class TestSimulateGammaRayTransient(unittest.TestCase):
 
     def test_generate_binned_counts_structure(self):
         """Test binned counts generation structure"""
-        sim = SimulateGammaRayTransient(
+        sim = SimulateHighEnergyTransient(
             model=self.model,
             parameters=self.parameters,
             energy_edges=self.energy_edges,
@@ -1022,7 +1022,7 @@ class TestSimulateGammaRayTransient(unittest.TestCase):
 
     def test_generate_binned_counts_energy_integrated(self):
         """Test energy-integrated binned counts"""
-        sim = SimulateGammaRayTransient(
+        sim = SimulateHighEnergyTransient(
             model=self.model,
             parameters=self.parameters,
             energy_edges=self.energy_edges,
@@ -1038,7 +1038,7 @@ class TestSimulateGammaRayTransient(unittest.TestCase):
 
     def test_counts_are_positive(self):
         """Test that counts are non-negative"""
-        sim = SimulateGammaRayTransient(
+        sim = SimulateHighEnergyTransient(
             model=self.model,
             parameters=self.parameters,
             energy_edges=self.energy_edges,
@@ -1051,7 +1051,7 @@ class TestSimulateGammaRayTransient(unittest.TestCase):
 
     def test_count_rate_error_calculation(self):
         """Test that count rate error is correctly calculated"""
-        sim = SimulateGammaRayTransient(
+        sim = SimulateHighEnergyTransient(
             model=self.model,
             parameters=self.parameters,
             energy_edges=self.energy_edges,
@@ -1071,7 +1071,7 @@ class TestSimulateGammaRayTransient(unittest.TestCase):
         # Use constant flux model for predictable behavior
         constant_model = lambda t, **kwargs: np.full_like(t, 1e-5)  # Weak flux
 
-        sim = SimulateGammaRayTransient(
+        sim = SimulateHighEnergyTransient(
             model=constant_model,
             parameters=self.parameters,
             energy_edges=[10, 50, 100],  # 2 channels
@@ -1092,7 +1092,7 @@ class TestSimulateGammaRayTransient(unittest.TestCase):
     def test_time_tagged_events_sorted(self):
         """Test that time-tagged events are sorted by time"""
         constant_model = lambda t, **kwargs: np.full_like(t, 1e-5)
-        sim = SimulateGammaRayTransient(
+        sim = SimulateHighEnergyTransient(
             model=constant_model,
             parameters=self.parameters,
             energy_edges=[10, 50, 100],
@@ -1110,7 +1110,7 @@ class TestSimulateGammaRayTransient(unittest.TestCase):
     def test_events_within_time_range(self):
         """Test that events are within specified time range"""
         constant_model = lambda t, **kwargs: np.full_like(t, 1e-5)
-        sim = SimulateGammaRayTransient(
+        sim = SimulateHighEnergyTransient(
             model=constant_model,
             parameters=self.parameters,
             energy_edges=[10, 50, 100],
@@ -1128,7 +1128,7 @@ class TestSimulateGammaRayTransient(unittest.TestCase):
     def test_events_energies_within_channels(self):
         """Test that event energies are within their channel bounds"""
         constant_model = lambda t, **kwargs: np.full_like(t, 1e-5)
-        sim = SimulateGammaRayTransient(
+        sim = SimulateHighEnergyTransient(
             model=constant_model,
             parameters=self.parameters,
             energy_edges=[10, 50, 100],
@@ -1153,7 +1153,7 @@ class TestSimulateGammaRayTransient(unittest.TestCase):
     def test_save_time_tagged_events(self, mock_open, mock_to_csv, mock_makedirs):
         """Test saving time-tagged events"""
         constant_model = lambda t, **kwargs: np.full_like(t, 1e-5)
-        sim = SimulateGammaRayTransient(
+        sim = SimulateHighEnergyTransient(
             model=constant_model,
             parameters=self.parameters,
             energy_edges=[10, 50, 100],
@@ -1173,7 +1173,7 @@ class TestSimulateGammaRayTransient(unittest.TestCase):
     @patch("pandas.DataFrame.to_csv")
     def test_save_binned_counts(self, mock_to_csv, mock_makedirs):
         """Test saving binned counts"""
-        sim = SimulateGammaRayTransient(
+        sim = SimulateHighEnergyTransient(
             model=self.model,
             parameters=self.parameters,
             energy_edges=self.energy_edges,
@@ -1189,7 +1189,7 @@ class TestSimulateGammaRayTransient(unittest.TestCase):
 
     def test_save_without_generation_raises_error(self):
         """Test that saving without generating data raises error"""
-        sim = SimulateGammaRayTransient(
+        sim = SimulateHighEnergyTransient(
             model=self.model,
             parameters=self.parameters,
             energy_edges=self.energy_edges,
@@ -1798,8 +1798,8 @@ class TestPopulationSynthesizerExtended(unittest.TestCase):
         self.assertGreater(dec.std(), 0.1)
 
 
-class TestSimulateGammaRayTransientExtended(unittest.TestCase):
-    """Extended tests for SimulateGammaRayTransient"""
+class TestSimulateHighEnergyTransientExtended(unittest.TestCase):
+    """Extended tests for SimulateHighEnergyTransient"""
 
     def setUp(self):
         self.model = lambda t, **kwargs: np.full_like(t, 1e-3)
@@ -1813,7 +1813,7 @@ class TestSimulateGammaRayTransientExtended(unittest.TestCase):
         def bg_rate(energy):
             return 0.01 * (energy / 100) ** (-2)
 
-        sim = SimulateGammaRayTransient(
+        sim = SimulateHighEnergyTransient(
             model=self.model,
             parameters=self.parameters,
             energy_edges=self.energy_edges,
@@ -1830,7 +1830,7 @@ class TestSimulateGammaRayTransientExtended(unittest.TestCase):
         """Test dictionary background rate per channel"""
         bg_dict = {0: 0.1, 1: 0.05, 2: 0.02}
 
-        sim = SimulateGammaRayTransient(
+        sim = SimulateHighEnergyTransient(
             model=self.model,
             parameters=self.parameters,
             energy_edges=self.energy_edges,
@@ -1845,7 +1845,7 @@ class TestSimulateGammaRayTransientExtended(unittest.TestCase):
 
     def test_very_short_time_range(self):
         """Test with very short time range"""
-        sim = SimulateGammaRayTransient(
+        sim = SimulateHighEnergyTransient(
             model=self.model,
             parameters=self.parameters,
             energy_edges=[10, 100],
@@ -1861,7 +1861,7 @@ class TestSimulateGammaRayTransientExtended(unittest.TestCase):
 
     def test_high_background_rate(self):
         """Test with high background rate"""
-        sim = SimulateGammaRayTransient(
+        sim = SimulateHighEnergyTransient(
             model=self.model,
             parameters=self.parameters,
             energy_edges=[10, 50],
@@ -1876,7 +1876,7 @@ class TestSimulateGammaRayTransientExtended(unittest.TestCase):
 
     def test_zero_effective_area(self):
         """Test with very small effective area"""
-        sim = SimulateGammaRayTransient(
+        sim = SimulateHighEnergyTransient(
             model=self.model,
             parameters=self.parameters,
             energy_edges=[10, 100],
@@ -1891,7 +1891,7 @@ class TestSimulateGammaRayTransientExtended(unittest.TestCase):
 
     def test_single_energy_channel(self):
         """Test with single energy channel"""
-        sim = SimulateGammaRayTransient(
+        sim = SimulateHighEnergyTransient(
             model=self.model,
             parameters=self.parameters,
             energy_edges=[10, 100],  # Only one channel
@@ -1907,7 +1907,7 @@ class TestSimulateGammaRayTransientExtended(unittest.TestCase):
     def test_many_energy_channels(self):
         """Test with many energy channels"""
         edges = [10, 20, 30, 50, 80, 100, 150, 200, 300, 500]
-        sim = SimulateGammaRayTransient(
+        sim = SimulateHighEnergyTransient(
             model=self.model,
             parameters=self.parameters,
             energy_edges=edges,
@@ -1927,7 +1927,7 @@ class TestSimulateGammaRayTransientExtended(unittest.TestCase):
 
     def test_generate_binned_with_exposure_correction(self):
         """Test binned counts generation preserves total exposure"""
-        sim = SimulateGammaRayTransient(
+        sim = SimulateHighEnergyTransient(
             model=self.model,
             parameters=self.parameters,
             energy_edges=self.energy_edges,  # 3 energy channels
@@ -1949,7 +1949,7 @@ class TestSimulateGammaRayTransientExtended(unittest.TestCase):
     @patch("builtins.open", new_callable=mock.mock_open)
     def test_save_with_custom_filenames(self, mock_open, mock_to_csv, mock_makedirs):
         """Test saving with custom filenames"""
-        sim = SimulateGammaRayTransient(
+        sim = SimulateHighEnergyTransient(
             model=self.model,
             parameters=self.parameters,
             energy_edges=self.energy_edges,
@@ -1967,7 +1967,7 @@ class TestSimulateGammaRayTransientExtended(unittest.TestCase):
         # Very high rate to ensure we hit the limit
         high_rate_model = lambda t, **kwargs: np.full_like(t, 1.0)  # Very bright
 
-        sim = SimulateGammaRayTransient(
+        sim = SimulateHighEnergyTransient(
             model=high_rate_model,
             parameters=self.parameters,
             energy_edges=[10, 100],
@@ -1982,7 +1982,7 @@ class TestSimulateGammaRayTransientExtended(unittest.TestCase):
 
     def test_evaluate_model_flux_shape(self):
         """Test _evaluate_model_flux returns correct shape"""
-        sim = SimulateGammaRayTransient(
+        sim = SimulateHighEnergyTransient(
             model=self.model,
             parameters=self.parameters,
             energy_edges=self.energy_edges,
@@ -2243,7 +2243,7 @@ class TestErrorPathsCoverage(unittest.TestCase):
     def test_gamma_ray_save_binned_counts_without_generation(self):
         """Test saving binned counts without generating raises error"""
         model = lambda t, **kwargs: np.full_like(t, 1e-3)
-        sim = SimulateGammaRayTransient(
+        sim = SimulateHighEnergyTransient(
             model=model,
             parameters={'redshift': 0.5},
             energy_edges=[10, 100],
@@ -2257,7 +2257,7 @@ class TestErrorPathsCoverage(unittest.TestCase):
     def test_gamma_ray_save_tte_without_generation(self):
         """Test saving TTE without generating raises error"""
         model = lambda t, **kwargs: np.full_like(t, 1e-3)
-        sim = SimulateGammaRayTransient(
+        sim = SimulateHighEnergyTransient(
             model=model,
             parameters={'redshift': 0.5},
             energy_edges=[10, 100],
@@ -2518,7 +2518,7 @@ class TestAdditionalCoveragePaths(unittest.TestCase):
     def test_gamma_ray_energy_integrated_counts(self):
         """Test energy-integrated binned counts"""
         model = lambda t, **kwargs: np.full_like(t, 1e-3)
-        sim = SimulateGammaRayTransient(
+        sim = SimulateHighEnergyTransient(
             model=model,
             parameters={'redshift': 0.5},
             energy_edges=[10, 50, 100, 300],
@@ -2538,7 +2538,7 @@ class TestAdditionalCoveragePaths(unittest.TestCase):
         """Test that bright sources generate source events"""
         # Very bright source
         bright_model = lambda t, **kwargs: np.full_like(t, 10.0)  # 10 Jy
-        sim = SimulateGammaRayTransient(
+        sim = SimulateHighEnergyTransient(
             model=bright_model,
             parameters={'redshift': 0.1},
             energy_edges=[10, 100],
@@ -2617,7 +2617,7 @@ class TestAdditionalCoveragePaths(unittest.TestCase):
     def test_gamma_ray_model_evaluation_with_parameters(self):
         """Test GammaRayTransient model with additional parameters"""
         model = lambda t, energy=100, **kwargs: np.full_like(t, 1e-3 * (energy/100)**(-2))
-        sim = SimulateGammaRayTransient(
+        sim = SimulateHighEnergyTransient(
             model=model,
             parameters={'redshift': 0.5, 'luminosity': 1e50},
             energy_edges=[10, 50, 100],
@@ -2635,7 +2635,7 @@ class TestAdditionalCoveragePaths(unittest.TestCase):
     def test_gamma_ray_save_binned_with_makedirs(self, mock_to_csv, mock_makedirs):
         """Test that save_binned_counts creates directory"""
         model = lambda t, **kwargs: np.full_like(t, 1e-3)
-        sim = SimulateGammaRayTransient(
+        sim = SimulateHighEnergyTransient(
             model=model,
             parameters={'redshift': 0.5},
             energy_edges=[10, 100],
@@ -2867,14 +2867,14 @@ class TestMaximumCoverageTargeted(unittest.TestCase):
         self.assertEqual(pop.n_transients, 2)
 
     def test_gamma_ray_transient_model_error_handling(self):
-        """Test SimulateGammaRayTransient handles model errors gracefully"""
+        """Test SimulateHighEnergyTransient handles model errors gracefully"""
         def sometimes_failing_model(t, **kwargs):
             # Model that fails for certain energy values
             if 'energy' in kwargs and kwargs.get('energy', 0) > 200:
                 raise ValueError("Energy too high")
             return np.full_like(t, 1e-3)
 
-        sim = SimulateGammaRayTransient(
+        sim = SimulateHighEnergyTransient(
             model=sometimes_failing_model,
             parameters={'redshift': 0.5},
             energy_edges=[10, 100],
@@ -3129,7 +3129,7 @@ class TestRemainingCoveragePaths(unittest.TestCase):
             # Succeed on subsequent single-frequency calls
             return np.full_like(t, 1e-3)
 
-        sim = SimulateGammaRayTransient(
+        sim = SimulateHighEnergyTransient(
             model=failing_model,
             parameters={'redshift': 0.5},
             energy_edges=[10, 50, 100],

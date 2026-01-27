@@ -2133,7 +2133,7 @@ class PopulationSynthesizer(object):
         return results
 
 
-class SimulateGammaRayTransient(object):
+class SimulateHighEnergyTransient(object):
     """
     Simulate gamma-ray observations with photon counting statistics
 
@@ -2154,7 +2154,7 @@ class SimulateGammaRayTransient(object):
     Parameters
     ----------
     model : str or callable
-        Redback model name or callable function that returns flux
+        Redback model name or callable function that returns flux density in mJy
     parameters : dict
         Dictionary of model parameters
     energy_edges : array-like
@@ -2183,7 +2183,7 @@ class SimulateGammaRayTransient(object):
     Basic GRB simulation:
 
     >>> energy_edges = [10, 50, 100, 300, 1000]  # keV
-    >>> sim = SimulateGammaRayTransient(
+    >>> sim = SimulateHighEnergyTransient(
     ...     model='grb_afterglow',
     ...     parameters={'luminosity': 1e52, 'theta_core': 0.1, ...},
     ...     energy_edges=energy_edges,
@@ -2272,16 +2272,17 @@ class SimulateGammaRayTransient(object):
 
         try:
             # Try with frequency array
-            flux = self.model(times, **model_kwargs)
+            flux_mjy = self.model(times, **model_kwargs)
             # Convert from Jy to photons/cm^2/s/keV
-            # flux_density [Jy] -> photon flux [photons/cm^2/s/keV]
+            # flux_density [mJy] -> photon flux [photons/cm^2/s/keV]
             # F_nu [Jy] = 10^-23 erg/s/cm^2/Hz
             # Photon energy E = h*nu
             # Photon flux = F_nu / (h * nu) [photons/cm^2/s/Hz]
             # Convert Hz to keV: dE/dnu = h
             h_erg_s = 6.62607e-27  # erg*s
             keV_to_erg = 1.60218e-9  # erg/keV
-            photon_flux = flux * 1e-23 / (h_erg_s * frequencies) / keV_to_Hz
+            flux_jy = flux_mjy * 1e-3
+            photon_flux = flux_jy * 1e-23 / (h_erg_s * frequencies) / keV_to_Hz
             return photon_flux
         except:
             logger.warning("Model may not support frequency arrays properly. Using per-energy evaluation.")
@@ -2295,8 +2296,10 @@ class SimulateGammaRayTransient(object):
 
             h_erg_s = 6.62607e-27
             keV_to_erg = 1.60218e-9
-            photon_flux = flux * 1e-23 / (h_erg_s * frequencies) / keV_to_Hz
+            flux_jy = flux * 1e-3
+            photon_flux = flux_jy * 1e-23 / (h_erg_s * frequencies) / keV_to_Hz
             return photon_flux
+
 
     def generate_time_tagged_events(self, max_events=1000000):
         """
@@ -2615,3 +2618,7 @@ class SimulateGammaRayTransient(object):
         filepath = os.path.join(output_dir, f'{filename}.csv')
         self.binned_counts.to_csv(filepath, index=False)
         logger.info(f"Saved binned counts to {filepath}")
+
+
+# Backwards-compatible alias
+SimulateGammaRayTransient = SimulateHighEnergyTransient
