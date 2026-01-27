@@ -3,6 +3,8 @@ Example: Radio and X-ray Transient Simulation
 
 This demonstrates using redback simulation tools for radio and X-ray transients,
 including GRB afterglows, TDEs, and other multi-wavelength phenomena.
+Keep in mind this is just an example usage; you can adapt a lot of the code below to be more specific to your needs.
+Look at the documentation for more details on each class and function.
 
 Uses:
 - SimulateGenericTransient for frequency-based observations
@@ -12,6 +14,7 @@ Uses:
 
 import numpy as np
 import pandas as pd
+import matplotlib.pyplot as plt
 from redback.simulate_transients import SimulateGenericTransient, PopulationSynthesizer
 import redback
 
@@ -23,7 +26,7 @@ print("="*70)
 # Example 1: GRB Afterglow - Radio Observations
 # ============================================================================
 print("\n" + "="*70)
-print("Example 1: GRB Afterglow Radio Observations")
+print("Example 1: GRB Afterglow Radio Observations (Tophat Jet)")
 print("="*70)
 
 # GRB afterglow parameters
@@ -31,12 +34,12 @@ grb_params = {
     'redshift': 0.5,
     'thv': 0.2,  # Viewing angle
     'loge0': 53.0,  # log10(E_iso / erg)
-    'thc': 0.1,  # Core angle
+    'thc': 0.1,  # Jet opening angle
     'logn0': 0.0,  # log10(n_ISM / cm^-3)
     'p': 2.2,  # Electron spectral index
     'logepse': -1.0,  # log10(epsilon_e)
     'logepsb': -2.0,  # log10(epsilon_B)
-    'ksin': 0.0,  # Jet structure parameter
+    'ksin': 1.0,  # Fraction of electrons accelerated
     'g0': 1000  # Initial Lorentz factor
 }
 
@@ -58,7 +61,7 @@ print(f"\nObservation times: {len(times)} epochs")
 
 # Simulate using SimulateGenericTransient
 sim_grb = SimulateGenericTransient(
-    model='afterglow',  # GRB afterglow model
+    model='tophat',  # Tophat jet afterglow model
     parameters=grb_params,
     times=times,
     model_kwargs={'frequency': radio_frequencies, 'output_format': 'flux_density'},
@@ -85,15 +88,21 @@ print(f"\nDetections (SNR >= 5): {len(detected)}/{len(sim_grb.data)}")
 # Example 2: X-ray Monitoring of TDE
 # ============================================================================
 print("\n" + "="*70)
-print("Example 2: X-ray Monitoring of Tidal Disruption Event")
+print("Example 2: X-ray Monitoring of a TDE-like Tophat Jet")
 print("="*70)
 
-# TDE parameters
+# TDE-like jet parameters (using the same tophat model)
 tde_params = {
-    'redshift': 0.03,
-    'M_BH': 1e6,  # Black hole mass in solar masses
-    'peak_time': 10,  # Days to peak
-    'duration': 100  # Characteristic timescale in days
+    'redshift': 0.01,
+    'thv': 0.3,
+    'loge0': 50.0,  # Lower energy than GRB
+    'thc': 0.2,
+    'logn0': -1.0,
+    'p': 2.2,
+    'logepse': -1.2,
+    'logepsb': -3.0,
+    'ksin': 1.0,
+    'g0': 5.0  # Mildly relativistic
 }
 
 # X-ray energy bands (keV converted to Hz)
@@ -119,16 +128,14 @@ print(f"  Total epochs: {len(xray_times)}")
 print(f"  Early (0-10 days): dense monitoring")
 print(f"  Late (>50 days): sparse monitoring")
 
-# Note: For this example, we'll use a simple power-law model
-# In practice, you'd use a TDE-specific model
 sim_xray = SimulateGenericTransient(
-    model='tde_analytical',  # TDE model
+    model='tophat',
     parameters=tde_params,
     times=xray_times,
     model_kwargs={'frequency': xray_frequencies, 'output_format': 'flux_density'},
     data_points=n_xray_points,
     multiwavelength_transient=True,
-    noise_term=0.15,  # 15% uncertainty
+    noise_term=0.02,  # 2% uncertainty
     noise_type='gaussianmodel',
     seed=123
 )
@@ -137,9 +144,63 @@ print(f"\nGenerated {len(sim_xray.data)} X-ray observations")
 
 # Analyze light curve
 sim_xray.data['snr'] = sim_xray.data['output'] / sim_xray.data['output_error']
-detected_xray = sim_xray.data[sim_xray.data['snr'] >= 3]  # 3-sigma threshold
+detected_xray = sim_xray.data[sim_xray.data['snr'] >= 2]  # 2-sigma threshold
 
-print(f"Detections (SNR >= 3): {len(detected_xray)}/{len(sim_xray.data)}")
+print(f"Detections (SNR >= 2): {len(detected_xray)}/{len(sim_xray.data)}")
+
+
+# ============================================================================
+# Plotting: Radio + X-ray Light Curves
+# ============================================================================
+print("\n" + "="*70)
+print("Plotting Radio and X-ray Light Curves")
+print("="*70)
+
+fig, axes = plt.subplots(1, 2, figsize=(12, 5))
+
+# Radio plot
+ax_radio = axes[0]
+for freq in radio_frequencies:
+    freq_data = sim_grb.data[sim_grb.data['frequency'] == freq]
+    ax_radio.errorbar(
+        freq_data['time'],
+        freq_data['output'],
+        yerr=freq_data['output_error'],
+        fmt='o',
+        label=f"{freq/1e9:.1f} GHz",
+        alpha=0.7
+    )
+ax_radio.set_xscale('log')
+ax_radio.set_yscale('log')
+ax_radio.set_xlabel('Time (days)')
+ax_radio.set_ylabel('Flux Density (Jy)')
+ax_radio.set_title('GRB Radio Afterglow (Tophat)')
+ax_radio.legend()
+ax_radio.grid(True, alpha=0.3)
+
+# X-ray plot
+ax_xray = axes[1]
+for freq in xray_frequencies:
+    freq_data = sim_xray.data[sim_xray.data['frequency'] == freq]
+    ax_xray.errorbar(
+        freq_data['time'],
+        freq_data['output'],
+        yerr=freq_data['output_error'],
+        fmt='o',
+        label=f"{freq/keV_to_Hz:.2f} keV",
+        alpha=0.7
+    )
+ax_xray.set_xscale('log')
+ax_xray.set_yscale('log')
+ax_xray.set_xlabel('Time (days)')
+ax_xray.set_ylabel('Flux Density (Jy)')
+ax_xray.set_title('TDE X-ray Jet (Tophat)')
+ax_xray.legend()
+ax_xray.grid(True, alpha=0.3)
+
+plt.tight_layout()
+plt.savefig('radio_xray_simulation_results.png', dpi=150, bbox_inches='tight')
+print("✓ Saved plot to radio_xray_simulation_results.png")
 
 
 # ============================================================================
@@ -183,8 +244,8 @@ sim_kn_radio = SimulateGenericTransient(
     model_kwargs={'frequency': kn_frequencies, 'output_format': 'flux_density'},
     data_points=n_kn_points,
     multiwavelength_transient=True,
-    noise_term=50,  # SNR = 50 for noise calculation
-    noise_type='SNRbased',
+    noise_term=0.2,
+    noise_type='gaussianmodel',
     seed=456
 )
 
@@ -207,7 +268,7 @@ print("="*70)
 
 # Generate population of GRBs
 grb_synth = PopulationSynthesizer(
-    model='afterglow',
+    model='cone_afterglow',
     rate=1e-7,  # Lower rate for GRBs
     seed=789
 )
@@ -228,7 +289,7 @@ for idx in range(len(grb_population)):
 
     # Simulate radio observations
     sim = SimulateGenericTransient(
-        model='afterglow',
+        model='cone_afterglow',
         parameters=grb,
         times=monitoring_times,
         model_kwargs={'frequency': monitoring_freq, 'output_format': 'flux_density'},
@@ -287,21 +348,10 @@ Key Features:
 ✓ Multiple noise models (gaussian, gaussianmodel, SNRbased)
 ✓ Compatible with PopulationSynthesizer
 
-Typical Frequencies:
-- Radio: 1-100 GHz (VLA, ALMA, etc.)
-- mm: 100-300 GHz (ALMA, SMA, etc.)
-- X-ray: ~10¹⁶-10¹⁹ Hz (0.1-10 keV)
-
-Models Supporting Frequencies:
-- 'afterglow': GRB afterglows
-- 'kilonova_afterglow': Kilonova radio emission
-- 'tde_analytical': TDE X-ray/radio
-- Custom frequency-dependent models
-
 Usage Pattern:
 ```python
 sim = SimulateGenericTransient(
-    model='afterglow',
+    model='cone_afterglow',
     parameters=params,
     times=observation_times,
     model_kwargs={
