@@ -8,8 +8,7 @@ This demonstrates the rate_weighted_redshifts=False option, which is useful when
 """
 
 import numpy as np
-import pandas as pd
-import bilby
+import matplotlib.pyplot as plt
 from bilby.gw.prior import UniformComovingVolume
 from redback.simulate_transients import PopulationSynthesizer
 import redback
@@ -106,6 +105,19 @@ print(f"  Median redshift: {params_uniform['redshift'].median():.3f}")
 
 print("\nNote: Rate-weighted has higher mean z due to (1+z)^2.7 evolution")
 
+# Plot the redshift distributions
+plt.figure(figsize=(7, 4))
+bins = np.linspace(0, 0.5, 20)
+plt.hist(params_rate['redshift'], bins=bins, alpha=0.6, label='Rate-weighted')
+plt.hist(params_uniform['redshift'], bins=bins, alpha=0.6, label='Uniform')
+plt.xlabel('Redshift')
+plt.ylabel('Count')
+plt.title('Redshift Distributions')
+plt.legend()
+plt.tight_layout()
+plt.savefig('simple_population_forecast_redshift.png', dpi=150, bbox_inches='tight')
+print("\n✓ Saved plot to simple_population_forecast_redshift.png")
+
 
 # ============================================================================
 # Example 3: Quick Forecast for Survey Planning
@@ -163,26 +175,38 @@ print("\n" + "="*70)
 print("Example 4: Pass to SimulateOpticalTransient")
 print("="*70)
 
-# Generate simple parameter set
-simple_params = synth.generate_population(
+# Generate simple parameter set with a low-z prior for easier detection
+simple_prior = custom_prior.copy()
+simple_prior['redshift'] = UniformComovingVolume(
+    minimum=0.001,
+    maximum=0.05,
+    name='redshift',
+    cosmology='Planck18'
+)
+simple_synth = PopulationSynthesizer(
+    model='one_component_kilonova_model',
+    prior=simple_prior,
+    seed=123
+)
+simple_params = simple_synth.generate_population(
     n_events=5,
     rate_weighted_redshifts=False
 )
 
 print(f"\nGenerated {len(simple_params)} events")
-print("\nYou can now pass this to SimulateOpticalTransient:")
-print("""
+print("\nSimulating Rubin survey observations...")
 from redback.simulate_transients import SimulateOpticalTransient
 
-# Use these parameters with full survey simulation
 simulator = SimulateOpticalTransient.simulate_transient_population_in_rubin(
     model='one_component_kilonova_model',
     parameters=simple_params.to_dict('list'),
-    model_kwargs={'output_format': 'sncosmo_source'}
-)
+    model_kwargs={'output_format': 'sncosmo_source'},
+    end_transient_time=10)
 
-# Now you have realistic survey observations with cadences, limiting mags, etc.
-""")
+print("Simulation complete.")
+print(f"  Events simulated: {len(simulator.parameters)}")
+print(f"  Observation tables: {len(simulator.list_of_observations)}")
+print(f"  Observations in first event: {len(simulator.list_of_observations[0])}")
 
 
 # ============================================================================
