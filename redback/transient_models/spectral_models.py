@@ -214,7 +214,7 @@ def band_function_high_energy(energies_keV, redshift, log10_norm, alpha, beta, e
     keV_to_Hz = 2.417989e17
     keV_to_erg = 1.60218e-9
     energy_flux = photon_flux * energies_rest * keV_to_erg
-    flux_density_erg = energy_flux * keV_to_Hz
+    flux_density_erg = energy_flux / keV_to_Hz
     flux_density_mjy = flux_density_erg * 1e26 / (1 + redshift)
 
     return flux_density_mjy
@@ -241,7 +241,7 @@ def blackbody_high_energy(energies_keV, redshift, r_photosphere_rs, kT, **kwargs
     energy_erg = energies_rest * keV_to_erg
 
     temperature_k = kT * 1.16045e7
-    frequency_rest = energy_erg / cc.h.cgs.value
+    frequency_rest = energy_erg / cc.planck
 
     flux_density = sed.blackbody_to_flux_density(temperature=temperature_k,
                                                  r_photosphere=radius_cm,
