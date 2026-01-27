@@ -1,5 +1,60 @@
 # All notable changes will be documented in this file
 
+## [1.13.0] 2026-01-27
+Version 1.13.0 release of redback
+
+## Added and changed
+* Added high-energy spectra models (gamma-ray) with photon counting observations
+* Added full population synthesis workflow with custom rates and realistic distributions
+* Added learned surrogate models (Type II supernova surrogates)
+* Added comprehensive simulation classes (SimulateTransientWithCadence, SimulateGammaRayTransient)
+* Added radio/X-ray support to simulation framework
+* Added template-based models (SN 1998bw)
+* Added LightCurveLynx data reader
+* Added extensive plotter customization options
+* Added nickel mixing models with temperature-dependent opacities
+* Added flexible SED models with spectral features (blackbody + lines)
+* Added mixture and student-t likelihoods for robust fitting
+* Fixed learned model units and k-correction issues
+* Fixed SVD convergence issue in nicholl_bns model
+* Fixed missing factors in general synchrotron models
+* Fixed thermal_synchrotron syntax
+* Fixed afterglow SED model time array behavior
+* Numba-ified afterglow models for performance improvements
+* Automated PyPI releases via GitHub Actions
+* Updated Python 3.13 compatibility
+* Comprehensive test coverage improvements (85%+)
+* CI/CD improvements: speed optimizations, parallel testing, disk space management
+
+## What's Changed
+* Add cocoon cooling proper by @conoromand in https://github.com/nikhil-sarin/redback/pull/334
+* Add plotter customization options by @nikhil-sarin in https://github.com/nikhil-sarin/redback/pull/316
+* Fix learned model units by @nikhil-sarin in https://github.com/nikhil-sarin/redback/pull/331
+* Fix thermal_synchrotron syntax by @conoromand in https://github.com/nikhil-sarin/redback/pull/330
+* Fix missing factors in general synchrotron by @nikhil-sarin in https://github.com/nikhil-sarin/redback/pull/329
+* Add learned surrogates by @nikhil-sarin in https://github.com/nikhil-sarin/redback/pull/312
+* Update plotting defaults by @nikhil-sarin in https://github.com/nikhil-sarin/redback/pull/327
+* Fix SVD convergence in nicholl_bns by @nikhil-sarin in https://github.com/nikhil-sarin/redback/pull/321
+* Fix afterglow SED model by @nikhil-sarin in https://github.com/nikhil-sarin/redback/pull/322
+* Speed up CI workflow by @nikhil-sarin in https://github.com/nikhil-sarin/redback/pull/320
+* Update flux mode by @nikhil-sarin in https://github.com/nikhil-sarin/redback/pull/313
+* Fix CI disk space issues by @nikhil-sarin in https://github.com/nikhil-sarin/redback/pull/314
+* Update docstrings by @nikhil-sarin in https://github.com/nikhil-sarin/redback/pull/306
+* Remove duplicate likelihood classes by @nikhil-sarin in https://github.com/nikhil-sarin/redback/pull/308
+* Add template based models by @nikhil-sarin in https://github.com/nikhil-sarin/redback/pull/301
+* Numba-ify afterglow models by @nikhil-sarin in https://github.com/nikhil-sarin/redback/pull/287
+* Add reference result tests by @nikhil-sarin in https://github.com/nikhil-sarin/redback/pull/292
+* Automate PyPI releases by @nikhil-sarin in https://github.com/nikhil-sarin/redback/pull/298
+* Add k-corrections by @nikhil-sarin in https://github.com/nikhil-sarin/redback/pull/299
+* Update workflow to Python 3.13 by @nikhil-sarin in https://github.com/nikhil-sarin/redback/pull/300
+* Add LightCurveLynx reader by @nikhil-sarin in https://github.com/nikhil-sarin/redback/pull/293
+* Add nickel mixing model by @nikhil-sarin in https://github.com/nikhil-sarin/redback/pull/291
+* Add flexible SED by @nikhil-sarin in https://github.com/nikhil-sarin/redback/pull/290
+* Fix parallelisation by @nikhil-sarin in https://github.com/nikhil-sarin/redback/pull/289
+* Add conditional JIT by @nikhil-sarin in https://github.com/nikhil-sarin/redback/pull/288
+
+**Full Changelog**: https://github.com/nikhil-sarin/redback/compare/v1.12.1...v1.13.0
+
 ## [1.12.1] 2025-08-28
 Version 1.12.1 release of redback
 
