@@ -2343,8 +2343,10 @@ def jetsimpy_tophat(time, redshift, thv, loge0, thc, nism, A, p, logepse, logeps
     time = time * day_to_s
     cosmology = kwargs.get('cosmology', cosmo)
     dl = cosmology.luminosity_distance(redshift).cgs.value
-    P = dict(Eiso = 10 ** loge0, lf = g0, theta_c = thc, n0 = nism, A = A, eps_e = 10 ** logepse,
-             eps_b = 10 ** logepsb, p = p, theta_v = thv, d = dl*3.24078e-25, z = redshift) #make a param dict
+    P = dict(Eiso=10 ** loge0, lf=g0, theta_c=thc, n0=nism,
+             A=A, eps_e=10 ** logepse,
+             eps_b=10 ** logepsb, p=p, theta_v=thv,
+             d=dl*3.24078e-25, z=redshift) #make a param dict
     if kwargs['output_format'] == 'flux_density':
         frequency = kwargs['frequency']
         flux_density = jetsimpy.FluxDensity_tophat(time, frequency, P)
@@ -2380,8 +2382,10 @@ def jetsimpy_gaussian(time, redshift, thv, loge0, thc, nism, A, p, logepse, loge
     time = time * day_to_s
     cosmology = kwargs.get('cosmology', cosmo)
     dl = cosmology.luminosity_distance(redshift).cgs.value
-    P = dict(Eiso = 10 ** loge0, lf = g0, theta_c = thc, n0 = nism, A = A, eps_e = 10 ** logepse,
-             eps_b = 10 ** logepsb, p = p, theta_v = thv, d = dl*3.24078e-25, z = redshift) #make a param dict
+    P = dict(Eiso=10 ** loge0, lf=g0, theta_c=thc,
+             n0=nism, A=A, eps_e=10 ** logepse,
+             eps_b=10 ** logepsb, p=p,
+             theta_v=thv, d=dl*3.24078e-25, z=redshift) #make a param dict
     if kwargs['output_format'] == 'flux_density':
         frequency = kwargs['frequency']
         flux_density = jetsimpy.FluxDensity_gaussian(time, frequency, P)
@@ -2418,8 +2422,11 @@ def jetsimpy_powerlaw(time, redshift, thv, loge0, thc, nism, A, p, logepse, loge
     time = time * day_to_s
     cosmology = kwargs.get('cosmology', cosmo)
     dl = cosmology.luminosity_distance(redshift).cgs.value
-    P = dict(Eiso = 10 ** loge0, lf = g0, theta_c = thc, n0 = nism, A = A, eps_e = 10 ** logepse,
-             eps_b = 10 ** logepsb, p = p, theta_v = thv, d = dl*3.24078e-25, z = redshift, s = s) #make a param dict
+    P = dict(Eiso=10 ** loge0, lf=g0, theta_c=thc,
+             n0=nism, A=A, eps_e=10 ** logepse,
+             eps_b=10 ** logepsb, p=p,
+             theta_v=thv, d=dl*3.24078e-25, z=redshift,
+             s=s) #make a param dict
     if kwargs['output_format'] == 'flux_density':
         frequency = kwargs['frequency']
         flux_density = jetsimpy.FluxDensity_powerlaw(time, frequency, P)
@@ -2450,6 +2457,7 @@ def vegasafterglow_tophat(time, redshift, thv, loge0, thc, nism, p, logepse, log
     :param output_format: Whether to output flux density or AB mag
     :param frequency: frequency in Hz for the flux density calculation
     :param cosmology: Cosmology to use for luminosity distance calculation. Defaults to Planck18. Must be a astropy.cosmology object.
+    :
     :return: flux density or AB mag. Note this is going to give the monochromatic magnitude at the effective frequency for the band.
     """
     try:
