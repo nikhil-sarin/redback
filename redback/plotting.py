@@ -1315,19 +1315,27 @@ class SpectrumPlotter(SpecPlotter):
             label = self.transient.time
         else:
             label = self.transient.name
-        ax.plot(self.transient.angstroms, self.transient.flux_density/1e-17, color=self.color,
-                lw=self.linewidth, linestyle=self.linestyle)
-
         # Apply custom scales if specified, otherwise use defaults
         ax.set_xscale(self.xscale if self.xscale is not None else 'linear')
         if plot_format == 'standard':
-            ax.plot(self.transient.angstroms, self.transient.flux_density / 1e-17, color=self.color,
-                    lw=self.linewidth)
+            ax.plot(
+                self.transient.angstroms,
+                self.transient.flux_density / 1e-17,
+                color=self.color,
+                lw=self.linewidth,
+                linestyle=self.linestyle,
+            )
         else:
-            ax.errorbar(self.transient.angstroms, self.transient.flux_density/1e-17,
-                    yerr=self.transient.flux_density_err/1e-17, color=self.color,
-                    fmt=self.errorbar_fmt, ms=self.ms, elinewidth=self.elinewidth, capsize=self.capsize)
-        ax.set_xscale('linear')
+            ax.errorbar(
+                self.transient.angstroms,
+                self.transient.flux_density / 1e-17,
+                yerr=self.transient.flux_density_err / 1e-17,
+                color=self.color,
+                fmt=self.errorbar_fmt,
+                ms=self.ms,
+                elinewidth=self.elinewidth,
+                capsize=self.capsize,
+            )
         ax.set_yscale(self.yscale)
 
         ax.set_xlim(self._xlim_low, self._xlim_high)
