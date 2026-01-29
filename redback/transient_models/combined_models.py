@@ -239,6 +239,7 @@ def afterglow_kilonova_sed(time, redshift, av, **model_kwargs):
 
     kilonova_kwargs = model_kwargs.get('kilonova_kwargs', {'base_model': 'mosfit_kilonova'})
     afterglow_kwargs = model_kwargs.get('afterglow_kwargs', {'base_model': 'tophat'})
+    model_kwargs['output_format'] = model_kwargs.get('output_format', 'flux_density')
 
     temp_kwargs = model_kwargs.copy()
     temp_kwargs.pop('base_model', None)
@@ -273,7 +274,7 @@ def afterglow_kilonova_sed(time, redshift, av, **model_kwargs):
     # Interpolate kilonova spectra to match afterglow's time and lambda grid
     interpolator = RegularGridInterpolator(
         (kilonova.time, kilonova.lambdas),
-        kilonova.spectra,
+        kilonova.spectra.value,
         bounds_error=False,
         fill_value=0.0
     )
@@ -283,19 +284,18 @@ def afterglow_kilonova_sed(time, redshift, av, **model_kwargs):
     points = np.column_stack([time_grid.ravel(), lambda_grid.ravel()])
     
     # Interpolate kilonova to afterglow grid
-    kilonova_interpolated = interpolator(points).reshape(afterglow.spectra.shape)
+    kilonova_interpolated = interpolator(points).reshape(afterglow.spectra.shape) * kilonova.spectra.unit
     
     combined = namedtuple('output', ['time', 'lambdas', 'spectra'])(
         time=afterglow.time,
         lambdas=afterglow.lambdas,
-        spectra=kilonova_interpolated + afterglow.spectra.value
+        spectra=kilonova_interpolated + afterglow.spectra
     )
 
     # correct for host galaxy extinction
-    rest_frame_frequency = frequency * (1 + redshift)
     r_v = model_kwargs.get('r_v', 3.1)
-    angstroms = nu_to_lambda(rest_frame_frequency)
-    combined_mJy = (combined.spectra * uu.erg / uu.cm ** 2 / uu.s / uu.Angstrom).to(uu.mJy,
+    angstroms = lambda_observer_frame
+    combined_mJy = (combined.spectra).to(uu.mJy,
                      equivalencies=uu.spectral_density(wav=lambda_observer_frame * uu.Angstrom)).value
     combined = em._perform_extinction(flux_density=combined_mJy, angstroms=angstroms, av_host=av, rv_host=r_v,
                                       redshift=redshift, **model_kwargs)
