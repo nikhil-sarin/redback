@@ -112,9 +112,9 @@ def vegas_tophat(time, redshift, thv, loge0, thc, lognism, loga, p, logepse, log
     cosmology = kwargs.get('cosmology', cosmo)
     dl = cosmology.luminosity_distance(redshift).cgs.value
 
-    # Get frequency
+    # Get frequency (will be set from bands if in magnitude mode)
     frequency = kwargs.get('frequency')
-    if frequency is None:
+    if frequency is None and kwargs.get('output_format') == 'flux_density':
         raise ValueError("frequency must be provided in kwargs for flux_density mode")
 
     # Build unified medium (handles ISM, Wind, and Hybrid)
@@ -198,18 +198,18 @@ def vegas_tophat(time, redshift, thv, loge0, thc, lognism, loga, p, logepse, log
         axisymmetric=axisymmetric
     )
 
-    # Evaluate
-    flux_density_cgs = model.flux_density(time_s, frequency).total
-    if kwargs['output_format'] == 'flux_density':
-        # Convert from erg/cm²/s/Hz to mJy
-        fmjy = flux_density_cgs / 1e-26
-        return fmjy
-    else:
-        # Magnitude mode
+    # Handle magnitude vs flux_density mode
+    if kwargs.get('output_format') == 'magnitude':
+        # Magnitude mode - get frequency from bands
         frequency = bands_to_frequency(kwargs['bands'])
         flux_density_cgs = model.flux_density(time_s, frequency).total
         fmjy = flux_density_cgs / 1e-26
         return calc_ABmag_from_flux_density(fmjy).value
+    else:
+        # Flux density mode - use provided frequency
+        flux_density_cgs = model.flux_density(time_s, frequency).total
+        fmjy = flux_density_cgs / 1e-26
+        return fmjy
 
 
 @citation_wrapper('https://ui.adsabs.harvard.edu/abs/2026JHEAp..5000490W/abstract')
