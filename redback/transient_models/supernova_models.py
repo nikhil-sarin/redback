@@ -543,7 +543,7 @@ def _nickelmixing(time, mej, esn, kappa, kappa_gamma, f_nickel, f_mixing,
     # Constants assumed defined elsewhere: day_to_s, solar_mass, km_cgs, speed_of_light, sigma_sb.
     tdays = time / day_to_s
     time_len = len(time)
-    mass_len = int(kwargs.get('mass_len', 1000))
+    mass_len = int(kwargs.get('mass_len', 100))
     ni_mass = f_nickel * mej
     vmin_frac = kwargs.get('vmin_frac', 0.2)
     vmin = vmin_frac * (2 * (esn * 1e51) / (mej * solar_mass)) ** 0.5 / 1e5
@@ -616,6 +616,11 @@ def _nickelmixing(time, mej, esn, kappa, kappa_gamma, f_nickel, f_mixing,
     # or zero because stability
     energy_v[:, 0] = 0.  # 0.5 * m_array * solar_mass * v_m ** 2
 
+    # Pre-calculate geometric factor for optical depth (integral of rho dr)
+    # Sum m_i / v_i^2 from outside in to get cumulative column density proxy
+    inv_v2 = 1.0 / (v_m ** 2)
+    tau_geom = np.cumsum((m_array * solar_mass * inv_v2)[::-1])[::-1]
+
     # Loop over time steps: update energy and luminosity in each shell.
     for ii in range(time_len - 1):
         if use_gray_opacity:
@@ -640,15 +645,28 @@ def _nickelmixing(time, mej, esn, kappa, kappa_gamma, f_nickel, f_mixing,
                 kappa_eff = kappa_min + 0.5 * (kappa_max - kappa_min) * \
                             (1.0 + np.tanh((T_eff_prev - temperature_floor) / (50000)))
         # print(kappa_eff)
-        td_v[:, ii] = (kappa_eff * m_array * solar_mass * 3) / \
-                      (4 * np.pi * v_m * speed_of_light * time[ii] * diffusion_beta)
+        
+        # Calculate cumulative optical depth
+        # tau = Integral(kappa rho dr).
+        # With our discretization: tau_cum = kappa * Sum(m/v^2) / (4 pi t^2)
+        tau_cum = (kappa_eff * tau_geom) / (4 * np.pi * time[ii]**2)
+        
+        # Diffusion time t_diff ~ 3 * tau * R / c
+        # Here R ~ v * t
+        td_v[:, ii] = 3 * tau_cum * (v_m * time[ii]) / (speed_of_light * diffusion_beta)
+        
         # Add minimum diffusion time to prevent instability
         min_diffusion_time = dt[ii] * 1  # Minimum 10x timestep
         td_v[:, ii] = np.maximum(td_v[:, ii], min_diffusion_time)
 
-        tau[:, ii] = (m_array * solar_mass * kappa_eff) / (4 * np.pi * (time[ii] * v_m) ** 2)
-        leakage = 3 * kappa_gamma * m_array * solar_mass / (4 * np.pi * v_m ** 2)
-        eth_v[:, ii] = 1 - np.exp(-leakage * time[ii] ** (-2))
+        tau[:, ii] = tau_cum
+        
+        # Gamma-ray optical depth (also cumulative)
+        # leakage = 3 * tau_gamma
+        tau_gamma = (kappa_gamma * tau_geom) / (4 * np.pi * time[ii]**2)
+        leakage = 3 * tau_gamma
+        
+        eth_v[:, ii] = 1 - np.exp(-leakage)
         qdot_ni[:, ii] = ni_array * edotr[:, ii] * eth_v[:, ii]
         tlc_v[:, ii] = v_m * time[ii] / speed_of_light
 
@@ -714,7 +732,7 @@ def nickelmixing_bolometric(time, mej, esn, kappa, kappa_gamma, f_nickel, f_mixi
     :param dense_resolution: resolution of dense time array, default is 1000
     :return: bolometric luminosity
     """
-    dense_resolution = kwargs.get("dense_resolution", 1000)
+    dense_resolution = kwargs.get("dense_resolution", 200)
     stop_time = kwargs.get("stop_time", 300)
     time_temp = np.geomspace(0.01, int(stop_time), int(dense_resolution))
     outputs = _nickelmixing(time_temp * 86400, mej=mej, esn=esn, kappa=kappa,

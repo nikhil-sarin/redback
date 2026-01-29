@@ -1293,9 +1293,12 @@ class SpectrumPlotter(SpecPlotter):
         return self.transient.ylabel
 
     def plot_data(
-            self, axes: matplotlib.axes.Axes = None, save: bool = True, show: bool = True) -> matplotlib.axes.Axes:
+            self, plot_format: str = 'standard',
+            axes: matplotlib.axes.Axes = None, save: bool = True, show: bool = True) -> matplotlib.axes.Axes:
         """Plots the spectrum data and returns Axes.
 
+        :param plot_format: The format to plot the data in. Options are 'standard' and 'errorbar'. (Default value = 'standard')
+        :type plot_format: str
         :param axes: Matplotlib axes to plot the data into. Useful for user specific modifications to the plot.
         :type axes: Union[matplotlib.axes.Axes, None], optional
         :param save: Whether to save the plot. (Default value = True)
@@ -1312,11 +1315,27 @@ class SpectrumPlotter(SpecPlotter):
             label = self.transient.time
         else:
             label = self.transient.name
-        ax.plot(self.transient.angstroms, self.transient.flux_density/1e-17, color=self.color,
-                lw=self.linewidth, linestyle=self.linestyle)
-
         # Apply custom scales if specified, otherwise use defaults
         ax.set_xscale(self.xscale if self.xscale is not None else 'linear')
+        if plot_format == 'standard':
+            ax.plot(
+                self.transient.angstroms,
+                self.transient.flux_density / 1e-17,
+                color=self.color,
+                lw=self.linewidth,
+                linestyle=self.linestyle,
+            )
+        else:
+            ax.errorbar(
+                self.transient.angstroms,
+                self.transient.flux_density / 1e-17,
+                yerr=self.transient.flux_density_err / 1e-17,
+                color=self.color,
+                fmt=self.errorbar_fmt,
+                ms=self.ms,
+                elinewidth=self.elinewidth,
+                capsize=self.capsize,
+            )
         ax.set_yscale(self.yscale)
 
         ax.set_xlim(self._xlim_low, self._xlim_high)
@@ -1335,9 +1354,12 @@ class SpectrumPlotter(SpecPlotter):
         return ax
 
     def plot_spectrum(
-            self, axes: matplotlib.axes.Axes = None, save: bool = True, show: bool = True) -> matplotlib.axes.Axes:
+            self, plot_format: str = 'standard',
+            axes: matplotlib.axes.Axes = None, save: bool = True, show: bool = True) -> matplotlib.axes.Axes:
         """Plots the spectrum data and the fit and returns Axes.
 
+        :param plot_format: The format to plot the data in. Options are 'standard' and 'errorbar'. (Default value = 'standard')
+        :type plot_format: str
         :param axes: Matplotlib axes to plot the lightcurve into. Useful for user specific modifications to the plot.
         :type axes: Union[matplotlib.axes.Axes, None], optional
         :param save: Whether to save the plot. (Default value = True)
@@ -1351,7 +1373,7 @@ class SpectrumPlotter(SpecPlotter):
 
         axes = axes or plt.gca()
 
-        axes = self.plot_data(axes=axes, save=False, show=False)
+        axes = self.plot_data(axes=axes, save=False, show=False, plot_format=plot_format)
         angstroms = self._get_angstroms(axes)
 
         self._plot_spectrums(axes, angstroms)
