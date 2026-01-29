@@ -4,31 +4,24 @@ Afterglow Models Subpackage
 
 GRB afterglow models organized by implementation backend.
 
-This subpackage currently serves as a compatibility layer that:
-1. Re-exports everything from the original afterglow_models.py file
-2. Adds new VegasAfterglow models
+Structure:
+- base_models.py: Original redback afterglow models (afterglowpy wrappers, native implementations)
+- vegas_models.py: VegasAfterglow C++ high-performance models
+
+This subpackage maintains backward compatibility - all models can be imported from
+redback.transient_models.afterglow_models as before.
 """
 
-# Import the original afterglow_models.py using relative import from parent package
-# We need to import it as a sibling module
-import importlib
-import sys
+# Import everything from base_models (original afterglow_models.py)
+from redback.transient_models.afterglow_models.base_models import *
 
-# Load the original afterglow_models.py file as a module
-original_module_name = 'redback.transient_models._afterglow_models_original'
-original_file = __file__.replace('afterglow_models/__init__.py', 'afterglow_models.py')
+# Explicitly import private functions that are used by other modules
+from redback.transient_models.afterglow_models.base_models import (
+    _get_kn_dynamics,
+    _pnu_synchrotron
+)
 
-spec = importlib.util.spec_from_file_location(original_module_name, original_file)
-_original = importlib.util.module_from_spec(spec)
-sys.modules[original_module_name] = _original
-spec.loader.exec_module(_original)
-
-# Re-export everything (including private functions)
-for name in dir(_original):
-    if name != '__builtins__':
-        globals()[name] = getattr(_original, name)
-
-# Now add VegasAfterglow models
+# Import VegasAfterglow models
 try:
     from redback.transient_models.afterglow_models.vegas_models import (
         vegas_tophat,
