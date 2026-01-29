@@ -4,6 +4,166 @@ Test VegasAfterglow model integration
 import pytest
 import numpy as np
 from unittest.mock import MagicMock, patch, call
+import sys
+
+
+class TestVegasModelsWithMocking:
+    """Test vegas_models.py with VegasAfterglow mocked"""
+    
+    def setup_method(self):
+        """Set up mocks before each test"""
+        # Mock VegasAfterglow module
+        self.mock_vegas = MagicMock()
+        self.mock_afterglow = MagicMock()
+        self.mock_vegas.Afterglow = self.mock_afterglow
+        
+        # Mock afterglow instance
+        self.mock_instance = MagicMock()
+        self.mock_afterglow.return_value = self.mock_instance
+        
+        # Mock flux_density method to return reasonable values
+        self.mock_instance.flux_density.return_value = np.array([1e-26, 2e-26, 3e-26])
+        
+        # Install the mock
+        sys.modules['VegasAfterglow'] = self.mock_vegas
+        
+    def teardown_method(self):
+        """Clean up mocks after each test"""
+        if 'VegasAfterglow' in sys.modules:
+            del sys.modules['VegasAfterglow']
+        # Force reimport by removing cached imports
+        if 'redback.transient_models.afterglow_models.vegas_models' in sys.modules:
+            del sys.modules['redback.transient_models.afterglow_models.vegas_models']
+    
+    def test_vegas_tophat_basic(self):
+        """Test vegas_tophat calls VegasAfterglow correctly"""
+        # Import after mocking
+        from redback.transient_models.afterglow_models.vegas_models import vegas_tophat
+        
+        time = np.array([1.0, 2.0, 3.0])
+        kwargs = {'output_format': 'flux_density', 'frequency': 5e14}
+        
+        result = vegas_tophat(
+            time=time, redshift=0.1, thv=0.2, loge0=52.0, thc=0.1,
+            lognism=0.0, loga=-1.0, p=2.2, logepse=-1.0, logepsb=-2.0, g0=300.0,
+            **kwargs
+        )
+        
+        # Verify Afterglow was instantiated with correct jet structure
+        self.mock_afterglow.assert_called_once()
+        call_kwargs = self.mock_afterglow.call_args[1]
+        assert call_kwargs['jet_type'] == 'tophat'
+        assert 'z' in call_kwargs
+        assert 'theta_obs' in call_kwargs
+        
+        # Verify flux_density was called
+        self.mock_instance.flux_density.assert_called_once()
+        
+        # Result should be the mock return value
+        assert len(result) == 3
+    
+    def test_vegas_gaussian_structure(self):
+        """Test vegas_gaussian uses gaussian jet structure"""
+        from redback.transient_models.afterglow_models.vegas_models import vegas_gaussian
+        
+        time = np.array([1.0])
+        kwargs = {'output_format': 'flux_density', 'frequency': 5e14}
+        
+        vegas_gaussian(
+            time=time, redshift=0.1, thv=0.2, loge0=52.0, thc=0.1,
+            lognism=0.0, loga=-1.0, p=2.2, logepse=-1.0, logepsb=-2.0, g0=300.0,
+            **kwargs
+        )
+        
+        call_kwargs = self.mock_afterglow.call_args[1]
+        assert call_kwargs['jet_type'] == 'gaussian'
+    
+    def test_vegas_powerlaw_structure(self):
+        """Test vegas_powerlaw uses powerlaw jet structure with extra params"""
+        from redback.transient_models.afterglow_models.vegas_models import vegas_powerlaw
+        
+        time = np.array([1.0])
+        kwargs = {'output_format': 'flux_density', 'frequency': 5e14}
+        
+        vegas_powerlaw(
+            time=time, redshift=0.1, thv=0.2, loge0=52.0, thc=0.1,
+            lognism=0.0, loga=-1.0, p=2.2, logepse=-1.0, logepsb=-2.0, g0=300.0,
+            ke=4.0, kg=2.0, **kwargs
+        )
+        
+        call_kwargs = self.mock_afterglow.call_args[1]
+        assert call_kwargs['jet_type'] == 'powerlaw'
+    
+    def test_medium_type_ism(self):
+        """Test that loga < -0.5 sets ISM medium"""
+        from redback.transient_models.afterglow_models.vegas_models import vegas_tophat
+        
+        time = np.array([1.0])
+        kwargs = {'output_format': 'flux_density', 'frequency': 5e14}
+        
+        vegas_tophat(
+            time=time, redshift=0.1, thv=0.2, loge0=52.0, thc=0.1,
+            lognism=0.0, loga=-2.0, p=2.2, logepse=-1.0, logepsb=-2.0, g0=300.0,
+            **kwargs
+        )
+        
+        call_kwargs = self.mock_afterglow.call_args[1]
+        assert call_kwargs['medium_type'] == 'ism'
+    
+    def test_medium_type_wind(self):
+        """Test that loga > 0.5 sets wind medium"""
+        from redback.transient_models.afterglow_models.vegas_models import vegas_tophat
+        
+        time = np.array([1.0])
+        kwargs = {'output_format': 'flux_density', 'frequency': 5e14}
+        
+        vegas_tophat(
+            time=time, redshift=0.1, thv=0.2, loge0=52.0, thc=0.1,
+            lognism=0.0, loga=2.0, p=2.2, logepse=-1.0, logepsb=-2.0, g0=300.0,
+            **kwargs
+        )
+        
+        call_kwargs = self.mock_afterglow.call_args[1]
+        assert call_kwargs['medium_type'] == 'wind'
+    
+    def test_medium_type_hybrid(self):
+        """Test that -0.5 < loga < 0.5 sets hybrid medium"""
+        from redback.transient_models.afterglow_models.vegas_models import vegas_tophat
+        
+        time = np.array([1.0])
+        kwargs = {'output_format': 'flux_density', 'frequency': 5e14}
+        
+        vegas_tophat(
+            time=time, redshift=0.1, thv=0.2, loge0=52.0, thc=0.1,
+            lognism=0.0, loga=0.0, p=2.2, logepse=-1.0, logepsb=-2.0, g0=300.0,
+            **kwargs
+        )
+        
+        call_kwargs = self.mock_afterglow.call_args[1]
+        assert call_kwargs['medium_type'] == 'hybrid'
+    
+    def test_magnitude_output(self):
+        """Test magnitude output format"""
+        from redback.transient_models.afterglow_models.vegas_models import vegas_tophat
+        
+        # Mock calc_ABmag_from_flux_density
+        with patch('redback.transient_models.afterglow_models.vegas_models.calc_ABmag_from_flux_density') as mock_mag:
+            mock_mag_result = MagicMock()
+            mock_mag_result.value = np.array([20.0, 21.0, 22.0])
+            mock_mag.return_value = mock_mag_result
+            
+            time = np.array([1.0, 2.0, 3.0])
+            kwargs = {'output_format': 'magnitude', 'bands': ['bessellb']}
+            
+            result = vegas_tophat(
+                time=time, redshift=0.1, thv=0.2, loge0=52.0, thc=0.1,
+                lognism=0.0, loga=-1.0, p=2.2, logepse=-1.0, logepsb=-2.0, g0=300.0,
+                **kwargs
+            )
+            
+            # Verify magnitude conversion was called
+            mock_mag.assert_called()
+            assert len(result) == 3
 
 
 class TestAfterglowModelsInit:
