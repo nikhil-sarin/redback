@@ -35,7 +35,7 @@ class TestVegasModelsWithMocking:
         self.mock_vegas.TophatJet = self.mock_tophat_jet_class
         self.mock_vegas.GaussianJet = self.mock_gaussian_jet_class
         self.mock_vegas.PowerLawJet = self.mock_powerlaw_jet_class
-        self.mock_vegas.PowerLawWingJet = MagicMock()
+        self.mock_vegas.PowerLawWing = MagicMock()
         self.mock_vegas.TwoComponentJet = MagicMock()
         self.mock_vegas.StepPowerLawJet = MagicMock()
         self.mock_vegas.Wind = self.mock_medium_class
@@ -202,6 +202,27 @@ class TestVegasModelsWithMocking:
             mock_mag.assert_called()
             assert len(result) == 3
             np.testing.assert_array_equal(result, np.array([20.0, 21.0, 22.0]))
+    
+    def test_vegas_powerlaw_wing(self):
+        """Test vegas_powerlaw_wing structure"""
+        from redback.transient_models.afterglow_models.vegas_models import vegas_powerlaw_wing
+        
+        time = np.array([1.0])
+        kwargs = {'output_format': 'flux_density', 'frequency': 5e14}
+        
+        vegas_powerlaw_wing(
+            time=time, redshift=0.1, thv=0.2, loge0=52.0, thc=0.1,
+            lognism=0.0, loga=-1.0, p=2.2, logepse=-1.0, logepsb=-2.0, g0=300.0,
+            loge0_w=51.0, g0_w=200.0, ke=4.0, kg=2.0, **kwargs
+        )
+        
+        # Verify PowerLawWing was used
+        self.mock_vegas.PowerLawWing.assert_called_once()
+        call_args = self.mock_vegas.PowerLawWing.call_args[1]
+        assert 'theta_c' in call_args
+        assert 'k_e' in call_args
+        assert call_args['k_e'] == 4.0
+        assert call_args['k_g'] == 2.0
     
     def test_vegas_step_powerlaw(self):
         """Test vegas_step_powerlaw structure"""
