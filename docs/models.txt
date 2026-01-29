@@ -14,6 +14,7 @@ For a full up to date list of models implemented in :code:`redback`, look at the
     - Several varieties of afterglow models implemented directly in redback following Lamb et al. 2018 and other work. Includes wind-like mediums and complex jet structures. SSA etc.
     - Several jet structures but with refreshed shocks and the suite of options available for the set of models above.
     - All structured jet models implemented in `afterglowpy <https://afterglowpy.readthedocs.io/en/latest/>`_. Must install afterglowpy to use these models.
+    - **VegasAfterglow high-performance models** - Millisecond-scale C++ afterglow models providing ~1000x speedup. 6 unified jet structures (vegas_tophat, vegas_gaussian, vegas_powerlaw, vegas_powerlaw_wing, vegas_two_component, vegas_step_powerlaw) supporting ISM, Wind, and Hybrid media through unified lognism/loga interface. Includes full suite of physics: forward/reverse shocks, synchrotron self-Compton, Klein-Nishina corrections, jet spreading, magnetar injection, non-axisymmetric jets. Install with :code:`pip install VegasAfterglow`. See `VegasAfterglow <https://github.com/YihanWangAstro/VegasAfterglow>`_ and Wang, Chen & Zhang (2026).
     - Some varieties of Kilonova afterglow models e.g., Sarin et al. 2022, Nakar and Piran 2011
     - Jetsimpy
     - Several more...
