@@ -214,7 +214,28 @@ def vegas_gaussian(time, redshift, thv, loge0, thc, lognism, loga, p, logepse, l
     """
     VegasAfterglow Gaussian jet with unified medium (ISM/Wind/Hybrid)
 
-    Parameters same as vegas_tophat. Uses GaussianJet instead of TophatJet.
+    Gaussian structured jet where energy and Lorentz factor follow Gaussian profiles
+    in angle theta: E(theta) ~ E_iso * exp(-theta^2 / (2*theta_c^2))
+
+    :param time: time in days in observer frame
+    :param redshift: source redshift
+    :param thv: viewing angle in radians
+    :param loge0: log10 isotropic equivalent energy [erg]
+    :param thc: jet core opening angle in radians
+    :param lognism: log10 ISM number density [cm^-3] (use -inf for pure wind)
+    :param loga: log10 wind parameter A_* [g/cm] (use -inf for pure ISM)
+    :param p: electron power-law index
+    :param logepse: log10 electron energy fraction
+    :param logepsb: log10 magnetic field energy fraction
+    :param g0: initial Lorentz factor
+    :param kwargs: Same optional parameters as vegas_tophat (see vegas_tophat docstring)
+    :return: flux density [erg/cm²/s/Hz] or AB magnitude
+    
+    Examples:
+    ---------
+    Pure ISM: lognism=0.0, loga=-np.inf
+    Pure Wind: lognism=-np.inf, loga=11.0
+    Hybrid: lognism=0.0, loga=11.0 (wind with ISM floor)
     """
     _check_vegasafterglow_available()
 
@@ -289,9 +310,31 @@ def vegas_powerlaw(time, redshift, thv, loge0, thc, lognism, loga, p, logepse, l
     """
     VegasAfterglow power-law jet with unified medium (ISM/Wind/Hybrid)
 
-    Parameters same as vegas_tophat plus:
-    :param ke: energy power-law index
-    :param kg: Lorentz factor power-law index
+    Power-law structured jet where energy and Lorentz factor follow power-law profiles
+    outside the core: E(theta) ~ E_iso * (theta/theta_c)^(-ke) for theta > theta_c
+                      Gamma(theta) ~ Gamma0 * (theta/theta_c)^(-kg) for theta > theta_c
+
+    :param time: time in days in observer frame
+    :param redshift: source redshift
+    :param thv: viewing angle in radians
+    :param loge0: log10 isotropic equivalent energy [erg]
+    :param thc: jet core opening angle in radians
+    :param lognism: log10 ISM number density [cm^-3] (use -inf for pure wind)
+    :param loga: log10 wind parameter A_* [g/cm] (use -inf for pure ISM)
+    :param p: electron power-law index
+    :param logepse: log10 electron energy fraction
+    :param logepsb: log10 magnetic field energy fraction
+    :param g0: initial Lorentz factor
+    :param ke: energy power-law index (typically 2-8)
+    :param kg: Lorentz factor power-law index (typically 2-8)
+    :param kwargs: Same optional parameters as vegas_tophat (see vegas_tophat docstring)
+    :return: flux density [erg/cm²/s/Hz] or AB magnitude
+    
+    Examples:
+    ---------
+    Pure ISM: lognism=0.0, loga=-np.inf
+    Pure Wind: lognism=-np.inf, loga=11.0
+    Hybrid: lognism=0.0, loga=11.0 (wind with ISM floor)
     """
     _check_vegasafterglow_available()
 
@@ -355,10 +398,31 @@ def vegas_powerlaw_wing(time, redshift, thv, loge0_w, thc, lognism, loga, p, log
     """
     VegasAfterglow power-law wing jet with unified medium (ISM/Wind/Hybrid)
 
-    :param loge0_w: log10 isotropic energy for wing [erg]
-    :param g0_w: initial Lorentz factor for wing
-    :param ke: energy power-law index
-    :param kg: Lorentz factor power-law index
+    Power-law wings only (no core component). Energy and Lorentz factor follow 
+    power-law profiles: E(theta) ~ E_iso_w * (theta/theta_c)^(-ke)
+                        Gamma(theta) ~ Gamma0_w * (theta/theta_c)^(-kg)
+
+    :param time: time in days in observer frame
+    :param redshift: source redshift
+    :param thv: viewing angle in radians
+    :param loge0_w: log10 isotropic energy for wings [erg]
+    :param thc: reference angle for power-law normalization [rad]
+    :param lognism: log10 ISM number density [cm^-3] (use -inf for pure wind)
+    :param loga: log10 wind parameter A_* [g/cm] (use -inf for pure ISM)
+    :param p: electron power-law index
+    :param logepse: log10 electron energy fraction
+    :param logepsb: log10 magnetic field energy fraction
+    :param g0_w: initial Lorentz factor for wings
+    :param ke: energy power-law index (typically 2-8)
+    :param kg: Lorentz factor power-law index (typically 2-8)
+    :param kwargs: Same optional parameters as vegas_tophat (see vegas_tophat docstring)
+    :return: flux density [erg/cm²/s/Hz] or AB magnitude
+    
+    Examples:
+    ---------
+    Pure ISM: lognism=0.0, loga=-np.inf
+    Pure Wind: lognism=-np.inf, loga=11.0
+    Hybrid: lognism=0.0, loga=11.0 (wind with ISM floor)
     """
     _check_vegasafterglow_available()
 
@@ -418,9 +482,35 @@ def vegas_two_component(time, redshift, thv, loge0, thc, lognism, loga, p, logep
     """
     VegasAfterglow two-component jet with unified medium (ISM/Wind/Hybrid)
 
-    :param theta_w: wide component opening angle [rad]
+    Jet with narrow core (theta < theta_c) and wide component (theta_c < theta < theta_w).
+    Core has uniform energy E_iso and Lorentz factor Gamma0.
+    Wide component has uniform energy E_iso_w and Lorentz factor Gamma0_w.
+    
+    Used to model jets with distinct narrow and wide emission regions, such as those
+    inferred from observations of GRB 170817A.
+
+    :param time: time in days in observer frame
+    :param redshift: source redshift
+    :param thv: viewing angle in radians
+    :param loge0: log10 core isotropic energy [erg]
+    :param thc: core opening angle in radians
+    :param lognism: log10 ISM number density [cm^-3] (use -inf for pure wind)
+    :param loga: log10 wind parameter A_* [g/cm] (use -inf for pure ISM)
+    :param p: electron power-law index
+    :param logepse: log10 electron energy fraction
+    :param logepsb: log10 magnetic field energy fraction
+    :param g0: core initial Lorentz factor
+    :param theta_w: wide component outer opening angle [rad]
     :param loge0_w: log10 wide component isotropic energy [erg]
     :param g0_w: wide component initial Lorentz factor
+    :param kwargs: Same optional parameters as vegas_tophat (see vegas_tophat docstring)
+    :return: flux density [erg/cm²/s/Hz] or AB magnitude
+    
+    Examples:
+    ---------
+    Pure ISM: lognism=0.0, loga=-np.inf
+    Pure Wind: lognism=-np.inf, loga=11.0
+    Hybrid: lognism=0.0, loga=11.0 (wind with ISM floor)
     """
     _check_vegasafterglow_available()
 
@@ -486,10 +576,37 @@ def vegas_step_powerlaw(time, redshift, thv, loge0, thc, lognism, loga, p, logep
     """
     VegasAfterglow step power-law jet with unified medium (ISM/Wind/Hybrid)
 
-    :param loge0_w: log10 wide component isotropic energy [erg]
-    :param g0_w: wide component initial Lorentz factor
-    :param ke: energy power-law index
-    :param kg: Lorentz factor power-law index
+    Jet with uniform core (theta < theta_c) transitioning to power-law wings (theta > theta_c).
+    Core: E(theta) = E_iso, Gamma(theta) = Gamma0
+    Wings: E(theta) = E_iso_w * (theta/theta_c)^(-ke)
+           Gamma(theta) = Gamma0_w * (theta/theta_c)^(-kg)
+    
+    Combines the benefits of both tophat and power-law structures, allowing for
+    a bright core with extended wings.
+
+    :param time: time in days in observer frame
+    :param redshift: source redshift
+    :param thv: viewing angle in radians
+    :param loge0: log10 core isotropic energy [erg]
+    :param thc: core opening angle in radians
+    :param lognism: log10 ISM number density [cm^-3] (use -inf for pure wind)
+    :param loga: log10 wind parameter A_* [g/cm] (use -inf for pure ISM)
+    :param p: electron power-law index
+    :param logepse: log10 electron energy fraction
+    :param logepsb: log10 magnetic field energy fraction
+    :param g0: core initial Lorentz factor
+    :param loge0_w: log10 wing normalization energy [erg]
+    :param g0_w: wing normalization Lorentz factor
+    :param ke: energy power-law index for wings (typically 2-8)
+    :param kg: Lorentz factor power-law index for wings (typically 2-8)
+    :param kwargs: Same optional parameters as vegas_tophat (see vegas_tophat docstring)
+    :return: flux density [erg/cm²/s/Hz] or AB magnitude
+    
+    Examples:
+    ---------
+    Pure ISM: lognism=0.0, loga=-np.inf
+    Pure Wind: lognism=-np.inf, loga=11.0
+    Hybrid: lognism=0.0, loga=11.0 (wind with ISM floor)
     """
     _check_vegasafterglow_available()
 
