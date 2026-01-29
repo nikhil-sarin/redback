@@ -95,7 +95,7 @@ def vegas_tophat(time, redshift, thv, loge0, thc, lognism, loga, p, logepse, log
         - magnetar_L0: magnetar luminosity [erg/s] (optional)
         - magnetar_t0: magnetar spin-down time [s] (optional)
         - magnetar_q: magnetar braking index (optional)
-    :return: flux density [erg/cm²/s/Hz] or AB magnitude
+    :return: flux density [mJy] or AB magnitude
     
     Examples:
     ---------
@@ -199,14 +199,17 @@ def vegas_tophat(time, redshift, thv, loge0, thc, lognism, loga, p, logepse, log
     )
 
     # Evaluate
+    flux_density_cgs = model.flux_density(time_s, frequency).total
     if kwargs['output_format'] == 'flux_density':
-        flux_density = model.flux_density(time_s, frequency)
-        return flux_density.total
+        # Convert from erg/cm²/s/Hz to mJy
+        fmjy = flux_density_cgs / 1e-26
+        return fmjy
     else:
         # Magnitude mode
         frequency = bands_to_frequency(kwargs['bands'])
-        flux_density = model.flux_density(time_s, frequency)
-        return calc_ABmag_from_flux_density(flux_density.total).value
+        flux_density_cgs = model.flux_density(time_s, frequency).total
+        fmjy = flux_density_cgs / 1e-26
+        return calc_ABmag_from_flux_density(fmjy).value
 
 
 @citation_wrapper('https://ui.adsabs.harvard.edu/abs/2026JHEAp..5000490W/abstract')
@@ -229,7 +232,7 @@ def vegas_gaussian(time, redshift, thv, loge0, thc, lognism, loga, p, logepse, l
     :param logepsb: log10 magnetic field energy fraction
     :param g0: initial Lorentz factor
     :param kwargs: Same optional parameters as vegas_tophat (see vegas_tophat docstring)
-    :return: flux density [erg/cm²/s/Hz] or AB magnitude
+    :return: flux density [mJy] or AB magnitude
     
     Examples:
     ---------
@@ -298,11 +301,15 @@ def vegas_gaussian(time, redshift, thv, loge0, thc, lognism, loga, p, logepse, l
         axisymmetric=kwargs.get('axisymmetric', True)
     )
 
+    flux_density_cgs = model.flux_density(time_s, frequency).total
+    fmjy = flux_density_cgs / 1e-26  # Convert from erg/cm²/s/Hz to mJy
     if kwargs['output_format'] == 'flux_density':
-        return model.flux_density(time_s, frequency).total
+        return fmjy
     else:
         frequency = bands_to_frequency(kwargs['bands'])
-        return calc_ABmag_from_flux_density(model.flux_density(time_s, frequency).total).value
+        flux_density_cgs = model.flux_density(time_s, frequency).total
+        fmjy = flux_density_cgs / 1e-26
+        return calc_ABmag_from_flux_density(fmjy).value
 
 
 @citation_wrapper('https://ui.adsabs.harvard.edu/abs/2026JHEAp..5000490W/abstract')
@@ -328,7 +335,7 @@ def vegas_powerlaw(time, redshift, thv, loge0, thc, lognism, loga, p, logepse, l
     :param ke: energy power-law index (typically 2-8)
     :param kg: Lorentz factor power-law index (typically 2-8)
     :param kwargs: Same optional parameters as vegas_tophat (see vegas_tophat docstring)
-    :return: flux density [erg/cm²/s/Hz] or AB magnitude
+    :return: flux density [mJy] or AB magnitude
     
     Examples:
     ---------
@@ -386,11 +393,15 @@ def vegas_powerlaw(time, redshift, thv, loge0, thc, lognism, loga, p, logepse, l
         axisymmetric=kwargs.get('axisymmetric', True)
     )
 
+    flux_density_cgs = model.flux_density(time_s, frequency).total
+    fmjy = flux_density_cgs / 1e-26  # Convert from erg/cm²/s/Hz to mJy
     if kwargs['output_format'] == 'flux_density':
-        return model.flux_density(time_s, frequency).total
+        return fmjy
     else:
         frequency = bands_to_frequency(kwargs['bands'])
-        return calc_ABmag_from_flux_density(model.flux_density(time_s, frequency).total).value
+        flux_density_cgs = model.flux_density(time_s, frequency).total
+        fmjy = flux_density_cgs / 1e-26
+        return calc_ABmag_from_flux_density(fmjy).value
 
 
 @citation_wrapper('https://ui.adsabs.harvard.edu/abs/2026JHEAp..5000490W/abstract')
@@ -416,7 +427,7 @@ def vegas_powerlaw_wing(time, redshift, thv, loge0_w, thc, lognism, loga, p, log
     :param ke: energy power-law index (typically 2-8)
     :param kg: Lorentz factor power-law index (typically 2-8)
     :param kwargs: Same optional parameters as vegas_tophat (see vegas_tophat docstring)
-    :return: flux density [erg/cm²/s/Hz] or AB magnitude
+    :return: flux density [mJy] or AB magnitude
     
     Examples:
     ---------
@@ -469,11 +480,15 @@ def vegas_powerlaw_wing(time, redshift, thv, loge0_w, thc, lognism, loga, p, log
         axisymmetric=kwargs.get('axisymmetric', True)
     )
 
+    flux_density_cgs = model.flux_density(time_s, frequency).total
+    fmjy = flux_density_cgs / 1e-26  # Convert from erg/cm²/s/Hz to mJy
     if kwargs['output_format'] == 'flux_density':
-        return model.flux_density(time_s, frequency).total
+        return fmjy
     else:
         frequency = bands_to_frequency(kwargs['bands'])
-        return calc_ABmag_from_flux_density(model.flux_density(time_s, frequency).total).value
+        flux_density_cgs = model.flux_density(time_s, frequency).total
+        fmjy = flux_density_cgs / 1e-26
+        return calc_ABmag_from_flux_density(fmjy).value
 
 
 @citation_wrapper('https://ui.adsabs.harvard.edu/abs/2026JHEAp..5000490W/abstract')
@@ -504,7 +519,7 @@ def vegas_two_component(time, redshift, thv, loge0, thc, lognism, loga, p, logep
     :param loge0_w: log10 wide component isotropic energy [erg]
     :param g0_w: wide component initial Lorentz factor
     :param kwargs: Same optional parameters as vegas_tophat (see vegas_tophat docstring)
-    :return: flux density [erg/cm²/s/Hz] or AB magnitude
+    :return: flux density [mJy] or AB magnitude
     
     Examples:
     ---------
@@ -563,11 +578,15 @@ def vegas_two_component(time, redshift, thv, loge0, thc, lognism, loga, p, logep
         axisymmetric=kwargs.get('axisymmetric', True)
     )
 
+    flux_density_cgs = model.flux_density(time_s, frequency).total
+    fmjy = flux_density_cgs / 1e-26  # Convert from erg/cm²/s/Hz to mJy
     if kwargs['output_format'] == 'flux_density':
-        return model.flux_density(time_s, frequency).total
+        return fmjy
     else:
         frequency = bands_to_frequency(kwargs['bands'])
-        return calc_ABmag_from_flux_density(model.flux_density(time_s, frequency).total).value
+        flux_density_cgs = model.flux_density(time_s, frequency).total
+        fmjy = flux_density_cgs / 1e-26
+        return calc_ABmag_from_flux_density(fmjy).value
 
 
 @citation_wrapper('https://ui.adsabs.harvard.edu/abs/2026JHEAp..5000490W/abstract')
@@ -600,7 +619,7 @@ def vegas_step_powerlaw(time, redshift, thv, loge0, thc, lognism, loga, p, logep
     :param ke: energy power-law index for wings (typically 2-8)
     :param kg: Lorentz factor power-law index for wings (typically 2-8)
     :param kwargs: Same optional parameters as vegas_tophat (see vegas_tophat docstring)
-    :return: flux density [erg/cm²/s/Hz] or AB magnitude
+    :return: flux density [mJy] or AB magnitude
     
     Examples:
     ---------
@@ -659,8 +678,12 @@ def vegas_step_powerlaw(time, redshift, thv, loge0, thc, lognism, loga, p, logep
         axisymmetric=kwargs.get('axisymmetric', True)
     )
 
+    flux_density_cgs = model.flux_density(time_s, frequency).total
+    fmjy = flux_density_cgs / 1e-26  # Convert from erg/cm²/s/Hz to mJy
     if kwargs['output_format'] == 'flux_density':
-        return model.flux_density(time_s, frequency).total
+        return fmjy
     else:
         frequency = bands_to_frequency(kwargs['bands'])
-        return calc_ABmag_from_flux_density(model.flux_density(time_s, frequency).total).value
+        flux_density_cgs = model.flux_density(time_s, frequency).total
+        fmjy = flux_density_cgs / 1e-26
+        return calc_ABmag_from_flux_density(fmjy).value
