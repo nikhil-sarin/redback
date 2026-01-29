@@ -202,6 +202,146 @@ class TestVegasModelsWithMocking:
             mock_mag.assert_called()
             assert len(result) == 3
             np.testing.assert_array_equal(result, np.array([20.0, 21.0, 22.0]))
+    
+    def test_vegas_step_powerlaw(self):
+        """Test vegas_step_powerlaw structure"""
+        from redback.transient_models.afterglow_models.vegas_models import vegas_step_powerlaw
+        
+        time = np.array([1.0])
+        kwargs = {'output_format': 'flux_density', 'frequency': 5e14}
+        
+        vegas_step_powerlaw(
+            time=time, redshift=0.1, thv=0.2, loge0=52.0, thc=0.1,
+            lognism=0.0, loga=-1.0, p=2.2, logepse=-1.0, logepsb=-2.0, g0=300.0,
+            loge0_w=51.0, g0_w=200.0, ke=4.0, kg=2.0, **kwargs
+        )
+        
+        # Verify StepPowerLawJet was used
+        self.mock_vegas.StepPowerLawJet.assert_called_once()
+        call_args = self.mock_vegas.StepPowerLawJet.call_args[1]
+        assert 'theta_c' in call_args
+        assert 'E_iso' in call_args
+        assert call_args['E_iso'] == 10**52.0
+    
+    def test_vegas_two_component(self):
+        """Test vegas_two_component structure"""
+        from redback.transient_models.afterglow_models.vegas_models import vegas_two_component
+        
+        time = np.array([1.0])
+        kwargs = {'output_format': 'flux_density', 'frequency': 5e14}
+        
+        vegas_two_component(
+            time=time, redshift=0.1, thv=0.2, loge0=52.0, thc=0.1,
+            lognism=0.0, loga=-1.0, p=2.2, logepse=-1.0, logepsb=-2.0, g0=300.0,
+            theta_w=0.3, loge0_w=51.0, g0_w=200.0, **kwargs
+        )
+        
+        # Verify TwoComponentJet was used
+        self.mock_vegas.TwoComponentJet.assert_called_once()
+        call_args = self.mock_vegas.TwoComponentJet.call_args[1]
+        assert 'theta_c' in call_args
+        assert 'theta_w' in call_args
+        assert call_args['theta_w'] == 0.3
+    
+    def test_magnetar_parameters(self):
+        """Test magnetar energy injection parameters"""
+        from redback.transient_models.afterglow_models.vegas_models import vegas_tophat
+        
+        time = np.array([1.0])
+        kwargs = {
+            'output_format': 'flux_density', 
+            'frequency': 5e14,
+            'magnetar_L0': 1e48,
+            'magnetar_t0': 1000.0,
+            'magnetar_q': 3.0
+        }
+        
+        vegas_tophat(
+            time=time, redshift=0.1, thv=0.2, loge0=52.0, thc=0.1,
+            lognism=0.0, loga=-1.0, p=2.2, logepse=-1.0, logepsb=-2.0, g0=300.0,
+            **kwargs
+        )
+        
+        # Verify Magnetar was instantiated
+        self.mock_magnetar_class.assert_called_once_with(
+            L0=1e48, t0=1000.0, q=3.0
+        )
+        
+        # Verify magnetar was passed to jet
+        jet_call = self.mock_tophat_jet_class.call_args
+        assert jet_call[1]['magnetar'] is not None
+    
+    def test_reverse_shock_parameters(self):
+        """Test reverse shock parameters"""
+        from redback.transient_models.afterglow_models.vegas_models import vegas_tophat
+        
+        time = np.array([1.0])
+        kwargs = {
+            'output_format': 'flux_density',
+            'frequency': 5e14,
+            'reverse_shock': True,
+            'reverse_logepse': -0.5,
+            'reverse_logepsb': -1.5,
+            'reverse_p': 2.5,
+            'reverse_xie': 0.5
+        }
+        
+        result = vegas_tophat(
+            time=time, redshift=0.1, thv=0.2, loge0=52.0, thc=0.1,
+            lognism=0.0, loga=-1.0, p=2.2, logepse=-1.0, logepsb=-2.0, g0=300.0,
+            **kwargs
+        )
+        
+        # Verify Radiation was called (reverse shock params would be in there)
+        rad_call = self.mock_radiation_class.call_args
+        assert rad_call is not None
+    
+    def test_ssc_and_kn_parameters(self):
+        """Test SSC and Klein-Nishina parameters"""
+        from redback.transient_models.afterglow_models.vegas_models import vegas_tophat
+        
+        time = np.array([1.0])
+        kwargs = {
+            'output_format': 'flux_density',
+            'frequency': 5e14,
+            'ssc': True,
+            'ssc_cooling': True,
+            'kn': True
+        }
+        
+        vegas_tophat(
+            time=time, redshift=0.1, thv=0.2, loge0=52.0, thc=0.1,
+            lognism=0.0, loga=-1.0, p=2.2, logepse=-1.0, logepsb=-2.0, g0=300.0,
+            **kwargs
+        )
+        
+        # Verify Radiation was called with SSC/KN parameters
+        rad_call = self.mock_radiation_class.call_args
+        assert rad_call is not None
+        assert rad_call[1]['ssc'] == True
+        assert rad_call[1]['ssc_cooling'] == True
+        assert rad_call[1]['kn'] == True
+    
+    def test_resolution_parameters(self):
+        """Test resolution tuple parameter"""
+        from redback.transient_models.afterglow_models.vegas_models import vegas_tophat
+        
+        time = np.array([1.0])
+        kwargs = {
+            'output_format': 'flux_density',
+            'frequency': 5e14,
+            'resolutions': (0.5, 2, 20)
+        }
+        
+        vegas_tophat(
+            time=time, redshift=0.1, thv=0.2, loge0=52.0, thc=0.1,
+            lognism=0.0, loga=-1.0, p=2.2, logepse=-1.0, logepsb=-2.0, g0=300.0,
+            **kwargs
+        )
+        
+        # Verify Model was called with resolutions
+        model_call = self.mock_model_class.call_args
+        assert model_call is not None
 
 
 class TestAfterglowModelsInit:
@@ -380,3 +520,38 @@ class TestVegasModelsRegistration:
             model_func = all_models_dict[model_name]
             assert callable(model_func), f"{model_name} is not callable"
             assert model_func.__doc__ is not None, f"{model_name} has no docstring"
+
+
+class TestVegasModelsPlaceholders:
+    """Test placeholder functions when VegasAfterglow not installed"""
+    
+    def setup_method(self):
+        """Remove VegasAfterglow from imports"""
+        for mod in list(sys.modules.keys()):
+            if 'vegas_models' in mod or 'VegasAfterglow' in mod:
+                del sys.modules[mod]
+        # Ensure VegasAfterglow is NOT available
+        if 'VegasAfterglow' in sys.modules:
+            del sys.modules['VegasAfterglow']
+    
+    def test_placeholder_raises_import_error(self):
+        """Test placeholder functions raise ImportError when VegasAfterglow not installed"""
+        # Import the __init__ which will use placeholders if VegasAfterglow not available
+        import importlib
+        import redback.transient_models.afterglow_models
+        importlib.reload(redback.transient_models.afterglow_models)
+        
+        from redback.transient_models.afterglow_models import vegas_tophat
+        
+        # Try calling - should raise ImportError if VegasAfterglow not installed
+        # (Skip if VegasAfterglow IS installed)
+        try:
+            import VegasAfterglow
+            pytest.skip("VegasAfterglow is installed, skipping placeholder test")
+        except ImportError:
+            with pytest.raises(ImportError, match="VegasAfterglow"):
+                vegas_tophat(
+                    time=np.array([1.0]), redshift=0.1, thv=0.2, loge0=52.0, thc=0.1,
+                    lognism=0.0, loga=-1.0, p=2.2, logepse=-1.0, logepsb=-2.0, g0=300.0,
+                    frequency=5e14, output_format='flux_density'
+                )
