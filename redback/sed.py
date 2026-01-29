@@ -961,9 +961,14 @@ def get_correct_output_format_from_spectra(time, time_eval, spectra, lambda_arra
     :return: flux, magnitude or SNcosmo TimeSeries Source depending on output format kwarg
     """
     # clean up spectrum to remove nonsensical values before creating sncosmo source
-    spectra = np.nan_to_num(spectra)
-    spectra[spectra.value == np.nan_to_num(np.inf)] = 1e-30 * np.mean(spectra[int(len(spectra)/2)])
-    spectra[spectra.value == 0.] = 1e-30 * np.mean(spectra[int(len(spectra)/2)])
+    values = spectra.value if hasattr(spectra, "unit") else spectra
+    mean_value = np.nanmean(np.where(np.isfinite(values) & (values != 0), values, np.nan))
+    if not np.isfinite(mean_value) or mean_value == 0:
+        mean_value = 1.0
+    replacement = 1e-30 * mean_value
+    if hasattr(spectra, "unit"):
+        replacement = replacement * spectra.unit
+    spectra = np.where(np.isfinite(values) & (values != 0), spectra, replacement)
     time_spline_degree = kwargs.get('time_spline_degree', 3)
     source = RedbackTimeSeriesSource(phase=time_eval, wave=lambda_array, flux=spectra,
                                      time_spline_degree=time_spline_degree)
@@ -971,10 +976,6 @@ def get_correct_output_format_from_spectra(time, time_eval, spectra, lambda_arra
         bands = kwargs['bands']
         magnitude = source.bandmag(phase=time, band=bands, magsys='ab')
         return bandpass_magnitude_to_flux(magnitude=magnitude, bands=bands)
-    elif kwargs['output_format'] == 'flux_density':
-        bands = kwargs['bands']
-        magnitude = source.bandmag(phase=time, band=bands, magsys='ab')
-        return calc_flux_density_from_ABmag(magnitude)
     elif kwargs['output_format'] == 'magnitude':
         bands = kwargs['bands']
         magnitude = source.bandmag(phase=time, band=bands, magsys='ab')
@@ -982,4 +983,4 @@ def get_correct_output_format_from_spectra(time, time_eval, spectra, lambda_arra
     elif kwargs['output_format'] == 'sncosmo_source':
         return source
     else:
-        raise ValueError("Output format must be 'flux', 'magnitude', 'sncosmo_source', or 'flux_density'")
+        raise ValueError("Output format must be 'flux', 'magnitude', 'sncosmo_source'")
