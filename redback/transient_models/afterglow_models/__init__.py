@@ -13,13 +13,22 @@ redback.transient_models.afterglow_models as before.
 """
 
 # Import everything from base_models (original afterglow_models.py)
-from redback.transient_models.afterglow_models.base_models import *
-
-# Explicitly import private functions that are used by other modules
-from redback.transient_models.afterglow_models.base_models import (
-    _get_kn_dynamics,
-    _pnu_synchrotron
-)
+try:
+    from redback.transient_models.afterglow_models.base_models import *
+    
+    # Explicitly import private functions that are used by other modules
+    from redback.transient_models.afterglow_models.base_models import (
+        _get_kn_dynamics,
+        _pnu_synchrotron
+    )
+except ImportError as e:
+    import warnings
+    warnings.warn(f"Could not import base afterglow models: {e}")
+    # Define minimal stubs
+    def _get_kn_dynamics(*args, **kwargs):
+        raise ImportError("Base afterglow models not available")
+    def _pnu_synchrotron(*args, **kwargs):
+        raise ImportError("Base afterglow models not available")
 
 # Import VegasAfterglow models
 try:
@@ -92,6 +101,3 @@ except ImportError as e:
         Install with: pip install VegasAfterglow
         """
         raise ImportError("VegasAfterglow is not installed. Install with: pip install VegasAfterglow")
-
-
-
