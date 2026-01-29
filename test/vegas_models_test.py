@@ -43,11 +43,13 @@ class TestVegasModelsWithMocking:
         time = np.array([1.0, 2.0, 3.0])
         kwargs = {'output_format': 'flux_density', 'frequency': 5e14}
         
-        result = vegas_tophat(
-            time=time, redshift=0.1, thv=0.2, loge0=52.0, thc=0.1,
-            lognism=0.0, loga=-1.0, p=2.2, logepse=-1.0, logepsb=-2.0, g0=300.0,
-            **kwargs
-        )
+        # Patch the check function to bypass it
+        with patch('redback.transient_models.afterglow_models.vegas_models._check_vegasafterglow_available'):
+            result = vegas_tophat(
+                time=time, redshift=0.1, thv=0.2, loge0=52.0, thc=0.1,
+                lognism=0.0, loga=-1.0, p=2.2, logepse=-1.0, logepsb=-2.0, g0=300.0,
+                **kwargs
+            )
         
         # Verify Afterglow was instantiated with correct jet structure
         self.mock_afterglow.assert_called_once()
@@ -69,11 +71,12 @@ class TestVegasModelsWithMocking:
         time = np.array([1.0])
         kwargs = {'output_format': 'flux_density', 'frequency': 5e14}
         
-        vegas_gaussian(
-            time=time, redshift=0.1, thv=0.2, loge0=52.0, thc=0.1,
-            lognism=0.0, loga=-1.0, p=2.2, logepse=-1.0, logepsb=-2.0, g0=300.0,
-            **kwargs
-        )
+        with patch('redback.transient_models.afterglow_models.vegas_models._check_vegasafterglow_available'):
+            vegas_gaussian(
+                time=time, redshift=0.1, thv=0.2, loge0=52.0, thc=0.1,
+                lognism=0.0, loga=-1.0, p=2.2, logepse=-1.0, logepsb=-2.0, g0=300.0,
+                **kwargs
+            )
         
         call_kwargs = self.mock_afterglow.call_args[1]
         assert call_kwargs['jet_type'] == 'gaussian'
@@ -85,11 +88,12 @@ class TestVegasModelsWithMocking:
         time = np.array([1.0])
         kwargs = {'output_format': 'flux_density', 'frequency': 5e14}
         
-        vegas_powerlaw(
-            time=time, redshift=0.1, thv=0.2, loge0=52.0, thc=0.1,
-            lognism=0.0, loga=-1.0, p=2.2, logepse=-1.0, logepsb=-2.0, g0=300.0,
-            ke=4.0, kg=2.0, **kwargs
-        )
+        with patch('redback.transient_models.afterglow_models.vegas_models._check_vegasafterglow_available'):
+            vegas_powerlaw(
+                time=time, redshift=0.1, thv=0.2, loge0=52.0, thc=0.1,
+                lognism=0.0, loga=-1.0, p=2.2, logepse=-1.0, logepsb=-2.0, g0=300.0,
+                ke=4.0, kg=2.0, **kwargs
+            )
         
         call_kwargs = self.mock_afterglow.call_args[1]
         assert call_kwargs['jet_type'] == 'powerlaw'
@@ -101,11 +105,12 @@ class TestVegasModelsWithMocking:
         time = np.array([1.0])
         kwargs = {'output_format': 'flux_density', 'frequency': 5e14}
         
-        vegas_tophat(
-            time=time, redshift=0.1, thv=0.2, loge0=52.0, thc=0.1,
-            lognism=0.0, loga=-2.0, p=2.2, logepse=-1.0, logepsb=-2.0, g0=300.0,
-            **kwargs
-        )
+        with patch('redback.transient_models.afterglow_models.vegas_models._check_vegasafterglow_available'):
+            vegas_tophat(
+                time=time, redshift=0.1, thv=0.2, loge0=52.0, thc=0.1,
+                lognism=0.0, loga=-2.0, p=2.2, logepse=-1.0, logepsb=-2.0, g0=300.0,
+                **kwargs
+            )
         
         call_kwargs = self.mock_afterglow.call_args[1]
         assert call_kwargs['medium_type'] == 'ism'
@@ -117,11 +122,12 @@ class TestVegasModelsWithMocking:
         time = np.array([1.0])
         kwargs = {'output_format': 'flux_density', 'frequency': 5e14}
         
-        vegas_tophat(
-            time=time, redshift=0.1, thv=0.2, loge0=52.0, thc=0.1,
-            lognism=0.0, loga=2.0, p=2.2, logepse=-1.0, logepsb=-2.0, g0=300.0,
-            **kwargs
-        )
+        with patch('redback.transient_models.afterglow_models.vegas_models._check_vegasafterglow_available'):
+            vegas_tophat(
+                time=time, redshift=0.1, thv=0.2, loge0=52.0, thc=0.1,
+                lognism=0.0, loga=2.0, p=2.2, logepse=-1.0, logepsb=-2.0, g0=300.0,
+                **kwargs
+            )
         
         call_kwargs = self.mock_afterglow.call_args[1]
         assert call_kwargs['medium_type'] == 'wind'
@@ -133,11 +139,12 @@ class TestVegasModelsWithMocking:
         time = np.array([1.0])
         kwargs = {'output_format': 'flux_density', 'frequency': 5e14}
         
-        vegas_tophat(
-            time=time, redshift=0.1, thv=0.2, loge0=52.0, thc=0.1,
-            lognism=0.0, loga=0.0, p=2.2, logepse=-1.0, logepsb=-2.0, g0=300.0,
-            **kwargs
-        )
+        with patch('redback.transient_models.afterglow_models.vegas_models._check_vegasafterglow_available'):
+            vegas_tophat(
+                time=time, redshift=0.1, thv=0.2, loge0=52.0, thc=0.1,
+                lognism=0.0, loga=0.0, p=2.2, logepse=-1.0, logepsb=-2.0, g0=300.0,
+                **kwargs
+            )
         
         call_kwargs = self.mock_afterglow.call_args[1]
         assert call_kwargs['medium_type'] == 'hybrid'
@@ -146,8 +153,11 @@ class TestVegasModelsWithMocking:
         """Test magnitude output format"""
         from redback.transient_models.afterglow_models.vegas_models import vegas_tophat
         
-        # Mock calc_ABmag_from_flux_density
-        with patch('redback.transient_models.afterglow_models.vegas_models.calc_ABmag_from_flux_density') as mock_mag:
+        # Mock both the check and magnitude conversion
+        with patch('redback.transient_models.afterglow_models.vegas_models._check_vegasafterglow_available'), \
+             patch('redback.transient_models.afterglow_models.vegas_models.calc_ABmag_from_flux_density') as mock_mag, \
+             patch('redback.transient_models.afterglow_models.vegas_models.bands_to_frequency', return_value=5e14):
+            
             mock_mag_result = MagicMock()
             mock_mag_result.value = np.array([20.0, 21.0, 22.0])
             mock_mag.return_value = mock_mag_result
