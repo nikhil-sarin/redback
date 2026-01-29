@@ -34,9 +34,10 @@ extinction_supernova_base_models = ['sn_exponential_powerlaw', 'arnett', 'shock_
                                     'csm_shock_and_arnett', 'shocked_cocoon_and_arnett',
                                     'csm_shock_and_arnett_two_rphots', 'nickelmixing',
                                     'sn_nickel_fallback', 'shockcooling_morag_and_arnett',
-                                    'shockcooling_sapirandwaxman_and_arnett',
+                                    'shockcooling_sapirwaxman_and_arnett',
                                     'csm_shock_and_arnett', 'shocked_cocoon_and_arnett',
-                                    'csm_shock_and_arnett_two_rphots', 'typeII_surrogate_sarin25']
+                                    'csm_shock_and_arnett_two_rphots', 'typeII_surrogate_sarin25',
+                                    'shocked_cocoon_csm_and_arnett']
 extinction_kilonova_base_models = ['nicholl_bns', 'mosfit_rprocess', 'mosfit_kilonova',
                                    'power_law_stratified_kilonova','bulla_bns_kilonova',
                                    'bulla_nsbh_kilonova', 'kasen_bns_kilonova','two_layer_stratified_kilonova',
@@ -55,7 +56,7 @@ extinction_magnetar_driven_base_models = ['basic_mergernova', 'general_mergernov
                                           'general_metzger_magnetar_driven', 'general_metzger_magnetar_driven_thermalisation',
                                           'general_metzger_magnetar_driven_evolution']
 extinction_shock_powered_base_models = ['shocked_cocoon', 'shock_cooling', 'csm_shock_breakout',
-                                        'shockcooling_morag', 'shockcooling_sapirandwaxman']
+                                        'shockcooling_morag', 'shockcooling_sapirandwaxman', 'shocked_cocoon_csm']
 extinction_stellar_interaction_models = ['wr_bh_merger']
 
 extinction_model_library = {'kilonova': extinction_kilonova_base_models,
@@ -421,17 +422,17 @@ def extinction_with_stellar_interaction_base_model(time, av_host, **kwargs):
     return output
 
 @citation_wrapper('redback')
-def extinction_with_stellar_interaction_base_model(time, av, **kwargs):
+def extinction_with_stellar_interaction_base_model(time, av_host, **kwargs):
     """
     Extinction with models implemented in stellar_interaction_models
 
     :param time: time in observer frame in days
-    :param av: absolute mag extinction
+    :param av_host: absolute mag extinction
     :param kwargs: Must be all the parameters required by the base_model specified using kwargs['base_model']
         and r_v, default is 3.1
     :return: set by kwargs['output_format'] - 'flux_density', 'magnitude', 'flux' with extinction applied
     """
-    output = _evaluate_extinction_model(time=time, av=av, model_type='stellar_interaction', **kwargs)
+    output = _evaluate_extinction_model(time=time, av_host=av_host, model_type='stellar_interaction', **kwargs)
     return output
 
 @citation_wrapper('redback')

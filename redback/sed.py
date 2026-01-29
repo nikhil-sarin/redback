@@ -4,7 +4,7 @@ import numpy as np
 from sncosmo import TimeSeriesSource
 
 from redback.constants import *
-from redback.utils import nu_to_lambda, bandpass_magnitude_to_flux, calc_flux_density_from_ABmag
+from redback.utils import nu_to_lambda, bandpass_magnitude_to_flux
 
 
 def _bandflux_single_redback(model, band, time_or_phase):
@@ -983,4 +983,4 @@ def get_correct_output_format_from_spectra(time, time_eval, spectra, lambda_arra
     elif kwargs['output_format'] == 'sncosmo_source':
         return source
     else:
-        raise ValueError("Output format must be 'flux', 'magnitude', 'sncosmo_source'")
+        raise ValueError("Output format must be 'flux', 'magnitude', 'sncosmo_source', or 'flux_density'")
