@@ -219,7 +219,7 @@ def afterglow_and_optical(time, redshift, av, **model_kwargs):
 def afterglow_kilonova_sed(time, redshift, av, **model_kwargs):
     """
     function to combine the flux density signals of an afterglow and kilonova model with extinction added
-    
+
     :param time: time in days in observer frame
     :param redshift: source redshift
     :param av: V-band extinction from host galaxy in magnitudes
@@ -231,7 +231,7 @@ def afterglow_kilonova_sed(time, redshift, av, **model_kwargs):
         for details.
     :param lambda_array: wavelength array in Angstroms, defaults to np.geomspace(100, 60000, 150)
     :param output_format: output format ('flux_density', 'magnitude', 'spectra'), defaults to 'flux_density'
-    :return: combined afterglow and kilonova model output in the requested format. If output_format is 'spectra', 
+    :return: combined afterglow and kilonova model output in the requested format. If output_format is 'spectra',
         returns namedtuple with time, lambdas, and spectra. Otherwise returns array in the specified format.
     """
 
@@ -243,9 +243,11 @@ def afterglow_kilonova_sed(time, redshift, av, **model_kwargs):
 
     temp_kwargs = model_kwargs.copy()
     temp_kwargs.pop('base_model', None)
+    max_time = np.maximum(time.max(), 100)
+    time_observer_frame = np.geomspace(0.1, max_time, 300)
     lambda_observer_frame = temp_kwargs.get('lambda_array', np.geomspace(100, 60000, 200))
     frequency = lambda_to_nu(lambda_observer_frame)
-    times_mesh, frequency_mesh = np.meshgrid(time, frequency)
+    times_mesh, frequency_mesh = np.meshgrid(time_observer_frame, frequency)
     temp_kwargs['frequency'] = frequency_mesh
 
     _afterglow_kwargs = afterglow_kwargs.copy()
@@ -257,7 +259,7 @@ def afterglow_kilonova_sed(time, redshift, av, **model_kwargs):
     fmjy = afterglow * uu.mJy
     spectra = fmjy.to(uu.erg / uu.cm ** 2 / uu.s / uu.Angstrom,
                       equivalencies=uu.spectral_density(wav=lambda_observer_frame * uu.Angstrom))
-    afterglow = namedtuple('output', ['time', 'lambdas', 'spectra'])(time=time,
+    afterglow = namedtuple('output', ['time', 'lambdas', 'spectra'])(time=time_observer_frame,
                                                          lambdas=lambda_observer_frame,
                                                          spectra=spectra)
 
@@ -302,22 +304,24 @@ def afterglow_kilonova_sed(time, redshift, av, **model_kwargs):
     fmjy = combined * uu.mJy
     spectra = fmjy.to(uu.erg / uu.cm ** 2 / uu.s / uu.Angstrom,
                      equivalencies=uu.spectral_density(wav=lambda_observer_frame * uu.Angstrom))
+
     if model_kwargs['output_format'] == 'spectra':
-        return namedtuple('output', ['time', 'lambdas', 'spectra'])(time=time,
+        return namedtuple('output', ['time', 'lambdas', 'spectra'])(time=time_observer_frame,
                                                                     lambdas=lambda_observer_frame,
                                                                     spectra=spectra)
     else:
         if ('bands' in model_kwargs.keys()) or (model_kwargs['output_format'] == 'sncosmo_source'):
-            return get_correct_output_format_from_spectra(time=time, time_eval=time,
+            return get_correct_output_format_from_spectra(time=time, time_eval=time_observer_frame,
                                                         spectra=spectra, lambda_array=lambda_observer_frame,
                                                         **model_kwargs)
         elif 'frequency' in model_kwargs.keys():
             lambda_to_eval = nu_to_lambda(model_kwargs['frequency'])
             flux_density = np.array([np.interp(lambda_to_eval, lambda_observer_frame, spectrum.value, left=0, right=0) for spectrum in spectra])
+            flux_density_interp = np.interp(time,time_observer_frame,flux_density)
             if model_kwargs['output_format'] == 'flux_density':
-                return flux_density
+                return flux_density_interp
             elif model_kwargs['output_format'] == 'magnitude':
-                return calc_ABmag_from_flux_density(flux_density)
+                return calc_ABmag_from_flux_density(flux_density_interp)
             else:
                 raise ValueError("Output format must be 'flux_density' or 'magnitude' when providing 'frequency'.")
         else:
