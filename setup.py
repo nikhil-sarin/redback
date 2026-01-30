@@ -13,7 +13,8 @@ setup(
     author='Nikhil Sarin, Moritz Huebner',
     author_email='nsarin.astro@gmail.com',
     license='GNU General Public License v3 (GPLv3)',
-    packages=['redback', 'redback.get_data', 'redback.transient', 'redback.transient_models'],
+    packages=['redback', 'redback.get_data', 'redback.transient', 'redback.transient_models', 
+              'redback.transient_models.afterglow_models'],
     package_dir={'redback': 'redback', },
     package_data={'redback': ['priors/*', 'tables/*', 'plot_styles/*']},
     install_requires=[
