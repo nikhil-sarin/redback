@@ -189,7 +189,7 @@ print("\\n" + "=" * 80)
 print("Step 6: Redback Advanced Features")
 print("=" * 80)
 
-print("\\nRedback provides many additional capabilities:")
+print("\\nRedback and VegasAfterglow provide many additional capabilities:")
 print("  - Non-detections: Include upper limits in your fits")
 print("  - Complex likelihoods: Gaussian processes, mixture models, etc.")
 print("  - Spectra fitting: Multi-wavelength spectral analysis")
@@ -199,20 +199,7 @@ print("  - Reverse shocks: Enable with reverse_shock=True")
 print("  - SSC radiation: Enable with ssc=True")
 print("  - Magnetar energy injection: Add magnetar_L0, magnetar_t0 parameters")
 
-# Example: Using non-detections
-print("\\nExample: Handling non-detections")
-print("Set a subset of data as upper limits:")
-afterglow_with_limits = afterglow
-# Mark first 5 points as upper limits
-print(f"  Original detections: {len(afterglow.x)}")
-print("  Can use transient.plot_data() to visualize detections vs limits")
-
 print("\\n" + "=" * 80)
 print("Tutorial Complete!")
 print("=" * 80)
-print("\\nNext steps:")
-print("  1. Try different jet structures (vegas_gaussian, vegas_powerlaw)")
-print("  2. Explore wind vs ISM environments (adjust loga parameter)")
-print("  3. Enable reverse shocks or SSC for more complex physics")
-print("  4. Combine with kilonova or supernova models")
-print("  5. Fit real GRB data from Swift/ZTF/other surveys")
+print("Check out the other examples!")
