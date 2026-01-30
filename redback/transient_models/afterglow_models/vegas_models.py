@@ -52,39 +52,19 @@ def _check_vegasafterglow_available():
         )
 
 
-def _expand_to_match_time(value, time):
+def _expand_to_match_time(value, time_array):
     """
-    Expand single frequency/band to match time array length.
+    Expand a scalar or single-element value to match the time array length.
     
-    VegasAfterglow requires frequency/bands to be same length as time array.
-    This helper expands single values or length-1 arrays to match.
-    
-    :param value: frequency (float/array) or band (string/list)
-    :param time: time array
-    :return: expanded array matching time length
+    :param value: scalar, single-element array, or array
+    :param time_array: reference time array
+    :return: array matching time_array length
     """
-    if value is None:
-        return None
-    
-    # Handle string (single band)
-    if isinstance(value, str):
-        return [value] * len(time)
-    
-    # Handle numeric (single frequency)
-    if isinstance(value, (int, float)):
-        return np.full(len(time), value)
-    
-    # Handle array-like
-    value_array = np.atleast_1d(value)
-    if len(value_array) == 1:
-        # Single element - expand to match time
-        if isinstance(value[0] if hasattr(value, '__getitem__') else value_array[0], str):
-            return [value_array[0]] * len(time)
-        else:
-            return np.full(len(time), value_array[0])
-    
-    # Already correct length or will error in VegasAfterglow
+    value = np.asarray(value)
+    if value.size == 1:
+        return np.full(len(time_array), float(value))
     return value
+
 
 
 @citation_wrapper('https://ui.adsabs.harvard.edu/abs/2026JHEAp..5000490W/abstract')
@@ -147,12 +127,8 @@ def vegas_tophat(time, redshift, thv, loge0, thc, lognism, loga, p, logepse, log
     cosmology = kwargs.get('cosmology', cosmo)
     dl = cosmology.luminosity_distance(redshift).cgs.value
 
-    # Get frequency (will be set from bands if in magnitude mode)
+    # Get frequency and expand to array if single value
     frequency = kwargs.get('frequency')
-    if frequency is None and kwargs.get('output_format') == 'flux_density':
-        raise ValueError("frequency must be provided in kwargs for flux_density mode")
-    
-    # Expand frequency to match time array if needed
     if frequency is not None:
         frequency = _expand_to_match_time(frequency, time)
 
@@ -238,19 +214,22 @@ def vegas_tophat(time, redshift, thv, loge0, thc, lognism, loga, p, logepse, log
     )
 
     # Handle magnitude vs flux_density mode
-    if kwargs.get('output_format') == 'magnitude':
+    if kwargs['output_format'] == 'magnitude':
         # Magnitude mode - get frequency from bands
         bands = kwargs['bands']
-        bands = _expand_to_match_time(bands, time)
+        if isinstance(bands, str):
+            bands = [bands] * len(time)
         frequency = bands_to_frequency(bands)
-        flux_density_cgs = model.flux_density(time_s, frequency).total
-        fmjy = flux_density_cgs / 1e-26
-        return calc_ABmag_from_flux_density(fmjy).value
-    else:
-        # Flux density mode - use provided frequency
-        flux_density_cgs = model.flux_density(time_s, frequency).total
-        fmjy = flux_density_cgs / 1e-26
+    
+    # Calculate flux density
+    flux_density_cgs = model.flux_density(time_s, frequency).total
+    fmjy = flux_density_cgs / 1e-26
+    
+    # Return based on output_format
+    if kwargs['output_format'] == 'flux_density':
         return fmjy
+    elif kwargs['output_format'] == 'magnitude':
+        return calc_ABmag_from_flux_density(fmjy).value
 
 
 @citation_wrapper('https://ui.adsabs.harvard.edu/abs/2026JHEAp..5000490W/abstract')
@@ -288,10 +267,6 @@ def vegas_gaussian(time, redshift, thv, loge0, thc, lognism, loga, p, logepse, l
     cosmology = kwargs.get('cosmology', cosmo)
     dl = cosmology.luminosity_distance(redshift).cgs.value
     frequency = kwargs.get('frequency')
-    if frequency is None and kwargs.get('output_format') == 'flux_density':
-        raise ValueError("frequency must be provided in kwargs for flux_density mode")
-    
-    # Expand frequency to match time array if needed
     if frequency is not None:
         frequency = _expand_to_match_time(frequency, time)
 
@@ -347,19 +322,23 @@ def vegas_gaussian(time, redshift, thv, loge0, thc, lognism, loga, p, logepse, l
     )
 
     # Handle magnitude vs flux_density mode
-    if kwargs.get('output_format') == 'magnitude':
+    # Handle magnitude vs flux_density mode
+    if kwargs['output_format'] == 'magnitude':
         # Magnitude mode - get frequency from bands
         bands = kwargs['bands']
-        bands = _expand_to_match_time(bands, time)
+        if isinstance(bands, str):
+            bands = [bands] * len(time)
         frequency = bands_to_frequency(bands)
-        flux_density_cgs = model.flux_density(time_s, frequency).total
-        fmjy = flux_density_cgs / 1e-26
-        return calc_ABmag_from_flux_density(fmjy).value
-    else:
-        # Flux density mode
-        flux_density_cgs = model.flux_density(time_s, frequency).total
-        fmjy = flux_density_cgs / 1e-26
+    
+    # Calculate flux density
+    flux_density_cgs = model.flux_density(time_s, frequency).total
+    fmjy = flux_density_cgs / 1e-26
+    
+    # Return based on output_format
+    if kwargs['output_format'] == 'flux_density':
         return fmjy
+    elif kwargs['output_format'] == 'magnitude':
+        return calc_ABmag_from_flux_density(fmjy).value
 
 
 @citation_wrapper('https://ui.adsabs.harvard.edu/abs/2026JHEAp..5000490W/abstract')
@@ -399,10 +378,6 @@ def vegas_powerlaw(time, redshift, thv, loge0, thc, lognism, loga, p, logepse, l
     cosmology = kwargs.get('cosmology', cosmo)
     dl = cosmology.luminosity_distance(redshift).cgs.value
     frequency = kwargs.get('frequency')
-    if frequency is None and kwargs.get('output_format') == 'flux_density':
-        raise ValueError("frequency must be provided in kwargs for flux_density mode")
-    
-    # Expand frequency to match time array if needed
     if frequency is not None:
         frequency = _expand_to_match_time(frequency, time)
 
@@ -448,19 +423,23 @@ def vegas_powerlaw(time, redshift, thv, loge0, thc, lognism, loga, p, logepse, l
     )
 
     # Handle magnitude vs flux_density mode
-    if kwargs.get('output_format') == 'magnitude':
+    # Handle magnitude vs flux_density mode
+    if kwargs['output_format'] == 'magnitude':
         # Magnitude mode - get frequency from bands
         bands = kwargs['bands']
-        bands = _expand_to_match_time(bands, time)
+        if isinstance(bands, str):
+            bands = [bands] * len(time)
         frequency = bands_to_frequency(bands)
-        flux_density_cgs = model.flux_density(time_s, frequency).total
-        fmjy = flux_density_cgs / 1e-26
-        return calc_ABmag_from_flux_density(fmjy).value
-    else:
-        # Flux density mode
-        flux_density_cgs = model.flux_density(time_s, frequency).total
-        fmjy = flux_density_cgs / 1e-26
+    
+    # Calculate flux density
+    flux_density_cgs = model.flux_density(time_s, frequency).total
+    fmjy = flux_density_cgs / 1e-26
+    
+    # Return based on output_format
+    if kwargs['output_format'] == 'flux_density':
         return fmjy
+    elif kwargs['output_format'] == 'magnitude':
+        return calc_ABmag_from_flux_density(fmjy).value
 
 
 @citation_wrapper('https://ui.adsabs.harvard.edu/abs/2026JHEAp..5000490W/abstract')
@@ -500,10 +479,6 @@ def vegas_powerlaw_wing(time, redshift, thv, loge0_w, thc, lognism, loga, p, log
     cosmology = kwargs.get('cosmology', cosmo)
     dl = cosmology.luminosity_distance(redshift).cgs.value
     frequency = kwargs.get('frequency')
-    if frequency is None and kwargs.get('output_format') == 'flux_density':
-        raise ValueError("frequency must be provided in kwargs for flux_density mode")
-    
-    # Expand frequency to match time array if needed
     if frequency is not None:
         frequency = _expand_to_match_time(frequency, time)
 
@@ -544,19 +519,23 @@ def vegas_powerlaw_wing(time, redshift, thv, loge0_w, thc, lognism, loga, p, log
     )
 
     # Handle magnitude vs flux_density mode
-    if kwargs.get('output_format') == 'magnitude':
+    # Handle magnitude vs flux_density mode
+    if kwargs['output_format'] == 'magnitude':
         # Magnitude mode - get frequency from bands
         bands = kwargs['bands']
-        bands = _expand_to_match_time(bands, time)
+        if isinstance(bands, str):
+            bands = [bands] * len(time)
         frequency = bands_to_frequency(bands)
-        flux_density_cgs = model.flux_density(time_s, frequency).total
-        fmjy = flux_density_cgs / 1e-26
-        return calc_ABmag_from_flux_density(fmjy).value
-    else:
-        # Flux density mode
-        flux_density_cgs = model.flux_density(time_s, frequency).total
-        fmjy = flux_density_cgs / 1e-26
+    
+    # Calculate flux density
+    flux_density_cgs = model.flux_density(time_s, frequency).total
+    fmjy = flux_density_cgs / 1e-26
+    
+    # Return based on output_format
+    if kwargs['output_format'] == 'flux_density':
         return fmjy
+    elif kwargs['output_format'] == 'magnitude':
+        return calc_ABmag_from_flux_density(fmjy).value
 
 
 @citation_wrapper('https://ui.adsabs.harvard.edu/abs/2026JHEAp..5000490W/abstract')
@@ -601,10 +580,6 @@ def vegas_two_component(time, redshift, thv, loge0, thc, lognism, loga, p, logep
     cosmology = kwargs.get('cosmology', cosmo)
     dl = cosmology.luminosity_distance(redshift).cgs.value
     frequency = kwargs.get('frequency')
-    if frequency is None and kwargs.get('output_format') == 'flux_density':
-        raise ValueError("frequency must be provided in kwargs for flux_density mode")
-    
-    # Expand frequency to match time array if needed
     if frequency is not None:
         frequency = _expand_to_match_time(frequency, time)
 
@@ -651,19 +626,23 @@ def vegas_two_component(time, redshift, thv, loge0, thc, lognism, loga, p, logep
     )
 
     # Handle magnitude vs flux_density mode
-    if kwargs.get('output_format') == 'magnitude':
+    # Handle magnitude vs flux_density mode
+    if kwargs['output_format'] == 'magnitude':
         # Magnitude mode - get frequency from bands
         bands = kwargs['bands']
-        bands = _expand_to_match_time(bands, time)
+        if isinstance(bands, str):
+            bands = [bands] * len(time)
         frequency = bands_to_frequency(bands)
-        flux_density_cgs = model.flux_density(time_s, frequency).total
-        fmjy = flux_density_cgs / 1e-26
-        return calc_ABmag_from_flux_density(fmjy).value
-    else:
-        # Flux density mode
-        flux_density_cgs = model.flux_density(time_s, frequency).total
-        fmjy = flux_density_cgs / 1e-26
+    
+    # Calculate flux density
+    flux_density_cgs = model.flux_density(time_s, frequency).total
+    fmjy = flux_density_cgs / 1e-26
+    
+    # Return based on output_format
+    if kwargs['output_format'] == 'flux_density':
         return fmjy
+    elif kwargs['output_format'] == 'magnitude':
+        return calc_ABmag_from_flux_density(fmjy).value
 
 
 @citation_wrapper('https://ui.adsabs.harvard.edu/abs/2026JHEAp..5000490W/abstract')
@@ -710,10 +689,6 @@ def vegas_step_powerlaw(time, redshift, thv, loge0, thc, lognism, loga, p, logep
     cosmology = kwargs.get('cosmology', cosmo)
     dl = cosmology.luminosity_distance(redshift).cgs.value
     frequency = kwargs.get('frequency')
-    if frequency is None and kwargs.get('output_format') == 'flux_density':
-        raise ValueError("frequency must be provided in kwargs for flux_density mode")
-    
-    # Expand frequency to match time array if needed
     if frequency is not None:
         frequency = _expand_to_match_time(frequency, time)
 
@@ -760,16 +735,20 @@ def vegas_step_powerlaw(time, redshift, thv, loge0, thc, lognism, loga, p, logep
     )
 
     # Handle magnitude vs flux_density mode
-    if kwargs.get('output_format') == 'magnitude':
+    # Handle magnitude vs flux_density mode
+    if kwargs['output_format'] == 'magnitude':
         # Magnitude mode - get frequency from bands
         bands = kwargs['bands']
-        bands = _expand_to_match_time(bands, time)
+        if isinstance(bands, str):
+            bands = [bands] * len(time)
         frequency = bands_to_frequency(bands)
-        flux_density_cgs = model.flux_density(time_s, frequency).total
-        fmjy = flux_density_cgs / 1e-26
-        return calc_ABmag_from_flux_density(fmjy).value
-    else:
-        # Flux density mode
-        flux_density_cgs = model.flux_density(time_s, frequency).total
-        fmjy = flux_density_cgs / 1e-26
+    
+    # Calculate flux density
+    flux_density_cgs = model.flux_density(time_s, frequency).total
+    fmjy = flux_density_cgs / 1e-26
+    
+    # Return based on output_format
+    if kwargs['output_format'] == 'flux_density':
         return fmjy
+    elif kwargs['output_format'] == 'magnitude':
+        return calc_ABmag_from_flux_density(fmjy).value
