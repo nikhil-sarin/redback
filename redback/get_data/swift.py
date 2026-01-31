@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import os
-import time
 from typing import Union
 import urllib
 import urllib.request
@@ -15,7 +14,6 @@ import redback.get_data.directory
 import redback.get_data.utils
 import redback.redback_errors
 from redback.get_data.getter import GRBDataGetter
-from redback.utils import fetch_driver, check_element
 from redback.utils import logger
 
 try:
@@ -195,106 +193,30 @@ class SwiftDataGetter(GRBDataGetter):
             self.download_directly()
             return
 
-        # For afterglow data, use API if available, otherwise fall back to legacy methods
-        if SWIFTTOOLS_AVAILABLE and self.transient_type == 'afterglow':
-            try:
-                if self.instrument == 'XRT':
-                    # Use API to download XRT data
-                    df = self.download_xrt_data_via_api()
-                    # Store the data temporarily - will be processed in convert method
-                    self._api_data = df
-                    # Create a marker file to indicate API data was used
-                    with open(self.raw_file_path, 'w') as f:
-                        f.write('# Data retrieved via swifttools API\n')
-                elif self.instrument == 'BAT+XRT':
-                    # Use API to download Burst Analyser data
-                    ba_data = self.download_burst_analyser_data_via_api()
-                    # Store the data temporarily - will be processed in convert method
-                    self._api_data = ba_data
-                    # Create a marker file to indicate API data was used
-                    with open(self.raw_file_path, 'w') as f:
-                        f.write('# Data retrieved via swifttools API\n')
-                return
-            except Exception as e:
-                logger.warning(f'API data retrieval failed: {e}. Falling back to legacy method.')
-                # Fall through to legacy methods
-
-        # Legacy methods - will be used if API is not available or fails
-        response = requests.get(self.grb_website)
-        if 'No Light curve available' in response.text:
-            raise redback.redback_errors.WebsiteExist(
-                f'Problem loading the website for GRB{self.stripped_grb}. '
-                f'Are you sure GRB {self.stripped_grb} has Swift data?')
+        # For afterglow data, use swifttools API
+        if not SWIFTTOOLS_AVAILABLE:
+            raise ImportError(
+                "swifttools is required for Swift afterglow data retrieval. "
+                "Please install it with: pip install swifttools"
+            )
+        
         if self.instrument == 'XRT':
-            self.download_directly()
-        elif self.transient_type == 'afterglow':
-            if self.data_mode == 'flux':
-                self.download_integrated_flux_data()
-            elif self.data_mode == 'flux_density':
-                self.download_flux_density_data()
+            # Use API to download XRT data
+            df = self.download_xrt_data_via_api()
+            # Store the data temporarily - will be processed in convert method
+            self._api_data = df
+            # Create a marker file to indicate API data was used
+            with open(self.raw_file_path, 'w') as f:
+                f.write('# Data retrieved via swifttools API\n')
+        elif self.instrument == 'BAT+XRT':
+            # Use API to download Burst Analyser data
+            ba_data = self.download_burst_analyser_data_via_api()
+            # Store the data temporarily - will be processed in convert method
+            self._api_data = ba_data
+            # Create a marker file to indicate API data was used
+            with open(self.raw_file_path, 'w') as f:
+                f.write('# Data retrieved via swifttools API\n')
 
-    def download_flux_density_data(self) -> None:
-        """Downloads flux density data from the Swift website.
-        Uses the PhantomJS headless browser to click through the website.
-        Properly quits the driver.
-        """
-        driver = fetch_driver()
-        try:
-            driver.get(self.grb_website)
-            driver.find_element("xpath", "//select[@name='xrtsub']/option[text()='no']").click()
-            time.sleep(20)
-            driver.find_element("id","xrt_DENSITY_makeDownload").click()
-            time.sleep(20)
-            grb_url = driver.current_url
-            # scrape the data
-            urllib.request.urlretrieve(url=grb_url, filename=self.raw_file_path)
-            logger.info(f'Congratulations, you now have raw data for {self.grb}')
-        except Exception as e:
-            logger.warning(f'Cannot load the website for {self.grb} \n'
-                           f'Failed with exception: \n'
-                           f'{e}')
-        finally:
-            # Close the driver and all opened windows
-            driver.quit()
-            urllib.request.urlcleanup()
-
-    def download_integrated_flux_data(self) -> None:
-        """Downloads integrated flux density data from the Swift website.
-        Uses the PhantomJS headless browser to click through the website.
-        Properly quits the driver.
-        """
-        driver = fetch_driver()
-        try:
-            driver.get(self.grb_website)
-            # select option for BAT bin_size
-            bat_binning = 'batxrtbin'
-            if check_element(driver, bat_binning):
-                driver.find_element("xpath", "//select[@name='batxrtbin']/option[text()='SNR 4']").click()
-            # select option for subplot
-            subplot = "batxrtsub"
-            if check_element(driver, subplot):
-                driver.find_element("xpath","//select[@name='batxrtsub']/option[text()='no']").click()
-            # Select option for flux density
-            flux_density1 = "batxrtband1"
-            flux_density0 = "batxrtband0"
-            if (check_element(driver, flux_density1)) and (check_element(driver, flux_density0)):
-                driver.find_element("xpath",".//*[@id='batxrtband1']").click()
-                driver.find_element("xpath",".//*[@id='batxrtband0']").click()
-            # Generate data file
-            driver.find_element("xpath",".//*[@id='batxrt_XRTBAND_makeDownload']").click()
-            time.sleep(20)
-            grb_url = driver.current_url
-            driver.quit()
-            urllib.request.urlretrieve(grb_url, self.raw_file_path)
-            logger.info(f'Congratulations, you now have raw data for {self.grb}')
-        except Exception as e:
-            logger.warning(f'Cannot load the website for {self.grb} \n'
-                           f'Failed with exception: \n'
-                           f'{e}')
-        finally:
-            # Close the driver and all opened windows
-            driver.quit()
-            urllib.request.urlcleanup()
 
     def download_directly(self) -> None:
         """Downloads prompt or XRT data directly without using PhantomJS if possible."""
