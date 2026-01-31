@@ -3,6 +3,7 @@ from typing import Union
 
 import redback.get_data.directory
 from redback.transient.transient import OpticalTransient
+from redback.utils import logger
 
 
 class TDE(OpticalTransient):
@@ -74,6 +75,7 @@ class TDE(OpticalTransient):
                         redback.utils.bands_to_frequency if not given.
         :type kwargs: None
         """
+        logger.info(f"Initializing TDE transient '{name}' with data_mode='{data_mode}'")
         super().__init__(time=time, time_err=time_err, time_rest_frame=time_rest_frame, time_mjd=time_mjd,
                          time_mjd_err=time_mjd_err, time_rest_frame_err=time_rest_frame_err, Lum50=Lum50,
                          Lum50_err=Lum50_err, flux_density=flux_density, flux_density_err=flux_density_err,
@@ -81,6 +83,8 @@ class TDE(OpticalTransient):
                          use_phase_model=use_phase_model, optical_data=optical_data, bands=bands,
                          system=system, active_bands=active_bands,redshift=redshift,
                          photon_index=photon_index, plotting_order=plotting_order, **kwargs)
+        logger.debug(f"Setting up directory structure for TDE '{name}'")
         self.directory_structure = redback.get_data.directory.open_access_directory_structure(
             transient=self.name, transient_type="tidal_disruption_event")
         self._set_data()
+        logger.debug(f"TDE '{name}' initialized successfully")
