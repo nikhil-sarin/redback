@@ -1,0 +1,8 @@
+dt_1 = DeltaFunction(0.0, name='dt_1', latex_label=r'$\Delta t_1$ (days)')
+mu_1 = LogUniform(0.1, 100, name='mu_1', latex_label=r'$\mu_1$')
+dt_2 = Uniform(0.0, 1000, name='dt_2', latex_label=r'$\Delta t_2$ (days)')
+mu_2 = LogUniform(0.1, 100, name='mu_2', latex_label=r'$\mu_2$')
+dt_3 = Uniform(0.0, 1000, name='dt_3', latex_label=r'$\Delta t_3$ (days)')
+mu_3 = LogUniform(0.1, 100, name='mu_3', latex_label=r'$\mu_3$')
+dt_4 = Uniform(0.0, 1000, name='dt_4', latex_label=r'$\Delta t_4$ (days)')
+mu_4 = LogUniform(0.1, 100, name='mu_4', latex_label=r'$\mu_4$')
