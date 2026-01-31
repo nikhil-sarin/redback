@@ -19,7 +19,7 @@ jobs:
         include:
           # Group 1: Heavy tests (model_test is largest ~83KB)
           - test-group: 1
-            test-files: "test/model_test.py test/wrapper_test.py"
+            test-files: "test/model_test.py test/wrapper_test.py test/vegas_models_test.py"
           # Group 2: Medium tests
           - test-group: 2
             test-files: "test/get_data_test.py test/analysis_test.py test/plotting_test.py"

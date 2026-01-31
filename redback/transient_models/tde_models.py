@@ -96,7 +96,7 @@ def _cooling_envelope(mbh_6, stellar_mass, eta, alpha, beta, **kwargs):
     tfb = calc_tfb(binding_energy_const, mbh_6, stellar_mass * f_debris)
     # Eddington luminosity of SMBH in units of 1e40 erg/s
     Ledd40 = 1.4e4 * mbh_6
-    time_temp = np.logspace(np.log10(1.0 * tfb), np.log10(5000 * tfb), 5000)
+    time_temp = np.logspace(np.log10(1.0 * tfb), np.log10(5000 * tfb), 500)
     tdays = time_temp / cc.day_to_s
 
     # set up grids
@@ -1246,7 +1246,7 @@ def fitted(time, redshift, log_mh, a_bh, m_disc, r0, tvi, t_form, incl, **kwargs
         freqs_un = np.unique(frequency)
         nulnus = np.zeros(len(time))
         if len(freqs_un) == 1:
-            nulnus = m.model_UV(time, log_mh, a_bh, m_disc, r0, tvi, t_form, ang, frequency)
+            nulnus = m.model_UV(time, log_mh, a_bh, m_disc, r0, tvi, t_form, ang, freqs_un[0])
         else:
             for i in range(0,len(freqs_un)):
                 inds = np.where(frequency == freqs_un[i])[0]
@@ -1552,7 +1552,7 @@ def stream_stream_tde(time, redshift, mbh_6, mstar, c1, f, h_r, inc_tcool, del_o
         frequency to calculate - Must be same length as time array or a single number).
     :param bands: Required if output_format is 'magnitude' or 'flux'.
     :param cosmology: Cosmology to use for luminosity distance calculation. Defaults to Planck18. Must be a astropy.cosmology object.
-    :return: set by output format - 'flux_density' or 'magnitude'     
+    :return: set by output format - 'dynamics_output', 'flux_density', or 'magnitude'     
     """
 
     cosmology = kwargs.get('cosmology', cosmo)
@@ -1573,7 +1573,21 @@ def stream_stream_tde(time, redshift, mbh_6, mstar, c1, f, h_r, inc_tcool, del_o
     temp1 = np.ones(100) * output.photosphere_temperature[0]
     temp2 = output.photosphere_temperature
     full_temp = np.concatenate([temp1, temp2])
-    r_eff = np.sqrt(full_lbol / (np.pi * cc.sigma_sb * full_temp**4.0))            
+    r_eff = np.sqrt(full_lbol / (np.pi * cc.sigma_sb * full_temp**4.0))     
+    
+    if kwargs['output_format'] == 'dynamics_output':
+        dynamics_output = namedtuple('dynamics_output', ['photosphere_temperature', 'effective_radius','bolometric_luminosity', 'Smbh_6_accretion_rate_max', 
+                                                                'time_temp', 'cooling_time', 'dynamical_time', 'r_tidal', 'debris_energy'])
+        dynamics_output.photosphere_temperature = full_temp
+        dynamics_output.effective_radius = r_eff
+        dynamics_output.bolometric_luminosity = full_lbol    
+        dynamics_output.Smbh_6_accretion_rate_max = output.Smbh_6_accretion_rate_max
+        dynamics_output.time_temp = full_time 
+        dynamics_output.cooling_time = output.cooling_time
+        dynamics_output.dynamical_time = output.dynamical_time
+        dynamics_output.r_tidal = output.r_tidal
+        dynamics_output.debris_energy = output.debris_energy  
+        return dynamics_output
         
     if kwargs['output_format'] == 'flux_density':
         frequency = kwargs['frequency']
