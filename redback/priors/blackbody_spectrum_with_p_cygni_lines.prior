@@ -1,0 +1,4 @@
+redshift = Uniform(0.001, 0.5, name='redshift', latex_label=r'$z$')
+rph = LogUniform(1e13, 1e17, name='rph', latex_label=r'$R_{\mathrm{phot}}$')
+temp = Uniform(3000, 50000, name='temp', latex_label=r'$T_{\mathrm{phot}}$')
+v_phot = Uniform(5000, 30000, name='v_phot', latex_label=r'$v_{\mathrm{phot}}$')

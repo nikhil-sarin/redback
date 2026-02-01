@@ -4,7 +4,7 @@ import numpy as np
 from sncosmo import TimeSeriesSource
 
 from redback.constants import *
-from redback.utils import nu_to_lambda, bandpass_magnitude_to_flux
+from redback.utils import nu_to_lambda, bandpass_magnitude_to_flux, logger
 
 
 def _bandflux_single_redback(model, band, time_or_phase):
@@ -22,10 +22,10 @@ def _bandflux_single_redback(model, band, time_or_phase):
     MODEL_BANDFLUX_SPACING = 5.0  # Angstroms
 
     if (band.minwave() < model.minwave() or band.maxwave() > model.maxwave()):
-        raise ValueError('bandpass {0!r:s} [{1:.6g}, .., {2:.6g}] '
-                         'outside spectral range [{3:.6g}, .., {4:.6g}]'
-                         .format(band.name, band.minwave(), band.maxwave(),
-                                 model.minwave(), model.maxwave()))
+        error_msg = 'bandpass {0!r:s} [{1:.6g}, .., {2:.6g}] outside spectral range [{3:.6g}, .., {4:.6g}]'.format(
+            band.name, band.minwave(), band.maxwave(), model.minwave(), model.maxwave())
+        logger.error(f"Bandpass wavelength range mismatch: {error_msg}")
+        raise ValueError(error_msg)
 
         # Set up wavelength grid. Spacing (dwave) evenly divides the bandpass,
         # closest to 5 angstroms without going over.
@@ -49,6 +49,7 @@ def _bandflux_redback(model, band, time_or_phase, zp, zpsys):
     from sncosmo.bandpasses import get_bandpass
 
     if zp is not None and zpsys is None:
+        logger.error("Zero point magnitude system (zpsys) must be provided when zp is specified")
         raise ValueError('zpsys must be given if zp is not None')
 
     # broadcast arrays

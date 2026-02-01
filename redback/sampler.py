@@ -50,10 +50,13 @@ def fit_model(
         model = all_models_dict[model]
 
     if transient.data_mode in ["flux_density", "magnitude", "flux"]:
-        if model_kwargs["output_format"] != transient.data_mode:
-            raise ValueError(
-                f"Transient data mode {transient.data_mode} is inconsistent with "
-                f"output format {model_kwargs['output_format']}. These should be the same.")
+        if model_kwargs is None:
+            logger.warning("No model_kwargs given, assuming model works correctly for this transient by default.")
+        if model_kwargs is not None:
+            if model_kwargs["output_format"] != transient.data_mode:
+                raise ValueError(
+                    f"Transient data mode {transient.data_mode} is inconsistent with "
+                    f"output format {model_kwargs['output_format']}. These should be the same.")
 
     if prior is None:
         prior = bilby.prior.PriorDict(filename=f"{dirname}/priors/{modelname}.prior")

@@ -37,7 +37,8 @@ def get_xrt_afterglow_data_from_swift(grb: str, data_mode: str = None, **kwargs:
     return get_swift_data(grb=grb, transient_type='afterglow', data_mode=data_mode, instrument="XRT")
 
 
-def get_bat_xrt_afterglow_data_from_swift(grb: str, data_mode: str, **kwargs: None) -> pd.DataFrame:
+def get_bat_xrt_afterglow_data_from_swift(
+        grb: str, data_mode: str, snr: Union[int, str] = 4, force_download: bool = False, **kwargs: None) -> pd.DataFrame:
     """Get BAT+XRT afterglow data from Swift. Creates a directory structure and saves the data.
     Returns the data, though no further action needs to be taken by the user.
 
@@ -45,13 +46,19 @@ def get_bat_xrt_afterglow_data_from_swift(grb: str, data_mode: str, **kwargs: No
     :type grb: str
     :param data_mode: Data mode must be from `redback.get_data.swift.SwiftDataGetter.VALID_DATA_MODES`.
     :type data_mode: str
+    :param snr: BAT Burst Analyser SNR choice (e.g., 4, 5, 6, 7).
+    :type snr: int or str
+    :param force_download: If True, re-download data from API even if cached files exist. (Default value = False)
+    :type force_download: bool, optional
     :param kwargs: Placeholder to prevent TypeErrors.
     :type kwargs: dict
     
     :return: The processed data.
     :rtype: pandas.DataFrame
     """
-    return get_swift_data(grb=grb, transient_type='afterglow', data_mode=data_mode, instrument="BAT+XRT")
+    return get_swift_data(
+        grb=grb, transient_type='afterglow', data_mode=data_mode, instrument="BAT+XRT", 
+        snr=snr, force_download=force_download)
 
 
 def get_prompt_data_from_swift(grb: str, bin_size: str = "1s", **kwargs: None) -> pd.DataFrame:
@@ -74,7 +81,7 @@ def get_prompt_data_from_swift(grb: str, bin_size: str = "1s", **kwargs: None) -
 
 def get_swift_data(
         grb: str, transient_type: str, data_mode: str = 'flux', instrument: str = 'BAT+XRT',
-        bin_size: str = None, **kwargs: None) -> pd.DataFrame:
+        bin_size: str = None, snr: Union[int, str] = 4, force_download: bool = False, **kwargs: None) -> pd.DataFrame:
     """Catch all data getting function for Swift.  Creates a directory structure and saves the data.
     Returns the data, though no further action needs to be taken by the user.
 
@@ -90,6 +97,10 @@ def get_swift_data(
     :param bin_size: Bin size. Must be from `redback.get_data.swift.SwiftDataGetter.SWIFT_PROMPT_BIN_SIZES`.
                      (Default value = None)
     :type bin_size: str, optional
+    :param snr: BAT Burst Analyser SNR choice (e.g., 4, 5, 6, 7).
+    :type snr: int or str
+    :param force_download: If True, re-download data from API even if cached files exist. (Default value = False)
+    :type force_download: bool, optional
     :param kwargs: Placeholder to prevent TypeErrors.
     :type kwargs: None
 
@@ -98,7 +109,7 @@ def get_swift_data(
     """
     getter = SwiftDataGetter(
         grb=grb, transient_type=transient_type, data_mode=data_mode,
-        bin_size=bin_size, instrument=instrument)
+        bin_size=bin_size, instrument=instrument, snr=snr, force_download=force_download)
     return getter.get_data()
 
 
