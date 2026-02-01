@@ -1559,3 +1559,233 @@ class TestTransientDataModeValidation(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main()
+class TestKilonovaTransient(unittest.TestCase):
+    """Tests for Kilonova transient class initialization and logging."""
+
+    def setUp(self):
+        self.time = np.array([1, 2, 3])
+        self.time_err = np.array([0.1, 0.1, 0.1])
+        self.flux_density = np.array([1e-3, 2e-3, 3e-3])
+        self.flux_density_err = np.array([1e-4, 2e-4, 3e-4])
+        self.bands = np.array(['r', 'r', 'r'])
+        self.system = np.array(['AB', 'AB', 'AB'])
+        self.redshift = 0.01
+        self.name = 'test_kilonova'
+
+    def tearDown(self):
+        import shutil
+        shutil.rmtree('kilonova', ignore_errors=True)
+
+    @mock.patch('redback.get_data.directory.open_access_directory_structure')
+    def test_kilonova_initialization_logs_info(self, mock_dir):
+        """Test that Kilonova initialization logs transient name and data mode."""
+        mock_dir.return_value = mock.MagicMock(
+            directory_path='kilonova/',
+            raw_file_path='kilonova/test_rawdata.csv',
+            processed_file_path='kilonova/test.csv'
+        )
+
+        kn = redback.transient.Kilonova(
+            name=self.name,
+            data_mode='flux_density',
+            time=self.time,
+            time_err=self.time_err,
+            flux_density=self.flux_density,
+            flux_density_err=self.flux_density_err,
+            bands=self.bands,
+            system=self.system,
+            redshift=self.redshift
+        )
+
+        self.assertEqual(kn.name, self.name)
+        self.assertEqual(kn.data_mode, 'flux_density')
+        mock_dir.assert_called_once_with(transient=self.name, transient_type='kilonova')
+
+
+class TestSupernovaTransient(unittest.TestCase):
+    """Tests for Supernova transient class initialization and logging."""
+
+    def setUp(self):
+        self.time = np.array([1, 2, 3])
+        self.time_err = np.array([0.1, 0.1, 0.1])
+        self.flux_density = np.array([1e-3, 2e-3, 3e-3])
+        self.flux_density_err = np.array([1e-4, 2e-4, 3e-4])
+        self.bands = np.array(['r', 'r', 'r'])
+        self.system = np.array(['AB', 'AB', 'AB'])
+        self.redshift = 0.01
+        self.name = 'test_supernova'
+
+    def tearDown(self):
+        import shutil
+        shutil.rmtree('supernova', ignore_errors=True)
+
+    @mock.patch('redback.get_data.directory.open_access_directory_structure')
+    def test_supernova_initialization_logs_info(self, mock_dir):
+        """Test that Supernova initialization logs transient name and data mode."""
+        mock_dir.return_value = mock.MagicMock(
+            directory_path='supernova/',
+            raw_file_path='supernova/test_rawdata.csv',
+            processed_file_path='supernova/test.csv'
+        )
+
+        sn = redback.transient.Supernova(
+            name=self.name,
+            data_mode='flux_density',
+            time=self.time,
+            time_err=self.time_err,
+            flux_density=self.flux_density,
+            flux_density_err=self.flux_density_err,
+            bands=self.bands,
+            system=self.system,
+            redshift=self.redshift
+        )
+
+        self.assertEqual(sn.name, self.name)
+        self.assertEqual(sn.data_mode, 'flux_density')
+        mock_dir.assert_called_once_with(transient=self.name, transient_type='supernova')
+
+
+class TestTDETransient(unittest.TestCase):
+    """Tests for TDE transient class initialization and logging."""
+
+    def setUp(self):
+        self.time = np.array([1, 2, 3])
+        self.time_err = np.array([0.1, 0.1, 0.1])
+        self.flux_density = np.array([1e-3, 2e-3, 3e-3])
+        self.flux_density_err = np.array([1e-4, 2e-4, 3e-4])
+        self.bands = np.array(['r', 'r', 'r'])
+        self.system = np.array(['AB', 'AB', 'AB'])
+        self.redshift = 0.01
+        self.name = 'test_tde'
+
+    def tearDown(self):
+        import shutil
+        shutil.rmtree('tidal_disruption_event', ignore_errors=True)
+
+    @mock.patch('redback.get_data.directory.open_access_directory_structure')
+    def test_tde_initialization_logs_info(self, mock_dir):
+        """Test that TDE initialization logs transient name and data mode."""
+        mock_dir.return_value = mock.MagicMock(
+            directory_path='tidal_disruption_event/',
+            raw_file_path='tidal_disruption_event/test_rawdata.csv',
+            processed_file_path='tidal_disruption_event/test.csv'
+        )
+
+        tde = redback.transient.TDE(
+            name=self.name,
+            data_mode='flux_density',
+            time=self.time,
+            time_err=self.time_err,
+            flux_density=self.flux_density,
+            flux_density_err=self.flux_density_err,
+            bands=self.bands,
+            system=self.system,
+            redshift=self.redshift
+        )
+
+        self.assertEqual(tde.name, self.name)
+        self.assertEqual(tde.data_mode, 'flux_density')
+        mock_dir.assert_called_once_with(transient=self.name, transient_type='tidal_disruption_event')
+
+
+class TestPromptTimeSeriesTransient(unittest.TestCase):
+    """Tests for PromptTimeSeries transient class initialization and logging."""
+
+    def setUp(self):
+        self.time = np.array([0.1, 0.2, 0.3])
+        self.time_err = np.array([0.01, 0.01, 0.01])
+        self.counts = np.array([100, 150, 120])
+        self.bin_size = np.array([0.1, 0.1, 0.1])
+        self.name = 'GRB123456'
+
+    def tearDown(self):
+        import shutil
+        shutil.rmtree('GRBData', ignore_errors=True)
+
+    @mock.patch('redback.transient.prompt.PromptTimeSeries._set_data')
+    @mock.patch('redback.transient.prompt.get_batse_trigger_from_grb')
+    @mock.patch('redback.transient.prompt.batse_prompt_directory_structure')
+    def test_prompt_batse_initialization(self, mock_dir, mock_trigger, mock_set_data):
+        """Test that PromptTimeSeries initialization logs instrument and data mode."""
+        mock_trigger.return_value = 12345
+        mock_dir.return_value = mock.MagicMock(
+            directory_path='GRBData/prompt/flux/',
+            raw_file_path='GRBData/prompt/flux/test.fits.gz',
+            processed_file_path='GRBData/prompt/flux/test.csv'
+        )
+        mock_set_data.return_value = None
+
+        prompt = redback.transient.PromptTimeSeries(
+            name=self.name,
+            time=self.time,
+            time_err=self.time_err,
+            counts=self.counts,
+            bin_size=self.bin_size,
+            data_mode='counts',
+            instrument='batse'
+        )
+
+        self.assertEqual(prompt.name, self.name)
+        self.assertEqual(prompt.instrument, 'batse')
+        self.assertEqual(prompt.data_mode, 'counts')
+
+    @mock.patch('redback.transient.prompt.PromptTimeSeries._set_data')
+    @mock.patch('redback.transient.prompt.get_batse_trigger_from_grb')
+    @mock.patch('redback.transient.prompt.swift_prompt_directory_structure')
+    def test_prompt_swift_initialization(self, mock_dir, mock_trigger, mock_set_data):
+        """Test PromptTimeSeries with Swift instrument."""
+        mock_dir.return_value = mock.MagicMock(
+            directory_path='GRBData/prompt/flux/',
+            raw_file_path='GRBData/prompt/flux/test.dat',
+            processed_file_path='GRBData/prompt/flux/test.csv'
+        )
+        mock_trigger.return_value = 12345
+        mock_set_data.return_value = None
+
+        prompt = redback.transient.PromptTimeSeries(
+            name=self.name,
+            time=self.time,
+            time_err=self.time_err,
+            counts=self.counts,
+            bin_size=self.bin_size,
+            data_mode='counts',
+            instrument='swift'
+        )
+
+        self.assertEqual(prompt.instrument, 'swift')
+
+    def test_prompt_invalid_instrument_logs_error(self):
+        """Test that invalid instrument logs error and raises ValueError."""
+        with self.assertRaises(ValueError):
+            redback.transient.PromptTimeSeries(
+                name=self.name,
+                time=self.time,
+                time_err=self.time_err,
+                counts=self.counts,
+                bin_size=self.bin_size,
+                data_mode='counts',
+                instrument='invalid_instrument'
+            )
+
+    @mock.patch('redback.transient.prompt.PromptTimeSeries._set_data')
+    @mock.patch('redback.transient.prompt.PromptTimeSeries.load_batse_data')
+    @mock.patch('redback.transient.prompt.get_batse_trigger_from_grb')
+    @mock.patch('redback.transient.prompt.batse_prompt_directory_structure')
+    def test_from_batse_grb_name_logs_loading(self, mock_dir, mock_trigger, mock_load, mock_set_data):
+        """Test that from_batse_grb_name logs data loading."""
+        mock_trigger.return_value = 12345
+        mock_dir.return_value = mock.MagicMock(
+            directory_path='GRBData/prompt/flux/',
+            raw_file_path='GRBData/prompt/flux/test.fits.gz',
+            processed_file_path='GRBData/prompt/flux/test.csv'
+        )
+        mock_load.return_value = (self.time, self.bin_size, self.counts)
+        mock_set_data.return_value = None
+
+        prompt = redback.transient.PromptTimeSeries.from_batse_grb_name(
+            name='GRB123456',
+            channels='all'
+        )
+
+        self.assertIsNotNone(prompt)
+        mock_load.assert_called_once()

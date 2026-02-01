@@ -4,7 +4,7 @@ import numpy as np
 from sncosmo import TimeSeriesSource
 
 from redback.constants import *
-from redback.utils import nu_to_lambda, bandpass_magnitude_to_flux
+from redback.utils import nu_to_lambda, bandpass_magnitude_to_flux, logger
 
 
 def _bandflux_single_redback(model, band, time_or_phase):
@@ -22,10 +22,10 @@ def _bandflux_single_redback(model, band, time_or_phase):
     MODEL_BANDFLUX_SPACING = 5.0  # Angstroms
 
     if (band.minwave() < model.minwave() or band.maxwave() > model.maxwave()):
-        raise ValueError('bandpass {0!r:s} [{1:.6g}, .., {2:.6g}] '
-                         'outside spectral range [{3:.6g}, .., {4:.6g}]'
-                         .format(band.name, band.minwave(), band.maxwave(),
-                                 model.minwave(), model.maxwave()))
+        error_msg = 'bandpass {0!r:s} [{1:.6g}, .., {2:.6g}] outside spectral range [{3:.6g}, .., {4:.6g}]'.format(
+            band.name, band.minwave(), band.maxwave(), model.minwave(), model.maxwave())
+        logger.error(f"Bandpass wavelength range mismatch: {error_msg}")
+        raise ValueError(error_msg)
 
         # Set up wavelength grid. Spacing (dwave) evenly divides the bandpass,
         # closest to 5 angstroms without going over.
@@ -49,6 +49,7 @@ def _bandflux_redback(model, band, time_or_phase, zp, zpsys):
     from sncosmo.bandpasses import get_bandpass
 
     if zp is not None and zpsys is None:
+        logger.error("Zero point magnitude system (zpsys) must be provided when zp is specified")
         raise ValueError('zpsys must be given if zp is not None')
 
     # broadcast arrays
@@ -961,9 +962,14 @@ def get_correct_output_format_from_spectra(time, time_eval, spectra, lambda_arra
     :return: flux, magnitude or SNcosmo TimeSeries Source depending on output format kwarg
     """
     # clean up spectrum to remove nonsensical values before creating sncosmo source
-    spectra = np.nan_to_num(spectra)
-    spectra[spectra.value == np.nan_to_num(np.inf)] = 1e-30 * np.mean(spectra[5])
-    spectra[spectra.value == 0.] = 1e-30 * np.mean(spectra[5])
+    values = spectra.value if hasattr(spectra, "unit") else spectra
+    mean_value = np.nanmean(np.where(np.isfinite(values) & (values != 0), values, np.nan))
+    if not np.isfinite(mean_value) or mean_value == 0:
+        mean_value = 1.0
+    replacement = 1e-30 * mean_value
+    if hasattr(spectra, "unit"):
+        replacement = replacement * spectra.unit
+    spectra = np.where(np.isfinite(values) & (values != 0), spectra, replacement)
     time_spline_degree = kwargs.get('time_spline_degree', 3)
     source = RedbackTimeSeriesSource(phase=time_eval, wave=lambda_array, flux=spectra,
                                      time_spline_degree=time_spline_degree)

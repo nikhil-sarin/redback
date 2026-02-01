@@ -10,6 +10,7 @@ from astropy.io import fits
 import redback
 from redback.get_data.getter import GRBDataGetter
 from redback.get_data.utils import get_batse_trigger_from_grb
+from redback.utils import logger
 
 _dirname = os.path.dirname(__file__)
 
@@ -38,8 +39,10 @@ class BATSEDataGetter(GRBDataGetter):
         :param grb: Telephone number of GRB, e.g., 'GRB140903A' or '140903A' are valid inputs.
         :type grb: str
         """
+        logger.info(f"Initializing BATSEDataGetter for {grb}")
         super().__init__(grb=grb, transient_type="prompt")
         self.directory_path, self.raw_file_path, self.processed_file_path = self.create_directory_structure()
+        logger.debug(f"BATSE trigger number: {self.trigger}")
 
     @property
     def grb(self) -> str:
@@ -83,20 +86,32 @@ class BATSEDataGetter(GRBDataGetter):
 
     def collect_data(self) -> None:
         """Downloads the data from HEASARC and saves it into the raw file path."""
-        urllib.request.urlretrieve(self.url, self.raw_file_path)
+        logger.info(f"Downloading BATSE data from: {self.url}")
+        try:
+            urllib.request.urlretrieve(self.url, self.raw_file_path)
+            logger.info(f"Successfully downloaded BATSE data to: {self.raw_file_path}")
+        except Exception as e:
+            logger.error(f"Failed to download BATSE data from {self.url}: {e}")
+            raise
 
     def convert_raw_data_to_csv(self) -> pd.DataFrame:
         """Converts the raw data into processed data and saves it into the processed file path.
         The column names are in `BATSEDataGetter.PROCESSED_FILE_COLUMNS`.
-        
+
         :return: The processed data frame.
         :rtype: pd.DataFrame
         """
-        with fits.open(self.raw_file_path) as fits_data:
-            data = self._get_columns(fits_data=fits_data)
-        df = pd.DataFrame(data=data, columns=self.PROCESSED_FILE_COLUMNS)
-        df.to_csv(self.processed_file_path, index=False)
-        return df
+        logger.info(f"Converting BATSE FITS data to CSV: {self.raw_file_path}")
+        try:
+            with fits.open(self.raw_file_path) as fits_data:
+                data = self._get_columns(fits_data=fits_data)
+            df = pd.DataFrame(data=data, columns=self.PROCESSED_FILE_COLUMNS)
+            df.to_csv(self.processed_file_path, index=False)
+            logger.info(f"Successfully converted BATSE data to CSV: {self.processed_file_path} ({len(df)} rows)")
+            return df
+        except Exception as e:
+            logger.error(f"Failed to convert BATSE data to CSV: {e}")
+            raise
 
     @staticmethod
     def _get_columns(fits_data: astropy.io.fits.hdu.PrimaryHDU) -> np.ndarray:
