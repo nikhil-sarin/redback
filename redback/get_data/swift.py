@@ -38,7 +38,7 @@ class SwiftDataGetter(GRBDataGetter):
     INTEGRATED_FLUX_KEYS = ["Time [s]", "Pos. time err [s]", "Neg. time err [s]", "Flux [erg cm^{-2} s^{-1}]",
                             "Pos. flux err [erg cm^{-2} s^{-1}]", "Neg. flux err [erg cm^{-2} s^{-1}]", "Instrument"]
     FLUX_DENSITY_KEYS = ['Time [s]', "Pos. time err [s]", "Neg. time err [s]",
-                         'Flux [mJy]', 'Pos. flux err [mJy]', 'Neg. flux err [mJy]']
+                         'Flux [mJy]', 'Pos. flux err [mJy]', 'Neg. flux err [mJy]', 'Frequency [Hz]']
     PROMPT_DATA_KEYS = ["Time [s]", "flux_15_25 [counts/s/det]", "flux_15_25_err [counts/s/det]",
                         "flux_25_50 [counts/s/det]",
                         "flux_25_50_err [counts/s/det]", "flux_50_100 [counts/s/det]", "flux_50_100_err [counts/s/det]",
@@ -721,6 +721,16 @@ class SwiftDataGetter(GRBDataGetter):
         xrt_data = self._api_data.get('xrt')
         bat_ba_data = self._api_data.get('bat')
 
+        # Handle different data modes
+        if self.data_mode == 'flux':
+            return self._convert_flux_mode(xrt_data, bat_ba_data)
+        elif self.data_mode == 'flux_density':
+            return self._convert_flux_density_mode(xrt_data, bat_ba_data)
+        else:
+            raise ValueError(f"Unsupported data mode: {self.data_mode}")
+
+    def _convert_flux_mode(self, xrt_data, bat_ba_data) -> pd.DataFrame:
+        """Convert flux mode data (integrated flux in erg/cm²/s)."""
         all_data = []
 
         # Process XRT data from getLightCurves (already in correct units)
@@ -801,6 +811,100 @@ class SwiftDataGetter(GRBDataGetter):
         final_df.to_csv(self.processed_file_path, index=False, sep=',')
         logger.info(f'Saved combined data: {len(final_df)} total points for {self.grb}')
 
+        return final_df
+
+    def _convert_flux_density_mode(self, xrt_data, bat_ba_data) -> pd.DataFrame:
+        """Convert flux_density mode data (flux density in mJy).
+        
+        Combines XRT Density datasets (PC and WT modes) and BAT Density data.
+        """
+        if bat_ba_data is None:
+            raise ValueError(f"No Burst Analyser data available for flux_density mode for {self.grb}")
+        
+        all_data = []
+        
+        # Process XRT Density data
+        if 'XRT' in bat_ba_data:
+            # Try PC mode first
+            for key in ['Density_PC_incbad', 'Density_PC']:
+                if key in bat_ba_data['XRT']:
+                    pc_df = bat_ba_data['XRT'][key]
+                    if isinstance(pc_df, pd.DataFrame) and len(pc_df) > 0:
+                        pc_df = pc_df.copy()
+                        pc_df['Instrument'] = 'XRT'
+                        all_data.append(pc_df)
+                        logger.info(f'Found {len(pc_df)} XRT PC mode flux density points')
+                        break
+            
+            # Then try WT mode
+            for key in ['Density_WT_incbad', 'Density_WT']:
+                if key in bat_ba_data['XRT']:
+                    wt_df = bat_ba_data['XRT'][key]
+                    if isinstance(wt_df, pd.DataFrame) and len(wt_df) > 0:
+                        wt_df = wt_df.copy()
+                        wt_df['Instrument'] = 'XRT'
+                        all_data.append(wt_df)
+                        logger.info(f'Found {len(wt_df)} XRT WT mode flux density points')
+                        break
+        
+        # Process BAT Density data
+        if 'BAT' in bat_ba_data:
+            snr_keys = [self.snr, 'SNR4', 'SNR5', 'SNR6', 'SNR7']
+            for snr_key in snr_keys:
+                if snr_key in bat_ba_data['BAT']:
+                    bat_entry = bat_ba_data['BAT'][snr_key]
+                    if isinstance(bat_entry, dict) and 'Density' in bat_entry:
+                        bat_df = bat_entry['Density']
+                        if isinstance(bat_df, pd.DataFrame) and len(bat_df) > 0:
+                            # Filter out bad bins
+                            if 'BadBin' in bat_df.columns:
+                                bat_df = bat_df[bat_df['BadBin'] == False].copy()
+                            else:
+                                bat_df = bat_df.copy()
+                            
+                            bat_df['Instrument'] = 'BAT'
+                            all_data.append(bat_df)
+                            logger.info(f'Found {len(bat_df)} BAT {snr_key} flux density points')
+                            break
+        
+        if not all_data:
+            raise ValueError(f"No flux density data found for {self.grb}")
+        
+        # Combine datasets
+        combined_df = pd.concat(all_data, ignore_index=True)
+        combined_df = combined_df.sort_values('Time').reset_index(drop=True)
+        
+        # Map to expected column names
+        column_mapping = {
+            'Time': 'Time [s]',
+            'TimePos': 'Pos. time err [s]',
+            'TimeNeg': 'Neg. time err [s]',
+            'Flux': 'Flux [mJy]',
+            'FluxPos': 'Pos. flux err [mJy]',
+            'FluxNeg': 'Neg. flux err [mJy]'
+        }
+        
+        final_df = combined_df.rename(columns={k: v for k, v in column_mapping.items() if k in combined_df.columns}).copy()
+        
+        # Add frequency column - Swift flux density is at 10 keV
+        # E = h*nu => nu = E/h
+        # 10 keV = 10 * 1.60218e-16 J, h = 6.62607e-34 J*s
+        # Conversion: 1 keV = 2.417989e17 Hz
+        freq_10keV = 10 * 2.417989e17  # Hz
+        final_df['Frequency [Hz]'] = freq_10keV
+        
+        # Select only the expected columns (including Instrument)
+        expected_columns = self.FLUX_DENSITY_KEYS + ['Instrument']
+        missing = [col for col in expected_columns if col not in final_df.columns and col != 'Instrument' and col != 'Frequency [Hz]']
+        if missing:
+            raise ValueError(f"Missing required flux density columns: {missing}")
+        
+        # Keep only columns that exist
+        final_columns = [col for col in expected_columns if col in final_df.columns]
+        final_df = final_df[final_columns]
+        final_df.to_csv(self.processed_file_path, index=False, sep=',')
+        logger.info(f'Saved flux density data: {len(final_df)} total points for {self.grb}')
+        
         return final_df
 
     def convert_burst_analyser_api_data_to_csv(self) -> pd.DataFrame:
