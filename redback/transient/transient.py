@@ -677,11 +677,20 @@ class Transient(object):
         if any([self.flux_data, self.magnitude_data, self.flux_density_data]):
             filtered_x = self.x[self.filtered_indices]
             try:
-                filtered_x_err = self.x_err[self.filtered_indices]
-            except (IndexError, TypeError):
+                if self.x_err.ndim == 2:
+                    filtered_x_err = self.x_err[:, self.filtered_indices]
+                else:
+                    filtered_x_err = self.x_err[self.filtered_indices]
+            except (IndexError, TypeError, AttributeError):
                 filtered_x_err = None
             filtered_y = self.y[self.filtered_indices]
-            filtered_y_err = self.y_err[self.filtered_indices]
+            try:
+                if self.y_err.ndim == 2:
+                    filtered_y_err = self.y_err[:, self.filtered_indices]
+                else:
+                    filtered_y_err = self.y_err[self.filtered_indices]
+            except (IndexError, TypeError, AttributeError):
+                filtered_y_err = None
             return filtered_x, filtered_x_err, filtered_y, filtered_y_err
         else:
             raise ValueError(f"Transient needs to be in flux density, magnitude or flux data mode, "

@@ -250,19 +250,31 @@ class SwiftDataGetter(GRBDataGetter):
         
         # For BAT+XRT mode, get both instruments
         if self.instrument == 'BAT+XRT':
-            # Get XRT data from getLightCurves (correct flux units)
-            xrt_data = self.download_xrt_data_via_api()
-            # Get BAT data from getBurstAnalyser
-            ba_data = self.download_burst_analyser_data_via_api()
-            self._api_data = {'xrt': xrt_data, 'bat': ba_data}
+            # For flux_density mode, get XRT from Burst Analyser (has Density datasets in Jy)
+            # For flux mode, get XRT from getLightCurves (has integrated flux in erg/cm²/s)
+            if self.data_mode == 'flux_density':
+                ba_data = self.download_burst_analyser_data_via_api()
+                self._api_data = {'xrt': None, 'bat': ba_data}
+            else:
+                xrt_data = self.download_xrt_data_via_api()
+                ba_data = self.download_burst_analyser_data_via_api()
+                self._api_data = {'xrt': xrt_data, 'bat': ba_data}
         elif self.instrument == 'XRT':
-            # XRT only: use getLightCurves
-            xrt_data = self.download_xrt_data_via_api()
-            self._api_data = {'xrt': xrt_data, 'bat': None}
+            # XRT only
+            if self.data_mode == 'flux_density':
+                ba_data = self.download_burst_analyser_data_via_api()
+                self._api_data = {'xrt': None, 'bat': ba_data}
+            else:
+                xrt_data = self.download_xrt_data_via_api()
+                self._api_data = {'xrt': xrt_data, 'bat': None}
         else:
             # Shouldn't happen but handle gracefully
-            xrt_data = self.download_xrt_data_via_api()
-            self._api_data = {'xrt': xrt_data, 'bat': None}
+            if self.data_mode == 'flux_density':
+                ba_data = self.download_burst_analyser_data_via_api()
+                self._api_data = {'xrt': None, 'bat': ba_data}
+            else:
+                xrt_data = self.download_xrt_data_via_api()
+                self._api_data = {'xrt': xrt_data, 'bat': None}
         
         # Save raw API data for debugging/reprocessing
         self.save_raw_api_data()
@@ -827,38 +839,36 @@ class SwiftDataGetter(GRBDataGetter):
     def _convert_flux_density_mode(self, xrt_data, bat_ba_data) -> pd.DataFrame:
         """Convert flux_density mode data (flux density in mJy).
         
-        Returns XRT Density datasets (PC and WT modes) and BAT flux density data.
+        Uses Density datasets from getBurstAnalyser for both XRT and BAT (already in Jy).
         """
         if bat_ba_data is None:
             raise ValueError(f"No Burst Analyser data available for flux_density mode for {self.grb}")
         
         all_data = []
         
-        # Process XRT Density data
+        # Process XRT Density data from getBurstAnalyser
+        # Density datasets have flux in Jy (not erg/cm²/s)
         if 'XRT' in bat_ba_data:
-            # Try PC mode first
-            for key in ['Density_PC_incbad', 'Density_PC']:
-                if key in bat_ba_data['XRT']:
-                    pc_df = bat_ba_data['XRT'][key]
-                    if isinstance(pc_df, pd.DataFrame) and len(pc_df) > 0:
-                        pc_df = pc_df.copy()
-                        pc_df['Instrument'] = 'XRT'
-                        all_data.append(pc_df)
-                        logger.info(f'Found {len(pc_df)} XRT PC mode flux density points')
-                        break
+            xrt_datasets = bat_ba_data['XRT'].get('Datasets', [])
             
-            # Then try WT mode
-            for key in ['Density_WT_incbad', 'Density_WT']:
-                if key in bat_ba_data['XRT']:
-                    wt_df = bat_ba_data['XRT'][key]
-                    if isinstance(wt_df, pd.DataFrame) and len(wt_df) > 0:
-                        wt_df = wt_df.copy()
-                        wt_df['Instrument'] = 'XRT'
-                        all_data.append(wt_df)
-                        logger.info(f'Found {len(wt_df)} XRT WT mode flux density points')
-                        break
+            # Look for Density datasets (WT and PC modes)
+            for ds_name in ['Density_WT_incbad', 'Density_PC_incbad', 'Density_WT', 'Density_PC']:
+                if ds_name in xrt_datasets and ds_name in bat_ba_data['XRT']:
+                    xrt_df = bat_ba_data['XRT'][ds_name]
+                    if isinstance(xrt_df, pd.DataFrame) and len(xrt_df) > 0:
+                        xrt_norm = pd.DataFrame()
+                        xrt_norm['Time'] = xrt_df['Time']
+                        xrt_norm['TimePos'] = xrt_df['TimePos']
+                        xrt_norm['TimeNeg'] = xrt_df['TimeNeg']
+                        # Density data is already in Jy, convert to mJy
+                        xrt_norm['Flux'] = xrt_df['Flux'] * 1000
+                        xrt_norm['FluxPos'] = xrt_df['FluxPos'] * 1000
+                        xrt_norm['FluxNeg'] = xrt_df['FluxNeg'] * 1000
+                        xrt_norm['Instrument'] = 'XRT'
+                        all_data.append(xrt_norm)
+                        logger.info(f'Found {len(xrt_norm)} XRT flux density points from {ds_name}')
         
-        # Process BAT data - convert flux to flux density
+        # Process BAT Density data from getBurstAnalyser
         if 'BAT' in bat_ba_data:
             # Get the requested SNR level
             snr_keys = [self.snr, 'SNR4', 'SNR5', 'SNR6', 'SNR7']
@@ -867,10 +877,10 @@ class SwiftDataGetter(GRBDataGetter):
             for snr_key in snr_keys:
                 if snr_key in bat_ba_data['BAT']:
                     bat_entry = bat_ba_data['BAT'][snr_key]
-                    # Use XRTBand which has BAT data in XRT-band flux (erg/cm^2/s)
-                    if isinstance(bat_entry, dict) and 'XRTBand' in bat_entry:
-                        bat_df = bat_entry['XRTBand'].copy()
-                        logger.info(f'Using BAT {snr_key} XRTBand data for flux density')
+                    # For BAT, the Density key has flux density in Jy
+                    if isinstance(bat_entry, dict) and 'Density' in bat_entry:
+                        bat_df = bat_entry['Density'].copy()
+                        logger.info(f'Using BAT {snr_key} Density data for flux density')
                         break
             
             if bat_df is not None and len(bat_df) > 0:
@@ -878,15 +888,10 @@ class SwiftDataGetter(GRBDataGetter):
                 if 'BadBin' in bat_df.columns:
                     bat_df = bat_df[bat_df['BadBin'] == False].copy()
                 
-                # Convert flux (erg/cm²/s) to flux density (mJy)
-                # F_ν = F_E / (E * ln(10) * 0.4) where E is in keV
-                # For 10 keV: F_ν [mJy] = F_E [erg/cm²/s] * 1000 / (1.602e-9 * 10)
-                # Simplified: F_ν [mJy] = F_E * 6.242e7
-                conversion_factor = 6.242e7  # converts erg/cm²/s to mJy at 10 keV
-                
-                bat_df['Flux'] = bat_df['Flux'] * conversion_factor
-                bat_df['FluxPos'] = bat_df['FluxPos'] * conversion_factor
-                bat_df['FluxNeg'] = bat_df['FluxNeg'] * conversion_factor
+                # Density data is already in Jy, convert to mJy
+                bat_df['Flux'] = bat_df['Flux'] * 1000
+                bat_df['FluxPos'] = bat_df['FluxPos'] * 1000
+                bat_df['FluxNeg'] = bat_df['FluxNeg'] * 1000
                 
                 # Filter for valid data
                 mask = (
@@ -942,12 +947,22 @@ class SwiftDataGetter(GRBDataGetter):
         if not hasattr(self, '_api_data') or self._api_data is None:
             raise ValueError("No API data available to convert")
 
-        ba_data = self._api_data
+        # Extract Burst Analyser data from the nested structure
+        # _api_data = {'xrt': xrt_data, 'bat': ba_data}
+        if isinstance(self._api_data, dict) and 'bat' in self._api_data:
+            ba_data = self._api_data['bat']
+        else:
+            ba_data = self._api_data
 
         def normalize_ba_flux_dataframe(df: pd.DataFrame, source_df: pd.DataFrame) -> pd.DataFrame | None:
             """Map Burst Analyser columns to integrated flux columns."""
             if df is None or not isinstance(df, pd.DataFrame) or len(df) == 0:
                 return None
+            
+            # Handle 'T' as alternative to 'Time'
+            df = df.copy()
+            if 'T' in df.columns and 'Time' not in df.columns:
+                df['Time'] = df['T']
             
             mapping = {
                 'Time': 'Time [s]',
@@ -1050,27 +1065,77 @@ class SwiftDataGetter(GRBDataGetter):
             final_df = combined_df[expected_columns]
 
         elif self.data_mode == 'flux_density':
-            # For flux density mode, extract the appropriate data
-            # Similar logic but for flux density instead of flux
+            # For flux_density mode, combine XRT lightcurve data with BAT from Burst Analyser
             all_data = []
 
-            if 'XRT' in ba_data:
-                df = select_burst_analyser_dataframe(
-                    ba_data['XRT'],
-                    key_order=[
-                        'Density_PC_incbad',
-                        'Density_WT_incbad',
-                        'Density_PC',
-                        'Density_WT',
-                    ]
-                )
-                if isinstance(df, pd.DataFrame) and len(df) > 0:
-                    all_data.append(df)
+            # First, add XRT data from getLightCurves
+            # XRT data is stored in _api_data['xrt'] after loading
+            xrt_lc_data = self._api_data.get('xrt') if isinstance(self._api_data, dict) else None
+            logger.info(f"DEBUG: xrt_lc_data type: {type(xrt_lc_data)}, is None: {xrt_lc_data is None}")
+            if xrt_lc_data is not None:
+                logger.info(f"DEBUG: xrt_lc_data is DataFrame: {isinstance(xrt_lc_data, pd.DataFrame)}, len: {len(xrt_lc_data) if isinstance(xrt_lc_data, pd.DataFrame) else 'N/A'}")
+                if isinstance(xrt_lc_data, pd.DataFrame):
+                    logger.info(f"DEBUG: xrt_lc_data columns: {xrt_lc_data.columns.tolist()}")
+            
+            if xrt_lc_data is not None and isinstance(xrt_lc_data, pd.DataFrame) and len(xrt_lc_data) > 0:
+                # The XRT lightcurve data should have Time, Flux, etc.
+                # Separate by mode if Mode column exists, otherwise treat as single dataset
+                if 'Mode' in xrt_lc_data.columns:
+                    for mode_name in xrt_lc_data['Mode'].unique():
+                        mode_df = xrt_lc_data[xrt_lc_data['Mode'] == mode_name]
+                        if len(mode_df) > 0:
+                            mode_norm = pd.DataFrame()
+                            mode_norm['Time'] = mode_df['Time']
+                            mode_norm['TimePos'] = mode_df['TimePos']
+                            mode_norm['TimeNeg'] = mode_df['TimeNeg']
+                            mode_norm['Flux'] = mode_df['Flux']
+                            mode_norm['FluxPos'] = mode_df['FluxPos']
+                            mode_norm['FluxNeg'] = mode_df['FluxNeg']
+                            all_data.append(mode_norm)
+                            logger.info(f'Found {len(mode_norm)} XRT {mode_name} mode flux density points')
+                else:
+                    # No mode column, treat as single dataset
+                    xrt_norm = pd.DataFrame()
+                    xrt_norm['Time'] = xrt_lc_data['Time']
+                    xrt_norm['TimePos'] = xrt_lc_data['TimePos']
+                    xrt_norm['TimeNeg'] = xrt_lc_data['TimeNeg']
+                    xrt_norm['Flux'] = xrt_lc_data['Flux']
+                    xrt_norm['FluxPos'] = xrt_lc_data['FluxPos']
+                    xrt_norm['FluxNeg'] = xrt_lc_data['FluxNeg']
+                    all_data.append(xrt_norm)
+                    logger.info(f'Found {len(xrt_norm)} XRT flux density points')
+
+            # Then, add BAT data from Burst Analyser XRTBand
+            if 'BAT' in ba_data:
+                snr_key = self.snr
+                if snr_key in ba_data['BAT']:
+                    bat_entry = ba_data['BAT'][snr_key]
+                    if isinstance(bat_entry, dict) and 'XRTBand' in bat_entry:
+                        bat_df = bat_entry['XRTBand']
+                        if isinstance(bat_df, pd.DataFrame) and len(bat_df) > 0:
+                            # Filter and normalize BAT data
+                            bat_norm = pd.DataFrame()
+                            bat_norm['Time'] = bat_df['Time']
+                            bat_norm['TimePos'] = bat_df['TimePos']
+                            bat_norm['TimeNeg'] = bat_df['TimeNeg']
+                            bat_norm['Flux'] = bat_df['Flux']
+                            bat_norm['FluxPos'] = bat_df['FluxPos']
+                            bat_norm['FluxNeg'] = bat_df['FluxNeg']
+                            
+                            # Remove bad bins and negative flux values
+                            if 'BadBin' in bat_df.columns:
+                                bat_norm = bat_norm[bat_df['BadBin'] == 0]
+                            bat_norm = bat_norm[bat_norm['Flux'] > 0]
+                            
+                            all_data.append(bat_norm)
+                            logger.info(f'Using BAT {snr_key} XRTBand data for flux density')
+                            logger.info(f'Processed {len(bat_norm)} BAT flux density points')
 
             if not all_data:
                 raise ValueError(f"No flux density data found for {self.grb}")
 
-            combined_df = all_data[0]
+            # Combine all data
+            combined_df = pd.concat(all_data, ignore_index=True)
 
             # Map to expected column names for flux density
             column_mapping = {
@@ -1088,13 +1153,11 @@ class SwiftDataGetter(GRBDataGetter):
                 if old_name in combined_df.columns and new_name not in combined_df.columns:
                     combined_df.rename(columns={old_name: new_name}, inplace=True)
 
-            # Convert flux density units if needed (API might return different units)
+            # Convert flux density from Jy to mJy (Swift API returns Jy)
             if 'Flux [mJy]' in combined_df.columns:
-                # Check if values are very small (indicating they might be in Jy instead of mJy)
-                if combined_df['Flux [mJy]'].median() < 0.1:
-                    combined_df['Flux [mJy]'] = combined_df['Flux [mJy]'] * 1000
-                    combined_df['Pos. flux err [mJy]'] = combined_df['Pos. flux err [mJy]'] * 1000
-                    combined_df['Neg. flux err [mJy]'] = combined_df['Neg. flux err [mJy]'] * 1000
+                combined_df['Flux [mJy]'] = combined_df['Flux [mJy]'] * 1000
+                combined_df['Pos. flux err [mJy]'] = combined_df['Pos. flux err [mJy]'] * 1000
+                combined_df['Neg. flux err [mJy]'] = combined_df['Neg. flux err [mJy]'] * 1000
 
             expected_columns = self.FLUX_DENSITY_KEYS
             final_df = combined_df[[col for col in expected_columns if col in combined_df.columns]]

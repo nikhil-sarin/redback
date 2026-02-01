@@ -35,7 +35,6 @@ setup(
         "regex",
         "sncosmo",
         "afterglowpy",
-        "swifttools",
     ],
     extras_require={
         'all': [
@@ -52,6 +51,7 @@ setup(
             "kilonovanet",
             "astroquery",
             "pyphot==1.6.0",
+            "swifttools"
         ]
     },
     python_requires=">=3.10",
