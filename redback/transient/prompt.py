@@ -10,6 +10,7 @@ from typing import Union
 from redback.get_data.utils import get_batse_trigger_from_grb
 from redback.get_data.directory import swift_prompt_directory_structure, batse_prompt_directory_structure
 from redback.transient.transient import Transient
+from redback.utils import logger
 
 dirname = os.path.dirname(__file__)
 
@@ -53,6 +54,7 @@ class PromptTimeSeries(Transient):
         :param kwargs: Any other kwargs.
         :type kwargs: None
         """
+        logger.info(f"Initializing PromptTimeSeries for '{name}' with instrument='{instrument}', data_mode='{data_mode}'")
         super().__init__(time=time, time_err=time_err, time_rest_frame=time_rest_frame,
                          time_rest_frame_err=time_rest_frame_err, counts=counts, ttes=ttes, bin_size=bin_size,
                          name=name, data_mode=data_mode, **kwargs)
@@ -60,13 +62,16 @@ class PromptTimeSeries(Transient):
         self.trigger_number = trigger_number
         self.channels = channels
         self.instrument = instrument
+        logger.debug(f"Setting up data for {instrument} prompt data")
         self._set_data()
         if self.instrument == "batse":
             self.directory_structure = batse_prompt_directory_structure(grb=self.name)
         elif self.instrument == "swift":
             self.directory_structure = swift_prompt_directory_structure(grb=self.name, bin_size=self.bin_size)
         else:
+            logger.error(f"Invalid instrument '{instrument}'. Must be 'batse' or 'swift'")
             raise ValueError("Instrument must be either 'batse' or 'swift'.")
+        logger.debug(f"PromptTimeSeries '{name}' initialized successfully")
 
     @classmethod
     def from_batse_grb_name(
@@ -83,7 +88,9 @@ class PromptTimeSeries(Transient):
         :return: An instance of `PromptTimeSeries`.
         :rtype: PromptTimeSeries
         """
+        logger.info(f"Loading BATSE data for GRB '{name}' with channels={channels}")
         time, dt, counts = cls.load_batse_data(name=name, channels=channels)
+        logger.debug(f"Successfully loaded BATSE data for '{name}' with {len(time)} time bins")
         return cls(name=name, bin_size=dt, time=time, counts=counts, data_mode="counts",
                    trigger_number=trigger_number, channels=channels, instrument="batse")
 
@@ -102,7 +109,13 @@ class PromptTimeSeries(Transient):
         name = f"GRB{name.lstrip('GRB')}"
         directory_structure = batse_prompt_directory_structure(grb=name)
         path = directory_structure.directory_path + name.lstrip('GRB') + '_BATSE_lc.csv'
-        _time_series_data = np.genfromtxt(path, delimiter=",")[1:]
+
+        logger.debug(f"Loading BATSE lightcurve from: {path}")
+        try:
+            _time_series_data = np.genfromtxt(path, delimiter=",")[1:]
+        except Exception as e:
+            logger.error(f"Failed to load BATSE data from {path}: {e}")
+            raise
 
         bin_left = _time_series_data[:, 0]
         bin_right = _time_series_data[:, 1]
@@ -112,11 +125,15 @@ class PromptTimeSeries(Transient):
         counts_by_channel = [np.around(_time_series_data[:, i] * dt) for i in [2, 4, 6, 8]]
         if str(channels) == "all":
             channels = np.array([0, 1, 2, 3])
+            logger.debug("Using all BATSE channels (0, 1, 2, 3)")
+        else:
+            logger.debug(f"Using BATSE channels: {channels}")
 
         counts = np.zeros(len(time))
         for c in channels:
             counts += counts_by_channel[c]
 
+        logger.debug(f"Loaded {len(time)} time bins with total counts: {np.sum(counts):.0f}")
         return time, dt, counts
 
     @property

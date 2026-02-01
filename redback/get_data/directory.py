@@ -4,6 +4,7 @@ import os
 from bilby.core.utils.io import check_directory_exists_and_if_not_mkdir
 
 from redback.get_data.utils import get_batse_trigger_from_grb
+from redback.utils import logger
 
 _dirname = os.path.dirname(__file__)
 SWIFT_PROMPT_BIN_SIZES = ['1s', '2ms', '8ms', '16ms', '64ms', '256ms']
@@ -22,6 +23,7 @@ def spectrum_directory_structure(transient: str) -> DirectoryStructure:
     :rtype: namedtuple
     """
     directory_path = f'spectrum/'
+    logger.debug(f"Creating spectrum directory structure for {transient} at {directory_path}")
     check_directory_exists_and_if_not_mkdir(directory_path)
 
     raw_file_path = f"{directory_path}{transient}_rawdata.csv"
@@ -72,8 +74,10 @@ def swift_prompt_directory_structure(grb: str, bin_size: str = '2ms') -> Directo
     :rtype: namedtuple
     """
     if bin_size not in SWIFT_PROMPT_BIN_SIZES:
+        logger.error(f"Invalid bin size '{bin_size}' for Swift prompt data. Allowed: {SWIFT_PROMPT_BIN_SIZES}")
         raise ValueError(f'Bin size {bin_size} not in allowed bin sizes.\n'
                          f'Use one of the following: {SWIFT_PROMPT_BIN_SIZES}')
+    logger.debug(f"Creating Swift prompt directory structure for {grb} with bin_size={bin_size}")
     directory_path = f'GRBData/prompt/flux/'
     check_directory_exists_and_if_not_mkdir(directory_path)
 

@@ -899,7 +899,7 @@ class TestJetsimpyModels(unittest.TestCase):
 
         # Patch the import and cosmology
         with patch.dict('sys.modules', {'jetsimpy': mock_jetsimpy}), \
-                patch('redback.transient_models.afterglow_models.cosmo', self.mock_cosmology):
+                patch('redback.transient_models.afterglow_models.base_models.cosmo', self.mock_cosmology):
             # Call function
             result = self.jetsimpy_tophat(
                 time=self.time, redshift=self.redshift, thv=self.thv, loge0=self.loge0,
@@ -948,9 +948,9 @@ class TestJetsimpyModels(unittest.TestCase):
 
         # Patch everything needed
         with patch.dict('sys.modules', {'jetsimpy': mock_jetsimpy}), \
-                patch('redback.transient_models.afterglow_models.cosmo', self.mock_cosmology), \
-                patch('redback.transient_models.afterglow_models.bands_to_frequency', return_value=mock_frequency), \
-                patch('redback.transient_models.afterglow_models.calc_ABmag_from_flux_density',
+                patch('redback.transient_models.afterglow_models.base_models.cosmo', self.mock_cosmology), \
+                patch('redback.transient_models.afterglow_models.base_models.bands_to_frequency', return_value=mock_frequency), \
+                patch('redback.transient_models.afterglow_models.base_models.calc_ABmag_from_flux_density',
                       return_value=mock_mag_result):
             # Call function
             result = self.jetsimpy_tophat(
@@ -981,7 +981,7 @@ class TestJetsimpyModels(unittest.TestCase):
 
         # Patch the import and cosmology
         with patch.dict('sys.modules', {'jetsimpy': mock_jetsimpy}), \
-                patch('redback.transient_models.afterglow_models.cosmo', self.mock_cosmology):
+                patch('redback.transient_models.afterglow_models.base_models.cosmo', self.mock_cosmology):
             # Call function
             result = self.jetsimpy_gaussian(
                 time=self.time, redshift=self.redshift, thv=self.thv, loge0=self.loge0,
@@ -1011,7 +1011,7 @@ class TestJetsimpyModels(unittest.TestCase):
 
         # Patch the import and cosmology
         with patch.dict('sys.modules', {'jetsimpy': mock_jetsimpy}), \
-                patch('redback.transient_models.afterglow_models.cosmo', self.mock_cosmology):
+                patch('redback.transient_models.afterglow_models.base_models.cosmo', self.mock_cosmology):
             # Call function
             result = self.jetsimpy_powerlaw(
                 time=self.time, redshift=self.redshift, thv=self.thv, loge0=self.loge0,
@@ -1044,7 +1044,7 @@ class TestJetsimpyModels(unittest.TestCase):
 
         # Patch the import and cosmology
         with patch.dict('sys.modules', {'jetsimpy': mock_jetsimpy}), \
-                patch('redback.transient_models.afterglow_models.cosmo', self.mock_cosmology):
+                patch('redback.transient_models.afterglow_models.base_models.cosmo', self.mock_cosmology):
             self.jetsimpy_tophat(
                 time=np.array([1.0]), redshift=self.redshift, thv=self.thv, loge0=self.loge0,
                 thc=self.thc, nism=self.nism, A=self.A, p=self.p,
@@ -1089,8 +1089,8 @@ class TestJetsimpyModels(unittest.TestCase):
 
         # Patch the import, cosmology, and day_to_s
         with patch.dict('sys.modules', {'jetsimpy': mock_jetsimpy}), \
-                patch('redback.transient_models.afterglow_models.cosmo', self.mock_cosmology), \
-                patch('redback.transient_models.afterglow_models.day_to_s', 86400):
+                patch('redback.transient_models.afterglow_models.base_models.cosmo', self.mock_cosmology), \
+                patch('redback.transient_models.afterglow_models.base_models.day_to_s', 86400):
             self.jetsimpy_tophat(
                 time=input_time, redshift=self.redshift, thv=self.thv, loge0=self.loge0,
                 thc=self.thc, nism=self.nism, A=self.A, p=self.p,
@@ -1153,7 +1153,7 @@ class TestJetsimpyModels(unittest.TestCase):
 
         # Patch the import and cosmology
         with patch.dict('sys.modules', {'jetsimpy': mock_jetsimpy}), \
-                patch('redback.transient_models.afterglow_models.cosmo', self.mock_cosmology):
+                patch('redback.transient_models.afterglow_models.base_models.cosmo', self.mock_cosmology):
             # Test tophat
             result1 = self.jetsimpy_tophat(
                 time=np.array([1.0]), redshift=self.redshift, thv=self.thv, loge0=self.loge0,

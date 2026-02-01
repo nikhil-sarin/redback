@@ -1,0 +1,12 @@
+E_eng = LogUniform(1e48,1e53,name='E_eng', latex_label = r'$E_{\mathrm{eng}}~(\mathrm{erg})$')
+t_eng = LogUniform(1,1e4,name='t_eng', latex_label = r'$t_{\mathrm{eng}}~(\mathrm{s})$')
+theta_0 = Uniform(0.01, 0.1, 'theta_0', latex_label = r'$\\theta_{\mathrm{0}}~(\mathrm{rad})$')
+M_csm = LogUniform(1e-2, 10, 'M_csm', latex_label = r'$M_{\mathrm{CSM}}~(M_\odot)$')
+R_csm = LogUniform(1e11, 1e15, 'R_csm', latex_label = r'$R_{\mathrm{CSM}}~(cm)$')
+f_nickel = LogUniform(1e-3,1,name='f_nickel', latex_label = r'$f_{\mathrm{Ni}}$')
+mej = LogUniform(1e-4, 100, 'mej', latex_label = r'$M_{\mathrm{ej}}~(M_{\odot})$')
+vej = LogUniform(1e3, 1e5, 'vej', latex_label = r'$v_{\mathrm{ej}}~(\mathrm{km}/\mathrm{s})$')
+kappa = Uniform(0.05, 2, 'kappa', latex_label = r'$\\kappa~(\mathrm{cm}^{2}/\mathrm{g})$')
+kappa_gamma = LogUniform(1e-4, 1e4, 'kappa_gamma', latex_label = r'$\\kappa_{\\gamma}~(\mathrm{cm}^{2}/\mathrm{g})$')
+
+

@@ -1,0 +1,3 @@
+redshift = Uniform(0.01, 2.0, 'redshift', latex_label = r'$z$')
+r_photosphere_rs = LogUniform(0.1, 1e5, 'r_photosphere_rs', latex_label = r'$R_{\mathrm{ph}}~(R_{\odot})$')
+kT = Uniform(0.1, 20.0, 'kT', latex_label = r'$kT~(\mathrm{keV})$')
