@@ -68,9 +68,16 @@ class TestModels(unittest.TestCase):
     def test_models(self):
         kwargs = dict(frequency=6e14)
         times = np.array([1, 2, 3])
+        # Skip spectral line profile models - these are not time-domain transient models
+        skip_models = ['p_cygni_profile', 'elementary_p_cygni_profile', 'voigt_profile',
+                       'gaussian_line_profile', 'lorentzian_line_profile',
+                       'blackbody_spectrum_with_p_cygni_lines', 'synow_line_model']
         for f in self.prior_files:
             print(f)
             model_name = f.replace(".prior", "")
+            if model_name in skip_models:
+                print('Skipping {} (spectral line profile model)'.format(model_name))
+                continue
             if model_name == 'trapped_magnetar':
                 kwargs['output_format'] = 'luminosity'
             else:
@@ -112,7 +119,10 @@ class TestPhaseModels(unittest.TestCase):
             skip_dict = ['bazin_sne', 'villar_sne', 'blackbody_spectrum_with_absorption_and_emission_lines',
                          'powerlaw_spectrum_with_absorption_and_emission_lines',
                          'exp_rise_powerlaw_decline', 'salt2', 'blackbody_spectrum_at_z',
-                         'powerlaw_plus_blackbody_spectrum_at_z']
+                         'powerlaw_plus_blackbody_spectrum_at_z',
+                         'p_cygni_profile', 'elementary_p_cygni_profile', 'voigt_profile',
+                         'gaussian_line_profile', 'lorentzian_line_profile',
+                         'blackbody_spectrum_with_p_cygni_lines', 'synow_line_model']
             if model_name in skip_dict:
                 print('Skipping {}'.format(model_name))
                 pass
@@ -154,9 +164,16 @@ class TestMagnitudeOutput(unittest.TestCase):
     def test_models(self):
         kwargs = dict(frequency=2e14, bands='ztfg')
         times = np.array([1, 2, 3])
+        # Skip spectral line profile models - these are not time-domain transient models
+        skip_models = ['p_cygni_profile', 'elementary_p_cygni_profile', 'voigt_profile',
+                       'gaussian_line_profile', 'lorentzian_line_profile',
+                       'blackbody_spectrum_with_p_cygni_lines', 'synow_line_model']
         for f in self.prior_files:
             print(f)
             model_name = f.replace(".prior", "")
+            if model_name in skip_models:
+                print('Skipping {} (spectral line profile model)'.format(model_name))
+                continue
             if model_name == 'trapped_magnetar':
                 kwargs['output_format'] = 'luminosity'
             elif model_name in ['tophat_and_twocomponent', 'tophat_and_twolayerstratified',
