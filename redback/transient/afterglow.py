@@ -185,9 +185,30 @@ class Afterglow(Transient):
         :type data_mode: str, optional
         """
         self.data_mode = data_mode
-        self.x, self.x_err, self.y, self.y_err = self.load_data(name=self.name, data_mode=self.data_mode)
+        load_result = self.load_data(name=self.name, data_mode=self.data_mode)
+        
+        if len(load_result) == 5:
+            self.x, self.x_err, self.y, self.y_err, frequency = load_result
+            self.frequency = frequency
+            # For flux_density, set bands to frequency array so plotting works
+            self.bands = frequency
+        else:
+            self.x, self.x_err, self.y, self.y_err = load_result
+            
         if truncate:
             self.truncate(truncate_method=truncate_method)
+        
+        # Update active_bands now that bands are properly set
+        if hasattr(self, '_active_bands') and self._active_bands == [None]:
+            self.active_bands = 'all'
+        
+        # Flatten asymmetric errors to 1D for flux_density mode (uses MagnitudePlotter)
+        # Keep 2D errors for flux mode (uses IntegratedFluxPlotter which expects 2D)
+        if data_mode == 'flux_density':
+            if self.x_err is not None and self.x_err.ndim == 2:
+                self.x_err = np.mean(self.x_err, axis=0)
+            if self.y_err is not None and self.y_err.ndim == 2:
+                self.y_err = np.mean(self.y_err, axis=0)
 
     @staticmethod
     def load_data(name: str, data_mode: str = None) -> tuple:
@@ -205,9 +226,15 @@ class Afterglow(Transient):
 
         data = np.genfromtxt(directory_structure.processed_file_path, delimiter=",")[1:]
         x = data[:, 0]
-        x_err = data[:, 1:3].T
+        x_err = np.abs(data[:, 1:3]).T
         y = np.array(data[:, 3])
-        y_err = np.array(np.abs(data[:, 4:6].T))
+        y_err = np.abs(data[:, 4:6]).T
+        
+        # For flux_density mode, also load frequency
+        if data_mode == 'flux_density' and data.shape[1] > 6:
+            frequency = data[:, 6]
+            return x, x_err, y, y_err, frequency
+        
         return x, x_err, y, y_err
 
     def truncate(self, truncate_method: str = 'prompt_time_error') -> None:
@@ -437,6 +464,10 @@ class Truncator(object):
         self.x_err = self.x_err[:, ~mask]
         self.y = self.y[~mask]
         self.y_err = self.y_err[:, ~mask]
+        if hasattr(self, 'frequency') and self.frequency is not None:
+            self.frequency = self.frequency[~mask]
+        if hasattr(self, 'bands') and self.bands is not None and not isinstance(self.bands, str):
+            self.bands = self.bands[~mask]
         return self.x, self.x_err, self.y, self.y_err
 
     def truncate_left_of_max(self) -> tuple:

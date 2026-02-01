@@ -202,7 +202,7 @@ class SwiftDataGetter(GRBDataGetter):
         """
         if self.transient_type == 'afterglow':
             return redback.get_data.directory.afterglow_directory_structure(
-                    grb=self.grb, data_mode=self.data_mode, instrument=self.instrument)
+                    grb=self.grb, data_mode=self.data_mode, instrument=self.instrument, snr=self.snr)
         elif self.transient_type == 'prompt':
             return redback.get_data.directory.swift_prompt_directory_structure(
                     grb=self.grb, bin_size=self.bin_size)
@@ -223,9 +223,11 @@ class SwiftDataGetter(GRBDataGetter):
             return
 
         # For afterglow data, use swifttools API
-        if os.path.isfile(self.processed_file_path) and not self.force_download:
-            logger.warning('The processed data file already exists. Returning.')
-            return
+        # Check both raw and processed files - if force_download, we need to regenerate both
+        if not self.force_download:
+            if os.path.isfile(self.processed_file_path):
+                logger.warning('The processed data file already exists. Returning.')
+                return
 
         if not SWIFTTOOLS_AVAILABLE:
             raise ImportError(
@@ -816,14 +818,14 @@ class SwiftDataGetter(GRBDataGetter):
     def _convert_flux_density_mode(self, xrt_data, bat_ba_data) -> pd.DataFrame:
         """Convert flux_density mode data (flux density in mJy).
         
-        Combines XRT Density datasets (PC and WT modes) and BAT Density data.
+        Returns XRT Density datasets (PC and WT modes) only - matches old web scraping behavior.
         """
         if bat_ba_data is None:
             raise ValueError(f"No Burst Analyser data available for flux_density mode for {self.grb}")
         
         all_data = []
         
-        # Process XRT Density data
+        # Process XRT Density data ONLY (no BAT for backward compatibility)
         if 'XRT' in bat_ba_data:
             # Try PC mode first
             for key in ['Density_PC_incbad', 'Density_PC']:
@@ -847,26 +849,6 @@ class SwiftDataGetter(GRBDataGetter):
                         logger.info(f'Found {len(wt_df)} XRT WT mode flux density points')
                         break
         
-        # Process BAT Density data
-        if 'BAT' in bat_ba_data:
-            snr_keys = [self.snr, 'SNR4', 'SNR5', 'SNR6', 'SNR7']
-            for snr_key in snr_keys:
-                if snr_key in bat_ba_data['BAT']:
-                    bat_entry = bat_ba_data['BAT'][snr_key]
-                    if isinstance(bat_entry, dict) and 'Density' in bat_entry:
-                        bat_df = bat_entry['Density']
-                        if isinstance(bat_df, pd.DataFrame) and len(bat_df) > 0:
-                            # Filter out bad bins
-                            if 'BadBin' in bat_df.columns:
-                                bat_df = bat_df[bat_df['BadBin'] == False].copy()
-                            else:
-                                bat_df = bat_df.copy()
-                            
-                            bat_df['Instrument'] = 'BAT'
-                            all_data.append(bat_df)
-                            logger.info(f'Found {len(bat_df)} BAT {snr_key} flux density points')
-                            break
-        
         if not all_data:
             raise ValueError(f"No flux density data found for {self.grb}")
         
@@ -886,22 +868,16 @@ class SwiftDataGetter(GRBDataGetter):
         
         final_df = combined_df.rename(columns={k: v for k, v in column_mapping.items() if k in combined_df.columns}).copy()
         
-        # Add frequency column - Swift flux density is at 10 keV
-        # E = h*nu => nu = E/h
-        # 10 keV = 10 * 1.60218e-16 J, h = 6.62607e-34 J*s
-        # Conversion: 1 keV = 2.417989e17 Hz
-        freq_10keV = 10 * 2.417989e17  # Hz
-        final_df['Frequency [Hz]'] = freq_10keV
+        # Add frequency column (Swift flux density is at 10 keV = 2.418e18 Hz)
+        final_df['Frequency [Hz]'] = 2.418e18
         
-        # Select only the expected columns (including Instrument)
-        expected_columns = self.FLUX_DENSITY_KEYS + ['Instrument']
-        missing = [col for col in expected_columns if col not in final_df.columns and col != 'Instrument' and col != 'Frequency [Hz]']
+        # Select only the expected columns
+        expected_columns = self.FLUX_DENSITY_KEYS
+        missing = [col for col in expected_columns if col not in final_df.columns]
         if missing:
             raise ValueError(f"Missing required flux density columns: {missing}")
         
-        # Keep only columns that exist
-        final_columns = [col for col in expected_columns if col in final_df.columns]
-        final_df = final_df[final_columns]
+        final_df = final_df[expected_columns]
         final_df.to_csv(self.processed_file_path, index=False, sep=',')
         logger.info(f'Saved flux density data: {len(final_df)} total points for {self.grb}')
         
