@@ -53,14 +53,15 @@ def afterglow_directory_structure(grb: str, data_mode: str, instrument: str = 'B
 
     path = f'{directory_path}{grb}'
     
-    # Add SNR to file path if provided
+    # Raw file should NOT include SNR - it contains all data
+    # Processed file SHOULD include SNR - it's filtered data
     snr_suffix = f'_{snr}' if snr else ''
 
     if instrument == 'XRT':
-        raw_file_path = f'{path}_xrt{snr_suffix}_rawSwiftData.csv'
+        raw_file_path = f'{path}_xrt_rawSwiftData.csv'
         processed_file_path = f'{path}_xrt{snr_suffix}.csv'
     else:
-        raw_file_path = f'{path}{snr_suffix}_rawSwiftData.csv'
+        raw_file_path = f'{path}_rawSwiftData.csv'
         processed_file_path = f'{path}{snr_suffix}.csv'
 
     return DirectoryStructure(

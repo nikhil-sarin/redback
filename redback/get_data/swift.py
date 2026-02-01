@@ -448,15 +448,15 @@ class SwiftDataGetter(GRBDataGetter):
                         f.write('#\n')
                         ba_data = self._api_data['bat']
                         if 'BAT' in ba_data:
-                            # Save the BAT XRTBand data
-                            for snr_key in [self.snr, 'SNR4', 'SNR5', 'SNR6', 'SNR7']:
+                            # Save ALL available SNR levels for BAT XRTBand data
+                            for snr_key in ['SNR4', 'SNR5', 'SNR6', 'SNR7']:
                                 if snr_key in ba_data['BAT']:
                                     bat_entry = ba_data['BAT'][snr_key]
                                     if isinstance(bat_entry, dict) and 'XRTBand' in bat_entry:
                                         bat_df = bat_entry['XRTBand']
-                                        f.write(f'# BAT {snr_key} XRTBand\n')
+                                        f.write(f'# BAT_{snr_key}\n')
                                         bat_df.to_csv(f, index=False)
-                                        break
+                                        f.write('\n')
                 else:
                     # Legacy format: single dataframe
                     self._api_data.to_csv(f, index=False)
@@ -486,12 +486,17 @@ class SwiftDataGetter(GRBDataGetter):
         # Find section boundaries
         xrt_start = None
         bat_start = None
+        bat_snr_sections = []
         
         for i, line in enumerate(lines):
             if '# XRT DATA' in line:
                 xrt_start = i
             elif '# BAT DATA' in line:
                 bat_start = i
+            elif line.startswith('# BAT_SNR'):
+                # Extract SNR level from header like "# BAT_SNR4"
+                snr_level = line.strip().replace('# BAT_', '')
+                bat_snr_sections.append((i, snr_level))
         
         xrt_data = None
         bat_data = None
@@ -512,32 +517,36 @@ class SwiftDataGetter(GRBDataGetter):
                 csv_content = ''.join(lines[csv_start:csv_end])
                 xrt_data = pd.read_csv(StringIO(csv_content))
         
-        # Parse BAT section  
-        if bat_start is not None:
-            # Find where CSV data starts
-            csv_start = bat_start + 1
-            while csv_start < len(lines) and (lines[csv_start].startswith('#') or lines[csv_start].strip() == ''):
-                csv_start += 1
+        # Parse BAT sections (all SNR levels)
+        if bat_snr_sections:
+            from io import StringIO
+            bat_data = {'BAT': {}}
             
-            # Extract CSV data (to end of file)
-            if csv_start < len(lines):
-                from io import StringIO
-                csv_content = ''.join(lines[csv_start:])
-                bat_df = pd.read_csv(StringIO(csv_content))
-                # Create minimal BA structure
-                bat_data = {
-                    'BAT': {
-                        self.snr: {
-                            'XRTBand': bat_df
-                        }
-                    }
-                }
+            for idx, (section_start, snr_level) in enumerate(bat_snr_sections):
+                # Find where CSV data starts
+                csv_start = section_start + 1
+                while csv_start < len(lines) and (lines[csv_start].startswith('#') or lines[csv_start].strip() == ''):
+                    csv_start += 1
+                
+                # Find where CSV data ends (next SNR section or end of file)
+                if idx + 1 < len(bat_snr_sections):
+                    csv_end = bat_snr_sections[idx + 1][0]
+                else:
+                    csv_end = len(lines)
+                
+                # Extract CSV data for this SNR level
+                if csv_start < csv_end:
+                    csv_content = ''.join(lines[csv_start:csv_end])
+                    bat_df = pd.read_csv(StringIO(csv_content))
+                    bat_data['BAT'][snr_level] = {'XRTBand': bat_df}
         
         # Store in the expected format
         if xrt_data is not None or bat_data is not None:
             self._api_data = {'xrt': xrt_data, 'bat': bat_data}
             xrt_len = len(xrt_data) if xrt_data is not None else 0
-            bat_len = len(bat_df) if bat_data is not None else 0
+            bat_len = 0
+            if bat_data and 'BAT' in bat_data:
+                bat_len = sum(len(bat_data['BAT'][snr]['XRTBand']) for snr in bat_data['BAT'])
             logger.info(f'Successfully loaded raw data: XRT={xrt_len} points, BAT={bat_len} points')
         else:
             raise ValueError('Could not parse any data from raw file')
@@ -818,14 +827,14 @@ class SwiftDataGetter(GRBDataGetter):
     def _convert_flux_density_mode(self, xrt_data, bat_ba_data) -> pd.DataFrame:
         """Convert flux_density mode data (flux density in mJy).
         
-        Returns XRT Density datasets (PC and WT modes) only - matches old web scraping behavior.
+        Returns XRT Density datasets (PC and WT modes) and BAT flux density data.
         """
         if bat_ba_data is None:
             raise ValueError(f"No Burst Analyser data available for flux_density mode for {self.grb}")
         
         all_data = []
         
-        # Process XRT Density data ONLY (no BAT for backward compatibility)
+        # Process XRT Density data
         if 'XRT' in bat_ba_data:
             # Try PC mode first
             for key in ['Density_PC_incbad', 'Density_PC']:
@@ -848,6 +857,47 @@ class SwiftDataGetter(GRBDataGetter):
                         all_data.append(wt_df)
                         logger.info(f'Found {len(wt_df)} XRT WT mode flux density points')
                         break
+        
+        # Process BAT data - convert flux to flux density
+        if 'BAT' in bat_ba_data:
+            # Get the requested SNR level
+            snr_keys = [self.snr, 'SNR4', 'SNR5', 'SNR6', 'SNR7']
+            bat_df = None
+            
+            for snr_key in snr_keys:
+                if snr_key in bat_ba_data['BAT']:
+                    bat_entry = bat_ba_data['BAT'][snr_key]
+                    # Use XRTBand which has BAT data in XRT-band flux (erg/cm^2/s)
+                    if isinstance(bat_entry, dict) and 'XRTBand' in bat_entry:
+                        bat_df = bat_entry['XRTBand'].copy()
+                        logger.info(f'Using BAT {snr_key} XRTBand data for flux density')
+                        break
+            
+            if bat_df is not None and len(bat_df) > 0:
+                # Filter out bad bins
+                if 'BadBin' in bat_df.columns:
+                    bat_df = bat_df[bat_df['BadBin'] == False].copy()
+                
+                # Convert flux (erg/cm²/s) to flux density (mJy)
+                # F_ν = F_E / (E * ln(10) * 0.4) where E is in keV
+                # For 10 keV: F_ν [mJy] = F_E [erg/cm²/s] * 1000 / (1.602e-9 * 10)
+                # Simplified: F_ν [mJy] = F_E * 6.242e7
+                conversion_factor = 6.242e7  # converts erg/cm²/s to mJy at 10 keV
+                
+                bat_df['Flux'] = bat_df['Flux'] * conversion_factor
+                bat_df['FluxPos'] = bat_df['FluxPos'] * conversion_factor
+                bat_df['FluxNeg'] = bat_df['FluxNeg'] * conversion_factor
+                
+                # Filter for valid data
+                mask = (
+                    np.isfinite(bat_df['Time']) &
+                    np.isfinite(bat_df['Flux']) &
+                    (bat_df['Flux'] > 0)
+                )
+                bat_df = bat_df[mask].copy()
+                bat_df['Instrument'] = 'BAT'
+                all_data.append(bat_df)
+                logger.info(f'Processed {len(bat_df)} BAT flux density points')
         
         if not all_data:
             raise ValueError(f"No flux density data found for {self.grb}")

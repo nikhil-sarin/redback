@@ -114,7 +114,7 @@ class Afterglow(Transient):
     @classmethod
     def from_swift_grb(
             cls, name: str, data_mode: str = 'flux', truncate: bool = True,
-            truncate_method: str = 'prompt_time_error', **kwargs) -> Afterglow:
+            truncate_method: str = 'prompt_time_error', snr: str = None, **kwargs) -> Afterglow:
         """
 
         :param name: Telephone number of SGRB, e.g., 'GRB140903A' or '140903A' are valid inputs
@@ -125,6 +125,8 @@ class Afterglow(Transient):
         :type truncate: bool
         :param truncate_method: Must be from `Truncator.TRUNCATE_METHODS`. (Default value = 'prompt_time_error')
         :type truncate_method: str
+        :param snr: BAT SNR selection (e.g., 'SNR7'). (Default value = None)
+        :type snr: str, optional
         :param kwargs: Additional keywords to pass into Afterglow.__init__
         :type kwargs: dict
 
@@ -133,6 +135,7 @@ class Afterglow(Transient):
 
         """
         afterglow = cls(name=name, data_mode=data_mode)
+        afterglow.snr = snr
 
         afterglow._set_data()
         afterglow._set_photon_index()
@@ -185,7 +188,8 @@ class Afterglow(Transient):
         :type data_mode: str, optional
         """
         self.data_mode = data_mode
-        load_result = self.load_data(name=self.name, data_mode=self.data_mode)
+        snr = getattr(self, 'snr', None)
+        load_result = self.load_data(name=self.name, data_mode=self.data_mode, snr=snr)
         
         if len(load_result) == 5:
             self.x, self.x_err, self.y, self.y_err, frequency = load_result
@@ -211,20 +215,46 @@ class Afterglow(Transient):
                 self.y_err = np.mean(self.y_err, axis=0)
 
     @staticmethod
-    def load_data(name: str, data_mode: str = None) -> tuple:
+    def load_data(name: str, data_mode: str = None, snr: str = None) -> tuple:
         """Loads and returns data from a csv file
 
         :param name: Telephone number of SGRB, e.g., 'GRB140903A' or '140903A' are valid inputs
         :type name: str
         :param data_mode: Data mode. Must be one from `Afterglow.DATA_MODES`. (Default value = None)
         :type data_mode: str, optional
+        :param snr: BAT SNR selection (e.g., 'SNR7'). If None, will find any existing file. (Default value = None)
+        :type snr: str, optional
 
         :return: A tuple with x, x_err, y, y_err data
         :rtype: tuple
         """
-        directory_structure = afterglow_directory_structure(grb=f"GRB{name.lstrip('GRB')}", data_mode=data_mode)
+        import os
+        import glob
+        
+        # If no SNR specified, try to find any existing processed file
+        if snr is None:
+            grb = f"GRB{name.lstrip('GRB')}"
+            directory_path = f'GRBData/afterglow/{data_mode}/'
+            
+            # Look for any processed file matching the pattern
+            pattern = f"{directory_path}{grb}*.csv"
+            matching_files = glob.glob(pattern)
+            
+            # Filter out raw files
+            processed_files = [f for f in matching_files if 'rawSwiftData' not in f]
+            
+            if processed_files:
+                # Use the first matching file
+                processed_file_path = processed_files[0]
+            else:
+                # Fall back to default (no SNR)
+                directory_structure = afterglow_directory_structure(grb=grb, data_mode=data_mode, snr=None)
+                processed_file_path = directory_structure.processed_file_path
+        else:
+            directory_structure = afterglow_directory_structure(grb=f"GRB{name.lstrip('GRB')}", data_mode=data_mode, snr=snr)
+            processed_file_path = directory_structure.processed_file_path
 
-        data = np.genfromtxt(directory_structure.processed_file_path, delimiter=",")[1:]
+        data = np.genfromtxt(processed_file_path, delimiter=",")[1:]
         x = data[:, 0]
         x_err = np.abs(data[:, 1:3]).T
         y = np.array(data[:, 3])
@@ -246,7 +276,23 @@ class Afterglow(Transient):
         """
         truncator = self.Truncator(x=self.x, x_err=self.x_err, y=self.y, y_err=self.y_err, time=self.time,
                                    time_err=self.time_err, truncate_method=truncate_method)
-        self.x, self.x_err, self.y, self.y_err = truncator.truncate()
+        truncated_data = truncator.truncate()
+        
+        # Get the indices that were kept after truncation
+        # (by comparing the truncated x array with the original x array)
+        if len(truncated_data[0]) < len(self.x):
+            # Find which indices were kept
+            kept_indices = np.isin(self.x, truncated_data[0])
+            
+            # Truncate frequency if it exists and has the same length as original x
+            if hasattr(self, 'frequency') and self.frequency is not None and len(self.frequency) == len(self.x):
+                self.frequency = self.frequency[kept_indices]
+            
+            # Truncate bands if it exists and has the same length as original x
+            if hasattr(self, 'bands') and self.bands is not None and len(self.bands) == len(self.x):
+                self.bands = self.bands[kept_indices]
+        
+        self.x, self.x_err, self.y, self.y_err = truncated_data
 
     @property
     def event_table(self) -> str:
