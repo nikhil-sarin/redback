@@ -477,9 +477,9 @@ class TestSwiftDataGetter(unittest.TestCase):
 
     @mock.patch("os.path.isfile")
     @mock.patch('requests.get')
-    @mock.patch('redback.get_data.swift.SWIFTTOOLS_AVAILABLE', False)
     def test_collect_data_no_lightcurve_available(self, get, isfile):
         isfile.return_value = False
+        self.getter.transient_type = 'prompt'  # Use prompt to avoid API requirement
         get.return_value = MagicMock()
         get.return_value.__setattr__('text', 'No Light curve available')
         with self.assertRaises(redback.redback_errors.WebsiteExist):
@@ -487,16 +487,14 @@ class TestSwiftDataGetter(unittest.TestCase):
 
     @mock.patch("os.path.isfile")
     @mock.patch('redback.get_data.swift.SWIFTTOOLS_AVAILABLE', False)
-    def test_collect_data_xrt(self, isfile):
+    def test_collect_data_afterglow_requires_swifttools(self, isfile):
+        """Test that afterglow data requires swifttools"""
         isfile.return_value = False
         self.getter.instrument = "XRT"
-        self.getter.download_directly = MagicMock()
-        self.getter.download_integrated_flux_data = MagicMock()
-        self.getter.download_flux_density_data = MagicMock()
-        self.getter.collect_data()
-        self.getter.download_directly.assert_called_once()
-        self.getter.download_integrated_flux_data.assert_not_called()
-        self.getter.download_flux_density_data.assert_not_called()
+        self.getter.transient_type = "afterglow"
+        with self.assertRaises(ImportError) as context:
+            self.getter.collect_data()
+        self.assertIn("swifttools is required", str(context.exception))
 
     @mock.patch("os.path.isfile")
     def test_collect_data_xrt_via_api(self, isfile):
@@ -522,18 +520,15 @@ class TestSwiftDataGetter(unittest.TestCase):
 
     @mock.patch("os.path.isfile")
     @mock.patch('redback.get_data.swift.SWIFTTOOLS_AVAILABLE', False)
-    def test_collect_data_afterglow_flux(self, isfile):
+    def test_collect_data_afterglow_flux_requires_swifttools(self, isfile):
+        """Test that afterglow flux data requires swifttools"""
         isfile.return_value = False
         self.getter.instrument = 'BAT+XRT'
         self.getter.transient_type = 'afterglow'
         self.getter.data_mode = 'flux'
-        self.getter.download_directly = MagicMock()
-        self.getter.download_integrated_flux_data = MagicMock()
-        self.getter.download_flux_density_data = MagicMock()
-        self.getter.collect_data()
-        self.getter.download_directly.assert_not_called()
-        self.getter.download_integrated_flux_data.assert_called_once()
-        self.getter.download_flux_density_data.assert_not_called()
+        with self.assertRaises(ImportError) as context:
+            self.getter.collect_data()
+        self.assertIn("swifttools is required", str(context.exception))
 
     @mock.patch("os.path.isfile")
     def test_collect_data_afterglow_flux_via_api(self, isfile):
@@ -549,18 +544,15 @@ class TestSwiftDataGetter(unittest.TestCase):
 
     @mock.patch("os.path.isfile")
     @mock.patch('redback.get_data.swift.SWIFTTOOLS_AVAILABLE', False)
-    def test_collect_data_afterglow_flux_density(self, isfile):
+    def test_collect_data_afterglow_flux_density_requires_swifttools(self, isfile):
+        """Test that afterglow flux_density data requires swifttools"""
         isfile.return_value = False
         self.getter.instrument = 'BAT+XRT'
         self.getter.transient_type = 'afterglow'
         self.getter.data_mode = 'flux_density'
-        self.getter.download_directly = MagicMock()
-        self.getter.download_integrated_flux_data = MagicMock()
-        self.getter.download_flux_density_data = MagicMock()
-        self.getter.collect_data()
-        self.getter.download_directly.assert_not_called()
-        self.getter.download_integrated_flux_data.assert_not_called()
-        self.getter.download_flux_density_data.assert_called_once()
+        with self.assertRaises(ImportError) as context:
+            self.getter.collect_data()
+        self.assertIn("swifttools is required", str(context.exception))
 
     @mock.patch("os.path.isfile")
     def test_collect_data_afterglow_flux_density_via_api(self, isfile):
@@ -1490,37 +1482,7 @@ NO NO NO
         # Check unit conversion happened
         self.assertGreater(result['Flux [mJy]'].iloc[0], 0.1)
 
-    @mock.patch('redback.get_data.swift.SWIFTTOOLS_AVAILABLE', True)
-    @mock.patch('redback.get_data.swift.udg')
-    @mock.patch("os.path.isfile")
-    @mock.patch('redback.get_data.swift.fetch_driver')
-    @mock.patch('requests.get')
-    def test_api_fallback_to_legacy_complete_flow(self, mock_get, mock_driver, mock_isfile, mock_udg):
-        """Integration test: API failure triggers complete legacy fallback."""
-        mock_isfile.return_value = False
-        self.getter.instrument = "XRT"
 
-        # API fails
-        mock_udg.getLightCurves.side_effect = Exception("API unavailable")
-
-        # Legacy method works
-        mock_get.return_value = MagicMock()
-        mock_get.return_value.text = "Valid data"
-
-        # Mock the urlretrieve to create a valid raw file
-        with mock.patch("urllib.request.urlretrieve") as mock_retrieve:
-            def create_raw_file(url, path):
-                # Create a valid XRT data file
-                data = "! Comment\n! READ\n100.0 10.0 10.0 1e-11 1e-12 1e-12\n200.0 20.0 20.0 2e-11 2e-12 2e-12"
-                with open(path, 'w') as f:
-                    f.write(data)
-            mock_retrieve.side_effect = create_raw_file
-
-            with mock.patch("urllib.request.urlcleanup"):
-                self.getter.collect_data()
-
-        # Verify API was tried and failed
-        mock_udg.getLightCurves.assert_called_once()
 
     def test_convert_xrt_api_data_missing_flux_columns(self):
         """Test XRT API conversion handles missing optional columns gracefully."""
@@ -1578,29 +1540,18 @@ NO NO NO
         self.assertEqual(result['Instrument'].iloc[0], 'BAT')
 
     @mock.patch('redback.get_data.swift.SWIFTTOOLS_AVAILABLE', False)
-    @mock.patch('requests.get')
-    @mock.patch("urllib.request.urlretrieve")
-    @mock.patch("urllib.request.urlcleanup")
-    def test_legacy_xrt_complete_flow(self, mock_cleanup, mock_retrieve, mock_get):
-        """Integration test: Complete legacy XRT flow when API unavailable."""
+    def test_afterglow_requires_swifttools(self):
+        """Test that afterglow data requires swifttools when API unavailable."""
         # Remove file if exists so collect_data will try to download
         if os.path.isfile(self.getter.raw_file_path):
             os.remove(self.getter.raw_file_path)
 
         self.getter.instrument = "XRT"
-        mock_get.return_value = MagicMock()
-        mock_get.return_value.text = "Valid data"
-
-        def create_raw_file(url, path):
-            data = "! Comment\n! READ\n100.0 10.0 10.0 1e-11 1e-12 1e-12\n200.0 20.0 20.0 2e-11 2e-12 2e-12"
-            with open(path, 'w') as f:
-                f.write(data)
-        mock_retrieve.side_effect = create_raw_file
-
-        self.getter.collect_data()
-
-        mock_retrieve.assert_called_once()
-        self.assertTrue(os.path.isfile(self.getter.raw_file_path))
+        self.getter.transient_type = "afterglow"
+        
+        with self.assertRaises(ImportError) as context:
+            self.getter.collect_data()
+        self.assertIn("swifttools is required", str(context.exception))
 
     def test_get_swift_id_from_grb_long_id(self):
         """Test get_swift_id_from_grb with already long ID."""
