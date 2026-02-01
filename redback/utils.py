@@ -12,8 +12,6 @@ import numpy as np
 import pandas as pd
 from scipy.interpolate import RegularGridInterpolator, interp1d
 from scipy.stats import gaussian_kde
-from selenium import webdriver
-from selenium.common.exceptions import NoSuchElementException
 from astropy.cosmology import FlatLambdaCDM
 
 import redback
@@ -468,18 +466,6 @@ def convert_absolute_mag_to_apparent(magnitude, distance):
     app_mag = magnitude + 5 * (np.log10(distance) - 1)
     return app_mag
 
-
-def check_element(driver, id_number):
-    """
-    checks that an element exists on a website, and provides an exception
-    """
-    try:
-        driver.find_element('id', id_number)
-    except NoSuchElementException as e:
-        print(e)
-        return False
-    return True
-
 def bandpass_flux_to_flux_density(flux, flux_err, delta_nu):
     """
     Convert an integrated flux (and its error) measured over a bandpass
@@ -844,12 +830,6 @@ def frequency_to_bandname(frequency):
     return np.array(res)
 
 
-def fetch_driver():
-    # open the webdriver
-    options = webdriver.ChromeOptions()
-    options.add_argument("--headless=new")
-    driver = webdriver.Chrome(options=options)
-    return driver
 
 
 def calc_credible_intervals(samples, interval=0.9):
