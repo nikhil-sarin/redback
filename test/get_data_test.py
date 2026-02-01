@@ -1023,38 +1023,30 @@ class TestSwiftDataGetter(unittest.TestCase):
 
     @mock.patch("os.path.isfile")
     @mock.patch('redback.get_data.swift.SWIFTTOOLS_AVAILABLE', True)
-    def test_collect_data_api_fallback_on_exception(self, isfile):
-        """Test that collect_data falls back to legacy when API raises exception."""
+    def test_collect_data_api_raises_on_exception(self, isfile):
+        """Test that collect_data raises when API fails."""
         isfile.return_value = False
         self.getter.instrument = "XRT"
 
         # Make API method fail
         self.getter.download_xrt_data_via_api = MagicMock(side_effect=Exception("API failed"))
-        self.getter.download_directly = MagicMock()
 
-        self.getter.collect_data()
-
-        # Should fall back to legacy method
-        self.getter.download_xrt_data_via_api.assert_called_once()
-        self.getter.download_directly.assert_called_once()
+        with self.assertRaises(Exception):
+            self.getter.collect_data()
 
     @mock.patch("os.path.isfile")
     @mock.patch('redback.get_data.swift.SWIFTTOOLS_AVAILABLE', True)
-    def test_collect_data_bat_xrt_api_fallback_on_exception(self, isfile):
-        """Test BAT+XRT collect_data falls back to legacy when API fails."""
+    def test_collect_data_bat_xrt_api_raises_on_exception(self, isfile):
+        """Test BAT+XRT collect_data raises when API fails."""
         isfile.return_value = False
         self.getter.instrument = "BAT+XRT"
         self.getter.data_mode = "flux"
 
         # Make API method fail
         self.getter.download_burst_analyser_data_via_api = MagicMock(side_effect=Exception("API failed"))
-        self.getter.download_integrated_flux_data = MagicMock()
 
-        self.getter.collect_data()
-
-        # Should fall back to legacy method
-        self.getter.download_burst_analyser_data_via_api.assert_called_once()
-        self.getter.download_integrated_flux_data.assert_called_once()
+        with self.assertRaises(Exception):
+            self.getter.collect_data()
 
     @mock.patch("os.path.isfile")
     @mock.patch('requests.get')
@@ -1234,65 +1226,7 @@ NO NO NO
 
         mock_cleanup.assert_called_once()
 
-    @mock.patch("redback.get_data.swift.fetch_driver")
-    @mock.patch("urllib.request.urlretrieve")
-    @mock.patch("urllib.request.urlcleanup")
-    def test_download_flux_density_data_success(self, mock_cleanup, mock_urlretrieve, mock_driver):
-        """Test flux density download with Selenium driver."""
-        mock_driver_instance = MagicMock()
-        mock_driver.return_value = mock_driver_instance
-        mock_driver_instance.current_url = "http://test.url/data.csv"
 
-        self.getter.download_flux_density_data()
-
-        mock_driver_instance.get.assert_called_once()
-        mock_driver_instance.quit.assert_called()
-        mock_cleanup.assert_called_once()
-
-    @mock.patch("redback.get_data.swift.fetch_driver")
-    @mock.patch("urllib.request.urlcleanup")
-    def test_download_flux_density_data_failure(self, mock_cleanup, mock_driver):
-        """Test flux density download handles driver failure."""
-        mock_driver_instance = MagicMock()
-        mock_driver.return_value = mock_driver_instance
-        mock_driver_instance.get.side_effect = Exception("Driver error")
-
-        # Should not raise, just log warning
-        self.getter.download_flux_density_data()
-
-        mock_driver_instance.quit.assert_called()
-        mock_cleanup.assert_called_once()
-
-    @mock.patch("redback.get_data.swift.fetch_driver")
-    @mock.patch("redback.get_data.swift.check_element")
-    @mock.patch("urllib.request.urlretrieve")
-    @mock.patch("urllib.request.urlcleanup")
-    def test_download_integrated_flux_data_success(self, mock_cleanup, mock_urlretrieve, mock_check, mock_driver):
-        """Test integrated flux download with Selenium driver."""
-        mock_driver_instance = MagicMock()
-        mock_driver.return_value = mock_driver_instance
-        mock_driver_instance.current_url = "http://test.url/data.csv"
-        mock_check.return_value = True
-
-        self.getter.download_integrated_flux_data()
-
-        mock_driver_instance.get.assert_called_once()
-        mock_driver_instance.quit.assert_called()
-        mock_cleanup.assert_called_once()
-
-    @mock.patch("redback.get_data.swift.fetch_driver")
-    @mock.patch("urllib.request.urlcleanup")
-    def test_download_integrated_flux_data_failure(self, mock_cleanup, mock_driver):
-        """Test integrated flux download handles driver failure."""
-        mock_driver_instance = MagicMock()
-        mock_driver.return_value = mock_driver_instance
-        mock_driver_instance.get.side_effect = Exception("Driver error")
-
-        # Should not raise, just log warning
-        self.getter.download_integrated_flux_data()
-
-        mock_driver_instance.quit.assert_called()
-        mock_cleanup.assert_called_once()
 
     @mock.patch('redback.get_data.swift.SWIFTTOOLS_AVAILABLE', True)
     def test_collect_data_writes_marker_file_xrt(self):
