@@ -667,7 +667,7 @@ class SpectralVelocityFitter:
 
             def pcygni_model(wave, tau, v_phot):
                 return p_cygni_profile(
-                    wave, line_rest_wavelength, tau, v_phot, continuum
+                    wave, line_rest_wavelength, tau, v_phot, continuum, **kwargs
                 )
 
             # Initial guess from minimum
