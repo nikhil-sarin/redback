@@ -592,17 +592,18 @@ class TestAfterglow(unittest.TestCase):
         self.assertEqual(expected, self.sgrb._stripped_name)
 
     def test_truncate(self):
-        expected_x = 0
-        expected_x_err = 1
-        expected_y = 2
-        expected_yerr = 3
+        expected_x = np.array([1.0, 2.0])
+        expected_x_err = np.array([[0.1, 0.2], [0.1, 0.2]])
+        expected_y = np.array([3.0, 4.0])
+        expected_yerr = np.array([[0.3, 0.4], [0.3, 0.4]])
         return_value = expected_x, expected_x_err, expected_y, expected_yerr
         truncator = MagicMock(return_value=MagicMock(truncate=MagicMock(return_value=return_value)))
         self.sgrb.Truncator = truncator
         self.sgrb.truncate()
-        self.assertListEqual(
-            [expected_x, expected_x_err, expected_y, expected_yerr],
-            [self.sgrb.x, self.sgrb.x_err, self.sgrb.y, self.sgrb.y_err])
+        self.assertTrue(np.array_equal(expected_x, self.sgrb.x))
+        self.assertTrue(np.array_equal(expected_x_err, self.sgrb.x_err))
+        self.assertTrue(np.array_equal(expected_y, self.sgrb.y))
+        self.assertTrue(np.array_equal(expected_yerr, self.sgrb.y_err))
 
     def test_set_active_bands(self):
         self.assertTrue(np.array_equal(np.array(self.active_bands), self.sgrb.active_bands))
