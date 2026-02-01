@@ -2,6 +2,7 @@ import unittest
 import numpy as np
 import bilby
 import os
+import shutil
 from os import listdir
 from os.path import dirname
 from bilby.core.prior import Constraint, Uniform, LogUniform
@@ -11,6 +12,20 @@ from shutil import rmtree
 import redback
 
 _dirname = dirname(__file__)
+
+
+def _lalsim_available():
+    """Check if lalsimulation module is available."""
+    try:
+        import lalsimulation
+        return True
+    except ImportError:
+        return False
+
+
+def _latex_available():
+    """Check if LaTeX is available for matplotlib."""
+    return shutil.which('latex') is not None
 
 class TestLoadNonDefaultPriors(unittest.TestCase):
 
@@ -225,6 +240,7 @@ class TestConstraints(unittest.TestCase):
         self.assertTrue(np.all(r_photosphere <= radius_csm))
         self.assertTrue(np.all(r_photosphere >= r0))
 
+    @unittest.skipUnless(_lalsim_available(), "lalsimulation module required")
     def test_piecewise_polytrope_eos_constraints(self):
         priors = bilby.prior.PriorDict(conversion_function=redback.constraints.piecewise_polytrope_eos_constraints)
         _prior = redback.priors.get_priors(model='polytrope_eos_two_component_bns')
@@ -299,6 +315,7 @@ class TestPriorLoadingAndLabels(unittest.TestCase):
                     self.assertNotIn(' ', key, f"Prior {f} has parameter with space: {key}")
 
 
+@unittest.skipUnless(_latex_available(), "LaTeX required for plotting tests")
 class TestCornerPlotPriorSamples(unittest.TestCase):
     """Test corner plotting works for a sample of priors."""
     outdir = "testing_corner"

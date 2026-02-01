@@ -4,6 +4,7 @@ from unittest import mock
 from unittest.mock import MagicMock, patch, PropertyMock, ANY
 import numpy as np
 import pandas as pd
+import shutil
 from redback.transient import Spectrum, Transient
 from redback.plotting import (SpecPlotter, IntegratedFluxPlotter, LuminosityOpticalPlotter,
     _FilenameGetter, _FilePathGetter, Plotter, SpectrumPlotter, MagnitudePlotter)
@@ -11,6 +12,10 @@ from redback.plotting import (SpecPlotter, IntegratedFluxPlotter, LuminosityOpti
 from types import SimpleNamespace
 import matplotlib.pyplot as plt
 
+
+def _latex_available():
+    """Check if LaTeX is available for matplotlib."""
+    return shutil.which('latex') is not None
 
 
 # Dummy transient: Only the attributes needed are defined.
@@ -307,6 +312,8 @@ class TestIntegratedFluxPlotter(unittest.TestCase):
             **self.plotter._model_kwargs
         )
 
+
+@unittest.skipUnless(_latex_available(), "LaTeX required for plotting tests")
 class TestLuminosityOpticalPlotter(unittest.TestCase):
     def setUp(self) -> None:
         self.mock_transient = MagicMock()
@@ -345,6 +352,8 @@ class TestLuminosityOpticalPlotter(unittest.TestCase):
         returned_ax = self.luminosity_plotter.plot_data(axes=ax, save=False, show=False)
         self.assertIs(returned_ax, ax)
 
+
+@unittest.skipUnless(_latex_available(), "LaTeX required for plotting tests")
 class TestSpectrumPlotter(unittest.TestCase):
     def setUp(self) -> None:
         # Mock transient setup

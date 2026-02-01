@@ -23,7 +23,6 @@ setup(
         "setuptools",
         "pandas",
         "scipy",
-        "selenium",
         "matplotlib",
         "astropy",
         "extinction",
@@ -51,6 +50,7 @@ setup(
             "kilonovanet",
             "astroquery",
             "pyphot==1.6.0",
+            "swifttools"
         ]
     },
     python_requires=">=3.10",

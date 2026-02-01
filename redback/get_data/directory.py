@@ -32,7 +32,7 @@ def spectrum_directory_structure(transient: str) -> DirectoryStructure:
     return DirectoryStructure(
         directory_path=directory_path, raw_file_path=raw_file_path, processed_file_path=processed_file_path)
 
-def afterglow_directory_structure(grb: str, data_mode: str, instrument: str = 'BAT+XRT') -> DirectoryStructure:
+def afterglow_directory_structure(grb: str, data_mode: str, instrument: str = 'BAT+XRT', snr: str = None) -> DirectoryStructure:
     """Provides directory structure for Swift afterglow data.
 
     :param grb: Name of the GRB, e.g. GRB123456.
@@ -41,6 +41,8 @@ def afterglow_directory_structure(grb: str, data_mode: str, instrument: str = 'B
     :type data_mode: str
     :param instrument: Must be in ['BAT+XRT', 'XRT'], default is 'BAT+XRT' (Default value = 'BAT+XRT')
     :type instrument: str, optional
+    :param snr: BAT SNR selection (e.g., 'SNR4', 'SNR5'). If provided, included in file path. (Default value = None)
+    :type snr: str, optional
 
     :return: The directory structure, with 'directory_path', 'raw_file_path', and 'processed_file_path'
     :rtype: namedtuple
@@ -50,13 +52,17 @@ def afterglow_directory_structure(grb: str, data_mode: str, instrument: str = 'B
     check_directory_exists_and_if_not_mkdir(directory_path)
 
     path = f'{directory_path}{grb}'
+    
+    # Raw file should NOT include SNR - it contains all data
+    # Processed file SHOULD include SNR - it's filtered data
+    snr_suffix = f'_{snr}' if snr else ''
 
     if instrument == 'XRT':
         raw_file_path = f'{path}_xrt_rawSwiftData.csv'
-        processed_file_path = f'{path}_xrt.csv'
+        processed_file_path = f'{path}_xrt{snr_suffix}.csv'
     else:
         raw_file_path = f'{path}_rawSwiftData.csv'
-        processed_file_path = f'{path}.csv'
+        processed_file_path = f'{path}{snr_suffix}.csv'
 
     return DirectoryStructure(
         directory_path=directory_path, raw_file_path=raw_file_path, processed_file_path=processed_file_path)

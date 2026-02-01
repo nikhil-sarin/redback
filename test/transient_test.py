@@ -9,6 +9,15 @@ import redback
 
 dirname = os.path.dirname(__file__)
 
+
+def _george_available():
+    """Check if george module is available."""
+    try:
+        import george
+        return True
+    except ImportError:
+        return False
+
 import redback.get_data.directory as directory
 
 _original_spec_dir_struct = directory.spectrum_directory_structure
@@ -583,17 +592,18 @@ class TestAfterglow(unittest.TestCase):
         self.assertEqual(expected, self.sgrb._stripped_name)
 
     def test_truncate(self):
-        expected_x = 0
-        expected_x_err = 1
-        expected_y = 2
-        expected_yerr = 3
+        expected_x = np.array([1.0, 2.0])
+        expected_x_err = np.array([[0.1, 0.2], [0.1, 0.2]])
+        expected_y = np.array([3.0, 4.0])
+        expected_yerr = np.array([[0.3, 0.4], [0.3, 0.4]])
         return_value = expected_x, expected_x_err, expected_y, expected_yerr
         truncator = MagicMock(return_value=MagicMock(truncate=MagicMock(return_value=return_value)))
         self.sgrb.Truncator = truncator
         self.sgrb.truncate()
-        self.assertListEqual(
-            [expected_x, expected_x_err, expected_y, expected_yerr],
-            [self.sgrb.x, self.sgrb.x_err, self.sgrb.y, self.sgrb.y_err])
+        self.assertTrue(np.array_equal(expected_x, self.sgrb.x))
+        self.assertTrue(np.array_equal(expected_x_err, self.sgrb.x_err))
+        self.assertTrue(np.array_equal(expected_y, self.sgrb.y))
+        self.assertTrue(np.array_equal(expected_yerr, self.sgrb.y_err))
 
     def test_set_active_bands(self):
         self.assertTrue(np.array_equal(np.array(self.active_bands), self.sgrb.active_bands))
@@ -959,6 +969,8 @@ class TestLoadTransient(unittest.TestCase):
         with self.assertRaises(ValueError):
             redback.transient.Transient.load_data_generic(self.mock_file_path, data_mode="invalid_mode")
 
+
+@unittest.skipUnless(_george_available(), "george module required for GP tests")
 class TestFitGP(unittest.TestCase):
     def setUp(self) -> None:
         self.transient = redback.transient.Transient()
