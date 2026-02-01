@@ -23,7 +23,6 @@ setup(
         "setuptools",
         "pandas",
         "scipy",
-        "selenium",
         "matplotlib",
         "astropy",
         "extinction",
