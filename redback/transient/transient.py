@@ -404,29 +404,30 @@ class Transient(object):
         :return: A class instance.
         :rtype: OpticalTransient
         """
-        logger.info(f"Loading LightCurveLynx data for {name}")
+
+        redback.utils.logger.info(f"Loading LightCurveLynx data for {name}")
         
         if data is None:
             path = "simulated/" + name + ".csv"
-            logger.info(f"Reading data from {path}")
+            redback.utils.logger.info(f"Reading data from {path}")
             data = pd.read_csv(path)
         else:
-            logger.info(f"Using provided DataFrame with {len(data)} rows")
+            redback.utils.logger.info(f"Using provided DataFrame with {len(data)} rows")
 
         # Filter out the non-detections.
-        if "detected" in data.columns:
+        if "detection" in data.columns:
             n_before = len(data)
-            data = data[data.detected != 0]
+            data = data[data.detection != 0]
             n_after = len(data)
-            logger.info(f"Filtered {n_before - n_after} non-detections, {n_after} detections remain")
+            redback.utils.logger.info(f"Filtered {n_before - n_after} non-detections, {n_after} detections remain")
 
         # Process the time and bands data.
         bands = data["filter"].to_numpy()
         unique_bands = np.unique(bands)
-        logger.info(f"Found {len(unique_bands)} unique bands: {unique_bands}")
+        redback.utils.logger.info(f"Found {len(unique_bands)} unique bands: {unique_bands}")
         
         time_mjd = data["mjd"].to_numpy()
-        logger.info(f"Time range: MJD {time_mjd.min():.2f} to {time_mjd.max():.2f}")
+        redback.utils.logger.info(f"Time range: MJD {time_mjd.min():.2f} to {time_mjd.max():.2f}")
         
         if "time_rel" in data.columns:
             time_days = data["time_rel"].to_numpy()
@@ -441,7 +442,7 @@ class Transient(object):
         magnitude = data["mag"].to_numpy()
         magnitude_err = data["magerr"].to_numpy()
 
-        logger.info(f"Converting magnitudes to flux and flux_density for {len(data)} observations")
+        redback.utils.logger.info(f"Converting magnitudes to flux and flux_density for {len(data)} observations")
         
         # Compute the other values from the given magnitude and band data. We use the formulation
         # from SimulateOpticalTransient._make_observation_single().
@@ -459,9 +460,9 @@ class Transient(object):
         # Set frequency array for flux_density mode
         if frequency is None:
             frequency = redback.utils.bands_to_frequency(bands)
-            logger.info(f"Computed frequencies from bands using bands_to_frequency")
+            redback.utils.logger.info(f"Computed frequencies from bands using bands_to_frequency")
         else:
-            logger.info(f"Using provided frequency array")
+            redback.utils.logger.info(f"Using provided frequency array")
 
         return cls(name=name, data_mode=data_mode, time=time_days, time_err=None, time_mjd=time_mjd,
                    flux_density=flux_density, flux_density_err=flux_density_err, magnitude=magnitude,
