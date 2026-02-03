@@ -1356,6 +1356,7 @@ class SpectrumPlotter(SpecPlotter):
 
 def plot_binned_count_lightcurve(
         binned=None, time_bins=None, counts=None, background=None, selection=None,
+        rate=None, error=None,
         axes: matplotlib.axes.Axes = None, filename: str = None, outdir: str = None,
         save: bool = True, show: bool = True, color: str = "tab:blue", marker: str = "o",
         markersize: float = 4.0, xscale: str = "linear", yscale: str = "linear",
@@ -1374,6 +1375,8 @@ def plot_binned_count_lightcurve(
     ax = axes or plt.gca()
     logger.info("Plotting binned lightcurve (min_counts=%s)", str(min_counts))
 
+    rate_err = None
+    rate_in = rate
     if binned is not None:
         if "dt" in binned:
             dt = binned["dt"].to_numpy()
@@ -1387,12 +1390,20 @@ def plot_binned_count_lightcurve(
             cts = binned["counts"].to_numpy()
         else:
             cts = (binned["count_rate"] * dt).to_numpy()
+        if "count_rate_err" in binned:
+            rate_err = binned["count_rate_err"].to_numpy()
+        elif "rate_err" in binned:
+            rate_err = binned["rate_err"].to_numpy()
     else:
         if time_bins is None or counts is None:
             raise ValueError("Provide either `binned` or (`time_bins` and `counts`).")
         t = 0.5 * (time_bins[:-1] + time_bins[1:])
         dt = (time_bins[1:] - time_bins[:-1])
         cts = counts
+        if rate_in is not None:
+            rate_in = np.asarray(rate_in, dtype=float)
+            if error is not None:
+                rate_err = np.asarray(error, dtype=float)
 
     if selection is not None:
         t = t[selection]
@@ -1400,47 +1411,77 @@ def plot_binned_count_lightcurve(
         cts = cts[selection]
         if background is not None:
             background = background[selection]
+        if rate_in is not None:
+            rate_in = rate_in[selection]
+        if rate_err is not None:
+            rate_err = rate_err[selection]
 
     if min_counts is not None and min_counts > 0:
         grouped_t = []
         grouped_dt = []
         grouped_cts = []
         grouped_bkg = [] if background is not None else None
+        grouped_err2 = [] if rate_err is not None else None
+        grouped_rate = [] if rate_in is not None else None
         acc_cts = 0.0
         acc_t = 0.0
         acc_dt = 0.0
         acc_bkg = 0.0
+        acc_err2 = 0.0
+        acc_rate = 0.0
         for i in range(len(cts)):
             acc_cts += float(cts[i])
             acc_t += float(t[i]) * float(dt[i])
             acc_dt += float(dt[i])
             if background is not None:
                 acc_bkg += float(background[i])
+            if rate_err is not None:
+                acc_err2 += float(rate_err[i]) ** 2 * float(dt[i]) ** 2
+            if rate_in is not None:
+                acc_rate += float(rate_in[i]) * float(dt[i])
             if acc_cts >= min_counts:
                 grouped_t.append(acc_t / acc_dt)
                 grouped_dt.append(acc_dt)
                 grouped_cts.append(acc_cts)
                 if background is not None:
                     grouped_bkg.append(acc_bkg)
+                if rate_err is not None:
+                    grouped_err2.append(acc_err2)
+                if rate_in is not None:
+                    grouped_rate.append(acc_rate / acc_dt)
                 acc_cts = 0.0
                 acc_t = 0.0
                 acc_dt = 0.0
                 acc_bkg = 0.0
+                acc_err2 = 0.0
+                acc_rate = 0.0
         if acc_dt > 0:
             grouped_t.append(acc_t / acc_dt)
             grouped_dt.append(acc_dt)
             grouped_cts.append(acc_cts)
             if background is not None:
                 grouped_bkg.append(acc_bkg)
+            if rate_err is not None:
+                grouped_err2.append(acc_err2)
+            if rate_in is not None:
+                grouped_rate.append(acc_rate / acc_dt)
 
         t = np.asarray(grouped_t, dtype=float)
         dt = np.asarray(grouped_dt, dtype=float)
         cts = np.asarray(grouped_cts, dtype=float)
         if background is not None:
             background = np.asarray(grouped_bkg, dtype=float)
+        if rate_err is not None:
+            rate_err = np.sqrt(np.asarray(grouped_err2, dtype=float)) / dt
+        if rate_in is not None:
+            rate_in = np.asarray(grouped_rate, dtype=float)
 
-    rate = cts / dt
-    rate_err = np.sqrt(np.maximum(cts, 0.0)) / dt
+    if rate_in is None:
+        rate = cts / dt
+        rate_err = np.sqrt(np.maximum(cts, 0.0)) / dt
+    else:
+        rate = rate_in
+        rate_err = rate_err if rate_err is not None else np.sqrt(np.maximum(cts, 0.0)) / dt
 
     ax.errorbar(
         t, rate, yerr=rate_err, fmt=marker, markersize=markersize,
@@ -1477,6 +1518,20 @@ def plot_binned_count_lightcurve(
     if show:
         plt.show()
     return ax
+
+
+def plot_spectrum_data(dataset, **kwargs):
+    """
+    Wrapper for SpectralDataset.plot_spectrum_data to keep plotting API consistent.
+    """
+    return dataset.plot_spectrum_data(**kwargs)
+
+
+def plot_spectrum_fit(dataset, **kwargs):
+    """
+    Wrapper for SpectralDataset.plot_spectrum_fit to keep plotting API consistent.
+    """
+    return dataset.plot_spectrum_fit(**kwargs)
 
     def plot_spectrum(
             self, plot_format: str = 'standard',

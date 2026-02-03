@@ -1117,13 +1117,30 @@ class WStatSpectralLikelihood(bilby.Likelihood):
         mask = self.dataset.mask_valid()
         data = self.dataset.counts[mask]
         bkg = self.dataset.counts_bkg[mask]
-        scale = self.dataset.backscale
+        scale = self.dataset.background_scale_factor
+        if scale <= 0:
+            raise ValueError("Invalid background scale factor for W-stat likelihood")
+
         model = np.clip(model_counts[mask], 1e-30, 1e30)
-        # Approximate W-stat using Gaussianized background-subtracted counts
-        data_eff = data - bkg * scale
-        var = np.maximum(data + (bkg * scale) ** 2, 1.0)
-        ll = -0.5 * np.sum((data_eff - model) ** 2 / var + np.log(2 * np.pi * var))
-        return np.nan_to_num(ll, nan=-np.inf, neginf=-np.inf, posinf=-np.inf)
+        src = np.asarray(data, dtype=float)
+        bkg_obs = np.asarray(bkg, dtype=float)
+
+        a = scale * (scale + 1.0)
+        bcoef = (scale + 1.0) * model - scale * (src + bkg_obs)
+        c = -bkg_obs * model
+        disc = np.maximum(bcoef * bcoef - 4.0 * a * c, 0.0)
+        b_hat = (-bcoef + np.sqrt(disc)) / (2.0 * a)
+        b_hat = np.clip(b_hat, 0.0, None)
+
+        mu = model + scale * b_hat
+        mu = np.clip(mu, 1e-30, None)
+
+        ll = src * np.log(mu) - mu
+        if np.any(bkg_obs > 0):
+            ll = ll + bkg_obs * np.log(np.clip(b_hat, 1e-30, None)) - b_hat
+        else:
+            ll = ll - b_hat
+        return np.nan_to_num(np.sum(ll), nan=-np.inf, neginf=-np.inf, posinf=-np.inf)
 
 
 class ChiSquareSpectralLikelihood(bilby.Likelihood):

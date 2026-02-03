@@ -9,9 +9,31 @@ from redback.spectral.response import ResponseMatrix, EffectiveArea
 def _integrate_photon_flux_per_bin(photon_flux_per_keV: np.ndarray, energy_edges_keV: np.ndarray) -> np.ndarray:
     """
     Integrate photon flux density over energy bins (counts/s/cm^2 per bin).
+    Uses log-log interpolation to estimate flux at bin edges for a trapezoid rule.
     """
+    energy_edges_keV = np.asarray(energy_edges_keV, dtype=float)
+    centers = 0.5 * (energy_edges_keV[:-1] + energy_edges_keV[1:])
     widths = energy_edges_keV[1:] - energy_edges_keV[:-1]
-    return photon_flux_per_keV * widths
+    flux = np.asarray(photon_flux_per_keV, dtype=float)
+
+    if np.all(flux > 0):
+        loge_centers = np.log10(centers)
+        logf_centers = np.log10(flux)
+        loge_edges = np.log10(energy_edges_keV)
+        logf_edges = np.interp(loge_edges, loge_centers, logf_centers, left=logf_centers[0], right=logf_centers[-1])
+        flux_edges = 10 ** logf_edges
+    else:
+        flux_edges = np.interp(
+            energy_edges_keV,
+            centers,
+            flux,
+            left=flux[0],
+            right=flux[-1],
+        )
+
+    flux_lo = flux_edges[:-1]
+    flux_hi = flux_edges[1:]
+    return 0.5 * (flux_lo + flux_hi) * widths
 
 
 def fold_spectrum(

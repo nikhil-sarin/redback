@@ -36,14 +36,16 @@ dataset.plot_spectrum_data(show=False, save=False, filename="spec_data.png", min
 
 model = "tbabs_powerlaw_high_energy"
 prior = redback.priors.get_priors("tbabs_powerlaw_high_energy")
-prior['redshift'] = 2.294
+# Optional: fix parameters by assigning a scalar prior value, e.g.
+# prior['redshift'] = 0.0
+# prior['nh'] = 0.2
 
 result = fit_model(
     transient=dataset,
     model=model,
     prior=prior,
     sampler="pymultinest",
-    statistic="wstat",
+    statistic="auto",
     nlive=500,
     plot=False,
     clean=False,
@@ -58,6 +60,8 @@ flux_samples = posterior.sample(n=sample_size, random_state=0)
 
 absorbed_fluxes = []
 unabsorbed_fluxes = []
+absorbed_fluxes_soft = []
+unabsorbed_fluxes_soft = []
 for _, row in flux_samples.iterrows():
     params = row.to_dict()
     absorbed_fluxes.append(
@@ -72,11 +76,27 @@ for _, row in flux_samples.iterrows():
             unabsorbed=True,
         )
     )
+    absorbed_fluxes_soft.append(
+        dataset.compute_band_flux(model=model, parameters=params, energy_min_keV=0.3, energy_max_keV=5.0)
+    )
+    unabsorbed_fluxes_soft.append(
+        dataset.compute_band_flux(
+            model=model,
+            parameters=params,
+            energy_min_keV=0.3,
+            energy_max_keV=5.0,
+            unabsorbed=True,
+        )
+    )
 
 absorbed_fluxes = np.asarray(absorbed_fluxes)
 unabsorbed_fluxes = np.asarray(unabsorbed_fluxes)
+absorbed_fluxes_soft = np.asarray(absorbed_fluxes_soft)
+unabsorbed_fluxes_soft = np.asarray(unabsorbed_fluxes_soft)
 abs_lo, abs_hi, abs_med = calc_credible_intervals(absorbed_fluxes, interval=0.68)
 unabs_lo, unabs_hi, unabs_med = calc_credible_intervals(unabsorbed_fluxes, interval=0.68)
+abs_soft_lo, abs_soft_hi, abs_soft_med = calc_credible_intervals(absorbed_fluxes_soft, interval=0.68)
+unabs_soft_lo, unabs_soft_hi, unabs_soft_med = calc_credible_intervals(unabsorbed_fluxes_soft, interval=0.68)
 
 print(
     f"Absorbed 0.5-10 keV flux: {abs_med:.3e} (+{abs_hi-abs_med:.3e}/-{abs_med-abs_lo:.3e}) erg/cm^2/s"
@@ -84,6 +104,14 @@ print(
 print(
     f"Unabsorbed 0.5-10 keV flux: {unabs_med:.3e} (+{unabs_hi-unabs_med:.3e}/-{unabs_med-unabs_lo:.3e}) "
     "erg/cm^2/s"
+)
+print(
+    f"Absorbed 0.3-5 keV flux: {abs_soft_med:.3e} (+{abs_soft_hi-abs_soft_med:.3e}/-"
+    f"{abs_soft_med-abs_soft_lo:.3e}) erg/cm^2/s"
+)
+print(
+    f"Unabsorbed 0.3-5 keV flux: {unabs_soft_med:.3e} (+{unabs_soft_hi-unabs_soft_med:.3e}/-"
+    f"{unabs_soft_med-unabs_soft_lo:.3e}) erg/cm^2/s"
 )
 
 dataset.plot_spectrum_fit(

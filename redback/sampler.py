@@ -166,7 +166,19 @@ def _fit_spectrum(transient, model, outdir, label, likelihood=None, sampler='dyn
 
 def _fit_spectral_dataset(transient, model, outdir, label, likelihood=None, sampler='dynesty', nlive=3000, prior=None,
                           walks=1000, resume=True, save_format='json', model_kwargs=None, plot=True, **kwargs):
-    statistic = kwargs.pop("statistic", "wstat")
+    try:
+        import inspect
+        param_names = list(inspect.signature(model).parameters.keys())
+    except Exception:
+        param_names = []
+    if "energies_keV" not in param_names and "energy_keV" not in param_names:
+        raise ValueError(
+            "Spectral models must accept `energies_keV` (or `energy_keV`) as the first argument. "
+            "Update the model signature to be compatible with spectral fitting."
+        )
+    statistic = kwargs.pop("statistic", None)
+    if statistic is None or str(statistic).lower() == "auto":
+        statistic = "wstat" if transient.counts_bkg is not None else "cstat"
     logger.info("Spectral fit using statistic=%s", statistic)
 
     if likelihood is None:

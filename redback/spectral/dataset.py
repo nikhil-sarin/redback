@@ -23,6 +23,9 @@ class SpectralDataset:
     backscale: float = 1.0
     areascal: float = 1.0
     counts_bkg: Optional[np.ndarray] = None
+    bkg_exposure: Optional[float] = None
+    bkg_backscale: Optional[float] = None
+    bkg_areascal: Optional[float] = None
     rmf: Optional[ResponseMatrix] = None
     arf: Optional[EffectiveArea] = None
     quality: Optional[np.ndarray] = None
@@ -38,6 +41,17 @@ class SpectralDataset:
     def energy_centers_hz(self) -> np.ndarray:
         keV_to_Hz = 2.417989e17
         return self.energy_centers_keV * keV_to_Hz
+
+    @property
+    def background_scale_factor(self) -> float:
+        if self.counts_bkg is None:
+            return 1.0
+        bkg_exposure = self.bkg_exposure if self.bkg_exposure is not None else self.exposure
+        bkg_backscale = self.bkg_backscale if self.bkg_backscale is not None else self.backscale
+        bkg_areascal = self.bkg_areascal if self.bkg_areascal is not None else self.areascal
+        if bkg_exposure <= 0 or bkg_backscale <= 0 or bkg_areascal <= 0:
+            return 1.0
+        return (self.exposure * self.backscale * self.areascal) / (bkg_exposure * bkg_backscale * bkg_areascal)
 
     def _get_plot_axis(self):
         if self.rmf is not None and len(self.counts) == len(self.rmf.channel):
@@ -247,6 +261,7 @@ class SpectralDataset:
         energy_max_keV: float,
         model_kwargs: Optional[dict] = None,
         unabsorbed: bool = False,
+        n_grid: int = 400,
     ) -> float:
         """
         Compute band-integrated energy flux in erg/s/cm^2 for the given model.
@@ -273,19 +288,31 @@ class SpectralDataset:
             from redback.model_library import all_models_dict
             model = all_models_dict[model]
 
-        centers = self.energy_centers_keV
-        edges = self.energy_edges_keV
-        mjy = model(centers, **params, **(model_kwargs or {}))
-        flux_density = mjy_to_energy_flux_per_keV(mjy)
-
-        overlaps = np.clip(
-            np.minimum(edges[1:], energy_max_keV) - np.maximum(edges[:-1], energy_min_keV),
-            0.0,
-            None,
+        energies = np.logspace(
+            np.log10(energy_min_keV),
+            np.log10(energy_max_keV),
+            max(n_grid, 10),
         )
-        if np.all(overlaps == 0):
-            return 0.0
-        return float(np.sum(flux_density * overlaps))
+        kwargs = {} if model_kwargs is None else dict(model_kwargs)
+        kwargs["frequency"] = energies * 2.417989e17
+        try:
+            import inspect
+            param_names = list(inspect.signature(model).parameters.keys())
+        except Exception:
+            param_names = []
+
+        if "energies_keV" in param_names or "energy_keV" in param_names:
+            kwargs.pop("frequency", None)
+            mjy = model(energies, **params, **kwargs)
+        else:
+            try:
+                mjy = model(np.zeros_like(energies), **params, **kwargs)
+            except TypeError:
+                kwargs.pop("frequency", None)
+                mjy = model(energies, **params, **kwargs)
+
+        flux_density = mjy_to_energy_flux_per_keV(mjy)
+        return float(np.trapz(flux_density, energies))
 
     def plot_spectrum_data(
         self,
@@ -378,13 +405,15 @@ class SpectralDataset:
 
         if plot_background and self.counts_bkg is not None:
             bkg_counts = self.counts_bkg[mask]
+            if energy_min is not None or energy_max is not None:
+                bkg_counts = bkg_counts[energy_mask]
             # Apply the same grouping indices as data
             bkg_counts_g = np.array([np.sum(bkg_counts[grp]) for grp in groups], dtype=float)
             bx = x
             bw = w
             bkg_counts = bkg_counts_g
             if background_scale:
-                bkg_counts = bkg_counts * self.backscale
+                bkg_counts = bkg_counts * self.background_scale_factor
             if rate and density:
                 bkg = bkg_counts / self.exposure / bw
                 bkg_err = np.sqrt(np.maximum(bkg_counts, 0.0)) / self.exposure / bw
@@ -585,10 +614,13 @@ class SpectralDataset:
             if lc is not None and lc.fracexp is not None:
                 scale = lc.fracexp
             counts = rate * dt * scale
+            rate_err = error * scale if error is not None else None
             logger.info("Plotting lightcurve with %d bins (min_counts=%s)", len(dt), str(min_counts))
             return plot_binned_count_lightcurve(
                 time_bins=time_bins,
                 counts=counts,
+                rate=rate,
+                error=rate_err,
                 axes=axes,
                 filename=filename,
                 outdir=outdir,
@@ -656,9 +688,15 @@ class SpectralDataset:
             arf = os.path.join(base_dir, pha_spec.ancrfile)
 
         bkg_counts = None
+        bkg_exposure = None
+        bkg_backscale = None
+        bkg_areascal = None
         if bkg:
             bkg_spec = read_pha(bkg, spectrum_index=spectrum_index)
             bkg_counts = bkg_spec.counts
+            bkg_exposure = bkg_spec.exposure
+            bkg_backscale = bkg_spec.backscale
+            bkg_areascal = bkg_spec.areascal
 
         rmf_obj = read_rmf(rmf) if rmf is not None else None
         arf_obj = read_arf(arf) if arf is not None else None
@@ -674,6 +712,9 @@ class SpectralDataset:
         return cls(
             counts=pha_spec.counts,
             counts_bkg=bkg_counts,
+            bkg_exposure=bkg_exposure,
+            bkg_backscale=bkg_backscale,
+            bkg_areascal=bkg_areascal,
             exposure=pha_spec.exposure,
             backscale=pha_spec.backscale,
             areascal=pha_spec.areascal,
@@ -683,6 +724,53 @@ class SpectralDataset:
             quality=pha_spec.quality,
             grouping=pha_spec.grouping,
             name=name or "spectral_dataset",
+        )
+
+    @classmethod
+    def from_ogip_directory(
+        cls,
+        directory: str,
+        pha: Optional[str] = None,
+        bkg: Optional[str] = None,
+        rmf: Optional[str] = None,
+        arf: Optional[str] = None,
+        spectrum_index: Optional[int] = None,
+        name: Optional[str] = None,
+    ) -> "SpectralDataset":
+        """
+        Convenience loader for standard OGIP directories.
+
+        If file names are not provided, the first matching file is used.
+        """
+        import os
+
+        def _first_match(ext):
+            matches = [f for f in os.listdir(directory) if f.lower().endswith(ext)]
+            return os.path.join(directory, matches[0]) if matches else None
+
+        pha_path = pha or _first_match(".pha")
+        if pha_path is None:
+            raise FileNotFoundError(f"No .pha file found in {directory}")
+
+        rmf_path = rmf or _first_match(".rmf")
+        arf_path = arf or _first_match(".arf")
+        bkg_path = bkg or _first_match("bk.pha")
+        if bkg_path is None:
+            # fallback: any other .pha not matching the source pha
+            candidates = [
+                os.path.join(directory, f)
+                for f in os.listdir(directory)
+                if f.lower().endswith(".pha") and os.path.join(directory, f) != pha_path
+            ]
+            bkg_path = candidates[0] if candidates else None
+
+        return cls.from_ogip(
+            pha=pha_path,
+            rmf=rmf_path,
+            arf=arf_path,
+            bkg=bkg_path,
+            spectrum_index=spectrum_index,
+            name=name,
         )
 
     @classmethod
@@ -722,6 +810,9 @@ class SpectralDataset:
         return cls(
             counts=counts,
             counts_bkg=np.asarray(counts_bkg, dtype=float),
+            bkg_exposure=total_exposure,
+            bkg_backscale=1.0,
+            bkg_areascal=1.0,
             exposure=total_exposure,
             backscale=1.0,
             areascal=1.0,
