@@ -8,6 +8,7 @@ import matplotlib.pyplot as plt
 
 from redback.utils import logger
 from redback.spectral.folding import fold_spectrum
+from redback.spectral.conversions import mjy_to_energy_flux_per_keV
 from redback.spectral.io import read_pha, OGIPPHASpectrum
 from redback.spectral.response import ResponseMatrix, EffectiveArea
 
@@ -18,6 +19,7 @@ class SpectralDataset:
     exposure: float
     energy_edges_keV: np.ndarray
     data_mode: str = "spectrum_counts"
+    name: str = "spectral_dataset"
     backscale: float = 1.0
     areascal: float = 1.0
     counts_bkg: Optional[np.ndarray] = None
@@ -183,6 +185,10 @@ class SpectralDataset:
                 np.asarray(grouped_w, dtype=float),
                 indices)
 
+    @staticmethod
+    def _apply_group_indices(values: np.ndarray, groups):
+        return np.asarray([np.sum(values[grp]) for grp in groups], dtype=float)
+
     def mask_valid(self) -> np.ndarray:
         if self.quality is None:
             qual_mask = np.ones_like(self.counts, dtype=bool)
@@ -206,7 +212,24 @@ class SpectralDataset:
     def predict_counts(self, model, parameters: dict, model_kwargs: Optional[dict] = None) -> np.ndarray:
         kwargs = {} if model_kwargs is None else dict(model_kwargs)
         kwargs["frequency"] = self.energy_centers_hz
-        model_flux_mjy = model(np.zeros_like(self.energy_centers_hz), **parameters, **kwargs)
+        if isinstance(model, str):
+            from redback.model_library import all_models_dict
+            model = all_models_dict[model]
+        try:
+            import inspect
+            param_names = list(inspect.signature(model).parameters.keys())
+        except Exception:
+            param_names = []
+
+        if "energies_keV" in param_names or "energy_keV" in param_names:
+            kwargs.pop("frequency", None)
+            model_flux_mjy = model(self.energy_centers_keV, **parameters, **kwargs)
+        else:
+            try:
+                model_flux_mjy = model(np.zeros_like(self.energy_centers_hz), **parameters, **kwargs)
+            except TypeError:
+                kwargs.pop("frequency", None)
+                model_flux_mjy = model(self.energy_centers_keV, **parameters, **kwargs)
         return fold_spectrum(
             model_flux_mjy=model_flux_mjy,
             energy_edges_keV=self.energy_edges_keV,
@@ -215,6 +238,54 @@ class SpectralDataset:
             exposure=self.exposure,
             areascal=self.areascal,
         )
+
+    def compute_band_flux(
+        self,
+        model,
+        parameters: dict,
+        energy_min_keV: float,
+        energy_max_keV: float,
+        model_kwargs: Optional[dict] = None,
+        unabsorbed: bool = False,
+    ) -> float:
+        """
+        Compute band-integrated energy flux in erg/s/cm^2 for the given model.
+
+        :param model: Spectral model (callable or model name) returning flux density in mJy.
+        :param parameters: Model parameters.
+        :param energy_min_keV: Minimum energy in keV.
+        :param energy_max_keV: Maximum energy in keV.
+        :param model_kwargs: Optional model kwargs.
+        :param unabsorbed: If True, set absorption parameters (nh/lognh) to zero.
+        :return: Band-integrated energy flux in erg/s/cm^2.
+        """
+        if energy_min_keV >= energy_max_keV:
+            raise ValueError("energy_min_keV must be < energy_max_keV")
+
+        params = dict(parameters)
+        if unabsorbed:
+            if "nh" in params:
+                params["nh"] = 0.0
+            if "lognh" in params:
+                params["lognh"] = -np.inf
+
+        if isinstance(model, str):
+            from redback.model_library import all_models_dict
+            model = all_models_dict[model]
+
+        centers = self.energy_centers_keV
+        edges = self.energy_edges_keV
+        mjy = model(centers, **params, **(model_kwargs or {}))
+        flux_density = mjy_to_energy_flux_per_keV(mjy)
+
+        overlaps = np.clip(
+            np.minimum(edges[1:], energy_max_keV) - np.maximum(edges[:-1], energy_min_keV),
+            0.0,
+            None,
+        )
+        if np.all(overlaps == 0):
+            return 0.0
+        return float(np.sum(flux_density * overlaps))
 
     def plot_spectrum_data(
         self,
@@ -239,6 +310,7 @@ class SpectralDataset:
         annotate_min_counts: bool = True,
         xlim: Optional[tuple] = None,
         ylim: Optional[tuple] = None,
+        close: bool = True,
     ):
         centers, widths = self._get_plot_axis()
         if energy_min is not None or energy_max is not None:
@@ -373,7 +445,7 @@ class SpectralDataset:
             plt.savefig(path, dpi=150, bbox_inches="tight")
         if show:
             plt.show()
-        elif axes is None:
+        elif axes is None and close:
             plt.close(fig)
         return ax
 
@@ -389,46 +461,70 @@ class SpectralDataset:
         outdir: Optional[str] = None,
         save: bool = True,
         show: bool = True,
+        uncertainty_mode: str = "credible_intervals",
+        credible_interval_level: float = 0.68,
+        plot_max_likelihood: bool = True,
+        max_likelihood_color: str = "tab:red",
+        uncertainty_band_alpha: float = 0.25,
         **kwargs,
     ):
-        ax = self.plot_spectrum_data(axes=axes, save=False, show=False, **kwargs)
+        if isinstance(model, str):
+            from redback.model_library import all_models_dict
+            model = all_models_dict[model]
+        ax = self.plot_spectrum_data(axes=axes, save=False, show=False, close=False, **kwargs)
 
         if parameters is None and posterior is not None:
-            parameters = posterior.median().to_dict()
+            if "log_likelihood" in posterior:
+                parameters = posterior.loc[posterior["log_likelihood"].idxmax()].to_dict()
+            else:
+                parameters = posterior.median().to_dict()
 
-        if posterior is not None and random_models > 0:
+        if posterior is not None and uncertainty_mode != "none":
             sample = posterior.sample(n=min(random_models, len(posterior)))
+            centers, widths = self._get_plot_axis()
+            mask = self.mask_valid()
+            base_counts = self.counts[mask]
+            base_w = widths[mask]
+            base_x = centers[mask]
+            _, x, w, groups = self._compute_grouping(base_counts, base_x, base_w, kwargs.get("min_counts", None))
+            spectra = []
             for _, row in sample.iterrows():
                 model_counts = self.predict_counts(model=model, parameters=row.to_dict(), model_kwargs=model_kwargs)
-                centers, widths = self._get_plot_axis()
-                mask = self.mask_valid()
                 y = model_counts[mask]
-                w = widths[mask]
-                x = centers[mask]
-                y, x, w, _ = self._compute_grouping(y, x, w, kwargs.get("min_counts", None))
+                y = self._apply_group_indices(y, groups)
                 if kwargs.get("rate", True) and kwargs.get("density", True):
                     y = y / self.exposure / w
                 elif kwargs.get("rate", True):
                     y = y / self.exposure
                 elif kwargs.get("density", True):
                     y = y / w
-                ax.plot(x, y, color="tab:blue", alpha=0.1)
+                spectra.append(y)
 
-        if parameters is not None:
+            if uncertainty_mode == "random_models":
+                for y in spectra:
+                    ax.plot(x, y, color="tab:blue", alpha=0.1)
+            elif uncertainty_mode == "credible_intervals":
+                from redback.utils import calc_credible_intervals
+                lower, upper, _ = calc_credible_intervals(samples=spectra, interval=credible_interval_level)
+                ax.fill_between(x, lower, upper, alpha=uncertainty_band_alpha, color="tab:blue")
+
+        if plot_max_likelihood and parameters is not None:
             model_counts = self.predict_counts(model=model, parameters=parameters, model_kwargs=model_kwargs)
             centers, widths = self._get_plot_axis()
             mask = self.mask_valid()
+            base_counts = self.counts[mask]
+            base_w = widths[mask]
+            base_x = centers[mask]
+            _, x, w, groups = self._compute_grouping(base_counts, base_x, base_w, kwargs.get("min_counts", None))
             y = model_counts[mask]
-            w = widths[mask]
-            x = centers[mask]
-            y, x, w, _ = self._compute_grouping(y, x, w, kwargs.get("min_counts", None))
+            y = self._apply_group_indices(y, groups)
             if kwargs.get("rate", True) and kwargs.get("density", True):
                 y = y / self.exposure / w
             elif kwargs.get("rate", True):
                 y = y / self.exposure
             elif kwargs.get("density", True):
                 y = y / w
-            ax.plot(x, y, color="tab:red", linewidth=2, label="model")
+            ax.plot(x, y, color=max_likelihood_color, linewidth=2, label="max likelihood")
             ax.legend()
 
         if save and filename is not None:
@@ -545,6 +641,7 @@ class SpectralDataset:
         arf: Optional[str] = None,
         bkg: Optional[str] = None,
         spectrum_index: Optional[int] = None,
+        name: Optional[str] = None,
     ) -> "SpectralDataset":
         import os
 
@@ -585,6 +682,7 @@ class SpectralDataset:
             arf=arf_obj,
             quality=pha_spec.quality,
             grouping=pha_spec.grouping,
+            name=name or "spectral_dataset",
         )
 
     @classmethod

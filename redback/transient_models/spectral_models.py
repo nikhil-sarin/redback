@@ -1,7 +1,11 @@
+import os
+from functools import lru_cache
+
 import numpy as np
 from astropy.cosmology import Planck18 as cosmo
+from astropy.io import fits
 import redback.constants as cc
-from redback.utils import lambda_to_nu, fnu_to_flambda, citation_wrapper
+from redback.utils import lambda_to_nu, fnu_to_flambda, citation_wrapper, logger
 import redback.sed as sed
 import redback.transient_models.phenomenological_models as pm
 
@@ -772,6 +776,98 @@ def band_function_high_energy(energies_keV, log10_norm, alpha, beta, e_peak, red
     return flux_density_mjy
 
 
+def _get_tbabs_xsect_path(table_path=None):
+    if table_path:
+        return table_path
+
+    base_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+    candidate = os.path.join(base_dir, "tables", "xsect", "xsect_tbabs_angr.fits")
+    if os.path.exists(candidate):
+        return candidate
+
+    try:
+        import astromodels  # noqa: WPS433
+    except Exception:
+        astromodels = None
+
+    if astromodels is not None:
+        astro_candidate = os.path.join(astromodels.__path__[0], "data", "xsect", "xsect_tbabs_angr.fits")
+        if os.path.exists(astro_candidate):
+            return astro_candidate
+
+    raise FileNotFoundError(
+        "TBabs cross-section table not found. Provide `tbabs_table_path=` or "
+        "place xsect_tbabs_angr.fits in redback/tables/xsect/."
+    )
+
+
+def _get_table_column(table, names, fallback_index):
+    lower_names = [name.lower() for name in table.dtype.names]
+    for name in names:
+        if name in lower_names:
+            return np.asarray(table[table.dtype.names[lower_names.index(name)]])
+    return np.asarray(table[table.dtype.names[fallback_index]])
+
+
+@lru_cache(maxsize=2)
+def _load_tbabs_xsection(table_path=None):
+    path = _get_tbabs_xsect_path(table_path=table_path)
+
+    with fits.open(path) as hdul:
+        table = None
+        for hdu in hdul:
+            if getattr(hdu, "data", None) is not None and getattr(hdu.data, "dtype", None) is not None:
+                if hdu.data.dtype.names is not None:
+                    table = hdu.data
+                    break
+        if table is None:
+            raise ValueError(f"No table found in TBabs cross-section file: {path}")
+
+        energies = _get_table_column(table, ["energy", "energies", "e", "e_keV", "ekeV"], 0)
+        sigma = _get_table_column(table, ["sigma", "xsect", "cross_section", "xs", "sig"], 1)
+
+    energies = np.asarray(energies, dtype=float)
+    sigma = np.asarray(sigma, dtype=float)
+    order = np.argsort(energies)
+    energies = energies[order]
+    sigma = sigma[order]
+
+    positive = sigma > 0
+    if not np.all(positive):
+        energies = energies[positive]
+        sigma = sigma[positive]
+
+    if energies.size == 0 or sigma.size == 0:
+        raise ValueError(f"TBabs cross-section table is empty or invalid: {path}")
+
+    return energies, sigma
+
+
+def _tbabs_transmission(energies_keV, nh_22, redshift=0.0, table_path=None):
+    energies_rest = np.asarray(energies_keV, dtype=float) * (1 + redshift)
+    energies_tab, sigma_tab = _load_tbabs_xsection(table_path=table_path)
+
+    min_e = energies_tab[0]
+    max_e = energies_tab[-1]
+    clipped = np.clip(energies_rest, min_e, max_e)
+
+    if np.any(energies_rest < min_e) or np.any(energies_rest > max_e):
+        if not getattr(_tbabs_transmission, "_warned", False):
+            logger.warning(
+                "TBabs energies outside table range (%.3f-%.3f keV); clipping applied.",
+                min_e,
+                max_e,
+            )
+            _tbabs_transmission._warned = True
+
+    log_sigma = np.interp(np.log10(clipped), np.log10(energies_tab), np.log10(sigma_tab))
+    sigma = 10 ** log_sigma
+    # Astromodels applies exp(-NH * sigma) directly; NH is in units of 1e22 cm^-2.
+    # The table values therefore act as sigma in units of 1e-22 cm^2.
+    tau = nh_22 * sigma
+    return np.exp(-tau)
+
+
 def powerlaw_high_energy(energies_keV, log10_norm, alpha, redshift=0.0, **kwargs):
     """
     Power-law photon spectrum converted to flux density.
@@ -792,6 +888,35 @@ def powerlaw_high_energy(energies_keV, log10_norm, alpha, redshift=0.0, **kwargs
     energy_flux = photon_flux * energies_rest * keV_to_erg
     flux_density_erg = energy_flux / keV_to_Hz
     return flux_density_erg * 1e26 / (1 + redshift)
+
+
+@citation_wrapper('https://ui.adsabs.harvard.edu/abs/2000ApJ...542..914W/abstract')
+def tbabs_powerlaw_high_energy(energies_keV, log10_norm, alpha, nh, redshift=0.0, **kwargs):
+    """
+    TBabs-absorbed power-law spectrum converted to flux density.
+
+    :param energies_keV: energy array in keV (observer frame)
+    :param log10_norm: log10 photon flux normalization at 100 keV (photons/cm^2/s/keV)
+    :param alpha: photon index
+    :param nh: hydrogen column density in units of 1e22 cm^-2
+    :param redshift: optional redshift. If provided (>0), parameters are treated as rest-frame
+                     and energies are shifted accordingly.
+    :return: flux density in mJy
+    """
+    tbabs_table_path = kwargs.get("tbabs_table_path")
+    absorbed = powerlaw_high_energy(
+        energies_keV=energies_keV,
+        log10_norm=log10_norm,
+        alpha=alpha,
+        redshift=redshift,
+    )
+    transmission = _tbabs_transmission(
+        energies_keV=energies_keV,
+        nh_22=nh,
+        redshift=redshift,
+        table_path=tbabs_table_path,
+    )
+    return absorbed * transmission
 
 
 def cutoff_powerlaw_high_energy(energies_keV, log10_norm, alpha, e_cut, redshift=0.0, **kwargs):

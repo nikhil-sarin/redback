@@ -15,6 +15,7 @@ from redback.transient.afterglow import Afterglow
 from redback.transient.prompt import PromptTimeSeries
 from redback.transient.transient import OpticalTransient, Transient, Spectrum
 from redback.spectral.dataset import SpectralDataset
+import numpy as np
 
 
 dirname = os.path.dirname(__file__)
@@ -67,7 +68,10 @@ def fit_model(
         logger.warning(f"No prior given. Using default priors for {modelname}")
     else:
         prior = prior
-    outdir = outdir or f"{transient.directory_structure.directory_path}/{model.__name__}"
+    if isinstance(transient, SpectralDataset):
+        outdir = outdir or f"high_energy_spectra/{model.__name__}"
+    else:
+        outdir = outdir or f"{transient.directory_structure.directory_path}/{model.__name__}"
     Path(outdir).mkdir(parents=True, exist_ok=True)
     label = label or transient.name
 
@@ -119,7 +123,7 @@ def _fit_spectrum(transient, model, outdir, label, likelihood=None, sampler='dyn
         likelihood = likelihood
 
     meta_data = dict(model=model.__name__, transient_type=transient.__class__.__name__.lower())
-    transient_kwargs = {k.lstrip("_"): v for k, v in transient.__dict__.items()}
+    transient_kwargs = {k.lstrip("_"): v for k, v in transient.__dict__.items() if k not in ("rmf", "arf")}
     meta_data.update(transient_kwargs)
     model_kwargs = redback.utils.check_kwargs_validity(model_kwargs)
     meta_data['model_kwargs'] = model_kwargs
@@ -134,11 +138,26 @@ def _fit_spectrum(transient, model, outdir, label, likelihood=None, sampler='dyn
         except Exception:
             pass
 
-    result = result or bilby.run_sampler(
-        likelihood=likelihood, priors=prior, label=label, sampler=sampler, nlive=nlive,
-        outdir=outdir, plot=plot, use_ratio=False, walks=walks, resume=resume,
-        maxmcmc=10 * walks, result_class=RedbackResult, meta_data=meta_data,
-        save_bounds=False, nsteps=nlive, nwalkers=walks, save=save_format, **kwargs)
+    try:
+        result = result or bilby.run_sampler(
+            likelihood=likelihood, priors=prior, label=label, sampler=sampler, nlive=nlive,
+            outdir=outdir, plot=plot, use_ratio=False, walks=walks, resume=resume,
+            maxmcmc=10 * walks, result_class=RedbackResult, meta_data=meta_data,
+            save_bounds=False, nsteps=nlive, nwalkers=walks, save=save_format, **kwargs)
+    except ValueError as exc:
+        if sampler.lower() == "pymultinest" and "dead_points" in str(exc) and "live_points" in str(exc):
+            logger.warning(
+                "Pymultinest failed to assemble nested samples (%s). "
+                "Rerunning with dynesty.",
+                exc,
+            )
+            result = bilby.run_sampler(
+                likelihood=likelihood, priors=prior, label=label, sampler="dynesty", nlive=nlive,
+                outdir=outdir, plot=plot, use_ratio=False, walks=walks, resume=resume,
+                maxmcmc=10 * walks, result_class=RedbackResult, meta_data=meta_data,
+                save_bounds=False, nsteps=nlive, nwalkers=walks, save=save_format, **kwargs)
+        else:
+            raise
     plt.close('all')
     if plot:
         result.plot_spectrum(model=model)
@@ -179,11 +198,45 @@ def _fit_spectral_dataset(transient, model, outdir, label, likelihood=None, samp
         except Exception:
             pass
 
-    result = result or bilby.run_sampler(
-        likelihood=likelihood, priors=prior, label=label, sampler=sampler, nlive=nlive,
-        outdir=outdir, plot=plot, use_ratio=False, walks=walks, resume=resume,
-        maxmcmc=10 * walks, result_class=RedbackResult, meta_data=meta_data,
-        save_bounds=False, nsteps=nlive, nwalkers=walks, save=save_format, **kwargs)
+    if prior is not None:
+        likelihood.parameters = dict.fromkeys(prior.keys())
+        try:
+            samples = [prior.sample() for _ in range(5)]
+            finite = 0
+            for s in samples:
+                likelihood.parameters.update(s)
+                ll = likelihood.log_likelihood()
+                if np.isfinite(ll):
+                    finite += 1
+            logger.info("Spectral preflight: %d/%d finite logL samples", finite, len(samples))
+            if finite == 0:
+                raise ValueError("Spectral likelihood preflight failed: all sampled logL are non-finite")
+        except Exception as exc:
+            logger.warning("Spectral preflight failed: %s", exc)
+
+    if save_format == "json":
+        logger.warning("JSON save not supported for spectral datasets with response objects. Using pkl instead.")
+        save_format = "pkl"
+
+    try:
+        result = result or bilby.run_sampler(
+            likelihood=likelihood, priors=prior, label=label, sampler=sampler, nlive=nlive,
+            outdir=outdir, plot=plot, use_ratio=False, walks=walks, resume=resume,
+            maxmcmc=10 * walks, result_class=RedbackResult, meta_data=meta_data,
+            save_bounds=False, nsteps=nlive, nwalkers=walks, save=save_format, **kwargs)
+    except ValueError as exc:
+        if sampler.lower() == "pymultinest" and "dead_points" in str(exc) and "live_points" in str(exc):
+            logger.warning(
+                "Pymultinest failed to assemble nested samples (%s). Rerunning with dynesty.",
+                exc,
+            )
+            result = bilby.run_sampler(
+                likelihood=likelihood, priors=prior, label=label, sampler="dynesty", nlive=nlive,
+                outdir=outdir, plot=plot, use_ratio=False, walks=walks, resume=resume,
+                maxmcmc=10 * walks, result_class=RedbackResult, meta_data=meta_data,
+                save_bounds=False, nsteps=nlive, nwalkers=walks, save=save_format, **kwargs)
+        else:
+            raise
     plt.close('all')
     if plot:
         filename = f"{label}_spectrum_counts.png"

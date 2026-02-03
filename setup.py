@@ -16,7 +16,7 @@ setup(
     packages=['redback', 'redback.get_data', 'redback.transient', 'redback.transient_models', 
               'redback.transient_models.afterglow_models'],
     package_dir={'redback': 'redback', },
-    package_data={'redback': ['priors/*', 'tables/*', 'plot_styles/*']},
+    package_data={'redback': ['priors/*', 'tables/*', 'tables/xsect/*', 'plot_styles/*']},
     install_requires=[
         "numpy",
         "numba",

@@ -1074,6 +1074,9 @@ class PoissonSpectralLikelihood(bilby.Likelihood):
 
     def __init__(self, dataset, function: callable, kwargs: dict = None):
         parameters = bilby.core.utils.introspection.infer_parameters_from_function(func=function)
+        for drop in ("energies_keV", "energy_keV", "time"):
+            if drop in parameters:
+                parameters.remove(drop)
         super().__init__(parameters=dict.fromkeys(parameters))
         self.dataset = dataset
         self.function = function
@@ -1085,8 +1088,9 @@ class PoissonSpectralLikelihood(bilby.Likelihood):
         )
         mask = self.dataset.mask_valid()
         data = self.dataset.counts[mask]
-        model = np.clip(model_counts[mask], 1e-30, None)
-        return np.sum(data * np.log(model) - model)
+        model = np.clip(model_counts[mask], 1e-30, 1e30)
+        ll = np.sum(data * np.log(model) - model)
+        return np.nan_to_num(ll, nan=-np.inf, neginf=-np.inf, posinf=-np.inf)
 
 
 class WStatSpectralLikelihood(bilby.Likelihood):
@@ -1096,6 +1100,9 @@ class WStatSpectralLikelihood(bilby.Likelihood):
 
     def __init__(self, dataset, function: callable, kwargs: dict = None):
         parameters = bilby.core.utils.introspection.infer_parameters_from_function(func=function)
+        for drop in ("energies_keV", "energy_keV", "time"):
+            if drop in parameters:
+                parameters.remove(drop)
         super().__init__(parameters=dict.fromkeys(parameters))
         self.dataset = dataset
         self.function = function
@@ -1111,11 +1118,12 @@ class WStatSpectralLikelihood(bilby.Likelihood):
         data = self.dataset.counts[mask]
         bkg = self.dataset.counts_bkg[mask]
         scale = self.dataset.backscale
-        model = np.clip(model_counts[mask], 1e-30, None)
+        model = np.clip(model_counts[mask], 1e-30, 1e30)
         # Approximate W-stat using Gaussianized background-subtracted counts
         data_eff = data - bkg * scale
         var = np.maximum(data + (bkg * scale) ** 2, 1.0)
-        return -0.5 * np.sum((data_eff - model) ** 2 / var + np.log(2 * np.pi * var))
+        ll = -0.5 * np.sum((data_eff - model) ** 2 / var + np.log(2 * np.pi * var))
+        return np.nan_to_num(ll, nan=-np.inf, neginf=-np.inf, posinf=-np.inf)
 
 
 class ChiSquareSpectralLikelihood(bilby.Likelihood):
@@ -1125,6 +1133,9 @@ class ChiSquareSpectralLikelihood(bilby.Likelihood):
 
     def __init__(self, dataset, function: callable, kwargs: dict = None):
         parameters = bilby.core.utils.introspection.infer_parameters_from_function(func=function)
+        for drop in ("energies_keV", "energy_keV", "time"):
+            if drop in parameters:
+                parameters.remove(drop)
         super().__init__(parameters=dict.fromkeys(parameters))
         self.dataset = dataset
         self.function = function
@@ -1136,6 +1147,7 @@ class ChiSquareSpectralLikelihood(bilby.Likelihood):
         )
         mask = self.dataset.mask_valid()
         data = self.dataset.counts[mask]
-        model = np.clip(model_counts[mask], 1e-30, None)
+        model = np.clip(model_counts[mask], 1e-30, 1e30)
         sigma = np.sqrt(np.maximum(data, 1.0))
-        return -0.5 * np.sum(((data - model) / sigma) ** 2 + np.log(2 * np.pi * sigma ** 2))
+        ll = -0.5 * np.sum(((data - model) / sigma) ** 2 + np.log(2 * np.pi * sigma ** 2))
+        return np.nan_to_num(ll, nan=-np.inf, neginf=-np.inf, posinf=-np.inf)
