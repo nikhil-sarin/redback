@@ -6,6 +6,7 @@ from typing import Optional
 import numpy as np
 from astropy.io import fits
 
+from redback.utils import logger
 
 @dataclass
 class OGIPPHASpectrum:
@@ -65,6 +66,7 @@ def _get_column_or_header_value(table: fits.BinTableHDU, name: str, row: int, de
 
 
 def read_pha(path: str, spectrum_index: Optional[int] = None) -> OGIPPHASpectrum:
+    logger.info("Reading PHA file: %s", path)
     with fits.open(path) as hdul:
         spectrum_hdu = _get_spectrum_hdu(hdul)
         data = spectrum_hdu.data
@@ -118,6 +120,7 @@ def read_pha(path: str, spectrum_index: Optional[int] = None) -> OGIPPHASpectrum
 
 
 def read_lc(path: str) -> OGIPLightCurve:
+    logger.info("Reading lightcurve file: %s", path)
     with fits.open(path) as hdul:
         rate_hdu = hdul["RATE"] if "RATE" in hdul else hdul[1]
         time = np.asarray(rate_hdu.data["TIME"], dtype=float)

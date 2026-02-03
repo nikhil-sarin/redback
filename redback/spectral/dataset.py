@@ -6,6 +6,7 @@ from typing import Optional
 import numpy as np
 import matplotlib.pyplot as plt
 
+from redback.utils import logger
 from redback.spectral.folding import fold_spectrum
 from redback.spectral.io import read_pha, OGIPPHASpectrum
 from redback.spectral.response import ResponseMatrix, EffectiveArea
@@ -16,6 +17,7 @@ class SpectralDataset:
     counts: np.ndarray
     exposure: float
     energy_edges_keV: np.ndarray
+    data_mode: str = "spectrum_counts"
     backscale: float = 1.0
     areascal: float = 1.0
     counts_bkg: Optional[np.ndarray] = None
@@ -199,6 +201,7 @@ class SpectralDataset:
     def set_active_interval(self, emin_keV: float, emax_keV: float):
         self.active_energy_min = float(emin_keV)
         self.active_energy_max = float(emax_keV)
+        logger.info("Set active energy interval: %.3f-%.3f keV", self.active_energy_min, self.active_energy_max)
 
     def predict_counts(self, model, parameters: dict, model_kwargs: Optional[dict] = None) -> np.ndarray:
         kwargs = {} if model_kwargs is None else dict(model_kwargs)
@@ -259,6 +262,11 @@ class SpectralDataset:
                         energy_min = float(np.nanmin(emin_vals))
                     if energy_max is None:
                         energy_max = float(np.nanmax(emax_vals))
+        logger.info(
+            "Plotting spectrum (counts=%d, min_counts=%s, energy range=%.3f-%.3f keV, bg=%s, subtract_bg=%s)",
+            len(self.counts), str(min_counts), float(energy_min) if energy_min is not None else -1.0,
+            float(energy_max) if energy_max is not None else -1.0, str(plot_background), str(subtract_background)
+        )
 
         if energy_min is not None or energy_max is not None:
             emin = -np.inf if energy_min is None else energy_min
@@ -481,6 +489,7 @@ class SpectralDataset:
             if lc is not None and lc.fracexp is not None:
                 scale = lc.fracexp
             counts = rate * dt * scale
+            logger.info("Plotting lightcurve with %d bins (min_counts=%s)", len(dt), str(min_counts))
             return plot_binned_count_lightcurve(
                 time_bins=time_bins,
                 counts=counts,

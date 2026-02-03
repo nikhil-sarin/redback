@@ -50,6 +50,8 @@ def fit_model(
     if isinstance(model, str):
         modelname = model
         model = all_models_dict[model]
+    else:
+        modelname = getattr(model, "__name__", "custom_model")
 
     if transient.data_mode in ["flux_density", "magnitude", "flux"]:
         if model_kwargs is None:
@@ -146,6 +148,7 @@ def _fit_spectrum(transient, model, outdir, label, likelihood=None, sampler='dyn
 def _fit_spectral_dataset(transient, model, outdir, label, likelihood=None, sampler='dynesty', nlive=3000, prior=None,
                           walks=1000, resume=True, save_format='json', model_kwargs=None, plot=True, **kwargs):
     statistic = kwargs.pop("statistic", "wstat")
+    logger.info("Spectral fit using statistic=%s", statistic)
 
     if likelihood is None:
         if statistic.lower() in ("wstat", "w-stat"):

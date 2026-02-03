@@ -9,7 +9,7 @@ import numpy as np
 import pandas as pd
 
 import redback
-from redback.utils import KwargsAccessorWithDefault
+from redback.utils import KwargsAccessorWithDefault, logger
 
 class _FilenameGetter(object):
     def __init__(self, suffix: str) -> None:
@@ -1372,6 +1372,7 @@ def plot_binned_count_lightcurve(
       time_start/time_end or time_center + dt, and counts.
     """
     ax = axes or plt.gca()
+    logger.info("Plotting binned lightcurve (min_counts=%s)", str(min_counts))
 
     if binned is not None:
         if "dt" in binned:
