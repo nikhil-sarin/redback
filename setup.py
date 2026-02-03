@@ -5,7 +5,7 @@ with open("README.md", "r", encoding="utf-8") as fh:
 
 setup(
     name='redback',
-    version='1.13.1',
+    version='1.14.0',
     description='A Bayesian inference and modelling pipeline for electromagnetic transients',
     long_description=long_description,
     long_description_content_type="text/markdown",
