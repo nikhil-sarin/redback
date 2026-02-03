@@ -434,9 +434,11 @@ class SpectralDataset:
 
     @staticmethod
     def plot_lightcurve(
-        time: np.ndarray,
-        rate: np.ndarray,
-        error: np.ndarray,
+        time: np.ndarray = None,
+        rate: np.ndarray = None,
+        error: np.ndarray = None,
+        lc=None,
+        time_bins: np.ndarray = None,
         axes=None,
         filename: Optional[str] = None,
         outdir: Optional[str] = None,
@@ -447,7 +449,55 @@ class SpectralDataset:
         color: str = "tab:blue",
         marker: str = "o",
         markersize: float = 4.0,
+        min_counts: int = None,
+        annotate_min_counts: bool = True,
     ):
+        """
+        Plot a count-rate lightcurve. Accepts either:
+        - lc: OGIPLightCurve object with time/rate/error
+        - time/rate/error arrays
+        If time_bins is provided, converts rate->counts for ThreeML-style plotting.
+        """
+        from redback.plotting import plot_binned_count_lightcurve
+
+        if lc is not None:
+            time = lc.time
+            rate = lc.rate
+            error = lc.error
+
+        if time is None or rate is None:
+            raise ValueError("Provide lc or time+rate arrays")
+
+        if time_bins is None and lc is not None and lc.timedel is not None:
+            dt = lc.timedel
+            time_bins = np.concatenate([[time[0] - 0.5 * dt], time + 0.5 * dt])
+        elif time_bins is None and len(time) > 1:
+            dt = time[1] - time[0]
+            time_bins = np.concatenate([[time[0] - 0.5 * dt], time + 0.5 * dt])
+
+        if time_bins is not None:
+            dt = time_bins[1:] - time_bins[:-1]
+            scale = 1.0
+            if lc is not None and lc.fracexp is not None:
+                scale = lc.fracexp
+            counts = rate * dt * scale
+            return plot_binned_count_lightcurve(
+                time_bins=time_bins,
+                counts=counts,
+                axes=axes,
+                filename=filename,
+                outdir=outdir,
+                save=save,
+                show=show,
+                xscale=xscale,
+                yscale=yscale,
+                color=color,
+                marker=marker,
+                markersize=markersize,
+                min_counts=min_counts,
+                annotate_min_counts=annotate_min_counts,
+            )
+
         if axes is None:
             fig, ax = plt.subplots()
         else:

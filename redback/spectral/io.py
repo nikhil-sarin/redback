@@ -28,6 +28,7 @@ class OGIPLightCurve:
     rate: np.ndarray
     error: np.ndarray
     fracexp: Optional[np.ndarray]
+    timedel: Optional[float]
     header: fits.Header
 
 
@@ -125,7 +126,15 @@ def read_lc(path: str) -> OGIPLightCurve:
         fracexp = None
         if "FRACEXP" in rate_hdu.columns.names:
             fracexp = np.asarray(rate_hdu.data["FRACEXP"], dtype=float)
-        return OGIPLightCurve(time=time, rate=rate, error=error, fracexp=fracexp, header=rate_hdu.header.copy())
+        timedel = rate_hdu.header.get("TIMEDEL")
+        return OGIPLightCurve(
+            time=time,
+            rate=rate,
+            error=error,
+            fracexp=fracexp,
+            timedel=float(timedel) if timedel is not None else None,
+            header=rate_hdu.header.copy(),
+        )
 
 
 def read_rmf(path: str):

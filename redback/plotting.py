@@ -1355,21 +1355,120 @@ class SpectrumPlotter(SpecPlotter):
 
 
 def plot_binned_count_lightcurve(
-        binned, axes: matplotlib.axes.Axes = None, filename: str = None, outdir: str = None,
+        binned=None, time_bins=None, counts=None, background=None, selection=None,
+        axes: matplotlib.axes.Axes = None, filename: str = None, outdir: str = None,
         save: bool = True, show: bool = True, color: str = "tab:blue", marker: str = "o",
-        markersize: float = 4.0) -> matplotlib.axes.Axes:
+        markersize: float = 4.0, xscale: str = "linear", yscale: str = "linear",
+        min_counts: int = None, annotate_min_counts: bool = True) -> matplotlib.axes.Axes:
     """
-    Plot count-rate light curve (counts/s vs time) from a binned count DataFrame.
+    Plot count-rate light curve (counts/s vs time).
+
+    Inputs (ThreeML-like):
+    - time_bins: bin edges
+    - counts: counts per bin
+    - background: background counts per bin (optional)
+    - selection: boolean mask for bins (optional)
+    Or provide a DataFrame via `binned` with columns:
+      time_start/time_end or time_center + dt, and counts.
     """
     ax = axes or plt.gca()
+
+    if binned is not None:
+        if "dt" in binned:
+            dt = binned["dt"].to_numpy()
+        else:
+            dt = (binned["time_end"] - binned["time_start"]).to_numpy()
+        if "time_center" in binned:
+            t = binned["time_center"].to_numpy()
+        else:
+            t = 0.5 * (binned["time_start"] + binned["time_end"]).to_numpy()
+        if "counts" in binned:
+            cts = binned["counts"].to_numpy()
+        else:
+            cts = (binned["count_rate"] * dt).to_numpy()
+    else:
+        if time_bins is None or counts is None:
+            raise ValueError("Provide either `binned` or (`time_bins` and `counts`).")
+        t = 0.5 * (time_bins[:-1] + time_bins[1:])
+        dt = (time_bins[1:] - time_bins[:-1])
+        cts = counts
+
+    if selection is not None:
+        t = t[selection]
+        dt = dt[selection]
+        cts = cts[selection]
+        if background is not None:
+            background = background[selection]
+
+    if min_counts is not None and min_counts > 0:
+        grouped_t = []
+        grouped_dt = []
+        grouped_cts = []
+        grouped_bkg = [] if background is not None else None
+        acc_cts = 0.0
+        acc_t = 0.0
+        acc_dt = 0.0
+        acc_bkg = 0.0
+        for i in range(len(cts)):
+            acc_cts += float(cts[i])
+            acc_t += float(t[i]) * float(dt[i])
+            acc_dt += float(dt[i])
+            if background is not None:
+                acc_bkg += float(background[i])
+            if acc_cts >= min_counts:
+                grouped_t.append(acc_t / acc_dt)
+                grouped_dt.append(acc_dt)
+                grouped_cts.append(acc_cts)
+                if background is not None:
+                    grouped_bkg.append(acc_bkg)
+                acc_cts = 0.0
+                acc_t = 0.0
+                acc_dt = 0.0
+                acc_bkg = 0.0
+        if acc_dt > 0:
+            grouped_t.append(acc_t / acc_dt)
+            grouped_dt.append(acc_dt)
+            grouped_cts.append(acc_cts)
+            if background is not None:
+                grouped_bkg.append(acc_bkg)
+
+        t = np.asarray(grouped_t, dtype=float)
+        dt = np.asarray(grouped_dt, dtype=float)
+        cts = np.asarray(grouped_cts, dtype=float)
+        if background is not None:
+            background = np.asarray(grouped_bkg, dtype=float)
+
+    rate = cts / dt
+    rate_err = np.sqrt(np.maximum(cts, 0.0)) / dt
+
     ax.errorbar(
-        binned["time_center"], binned["count_rate"],
-        yerr=binned["count_rate_error"], fmt=marker, markersize=markersize,
+        t, rate, yerr=rate_err, fmt=marker, markersize=markersize,
         color=color, elinewidth=1.0, capsize=2, label="count rate"
     )
+
+    if background is not None:
+        bkg_rate = background / dt
+        bkg_err = np.sqrt(np.maximum(background, 0.0)) / dt
+        ax.errorbar(
+            t, bkg_rate, yerr=bkg_err, fmt=marker, markersize=markersize,
+            color="0.5", elinewidth=1.0, capsize=2, label="background"
+        )
+
+    ax.set_xscale(xscale)
+    ax.set_yscale(yscale)
     ax.set_xlabel("Time (s)")
     ax.set_ylabel("Counts/s")
     ax.legend()
+
+    if annotate_min_counts and min_counts is not None:
+        text = f"min counts/bin: {min_counts}"
+        ax.text(
+            0.02, 0.98, text,
+            transform=ax.transAxes,
+            ha="left", va="top",
+            fontsize=9,
+            bbox=dict(boxstyle="round,pad=0.2", facecolor="white", alpha=0.6, edgecolor="none")
+        )
 
     if save and filename is not None:
         path = filename if outdir is None else f"{outdir}/{filename}"

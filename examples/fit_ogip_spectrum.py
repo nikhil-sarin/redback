@@ -2,6 +2,8 @@
 Fit an OGIP PHA/RMF/ARF spectrum with redback's spectral fitting API.
 """
 
+import numpy as np
+
 from redback.spectral.dataset import SpectralDataset
 from redback.spectral.io import read_lc
 from redback.transient_models import spectral_models
@@ -29,12 +31,13 @@ dataset.set_active_interval(0.3, 5.0)
 
 lc = read_lc("ep11900012809wxt3s2.lc")
 SpectralDataset.plot_lightcurve(
-    time=lc.time,
-    rate=lc.rate,
-    error=lc.error,
+    lc=lc,
+    filename="spec_lc.png",
     show=False,
     save=True,
-    filename="spec_lc.png",
+    xscale="linear",
+    yscale="linear",
+    min_counts=5,
 )
 
 dataset.plot_spectrum_data(show=False, save=True, filename="spec_data.png", min_counts=5,
