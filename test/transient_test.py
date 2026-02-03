@@ -1249,7 +1249,7 @@ class TestFromLightCurveLynx(unittest.TestCase):
         assert not np.any(np.isnan(instance.flux_density_err))
 
         # If we add a detected column, we filter the non-detections.
-        mock_df["detected"] = [1, 0]
+        mock_df["detection"] = [1, 0]
         instance3 = redback.transient.Transient.from_lightcurvelynx(
             name="test_transient",
             data=mock_df,
