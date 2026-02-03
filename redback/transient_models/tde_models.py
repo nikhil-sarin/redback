@@ -207,6 +207,9 @@ def _cooling_envelope(mbh_6, stellar_mass, eta, alpha, beta, **kwargs):
         constraint_2 = len(time_temp)
     constraint = np.min([constraint_1, constraint_2])
     termination_time_id = np.min([constraint_1, constraint_2])
+    if constraint < 2:
+        constraint = 2
+        termination_time_id = 2
 
     nu = 6.0e14
     expon = 1. / (np.exp(cc.planck * nu / (cc.boltzmann_constant * Teff)) - 1.0)
