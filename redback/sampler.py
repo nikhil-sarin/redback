@@ -6,13 +6,15 @@ from typing import Union
 import bilby
 
 import redback.get_data
-from redback.likelihoods import GaussianLikelihood, PoissonLikelihood
+from redback.likelihoods import GaussianLikelihood, PoissonLikelihood, PoissonSpectralLikelihood, \
+    WStatSpectralLikelihood, ChiSquareSpectralLikelihood
 from redback.model_library import all_models_dict
 from redback.result import RedbackResult
 from redback.utils import logger
 from redback.transient.afterglow import Afterglow
 from redback.transient.prompt import PromptTimeSeries
 from redback.transient.transient import OpticalTransient, Transient, Spectrum
+from redback.spectral.dataset import SpectralDataset
 
 
 dirname = os.path.dirname(__file__)
@@ -66,6 +68,12 @@ def fit_model(
     outdir = outdir or f"{transient.directory_structure.directory_path}/{model.__name__}"
     Path(outdir).mkdir(parents=True, exist_ok=True)
     label = label or transient.name
+
+    if isinstance(transient, SpectralDataset):
+        return _fit_spectral_dataset(
+            transient=transient, model=model, outdir=outdir, label=label, sampler=sampler, nlive=nlive,
+            prior=prior, walks=walks, resume=resume, save_format=save_format, model_kwargs=model_kwargs,
+            plot=plot, **kwargs)
 
     if isinstance(transient, Spectrum):
         return _fit_spectrum(transient=transient, model=model, outdir=outdir, label=label, sampler=sampler,
@@ -132,6 +140,52 @@ def _fit_spectrum(transient, model, outdir, label, likelihood=None, sampler='dyn
     plt.close('all')
     if plot:
         result.plot_spectrum(model=model)
+    return result
+
+
+def _fit_spectral_dataset(transient, model, outdir, label, likelihood=None, sampler='dynesty', nlive=3000, prior=None,
+                          walks=1000, resume=True, save_format='json', model_kwargs=None, plot=True, **kwargs):
+    statistic = kwargs.pop("statistic", "wstat")
+
+    if likelihood is None:
+        if statistic.lower() in ("wstat", "w-stat"):
+            likelihood = WStatSpectralLikelihood(dataset=transient, function=model, kwargs=model_kwargs)
+        elif statistic.lower() in ("cstat", "c-stat", "cash"):
+            likelihood = PoissonSpectralLikelihood(dataset=transient, function=model, kwargs=model_kwargs)
+        elif statistic.lower() in ("chi2", "chi-square", "chisq"):
+            likelihood = ChiSquareSpectralLikelihood(dataset=transient, function=model, kwargs=model_kwargs)
+        else:
+            raise ValueError(f"Unknown statistic '{statistic}' for spectral fitting")
+        logger.info("No likelihood provided, using spectral likelihood %s", likelihood.__class__.__name__)
+    else:
+        logger.info("Likelihood provided, using custom likelihood {}".format(likelihood.__class__.__name__))
+
+    meta_data = dict(model=model.__name__, transient_type=transient.__class__.__name__.lower())
+    transient_kwargs = {k.lstrip("_"): v for k, v in transient.__dict__.items()}
+    meta_data.update(transient_kwargs)
+    model_kwargs = redback.utils.check_kwargs_validity(model_kwargs)
+    meta_data['model_kwargs'] = model_kwargs
+
+    result = None
+    if not kwargs.get("clean", False):
+        try:
+            result = redback.result.read_in_result(
+                outdir=outdir, label=label, extension=kwargs.get("extension", "json"), gzip=kwargs.get("gzip", False))
+            plt.close('all')
+            return result
+        except Exception:
+            pass
+
+    result = result or bilby.run_sampler(
+        likelihood=likelihood, priors=prior, label=label, sampler=sampler, nlive=nlive,
+        outdir=outdir, plot=plot, use_ratio=False, walks=walks, resume=resume,
+        maxmcmc=10 * walks, result_class=RedbackResult, meta_data=meta_data,
+        save_bounds=False, nsteps=nlive, nwalkers=walks, save=save_format, **kwargs)
+    plt.close('all')
+    if plot:
+        filename = f"{label}_spectrum_counts.png"
+        transient.plot_spectrum_fit(model=model, posterior=result.posterior, model_kwargs=model_kwargs,
+                           filename=filename, outdir=outdir, show=False, save=True)
     return result
 
 def _fit_grb(transient, model, outdir, label, likelihood=None, sampler='dynesty', nlive=3000, prior=None, walks=1000,

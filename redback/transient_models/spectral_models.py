@@ -772,6 +772,75 @@ def band_function_high_energy(energies_keV, log10_norm, alpha, beta, e_peak, red
     return flux_density_mjy
 
 
+def powerlaw_high_energy(energies_keV, log10_norm, alpha, redshift=0.0, **kwargs):
+    """
+    Power-law photon spectrum converted to flux density.
+
+    :param energies_keV: energy array in keV (observer frame)
+    :param log10_norm: log10 photon flux normalization at 100 keV (photons/cm^2/s/keV)
+    :param alpha: photon index
+    :param redshift: optional redshift. If provided (>0), parameters are treated as rest-frame
+                     and energies are shifted accordingly.
+    :return: flux density in mJy
+    """
+    energies_rest = np.asarray(energies_keV) * (1 + redshift)
+    norm = 10 ** log10_norm
+    photon_flux = norm * (energies_rest / 100.0) ** alpha
+
+    keV_to_Hz = 2.417989e17
+    keV_to_erg = 1.60218e-9
+    energy_flux = photon_flux * energies_rest * keV_to_erg
+    flux_density_erg = energy_flux / keV_to_Hz
+    return flux_density_erg * 1e26 / (1 + redshift)
+
+
+def cutoff_powerlaw_high_energy(energies_keV, log10_norm, alpha, e_cut, redshift=0.0, **kwargs):
+    """
+    Cutoff power-law photon spectrum converted to flux density.
+
+    :param energies_keV: energy array in keV (observer frame)
+    :param log10_norm: log10 photon flux normalization at 100 keV (photons/cm^2/s/keV)
+    :param alpha: photon index
+    :param e_cut: cutoff energy in keV
+    :param redshift: optional redshift. If provided (>0), parameters are treated as rest-frame
+                     and energies are shifted accordingly.
+    :return: flux density in mJy
+    """
+    energies_rest = np.asarray(energies_keV) * (1 + redshift)
+    norm = 10 ** log10_norm
+    photon_flux = norm * (energies_rest / 100.0) ** alpha * np.exp(-energies_rest / e_cut)
+
+    keV_to_Hz = 2.417989e17
+    keV_to_erg = 1.60218e-9
+    energy_flux = photon_flux * energies_rest * keV_to_erg
+    flux_density_erg = energy_flux / keV_to_Hz
+    return flux_density_erg * 1e26 / (1 + redshift)
+
+
+def comptonized_high_energy(energies_keV, log10_norm, alpha, e_peak, redshift=0.0, **kwargs):
+    """
+    Comptonized (cutoff power-law with peak energy) spectrum converted to flux density.
+
+    :param energies_keV: energy array in keV (observer frame)
+    :param log10_norm: log10 photon flux normalization at 100 keV (photons/cm^2/s/keV)
+    :param alpha: photon index
+    :param e_peak: peak energy in keV
+    :param redshift: optional redshift. If provided (>0), parameters are treated as rest-frame
+                     and energies are shifted accordingly.
+    :return: flux density in mJy
+    """
+    energies_rest = np.asarray(energies_keV) * (1 + redshift)
+    norm = 10 ** log10_norm
+    e_cut = e_peak / (2 + alpha)
+    photon_flux = norm * (energies_rest / 100.0) ** alpha * np.exp(-energies_rest / e_cut)
+
+    keV_to_Hz = 2.417989e17
+    keV_to_erg = 1.60218e-9
+    energy_flux = photon_flux * energies_rest * keV_to_erg
+    flux_density_erg = energy_flux / keV_to_Hz
+    return flux_density_erg * 1e26 / (1 + redshift)
+
+
 @citation_wrapper('https://ui.adsabs.harvard.edu/abs/1978ppap.book.....R/abstract')
 def blackbody_high_energy(energies_keV, redshift, r_photosphere_rs, kT, **kwargs):
     """

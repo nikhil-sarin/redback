@@ -1353,6 +1353,31 @@ class SpectrumPlotter(SpecPlotter):
         self._save_and_show(filepath=self._data_plot_filepath, save=save, show=show)
         return ax
 
+
+def plot_binned_count_lightcurve(
+        binned, axes: matplotlib.axes.Axes = None, filename: str = None, outdir: str = None,
+        save: bool = True, show: bool = True, color: str = "tab:blue", marker: str = "o",
+        markersize: float = 4.0) -> matplotlib.axes.Axes:
+    """
+    Plot count-rate light curve (counts/s vs time) from a binned count DataFrame.
+    """
+    ax = axes or plt.gca()
+    ax.errorbar(
+        binned["time_center"], binned["count_rate"],
+        yerr=binned["count_rate_error"], fmt=marker, markersize=markersize,
+        color=color, elinewidth=1.0, capsize=2, label="count rate"
+    )
+    ax.set_xlabel("Time (s)")
+    ax.set_ylabel("Counts/s")
+    ax.legend()
+
+    if save and filename is not None:
+        path = filename if outdir is None else f"{outdir}/{filename}"
+        plt.savefig(path, dpi=150, bbox_inches="tight")
+    if show:
+        plt.show()
+    return ax
+
     def plot_spectrum(
             self, plot_format: str = 'standard',
             axes: matplotlib.axes.Axes = None, save: bool = True, show: bool = True) -> matplotlib.axes.Axes:

@@ -1065,3 +1065,77 @@ class PoissonLikelihood(_RedbackLikelihood):
 
     def _poisson_log_likelihood(self, rate: Union[float, np.ndarray]) -> Any:
         return np.sum(-rate + self.counts * np.log(rate) - gammaln(self.counts + 1))
+
+
+class PoissonSpectralLikelihood(bilby.Likelihood):
+    """
+    Cash statistic (C-stat) for spectral counts.
+    """
+
+    def __init__(self, dataset, function: callable, kwargs: dict = None):
+        parameters = bilby.core.utils.introspection.infer_parameters_from_function(func=function)
+        super().__init__(parameters=dict.fromkeys(parameters))
+        self.dataset = dataset
+        self.function = function
+        self.kwargs = kwargs or {}
+
+    def log_likelihood(self) -> float:
+        model_counts = self.dataset.predict_counts(
+            model=self.function, parameters=self.parameters, model_kwargs=self.kwargs
+        )
+        mask = self.dataset.mask_valid()
+        data = self.dataset.counts[mask]
+        model = np.clip(model_counts[mask], 1e-30, None)
+        return np.sum(data * np.log(model) - model)
+
+
+class WStatSpectralLikelihood(bilby.Likelihood):
+    """
+    W-stat proxy for source + background PHA spectra.
+    """
+
+    def __init__(self, dataset, function: callable, kwargs: dict = None):
+        parameters = bilby.core.utils.introspection.infer_parameters_from_function(func=function)
+        super().__init__(parameters=dict.fromkeys(parameters))
+        self.dataset = dataset
+        self.function = function
+        self.kwargs = kwargs or {}
+
+    def log_likelihood(self) -> float:
+        if self.dataset.counts_bkg is None:
+            raise ValueError("counts_bkg required for W-stat likelihood")
+        model_counts = self.dataset.predict_counts(
+            model=self.function, parameters=self.parameters, model_kwargs=self.kwargs
+        )
+        mask = self.dataset.mask_valid()
+        data = self.dataset.counts[mask]
+        bkg = self.dataset.counts_bkg[mask]
+        scale = self.dataset.backscale
+        model = np.clip(model_counts[mask], 1e-30, None)
+        # Approximate W-stat using Gaussianized background-subtracted counts
+        data_eff = data - bkg * scale
+        var = np.maximum(data + (bkg * scale) ** 2, 1.0)
+        return -0.5 * np.sum((data_eff - model) ** 2 / var + np.log(2 * np.pi * var))
+
+
+class ChiSquareSpectralLikelihood(bilby.Likelihood):
+    """
+    Chi-square spectral likelihood for high-count regimes.
+    """
+
+    def __init__(self, dataset, function: callable, kwargs: dict = None):
+        parameters = bilby.core.utils.introspection.infer_parameters_from_function(func=function)
+        super().__init__(parameters=dict.fromkeys(parameters))
+        self.dataset = dataset
+        self.function = function
+        self.kwargs = kwargs or {}
+
+    def log_likelihood(self) -> float:
+        model_counts = self.dataset.predict_counts(
+            model=self.function, parameters=self.parameters, model_kwargs=self.kwargs
+        )
+        mask = self.dataset.mask_valid()
+        data = self.dataset.counts[mask]
+        model = np.clip(model_counts[mask], 1e-30, None)
+        sigma = np.sqrt(np.maximum(data, 1.0))
+        return -0.5 * np.sum(((data - model) / sigma) ** 2 + np.log(2 * np.pi * sigma ** 2))
