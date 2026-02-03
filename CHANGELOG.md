@@ -1,5 +1,23 @@
 # All notable changes will be documented in this file
 
+## [1.14.0] 2026-02-03
+Version 1.14.0 release of redback
+
+## Added and changed
+* Added VegasAfterglow integration: 6 unified afterglow models with comprehensive priors and documentation
+* Added spectral line profile models and velocity fitting tools (P-Cygni profiles, Voigt profiles)
+* Replaced Swift data retrieval with swifttools API (removed Selenium dependency)
+* Enhanced logging throughout the package for improved debugging and monitoring
+* Added frequency parameter support to LightCurveLynx data reader
+* Added toy partial TDE support for cooling envelope models
+* Improved mixing models and TDE model stability
+* Fixed spectral plotting options for data visualization
+* Refactored afterglow_models into organized submodule structure
+* Comprehensive test coverage improvements across all new features
+* Multiple bug fixes for array handling in shock and TDE models
+
+**Full Changelog**: https://github.com/nikhil-sarin/redback/compare/v1.13.1...v1.14.0
+
 ## [1.13.1] 2026-01-27
 Version 1.13.1 release of redback
 
