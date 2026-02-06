@@ -495,12 +495,24 @@ class SpectralDataset:
         plot_max_likelihood: bool = True,
         max_likelihood_color: str = "tab:red",
         uncertainty_band_alpha: float = 0.25,
+        plot_residuals: bool = False,
+        residuals_axes=None,
+        residuals_ylim: Optional[tuple] = None,
+        annotate_parameters: bool | list = False,
+        annotate_format: str = ".3g",
         **kwargs,
     ):
         if isinstance(model, str):
             from redback.model_library import all_models_dict
             model = all_models_dict[model]
-        ax = self.plot_spectrum_data(axes=axes, save=False, show=False, close=False, **kwargs)
+        if plot_residuals and axes is None:
+            fig, (ax, rax) = plt.subplots(
+                2, 1, sharex=True, gridspec_kw={"height_ratios": [3, 1]}
+            )
+            residuals_axes = residuals_axes or rax
+        else:
+            ax = axes
+        ax = self.plot_spectrum_data(axes=ax, save=False, show=False, close=False, **kwargs)
 
         if parameters is None and posterior is not None:
             if "log_likelihood" in posterior:
@@ -555,6 +567,96 @@ class SpectralDataset:
                 y = y / w
             ax.plot(x, y, color=max_likelihood_color, linewidth=2, label="max likelihood")
             ax.legend()
+
+        if plot_residuals and residuals_axes is not None and parameters is not None:
+            centers, widths = self._get_plot_axis()
+            mask = self.mask_valid()
+            counts = self.counts[mask]
+            w = widths[mask]
+            x = centers[mask]
+
+            energy_min = kwargs.get("energy_min", None)
+            energy_max = kwargs.get("energy_max", None)
+            if energy_min is not None or energy_max is not None:
+                emin = -np.inf if energy_min is None else energy_min
+                emax = np.inf if energy_max is None else energy_max
+                energy_mask = (x >= emin) & (x <= emax)
+                counts = counts[energy_mask]
+                w = w[energy_mask]
+                x = x[energy_mask]
+
+            counts, x, w, groups = self._compute_grouping(counts, x, w, kwargs.get("min_counts", None))
+
+            if kwargs.get("rate", True) and kwargs.get("density", True):
+                y = counts / self.exposure / w
+                yerr = np.sqrt(np.maximum(counts, 0.0)) / self.exposure / w
+            elif kwargs.get("rate", True):
+                y = counts / self.exposure
+                yerr = np.sqrt(np.maximum(counts, 0.0)) / self.exposure
+            elif kwargs.get("density", True):
+                y = counts / w
+                yerr = np.sqrt(np.maximum(counts, 0.0)) / w
+            else:
+                y = counts
+                yerr = np.sqrt(np.maximum(counts, 0.0))
+
+            if kwargs.get("subtract_background", False) and self.counts_bkg is not None:
+                bkg_counts = self.counts_bkg[mask]
+                if energy_min is not None or energy_max is not None:
+                    bkg_counts = bkg_counts[energy_mask]
+                bkg_counts = np.array([np.sum(bkg_counts[grp]) for grp in groups], dtype=float)
+                bkg_counts = bkg_counts * self.background_scale_factor
+                if kwargs.get("rate", True) and kwargs.get("density", True):
+                    bkg = bkg_counts / self.exposure / w
+                    bkg_err = np.sqrt(np.maximum(bkg_counts, 0.0)) / self.exposure / w
+                elif kwargs.get("rate", True):
+                    bkg = bkg_counts / self.exposure
+                    bkg_err = np.sqrt(np.maximum(bkg_counts, 0.0)) / self.exposure
+                elif kwargs.get("density", True):
+                    bkg = bkg_counts / w
+                    bkg_err = np.sqrt(np.maximum(bkg_counts, 0.0)) / w
+                else:
+                    bkg = bkg_counts
+                    bkg_err = np.sqrt(np.maximum(bkg_counts, 0.0))
+                y = y - bkg
+                yerr = np.sqrt(np.maximum(yerr, 0.0) ** 2 + np.maximum(bkg_err, 0.0) ** 2)
+
+            model_counts = self.predict_counts(model=model, parameters=parameters, model_kwargs=model_kwargs)
+            model_y = model_counts[mask]
+            if energy_min is not None or energy_max is not None:
+                model_y = model_y[energy_mask]
+            model_y = self._apply_group_indices(model_y, groups)
+            if kwargs.get("rate", True) and kwargs.get("density", True):
+                model_y = model_y / self.exposure / w
+            elif kwargs.get("rate", True):
+                model_y = model_y / self.exposure
+            elif kwargs.get("density", True):
+                model_y = model_y / w
+
+            resid = (y - model_y) / np.maximum(yerr, 1e-12)
+            residuals_axes.axhline(0.0, color="0.5", linewidth=1)
+            residuals_axes.errorbar(x, resid, yerr=None, fmt="o", markersize=3, color="k")
+            residuals_axes.set_ylabel("Residuals (σ)")
+            residuals_axes.set_xlabel("Energy (keV)")
+            if residuals_ylim is not None:
+                residuals_axes.set_ylim(*residuals_ylim)
+
+        if annotate_parameters:
+            if isinstance(annotate_parameters, (list, tuple)):
+                keys = annotate_parameters
+            else:
+                keys = list(parameters.keys()) if parameters is not None else []
+            if keys and parameters is not None:
+                parts = [f"{k}={parameters[k]:{annotate_format}}" for k in keys if k in parameters]
+                if parts:
+                    text = ", ".join(parts)
+                    ax.text(
+                        0.98, 0.98, text,
+                        transform=ax.transAxes,
+                        ha="right", va="top",
+                        fontsize=9,
+                        bbox=dict(boxstyle="round,pad=0.2", facecolor="white", alpha=0.6, edgecolor="none"),
+                    )
 
         if save and filename is not None:
             path = filename if outdir is None else f"{outdir}/{filename}"
@@ -677,6 +779,29 @@ class SpectralDataset:
     ) -> "SpectralDataset":
         import os
 
+        def _validate_ogip(pha_spec, bkg_spec, rmf_obj, arf_obj):
+            if len(pha_spec.counts) != len(pha_spec.channel):
+                logger.warning("PHA counts length does not match channel length.")
+            if bkg_spec is not None and len(bkg_spec.counts) != len(pha_spec.counts):
+                logger.warning("Background counts length does not match source counts length.")
+            if rmf_obj is not None:
+                if len(rmf_obj.channel) != len(pha_spec.counts):
+                    logger.warning("RMF channel length does not match PHA counts length.")
+                if rmf_obj.matrix.shape[0] != len(rmf_obj.channel):
+                    logger.warning("RMF matrix row count does not match channel length.")
+                if rmf_obj.matrix.shape[1] != len(rmf_obj.e_min):
+                    logger.warning("RMF matrix column count does not match energy bin count.")
+            if arf_obj is not None:
+                if len(arf_obj.area) != len(arf_obj.e_min):
+                    logger.warning("ARF area length does not match ARF energy bin count.")
+            if rmf_obj is not None and arf_obj is not None:
+                if len(rmf_obj.e_min) != len(arf_obj.e_min):
+                    logger.warning("RMF and ARF energy bin counts differ.")
+            if pha_spec.exposure <= 0:
+                logger.warning("PHA exposure is non-positive.")
+            if bkg_spec is not None and bkg_spec.exposure <= 0:
+                logger.warning("Background exposure is non-positive.")
+
         pha_spec = read_pha(pha, spectrum_index=spectrum_index)
         base_dir = os.path.dirname(pha)
 
@@ -700,6 +825,8 @@ class SpectralDataset:
 
         rmf_obj = read_rmf(rmf) if rmf is not None else None
         arf_obj = read_arf(arf) if arf is not None else None
+
+        _validate_ogip(pha_spec, bkg_spec if bkg else None, rmf_obj, arf_obj)
 
         energy_edges = None
         if rmf_obj is not None:

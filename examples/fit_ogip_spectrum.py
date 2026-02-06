@@ -5,22 +5,23 @@ Fit an OGIP PHA/RMF/ARF spectrum with redback's spectral fitting API.
 import numpy as np
 
 import redback.priors
-from redback.spectral.dataset import SpectralDataset
+from redback.transient.spectral import SpectralTransient
 from redback.spectral.io import read_lc
 from redback.sampler import fit_model
 from redback.utils import calc_credible_intervals
 
 
-dataset = SpectralDataset.from_ogip(
+spec = SpectralTransient.from_ogip(
     pha="ep11900012809wxt3s2.pha",
     bkg="ep11900012809wxt3s2bk.pha",
     rmf="ep11900012809wxt3.rmf",
     arf="ep11900012809wxt3s2.arf", name='ep_event')
 
+dataset = spec.dataset
 dataset.set_active_interval(0.3, 5.0)
 
 lc = read_lc("ep11900012809wxt3s2.lc")
-SpectralDataset.plot_lightcurve(
+spec.plot_lightcurve(
     lc=lc,
     filename="spec_lc.png",
     show=False,
@@ -30,7 +31,7 @@ SpectralDataset.plot_lightcurve(
     min_counts=5,
 )
 
-dataset.plot_spectrum_data(show=False, save=False, filename="spec_data.png", min_counts=5,
+spec.plot_data(show=False, save=False, filename="spec_data.png", min_counts=5,
                            xscale="linear", plot_background=False,
                            xlim=(0.3, 5.0), ylim=(1e-3, 2e-1))
 
@@ -41,10 +42,10 @@ prior = redback.priors.get_priors("tbabs_powerlaw_high_energy")
 # prior['nh'] = 0.2
 
 result = fit_model(
-    transient=dataset,
+    transient=spec,
     model=model,
     prior=prior,
-    sampler="pymultinest",
+    sampler="nestle",
     statistic="auto",
     nlive=500,
     plot=False,
@@ -114,7 +115,7 @@ print(
     f"{unabs_soft_med-unabs_soft_lo:.3e}) erg/cm^2/s"
 )
 
-dataset.plot_spectrum_fit(
+spec.plot_fit(
     model=model,
     posterior=result.posterior,
     model_kwargs=None,

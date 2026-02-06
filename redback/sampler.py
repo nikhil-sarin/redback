@@ -80,6 +80,15 @@ def fit_model(
             transient=transient, model=model, outdir=outdir, label=label, sampler=sampler, nlive=nlive,
             prior=prior, walks=walks, resume=resume, save_format=save_format, model_kwargs=model_kwargs,
             plot=plot, **kwargs)
+    try:
+        from redback.transient.spectral import SpectralTransient
+    except Exception:
+        SpectralTransient = None
+    if SpectralTransient is not None and isinstance(transient, SpectralTransient):
+        return _fit_spectral_dataset(
+            transient=transient.dataset, model=model, outdir=outdir, label=label, sampler=sampler, nlive=nlive,
+            prior=prior, walks=walks, resume=resume, save_format=save_format, model_kwargs=model_kwargs,
+            plot=plot, **kwargs)
 
     if isinstance(transient, Spectrum):
         return _fit_spectrum(transient=transient, model=model, outdir=outdir, label=label, sampler=sampler,
