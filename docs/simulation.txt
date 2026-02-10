@@ -477,3 +477,6 @@ We have written several examples to demonstrate the different simulation methods
   Demonstrates SimulateHighEnergyTransient for photon counting observations including time-tagged events (TTE), binned counts, energy-dependent detector response, and typical detector configurations (Fermi/GBM, Swift/BAT, etc.). Covers GRB prompt emission, magnetar bursts, timing analysis, and parameter recovery studies.
 
 We note that although above examples are mostly written for kilonovae. All :code:`redback` models can be used by the simulation classes.
+
+For a complete guide to simulating X-ray/gamma-ray spectra and fitting them with Bayesian inference,
+see the :doc:`xray_spectral_fitting` documentation.

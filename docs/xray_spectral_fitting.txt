@@ -1,0 +1,464 @@
+====================================
+X-ray and Gamma-ray Spectral Fitting
+====================================
+
+Redback provides a complete pipeline for X-ray and gamma-ray spectral analysis using
+photon counting statistics. This includes simulation of high-energy observations,
+loading OGIP-standard data products, spectral fitting with physically motivated models,
+and flux measurement with credible intervals.
+
+Overview
+========
+
+The high-energy spectral pipeline consists of four components:
+
+1. **SimulateHighEnergyTransient** — generate synthetic observations with Poisson statistics
+2. **SpectralDataset / CountsSpectrumTransient** — load and manage count spectra from OGIP files, simulations, or other formats
+3. **Spectral models** — physically motivated emission and absorption models in the keV range
+4. **fit_model** — Bayesian parameter estimation using Cash (C-stat), W-stat, or classic Gaussian (chi-square) likelihoods.
+
+The interface mirrors the rest of redback: create a transient object, choose a model and prior,
+call :code:`fit_model`, and inspect the result.
+
+
+Simulating High-Energy Transients
+==================================
+
+:code:`SimulateHighEnergyTransient` generates realistic X-ray/gamma-ray observations from any
+spectral model. It supports:
+
+- **Time-tagged events (TTE)**: individual photon arrival times and energies
+- **Binned photon counts**: count rates in time–energy bins
+- **Energy-dependent detector response**: effective area as a scalar or callable
+- **Background modeling**: flat or energy-dependent background rate
+- **Proper Poisson statistics**: counts drawn from Poisson distributions
+
+The model function must follow redback's standard :code:`(time, frequency, **kwargs)` interface,
+where :code:`frequency` is energy in Hz (:code:`energy_keV × 2.417989e17`).
+
+Basic usage
+-----------
+
+.. code:: python
+
+    import numpy as np
+    from redback.simulate_transients import SimulateHighEnergyTransient
+    from redback.transient_models import spectral_models
+
+    keV_to_Hz = 2.417989e17
+
+    def band_function_transient(times, **kwargs):
+        """Band-function spectrum with a Gaussian time profile."""
+        energies_keV = kwargs['frequency'] / keV_to_Hz
+        spectrum_mjy = spectral_models.band_function_high_energy(
+            energies_keV=energies_keV,
+            redshift=0.2,
+            log10_norm=-2.5,
+            alpha=-1.0,
+            beta=-2.3,
+            e_peak=200.0,
+        )
+        time_profile = np.exp(-0.5 * ((times - 6.0) / 2.0) ** 2)
+        return spectrum_mjy * time_profile
+
+    energy_edges = np.logspace(np.log10(10.0), np.log10(1500.0), 60)
+
+    sim = SimulateHighEnergyTransient(
+        model=band_function_transient,
+        parameters={},
+        energy_edges=energy_edges,       # keV bin edges
+        time_range=(0.1, 30.0),          # seconds
+        effective_area=effective_area,   # callable or scalar (cm^2)
+        background_rate=background_rate, # callable or scalar (counts/s/keV)
+        time_resolution=0.01,            # seconds
+        seed=42,
+    )
+
+Generating counts
+-----------------
+
+.. code:: python
+
+    # Energy-integrated light curve
+    time_bins = np.logspace(np.log10(0.1), np.log10(30.0), 40)
+    lc = sim.generate_binned_counts(time_bins=time_bins, energy_integrated=True)
+    # Returns DataFrame with: time_center, count_rate, count_rate_error
+
+    # Count spectrum in a 1-second window around the peak
+    spectrum_bins = np.array([5.5, 6.5])
+    spectrum = sim.generate_binned_counts(time_bins=spectrum_bins, energy_integrated=False)
+    # Returns DataFrame with: counts, energy_center, energy_low, energy_high
+
+    # Time-tagged events
+    tte = sim.generate_time_tagged_events(max_events=150000)
+    # Returns DataFrame with: time, energy_keV, is_background
+
+See :code:`examples/simulate_gamma_xray_spectra_ray.py` for a full comparison of Band and
+blackbody models including plots.
+
+
+Loading OGIP Data
+==================
+
+Redback reads standard OGIP spectral files (PHA, RMF, ARF) produced by X-ray telescope
+pipelines (Swift/XRT, XMM-Newton, Chandra, EP/WXT, etc.).
+
+From files
+----------
+
+.. code:: python
+
+    from redback.transient.spectral import CountsSpectrumTransient
+
+    spec = CountsSpectrumTransient.from_ogip(
+        pha="spectrum.pha",   # source spectrum
+        bkg="background.pha", # background spectrum (optional)
+        rmf="response.rmf",   # redistribution matrix file
+        arf="effective.arf",  # ancillary response file (optional)
+        name="my_source",
+    )
+
+The :code:`CountsSpectrumTransient` wraps a :code:`SpectralDataset` which holds the counts,
+response matrices, background, and metadata. Access it via :code:`spec.dataset`.
+
+From a directory
+----------------
+
+If all OGIP files for a source live in one directory, :code:`from_ogip_directory` will
+locate them automatically:
+
+.. code:: python
+
+    spec = CountsSpectrumTransient.from_ogip_directory(
+        directory="data/my_source/",
+        name="my_source",
+    )
+
+Background files are found by trying common suffixes (:code:`bk.pha`, :code:`_bkg.pha`,
+:code:`_back.pha`, :code:`-back.pha`, :code:`_background.pha`).
+
+From a simulation
+-----------------
+
+After running :code:`SimulateHighEnergyTransient`, build a :code:`CountsSpectrumTransient`
+directly, passing the time bins you want to integrate over:
+
+.. code:: python
+
+    import numpy as np
+    from redback.transient.spectral import CountsSpectrumTransient
+
+    time_bins = np.linspace(0.0, 100.0, 101)  # 1-second bins
+    spec = CountsSpectrumTransient.from_simulator(sim=sim, time_bins=time_bins, name="sim_source")
+
+Setting the energy interval
+---------------------------
+
+Before fitting, restrict the analysis to a well-calibrated energy band:
+
+.. code:: python
+
+    dataset = spec.dataset
+    dataset.set_active_interval(0.3, 5.0)  # keV
+
+
+Spectral Models
+===============
+
+All high-energy spectral models take :code:`energies_keV` as their first argument and
+return flux density in mJy. They are registered in :code:`redback.model_library` and can
+be used by name with :code:`fit_model`.
+
+Available models
+----------------
+
++----------------------------------+---------------------------------------------+
+| Model name                       | Description                                 |
++==================================+=============================================+
+| :code:`powerlaw_high_energy`     | Simple power law: F ∝ E^α                   |
++----------------------------------+---------------------------------------------+
+| :code:`cutoff_powerlaw_high_energy` | Power law with exponential cutoff         |
++----------------------------------+---------------------------------------------+
+| :code:`band_function_high_energy`| Band function (GRB prompt emission)         |
++----------------------------------+---------------------------------------------+
+| :code:`blackbody_high_energy`    | Thermal blackbody (photospheric emission)   |
++----------------------------------+---------------------------------------------+
+| :code:`comptonized_high_energy`  | Comptonized spectrum (Compton scattering)   |
++----------------------------------+---------------------------------------------+
+| :code:`tbabs_powerlaw_high_energy` | TBabs-absorbed power law (ISM absorption) |
++----------------------------------+---------------------------------------------+
+
+Calling models directly
+-----------------------
+
+All models are callable functions for exploration and simulation:
+
+.. code:: python
+
+    import numpy as np
+    from redback.transient_models.spectral_models import (
+        powerlaw_high_energy,
+        band_function_high_energy,
+        blackbody_high_energy,
+        tbabs_powerlaw_high_energy,
+    )
+
+    energies = np.logspace(-1, 2, 200)  # 0.1–100 keV
+
+    # Power law
+    flux = powerlaw_high_energy(energies, log10_norm=-3.0, alpha=-1.5, redshift=0.0)
+
+    # Band function
+    flux = band_function_high_energy(
+        energies, log10_norm=-2.5, alpha=-1.0, beta=-2.3, e_peak=200.0, redshift=0.2
+    )
+
+    # Blackbody
+    flux = blackbody_high_energy(energies, kT=1.5, r_photosphere_rs=1.0, redshift=0.1)
+
+    # TBabs-absorbed power law (requires cross-section table)
+    flux = tbabs_powerlaw_high_energy(
+        energies, log10_norm=-3.0, alpha=-1.5, nh=0.05, redshift=0.0
+    )
+
+Absorption: TBabs
+-----------------
+
+The :code:`tbabs_powerlaw_high_energy` model includes interstellar absorption using the
+Tuebingen-Boulder ISM absorption model (Wilms et al. 2000). The column density
+parameter :code:`nh` is in units of 10²² cm⁻². The cross-section table is loaded from
+:code:`redback/tables/xsect/` and cached after the first call.
+
+.. code:: python
+
+    # Fix nh at the Galactic value (from HI maps) by assigning a DeltaFunction prior
+    from bilby.core.prior import DeltaFunction
+    prior['nh'] = DeltaFunction(peak=0.04, name='nh')
+
+
+Fitting Count Spectra
+======================
+
+The fitting interface is the same as for photometric transients. Pass a
+:code:`CountsSpectrumTransient` (or :code:`SpectralDataset`) to :code:`fit_model`
+along with a model name, prior, and sampler.
+
+Choosing the fit statistic
+--------------------------
+
+The appropriate likelihood depends on whether background data are available:
+
++------------------+------------------------------------------------------+-----------------------------------+
+| Statistic        | Use when                                             | Notes                             |
++==================+======================================================+===================================+
+| :code:`cstat`    | Background negligible or subtracted                  | Cash (1979); Poisson              |
++------------------+------------------------------------------------------+-----------------------------------+
+| :code:`wstat`    | Background spectrum available                        | Wachter et al. (1979); Poisson    |
++------------------+------------------------------------------------------+-----------------------------------+
+| :code:`chi2`     | Counts ≳ 20 per bin (Gaussian approximation)         | Standard chi-square               |
++------------------+------------------------------------------------------+-----------------------------------+
+| :code:`auto`     | Automatically selects wstat (bkg) or cstat (no bkg)  | Recommended default               |
++------------------+------------------------------------------------------+-----------------------------------+
+
+Fitting from OGIP data
+-----------------------
+
+.. code:: python
+
+    import redback.priors
+    from redback.transient.spectral import CountsSpectrumTransient
+    from redback.sampler import fit_model
+
+    spec = CountsSpectrumTransient.from_ogip(
+        pha="spectrum.pha",
+        bkg="background.pha",
+        rmf="response.rmf",
+        arf="effective.arf",
+        name="my_source",
+    )
+
+    spec.dataset.set_active_interval(0.3, 5.0)
+
+    prior = redback.priors.get_priors("tbabs_powerlaw_high_energy")
+    # Optionally fix parameters:
+    # prior['redshift'] = 0.0
+
+    result = fit_model(
+        transient=spec,
+        model="tbabs_powerlaw_high_energy",
+        prior=prior,
+        sampler="nestle",
+        statistic="auto",
+        nlive=500,
+    )
+
+    result.plot_corner()
+
+See :code:`examples/fit_ogip_spectrum.py` for the complete OGIP fitting workflow
+including flux measurement and spectral plots.
+
+Fitting simulated data
+-----------------------
+
+.. code:: python
+
+    from redback.simulate_transients import SimulateHighEnergyTransient
+    from redback.transient.spectral import CountsSpectrumTransient
+    from redback.sampler import fit_model
+    import redback.priors
+    import numpy as np
+
+    # ... (set up sim as above) ...
+    time_bins = np.linspace(0.0, 100.0, 101)
+    spec = CountsSpectrumTransient.from_simulator(sim=sim, time_bins=time_bins, name="sim")
+    spec.dataset.set_active_interval(0.3, 5.0)
+
+    prior = redback.priors.get_priors("blackbody_high_energy")
+    prior["redshift"] = 0.1  # fix known redshift
+
+    result = fit_model(
+        transient=spec,
+        model="blackbody_high_energy",
+        prior=prior,
+        sampler="dynesty",
+        statistic="auto",
+        nlive=300,
+    )
+
+See :code:`examples/fit_simulated_high_energy_blackbody.py` for a complete end-to-end example.
+
+Fitting GRB/prompt spectra
+---------------------------
+
+For time-resolved GRB spectroscopy, use :code:`SpectralDataset.from_simulator` with short
+time bins to extract a time-integrated count spectrum, then fit with the Band function:
+
+.. code:: python
+
+    from redback.spectral.dataset import SpectralDataset
+    import redback.priors
+
+    time_bins = np.array([5.5, 6.5])  # 1-second window around peak
+    dataset = SpectralDataset.from_simulator(sim, time_bins=time_bins)
+
+    prior = redback.priors.get_priors("band_function_high_energy")
+
+    result = fit_model(
+        transient=dataset,
+        model="band_function_high_energy",
+        prior=prior,
+        sampler="dynesty",
+        statistic="wstat",
+        nlive=500,
+    )
+
+See :code:`examples/fit_gamma_xray_spectra.py` for the complete GRB prompt emission example.
+
+
+Flux Measurement
+================
+
+After fitting, compute absorbed or unabsorbed fluxes with credible intervals from the
+posterior samples using :code:`dataset.compute_band_flux`:
+
+.. code:: python
+
+    from redback.utils import calc_credible_intervals
+    import numpy as np
+
+    posterior = result.posterior
+    samples = posterior.sample(n=min(len(posterior), 500), random_state=0)
+
+    fluxes = []
+    for _, row in samples.iterrows():
+        params = row.to_dict()
+        fluxes.append(
+            dataset.compute_band_flux(
+                model="tbabs_powerlaw_high_energy",
+                parameters=params,
+                energy_min_keV=0.5,
+                energy_max_keV=10.0,
+                unabsorbed=False,   # set True to remove TBabs absorption
+            )
+        )
+
+    fluxes = np.asarray(fluxes)
+    lo, hi, med = calc_credible_intervals(fluxes, interval=0.68)
+    print(f"Flux (0.5–10 keV): {med:.3e} (+{hi-med:.3e}/-{med-lo:.3e}) erg/cm²/s")
+
+
+Plotting
+=========
+
+Spectral plots are produced via the :code:`CountsSpectrumTransient` or :code:`SpectralDataset`
+objects.
+
+.. code:: python
+
+    # Plot the raw count spectrum
+    spec.plot_data(
+        filename="spectrum_data.png",
+        min_counts=5,
+        xscale="linear",
+        xlim=(0.3, 5.0),
+        plot_background=True,
+    )
+
+    # Plot the best-fit spectrum with residuals
+    spec.plot_fit(
+        model="tbabs_powerlaw_high_energy",
+        posterior=result.posterior,
+        filename="spectrum_fit.png",
+        min_counts=5,
+        xscale="linear",
+        xlim=(0.3, 5.0),
+    )
+
+    # Corner plot of posterior samples
+    result.plot_corner(filename="corner.png")
+
+
+Priors
+=======
+
+Pre-defined priors for all high-energy models are included in :code:`redback`. Load them
+with :code:`redback.priors.get_priors`:
+
+.. code:: python
+
+    import redback.priors
+
+    prior = redback.priors.get_priors("tbabs_powerlaw_high_energy")
+    print(prior)
+
+    # Fix a parameter to a known value
+    prior['redshift'] = 0.0
+
+    # Use a custom range
+    from bilby.core.prior import Uniform
+    prior['alpha'] = Uniform(minimum=-3.0, maximum=0.0, name='alpha', latex_label=r'$\alpha$')
+
+Available prior files: :code:`powerlaw_high_energy`, :code:`cutoff_powerlaw_high_energy`,
+:code:`band_function_high_energy`, :code:`blackbody_high_energy`,
+:code:`comptonized_high_energy`, :code:`tbabs_powerlaw_high_energy`.
+
+
+Examples
+=========
+
+Four ready-to-run example scripts are provided in :code:`examples/`:
+
+.. list-table::
+   :widths: 45 55
+   :header-rows: 1
+
+   * - Script
+     - Description
+   * - :code:`simulate_gamma_xray_spectra_ray.py`
+     - Simulate Band and blackbody spectra, generate TTE and binned counts, compare models
+   * - :code:`fit_simulated_high_energy_blackbody.py`
+     - End-to-end: simulate a blackbody source, fit with Bayesian inference, recover parameters
+   * - :code:`fit_gamma_xray_spectra.py`
+     - Simulate a GRB Band spectrum, integrate over 1 s window, fit with wstat
+   * - :code:`fit_ogip_spectrum.py`
+     - Load real OGIP data from an EP/WXT observation, fit TBabs power law, measure flux
