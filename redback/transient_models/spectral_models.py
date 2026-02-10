@@ -852,13 +852,11 @@ def _tbabs_transmission(energies_keV, nh_22, redshift=0.0, table_path=None):
     clipped = np.clip(energies_rest, min_e, max_e)
 
     if np.any(energies_rest < min_e) or np.any(energies_rest > max_e):
-        if not getattr(_tbabs_transmission, "_warned", False):
-            logger.warning(
-                "TBabs energies outside table range (%.3f-%.3f keV); clipping applied.",
-                min_e,
-                max_e,
-            )
-            _tbabs_transmission._warned = True
+        logger.warning(
+            "TBabs energies outside table range (%.3f-%.3f keV); clipping applied.",
+            min_e,
+            max_e,
+        )
 
     log_sigma = np.interp(np.log10(clipped), np.log10(energies_tab), np.log10(sigma_tab))
     sigma = 10 ** log_sigma
@@ -868,6 +866,7 @@ def _tbabs_transmission(energies_keV, nh_22, redshift=0.0, table_path=None):
     return np.exp(-tau)
 
 
+@citation_wrapper('https://ui.adsabs.harvard.edu/abs/1993ApJ...413..281B/abstract')
 def powerlaw_high_energy(energies_keV, log10_norm, alpha, redshift=0.0, **kwargs):
     """
     Power-law photon spectrum converted to flux density.
@@ -919,6 +918,7 @@ def tbabs_powerlaw_high_energy(energies_keV, log10_norm, alpha, nh, redshift=0.0
     return absorbed * transmission
 
 
+@citation_wrapper('https://ui.adsabs.harvard.edu/abs/1993ApJ...413..281B/abstract')
 def cutoff_powerlaw_high_energy(energies_keV, log10_norm, alpha, e_cut, redshift=0.0, **kwargs):
     """
     Cutoff power-law photon spectrum converted to flux density.
@@ -942,6 +942,7 @@ def cutoff_powerlaw_high_energy(energies_keV, log10_norm, alpha, e_cut, redshift
     return flux_density_erg * 1e26 / (1 + redshift)
 
 
+@citation_wrapper('https://ui.adsabs.harvard.edu/abs/1994ApJS...92..229L/abstract')
 def comptonized_high_energy(energies_keV, log10_norm, alpha, e_peak, redshift=0.0, **kwargs):
     """
     Comptonized (cutoff power-law with peak energy) spectrum converted to flux density.

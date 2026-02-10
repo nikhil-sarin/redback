@@ -6,7 +6,7 @@ import numpy as np
 
 import redback.priors
 from redback.simulate_transients import SimulateHighEnergyTransient
-from redback.transient.spectral import SpectralTransient
+from redback.transient.spectral import CountsSpectrumTransient
 from redback.sampler import fit_model
 from redback.utils import calc_credible_intervals
 from redback.transient_models.spectral_models import blackbody_high_energy
@@ -44,7 +44,7 @@ sim = SimulateHighEnergyTransient(
 )
 
 time_bins = np.linspace(time_range[0], time_range[1], 101)
-spec = SpectralTransient.from_simulator(sim=sim, time_bins=time_bins, name="sim_bb")
+spec = CountsSpectrumTransient.from_simulator(sim=sim, time_bins=time_bins, name="sim_bb")
 dataset = spec.dataset
 dataset.set_active_interval(0.3, 5.0)
 

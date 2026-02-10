@@ -5,13 +5,13 @@ Fit an OGIP PHA/RMF/ARF spectrum with redback's spectral fitting API.
 import numpy as np
 
 import redback.priors
-from redback.transient.spectral import SpectralTransient
+from redback.transient.spectral import CountsSpectrumTransient
 from redback.spectral.io import read_lc
 from redback.sampler import fit_model
 from redback.utils import calc_credible_intervals
 
 
-spec = SpectralTransient.from_ogip(
+spec = CountsSpectrumTransient.from_ogip(
     pha="ep11900012809wxt3s2.pha",
     bkg="ep11900012809wxt3s2bk.pha",
     rmf="ep11900012809wxt3.rmf",

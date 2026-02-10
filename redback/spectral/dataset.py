@@ -776,6 +776,7 @@ class SpectralDataset:
         bkg: Optional[str] = None,
         spectrum_index: Optional[int] = None,
         name: Optional[str] = None,
+        energy_edges_keV: Optional[np.ndarray] = None,
     ) -> "SpectralDataset":
         import os
 
@@ -828,13 +829,16 @@ class SpectralDataset:
 
         _validate_ogip(pha_spec, bkg_spec if bkg else None, rmf_obj, arf_obj)
 
-        energy_edges = None
-        if rmf_obj is not None:
+        if energy_edges_keV is not None:
+            energy_edges = np.asarray(energy_edges_keV, dtype=float)
+        elif rmf_obj is not None:
             energy_edges = np.concatenate([rmf_obj.e_min, [rmf_obj.e_max[-1]]])
         elif arf_obj is not None:
             energy_edges = np.concatenate([arf_obj.e_min, [arf_obj.e_max[-1]]])
         else:
-            raise ValueError("At least one of RMF or ARF must be provided to determine energy edges")
+            raise ValueError(
+                "Cannot determine energy edges: provide an RMF, ARF, or energy_edges_keV explicitly."
+            )
 
         return cls(
             counts=pha_spec.counts,
@@ -881,15 +885,18 @@ class SpectralDataset:
 
         rmf_path = rmf or _first_match(".rmf")
         arf_path = arf or _first_match(".arf")
-        bkg_path = bkg or _first_match("bk.pha")
-        if bkg_path is None:
-            # fallback: any other .pha not matching the source pha
-            candidates = [
-                os.path.join(directory, f)
-                for f in os.listdir(directory)
-                if f.lower().endswith(".pha") and os.path.join(directory, f) != pha_path
-            ]
-            bkg_path = candidates[0] if candidates else None
+
+        if bkg is not None:
+            bkg_path = bkg
+        else:
+            # Try common background file naming conventions in order of specificity
+            bkg_suffixes = ["bk.pha", "_bkg.pha", "_back.pha", "-back.pha", "_background.pha"]
+            bkg_path = None
+            for suffix in bkg_suffixes:
+                candidate = _first_match(suffix)
+                if candidate is not None and candidate != pha_path:
+                    bkg_path = candidate
+                    break
 
         return cls.from_ogip(
             pha=pha_path,

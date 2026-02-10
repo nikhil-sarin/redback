@@ -81,10 +81,10 @@ def fit_model(
             prior=prior, walks=walks, resume=resume, save_format=save_format, model_kwargs=model_kwargs,
             plot=plot, **kwargs)
     try:
-        from redback.transient.spectral import SpectralTransient
+        from redback.transient.spectral import CountsSpectrumTransient
     except Exception:
-        SpectralTransient = None
-    if SpectralTransient is not None and isinstance(transient, SpectralTransient):
+        CountsSpectrumTransient = None
+    if CountsSpectrumTransient is not None and isinstance(transient, CountsSpectrumTransient):
         return _fit_spectral_dataset(
             transient=transient.dataset, model=model, outdir=outdir, label=label, sampler=sampler, nlive=nlive,
             prior=prior, walks=walks, resume=resume, save_format=save_format, model_kwargs=model_kwargs,
@@ -177,10 +177,16 @@ def _fit_spectral_dataset(transient, model, outdir, label, likelihood=None, samp
                           walks=1000, resume=True, save_format='json', model_kwargs=None, plot=True, **kwargs):
     try:
         import inspect
-        param_names = list(inspect.signature(model).parameters.keys())
+        sig = inspect.signature(model)
+        param_names = list(sig.parameters.keys())
+        has_var_keyword = any(
+            p.kind == inspect.Parameter.VAR_KEYWORD
+            for p in sig.parameters.values()
+        )
     except Exception:
         param_names = []
-    if "energies_keV" not in param_names and "energy_keV" not in param_names:
+        has_var_keyword = True
+    if "energies_keV" not in param_names and "energy_keV" not in param_names and not has_var_keyword:
         raise ValueError(
             "Spectral models must accept `energies_keV` (or `energy_keV`) as the first argument. "
             "Update the model signature to be compatible with spectral fitting."
@@ -209,15 +215,21 @@ def _fit_spectral_dataset(transient, model, outdir, label, likelihood=None, samp
     model_kwargs = redback.utils.check_kwargs_validity(model_kwargs)
     meta_data['model_kwargs'] = model_kwargs
 
+    # Spectral datasets contain numpy arrays in response objects that cannot JSON-serialise
+    if save_format == "json":
+        logger.warning("JSON save not supported for spectral datasets with response objects. Using pkl instead.")
+        save_format = "pkl"
+
     result = None
     if not kwargs.get("clean", False):
-        try:
-            result = redback.result.read_in_result(
-                outdir=outdir, label=label, extension=kwargs.get("extension", "json"), gzip=kwargs.get("gzip", False))
-            plt.close('all')
-            return result
-        except Exception:
-            pass
+        for ext in [kwargs.get("extension", save_format), "pkl", "json"]:
+            try:
+                result = redback.result.read_in_result(
+                    outdir=outdir, label=label, extension=ext, gzip=kwargs.get("gzip", False))
+                plt.close('all')
+                return result
+            except Exception:
+                continue
 
     if prior is not None:
         likelihood.parameters = dict.fromkeys(prior.keys())
@@ -234,10 +246,6 @@ def _fit_spectral_dataset(transient, model, outdir, label, likelihood=None, samp
                 raise ValueError("Spectral likelihood preflight failed: all sampled logL are non-finite")
         except Exception as exc:
             logger.warning("Spectral preflight failed: %s", exc)
-
-    if save_format == "json":
-        logger.warning("JSON save not supported for spectral datasets with response objects. Using pkl instead.")
-        save_format = "pkl"
 
     try:
         result = result or bilby.run_sampler(

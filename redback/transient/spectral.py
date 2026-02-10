@@ -8,7 +8,7 @@ from redback.spectral.dataset import SpectralDataset
 
 
 @dataclass
-class SpectralTransient:
+class CountsSpectrumTransient:
     """
     High-energy spectral transient wrapper for OGIP-style data.
     """
@@ -29,7 +29,8 @@ class SpectralTransient:
         bkg: Optional[str] = None,
         spectrum_index: Optional[int] = None,
         name: Optional[str] = None,
-    ) -> "SpectralTransient":
+        energy_edges_keV=None,
+    ) -> "CountsSpectrumTransient":
         dataset = SpectralDataset.from_ogip(
             pha=pha,
             rmf=rmf,
@@ -37,6 +38,7 @@ class SpectralTransient:
             bkg=bkg,
             spectrum_index=spectrum_index,
             name=name or "spectral_transient",
+            energy_edges_keV=energy_edges_keV,
         )
         return cls(dataset=dataset, name=dataset.name)
 
@@ -50,7 +52,7 @@ class SpectralTransient:
         arf: Optional[str] = None,
         spectrum_index: Optional[int] = None,
         name: Optional[str] = None,
-    ) -> "SpectralTransient":
+    ) -> "CountsSpectrumTransient":
         dataset = SpectralDataset.from_ogip_directory(
             directory=directory,
             pha=pha,
@@ -63,7 +65,7 @@ class SpectralTransient:
         return cls(dataset=dataset, name=dataset.name)
 
     @classmethod
-    def from_simulator(cls, sim, time_bins, name: Optional[str] = None) -> "SpectralTransient":
+    def from_simulator(cls, sim, time_bins, name: Optional[str] = None) -> "CountsSpectrumTransient":
         dataset = SpectralDataset.from_simulator(sim=sim, time_bins=time_bins)
         dataset.name = name or "spectral_transient"
         return cls(dataset=dataset, name=dataset.name)

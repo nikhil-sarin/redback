@@ -1353,6 +1353,85 @@ class SpectrumPlotter(SpecPlotter):
         self._save_and_show(filepath=self._data_plot_filepath, save=save, show=show)
         return ax
 
+    def plot_spectrum(
+            self, plot_format: str = 'standard',
+            axes: matplotlib.axes.Axes = None, save: bool = True, show: bool = True) -> matplotlib.axes.Axes:
+        """Plots the spectrum data and the fit and returns Axes.
+
+        :param plot_format: The format to plot the data in. Options are 'standard' and 'errorbar'. (Default value = 'standard')
+        :type plot_format: str
+        :param axes: Matplotlib axes to plot the lightcurve into. Useful for user specific modifications to the plot.
+        :type axes: Union[matplotlib.axes.Axes, None], optional
+        :param save: Whether to save the plot. (Default value = True)
+        :type save: bool
+        :param show: Whether to show the plot. (Default value = True)
+        :type show: bool
+
+        :return: The axes with the plot.
+        :rtype: matplotlib.axes.Axes
+        """
+
+        axes = axes or plt.gca()
+
+        axes = self.plot_data(axes=axes, save=False, show=False, plot_format=plot_format)
+        angstroms = self._get_angstroms(axes)
+
+        self._plot_spectrums(axes, angstroms)
+
+        self._save_and_show(filepath=self._spectrum_ppd_plot_filepath, save=save, show=show)
+        return axes
+
+    def _plot_spectrums(self, axes: matplotlib.axes.Axes, angstroms: np.ndarray) -> None:
+        if self.plot_max_likelihood:
+            ys = self.model(angstroms, **self._max_like_params, **self._model_kwargs)
+            axes.plot(angstroms, ys/1e-17, color=self.max_likelihood_color, alpha=self.max_likelihood_alpha,
+                      lw=self.linewidth, linestyle=self.max_likelihood_linestyle)
+
+        random_ys_list = [self.model(angstroms, **random_params, **self._model_kwargs)
+                          for random_params in self._get_random_parameters()]
+        if self.uncertainty_mode == "random_models":
+            for ys in random_ys_list:
+                axes.plot(angstroms, ys/1e-17, color=self.random_sample_color, alpha=self.random_sample_alpha,
+                          lw=self.linewidth, linestyle=self.random_sample_linestyle, zorder=self.zorder)
+        elif self.uncertainty_mode == "credible_intervals":
+            lower_bound, upper_bound, _ = redback.utils.calc_credible_intervals(samples=random_ys_list,
+                                                                                interval=self.credible_interval_level)
+            axes.fill_between(
+                angstroms, lower_bound/1e-17, upper_bound/1e-17, alpha=self.uncertainty_band_alpha, color=self.max_likelihood_color)
+
+    def plot_residuals(
+            self, axes: matplotlib.axes.Axes = None, save: bool = True, show: bool = True) -> matplotlib.axes.Axes:
+        """Plots the residual of the Integrated flux data returns Axes.
+
+        :param axes: Matplotlib axes to plot the lightcurve into. Useful for user specific modifications to the plot.
+        :param save: Whether to save the plot. (Default value = True)
+        :param show: Whether to show the plot. (Default value = True)
+
+        :return: The axes with the plot.
+        :rtype: matplotlib.axes.Axes
+        """
+        if axes is None:
+            fig, axes = plt.subplots(
+                nrows=2, ncols=1, sharex=True, sharey=False, figsize=(10, 8), gridspec_kw=dict(height_ratios=[2, 1]))
+
+        axes[0] = self.plot_spectrum(axes=axes[0], save=False, show=False)
+        axes[1].set_xlabel(axes[0].get_xlabel(), fontsize=self.fontsize_axes)
+        axes[0].set_xlabel("")
+        ys = self.model(self.transient.angstroms, **self._max_like_params, **self._model_kwargs)
+        axes[1].errorbar(
+            self.transient.angstroms, self.transient.flux_density - ys, yerr=self.transient.flux_density_err,
+            fmt=self.errorbar_fmt, c=self.color, ms=self.ms, elinewidth=self.elinewidth, capsize=self.capsize,
+            fillstyle=self.markerfillstyle, markeredgecolor=self.markeredgecolor,
+            markeredgewidth=self.markeredgewidth)
+        axes[1].set_yscale('linear')
+        axes[1].set_ylabel("Residual", fontsize=self.fontsize_axes)
+
+        # Apply new customizations
+        self._apply_axis_customizations(axes[1])
+
+        self._save_and_show(filepath=self._residual_plot_filepath, save=save, show=show)
+        return axes
+
 
 def plot_binned_count_lightcurve(
         binned=None, time_bins=None, counts=None, background=None, selection=None,
@@ -1532,82 +1611,3 @@ def plot_spectrum_fit(dataset, **kwargs):
     Wrapper for SpectralDataset.plot_spectrum_fit to keep plotting API consistent.
     """
     return dataset.plot_spectrum_fit(**kwargs)
-
-    def plot_spectrum(
-            self, plot_format: str = 'standard',
-            axes: matplotlib.axes.Axes = None, save: bool = True, show: bool = True) -> matplotlib.axes.Axes:
-        """Plots the spectrum data and the fit and returns Axes.
-
-        :param plot_format: The format to plot the data in. Options are 'standard' and 'errorbar'. (Default value = 'standard')
-        :type plot_format: str
-        :param axes: Matplotlib axes to plot the lightcurve into. Useful for user specific modifications to the plot.
-        :type axes: Union[matplotlib.axes.Axes, None], optional
-        :param save: Whether to save the plot. (Default value = True)
-        :type save: bool
-        :param show: Whether to show the plot. (Default value = True)
-        :type show: bool
-
-        :return: The axes with the plot.
-        :rtype: matplotlib.axes.Axes
-        """
-
-        axes = axes or plt.gca()
-
-        axes = self.plot_data(axes=axes, save=False, show=False, plot_format=plot_format)
-        angstroms = self._get_angstroms(axes)
-
-        self._plot_spectrums(axes, angstroms)
-
-        self._save_and_show(filepath=self._spectrum_ppd_plot_filepath, save=save, show=show)
-        return axes
-
-    def _plot_spectrums(self, axes: matplotlib.axes.Axes, angstroms: np.ndarray) -> None:
-        if self.plot_max_likelihood:
-            ys = self.model(angstroms, **self._max_like_params, **self._model_kwargs)
-            axes.plot(angstroms, ys/1e-17, color=self.max_likelihood_color, alpha=self.max_likelihood_alpha,
-                      lw=self.linewidth, linestyle=self.max_likelihood_linestyle)
-
-        random_ys_list = [self.model(angstroms, **random_params, **self._model_kwargs)
-                          for random_params in self._get_random_parameters()]
-        if self.uncertainty_mode == "random_models":
-            for ys in random_ys_list:
-                axes.plot(angstroms, ys/1e-17, color=self.random_sample_color, alpha=self.random_sample_alpha,
-                          lw=self.linewidth, linestyle=self.random_sample_linestyle, zorder=self.zorder)
-        elif self.uncertainty_mode == "credible_intervals":
-            lower_bound, upper_bound, _ = redback.utils.calc_credible_intervals(samples=random_ys_list,
-                                                                                interval=self.credible_interval_level)
-            axes.fill_between(
-                angstroms, lower_bound/1e-17, upper_bound/1e-17, alpha=self.uncertainty_band_alpha, color=self.max_likelihood_color)
-
-    def plot_residuals(
-            self, axes: matplotlib.axes.Axes = None, save: bool = True, show: bool = True) -> matplotlib.axes.Axes:
-        """Plots the residual of the Integrated flux data returns Axes.
-
-        :param axes: Matplotlib axes to plot the lightcurve into. Useful for user specific modifications to the plot.
-        :param save: Whether to save the plot. (Default value = True)
-        :param show: Whether to show the plot. (Default value = True)
-
-        :return: The axes with the plot.
-        :rtype: matplotlib.axes.Axes
-        """
-        if axes is None:
-            fig, axes = plt.subplots(
-                nrows=2, ncols=1, sharex=True, sharey=False, figsize=(10, 8), gridspec_kw=dict(height_ratios=[2, 1]))
-
-        axes[0] = self.plot_spectrum(axes=axes[0], save=False, show=False)
-        axes[1].set_xlabel(axes[0].get_xlabel(), fontsize=self.fontsize_axes)
-        axes[0].set_xlabel("")
-        ys = self.model(self.transient.angstroms, **self._max_like_params, **self._model_kwargs)
-        axes[1].errorbar(
-            self.transient.angstroms, self.transient.flux_density - ys, yerr=self.transient.flux_density_err,
-            fmt=self.errorbar_fmt, c=self.color, ms=self.ms, elinewidth=self.elinewidth, capsize=self.capsize,
-            fillstyle=self.markerfillstyle, markeredgecolor=self.markeredgecolor,
-            markeredgewidth=self.markeredgewidth)
-        axes[1].set_yscale('linear')
-        axes[1].set_ylabel("Residual", fontsize=self.fontsize_axes)
-
-        # Apply new customizations
-        self._apply_axis_customizations(axes[1])
-
-        self._save_and_show(filepath=self._residual_plot_filepath, save=save, show=show)
-        return axes

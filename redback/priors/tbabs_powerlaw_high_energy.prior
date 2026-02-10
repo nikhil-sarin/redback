@@ -1,4 +1,4 @@
 log10_norm = Uniform(-6, 0, 'log10_norm', latex_label=r'$\\log_{10}~N$')
 alpha = Uniform(-3, 1, 'alpha', latex_label=r'$\\alpha$')
-nh = LogUniform(1e-3, 10, 'nh', latex_label=r'$N_{\\mathrm{H}}/10^{22}~\\mathrm{cm}^{-2}$')
+nh = LogUniform(1e-3, 10, 'nh', latex_label=r'$N_{\mathrm{H}}/10^{22}~\mathrm{cm}^{-2}$')
 redshift = Uniform(1e-3, 5, 'redshift', latex_label=r'$z$')

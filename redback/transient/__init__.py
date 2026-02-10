@@ -5,8 +5,8 @@ from redback.transient.prompt import PromptTimeSeries
 from redback.transient.supernova import Supernova
 from redback.transient.tde import TDE
 from redback.transient.transient import Transient, OpticalTransient, Spectrum
-from redback.transient.spectral import SpectralTransient
+from redback.transient.spectral import CountsSpectrumTransient
 
 TRANSIENT_DICT = dict(
     afterglow=Afterglow, lgrb=LGRB, sgrb=SGRB, kilonova=Kilonova, prompt=PromptTimeSeries, supernova=Supernova,
-    tde=TDE, transient=Transient, spectrum=Spectrum, spectral=SpectralTransient)
+    tde=TDE, transient=Transient, spectrum=Spectrum, counts_spectrum=CountsSpectrumTransient)
