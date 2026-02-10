@@ -876,7 +876,7 @@ class SpectralDataset:
         import os
 
         def _first_match(ext):
-            matches = [f for f in os.listdir(directory) if f.lower().endswith(ext)]
+            matches = sorted(f for f in os.listdir(directory) if f.lower().endswith(ext))
             return os.path.join(directory, matches[0]) if matches else None
 
         pha_path = pha or _first_match(".pha")
