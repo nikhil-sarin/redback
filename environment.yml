@@ -8,7 +8,6 @@ dependencies:
   - sphinx-tabs
   - sphinx-rtd-theme
   - cython
-  - selenium
   - numpy<2.0
   - sncosmo=2.10.1
   - astropy
