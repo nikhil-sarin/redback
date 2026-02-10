@@ -100,26 +100,62 @@ blackbody models including plots.
 Loading OGIP Data
 ==================
 
-Redback reads standard OGIP spectral files (PHA, RMF, ARF) produced by X-ray telescope
-pipelines (Swift/XRT, XMM-Newton, Chandra, EP/WXT, etc.).
+Redback reads standard OGIP spectral files (PHA, RMF, ARF) produced by X-ray and
+gamma-ray telescope pipelines (Swift/XRT, XMM-Newton, Chandra, Fermi/GBM, etc.).
 
-From files
-----------
+Both split (separate RMF + ARF) and combined response files (RSP, containing both
+redistribution matrix and effective area in a single file) are supported. Combined
+responses are common for gamma-ray instruments such as Fermi/GBM.
+
+Runnable example
+-----------------
+
+Redback includes a Fermi/GBM BGO example spectrum (simulated power-law GRB) in
+:code:`examples/example_data/`:
+
+.. code:: python
+
+    import os
+    from redback.transient.spectral import CountsSpectrumTransient
+
+    data_dir = "examples/example_data"
+
+    spec = CountsSpectrumTransient.from_ogip(
+        pha=os.path.join(data_dir, "ogip_powerlaw.pha"),
+        bkg=os.path.join(data_dir, "ogip_powerlaw.bak"),
+        rmf=os.path.join(data_dir, "ogip_powerlaw.rsp"),  # combined RSP
+        name="gbm_grb",
+    )
+
+    dataset = spec.dataset
+    dataset.set_active_interval(200.0, 40000.0)  # 200 keV – 40 MeV (GBM BGO range)
+
+The :code:`CountsSpectrumTransient` wraps a :code:`SpectralDataset` which holds the counts,
+response matrices, background, and metadata. Access it via :code:`spec.dataset`.
+
+General usage
+--------------
 
 .. code:: python
 
     from redback.transient.spectral import CountsSpectrumTransient
 
+    # Split RMF + ARF (typical for X-ray observatories)
     spec = CountsSpectrumTransient.from_ogip(
-        pha="spectrum.pha",   # source spectrum
-        bkg="background.pha", # background spectrum (optional)
-        rmf="response.rmf",   # redistribution matrix file
-        arf="effective.arf",  # ancillary response file (optional)
+        pha="spectrum.pha",
+        bkg="background.pha",  # background spectrum (optional)
+        rmf="response.rmf",    # redistribution matrix file
+        arf="effective.arf",   # ancillary response file (optional)
         name="my_source",
     )
 
-The :code:`CountsSpectrumTransient` wraps a :code:`SpectralDataset` which holds the counts,
-response matrices, background, and metadata. Access it via :code:`spec.dataset`.
+    # Combined RSP (typical for gamma-ray instruments)
+    spec = CountsSpectrumTransient.from_ogip(
+        pha="spectrum.pha",
+        bkg="background.pha",
+        rmf="response.rsp",    # combined RSP passed as rmf
+        name="my_source",
+    )
 
 From a directory
 ----------------
@@ -263,39 +299,58 @@ The appropriate likelihood depends on whether background data are available:
 Fitting from OGIP data
 -----------------------
 
+Using the bundled Fermi/GBM example data:
+
 .. code:: python
 
+    import os
     import redback.priors
     from redback.transient.spectral import CountsSpectrumTransient
     from redback.sampler import fit_model
 
+    data_dir = "examples/example_data"
+
     spec = CountsSpectrumTransient.from_ogip(
-        pha="spectrum.pha",
-        bkg="background.pha",
-        rmf="response.rmf",
-        arf="effective.arf",
-        name="my_source",
+        pha=os.path.join(data_dir, "ogip_powerlaw.pha"),
+        bkg=os.path.join(data_dir, "ogip_powerlaw.bak"),
+        rmf=os.path.join(data_dir, "ogip_powerlaw.rsp"),
+        name="gbm_grb",
     )
+    spec.dataset.set_active_interval(200.0, 40000.0)
 
-    spec.dataset.set_active_interval(0.3, 5.0)
-
-    prior = redback.priors.get_priors("tbabs_powerlaw_high_energy")
-    # Optionally fix parameters:
-    # prior['redshift'] = 0.0
+    prior = redback.priors.get_priors("powerlaw_high_energy")
+    prior["redshift"] = 0.0  # fix to zero for unknown redshift
 
     result = fit_model(
         transient=spec,
-        model="tbabs_powerlaw_high_energy",
+        model="powerlaw_high_energy",
         prior=prior,
         sampler="nestle",
-        statistic="auto",
+        statistic="auto",   # selects wstat because background is present
         nlive=500,
     )
 
     result.plot_corner()
 
-See :code:`examples/fit_ogip_spectrum.py` for the complete OGIP fitting workflow
-including flux measurement and spectral plots.
+For X-ray data with ISM absorption (e.g. Swift/XRT, XMM-Newton), use
+:code:`tbabs_powerlaw_high_energy` with split RMF/ARF files:
+
+.. code:: python
+
+    spec = CountsSpectrumTransient.from_ogip(
+        pha="source.pha", bkg="background.pha",
+        rmf="response.rmf", arf="effective.arf", name="xray_source",
+    )
+    spec.dataset.set_active_interval(0.3, 10.0)  # keV
+
+    prior = redback.priors.get_priors("tbabs_powerlaw_high_energy")
+    prior["redshift"] = 0.0
+
+    result = fit_model(transient=spec, model="tbabs_powerlaw_high_energy",
+                       prior=prior, sampler="nestle", statistic="auto", nlive=500)
+
+See :code:`examples/fit_ogip_spectrum.py` for the complete runnable workflow
+including flux measurement.
 
 Fitting simulated data
 -----------------------
@@ -461,4 +516,4 @@ Four ready-to-run example scripts are provided in :code:`examples/`:
    * - :code:`fit_gamma_xray_spectra.py`
      - Simulate a GRB Band spectrum, integrate over 1 s window, fit with wstat
    * - :code:`fit_ogip_spectrum.py`
-     - Load real OGIP data from an EP/WXT observation, fit TBabs power law, measure flux
+     - Load bundled Fermi/GBM OGIP data (power-law GRB), fit with wstat, compute band flux

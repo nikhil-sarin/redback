@@ -144,7 +144,13 @@ def read_rmf(path: str):
     from redback.spectral.response import ResponseMatrix
 
     with fits.open(path) as hdul:
-        matrix_hdu = hdul["MATRIX"]
+        # Combined RSP files use "SPECRESP MATRIX"; pure RMFs use "MATRIX"
+        if "MATRIX" in hdul:
+            matrix_hdu = hdul["MATRIX"]
+        elif "SPECRESP MATRIX" in hdul:
+            matrix_hdu = hdul["SPECRESP MATRIX"]
+        else:
+            raise KeyError(f"No MATRIX or 'SPECRESP MATRIX' extension found in {path}")
         ebounds_hdu = hdul["EBOUNDS"]
 
         e_min = np.asarray(matrix_hdu.data["ENERG_LO"], dtype=float)

@@ -1,130 +1,100 @@
 """
-Fit an OGIP PHA/RMF/ARF spectrum with redback's spectral fitting API.
+Fit an OGIP PHA/RMF spectrum with redback's spectral fitting API.
+
+Uses publicly available Fermi/GBM BGO example data (simulated power-law GRB spectrum)
+included in redback's example_data directory. The combined response file (.rsp) provides
+the redistribution matrix and effective area in a single FITS file, as is common for
+gamma-ray detectors. The data here is from ThreeML's repository.
 """
 
-import numpy as np
+import os
 
 import redback.priors
 from redback.transient.spectral import CountsSpectrumTransient
-from redback.spectral.io import read_lc
 from redback.sampler import fit_model
 from redback.utils import calc_credible_intervals
+import numpy as np
 
+# Locate the example data bundled with redback
+_here = os.path.dirname(os.path.abspath(__file__))
+data_dir = os.path.join(_here, "example_data")
 
 spec = CountsSpectrumTransient.from_ogip(
-    pha="ep11900012809wxt3s2.pha",
-    bkg="ep11900012809wxt3s2bk.pha",
-    rmf="ep11900012809wxt3.rmf",
-    arf="ep11900012809wxt3s2.arf", name='ep_event')
-
-dataset = spec.dataset
-dataset.set_active_interval(0.3, 5.0)
-
-lc = read_lc("ep11900012809wxt3s2.lc")
-spec.plot_lightcurve(
-    lc=lc,
-    filename="spec_lc.png",
-    show=False,
-    save=False,
-    xscale="linear",
-    yscale="linear",
-    min_counts=5,
+    pha=os.path.join(data_dir, "ogip_powerlaw.pha"),
+    bkg=os.path.join(data_dir, "ogip_powerlaw.bak"),
+    rmf=os.path.join(data_dir, "ogip_powerlaw.rsp"),  # combined RSP (RMF + ARF)
+    name="gbm_grb",
 )
 
-spec.plot_data(show=False, save=False, filename="spec_data.png", min_counts=5,
-                           xscale="linear", plot_background=False,
-                           xlim=(0.3, 5.0), ylim=(1e-3, 2e-1))
+dataset = spec.dataset
+# Restrict to a well-calibrated energy interval (Fermi/GBM BGO: ~200 keV – 40 MeV)
+dataset.set_active_interval(200.0, 40000.0)
 
-model = "tbabs_powerlaw_high_energy"
-prior = redback.priors.get_priors("tbabs_powerlaw_high_energy")
-# Optional: fix parameters by assigning a scalar prior value, e.g.
-# prior['redshift'] = 0.0
-# prior['nh'] = 0.2
+# Plot the raw count spectrum
+spec.plot_data(
+    filename="spec_data.png",
+    show=False,
+    save=True,
+    min_counts=5,
+    xscale="log",
+    yscale="log",
+    xlim=(200.0, 40000.0),
+)
+
+# We could also plot the count-rate light curve (requires a separate light curve file)
+# from redback.spectral.io import read_lc
+# lc = read_lc("path/to/source.lc")
+# spec.plot_lightcurve(lc=lc, filename="spec_lc.png", show=False, save=True)
+
+model = "powerlaw_high_energy"
+prior = redback.priors.get_priors(model)
+# Fix redshift to zero for a GRB at unknown redshift (spectral shape only)
+prior["redshift"] = 0.0
 
 result = fit_model(
     transient=spec,
     model=model,
     prior=prior,
     sampler="nestle",
-    statistic="auto",
+    statistic="auto",   # auto-selects wstat (background available)
     nlive=500,
     plot=False,
-    clean=False,
+    clean=True,
     resume=False,
 )
 
 result.plot_corner(filename="spec_corner.png", show=False)
 
+# Compute band flux from posterior samples
 posterior = result.posterior
 sample_size = min(len(posterior), 500)
 flux_samples = posterior.sample(n=sample_size, random_state=0)
 
-absorbed_fluxes = []
-unabsorbed_fluxes = []
-absorbed_fluxes_soft = []
-unabsorbed_fluxes_soft = []
+fluxes = []
 for _, row in flux_samples.iterrows():
     params = row.to_dict()
-    absorbed_fluxes.append(
-        dataset.compute_band_flux(model=model, parameters=params, energy_min_keV=0.5, energy_max_keV=10.0)
-    )
-    unabsorbed_fluxes.append(
+    fluxes.append(
         dataset.compute_band_flux(
             model=model,
             parameters=params,
-            energy_min_keV=0.5,
-            energy_max_keV=10.0,
-            unabsorbed=True,
-        )
-    )
-    absorbed_fluxes_soft.append(
-        dataset.compute_band_flux(model=model, parameters=params, energy_min_keV=0.3, energy_max_keV=5.0)
-    )
-    unabsorbed_fluxes_soft.append(
-        dataset.compute_band_flux(
-            model=model,
-            parameters=params,
-            energy_min_keV=0.3,
-            energy_max_keV=5.0,
-            unabsorbed=True,
+            energy_min_keV=200.0,
+            energy_max_keV=40000.0,
+            unabsorbed=False,
         )
     )
 
-absorbed_fluxes = np.asarray(absorbed_fluxes)
-unabsorbed_fluxes = np.asarray(unabsorbed_fluxes)
-absorbed_fluxes_soft = np.asarray(absorbed_fluxes_soft)
-unabsorbed_fluxes_soft = np.asarray(unabsorbed_fluxes_soft)
-abs_lo, abs_hi, abs_med = calc_credible_intervals(absorbed_fluxes, interval=0.68)
-unabs_lo, unabs_hi, unabs_med = calc_credible_intervals(unabsorbed_fluxes, interval=0.68)
-abs_soft_lo, abs_soft_hi, abs_soft_med = calc_credible_intervals(absorbed_fluxes_soft, interval=0.68)
-unabs_soft_lo, unabs_soft_hi, unabs_soft_med = calc_credible_intervals(unabsorbed_fluxes_soft, interval=0.68)
+fluxes = np.asarray(fluxes)
+lo, hi, med = calc_credible_intervals(fluxes, interval=0.68)
+print(f"200 keV – 40 MeV flux: {med:.3e} (+{hi-med:.3e}/-{med-lo:.3e}) erg/cm²/s")
 
-print(
-    f"Absorbed 0.5-10 keV flux: {abs_med:.3e} (+{abs_hi-abs_med:.3e}/-{abs_med-abs_lo:.3e}) erg/cm^2/s"
-)
-print(
-    f"Unabsorbed 0.5-10 keV flux: {unabs_med:.3e} (+{unabs_hi-unabs_med:.3e}/-{unabs_med-unabs_lo:.3e}) "
-    "erg/cm^2/s"
-)
-print(
-    f"Absorbed 0.3-5 keV flux: {abs_soft_med:.3e} (+{abs_soft_hi-abs_soft_med:.3e}/-"
-    f"{abs_soft_med-abs_soft_lo:.3e}) erg/cm^2/s"
-)
-print(
-    f"Unabsorbed 0.3-5 keV flux: {unabs_soft_med:.3e} (+{unabs_soft_hi-unabs_soft_med:.3e}/-"
-    f"{unabs_soft_med-unabs_soft_lo:.3e}) erg/cm^2/s"
-)
-
+# Plot best-fit spectrum with residuals
 spec.plot_fit(
     model=model,
     posterior=result.posterior,
-    model_kwargs=None,
     filename="spec_fit.png",
     show=False,
     save=True,
     min_counts=5,
-    xscale="linear",
-    plot_background=False,
-    xlim=(0.3, 5.0),
-    ylim=(1e-3, 2e-1),
+    xscale="log",
+    xlim=(200.0, 40000.0),
 )
