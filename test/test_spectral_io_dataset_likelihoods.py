@@ -2728,6 +2728,498 @@ class TestMaskValidEdgeCases(unittest.TestCase):
 
 
 # ===========================================================================
+# 7. Additional coverage for io.py and dataset.py uncovered lines
+# ===========================================================================
+
+def _make_type2_pha_fits(
+    n_spectra: int = 3,
+    n_channels: int = 8,
+    exposure: float = 500.0,
+    tmpdir: str = None,
+    filename: str = "type2.pha",
+) -> str:
+    """
+    Write a minimal OGIP Type II PHA file (multiple spectra per file).
+    Each row in the SPECTRUM table is one spectrum.
+    """
+    channels = np.arange(1, n_channels + 1, dtype=np.int16)
+    # CHANNEL and COUNTS are stored as 2-D arrays (one row per spectrum)
+    chan_col = np.tile(channels, (n_spectra, 1))
+    counts_col = np.ones((n_spectra, n_channels), dtype=np.float32) * 10.0
+
+    col_list = [
+        fits.Column(name="CHANNEL", format=f"{n_channels}I", array=chan_col),
+        fits.Column(name="COUNTS", format=f"{n_channels}E", array=counts_col),
+    ]
+    table_hdu = fits.BinTableHDU.from_columns(col_list)
+    table_hdu.name = "SPECTRUM"
+    table_hdu.header["HDUCLAS1"] = "SPECTRUM"
+    table_hdu.header["EXPOSURE"] = exposure
+
+    hdul = fits.HDUList([fits.PrimaryHDU(), table_hdu])
+    path = os.path.join(tmpdir, filename)
+    hdul.writeto(path, overwrite=True)
+    return path
+
+
+def _make_rmf_fits_variable(
+    n_energy: int = 4,
+    n_channels: int = 6,
+    tmpdir: str = None,
+    filename: str = "var.rmf",
+) -> str:
+    """
+    RMF where N_GRP, F_CHAN, N_CHAN, MATRIX are stored as variable-length
+    arrays (FITS format 'PJ', 'PE') so that ndim(n_grp[i]) > 0.
+    """
+    e_lo = np.linspace(0.5, 6.0, n_energy + 1)[:-1].astype(np.float32)
+    e_hi = np.linspace(0.5, 6.0, n_energy + 1)[1:].astype(np.float32)
+
+    # Build object arrays (variable-length rows)
+    n_grp_arr = np.empty(n_energy, dtype=object)
+    f_chan_arr = np.empty(n_energy, dtype=object)
+    n_chan_arr = np.empty(n_energy, dtype=object)
+    mat_arr = np.empty(n_energy, dtype=object)
+
+    for i in range(n_energy):
+        n_grp_arr[i] = np.array([1], dtype=np.int16)
+        f_chan_arr[i] = np.array([1], dtype=np.int16)
+        n_chan_arr[i] = np.array([n_channels], dtype=np.int16)
+        mat_arr[i] = (np.ones(n_channels, dtype=np.float32) / n_channels)
+
+    matrix_cols = [
+        fits.Column(name="ENERG_LO", format="E", array=e_lo),
+        fits.Column(name="ENERG_HI", format="E", array=e_hi),
+        fits.Column(name="N_GRP", format="PJ(1)", array=n_grp_arr),
+        fits.Column(name="F_CHAN", format="PJ(1)", array=f_chan_arr),
+        fits.Column(name="N_CHAN", format="PJ(1)", array=n_chan_arr),
+        fits.Column(name="MATRIX", format=f"PE({n_channels})", array=mat_arr),
+    ]
+    matrix_hdu = fits.BinTableHDU.from_columns(matrix_cols)
+    matrix_hdu.name = "MATRIX"
+    matrix_hdu.header["DETCHANS"] = n_channels
+
+    chan = np.arange(1, n_channels + 1, dtype=np.int16)
+    emin_chan = np.linspace(0.1, 5.9, n_channels + 1)[:-1].astype(np.float32)
+    emax_chan = np.linspace(0.1, 5.9, n_channels + 1)[1:].astype(np.float32)
+    ebounds_cols = [
+        fits.Column(name="CHANNEL", format="I", array=chan),
+        fits.Column(name="E_MIN", format="E", array=emin_chan),
+        fits.Column(name="E_MAX", format="E", array=emax_chan),
+    ]
+    ebounds_hdu = fits.BinTableHDU.from_columns(ebounds_cols)
+    ebounds_hdu.name = "EBOUNDS"
+
+    hdul = fits.HDUList([fits.PrimaryHDU(), matrix_hdu, ebounds_hdu])
+    path = os.path.join(tmpdir, filename)
+    hdul.writeto(path, overwrite=True)
+    return path
+
+
+class TestOGIPIOExtended(unittest.TestCase):
+    """Additional tests for io.py covering Type II PHA and variable-length RMF."""
+
+    def setUp(self):
+        self._tmpdir_obj = tempfile.TemporaryDirectory()
+        self.tmpdir = self._tmpdir_obj.name
+
+    def tearDown(self):
+        self._tmpdir_obj.cleanup()
+
+    # ------------------------------------------------------------------
+    # _select_spectrum_row: multi-row (Type II) paths
+    # ------------------------------------------------------------------
+
+    def test_select_spectrum_row_single_row_returns_zero(self):
+        """_select_spectrum_row with 1 row always returns 0."""
+        from redback.spectral.io import _select_spectrum_row
+        # Build a tiny BinTableHDU with 1 row
+        col = fits.Column(name="X", format="I", array=np.array([42], dtype=np.int16))
+        hdu = fits.BinTableHDU.from_columns([col])
+        self.assertEqual(_select_spectrum_row(hdu, None), 0)
+        self.assertEqual(_select_spectrum_row(hdu, 0), 0)
+
+    def test_select_spectrum_row_multi_row_none_returns_zero(self):
+        """With >1 row and spectrum_index=None, row 0 is returned."""
+        from redback.spectral.io import _select_spectrum_row
+        col = fits.Column(name="X", format="I",
+                          array=np.array([1, 2, 3], dtype=np.int16))
+        hdu = fits.BinTableHDU.from_columns([col])
+        self.assertEqual(_select_spectrum_row(hdu, None), 0)
+
+    def test_select_spectrum_row_multi_row_valid_index(self):
+        """With >1 row and a valid index, the index is returned."""
+        from redback.spectral.io import _select_spectrum_row
+        col = fits.Column(name="X", format="I",
+                          array=np.array([10, 20, 30], dtype=np.int16))
+        hdu = fits.BinTableHDU.from_columns([col])
+        self.assertEqual(_select_spectrum_row(hdu, 2), 2)
+
+    def test_select_spectrum_row_out_of_range_raises(self):
+        """An out-of-range spectrum_index raises IndexError."""
+        from redback.spectral.io import _select_spectrum_row
+        col = fits.Column(name="X", format="I",
+                          array=np.array([10, 20], dtype=np.int16))
+        hdu = fits.BinTableHDU.from_columns([col])
+        with self.assertRaises(IndexError):
+            _select_spectrum_row(hdu, 5)
+
+    def test_get_column_or_header_value_from_column(self):
+        """Value is returned from the column (not header) path."""
+        from redback.spectral.io import _get_column_or_header_value
+        arr = np.array([3.14], dtype=np.float32)
+        col = fits.Column(name="VAL", format="E", array=arr)
+        hdu = fits.BinTableHDU.from_columns([col])
+        result = _get_column_or_header_value(hdu, "VAL", 0)
+        self.assertAlmostEqual(result, 3.14, places=4)
+
+    def test_get_column_or_header_value_vector_column(self):
+        """A vector column (ndim > 0) is returned as-is (not cast to float)."""
+        from redback.spectral.io import _get_column_or_header_value
+        arr = np.array([[1.0, 2.0, 3.0]], dtype=np.float32)
+        col = fits.Column(name="VEC", format="3E", array=arr)
+        hdu = fits.BinTableHDU.from_columns([col])
+        result = _get_column_or_header_value(hdu, "VEC", 0)
+        # Should be the array, not a float
+        self.assertEqual(len(result), 3)
+
+    def test_read_pha_type2_first_spectrum(self):
+        """Type II PHA: reading with spectrum_index=None gives the first spectrum."""
+        from redback.spectral.io import read_pha
+        n_ch, n_sp = 8, 3
+        path = _make_type2_pha_fits(
+            n_spectra=n_sp, n_channels=n_ch,
+            exposure=500.0, tmpdir=self.tmpdir,
+        )
+        spec = read_pha(path, spectrum_index=None)
+        self.assertEqual(len(spec.counts), n_ch)
+
+    def test_read_pha_type2_second_spectrum(self):
+        """Type II PHA: spectrum_index=1 reads the second spectrum."""
+        from redback.spectral.io import read_pha
+        n_ch = 8
+        path = _make_type2_pha_fits(
+            n_spectra=3, n_channels=n_ch,
+            exposure=500.0, tmpdir=self.tmpdir,
+        )
+        spec = read_pha(path, spectrum_index=1)
+        self.assertEqual(len(spec.counts), n_ch)
+
+    def test_read_rmf_detchans_mismatch_corrected(self):
+        """When DETCHANS != len(channel), it is overridden to len(channel)."""
+        from redback.spectral.io import read_rmf
+        n_ch, n_en = 10, 6
+        # Write an RMF where we manually set DETCHANS to a wrong value
+        path = _make_rmf_fits(n_energy=n_en, n_channels=n_ch, tmpdir=self.tmpdir)
+        # Patch the header
+        with fits.open(path, mode="update") as hdul:
+            hdul["MATRIX"].header["DETCHANS"] = 99  # wrong value
+        rmf = read_rmf(path)
+        # Should still produce a matrix with shape (n_ch, n_en)
+        self.assertEqual(rmf.matrix.shape[0], n_ch)
+
+    def test_read_rmf_variable_length_arrays(self):
+        """RMF with variable-length (PJ/PE) columns is read without error."""
+        from redback.spectral.io import read_rmf
+        n_ch, n_en = 6, 4
+        path = _make_rmf_fits_variable(
+            n_energy=n_en, n_channels=n_ch, tmpdir=self.tmpdir
+        )
+        rmf = read_rmf(path)
+        self.assertEqual(rmf.matrix.shape, (n_ch, n_en))
+        self.assertTrue(np.all(rmf.matrix >= 0.0))
+
+
+class TestSpectralDatasetExtended(unittest.TestCase):
+    """Additional dataset.py tests for previously uncovered branches."""
+
+    def setUp(self):
+        self.n = 5
+        self.edges = np.linspace(0.5, 3.0, self.n + 1)
+        self.exposure = 1000.0
+
+    # ------------------------------------------------------------------
+    # background_scale_factor: zero/negative denominator guard
+    # ------------------------------------------------------------------
+
+    def test_background_scale_factor_zero_bkg_exposure_returns_one(self):
+        """background_scale_factor is 1.0 when bkg_exposure=0."""
+        from redback.spectral.dataset import SpectralDataset
+        ds = SpectralDataset(
+            counts=np.ones(self.n) * 10.0,
+            exposure=self.exposure,
+            energy_edges_keV=self.edges,
+            counts_bkg=np.ones(self.n) * 3.0,
+            bkg_exposure=0.0,
+            bkg_backscale=1.0,
+            bkg_areascal=1.0,
+        )
+        self.assertAlmostEqual(ds.background_scale_factor, 1.0)
+
+    def test_background_scale_factor_zero_bkg_backscale_returns_one(self):
+        """background_scale_factor is 1.0 when bkg_backscale=0."""
+        from redback.spectral.dataset import SpectralDataset
+        ds = SpectralDataset(
+            counts=np.ones(self.n) * 10.0,
+            exposure=self.exposure,
+            energy_edges_keV=self.edges,
+            counts_bkg=np.ones(self.n) * 3.0,
+            bkg_exposure=1000.0,
+            bkg_backscale=0.0,
+            bkg_areascal=1.0,
+        )
+        self.assertAlmostEqual(ds.background_scale_factor, 1.0)
+
+    # ------------------------------------------------------------------
+    # _compute_grouping: OGIP GROUPING edge cases (g==0 path)
+    # ------------------------------------------------------------------
+
+    def test_compute_grouping_with_zero_grouping_flag(self):
+        """
+        Channels with GROUPING==0 (neither start nor continuation) are treated
+        as individual groups by _compute_grouping.
+        """
+        from redback.spectral.dataset import SpectralDataset
+        # GROUPING: [1, -1, 0, 1, -1]
+        # Channels 0+1 form group A, channel 2 is solitary, channels 3+4 form group B
+        grouping = np.array([1, -1, 0, 1, -1], dtype=int)
+        ds = SpectralDataset(
+            counts=np.array([5.0, 5.0, 10.0, 3.0, 7.0]),
+            exposure=self.exposure,
+            energy_edges_keV=self.edges,
+            grouping=grouping,
+        )
+        counts = ds.counts
+        x = ds.energy_centers_keV
+        w = self.edges[1:] - self.edges[:-1]
+        gc, gx, gw, groups = ds._compute_grouping(counts, x, w, None)
+        # Expect 3 groups: [0+1], [2], [3+4]
+        self.assertEqual(len(gc), 3)
+        self.assertAlmostEqual(gc[0], 10.0)   # channels 0+1
+        self.assertAlmostEqual(gc[1], 10.0)   # channel 2
+        self.assertAlmostEqual(gc[2], 10.0)   # channels 3+4
+
+    def test_compute_grouping_min_counts_accumulates_remainder(self):
+        """
+        When the last accumulated group is below min_counts, it is still
+        appended so that no channels are lost.
+        """
+        from redback.spectral.dataset import SpectralDataset
+        ds = SpectralDataset(
+            counts=np.array([3.0, 3.0, 3.0, 3.0, 1.0]),
+            exposure=self.exposure,
+            energy_edges_keV=self.edges,
+        )
+        counts = ds.counts
+        x = ds.energy_centers_keV
+        w = self.edges[1:] - self.edges[:-1]
+        # min_counts=6: first group is channels 0+1 (sum=6), second is 2+3 (6),
+        # remainder is channel 4 (1 < 6) — must still appear
+        gc, gx, gw, groups = ds._compute_grouping(counts, x, w, min_counts=6)
+        total = float(np.sum(gc))
+        self.assertAlmostEqual(total, float(np.sum(counts)))
+
+    def test_group_min_counts_remainder_appended(self):
+        """_group_min_counts keeps remainder bins when acc > 0 at end."""
+        from redback.spectral.dataset import SpectralDataset
+        ds = SpectralDataset(
+            counts=np.array([5.0, 5.0, 2.0]),
+            exposure=500.0,
+            energy_edges_keV=np.linspace(1.0, 4.0, 4),
+        )
+        counts = ds.counts
+        x = ds.energy_centers_keV
+        w = np.diff(np.linspace(1.0, 4.0, 4))
+        gc, gx, gw = ds._group_min_counts(counts, x, w, min_counts=8)
+        # 5+5=10 ≥ 8 → first group; remainder 2 < 8 but still appended
+        self.assertEqual(len(gc), 2)
+        self.assertAlmostEqual(gc[0], 10.0)
+        self.assertAlmostEqual(gc[1], 2.0)
+
+    # ------------------------------------------------------------------
+    # plot_spectrum_data: rate-only and density-only display modes
+    # ------------------------------------------------------------------
+
+    def _make_plot_dataset(self, with_bkg=False):
+        from redback.spectral.dataset import SpectralDataset
+        counts = np.full(self.n, 20.0)
+        kwargs = dict(counts=counts, exposure=self.exposure,
+                      energy_edges_keV=self.edges)
+        if with_bkg:
+            kwargs["counts_bkg"] = np.full(self.n, 5.0)
+            kwargs["bkg_exposure"] = 2000.0
+            kwargs["bkg_backscale"] = 2.0
+            kwargs["bkg_areascal"] = 1.0
+        return SpectralDataset(**kwargs)
+
+    def test_plot_spectrum_data_rate_only(self):
+        """rate=True, density=False produces a plot without raising."""
+        import matplotlib
+        matplotlib.use("Agg")
+        ds = self._make_plot_dataset()
+        ax = ds.plot_spectrum_data(rate=True, density=False, show=False, save=False)
+        self.assertIsNotNone(ax)
+        import matplotlib.pyplot as plt
+        plt.close("all")
+
+    def test_plot_spectrum_data_density_only(self):
+        """rate=False, density=True produces a plot without raising."""
+        import matplotlib
+        matplotlib.use("Agg")
+        ds = self._make_plot_dataset()
+        ax = ds.plot_spectrum_data(rate=False, density=True, show=False, save=False)
+        self.assertIsNotNone(ax)
+        import matplotlib.pyplot as plt
+        plt.close("all")
+
+    def test_plot_spectrum_data_counts_only(self):
+        """rate=False, density=False plots raw counts without raising."""
+        import matplotlib
+        matplotlib.use("Agg")
+        ds = self._make_plot_dataset()
+        ax = ds.plot_spectrum_data(rate=False, density=False, show=False, save=False)
+        self.assertIsNotNone(ax)
+        import matplotlib.pyplot as plt
+        plt.close("all")
+
+    def test_plot_spectrum_data_with_background_rate_only(self):
+        """Background is plotted in rate-only mode (covers bkg elif rate branch)."""
+        import matplotlib
+        matplotlib.use("Agg")
+        ds = self._make_plot_dataset(with_bkg=True)
+        ax = ds.plot_spectrum_data(
+            rate=True, density=False, plot_background=True, show=False, save=False
+        )
+        self.assertIsNotNone(ax)
+        import matplotlib.pyplot as plt
+        plt.close("all")
+
+    def test_plot_spectrum_data_with_background_density_only(self):
+        """Background is plotted in density-only mode (covers bkg elif density branch)."""
+        import matplotlib
+        matplotlib.use("Agg")
+        ds = self._make_plot_dataset(with_bkg=True)
+        ax = ds.plot_spectrum_data(
+            rate=False, density=True, plot_background=True, show=False, save=False
+        )
+        self.assertIsNotNone(ax)
+        import matplotlib.pyplot as plt
+        plt.close("all")
+
+    def test_plot_spectrum_data_with_background_counts_only(self):
+        """Background is plotted in raw counts mode (covers bkg else branch)."""
+        import matplotlib
+        matplotlib.use("Agg")
+        ds = self._make_plot_dataset(with_bkg=True)
+        ax = ds.plot_spectrum_data(
+            rate=False, density=False, plot_background=True, show=False, save=False
+        )
+        self.assertIsNotNone(ax)
+        import matplotlib.pyplot as plt
+        plt.close("all")
+
+    def test_plot_spectrum_data_energy_args_set_active_interval(self):
+        """Passing energy_min/energy_max to plot_spectrum_data updates active interval."""
+        import matplotlib
+        matplotlib.use("Agg")
+        ds = self._make_plot_dataset()
+        ax = ds.plot_spectrum_data(
+            energy_min=0.8, energy_max=2.5, show=False, save=False
+        )
+        self.assertAlmostEqual(ds.active_energy_min, 0.8)
+        self.assertAlmostEqual(ds.active_energy_max, 2.5)
+        import matplotlib.pyplot as plt
+        plt.close("all")
+
+    def test_plot_spectrum_data_background_energy_mask(self):
+        """Background counts are masked to the active energy range."""
+        import matplotlib
+        matplotlib.use("Agg")
+        ds = self._make_plot_dataset(with_bkg=True)
+        ax = ds.plot_spectrum_data(
+            energy_min=1.0, energy_max=2.5, plot_background=True,
+            show=False, save=False
+        )
+        self.assertIsNotNone(ax)
+        import matplotlib.pyplot as plt
+        plt.close("all")
+
+    def test_predict_counts_model_string_lookup(self):
+        """predict_counts accepts a model name string (covers the string-import branch)."""
+        from redback.spectral.dataset import SpectralDataset
+        from redback.model_library import all_models_dict
+
+        def _simple_model(energies_keV, amplitude):
+            return np.ones_like(energies_keV) * amplitude
+
+        all_models_dict["_test_coverage_model"] = _simple_model
+        ds = SpectralDataset(
+            counts=np.ones(self.n) * 10.0,
+            exposure=self.exposure,
+            energy_edges_keV=self.edges,
+        )
+        predicted = ds.predict_counts("_test_coverage_model", {"amplitude": 1.0})
+        self.assertEqual(len(predicted), self.n)
+        del all_models_dict["_test_coverage_model"]
+
+    def test_compute_band_flux_string_model(self):
+        """compute_band_flux accepts a model name string."""
+        from redback.spectral.dataset import SpectralDataset
+        from redback.model_library import all_models_dict
+
+        def _simple_model(energies_keV, amplitude):
+            return np.ones_like(energies_keV) * amplitude
+
+        all_models_dict["_test_band_flux_model"] = _simple_model
+        ds = SpectralDataset(
+            counts=np.ones(self.n) * 10.0,
+            exposure=self.exposure,
+            energy_edges_keV=self.edges,
+        )
+        flux = ds.compute_band_flux(
+            "_test_band_flux_model", {"amplitude": 1.0},
+            energy_min_keV=0.5, energy_max_keV=3.0
+        )
+        self.assertIsInstance(flux, float)
+        del all_models_dict["_test_band_flux_model"]
+
+    def test_compute_band_flux_unabsorbed_zeroes_nh(self):
+        """compute_band_flux with unabsorbed=True sets nh=0.0 in params."""
+        from redback.spectral.dataset import SpectralDataset
+
+        received_params = {}
+
+        def _absorb_model(energies_keV, amplitude, nh):
+            received_params["nh"] = nh
+            return np.ones_like(energies_keV) * amplitude
+
+        ds = SpectralDataset(
+            counts=np.ones(self.n) * 10.0,
+            exposure=self.exposure,
+            energy_edges_keV=self.edges,
+        )
+        ds.compute_band_flux(
+            _absorb_model, {"amplitude": 1.0, "nh": 0.05},
+            energy_min_keV=0.5, energy_max_keV=3.0, unabsorbed=True
+        )
+        self.assertAlmostEqual(received_params["nh"], 0.0)
+
+    def test_compute_band_flux_invalid_range_raises(self):
+        """compute_band_flux raises ValueError when energy_min >= energy_max."""
+        from redback.spectral.dataset import SpectralDataset
+        ds = SpectralDataset(
+            counts=np.ones(self.n) * 10.0,
+            exposure=self.exposure,
+            energy_edges_keV=self.edges,
+        )
+        with self.assertRaises(ValueError):
+            ds.compute_band_flux(
+                lambda e, amplitude: np.ones_like(e), {"amplitude": 1.0},
+                energy_min_keV=2.0, energy_max_keV=1.0
+            )
+
+
+# ===========================================================================
 # Entry point
 # ===========================================================================
 
