@@ -1790,3 +1790,234 @@ class TestPromptTimeSeriesTransient(unittest.TestCase):
 
         self.assertIsNotNone(prompt)
         mock_load.assert_called_once()
+
+
+class TestTransientAdditional(unittest.TestCase):
+    """Additional Transient tests for untested properties and methods."""
+
+    def _make(self, **kwargs):
+        defaults = dict(time=np.array([1.0, 2.0, 3.0]),
+                        time_err=np.array([0.1, 0.1, 0.1]),
+                        counts=np.array([4.0, 5.0, 6.0]),
+                        data_mode='counts', name='TestGRB')
+        defaults.update(kwargs)
+        return redback.transient.transient.Transient(**defaults)
+
+    # ------------------------------------------------------------------
+    # _time_attribute_name / _time_err_attribute_name
+    # ------------------------------------------------------------------
+
+    def test_time_attribute_name_default(self):
+        t = self._make()
+        self.assertEqual(t._time_attribute_name, "time")
+
+    def test_time_attribute_name_phase_model(self):
+        t = self._make(use_phase_model=True, time_mjd=np.array([1.0, 2.0, 3.0]),
+                       time_mjd_err=np.array([0.1, 0.1, 0.1]))
+        self.assertEqual(t._time_attribute_name, "time_mjd")
+
+    def test_time_attribute_name_luminosity(self):
+        t = self._make(data_mode='luminosity',
+                       time_rest_frame=np.array([1.0, 2.0, 3.0]),
+                       time_rest_frame_err=np.array([0.1, 0.1, 0.1]),
+                       Lum50=np.array([1e50, 2e50, 3e50]),
+                       Lum50_err=np.array([1e48, 1e48, 1e48]))
+        self.assertEqual(t._time_attribute_name, "time_rest_frame")
+
+    def test_time_err_attribute_name(self):
+        t = self._make()
+        self.assertEqual(t._time_err_attribute_name, "time_err")
+
+    # ------------------------------------------------------------------
+    # _y_attribute_name
+    # ------------------------------------------------------------------
+
+    def test_y_attribute_name_flux(self):
+        t = self._make(data_mode='flux', flux=np.array([1.0, 2.0, 3.0]),
+                       flux_err=np.array([0.1, 0.1, 0.1]))
+        self.assertEqual(t._y_attribute_name, "flux")
+
+    def test_y_attribute_name_flux_density(self):
+        t = self._make(data_mode='flux_density',
+                       flux_density=np.array([1.0, 2.0, 3.0]),
+                       flux_density_err=np.array([0.1, 0.1, 0.1]))
+        self.assertEqual(t._y_attribute_name, "flux_density")
+
+    def test_y_attribute_name_magnitude(self):
+        t = self._make(data_mode='magnitude',
+                       magnitude=np.array([20.0, 21.0, 22.0]),
+                       magnitude_err=np.array([0.1, 0.1, 0.1]))
+        self.assertEqual(t._y_attribute_name, "magnitude")
+
+    # ------------------------------------------------------------------
+    # counts_err is sqrt(counts)
+    # ------------------------------------------------------------------
+
+    def test_counts_err_is_sqrt_counts(self):
+        counts = np.array([4.0, 9.0, 16.0])
+        t = self._make(counts=counts)
+        np.testing.assert_array_almost_equal(t.counts_err, np.sqrt(counts))
+
+    def test_counts_err_none_when_no_counts(self):
+        t = redback.transient.transient.Transient(
+            time=np.array([1.0, 2.0, 3.0]),
+            flux=np.array([1.0, 2.0, 3.0]),
+            flux_err=np.array([0.1, 0.1, 0.1]),
+            data_mode='flux', name='NoCountsGRB')
+        self.assertIsNone(t.counts_err)
+
+    # ------------------------------------------------------------------
+    # set_bands_and_frequency
+    # ------------------------------------------------------------------
+
+    def test_set_bands_and_frequency_both_none(self):
+        """Both None → both stored as None."""
+        t = self._make()
+        t.set_bands_and_frequency(bands=None, frequency=None)
+        self.assertIsNone(t._bands)
+        self.assertIsNone(t._frequency)
+
+    def test_set_bands_and_frequency_both_given(self):
+        """Both given → stored verbatim."""
+        t = self._make()
+        b = np.array(['g', 'r'])
+        f = np.array([6.3e14, 4.8e14])
+        t.set_bands_and_frequency(bands=b, frequency=f)
+        np.testing.assert_array_equal(t._bands, b)
+        np.testing.assert_array_equal(t._frequency, f)
+
+    def test_set_bands_and_frequency_only_frequency(self):
+        """Only frequency given → _bands = frequency array."""
+        t = self._make()
+        f = np.array([6.3e14, 4.8e14])
+        t.set_bands_and_frequency(bands=None, frequency=f)
+        np.testing.assert_array_equal(t._frequency, f)
+        np.testing.assert_array_equal(t._bands, f)
+
+    def test_set_bands_and_frequency_only_bands(self):
+        """Only bands given → _frequency computed via bands_to_frequency."""
+        t = self._make()
+        b = np.array(['lsstz', 'lsstz'])
+        t.set_bands_and_frequency(bands=b, frequency=None)
+        np.testing.assert_array_equal(t._bands, b)
+        self.assertIsNotNone(t._frequency)
+
+    # ------------------------------------------------------------------
+    # active_bands setter
+    # ------------------------------------------------------------------
+
+    def test_active_bands_setter_all(self):
+        """'all' → unique bands from self.bands."""
+        t = self._make()
+        t._bands = np.array(['g', 'r', 'g', 'i'])
+        t.active_bands = 'all'
+        self.assertEqual(sorted(t.active_bands), ['g', 'i', 'r'])
+
+    def test_active_bands_setter_list(self):
+        """List passed directly."""
+        t = self._make()
+        t._bands = np.array(['g', 'r', 'g'])
+        t.active_bands = ['g']
+        self.assertEqual(t.active_bands, ['g'])
+
+    # ------------------------------------------------------------------
+    # filtered_indices
+    # ------------------------------------------------------------------
+
+    def test_filtered_indices_no_bands(self):
+        """When bands is None, filtered_indices = range(len(x))."""
+        t = self._make()
+        t._bands = None
+        indices = t.filtered_indices
+        self.assertEqual(len(indices), len(t.x))
+
+    def test_filtered_indices_with_bands(self):
+        """filtered_indices is True only for elements in active_bands."""
+        t = self._make()
+        t._bands = np.array(['g', 'r', 'g'])
+        t._active_bands = ['g']
+        indices = t.filtered_indices
+        self.assertTrue(indices[0])
+        self.assertFalse(indices[1])
+        self.assertTrue(indices[2])
+
+    # ------------------------------------------------------------------
+    # load_data_generic
+    # ------------------------------------------------------------------
+
+    def test_load_data_generic_invalid_mode_raises(self):
+        """load_data_generic raises ValueError for unknown data_mode."""
+        import pandas as pd
+        dummy_df = pd.DataFrame({
+            "time (days)": [1.0], "time": [59000.0],
+            "magnitude": [20.0], "e_magnitude": [0.1],
+            "band": ["g"], "flux_density(mjy)": [0.05],
+            "flux_density_error": [0.005],
+        })
+        with mock.patch("pandas.read_csv", return_value=dummy_df):
+            with self.assertRaises(ValueError):
+                redback.transient.transient.Transient.load_data_generic(
+                    processed_file_path="dummy.csv", data_mode="banana")
+
+
+class TestSpectrumPlotMethods(unittest.TestCase):
+    """Tests for Spectrum.plot_data, plot_spectrum, and plot_residual."""
+
+    def setUp(self):
+        import redback.get_data.directory as directory
+        self._orig = directory.spectrum_directory_structure
+        directory.spectrum_directory_structure = lambda transient: "dummy"
+        self.angstroms = np.linspace(4000, 7000, 20)
+        self.flux = np.ones(20) * 1e-17
+        self.err = np.ones(20) * 1e-19
+        self.spec = redback.transient.Spectrum(
+            self.angstroms, self.flux, self.err, name="TestSpec")
+
+    def tearDown(self):
+        import redback.get_data.directory as directory
+        directory.spectrum_directory_structure = self._orig
+        import matplotlib.pyplot as plt
+        plt.close("all")
+
+    def test_plot_data_returns_axes(self):
+        import matplotlib
+        matplotlib.use("Agg")
+        from unittest.mock import patch
+        with patch("redback.plotting.SpectrumPlotter.plot_data") as mock_pd:
+            import matplotlib.pyplot as plt
+            _, ax = plt.subplots()
+            mock_pd.return_value = ax
+            result = self.spec.plot_data(axes=ax, save=False, show=False)
+            mock_pd.assert_called_once_with(axes=ax, save=False, show=False)
+
+    def test_plot_spectrum_returns_axes(self):
+        import matplotlib
+        matplotlib.use("Agg")
+        from unittest.mock import patch
+
+        def dummy_model(x, a, **kw):
+            return np.ones_like(x) * a
+
+        with patch("redback.plotting.SpectrumPlotter.plot_spectrum") as mock_ps:
+            import matplotlib.pyplot as plt
+            _, ax = plt.subplots()
+            mock_ps.return_value = ax
+            result = self.spec.plot_spectrum(
+                model=dummy_model, axes=ax, save=False, show=False)
+            mock_ps.assert_called_once_with(axes=ax, save=False, show=False)
+
+    def test_plot_residual_returns_axes(self):
+        import matplotlib
+        matplotlib.use("Agg")
+        from unittest.mock import patch
+
+        def dummy_model(x, a, **kw):
+            return np.ones_like(x) * a
+
+        with patch("redback.plotting.SpectrumPlotter.plot_residuals") as mock_pr:
+            import matplotlib.pyplot as plt
+            _, ax = plt.subplots()
+            mock_pr.return_value = ax
+            result = self.spec.plot_residual(
+                model=dummy_model, axes=ax, save=False, show=False)
+            mock_pr.assert_called_once_with(axes=ax, save=False, show=False)

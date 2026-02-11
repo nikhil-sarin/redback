@@ -3067,3 +3067,146 @@ class TestKwargsAccessorWithDefaultCoverage(unittest.TestCase):
 
         self.assertTrue(True)
 
+
+class TestPlotterAxisCustomizations(unittest.TestCase):
+    """Tests for _apply_axis_customizations and _save_and_show."""
+
+    def _make_plotter(self, **kwargs):
+        dummy = DummyTransient(name="TestTransient", directory_path="/tmp")
+        return Plotter(dummy, **kwargs)
+
+    def test_apply_axis_customizations_grid_on(self):
+        """show_grid=True calls ax.grid."""
+        import matplotlib
+        matplotlib.use("Agg")
+        plotter = self._make_plotter(show_grid=True, grid_alpha=0.5,
+                                     grid_color="blue", grid_linestyle=":",
+                                     grid_linewidth=1.0)
+        fig, ax = plt.subplots()
+        plotter._apply_axis_customizations(ax)
+        plt.close("all")
+
+    def test_apply_axis_customizations_grid_off(self):
+        """show_grid=False (default) does not call ax.grid."""
+        import matplotlib
+        matplotlib.use("Agg")
+        plotter = self._make_plotter(show_grid=False)
+        fig, ax = plt.subplots()
+        plotter._apply_axis_customizations(ax)
+        plt.close("all")
+
+    def test_apply_axis_customizations_title(self):
+        """title kwarg sets the axes title."""
+        import matplotlib
+        matplotlib.use("Agg")
+        plotter = self._make_plotter(title="My Title", title_fontsize=14)
+        fig, ax = plt.subplots()
+        plotter._apply_axis_customizations(ax)
+        self.assertEqual(ax.get_title(), "My Title")
+        plt.close("all")
+
+    def test_apply_axis_customizations_no_title(self):
+        """Without title kwarg no title is set (empty string)."""
+        import matplotlib
+        matplotlib.use("Agg")
+        plotter = self._make_plotter()
+        fig, ax = plt.subplots()
+        plotter._apply_axis_customizations(ax)
+        self.assertEqual(ax.get_title(), "")
+        plt.close("all")
+
+    def test_apply_axis_customizations_hide_spines(self):
+        """show_spines=False makes all spines invisible."""
+        import matplotlib
+        matplotlib.use("Agg")
+        plotter = self._make_plotter(show_spines=False)
+        fig, ax = plt.subplots()
+        plotter._apply_axis_customizations(ax)
+        for spine in ax.spines.values():
+            self.assertFalse(spine.get_visible())
+        plt.close("all")
+
+    def test_apply_axis_customizations_spine_linewidth(self):
+        """spine_linewidth kwarg sets linewidth on visible spines."""
+        import matplotlib
+        matplotlib.use("Agg")
+        plotter = self._make_plotter(show_spines=True, spine_linewidth=3.0)
+        fig, ax = plt.subplots()
+        plotter._apply_axis_customizations(ax)
+        for spine in ax.spines.values():
+            self.assertAlmostEqual(spine.get_linewidth(), 3.0, places=5)
+        plt.close("all")
+
+    def test_apply_axis_customizations_tick_length_and_width(self):
+        """tick_length and tick_width are passed to tick_params without error."""
+        import matplotlib
+        matplotlib.use("Agg")
+        plotter = self._make_plotter(tick_length=6.0, tick_width=1.5)
+        fig, ax = plt.subplots()
+        plotter._apply_axis_customizations(ax)
+        plt.close("all")
+
+    def test_save_and_show_save_png(self):
+        """_save_and_show with save=True writes a file."""
+        import matplotlib
+        import tempfile
+        import os
+        matplotlib.use("Agg")
+        plotter = self._make_plotter(save_format="png", dpi=72)
+        fig, ax = plt.subplots()
+        ax.plot([0, 1], [0, 1])
+        with tempfile.TemporaryDirectory() as td:
+            filepath = os.path.join(td, "test_output.png")
+            plotter._save_and_show(filepath, save=True, show=False)
+            self.assertTrue(os.path.isfile(filepath))
+        plt.close("all")
+
+    def test_save_and_show_save_format_override(self):
+        """_save_and_show replaces extension with save_format."""
+        import matplotlib
+        import tempfile
+        import os
+        matplotlib.use("Agg")
+        plotter = self._make_plotter(save_format="pdf", dpi=72)
+        fig, ax = plt.subplots()
+        ax.plot([0, 1], [0, 1])
+        with tempfile.TemporaryDirectory() as td:
+            filepath = os.path.join(td, "test_output.png")
+            plotter._save_and_show(filepath, save=True, show=False)
+            expected = os.path.join(td, "test_output.pdf")
+            self.assertTrue(os.path.isfile(expected))
+        plt.close("all")
+
+    def test_save_and_show_no_save(self):
+        """_save_and_show with save=False, show=False runs without error."""
+        import matplotlib
+        matplotlib.use("Agg")
+        plotter = self._make_plotter()
+        fig, ax = plt.subplots()
+        plotter._save_and_show("/nonexistent/path.png", save=False, show=False)
+        plt.close("all")
+
+    def test_get_outdir_returns_default(self):
+        """_get_outdir returns the default when no outdir kwarg is supplied."""
+        plotter = self._make_plotter()
+        result = plotter._get_outdir("/my/default")
+        self.assertEqual(result, "/my/default")
+
+    def test_get_outdir_returns_kwarg(self):
+        """_get_outdir returns the kwarg value when supplied."""
+        plotter = self._make_plotter(outdir="/custom/outdir")
+        result = plotter._get_outdir("/my/default")
+        self.assertEqual(result, "/custom/outdir")
+
+    def test_get_kwarg_with_default_missing(self):
+        """_get_kwarg_with_default returns default when key not in kwargs."""
+        plotter = self._make_plotter()
+        result = plotter._get_kwarg_with_default("nonexistent_key", "fallback")
+        self.assertEqual(result, "fallback")
+
+    def test_get_kwarg_with_default_present(self):
+        """_get_kwarg_with_default returns the kwarg value when present."""
+        plotter = self._make_plotter(nonexistent_key="supplied")
+        result = plotter._get_kwarg_with_default("nonexistent_key", "fallback")
+        self.assertEqual(result, "supplied")
+
