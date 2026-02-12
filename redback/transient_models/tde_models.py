@@ -96,7 +96,7 @@ def _cooling_envelope(mbh_6, stellar_mass, eta, alpha, beta, **kwargs):
     tfb = calc_tfb(binding_energy_const, mbh_6, stellar_mass * f_debris)
     # Eddington luminosity of SMBH in units of 1e40 erg/s
     Ledd40 = 1.4e4 * mbh_6
-    time_temp = np.logspace(np.log10(1.0 * tfb), np.log10(5000 * tfb), 5000)
+    time_temp = np.logspace(np.log10(1.0 * tfb), np.log10(5000 * tfb), 500)
     tdays = time_temp / cc.day_to_s
 
     # set up grids
@@ -205,7 +205,7 @@ def _cooling_envelope(mbh_6, stellar_mass, eta, alpha, beta, **kwargs):
     except ValueError:
         constraint_1 = len(time_temp)
         constraint_2 = len(time_temp)
-    constraint = np.min([constraint_1, constraint_2])
+    constraint = np.max([np.min([constraint_1, constraint_2]), 4])
     termination_time_id = np.min([constraint_1, constraint_2])
 
     nu = 6.0e14

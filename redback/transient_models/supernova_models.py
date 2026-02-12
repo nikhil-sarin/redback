@@ -3,7 +3,7 @@ import pandas as pd
 from redback.transient_models.phenomenological_models import exponential_powerlaw, fallback_lbol
 from redback.transient_models.magnetar_models import magnetar_only, basic_magnetar
 from redback.transient_models.magnetar_driven_ejecta_models import _ejecta_dynamics_and_interaction
-from redback.transient_models.shock_powered_models import  _shocked_cocoon, _csm_shock_breakout
+from redback.transient_models.shock_powered_models import  _shocked_cocoon, _csm_shock_breakout, _shocked_cocoon_csm, shocked_cocoon_csm_bolometric, shocked_cocoon_csm
 import redback.interaction_processes as ip
 import redback.sed as sed
 from redback.sed import flux_density_to_spectrum, blackbody_to_spectrum
@@ -543,7 +543,7 @@ def _nickelmixing(time, mej, esn, kappa, kappa_gamma, f_nickel, f_mixing,
     # Constants assumed defined elsewhere: day_to_s, solar_mass, km_cgs, speed_of_light, sigma_sb.
     tdays = time / day_to_s
     time_len = len(time)
-    mass_len = int(kwargs.get('mass_len', 1000))
+    mass_len = int(kwargs.get('mass_len', 100))
     ni_mass = f_nickel * mej
     vmin_frac = kwargs.get('vmin_frac', 0.2)
     vmin = vmin_frac * (2 * (esn * 1e51) / (mej * solar_mass)) ** 0.5 / 1e5
@@ -616,6 +616,11 @@ def _nickelmixing(time, mej, esn, kappa, kappa_gamma, f_nickel, f_mixing,
     # or zero because stability
     energy_v[:, 0] = 0.  # 0.5 * m_array * solar_mass * v_m ** 2
 
+    # Pre-calculate geometric factor for optical depth (integral of rho dr)
+    # Sum m_i / v_i^2 from outside in to get cumulative column density proxy
+    inv_v2 = 1.0 / (v_m ** 2)
+    tau_geom = np.cumsum((m_array * solar_mass * inv_v2)[::-1])[::-1]
+
     # Loop over time steps: update energy and luminosity in each shell.
     for ii in range(time_len - 1):
         if use_gray_opacity:
@@ -640,15 +645,28 @@ def _nickelmixing(time, mej, esn, kappa, kappa_gamma, f_nickel, f_mixing,
                 kappa_eff = kappa_min + 0.5 * (kappa_max - kappa_min) * \
                             (1.0 + np.tanh((T_eff_prev - temperature_floor) / (50000)))
         # print(kappa_eff)
-        td_v[:, ii] = (kappa_eff * m_array * solar_mass * 3) / \
-                      (4 * np.pi * v_m * speed_of_light * time[ii] * diffusion_beta)
+        
+        # Calculate cumulative optical depth
+        # tau = Integral(kappa rho dr).
+        # With our discretization: tau_cum = kappa * Sum(m/v^2) / (4 pi t^2)
+        tau_cum = (kappa_eff * tau_geom) / (4 * np.pi * time[ii]**2)
+        
+        # Diffusion time t_diff ~ 3 * tau * R / c
+        # Here R ~ v * t
+        td_v[:, ii] = 3 * tau_cum * (v_m * time[ii]) / (speed_of_light * diffusion_beta)
+        
         # Add minimum diffusion time to prevent instability
         min_diffusion_time = dt[ii] * 1  # Minimum 10x timestep
         td_v[:, ii] = np.maximum(td_v[:, ii], min_diffusion_time)
 
-        tau[:, ii] = (m_array * solar_mass * kappa_eff) / (4 * np.pi * (time[ii] * v_m) ** 2)
-        leakage = 3 * kappa_gamma * m_array * solar_mass / (4 * np.pi * v_m ** 2)
-        eth_v[:, ii] = 1 - np.exp(-leakage * time[ii] ** (-2))
+        tau[:, ii] = tau_cum
+        
+        # Gamma-ray optical depth (also cumulative)
+        # leakage = 3 * tau_gamma
+        tau_gamma = (kappa_gamma * tau_geom) / (4 * np.pi * time[ii]**2)
+        leakage = 3 * tau_gamma
+        
+        eth_v[:, ii] = 1 - np.exp(-leakage)
         qdot_ni[:, ii] = ni_array * edotr[:, ii] * eth_v[:, ii]
         tlc_v[:, ii] = v_m * time[ii] / speed_of_light
 
@@ -714,7 +732,7 @@ def nickelmixing_bolometric(time, mej, esn, kappa, kappa_gamma, f_nickel, f_mixi
     :param dense_resolution: resolution of dense time array, default is 1000
     :return: bolometric luminosity
     """
-    dense_resolution = kwargs.get("dense_resolution", 1000)
+    dense_resolution = kwargs.get("dense_resolution", 200)
     stop_time = kwargs.get("stop_time", 300)
     time_temp = np.geomspace(0.01, int(stop_time), int(dense_resolution))
     outputs = _nickelmixing(time_temp * 86400, mej=mej, esn=esn, kappa=kappa,
@@ -2848,3 +2866,97 @@ def typeII_surrogate_sarin25(time, redshift, progenitor, ni_mass, log10_mdot, be
                 time_spline_degree=1,
                 **kwargs
             )
+
+@citation_wrapper('https://ui.adsabs.harvard.edu/abs/2025ApJ...986L...4H/abstract, https://ui.adsabs.harvard.edu/abs/2025ApJ...988...30H/abstract, https://ui.adsabs.harvard.edu/abs/1982ApJ...253..785A/abstract')
+def shocked_cocoon_csm_and_arnett_bolometric(time, E_eng, t_eng, theta_0, M_csm, R_csm, kappa, f_nickel, mej, vej, **kwargs):
+    """
+    :param time: time in source frame in days
+    :param E_eng: jet energy (erg)
+    :param t_eng: jet activity timescale (s)
+    :param theta_0: jet opening angle (radians)
+    :param M_csm: CSM mass (solar masses)
+    :param R_csm: CSM outer radius (cm)
+    :param kappa: opacity (cm^2/g)
+    :param f_nickel: Fraction of ejecta made of 56Ni
+    :param mej: ejecta mass (solar masses)
+    :param vej: ejecta velocity (km/s) 
+    :param kwargs: Extra parameters used by model e.g., kappa_gamma, temperature_floor, and any kwarg to
+                change any other input physics/parameters from default.
+    :return: bolometric luminosity'
+    """
+    coc_lbol = shocked_cocoon_csm_bolometric(time = time, E_eng = E_eng, t_eng = t_eng, 
+                                 theta_0 = theta_0, M_csm = M_csm, R_csm = R_csm, kappa = kappa, **kwargs)
+    sn_lbol = arnett_bolometric(time=time, f_nickel=f_nickel, mej=mej, vej=vej,
+                                 interaction_process=ip.Diffusion, kappa=kappa, **kwargs)
+    return coc_lbol + sn_lbol                          
+
+@citation_wrapper('https://ui.adsabs.harvard.edu/abs/2025ApJ...986L...4H/abstract, https://ui.adsabs.harvard.edu/abs/2025ApJ...988...30H/abstract, https://ui.adsabs.harvard.edu/abs/1982ApJ...253..785A/abstract')
+def shocked_cocoon_csm_and_arnett(time, redshift, E_eng, t_eng, theta_0, M_csm, R_csm, kappa, f_nickel, mej, vej, **kwargs):
+    """
+    :param time: time in observer frame in days
+    :param redshift: redshift
+    :param E_eng: jet energy (erg)
+    :param t_eng: jet activity timescale (s)
+    :param theta_0: jet opening angle (radians)
+    :param M_csm: CSM mass (solar masses)
+    :param R_csm: CSM outer radius (cm)
+    :param kappa: opacity (cm^2/g)
+    :param f_nickel: Fraction of ejecta made of 56Ni
+    :param mej: ejecta mass (solar masses)
+    :param vej: ejecta velocity (km/s) 
+    :param kwargs: Extra parameters used by model e.g., kappa_gamma, temperature_floor, and any kwarg to
+                change any other input physics/parameters from default.
+    :param frequency: Required if output_format is 'flux_density'.
+        frequency to calculate - Must be same length as time array or a single number).
+    :param bands: Required if output_format is 'magnitude' or 'flux'.
+    :param output_format: 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
+    :param lambda_array: Optional argument to set your desired wavelength array (in Angstroms) to evaluate the SED on.
+    :param cosmology: Cosmology to use for luminosity distance calculation. Defaults to Planck18. Must be a astropy.cosmology object.
+    :return: set by output format - 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
+    """
+    cosmology = kwargs.get('cosmology', cosmo)
+    dl = cosmology.luminosity_distance(redshift).cgs.value
+    
+    if kwargs['output_format'] == 'flux_density':
+        coc_fmjy = shocked_cocoon_csm(time = time, redshift = redshift, E_eng = E_eng, t_eng = t_eng, 
+                                 theta_0 = theta_0, M_csm = M_csm, R_csm = R_csm, kappa = kappa, **kwargs)  
+        sn_fmjy = arnett(time=time, redshift = redshift, f_nickel=f_nickel, mej=mej, vej=vej,
+                                 interaction_process=ip.Diffusion, kappa=kappa, **kwargs)
+        return coc_fmjy + sn_fmjy  
+    else: 
+        time_obs = time
+        lambda_observer_frame = kwargs.get('frequency_array', np.geomspace(100, 60000, 200))  
+        output = _shocked_cocoon_csm(E_eng = E_eng, t_eng = t_eng, theta_0 = theta_0, 
+                                        M_csm = M_csm, R_csm = R_csm, kappa = kappa, **kwargs)  
+        t_array = output.time_array
+        T = output.T_photosphere
+        Rph = output.r_photosphere
+
+        zarr = np.zeros(30)
+        tadd = np.linspace(t_array[-1]+5,t_array[-1]+1000,30)
+        Rlate = np.ones(30)*1e16
+        t_obs = np.concatenate(([0], t_array, tadd))
+        T = np.concatenate(([0], T, zarr))
+        Rph = np.concatenate(([0], Rph, Rlate))    
+        
+        time_observer_frame = t_obs * (1. + redshift)
+        frequency, time = calc_kcorrected_properties(frequency=lambda_to_nu(lambda_observer_frame),
+                                                     redshift=redshift, time=time_observer_frame)
+        fmjy = sed.blackbody_to_flux_density(temperature=T,
+                                             r_photosphere=Rph, frequency=frequency[:, None], dl=dl)  
+        lbol = arnett_bolometric(time=time, f_nickel=f_nickel, mej=mej, vej=vej,
+                                 interaction_process=ip.Diffusion, kappa=kappa, **kwargs)
+        photo = photosphere.TemperatureFloor(time=time, luminosity=lbol, vej=vej, **kwargs)
+        sed_1 = sed.Blackbody(temperature=photo.photosphere_temperature,
+                              r_photosphere=photo.r_photosphere, frequency=frequency[:, None], luminosity_distance=dl)
+        fmjy += sed_1.flux_density
+        fmjy = fmjy.T                                                                            
+        spectra = flux_density_to_spectrum(fmjy, redshift, lambda_observer_frame)
+        if kwargs['output_format'] == 'spectra':
+            return namedtuple('output', ['time', 'lambdas', 'spectra'])(time=time_observer_frame,
+                                                                        lambdas=lambda_observer_frame,
+                                                                        spectra=spectra)
+        else:
+            return sed.get_correct_output_format_from_spectra(time=time_obs, time_eval=time_observer_frame,
+                                                              spectra=spectra, lambda_array=lambda_observer_frame,
+                                                              **kwargs)

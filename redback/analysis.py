@@ -48,7 +48,8 @@ def _setup_plotting_result(model, model_kwargs, parameters, transient):
     return model, parameters, res
 
 
-def plot_lightcurve(transient, parameters, model, model_kwargs=None, **kwargs: None):
+def plot_lightcurve(transient, parameters, model, model_kwargs=None,
+                    show=True, save=False, **kwargs: None):
     """
     Plot a lightcurve for a given model and parameters
 
@@ -60,10 +61,11 @@ def plot_lightcurve(transient, parameters, model, model_kwargs=None, **kwargs: N
     """
     model, parameters, res = _setup_plotting_result(model, model_kwargs, parameters, transient)
     return res.plot_lightcurve(model=model, random_models=len(parameters), plot_max_likelihood=False,
-                               save=False, show=False, **kwargs)
+                               save=save, show=show, **kwargs)
 
 
-def plot_multiband_lightcurve(transient, parameters, model, model_kwargs=None, **kwargs: None):
+def plot_multiband_lightcurve(transient, parameters, model, model_kwargs=None,
+                              show=True, save=False, **kwargs: None):
     """
     Plot a multiband lightcurve for a given model and parameters
 
@@ -75,7 +77,7 @@ def plot_multiband_lightcurve(transient, parameters, model, model_kwargs=None, *
     """
     model, parameters, res = _setup_plotting_result(model, model_kwargs, parameters, transient)
     return res.plot_multiband_lightcurve(model=model, random_models=len(parameters), plot_max_likelihood=False,
-                                         save=False, show=False, **kwargs)
+                                         save=save, show=show, **kwargs)
 
 
 def plot_evolution_parameters(result, random_models=100):
@@ -470,6 +472,456 @@ def generate_new_transient_data_from_gp(gp_out, t_new, transient, **kwargs):
                                                            Lum50=y_pred, Lum50_err=y_err,
                                                            time_rest_frame=tts, data_mode=data_mode)
     return new_transient
+
+
+class SpectralVelocityFitter:
+    """
+    Measure expansion velocities from spectral line profiles
+
+    Used for:
+    - Photospheric velocity evolution
+    - High-velocity features (HVF)
+    - Velocity gradients (dv/dt)
+
+    Parameters
+    ----------
+    wavelength : array
+        Wavelength array in Angstroms
+    flux : array
+        Flux density array
+    flux_err : array, optional
+        Flux density uncertainties
+
+    Examples
+    --------
+    >>> fitter = SpectralVelocityFitter(wavelength, flux)
+    >>> v_Si, v_err = fitter.measure_line_velocity(6355)
+    >>> print(f"Si II velocity: {v_Si:.0f} +/- {v_err:.0f} km/s")
+    """
+
+    def __init__(self, wavelength, flux, flux_err=None):
+        """
+        Initialize SpectralVelocityFitter
+
+        Parameters
+        ----------
+        wavelength : array
+            Wavelength array in Angstroms
+        flux : array
+            Flux density array
+        flux_err : array, optional
+            Flux density uncertainties
+        """
+        self.wavelength = np.asarray(wavelength)
+        self.flux = np.asarray(flux)
+        if flux_err is not None:
+            self.flux_err = np.asarray(flux_err)
+        else:
+            self.flux_err = None
+
+    @classmethod
+    def from_spectrum_object(cls, spectrum):
+        """
+        Create fitter from a redback Spectrum object
+
+        Parameters
+        ----------
+        spectrum : object
+            Object with .angstroms and .flux_density attributes
+
+        Returns
+        -------
+        fitter : SpectralVelocityFitter
+            Initialized fitter object
+        """
+        wavelength = spectrum.angstroms
+        flux = spectrum.flux_density
+        flux_err = getattr(spectrum, 'flux_density_err', None)
+        return cls(wavelength, flux, flux_err)
+
+    def measure_line_velocity(self, line_rest_wavelength, method='min', **kwargs):
+        """
+        Measure velocity from single absorption line
+
+        Parameters
+        ----------
+        line_rest_wavelength : float
+            Rest wavelength in Angstroms (e.g., 6355 for Si II)
+        method : str
+            'min' - use minimum flux (standard)
+            'centroid' - use flux-weighted centroid
+            'fit' - fit P-Cygni profile
+            'gaussian' - fit Gaussian to absorption trough
+        kwargs : dict
+            Additional parameters:
+            - v_window : float
+                Velocity window for search (km/s, default 5000)
+            - continuum_percentile : float
+                Percentile for continuum estimation (default 90)
+
+        Returns
+        -------
+        velocity : float
+            Measured velocity in km/s (negative = blueshift)
+        velocity_err : float
+            Uncertainty in km/s
+
+        Examples
+        --------
+        >>> fitter = SpectralVelocityFitter(wavelength, flux)
+        >>> v_Si, verr = fitter.measure_line_velocity(6355, method='min')
+        >>> print(f"Si II velocity: {v_Si:.0f} +/- {verr:.0f} km/s")
+        """
+        c_kms = 299792.458
+        v_window = kwargs.get('v_window', 5000)  # km/s
+
+        # Extract region around line
+        lambda_window = line_rest_wavelength * v_window / c_kms
+
+        mask = ((self.wavelength > line_rest_wavelength - lambda_window) &
+                (self.wavelength < line_rest_wavelength + lambda_window))
+
+        if np.sum(mask) < 5:
+            logger.warning(f"Insufficient data points around {line_rest_wavelength} A")
+            return np.nan, np.nan
+
+        wave_line = self.wavelength[mask]
+        flux_line = self.flux[mask]
+
+        if method == 'min':
+            # Find minimum flux (absorption trough)
+            imin = np.argmin(flux_line)
+            lambda_min = wave_line[imin]
+
+            # Convert to velocity
+            velocity = c_kms * (lambda_min - line_rest_wavelength) / line_rest_wavelength
+
+            # Error estimate from nearby points
+            n_err = min(3, len(wave_line) // 4)
+            if n_err > 0:
+                # Estimate error from wavelength resolution
+                dlambda = np.median(np.diff(wave_line))
+                velocity_err = c_kms * dlambda / line_rest_wavelength
+            else:
+                velocity_err = 100  # default estimate
+
+        elif method == 'centroid':
+            # Flux-weighted centroid (inverse for absorption)
+            # Use inverse flux for absorption features
+            continuum_pct = kwargs.get('continuum_percentile', 90)
+            continuum = np.percentile(flux_line, continuum_pct)
+
+            # Absorption depth
+            absorption = continuum - flux_line
+            absorption[absorption < 0] = 0
+
+            if np.sum(absorption) > 0:
+                lambda_centroid = np.sum(wave_line * absorption) / np.sum(absorption)
+                velocity = c_kms * (lambda_centroid - line_rest_wavelength) / line_rest_wavelength
+
+                # Error from scatter in absorption
+                variance = np.sum(absorption * (wave_line - lambda_centroid)**2) / np.sum(absorption)
+                lambda_err = np.sqrt(variance / np.sum(absorption > 0))
+                velocity_err = c_kms * lambda_err / line_rest_wavelength
+            else:
+                velocity = 0.0
+                velocity_err = 500.0
+
+        elif method == 'gaussian':
+            # Fit Gaussian to absorption trough
+            from scipy.optimize import curve_fit
+
+            # Estimate continuum
+            continuum_pct = kwargs.get('continuum_percentile', 90)
+            continuum = np.percentile(flux_line, continuum_pct)
+
+            def gaussian_absorption(wave, center, depth, sigma):
+                return continuum * (1 - depth * np.exp(-0.5 * ((wave - center) / sigma)**2))
+
+            # Initial guess
+            imin = np.argmin(flux_line)
+            center_guess = wave_line[imin]
+            depth_guess = (continuum - flux_line[imin]) / continuum
+            sigma_guess = 10.0  # Angstroms
+
+            try:
+                popt, pcov = curve_fit(
+                    gaussian_absorption, wave_line, flux_line,
+                    p0=[center_guess, depth_guess, sigma_guess],
+                    bounds=([wave_line.min(), 0.01, 1.0],
+                            [wave_line.max(), 1.0, 200.0])
+                )
+
+                lambda_center = popt[0]
+                velocity = c_kms * (lambda_center - line_rest_wavelength) / line_rest_wavelength
+                velocity_err = c_kms * np.sqrt(pcov[0, 0]) / line_rest_wavelength
+
+            except Exception as e:
+                logger.warning(f"Gaussian fit failed: {e}")
+                return self.measure_line_velocity(line_rest_wavelength, method='min')
+
+        elif method == 'fit':
+            # Fit P-Cygni profile
+            from scipy.optimize import curve_fit
+            from redback.transient_models.spectral_models import p_cygni_profile
+
+            # Continuum level
+            continuum_pct = kwargs.get('continuum_percentile', 90)
+            continuum = np.percentile(flux_line, continuum_pct)
+
+            def pcygni_model(wave, tau, v_phot):
+                return p_cygni_profile(
+                    wave, line_rest_wavelength, tau, v_phot, continuum, **kwargs
+                )
+
+            # Initial guess from minimum
+            imin = np.argmin(flux_line)
+            lambda_min = wave_line[imin]
+            v_guess = np.abs(c_kms * (lambda_min - line_rest_wavelength) / line_rest_wavelength)
+
+            try:
+                popt, pcov = curve_fit(
+                    pcygni_model, wave_line, flux_line,
+                    p0=[3.0, v_guess],
+                    bounds=([0.1, 1000], [100, 50000])
+                )
+
+                velocity = -popt[1]  # blueshifted, so negative
+                velocity_err = np.sqrt(pcov[1, 1])
+
+            except Exception as e:
+                logger.warning(f"P-Cygni fit failed: {e}")
+                return self.measure_line_velocity(line_rest_wavelength, method='min')
+
+        else:
+            raise ValueError(f"Unknown method: {method}")
+
+        return velocity, velocity_err
+
+    def measure_multiple_lines(self, line_dict, method='min', **kwargs):
+        """
+        Measure velocities for multiple lines
+
+        Parameters
+        ----------
+        line_dict : dict
+            {'Si II 6355': 6355, 'Fe II 5169': 5169, ...}
+        method : str
+            Method for velocity measurement (default 'min')
+        kwargs : dict
+            Additional parameters passed to measure_line_velocity
+
+        Returns
+        -------
+        velocities : dict
+            {'Si II 6355': (v, v_err), ...}
+
+        Examples
+        --------
+        >>> lines = {
+        ...     'Si II 6355': 6355,
+        ...     'Ca II H&K': 3934,
+        ...     'Fe II 5169': 5169
+        ... }
+        >>> velocities = fitter.measure_multiple_lines(lines)
+        >>> for ion, (v, verr) in velocities.items():
+        ...     print(f"{ion}: {v:.0f} +/- {verr:.0f} km/s")
+        """
+        velocities = {}
+        for ion_name, rest_wave in line_dict.items():
+            try:
+                v, verr = self.measure_line_velocity(rest_wave, method=method, **kwargs)
+                velocities[ion_name] = (v, verr)
+            except Exception as e:
+                logger.warning(f"Could not measure {ion_name}: {e}")
+                velocities[ion_name] = (np.nan, np.nan)
+
+        return velocities
+
+    @staticmethod
+    def photospheric_velocity_evolution(wavelength_list, flux_list, times,
+                                         line_wavelength=6355, method='min', **kwargs):
+        """
+        Track photospheric velocity evolution over time
+
+        Parameters
+        ----------
+        wavelength_list : list of arrays
+            Wavelength arrays for each spectrum
+        flux_list : list of arrays
+            Flux arrays for each spectrum
+        times : array
+            Observation times (days)
+        line_wavelength : float
+            Which line to use (default Si II 6355)
+        method : str
+            Velocity measurement method
+
+        Returns
+        -------
+        times : array
+            Observation times
+        velocities : array
+            Measured velocities (km/s)
+        errors : array
+            Velocity uncertainties (km/s)
+
+        Examples
+        --------
+        >>> times, vels, errs = SpectralVelocityFitter.photospheric_velocity_evolution(
+        ...     wavelength_list, flux_list, obs_times, line_wavelength=6355
+        ... )
+        >>> plt.errorbar(times, -vels/1000, yerr=errs/1000)
+        >>> plt.xlabel('Days since explosion')
+        >>> plt.ylabel('Photospheric velocity (1000 km/s)')
+        """
+        velocities = []
+        errors = []
+
+        for wave, flux in zip(wavelength_list, flux_list):
+            fitter = SpectralVelocityFitter(wave, flux)
+            v, verr = fitter.measure_line_velocity(line_wavelength, method=method, **kwargs)
+
+            velocities.append(v)
+            errors.append(verr)
+
+        return np.array(times), np.array(velocities), np.array(errors)
+
+    def identify_high_velocity_features(self, line_rest_wavelength, v_phot_expected,
+                                          threshold_factor=1.3):
+        """
+        Identify high-velocity features (HVF) in the spectrum
+
+        HVFs are absorption features at higher velocities than the photosphere,
+        often associated with circumstellar material or density enhancements.
+
+        Parameters
+        ----------
+        line_rest_wavelength : float
+            Rest wavelength of the line in Angstroms
+        v_phot_expected : float
+            Expected photospheric velocity in km/s
+        threshold_factor : float
+            Factor above v_phot to classify as HVF (default 1.3)
+
+        Returns
+        -------
+        has_hvf : bool
+            Whether HVF is detected
+        v_hvf : float or None
+            Velocity of HVF if detected (km/s)
+        v_hvf_err : float or None
+            Uncertainty in HVF velocity
+
+        Examples
+        --------
+        >>> has_hvf, v_hvf, v_err = fitter.identify_high_velocity_features(
+        ...     6355, v_phot_expected=11000
+        ... )
+        >>> if has_hvf:
+        ...     print(f"HVF detected at {-v_hvf:.0f} km/s")
+        """
+        c_kms = 299792.458
+
+        # Search for features at higher velocities
+        v_search_max = v_phot_expected * 2.0  # Search up to 2x photospheric velocity
+        v_search_min = v_phot_expected * threshold_factor
+
+        lambda_min = line_rest_wavelength * (1 - v_search_max / c_kms)
+        lambda_max = line_rest_wavelength * (1 - v_search_min / c_kms)
+
+        mask = (self.wavelength > lambda_min) & (self.wavelength < lambda_max)
+
+        if np.sum(mask) < 3:
+            return False, None, None
+
+        wave_hvf = self.wavelength[mask]
+        flux_hvf = self.flux[mask]
+
+        # Look for local minimum
+        if len(flux_hvf) > 2:
+            imin = np.argmin(flux_hvf)
+            lambda_min = wave_hvf[imin]
+
+            # Check if it's a significant absorption
+            continuum = np.percentile(self.flux, 90)
+            absorption_depth = (continuum - flux_hvf[imin]) / continuum
+
+            if absorption_depth > 0.05:  # At least 5% absorption
+                v_hvf = c_kms * (lambda_min - line_rest_wavelength) / line_rest_wavelength
+                dlambda = np.median(np.diff(wave_hvf)) if len(wave_hvf) > 1 else 5.0
+                v_hvf_err = c_kms * dlambda / line_rest_wavelength
+
+                return True, v_hvf, v_hvf_err
+
+        return False, None, None
+
+    def measure_velocity_gradient(self, wavelength_list, flux_list, times,
+                                   line_wavelength=6355, **kwargs):
+        """
+        Measure velocity gradient dv/dt from time series of spectra
+
+        Parameters
+        ----------
+        wavelength_list : list of arrays
+            Wavelength arrays for each spectrum
+        flux_list : list of arrays
+            Flux arrays for each spectrum
+        times : array
+            Observation times (days)
+        line_wavelength : float
+            Which line to use
+        kwargs : dict
+            Additional parameters passed to measure_line_velocity
+            (e.g., v_window, method)
+
+        Returns
+        -------
+        gradient : float
+            Velocity gradient in km/s/day
+        gradient_err : float
+            Uncertainty in gradient
+
+        Notes
+        -----
+        The velocity gradient is typically negative (decelerating) for
+        normal SNe Ia (around -50 to -100 km/s/day), but can be different
+        for peculiar objects.
+        """
+        times, velocities, errors = self.photospheric_velocity_evolution(
+            wavelength_list, flux_list, times, line_wavelength, **kwargs
+        )
+
+        # Remove NaN values
+        valid = ~np.isnan(velocities)
+        if np.sum(valid) < 2:
+            return np.nan, np.nan
+
+        times_valid = times[valid]
+        vel_valid = velocities[valid]
+        err_valid = errors[valid]
+
+        # Linear fit
+        from numpy.polynomial import polynomial as P
+
+        # Weighted fit if errors available
+        if np.all(err_valid > 0) and np.all(~np.isnan(err_valid)):
+            weights = 1 / err_valid**2
+            coeffs = np.polyfit(times_valid, vel_valid, deg=1, w=weights)
+        else:
+            coeffs = np.polyfit(times_valid, vel_valid, deg=1)
+
+        gradient = coeffs[0]  # km/s/day
+
+        # Error estimate
+        residuals = vel_valid - np.polyval(coeffs, times_valid)
+        if len(times_valid) > 2:
+            gradient_err = np.std(residuals) / np.sqrt(np.sum((times_valid - np.mean(times_valid))**2))
+        else:
+            gradient_err = np.nan
+
+        return gradient, gradient_err
+
 
 
 class SpectralTemplateMatcher(object):

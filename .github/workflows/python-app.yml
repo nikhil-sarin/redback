@@ -19,16 +19,16 @@ jobs:
         include:
           # Group 1: Heavy tests (model_test is largest ~83KB)
           - test-group: 1
-            test-files: "test/model_test.py test/wrapper_test.py"
+            test-files: "test/model_test.py test/wrapper_test.py test/vegas_models_test.py"
           # Group 2: Medium tests
           - test-group: 2
             test-files: "test/get_data_test.py test/analysis_test.py test/plotting_test.py test/spectral_template_matcher_test.py"
           # Group 3: Medium tests
           - test-group: 3
-            test-files: "test/prior_test.py test/likelihood_test.py test/sampler_test.py test/photosphere_test.py"
+            test-files: "test/prior_test.py test/likelihood_test.py test/sampler_test.py test/photosphere_test.py test/test_spectral_core.py test/test_spectral_io_dataset_likelihoods.py"
           # Group 4: Lighter tests
           - test-group: 4
-            test-files: "test/transient_test.py test/result_test.py test/utils_test.py test/constants_test.py test/examples_test.py test/model_library_test.py test/simulate_transient_test.py test/test_on_ref_results.py test/filters_test.py test/fireball_models_test.py test/gaussianprocess_models_test.py test/priors_test.py test/prompt_models_test.py test/wrappers_test.py test/constraints_test.py test/ejecta_relations_test.py test/sed_test.py test/interaction_processes_test.py"
+            test-files: "test/transient_test.py test/result_test.py test/utils_test.py test/constants_test.py test/examples_test.py test/model_library_test.py test/simulate_transient_test.py test/test_on_ref_results.py test/filters_test.py test/fireball_models_test.py test/gaussianprocess_models_test.py test/priors_test.py test/prompt_models_test.py test/wrappers_test.py test/constraints_test.py test/ejecta_relations_test.py test/sed_test.py test/interaction_processes_test.py test/spectral_models_test.py"
           # Group 5: More Medium tests
           - test-group: 5
             test-files: "test/test_learned_models.py"
@@ -70,7 +70,8 @@ jobs:
           sudo cp /var/cache/apt/archives/*.deb ~/apt-cache/ 2>/dev/null || true
         fi
         sudo cp ~/apt-cache/*.deb /var/cache/apt/archives/ 2>/dev/null || true
-        sudo apt-get install -y dvipng texlive-latex-extra texlive-fonts-recommended cm-super
+        sudo apt-get update -qq
+        sudo apt-get install -y --fix-missing dvipng texlive-latex-extra texlive-fonts-recommended cm-super
         sudo apt-get clean
         sudo rm -rf /var/lib/apt/lists/*
     - name: Install dependencies

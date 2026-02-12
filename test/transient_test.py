@@ -9,6 +9,15 @@ import redback
 
 dirname = os.path.dirname(__file__)
 
+
+def _george_available():
+    """Check if george module is available."""
+    try:
+        import george
+        return True
+    except ImportError:
+        return False
+
 import redback.get_data.directory as directory
 
 _original_spec_dir_struct = directory.spectrum_directory_structure
@@ -583,17 +592,18 @@ class TestAfterglow(unittest.TestCase):
         self.assertEqual(expected, self.sgrb._stripped_name)
 
     def test_truncate(self):
-        expected_x = 0
-        expected_x_err = 1
-        expected_y = 2
-        expected_yerr = 3
+        expected_x = np.array([1.0, 2.0])
+        expected_x_err = np.array([[0.1, 0.2], [0.1, 0.2]])
+        expected_y = np.array([3.0, 4.0])
+        expected_yerr = np.array([[0.3, 0.4], [0.3, 0.4]])
         return_value = expected_x, expected_x_err, expected_y, expected_yerr
         truncator = MagicMock(return_value=MagicMock(truncate=MagicMock(return_value=return_value)))
         self.sgrb.Truncator = truncator
         self.sgrb.truncate()
-        self.assertListEqual(
-            [expected_x, expected_x_err, expected_y, expected_yerr],
-            [self.sgrb.x, self.sgrb.x_err, self.sgrb.y, self.sgrb.y_err])
+        self.assertTrue(np.array_equal(expected_x, self.sgrb.x))
+        self.assertTrue(np.array_equal(expected_x_err, self.sgrb.x_err))
+        self.assertTrue(np.array_equal(expected_y, self.sgrb.y))
+        self.assertTrue(np.array_equal(expected_yerr, self.sgrb.y_err))
 
     def test_set_active_bands(self):
         self.assertTrue(np.array_equal(np.array(self.active_bands), self.sgrb.active_bands))
@@ -959,6 +969,8 @@ class TestLoadTransient(unittest.TestCase):
         with self.assertRaises(ValueError):
             redback.transient.Transient.load_data_generic(self.mock_file_path, data_mode="invalid_mode")
 
+
+@unittest.skipUnless(_george_available(), "george module required for GP tests")
 class TestFitGP(unittest.TestCase):
     def setUp(self) -> None:
         self.transient = redback.transient.Transient()
@@ -1237,7 +1249,7 @@ class TestFromLightCurveLynx(unittest.TestCase):
         assert not np.any(np.isnan(instance.flux_density_err))
 
         # If we add a detected column, we filter the non-detections.
-        mock_df["detected"] = [1, 0]
+        mock_df["detection"] = [1, 0]
         instance3 = redback.transient.Transient.from_lightcurvelynx(
             name="test_transient",
             data=mock_df,
@@ -1548,3 +1560,464 @@ class TestTransientDataModeValidation(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main()
+class TestKilonovaTransient(unittest.TestCase):
+    """Tests for Kilonova transient class initialization and logging."""
+
+    def setUp(self):
+        self.time = np.array([1, 2, 3])
+        self.time_err = np.array([0.1, 0.1, 0.1])
+        self.flux_density = np.array([1e-3, 2e-3, 3e-3])
+        self.flux_density_err = np.array([1e-4, 2e-4, 3e-4])
+        self.bands = np.array(['r', 'r', 'r'])
+        self.system = np.array(['AB', 'AB', 'AB'])
+        self.redshift = 0.01
+        self.name = 'test_kilonova'
+
+    def tearDown(self):
+        import shutil
+        shutil.rmtree('kilonova', ignore_errors=True)
+
+    @mock.patch('redback.get_data.directory.open_access_directory_structure')
+    def test_kilonova_initialization_logs_info(self, mock_dir):
+        """Test that Kilonova initialization logs transient name and data mode."""
+        mock_dir.return_value = mock.MagicMock(
+            directory_path='kilonova/',
+            raw_file_path='kilonova/test_rawdata.csv',
+            processed_file_path='kilonova/test.csv'
+        )
+
+        kn = redback.transient.Kilonova(
+            name=self.name,
+            data_mode='flux_density',
+            time=self.time,
+            time_err=self.time_err,
+            flux_density=self.flux_density,
+            flux_density_err=self.flux_density_err,
+            bands=self.bands,
+            system=self.system,
+            redshift=self.redshift
+        )
+
+        self.assertEqual(kn.name, self.name)
+        self.assertEqual(kn.data_mode, 'flux_density')
+        mock_dir.assert_called_once_with(transient=self.name, transient_type='kilonova')
+
+
+class TestSupernovaTransient(unittest.TestCase):
+    """Tests for Supernova transient class initialization and logging."""
+
+    def setUp(self):
+        self.time = np.array([1, 2, 3])
+        self.time_err = np.array([0.1, 0.1, 0.1])
+        self.flux_density = np.array([1e-3, 2e-3, 3e-3])
+        self.flux_density_err = np.array([1e-4, 2e-4, 3e-4])
+        self.bands = np.array(['r', 'r', 'r'])
+        self.system = np.array(['AB', 'AB', 'AB'])
+        self.redshift = 0.01
+        self.name = 'test_supernova'
+
+    def tearDown(self):
+        import shutil
+        shutil.rmtree('supernova', ignore_errors=True)
+
+    @mock.patch('redback.get_data.directory.open_access_directory_structure')
+    def test_supernova_initialization_logs_info(self, mock_dir):
+        """Test that Supernova initialization logs transient name and data mode."""
+        mock_dir.return_value = mock.MagicMock(
+            directory_path='supernova/',
+            raw_file_path='supernova/test_rawdata.csv',
+            processed_file_path='supernova/test.csv'
+        )
+
+        sn = redback.transient.Supernova(
+            name=self.name,
+            data_mode='flux_density',
+            time=self.time,
+            time_err=self.time_err,
+            flux_density=self.flux_density,
+            flux_density_err=self.flux_density_err,
+            bands=self.bands,
+            system=self.system,
+            redshift=self.redshift
+        )
+
+        self.assertEqual(sn.name, self.name)
+        self.assertEqual(sn.data_mode, 'flux_density')
+        mock_dir.assert_called_once_with(transient=self.name, transient_type='supernova')
+
+
+class TestTDETransient(unittest.TestCase):
+    """Tests for TDE transient class initialization and logging."""
+
+    def setUp(self):
+        self.time = np.array([1, 2, 3])
+        self.time_err = np.array([0.1, 0.1, 0.1])
+        self.flux_density = np.array([1e-3, 2e-3, 3e-3])
+        self.flux_density_err = np.array([1e-4, 2e-4, 3e-4])
+        self.bands = np.array(['r', 'r', 'r'])
+        self.system = np.array(['AB', 'AB', 'AB'])
+        self.redshift = 0.01
+        self.name = 'test_tde'
+
+    def tearDown(self):
+        import shutil
+        shutil.rmtree('tidal_disruption_event', ignore_errors=True)
+
+    @mock.patch('redback.get_data.directory.open_access_directory_structure')
+    def test_tde_initialization_logs_info(self, mock_dir):
+        """Test that TDE initialization logs transient name and data mode."""
+        mock_dir.return_value = mock.MagicMock(
+            directory_path='tidal_disruption_event/',
+            raw_file_path='tidal_disruption_event/test_rawdata.csv',
+            processed_file_path='tidal_disruption_event/test.csv'
+        )
+
+        tde = redback.transient.TDE(
+            name=self.name,
+            data_mode='flux_density',
+            time=self.time,
+            time_err=self.time_err,
+            flux_density=self.flux_density,
+            flux_density_err=self.flux_density_err,
+            bands=self.bands,
+            system=self.system,
+            redshift=self.redshift
+        )
+
+        self.assertEqual(tde.name, self.name)
+        self.assertEqual(tde.data_mode, 'flux_density')
+        mock_dir.assert_called_once_with(transient=self.name, transient_type='tidal_disruption_event')
+
+
+class TestPromptTimeSeriesTransient(unittest.TestCase):
+    """Tests for PromptTimeSeries transient class initialization and logging."""
+
+    def setUp(self):
+        self.time = np.array([0.1, 0.2, 0.3])
+        self.time_err = np.array([0.01, 0.01, 0.01])
+        self.counts = np.array([100, 150, 120])
+        self.bin_size = np.array([0.1, 0.1, 0.1])
+        self.name = 'GRB123456'
+
+    def tearDown(self):
+        import shutil
+        shutil.rmtree('GRBData', ignore_errors=True)
+
+    @mock.patch('redback.transient.prompt.PromptTimeSeries._set_data')
+    @mock.patch('redback.transient.prompt.get_batse_trigger_from_grb')
+    @mock.patch('redback.transient.prompt.batse_prompt_directory_structure')
+    def test_prompt_batse_initialization(self, mock_dir, mock_trigger, mock_set_data):
+        """Test that PromptTimeSeries initialization logs instrument and data mode."""
+        mock_trigger.return_value = 12345
+        mock_dir.return_value = mock.MagicMock(
+            directory_path='GRBData/prompt/flux/',
+            raw_file_path='GRBData/prompt/flux/test.fits.gz',
+            processed_file_path='GRBData/prompt/flux/test.csv'
+        )
+        mock_set_data.return_value = None
+
+        prompt = redback.transient.PromptTimeSeries(
+            name=self.name,
+            time=self.time,
+            time_err=self.time_err,
+            counts=self.counts,
+            bin_size=self.bin_size,
+            data_mode='counts',
+            instrument='batse'
+        )
+
+        self.assertEqual(prompt.name, self.name)
+        self.assertEqual(prompt.instrument, 'batse')
+        self.assertEqual(prompt.data_mode, 'counts')
+
+    @mock.patch('redback.transient.prompt.PromptTimeSeries._set_data')
+    @mock.patch('redback.transient.prompt.get_batse_trigger_from_grb')
+    @mock.patch('redback.transient.prompt.swift_prompt_directory_structure')
+    def test_prompt_swift_initialization(self, mock_dir, mock_trigger, mock_set_data):
+        """Test PromptTimeSeries with Swift instrument."""
+        mock_dir.return_value = mock.MagicMock(
+            directory_path='GRBData/prompt/flux/',
+            raw_file_path='GRBData/prompt/flux/test.dat',
+            processed_file_path='GRBData/prompt/flux/test.csv'
+        )
+        mock_trigger.return_value = 12345
+        mock_set_data.return_value = None
+
+        prompt = redback.transient.PromptTimeSeries(
+            name=self.name,
+            time=self.time,
+            time_err=self.time_err,
+            counts=self.counts,
+            bin_size=self.bin_size,
+            data_mode='counts',
+            instrument='swift'
+        )
+
+        self.assertEqual(prompt.instrument, 'swift')
+
+    def test_prompt_invalid_instrument_logs_error(self):
+        """Test that invalid instrument logs error and raises ValueError."""
+        with self.assertRaises(ValueError):
+            redback.transient.PromptTimeSeries(
+                name=self.name,
+                time=self.time,
+                time_err=self.time_err,
+                counts=self.counts,
+                bin_size=self.bin_size,
+                data_mode='counts',
+                instrument='invalid_instrument'
+            )
+
+    @mock.patch('redback.transient.prompt.PromptTimeSeries._set_data')
+    @mock.patch('redback.transient.prompt.PromptTimeSeries.load_batse_data')
+    @mock.patch('redback.transient.prompt.get_batse_trigger_from_grb')
+    @mock.patch('redback.transient.prompt.batse_prompt_directory_structure')
+    def test_from_batse_grb_name_logs_loading(self, mock_dir, mock_trigger, mock_load, mock_set_data):
+        """Test that from_batse_grb_name logs data loading."""
+        mock_trigger.return_value = 12345
+        mock_dir.return_value = mock.MagicMock(
+            directory_path='GRBData/prompt/flux/',
+            raw_file_path='GRBData/prompt/flux/test.fits.gz',
+            processed_file_path='GRBData/prompt/flux/test.csv'
+        )
+        mock_load.return_value = (self.time, self.bin_size, self.counts)
+        mock_set_data.return_value = None
+
+        prompt = redback.transient.PromptTimeSeries.from_batse_grb_name(
+            name='GRB123456',
+            channels='all'
+        )
+
+        self.assertIsNotNone(prompt)
+        mock_load.assert_called_once()
+
+
+class TestTransientAdditional(unittest.TestCase):
+    """Additional Transient tests for untested properties and methods."""
+
+    def _make(self, **kwargs):
+        defaults = dict(time=np.array([1.0, 2.0, 3.0]),
+                        time_err=np.array([0.1, 0.1, 0.1]),
+                        counts=np.array([4.0, 5.0, 6.0]),
+                        data_mode='counts', name='TestGRB')
+        defaults.update(kwargs)
+        return redback.transient.transient.Transient(**defaults)
+
+    # ------------------------------------------------------------------
+    # _time_attribute_name / _time_err_attribute_name
+    # ------------------------------------------------------------------
+
+    def test_time_attribute_name_default(self):
+        t = self._make()
+        self.assertEqual(t._time_attribute_name, "time")
+
+    def test_time_attribute_name_phase_model(self):
+        t = self._make(use_phase_model=True, time_mjd=np.array([1.0, 2.0, 3.0]),
+                       time_mjd_err=np.array([0.1, 0.1, 0.1]))
+        self.assertEqual(t._time_attribute_name, "time_mjd")
+
+    def test_time_attribute_name_luminosity(self):
+        t = self._make(data_mode='luminosity',
+                       time_rest_frame=np.array([1.0, 2.0, 3.0]),
+                       time_rest_frame_err=np.array([0.1, 0.1, 0.1]),
+                       Lum50=np.array([1e50, 2e50, 3e50]),
+                       Lum50_err=np.array([1e48, 1e48, 1e48]))
+        self.assertEqual(t._time_attribute_name, "time_rest_frame")
+
+    def test_time_err_attribute_name(self):
+        t = self._make()
+        self.assertEqual(t._time_err_attribute_name, "time_err")
+
+    # ------------------------------------------------------------------
+    # _y_attribute_name
+    # ------------------------------------------------------------------
+
+    def test_y_attribute_name_flux(self):
+        t = self._make(data_mode='flux', flux=np.array([1.0, 2.0, 3.0]),
+                       flux_err=np.array([0.1, 0.1, 0.1]))
+        self.assertEqual(t._y_attribute_name, "flux")
+
+    def test_y_attribute_name_flux_density(self):
+        t = self._make(data_mode='flux_density',
+                       flux_density=np.array([1.0, 2.0, 3.0]),
+                       flux_density_err=np.array([0.1, 0.1, 0.1]))
+        self.assertEqual(t._y_attribute_name, "flux_density")
+
+    def test_y_attribute_name_magnitude(self):
+        t = self._make(data_mode='magnitude',
+                       magnitude=np.array([20.0, 21.0, 22.0]),
+                       magnitude_err=np.array([0.1, 0.1, 0.1]))
+        self.assertEqual(t._y_attribute_name, "magnitude")
+
+    # ------------------------------------------------------------------
+    # counts_err is sqrt(counts)
+    # ------------------------------------------------------------------
+
+    def test_counts_err_is_sqrt_counts(self):
+        counts = np.array([4.0, 9.0, 16.0])
+        t = self._make(counts=counts)
+        np.testing.assert_array_almost_equal(t.counts_err, np.sqrt(counts))
+
+    def test_counts_err_none_when_no_counts(self):
+        t = redback.transient.transient.Transient(
+            time=np.array([1.0, 2.0, 3.0]),
+            flux=np.array([1.0, 2.0, 3.0]),
+            flux_err=np.array([0.1, 0.1, 0.1]),
+            data_mode='flux', name='NoCountsGRB')
+        self.assertIsNone(t.counts_err)
+
+    # ------------------------------------------------------------------
+    # set_bands_and_frequency
+    # ------------------------------------------------------------------
+
+    def test_set_bands_and_frequency_both_none(self):
+        """Both None → both stored as None."""
+        t = self._make()
+        t.set_bands_and_frequency(bands=None, frequency=None)
+        self.assertIsNone(t._bands)
+        self.assertIsNone(t._frequency)
+
+    def test_set_bands_and_frequency_both_given(self):
+        """Both given → stored verbatim."""
+        t = self._make()
+        b = np.array(['g', 'r'])
+        f = np.array([6.3e14, 4.8e14])
+        t.set_bands_and_frequency(bands=b, frequency=f)
+        np.testing.assert_array_equal(t._bands, b)
+        np.testing.assert_array_equal(t._frequency, f)
+
+    def test_set_bands_and_frequency_only_frequency(self):
+        """Only frequency given → _bands = frequency array."""
+        t = self._make()
+        f = np.array([6.3e14, 4.8e14])
+        t.set_bands_and_frequency(bands=None, frequency=f)
+        np.testing.assert_array_equal(t._frequency, f)
+        np.testing.assert_array_equal(t._bands, f)
+
+    def test_set_bands_and_frequency_only_bands(self):
+        """Only bands given → _frequency computed via bands_to_frequency."""
+        t = self._make()
+        b = np.array(['lsstz', 'lsstz'])
+        t.set_bands_and_frequency(bands=b, frequency=None)
+        np.testing.assert_array_equal(t._bands, b)
+        self.assertIsNotNone(t._frequency)
+
+    # ------------------------------------------------------------------
+    # active_bands setter
+    # ------------------------------------------------------------------
+
+    def test_active_bands_setter_all(self):
+        """'all' → unique bands from self.bands."""
+        t = self._make()
+        t._bands = np.array(['g', 'r', 'g', 'i'])
+        t.active_bands = 'all'
+        self.assertEqual(sorted(t.active_bands), ['g', 'i', 'r'])
+
+    def test_active_bands_setter_list(self):
+        """List passed directly."""
+        t = self._make()
+        t._bands = np.array(['g', 'r', 'g'])
+        t.active_bands = ['g']
+        self.assertEqual(t.active_bands, ['g'])
+
+    # ------------------------------------------------------------------
+    # filtered_indices
+    # ------------------------------------------------------------------
+
+    def test_filtered_indices_no_bands(self):
+        """When bands is None, filtered_indices = range(len(x))."""
+        t = self._make()
+        t._bands = None
+        indices = t.filtered_indices
+        self.assertEqual(len(indices), len(t.x))
+
+    def test_filtered_indices_with_bands(self):
+        """filtered_indices is True only for elements in active_bands."""
+        t = self._make()
+        t._bands = np.array(['g', 'r', 'g'])
+        t._active_bands = ['g']
+        indices = t.filtered_indices
+        self.assertTrue(indices[0])
+        self.assertFalse(indices[1])
+        self.assertTrue(indices[2])
+
+    # ------------------------------------------------------------------
+    # load_data_generic
+    # ------------------------------------------------------------------
+
+    def test_load_data_generic_invalid_mode_raises(self):
+        """load_data_generic raises ValueError for unknown data_mode."""
+        import pandas as pd
+        dummy_df = pd.DataFrame({
+            "time (days)": [1.0], "time": [59000.0],
+            "magnitude": [20.0], "e_magnitude": [0.1],
+            "band": ["g"], "flux_density(mjy)": [0.05],
+            "flux_density_error": [0.005],
+        })
+        with mock.patch("pandas.read_csv", return_value=dummy_df):
+            with self.assertRaises(ValueError):
+                redback.transient.transient.Transient.load_data_generic(
+                    processed_file_path="dummy.csv", data_mode="banana")
+
+
+class TestSpectrumPlotMethods(unittest.TestCase):
+    """Tests for Spectrum.plot_data, plot_spectrum, and plot_residual."""
+
+    def setUp(self):
+        import redback.get_data.directory as directory
+        self._orig = directory.spectrum_directory_structure
+        directory.spectrum_directory_structure = lambda transient: "dummy"
+        self.angstroms = np.linspace(4000, 7000, 20)
+        self.flux = np.ones(20) * 1e-17
+        self.err = np.ones(20) * 1e-19
+        self.spec = redback.transient.Spectrum(
+            self.angstroms, self.flux, self.err, name="TestSpec")
+
+    def tearDown(self):
+        import redback.get_data.directory as directory
+        directory.spectrum_directory_structure = self._orig
+        import matplotlib.pyplot as plt
+        plt.close("all")
+
+    def test_plot_data_returns_axes(self):
+        import matplotlib
+        matplotlib.use("Agg")
+        from unittest.mock import patch
+        with patch("redback.plotting.SpectrumPlotter.plot_data") as mock_pd:
+            import matplotlib.pyplot as plt
+            _, ax = plt.subplots()
+            mock_pd.return_value = ax
+            result = self.spec.plot_data(axes=ax, save=False, show=False)
+            mock_pd.assert_called_once_with(axes=ax, save=False, show=False)
+
+    def test_plot_spectrum_returns_axes(self):
+        import matplotlib
+        matplotlib.use("Agg")
+        from unittest.mock import patch
+
+        def dummy_model(x, a, **kw):
+            return np.ones_like(x) * a
+
+        with patch("redback.plotting.SpectrumPlotter.plot_spectrum") as mock_ps:
+            import matplotlib.pyplot as plt
+            _, ax = plt.subplots()
+            mock_ps.return_value = ax
+            result = self.spec.plot_spectrum(
+                model=dummy_model, axes=ax, save=False, show=False)
+            mock_ps.assert_called_once_with(axes=ax, save=False, show=False)
+
+    def test_plot_residual_returns_axes(self):
+        import matplotlib
+        matplotlib.use("Agg")
+        from unittest.mock import patch
+
+        def dummy_model(x, a, **kw):
+            return np.ones_like(x) * a
+
+        with patch("redback.plotting.SpectrumPlotter.plot_residuals") as mock_pr:
+            import matplotlib.pyplot as plt
+            _, ax = plt.subplots()
+            mock_pr.return_value = ax
+            result = self.spec.plot_residual(
+                model=dummy_model, axes=ax, save=False, show=False)
+            mock_pr.assert_called_once_with(axes=ax, save=False, show=False)

@@ -20,6 +20,8 @@ Welcome to REDBACK's documentation!
    plotting
    analysis
    spectral_template_matching
+   spectral_models
+   xray_spectral_fitting
    fitting
    results
    joint_likelihood

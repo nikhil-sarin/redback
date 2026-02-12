@@ -39,4 +39,36 @@ The :code:`SpectralTemplateMatcher` class provides SNID-like spectral classifica
 
 For detailed documentation on spectral template matching, see :doc:`spectral_template_matching`.
 
+Spectral Velocity Fitting
+==========================
+
+The :code:`SpectralVelocityFitter` class provides tools for measuring expansion velocities from spectral line profiles.
+This is particularly useful for analyzing Type Ia supernovae and other transients with P-Cygni profiles.
+
+.. code:: python
+
+    from redback.analysis import SpectralVelocityFitter
+
+    # Create fitter
+    fitter = SpectralVelocityFitter(wavelength, flux)
+
+    # Measure Si II 6355 velocity
+    v, v_err = fitter.measure_line_velocity(6355)
+    print(f"Si II velocity: {v:.0f} +/- {v_err:.0f} km/s")
+
+    # Measure multiple lines
+    lines = {'Si II': 6355, 'Ca II': 3934, 'Fe II': 5169}
+    velocities = fitter.measure_multiple_lines(lines)
+
+    # Track velocity evolution
+    times, vels, errs = SpectralVelocityFitter.photospheric_velocity_evolution(
+        wavelength_list, flux_list, times, line_wavelength=6355
+    )
+
+    # Detect high-velocity features
+    has_hvf, v_hvf, err = fitter.identify_high_velocity_features(6355, v_phot_expected=11000)
+
+For detailed documentation on spectral line models and velocity fitting, see :doc:`spectral_models`.
+
+
 Please look at the API for the other methods available in the :code:`Analysis` class.
