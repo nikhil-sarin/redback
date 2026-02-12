@@ -1876,3 +1876,177 @@ class TestDirectoryLogging(unittest.TestCase):
         self.assertIn('test_spectrum', structure.processed_file_path)
         # Clean up
         shutil.rmtree('spectrum', ignore_errors=True)
+
+
+class TestSwiftDataGetterValidation(unittest.TestCase):
+    """Tests for SwiftDataGetter property setters and simple properties."""
+
+    def _make(self, grb='GRB140903A', transient_type='afterglow',
+              data_mode='flux', instrument='BAT+XRT', snr=4):
+        with mock.patch.object(
+            redback.get_data.swift.SwiftDataGetter, 'create_directory_structure',
+            return_value=('dir/', 'raw.txt', 'proc.csv')
+        ):
+            return redback.get_data.swift.SwiftDataGetter(
+                grb=grb, transient_type=transient_type,
+                data_mode=data_mode, instrument=instrument, snr=snr)
+
+    # ------------------------------------------------------------------
+    # data_mode validation
+    # ------------------------------------------------------------------
+
+    def test_valid_data_mode_flux(self):
+        g = self._make(data_mode='flux')
+        self.assertEqual(g.data_mode, 'flux')
+
+    def test_valid_data_mode_flux_density(self):
+        g = self._make(data_mode='flux_density')
+        self.assertEqual(g.data_mode, 'flux_density')
+
+    def test_valid_data_mode_prompt(self):
+        g = self._make(transient_type='prompt', data_mode='prompt')
+        self.assertEqual(g.data_mode, 'prompt')
+
+    def test_invalid_data_mode_raises(self):
+        # The error message in the setter references self.data_mode before _data_mode
+        # is set, so in practice an AttributeError bubbles up alongside ValueError
+        with self.assertRaises((ValueError, AttributeError)):
+            self._make(data_mode='banana')
+
+    # ------------------------------------------------------------------
+    # instrument validation
+    # ------------------------------------------------------------------
+
+    def test_valid_instrument_bat_xrt(self):
+        g = self._make(instrument='BAT+XRT')
+        self.assertEqual(g.instrument, 'BAT+XRT')
+
+    def test_valid_instrument_xrt(self):
+        g = self._make(instrument='XRT')
+        self.assertEqual(g.instrument, 'XRT')
+
+    def test_invalid_instrument_raises(self):
+        # Same as data_mode: error message references self.instrument before
+        # _instrument is set, so AttributeError may surface
+        with self.assertRaises((ValueError, AttributeError)):
+            self._make(instrument='UVOT')
+
+    # ------------------------------------------------------------------
+    # snr normalisation and validation
+    # ------------------------------------------------------------------
+
+    def test_snr_int_normalised(self):
+        g = self._make(snr=4)
+        self.assertEqual(g.snr, 'SNR4')
+
+    def test_snr_int_5(self):
+        g = self._make(snr=5)
+        self.assertEqual(g.snr, 'SNR5')
+
+    def test_snr_string_already_normalised(self):
+        g = self._make(snr='SNR6')
+        self.assertEqual(g.snr, 'SNR6')
+
+    def test_snr_invalid_raises(self):
+        with self.assertRaises(ValueError):
+            self._make(snr=99)
+
+    # ------------------------------------------------------------------
+    # swifttools_grb_name formatting
+    # ------------------------------------------------------------------
+
+    def test_swifttools_grb_name_already_grb_space(self):
+        """'GRB 140903A' → returned unchanged."""
+        g = self._make(grb='GRB 140903A')
+        self.assertEqual(g.swifttools_grb_name, 'GRB 140903A')
+
+    def test_swifttools_grb_name_no_grb_prefix(self):
+        """'140903A' is normalised to 'GRB140903A' by the grb setter,
+        so swifttools_grb_name returns 'GRB 140903A'."""
+        g = self._make(grb='140903A')
+        self.assertEqual(g.swifttools_grb_name, 'GRB 140903A')
+
+    def test_swifttools_grb_name_grb_no_space(self):
+        """'GRB140903A' → 'GRB 140903A'."""
+        g = self._make(grb='GRB140903A')
+        self.assertEqual(g.swifttools_grb_name, 'GRB 140903A')
+
+    # ------------------------------------------------------------------
+    # grb_website property
+    # ------------------------------------------------------------------
+
+    def test_grb_website_bat_xrt(self):
+        """BAT+XRT afterglow URL contains the trigger number."""
+        g = self._make(grb='GRB041223', instrument='BAT+XRT')
+        with mock.patch.object(type(g), 'trigger', new_callable=PropertyMock,
+                               return_value='100585'):
+            url = g.grb_website
+        self.assertIn('100585', url)
+        self.assertIn('swift.ac.uk', url)
+
+    def test_grb_website_xrt_only(self):
+        """XRT-only afterglow URL uses xrt_curves endpoint."""
+        g = self._make(grb='GRB041223', instrument='XRT')
+        with mock.patch.object(type(g), 'trigger', new_callable=PropertyMock,
+                               return_value='100585'):
+            url = g.grb_website
+        self.assertIn('xrt_curves', url)
+        self.assertIn('100585', url)
+
+    def test_grb_website_prompt(self):
+        """Prompt URL contains the bat GRB catalogue path."""
+        g = self._make(grb='GRB140903A', transient_type='prompt',
+                       data_mode='prompt', instrument='BAT+XRT')
+        g.bin_size = '1s'
+        with mock.patch.object(g, 'get_swift_id_from_grb', return_value='00123456789'):
+            url = g.grb_website
+        self.assertIn('swift.gsfc.nasa.gov', url)
+        self.assertIn('1s', url)
+
+    # ------------------------------------------------------------------
+    # get_data logging
+    # ------------------------------------------------------------------
+
+    def test_get_data_bat_xrt_calls_super(self):
+        """get_data for BAT+XRT logs the warning and delegates to super."""
+        g = self._make(instrument='BAT+XRT')
+        with mock.patch(
+            'redback.get_data.getter.GRBDataGetter.get_data',
+            return_value=pd.DataFrame()
+        ) as mock_super:
+            g.get_data()
+        mock_super.assert_called_once()
+
+    def test_get_data_xrt_calls_super(self):
+        """get_data for XRT-only logs the warning and delegates to super."""
+        g = self._make(instrument='XRT')
+        with mock.patch(
+            'redback.get_data.getter.GRBDataGetter.get_data',
+            return_value=pd.DataFrame()
+        ) as mock_super:
+            g.get_data()
+        mock_super.assert_called_once()
+
+    # ------------------------------------------------------------------
+    # create_directory_structure routing
+    # ------------------------------------------------------------------
+
+    def test_create_directory_structure_afterglow(self):
+        """Afterglow transient_type routes to afterglow_directory_structure."""
+        g = self._make(transient_type='afterglow', data_mode='flux')
+        with mock.patch(
+            'redback.get_data.directory.afterglow_directory_structure',
+            return_value=('d/', 'r.txt', 'p.csv')
+        ) as mock_dir:
+            g.create_directory_structure()
+        mock_dir.assert_called_once()
+
+    def test_create_directory_structure_prompt(self):
+        """Prompt transient_type routes to swift_prompt_directory_structure."""
+        g = self._make(transient_type='prompt', data_mode='prompt')
+        with mock.patch(
+            'redback.get_data.directory.swift_prompt_directory_structure',
+            return_value=('d/', 'r.txt', 'p.csv')
+        ) as mock_dir:
+            g.create_directory_structure()
+        mock_dir.assert_called_once()

@@ -6,13 +6,16 @@ from typing import Union
 import bilby
 
 import redback.get_data
-from redback.likelihoods import GaussianLikelihood, PoissonLikelihood
+from redback.likelihoods import GaussianLikelihood, PoissonLikelihood, PoissonSpectralLikelihood, \
+    WStatSpectralLikelihood, ChiSquareSpectralLikelihood
 from redback.model_library import all_models_dict
 from redback.result import RedbackResult
 from redback.utils import logger
 from redback.transient.afterglow import Afterglow
 from redback.transient.prompt import PromptTimeSeries
 from redback.transient.transient import OpticalTransient, Transient, Spectrum
+from redback.spectral.dataset import SpectralDataset
+import numpy as np
 
 
 dirname = os.path.dirname(__file__)
@@ -48,6 +51,8 @@ def fit_model(
     if isinstance(model, str):
         modelname = model
         model = all_models_dict[model]
+    else:
+        modelname = getattr(model, "__name__", "custom_model")
 
     if transient.data_mode in ["flux_density", "magnitude", "flux"]:
         if model_kwargs is None:
@@ -63,9 +68,27 @@ def fit_model(
         logger.warning(f"No prior given. Using default priors for {modelname}")
     else:
         prior = prior
-    outdir = outdir or f"{transient.directory_structure.directory_path}/{model.__name__}"
+    if isinstance(transient, SpectralDataset):
+        outdir = outdir or f"high_energy_spectra/{model.__name__}"
+    else:
+        outdir = outdir or f"{transient.directory_structure.directory_path}/{model.__name__}"
     Path(outdir).mkdir(parents=True, exist_ok=True)
     label = label or transient.name
+
+    if isinstance(transient, SpectralDataset):
+        return _fit_spectral_dataset(
+            transient=transient, model=model, outdir=outdir, label=label, sampler=sampler, nlive=nlive,
+            prior=prior, walks=walks, resume=resume, save_format=save_format, model_kwargs=model_kwargs,
+            plot=plot, **kwargs)
+    try:
+        from redback.transient.spectral import CountsSpectrumTransient
+    except Exception:
+        CountsSpectrumTransient = None
+    if CountsSpectrumTransient is not None and isinstance(transient, CountsSpectrumTransient):
+        return _fit_spectral_dataset(
+            transient=transient.dataset, model=model, outdir=outdir, label=label, sampler=sampler, nlive=nlive,
+            prior=prior, walks=walks, resume=resume, save_format=save_format, model_kwargs=model_kwargs,
+            plot=plot, **kwargs)
 
     if isinstance(transient, Spectrum):
         return _fit_spectrum(transient=transient, model=model, outdir=outdir, label=label, sampler=sampler,
@@ -109,7 +132,7 @@ def _fit_spectrum(transient, model, outdir, label, likelihood=None, sampler='dyn
         likelihood = likelihood
 
     meta_data = dict(model=model.__name__, transient_type=transient.__class__.__name__.lower())
-    transient_kwargs = {k.lstrip("_"): v for k, v in transient.__dict__.items()}
+    transient_kwargs = {k.lstrip("_"): v for k, v in transient.__dict__.items() if k not in ("rmf", "arf")}
     meta_data.update(transient_kwargs)
     model_kwargs = redback.utils.check_kwargs_validity(model_kwargs)
     meta_data['model_kwargs'] = model_kwargs
@@ -124,14 +147,130 @@ def _fit_spectrum(transient, model, outdir, label, likelihood=None, sampler='dyn
         except Exception:
             pass
 
-    result = result or bilby.run_sampler(
-        likelihood=likelihood, priors=prior, label=label, sampler=sampler, nlive=nlive,
-        outdir=outdir, plot=plot, use_ratio=False, walks=walks, resume=resume,
-        maxmcmc=10 * walks, result_class=RedbackResult, meta_data=meta_data,
-        save_bounds=False, nsteps=nlive, nwalkers=walks, save=save_format, **kwargs)
+    try:
+        result = result or bilby.run_sampler(
+            likelihood=likelihood, priors=prior, label=label, sampler=sampler, nlive=nlive,
+            outdir=outdir, plot=plot, use_ratio=False, walks=walks, resume=resume,
+            maxmcmc=10 * walks, result_class=RedbackResult, meta_data=meta_data,
+            save_bounds=False, nsteps=nlive, nwalkers=walks, save=save_format, **kwargs)
+    except ValueError as exc:
+        if sampler.lower() == "pymultinest" and "dead_points" in str(exc) and "live_points" in str(exc):
+            logger.warning(
+                "Pymultinest failed to assemble nested samples (%s). "
+                "Rerunning with dynesty.",
+                exc,
+            )
+            result = bilby.run_sampler(
+                likelihood=likelihood, priors=prior, label=label, sampler="dynesty", nlive=nlive,
+                outdir=outdir, plot=plot, use_ratio=False, walks=walks, resume=resume,
+                maxmcmc=10 * walks, result_class=RedbackResult, meta_data=meta_data,
+                save_bounds=False, nsteps=nlive, nwalkers=walks, save=save_format, **kwargs)
+        else:
+            raise
     plt.close('all')
     if plot:
         result.plot_spectrum(model=model)
+    return result
+
+
+def _fit_spectral_dataset(transient, model, outdir, label, likelihood=None, sampler='dynesty', nlive=3000, prior=None,
+                          walks=1000, resume=True, save_format='json', model_kwargs=None, plot=True, **kwargs):
+    try:
+        import inspect
+        sig = inspect.signature(model)
+        param_names = list(sig.parameters.keys())
+        has_var_keyword = any(
+            p.kind == inspect.Parameter.VAR_KEYWORD
+            for p in sig.parameters.values()
+        )
+    except Exception:
+        param_names = []
+        has_var_keyword = True
+    if "energies_keV" not in param_names and "energy_keV" not in param_names and not has_var_keyword:
+        raise ValueError(
+            "Spectral models must accept `energies_keV` (or `energy_keV`) as the first argument. "
+            "Update the model signature to be compatible with spectral fitting."
+        )
+    statistic = kwargs.pop("statistic", None)
+    if statistic is None or str(statistic).lower() == "auto":
+        statistic = "wstat" if transient.counts_bkg is not None else "cstat"
+    logger.info("Spectral fit using statistic=%s", statistic)
+
+    if likelihood is None:
+        if statistic.lower() in ("wstat", "w-stat"):
+            likelihood = WStatSpectralLikelihood(dataset=transient, function=model, kwargs=model_kwargs)
+        elif statistic.lower() in ("cstat", "c-stat", "cash"):
+            likelihood = PoissonSpectralLikelihood(dataset=transient, function=model, kwargs=model_kwargs)
+        elif statistic.lower() in ("chi2", "chi-square", "chisq"):
+            likelihood = ChiSquareSpectralLikelihood(dataset=transient, function=model, kwargs=model_kwargs)
+        else:
+            raise ValueError(f"Unknown statistic '{statistic}' for spectral fitting")
+        logger.info("No likelihood provided, using spectral likelihood %s", likelihood.__class__.__name__)
+    else:
+        logger.info("Likelihood provided, using custom likelihood {}".format(likelihood.__class__.__name__))
+
+    meta_data = dict(model=model.__name__, transient_type=transient.__class__.__name__.lower())
+    transient_kwargs = {k.lstrip("_"): v for k, v in transient.__dict__.items()}
+    meta_data.update(transient_kwargs)
+    model_kwargs = redback.utils.check_kwargs_validity(model_kwargs)
+    meta_data['model_kwargs'] = model_kwargs
+
+    # Spectral datasets contain numpy arrays in response objects that cannot JSON-serialise
+    if save_format == "json":
+        logger.warning("JSON save not supported for spectral datasets with response objects. Using pkl instead.")
+        save_format = "pkl"
+
+    result = None
+    if not kwargs.get("clean", False):
+        for ext in [kwargs.get("extension", save_format), "pkl", "json"]:
+            try:
+                result = redback.result.read_in_result(
+                    outdir=outdir, label=label, extension=ext, gzip=kwargs.get("gzip", False))
+                plt.close('all')
+                return result
+            except Exception:
+                continue
+
+    if prior is not None:
+        likelihood.parameters = dict.fromkeys(prior.keys())
+        try:
+            samples = [prior.sample() for _ in range(5)]
+            finite = 0
+            for s in samples:
+                likelihood.parameters.update(s)
+                ll = likelihood.log_likelihood()
+                if np.isfinite(ll):
+                    finite += 1
+            logger.info("Spectral preflight: %d/%d finite logL samples", finite, len(samples))
+            if finite == 0:
+                raise ValueError("Spectral likelihood preflight failed: all sampled logL are non-finite")
+        except Exception as exc:
+            logger.warning("Spectral preflight failed: %s", exc)
+
+    try:
+        result = result or bilby.run_sampler(
+            likelihood=likelihood, priors=prior, label=label, sampler=sampler, nlive=nlive,
+            outdir=outdir, plot=plot, use_ratio=False, walks=walks, resume=resume,
+            maxmcmc=10 * walks, result_class=RedbackResult, meta_data=meta_data,
+            save_bounds=False, nsteps=nlive, nwalkers=walks, save=save_format, **kwargs)
+    except ValueError as exc:
+        if sampler.lower() == "pymultinest" and "dead_points" in str(exc) and "live_points" in str(exc):
+            logger.warning(
+                "Pymultinest failed to assemble nested samples (%s). Rerunning with dynesty.",
+                exc,
+            )
+            result = bilby.run_sampler(
+                likelihood=likelihood, priors=prior, label=label, sampler="dynesty", nlive=nlive,
+                outdir=outdir, plot=plot, use_ratio=False, walks=walks, resume=resume,
+                maxmcmc=10 * walks, result_class=RedbackResult, meta_data=meta_data,
+                save_bounds=False, nsteps=nlive, nwalkers=walks, save=save_format, **kwargs)
+        else:
+            raise
+    plt.close('all')
+    if plot:
+        filename = f"{label}_spectrum_counts.png"
+        transient.plot_spectrum_fit(model=model, posterior=result.posterior, model_kwargs=model_kwargs,
+                           filename=filename, outdir=outdir, show=False, save=True)
     return result
 
 def _fit_grb(transient, model, outdir, label, likelihood=None, sampler='dynesty', nlive=3000, prior=None, walks=1000,

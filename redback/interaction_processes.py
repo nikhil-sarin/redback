@@ -178,11 +178,14 @@ class CSMDiffusion(object):
         lu = len(uniq_times)
 
         num = int(round(timesteps / 2.0))
-        lsp = np.logspace(np.log10(t0 /self.dense_times[-1]) + minimum_log_spacing, 0, num)
+        log_start = min(np.log10(t0 / self.dense_times[-1]) + minimum_log_spacing, 0.0)
+        lsp = np.logspace(log_start, 0, num)
         xm = np.unique(np.concatenate((lsp, 1 - lsp)))
+        xm = xm[(xm >= 0.0) & (xm <= 1.0)]
+        xm = np.unique(np.concatenate(([0.0], xm, [1.0])))
 
         int_times = tb + (uniq_times.reshape(lu, 1) - tb) * xm
-        int_tes = int_times[:, -1]
+        int_tes = uniq_times
 
         int_lums = luminosity_interpolator(int_times)
         int_args = int_lums * np.exp((int_times) / t0)

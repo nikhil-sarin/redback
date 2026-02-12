@@ -5,10 +5,9 @@ channels:
 dependencies:
   - python=3.11
   - setuptools
-  - sphinx-tabs
+  - pip
   - sphinx-rtd-theme
   - cython
-  - selenium
   - numpy<2.0
   - sncosmo=2.10.1
   - astropy
@@ -16,3 +15,6 @@ dependencies:
   - pandas
   - scipy
   - george
+  - sphinx
+  - pip:
+    - sphinx-tabs
