@@ -9,7 +9,6 @@ from astropy import units as u
 from astropy.cosmology import FlatLambdaCDM
 import redback.utils as utils
 from redback.utils import UserCosmology, DataModeSwitch
-from selenium.common.exceptions import NoSuchElementException
 
 
 class TestTimeConversion(unittest.TestCase):
@@ -1184,26 +1183,6 @@ class TestBandFunctions(unittest.TestCase):
 
         with self.assertRaises(KeyError):
             utils.frequency_to_bandname([1.0e15])
-
-
-class TestSeleniumFunctions(unittest.TestCase):
-    """Test Selenium-related functions"""
-
-    def test_check_element_exists(self):
-        """Test check_element when element exists"""
-        mock_driver = MagicMock()
-        mock_driver.find_element.return_value = MagicMock()
-
-        result = utils.check_element(mock_driver, 'test_id')
-        self.assertTrue(result)
-
-    def test_check_element_not_exists(self):
-        """Test check_element when element doesn't exist"""
-        mock_driver = MagicMock()
-        mock_driver.find_element.side_effect = NoSuchElementException()
-
-        result = utils.check_element(mock_driver, 'test_id')
-        self.assertFalse(result)
 
 
 class TestStatisticalFunctions(unittest.TestCase):

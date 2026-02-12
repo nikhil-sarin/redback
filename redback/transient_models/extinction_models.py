@@ -17,7 +17,10 @@ extinction_afterglow_base_models = ['tophat', 'cocoon', 'gaussian',
                                     'tophat_redback_refreshed', 'gaussian_redback_refreshed',
                                     'twocomponent_redback_refreshed','powerlaw_redback_refreshed',
                                     'alternativepowerlaw_redback_refreshed', 'doublegaussian_redback_refreshed',
-                                    'jetsimpy_tophat', 'jetsimpy_gaussian', 'jetsimpy_powerlaw']
+                                    'jetsimpy_tophat', 'jetsimpy_gaussian', 'jetsimpy_powerlaw',
+                                    'vegas_gaussian', 'vegas_powerlaw', 'vegas_tophat',
+                                    'vegas_twocomponent', 'vegas_powerlaw_wing', 'vegas_step',
+                                    'vegas_steppowerlaw']
 
 extinction_general_synchrotron_models = ['pwn', 'kilonova_afterglow_redback', 'kilonova_afterglow_nakarpiran',
                                          'thermal_synchrotron_lnu', 'thermal_synchrotron_fluxdensity',

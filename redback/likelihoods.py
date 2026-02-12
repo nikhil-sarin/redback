@@ -1065,3 +1065,106 @@ class PoissonLikelihood(_RedbackLikelihood):
 
     def _poisson_log_likelihood(self, rate: Union[float, np.ndarray]) -> Any:
         return np.sum(-rate + self.counts * np.log(rate) - gammaln(self.counts + 1))
+
+
+class PoissonSpectralLikelihood(bilby.Likelihood):
+    """
+    Cash statistic (C-stat) for spectral counts.
+    """
+
+    def __init__(self, dataset, function: callable, kwargs: dict = None):
+        parameters = bilby.core.utils.introspection.infer_parameters_from_function(func=function)
+        for drop in ("energies_keV", "energy_keV", "time"):
+            if drop in parameters:
+                parameters.remove(drop)
+        super().__init__(parameters=dict.fromkeys(parameters))
+        self.dataset = dataset
+        self.function = function
+        self.kwargs = kwargs or {}
+
+    def log_likelihood(self) -> float:
+        model_counts = self.dataset.predict_counts(
+            model=self.function, parameters=self.parameters, model_kwargs=self.kwargs
+        )
+        mask = self.dataset.mask_valid()
+        data = self.dataset.counts[mask]
+        model = np.clip(model_counts[mask], 1e-30, 1e30)
+        ll = np.sum(data * np.log(model) - model)
+        return np.nan_to_num(ll, nan=-np.inf, neginf=-np.inf, posinf=-np.inf)
+
+
+class WStatSpectralLikelihood(bilby.Likelihood):
+    """
+    W-stat proxy for source + background PHA spectra.
+    """
+
+    def __init__(self, dataset, function: callable, kwargs: dict = None):
+        parameters = bilby.core.utils.introspection.infer_parameters_from_function(func=function)
+        for drop in ("energies_keV", "energy_keV", "time"):
+            if drop in parameters:
+                parameters.remove(drop)
+        super().__init__(parameters=dict.fromkeys(parameters))
+        self.dataset = dataset
+        self.function = function
+        self.kwargs = kwargs or {}
+
+    def log_likelihood(self) -> float:
+        if self.dataset.counts_bkg is None:
+            raise ValueError("counts_bkg required for W-stat likelihood")
+        model_counts = self.dataset.predict_counts(
+            model=self.function, parameters=self.parameters, model_kwargs=self.kwargs
+        )
+        mask = self.dataset.mask_valid()
+        data = self.dataset.counts[mask]
+        bkg = self.dataset.counts_bkg[mask]
+        scale = self.dataset.background_scale_factor
+        if scale <= 0:
+            raise ValueError("Invalid background scale factor for W-stat likelihood")
+
+        model = np.clip(model_counts[mask], 1e-30, 1e30)
+        src = np.asarray(data, dtype=float)
+        bkg_obs = np.asarray(bkg, dtype=float)
+
+        a = scale * (scale + 1.0)
+        bcoef = (scale + 1.0) * model - scale * (src + bkg_obs)
+        c = -bkg_obs * model
+        disc = np.maximum(bcoef * bcoef - 4.0 * a * c, 0.0)
+        b_hat = (-bcoef + np.sqrt(disc)) / (2.0 * a)
+        b_hat = np.clip(b_hat, 0.0, None)
+
+        mu = model + scale * b_hat
+        mu = np.clip(mu, 1e-30, None)
+
+        ll = src * np.log(mu) - mu
+        if np.any(bkg_obs > 0):
+            ll = ll + bkg_obs * np.log(np.clip(b_hat, 1e-30, None)) - b_hat
+        else:
+            ll = ll - b_hat
+        return np.nan_to_num(np.sum(ll), nan=-np.inf, neginf=-np.inf, posinf=-np.inf)
+
+
+class ChiSquareSpectralLikelihood(bilby.Likelihood):
+    """
+    Chi-square spectral likelihood for high-count regimes.
+    """
+
+    def __init__(self, dataset, function: callable, kwargs: dict = None):
+        parameters = bilby.core.utils.introspection.infer_parameters_from_function(func=function)
+        for drop in ("energies_keV", "energy_keV", "time"):
+            if drop in parameters:
+                parameters.remove(drop)
+        super().__init__(parameters=dict.fromkeys(parameters))
+        self.dataset = dataset
+        self.function = function
+        self.kwargs = kwargs or {}
+
+    def log_likelihood(self) -> float:
+        model_counts = self.dataset.predict_counts(
+            model=self.function, parameters=self.parameters, model_kwargs=self.kwargs
+        )
+        mask = self.dataset.mask_valid()
+        data = self.dataset.counts[mask]
+        model = np.clip(model_counts[mask], 1e-30, 1e30)
+        sigma = np.sqrt(np.maximum(data, 1.0))
+        ll = -0.5 * np.sum(((data - model) / sigma) ** 2 + np.log(2 * np.pi * sigma ** 2))
+        return np.nan_to_num(ll, nan=-np.inf, neginf=-np.inf, posinf=-np.inf)

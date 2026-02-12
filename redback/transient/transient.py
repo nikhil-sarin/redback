@@ -378,7 +378,7 @@ class Transient(object):
     def from_lightcurvelynx(
             cls, name: str, data: pd.DataFrame = None, data_mode: str = "magnitude",
             active_bands: Union[np.ndarray, str] = 'all', plotting_order: Union[np.ndarray, str] = None,
-            use_phase_model: bool = False) -> Transient:
+            use_phase_model: bool = False, frequency: np.ndarray = None) -> Transient:
         """Constructor method to built object from a LightCurveLynx simulated light curve.
         https://github.com/lincc-frameworks/lightcurvelynx
         Only the time, bands, magnitude and magnitude error columns are used. The rest are computed
@@ -397,21 +397,38 @@ class Transient(object):
         :type plotting_order: Union[np.ndarray, str], optional
         :param use_phase_model: Whether to use a phase model.
         :type use_phase_model: bool, optional
+        :param frequency: Array of frequencies corresponding to each observation. 
+                          If None, will be computed from bands using bands_to_frequency.
+        :type frequency: np.ndarray, optional
 
         :return: A class instance.
         :rtype: OpticalTransient
         """
+
+        redback.utils.logger.info(f"Loading LightCurveLynx data for {name}")
+        
         if data is None:
             path = "simulated/" + name + ".csv"
+            redback.utils.logger.info(f"Reading data from {path}")
             data = pd.read_csv(path)
+        else:
+            redback.utils.logger.info(f"Using provided DataFrame with {len(data)} rows")
 
         # Filter out the non-detections.
-        if "detected" in data.columns:
-            data = data[data.detected != 0]
+        if "detection" in data.columns:
+            n_before = len(data)
+            data = data[data.detection != 0]
+            n_after = len(data)
+            redback.utils.logger.info(f"Filtered {n_before - n_after} non-detections, {n_after} detections remain")
 
         # Process the time and bands data.
-        bands = data["filter"].to_numpy()        
+        bands = data["filter"].to_numpy()
+        unique_bands = np.unique(bands)
+        redback.utils.logger.info(f"Found {len(unique_bands)} unique bands: {unique_bands}")
+        
         time_mjd = data["mjd"].to_numpy()
+        redback.utils.logger.info(f"Time range: MJD {time_mjd.min():.2f} to {time_mjd.max():.2f}")
+        
         if "time_rel" in data.columns:
             time_days = data["time_rel"].to_numpy()
         elif not use_phase_model:
@@ -425,6 +442,8 @@ class Transient(object):
         magnitude = data["mag"].to_numpy()
         magnitude_err = data["magerr"].to_numpy()
 
+        redback.utils.logger.info(f"Converting magnitudes to flux and flux_density for {len(data)} observations")
+        
         # Compute the other values from the given magnitude and band data. We use the formulation
         # from SimulateOpticalTransient._make_observation_single().
         ref_flux = redback.utils.bands_to_reference_flux(bands)
@@ -437,11 +456,19 @@ class Transient(object):
             reference_flux=3631,
             magnitude_system='AB',
         )
+        
+        # Set frequency array for flux_density mode
+        if frequency is None:
+            frequency = redback.utils.bands_to_frequency(bands)
+            redback.utils.logger.info(f"Computed frequencies from bands using bands_to_frequency")
+        else:
+            redback.utils.logger.info(f"Using provided frequency array")
 
         return cls(name=name, data_mode=data_mode, time=time_days, time_err=None, time_mjd=time_mjd,
                    flux_density=flux_density, flux_density_err=flux_density_err, magnitude=magnitude,
                    magnitude_err=magnitude_err, flux=flux, flux_err=flux_err, bands=bands, active_bands=active_bands,
-                   use_phase_model=use_phase_model, optical_data=True, plotting_order=plotting_order)
+                   use_phase_model=use_phase_model, optical_data=True, plotting_order=plotting_order,
+                   frequency=frequency)
 
 
     @property
@@ -677,11 +704,20 @@ class Transient(object):
         if any([self.flux_data, self.magnitude_data, self.flux_density_data]):
             filtered_x = self.x[self.filtered_indices]
             try:
-                filtered_x_err = self.x_err[self.filtered_indices]
-            except (IndexError, TypeError):
+                if self.x_err.ndim == 2:
+                    filtered_x_err = self.x_err[:, self.filtered_indices]
+                else:
+                    filtered_x_err = self.x_err[self.filtered_indices]
+            except (IndexError, TypeError, AttributeError):
                 filtered_x_err = None
             filtered_y = self.y[self.filtered_indices]
-            filtered_y_err = self.y_err[self.filtered_indices]
+            try:
+                if self.y_err.ndim == 2:
+                    filtered_y_err = self.y_err[:, self.filtered_indices]
+                else:
+                    filtered_y_err = self.y_err[self.filtered_indices]
+            except (IndexError, TypeError, AttributeError):
+                filtered_y_err = None
             return filtered_x, filtered_x_err, filtered_y, filtered_y_err
         else:
             raise ValueError(f"Transient needs to be in flux density, magnitude or flux data mode, "
