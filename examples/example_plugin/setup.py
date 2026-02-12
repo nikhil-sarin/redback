@@ -20,6 +20,9 @@ setup(
         'redback.model.modules': [
             'example_models = redback_example_plugin.models',
         ],
+        'redback.model.priors': [
+            'example_priors = redback_example_plugin.priors:get_prior',
+        ],
     },
     python_requires='>=3.10',
     classifiers=[

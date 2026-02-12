@@ -5,10 +5,8 @@ This module demonstrates how to create models that can be registered as Redback 
 """
 
 import numpy as np
-from redback.utils import citation_wrapper
 
 
-@citation_wrapper('redback')
 def example_exponential_model(time, amplitude, decay_time, **kwargs):
     """
     Simple exponential decay model.
@@ -24,7 +22,6 @@ def example_exponential_model(time, amplitude, decay_time, **kwargs):
     return amplitude * np.exp(-time / decay_time)
 
 
-@citation_wrapper('redback')
 def example_gaussian_model(time, peak_time, peak_amplitude, width, **kwargs):
     """
     Gaussian profile model.
@@ -41,7 +38,6 @@ def example_gaussian_model(time, peak_time, peak_amplitude, width, **kwargs):
     return peak_amplitude * np.exp(-0.5 * ((time - peak_time) / width) ** 2)
 
 
-@citation_wrapper('redback')
 def example_combined_model(time, amp_exp, decay_time, amp_gauss, peak_time, width, **kwargs):
     """
     Combined exponential and Gaussian model.
