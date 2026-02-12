@@ -9,4 +9,5 @@ from redback.transient.spectral import CountsSpectrumTransient
 
 TRANSIENT_DICT = dict(
     afterglow=Afterglow, lgrb=LGRB, sgrb=SGRB, kilonova=Kilonova, prompt=PromptTimeSeries, supernova=Supernova,
-    tde=TDE, transient=Transient, spectrum=Spectrum, counts_spectrum=CountsSpectrumTransient)
+    tde=TDE, transient=Transient, spectrum=Spectrum, counts_spectrum=CountsSpectrumTransient,
+    opticaltransient=OpticalTransient)
