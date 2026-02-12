@@ -59,11 +59,22 @@ def get_priors(model, times=None, y=None, yerr=None, dt=None, **kwargs):
         priors.from_file(filename)
         return priors
     except FileNotFoundError:
-        logger.warning(f'No prior file found for model {model} in either priors or non_default_priors folders. '
-                       f'Perhaps you also want to set up the prior for the base model? '
-                       f'Or you may need to set up your prior explicitly.')
-        logger.info('Returning Empty PriorDict.')
+        pass  # Continue to try plugin prior providers
 
+    # Try plugin prior providers
+    from redback.model_library import plugin_prior_providers
+    for provider in plugin_prior_providers:
+        try:
+            result = provider(model)
+            if result is not None:
+                return result
+        except Exception as e:
+            logger.warning(f"Plugin prior provider failed for model '{model}': {e}")
+
+    logger.warning(f'No prior file found for model {model} in either priors or non_default_priors folders. '
+                   f'Perhaps you also want to set up the prior for the base model? '
+                   f'Or you may need to set up your prior explicitly.')
+    logger.info('Returning Empty PriorDict.')
     return priors
 
 
