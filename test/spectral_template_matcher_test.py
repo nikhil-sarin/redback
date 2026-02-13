@@ -470,8 +470,7 @@ class TestSpectralTemplateMatcherAvailableSources(unittest.TestCase):
     def test_get_available_template_sources_has_known_sources(self):
         """Test that known sources are present"""
         sources = SpectralTemplateMatcher.get_available_template_sources()
-        expected_sources = ['snid_templates_2.0', 'super_snid', 'sesn_templates',
-                           'open_supernova_catalog', 'wiserep']
+        expected_sources = ['snid_templates_2.0', 'super_snid', 'sesn_templates']
         for source in expected_sources:
             self.assertIn(source, sources)
 
@@ -492,49 +491,6 @@ class TestSpectralTemplateMatcherDownload(unittest.TestCase):
 
     def tearDown(self):
         rmtree(self.temp_dir)
-
-    @patch('urllib.request.urlopen')
-    def test_download_templates_from_osc_with_mock(self, mock_urlopen):
-        """Test downloading from OSC with mocked API response"""
-        # Create mock response
-        mock_data = {
-            'SN2011fe': {
-                'spectra': [{
-                    'data': [[3000 + i, np.random.random()] for i in range(100)],
-                    'time': '5.0'
-                }]
-            }
-        }
-        mock_response = MagicMock()
-        mock_response.read.return_value = json.dumps(mock_data).encode()
-        mock_response.__enter__ = MagicMock(return_value=mock_response)
-        mock_response.__exit__ = MagicMock(return_value=False)
-        mock_urlopen.return_value = mock_response
-
-        matcher = SpectralTemplateMatcher.download_templates_from_osc(
-            sn_types=['Ia'],
-            max_per_type=1,
-            cache_dir=self.temp_dir
-        )
-        self.assertGreater(len(matcher.templates), 0)
-
-    @patch('urllib.request.urlopen')
-    def test_download_templates_from_osc_handles_empty_response(self, mock_urlopen):
-        """Test handling empty API response"""
-        mock_data = {}
-        mock_response = MagicMock()
-        mock_response.read.return_value = json.dumps(mock_data).encode()
-        mock_response.__enter__ = MagicMock(return_value=mock_response)
-        mock_response.__exit__ = MagicMock(return_value=False)
-        mock_urlopen.return_value = mock_response
-
-        matcher = SpectralTemplateMatcher.download_templates_from_osc(
-            sn_types=['Ia'],
-            max_per_type=1,
-            cache_dir=self.temp_dir
-        )
-        # Should fall back to default templates
-        self.assertGreater(len(matcher.templates), 0)
 
     @patch('urllib.request.urlretrieve')
     @patch('zipfile.ZipFile')
@@ -1399,225 +1355,83 @@ class TestSpectralTemplateMatcherAdvancedCoverage(unittest.TestCase):
     @patch('redback.analysis.SpectralTemplateMatcher.from_snid_template_directory')
     def test_from_sesn_templates(self, mock_from_snid, mock_download):
         """Test from_sesn_templates class method"""
-        # Mock the download to return a path
         mock_download.return_value = Path(self.temp_dir) / 'SNIDtemplates'
-
-        # Mock the from_snid_template_directory to return a matcher
         mock_matcher = SpectralTemplateMatcher()
         mock_from_snid.return_value = mock_matcher
 
         result = SpectralTemplateMatcher.from_sesn_templates(cache_dir=self.temp_dir)
 
-        # Verify download_github_templates was called with correct args
         mock_download.assert_called_once_with(
             'https://github.com/metal-sn/SESNtemple',
             subdirectory='SNIDtemplates',
             cache_dir=self.temp_dir
         )
-        # Verify from_snid_template_directory was called
         mock_from_snid.assert_called_once()
         self.assertIsInstance(result, SpectralTemplateMatcher)
 
-    @patch('urllib.request.urlopen')
-    def test_download_templates_from_osc_no_spectra(self, mock_urlopen):
-        """Test OSC download when SN has no spectra"""
-        mock_data = {
-            'SN2011fe': {
-                # No 'spectra' key
-            }
-        }
-        mock_response = MagicMock()
-        mock_response.read.return_value = json.dumps(mock_data).encode()
-        mock_response.__enter__ = MagicMock(return_value=mock_response)
-        mock_response.__exit__ = MagicMock(return_value=False)
-        mock_urlopen.return_value = mock_response
+    @patch('redback.analysis.SpectralTemplateMatcher.download_github_templates')
+    @patch('redback.analysis.SpectralTemplateMatcher.from_snid_template_directory')
+    def test_from_super_snid_templates_uses_existing_templates_dir(self, mock_from_snid, mock_download):
+        """Test from_super_snid_templates when templates/ dir already exists after extraction"""
+        repo_dir = Path(self.temp_dir) / 'dkjmagill_QUB-SNID-Templates'
+        templates_dir = repo_dir / 'templates'
+        templates_dir.mkdir(parents=True)
+        mock_download.return_value = repo_dir
 
-        matcher = SpectralTemplateMatcher.download_templates_from_osc(
-            sn_types=['Ia'],
-            max_per_type=1,
+        mock_matcher = SpectralTemplateMatcher()
+        mock_from_snid.return_value = mock_matcher
+
+        result = SpectralTemplateMatcher.from_super_snid_templates(cache_dir=self.temp_dir)
+
+        mock_download.assert_called_once_with(
+            'https://github.com/dkjmagill/QUB-SNID-Templates',
+            branch='main',
             cache_dir=self.temp_dir
         )
-        # Falls back to default templates
-        self.assertGreater(len(matcher.templates), 0)
+        mock_from_snid.assert_called_once_with(templates_dir)
+        self.assertIsInstance(result, SpectralTemplateMatcher)
 
-    @patch('urllib.request.urlopen')
-    def test_download_templates_from_osc_empty_spectra(self, mock_urlopen):
-        """Test OSC download when spectra list is empty"""
-        mock_data = {
-            'SN2011fe': {
-                'spectra': []  # Empty list
-            }
-        }
-        mock_response = MagicMock()
-        mock_response.read.return_value = json.dumps(mock_data).encode()
-        mock_response.__enter__ = MagicMock(return_value=mock_response)
-        mock_response.__exit__ = MagicMock(return_value=False)
-        mock_urlopen.return_value = mock_response
+    @patch('redback.analysis.SpectralTemplateMatcher.download_github_templates')
+    @patch('redback.analysis.SpectralTemplateMatcher.from_snid_template_directory')
+    def test_from_super_snid_templates_extracts_inner_zip(self, mock_from_snid, mock_download):
+        """Test from_super_snid_templates extracts templates.zip when templates/ not present"""
+        import zipfile
 
-        matcher = SpectralTemplateMatcher.download_templates_from_osc(
-            sn_types=['Ia'],
-            max_per_type=1,
-            cache_dir=self.temp_dir
-        )
-        self.assertGreater(len(matcher.templates), 0)
+        repo_dir = Path(self.temp_dir) / 'repo'
+        repo_dir.mkdir()
+        mock_download.return_value = repo_dir
 
-    @patch('urllib.request.urlopen')
-    def test_download_templates_from_osc_no_data_in_spectrum(self, mock_urlopen):
-        """Test OSC download when spectrum entry has no data"""
-        mock_data = {
-            'SN2011fe': {
-                'spectra': [{'time': '5.0'}]  # No 'data' key
-            }
-        }
-        mock_response = MagicMock()
-        mock_response.read.return_value = json.dumps(mock_data).encode()
-        mock_response.__enter__ = MagicMock(return_value=mock_response)
-        mock_response.__exit__ = MagicMock(return_value=False)
-        mock_urlopen.return_value = mock_response
+        # Create a real inner templates.zip with a templates/ subfolder
+        templates_dir = repo_dir / 'templates'
+        inner_zip = repo_dir / 'templates.zip'
+        with zipfile.ZipFile(inner_zip, 'w') as zf:
+            # The zip contains templates/sn1999aa_Ia_0.lnw
+            zf.writestr('templates/sn1999aa_Ia_0.lnw', '3000 1.0\n4000 0.8\n')
 
-        matcher = SpectralTemplateMatcher.download_templates_from_osc(
-            sn_types=['Ia'],
-            max_per_type=1,
-            cache_dir=self.temp_dir
-        )
-        self.assertGreater(len(matcher.templates), 0)
+        mock_matcher = SpectralTemplateMatcher()
+        mock_from_snid.return_value = mock_matcher
 
-    @patch('urllib.request.urlopen')
-    def test_download_templates_from_osc_short_spectrum(self, mock_urlopen):
-        """Test OSC download when spectrum has fewer than 50 points"""
-        mock_data = {
-            'SN2011fe': {
-                'spectra': [{
-                    'data': [[3000 + i, 1.0] for i in range(10)],  # Only 10 points
-                    'time': '5.0'
-                }]
-            }
-        }
-        mock_response = MagicMock()
-        mock_response.read.return_value = json.dumps(mock_data).encode()
-        mock_response.__enter__ = MagicMock(return_value=mock_response)
-        mock_response.__exit__ = MagicMock(return_value=False)
-        mock_urlopen.return_value = mock_response
+        result = SpectralTemplateMatcher.from_super_snid_templates(cache_dir=self.temp_dir)
 
-        matcher = SpectralTemplateMatcher.download_templates_from_osc(
-            sn_types=['Ia'],
-            max_per_type=1,
-            cache_dir=self.temp_dir
-        )
-        # Falls back to default templates since spectrum too short
-        self.assertGreater(len(matcher.templates), 0)
+        self.assertTrue(templates_dir.exists())
+        mock_from_snid.assert_called_once_with(templates_dir)
+        self.assertIsInstance(result, SpectralTemplateMatcher)
 
-    @patch('urllib.request.urlopen')
-    def test_download_templates_from_osc_invalid_time(self, mock_urlopen):
-        """Test OSC download when time field is invalid"""
-        mock_data = {
-            'SN2011fe': {
-                'spectra': [{
-                    'data': [[3000 + i, np.random.random()] for i in range(100)],
-                    'time': 'not_a_number'  # Invalid time
-                }]
-            }
-        }
-        mock_response = MagicMock()
-        mock_response.read.return_value = json.dumps(mock_data).encode()
-        mock_response.__enter__ = MagicMock(return_value=mock_response)
-        mock_response.__exit__ = MagicMock(return_value=False)
-        mock_urlopen.return_value = mock_response
+    @patch('redback.analysis.SpectralTemplateMatcher.download_github_templates')
+    def test_from_super_snid_templates_missing_zip_raises(self, mock_download):
+        """Test from_super_snid_templates raises if templates.zip is absent"""
+        repo_dir = Path(self.temp_dir) / 'repo'
+        repo_dir.mkdir()
+        mock_download.return_value = repo_dir
+        # No templates/ dir and no templates.zip
 
-        matcher = SpectralTemplateMatcher.download_templates_from_osc(
-            sn_types=['Ia'],
-            max_per_type=1,
-            cache_dir=self.temp_dir
-        )
-        self.assertGreater(len(matcher.templates), 0)
-        # Phase should be default 0.0
-        self.assertEqual(matcher.templates[0]['phase'], 0.0)
-
-    @patch('urllib.request.urlopen')
-    def test_download_templates_from_osc_no_time_field(self, mock_urlopen):
-        """Test OSC download when time field is missing"""
-        mock_data = {
-            'SN2011fe': {
-                'spectra': [{
-                    'data': [[3000 + i, np.random.random()] for i in range(100)]
-                    # No 'time' field
-                }]
-            }
-        }
-        mock_response = MagicMock()
-        mock_response.read.return_value = json.dumps(mock_data).encode()
-        mock_response.__enter__ = MagicMock(return_value=mock_response)
-        mock_response.__exit__ = MagicMock(return_value=False)
-        mock_urlopen.return_value = mock_response
-
-        matcher = SpectralTemplateMatcher.download_templates_from_osc(
-            sn_types=['Ia'],
-            max_per_type=1,
-            cache_dir=self.temp_dir
-        )
-        self.assertGreater(len(matcher.templates), 0)
-        self.assertEqual(matcher.templates[0]['phase'], 0.0)
-
-    @patch('urllib.request.urlopen')
-    def test_download_templates_from_osc_network_error(self, mock_urlopen):
-        """Test OSC download handles network errors gracefully"""
-        mock_urlopen.side_effect = Exception("Network error")
-
-        matcher = SpectralTemplateMatcher.download_templates_from_osc(
-            sn_types=['Ia'],
-            max_per_type=1,
-            cache_dir=self.temp_dir
-        )
-        # Falls back to default templates
-        self.assertGreater(len(matcher.templates), 0)
-
-    @patch('urllib.request.urlopen')
-    def test_download_templates_from_osc_default_types(self, mock_urlopen):
-        """Test OSC download uses default types when None"""
-        mock_data = {}
-        mock_response = MagicMock()
-        mock_response.read.return_value = json.dumps(mock_data).encode()
-        mock_response.__enter__ = MagicMock(return_value=mock_response)
-        mock_response.__exit__ = MagicMock(return_value=False)
-        mock_urlopen.return_value = mock_response
-
-        matcher = SpectralTemplateMatcher.download_templates_from_osc(
-            sn_types=None,  # Use defaults
-            max_per_type=1,
-            cache_dir=self.temp_dir
-        )
-        # Should have called API for multiple types
-        self.assertGreater(mock_urlopen.call_count, 1)
-
-    @patch('urllib.request.urlopen')
-    def test_download_templates_from_osc_parsing_exception(self, mock_urlopen):
-        """Test OSC download handles parsing exceptions in spectrum data"""
-        mock_data = {
-            'SN2011fe': {
-                'spectra': [{
-                    'data': [['invalid', 'data'] for _ in range(100)],  # Non-numeric
-                    'time': '5.0'
-                }]
-            }
-        }
-        mock_response = MagicMock()
-        mock_response.read.return_value = json.dumps(mock_data).encode()
-        mock_response.__enter__ = MagicMock(return_value=mock_response)
-        mock_response.__exit__ = MagicMock(return_value=False)
-        mock_urlopen.return_value = mock_response
-
-        matcher = SpectralTemplateMatcher.download_templates_from_osc(
-            sn_types=['Ia'],
-            max_per_type=1,
-            cache_dir=self.temp_dir
-        )
-        self.assertGreater(len(matcher.templates), 0)
+        with self.assertRaises(FileNotFoundError):
+            SpectralTemplateMatcher.from_super_snid_templates(cache_dir=self.temp_dir)
 
     @patch('urllib.request.urlretrieve')
     @patch('zipfile.ZipFile')
     def test_download_github_templates_actual_download(self, mock_zipfile, mock_retrieve):
         """Test GitHub download when cache doesn't exist"""
-        # Set up mock zip extraction
         repo_dir = Path(self.temp_dir) / 'SESNtemple-master'
 
         def mock_extract(path):
@@ -1630,7 +1444,6 @@ class TestSpectralTemplateMatcherAdvancedCoverage(unittest.TestCase):
         mock_zipfile.return_value.__exit__ = MagicMock(return_value=False)
 
         def mock_retrievezip(url, path):
-            # Create an empty file to simulate download
             Path(path).touch()
 
         mock_retrieve.side_effect = mock_retrievezip
@@ -1646,7 +1459,6 @@ class TestSpectralTemplateMatcherAdvancedCoverage(unittest.TestCase):
     @patch('urllib.request.urlretrieve')
     def test_download_github_templates_with_subdirectory(self, mock_retrieve):
         """Test GitHub download returns correct subdirectory path"""
-        # Create fake cached directory with subdirectory
         repo_cache = Path(self.temp_dir) / 'metal-sn_SESNtemple'
         repo_cache.mkdir()
         subdir = repo_cache / 'SNIDtemplates'
@@ -2401,14 +2213,13 @@ class TestSpectralTemplateMatcherRealCodePaths(unittest.TestCase):
 
     def test_download_github_templates_cache_exists_no_subdirectory(self):
         """Test GitHub download when cache exists without subdirectory"""
-        # Create cache directory
         repo_cache = Path(self.temp_dir) / 'owner_repo'
         repo_cache.mkdir()
         (repo_cache / 'somefile.txt').write_text('content')
 
         result = SpectralTemplateMatcher.download_github_templates(
             'https://github.com/owner/repo',
-            subdirectory='',  # No subdirectory
+            subdirectory='',
             cache_dir=self.temp_dir
         )
 
@@ -2836,9 +2647,6 @@ class TestSpectralTemplateMatcherActualCodeExecution(unittest.TestCase):
     @patch('zipfile.ZipFile')
     def test_download_github_templates_executes_download_path(self, mock_zip, mock_retrieve):
         """Test that actual download code path is executed with mocked network"""
-        import shutil as shutil_mod
-
-        # Set up the extraction to create the expected directory structure
         extract_dir = Path(self.temp_dir) / 'SESNtemple-master'
 
         def mock_extract(path):
@@ -2851,12 +2659,10 @@ class TestSpectralTemplateMatcherActualCodeExecution(unittest.TestCase):
         mock_zip.return_value.__exit__ = MagicMock(return_value=False)
 
         def mock_download(url, path):
-            # Create an empty temp file
             Path(path).touch()
 
         mock_retrieve.side_effect = mock_download
 
-        # This will execute the actual download_github_templates code
         result = SpectralTemplateMatcher.download_github_templates(
             'https://github.com/metal-sn/SESNtemple',
             branch='master',
@@ -2864,40 +2670,24 @@ class TestSpectralTemplateMatcherActualCodeExecution(unittest.TestCase):
         )
 
         self.assertIsInstance(result, Path)
-        # Verify it tried to download
         mock_retrieve.assert_called_once()
 
-    @patch('urllib.request.urlopen')
-    def test_download_templates_from_osc_executes_actual_code(self, mock_urlopen):
-        """Test that OSC download code actually executes"""
-        # Create valid mock response with actual spectrum data
-        mock_data = {
-            'SN2011fe': {
-                'spectra': [{
-                    'data': [[3000.0 + i * 10.0, float(np.random.random())] for i in range(100)],
-                    'time': '5.0'
-                }]
-            }
-        }
-        mock_response = MagicMock()
-        mock_response.read.return_value = json.dumps(mock_data).encode()
-        mock_response.__enter__ = MagicMock(return_value=mock_response)
-        mock_response.__exit__ = MagicMock(return_value=False)
-        mock_urlopen.return_value = mock_response
+    @patch('redback.analysis.SpectralTemplateMatcher.download_github_templates')
+    @patch('redback.analysis.SpectralTemplateMatcher.from_snid_template_directory')
+    def test_from_sesn_templates_calls_methods(self, mock_from_snid, mock_download):
+        """Test from_sesn_templates calls the right methods"""
+        mock_download.return_value = Path(self.temp_dir)
+        mock_from_snid.return_value = self.matcher
 
-        # Execute actual code path
-        matcher = SpectralTemplateMatcher.download_templates_from_osc(
-            sn_types=['Ia'],
-            max_per_type=1,
+        result = SpectralTemplateMatcher.from_sesn_templates(cache_dir=self.temp_dir)
+
+        mock_download.assert_called_once_with(
+            'https://github.com/metal-sn/SESNtemple',
+            subdirectory='SNIDtemplates',
             cache_dir=self.temp_dir
         )
-
-        # Verify the actual code executed and created a valid matcher
-        self.assertIsInstance(matcher, SpectralTemplateMatcher)
-        self.assertGreater(len(matcher.templates), 0)
-        # Verify the spectrum was actually processed
-        if len(matcher.templates) > 0 and 'SN2011fe' in matcher.templates[0].get('name', ''):
-            self.assertEqual(matcher.templates[0]['phase'], 5.0)
+        mock_from_snid.assert_called_once()
+        self.assertIsInstance(result, SpectralTemplateMatcher)
 
     def test_from_snid_template_directory_executes_all_paths(self):
         """Test from_snid_template_directory with various file types"""
@@ -3153,7 +2943,6 @@ class TestSpectralTemplateMatcherActualCodeExecution(unittest.TestCase):
         # Check specific sources have expected keys
         self.assertIn('download_url', sources['snid_templates_2.0'])
         self.assertIn('zenodo_doi', sources['super_snid'])
-        self.assertIn('api', sources['open_supernova_catalog'])
 
         # All should have base info
         for name, info in sources.items():
@@ -3162,22 +2951,4 @@ class TestSpectralTemplateMatcherActualCodeExecution(unittest.TestCase):
             self.assertIn('citation', info)
             self.assertIsInstance(info['description'], str)
             self.assertGreater(len(info['description']), 0)
-
-    @patch('redback.analysis.SpectralTemplateMatcher.download_github_templates')
-    @patch('redback.analysis.SpectralTemplateMatcher.from_snid_template_directory')
-    def test_from_sesn_templates_calls_methods(self, mock_from_snid, mock_download):
-        """Test from_sesn_templates calls the right methods"""
-        mock_download.return_value = Path(self.temp_dir)
-        mock_from_snid.return_value = self.matcher
-
-        result = SpectralTemplateMatcher.from_sesn_templates(cache_dir=self.temp_dir)
-
-        # Verify correct URL and subdirectory
-        mock_download.assert_called_once_with(
-            'https://github.com/metal-sn/SESNtemple',
-            subdirectory='SNIDtemplates',
-            cache_dir=self.temp_dir
-        )
-        mock_from_snid.assert_called_once()
-        self.assertIsInstance(result, SpectralTemplateMatcher)
 

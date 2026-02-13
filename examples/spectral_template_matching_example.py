@@ -4,40 +4,38 @@ Spectral Template Matching Example
 
 This example demonstrates how to use the SpectralTemplateMatcher class
 to match observed spectra against template libraries for supernova classification.
+
+The default template library uses sncosmo spectral models (SALT2, SN 1998bw,
+Nugent templates) and does not require any external downloads.
+
+For a large, high-quality template library, use the Super-SNID templates
+(downloaded automatically on first use):
+
+    matcher = SpectralTemplateMatcher.from_super_snid_templates(
+        cache_dir='./my_templates'
+    )
 """
 
 import numpy as np
 import matplotlib.pyplot as plt
+import sncosmo
 from redback.analysis import SpectralTemplateMatcher
 from redback.transient.transient import Spectrum
 
 # =============================================================================
-# Example 1: Using Default Blackbody Templates
+# Create a toy observed spectrum: SALT2 Type Ia at z=0.05, near maximum light
 # =============================================================================
 
-print("=" * 60)
-print("Example 1: Basic Template Matching with Default Templates")
-print("=" * 60)
-
-# Create a matcher with default built-in templates
-matcher = SpectralTemplateMatcher()
-print(f"Loaded {len(matcher.templates)} default templates")
-
-# Create a synthetic observed spectrum (Type Ia-like at z=0.05)
-# Simulating a Type Ia SN near maximum light
-wavelengths_obs = np.linspace(3500, 9000, 500)
-# Create a blackbody-like spectrum with some redshift applied
-temp = 11000  # K, typical for Ia near max
+src = sncosmo.get_source('salt2')
 z_true = 0.05
-
-# Simple blackbody approximation (in observed frame)
-wavelength_rest = wavelengths_obs / (1 + z_true)
-h, c, k = 6.626e-27, 3e10, 1.38e-16
-wavelength_cm = wavelength_rest * 1e-8
-exponent = np.clip((h * c) / (wavelength_cm * k * temp), None, 700)
-flux_obs = (1 / wavelength_cm**5) / (np.exp(exponent) - 1)
-flux_obs = flux_obs / np.max(flux_obs)
-flux_err = 0.05 * flux_obs  # 5% errors
+wavelengths_obs = np.linspace(3500, 9000, 500)
+wave_rest = wavelengths_obs / (1 + z_true)
+wave_rest_clipped = np.clip(wave_rest, src.minwave(), src.maxwave())
+flux_rest = src.flux(0.0, wave_rest_clipped)
+flux_obs = flux_rest / np.max(flux_rest)
+np.random.seed(42)
+flux_err = 0.05 * np.abs(flux_obs)
+flux_obs += np.random.normal(0, flux_err, len(flux_obs))
 
 # Create Spectrum object
 observed_spectrum = Spectrum(
@@ -45,26 +43,32 @@ observed_spectrum = Spectrum(
     flux_density=flux_obs,
     flux_density_err=flux_err,
     time="0",
-    name="Test_SN"
+    name="Test_SN_Ia"
 )
-
-# Match the spectrum
-result = matcher.match_spectrum(
-    observed_spectrum,
-    redshift_range=(0.0, 0.2),
-    n_redshift_points=50,
-    method='correlation'
-)
-
-print(f"\nBest Match Results:")
-print(f"  Type: {result['type']}")
-print(f"  Phase: {result['phase']} days from maximum")
-print(f"  Redshift: {result['redshift']:.4f} (true: {z_true})")
-print(f"  Correlation: {result['correlation']:.4f}")
-print(f"  Template: {result['template_name']}")
 
 # =============================================================================
-# Example 2: Classification with Confidence Metrics
+# Example 1: Basic Template Matching with Default Templates
+# =============================================================================
+
+print("=" * 60)
+print("Example 1: Basic Template Matching with Default Templates")
+print("=" * 60)
+
+matcher = SpectralTemplateMatcher()
+print(f"Loaded {len(matcher.templates)} default templates")
+print(f"Types covered: {sorted(set(t['type'] for t in matcher.templates))}")
+
+result = matcher.match_spectrum(observed_spectrum, redshift_range=(0.0, 0.2))
+
+print(f"\nBest Match Results:")
+print(f"  Type:       {result['type']}")
+print(f"  Phase:      {result['phase']:+.0f} days from maximum")
+print(f"  Redshift:   {result['redshift']:.4f}  (true: {z_true})")
+print(f"  rlap:       {result['rlap']:.2f}")
+print(f"  Template:   {result['template_name']}")
+
+# =============================================================================
+# Example 2: Classification with Probabilities
 # =============================================================================
 
 print("\n" + "=" * 60)
@@ -74,22 +78,12 @@ print("=" * 60)
 classification = matcher.classify_spectrum(
     observed_spectrum,
     redshift_range=(0.0, 0.2),
-    n_redshift_points=30,
     top_n=10
 )
-
-print(f"\nClassification Results:")
-print(f"  Best Type: {classification['best_type']}")
-print(f"  Best Phase: {classification['best_phase']} days")
-print(f"  Best Redshift: {classification['best_redshift']:.4f}")
-print(f"  Correlation: {classification['correlation']:.4f}")
-print(f"\nType Probabilities:")
-for sn_type, prob in sorted(classification['type_probabilities'].items(),
-                             key=lambda x: -x[1]):
-    print(f"  {sn_type}: {prob:.2%}")
+print(classification.summary())
 
 # =============================================================================
-# Example 3: Plotting the Match
+# Example 3: Visualizing the Best Match
 # =============================================================================
 
 print("\n" + "=" * 60)
@@ -98,168 +92,127 @@ print("=" * 60)
 
 fig, ax = plt.subplots(figsize=(10, 6))
 matcher.plot_match(observed_spectrum, result, axes=ax)
-ax.set_title(f"Spectral Template Match\nBest: {result['type']} at z={result['redshift']:.3f}")
+ax.set_title(
+    f"Spectral Template Match  —  "
+    f"{result['type']} at z={result['redshift']:.3f}, rlap={result['rlap']:.1f}"
+)
 plt.tight_layout()
 plt.savefig('spectral_match_example.png', dpi=150)
 print("Saved plot to: spectral_match_example.png")
 plt.close()
 
 # =============================================================================
-# Example 4: View Available Template Sources
+# Example 4: Filtering Templates
 # =============================================================================
 
 print("\n" + "=" * 60)
-print("Example 4: Available Template Sources")
+print("Example 4: Filtering Templates by Type and Phase")
 print("=" * 60)
 
-sources = SpectralTemplateMatcher.get_available_template_sources()
-for name, info in sources.items():
-    print(f"\n{name}:")
-    print(f"  Description: {info['description']}")
-    print(f"  URL: {info['url']}")
-    print(f"  Citation: {info['citation']}")
+ia_matcher = matcher.filter_templates(types=['Ia'], phase_range=(-5, 10))
+print(f"All templates:     {len(matcher.templates)}")
+print(f"Ia, -5 to +10 d:   {len(ia_matcher.templates)}")
+
+result_ia = ia_matcher.match_spectrum(observed_spectrum, redshift_range=(0.0, 0.2))
+if result_ia:
+    print(f"\nIa-only match: phase={result_ia['phase']:+.0f}d  z={result_ia['redshift']:.4f}")
 
 # =============================================================================
-# Example 5: Using Custom Templates
+# Example 5: Super-SNID Templates (downloaded automatically)
+# If you use this frequently, set the cache_dir to avoid redownloading.
+# This requires internet access on first run and uses the excellent Super-SNID library templates available at:
+# https://github.com/dkjmagill/QUB-SNID-Templates
+# Please cite the appropriate references if you use these templates in your research.
 # =============================================================================
 
 print("\n" + "=" * 60)
-print("Example 5: Adding Custom Templates")
+print("Example 5: Classification with Super-SNID Templates")
 print("=" * 60)
 
-# Create a matcher and add custom template
-custom_matcher = SpectralTemplateMatcher()
-
-# Add a custom template (e.g., from your own observations)
-custom_wavelength = np.linspace(3000, 10000, 1000)
-custom_flux = np.exp(-(custom_wavelength - 6500)**2 / (2 * 1000**2))  # Gaussian feature
-
-custom_matcher.add_template(
-    wavelength=custom_wavelength,
-    flux=custom_flux,
-    sn_type='Custom',
-    phase=0,
-    name='My_Custom_Template'
+print("Downloading Super-SNID template library (cached after first run)...")
+super_snid_matcher = SpectralTemplateMatcher.from_super_snid_templates(
+    cache_dir='./my_templates'
 )
+print(f"Loaded {len(super_snid_matcher.templates)} Super-SNID templates")
+print(f"Types covered: {sorted(set(t['type'] for t in super_snid_matcher.templates))}")
 
-print(f"Added custom template. Total templates: {len(custom_matcher.templates)}")
-
-# =============================================================================
-# Example 6: Filtering Templates
-# =============================================================================
-
-print("\n" + "=" * 60)
-print("Example 6: Filtering Templates by Type and Phase")
-print("=" * 60)
-
-# Filter to only Type Ia templates near maximum light
-filtered_matcher = matcher.filter_templates(
-    types=['Ia'],
-    phase_range=(-5, 10)
-)
-
-print(f"Original templates: {len(matcher.templates)}")
-print(f"Filtered templates (Ia, phase -5 to +10): {len(filtered_matcher.templates)}")
-
-# Match with filtered templates
-result_filtered = filtered_matcher.match_spectrum(
+result_ss = super_snid_matcher.match_spectrum(
     observed_spectrum,
-    redshift_range=(0.0, 0.2)
+    redshift_range=(0.0, 0.2),
 )
+print(f"\nSuper-SNID Best Match:")
+print(f"  Type:       {result_ss['type']}")
+print(f"  Phase:      {result_ss['phase']:+.0f} days from maximum")
+print(f"  Redshift:   {result_ss['redshift']:.4f}  (true: {z_true})")
+print(f"  rlap:       {result_ss['rlap']:.2f}")
+print(f"  Template:   {result_ss['template_name']}")
 
-if result_filtered:
-    print(f"\nFiltered Match Results:")
-    print(f"  Type: {result_filtered['type']}")
-    print(f"  Phase: {result_filtered['phase']} days")
-    print(f"  Redshift: {result_filtered['redshift']:.4f}")
+classification_ss = super_snid_matcher.classify_spectrum(
+    observed_spectrum,
+    redshift_range=(0.0, 0.2),
+    top_n=10
+)
+print(f"\nSuper-SNID Classification:")
+print(classification_ss.summary())
+
+fig, ax = plt.subplots(figsize=(10, 6))
+super_snid_matcher.plot_match(observed_spectrum, result_ss, axes=ax)
+ax.set_title(
+    f"Super-SNID Match  —  "
+    f"{result_ss['type']} at z={result_ss['redshift']:.3f}, rlap={result_ss['rlap']:.1f}"
+)
+plt.tight_layout()
+plt.savefig('spectral_match_supersnid.png', dpi=150)
+print("Saved plot to: spectral_match_supersnid.png")
+plt.close()
 
 # =============================================================================
-# Example 7: Saving Templates for Future Use
+# Example 6: Generating Templates from Custom sncosmo Sources
 # =============================================================================
 
 print("\n" + "=" * 60)
-print("Example 7: Saving Templates to Disk")
+print("Example 6: Custom sncosmo Template Set")
 print("=" * 60)
 
-# Save templates for later reuse
-output_dir = './my_templates'
+custom_templates = SpectralTemplateMatcher.generate_sncosmo_templates(
+    sources=[
+        ('salt2',      'Ia',    [-10, -5, 0, 5, 10, 15, 20]),
+        ('v19-1998bw', 'Ic-BL', [0, 5, 10, 15, 20]),
+    ]
+)
+custom_matcher = SpectralTemplateMatcher(templates=custom_templates)
+print(f"Custom matcher: {len(custom_matcher.templates)} templates")
+
+# =============================================================================
+# Example 7: Saving and Reloading Templates
+# =============================================================================
+
+print("\n" + "=" * 60)
+print("Example 7: Saving and Reloading Templates")
+print("=" * 60)
+
+output_dir = './my_default_templates'
 matcher.save_templates(output_dir, format='csv')
 print(f"Saved {len(matcher.templates)} templates to {output_dir}/")
 
-# Load them back later with:
-# matcher_reloaded = SpectralTemplateMatcher(template_library_path=output_dir)
+reloaded = SpectralTemplateMatcher(template_library_path=output_dir)
+print(f"Reloaded {len(reloaded.templates)} templates")
 
 # =============================================================================
-# Example 8: Chi-squared Matching (when errors are available)
-# =============================================================================
-
-print("\n" + "=" * 60)
-print("Example 8: Chi-squared Based Matching")
-print("=" * 60)
-
-result_chi2 = matcher.match_spectrum(
-    observed_spectrum,
-    redshift_range=(0.0, 0.2),
-    method='chi2'
-)
-
-print(f"\nChi-squared Match Results:")
-print(f"  Type: {result_chi2['type']}")
-print(f"  Phase: {result_chi2['phase']} days")
-print(f"  Redshift: {result_chi2['redshift']:.4f}")
-print(f"  Chi-squared: {result_chi2.get('chi2', 'N/A'):.2f}")
-print(f"  Scale factor: {result_chi2.get('scale_factor', 'N/A'):.4f}")
-
-# =============================================================================
-# Example 9: Getting All Matches for Analysis
+# Example 8: Loading SNID Template Files from disk
 # =============================================================================
 
 print("\n" + "=" * 60)
-print("Example 9: Analyzing All Matches")
-print("=" * 60)
-
-all_matches = matcher.match_spectrum(
-    observed_spectrum,
-    redshift_range=(0.0, 0.2),
-    method='both',
-    return_all_matches=True
-)
-
-print(f"Total matches tested: {len(all_matches)}")
-print("\nTop 5 matches by correlation:")
-for i, match in enumerate(all_matches[:5]):
-    print(f"  {i+1}. {match['type']} phase={match['phase']:+.0f}d "
-          f"z={match['redshift']:.3f} r={match['correlation']:.3f}")
-
-# =============================================================================
-# Advanced: Downloading Templates from External Sources
-# =============================================================================
-
-print("\n" + "=" * 60)
-print("ADVANCED USAGE: Downloading External Templates")
+print("Example 8: Loading SNID Templates from disk")
 print("=" * 60)
 
 print("""
-# Download from Open Supernova Catalog (requires internet):
-# matcher = SpectralTemplateMatcher.download_templates_from_osc(
-#     sn_types=['Ia', 'II', 'Ib', 'Ic'],
-#     max_per_type=10
-# )
+If you have SNID template files (.lnw format) already on disk:
 
-# Download SESN templates from GitHub:
-# matcher = SpectralTemplateMatcher.from_sesn_templates()
-
-# Load SNID templates from local directory:
-# matcher = SpectralTemplateMatcher.from_snid_template_directory(
-#     '/path/to/snid/templates/'
-# )
-
-# Download from any GitHub repository:
-# template_dir = SpectralTemplateMatcher.download_github_templates(
-#     'https://github.com/dkjmagill/QUB-SNID-Templates'
-# )
-# matcher = SpectralTemplateMatcher.from_snid_template_directory(template_dir)
+    matcher = SpectralTemplateMatcher.from_snid_template_directory(
+        '/path/to/snid/templates-2.0/'
+    )
 """)
 
-print("\nExample complete!")
+print("Example complete!")
 print("See documentation for more details: docs/spectral_template_matching.txt")

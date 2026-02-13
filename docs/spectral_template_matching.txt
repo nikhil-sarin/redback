@@ -9,8 +9,6 @@ This is useful for classifying transients based on their spectral features and e
 Quick Start
 ===========
 
-Here's a basic example of how to use the spectral template matcher:
-
 .. code:: python
 
     from redback.analysis import SpectralTemplateMatcher
@@ -36,21 +34,14 @@ Here's a basic example of how to use the spectral template matcher:
 Template Sources
 ================
 
-The matcher supports multiple template sources. You can view all available sources:
-
-.. code:: python
-
-    sources = SpectralTemplateMatcher.get_available_template_sources()
-    for name, info in sources.items():
-        print(f"{name}: {info['description']}")
-
 Available sources include:
 
-1. **SNID Templates v2.0** - Official templates from Blondin & Tonry (2007)
-2. **Super-SNID** - Expanded library with 841 templates (Magill et al. 2025)
-3. **METAL/SESNtemple** - Stripped-envelope SN templates
-4. **Open Supernova Catalog** - API access to public spectra
-5. **WISeREP** - Weizmann Interactive Supernova Data Repository
+1. **Built-in sncosmo templates** (default) — realistic spectra at multiple phases
+3. **Super-SNID** — expanded library with 841 templates (Magill et al. 2025), downloaded automatically via :code:`from_super_snid_templates()`
+4. **SESNtemple** — stripped-envelope SN templates from the METAL collaboration, downloaded automatically via :code:`from_sesn_templates()`
+5. **Custom CSV/DAT files** — your own template library
+
+If you use external template libraries, please cite the relevant sources.
 
 Loading Templates
 =================
@@ -58,54 +49,53 @@ Loading Templates
 Default Templates (Built-in)
 -----------------------------
 
-The default templates are simple blackbody approximations for different SN types:
+The default templates are drawn from sncosmo spectral models at multiple phases:
 
 .. code:: python
 
     matcher = SpectralTemplateMatcher()
 
-This loads Type Ia, II, and Ib/c blackbody templates at various phases.
-These are suitable for testing but not for production use.
+This loads realistic spectral templates from:
 
-From Open Supernova Catalog (Automatic Download)
--------------------------------------------------
+- **SALT2** (Type Ia, phases −10 to +20 d)
+- **v19-1998bw** (Ic-BL / SN 1998bw-like, phases −5 to +20 d)
+- **nugent-sn1bc** (Ib/c, phases 0 to +30 d)
+- **nugent-sn2p** (IIP, phases 0 to +80 d)
+- **nugent-sn2n** (IIn, phases 0 to +60 d)
+- **s11-2004hx** (generic Type II, phases 0 to +50 d)
 
-Download templates directly from the OSC API:
+Super-SNID Templates (auto-download)
+-------------------------------------
+
+Download and load the full Super-SNID library (841 templates, Magill et al. 2025)
+in one call:
 
 .. code:: python
 
-    matcher = SpectralTemplateMatcher.download_templates_from_osc(
-        sn_types=['Ia', 'II', 'Ib', 'Ic', 'IIn'],
-        max_per_type=20
+    matcher = SpectralTemplateMatcher.from_super_snid_templates(
+        cache_dir='~/my_templates'  # optional; defaults to ~/.redback/spectral_templates/
     )
 
-Templates are cached in :code:`~/.redback/spectral_templates/osc/` for reuse.
+This downloads ``https://github.com/dkjmagill/QUB-SNID-Templates``, extracts the
+inner ``templates.zip``, and loads all ``.lnw`` files. The result is cached locally
+so subsequent calls are instant.
 
-From GitHub Repositories
-------------------------
+SESNtemple Templates (auto-download)
+--------------------------------------
 
-Download SESN templates (Stripped-Envelope SNe):
-
-.. code:: python
-
-    matcher = SpectralTemplateMatcher.from_sesn_templates()
-
-Or download from any GitHub repository:
+Download stripped-envelope SN templates from the METAL collaboration:
 
 .. code:: python
 
-    template_dir = SpectralTemplateMatcher.download_github_templates(
-        'https://github.com/dkjmagill/QUB-SNID-Templates',
-        branch='master'
+    matcher = SpectralTemplateMatcher.from_sesn_templates(
+        cache_dir='my_templates'
     )
-    matcher = SpectralTemplateMatcher.from_snid_template_directory(template_dir)
 
-Templates are cached locally and only downloaded once.
+From a Local SNID Template Directory
+--------------------------------------
 
-From SNID Template Files
-------------------------
-
-If you have SNID template files (.lnw format):
+If you already have SNID template files (.lnw format) on disk, e.g. from the
+official SNID v2.0 release:
 
 .. code:: python
 
@@ -113,7 +103,7 @@ If you have SNID template files (.lnw format):
         '/path/to/snid/templates/templates-2.0/'
     )
 
-The parser automatically extracts type and phase information from filenames.
+The parser automatically extracts type and phase information from the .lnw header.
 
 Custom Template Library
 -----------------------
@@ -125,10 +115,23 @@ Load templates from your own CSV or DAT files:
     matcher = SpectralTemplateMatcher(template_library_path='/path/to/my/templates/')
 
 Files should have two columns: wavelength (Angstroms) and flux.
-Naming convention: :code:`{type}_{phase}.csv` (e.g., :code:`Ia_+5.csv`)
+Naming convention: :code:`{type}_{phase}.csv` (e.g., :code:`Ia_+5.csv`).
+Type and phase can also be specified in header comments:
+
+.. code:: text
+
+    # Type: Ia
+    # Phase: +5.0
+    3500  0.82
+    3510  0.84
+    ...
 
 Matching Methods
 ================
+
+The default matching method is :code:`'rlap'` — a SNID-style cross-correlation in
+log-wavelength (velocity) space that is shift-invariant and robust to continuum
+shape differences. A good match has rlap > 5; an excellent match has rlap > 8.
 
 Basic Matching
 --------------
@@ -137,24 +140,22 @@ Basic Matching
 
     result = matcher.match_spectrum(
         spectrum,
-        redshift_range=(0, 0.5),      # Search redshift range
-        n_redshift_points=50,          # Grid resolution
-        method='correlation'            # 'correlation', 'chi2', or 'both'
+        redshift_range=(0, 0.5),  # Search redshift range
+        method='rlap'             # 'rlap' (default), 'correlation', 'chi2', or 'both'
     )
 
 The result dictionary contains:
 
-- :code:`type` - Supernova type classification
-- :code:`phase` - Phase in days from maximum light
-- :code:`redshift` - Best-fit redshift
-- :code:`correlation` - Pearson correlation coefficient
-- :code:`chi2` - Chi-squared value (if using chi2 method)
-- :code:`template_name` - Name of the matched template
+- :code:`type` — Supernova type classification
+- :code:`phase` — Phase in days from maximum light
+- :code:`redshift` — Best-fit redshift
+- :code:`rlap` — SNID-style cross-correlation quality metric
+- :code:`correlation` — Pearson correlation coefficient at best-fit redshift
+- :code:`chi2` — Chi-squared value (if using chi2 method)
+- :code:`template_name` — Name of the matched template
 
 Classification with Probabilities
 ----------------------------------
-
-For a more robust classification:
 
 .. code:: python
 
@@ -164,15 +165,17 @@ For a more robust classification:
         top_n=10  # Consider top 10 matches
     )
 
+    print(classification.summary())
+    # or access as a dict:
     print(f"Best type: {classification['best_type']}")
+    print(f"Confidence: {classification['confidence']}")
     print(f"Type probabilities: {classification['type_probabilities']}")
 
-This provides probability estimates for each type based on the top matches.
+:code:`classify_spectrum` returns a :code:`ClassificationResult` object, which also
+behaves as a plain dictionary for backward compatibility.
 
 Getting All Matches
 -------------------
-
-To analyze the full match distribution:
 
 .. code:: python
 
@@ -181,14 +184,11 @@ To analyze the full match distribution:
         return_all_matches=True
     )
 
-    # Analyze top matches
     for match in all_matches[:10]:
-        print(f"{match['type']} z={match['redshift']:.3f} r={match['correlation']:.3f}")
+        print(f"{match['type']} z={match['redshift']:.3f} rlap={match['rlap']:.1f}")
 
 Visualization
 =============
-
-Plot the best match against the observed spectrum:
 
 .. code:: python
 
@@ -198,15 +198,11 @@ Plot the best match against the observed spectrum:
     matcher.plot_match(spectrum, result, axes=ax)
     plt.savefig('template_match.png')
 
-This creates a comparison plot showing the observed spectrum overlaid with the best-matching template.
-
 Working with Templates
 ======================
 
 Adding Custom Templates
 -----------------------
-
-Add individual templates programmatically:
 
 .. code:: python
 
@@ -221,8 +217,6 @@ Add individual templates programmatically:
 Filtering Templates
 -------------------
 
-Create a subset matcher for specific analysis:
-
 .. code:: python
 
     # Only Type Ia templates near maximum light
@@ -234,13 +228,12 @@ Create a subset matcher for specific analysis:
 Saving Templates
 ----------------
 
-Save your template library for future use:
-
 .. code:: python
 
     matcher.save_templates('./my_template_library/', format='csv')
 
-Templates are saved with metadata in the header comments.
+Templates are saved with :code:`# Type:` and :code:`# Phase:` metadata in the header
+so they can be reloaded with :code:`SpectralTemplateMatcher(template_library_path=...)`.
 
 Advanced Usage
 ==============
@@ -248,7 +241,7 @@ Advanced Usage
 Chi-squared Matching
 --------------------
 
-When flux errors are available, chi-squared matching provides optimal scaling:
+When flux errors are available, chi-squared matching provides an optimal flux scaling:
 
 .. code:: python
 
@@ -256,16 +249,20 @@ When flux errors are available, chi-squared matching provides optimal scaling:
     print(f"Reduced chi2: {result['reduced_chi2']:.2f}")
     print(f"Scale factor: {result['scale_factor']:.4f}")
 
-Parsing SNID Files
-------------------
+Generating Templates from sncosmo
+----------------------------------
 
-Parse individual SNID template files:
+You can generate templates from any sncosmo source at custom phases:
 
 .. code:: python
 
-    template = SpectralTemplateMatcher.parse_snid_template_file(
-        '/path/to/sn1999aa_Ia_+5.lnw'
+    templates = SpectralTemplateMatcher.generate_sncosmo_templates(
+        sources=[
+            ('salt2',      'Ia',   [-10, -5, 0, 5, 10, 15, 20]),
+            ('v19-1998bw', 'Ic-BL', [0, 5, 10, 15]),
+        ]
     )
+    matcher = SpectralTemplateMatcher(templates=templates)
 
 Example Scripts
 ===============
@@ -276,38 +273,33 @@ A complete example is available at:
 
     examples/spectral_template_matching_example.py
 
-This demonstrates:
-
-- Basic matching with default templates
-- Classification with confidence metrics
-- Visualization
-- Custom template management
-- Filtering and saving templates
-
 Citing Template Sources
 =======================
 
 When using spectral templates, please cite the appropriate sources:
 
 - **SNID**: Blondin & Tonry 2007, ApJ, 666, 1024
+- **SALT2**: Guy et al. 2007, A&A, 466, 11
+- **SN 1998bw / v19**: Vincenzi et al. 2019
+- **Nugent templates**: Nugent et al. 2002
 - **Super-SNID**: Magill et al. 2025 (Zenodo DOI: 10.5281/zenodo.15167198)
-- **METAL/SESNtemple**: Williamson et al. 2023, Yesmin et al. 2024
-- **Open Supernova Catalog**: Guillochon et al. 2017
 
 API Reference
 =============
 
-For full API documentation, see the :code:`SpectralTemplateMatcher` class in :code:`redback.analysis`.
+Key methods on :code:`SpectralTemplateMatcher`:
 
-Key methods:
+- :code:`match_spectrum()` — Find best-matching template
+- :code:`classify_spectrum()` — Full classification with probabilities
+- :code:`plot_match()` — Visualize matches
+- :code:`add_template()` — Add a custom template
+- :code:`filter_templates()` — Create a filtered sub-matcher
+- :code:`save_templates()` — Export templates to CSV/DAT
+- :code:`from_snid_template_directory()` — Load a directory of .lnw files
+- :code:`from_super_snid_templates()` — Download and load Super-SNID library
+- :code:`from_sesn_templates()` — Download and load SESNtemple library
+- :code:`download_github_templates()` — Download any GitHub template repo
+- :code:`generate_sncosmo_templates()` — Generate templates from sncosmo sources
+- :code:`get_available_template_sources()` — List known external template libraries
 
-- :code:`match_spectrum()` - Find best-matching template
-- :code:`classify_spectrum()` - Full classification with probabilities
-- :code:`plot_match()` - Visualize matches
-- :code:`add_template()` - Add custom templates
-- :code:`filter_templates()` - Create filtered matcher
-- :code:`save_templates()` - Export templates
-- :code:`download_templates_from_osc()` - Download from OSC
-- :code:`from_sesn_templates()` - Load SESN templates
-- :code:`from_snid_template_directory()` - Load SNID files
-- :code:`get_available_template_sources()` - List all sources
+Please check the API docs for full details on parameters and return values and any newer methods.
