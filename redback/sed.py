@@ -971,6 +971,8 @@ def get_correct_output_format_from_spectra(time, time_eval, spectra, lambda_arra
         replacement = replacement * spectra.unit
     spectra = np.where(np.isfinite(values) & (values != 0), spectra, replacement)
     time_spline_degree = kwargs.get('time_spline_degree', 3)
+    if len(time_eval) < 4:
+        time_spline_degree = max(1, min(time_spline_degree, len(time_eval) - 1))
     source = RedbackTimeSeriesSource(phase=time_eval, wave=lambda_array, flux=spectra,
                                      time_spline_degree=time_spline_degree)
     if kwargs['output_format'] == 'flux':
