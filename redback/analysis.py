@@ -1621,8 +1621,8 @@ class SpectralTemplateMatcher(object):
             else:  # both — combined normalised score
                 corr_vals = np.array([m.get('correlation', 0.0) for m in all_matches])
                 chi2_vals = np.array([m.get('reduced_chi2', np.inf) for m in all_matches])
-                c_range = corr_vals.ptp()
-                q_range = chi2_vals.ptp()
+                c_range = np.ptp(corr_vals)
+                q_range = np.ptp(chi2_vals)
                 corr_norm = (corr_vals - corr_vals.min()) / (c_range if c_range > 0 else 1.0)
                 chi2_norm = (chi2_vals - chi2_vals.min()) / (q_range if q_range > 0 else 1.0)
                 for i, m in enumerate(all_matches):
