@@ -332,6 +332,13 @@ Complete workflow for Type Ia SN spectral analysis:
         print(f"  HVF Si II: {-v_hvf:.0f} km/s")
 
 
+High-Energy Spectral Models
+============================
+
+For X-ray and gamma-ray spectral analysis (keV–MeV range), redback also provides models
+for fitting photon count spectra from instruments such as Swift/XRT, XMM-Newton, Chandra,
+and Fermi/GBM. These are described in the :doc:`xray_spectral_fitting` documentation.
+
 References
 ===========
 

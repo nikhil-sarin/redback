@@ -205,7 +205,7 @@ def _cooling_envelope(mbh_6, stellar_mass, eta, alpha, beta, **kwargs):
     except ValueError:
         constraint_1 = len(time_temp)
         constraint_2 = len(time_temp)
-    constraint = np.min([constraint_1, constraint_2])
+    constraint = np.max([np.min([constraint_1, constraint_2]), 4])
     termination_time_id = np.min([constraint_1, constraint_2])
     if constraint < 2:
         constraint = 2
