@@ -1,0 +1,70 @@
+# This workflow will run benchmarks with airspeed velocity (asv) for pull requests.
+# It will compare the performance of the main branch with the performance of the merge
+# with the new changes. It then publishes a comment with this assessment by triggering
+# the publish-benchmarks-pr workflow.
+# Based on https://securitylab.github.com/research/github-actions-preventing-pwn-requests/.
+name: Run benchmarks for PR
+
+on:
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+
+concurrency:
+  group: ${{github.workflow}}-${{github.ref}}
+  cancel-in-progress: true
+
+env:
+  PYTHON_VERSION: "3.11"
+  ASV_VERSION: "0.6.5"
+  WORKING_DIR: ${{github.workspace}}/benchmarks
+  ARTIFACTS_DIR: ${{github.workspace}}/artifacts
+
+jobs:
+  asv-pr:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ${{env.WORKING_DIR}}
+    steps:
+    - name: Set up Python ${{env.PYTHON_VERSION}}
+      uses: actions/setup-python@v5
+      with:
+        python-version: ${{env.PYTHON_VERSION}}
+    - name: Checkout PR branch of the repository
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+    - name: Display Workflow Run Information
+      run: |
+        echo "Workflow Run ID: ${{github.run_id}}"
+    - name: Install dependencies
+      run: pip install asv[virtualenv]==${{env.ASV_VERSION}} lf-asv-formatter
+    - name: Make artifacts directory
+      run: mkdir -p ${{env.ARTIFACTS_DIR}}
+    - name: Save pull request number
+      run: echo ${{github.event.pull_request.number}} > ${{env.ARTIFACTS_DIR}}/pr
+    - name: Get current job logs URL
+      uses: Tiryoh/gha-jobid-action@v1
+      id: jobs
+      with:
+        github_token: ${{secrets.GITHUB_TOKEN}}
+        job_name: ${{github.job}}
+    - name: Create ASV machine config file
+      run: asv machine --machine gh-runner --yes
+    - name: Save comparison of PR against main branch
+      run: |
+        git remote add upstream https://github.com/${{github.repository}}.git
+        git fetch upstream
+        asv continuous upstream/main HEAD --verbose || true
+        asv compare upstream/main HEAD --sort ratio --verbose | tee output
+        python -m lf_asv_formatter --asv_version "$(asv --version | awk '{print $2}')"
+        printf "\n\nClick [here]($STEP_URL) to view all benchmarks." >> output
+        mv output ${{env.ARTIFACTS_DIR}}
+      env:
+        STEP_URL: ${{steps.jobs.outputs.html_url}}#step:10:1
+    - name: Upload artifacts (PR number and benchmarks output)
+      uses: actions/upload-artifact@v4
+      with:
+        name: benchmark-artifacts
+        path: ${{env.ARTIFACTS_DIR}}
