@@ -169,17 +169,17 @@ def vegas_tophat(time, redshift, thv, loge0, thc, lognism, loga, p, logepse, log
     # Forward shock radiation
     xie = kwargs.get('xie', 1.0)
     ssc = kwargs.get('ssc', False)
-    ssc_cooling = kwargs.get('ssc_cooling', False)
     kn = kwargs.get('kn', False)
-    
+    cmb_cooling = kwargs.get('cmb_cooling', False)
+
     rad_fwd = Radiation(
-        eps_e=10**logepse, 
-        eps_B=10**logepsb, 
+        eps_e=10**logepse,
+        eps_B=10**logepsb,
         p=p,
         xi_e=xie,
         ssc=ssc,
-        ssc_cooling=ssc_cooling,
-        kn=kn
+        kn=kn,
+        cmb_cooling=cmb_cooling
     )
 
     # Reverse shock (optional)
@@ -192,8 +192,8 @@ def vegas_tophat(time, redshift, thv, loge0, thc, lognism, loga, p, logepse, log
             p=kwargs.get('reverse_p', p),
             xi_e=reverse_xie,
             ssc=ssc,
-            ssc_cooling=ssc_cooling,
-            kn=kn
+            kn=kn,
+            cmb_cooling=cmb_cooling
         )
 
     # Model resolution and numerical parameters
@@ -299,11 +299,11 @@ def vegas_gaussian(time, redshift, thv, loge0, thc, lognism, loga, p, logepse, l
     
     xie = kwargs.get('xie', 1.0)
     ssc = kwargs.get('ssc', False)
-    ssc_cooling = kwargs.get('ssc_cooling', False)
     kn = kwargs.get('kn', False)
-    
-    rad_fwd = Radiation(eps_e=10**logepse, eps_B=10**logepsb, p=p, xi_e=xie, ssc=ssc, ssc_cooling=ssc_cooling, kn=kn)
-    
+    cmb_cooling = kwargs.get('cmb_cooling', False)
+
+    rad_fwd = Radiation(eps_e=10**logepse, eps_B=10**logepsb, p=p, xi_e=xie, ssc=ssc, kn=kn, cmb_cooling=cmb_cooling)
+
     rad_rvs = None
     if kwargs.get('reverse_shock', False):
         rad_rvs = Radiation(
@@ -311,7 +311,7 @@ def vegas_gaussian(time, redshift, thv, loge0, thc, lognism, loga, p, logepse, l
             eps_B=10**kwargs.get('reverse_logepsb', logepsb),
             p=kwargs.get('reverse_p', p),
             xi_e=kwargs.get('reverse_xie', 1.0),
-            ssc=ssc, ssc_cooling=ssc_cooling, kn=kn
+            ssc=ssc, kn=kn, cmb_cooling=cmb_cooling
         )
 
     model = Model(
@@ -400,11 +400,11 @@ def vegas_powerlaw(time, redshift, thv, loge0, thc, lognism, loga, p, logepse, l
     
     xie = kwargs.get('xie', 1.0)
     ssc = kwargs.get('ssc', False)
-    ssc_cooling = kwargs.get('ssc_cooling', False)
     kn = kwargs.get('kn', False)
-    
-    rad_fwd = Radiation(eps_e=10**logepse, eps_B=10**logepsb, p=p, xi_e=xie, ssc=ssc, ssc_cooling=ssc_cooling, kn=kn)
-    
+    cmb_cooling = kwargs.get('cmb_cooling', False)
+
+    rad_fwd = Radiation(eps_e=10**logepse, eps_B=10**logepsb, p=p, xi_e=xie, ssc=ssc, kn=kn, cmb_cooling=cmb_cooling)
+
     rad_rvs = None
     if kwargs.get('reverse_shock', False):
         rad_rvs = Radiation(
@@ -412,7 +412,7 @@ def vegas_powerlaw(time, redshift, thv, loge0, thc, lognism, loga, p, logepse, l
             eps_B=10**kwargs.get('reverse_logepsb', logepsb),
             p=kwargs.get('reverse_p', p),
             xi_e=kwargs.get('reverse_xie', 1.0),
-            ssc=ssc, ssc_cooling=ssc_cooling, kn=kn
+            ssc=ssc, kn=kn, cmb_cooling=cmb_cooling
         )
 
     model = Model(
@@ -496,11 +496,11 @@ def vegas_powerlaw_wing(time, redshift, thv, loge0_w, thc, lognism, loga, p, log
     
     xie = kwargs.get('xie', 1.0)
     ssc = kwargs.get('ssc', False)
-    ssc_cooling = kwargs.get('ssc_cooling', False)
     kn = kwargs.get('kn', False)
-    
-    rad_fwd = Radiation(eps_e=10**logepse, eps_B=10**logepsb, p=p, xi_e=xie, ssc=ssc, ssc_cooling=ssc_cooling, kn=kn)
-    
+    cmb_cooling = kwargs.get('cmb_cooling', False)
+
+    rad_fwd = Radiation(eps_e=10**logepse, eps_B=10**logepsb, p=p, xi_e=xie, ssc=ssc, kn=kn, cmb_cooling=cmb_cooling)
+
     rad_rvs = None
     if kwargs.get('reverse_shock', False):
         rad_rvs = Radiation(
@@ -508,7 +508,7 @@ def vegas_powerlaw_wing(time, redshift, thv, loge0_w, thc, lognism, loga, p, log
             eps_B=10**kwargs.get('reverse_logepsb', logepsb),
             p=kwargs.get('reverse_p', p),
             xi_e=kwargs.get('reverse_xie', 1.0),
-            ssc=ssc, ssc_cooling=ssc_cooling, kn=kn
+            ssc=ssc, kn=kn, cmb_cooling=cmb_cooling
         )
 
     model = Model(
@@ -603,11 +603,11 @@ def vegas_two_component(time, redshift, thv, loge0, thc, lognism, loga, p, logep
     
     xie = kwargs.get('xie', 1.0)
     ssc = kwargs.get('ssc', False)
-    ssc_cooling = kwargs.get('ssc_cooling', False)
     kn = kwargs.get('kn', False)
-    
-    rad_fwd = Radiation(eps_e=10**logepse, eps_B=10**logepsb, p=p, xi_e=xie, ssc=ssc, ssc_cooling=ssc_cooling, kn=kn)
-    
+    cmb_cooling = kwargs.get('cmb_cooling', False)
+
+    rad_fwd = Radiation(eps_e=10**logepse, eps_B=10**logepsb, p=p, xi_e=xie, ssc=ssc, kn=kn, cmb_cooling=cmb_cooling)
+
     rad_rvs = None
     if kwargs.get('reverse_shock', False):
         rad_rvs = Radiation(
@@ -615,7 +615,7 @@ def vegas_two_component(time, redshift, thv, loge0, thc, lognism, loga, p, logep
             eps_B=10**kwargs.get('reverse_logepsb', logepsb),
             p=kwargs.get('reverse_p', p),
             xi_e=kwargs.get('reverse_xie', 1.0),
-            ssc=ssc, ssc_cooling=ssc_cooling, kn=kn
+            ssc=ssc, kn=kn, cmb_cooling=cmb_cooling
         )
 
     model = Model(
@@ -712,11 +712,11 @@ def vegas_step_powerlaw(time, redshift, thv, loge0, thc, lognism, loga, p, logep
     
     xie = kwargs.get('xie', 1.0)
     ssc = kwargs.get('ssc', False)
-    ssc_cooling = kwargs.get('ssc_cooling', False)
     kn = kwargs.get('kn', False)
-    
-    rad_fwd = Radiation(eps_e=10**logepse, eps_B=10**logepsb, p=p, xi_e=xie, ssc=ssc, ssc_cooling=ssc_cooling, kn=kn)
-    
+    cmb_cooling = kwargs.get('cmb_cooling', False)
+
+    rad_fwd = Radiation(eps_e=10**logepse, eps_B=10**logepsb, p=p, xi_e=xie, ssc=ssc, kn=kn, cmb_cooling=cmb_cooling)
+
     rad_rvs = None
     if kwargs.get('reverse_shock', False):
         rad_rvs = Radiation(
@@ -724,7 +724,7 @@ def vegas_step_powerlaw(time, redshift, thv, loge0, thc, lognism, loga, p, logep
             eps_B=10**kwargs.get('reverse_logepsb', logepsb),
             p=kwargs.get('reverse_p', p),
             xi_e=kwargs.get('reverse_xie', 1.0),
-            ssc=ssc, ssc_cooling=ssc_cooling, kn=kn
+            ssc=ssc, kn=kn, cmb_cooling=cmb_cooling
         )
 
     model = Model(
