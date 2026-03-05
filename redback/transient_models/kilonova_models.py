@@ -137,8 +137,8 @@ def _nicholl_bns_get_quantities(mass_1, mass_2, lambda_s, kappa_red, kappa_blue,
     atheta1 = 2 * np.pi * np.sin(theta1)
     atheta2 = 2 * np.pi * np.sin(theta2)
 
-    vejecta_blue = np.trapz(vtheta1 * atheta1, x=theta1) / np.trapz(atheta1, x=theta1)
-    vejecta_red = np.trapz(vtheta2 * atheta2, x=theta2) / np.trapz(atheta2, x=theta2)
+    vejecta_blue = np.trapezoid(vtheta1 * atheta1, x=theta1) / np.trapezoid(atheta1, x=theta1)
+    vejecta_red = np.trapezoid(vtheta2 * atheta2, x=theta2) / np.trapezoid(atheta2, x=theta2)
 
     # vejecta_red *= ckm
     # vejecta_blue *= ckm

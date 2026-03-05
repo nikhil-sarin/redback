@@ -146,7 +146,7 @@ def _ejecta_dynamics_and_interaction(time, mej, beta, ejecta_radius, kappa, n_is
     dynamics_output.tau = tau
     dynamics_output.time = time
     dynamics_output.kinetic_energy = (lorentz_factor - 1)*mej*speed_of_light**2
-    dynamics_output.erad_total = np.trapz(bolometric_luminosity, x=time)
+    dynamics_output.erad_total = np.trapezoid(bolometric_luminosity, x=time)
     dynamics_output.thermalisation_efficiency = teff
     return dynamics_output
 
@@ -753,7 +753,7 @@ def _general_metzger_magnetar_driven_kilonova_model(time, mej, vej, beta, kappa,
     dynamics_output.temperature = temperature
     dynamics_output.r_photosphere = r_photosphere
     dynamics_output.kinetic_energy = (lorentz_factor - 1)*m0*speed_of_light**2
-    dynamics_output.erad_total = np.trapz(bolometric_luminosity, x=time)
+    dynamics_output.erad_total = np.trapezoid(bolometric_luminosity, x=time)
     dynamics_output.thermalisation_efficiency = qdot_magnetar/lsd
     return dynamics_output
 
