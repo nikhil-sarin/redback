@@ -10,6 +10,7 @@ import pandas as pd
 from pathlib import Path
 from shutil import rmtree
 import redback
+import redback.priors
 
 _dirname = dirname(__file__)
 
@@ -269,9 +270,8 @@ class TestPriorLoadingAndLabels(unittest.TestCase):
         pass
 
     def get_prior(self, file):
-        prior_dict = bilby.prior.PriorDict()
-        prior_dict.from_file(f"{self.path_to_files}{file}")
-        return prior_dict
+        model = file.replace('.prior', '')
+        return redback.priors.get_priors(model)
 
     def test_all_priors_load_and_have_valid_labels(self):
         """Test that all prior files load correctly and have valid latex labels."""
