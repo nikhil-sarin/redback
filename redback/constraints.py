@@ -25,7 +25,7 @@ def slsn_constraint(parameters):
     total_energy = kinetic_energy + neutrino_energy
     # ensure rotational energy is greater than total output energy
     erot_ratio = total_energy/rotational_energy
-    converted_parameters['e_rot_constraint'] = erot_ratio
+    converted_parameters['erot_constraint'] = erot_ratio
     # ensure t_nebula is greater than 100 days
     tnebula_constraint = tnebula - 100
     converted_parameters['t_nebula_min'] = tnebula_constraint
