@@ -1,5 +1,30 @@
 # All notable changes will be documented in this file
 
+## [1.15.0] 2026-03-05
+Version 1.15.0 release of redback
+
+## Added and changed
+* Added X-ray/gamma-ray spectral fitting pipeline using OGIP standard data (PHA, ARF, RMF)
+* Added plugin system for external model packages using entry points
+* Added SpectralTemplateMatcher for spectral template matching
+* Added combined afterglow + kilonova SED function
+* Added powerlaw_plus_blackbody component access via `component` kwarg
+* Fixed numpy 2.x compatibility (trapz → trapezoid bulk replace)
+* Fixed slsn constraint wiring and prior sampling on Python 3.13+
+* Fixed get_correct_output_format_from_spectra for single frequency input
+* Fixed calc_ABmag_from_flux_density import location
+* Multiprocessing documentation improvements
+
+## What's Changed
+* Add X-ray/gamma-ray spectral fitting pipeline by @nikhil-sarin in https://github.com/nikhil-sarin/redback/pull/343
+* Changes for PR326 (afterglow+KN SED) by @nikhil-sarin in https://github.com/nikhil-sarin/redback/pull/338
+* Add plugin system for external model packages by @nikhil-sarin in https://github.com/nikhil-sarin/redback/pull/315
+* Add SpectralTemplateMatcher by @nikhil-sarin in https://github.com/nikhil-sarin/redback/pull/318
+* Prior plugins, constraint fixes, numpy 2.x compat by @nikhil-sarin in https://github.com/nikhil-sarin/redback/pull/347
+* Multiprocessing documentation by @lauracotter in https://github.com/nikhil-sarin/redback/pull/346
+
+**Full Changelog**: https://github.com/nikhil-sarin/redback/compare/v1.14.0...v1.15.0
+
 ## [1.14.0] 2026-02-03
 Version 1.14.0 release of redback
 
