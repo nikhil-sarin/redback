@@ -23,11 +23,11 @@ class TestSLSNConstraint(unittest.TestCase):
             self.assertEqual(result[key], parameters[key])
 
         # Check that constraint parameters were added
-        self.assertIn('erot_constraint', result)
+        self.assertIn('e_rot_constraint', result)
         self.assertIn('t_nebula_min', result)
 
-        # Check that erot_constraint is positive
-        self.assertGreater(result['erot_constraint'], 0)
+        # Check that e_rot_constraint is positive
+        self.assertGreater(result['e_rot_constraint'], 0)
 
     def test_slsn_constraint_preserves_input(self):
         """Test that input parameters are not modified"""

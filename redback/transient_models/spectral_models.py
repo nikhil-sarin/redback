@@ -137,11 +137,13 @@ def powerlaw_plus_blackbody_spectrum_at_z(angstroms, redshift, pl_amplitude, pl_
     :param kwargs: Additional parameters
     :param reference_wavelength: wavelength for power law amplitude normalization in Angstroms (default 5000)
     :param cosmology: Cosmology object for luminosity distance calculation
+    :param component: 'combined' (default), 'blackbody', or 'powerlaw' to return individual components
     :return: flux in ergs/s/cm^2/angstrom in obs frame
     """
     cosmology = kwargs.get('cosmology', cosmo)
     dl = cosmology.luminosity_distance(redshift).cgs.value
     reference_wavelength = kwargs.get('reference_wavelength', 5000.0)  # Angstroms
+    component = kwargs.get('component', 'combined')
 
     # Convert observed wavelengths to rest frame
     angstroms_rest = angstroms / (1 + redshift)
@@ -168,8 +170,13 @@ def powerlaw_plus_blackbody_spectrum_at_z(angstroms, redshift, pl_amplitude, pl_
                                          reference_wavelength=reference_wavelength,
                                          frequency=frequency_rest, luminosity_distance=dl)
 
-    # Get flux density in rest frame (F_nu)
-    flux_density_rest = sed_combined.flux_density  # erg/s/cm^2/Hz
+    # Select which component to return
+    if component == 'blackbody':
+        flux_density_rest = sed_combined.bb_flux_density
+    elif component == 'powerlaw':
+        flux_density_rest = sed_combined.pl_flux_density
+    else:
+        flux_density_rest = sed_combined.flux_density
 
     # Convert from F_nu to F_lambda in rest frame
     flux_lambda_rest = fnu_to_flambda(f_nu=flux_density_rest, wavelength_A=angstroms_rest)
@@ -180,7 +187,6 @@ def powerlaw_plus_blackbody_spectrum_at_z(angstroms, redshift, pl_amplitude, pl_
     # Combined effect: divide by (1+z)
     flux_lambda_obs = flux_lambda_rest / (1 + redshift)
 
-    # Convert to plain values if needed
     if hasattr(flux_lambda_obs, 'value'):
         return flux_lambda_obs.value
     else:

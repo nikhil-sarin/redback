@@ -1704,7 +1704,7 @@ class PopulationSynthesizer(object):
 
         # PDF (unnormalized)
         pdf = rate_z * dVc_dz / (1 + z_array)  # Include (1+z)^-1 for time dilation
-        pdf /= np.trapz(pdf, z_array)  # Normalize
+        pdf /= np.trapezoid(pdf, z_array)  # Normalize
 
         # Sample from this distribution
         cdf = np.cumsum(pdf)
@@ -1779,7 +1779,7 @@ class PopulationSynthesizer(object):
         # Total rate over all space (4π sr full sky)
         # Include (1+z)^-1 for time dilation - events at higher z occur slower in observer frame
         integrand = rate_z * dVc_dz / (1 + z_array) * 4 * np.pi / 1e9  # Convert Mpc^3 to Gpc^3
-        total_rate_per_year = np.trapz(integrand, z_array)  # Events per year in observer frame
+        total_rate_per_year = np.trapezoid(integrand, z_array)  # Events per year in observer frame
 
         expected_events = total_rate_per_year * n_years
         return expected_events
@@ -2109,7 +2109,7 @@ class PopulationSynthesizer(object):
                 eff = efficiency_function(z_range)
                 # 4π sr for full sky, convert to Gpc^3
                 integrand = dVc_dz * eff * 4 * np.pi / 1e9 / (1 + z_range)
-                expected_per_unit_rate[i] = np.trapz(integrand, z_range) * T_obs
+                expected_per_unit_rate[i] = np.trapezoid(integrand, z_range) * T_obs
 
         # Maximum likelihood estimate
         # For Poisson: R_ML = N_obs / sum(expected_per_unit_rate)

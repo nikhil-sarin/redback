@@ -1,0 +1,2 @@
+amplitude = LogUniform(minimum=1e-3, maximum=1e3, name='amplitude', latex_label='$A$')
+decay_time = LogUniform(minimum=0.1, maximum=1000, name='decay_time', latex_label='$\\tau$')

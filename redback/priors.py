@@ -5,7 +5,13 @@ import bilby.core.prior
 from bilby.core.prior import PriorDict
 
 import redback.model_library
+import redback.constraints
 from redback.utils import logger
+
+_constraint_map = {
+    'slsn': redback.constraints.slsn_constraint,
+    'slsn_bolometric': redback.constraints.slsn_constraint,
+}
 
 
 def get_priors(model, times=None, y=None, yerr=None, dt=None, **kwargs):
@@ -49,6 +55,8 @@ def get_priors(model, times=None, y=None, yerr=None, dt=None, **kwargs):
     try:
         filename = os.path.join(os.path.dirname(__file__), 'priors', f'{model}.prior')
         priors.from_file(filename)
+        if model in _constraint_map:
+            priors.conversion_function = _constraint_map[model]
         return priors
     except FileNotFoundError:
         pass  # Continue to try the non_default_priors folder
