@@ -76,7 +76,7 @@ class TestConstraints(unittest.TestCase):
         priors = bilby.prior.PriorDict(conversion_function=redback.constraints.slsn_constraint)
         _prior = redback.priors.get_priors(model='slsn')
         priors.update(_prior)
-        priors['erot_constraint'] = Constraint(0, 1)
+        priors['e_rot_constraint'] = Constraint(0, 1)
         priors['t_nebula_min'] = Constraint(0, 400)
         samples = pd.DataFrame(priors.sample(100))
         mej = samples['mej'] * redback.constants.solar_mass
