@@ -145,7 +145,7 @@ def add_filter_user(file, label, plot_label=None, overwrite=False):
         # unit: AA
         
         wavelength_pivot  = np.trapezoid(filter_transmission['Wavelength'] * filter_transmission['Transmission'], filter_transmission['Wavelength'])
-        wavelength_pivot /= np.trapzezoid(filter_transmission['Transmission'], filter_transmission['Wavelength'])
+        wavelength_pivot /= np.trapezoid(filter_transmission['Transmission'], filter_transmission['Wavelength'])
         
         # Effective width as defined on SVO
         # int( T(lambda), lambda ) / max( T(lambda) )
@@ -290,7 +290,7 @@ def add_effective_widths():
 
             # Calculate the effective width:
             #   effective_width = ∫T(λ) dλ / max(T(λ))
-            effective_width = np.trapz(trans, waves) / np.max(trans)
+            effective_width = np.trapezoid(trans, waves) / np.max(trans)
             effective_width = calc_effective_width_hz_from_angstrom(effective_width=effective_width,
                                                                     effective_wavelength=band.wave_eff)
             eff_width[ii] = effective_width
