@@ -1,0 +1,3 @@
+peak_time = Uniform(minimum=0, maximum=100, name='peak_time', latex_label='$t_{\\rm peak}$')
+peak_amplitude = LogUniform(minimum=1e-3, maximum=1e3, name='peak_amplitude', latex_label='$A_{\\rm peak}$')
+width = LogUniform(minimum=0.1, maximum=100, name='width', latex_label='$\\sigma$')

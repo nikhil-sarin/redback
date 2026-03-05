@@ -312,7 +312,7 @@ class SpectralDataset:
                 mjy = model(energies, **params, **kwargs)
 
         flux_density = mjy_to_energy_flux_per_keV(mjy)
-        return float(np.trapz(flux_density, energies))
+        return float(np.trapezoid(flux_density, energies))
 
     def plot_spectrum_data(
         self,

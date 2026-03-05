@@ -2327,10 +2327,10 @@ def general_magnetar_driven_supernova_bolometric(time, mej, E_sn, kappa, l0, tau
     dynamics_output.time = output.time
     dynamics_output.bolometric_luminosity = output.bolometric_luminosity
     dynamics_output.kinetic_energy = output.kinetic_energy 
-    dynamics_output.erad_total = np.trapz(lbol, x=time)
+    dynamics_output.erad_total = np.trapezoid(lbol, x=time)
     dynamics_output.thermalisation_efficiency = output.thermalisation_efficiency
     dynamics_output.magnetar_luminosity = magnetar_luminosity 
-    dynamics_output.erot_total = np.trapz(magnetar_luminosity, x=time_temp)
+    dynamics_output.erot_total = np.trapezoid(magnetar_luminosity, x=time_temp)
 
     if kwargs['output_format'] == 'dynamics_output':
         return dynamics_output
@@ -2417,8 +2417,8 @@ def general_magnetar_driven_supernova(time, redshift, mej, E_sn, kappa, l0, tau_
         kwargs['vej'] = vej
         photo = kwargs['photosphere'](time=time_temp/day_to_s, luminosity=output.bolometric_luminosity, **kwargs)
         if kwargs['output_format'] == 'dynamics_output':                                      
-            erot_total = np.trapz(magnetar_luminosity, x=time_temp)
-            erad_total = np.trapz(output.bolometric_luminosity, x=time_temp)          
+            erot_total = np.trapezoid(magnetar_luminosity, x=time_temp)
+            erad_total = np.trapezoid(output.bolometric_luminosity, x=time_temp)
             dynamics_output = namedtuple('dynamics_output', ['time', 'bolometric_luminosity', 'photosphere_temperature',
                                                      'radius', 'tau', 'kinetic_energy', 'erad_total', 'thermalisation_efficiency', 
                                                      'v_ej', 'magnetar_luminosity', 'erot_total', 'r_photosphere'])

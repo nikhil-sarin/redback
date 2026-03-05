@@ -1,0 +1,5 @@
+amp_exp = LogUniform(minimum=1e-3, maximum=1e3, name='amp_exp', latex_label='$A_{\\rm exp}$')
+decay_time = LogUniform(minimum=0.1, maximum=1000, name='decay_time', latex_label='$\\tau$')
+amp_gauss = LogUniform(minimum=1e-3, maximum=1e3, name='amp_gauss', latex_label='$A_{\\rm gauss}$')
+peak_time = Uniform(minimum=0, maximum=100, name='peak_time', latex_label='$t_{\\rm peak}$')
+width = LogUniform(minimum=0.1, maximum=100, name='width', latex_label='$\\sigma$')

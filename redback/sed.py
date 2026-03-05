@@ -447,10 +447,10 @@ class PowerlawPlusBlackbody:
         pl_flux_density = pl_flux_lambda * wavelength ** 2 / (speed_of_light * 1e8)
         pl_flux_density = pl_flux_density * uu.erg / uu.s / uu.cm ** 2 / uu.Hz
 
-        # Combine components
-        total_flux_density = bb_flux_density + pl_flux_density
-
-        self.flux_density = total_flux_density
+        # Store individual components and combined
+        self.bb_flux_density = bb_flux_density
+        self.pl_flux_density = pl_flux_density
+        self.flux_density = bb_flux_density + pl_flux_density
 
 class Blackbody(object):
 
