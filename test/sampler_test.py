@@ -241,11 +241,13 @@ class TestFitModel(unittest.TestCase):
     def test_unknown_transient_type(self):
         # Test that passing an object that is not a recognized transient type causes a ValueError.
         trans = DummyNotTransient()
+        model_kwargs = self.model_kwargs.copy()
+        model_kwargs['frequency'] = 1e15
         with self.assertRaises(ValueError) as context:
             fit_model(
                 transient=trans, model="dummy_model", outdir=self.outdir, label="TestUnknown",
                 sampler=self.sampler, nlive=self.nlive, prior=self.prior, walks=self.walks,
-                model_kwargs=self.model_kwargs, plot=False
+                model_kwargs=model_kwargs, plot=False
             )
         self.assertIn("not known", str(context.exception))
 

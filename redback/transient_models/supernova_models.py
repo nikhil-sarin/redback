@@ -2445,7 +2445,7 @@ def general_magnetar_driven_supernova(time, redshift, mej, E_sn, kappa, l0, tau_
             spectra = (full_sed * uu.mJy).to(uu.erg / uu.cm ** 2 / uu.s / uu.Angstrom,
                                         equivalencies=uu.spectral_density(wav=lambda_observer_frame * uu.Angstrom))
             if kwargs['output_format'] == 'spectra':
-                return namedtuple('output', ['time', 'lambdas', 'spectra'])(time=time_observer_frame,
+                return namedtuple('output', ['time', 'lambdas', 'spectra'])(time=time_observer_frame/day_to_s,
                                                                           lambdas=lambda_observer_frame,
                                                                           spectra=spectra)   
             else: 
