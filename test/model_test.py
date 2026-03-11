@@ -1869,19 +1869,18 @@ class TestArnettWithFeatures:
 class TestCosmologicalCorrections(unittest.TestCase):
     """
     Test that transient models correctly apply cosmological corrections.
-    
+
     Key physics being tested:
-    - F_ν,obs = L_ν,rest / (4π d_L² × (1+z))
-    - The (1+z) factor accounts for photon energy decrease and time dilation
+    - F_ν,obs = (1+z) * L_ν,rest / (4π d_L²)   [Hogg 2002, eq 6]
     """
 
     def test_flux_density_redshift_correction(self):
         """
-        Test that flux_density output has the (1+z) correction.
-        
+        Test that flux_density output has the correct cosmological scaling.
+
         Evaluates the same source at two different redshifts at the same rest-frame
         time and frequency. The flux ratio should follow:
-        F_ν(z2)/F_ν(z1) = (d_L,z1/d_L,z2)² × (1+z1)/(1+z2)
+        F_ν(z2)/F_ν(z1) = (d_L,z1/d_L,z2)² × (1+z2)/(1+z1)
         """
         from redback.transient_models.supernova_models import arnett
         from astropy.cosmology import Planck18 as cosmo
@@ -1914,16 +1913,16 @@ class TestCosmologicalCorrections(unittest.TestCase):
         
         observed_ratio = fd_z2 / fd_z1
         
-        # Expected ratio WITH (1+z) correction
-        expected_ratio = (d_L_z1 / d_L_z2)**2 * ((1 + z1) / (1 + z2))
-        
+        # Expected ratio: F_nu_obs = (1+z) * L_nu / (4pi dL^2), Hogg 2002 eq 6
+        expected_ratio = (d_L_z1 / d_L_z2)**2 * ((1 + z2) / (1 + z1))
+
         # Should match within 2% (allowing for small numerical errors)
         relative_diff = abs(observed_ratio - expected_ratio) / expected_ratio
-        
-        self.assertLess(relative_diff, 0.02, 
+
+        self.assertLess(relative_diff, 0.02,
             f"Flux density ratio doesn't match expected cosmological scaling. "
             f"Observed: {observed_ratio:.6f}, Expected: {expected_ratio:.6f}, "
-            f"Difference: {relative_diff:.2%}. Missing (1+z) correction?")
+            f"Difference: {relative_diff:.2%}.")
     
     def test_spectra_redshift_correction(self):
         """
@@ -1963,8 +1962,8 @@ class TestCosmologicalCorrections(unittest.TestCase):
         
         observed_ratio = flux_z2 / flux_z1
         
-        # Expected ratio (approximately, since spectral shape changes with redshift)
-        expected_ratio = (d_L_z1 / d_L_z2)**2 * ((1 + z1) / (1 + z2))
+        # Expected ratio: f_lambda_obs = L_lambda / (4pi dL^2 (1+z)), Hogg 2002 eq 6
+        expected_ratio = (d_L_z1 / d_L_z2)**2 * ((1 + z2) / (1 + z1))
         
         # More lenient tolerance for spectra due to K-corrections and spectral shape changes
         relative_diff = abs(observed_ratio - expected_ratio) / expected_ratio
