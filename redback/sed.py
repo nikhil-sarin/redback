@@ -906,7 +906,7 @@ def flux_density_to_spectrum(flux_density, redshift, lambda_observer_frame):
         flux_density = flux_density * uu.erg / uu.s / uu.Hz / uu.cm ** 2
 
     # Apply redshift correction and convert to spectrum units
-    spectra = (flux_density / (1 + redshift)).to(uu.mJy).to(
+    spectra = (flux_density * (1 + redshift)).to(uu.mJy).to(
         uu.erg / uu.cm ** 2 / uu.s / uu.Angstrom,
         equivalencies=uu.spectral_density(wav=lambda_observer_frame * uu.Angstrom)
     )

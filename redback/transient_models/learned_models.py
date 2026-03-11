@@ -130,7 +130,7 @@ def _eval_learned_surrogate(model, time, params, **kwargs):
         points = np.column_stack((time, frequency))
 
         # Return interpolated flux density with (1+z) correction for observer frame
-        return flux_interpolator(points) / (1 + redshift)
+        return flux_interpolator(points) * (1 + redshift)
 
     else:
         # Create denser grid for output (in rest frame)

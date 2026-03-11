@@ -205,7 +205,7 @@ def wr_bh_merger(time, redshift, M_star, M_bh, M_fast, M_pre, v_fast, v_slow, al
         sed_slow = kwargs['sed'](temperature=temp_slow, r_photosphere=rad_slow, 
                                             frequency=frequency, luminosity_distance=dl)
         flux_density = sed_fast.flux_density + sed_slow.flux_density
-        return flux_density.to(uu.mJy).value / (1 + redshift)
+        return flux_density.to(uu.mJy).value * (1 + redshift)
     
     else:
         time_obs = time

@@ -262,14 +262,14 @@ def _process_flux_density(dl, output, redshift, time, time_temp, **kwargs):
         df = d_func(time)
         flux_density = _comoving_blackbody_to_flux_density(dl=dl, frequency=frequency, radius=rad, temperature=temp,
                                                        doppler_factor=df)
-        flux_density = flux_density / (1 + redshift)
+        flux_density = flux_density * (1 + redshift)
     else:
         temp_func = interp1d(time_temp, y=output.temperature)
         rad_func = interp1d(time_temp, y=output.r_photosphere)
         temp = temp_func(time)
         rad = rad_func(time)
         flux_density = blackbody_to_flux_density(temperature=temp, r_photosphere=rad, frequency=frequency, dl=dl)
-    return flux_density.to(uu.mJy).value / (1 + redshift)
+    return flux_density.to(uu.mJy).value * (1 + redshift)
 
 @citation_wrapper('https://ui.adsabs.harvard.edu/abs/2013ApJ...776L..40Y/abstract')
 def basic_mergernova(time, redshift, mej, beta, ejecta_radius, kappa, n_ism, p0, bp,

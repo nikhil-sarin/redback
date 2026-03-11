@@ -777,7 +777,7 @@ def band_function_high_energy(energies_keV, log10_norm, alpha, beta, e_peak, red
     keV_to_erg = 1.60218e-9
     energy_flux = photon_flux * energies_rest * keV_to_erg
     flux_density_erg = energy_flux / keV_to_Hz
-    flux_density_mjy = flux_density_erg * 1e26 / (1 + redshift)
+    flux_density_mjy = flux_density_erg * 1e26 * (1 + redshift)
 
     return flux_density_mjy
 
@@ -892,7 +892,7 @@ def powerlaw_high_energy(energies_keV, log10_norm, alpha, redshift=0.0, **kwargs
     keV_to_erg = 1.60218e-9
     energy_flux = photon_flux * energies_rest * keV_to_erg
     flux_density_erg = energy_flux / keV_to_Hz
-    return flux_density_erg * 1e26 / (1 + redshift)
+    return flux_density_erg * 1e26 * (1 + redshift)
 
 
 @citation_wrapper('https://ui.adsabs.harvard.edu/abs/2000ApJ...542..914W/abstract')
@@ -945,7 +945,7 @@ def cutoff_powerlaw_high_energy(energies_keV, log10_norm, alpha, e_cut, redshift
     keV_to_erg = 1.60218e-9
     energy_flux = photon_flux * energies_rest * keV_to_erg
     flux_density_erg = energy_flux / keV_to_Hz
-    return flux_density_erg * 1e26 / (1 + redshift)
+    return flux_density_erg * 1e26 * (1 + redshift)
 
 
 @citation_wrapper('https://ui.adsabs.harvard.edu/abs/1994ApJS...92..229L/abstract')
@@ -970,7 +970,7 @@ def comptonized_high_energy(energies_keV, log10_norm, alpha, e_peak, redshift=0.
     keV_to_erg = 1.60218e-9
     energy_flux = photon_flux * energies_rest * keV_to_erg
     flux_density_erg = energy_flux / keV_to_Hz
-    return flux_density_erg * 1e26 / (1 + redshift)
+    return flux_density_erg * 1e26 * (1 + redshift)
 
 
 @citation_wrapper('https://ui.adsabs.harvard.edu/abs/1978ppap.book.....R/abstract')
@@ -1004,4 +1004,4 @@ def blackbody_high_energy(energies_keV, redshift, r_photosphere_rs, kT, **kwargs
     if hasattr(flux_density, 'value'):
         flux_density = flux_density.value
 
-    return flux_density * 1e26 / (1 + redshift)
+    return flux_density * 1e26 * (1 + redshift)
