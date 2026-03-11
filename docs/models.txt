@@ -299,7 +299,7 @@ A note about general assumptions in :code:`redback` models.
 In :code:`redback`, we generally solve for the physics of the model in the rest frame of the transient, then transformed onto the users desired time/frequency/bandpass.
 Each model functions somewhat differently. Generally, for thermal transients, this ultimately involves calculating a spectrum via;
 
-F_nu_obs(nu_obs, t_obs) = L_nu_rest(nu_rest, t_rest) / (4 pi D_L^2 (1+z)). Where nu_rest is the rest frame frequency, t_rest is the rest frame time, D_L is the luminosity distance and z is the redshift.
+F_nu_obs(nu_obs, t_obs) = (1+z) * L_nu_rest(nu_rest, t_rest) / (4 pi D_L^2). Where nu_rest is the rest frame frequency, t_rest is the rest frame time, D_L is the luminosity distance and z is the redshift.
 We typically use the redshift and some cosmology (default to Planck18) to estimate the luminosity distance as opposed to having two independent parameters.
 This behaviour could be bypassed by using a custom cosmology dependency injection. See `here <https://redback.readthedocs.io/en/latest/dependency_injections.html>`_ for more details.
 

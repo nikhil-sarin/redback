@@ -204,7 +204,7 @@ def shockcooling_morag(time, redshift, v_shock, m_env, f_rho_m, radius, kappa, *
         flux_density = sed.blackbody_to_flux_density(temperature=temp, r_photosphere=photosphere,
                                                      dl=dl, frequency=frequency)
 
-        return flux_density.to(uu.mJy).value / (1 + redshift)
+        return flux_density.to(uu.mJy).value * (1 + redshift)
     else:
         lambda_observer_frame = kwargs.get('lambda_array', np.geomspace(100, 60000, 200))
         time_observer_frame = time_temp * (1. + redshift)
@@ -450,7 +450,7 @@ def shockcooling_sapirandwaxman(time, redshift, v_shock, m_env, f_rho_m, radius,
         flux_density = sed.blackbody_to_flux_density(temperature=temp, r_photosphere=photosphere,
                                                      dl=dl, frequency=frequency)
 
-        return flux_density.to(uu.mJy).value / (1 + redshift)
+        return flux_density.to(uu.mJy).value * (1 + redshift)
     else:
         lambda_observer_frame = kwargs.get('lambda_array', np.geomspace(100, 60000, 200))
         time_observer_frame = time_temp * (1. + redshift)
@@ -595,7 +595,7 @@ def csm_shock_breakout(time, redshift, csm_mass, v_min, beta, kappa, shell_radiu
         flux_density = sed.blackbody_to_flux_density(temperature=temp, r_photosphere=photosphere,
                                                  dl=dl, frequency=frequency)
 
-        return flux_density.to(uu.mJy).value / (1 + redshift)
+        return flux_density.to(uu.mJy).value * (1 + redshift)
     else:
         lambda_observer_frame = kwargs.get('lambda_array', np.geomspace(100, 60000, 200))
         time_observer_frame = time_temp * (1. + redshift)
@@ -749,7 +749,7 @@ def shock_cooling(time, redshift, log10_mass, log10_radius, log10_energy, **kwar
         output = _shock_cooling(time*cc.day_to_s, mass=mass, radius=radius, energy=energy, **kwargs)
         flux_density = sed.blackbody_to_flux_density(temperature=output.temperature, r_photosphere=output.r_photosphere,
                                              dl=dl, frequency=frequency)
-        return flux_density.to(uu.mJy).value / (1 + redshift)
+        return flux_density.to(uu.mJy).value * (1 + redshift)
     else:
         time_temp = np.geomspace(1e-1, 30, 100)
         lambda_observer_frame = kwargs.get('lambda_array', np.geomspace(100, 60000, 100))
@@ -1025,7 +1025,7 @@ def shocked_cocoon(time, redshift, mej, vej, eta, tshock, shocked_fraction, cos_
                                  cos_theta_cocoon=cos_theta_cocoon, kappa=kappa)
         flux_density = sed.blackbody_to_flux_density(temperature=output.temperature, r_photosphere=output.r_photosphere,
                                                      dl=dl, frequency=frequency)
-        return flux_density.to(uu.mJy).value / (1 + redshift)
+        return flux_density.to(uu.mJy).value * (1 + redshift)
     else:
         lambda_observer_frame = kwargs.get('frequency_array', np.geomspace(100, 60000, 100))
         time_temp = np.linspace(1e-2, 100, 100)
@@ -1232,7 +1232,7 @@ def shocked_cocoon_csm(time, redshift, E_eng, t_eng, theta_0, M_csm, R_csm, kapp
         temp = temp_func(time)
 
         flux_density = sed.blackbody_to_flux_density(temperature=temp, r_photosphere=rph, dl=dl, frequency=frequency)
-        return flux_density.to(uu.mJy).value / (1 + redshift)
+        return flux_density.to(uu.mJy).value * (1 + redshift)
                 
     else:
         time_obs = time

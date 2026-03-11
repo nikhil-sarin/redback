@@ -189,7 +189,7 @@ def pwn(time, redshift, mej, l0, tau_sd, nn, eps_b, gamma_b, **kwargs):
     #interpolate for each time
     fnu_func = interp1d(time_temp/day_to_s, y=F_nu.T)
     fnu = np.diag(fnu_func(time))   
-    fmjy = np.array(fnu) / 1.0e-26 / (1.0 + redshift)
+    fmjy = np.array(fnu) / 1.0e-26 * (1.0 + redshift)
     
     return fmjy
     
@@ -562,7 +562,7 @@ def synchrotron_massloss(time, redshift, v_s, log_Mdot_vwind, logepsb, logepse, 
 
     if (np.min(frequency) < np.max(nu_ssa)):
         msk = (frequency < nu_ssa)
-        flux_density[msk] = Fv_ssa[msk] * (frequency[msk] / nu_ssa[msk]) ** 2.5 / 1.0e-26 / (1 + redshift)
+        flux_density[msk] = Fv_ssa[msk] * (frequency[msk] / nu_ssa[msk]) ** 2.5 / 1.0e-26 * (1 + redshift)
         
     return flux_density    
 
@@ -613,7 +613,7 @@ def synchrotron_ism(time, redshift, v_s, logn0, logepsb, logepse, p, **kwargs):
 
     if (np.min(frequency) < np.max(nu_ssa)):
         msk = (frequency < nu_ssa)
-        flux_density[msk] = Fv_ssa[msk] * (frequency[msk] / nu_ssa[msk]) ** 2.5 / 1.0e-26 / (1 + redshift)
+        flux_density[msk] = Fv_ssa[msk] * (frequency[msk] / nu_ssa[msk]) ** 2.5 / 1.0e-26 * (1 + redshift)
         
     return flux_density   
 
@@ -668,7 +668,7 @@ def synchrotron_pldensity(time, redshift, v_s, logA, s, logepsb, logepse, p, **k
         if len(frequency) == 1:
             frequency = np.ones(len(nu_ssa)) * frequency
         msk = (frequency < nu_ssa)
-        flux_density[msk] = Fv_ssa[msk] * (frequency[msk] / nu_ssa[msk]) ** 2.5 / 1.0e-26 / (1 + redshift)
+        flux_density[msk] = Fv_ssa[msk] * (frequency[msk] / nu_ssa[msk]) ** 2.5 / 1.0e-26 * (1 + redshift)
         
     return flux_density
 
@@ -801,5 +801,5 @@ def thermal_synchrotron_v2_fluxdensity(time, redshift, bG_sh, log_Mdot_vwind, n_
     cosmology = kwargs.get('cosmology', cosmo)
     dl = cosmology.luminosity_distance(redshift).cgs.value
     lnu = thermal_synchrotron_v2_lnu(time, bG_sh, log_Mdot_vwind, n_ism, logepse, logepsb, xi, p, **new_kwargs)
-    flux_density = lnu / (4.0 * np.pi * dl**2)/1.0e-26 / (1 + redshift)
+    flux_density = lnu / (4.0 * np.pi * dl**2)/1.0e-26 * (1 + redshift)
     return flux_density           

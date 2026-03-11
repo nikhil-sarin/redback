@@ -423,7 +423,7 @@ def nicholl_bns(time, redshift, mass_1, mass_2, lambda_s, kappa_red, kappa_blue,
             units = flux_density.unit
             ff += flux_density.value
         ff = ff * units
-        return ff.to(uu.mJy).value / (1 + redshift)
+        return ff.to(uu.mJy).value * (1 + redshift)
     else:
         lambda_observer_frame = kwargs.get('lambda_array', np.geomspace(100, 60000, 200))
         time_observer_frame = time_temp * (1. + redshift) #in days
@@ -520,7 +520,7 @@ def mosfit_rprocess(time, redshift, mej, vej, kappa, kappa_gamma, temperature_fl
         photosphere = rad_func(time)
         flux_density = blackbody_to_flux_density(temperature=temp, r_photosphere=photosphere,
                                                  dl=dl, frequency=frequency)
-        return flux_density.to(uu.mJy).value / (1 + redshift)
+        return flux_density.to(uu.mJy).value * (1 + redshift)
     else:
         lambda_observer_frame = kwargs.get('lambda_array', np.geomspace(100, 60000, 200))
         time_observer_frame = time_temp / day_to_s * (1. + redshift) # in days
@@ -611,7 +611,7 @@ def mosfit_kilonova(time, redshift, mej_1, vej_1, temperature_floor_1, kappa_1,
             units = flux_density.unit
             ff += flux_density.value
         ff = ff * units
-        return ff.to(uu.mJy).value / (1 + redshift)
+        return ff.to(uu.mJy).value * (1 + redshift)
     else:
         lambda_observer_frame = kwargs.get('lambda_array', np.geomspace(100, 60000, 200))
         time_observer_frame = time_temp / day_to_s * (1. + redshift) # in days
@@ -939,7 +939,7 @@ def _kilonova_hr(time, redshift, mej, velocity_array, kappa_array, beta, **kwarg
 
         flux_density = blackbody_to_flux_density(temperature=temperature.value, r_photosphere=r_photosphere.value,
                                                  dl=dl, frequency=frequency)
-        return flux_density.to(uu.mJy).value / (1 + redshift)
+        return flux_density.to(uu.mJy).value * (1 + redshift)
     else:
         lambda_observer_frame = kwargs.get('lambda_array', np.geomspace(100, 60000, 200))
         time_observer_frame = np.geomspace(0.03, 10, 100) * day_to_s
@@ -1053,7 +1053,7 @@ def three_component_kilonova_model(time, redshift, mej_1, vej_1, temperature_flo
             ff += flux_density.value
 
         ff = ff * units
-        return ff.to(uu.mJy).value / (1 + redshift)
+        return ff.to(uu.mJy).value * (1 + redshift)
 
     else:
         lambda_observer_frame = kwargs.get('lambda_array', np.geomspace(100, 60000, 200))
@@ -1145,7 +1145,7 @@ def two_component_kilonova_model(time, redshift, mej_1, vej_1, temperature_floor
             ff += flux_density.value
 
         ff = ff * units
-        return ff.to(uu.mJy).value / (1 + redshift)
+        return ff.to(uu.mJy).value * (1 + redshift)
 
     else:
         lambda_observer_frame = kwargs.get('lambda_array', np.geomspace(100, 60000, 200))
@@ -1448,7 +1448,7 @@ def one_component_kilonova_model(time, redshift, mej, vej, kappa, **kwargs):
         flux_density = blackbody_to_flux_density(temperature=temp, r_photosphere=photosphere,
                                                  dl=dl, frequency=frequency)
 
-        return flux_density.to(uu.mJy).value / (1 + redshift)
+        return flux_density.to(uu.mJy).value * (1 + redshift)
 
     else:
         lambda_observer_frame = kwargs.get('lambda_array', np.geomspace(100, 60000, 200))
@@ -1585,7 +1585,7 @@ def one_comp_kne_rosswog_heatingrate(time, redshift, mej, vej, ye, **kwargs):
         flux_density = blackbody_to_flux_density(temperature=temp, r_photosphere=photosphere,
                                                  dl=dl, frequency=frequency)
 
-        return flux_density.to(uu.mJy).value / (1 + redshift)
+        return flux_density.to(uu.mJy).value * (1 + redshift)
 
     else:
         lambda_observer_frame = kwargs.get('lambda_array', np.geomspace(100, 60000, 200))
@@ -1673,7 +1673,7 @@ def two_comp_kne_rosswog_heatingrate(time, redshift, mej_1, vej_1, temperature_f
             ff += flux_density.value
 
         ff = ff * units
-        return ff.to(uu.mJy).value / (1 + redshift)
+        return ff.to(uu.mJy).value * (1 + redshift)
 
     else:
         lambda_observer_frame = kwargs.get('lambda_array', np.geomspace(100, 60000, 200))
@@ -1795,7 +1795,7 @@ def metzger_kilonova_model(time, redshift, mej, vej, beta, kappa, **kwargs):
 
         flux_density = blackbody_to_flux_density(temperature=temp, r_photosphere=photosphere,
                                                  dl=dl, frequency=frequency)
-        return flux_density.to(uu.mJy).value / (1 + redshift)
+        return flux_density.to(uu.mJy).value * (1 + redshift)
 
     else:
         lambda_observer_frame = kwargs.get('lambda_array', np.geomspace(100, 60000, 200))
