@@ -1,5 +1,20 @@
 # All notable changes will be documented in this file
 
+## [1.15.1] 2026-03-12
+Version 1.15.1 release of redback
+
+## Fixed and changed
+* Fixed cosmological K-correction: spectral flux densities now correctly use F_ν,obs = (1+z) × L_ν,rest / (4π d_L²) per Hogg 2002 (previously some redback behaviour assumed the wrong scaling)
+* Changed basic_magnetar parameterisation to match MOSFiT: L = 2 E_rot/t_p / (1 + 2t/t_p)²
+* Fixed sampler/model kwargs handling and spectra output in general magnetar-driven ejecta model
+* Updated broken test to reflect new feature behaviour
+
+## What's Changed
+* K-corr bugfix + parameterisation change for basic magnetar by @nikhil-sarin in https://github.com/nikhil-sarin/redback/pull/350
+* Hotfix v1.15 (sampler/model kwargs and spectra output fix) by @nikhil-sarin in https://github.com/nikhil-sarin/redback/pull/349
+
+**Full Changelog**: https://github.com/nikhil-sarin/redback/compare/v1.15.0...v1.15.1
+
 ## [1.15.0] 2026-03-05
 Version 1.15.0 release of redback
 
