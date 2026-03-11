@@ -509,5 +509,142 @@ class GaussianLikelihoodValidationTest(unittest.TestCase):
         np.testing.assert_array_almost_equal(model_output, expected)
 
 
+class MixtureGaussianLikelihoodExtendedTest(unittest.TestCase):
+    """Extended tests for MixtureGaussianLikelihood covering untested methods."""
+
+    def setUp(self):
+        self.x = np.array([0.0, 1.0, 2.0, 3.0, 4.0])
+        self.y = np.array([0.1, 1.0, 2.0, 3.1, 15.0])  # last point is outlier
+        self.sigma = 0.2
+
+        def func(x, slope, **kwargs):
+            return x * slope
+
+        self.function = func
+        self.likelihood = likelihoods.MixtureGaussianLikelihood(
+            x=self.x, y=self.y, sigma=self.sigma, function=self.function)
+        self.likelihood.parameters['slope'] = 1.0
+
+    def test_log_likelihood_finite(self):
+        ll = self.likelihood.log_likelihood()
+        self.assertFalse(np.isnan(ll))
+        self.assertFalse(np.isposinf(ll))
+
+    def test_log_likelihood_is_scalar(self):
+        ll = self.likelihood.log_likelihood()
+        self.assertIsInstance(float(ll), float)
+
+    def test_p_in_positive(self):
+        r = np.array([0.0, 0.1, -0.1])
+        p = self.likelihood.p_in(r)
+        self.assertTrue(np.all(p > 0))
+
+    def test_p_out_positive(self):
+        r = np.array([0.0, 5.0, -5.0])
+        p = self.likelihood.p_out(r)
+        self.assertTrue(np.all(p > 0))
+
+    def test_p_in_peaks_at_zero(self):
+        """p_in is maximised when residual is zero."""
+        p0 = self.likelihood.p_in(np.array([0.0]))[0]
+        p1 = self.likelihood.p_in(np.array([1.0]))[0]
+        self.assertGreater(p0, p1)
+
+    def test_calculate_outlier_posteriors_shape(self):
+        model_pred = self.x * 1.0
+        posteriors = self.likelihood.calculate_outlier_posteriors(model_pred)
+        self.assertEqual(len(posteriors), len(self.x))
+
+    def test_calculate_outlier_posteriors_range(self):
+        """Posterior probabilities are in [0, 1]."""
+        model_pred = self.x * 1.0
+        posteriors = self.likelihood.calculate_outlier_posteriors(model_pred)
+        self.assertTrue(np.all(posteriors >= 0.0))
+        self.assertTrue(np.all(posteriors <= 1.0))
+
+    def test_calculate_outlier_posteriors_detects_outlier(self):
+        """The clear outlier (last point) should have a higher outlier probability."""
+        model_pred = self.x * 1.0
+        posteriors = self.likelihood.calculate_outlier_posteriors(model_pred)
+        self.assertGreater(posteriors[-1], posteriors[0])
+
+    def test_default_alpha_in_parameters(self):
+        self.assertIn('alpha', self.likelihood.parameters)
+
+    def test_default_sigma_out_scalar_sigma(self):
+        """When sigma is a scalar, sigma_out defaults to sigma * 10."""
+        self.assertAlmostEqual(
+            self.likelihood.parameters['sigma_out'], self.sigma * 10, places=10)
+
+    def test_default_sigma_out_non_scalar_sigma(self):
+        """When sigma is an array, sigma_out defaults to 10.0."""
+        arr_sigma = np.full(5, 0.2)
+        lik = likelihoods.MixtureGaussianLikelihood(
+            x=self.x, y=self.y, sigma=arr_sigma, function=self.function)
+        self.assertAlmostEqual(lik.parameters['sigma_out'], 10.0)
+
+    def test_log_likelihood_sensitive_to_slope(self):
+        """Likelihood is not flat: different slopes give different values."""
+        self.likelihood.parameters['slope'] = 1.0
+        ll1 = self.likelihood.log_likelihood()
+        self.likelihood.parameters['slope'] = 100.0
+        ll2 = self.likelihood.log_likelihood()
+        self.assertNotAlmostEqual(ll1, ll2, places=3)
+
+
+class GaussianLikelihoodWithUpperLimitsSummaryTest(unittest.TestCase):
+    """Tests for the summary() method on GaussianLikelihoodWithUpperLimits."""
+
+    def setUp(self):
+        self.x = np.array([1.0, 2.0, 3.0, 4.0, 5.0])
+        self.y = np.array([10.0, 20.0, 5.0, 8.0, 15.0])
+        self.sigma = np.array([1.0, 2.0, 0.5, 0.8, 1.5])
+        detections = np.array([1, 1, 0, 1, 0])  # two upper limits
+
+        def func(x, amp, **kwargs):
+            return x * amp
+
+        self.likelihood = likelihoods.GaussianLikelihoodWithUpperLimits(
+            x=self.x, y=self.y, sigma=self.sigma, function=func,
+            detections=detections, upper_limit_sigma=3.0, data_mode='flux')
+
+    def test_summary_returns_dict(self):
+        s = self.likelihood.summary()
+        self.assertIsInstance(s, dict)
+
+    def test_summary_total_data_points(self):
+        s = self.likelihood.summary()
+        self.assertEqual(s['total_data_points'], 5)
+
+    def test_summary_detections_count(self):
+        s = self.likelihood.summary()
+        self.assertEqual(s['detections'], 3)
+
+    def test_summary_upper_limits_count(self):
+        s = self.likelihood.summary()
+        self.assertEqual(s['upper_limits'], 2)
+
+    def test_summary_data_mode(self):
+        s = self.likelihood.summary()
+        self.assertEqual(s['data_mode'], 'flux')
+
+    def test_summary_includes_sigma_levels_when_limits_present(self):
+        s = self.likelihood.summary()
+        self.assertIsNotNone(s['upper_limit_sigma_levels'])
+
+    def test_summary_no_sigma_levels_when_no_limits(self):
+        """When all points are detections, sigma_levels entry is None."""
+        detections_all = np.ones(5, dtype=bool)
+
+        def func(x, amp, **kwargs):
+            return x * amp
+
+        lik = likelihoods.GaussianLikelihoodWithUpperLimits(
+            x=self.x, y=self.y, sigma=self.sigma, function=func,
+            detections=detections_all)
+        s = lik.summary()
+        self.assertIsNone(s['upper_limit_sigma_levels'])
+
+
 if __name__ == '__main__':
     unittest.main()

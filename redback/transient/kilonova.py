@@ -5,6 +5,7 @@ import numpy as np
 
 import redback.get_data.directory
 from redback.transient.transient import OpticalTransient
+from redback.utils import logger
 
 dirname = os.path.dirname(__file__)
 
@@ -83,12 +84,15 @@ class Kilonova(OpticalTransient):
         :type kwargs: None
         """
 
+        logger.info(f"Initializing Kilonova transient '{name}' with data_mode='{data_mode}'")
         super().__init__(time=time, time_err=time_err, time_rest_frame=time_rest_frame, time_mjd=time_mjd,
                          time_mjd_err=time_mjd_err, time_rest_frame_err=time_rest_frame_err, Lum50=Lum50,
                          Lum50_err=Lum50_err, flux_density=flux_density, flux_density_err=flux_density_err,
                          magnitude=magnitude, magnitude_err=magnitude_err, data_mode=data_mode, name=name, bands=bands,
                          system=system, active_bands=active_bands, use_phase_model=use_phase_model, redshift=redshift,
                          photon_index=photon_index, optical_data=optical_data, plotting_order=plotting_order, **kwargs)
+        logger.debug(f"Setting up directory structure for kilonova '{name}'")
         self.directory_structure = redback.get_data.directory.open_access_directory_structure(
             transient=name, transient_type="kilonova")
         self._set_data()
+        logger.debug(f"Kilonova '{name}' initialized successfully")

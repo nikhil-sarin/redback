@@ -98,7 +98,7 @@ def _wr_bh_merger(time, M_star, M_bh, M_fast, M_pre, v_fast, v_slow, alpha, eta,
     dynamics_output.optical_luminosity = np.array(L_opt_rep) + np.array(L_opt_sh)
     dynamics_output.x_ray_luminosity = L_x
     dynamics_output.accretion_luminosity = L_acc
-    dynamics_output.erad_opt_total = np.trapz(np.array(L_opt_sh) + np.array(L_opt_sh), x=time)
+    dynamics_output.erad_opt_total = np.trapezoid(np.array(L_opt_sh) + np.array(L_opt_sh), x=time)
     return dynamics_output
 
 @citation_wrapper('https://ui.adsabs.harvard.edu/abs/2022ApJ...932...84M')

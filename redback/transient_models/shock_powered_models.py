@@ -751,7 +751,7 @@ def shock_cooling(time, redshift, log10_mass, log10_radius, log10_energy, **kwar
                                              dl=dl, frequency=frequency)
         return flux_density.to(uu.mJy).value / (1 + redshift)
     else:
-        time_temp = np.linspace(1e-2, 60, 100)
+        time_temp = np.geomspace(1e-1, 30, 100)
         lambda_observer_frame = kwargs.get('lambda_array', np.geomspace(100, 60000, 100))
 
         time_observer_frame = time_temp
@@ -1051,6 +1051,220 @@ def shocked_cocoon(time, redshift, mej, vej, eta, tshock, shocked_fraction, cos_
             return sed.get_correct_output_format_from_spectra(time=time_obs, time_eval=time_observer_frame,
                                                               spectra=spectra, lambda_array=lambda_observer_frame,
                                                               **kwargs)
+                                                              
+@citation_wrapper('https://ui.adsabs.harvard.edu/abs/2025ApJ...986L...4H/abstract, https://ui.adsabs.harvard.edu/abs/2025ApJ...988...30H/abstract')
+def _shocked_cocoon_csm(E_eng, t_eng, theta_0, M_csm, R_csm, kappa, **kwargs):
+    """
+    :param E_eng: jet energy (in erg)
+    :param t_eng: jet activity timescale (s)
+    :param theta_0: jet opening angle (radians)
+    :param M_csm: CSM mass (solar masses)
+    :param R_csm: CSM outer radius (cm)
+    :param kappa: opacity (cm^2/g)
+    :param kwargs: Extra parameters used by model e.g., kappa_gamma, temperature_floor, and any kwarg to
+                change any other input physics/parameters from default.
+    :return: namedtuple with a few outputs
+    """
+    Ns = 0.5                   
+    Gamma_j = 100              
+    beta_j = 1.      
+    chi = 1.   
+    eta = 1.      
+    c0  = 0.658577   
+    b   = 0.787993  
+    fmix = 0.5  
+    s = 1.01 
+    m = 5.01 
+    d_f1 = 1  
+    d_f2 = 1   
+    tau_ph = 1
+    L_decay = 0
+    n = 2
+    R_0 = 4e10   
+    
+    M_csm_cgs = M_csm * cc.solar_mass
+    C = 2**6 * eta * Ns**4 * E_eng * R_csm / (cc.speed_of_light**3 * t_eng * theta_0**4 * M_csm_cgs)
+    
+    small_C_approx = C**(1.0 / 3.0)
+    large_C_approx = 1.0 - C**(-1.0 / 5.0)
+    transition_factor = 1.0 / (1.0 + (C / c0)**b)
+    betah = transition_factor * small_C_approx + (1 - transition_factor) * large_C_approx
+    
+    betap = (eta * E_eng * R_csm * betah * (1 - betah) / (4 * t_eng * M_csm_cgs * cc.speed_of_light**3))**0.25
+    betap = np.minimum(betap, betah)
+    t_b = (R_csm - R_0) / (cc.speed_of_light * betah) 
+    t_jet = t_eng - t_b * (1. - betah)
+    t_jet = np.maximum(t_jet, 0)
+    
+    Ej = E_eng * t_jet / t_eng
+    Ec = E_eng - Ej
+    fv = (betap / betah)**2
+    fm = 2.0 * (np.log(R_csm / R_0) - 1.0) * fv
+    fm = np.minimum(fm, 1)
+    Mc_i = M_csm_cgs * fm
+    Mc_f = M_csm_cgs
+    
+    Gamma_t = 1.0 + Ec / (Mc_i * cc.speed_of_light**2)
+    beta_t  = np.sqrt(1.0 - 1.0/Gamma_t**2)
+    av_u4 = 10**(np.log10(Gamma_t * beta_t) * Ec / E_eng + np.log10(Gamma_j * beta_j) * Ej / E_eng)
+    
+    if av_u4 < 0.5 and t_jet == 0:
+        Ec_nr = Ec
+        Ec_r  = 0
+    else:
+        Ec_nr = Ec * (1.0 - fmix)
+        Ec_r  = Ec * fmix 
+        
+    beta_in  = np.sqrt(Ec_nr / (Mc_f * cc.speed_of_light**2))
+    ratio    = 1.0 / np.sqrt(1.0 - 0.8025 * beta_in**2 * cc.speed_of_light**2 * Mc_f / Ec_nr) 
+    beta_out = beta_in*ratio    
+    
+    N1 = 20
+    N2 = 20
+    start = 0.9
+    time_factor = 1.1**(20/N2)
+    beta_d_log = np.logspace(np.log10(beta_out * start), np.log10(beta_in), N1)
+    beta_d_extra = np.full(N2, beta_in)
+    beta_d_values = np.concatenate([beta_d_log, beta_d_extra])
+    tau_diff_values = ((1.0 / d_f1)  * 1.0 / (beta_out * d_f2 + (d_f2 + 1.0) * (1.0 - d_f2) * beta_d_values - d_f2 * beta_d_values))
+
+    time_values = np.sqrt((kappa * M_csm_cgs * (3.0 - m) / (m - 1.0)) / (4.0 * np.pi * cc.speed_of_light**2 * (beta_out**(3.0 - m) - beta_in**(3.0 - m))) 
+                        * ((1.0 / tau_diff_values) * (beta_d_values**(1.0 - m) - beta_out**(1.0 - m))))
+    for i in range(N1, N1 + N2):
+        time_values[i] = time_values[i-1] * time_factor
+
+    factor_ph = (kappa * M_csm_cgs * (3.0 - m) / (m - 1.0))  / (4.0 * np.pi * cc.speed_of_light**2 * (beta_out**(3.0 - m) - beta_in**(3.0 - m))) * 1.0 / tau_ph
+    beta_ph_values = (time_values**2.0 / factor_ph + beta_out**(1.0 - m))**(1.0 / (1.0 - m))
+    beta_ph_values = np.minimum(np.maximum(beta_ph_values, beta_in), beta_out)
+    Rph_values = cc.speed_of_light * np.maximum(0, (time_values - t_b)) * beta_ph_values + R_csm
+    Ei_tot_values = Ec_nr * R_csm / (cc.speed_of_light * beta_out * np.maximum(0, (time_values - t_b)) + R_csm)
+    Ei_d_values   = Ei_tot_values * (beta_out**(1.0 - s) - beta_d_values**(1.0 - s)) / (beta_out**(1.0 - s) - beta_in**(1.0 - s))   
+    
+    Lbol_values = (Ei_d_values / time_values * (2.0 * (1.0 - s) * beta_d_values**(-s)) / (beta_out**(1.0 - s) - beta_d_values**(1.0 - s))
+                        / ((m - 1.0) * beta_d_values**(-m) / (beta_d_values**(1.0 - m) - beta_out**(1.0 - m)) + 1.0 / (beta_out - beta_d_values)))
+    Lbol_values[N1:N1+N2] = (Lbol_values[N1:N1+N2]**L_decay * Lbol_values[N1-1]**((1.0 + L_decay) * (1 - L_decay)) 
+                 * np.exp(-0.5*((time_values[N1:N1+N2] / time_values[N1-1])**2.0 - 1.0)))
+    T_values = (Lbol_values / (4.0 * np.pi * cc.sigma_sb * Rph_values**2.0))**0.25    
+    
+    output = namedtuple('output', ['time_array', 'L_bolometric', 'r_photosphere', 'T_photosphere', 'beta_d', 'beta_ph', 'Ei_d'])
+    output.time_array = time_values/cc.day_to_s
+    output.L_bolometric = Lbol_values
+    output.r_photosphere = Rph_values
+    output.T_photosphere = T_values  
+    output.beta_d = beta_d_values  
+    output.beta_ph = beta_ph_values
+    output.Ei_d = Ei_d_values   
+    return output                
+
+@citation_wrapper('https://ui.adsabs.harvard.edu/abs/2025ApJ...986L...4H/abstract, https://ui.adsabs.harvard.edu/abs/2025ApJ...988...30H/abstract')
+def shocked_cocoon_csm_bolometric(time, E_eng, t_eng, theta_0, M_csm, R_csm, kappa, **kwargs):
+    """
+    :param time: time in source frame in days
+    :param E_eng: jet energy (erg)
+    :param t_eng: jet activity timescale (s)
+    :param theta_0: jet opening angle (radians)
+    :param M_csm: CSM mass (solar masses)
+    :param R_csm: CSM outer radius (cm)
+    :param kappa: opacity (cm^2/g)
+    :param kwargs: Extra parameters used by model e.g., kappa_gamma, temperature_floor, and any kwarg to
+                change any other input physics/parameters from default.
+    :return: bolometric luminosity'
+    """
+    output = _shocked_cocoon_csm(E_eng = E_eng, t_eng = t_eng, theta_0 = theta_0, 
+                                        M_csm = M_csm, R_csm = R_csm, kappa = kappa, **kwargs)
+    
+    t_array = output.time_array
+    Lbol_array = output.L_bolometric
+    zarr = np.zeros(30)+1.0
+    tadd = np.linspace(t_array[-1]+5,t_array[-1]+1000,30)
+    t_array = np.concatenate(([0], t_array, tadd))
+    Lbol_array = np.concatenate(([1], Lbol_array, zarr))
+
+    lbol_func = interp1d(t_array, y=Lbol_array)
+    time = time
+    lbol = lbol_func(time) 
+    
+    return lbol
+
+@citation_wrapper('https://ui.adsabs.harvard.edu/abs/2025ApJ...986L...4H/abstract, https://ui.adsabs.harvard.edu/abs/2025ApJ...988...30H/abstract')
+def shocked_cocoon_csm(time, redshift, E_eng, t_eng, theta_0, M_csm, R_csm, kappa, **kwargs):
+    """
+    :param time: time in observer frame in days
+    :param redshift: redshift
+    :param E_eng: jet energy (erg)
+    :param t_eng: jet activity timescale (s)
+    :param theta_0: jet opening angle (radians)
+    :param M_csm: CSM mass (solar masses)
+    :param R_csm: CSM outer radius (cm)
+    :param kappa: opacity (cm^2/g)
+    :param kwargs: Extra parameters used by model e.g., kappa_gamma, temperature_floor, and any kwarg to
+                change any other input physics/parameters from default.
+    :param frequency: Required if output_format is 'flux_density'.
+        frequency to calculate - Must be same length as time array or a single number).
+    :param bands: Required if output_format is 'magnitude' or 'flux'.
+    :param output_format: 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
+    :param lambda_array: Optional argument to set your desired wavelength array (in Angstroms) to evaluate the SED on.
+    :param cosmology: Cosmology to use for luminosity distance calculation. Defaults to Planck18. Must be a astropy.cosmology object.
+    :return: set by output format - 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
+    """
+    cosmology = kwargs.get('cosmology', cosmo)
+    dl = cosmology.luminosity_distance(redshift).cgs.value
+    
+    if kwargs['output_format'] == 'flux_density':
+        frequency = kwargs['frequency']
+        frequency, time = calc_kcorrected_properties(frequency=frequency, redshift=redshift, time=time)
+        output = _shocked_cocoon_csm(E_eng = E_eng, t_eng = t_eng, theta_0 = theta_0, 
+                                        M_csm = M_csm, R_csm = R_csm, kappa = kappa, **kwargs)
+        t_array = output.time_array
+        T = output.T_photosphere
+        Rph = output.r_photosphere
+
+        zarr = np.zeros(30)+1.0
+        tadd = np.linspace(t_array[-1]+5,t_array[-1]+1000,30)
+        Rlate = np.ones(30)*1e16
+        t_obs = np.concatenate(([0], t_array, tadd))
+        T = np.concatenate(([0], T, zarr))
+        Rph = np.concatenate(([0], Rph, Rlate))
+
+        rph_func = interp1d(t_obs, y=Rph)
+        temp_func = interp1d(t_obs, y=T)
+        rph = rph_func(time)
+        temp = temp_func(time)
+
+        flux_density = sed.blackbody_to_flux_density(temperature=temp, r_photosphere=rph, dl=dl, frequency=frequency)
+        return flux_density.to(uu.mJy).value / (1 + redshift)
+                
+    else:
+        time_obs = time
+        lambda_observer_frame = kwargs.get('frequency_array', np.geomspace(100, 60000, 200))  
+        output = _shocked_cocoon_csm(E_eng = E_eng, t_eng = t_eng, theta_0 = theta_0, 
+                                        M_csm = M_csm, R_csm = R_csm, kappa = kappa, **kwargs)  
+        t_array = output.time_array
+        T = output.T_photosphere
+        Rph = output.r_photosphere
+
+        zarr = np.zeros(30)
+        tadd = np.linspace(t_array[-1]+5,t_array[-1]+1000,30)
+        Rlate = np.ones(30)*1e16
+        t_obs = np.concatenate(([0], t_array, tadd))
+        T = np.concatenate(([0], T, zarr))
+        Rph = np.concatenate(([0], Rph, Rlate))    
+        
+        time_observer_frame = t_obs * (1. + redshift)
+        frequency, time = calc_kcorrected_properties(frequency=lambda_to_nu(lambda_observer_frame),
+                                                     redshift=redshift, time=time_observer_frame)
+        fmjy = sed.blackbody_to_flux_density(temperature=T,
+                                             r_photosphere=Rph, frequency=frequency[:, None], dl=dl)  
+        fmjy = fmjy.T
+        spectra = flux_density_to_spectrum(fmjy, redshift, lambda_observer_frame)
+        if kwargs['output_format'] == 'spectra':
+            return namedtuple('output', ['time', 'lambdas', 'spectra'])(time=time_observer_frame,
+                                                                        lambdas=lambda_observer_frame,
+                                                                        spectra=spectra)
+        else:
+            return sed.get_correct_output_format_from_spectra(time=time_obs, time_eval=time_observer_frame,
+                                                              spectra=spectra, lambda_array=lambda_observer_frame,
+                                                              **kwargs)                                                               
 
 @citation_wrapper('https://ui.adsabs.harvard.edu/abs/2022ApJ...928..122M/abstract')
 def csm_truncation_shock():

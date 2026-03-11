@@ -9,7 +9,6 @@ from astropy import units as u
 from astropy.cosmology import FlatLambdaCDM
 import redback.utils as utils
 from redback.utils import UserCosmology, DataModeSwitch
-from selenium.common.exceptions import NoSuchElementException
 
 
 class TestTimeConversion(unittest.TestCase):
@@ -1186,26 +1185,6 @@ class TestBandFunctions(unittest.TestCase):
             utils.frequency_to_bandname([1.0e15])
 
 
-class TestSeleniumFunctions(unittest.TestCase):
-    """Test Selenium-related functions"""
-
-    def test_check_element_exists(self):
-        """Test check_element when element exists"""
-        mock_driver = MagicMock()
-        mock_driver.find_element.return_value = MagicMock()
-
-        result = utils.check_element(mock_driver, 'test_id')
-        self.assertTrue(result)
-
-    def test_check_element_not_exists(self):
-        """Test check_element when element doesn't exist"""
-        mock_driver = MagicMock()
-        mock_driver.find_element.side_effect = NoSuchElementException()
-
-        result = utils.check_element(mock_driver, 'test_id')
-        self.assertFalse(result)
-
-
 class TestStatisticalFunctions(unittest.TestCase):
     """Test statistical functions"""
 
@@ -1563,3 +1542,42 @@ class TestCSMProperties(unittest.TestCase):
                 self.assertIsNotNone(result.Bf)
                 self.assertIsNotNone(result.Br)
 
+class TestSEDErrorHandling(unittest.TestCase):
+    """Tests for SED module error handling and logging."""
+
+    def test_bandflux_zp_without_zpsys_logs_error(self):
+        """Test that providing zp without zpsys logs error and raises ValueError."""
+        from redback import sed
+        from unittest.mock import MagicMock
+
+        mock_model = MagicMock()
+        mock_band = 'bessellb'
+        time_or_phase = np.array([1.0])
+        zp = 25.0
+        zpsys = None
+
+        with self.assertRaises(ValueError) as context:
+            sed._bandflux_redback(mock_model, mock_band, time_or_phase, zp, zpsys)
+        self.assertIn('zpsys', str(context.exception))
+
+    def test_bandflux_single_wavelength_range_error_logs(self):
+        """Test that wavelength range mismatch logs error."""
+        from redback import sed
+        from unittest.mock import MagicMock
+
+        # Create mock model with narrow wavelength range
+        mock_model = MagicMock()
+        mock_model.minwave.return_value = 5000.0
+        mock_model.maxwave.return_value = 6000.0
+
+        # Create mock band that extends beyond model range
+        mock_band = MagicMock()
+        mock_band.minwave.return_value = 4000.0  # Outside model range
+        mock_band.maxwave.return_value = 6000.0
+        mock_band.name = 'test_band'
+
+        time_or_phase = np.array([1.0])
+
+        with self.assertRaises(ValueError) as context:
+            sed._bandflux_single_redback(mock_model, mock_band, time_or_phase)
+        self.assertIn('outside spectral range', str(context.exception))

@@ -13,11 +13,11 @@ class _DummyModel:
     center, and width) in erg/s/Hz.
     """
     def __init__(self):
-        self.param_names = ["freq", "amp", "center", "width"]
+        self.param_names = ["freq", "amp", "center", "width", "redshift"]
         self.times = np.arange(-10, 50, 1)
         self.wavelengths = np.arange(1000, 10000, 200)
 
-    def predict_spectra_grid(self, freq=1.0, amp=1.0, center=5000.0, width=1000.0):
+    def predict_spectra_grid(self, freq=1.0, amp=1.0, center=5000.0, width=1000.0, redshift=1e-8):
         """A dummy predict method that returns a grid based on input parameters."""
         gaussian_envelope = np.exp(-((self.wavelengths - center) ** 2) / (2 * width**2))
         sine_wave = amp * (1.0 + np.sin(2 * np.pi * freq * self.times))
@@ -38,7 +38,7 @@ class TestLearnedModels(unittest.TestCase):
         # then the model parameters).
         func = make_learned_model_callable(model)
         assert isinstance(func, types.FunctionType)
-        assert inspect.getfullargspec(func).args == ["time", "freq", "amp", "center", "width"]
+        assert inspect.getfullargspec(func).args == ["time", "freq", "amp", "center", "width", "redshift"]
 
         # Check that we can evaluate the function.
         spectra1 = func(

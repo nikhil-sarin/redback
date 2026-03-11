@@ -1,0 +1,4 @@
+log10_norm = Uniform(-6, 0, 'log10_norm', latex_label=r'$\\log_{10}~N$')
+alpha = Uniform(-3, 1, 'alpha', latex_label=r'$\\alpha$')
+e_peak = LogUniform(1, 1e3, 'e_peak', latex_label=r'$E_{\mathrm{peak}}~(\mathrm{keV})$')
+redshift = Uniform(0, 5, 'redshift', latex_label=r'$z$')

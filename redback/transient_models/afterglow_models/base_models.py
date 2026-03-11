@@ -2321,6 +2321,7 @@ def afterglow_models_sed(time, **kwargs):
 def jetsimpy_tophat(time, redshift, thv, loge0, thc, nism, A, p, logepse, logepsb, g0, **kwargs):
     """
     A tophat jet model from jetsimpy
+
     :param time: time in days in observer frame
     :param redshift: source redshift
     :param thv: viewing angle in radians
@@ -2342,7 +2343,10 @@ def jetsimpy_tophat(time, redshift, thv, loge0, thc, nism, A, p, logepse, logeps
     time = time * day_to_s
     cosmology = kwargs.get('cosmology', cosmo)
     dl = cosmology.luminosity_distance(redshift).cgs.value
-    P = dict(Eiso = 10 ** loge0, lf = g0, theta_c = thc, n0 = nism, A = A, eps_e = 10 ** logepse, eps_b = 10 ** logepsb, p = p, theta_v = thv, d = dl*3.24078e-25, z = redshift) #make a param dict
+    P = dict(Eiso=10 ** loge0, lf=g0, theta_c=thc, n0=nism,
+             A=A, eps_e=10 ** logepse,
+             eps_b=10 ** logepsb, p=p, theta_v=thv,
+             d=dl*3.24078e-25, z=redshift) #make a param dict
     if kwargs['output_format'] == 'flux_density':
         frequency = kwargs['frequency']
         flux_density = jetsimpy.FluxDensity_tophat(time, frequency, P)
@@ -2356,6 +2360,7 @@ def jetsimpy_tophat(time, redshift, thv, loge0, thc, nism, A, p, logepse, logeps
 def jetsimpy_gaussian(time, redshift, thv, loge0, thc, nism, A, p, logepse, logepsb, g0, **kwargs):
     """
     A gaussian jet model from jetsimpy
+
     :param time: time in days in observer frame
     :param redshift: source redshift
     :param thv: viewing angle in radians
@@ -2377,7 +2382,10 @@ def jetsimpy_gaussian(time, redshift, thv, loge0, thc, nism, A, p, logepse, loge
     time = time * day_to_s
     cosmology = kwargs.get('cosmology', cosmo)
     dl = cosmology.luminosity_distance(redshift).cgs.value
-    P = dict(Eiso = 10 ** loge0, lf = g0, theta_c = thc, n0 = nism, A = A, eps_e = 10 ** logepse, eps_b = 10 ** logepsb, p = p, theta_v = thv, d = dl*3.24078e-25, z = redshift) #make a param dict
+    P = dict(Eiso=10 ** loge0, lf=g0, theta_c=thc,
+             n0=nism, A=A, eps_e=10 ** logepse,
+             eps_b=10 ** logepsb, p=p,
+             theta_v=thv, d=dl*3.24078e-25, z=redshift) #make a param dict
     if kwargs['output_format'] == 'flux_density':
         frequency = kwargs['frequency']
         flux_density = jetsimpy.FluxDensity_gaussian(time, frequency, P)
@@ -2391,6 +2399,7 @@ def jetsimpy_gaussian(time, redshift, thv, loge0, thc, nism, A, p, logepse, loge
 def jetsimpy_powerlaw(time, redshift, thv, loge0, thc, nism, A, p, logepse, logepsb, g0, s, **kwargs):
     """
     A power-law jet model from jetsimpy
+
     :param time: time in days in observer frame
     :param redshift: source redshift
     :param thv: viewing angle in radians
@@ -2413,7 +2422,11 @@ def jetsimpy_powerlaw(time, redshift, thv, loge0, thc, nism, A, p, logepse, loge
     time = time * day_to_s
     cosmology = kwargs.get('cosmology', cosmo)
     dl = cosmology.luminosity_distance(redshift).cgs.value
-    P = dict(Eiso = 10 ** loge0, lf = g0, theta_c = thc, n0 = nism, A = A, eps_e = 10 ** logepse, eps_b = 10 ** logepsb, p = p, theta_v = thv, d = dl*3.24078e-25, z = redshift, s = s) #make a param dict
+    P = dict(Eiso=10 ** loge0, lf=g0, theta_c=thc,
+             n0=nism, A=A, eps_e=10 ** logepse,
+             eps_b=10 ** logepsb, p=p,
+             theta_v=thv, d=dl*3.24078e-25, z=redshift,
+             s=s) #make a param dict
     if kwargs['output_format'] == 'flux_density':
         frequency = kwargs['frequency']
         flux_density = jetsimpy.FluxDensity_powerlaw(time, frequency, P)

@@ -5,7 +5,13 @@ import bilby.core.prior
 from bilby.core.prior import PriorDict
 
 import redback.model_library
+import redback.constraints
 from redback.utils import logger
+
+_constraint_map = {
+    'slsn': redback.constraints.slsn_constraint,
+    'slsn_bolometric': redback.constraints.slsn_constraint,
+}
 
 
 def get_priors(model, times=None, y=None, yerr=None, dt=None, **kwargs):
@@ -49,6 +55,8 @@ def get_priors(model, times=None, y=None, yerr=None, dt=None, **kwargs):
     try:
         filename = os.path.join(os.path.dirname(__file__), 'priors', f'{model}.prior')
         priors.from_file(filename)
+        if model in _constraint_map:
+            priors.conversion_function = _constraint_map[model]
         return priors
     except FileNotFoundError:
         pass  # Continue to try the non_default_priors folder
@@ -59,11 +67,22 @@ def get_priors(model, times=None, y=None, yerr=None, dt=None, **kwargs):
         priors.from_file(filename)
         return priors
     except FileNotFoundError:
-        logger.warning(f'No prior file found for model {model} in either priors or non_default_priors folders. '
-                       f'Perhaps you also want to set up the prior for the base model? '
-                       f'Or you may need to set up your prior explicitly.')
-        logger.info('Returning Empty PriorDict.')
+        pass  # Continue to try plugin prior providers
 
+    # Try plugin prior providers
+    from redback.model_library import plugin_prior_providers
+    for provider in plugin_prior_providers:
+        try:
+            result = provider(model)
+            if result is not None:
+                return result
+        except Exception as e:
+            logger.warning(f"Plugin prior provider failed for model '{model}': {e}")
+
+    logger.warning(f'No prior file found for model {model} in either priors or non_default_priors folders. '
+                   f'Perhaps you also want to set up the prior for the base model? '
+                   f'Or you may need to set up your prior explicitly.')
+    logger.info('Returning Empty PriorDict.')
     return priors
 
 

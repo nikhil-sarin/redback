@@ -138,7 +138,7 @@ We note that some samplers have multiprocessing, which you can see how to use `h
 To use MPI with redback, most samplers will work out of the box and all you need to do is pass a :code:`npool`
 (or similar argument, please see the bilby docs) to the :code:`fit_model` function.
 This is especially true for linux, and the general scripts we provide in the examples folder will work out of the box as soon as you pass :code:`npool` or the relevant argument.
-For Mac users, there is some finicky behaviour with MPI which requires that you wrap all your code in a script in a __main__ block.
+For Mac users, there is some finicky behaviour with MPI which requires that you wrap the :code:`fit_model` function in a __main__ block and to add a line that explicitly sets the multiprocessing start method to "fork" at the begining of your script.
 
 This is a known issue with MPI on Mac and not specific to redback or bilby.
 
@@ -146,10 +146,17 @@ An example of how to do this is shown below:
 
 .. code:: python
 
-    if __name__ == "__main__":
-        import bilby
-        import redback
+    
+    import bilby
+    import redback
+    import multiprocessing
+    multiprocessing.set_start_method("fork", force=True)
 
-        # rest of your code here
+    # some code here
+
+    if __name__ == "__main__":
+        result = redback.fit_model(name='GRB', model=model, sampler='nessai',
+                               nlive=1000, transient=afterglow, prior=priors,
+                               n_pool=4, likelihood=likelihood, **kwargs)
 
 We will soon implement some `GPU` models and :code:`JAX` functionality for more rapid inference workflows.

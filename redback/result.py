@@ -12,7 +12,7 @@ from bilby.core.result import _determine_file_name # noqa
 import redback.transient.transient
 from redback import model_library
 from redback.transient import TRANSIENT_DICT
-from redback.utils import MetaDataAccessor
+from redback.utils import MetaDataAccessor, logger
 
 warnings.simplefilter(action='ignore')
 
@@ -126,13 +126,26 @@ class RedbackResult(Result):
         :return: The reconstructed Transient.
         :rtype: redback.transient.transient.Transient
         """
-        return TRANSIENT_DICT[self.transient_type](**self.meta_data)
+        logger.debug(f"Reconstructing transient of type '{self.transient_type}' from metadata")
+        try:
+            transient_obj = TRANSIENT_DICT[self.transient_type](**self.meta_data)
+            logger.debug(f"Successfully reconstructed transient '{self.name}'")
+            return transient_obj
+        except KeyError as e:
+            logger.error(f"Unknown transient type '{self.transient_type}'. Available types: {list(TRANSIENT_DICT.keys())}")
+            raise
+        except Exception as e:
+            logger.error(f"Failed to reconstruct transient '{self.transient_type}': {e}")
+            raise
 
     def plot_lightcurve(self, model: Union[callable, str] = None, **kwargs: None) -> matplotlib.axes.Axes:
         """ Reconstructs the transient and calls the specific `plot_lightcurve` method.
         Detailed documentation appears below by running `print(plot_lightcurve.__doc__)` """
         if model is None:
             model = model_library.all_models_dict[self.model]
+            logger.debug(f"Using stored model '{self.model}' for lightcurve plot")
+        else:
+            logger.debug(f"Using provided model for lightcurve plot")
         return self.transient.plot_lightcurve(model=model, posterior=self.posterior,
                                               model_kwargs=self.model_kwargs, **kwargs)
 
@@ -199,20 +212,33 @@ def read_in_result(
     :rtype: RedbackResult
     """
     filename = _determine_file_name(filename, outdir, label, extension, gzip)
+    logger.info(f"Loading result from file: {filename}")
+
+    # Check if file exists
+    if not os.path.exists(filename):
+        logger.error(f"Result file not found: {filename}")
+        raise FileNotFoundError(f"Result file not found: {filename}")
 
     # Get the actual extension (may differ from the default extension if the filename is given)
     extension = os.path.splitext(filename)[1].lstrip('.')
     if extension == 'gz':  # gzipped file
         extension = os.path.splitext(os.path.splitext(filename)[0])[1].lstrip('.')
 
-    if 'json' in extension:
-        result = RedbackResult.from_json(filename=filename)
-    elif ('hdf5' in extension) or ('h5' in extension):
-        result = RedbackResult.from_hdf5(filename=filename)
-    elif ("pkl" in extension) or ("pickle" in extension):
-        result = RedbackResult.from_pickle(filename=filename)
-    elif extension is None:
-        raise ValueError("No filetype extension provided")
-    else:
-        raise ValueError("Filetype {} not understood".format(extension))
-    return result
+    logger.debug(f"Reading result file with extension: {extension}")
+
+    try:
+        if 'json' in extension:
+            result = RedbackResult.from_json(filename=filename)
+        elif ('hdf5' in extension) or ('h5' in extension):
+            result = RedbackResult.from_hdf5(filename=filename)
+        elif ("pkl" in extension) or ("pickle" in extension):
+            result = RedbackResult.from_pickle(filename=filename)
+        else:
+            logger.error(f"Unsupported filetype: {extension}. Supported types: json, hdf5, h5, pkl, pickle")
+            raise ValueError("Filetype {} not understood".format(extension))
+
+        logger.info(f"Successfully loaded result for '{result.label}' (model: {result.model})")
+        return result
+    except Exception as e:
+        logger.error(f"Failed to load result from {filename}: {e}")
+        raise

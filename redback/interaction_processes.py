@@ -57,7 +57,7 @@ class Diffusion(object):
         int_args = int_lums * int_times * np.exp((int_times ** 2 - int_te2s.reshape(lu, 1)) / tau_diff**2)
         int_args[np.isnan(int_args)] = 0.
 
-        uniq_lums = np.trapz(int_args, int_times, axis=1)
+        uniq_lums = np.trapezoid(int_args, int_times, axis=1)
         uniq_lums *= -2.0 * np.expm1(-trap_coeff / int_te2s) / tau_diff**2
 
         new_lums = uniq_lums[np.searchsorted(uniq_times, self.time)]
@@ -120,7 +120,7 @@ class AsphericalDiffusion(object):
         int_args = int_lums * int_times * np.exp((int_times ** 2 - int_te2s.reshape(lu, 1)) / tau_diff**2)
         int_args[np.isnan(int_args)] = 0.0
 
-        uniq_lums = np.trapz(int_args, int_times, axis=1)
+        uniq_lums = np.trapezoid(int_args, int_times, axis=1)
         uniq_lums *= -2.0 * np.expm1(-trap_coeff / int_te2s) / tau_diff**2
 
         uniq_lums *= (1 + 1.4 * (2 + uniq_times/tau_diff/0.59) / (1 + np.exp(uniq_times/tau_diff/0.59)) *
@@ -178,17 +178,20 @@ class CSMDiffusion(object):
         lu = len(uniq_times)
 
         num = int(round(timesteps / 2.0))
-        lsp = np.logspace(np.log10(t0 /self.dense_times[-1]) + minimum_log_spacing, 0, num)
+        log_start = min(np.log10(t0 / self.dense_times[-1]) + minimum_log_spacing, 0.0)
+        lsp = np.logspace(log_start, 0, num)
         xm = np.unique(np.concatenate((lsp, 1 - lsp)))
+        xm = xm[(xm >= 0.0) & (xm <= 1.0)]
+        xm = np.unique(np.concatenate(([0.0], xm, [1.0])))
 
         int_times = tb + (uniq_times.reshape(lu, 1) - tb) * xm
-        int_tes = int_times[:, -1]
+        int_tes = uniq_times
 
         int_lums = luminosity_interpolator(int_times)
         int_args = int_lums * np.exp((int_times) / t0)
         int_args[np.isnan(int_args)] = 0.0
 
-        uniq_lums = np.trapz(int_args, int_times, axis=1)
+        uniq_lums = np.trapezoid(int_args, int_times, axis=1)
         uniq_lums *= np.exp(-int_tes/t0)/t0
         new_lums = uniq_lums[np.searchsorted(uniq_times, self.time)]
         return new_lums
@@ -233,7 +236,7 @@ class Viscous(object):
         int_args = int_lums * np.exp((int_times - int_tes.reshape(lu, 1)) / self.tvisc)
         int_args[np.isnan(int_args)] = 0.0
 
-        uniq_lums = np.trapz(int_args, int_times, axis=1)/self.tvisc
+        uniq_lums = np.trapezoid(int_args, int_times, axis=1)/self.tvisc
 
         new_lums = uniq_lums[np.searchsorted(uniq_times, self.time)]
 

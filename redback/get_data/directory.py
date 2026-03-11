@@ -4,6 +4,7 @@ import os
 from bilby.core.utils.io import check_directory_exists_and_if_not_mkdir
 
 from redback.get_data.utils import get_batse_trigger_from_grb
+from redback.utils import logger
 
 _dirname = os.path.dirname(__file__)
 SWIFT_PROMPT_BIN_SIZES = ['1s', '2ms', '8ms', '16ms', '64ms', '256ms']
@@ -22,6 +23,7 @@ def spectrum_directory_structure(transient: str) -> DirectoryStructure:
     :rtype: namedtuple
     """
     directory_path = f'spectrum/'
+    logger.debug(f"Creating spectrum directory structure for {transient} at {directory_path}")
     check_directory_exists_and_if_not_mkdir(directory_path)
 
     raw_file_path = f"{directory_path}{transient}_rawdata.csv"
@@ -30,7 +32,7 @@ def spectrum_directory_structure(transient: str) -> DirectoryStructure:
     return DirectoryStructure(
         directory_path=directory_path, raw_file_path=raw_file_path, processed_file_path=processed_file_path)
 
-def afterglow_directory_structure(grb: str, data_mode: str, instrument: str = 'BAT+XRT') -> DirectoryStructure:
+def afterglow_directory_structure(grb: str, data_mode: str, instrument: str = 'BAT+XRT', snr: str = None) -> DirectoryStructure:
     """Provides directory structure for Swift afterglow data.
 
     :param grb: Name of the GRB, e.g. GRB123456.
@@ -39,6 +41,8 @@ def afterglow_directory_structure(grb: str, data_mode: str, instrument: str = 'B
     :type data_mode: str
     :param instrument: Must be in ['BAT+XRT', 'XRT'], default is 'BAT+XRT' (Default value = 'BAT+XRT')
     :type instrument: str, optional
+    :param snr: BAT SNR selection (e.g., 'SNR4', 'SNR5'). If provided, included in file path. (Default value = None)
+    :type snr: str, optional
 
     :return: The directory structure, with 'directory_path', 'raw_file_path', and 'processed_file_path'
     :rtype: namedtuple
@@ -48,13 +52,17 @@ def afterglow_directory_structure(grb: str, data_mode: str, instrument: str = 'B
     check_directory_exists_and_if_not_mkdir(directory_path)
 
     path = f'{directory_path}{grb}'
+    
+    # Raw file should NOT include SNR - it contains all data
+    # Processed file SHOULD include SNR - it's filtered data
+    snr_suffix = f'_{snr}' if snr else ''
 
     if instrument == 'XRT':
         raw_file_path = f'{path}_xrt_rawSwiftData.csv'
-        processed_file_path = f'{path}_xrt.csv'
+        processed_file_path = f'{path}_xrt{snr_suffix}.csv'
     else:
         raw_file_path = f'{path}_rawSwiftData.csv'
-        processed_file_path = f'{path}.csv'
+        processed_file_path = f'{path}{snr_suffix}.csv'
 
     return DirectoryStructure(
         directory_path=directory_path, raw_file_path=raw_file_path, processed_file_path=processed_file_path)
@@ -72,8 +80,10 @@ def swift_prompt_directory_structure(grb: str, bin_size: str = '2ms') -> Directo
     :rtype: namedtuple
     """
     if bin_size not in SWIFT_PROMPT_BIN_SIZES:
+        logger.error(f"Invalid bin size '{bin_size}' for Swift prompt data. Allowed: {SWIFT_PROMPT_BIN_SIZES}")
         raise ValueError(f'Bin size {bin_size} not in allowed bin sizes.\n'
                          f'Use one of the following: {SWIFT_PROMPT_BIN_SIZES}')
+    logger.debug(f"Creating Swift prompt directory structure for {grb} with bin_size={bin_size}")
     directory_path = f'GRBData/prompt/flux/'
     check_directory_exists_and_if_not_mkdir(directory_path)
 
