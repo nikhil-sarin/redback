@@ -1262,7 +1262,7 @@ def fitted(time, redshift, log_mh, a_bh, m_disc, r0, tvi, t_form, incl, **kwargs
         frequency, time = calc_kcorrected_properties(frequency=lambda_to_nu(lambda_observer_frame),
                                                      redshift=redshift, time=time_observer_frame)
         nulnus = m.model_SEDs(time, log_mh, a_bh, m_disc, r0, tvi, t_form, ang, frequency)
-        flux_density = (nulnus/(4.0 * np.pi * dl**2 * frequency[:,np.newaxis] * 1.0e-26)) 
+        flux_density = (nulnus/(4.0 * np.pi * dl**2 * frequency[:,np.newaxis])) # * 1.0e-26
         fmjy = flux_density.T
         spectra = flux_density_to_spectrum(flux_density=fmjy, redshift=redshift, lambda_observer_frame=lambda_observer_frame)
         if kwargs['output_format'] == 'spectra':
