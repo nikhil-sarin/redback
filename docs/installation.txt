@@ -10,7 +10,7 @@ Installation
 
           $ pip install redback
 
-      Supported python versions: 3.7+.
+      Supported python versions: 3.11+.
 
 
 This will install all requirements for running :code:`redback` for general transient fitting, including bilby and our default sampler `dynesty
@@ -22,7 +22,7 @@ Therefore, for the near future, we recommend installing :code:`redback` from sou
 Install :code:`redback` from source
 -------------------------
 
-:code:`redback` is developed and tested with Python 3.7+. In the
+:code:`redback` is developed and tested with Python 3.11+. In the
 following, we assume you have a working python installation, `python pip
 <https://packaging.python.org/tutorials/installing-packages/#use-pip-for-installing>`_,
 and `git <https://git-scm.com/>`_.
@@ -53,36 +53,13 @@ For full functionality, please also install optional requirements.
 
 You are now ready to use redback. Please check out the `examples <https://github.com/nikhil-sarin/redback/tree/master/examples>`_
 
-Install :code:`phantomjs`
+Install :code:`swifttools`
 -------------------------
-
 In previous releases of :code:`redback` if you wanted to use :code:`redback` functionality to download Swift data you needed to install phantomjs.
 Installing phantomjs essentially requires that you first download the phantomjs file for your operating system from
 the `website <https://phantomjs.org/download.html>`_. Then create a softlink or export the path to the bin file;
 see discussion on `stackoverflow <https://stackoverflow.com/questions/36993962/installing-phantomjs-on-mac>`_.
-
-If you use homebrew on Mac then you don't need to follow the above steps and can simply do
-
-.. code-block:: console
-
-   $ brew install --cask phantomjs
-
-Or use pkg installer if you are on linux.
-
-.. code-block:: console
-
-   $ sudo pkg install phantomjs
-
-phantomjs sometimes will not work with macOS or give a warning that it is no longer supported/verified.
-In the short term, you can locate the file in your finder and right click to open it. Doing so once will allow the app to be used.
-Note phantomjs is not required for any other functionality of redback.
-
-Phantomjs and ChromeDriver are now replaced with the swifttools API.
-
-Install :code:`swifttools`
--------------------------
-
-If you want to use :code:`redback` functionality to download Swift data, you need to install the swifttools package.
+Now, If you want to use :code:`redback` functionality to download Swift data, you need to install the swifttools package.
 This is included in the optional requirements.
 
 .. code-block:: console

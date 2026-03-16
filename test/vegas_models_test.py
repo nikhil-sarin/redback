@@ -326,7 +326,7 @@ class TestVegasModelsWithMocking:
             'output_format': 'flux_density',
             'frequency': 5e14,
             'ssc': True,
-            'ssc_cooling': True,
+            'cmb_cooling': True,
             'kn': True
         }
         
@@ -340,7 +340,7 @@ class TestVegasModelsWithMocking:
         rad_call = self.mock_radiation_class.call_args
         assert rad_call is not None
         assert rad_call[1]['ssc'] == True
-        assert rad_call[1]['ssc_cooling'] == True
+        assert rad_call[1]['cmb_cooling'] == True
         assert rad_call[1]['kn'] == True
     
     def test_resolution_parameters(self):
