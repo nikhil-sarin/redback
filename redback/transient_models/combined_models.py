@@ -185,15 +185,15 @@ def afterglow_and_optical(time, redshift, av, **model_kwargs):
     :param afterglow_kwargs: dictionary of  parameters required by the afterglow transient model specified by 'base_model'
         and any additional keyword arguments. Refer to model documentation for details.
     :param optical_kwargs: dictionary of parameters required by the optical transient model specifed by 'base_model'
-        and any additional keyword arguments. Note the base model must correspond to the given model type. Refer to model documentation
-        for details.
+        and any additional keyword arguments. Note the base model must correspond to the given model type.
+        Refer to model documentation for details.
     :return: flux density signal with extinction added
     """
 
     from redback.model_library import all_models_dict
     optical_kwargs = model_kwargs['optical_kwargs']
     afterglow_kwargs = model_kwargs['afterglow_kwargs']
-    model_kwargs['output_format']= model_kwargs.get('output_format', 'flux_density')
+    model_kwargs['output_format']= 'flux_density'
 
     _afterglow_kwargs = afterglow_kwargs.copy()
     _afterglow_kwargs.update(model_kwargs)
@@ -201,10 +201,10 @@ def afterglow_and_optical(time, redshift, av, **model_kwargs):
     _optical_kwargs = optical_kwargs.copy()
     _optical_kwargs.update(model_kwargs)
 
-    afterglow_function = all_models_dict[_afterglow_kwargs['base_model']]
+    afterglow_function = all_models_dict[_afterglow_kwargs['base_afterglow_model']]
     afterglow = afterglow_function(time=time, redshift=redshift,  **_afterglow_kwargs)
 
-    optical_function = all_models_dict[_optical_kwargs['base_model']]
+    optical_function = all_models_dict[_optical_kwargs['base_optical_model']]
     optical = optical_function(time=time, redshift=redshift, **_optical_kwargs)
 
     combined = afterglow + optical
@@ -212,7 +212,7 @@ def afterglow_and_optical(time, redshift, av, **model_kwargs):
     # correct for extinction
     angstroms = nu_to_lambda(model_kwargs['frequency'])
     combined = em._perform_extinction(flux_density=combined, angstroms=angstroms, av_host=av, rv_host=r_v,
-                                      redshift=redshift, **kwargs)
+                                      redshift=redshift, **model_kwargs)
     return combined
 
 @citation_wrapper('redback, and any citations for the specific model you use')
