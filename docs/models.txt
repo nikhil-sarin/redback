@@ -298,7 +298,7 @@ Combining arbitrary models in :code:`redback` via combined_models.afterglow_and_
 -------------------------
 Not all possible combination of models are available in combined_models. However, users can combine any afterglow and optical transient model by using the `afterglow_and_optical` combined model.
 to do this, users simply need to pass in the name of the afterglow model and the name of the optical transient model as keyword arguments `base_afterglow_model` and `base_optical_model` respectively.
-e.g.,
+e.g., note; combined models generally output in flux density, please check this for yourself if you are working with magnitudes you should wrap the model again.
 
 .. code:: python
 
@@ -311,7 +311,7 @@ e.g.,
 
     time = np.linspace(10, 500, 100)  # Time in days
     priors = redback.priors.get_priors('vegas_tophat')
-    priors.update(redback.priors.get_priors(''))
+    priors.update(redback.priors.get_priors('arnett'))
     model = 'afterglow_and_optical'
     function = all_models_dict[model]
     frequency = 2e14  # Frequency in Hz (e.g., optical band)
@@ -332,12 +332,15 @@ e.g.,
 
     afterglow_kwargs = {'kn': True}
     optical_kwargs = {'making_this_up': True}
+    kwargs = {'afterglow_kwargs':afterglow_kwargs, 'optical_kwargs':optical_kwargs}
     flux_density = function(time, av=1., frequency=frequency, base_afterglow_model=afterglow_model,
-                            afterglow_kwargs=afterglow_kwargs,
-                            optical_kwargs=optical_kwargs,
                             base_optical_model=optical_model, **priors.sample(), **kwargs)
 
     # When sampling/inference you can pass these kwargs via the model kwargs the same way you specify frequency and output_format etc.
+    # Note **kwargs, always expands in the function so you should make sure things are not duplicated between the kwargs/priors and the
+    # things you manually specified.
+
+
 
 A note about general assumptions in :code:`redback` models.
 -------------------------
