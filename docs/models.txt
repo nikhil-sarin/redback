@@ -315,20 +315,27 @@ e.g.,
     model = 'afterglow_and_optical'
     function = all_models_dict[model]
     frequency = 2e14  # Frequency in Hz (e.g., optical band)
+    afterglow_kwargs = {}
+    optical_kwargs = {}
 
-    flux_density = function(time, frequency=frequency, base_afterglow_model=afterglow_model,
-                            base_optical_model=optical_model, **priors.sample())
+    flux_density = function(time, av=1., frequency=frequency, base_afterglow_model=afterglow_model,
+                            base_optical_model=optical_model, afterglow_kwargs=afterglow_kwargs,
+                            optical_kwargs=optical_kwargs, **priors.sample())
 
     # Any keyword arguments passed to the model that are not used by the afterglow or optical model will be ignored,
     # so users should not stress about the kwargs too much.
-    # if there are optional physics in the afterglow or optical model that users want to use,
-    # they can just pass those in as well and they will be used by the relevant model.
+
+    # If there are optional physics in the afterglow or optical model that users want to use,
+    # They can just pass those in as well and they will be used by the relevant model.
     # To do this you can do something like:
+    # Note that above we had done the same but with an empty dictionary
 
     afterglow_kwargs = {'kn': True}
     optical_kwargs = {'making_this_up': True}
-    flux_density = function(time, frequency=frequency, base_afterglow_model=afterglow_model,
-                            base_optical_model=optical_model, **priors.sample(), **kwargs
+    flux_density = function(time, av=1., frequency=frequency, base_afterglow_model=afterglow_model,
+                            afterglow_kwargs=afterglow_kwargs,
+                            optical_kwargs=optical_kwargs,
+                            base_optical_model=optical_model, **priors.sample(), **kwargs)
 
     # When sampling/inference you can pass these kwargs via the model kwargs the same way you specify frequency and output_format etc.
 
