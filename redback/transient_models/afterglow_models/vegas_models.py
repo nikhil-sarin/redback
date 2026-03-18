@@ -79,8 +79,8 @@ def vegas_tophat(time, redshift, thv, loge0, thc, lognism, loga, p, logepse, log
     :param thv: viewing angle in radians
     :param loge0: log10 isotropic equivalent energy [erg]
     :param thc: jet core opening angle in radians
-    :param lognism: log10 ISM number density [cm^-3] (use -inf for pure wind)
-    :param loga: log10 wind parameter A_* [g/cm] (use -inf for pure ISM)
+    :param lognism: log10 ISM number density [cm^-3] (use small number e.g., -20) for pure wind)
+    :param loga: log10 wind parameter A_* [g/cm] (use small number e.g., -20 for pure ISM)
     :param p: electron power-law index
     :param logepse: log10 electron energy fraction
     :param logepsb: log10 magnetic field energy fraction
@@ -102,7 +102,7 @@ def vegas_tophat(time, redshift, thv, loge0, thc, lognism, loga, p, logepse, log
         - reverse_p: reverse shock electron index (default: p)
         - reverse_xie: reverse shock electron efficiency (default: 1.0)
         - ssc: enable synchrotron self-Compton (default: False)
-        - ssc_cooling: enable SSC cooling (default: False)
+        - cmb_cooling: enable CMB cooling (default: False)
         - kn: enable Klein-Nishina corrections (default: False)
         - resolutions: (phi_res, theta_res, time_res) tuple (default: (0.3, 1, 10))
         - rtol: relative tolerance for ODE solver (default: 1e-6)
@@ -114,8 +114,8 @@ def vegas_tophat(time, redshift, thv, loge0, thc, lognism, loga, p, logepse, log
     
     Examples:
     ---------
-    Pure ISM: lognism=0.0, loga=-np.inf
-    Pure Wind: lognism=-np.inf, loga=11.0
+    Pure ISM: lognism=0.0, loga=-20
+    Pure Wind: lognism=-20, loga=11.0
     Hybrid: lognism=0.0, loga=11.0 (wind with ISM floor)
     """
     _check_vegasafterglow_available()
@@ -138,7 +138,7 @@ def vegas_tophat(time, redshift, thv, loge0, thc, lognism, loga, p, logepse, log
     wind_k = kwargs.get('wind_k', 2.0)
     wind_n0 = kwargs.get('wind_n0', float('inf'))
     
-    medium = Wind(A_star=A_star, n_ism=n_ism, k=wind_k, n0=wind_n0)
+    medium = Wind(A_star=A_star, n_ism=n_ism, k_m=wind_k, n0=wind_n0)
 
     # Jet parameters
     spreading = kwargs.get('spreading', False)
@@ -169,7 +169,7 @@ def vegas_tophat(time, redshift, thv, loge0, thc, lognism, loga, p, logepse, log
     # Forward shock radiation
     xie = kwargs.get('xie', 1.0)
     ssc = kwargs.get('ssc', False)
-    ssc_cooling = kwargs.get('ssc_cooling', False)
+    cmb_cooling = kwargs.get('cmb_cooling', False)
     kn = kwargs.get('kn', False)
     
     rad_fwd = Radiation(
@@ -178,7 +178,7 @@ def vegas_tophat(time, redshift, thv, loge0, thc, lognism, loga, p, logepse, log
         p=p,
         xi_e=xie,
         ssc=ssc,
-        ssc_cooling=ssc_cooling,
+        cmb_cooling= cmb_cooling,
         kn=kn
     )
 
@@ -192,7 +192,7 @@ def vegas_tophat(time, redshift, thv, loge0, thc, lognism, loga, p, logepse, log
             p=kwargs.get('reverse_p', p),
             xi_e=reverse_xie,
             ssc=ssc,
-            ssc_cooling=ssc_cooling,
+            cmb_cooling= cmb_cooling,
             kn=kn
         )
 
@@ -245,8 +245,8 @@ def vegas_gaussian(time, redshift, thv, loge0, thc, lognism, loga, p, logepse, l
     :param thv: viewing angle in radians
     :param loge0: log10 isotropic equivalent energy [erg]
     :param thc: jet core opening angle in radians
-    :param lognism: log10 ISM number density [cm^-3] (use -inf for pure wind)
-    :param loga: log10 wind parameter A_* [g/cm] (use -inf for pure ISM)
+    :param lognism: log10 ISM number density [cm^-3] (use small number e.g., -20) for pure wind)
+    :param loga: log10 wind parameter A_* [g/cm] (use small number e.g., -20 for pure ISM)
     :param p: electron power-law index
     :param logepse: log10 electron energy fraction
     :param logepsb: log10 magnetic field energy fraction
@@ -256,8 +256,8 @@ def vegas_gaussian(time, redshift, thv, loge0, thc, lognism, loga, p, logepse, l
     
     Examples:
     ---------
-    Pure ISM: lognism=0.0, loga=-np.inf
-    Pure Wind: lognism=-np.inf, loga=11.0
+    Pure ISM: lognism=0.0, loga=-20
+    Pure Wind: lognism=-20, loga=11.0
     Hybrid: lognism=0.0, loga=11.0 (wind with ISM floor)
     """
     _check_vegasafterglow_available()
@@ -276,7 +276,7 @@ def vegas_gaussian(time, redshift, thv, loge0, thc, lognism, loga, p, logepse, l
     medium = Wind(
         A_star=A_star, 
         n_ism=n_ism, 
-        k=kwargs.get('wind_k', 2.0), 
+        k_m=kwargs.get('wind_k', 2.0),
         n0=kwargs.get('wind_n0', float('inf'))
     )
 
@@ -299,10 +299,10 @@ def vegas_gaussian(time, redshift, thv, loge0, thc, lognism, loga, p, logepse, l
     
     xie = kwargs.get('xie', 1.0)
     ssc = kwargs.get('ssc', False)
-    ssc_cooling = kwargs.get('ssc_cooling', False)
+    cmb_cooling = kwargs.get('cmb_cooling', False)
     kn = kwargs.get('kn', False)
     
-    rad_fwd = Radiation(eps_e=10**logepse, eps_B=10**logepsb, p=p, xi_e=xie, ssc=ssc, ssc_cooling=ssc_cooling, kn=kn)
+    rad_fwd = Radiation(eps_e=10**logepse, eps_B=10**logepsb, p=p, xi_e=xie, ssc=ssc, cmb_cooling= cmb_cooling, kn=kn)
     
     rad_rvs = None
     if kwargs.get('reverse_shock', False):
@@ -311,7 +311,7 @@ def vegas_gaussian(time, redshift, thv, loge0, thc, lognism, loga, p, logepse, l
             eps_B=10**kwargs.get('reverse_logepsb', logepsb),
             p=kwargs.get('reverse_p', p),
             xi_e=kwargs.get('reverse_xie', 1.0),
-            ssc=ssc, ssc_cooling=ssc_cooling, kn=kn
+            ssc=ssc, cmb_cooling= cmb_cooling, kn=kn
         )
 
     model = Model(
@@ -355,8 +355,8 @@ def vegas_powerlaw(time, redshift, thv, loge0, thc, lognism, loga, p, logepse, l
     :param thv: viewing angle in radians
     :param loge0: log10 isotropic equivalent energy [erg]
     :param thc: jet core opening angle in radians
-    :param lognism: log10 ISM number density [cm^-3] (use -inf for pure wind)
-    :param loga: log10 wind parameter A_* [g/cm] (use -inf for pure ISM)
+    :param lognism: log10 ISM number density [cm^-3] (use small number e.g., -20) for pure wind)
+    :param loga: log10 wind parameter A_* [g/cm] (use small number e.g., -20 for pure ISM)
     :param p: electron power-law index
     :param logepse: log10 electron energy fraction
     :param logepsb: log10 magnetic field energy fraction
@@ -368,8 +368,8 @@ def vegas_powerlaw(time, redshift, thv, loge0, thc, lognism, loga, p, logepse, l
     
     Examples:
     ---------
-    Pure ISM: lognism=0.0, loga=-np.inf
-    Pure Wind: lognism=-np.inf, loga=11.0
+    Pure ISM: lognism=0.0, loga=-20
+    Pure Wind: lognism=-20, loga=11.0
     Hybrid: lognism=0.0, loga=11.0 (wind with ISM floor)
     """
     _check_vegasafterglow_available()
@@ -383,7 +383,7 @@ def vegas_powerlaw(time, redshift, thv, loge0, thc, lognism, loga, p, logepse, l
 
     n_ism = 0.0 if lognism == -np.inf else 10**lognism
     A_star = 0.0 if loga == -np.inf else 10**loga
-    medium = Wind(A_star=A_star, n_ism=n_ism, k=kwargs.get('wind_k', 2.0), n0=kwargs.get('wind_n0', float('inf')))
+    medium = Wind(A_star=A_star, n_ism=n_ism, k_m=kwargs.get('wind_k', 2.0), n0=kwargs.get('wind_n0', float('inf')))
 
     magnetar = None
     if 'magnetar_L0' in kwargs:
@@ -400,10 +400,10 @@ def vegas_powerlaw(time, redshift, thv, loge0, thc, lognism, loga, p, logepse, l
     
     xie = kwargs.get('xie', 1.0)
     ssc = kwargs.get('ssc', False)
-    ssc_cooling = kwargs.get('ssc_cooling', False)
+    cmb_cooling = kwargs.get('cmb_cooling', False)
     kn = kwargs.get('kn', False)
     
-    rad_fwd = Radiation(eps_e=10**logepse, eps_B=10**logepsb, p=p, xi_e=xie, ssc=ssc, ssc_cooling=ssc_cooling, kn=kn)
+    rad_fwd = Radiation(eps_e=10**logepse, eps_B=10**logepsb, p=p, xi_e=xie, ssc=ssc, cmb_cooling= cmb_cooling, kn=kn)
     
     rad_rvs = None
     if kwargs.get('reverse_shock', False):
@@ -412,7 +412,7 @@ def vegas_powerlaw(time, redshift, thv, loge0, thc, lognism, loga, p, logepse, l
             eps_B=10**kwargs.get('reverse_logepsb', logepsb),
             p=kwargs.get('reverse_p', p),
             xi_e=kwargs.get('reverse_xie', 1.0),
-            ssc=ssc, ssc_cooling=ssc_cooling, kn=kn
+            ssc=ssc, cmb_cooling= cmb_cooling, kn=kn
         )
 
     model = Model(
@@ -456,8 +456,8 @@ def vegas_powerlaw_wing(time, redshift, thv, loge0_w, thc, lognism, loga, p, log
     :param thv: viewing angle in radians
     :param loge0_w: log10 isotropic energy for wings [erg]
     :param thc: reference angle for power-law normalization [rad]
-    :param lognism: log10 ISM number density [cm^-3] (use -inf for pure wind)
-    :param loga: log10 wind parameter A_* [g/cm] (use -inf for pure ISM)
+    :param lognism: log10 ISM number density [cm^-3] (use small number e.g., -20) for pure wind)
+    :param loga: log10 wind parameter A_* [g/cm] (use small number e.g., -20 for pure ISM)
     :param p: electron power-law index
     :param logepse: log10 electron energy fraction
     :param logepsb: log10 magnetic field energy fraction
@@ -469,8 +469,8 @@ def vegas_powerlaw_wing(time, redshift, thv, loge0_w, thc, lognism, loga, p, log
     
     Examples:
     ---------
-    Pure ISM: lognism=0.0, loga=-np.inf
-    Pure Wind: lognism=-np.inf, loga=11.0
+    Pure ISM: lognism=0.0, loga=-20
+    Pure Wind: lognism=-20, loga=11.0
     Hybrid: lognism=0.0, loga=11.0 (wind with ISM floor)
     """
     _check_vegasafterglow_available()
@@ -484,7 +484,7 @@ def vegas_powerlaw_wing(time, redshift, thv, loge0_w, thc, lognism, loga, p, log
 
     n_ism = 0.0 if lognism == -np.inf else 10**lognism
     A_star = 0.0 if loga == -np.inf else 10**loga
-    medium = Wind(A_star=A_star, n_ism=n_ism, k=kwargs.get('wind_k', 2.0), n0=kwargs.get('wind_n0', float('inf')))
+    medium = Wind(A_star=A_star, n_ism=n_ism, k_m=kwargs.get('wind_k', 2.0), n0=kwargs.get('wind_n0', float('inf')))
 
     jet = PowerLawWing(
         theta_c=thc, E_iso_w=10**loge0_w, Gamma0_w=g0_w, k_e=ke, k_g=kg,
@@ -496,10 +496,10 @@ def vegas_powerlaw_wing(time, redshift, thv, loge0_w, thc, lognism, loga, p, log
     
     xie = kwargs.get('xie', 1.0)
     ssc = kwargs.get('ssc', False)
-    ssc_cooling = kwargs.get('ssc_cooling', False)
+    cmb_cooling = kwargs.get('cmb_cooling', False)
     kn = kwargs.get('kn', False)
     
-    rad_fwd = Radiation(eps_e=10**logepse, eps_B=10**logepsb, p=p, xi_e=xie, ssc=ssc, ssc_cooling=ssc_cooling, kn=kn)
+    rad_fwd = Radiation(eps_e=10**logepse, eps_B=10**logepsb, p=p, xi_e=xie, ssc=ssc, cmb_cooling= cmb_cooling, kn=kn)
     
     rad_rvs = None
     if kwargs.get('reverse_shock', False):
@@ -508,7 +508,7 @@ def vegas_powerlaw_wing(time, redshift, thv, loge0_w, thc, lognism, loga, p, log
             eps_B=10**kwargs.get('reverse_logepsb', logepsb),
             p=kwargs.get('reverse_p', p),
             xi_e=kwargs.get('reverse_xie', 1.0),
-            ssc=ssc, ssc_cooling=ssc_cooling, kn=kn
+            ssc=ssc, cmb_cooling= cmb_cooling, kn=kn
         )
 
     model = Model(
@@ -556,8 +556,8 @@ def vegas_two_component(time, redshift, thv, loge0, thc, lognism, loga, p, logep
     :param thv: viewing angle in radians
     :param loge0: log10 core isotropic energy [erg]
     :param thc: core opening angle in radians
-    :param lognism: log10 ISM number density [cm^-3] (use -inf for pure wind)
-    :param loga: log10 wind parameter A_* [g/cm] (use -inf for pure ISM)
+    :param lognism: log10 ISM number density [cm^-3] (use small number e.g., -20) for pure wind)
+    :param loga: log10 wind parameter A_* [g/cm] (use small number e.g., -20 for pure ISM)
     :param p: electron power-law index
     :param logepse: log10 electron energy fraction
     :param logepsb: log10 magnetic field energy fraction
@@ -570,8 +570,8 @@ def vegas_two_component(time, redshift, thv, loge0, thc, lognism, loga, p, logep
     
     Examples:
     ---------
-    Pure ISM: lognism=0.0, loga=-np.inf
-    Pure Wind: lognism=-np.inf, loga=11.0
+    Pure ISM: lognism=0.0, loga=-20
+    Pure Wind: lognism=-20, loga=11.0
     Hybrid: lognism=0.0, loga=11.0 (wind with ISM floor)
     """
     _check_vegasafterglow_available()
@@ -585,7 +585,7 @@ def vegas_two_component(time, redshift, thv, loge0, thc, lognism, loga, p, logep
 
     n_ism = 0.0 if lognism == -np.inf else 10**lognism
     A_star = 0.0 if loga == -np.inf else 10**loga
-    medium = Wind(A_star=A_star, n_ism=n_ism, k=kwargs.get('wind_k', 2.0), n0=kwargs.get('wind_n0', float('inf')))
+    medium = Wind(A_star=A_star, n_ism=n_ism, k_m=kwargs.get('wind_k', 2.0), n0=kwargs.get('wind_n0', float('inf')))
 
     magnetar = None
     if 'magnetar_L0' in kwargs:
@@ -603,10 +603,10 @@ def vegas_two_component(time, redshift, thv, loge0, thc, lognism, loga, p, logep
     
     xie = kwargs.get('xie', 1.0)
     ssc = kwargs.get('ssc', False)
-    ssc_cooling = kwargs.get('ssc_cooling', False)
+    cmb_cooling = kwargs.get('cmb_cooling', False)
     kn = kwargs.get('kn', False)
     
-    rad_fwd = Radiation(eps_e=10**logepse, eps_B=10**logepsb, p=p, xi_e=xie, ssc=ssc, ssc_cooling=ssc_cooling, kn=kn)
+    rad_fwd = Radiation(eps_e=10**logepse, eps_B=10**logepsb, p=p, xi_e=xie, ssc=ssc, cmb_cooling= cmb_cooling, kn=kn)
     
     rad_rvs = None
     if kwargs.get('reverse_shock', False):
@@ -615,7 +615,7 @@ def vegas_two_component(time, redshift, thv, loge0, thc, lognism, loga, p, logep
             eps_B=10**kwargs.get('reverse_logepsb', logepsb),
             p=kwargs.get('reverse_p', p),
             xi_e=kwargs.get('reverse_xie', 1.0),
-            ssc=ssc, ssc_cooling=ssc_cooling, kn=kn
+            ssc=ssc, cmb_cooling= cmb_cooling, kn=kn
         )
 
     model = Model(
@@ -664,8 +664,8 @@ def vegas_step_powerlaw(time, redshift, thv, loge0, thc, lognism, loga, p, logep
     :param thv: viewing angle in radians
     :param loge0: log10 core isotropic energy [erg]
     :param thc: core opening angle in radians
-    :param lognism: log10 ISM number density [cm^-3] (use -inf for pure wind)
-    :param loga: log10 wind parameter A_* [g/cm] (use -inf for pure ISM)
+    :param lognism: log10 ISM number density [cm^-3] (use small number e.g., -20) for pure wind)
+    :param loga: log10 wind parameter A_* [g/cm] (use small number e.g., -20 for pure ISM)
     :param p: electron power-law index
     :param logepse: log10 electron energy fraction
     :param logepsb: log10 magnetic field energy fraction
@@ -679,8 +679,8 @@ def vegas_step_powerlaw(time, redshift, thv, loge0, thc, lognism, loga, p, logep
     
     Examples:
     ---------
-    Pure ISM: lognism=0.0, loga=-np.inf
-    Pure Wind: lognism=-np.inf, loga=11.0
+    Pure ISM: lognism=0.0, loga=-20
+    Pure Wind: lognism=-20, loga=11.0
     Hybrid: lognism=0.0, loga=11.0 (wind with ISM floor)
     """
     _check_vegasafterglow_available()
@@ -694,7 +694,7 @@ def vegas_step_powerlaw(time, redshift, thv, loge0, thc, lognism, loga, p, logep
 
     n_ism = 0.0 if lognism == -np.inf else 10**lognism
     A_star = 0.0 if loga == -np.inf else 10**loga
-    medium = Wind(A_star=A_star, n_ism=n_ism, k=kwargs.get('wind_k', 2.0), n0=kwargs.get('wind_n0', float('inf')))
+    medium = Wind(A_star=A_star, n_ism=n_ism, k_m=kwargs.get('wind_k', 2.0), n0=kwargs.get('wind_n0', float('inf')))
 
     magnetar = None
     if 'magnetar_L0' in kwargs:
@@ -712,10 +712,10 @@ def vegas_step_powerlaw(time, redshift, thv, loge0, thc, lognism, loga, p, logep
     
     xie = kwargs.get('xie', 1.0)
     ssc = kwargs.get('ssc', False)
-    ssc_cooling = kwargs.get('ssc_cooling', False)
+    cmb_cooling = kwargs.get('cmb_cooling', False)
     kn = kwargs.get('kn', False)
     
-    rad_fwd = Radiation(eps_e=10**logepse, eps_B=10**logepsb, p=p, xi_e=xie, ssc=ssc, ssc_cooling=ssc_cooling, kn=kn)
+    rad_fwd = Radiation(eps_e=10**logepse, eps_B=10**logepsb, p=p, xi_e=xie, ssc=ssc, cmb_cooling= cmb_cooling, kn=kn)
     
     rad_rvs = None
     if kwargs.get('reverse_shock', False):
@@ -724,7 +724,7 @@ def vegas_step_powerlaw(time, redshift, thv, loge0, thc, lognism, loga, p, logep
             eps_B=10**kwargs.get('reverse_logepsb', logepsb),
             p=kwargs.get('reverse_p', p),
             xi_e=kwargs.get('reverse_xie', 1.0),
-            ssc=ssc, ssc_cooling=ssc_cooling, kn=kn
+            ssc=ssc, cmb_cooling= cmb_cooling, kn=kn
         )
 
     model = Model(

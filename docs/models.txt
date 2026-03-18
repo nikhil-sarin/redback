@@ -294,12 +294,60 @@ The flux_density output for all models is the flux density at the effective freq
 Redback assumes flux_density is always in mJy, luminosity is always in erg/s with some models returning the output in 1e50 erg/s (for numerical stability), and magnitude is always in AB mag.
 Flux is always in erg/s/cm^2.
 
+Combining arbitrary models in :code:`redback` via combined_models.afterglow_and_optical
+-------------------------
+Not all possible combination of models are available in combined_models. However, users can combine any afterglow and optical transient model by using the `afterglow_and_optical` combined model.
+to do this, users simply need to pass in the name of the afterglow model and the name of the optical transient model as keyword arguments `base_afterglow_model` and `base_optical_model` respectively.
+e.g., note; combined models generally output in flux density, please check this for yourself if you are working with magnitudes you should wrap the model again.
+
+.. code:: python
+
+    from redback.model_library import all_models_dict
+    import redback
+    import numpy as np
+
+    afterglow_model = 'vegas_tophat'
+    optical_model = 'arnett'
+
+    time = np.linspace(10, 500, 100)  # Time in days
+    priors = redback.priors.get_priors('vegas_tophat')
+    priors.update(redback.priors.get_priors('arnett'))
+    model = 'afterglow_and_optical'
+    function = all_models_dict[model]
+    frequency = 2e14  # Frequency in Hz (e.g., optical band)
+    afterglow_kwargs = {}
+    optical_kwargs = {}
+
+    flux_density = function(time, av=1., frequency=frequency, base_afterglow_model=afterglow_model,
+                            base_optical_model=optical_model, afterglow_kwargs=afterglow_kwargs,
+                            optical_kwargs=optical_kwargs, **priors.sample())
+
+    # Any keyword arguments passed to the model that are not used by the afterglow or optical model will be ignored,
+    # so users should not stress about the kwargs too much.
+
+    # If there are optional physics in the afterglow or optical model that users want to use,
+    # They can just pass those in as well and they will be used by the relevant model.
+    # To do this you can do something like:
+    # Note that above we had done the same but with an empty dictionary
+
+    afterglow_kwargs = {'kn': True}
+    optical_kwargs = {'making_this_up': True}
+    kwargs = {'afterglow_kwargs':afterglow_kwargs, 'optical_kwargs':optical_kwargs}
+    flux_density = function(time, av=1., frequency=frequency, base_afterglow_model=afterglow_model,
+                            base_optical_model=optical_model, **priors.sample(), **kwargs)
+
+    # When sampling/inference you can pass these kwargs via the model kwargs the same way you specify frequency and output_format etc.
+    # Note **kwargs, always expands in the function so you should make sure things are not duplicated between the kwargs/priors and the
+    # things you manually specified.
+
+
+
 A note about general assumptions in :code:`redback` models.
 -------------------------
 In :code:`redback`, we generally solve for the physics of the model in the rest frame of the transient, then transformed onto the users desired time/frequency/bandpass.
 Each model functions somewhat differently. Generally, for thermal transients, this ultimately involves calculating a spectrum via;
 
-F_nu_obs(nu_obs, t_obs) = L_nu_rest(nu_rest, t_rest) / (4 pi D_L^2 (1+z)). Where nu_rest is the rest frame frequency, t_rest is the rest frame time, D_L is the luminosity distance and z is the redshift.
+F_nu_obs(nu_obs, t_obs) = (1+z) * L_nu_rest(nu_rest, t_rest) / (4 pi D_L^2). Where nu_rest is the rest frame frequency, t_rest is the rest frame time, D_L is the luminosity distance and z is the redshift.
 We typically use the redshift and some cosmology (default to Planck18) to estimate the luminosity distance as opposed to having two independent parameters.
 This behaviour could be bypassed by using a custom cosmology dependency injection. See `here <https://redback.readthedocs.io/en/latest/dependency_injections.html>`_ for more details.
 

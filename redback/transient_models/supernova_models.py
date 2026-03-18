@@ -290,7 +290,7 @@ def sn_fallback(time, redshift, logl1, tr, **kwargs):
         sed_1 = kwargs['sed'](temperature=photo.photosphere_temperature, r_photosphere=photo.r_photosphere,
               frequency=frequency, luminosity_distance=dl)
         flux_density = sed_1.flux_density
-        return flux_density.to(uu.mJy).value / (1 + redshift)
+        return flux_density.to(uu.mJy).value * (1 + redshift)
     else:
         time_obs = time
         lambda_observer_frame = kwargs.get('lambda_array', np.geomspace(100, 60000, 100))
@@ -350,7 +350,7 @@ def sn_nickel_fallback(time, redshift, mej, f_nickel, logl1, tr, **kwargs):
         sed_1 = kwargs['sed'](temperature=photo.photosphere_temperature, r_photosphere=photo.r_photosphere,
               frequency=frequency, luminosity_distance=dl)
         flux_density = sed_1.flux_density
-        return flux_density.to(uu.mJy).value / (1 + redshift)
+        return flux_density.to(uu.mJy).value * (1 + redshift)
     else:
         time_obs = time
         lambda_observer_frame = kwargs.get('lambda_array', np.geomspace(100, 60000, 100))
@@ -413,7 +413,7 @@ def sn_exponential_powerlaw(time, redshift, lbol_0, alpha_1, alpha_2, tpeak_d, *
               frequency=frequency, luminosity_distance=dl)
 
         flux_density = sed_1.flux_density
-        return flux_density.to(uu.mJy).value / (1 + redshift)
+        return flux_density.to(uu.mJy).value * (1 + redshift)
     else:
         time_obs = time
         lambda_observer_frame = kwargs.get('lambda_array', np.geomspace(100, 60000, 100))
@@ -795,7 +795,7 @@ def nickelmixing(time, redshift, mej, esn, kappa, kappa_gamma, f_nickel, f_mixin
         temp = temp_func(time)
         rad = rad_func(time)
         flux_density = sed.blackbody_to_flux_density(temperature=temp, r_photosphere=rad, frequency=frequency, dl=dl)
-        return flux_density.to(uu.mJy).value / (1 + redshift)
+        return flux_density.to(uu.mJy).value * (1 + redshift)
     else:
         time_obs = time
         lambda_observer_frame = kwargs.get('lambda_array', np.geomspace(100, 60000, 100))
@@ -877,7 +877,7 @@ def arnett(time, redshift, f_nickel, mej, **kwargs):
         sed_1 = kwargs['sed'](temperature=photo.photosphere_temperature, r_photosphere=photo.r_photosphere,
                     frequency=frequency, luminosity_distance=dl)
         flux_density = sed_1.flux_density
-        return flux_density.to(uu.mJy).value / (1 + redshift)
+        return flux_density.to(uu.mJy).value * (1 + redshift)
     else:
         time_obs = time
         lambda_observer_frame = kwargs.get('lambda_array', np.geomspace(100, 60000, 100))
@@ -996,7 +996,7 @@ def arnett_with_features(time, redshift, f_nickel, mej, **kwargs):
             evolution_mode=kwargs.get('evolution_mode', 'smooth')
         )
         flux_density = sed_1.flux_density
-        return flux_density.to(uu.mJy).value / (1 + redshift)
+        return flux_density.to(uu.mJy).value * (1 + redshift)
 
     else:
         time_obs = time
@@ -1118,7 +1118,7 @@ def shock_cooling_and_arnett(time, redshift, log10_mass, log10_radius, log10_ene
         sed_1 = kwargs['sed'](temperature=photo.photosphere_temperature, r_photosphere=photo.r_photosphere,
                 frequency=frequency, luminosity_distance=dl)
         flux_density = sed_1.flux_density
-        return flux_density.to(uu.mJy).value / (1 + redshift)
+        return flux_density.to(uu.mJy).value * (1 + redshift)
     else:
         time_obs = time
         lambda_observer_frame = kwargs.get('lambda_array', np.geomspace(100, 60000, 100))
@@ -1204,7 +1204,7 @@ def shockcooling_morag_and_arnett(time, redshift, v_shock, m_env, mej, f_rho, f_
         sed_1 = sed.Blackbody(temperature=photo.photosphere_temperature, r_photosphere=photo.r_photosphere,
                               frequency=frequency, luminosity_distance=dl)
         flux_density = sed_1.flux_density
-        return flux_density.to(uu.mJy).value / (1 + redshift)
+        return flux_density.to(uu.mJy).value * (1 + redshift)
     else:
         time_obs = time
         lambda_observer_frame = kwargs.get('lambda_array', np.geomspace(100, 60000, 100))
@@ -1292,7 +1292,7 @@ def shockcooling_sapirwaxman_and_arnett(time, redshift, v_shock, m_env, mej, f_r
         sed_1 = sed.Blackbody(temperature=photo.photosphere_temperature, r_photosphere=photo.r_photosphere,
                               frequency=frequency, luminosity_distance=dl)
         flux_density = sed_1.flux_density
-        return flux_density.to(uu.mJy).value / (1 + redshift)
+        return flux_density.to(uu.mJy).value * (1 + redshift)
     else:
         time_obs = time
         lambda_observer_frame = kwargs.get('lambda_array', np.geomspace(100, 60000, 100))
@@ -1379,7 +1379,7 @@ def basic_magnetar_powered(time, redshift, p0, bp, mass_ns, theta_pb,**kwargs):
         sed_1 = kwargs['sed'](temperature=photo.photosphere_temperature, r_photosphere=photo.r_photosphere,
                     frequency=frequency, luminosity_distance=dl)
         flux_density = sed_1.flux_density
-        return flux_density.to(uu.mJy).value / (1 + redshift)
+        return flux_density.to(uu.mJy).value * (1 + redshift)
     else:
         time_obs = time
         lambda_observer_frame = kwargs.get('lambda_array', np.geomspace(100, 60000, 100))
@@ -1466,7 +1466,7 @@ def slsn(time, redshift, p0, bp, mass_ns, theta_pb,**kwargs):
                     cutoff_wavelength=cutoff_wavelength)
 
         flux_density = sed_1.flux_density
-        return flux_density.to(uu.mJy).value / (1 + redshift)
+        return flux_density.to(uu.mJy).value * (1 + redshift)
 
     else:
         time_obs = time
@@ -1482,7 +1482,7 @@ def slsn(time, redshift, p0, bp, mass_ns, theta_pb,**kwargs):
                         r_photosphere=photo.r_photosphere, frequency=frequency[:, None],
                         luminosity_distance=dl, cutoff_wavelength=cutoff_wavelength, luminosity=lbol)
         full_sed = ss.flux_density.to(uu.mJy).value.T
-        full_sed = full_sed / (1 + redshift)
+        full_sed = full_sed * (1 + redshift)
         spectra = (full_sed * uu.mJy).to(uu.erg / uu.cm ** 2 / uu.s / uu.Angstrom,
                                     equivalencies=uu.spectral_density(wav=lambda_observer_frame * uu.Angstrom))
         if kwargs['output_format'] == 'spectra':
@@ -1549,7 +1549,7 @@ def magnetar_nickel(time, redshift, f_nickel, mej, p0, bp, mass_ns, theta_pb, **
                     frequency=frequency, luminosity_distance=dl)
 
         flux_density = sed_1.flux_density
-        return flux_density.to(uu.mJy).value / (1 + redshift)
+        return flux_density.to(uu.mJy).value * (1 + redshift)
     else:
         time_obs = time
         lambda_observer_frame = kwargs.get('lambda_array', np.geomspace(100, 60000, 100))
@@ -1690,7 +1690,7 @@ def homologous_expansion_supernova(time, redshift, mej, ek, **kwargs):
                     frequency=frequency, luminosity_distance=dl)
 
         flux_density = sed_1.flux_density
-        return flux_density.to(uu.mJy).value / (1 + redshift)
+        return flux_density.to(uu.mJy).value * (1 + redshift)
     else:
         time_obs = time
         lambda_observer_frame = kwargs.get('lambda_array', np.geomspace(100, 60000, 100))
@@ -1754,7 +1754,7 @@ def thin_shell_supernova(time, redshift, mej, ek, **kwargs):
                     frequency=frequency, luminosity_distance=dl)
 
         flux_density = sed_1.flux_density
-        return flux_density.to(uu.mJy).value / (1 + redshift)
+        return flux_density.to(uu.mJy).value * (1 + redshift)
 
     else:
         time_obs = time
@@ -1951,7 +1951,7 @@ def csm_interaction(time, redshift, mej, csm_mass, vej, eta, rho, kappa, r0, **k
                     frequency=frequency, luminosity_distance=dl)
 
         flux_density = sed_1.flux_density
-        return flux_density.to(uu.mJy).value / (1 + redshift)
+        return flux_density.to(uu.mJy).value * (1 + redshift)
     else:
         time_obs = time
         lambda_observer_frame = kwargs.get('lambda_array', np.geomspace(100, 60000, 100))
@@ -2019,7 +2019,7 @@ def csm_nickel(time, redshift, mej, f_nickel, csm_mass, ek, eta, rho, kappa, r0,
                     frequency=frequency, luminosity_distance=dl)
 
         flux_density = sed_1.flux_density
-        return flux_density.to(uu.mJy).value / (1 + redshift)
+        return flux_density.to(uu.mJy).value * (1 + redshift)
     else:
         time_obs = time
         lambda_observer_frame = kwargs.get('lambda_array', np.geomspace(100, 60000, 100))
@@ -2095,7 +2095,7 @@ def type_1a(time, redshift, f_nickel, mej, **kwargs):
                          line_width=line_width, line_time=line_time,
                          line_duration=line_duration, line_amplitude=line_amplitude)
         flux_density = sed_2.flux_density.flatten()
-        return flux_density.to(uu.mJy).value / (1 + redshift)
+        return flux_density.to(uu.mJy).value * (1 + redshift)
     else:
         time_obs = time
         lambdas_observer_frame = kwargs.get('lambda_array', np.geomspace(100, 60000, 100))
@@ -2118,7 +2118,7 @@ def type_1a(time, redshift, f_nickel, mej, **kwargs):
                             line_duration=line_duration,
                             line_amplitude=line_amplitude)
         full_sed = line_sed.flux_density.to(uu.mJy).value
-        full_sed = full_sed / (1 + redshift)
+        full_sed = full_sed * (1 + redshift)
         # The following line converts the full SED (in mJy) to erg/s/cm^2/Angstrom.
         spectra = (full_sed * uu.mJy).to(uu.erg / uu.cm ** 2 / uu.s / uu.Angstrom,
                                          equivalencies=uu.spectral_density(
@@ -2168,7 +2168,7 @@ def type_1c(time, redshift, f_nickel, mej, pp, **kwargs):
                               r_photosphere=photo.r_photosphere,frequency=frequency, luminosity_distance=dl)
         sed_2 = sed.Synchrotron(frequency=frequency, luminosity_distance=dl, pp=pp, nu_max=nu_max,f0=f0)
         flux_density = sed_1.flux_density + sed_2.flux_density
-        return flux_density.to(uu.mJy).value / (1 + redshift)
+        return flux_density.to(uu.mJy).value * (1 + redshift)
     else:
         time_obs = time
         lambda_observer_frame = kwargs.get('lambda_array', np.geomspace(100, 60000, 100))
@@ -2256,7 +2256,7 @@ def general_magnetar_slsn(time, redshift, l0, tsd, nn, ** kwargs):
         sed_1 = kwargs['sed'](temperature=photo.photosphere_temperature, r_photosphere=photo.r_photosphere,
                     frequency = frequency, luminosity_distance = dl)
         flux_density = sed_1.flux_density
-        return flux_density.to(uu.mJy).value / (1 + redshift)
+        return flux_density.to(uu.mJy).value * (1 + redshift)
     else:
         time_obs = time
         lambda_observer_frame = kwargs.get('lambda_array', np.geomspace(100, 60000, 100))
@@ -2397,7 +2397,7 @@ def general_magnetar_driven_supernova(time, redshift, mej, E_sn, kappa, l0, tau_
                                               r_photosphere=rad, frequency=frequency, luminosity_distance=dl,
                                               cutoff_wavelength=cutoff_wavelength) 
         flux_density = sed_1.flux_density
-        return flux_density.to(uu.mJy).value / (1 + redshift)
+        return flux_density.to(uu.mJy).value * (1 + redshift)
     
     else:
         time_obs = time
@@ -2441,7 +2441,7 @@ def general_magnetar_driven_supernova(time, redshift, mej, E_sn, kappa, l0, tau_
                             r_photosphere=photo.r_photosphere, frequency=frequency[:, None],
                             luminosity_distance=dl, cutoff_wavelength=cutoff_wavelength, luminosity=output.bolometric_luminosity)
             full_sed = ss.flux_density.to(uu.mJy).value.T
-            full_sed = full_sed / (1 + redshift)
+            full_sed = full_sed * (1 + redshift)
             spectra = (full_sed * uu.mJy).to(uu.erg / uu.cm ** 2 / uu.s / uu.Angstrom,
                                         equivalencies=uu.spectral_density(wav=lambda_observer_frame * uu.Angstrom))
             if kwargs['output_format'] == 'spectra':
@@ -2521,7 +2521,7 @@ def csm_shock_and_arnett(time, redshift, mej, f_nickel, csm_mass, v_min, beta, s
         sed_1 = sed.Blackbody(temperature=photo.photosphere_temperature, r_photosphere=photo.r_photosphere,
                               frequency=frequency, luminosity_distance=dl)
         flux_density = sed_1.flux_density
-        return flux_density.to(uu.mJy).value / (1 + redshift)
+        return flux_density.to(uu.mJy).value * (1 + redshift)
     else:
         time_obs = time
         lambda_observer_frame = kwargs.get('lambda_array', np.geomspace(100, 60000, 100))
@@ -2591,7 +2591,7 @@ def csm_shock_and_arnett_two_rphots(time, redshift, mej, f_nickel, csm_mass, v_m
         sed_1 = sed.Blackbody(temperature=photo.photosphere_temperature,
                               r_photosphere=photo.r_photosphere, frequency=frequency, luminosity_distance=dl)
         flux_density += sed_1.flux_density
-        return flux_density.to(uu.mJy).value / (1 + redshift)
+        return flux_density.to(uu.mJy).value * (1 + redshift)
     else:
         time_obs = time
         lambda_observer_frame = kwargs.get('lambda_array', np.geomspace(100, 60000, 100))
@@ -2666,7 +2666,7 @@ def shocked_cocoon_and_arnett(time, redshift, mej_c, vej_c, eta, tshock, shocked
         sed_1 = sed.Blackbody(temperature=photo.photosphere_temperature,
                               r_photosphere=photo.r_photosphere, frequency=frequency, luminosity_distance=dl)
         flux_density += sed_1.flux_density
-        return flux_density.to(uu.mJy).value / (1 + redshift)
+        return flux_density.to(uu.mJy).value * (1 + redshift)
     else:
         lambda_observer_frame = kwargs.get('frequency_array', np.geomspace(100, 60000, 200))
         time_temp = np.linspace(1e-2, 300, 300)
@@ -2814,7 +2814,7 @@ def typeII_surrogate_sarin25(time, redshift, progenitor, ni_mass, log10_mdot, be
         points = np.column_stack((time, frequency))
 
         # Return interpolated flux density with (1+z) correction for observer frame
-        return flux_interpolator(points) / (1 + redshift)
+        return flux_interpolator(points) * (1 + redshift)
 
     else:
         # Create denser grid for output (in rest frame)
@@ -2843,7 +2843,7 @@ def typeII_surrogate_sarin25(time, redshift, progenitor, ni_mass, log10_mdot, be
 
         # Apply (1+z) correction to flux and convert units
         # After dividing by (1+z), flux is in observer frame at observer-frame wavelengths
-        flux_observer = interpolated_flux / (1 + redshift)
+        flux_observer = interpolated_flux * (1 + redshift)
         spectra = flux_observer.to(
             uu.erg / uu.cm ** 2 / uu.s / uu.Angstrom,
             equivalencies=uu.spectral_density(wav=lambda_observer_frame * uu.Angstrom)
