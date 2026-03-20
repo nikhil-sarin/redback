@@ -40,7 +40,7 @@ extinction_supernova_base_models = ['sn_exponential_powerlaw', 'arnett', 'shock_
                                     'shockcooling_sapirwaxman_and_arnett',
                                     'csm_shock_and_arnett', 'shocked_cocoon_and_arnett',
                                     'csm_shock_and_arnett_two_rphots', 'typeII_surrogate_sarin25',
-                                    'shocked_cocoon_csm_and_arnett']
+                                    'shocked_cocoon_csm_and_arnett', 'sn1998bw_template', 'sn1998bw_template_with_extrapolation']
 extinction_kilonova_base_models = ['nicholl_bns', 'mosfit_rprocess', 'mosfit_kilonova',
                                    'power_law_stratified_kilonova','bulla_bns_kilonova',
                                    'bulla_nsbh_kilonova', 'kasen_bns_kilonova','two_layer_stratified_kilonova',

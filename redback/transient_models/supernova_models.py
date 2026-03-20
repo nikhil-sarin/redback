@@ -229,6 +229,119 @@ def sn1998bw_template(time, redshift, amplitude, **kwargs):
                                                           spectra=f_lambda_obs, lambda_array=lambda_obs,
                                                           **kwargs)
 
+
+@citation_wrapper('Levan et al. 2026 (in prep), sn1998bw_template, sncosmo, redback')
+def sn1998bw_template_with_extrapolation(time, redshift, ampitude, **kwargs):
+    """
+    A wrapper to the SN1998bw template now including extrapolation over a wider range of frequencies (Optical to NIR). 
+    Now valid between 100 - 1,000,000 Angstroms and 0.1 to 200 days post explosion in rest frame.
+
+    Parameters
+    ----------
+    time
+        time in days in observer frame (post explosion)
+    redshift
+        redshift
+    amplitude
+        amplitude scaling factor, where 1.0 is the original brightness of SN1998bw; and f_lambda is scaled by this factor
+    kwargs
+        Additional keyword arguments required by redback.
+    frequency
+        Required if output_format is 'flux_density'. frequency to calculate - Must be same length as time array or a single number).
+    bands
+        Required if output_format is 'magnitude' or 'flux'.
+    output_format
+        'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
+    cosmology
+        Cosmology to use for luminosity distance calculation. Defaults to Planck18. Must be a astropy.cosmology object.
+    Returns
+    -------
+        set by output format - 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
+
+    """
+
+    import sncosmo
+    model = sncosmo.Model(source='v19-1998bw')
+    original_redshift = 0.0085
+    cosmology = kwargs.get("cosmology", cosmo)
+    original_dl = (43*uu.Mpc).to(uu.cm).value
+
+    # From roughly matching to Galama+ or Clocchiatti+1998bw light curves
+    original_peak_time = 15
+    model.set(z=original_redshift, t0=original_peak_time)
+    model.set_source_peakmag(14.25, band='bessellb', magsys='ab')
+    #define extended time and wavelength ranges
+    tts = np.geomspace(0.1, 120, 100)
+    lls = np.logspace(2, 6, 500) 
+    f_lambda_grid = np.zeros((len(tts), len(lls_rest))) #erg/s/cm^2/Angstrom.
+    #define reliable template range which extrapolates from points slightly within the boundary of the function to avoid harsh drop off 
+    blue_lim, red_lim = 1700, 10000 
+
+    # We consider this the rest frame spectrum of 1998bw. Now we can redshift it and scale it.
+    for i, t_obs in enumerate(tts):
+        t_rest = t_obs / (1 + redshift)
+        
+        #Introduce Blackbody for extrapolation
+        T = 12000 * (max(t_rest, 1) / 15)**-0.35 
+        T = np.clip(T, 3500, 25000)
+        bb = BlackBody(temperature=T * uu.K)
+        
+        def bb_unit_lambda(w):
+            return (bb(w * uu.Angstrom) * np.pi * uu.sr).to(
+                uu.erg / (uu.s * uu.cm**2 * uu.Angstrom), 
+                equivalencies=uu.spectral_density(w * uu.Angstrom)).value
+
+        # Get template flux at edges
+        f_blue_anchor = model.flux(t_rest, blue_lim)
+        f_red_anchor = model.flux(t_rest, red_lim)
+        
+        s_blue = f_blue_anchor / bb_unit_lambda(blue_lim) if f_blue_anchor > 1e-20 else 0
+        s_red = f_red_anchor / bb_unit_lambda(red_lim) if f_red_anchor > 1e-20 else 0
+
+        f_row = np.zeros_like(lls_rest)
+    
+        mask_mid = (lls_rest >= blue_lim) & (lls_rest <= red_lim)
+        f_row[mask_mid] = model.flux(t_rest, lls_rest[mask_mid])
+        # IR Extrapolation (for J, H, K)
+        f_row[lls_rest > red_lim] = bb_unit_lambda(lls_rest[lls_rest > red_lim]) * s_red
+        # UV Extrapolation
+        f_row[lls_rest < blue_lim] = bb_unit_lambda(lls_rest[lls_rest < blue_lim]) * s_blue
+        # Scale to luminosity then back to new observer distance
+        l_lambda = f_row * 4 * np.pi * orig_dl**2
+        f_lambda_obs = amplitude * (l_lambda / (4 * np.pi * dl_new**2)) * (1 + redshift) # accounting for bandwidth stretching
+        f_lambda_grid[i, :] = f_lambda_obs
+
+    # Final conversion and interpolation
+    obs_wavelengths = lls_rest * (1 + redshift)
+    if kwargs.get('output_format') == 'flux_density':
+        # Convert flux density to mJy
+        f_mjy = (f_lambda_grid * (uu.erg / (uu.s * uu.cm**2 * uu.Angstrom))).to(
+            uu.mJy, equivalencies=uu.spectral_density(obs_wavelengths * uu.Angstrom)).value
+
+        obs_freqs = 2.99792458e18 / obs_wavelengths
+        # Create interpolator on obs frame grid
+        interp = RegularGridInterpolator((tts, np.flip(obs_freqs)), np.flip(f_mjy, axis=1),
+                                        bounds_error=False, fill_value=0.0)
+
+        # Prepare points for interpolation
+        f_eval = np.atleast_1d(kwargs.get('frequency'))
+        t_eval = np.atleast_1d(time)
+        if f_eval.size == 1:
+            f_eval = np.full_like(t_eval, f_eval)
+        # Create points for evaluation
+        points = np.column_stack((t_eval, f_eval))
+        # Return interpolated flux density with (1+z) correction for observer frame
+        return interp(points)
+
+    elif kwargs['output_format'] == 'spectra':
+        return namedtuple('output', ['time', 'lambdas', 'spectra'])(time=time_obs,
+                                                                    lambdas=lambda_obs,
+                                                                    spectra=f_lambda_obs)
+    else:
+        return sed.get_correct_output_format_from_spectra(time=time, time_eval=time_obs,
+                                                          spectra=f_lambda_obs, lambda_array=lambda_obs,
+                                                          **kwargs)
+
 @citation_wrapper('redback')
 def exponential_powerlaw_bolometric(time, lbol_0, alpha_1, alpha_2, tpeak_d, **kwargs):
     """
