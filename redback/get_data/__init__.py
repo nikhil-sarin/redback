@@ -5,7 +5,7 @@ import urllib
 
 import pandas as pd
 
-from redback.get_data import batse, directory, fermi, getter, konus, lasair, fink, open_data, swift, utils
+from redback.get_data import batse, directory, fermi, getter, konus, lasair, fink, open_data, otter, swift, utils
 from redback.get_data.swift import SwiftDataGetter
 from redback.get_data.open_data import OpenDataGetter
 from redback.get_data.batse import BATSEDataGetter
@@ -13,11 +13,12 @@ from redback.get_data.fermi import FermiDataGetter
 from redback.get_data.konus import KonusDataGetter
 from redback.get_data.lasair import LasairDataGetter
 from redback.get_data.fink import FinkDataGetter
+from redback.get_data.otter import OtterDataGetter
 from redback.utils import logger
 
 SWIFT_PROMPT_BIN_SIZES = ['1s', '2ms', '8ms', '16ms', '64ms', '256ms']
 
-DATA_SOURCES = ["swift", "swift_xrt", "fermi", "konus", "batse", "open_data"]
+DATA_SOURCES = ["swift", "swift_xrt", "fermi", "konus", "batse", "open_data", "otter"]
 TRANSIENT_TYPES = ["afterglow", "prompt", "kilonova", "supernova", "tidal_disruption_event"]
 
 
@@ -271,6 +272,60 @@ def get_oac_metadata() -> None:
     logger.info('Downloaded metadata for open access catalog transients.')
 
 
+def get_kilonova_data_from_otter(transient: str, obs_type: str = 'uvoir', **kwargs: None) -> pd.DataFrame:
+    """Get kilonova data from OTTER. Creates a directory structure and saves the data.
+    Returns the data, though no further action needs to be taken by the user.
+
+    :param transient: The name of the transient, e.g. '19dsg' or 'AT2017gfo'.
+    :type transient: str
+    :param obs_type: Observation type: 'uvoir', 'radio', or 'xray'. Default is 'uvoir'.
+    :type obs_type: str
+    :param kwargs: Placeholder to prevent TypeErrors.
+    :type kwargs: None
+
+    :return: The processed data.
+    :rtype: pandas.DataFrame
+    """
+    getter = OtterDataGetter(transient=transient, transient_type='kilonova', obs_type=obs_type)
+    return getter.get_data()
+
+
+def get_supernova_data_from_otter(transient: str, obs_type: str = 'uvoir', **kwargs: None) -> pd.DataFrame:
+    """Get supernova data from OTTER. Creates a directory structure and saves the data.
+    Returns the data, though no further action needs to be taken by the user.
+
+    :param transient: The name of the transient, e.g. 'SN2011fe'.
+    :type transient: str
+    :param obs_type: Observation type: 'uvoir', 'radio', or 'xray'. Default is 'uvoir'.
+    :type obs_type: str
+    :param kwargs: Placeholder to prevent TypeErrors.
+    :type kwargs: None
+
+    :return: The processed data.
+    :rtype: pandas.DataFrame
+    """
+    getter = OtterDataGetter(transient=transient, transient_type='supernova', obs_type=obs_type)
+    return getter.get_data()
+
+
+def get_tidal_disruption_event_data_from_otter(transient: str, obs_type: str = 'uvoir', **kwargs: None) -> pd.DataFrame:
+    """Get TDE data from OTTER. Creates a directory structure and saves the data.
+    Returns the data, though no further action needs to be taken by the user.
+
+    :param transient: The name of the transient, e.g. 'ASASSN-14li'.
+    :type transient: str
+    :param obs_type: Observation type: 'uvoir', 'radio', or 'xray'. Default is 'uvoir'.
+    :type obs_type: str
+    :param kwargs: Placeholder to prevent TypeErrors.
+    :type kwargs: None
+    
+    :return: The processed data.
+    :rtype: pandas.DataFrame
+    """
+    getter = OtterDataGetter(transient=transient, transient_type='tidal_disruption_event', obs_type=obs_type)
+    return getter.get_data()
+
+
 _functions_dict = {
     ("afterglow", "swift"): get_bat_xrt_afterglow_data_from_swift,
     ("afterglow", "swift_xrt"): get_xrt_afterglow_data_from_swift,
@@ -280,7 +335,11 @@ _functions_dict = {
     ("prompt", "batse"): get_prompt_data_from_batse,
     ("kilonova", "open_data"): get_kilonova_data_from_open_transient_catalog_data,
     ("supernova", "open_data"): get_supernova_data_from_open_transient_catalog_data,
-    ("tidal_disruption_event", "open_data"): get_tidal_disruption_event_data_from_open_transient_catalog_data}
+    ("tidal_disruption_event", "open_data"): get_tidal_disruption_event_data_from_open_transient_catalog_data,
+    ("kilonova", "otter"): get_kilonova_data_from_otter,
+    ("supernova", "otter"): get_supernova_data_from_otter,
+    ("tidal_disruption_event", "otter"): get_tidal_disruption_event_data_from_otter,
+}
 
 
 def get_data(

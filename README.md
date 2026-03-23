@@ -18,7 +18,7 @@ The launch of new telescopes/surveys is leading to an explosion of transient obs
 Redback is a software package for modelling, end-to-end interpretation and parameter estimation of these transients.
 
 - Download data for supernovae, tidal disruption events, gamma-ray burst afterglows, kilonovae, prompt emission from 
-  different catalogs/telescopes; Swift, BATSE, Open access catalogs, FINK and LASAIR brokers. 
+  different catalogs/telescopes; Swift, BATSE, Open access catalogs, **OTTER**, FINK and LASAIR brokers. 
   Users can also provide their own data or use simulated data
 - Redback processes the data into a homogeneous transient object. Making it easy to plot lightcurves and do any other processing e.g., estimating bolometric luminosities or blackbody properties. 
 - The user can then fit one of the models implemented in redback. Or fit their own model. Models for several different types of electromagnetic transients are implemented and range from simple analytical models to numerical surrogates.
