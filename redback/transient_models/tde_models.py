@@ -96,7 +96,7 @@ def _cooling_envelope(mbh_6, stellar_mass, eta, alpha, beta, **kwargs):
     tfb = calc_tfb(binding_energy_const, mbh_6, stellar_mass * f_debris)
     # Eddington luminosity of SMBH in units of 1e40 erg/s
     Ledd40 = 1.4e4 * mbh_6
-    time_temp = np.logspace(np.log10(1.0 * tfb), np.log10(5000 * tfb), 500)
+    time_temp = np.logspace(np.log10(1.0 * tfb), np.log10(200 * tfb), 2000)
     tdays = time_temp / cc.day_to_s
 
     # set up grids
@@ -1265,7 +1265,7 @@ def fitted(time, redshift, log_mh, a_bh, m_disc, r0, tvi, t_form, incl, **kwargs
         frequency, time = calc_kcorrected_properties(frequency=lambda_to_nu(lambda_observer_frame),
                                                      redshift=redshift, time=time_observer_frame)
         nulnus = m.model_SEDs(time, log_mh, a_bh, m_disc, r0, tvi, t_form, ang, frequency)
-        flux_density = (nulnus/(4.0 * np.pi * dl**2 * frequency[:,np.newaxis])) # * 1.0e-26
+        flux_density = (nulnus/(4.0 * np.pi * dl**2 * frequency[:,np.newaxis]))
         fmjy = flux_density.T
         spectra = flux_density_to_spectrum(flux_density=fmjy, redshift=redshift, lambda_observer_frame=lambda_observer_frame)
         if kwargs['output_format'] == 'spectra':
