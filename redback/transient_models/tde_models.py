@@ -1254,7 +1254,7 @@ def fitted(time, redshift, log_mh, a_bh, m_disc, r0, tvi, t_form, incl, **kwargs
             for i in range(0,len(freqs_un)):
                 inds = np.where(frequency == freqs_un[i])[0]
                 nulnus[inds] = m.model_UV([time[j] for j in inds], log_mh, a_bh, m_disc, r0, tvi, t_form, ang, freqs_un[i])
-        flux_density = nulnus/(4.0 * np.pi * dl**2 * frequency)          
+        flux_density = nulnus/(4.0 * np.pi * dl**2 * frequency)
         return flux_density/1.0e-26  * (1 + redshift)
 
     else:
