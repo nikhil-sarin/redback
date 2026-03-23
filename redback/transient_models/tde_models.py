@@ -1432,7 +1432,6 @@ def fitted_exp_decay(time, redshift, log_mh, a_bh, m_disc, r0, tvi, t_form, incl
                         (np.exp(cc.planck * freq_0/(cc.boltzmann_constant * 10**log_T)) - 1)/(np.exp(cc.planck * frequency/(cc.boltzmann_constant * 10**log_T)) - 1)).T) 
         flux_density = ((nulnus_risedecay + nulnus_plateau)/(4.0 * np.pi * dl**2 * frequency[:,np.newaxis]))
         fmjy = flux_density.T
-        print(fmjy[0])
         spectra = flux_density_to_spectrum(flux_density=fmjy, redshift=redshift, lambda_observer_frame=lambda_observer_frame)
         if kwargs['output_format'] == 'spectra':
             return namedtuple('output', ['time', 'lambdas', 'spectra'])(time=time_observer_frame,
