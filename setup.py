@@ -56,8 +56,9 @@ setup(
             "kilonovanet",
             "astroquery",
             "pyphot==1.6.0",
-            "swifttools"
-        ]
+            "swifttools",
+            "astro-otter"
+        ],
     },
     entry_points={
         # Example of how to register model modules as plugins
