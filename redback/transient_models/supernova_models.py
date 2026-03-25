@@ -259,7 +259,7 @@ def sn1998bw_template_with_extrapolation(time, redshift, amplitude, **kwargs):
         set by output format - 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
 
     """
-
+    from astropy.modeling.models import BlackBody
     import sncosmo
     model = sncosmo.Model(source='v19-1998bw')
     original_redshift = 0.0085
