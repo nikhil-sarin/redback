@@ -1027,7 +1027,7 @@ def shocked_cocoon(time, redshift, mej, vej, eta, tshock, shocked_fraction, cos_
                                                      dl=dl, frequency=frequency)
         return flux_density.to(uu.mJy).value * (1 + redshift)
     else:
-        lambda_observer_frame = kwargs.get('frequency_array', np.geomspace(100, 60000, 100))
+        lambda_observer_frame = kwargs.get('lambda_array', np.geomspace(100, 60000, 100))
         time_temp = np.linspace(1e-2, 100, 100)
         time_observer_frame = time_temp
         frequency, time = calc_kcorrected_properties(frequency=lambda_to_nu(lambda_observer_frame),
