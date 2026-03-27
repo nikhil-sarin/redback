@@ -2,6 +2,7 @@ import contextlib
 import logging
 import os
 from collections import namedtuple
+from functools import lru_cache
 from inspect import getmembers, isfunction
 from pathlib import Path
 
@@ -38,32 +39,14 @@ def find_nearest(array, value):
     return array[idx], idx
 
 
-def get_optimal_time_array(t_min, t_max, resolution, user_times=None, time_units='seconds'):
+@lru_cache(maxsize=128)
+def _get_optimal_time_array_cached(t_min, t_max, resolution, user_times_tuple, time_units):
     """
-    Creates an adaptive time array optimized for the user's requested evaluation times.
-    This is a general utility for creating time grids that balance resolution across
-    a wide dynamic range while concentrating points where the user will evaluate.
-    
-    If user_times provided: Creates a hybrid array with extra resolution around user times
-    If not provided: Uses multi-segment geomspace covering the full range
-    
-    :param t_min: Minimum time in specified units (model range)
-    :param t_max: Maximum time in specified units (model range)
-    :param resolution: Total number of points desired
-    :param user_times: Array of times (in same units) where user wants to evaluate (optional)
-    :param time_units: Units of time ('seconds', 'days', or 'generic'). Used only for informational purposes.
-    :return: Time array optimized for interpolation
-    
-    Examples:
-        >>> # For kilonova models (seconds)
-        >>> time_array = get_optimal_time_array(1e-2, 7e6, 500, user_times=user_eval_times)
-        >>> 
-        >>> # For supernova models (days)
-        >>> time_array = get_optimal_time_array(0.1, 3000, 300, time_units='days')
-        >>> 
-        >>> # Without user times, creates balanced multi-segment array
-        >>> time_array = get_optimal_time_array(1e-4, 1e8, 500)
+    Cached version of time array generation. Args must be hashable.
+    user_times_tuple is a tuple of floats (hashable version of user_times array).
     """
+    user_times = np.array(user_times_tuple) if user_times_tuple is not None else None
+    
     if user_times is not None:
         # User has specific times they care about - optimize around those
         user_min = np.min(user_times)
@@ -120,6 +103,45 @@ def get_optimal_time_array(t_min, t_max, resolution, user_times=None, time_units
             time_array = np.geomspace(t_min, t_max, resolution)
     
     return time_array
+
+
+def get_optimal_time_array(t_min, t_max, resolution, user_times=None, time_units='seconds'):
+    """
+    Creates an adaptive time array optimized for the user's requested evaluation times.
+    This is a general utility for creating time grids that balance resolution across
+    a wide dynamic range while concentrating points where the user will evaluate.
+    
+    Results are cached for performance during inference (when models are called repeatedly
+    with the same time array).
+    
+    If user_times provided: Creates a hybrid array with extra resolution around user times
+    If not provided: Uses multi-segment geomspace covering the full range
+    
+    :param t_min: Minimum time in specified units (model range)
+    :param t_max: Maximum time in specified units (model range)
+    :param resolution: Total number of points desired
+    :param user_times: Array of times (in same units) where user wants to evaluate (optional)
+    :param time_units: Units of time ('seconds', 'days', or 'generic'). Used only for informational purposes.
+    :return: Time array optimized for interpolation
+    
+    Examples:
+        >>> # For kilonova models (seconds)
+        >>> time_array = get_optimal_time_array(1e-2, 7e6, 500, user_times=user_eval_times)
+        >>> 
+        >>> # For supernova models (days)
+        >>> time_array = get_optimal_time_array(0.1, 3000, 300, time_units='days')
+        >>> 
+        >>> # Without user times, creates balanced multi-segment array
+        >>> time_array = get_optimal_time_array(1e-4, 1e8, 500)
+    """
+    # Convert user_times to hashable tuple for caching
+    if user_times is not None:
+        user_times = np.atleast_1d(user_times)
+        user_times_tuple = tuple(user_times)
+    else:
+        user_times_tuple = None
+    
+    return _get_optimal_time_array_cached(t_min, t_max, resolution, user_times_tuple, time_units)
 
 
 def download_pointing_tables():
