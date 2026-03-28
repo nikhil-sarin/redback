@@ -226,14 +226,16 @@ def get_lasair_data(
     return getter.get_data()
 
 def get_fink_data(
-        transient: str, transient_type: str, **kwargs: None) -> pd.DataFrame:
+        transient: str, transient_type: str, source: str = 'ztf', **kwargs: None) -> pd.DataFrame:
     """Catch all data getting function for Fink data. Creates a directory structure and saves the data.
     Returns the data, though no further action needs to be taken by the user.
 
-    :param transient: The name of the transient, e.g. 'ZTF19aagqkrq'.
+    :param transient: The name of the transient, e.g. 'ZTF19aagqkrq' for ZTF or '170019717277810735' for LSST.
     :type transient: str
     :param transient_type: Type of the transient. Must be from `redback.get_data.fink.FinkDataGetter.VALID_TRANSIENT_TYPES`.
     :type transient_type: str
+    :param source: The source of the data. Must be either 'ztf' or 'lsst'. Default is 'ztf'.
+    :type source: str
     :param kwargs: Placeholder to prevent TypeErrors.
     :type kwargs: None
 
@@ -241,7 +243,7 @@ def get_fink_data(
     :rtype: pandas.DataFrame
     """
     getter = FinkDataGetter(
-        transient_type=transient_type, transient=transient)
+        transient_type=transient_type, transient=transient, source=source)
     return getter.get_data()
 
 def get_open_transient_catalog_data(
