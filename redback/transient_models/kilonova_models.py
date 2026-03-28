@@ -6,12 +6,14 @@ from scipy.interpolate import interp1d, RegularGridInterpolator
 from astropy.cosmology import Planck18 as cosmo  # noqa
 from scipy.integrate import cumulative_trapezoid
 from collections import namedtuple
+
+import redback.utils
 from redback.photosphere import TemperatureFloor, CocoonPhotosphere
 from redback.interaction_processes import Diffusion, AsphericalDiffusion
 
 from redback.utils import calc_kcorrected_properties, interpolated_barnes_and_kasen_thermalisation_efficiency, \
     electron_fraction_from_kappa, citation_wrapper, lambda_to_nu, _calculate_rosswogkorobkin24_qdot, \
-    kappa_from_electron_fraction
+    kappa_from_electron_fraction, get_optimal_time_array
 from redback.eos import PiecewisePolytrope
 from redback.sed import blackbody_to_flux_density, get_correct_output_format_from_spectra, blackbody_to_spectrum
 from redback.constants import *
@@ -353,20 +355,18 @@ def nicholl_bns(time, redshift, mass_1, mass_2, lambda_s, kappa_red, kappa_blue,
     :param bands: Required if output_format is 'magnitude' or 'flux'.
     :param output_format: 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
     :param lambda_array: Optional argument to set your desired wavelength array (in Angstroms) to evaluate the SED on.
-    :param dense_resolution: resolution of the grid that the model is actually evaluated on, default is 300
+    :param dense_resolution: resolution of the grid that the model is actually evaluated on, default is 500. Increase to 1000+ for times > 30 days
     :param cosmology: Cosmology to use for luminosity distance calculation. Defaults to Planck18. Must be a astropy.cosmology object.
     :return: set by output format - 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
     """
     from redback.transient_models.shock_powered_models import _shocked_cocoon_nicholl
     cosmology = kwargs.get('cosmology', cosmo)
     dl = cosmology.luminosity_distance(redshift).cgs.value
-    dense_resolution = kwargs.get('dense_resolution', 100)
-    time_temp = np.geomspace(0.01, 30, dense_resolution)  # in source frame and days
-    kappa_gamma = kwargs.get('kappa_gamma', 10)
-    ckm = 3e10/1e5
-
-    if np.max(time) > 20: # in source frame and days
-        time_temp = np.geomspace(0.01, np.max(time) + 5, dense_resolution)
+    dense_resolution = kwargs.get("dense_resolution", 500)
+    # Convert user times to source frame for optimal grid
+    time_source_frame = time / (1. + redshift) if hasattr(time, "__len__") else np.array([time]) / (1. + redshift)
+    t_max = max(30, np.max(time_source_frame) + 5) if np.max(time_source_frame) > 20 else 30
+    time_temp = get_optimal_time_array(0.01, t_max, dense_resolution, user_times=time_source_frame, time_units="days")
 
     time_obs = time
     shocked_fraction = kwargs.get('shocked_fraction', 0.2)
@@ -470,6 +470,116 @@ def nicholl_bns(time, redshift, mass_1, mass_2, lambda_s, kappa_red, kappa_blue,
                                                           spectra=full_spec, lambda_array=lambda_observer_frame,
                                                           **kwargs)
 
+@citation_wrapper('redback')
+def two_component_kilonova_with_cocoon(time, redshift, mej_1, vej_1, temperature_floor_1, kappa_1,
+                                 mej_2, vej_2, temperature_floor_2, kappa_2, cos_theta_cocoon,
+                                shocked_fraction, eta, tshock, **kwargs):
+    """
+    :param time: observer frame time in days
+    :param redshift: redshift
+    :param mej_1: ejecta mass in solar masses of first component
+    :param vej_1: minimum initial velocity of first component
+    :param kappa_1: gray opacity of first component
+    :param temperature_floor_1: floor temperature of first component
+    :param mej_2: ejecta mass in solar masses of second component
+    :param vej_2: minimum initial velocity of second component
+    :param temperature_floor_2: floor temperature of second component
+    :param kappa_2: gray opacity of second component
+    :param kwargs: Additional keyword arguments
+    :param frequency: Required if output_format is 'flux_density'.
+        frequency to calculate - Must be same length as time array or a single number).
+    :param bands: Required if output_format is 'magnitude' or 'flux'.
+    :param output_format: 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
+    :param lambda_array: Optional argument to set your desired wavelength array (in Angstroms) to evaluate the SED on.
+    :param cosmology: Cosmology to use for luminosity distance calculation. Defaults to Planck18. Must be a astropy.cosmology object.
+    :return: set by output format - 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
+    """
+    from redback.transient_models.shock_powered_models import shocked_cocoon, _shocked_cocoon
+    cosmology = kwargs.get('cosmology', cosmo)
+    dl = cosmology.luminosity_distance(redshift).cgs.value
+    # Convert user times to source frame seconds for optimal grid
+    time_source_frame_seconds = time * day_to_s / (1. + redshift)
+    time_temp = get_optimal_time_array(1e-2, 86400*6, 200, user_times=time_source_frame_seconds, time_units="seconds")
+    time_obs = time
+
+    mej = [mej_1, mej_2]
+    vej = [vej_1, vej_2]
+    temperature_floor = [temperature_floor_1, temperature_floor_2]
+    kappa = [kappa_1, kappa_2]
+
+    if kwargs['output_format'] == 'flux_density':
+        cocoon_flux = shocked_cocoon(time=time_obs, redshift=redshift, mej=mej_1,
+                                     vej=vej_1, eta=eta, tshock=tshock, shocked_fraction=shocked_fraction,
+                                     cos_theta_cocoon=cos_theta_cocoon, kappa=kappa_1, **kwargs)
+        time = time * day_to_s
+        frequency = kwargs['frequency']
+
+        # convert to source frame time and frequency
+        frequency, time = calc_kcorrected_properties(frequency=frequency, redshift=redshift, time=time)
+
+        ff = np.zeros(len(time))
+        for x in range(2):
+            temp_kwargs = {}
+            temp_kwargs['temperature_floor'] = temperature_floor[x]
+            _, temperature, r_photosphere = _one_component_kilonova_model(time_temp, mej[x], vej[x], kappa[x],
+                                                                          **temp_kwargs)
+            # interpolate properties onto observation times
+            temp_func = interp1d(time_temp, y=temperature)
+            rad_func = interp1d(time_temp, y=r_photosphere)
+            temp = temp_func(time)
+            photosphere = rad_func(time)
+            flux_density = blackbody_to_flux_density(temperature=temp, r_photosphere=photosphere,
+                                                     dl=dl, frequency=frequency)
+            units = flux_density.unit
+            ff += flux_density.value
+
+        ff = ff * units
+        return (ff.to(uu.mJy).value * (1 + redshift)) + cocoon_flux
+    else:
+        lambda_observer_frame = kwargs.get('lambda_array', np.geomspace(100, 60000, 200))
+        time_observer_frame = time_temp * (1. + redshift)
+        frequency, time = calc_kcorrected_properties(frequency=lambda_to_nu(lambda_observer_frame),
+                                                     redshift=redshift, time=time_observer_frame)
+        full_spec = np.zeros((len(time), len(frequency)))
+
+        output = _shocked_cocoon(time=time/day_to_s, mej=mej_1, vej=vej_1, eta=eta,
+                                 tshock=tshock, shocked_fraction=shocked_fraction,
+                                 cos_theta_cocoon=cos_theta_cocoon, kappa=kappa_1)
+        cocoon_spectra = blackbody_to_spectrum(
+            temperature=output.temperature,
+            r_photosphere=output.r_photosphere,
+            frequency=frequency[:, None],
+            dl=dl,
+            redshift=redshift,
+            lambda_observer_frame=lambda_observer_frame
+        )
+        for x in range(2):
+            temp_kwargs = {}
+            temp_kwargs['temperature_floor'] = temperature_floor[x]
+            _, temperature, r_photosphere = _one_component_kilonova_model(time_temp, mej[x], vej[x], kappa[x],
+                                                                          **temp_kwargs)
+            spectra = blackbody_to_spectrum(
+                temperature=temperature,
+                r_photosphere=r_photosphere,
+                frequency=frequency[:, None],
+                dl=dl,
+                redshift=redshift,
+                lambda_observer_frame=lambda_observer_frame
+            )
+            units = spectra.unit
+            full_spec += spectra.value
+
+        full_spec = full_spec * units
+        full_spec += cocoon_spectra
+        if kwargs['output_format'] == 'spectra':
+            return namedtuple('output', ['time', 'lambdas', 'spectra'])(time=time_observer_frame,
+                                                                           lambdas=lambda_observer_frame,
+                                                                           spectra=full_spec)
+        else:
+            return get_correct_output_format_from_spectra(time=time_obs, time_eval=time_observer_frame/day_to_s,
+                                                          spectra=full_spec, lambda_array=lambda_observer_frame,
+                                                          **kwargs)
+
 
 @citation_wrapper('https://ui.adsabs.harvard.edu/abs/2017ApJ...851L..21V/abstract')
 def mosfit_rprocess(time, redshift, mej, vej, kappa, kappa_gamma, temperature_floor, **kwargs):
@@ -490,7 +600,7 @@ def mosfit_rprocess(time, redshift, mej, vej, kappa, kappa_gamma, temperature_fl
     :param bands: Required if output_format is 'magnitude' or 'flux'.
     :param output_format: 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
     :param lambda_array: Optional argument to set your desired wavelength array (in Angstroms) to evaluate the SED on.
-    :param dense_resolution: resolution of the grid that the model is actually evaluated on, default is 300
+    :param dense_resolution: resolution of the grid that the model is actually evaluated on, default is 500. Increase to 1000+ for times > 30 days
     :param cosmology: Cosmology to use for luminosity distance calculation. Defaults to Planck18. Must be a astropy.cosmology object.
     :return: set by output format - 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
     """
@@ -498,7 +608,10 @@ def mosfit_rprocess(time, redshift, mej, vej, kappa, kappa_gamma, temperature_fl
     cosmology = kwargs.get('cosmology', cosmo)
     dl = cosmology.luminosity_distance(redshift).cgs.value
     dense_resolution = kwargs.get('dense_resolution', 300)
-    time_temp = np.geomspace(1e-2, 7e6, dense_resolution) # in source frame in seconds
+    # Convert user times to source frame seconds for optimal grid
+    time_source_frame_seconds = time * day_to_s / (1. + redshift)
+    time_temp = get_optimal_time_array(1e-2, 7e6, dense_resolution, user_times=time_source_frame_seconds,
+                                       time_units="seconds")
     time_obs = time
     lbols = _mosfit_kilonova_one_component_lbol(time=time_temp,
                                                 mej=mej, vej=vej)
@@ -573,7 +686,7 @@ def mosfit_kilonova(time, redshift, mej_1, vej_1, temperature_floor_1, kappa_1,
     :param bands: Required if output_format is 'magnitude' or 'flux'.
     :param output_format: 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
     :param lambda_array: Optional argument to set your desired wavelength array (in Angstroms) to evaluate the SED on.
-    :param dense_resolution: resolution of the grid that the model is actually evaluated on, default is 300
+    :param dense_resolution: resolution of the grid that the model is actually evaluated on, default is 500. Increase to 1000+ for times > 30 days
     :param cosmology: Cosmology to use for luminosity distance calculation. Defaults to Planck18. Must be a astropy.cosmology object.
     :return: set by output format - 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
     """
@@ -581,7 +694,9 @@ def mosfit_kilonova(time, redshift, mej_1, vej_1, temperature_floor_1, kappa_1,
     cosmology = kwargs.get('cosmology', cosmo)
     dl = cosmology.luminosity_distance(redshift).cgs.value
     dense_resolution = kwargs.get('dense_resolution', 300)
-    time_temp = np.geomspace(1e-2, 7e6, dense_resolution)  # in source frame in s
+    # Convert user times to source frame seconds for optimal grid
+    time_source_frame_seconds = time * day_to_s / (1. + redshift)
+    time_temp = get_optimal_time_array(1e-2, 7e6, dense_resolution, user_times=time_source_frame_seconds, time_units="seconds")
     time_obs = time
     mej = [mej_1, mej_2, mej_3]
     vej = [vej_1, vej_2, vej_3]
@@ -1021,7 +1136,11 @@ def three_component_kilonova_model(time, redshift, mej_1, vej_1, temperature_flo
     """
     cosmology = kwargs.get('cosmology', cosmo)
     dl = cosmology.luminosity_distance(redshift).cgs.value
-    time_temp = np.geomspace(1e-2, 7e6, 300) # in source frame
+    dense_resolution = kwargs.get("dense_resolution", 300)
+    # Convert user times to source frame seconds for optimal grid
+    time_source_frame_seconds = time * day_to_s / (1. + redshift)
+    time_temp = get_optimal_time_array(1e-2, 7e6, dense_resolution, user_times=time_source_frame_seconds,
+                                       time_units="seconds")
     time_obs = time
 
     mej = [mej_1, mej_2, mej_3]
@@ -1113,7 +1232,10 @@ def two_component_kilonova_model(time, redshift, mej_1, vej_1, temperature_floor
     """
     cosmology = kwargs.get('cosmology', cosmo)
     dl = cosmology.luminosity_distance(redshift).cgs.value
-    time_temp = np.geomspace(1e-2, 7e6, 300) # in source frame
+    dense_resolution = kwargs.get("dense_resolution", 500)
+    # Convert user times to source frame seconds for optimal grid
+    time_source_frame_seconds = time * day_to_s / (1. + redshift)
+    time_temp = get_optimal_time_array(1e-2, 86400*6, dense_resolution, user_times=time_source_frame_seconds, time_units="seconds")
     time_obs = time
 
     mej = [mej_1, mej_2]
@@ -1424,12 +1546,17 @@ def one_component_kilonova_model(time, redshift, mej, vej, kappa, **kwargs):
     :param bands: Required if output_format is 'magnitude' or 'flux'.
     :param output_format: 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
     :param lambda_array: Optional argument to set your desired wavelength array (in Angstroms) to evaluate the SED on.
+    :param dense_resolution: resolution of the grid that the model is actually evaluated on, default is 500. Increase to 1000+ for times > 30 days
     :param cosmology: Cosmology to use for luminosity distance calculation. Defaults to Planck18. Must be a astropy.cosmology object.
     :return: set by output format - 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
     """
     cosmology = kwargs.get('cosmology', cosmo)
     dl = cosmology.luminosity_distance(redshift).cgs.value
-    time_temp = np.geomspace(1e-3, 7e6, 300) # in source frame
+    dense_resolution = kwargs.get("dense_resolution", 500)
+    # Convert user times to source frame seconds for optimal grid
+    time_source_frame_seconds = time * day_to_s / (1. + redshift)
+    time_temp = get_optimal_time_array(1e-2, 7e6, dense_resolution,
+                                       user_times=time_source_frame_seconds) # in source frame
     time_obs = time
     _, temperature, r_photosphere = _one_component_kilonova_model(time_temp, mej, vej, kappa, **kwargs)
 
@@ -1522,7 +1649,7 @@ def _one_component_kilonova_rosswog_heatingrate(time, mej, vej, electron_fractio
 
     v0 = vej * speed_of_light
     m0 = mej * solar_mass
-    kappa = kappa_from_electron_fraction(electron_fraction)
+    kappa = kwargs.get('kappa', kappa_from_electron_fraction(electron_fraction))
     tdiff = np.sqrt(2.0 * kappa * (m0) / (beta * v0 * speed_of_light))
 
     lum_in = _calc_new_heating_rate(time, mej, electron_fraction, vej, **kwargs)
@@ -1561,12 +1688,16 @@ def one_comp_kne_rosswog_heatingrate(time, redshift, mej, vej, ye, **kwargs):
     :param bands: Required if output_format is 'magnitude' or 'flux'.
     :param output_format: 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
     :param lambda_array: Optional argument to set your desired wavelength array (in Angstroms) to evaluate the SED on.
+    :param dense_resolution: resolution of the grid that the model is actually evaluated on, default is 500. Increase to 1000+ for times > 30 days
     :param cosmology: Cosmology to use for luminosity distance calculation. Defaults to Planck18. Must be a astropy.cosmology object.
     :return: set by output format - 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
     """
     cosmology = kwargs.get('cosmology', cosmo)
     dl = cosmology.luminosity_distance(redshift).cgs.value
-    time_temp = np.geomspace(1e-3, 7e6, 300) # in source frame
+    dense_resolution = kwargs.get("dense_resolution", 500)
+    # Convert user times to source frame seconds for optimal grid
+    time_source_frame_seconds = time * day_to_s / (1. + redshift)
+    time_temp = get_optimal_time_array(1e-2, 7e6, dense_resolution, user_times=time_source_frame_seconds) # in source frame
     time_obs = time
     _, temperature, r_photosphere = _one_component_kilonova_rosswog_heatingrate(time_temp, mej, vej, ye, **kwargs)
 
@@ -1632,12 +1763,16 @@ def two_comp_kne_rosswog_heatingrate(time, redshift, mej_1, vej_1, temperature_f
     :param bands: Required if output_format is 'magnitude' or 'flux'.
     :param output_format: 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
     :param lambda_array: Optional argument to set your desired wavelength array (in Angstroms) to evaluate the SED on.
+    :param dense_resolution: resolution of the grid that the model is actually evaluated on, default is 500. Increase to 1000+ for times > 30 days
     :param cosmology: Cosmology to use for luminosity distance calculation. Defaults to Planck18. Must be a astropy.cosmology object.
     :return: set by output format - 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
     """
     cosmology = kwargs.get('cosmology', cosmo)
     dl = cosmology.luminosity_distance(redshift).cgs.value
-    time_temp = np.geomspace(1e-2, 7e6, 300) # in source frame
+    dense_resolution = kwargs.get("dense_resolution", 500)
+    # Convert user times to source frame seconds for optimal grid
+    time_source_frame_seconds = time * day_to_s / (1. + redshift)
+    time_temp = get_optimal_time_array(1e-2, 7e6, dense_resolution, user_times=time_source_frame_seconds) # in source frame
     time_obs = time
 
     mej = [mej_1, mej_2]
@@ -1770,12 +1905,16 @@ def metzger_kilonova_model(time, redshift, mej, vej, beta, kappa, **kwargs):
     :param bands: Required if output_format is 'magnitude' or 'flux'.
     :param output_format: 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
     :param lambda_array: Optional argument to set your desired wavelength array (in Angstroms) to evaluate the SED on.
+    :param dense_resolution: resolution of the grid that the model is actually evaluated on, default is 500. Increase to 1000+ for times > 30 days
     :param cosmology: Cosmology to use for luminosity distance calculation. Defaults to Planck18. Must be a astropy.cosmology object.
     :return: set by output format - 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
     """
     cosmology = kwargs.get('cosmology', cosmo)
     dl = cosmology.luminosity_distance(redshift).cgs.value
-    time_temp = np.geomspace(1e-4, 7e6, 300) # in source frame
+    dense_resolution = kwargs.get("dense_resolution", 500)
+    # Convert user times to source frame seconds for optimal grid
+    time_source_frame_seconds = time * day_to_s / (1. + redshift)
+    time_temp = get_optimal_time_array(1e-2, 7e6, dense_resolution, user_times=time_source_frame_seconds) # in source frame
     time_obs = time
     bolometric_luminosity, temperature, r_photosphere = _metzger_kilonova_model(time_temp, mej, vej, beta,
                                                                                 kappa, **kwargs)
