@@ -9,7 +9,7 @@ import redback.sed as sed
 from redback.sed import flux_density_to_spectrum, blackbody_to_spectrum
 import redback.photosphere as photosphere
 from astropy.cosmology import Planck18 as cosmo  # noqa
-from redback.utils import (calc_kcorrected_properties, citation_wrapper, logger, get_csm_properties, nu_to_lambda,
+from redback.utils import (calc_kcorrected_properties, citation_wrapper, logger, get_csm_properties, nu_to_lambda, get_optimal_time_array,
                            lambda_to_nu, velocity_from_lorentz_factor, build_spectral_feature_list)
 from redback.constants import day_to_s, solar_mass, km_cgs, au_cgs, speed_of_light, sigma_sb
 from inspect import isfunction
@@ -294,7 +294,7 @@ def sn_fallback(time, redshift, logl1, tr, **kwargs):
     else:
         time_obs = time
         lambda_observer_frame = kwargs.get('lambda_array', np.geomspace(100, 60000, 100))
-        time_temp = np.geomspace(0.1, 3000, 300) # in days
+        time_temp = get_optimal_time_array(0.1, 3000, 300) # in days
         time_observer_frame = time_temp * (1. + redshift)
         frequency, time = calc_kcorrected_properties(frequency=lambda_to_nu(lambda_observer_frame),
                                                      redshift=redshift, time=time_observer_frame)
@@ -354,7 +354,7 @@ def sn_nickel_fallback(time, redshift, mej, f_nickel, logl1, tr, **kwargs):
     else:
         time_obs = time
         lambda_observer_frame = kwargs.get('lambda_array', np.geomspace(100, 60000, 100))
-        time_temp = np.geomspace(0.1, 3000, 300) # in days
+        time_temp = get_optimal_time_array(0.1, 3000, 300) # in days
         time_observer_frame = time_temp * (1. + redshift)
         frequency, time = calc_kcorrected_properties(frequency=lambda_to_nu(lambda_observer_frame),
                                                      redshift=redshift, time=time_observer_frame)
@@ -417,7 +417,7 @@ def sn_exponential_powerlaw(time, redshift, lbol_0, alpha_1, alpha_2, tpeak_d, *
     else:
         time_obs = time
         lambda_observer_frame = kwargs.get('lambda_array', np.geomspace(100, 60000, 100))
-        time_temp = np.geomspace(0.1, 3000, 300) # in days
+        time_temp = get_optimal_time_array(0.1, 3000, 300) # in days
         time_observer_frame = time_temp * (1. + redshift)
         frequency, time = calc_kcorrected_properties(frequency=lambda_to_nu(lambda_observer_frame),
                                                      redshift=redshift, time=time_observer_frame)
@@ -734,7 +734,7 @@ def nickelmixing_bolometric(time, mej, esn, kappa, kappa_gamma, f_nickel, f_mixi
     """
     dense_resolution = kwargs.get("dense_resolution", 200)
     stop_time = kwargs.get("stop_time", 300)
-    time_temp = np.geomspace(0.01, int(stop_time), int(dense_resolution))
+    time_temp = get_optimal_time_array(0.01, int(stop_time, 300), int(dense_resolution))
     outputs = _nickelmixing(time_temp * 86400, mej=mej, esn=esn, kappa=kappa,
                                kappa_gamma=kappa_gamma, f_nickel=f_nickel,
                                f_mixing=f_mixing, temperature_floor=temperature_floor, **kwargs)
@@ -779,7 +779,10 @@ def nickelmixing(time, redshift, mej, esn, kappa, kappa_gamma, f_nickel, f_mixin
     # dl = cosmology.luminosity_distance(redshift).cgs.value
     dense_resolution = kwargs.get("dense_resolution", 1000)
     stop_time = kwargs.get("stop_time", 300)
-    time_temp = np.geomspace(0.01, int(stop_time), int(dense_resolution))
+    dense_resolution = kwargs.get("dense_resolution", 300)
+    # Convert user times to source frame for optimal grid
+    time_source_frame = time / (1. + redshift)
+    time_temp = get_optimal_time_array(0.01, int(stop_time, dense_resolution, user_times=time_source_frame, time_units="days"), int(dense_resolution))
     outputs = _nickelmixing(time_temp * 86400, mej=mej, esn=esn, kappa=kappa,
                                                      kappa_gamma=kappa_gamma, f_nickel=f_nickel,
                                                      f_mixing=f_mixing, temperature_floor=temperature_floor, **kwargs)
@@ -881,7 +884,7 @@ def arnett(time, redshift, f_nickel, mej, **kwargs):
     else:
         time_obs = time
         lambda_observer_frame = kwargs.get('lambda_array', np.geomspace(100, 60000, 100))
-        time_temp = np.geomspace(0.1, 3000, 300) # in days
+        time_temp = get_optimal_time_array(0.1, 3000, 300) # in days
         time_observer_frame = time_temp * (1. + redshift)
         frequency, time = calc_kcorrected_properties(frequency=lambda_to_nu(lambda_observer_frame),
                                                      redshift=redshift, time=time_observer_frame)
@@ -1001,7 +1004,7 @@ def arnett_with_features(time, redshift, f_nickel, mej, **kwargs):
     else:
         time_obs = time
         lambda_observer_frame = kwargs.get('lambda_array', np.geomspace(100, 60000, 100))
-        time_temp = np.geomspace(0.1, 3000, 3000)  # in days
+        time_temp = get_optimal_time_array(0.1, 3000, 3000)  # in days
         time_observer_frame = time_temp * (1. + redshift)
         frequency, time = calc_kcorrected_properties(
             frequency=lambda_to_nu(lambda_observer_frame),
@@ -1122,7 +1125,7 @@ def shock_cooling_and_arnett(time, redshift, log10_mass, log10_radius, log10_ene
     else:
         time_obs = time
         lambda_observer_frame = kwargs.get('lambda_array', np.geomspace(100, 60000, 100))
-        time_temp = np.geomspace(0.1, 3000, 300)  # in days
+        time_temp = get_optimal_time_array(0.1, 3000, 300)  # in days
         time_observer_frame = time_temp * (1. + redshift)
         frequency, time = calc_kcorrected_properties(frequency=lambda_to_nu(lambda_observer_frame),
                                                      redshift=redshift, time=time_observer_frame)
@@ -1208,7 +1211,7 @@ def shockcooling_morag_and_arnett(time, redshift, v_shock, m_env, mej, f_rho, f_
     else:
         time_obs = time
         lambda_observer_frame = kwargs.get('lambda_array', np.geomspace(100, 60000, 100))
-        time_temp = np.geomspace(0.1, 3000, 300)  # in days
+        time_temp = get_optimal_time_array(0.1, 3000, 300)  # in days
         time_observer_frame = time_temp * (1. + redshift)
         frequency, time = calc_kcorrected_properties(frequency=lambda_to_nu(lambda_observer_frame),
                                                      redshift=redshift, time=time_observer_frame)
@@ -1296,7 +1299,7 @@ def shockcooling_sapirwaxman_and_arnett(time, redshift, v_shock, m_env, mej, f_r
     else:
         time_obs = time
         lambda_observer_frame = kwargs.get('lambda_array', np.geomspace(100, 60000, 100))
-        time_temp = np.geomspace(0.1, 3000, 300)  # in days
+        time_temp = get_optimal_time_array(0.1, 3000, 300)  # in days
         time_observer_frame = time_temp * (1. + redshift)
         frequency, time = calc_kcorrected_properties(frequency=lambda_to_nu(lambda_observer_frame),
                                                      redshift=redshift, time=time_observer_frame)
@@ -1383,7 +1386,7 @@ def basic_magnetar_powered(time, redshift, p0, bp, mass_ns, theta_pb,**kwargs):
     else:
         time_obs = time
         lambda_observer_frame = kwargs.get('lambda_array', np.geomspace(100, 60000, 100))
-        time_temp = np.geomspace(0.1, 3000, 300) # in days
+        time_temp = get_optimal_time_array(0.1, 3000, 300) # in days
         time_observer_frame = time_temp * (1. + redshift)
         frequency, time = calc_kcorrected_properties(frequency=lambda_to_nu(lambda_observer_frame),
                                                      redshift=redshift, time=time_observer_frame)
@@ -1471,7 +1474,7 @@ def slsn(time, redshift, p0, bp, mass_ns, theta_pb,**kwargs):
     else:
         time_obs = time
         lambda_observer_frame = kwargs.get('lambda_array', np.geomspace(100, 60000, 100))
-        time_temp = np.geomspace(0.1, 3000, 300)  # in days
+        time_temp = get_optimal_time_array(0.1, 3000, 300)  # in days
         time_observer_frame = time_temp * (1. + redshift)
         frequency, time = calc_kcorrected_properties(frequency=lambda_to_nu(lambda_observer_frame),
                                                      redshift=redshift, time=time_observer_frame)
@@ -1553,7 +1556,7 @@ def magnetar_nickel(time, redshift, f_nickel, mej, p0, bp, mass_ns, theta_pb, **
     else:
         time_obs = time
         lambda_observer_frame = kwargs.get('lambda_array', np.geomspace(100, 60000, 100))
-        time_temp = np.geomspace(0.1, 3000, 300)  # in days
+        time_temp = get_optimal_time_array(0.1, 3000, 300)  # in days
         time_observer_frame = time_temp * (1. + redshift)
         frequency, time = calc_kcorrected_properties(frequency=lambda_to_nu(lambda_observer_frame),
                                                      redshift=redshift, time=time_observer_frame)
@@ -1694,7 +1697,7 @@ def homologous_expansion_supernova(time, redshift, mej, ek, **kwargs):
     else:
         time_obs = time
         lambda_observer_frame = kwargs.get('lambda_array', np.geomspace(100, 60000, 100))
-        time_temp = np.geomspace(0.1, 3000, 300)  # in days
+        time_temp = get_optimal_time_array(0.1, 3000, 300)  # in days
         time_observer_frame = time_temp * (1. + redshift)
         frequency, time = calc_kcorrected_properties(frequency=lambda_to_nu(lambda_observer_frame),
                                                      redshift=redshift, time=time_observer_frame)
@@ -1759,7 +1762,7 @@ def thin_shell_supernova(time, redshift, mej, ek, **kwargs):
     else:
         time_obs = time
         lambda_observer_frame = kwargs.get('lambda_array', np.geomspace(100, 60000, 100))
-        time_temp = np.geomspace(0.1, 3000, 300)  # in days
+        time_temp = get_optimal_time_array(0.1, 3000, 300)  # in days
         time_observer_frame = time_temp * (1. + redshift)
         frequency, time = calc_kcorrected_properties(frequency=lambda_to_nu(lambda_observer_frame),
                                                      redshift=redshift, time=time_observer_frame)
@@ -1955,7 +1958,7 @@ def csm_interaction(time, redshift, mej, csm_mass, vej, eta, rho, kappa, r0, **k
     else:
         time_obs = time
         lambda_observer_frame = kwargs.get('lambda_array', np.geomspace(100, 60000, 100))
-        time_temp = np.linspace(0.1, 500, 300)  # in days
+        time_temp = get_optimal_time_array(0.1, 500, 300)  # in days
         time_observer_frame = time_temp * (1. + redshift)
         frequency, time = calc_kcorrected_properties(frequency=lambda_to_nu(lambda_observer_frame),
                                                      redshift=redshift, time=time_observer_frame)
@@ -2023,7 +2026,7 @@ def csm_nickel(time, redshift, mej, f_nickel, csm_mass, ek, eta, rho, kappa, r0,
     else:
         time_obs = time
         lambda_observer_frame = kwargs.get('lambda_array', np.geomspace(100, 60000, 100))
-        time_temp = np.geomspace(0.1, 3000, 300)  # in days
+        time_temp = get_optimal_time_array(0.1, 3000, 300)  # in days
         time_observer_frame = time_temp * (1. + redshift)
         frequency, time = calc_kcorrected_properties(frequency=lambda_to_nu(lambda_observer_frame),
                                                      redshift=redshift, time=time_observer_frame)
@@ -2099,7 +2102,7 @@ def type_1a(time, redshift, f_nickel, mej, **kwargs):
     else:
         time_obs = time
         lambdas_observer_frame = kwargs.get('lambda_array', np.geomspace(100, 60000, 100))
-        time_temp = np.geomspace(0.1, 3000, 300)  # in days
+        time_temp = get_optimal_time_array(0.1, 3000, 300)  # in days
         time_observer_frame = time_temp * (1. + redshift)
         frequency, time = calc_kcorrected_properties(frequency=lambda_to_nu(lambdas_observer_frame),
                                                      redshift=redshift, time=time_observer_frame)
@@ -2172,7 +2175,7 @@ def type_1c(time, redshift, f_nickel, mej, pp, **kwargs):
     else:
         time_obs = time
         lambda_observer_frame = kwargs.get('lambda_array', np.geomspace(100, 60000, 100))
-        time_temp = np.geomspace(0.1, 3000, 300)  # in days
+        time_temp = get_optimal_time_array(0.1, 3000, 300)  # in days
         time_observer_frame = time_temp * (1. + redshift)
         frequency, time = calc_kcorrected_properties(frequency=lambda_to_nu(lambda_observer_frame),
                                                      redshift=redshift, time=time_observer_frame)
@@ -2260,7 +2263,7 @@ def general_magnetar_slsn(time, redshift, l0, tsd, nn, ** kwargs):
     else:
         time_obs = time
         lambda_observer_frame = kwargs.get('lambda_array', np.geomspace(100, 60000, 100))
-        time_temp = np.geomspace(0.1, 3000, 300)  # in days
+        time_temp = get_optimal_time_array(0.1, 3000, 300)  # in days
         time_observer_frame = time_temp * (1. + redshift)
         frequency, time = calc_kcorrected_properties(frequency=lambda_to_nu(lambda_observer_frame),
                                                      redshift=redshift, time=time_observer_frame)
@@ -2300,7 +2303,7 @@ def general_magnetar_driven_supernova_bolometric(time, mej, E_sn, kappa, l0, tau
     :return: bolometric luminsoity or dynamics output
     """              
     pair_cascade_switch = kwargs.get('pair_cascade_switch', False)
-    time_temp = np.geomspace(1e0, 1e8, 2000)
+    time_temp = get_optimal_time_array(1e0, 1e8, 2000)
     magnetar_luminosity = magnetar_only(time=time_temp, l0=l0, tau=tau_sd, nn=nn)
     beta = np.sqrt(E_sn / (0.5 * mej * solar_mass)) / speed_of_light
     ejecta_radius = 1.0e11
@@ -2375,7 +2378,7 @@ def general_magnetar_driven_supernova(time, redshift, mej, E_sn, kappa, l0, tau_
     
     if kwargs['output_format'] == 'flux_density':
         frequency = kwargs['frequency']
-        time_temp = np.geomspace(1e0, 1e8, 2000)
+        time_temp = get_optimal_time_array(1e0, 1e8, 2000)
         frequency, time = calc_kcorrected_properties(frequency=frequency, redshift=redshift, time=time)
         magnetar_luminosity = magnetar_only(time=time_temp, l0=l0, tau=tau_sd, nn=nn)
         beta = np.sqrt(E_sn / (0.5 * mej * solar_mass)) / speed_of_light
@@ -2402,7 +2405,7 @@ def general_magnetar_driven_supernova(time, redshift, mej, E_sn, kappa, l0, tau_
     else:
         time_obs = time
         lambda_observer_frame = kwargs.get('lambda_array', np.geomspace(500, 60000, 200))
-        time_temp = np.geomspace(1e0, 1e8, 2000)
+        time_temp = get_optimal_time_array(1e0, 1e8, 2000)
         time_observer_frame = time_temp * (1. + redshift)
         frequency, time = calc_kcorrected_properties(frequency=lambda_to_nu(lambda_observer_frame),
                                               redshift=redshift, time=time_observer_frame)
@@ -2525,7 +2528,7 @@ def csm_shock_and_arnett(time, redshift, mej, f_nickel, csm_mass, v_min, beta, s
     else:
         time_obs = time
         lambda_observer_frame = kwargs.get('lambda_array', np.geomspace(100, 60000, 100))
-        time_temp = np.geomspace(0.1, 3000, 300)  # in days
+        time_temp = get_optimal_time_array(0.1, 3000, 300)  # in days
         time_observer_frame = time_temp * (1. + redshift)
         frequency, time = calc_kcorrected_properties(frequency=lambda_to_nu(lambda_observer_frame),
                                                      redshift=redshift, time=time_observer_frame)
@@ -2595,7 +2598,7 @@ def csm_shock_and_arnett_two_rphots(time, redshift, mej, f_nickel, csm_mass, v_m
     else:
         time_obs = time
         lambda_observer_frame = kwargs.get('lambda_array', np.geomspace(100, 60000, 100))
-        time_temp = np.geomspace(0.1, 300, 300)  # in days
+        time_temp = get_optimal_time_array(0.1, 300, 300)  # in days
         time_observer_frame = time_temp * (1. + redshift)
         frequency, time = calc_kcorrected_properties(frequency=lambda_to_nu(lambda_observer_frame),
                                                      redshift=redshift, time=time_observer_frame)
@@ -2669,7 +2672,7 @@ def shocked_cocoon_and_arnett(time, redshift, mej_c, vej_c, eta, tshock, shocked
         return flux_density.to(uu.mJy).value * (1 + redshift)
     else:
         lambda_observer_frame = kwargs.get('frequency_array', np.geomspace(100, 60000, 200))
-        time_temp = np.linspace(1e-2, 300, 300)
+        time_temp = get_optimal_time_array(1e-2, 300, 300)
         time_observer_frame = time_temp
         frequency, time = calc_kcorrected_properties(frequency=lambda_to_nu(lambda_observer_frame),
                                                      redshift=redshift, time=time_observer_frame)
