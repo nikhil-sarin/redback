@@ -8,6 +8,7 @@ from unittest.mock import MagicMock, PropertyMock
 import numpy as np
 import pandas as pd
 import requests
+from astropy.time import Time
 
 import redback
 
@@ -1621,38 +1622,47 @@ class TestFinkDataGetter(unittest.TestCase):
         _delete_downloaded_files()
 
     def setUp(self) -> None:
-        self.transient = "ZTF22abdjqlm"
+        self.transient_ztf = "ZTF22abdjqlm"
+        self.transient_lsst = "170019717277810735"
         self.transient_type = "supernova"
-        self.getter = redback.get_data.FinkDataGetter(
-            transient=self.transient, transient_type=self.transient_type)
+        self.getter_ztf = redback.get_data.FinkDataGetter(
+            transient=self.transient_ztf, transient_type=self.transient_type, source='ztf')
+        self.getter_lsst = redback.get_data.FinkDataGetter(
+            transient=self.transient_lsst, transient_type=self.transient_type, source='lsst')
 
     def tearDown(self) -> None:
         shutil.rmtree("supernova", ignore_errors=True)
-        del self.transient
+        del self.transient_ztf
+        del self.transient_lsst
         del self.transient_type
-        del self.getter
+        del self.getter_ztf
+        del self.getter_lsst
 
     def test_directory_path(self):
         expected_directory_path, expected_raw_file_path, expected_processed_file_path = \
             redback.get_data.directory.fink_directory_structure(
-                transient_type=self.transient_type, transient=self.transient)
-        self.assertEqual(expected_directory_path, self.getter.directory_path)
-        self.assertEqual(expected_raw_file_path, self.getter.raw_file_path)
-        self.assertEqual(expected_processed_file_path, self.getter.processed_file_path)
+                transient_type=self.transient_type, transient=self.transient_ztf)
+        self.assertEqual(expected_directory_path, self.getter_ztf.directory_path)
+        self.assertEqual(expected_raw_file_path, self.getter_ztf.raw_file_path)
+        self.assertEqual(expected_processed_file_path, self.getter_ztf.processed_file_path)
 
-    def test_url(self):
-        expected = "https://api.fink-portal.org/api/v1/objects"
-        self.assertEqual(expected, self.getter.url)
+    def test_url_ztf(self):
+        expected = "https://api.ztf.fink-portal.org/api/v1/objects"
+        self.assertEqual(expected, self.getter_ztf.url)
+
+    def test_url_lsst(self):
+        expected = "https://api.lsst.fink-portal.org//api/v1/sources"
+        self.assertEqual(expected, self.getter_lsst.url)
 
     def test_object_id(self):
-        expected = self.transient
-        self.assertEqual(expected, self.getter.objectId)
+        self.assertEqual(self.transient_ztf, self.getter_ztf.objectId)
+        self.assertEqual(self.transient_lsst, self.getter_lsst.objectId)
 
     @mock.patch("os.path.isfile")
     def test_collect_data_rawfile_exists(self, isfile):
         isfile.return_value = True
         redback.utils.logger.warning = MagicMock()
-        self.getter.collect_data()
+        self.getter_ztf.collect_data()
         isfile.assert_called_once()
         redback.utils.logger.warning.assert_called_once()
 
@@ -1663,17 +1673,27 @@ class TestFinkDataGetter(unittest.TestCase):
         get.return_value = MagicMock()
         get.return_value.__setattr__('len', 0)
         with self.assertRaises(ValueError):
-            self.getter.collect_data()
+            self.getter_ztf.collect_data()
 
     @mock.patch("os.path.isfile")
     @mock.patch("requests.post")
-    def test_collect_data(self, post, isfile):
+    def test_collect_data_ztf(self, post, isfile):
         isfile.return_value = False
         post.return_value = MagicMock()
         post.return_value.__setattr__('content', bytearray(b'0    0.3193\nName: i:sigmagap, dtype: float64'))
-        json = {'objectId': self.getter.objectId, 'output-format': 'csv', 'withupperlim': 'True'}
-        self.getter.collect_data()
-        post.assert_called_with(url=self.getter.url, json=json)
+        json = {'objectId': self.getter_ztf.objectId, 'output-format': 'csv', 'withupperlim': 'True'}
+        self.getter_ztf.collect_data()
+        post.assert_called_with(url=self.getter_ztf.url, json=json)
+
+    @mock.patch("os.path.isfile")
+    @mock.patch("requests.post")
+    def test_collect_data_lsst(self, post, isfile):
+        isfile.return_value = False
+        post.return_value = MagicMock()
+        post.return_value.__setattr__('content', bytearray(b'r:midpointMjdTai,r:band,r:psfFlux,r:psfFluxErr\n61109.145203,g,17168.488,287.9438'))
+        json = {'diaObjectId': self.getter_lsst.objectId, 'output-format': 'csv', 'withupperlim': 'True'}
+        self.getter_lsst.collect_data()
+        post.assert_called_with(url=self.getter_lsst.url, json=json)
 
 
 class TestUtilsLogging(unittest.TestCase):
@@ -2050,3 +2070,221 @@ class TestSwiftDataGetterValidation(unittest.TestCase):
         ) as mock_dir:
             g.create_directory_structure()
         mock_dir.assert_called_once()
+
+
+class TestOtterDataGetter(unittest.TestCase):
+    """Tests for OTTER data getter"""
+
+    @classmethod
+    def setUpClass(cls) -> None:
+        _delete_downloaded_files()
+
+    @classmethod
+    def tearDownClass(cls) -> None:
+        _delete_downloaded_files()
+
+    def setUp(self) -> None:
+        _delete_downloaded_files()
+        self.transient = "AT2017gfo"
+        self.transient_type = "kilonova"
+
+    def tearDown(self) -> None:
+        del self.transient
+        del self.transient_type
+        _delete_downloaded_files()
+
+    @mock.patch('redback.get_data.otter.OTTER_INSTALLED', True)
+    def test_init(self):
+        """Test initialization"""
+        getter = redback.get_data.otter.OtterDataGetter(
+            transient=self.transient, 
+            transient_type=self.transient_type
+        )
+        self.assertEqual(self.transient, getter.transient)
+        self.assertEqual(self.transient_type, getter.transient_type)
+
+    def test_set_invalid_transient_type(self):
+        """Test invalid transient type raises ValueError"""
+        with mock.patch('redback.get_data.otter.OTTER_INSTALLED', True):
+            getter = redback.get_data.otter.OtterDataGetter(
+                transient=self.transient, 
+                transient_type=self.transient_type
+            )
+            with self.assertRaises(ValueError):
+                getter.transient_type = "invalid_type"
+
+    @mock.patch('redback.get_data.otter.OTTER_INSTALLED', True)
+    def test_valid_transient_types(self):
+        """Test VALID_TRANSIENT_TYPES constant"""
+        expected_types = ['kilonova', 'supernova', 'tidal_disruption_event']
+        getter = redback.get_data.otter.OtterDataGetter(
+            transient=self.transient, 
+            transient_type=self.transient_type
+        )
+        self.assertListEqual(expected_types, getter.VALID_TRANSIENT_TYPES)
+
+    @mock.patch('redback.get_data.otter.OTTER_INSTALLED', True)
+    def test_metadata_path(self):
+        """Test metadata path property"""
+        getter = redback.get_data.otter.OtterDataGetter(
+            transient=self.transient, 
+            transient_type=self.transient_type
+        )
+        expected = f"{getter.directory_path}{self.transient}_metadata.csv"
+        self.assertEqual(expected, getter.metadata_path)
+
+    @mock.patch('redback.get_data.otter.OTTER_INSTALLED', True)
+    def test_directory_structure(self):
+        """Test directory structure follows open_access pattern"""
+        getter = redback.get_data.otter.OtterDataGetter(
+            transient=self.transient, 
+            transient_type=self.transient_type
+        )
+        structure = redback.get_data.directory.open_access_directory_structure(
+            transient=self.transient, transient_type=self.transient_type)
+        self.assertEqual(structure.directory_path, getter.directory_path)
+        self.assertEqual(structure.raw_file_path, getter.raw_file_path)
+        self.assertEqual(structure.processed_file_path, getter.processed_file_path)
+
+    @mock.patch('redback.get_data.otter.OTTER_INSTALLED', True)
+    @mock.patch("os.path.isfile")
+    def test_collect_data_file_exists(self, isfile):
+        """Test collect_data when file already exists"""
+        getter = redback.get_data.otter.OtterDataGetter(
+            transient=self.transient, 
+            transient_type=self.transient_type
+        )
+        isfile.return_value = True
+        getter.collect_data()
+        isfile.assert_called_once_with(getter.raw_file_path)
+
+    @mock.patch('redback.get_data.otter.OTTER_INSTALLED', True)
+    @mock.patch("os.path.isfile")
+    @mock.patch("redback.get_data.otter.Otter")
+    @mock.patch("pandas.DataFrame.to_csv")
+    def test_collect_data_success(self, to_csv, Otter, isfile):
+        """Test successful data collection from OTTER"""
+        getter = redback.get_data.otter.OtterDataGetter(
+            transient=self.transient, 
+            transient_type=self.transient_type
+        )
+        isfile.return_value = False
+        
+        # Mock OTTER meta object
+        mock_meta = MagicMock()
+        mock_meta.get_redshift.return_value = 0.01
+        mock_meta.get_ra.return_value = 197.45
+        mock_meta.get_dec.return_value = -23.38
+        mock_meta.get_discovery_date.return_value = Time("2017-08-17")
+        mock_meta.get_classification.return_value = "kilonova"
+        
+        # Mock photometry DataFrame
+        mock_phot = pd.DataFrame({
+            'converted_date': [57982.0, 57983.0],
+            'converted_flux': [20.5, 21.0],
+            'converted_flux_err': [0.1, 0.15],
+            'filter_name': ['g', 'r'],
+            'upperlimit': [False, False]
+        })
+        
+        # Mock OTTER instance
+        mock_otter_instance = MagicMock()
+        mock_otter_instance.get_meta.return_value = [mock_meta]
+        mock_otter_instance.get_phot.return_value = mock_phot
+        Otter.return_value = mock_otter_instance
+        
+        getter.collect_data()
+        
+        # Verify OTTER methods were called
+        mock_otter_instance.get_meta.assert_called_once_with(names=self.transient)
+        mock_otter_instance.get_phot.assert_called_once()
+        
+        # Verify data was saved
+        self.assertEqual(to_csv.call_count, 2)  # raw data + metadata
+
+    @mock.patch('redback.get_data.otter.OTTER_INSTALLED', True)
+    @mock.patch("os.path.isfile")
+    @mock.patch("redback.get_data.otter.Otter")
+    def test_collect_data_transient_not_found(self, Otter, isfile):
+        """Test collect_data raises error when transient not found"""
+        getter = redback.get_data.otter.OtterDataGetter(
+            transient=self.transient, 
+            transient_type=self.transient_type
+        )
+        isfile.return_value = False
+        
+        # Mock OTTER returning empty list
+        mock_otter_instance = MagicMock()
+        mock_otter_instance.get_meta.return_value = []
+        Otter.return_value = mock_otter_instance
+        
+        with self.assertRaises(ValueError) as context:
+            getter.collect_data()
+        
+        self.assertIn("not found in OTTER database", str(context.exception))
+
+
+class TestOtterWrapperFunctions(unittest.TestCase):
+    """Tests for OTTER wrapper functions"""
+
+    @classmethod
+    def setUpClass(cls) -> None:
+        _delete_downloaded_files()
+
+    @classmethod
+    def tearDownClass(cls) -> None:
+        _delete_downloaded_files()
+
+    def tearDown(self) -> None:
+        _delete_downloaded_files()
+
+    @mock.patch("redback.get_data.OtterDataGetter")
+    def test_get_kilonova_data_from_otter(self, OtterDataGetter):
+        """Test kilonova wrapper function"""
+        mock_getter = MagicMock()
+        mock_data = pd.DataFrame({'time (days)': [1, 2], 'magnitude': [20, 21]})
+        mock_getter.get_data.return_value = mock_data
+        OtterDataGetter.return_value = mock_getter
+        
+        result = redback.get_data.get_kilonova_data_from_otter('19dsg')
+        
+        OtterDataGetter.assert_called_once_with(
+            transient='19dsg', 
+            transient_type='kilonova'
+        )
+        mock_getter.get_data.assert_called_once()
+        self.assertIsInstance(result, pd.DataFrame)
+
+    @mock.patch("redback.get_data.OtterDataGetter")
+    def test_get_supernova_data_from_otter(self, OtterDataGetter):
+        """Test supernova wrapper function"""
+        mock_getter = MagicMock()
+        mock_data = pd.DataFrame({'time (days)': [1, 2], 'magnitude': [18, 19]})
+        mock_getter.get_data.return_value = mock_data
+        OtterDataGetter.return_value = mock_getter
+        
+        result = redback.get_data.get_supernova_data_from_otter('19dsg')
+        
+        OtterDataGetter.assert_called_once_with(
+            transient='19dsg', 
+            transient_type='supernova'
+        )
+        mock_getter.get_data.assert_called_once()
+        self.assertIsInstance(result, pd.DataFrame)
+
+    @mock.patch("redback.get_data.OtterDataGetter")
+    def test_get_tde_data_from_otter(self, OtterDataGetter):
+        """Test TDE wrapper function"""
+        mock_getter = MagicMock()
+        mock_data = pd.DataFrame({'time (days)': [1, 2], 'magnitude': [17, 18]})
+        mock_getter.get_data.return_value = mock_data
+        OtterDataGetter.return_value = mock_getter
+        
+        result = redback.get_data.get_tidal_disruption_event_data_from_otter('ASASSN-14li')
+        
+        OtterDataGetter.assert_called_once_with(
+            transient='ASASSN-14li', 
+            transient_type='tidal_disruption_event'
+        )
+        mock_getter.get_data.assert_called_once()
+        self.assertIsInstance(result, pd.DataFrame)
