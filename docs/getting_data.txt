@@ -29,13 +29,17 @@ Or downloading the flux_density/magnitude data of the kilonova at2017gfo from th
     data = redback.get_data.get_kilonova_data_from_open_transient_catalog_data(transient=kne)
 
 Or from OTTER (Open multiwavelength Transient Event Repository).
-Note that OTTER currently only has TDE data (photometry, x-ray and radio data) but we will be adding more data in the future.
+Note that OTTER currently only has TDE data (photometry, x-ray and radio data) but the developers
+will be adding more data in the future.
 
 .. code:: python
 
     tde = 'at2019dsg'
 
-    data = redback.get_data.get_tde_data_from_otter(transient=tde)
+    data = redback.get_data.get_tidal_disruption_event_data_from_otter(transient=tde)
+
+    # Get both radio and x-ray observations
+    data = redback.get_data.get_tidal_disruption_event_data_from_otter(transient='at2019dsg',obs_type=['radio', 'xray'])
 
 All these commands return the data, in a pandas dataframe. They also save the raw and processed data in a sensible way.
 For example, the kilonova data will be saved to :code:`kilonova/at2017gfo.csv`,

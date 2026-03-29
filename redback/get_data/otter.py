@@ -68,8 +68,8 @@ class OtterDataGetter(DataGetter):
         :param transient_type: Type of transient. 
                                Must be from `redback.get_data.otter.OtterDataGetter.VALID_TRANSIENT_TYPES`.
         :type transient_type: str
-        :param obs_type: Observation type: 'uvoir', 'radio', or 'xray'. Default is 'uvoir'.
-        :type obs_type: str, optional
+        :param obs_type: Observation type: 'uvoir', 'radio', 'xray', or list of these. Default is 'uvoir'.
+        :type obs_type: str or list, optional
         """
         if not OTTER_INSTALLED:
             error_msg = "OTTER is not available. "
@@ -78,13 +78,24 @@ class OtterDataGetter(DataGetter):
             error_msg += "Try: pip install astro-otter"
             raise ImportError(error_msg)
         
-        if obs_type not in self.VALID_OBS_TYPES:
-            raise ValueError(
-                f"obs_type must be one of {self.VALID_OBS_TYPES}, got {obs_type}"
-            )
+        # Handle list of obs_types
+        if isinstance(obs_type, list):
+            for ot in obs_type:
+                if ot not in self.VALID_OBS_TYPES:
+                    raise ValueError(
+                        f"obs_type must be one of {self.VALID_OBS_TYPES}, got {ot}"
+                    )
+            self._obs_type = obs_type
+            self._multi_obs_type = True
+        else:
+            if obs_type not in self.VALID_OBS_TYPES:
+                raise ValueError(
+                    f"obs_type must be one of {self.VALID_OBS_TYPES}, got {obs_type}"
+                )
+            self._obs_type = obs_type
+            self._multi_obs_type = False
         
         super().__init__(transient, transient_type)
-        self._obs_type = obs_type
         
         # Create directory structure with obs_type as subdirectory (like Swift uses data_mode)
         self.directory_path, self.raw_file_path, self.processed_file_path = \
@@ -99,7 +110,13 @@ class OtterDataGetter(DataGetter):
         """Create directory structure based on obs_type"""
         # Base directory: transient_type/transient/obs_type/
         # Like Swift does: afterglow/GRB/flux/ or afterglow/GRB/counts/
-        base_dir = f"{self.transient_type}/{self.transient}/{self.obs_type}/"
+        # For multi obs_type, use "multi" subdirectory
+        if self._multi_obs_type:
+            obs_type_str = "multi"
+        else:
+            obs_type_str = self.obs_type
+        
+        base_dir = f"{self.transient_type}/{self.transient}/{obs_type_str}/"
         raw_file = f"{base_dir}{self.transient}_rawdata.csv"
         processed_file = f"{base_dir}{self.transient}.csv"
         
@@ -136,27 +153,58 @@ class OtterDataGetter(DataGetter):
             
             meta_obj = meta[0]
             
-            # Determine flux unit based on obs_type
-            # UVOIR: magnitudes (AB)
-            # Radio/X-ray: flux density (mJy)
-            if self.obs_type == 'uvoir':
-                flux_unit = 'mag(AB)'
-            else:  # radio or xray
-                flux_unit = 'mJy'
-            
-            # Get photometry
-            phot = otter.get_phot(
-                names=self.transient,
-                obs_type=self.obs_type,
-                return_type="pandas",
-                flux_unit=flux_unit,
-                date_unit="MJD"
-            )
-            
-            if len(phot) == 0:
-                raise ValueError(
-                    f"No {self.obs_type} photometry found for {self.transient} in OTTER database"
+            # Handle multiple obs_types
+            if self._multi_obs_type:
+                phot_list = []
+                for obs_type in self._obs_type:
+                    # Determine flux unit based on obs_type
+                    if obs_type == 'uvoir':
+                        flux_unit = 'mag(AB)'
+                    else:  # radio or xray
+                        flux_unit = 'mJy'
+                    
+                    # Get photometry for this obs_type
+                    phot_single = otter.get_phot(
+                        names=self.transient,
+                        obs_type=obs_type,
+                        return_type="pandas",
+                        flux_unit=flux_unit,
+                        date_unit="MJD"
+                    )
+                    
+                    if len(phot_single) > 0:
+                        phot_list.append(phot_single)
+                    else:
+                        logger.warning(f"No {obs_type} photometry found for {self.transient}")
+                
+                if len(phot_list) == 0:
+                    raise ValueError(
+                        f"No photometry found for {self.transient} in OTTER database for any requested obs_type"
+                    )
+                
+                # Concatenate all photometry
+                phot = pd.concat(phot_list, ignore_index=True)
+            else:
+                # Single obs_type (original behavior)
+                # Determine flux unit based on obs_type
+                if self.obs_type == 'uvoir':
+                    flux_unit = 'mag(AB)'
+                else:  # radio or xray
+                    flux_unit = 'mJy'
+                
+                # Get photometry
+                phot = otter.get_phot(
+                    names=self.transient,
+                    obs_type=self.obs_type,
+                    return_type="pandas",
+                    flux_unit=flux_unit,
+                    date_unit="MJD"
                 )
+                
+                if len(phot) == 0:
+                    raise ValueError(
+                        f"No {self.obs_type} photometry found for {self.transient} in OTTER database"
+                    )
             
             # Save the raw photometry as CSV
             phot.to_csv(self.raw_file_path, index=False)

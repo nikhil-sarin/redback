@@ -280,8 +280,8 @@ def get_kilonova_data_from_otter(transient: str, obs_type: str = 'uvoir', **kwar
 
     :param transient: The name of the transient, e.g. '19dsg' or 'AT2017gfo'.
     :type transient: str
-    :param obs_type: Observation type: 'uvoir', 'radio', or 'xray'. Default is 'uvoir'.
-    :type obs_type: str
+    :param obs_type: Observation type: 'uvoir', 'radio', 'xray', or list of these. Default is 'uvoir'.
+    :type obs_type: str or list
     :param kwargs: Placeholder to prevent TypeErrors.
     :type kwargs: None
 
@@ -298,8 +298,8 @@ def get_supernova_data_from_otter(transient: str, obs_type: str = 'uvoir', **kwa
 
     :param transient: The name of the transient, e.g. 'SN2011fe'.
     :type transient: str
-    :param obs_type: Observation type: 'uvoir', 'radio', or 'xray'. Default is 'uvoir'.
-    :type obs_type: str
+    :param obs_type: Observation type: 'uvoir', 'radio', 'xray', or list of these. Default is 'uvoir'.
+    :type obs_type: str or list
     :param kwargs: Placeholder to prevent TypeErrors.
     :type kwargs: None
 
@@ -316,8 +316,8 @@ def get_tidal_disruption_event_data_from_otter(transient: str, obs_type: str = '
 
     :param transient: The name of the transient, e.g. 'ASASSN-14li'.
     :type transient: str
-    :param obs_type: Observation type: 'uvoir', 'radio', or 'xray'. Default is 'uvoir'.
-    :type obs_type: str
+    :param obs_type: Observation type: 'uvoir', 'radio', 'xray', or list of these. Default is 'uvoir'.
+    :type obs_type: str or list
     :param kwargs: Placeholder to prevent TypeErrors.
     :type kwargs: None
     
