@@ -58,7 +58,7 @@ class TestAllModelsRegression(unittest.TestCase):
         results_list = ref_data['results']
         metadata = ref_data['metadata']
         
-        # Test each parameter combination
+        # Test each parameter combination (should be 3)
         for params, ref_result in zip(params_list, results_list):
             current_kwargs = {
                 'time': metadata['time_array'],
