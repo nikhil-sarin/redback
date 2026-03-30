@@ -243,7 +243,7 @@ def afterglow_kilonova_sed(time, redshift, av, **model_kwargs):
 
     temp_kwargs = model_kwargs.copy()
     temp_kwargs.pop('base_model', None)
-    max_time = np.maximum(time.max(), 100)
+    max_time = float(max(time.max(), 100))
     time_observer_frame = np.geomspace(0.1, max_time, 300)
     lambda_observer_frame = temp_kwargs.get('lambda_array', np.geomspace(100, 60000, 200))
     frequency = lambda_to_nu(lambda_observer_frame)
