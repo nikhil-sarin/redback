@@ -656,14 +656,13 @@ def _general_metzger_magnetar_driven_kilonova_model(time, mej, vej, beta, kappa,
     r_photosphere = np.zeros(time_len)
 
     if neutron_precursor_switch == True:
-        neutron_mass = 1e-8 * solar_mass
-        neutron_mass_fraction = 1 - 2*electron_fraction * 2 * np.arctan(neutron_mass / m_array / solar_mass) / np.pi
+        neutron_mass = 1e-4 * solar_mass
+        neutron_mass_fraction = (2.0 / np.pi) * (1.0 - electron_fraction) * np.arctan(neutron_mass / m_array / solar_mass)
         rprocess_mass_fraction = 1.0 - neutron_mass_fraction
         initial_neutron_mass_fraction_array = np.tile(neutron_mass_fraction, (time_len, 1)).T
         rprocess_mass_fraction_array = np.tile(rprocess_mass_fraction, (time_len, 1)).T
         neutron_mass_fraction_array = initial_neutron_mass_fraction_array*np.exp(-time_array / tau_neutron)
         edotn = 3.2e14 * neutron_mass_fraction_array
-        edotn = edotn * neutron_mass_fraction_array
         edotr = edotn + edotr
         kappa_n = 0.4 * (1.0 - neutron_mass_fraction_array - rprocess_mass_fraction_array)
         kappa = kappa * rprocess_mass_fraction_array
