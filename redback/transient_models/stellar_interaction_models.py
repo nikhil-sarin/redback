@@ -4,7 +4,7 @@ import redback.sed as sed
 from redback.sed import flux_density_to_spectrum
 import redback.photosphere as photosphere
 from astropy.cosmology import Planck18 as cosmo
-from redback.utils import calc_kcorrected_properties, citation_wrapper, lambda_to_nu
+from redback.utils import calc_kcorrected_properties, citation_wrapper, lambda_to_nu, get_optimal_time_array
 from redback.constants import *
 from scipy.interpolate import interp1d
 
@@ -131,7 +131,7 @@ def wr_bh_merger_bolometric(time, M_star, M_bh, M_fast, M_pre, v_fast, v_slow, a
     kappa_x = kwargs.get('kappa_x', 0.4)
     N = kwargs.get('N', 30)
 
-    time_temp = np.geomspace(1e0, 1e8, 2000)
+    time_temp = get_optimal_time_array(1e0, 1e8, 2000)
     dynamics_output = _wr_bh_merger(time_temp, M_star, M_bh, M_fast, M_pre, v_fast, v_slow, alpha, eta, theta, phi_0, kappa_s, kappa_f, kappa_x, N, **kwargs)
     lbol_func = interp1d(time_temp, y=dynamics_output.optical_luminosity)
     time = time * day_to_s    
@@ -184,8 +184,10 @@ def wr_bh_merger(time, redshift, M_star, M_bh, M_fast, M_pre, v_fast, v_slow, al
     kwargs['sed'] = kwargs.get("sed", sed.Blackbody)
     cosmology = kwargs.get('cosmology', cosmo)
     dl = cosmology.luminosity_distance(redshift).cgs.value
-
-    time_temp = np.geomspace(1e0, 1e8, 2000)
+    dense_resolution = kwargs.get("dense_resolution", 2000)
+    # Convert user times to source frame seconds for optimal grid
+    time_source_frame_seconds = time * day_to_s / (1. + redshift)
+    time_temp = get_optimal_time_array(1e0, 1e8, dense_resolution, user_times=time_source_frame_seconds, time_units="seconds")
     if kwargs['output_format'] == 'flux_density':
         frequency = kwargs['frequency']
         frequency, time = calc_kcorrected_properties(frequency=frequency, redshift=redshift, time=time)
@@ -210,7 +212,7 @@ def wr_bh_merger(time, redshift, M_star, M_bh, M_fast, M_pre, v_fast, v_slow, al
     else:
         time_obs = time
         lambda_observer_frame = kwargs.get('lambda_array', np.geomspace(500, 60000, 200))
-        time_temp = np.geomspace(1e0, 1e8, 2000)
+        time_temp = get_optimal_time_array(1e0, 1e8, 2000)
         time_observer_frame = time_temp * (1. + redshift)
         frequency, time = calc_kcorrected_properties(frequency=lambda_to_nu(lambda_observer_frame),
                                               redshift=redshift, time=time_observer_frame)

@@ -1,5 +1,5 @@
 import numpy as np
-from redback.utils import citation_wrapper
+from redback.utils import citation_wrapper, get_optimal_time_array
 from redback.constants import speed_of_light_si
 
 
@@ -258,7 +258,7 @@ def evolving_blackbody(time, redshift, temperature_0, radius_0,
     else:
         time_obs = time
         lambda_observer_frame = kwargs.get('lambda_array', np.geomspace(100, 60000, 100))
-        time_temp = np.geomspace(0.1, 3000, 300)  # in days
+        time_temp = get_optimal_time_array(0.1, 3000, 300)  # in days
         time_observer_frame = time_temp * (1. + redshift)
         frequency, time = calc_kcorrected_properties(frequency=lambda_to_nu(lambda_observer_frame),
                                                      redshift=redshift, time=time_observer_frame)
@@ -382,7 +382,7 @@ def evolving_blackbody_with_features(time, redshift, temperature_0, radius_0,
     else:
         time_obs = time
         lambda_observer_frame = kwargs.get('lambda_array', np.geomspace(100, 60000, 100))
-        time_temp = np.geomspace(0.1, 3000, 300)  # in days
+        time_temp = get_optimal_time_array(0.1, 3000, 300)  # in days
         time_observer_frame = time_temp * (1. + redshift)
         frequency, time = calc_kcorrected_properties(
             frequency=lambda_to_nu(lambda_observer_frame),
@@ -499,7 +499,7 @@ def powerlaw_plus_blackbody(time, redshift, pl_amplitude, pl_slope, pl_evolution
     else:
         time_obs = time
         lambda_observer_frame = kwargs.get('lambda_array', np.geomspace(100, 60000, 100))
-        time_temp = np.geomspace(0.1, 3000, 300)  # in days
+        time_temp = get_optimal_time_array(0.1, 3000, 300)  # in days
         time_observer_frame = time_temp * (1. + redshift)
         frequency, time = calc_kcorrected_properties(frequency=lambda_to_nu(lambda_observer_frame),
                                                      redshift=redshift, time=time_observer_frame)

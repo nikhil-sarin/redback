@@ -10,7 +10,22 @@ import re
 import os
 
 def _get_version():
-    """Extract version from setup.py"""
+    """Extract version from package metadata or setup.py"""
+    # Try importlib.metadata first (works for installed packages from PyPI/pip)
+    try:
+        from importlib.metadata import version
+        return version('redback')
+    except Exception:
+        pass
+    
+    # Try pkg_resources (alternative for installed packages)
+    try:
+        import pkg_resources
+        return pkg_resources.get_distribution('redback').version
+    except Exception:
+        pass
+    
+    # Fallback to reading setup.py (development mode)
     setup_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'setup.py')
     try:
         with open(setup_path, 'r') as f:

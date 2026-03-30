@@ -6,8 +6,12 @@ In :code:`redback` we have already implemented a lot of different models, which 
 These models range from phenomenological, to analytical, semi-analytical to numerical surrogates built with machine learning techniques.
 Implementing a new model is probably the easiest way to contribute to redback!
 
-Specifically, some models already included are as follows.
+Specifically, some models already included are as follows. This list is not exhaustive and we are always adding more models,
+We also encourage users to contribute new models as well!
 For a full up to date list of models implemented in :code:`redback`, look at the `API <https://redback.readthedocs.io/en/latest/>`_
+
+Note some models use the plugin system and require users to install additional packages to use those models.
+Please see the API docs for more details on which models require additional packages and how to install those packages.
 
 - Afterglow models: Can output in flux density/magnitude
 
@@ -16,7 +20,7 @@ For a full up to date list of models implemented in :code:`redback`, look at the
     - All structured jet models implemented in `afterglowpy <https://afterglowpy.readthedocs.io/en/latest/>`_. Must install afterglowpy to use these models.
     - **VegasAfterglow high-performance models** - Millisecond-scale C++ afterglow models providing ~1000x speedup. 6 unified jet structures (vegas_tophat, vegas_gaussian, vegas_powerlaw, vegas_powerlaw_wing, vegas_two_component, vegas_step_powerlaw) supporting ISM, Wind, and Hybrid media through unified lognism/loga interface. Includes full suite of physics: forward/reverse shocks, synchrotron self-Compton, Klein-Nishina corrections, jet spreading, magnetar injection, non-axisymmetric jets. Install with :code:`pip install VegasAfterglow`. See `VegasAfterglow <https://github.com/YihanWangAstro/VegasAfterglow>`_ and Wang, Chen & Zhang (2026).
     - Some varieties of Kilonova afterglow models e.g., Sarin et al. 2022, Nakar and Piran 2011
-    - Jetsimpy
+    - Jetsimpy (requires jetsimpy to be installed)
     - Several more...
 
 - Kilonova models: Can output in flux density/magnitude/flux/spectra
@@ -35,8 +39,9 @@ For a full up to date list of models implemented in :code:`redback`, look at the
     - `Three component model <https://ui.adsabs.harvard.edu/abs/2017ApJ...848L..17C/abstract>`_ temperature floor
     - `Three component model <https://ui.adsabs.harvard.edu/abs/2017ApJ...851L..21V/abstract>`_ temperature floor and diffusion
     - `Metzger 2017 <https://ui.adsabs.harvard.edu/abs/2017LRR....20....3M/abstract>`_
+    - Kilonovanet-based surrogates (requires kilonovanet to be installed)
     - Surrogates of different numerical simulations
-    - Lots more...
+    - Several more...
 
 - Supernova models: Can output in flux density/magnitude/bolometric luminosity/spectra
 

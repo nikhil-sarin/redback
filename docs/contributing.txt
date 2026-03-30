@@ -2,12 +2,15 @@
 Contributing
 ============
 
-Redback is currently at version 1.0, i.e., the version that accompanies the Redback paper.
-If you are interested in contributing please join the :code:`redback` `slack <https://join.slack.com/t/redback-group/shared_invite/zt-2503mmkaq-EMEAgz7i3mY0pg1o~VUdqw>`_.
+Redback is currently at version 1.5.1. The version that accompanied the paper was v1.0.
+
+If you are interested in contributing please join the
+:code:`redback` `slack <https://join.slack.com/t/redback-group/shared_invite/zt-2503mmkaq-EMEAgz7i3mY0pg1o~VUdqw>`_.
 This invite link may be out of date, so please contact the authors if you are unable to join.
 
 To make contributions to :code:`redback`,
-we request that you first suggest the contribution you want to make via slack or via an issue on :code:`redback` github `page <https://github.com/nikhil-sarin/redback/issues>`_.
+we request that you first suggest the contribution you want to make via slack or via an issue on
+:code:`redback` github `page <https://github.com/nikhil-sarin/redback/issues>`_.
 This minimises the risk of double effort from different people contributing the same functionality.
 
 For all contributions to :code:`redback` we require pull requests. So developers should have a fork of redback.
@@ -18,11 +21,70 @@ that every function/class you implement is well documented following the numpy o
 Before your request is merged, one of the core developers will look through your implementation and suggest any changes if necessary.
 This is to ensure that the software remains consistent and easily maintainable.
 
-For more general tips, we recommend the guide to contributing for :code:`bilby` `here <https://github.com/lscsoft/bilby/blob/master/CONTRIBUTING.md>`_.
+For more general tips, we recommend the guide to contributing for
+:code:`bilby` `here <https://github.com/lscsoft/bilby/blob/master/CONTRIBUTING.md>`_.
+
+Contributing new models or modifying existing models
+----------------------------------------------------
+
+If you implement a new model or modify an existing model, you **must** regenerate the regression test reference data to ensure CI tests pass. Here's how:
+
+1. **Implement your model** in the appropriate module (e.g., :code:`redback/transient_models/kilonova_models.py`)
+
+2. **Regenerate reference data** by running::
+
+    python test/reference_results/generate_all_model_ref_data.py
+
+   This will:
+   
+   - Test all ~80 models with default parameters
+   - Generate a compressed reference file (~13 KB)
+   - Save it as :code:`test/reference_results/all_models_reference.pkl.gz`
+   - Take ~2-3 minutes to complete
+
+3. **Commit the updated reference file** along with your model changes::
+
+    git add test/reference_results/all_models_reference.pkl.gz
+    git add redback/transient_models/<your_model_file>.py
+    git commit -m "Added new model and updated regression tests"
+
+4. **CI will automatically test** that your model produces consistent results
+
+**What the regression test checks:**
+
+- All model outputs match the reference data within 1% relative tolerance
+- This catches accidental breaking changes to existing models
+- Runs in ~2 seconds on CI (tests 80 models)
+
+**Note:** If you intentionally changed model behavior, regenerating the reference data is expected and correct.
+Just document the change in your PR description.
+
+If you have any questions about this process, please ask in the redback slack!
+
+Contributing a new feature
+-----------------------
+
+We welcome new features! If you want to contribute a new feature, please first suggest the feature on the redback slack or via an issue on the redback github page.
+This minimises the risk of double effort from different people contributing the same functionality.
+
+We also recommend that you look through the existing code base to see if there are any similar features that you can
+build on top of. Or if there are any existing features that you can modify to include your new feature.
+
+Plugin models/features through dependency injection
+--------------------------------------------
+
+Redback is designed to be modular and extensible, allowing users to easily add new models or features without modifying the core codebase.
+To add a new model or feature, you can use dependency injection to plug in your new code. This means that you can create a new class
+or function that implements your desired functionality and then inject it into the existing codebase where it is needed.
+
+If your model/feature is more involved, you can create a separate package/module for it and
+then import it into the relevant parts of the codebase via entry points.
+This allows you to keep your code organized and separate from the core codebase, while still allowing it to be easily integrated.
+Have a look at the Plugin system documentation for more information on how to do this.
 
 General help/dev sessions
 -------------------------
 
-We run an occasional zoom call for general help and development sessions.
+We run an occasional ZOOM call for general help and development sessions.
 These include general tutorials for using redback, Bayesian inference, and discussion of features, issues, and new feature requests.
 Please join the redback slack for more information.

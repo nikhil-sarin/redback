@@ -15,9 +15,17 @@ from redback.get_data.lasair import LasairDataGetter
 from redback.get_data.fink import FinkDataGetter
 from redback.utils import logger
 
+try:
+    from redback.get_data import otter
+    from redback.get_data.otter import OtterDataGetter
+    OTTER_AVAILABLE = True
+except ImportError:
+    OTTER_AVAILABLE = False
+    logger.warning("astro-otter not installed. Otter data getter functionality will not be available.")
+
 SWIFT_PROMPT_BIN_SIZES = ['1s', '2ms', '8ms', '16ms', '64ms', '256ms']
 
-DATA_SOURCES = ["swift", "swift_xrt", "fermi", "konus", "batse", "open_data"]
+DATA_SOURCES = ["swift", "swift_xrt", "fermi", "konus", "batse", "open_data", "otter"]
 TRANSIENT_TYPES = ["afterglow", "prompt", "kilonova", "supernova", "tidal_disruption_event"]
 
 
@@ -225,14 +233,16 @@ def get_lasair_data(
     return getter.get_data()
 
 def get_fink_data(
-        transient: str, transient_type: str, **kwargs: None) -> pd.DataFrame:
+        transient: str, transient_type: str, source: str = 'ztf', **kwargs: None) -> pd.DataFrame:
     """Catch all data getting function for Fink data. Creates a directory structure and saves the data.
     Returns the data, though no further action needs to be taken by the user.
 
-    :param transient: The name of the transient, e.g. 'ZTF19aagqkrq'.
+    :param transient: The name of the transient, e.g. 'ZTF19aagqkrq' for ZTF or '170019717277810735' for LSST.
     :type transient: str
     :param transient_type: Type of the transient. Must be from `redback.get_data.fink.FinkDataGetter.VALID_TRANSIENT_TYPES`.
     :type transient_type: str
+    :param source: The source of the data. Must be either 'ztf' or 'lsst'. Default is 'ztf'.
+    :type source: str
     :param kwargs: Placeholder to prevent TypeErrors.
     :type kwargs: None
 
@@ -240,7 +250,7 @@ def get_fink_data(
     :rtype: pandas.DataFrame
     """
     getter = FinkDataGetter(
-        transient_type=transient_type, transient=transient)
+        transient_type=transient_type, transient=transient, source=source)
     return getter.get_data()
 
 def get_open_transient_catalog_data(
@@ -271,6 +281,66 @@ def get_oac_metadata() -> None:
     logger.info('Downloaded metadata for open access catalog transients.')
 
 
+def get_kilonova_data_from_otter(transient: str, obs_type: str = 'uvoir', **kwargs: None) -> pd.DataFrame:
+    """Get kilonova data from OTTER. Creates a directory structure and saves the data.
+    Returns the data, though no further action needs to be taken by the user.
+
+    :param transient: The name of the transient, e.g. '19dsg' or 'AT2017gfo'.
+    :type transient: str
+    :param obs_type: Observation type: 'uvoir', 'radio', 'xray', or list of these. Default is 'uvoir'.
+    :type obs_type: str or list
+    :param kwargs: Placeholder to prevent TypeErrors.
+    :type kwargs: None
+
+    :return: The processed data.
+    :rtype: pandas.DataFrame
+    """
+    if not OTTER_AVAILABLE:
+        raise ImportError("astro-otter is not installed. Please install it with: pip install astro-otter")
+    getter = OtterDataGetter(transient=transient, transient_type='kilonova', obs_type=obs_type)
+    return getter.get_data()
+
+
+def get_supernova_data_from_otter(transient: str, obs_type: str = 'uvoir', **kwargs: None) -> pd.DataFrame:
+    """Get supernova data from OTTER. Creates a directory structure and saves the data.
+    Returns the data, though no further action needs to be taken by the user.
+
+    :param transient: The name of the transient, e.g. 'SN2011fe'.
+    :type transient: str
+    :param obs_type: Observation type: 'uvoir', 'radio', 'xray', or list of these. Default is 'uvoir'.
+    :type obs_type: str or list
+    :param kwargs: Placeholder to prevent TypeErrors.
+    :type kwargs: None
+
+    :return: The processed data.
+    :rtype: pandas.DataFrame
+    """
+    if not OTTER_AVAILABLE:
+        raise ImportError("astro-otter is not installed. Please install it with: pip install astro-otter")
+    getter = OtterDataGetter(transient=transient, transient_type='supernova', obs_type=obs_type)
+    return getter.get_data()
+
+
+def get_tidal_disruption_event_data_from_otter(transient: str, obs_type: str = 'uvoir', **kwargs: None) -> pd.DataFrame:
+    """Get TDE data from OTTER. Creates a directory structure and saves the data.
+    Returns the data, though no further action needs to be taken by the user.
+
+    :param transient: The name of the transient, e.g. 'ASASSN-14li'.
+    :type transient: str
+    :param obs_type: Observation type: 'uvoir', 'radio', 'xray', or list of these. Default is 'uvoir'.
+    :type obs_type: str or list
+    :param kwargs: Placeholder to prevent TypeErrors.
+    :type kwargs: None
+    
+    :return: The processed data.
+    :rtype: pandas.DataFrame
+    """
+    if not OTTER_AVAILABLE:
+        raise ImportError("astro-otter is not installed. Please install it with: pip install astro-otter")
+    getter = OtterDataGetter(transient=transient, transient_type='tidal_disruption_event', obs_type=obs_type)
+    return getter.get_data()
+
+
 _functions_dict = {
     ("afterglow", "swift"): get_bat_xrt_afterglow_data_from_swift,
     ("afterglow", "swift_xrt"): get_xrt_afterglow_data_from_swift,
@@ -280,7 +350,11 @@ _functions_dict = {
     ("prompt", "batse"): get_prompt_data_from_batse,
     ("kilonova", "open_data"): get_kilonova_data_from_open_transient_catalog_data,
     ("supernova", "open_data"): get_supernova_data_from_open_transient_catalog_data,
-    ("tidal_disruption_event", "open_data"): get_tidal_disruption_event_data_from_open_transient_catalog_data}
+    ("tidal_disruption_event", "open_data"): get_tidal_disruption_event_data_from_open_transient_catalog_data,
+    ("kilonova", "otter"): get_kilonova_data_from_otter,
+    ("supernova", "otter"): get_supernova_data_from_otter,
+    ("tidal_disruption_event", "otter"): get_tidal_disruption_event_data_from_otter,
+}
 
 
 def get_data(
