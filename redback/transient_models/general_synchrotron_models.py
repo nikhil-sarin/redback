@@ -133,10 +133,10 @@ def pwn(time, redshift, mej, l0, tau_sd, nn, eps_b, gamma_b, **kwargs):
     cosmology = kwargs.get('cosmology', cosmo)
     dl = cosmology.luminosity_distance(redshift).cgs.value
     pair_cascade_switch = kwargs.get('pair_cascade_switch', False)
-    nu_M=3.8e22*np.ones(2500)
-
+    
     #initial values and dynamics
     time_temp = get_optimal_time_array(1e0, 1e10, 2500)
+    nu_M=3.8e22*np.ones(len(time_temp))
     frequency = kwargs['frequency']
     if (np.size(frequency) == 1):
         frequency = np.ones(len(time))*frequency
@@ -163,7 +163,7 @@ def pwn(time, redshift, mej, l0, tau_sd, nn, eps_b, gamma_b, **kwargs):
     F_nu_ssa = F_nu_0 * (nu_ssa / nu_0) ** (1-beta1)
 
     #making arrays to vectorize properly
-    freq_arr = np.tile(frequency, (2500,1))
+    freq_arr = np.tile(frequency, (len(time_temp),1))
     F_nu_0_arr = np.tile(F_nu_0, (np.size(frequency),1))
     nu_0_arr = np.tile(nu_0, (np.size(frequency),1))
     F_nu_ssa_arr = np.tile(F_nu_ssa, (np.size(frequency),1))

@@ -2158,11 +2158,11 @@ class TestOtterDataGetter(unittest.TestCase):
         getter.collect_data()
         isfile.assert_called_once_with(getter.raw_file_path)
 
-    @mock.patch('redback.get_data.otter.OTTER_INSTALLED', True)
-    @mock.patch("os.path.isfile")
-    @mock.patch("redback.get_data.otter.Otter")
     @mock.patch("pandas.DataFrame.to_csv")
-    def test_collect_data_success(self, to_csv, Otter, isfile):
+    @mock.patch("redback.get_data.otter.Otter")
+    @mock.patch("os.path.isfile")
+    @mock.patch.object(redback.get_data.otter, 'OTTER_INSTALLED', True)
+    def test_collect_data_success(self, isfile, Otter, to_csv):
         """Test successful data collection from OTTER"""
         getter = redback.get_data.otter.OtterDataGetter(
             transient=self.transient, 
@@ -2202,10 +2202,10 @@ class TestOtterDataGetter(unittest.TestCase):
         # Verify data was saved
         self.assertEqual(to_csv.call_count, 2)  # raw data + metadata
 
-    @mock.patch('redback.get_data.otter.OTTER_INSTALLED', True)
-    @mock.patch("os.path.isfile")
     @mock.patch("redback.get_data.otter.Otter")
-    def test_collect_data_transient_not_found(self, Otter, isfile):
+    @mock.patch("os.path.isfile")
+    @mock.patch.object(redback.get_data.otter, 'OTTER_INSTALLED', True)
+    def test_collect_data_transient_not_found(self, isfile, Otter):
         """Test collect_data raises error when transient not found"""
         getter = redback.get_data.otter.OtterDataGetter(
             transient=self.transient, 
@@ -2250,7 +2250,8 @@ class TestOtterWrapperFunctions(unittest.TestCase):
         
         OtterDataGetter.assert_called_once_with(
             transient='19dsg', 
-            transient_type='kilonova'
+            transient_type='kilonova',
+            obs_type='uvoir'
         )
         mock_getter.get_data.assert_called_once()
         self.assertIsInstance(result, pd.DataFrame)
@@ -2267,7 +2268,8 @@ class TestOtterWrapperFunctions(unittest.TestCase):
         
         OtterDataGetter.assert_called_once_with(
             transient='19dsg', 
-            transient_type='supernova'
+            transient_type='supernova',
+            obs_type='uvoir'
         )
         mock_getter.get_data.assert_called_once()
         self.assertIsInstance(result, pd.DataFrame)
@@ -2284,7 +2286,8 @@ class TestOtterWrapperFunctions(unittest.TestCase):
         
         OtterDataGetter.assert_called_once_with(
             transient='ASASSN-14li', 
-            transient_type='tidal_disruption_event'
+            transient_type='tidal_disruption_event',
+            obs_type='uvoir'
         )
         mock_getter.get_data.assert_called_once()
         self.assertIsInstance(result, pd.DataFrame)

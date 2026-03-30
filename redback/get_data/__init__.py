@@ -5,7 +5,7 @@ import urllib
 
 import pandas as pd
 
-from redback.get_data import batse, directory, fermi, getter, konus, lasair, fink, open_data, otter, swift, utils
+from redback.get_data import batse, directory, fermi, getter, konus, lasair, fink, open_data, swift, utils
 from redback.get_data.swift import SwiftDataGetter
 from redback.get_data.open_data import OpenDataGetter
 from redback.get_data.batse import BATSEDataGetter
@@ -13,8 +13,15 @@ from redback.get_data.fermi import FermiDataGetter
 from redback.get_data.konus import KonusDataGetter
 from redback.get_data.lasair import LasairDataGetter
 from redback.get_data.fink import FinkDataGetter
-from redback.get_data.otter import OtterDataGetter
 from redback.utils import logger
+
+try:
+    from redback.get_data import otter
+    from redback.get_data.otter import OtterDataGetter
+    OTTER_AVAILABLE = True
+except ImportError:
+    OTTER_AVAILABLE = False
+    logger.warning("astro-otter not installed. Otter data getter functionality will not be available.")
 
 SWIFT_PROMPT_BIN_SIZES = ['1s', '2ms', '8ms', '16ms', '64ms', '256ms']
 
@@ -288,6 +295,8 @@ def get_kilonova_data_from_otter(transient: str, obs_type: str = 'uvoir', **kwar
     :return: The processed data.
     :rtype: pandas.DataFrame
     """
+    if not OTTER_AVAILABLE:
+        raise ImportError("astro-otter is not installed. Please install it with: pip install astro-otter")
     getter = OtterDataGetter(transient=transient, transient_type='kilonova', obs_type=obs_type)
     return getter.get_data()
 
@@ -306,6 +315,8 @@ def get_supernova_data_from_otter(transient: str, obs_type: str = 'uvoir', **kwa
     :return: The processed data.
     :rtype: pandas.DataFrame
     """
+    if not OTTER_AVAILABLE:
+        raise ImportError("astro-otter is not installed. Please install it with: pip install astro-otter")
     getter = OtterDataGetter(transient=transient, transient_type='supernova', obs_type=obs_type)
     return getter.get_data()
 
@@ -324,6 +335,8 @@ def get_tidal_disruption_event_data_from_otter(transient: str, obs_type: str = '
     :return: The processed data.
     :rtype: pandas.DataFrame
     """
+    if not OTTER_AVAILABLE:
+        raise ImportError("astro-otter is not installed. Please install it with: pip install astro-otter")
     getter = OtterDataGetter(transient=transient, transient_type='tidal_disruption_event', obs_type=obs_type)
     return getter.get_data()
 
