@@ -137,7 +137,8 @@ def get_optimal_time_array(t_min, t_max, resolution, user_times=None, time_units
     # Convert user_times to hashable tuple for caching
     if user_times is not None:
         user_times = np.atleast_1d(user_times)
-        user_times_tuple = tuple(user_times)
+        # Convert to float tuple to ensure hashability
+        user_times_tuple = tuple(float(x) for x in user_times)
     else:
         user_times_tuple = None
     
