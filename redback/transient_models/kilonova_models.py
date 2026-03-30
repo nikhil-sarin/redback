@@ -372,6 +372,7 @@ def nicholl_bns(time, redshift, mass_1, mass_2, lambda_s, kappa_red, kappa_blue,
     shocked_fraction = kwargs.get('shocked_fraction', 0.2)
     nn = kwargs.get('nn', 1)
     tshock = kwargs.get('tshock', 1.7)
+    ckm = 3e10/1e5
 
     output = _nicholl_bns_get_quantities(mass_1=mass_1, mass_2=mass_2, lambda_s=lambda_s,
                                          kappa_red=kappa_red, kappa_blue=kappa_blue, mtov=mtov,

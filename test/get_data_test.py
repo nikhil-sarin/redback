@@ -2135,16 +2135,15 @@ class TestOtterDataGetter(unittest.TestCase):
 
     @mock.patch('redback.get_data.otter.OTTER_INSTALLED', True)
     def test_directory_structure(self):
-        """Test directory structure follows open_access pattern"""
+        """Test directory structure follows open_access pattern with obs_type subdirectory"""
         getter = redback.get_data.otter.OtterDataGetter(
             transient=self.transient, 
-            transient_type=self.transient_type
+            transient_type=self.transient_type,
+            obs_type='uvoir'
         )
-        structure = redback.get_data.directory.open_access_directory_structure(
-            transient=self.transient, transient_type=self.transient_type)
-        self.assertEqual(structure.directory_path, getter.directory_path)
-        self.assertEqual(structure.raw_file_path, getter.raw_file_path)
-        self.assertEqual(structure.processed_file_path, getter.processed_file_path)
+        # The directory path should include the obs_type subdirectory
+        expected_dir = f"{redback.get_data.directory.get_data_directory()}/{self.transient_type}/{self.transient}/uvoir/"
+        self.assertEqual(expected_dir, getter.directory_path)
 
     @mock.patch('redback.get_data.otter.OTTER_INSTALLED', True)
     @mock.patch("os.path.isfile")
@@ -2159,10 +2158,10 @@ class TestOtterDataGetter(unittest.TestCase):
         isfile.assert_called_once_with(getter.raw_file_path)
 
     @mock.patch("pandas.DataFrame.to_csv")
-    @mock.patch("redback.get_data.otter.Otter")
+    @mock.patch("redback.get_data.otter.get_otter")
     @mock.patch("os.path.isfile")
     @mock.patch.object(redback.get_data.otter, 'OTTER_INSTALLED', True)
-    def test_collect_data_success(self, isfile, Otter, to_csv):
+    def test_collect_data_success(self, isfile, get_otter, to_csv):
         """Test successful data collection from OTTER"""
         getter = redback.get_data.otter.OtterDataGetter(
             transient=self.transient, 
@@ -2187,25 +2186,21 @@ class TestOtterDataGetter(unittest.TestCase):
             'upperlimit': [False, False]
         })
         
-        # Mock OTTER instance
-        mock_otter_instance = MagicMock()
-        mock_otter_instance.get_meta.return_value = [mock_meta]
-        mock_otter_instance.get_phot.return_value = mock_phot
-        Otter.return_value = mock_otter_instance
+        # Mock get_otter to return mock_meta and mock_phot
+        get_otter.return_value = (mock_meta, mock_phot)
         
         getter.collect_data()
         
-        # Verify OTTER methods were called
-        mock_otter_instance.get_meta.assert_called_once_with(names=self.transient)
-        mock_otter_instance.get_phot.assert_called_once()
+        # Verify get_otter was called correctly
+        get_otter.assert_called_once_with(self.transient, obs_type='uvoir')
         
         # Verify data was saved
         self.assertEqual(to_csv.call_count, 2)  # raw data + metadata
 
-    @mock.patch("redback.get_data.otter.Otter")
+    @mock.patch("redback.get_data.otter.get_otter")
     @mock.patch("os.path.isfile")
     @mock.patch.object(redback.get_data.otter, 'OTTER_INSTALLED', True)
-    def test_collect_data_transient_not_found(self, isfile, Otter):
+    def test_collect_data_transient_not_found(self, isfile, get_otter):
         """Test collect_data raises error when transient not found"""
         getter = redback.get_data.otter.OtterDataGetter(
             transient=self.transient, 
@@ -2213,10 +2208,8 @@ class TestOtterDataGetter(unittest.TestCase):
         )
         isfile.return_value = False
         
-        # Mock OTTER returning empty list
-        mock_otter_instance = MagicMock()
-        mock_otter_instance.get_meta.return_value = []
-        Otter.return_value = mock_otter_instance
+        # Mock get_otter returning None for meta (transient not found)
+        get_otter.return_value = (None, None)
         
         with self.assertRaises(ValueError) as context:
             getter.collect_data()
