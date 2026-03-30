@@ -57,7 +57,6 @@ setup(
             "astroquery",
             "pyphot==1.6.0",
             "swifttools",
-            "astro-otter"
         ],
     },
     entry_points={
