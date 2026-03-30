@@ -108,9 +108,13 @@ def generate_ref_data_for_model(category, model_name, model_func, time_array):
         eval_kwargs = {
             'time': time_array,
             'redshift': 0.01,
-            'output_format': 'flux_density',
+            'output_format': 'flux' if model_name == 'trapped_magnetar' else 'flux_density',
             'frequency': 1e14,
         }
+        
+        # Add photon_index for trapped_magnetar flux output
+        if model_name == 'trapped_magnetar':
+            eval_kwargs['photon_index'] = 2.0
         
         # Evaluate model for each parameter set
         params_list = []
@@ -146,7 +150,7 @@ def generate_ref_data_for_category(category, module, time_array, quick_mode=Fals
     # Models to skip (require extra packages not in requirements)
     skip_models = {
         'vegas_powerlaw', 'vegas_gaussian', 'vegas_tophat',
-        'jetsimpy_powerlaw', 'jetsimpy_gaussian',
+        'jetsimpy_powerlaw', 'jetsimpy_gaussian', 'jetsimpy_tophat',
     }
     
     # Filter out models that should be skipped

@@ -734,7 +734,7 @@ def nickelmixing_bolometric(time, mej, esn, kappa, kappa_gamma, f_nickel, f_mixi
     """
     dense_resolution = kwargs.get("dense_resolution", 200)
     stop_time = kwargs.get("stop_time", 300)
-    time_temp = get_optimal_time_array(0.01, int(stop_time, 300), int(dense_resolution))
+    time_temp = get_optimal_time_array(0.01, stop_time, dense_resolution)
     outputs = _nickelmixing(time_temp * 86400, mej=mej, esn=esn, kappa=kappa,
                                kappa_gamma=kappa_gamma, f_nickel=f_nickel,
                                f_mixing=f_mixing, temperature_floor=temperature_floor, **kwargs)
@@ -782,7 +782,7 @@ def nickelmixing(time, redshift, mej, esn, kappa, kappa_gamma, f_nickel, f_mixin
     dense_resolution = kwargs.get("dense_resolution", 300)
     # Convert user times to source frame for optimal grid
     time_source_frame = time / (1. + redshift)
-    time_temp = get_optimal_time_array(0.01, int(stop_time, dense_resolution, user_times=time_source_frame, time_units="days"), int(dense_resolution))
+    time_temp = get_optimal_time_array(0.01, stop_time, dense_resolution, user_times=time_source_frame, time_units="days")
     outputs = _nickelmixing(time_temp * 86400, mej=mej, esn=esn, kappa=kappa,
                                                      kappa_gamma=kappa_gamma, f_nickel=f_nickel,
                                                      f_mixing=f_mixing, temperature_floor=temperature_floor, **kwargs)
