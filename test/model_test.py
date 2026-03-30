@@ -2014,3 +2014,132 @@ class TestCosmologicalCorrections(unittest.TestCase):
         # Check that spectra values are physical (non-negative, finite)
         self.assertTrue(np.all(result.spectra.value >= 0), "Spectra should be non-negative")
         self.assertTrue(np.all(np.isfinite(result.spectra.value)), "Spectra should be finite")
+
+class TestOptimalTimeArray(unittest.TestCase):
+    """Test suite for the get_optimal_time_array utility function."""
+    
+    def test_basic_functionality(self):
+        """Test that the function returns an array of the correct length."""
+        from redback.utils import get_optimal_time_array
+        
+        time_array = get_optimal_time_array(1e-2, 7e6, 500)
+        
+        # Should return approximately the requested number of points
+        self.assertGreater(len(time_array), 450)
+        self.assertLess(len(time_array), 550)
+        
+        # Should be monotonically increasing
+        self.assertTrue(np.all(np.diff(time_array) > 0))
+        
+        # Should span the full range
+        self.assertAlmostEqual(time_array[0], 1e-2, places=10)
+        self.assertAlmostEqual(time_array[-1], 7e6, places=5)
+    
+    def test_with_user_times(self):
+        """Test that providing user_times concentrates points in that range."""
+        from redback.utils import get_optimal_time_array
+        
+        # User wants to evaluate at 0.1-5 days (in seconds)
+        user_times = np.geomspace(0.1, 5, 100) * 86400
+        
+        time_array = get_optimal_time_array(1e-2, 7e6, 500, user_times=user_times)
+        
+        # Count how many points are in the user range
+        user_min, user_max = np.min(user_times), np.max(user_times)
+        in_range = np.sum((time_array >= user_min) & (time_array <= user_max))
+        
+        # Should have at least 50% of points in user range (targeting 70%)
+        self.assertGreater(in_range, 250, 
+                          f"Only {in_range}/500 points in user range, expected > 250")
+    
+    def test_kilonova_convergence_short_range(self):
+        """Test convergence for typical kilonova observations (0.1-5 days)."""
+        import redback
+        
+        tts = np.geomspace(0.1, 5, 100)
+        
+        # Test with default resolution
+        mags_default = redback.transient_models.kilonova_models.one_component_kilonova_model(
+            tts, redshift=0.1, mej=0.02, vej=0.1, kappa=2,
+            temperature_floor=1000, output_format='magnitude', bands='sdssr')
+        
+        # Test with high resolution
+        mags_high = redback.transient_models.kilonova_models.one_component_kilonova_model(
+            tts, redshift=0.1, mej=0.02, vej=0.1, kappa=2,
+            temperature_floor=1000, output_format='magnitude', bands='sdssr',
+            dense_resolution=5000)
+        
+        # Check convergence
+        max_diff = np.max(np.abs(mags_default - mags_high))
+        
+        # Should converge to better than 10 millimag for typical range
+        self.assertLess(max_diff, 0.01, 
+                       f"Kilonova model not converged: max diff = {max_diff*1000:.2f} millimag")
+    
+    def test_kilonova_convergence_extended_range(self):
+        """Test convergence for extended kilonova observations (0.1-10 days)."""
+        import redback
+        
+        tts = np.geomspace(0.1, 10, 100)
+        
+        # Test with default resolution
+        mags_default = redback.transient_models.kilonova_models.one_component_kilonova_model(
+            tts, redshift=0.1, mej=0.02, vej=0.1, kappa=2,
+            temperature_floor=1000, output_format='magnitude', bands='sdssr')
+        
+        # Test with high resolution
+        mags_high = redback.transient_models.kilonova_models.one_component_kilonova_model(
+            tts, redshift=0.1, mej=0.02, vej=0.1, kappa=2,
+            temperature_floor=1000, output_format='magnitude', bands='sdssr',
+            dense_resolution=5000)
+        
+        # Check convergence
+        max_diff = np.max(np.abs(mags_default - mags_high))
+        
+        # Should converge to better than 20 millimag for extended range
+        self.assertLess(max_diff, 0.02, 
+                       f"Kilonova model not converged for extended range: max diff = {max_diff*1000:.2f} millimag")
+    
+    def test_different_time_units(self):
+        """Test that the function works for different time ranges."""
+        from redback.utils import get_optimal_time_array
+        
+        # Test for supernova-like range (days)
+        time_array_days = get_optimal_time_array(0.1, 3000, 300, time_units='days')
+        self.assertEqual(len(time_array_days), 300)
+        self.assertAlmostEqual(time_array_days[0], 0.1, places=10)
+        self.assertAlmostEqual(time_array_days[-1], 3000, places=5)
+        
+        # Test for magnetar-like range (seconds)
+        time_array_secs = get_optimal_time_array(1e-4, 1e8, 500, time_units='seconds')
+        self.assertGreater(len(time_array_secs), 450)
+        self.assertLess(len(time_array_secs), 550)
+    
+    def test_resolution_scaling(self):
+        """Test that higher resolution gives more points and better spacing."""
+        from redback.utils import get_optimal_time_array
+        
+        user_times = np.geomspace(0.1, 5, 100) * 86400
+        
+        time_array_300 = get_optimal_time_array(1e-2, 7e6, 300, user_times=user_times)
+        time_array_1000 = get_optimal_time_array(1e-2, 7e6, 1000, user_times=user_times)
+        
+        # Higher resolution should give more total points
+        self.assertLess(len(time_array_300), len(time_array_1000))
+        
+        # Higher resolution should have smaller max spacing in user range
+        user_min, user_max = np.min(user_times), np.max(user_times)
+        
+        mask_300 = (time_array_300 >= user_min) & (time_array_300 <= user_max)
+        mask_1000 = (time_array_1000 >= user_min) & (time_array_1000 <= user_max)
+        
+        if np.sum(mask_300) > 1 and np.sum(mask_1000) > 1:
+            max_spacing_300 = np.max(np.diff(time_array_300[mask_300]))
+            max_spacing_1000 = np.max(np.diff(time_array_1000[mask_1000]))
+            
+            self.assertLess(max_spacing_1000, max_spacing_300,
+                           "Higher resolution should have smaller spacing")
+
+
+if __name__ == '__main__':
+    unittest.main()

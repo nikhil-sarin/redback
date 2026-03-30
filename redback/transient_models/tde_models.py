@@ -3,7 +3,7 @@ import redback.interaction_processes as ip
 import redback.sed as sed
 from redback.sed import flux_density_to_spectrum, blackbody_to_spectrum
 import redback.photosphere as photosphere
-from redback.utils import calc_kcorrected_properties, citation_wrapper, calc_tfb, lambda_to_nu, \
+from redback.utils import calc_kcorrected_properties, citation_wrapper, calc_tfb, lambda_to_nu, get_optimal_time_array, \
     calc_ABmag_from_flux_density, calc_flux_density_from_ABmag, bands_to_frequency
 import redback.constants as cc
 import redback.transient_models.phenomenological_models as pm
@@ -741,7 +741,7 @@ def tde_analytical(time, redshift, l0, t_0_turn, **kwargs):
     else:
         time_obs = time
         lambda_observer_frame = kwargs.get('lambda_array', np.geomspace(100, 60000, 100))
-        time_temp = np.geomspace(0.1, 1000, 300) # in days
+        time_temp = get_optimal_time_array(0.1, 1000, 300) # in days
         time_observer_frame = time_temp * (1. + redshift)
         frequency, time = calc_kcorrected_properties(frequency=lambda_to_nu(lambda_observer_frame),
                                                      redshift=redshift, time=time_observer_frame)
@@ -1193,7 +1193,7 @@ def tde_fallback(time, redshift, mbh6, mstar, tvisc, bb, eta, leddlimit, rph0, l
     else:
         time_obs = time
         lambda_observer_frame = kwargs.get('lambda_array', np.geomspace(100, 60000, 100))
-        time_temp = np.geomspace(0.1, 1000, 300)
+        time_temp = get_optimal_time_array(0.1, 1000, 300)
         time_observer_frame = time_temp * (1. + redshift)
         frequency, time = calc_kcorrected_properties(frequency=lambda_to_nu(lambda_observer_frame),
                                                      redshift=redshift, time=time_observer_frame)
@@ -1260,7 +1260,7 @@ def fitted(time, redshift, log_mh, a_bh, m_disc, r0, tvi, t_form, incl, **kwargs
     else:
         time_obs = time
         lambda_observer_frame = kwargs.get('lambda_array', np.geomspace(100, 60000, 100))
-        time_temp = np.geomspace(0.1, 3000, 300) # in days
+        time_temp = get_optimal_time_array(0.1, 3000, 300) # in days
         time_observer_frame = time_temp * (1. + redshift)
         frequency, time = calc_kcorrected_properties(frequency=lambda_to_nu(lambda_observer_frame),
                                                      redshift=redshift, time=time_observer_frame)
@@ -1338,7 +1338,7 @@ def fitted_pl_decay(time, redshift, log_mh, a_bh, m_disc, r0, tvi, t_form, incl,
     else:
         time_obs = time
         lambda_observer_frame = kwargs.get('lambda_array', np.geomspace(100, 60000, 100))
-        time_temp = np.geomspace(0.1, 3000, 300) # in days
+        time_temp = get_optimal_time_array(0.1, 3000, 300) # in days
         time_observer_frame = time_temp * (1. + redshift)
         frequency, time = calc_kcorrected_properties(frequency=lambda_to_nu(lambda_observer_frame),
                                                      redshift=redshift, time=time_observer_frame)
@@ -1420,7 +1420,7 @@ def fitted_exp_decay(time, redshift, log_mh, a_bh, m_disc, r0, tvi, t_form, incl
     else:
         time_obs = time
         lambda_observer_frame = kwargs.get('lambda_array', np.geomspace(100, 60000, 100))
-        time_temp = np.geomspace(0.1, 3000, 300) # in days
+        time_temp = get_optimal_time_array(0.1, 3000, 300) # in days
         time_observer_frame = time_temp * (1. + redshift)
         frequency, time = calc_kcorrected_properties(frequency=lambda_to_nu(lambda_observer_frame),
                                                      redshift=redshift, time=time_observer_frame)

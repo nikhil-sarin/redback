@@ -24,3 +24,12 @@ data = redback.get_data.get_prompt_data_from_batse(grb=name)
 # Swift
 GRB = '070809'
 data = redback.get_data.get_bat_xrt_afterglow_data_from_swift(grb=GRB, data_mode="flux")
+
+# Otter, make sure you have astro-otter installed.
+tde = 'at2019dsg'
+data = redback.get_data.get_tidal_disruption_event_data_from_otter(transient=tde)
+
+# you can also get radio and X-ray data from otter.
+data = redback.get_data.get_tidal_disruption_event_data_from_otter(
+ transient='at2019dsg',
+ obs_type=['radio', 'xray'])

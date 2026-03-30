@@ -6,7 +6,7 @@ from collections import namedtuple
 from scipy.interpolate import interp1d
 from scipy.integrate import quad, cumulative_trapezoid as cumtrapz
 from inspect import isfunction
-from redback.utils import logger, citation_wrapper
+from redback.utils import logger, citation_wrapper, get_optimal_time_array
 
 from redback.constants import *
 from redback.transient_models.fireball_models import one_component_fireball_model
@@ -251,7 +251,7 @@ def magnetar_luminosity_evolution(time, logbint, logbext, p0, chi0, radius, logm
     :param kwargs: None
     :return: luminosity
     """
-    time_temp = np.geomspace(1e-4, 1e7, 300)
+    time_temp = get_optimal_time_array(1e-4, 1e7, 300)
     bint = 10**logbint
     bext = 10**logbext
     radius = radius * km_cgs

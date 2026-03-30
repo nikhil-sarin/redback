@@ -1,10 +1,12 @@
 import numpy as np
-from redback.transient_models.magnetar_models import magnetar_only, basic_magnetar
+from redback.transient_models.magnetar_models import magnetar_only
 from redback.transient_models.magnetar_driven_ejecta_models import _ejecta_dynamics_and_interaction
-from redback.transient_models.shock_powered_models import _emissivity_pl, _emissivity_thermal, _tau_nu, _c_j, _c_alpha, _g_theta, _low_freq_apl_correction, _low_freq_jpl_correction
+from redback.transient_models.shock_powered_models import (_emissivity_pl, _emissivity_thermal, _tau_nu, _c_j, _c_alpha,
+                                                           _g_theta, _low_freq_apl_correction, _low_freq_jpl_correction)
 from redback.transient_models.afterglow_models import _get_kn_dynamics, _pnu_synchrotron
 from astropy.cosmology import Planck18 as cosmo
-from redback.utils import calc_kcorrected_properties, citation_wrapper, logger, get_csm_properties, nu_to_lambda, lambda_to_nu, velocity_from_lorentz_factor, calc_ABmag_from_flux_density
+from redback.utils import (calc_kcorrected_properties, citation_wrapper,
+                           calc_ABmag_from_flux_density, get_optimal_time_array)
 from redback.constants import day_to_s, solar_mass, km_cgs, au_cgs, speed_of_light, qe, electron_mass, proton_mass, sigma_T
 from scipy import integrate
 from scipy.interpolate import interp1d
@@ -131,10 +133,10 @@ def pwn(time, redshift, mej, l0, tau_sd, nn, eps_b, gamma_b, **kwargs):
     cosmology = kwargs.get('cosmology', cosmo)
     dl = cosmology.luminosity_distance(redshift).cgs.value
     pair_cascade_switch = kwargs.get('pair_cascade_switch', False)
-    nu_M=3.8e22*np.ones(2500)
-
+    
     #initial values and dynamics
-    time_temp = np.geomspace(1e0, 1e10, 2500)
+    time_temp = get_optimal_time_array(1e0, 1e10, 2500)
+    nu_M=3.8e22*np.ones(len(time_temp))
     frequency = kwargs['frequency']
     if (np.size(frequency) == 1):
         frequency = np.ones(len(time))*frequency
@@ -161,7 +163,7 @@ def pwn(time, redshift, mej, l0, tau_sd, nn, eps_b, gamma_b, **kwargs):
     F_nu_ssa = F_nu_0 * (nu_ssa / nu_0) ** (1-beta1)
 
     #making arrays to vectorize properly
-    freq_arr = np.tile(frequency, (2500,1))
+    freq_arr = np.tile(frequency, (len(time_temp),1))
     F_nu_0_arr = np.tile(F_nu_0, (np.size(frequency),1))
     nu_0_arr = np.tile(nu_0, (np.size(frequency),1))
     F_nu_ssa_arr = np.tile(F_nu_ssa, (np.size(frequency),1))
@@ -557,7 +559,8 @@ def synchrotron_massloss(time, redshift, v_s, log_Mdot_vwind, logepsb, logepse, 
 
     Fv0 = C_0 / (2.0 * nu_L) / (4.0 * np.pi * dl**2)
     beta = 1.0 - (1.0 - p) / 2.0
-    nu_ssa = (dl**2 * 3.0**1.5 * qe**0.5 * B**0.5 * Fv0 * nu_L**(beta - 1.0) / (4.0 * np.pi**1.5 * r_s**2 * speed_of_light**0.5 * electron_mass**1.5))**(2.0 / (2.0 * beta + 3.0))
+    nu_ssa = (dl**2 * 3.0**1.5 * qe**0.5 * B**0.5 * Fv0 * nu_L**(beta - 1.0) /
+              (4.0 * np.pi**1.5 * r_s**2 * speed_of_light**0.5 * electron_mass**1.5))**(2.0 / (2.0 * beta + 3.0))
     Fv_ssa = Fv0 * (nu_ssa / nu_L) ** (1-beta)
 
     if (np.min(frequency) < np.max(nu_ssa)):
@@ -608,7 +611,8 @@ def synchrotron_ism(time, redshift, v_s, logn0, logepsb, logepse, p, **kwargs):
 
     Fv0 = C_0 / (2.0 * nu_L) / (4.0 * np.pi * dl**2)
     beta = 1.0 - (1.0 - p) / 2.0
-    nu_ssa = (dl**2 * 3.0**1.5 * qe**0.5 * B**0.5 * Fv0 * nu_L**(beta - 1.0) / (4.0 * np.pi**1.5 * r_s**2 * speed_of_light**0.5 * electron_mass**1.5))**(2.0 / (2.0 * beta + 3.0))
+    nu_ssa = (dl**2 * 3.0**1.5 * qe**0.5 * B**0.5 * Fv0 * nu_L**(beta - 1.0) /
+              (4.0 * np.pi**1.5 * r_s**2 * speed_of_light**0.5 * electron_mass**1.5))**(2.0 / (2.0 * beta + 3.0))
     Fv_ssa = Fv0 * (nu_ssa / nu_L) ** (1-beta)
 
     if (np.min(frequency) < np.max(nu_ssa)):
@@ -661,7 +665,8 @@ def synchrotron_pldensity(time, redshift, v_s, logA, s, logepsb, logepse, p, **k
 
     Fv0 = C_0 / (2.0 * nu_L) / (4.0 * np.pi * dl**2)
     beta = 1.0 - (1.0 - p) / 2.0
-    nu_ssa = (dl**2 * 3.0**1.5 * qe**0.5 * B**0.5 * Fv0 * nu_L**(beta - 1.0) / (4.0 * np.pi**1.5 * r_s**2 * speed_of_light**0.5 * electron_mass**1.5))**(2.0 / (2.0 * beta + 3.0))
+    nu_ssa = (dl**2 * 3.0**1.5 * qe**0.5 * B**0.5 * Fv0 * nu_L**(beta - 1.0) /
+              (4.0 * np.pi**1.5 * r_s**2 * speed_of_light**0.5 * electron_mass**1.5))**(2.0 / (2.0 * beta + 3.0))
     Fv_ssa = Fv0 * (nu_ssa / nu_L) ** (1-beta)
 
     if (np.min(frequency) < np.max(nu_ssa)):
@@ -721,11 +726,13 @@ def thermal_synchrotron_v2_lnu(time, bG_sh, log_Mdot_vwind, n_ism, logepse, loge
         Theta = (5.0 * Theta0 - 6.0 + (25.0 * Theta0**2 + 180.0 * Theta0 + 36.0)**0.5) / 30.0
         Gamma_minus_one = Gamma - 1.0
     
-    # prefactor for the luminosity, eq. (B13); Note---with respect to eq. (B13), this definition omits f(Theta), which we instead absorb into I`(x) below.
+    # prefactor for the luminosity, eq. (B13); Note---with respect to eq. (B13), this definition omits f(Theta),
+    # which we instead absorb into I`(x) below.
     L_tilde = ((4.0 * 2.0**0.5 * qe**3 * mu_e * epsilon_B**0.5 * f / (3.0**0.5 * mu * proton_mass * electron_mass * speed_of_light)) 
                                * Mdot_over_vw**1.5 * Gamma**1.5 * Gamma_minus_one**0.5)
                                
-    # prefactor for the optical-depth, eq. (B14); Note---with respect to eq. (B13), this definition omits f(Theta), which we instead absorb into I`(x) below.                           
+    # prefactor for the optical-depth, eq. (B14); Note---with respect to eq. (B13), this definition omits f(Theta),
+    # which we instead absorb into I`(x) below.
     tau_Theta = ((2.0**0.5 * qe * mu_e * f / (3.0**2.5 * mu * proton_mass * speed_of_light * epsilon_B**0.5))
                                * Mdot_over_vw**0.5 * Theta**(-5.0) * Gamma**(-0.5) * Gamma_minus_one**(-0.5))                           
                                
@@ -745,7 +752,8 @@ def thermal_synchrotron_v2_lnu(time, bG_sh, log_Mdot_vwind, n_ism, logepse, loge
     # coefficient that multiplies power-law term in square-brackets in eq. (B11)
     b = (3.0**1.5 / np.pi) *_c_alpha(p) * delta * _g_theta(Theta, p=p)    
     
-    # include low-frequeny corrections to the coefficients `a` and `b` defied above (see e.g. low_freq_jpl_correction function for more information)
+    # include low-frequeny corrections to the coefficients `a` and `b` defied above
+    # (see e.g. low_freq_jpl_correction function for more information)
     a_corr = _low_freq_jpl_correction(x, Theta, p)
     b_corr = _low_freq_apl_correction(x, Theta, p) 
       

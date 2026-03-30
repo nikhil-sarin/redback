@@ -876,11 +876,13 @@ class MagnitudePlotter(Plotter):
 
     @property
     def _ylim_low_magnitude(self) -> float:
-        return self.ylim_low_magnitude_multiplier * min(self.transient.y)
+        default = self.ylim_low_magnitude_multiplier * min(self.transient.y)
+        return self.kwargs.get("ylim_low", default)
 
     @property
     def _ylim_high_magnitude(self) -> float:
-        return self.ylim_high_magnitude_multiplier * np.max(self.transient.y)
+        default = self.ylim_high_magnitude_multiplier * np.max(self.transient.y)
+        return self.kwargs.get("ylim_high", default)
 
     def _get_ylim_low_with_indices(self, indices: list) -> float:
         return self.ylim_low_multiplier * min(self.transient.y[indices])
