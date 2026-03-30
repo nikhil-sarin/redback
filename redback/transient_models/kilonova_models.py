@@ -350,6 +350,7 @@ def nicholl_bns(time, redshift, mass_1, mass_2, lambda_s, kappa_red, kappa_blue,
         Use 0. if you want to turn off cocoon emission.
     :param nn: ejecta power law density profile, default is 1.
     :param tshock: time for shock in source frame in seconds, default is 1.7s (see Nicholl et al. 2021)
+    :param kappa_gamma: gamma-ray opacity in cm^2/g, default is 10 cm^2/g
     :param frequency: Required if output_format is 'flux_density'.
         frequency to calculate - Must be same length as time array or a single number).
     :param bands: Required if output_format is 'magnitude' or 'flux'.
@@ -372,6 +373,7 @@ def nicholl_bns(time, redshift, mass_1, mass_2, lambda_s, kappa_red, kappa_blue,
     shocked_fraction = kwargs.get('shocked_fraction', 0.2)
     nn = kwargs.get('nn', 1)
     tshock = kwargs.get('tshock', 1.7)
+    kappa_gamma = kwargs.get('kappa_gamma', 10)
     ckm = 3e10/1e5
 
     output = _nicholl_bns_get_quantities(mass_1=mass_1, mass_2=mass_2, lambda_s=lambda_s,
