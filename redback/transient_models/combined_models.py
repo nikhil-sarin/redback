@@ -243,7 +243,7 @@ def afterglow_kilonova_sed(time, redshift, av, **model_kwargs):
 
     temp_kwargs = model_kwargs.copy()
     temp_kwargs.pop('base_model', None)
-    max_time = float(max(time.max(), 100))
+    max_time = np.maximum(time.max(), 100)
     time_observer_frame = np.geomspace(0.1, max_time, 300)
     lambda_observer_frame = temp_kwargs.get('lambda_array', np.geomspace(100, 60000, 200))
     frequency = lambda_to_nu(lambda_observer_frame)
@@ -269,8 +269,9 @@ def afterglow_kilonova_sed(time, redshift, av, **model_kwargs):
 
     kilonova_function = all_models_dict[_kilonova_kwargs['base_model']]
     capped_times = np.where(times_mesh > 7e6/day_to_s, 7e6/day_to_s, times_mesh)
+    kilonova_time_grid = np.unique(np.ravel(capped_times))
     kilonova = kilonova_function(
-        time=capped_times, 
+        time=kilonova_time_grid,
         redshift=redshift, **_kilonova_kwargs)
     
     # Interpolate kilonova spectra to match afterglow's time and lambda grid
