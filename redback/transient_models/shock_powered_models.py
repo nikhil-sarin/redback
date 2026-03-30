@@ -7,7 +7,7 @@ from astropy import units as uu
 import redback.sed as sed
 from redback.sed import flux_density_to_spectrum, blackbody_to_spectrum
 from astropy.cosmology import Planck18 as cosmo  # noqa
-from redback.utils import calc_kcorrected_properties, citation_wrapper, lambda_to_nu
+from redback.utils import calc_kcorrected_properties, citation_wrapper, lambda_to_nu, get_optimal_time_array
 
 
 def _shockcooling_morag(time, v_shock, m_env, f_rho_m, radius, kappa):
@@ -541,7 +541,7 @@ def csm_shock_breakout_bolometric(time, csm_mass, v_min, beta, kappa, shell_radi
     :return: bolometric luminosity
     """
     csm_mass = csm_mass * cc.solar_mass
-    time_temp = np.linspace(1e-2, 200, 300)  # days
+    time_temp = get_optimal_time_array(1e-2, 200, 300)  # days
     outputs = _csm_shock_breakout(time_temp, v_min=v_min, beta=beta,
                                   kappa=kappa, csm_mass=csm_mass, shell_radius=shell_radius,
                                   shell_width_ratio=shell_width_ratio, **kwargs)
@@ -573,7 +573,10 @@ def csm_shock_breakout(time, redshift, csm_mass, v_min, beta, kappa, shell_radiu
     csm_mass = csm_mass * cc.solar_mass
     cosmology = kwargs.get('cosmology', cosmo)
     dl = cosmology.luminosity_distance(redshift).cgs.value
-    time_temp = np.linspace(1e-2, 60, 300) #days
+    dense_resolution = kwargs.get("dense_resolution", 300)
+    # Convert user times to source frame for optimal grid
+    time_source_frame = time / (1. + redshift)
+    time_temp = get_optimal_time_array(1e-2, 60, dense_resolution, user_times=time_source_frame, time_units="days") #days
     time_obs = time
     outputs = _csm_shock_breakout(time_temp, v_min=v_min, beta=beta,
                                   kappa=kappa, csm_mass=csm_mass, shell_radius=shell_radius,
@@ -751,7 +754,7 @@ def shock_cooling(time, redshift, log10_mass, log10_radius, log10_energy, **kwar
                                              dl=dl, frequency=frequency)
         return flux_density.to(uu.mJy).value * (1 + redshift)
     else:
-        time_temp = np.geomspace(1e-1, 30, 100)
+        time_temp = get_optimal_time_array(1e-1, 30, 100)
         lambda_observer_frame = kwargs.get('lambda_array', np.geomspace(100, 60000, 100))
 
         time_observer_frame = time_temp
@@ -1027,8 +1030,8 @@ def shocked_cocoon(time, redshift, mej, vej, eta, tshock, shocked_fraction, cos_
                                                      dl=dl, frequency=frequency)
         return flux_density.to(uu.mJy).value * (1 + redshift)
     else:
-        lambda_observer_frame = kwargs.get('frequency_array', np.geomspace(100, 60000, 100))
-        time_temp = np.linspace(1e-2, 100, 100)
+        lambda_observer_frame = kwargs.get('lambda_array', np.geomspace(100, 60000, 100))
+        time_temp = get_optimal_time_array(1e-2, 100, 100)
         time_observer_frame = time_temp
         frequency, time = calc_kcorrected_properties(frequency=lambda_to_nu(lambda_observer_frame),
                                                      redshift=redshift, time=time_observer_frame)

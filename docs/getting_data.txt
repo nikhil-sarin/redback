@@ -2,11 +2,13 @@
 Get data
 ============
 
-:code:`redback` provides a simple interface to getting data from the open access, Swift, and BATSE catalogs, in different formats.
-We also provide simple interfaces to get data from the FINK and LASAIR brokers, as well as the open access catalog. The different APIs to get data implemented in
+:code:`redback` provides a simple interface to getting data from the open access, Swift, OTTER, and BATSE catalogs, in different formats.
+We also provide simple interfaces to get data from the FINK and LASAIR brokers, as well as the open access catalog.
+The different APIs to get data implemented in
 
 - Swift: Prompt, X-ray afterglow [counts, flux, flux density]
 - Open access catalog: Supernova, kilonova, tidal disruption event [photometry]
+- OTTER: Tidal disruption event [photometry, x-ray and radio data]
 - FINK and LASAIR Broker: Supernova, kilonova, tidal disruption event or other transient [photometry]
 - BATSE: Prompt [count rate]
 
@@ -18,7 +20,7 @@ For example, downloading the X-ray afterglow of GRB 070809 is as simple as
 
     data = redback.get_data.get_bat_xrt_afterglow_data_from_swift(grb=GRB, data_mode="flux")
 
-Or downloading the flux_density/magnitude data of the kilonova at2017gfo
+Or downloading the flux_density/magnitude data of the kilonova at2017gfo from the open access catalog
 
 .. code:: python
 
@@ -26,12 +28,25 @@ Or downloading the flux_density/magnitude data of the kilonova at2017gfo
 
     data = redback.get_data.get_kilonova_data_from_open_transient_catalog_data(transient=kne)
 
-Both these commands return the data, in a pandas dataframe. They also save the raw and processed data in a sensible way.
-In particular, the kilonova data will be saved to :code:`kilonova/at2017gfo/` and the afterglow will be saved to :code:`afterglow/GRB070809/flux/`.
+Or from OTTER (Open multiwavelength Transient Event Repository).
+Note that OTTER currently only has TDE data (photometry, x-ray and radio data) but the developers
+will be adding more data in the future.
+
+.. code:: python
+
+    tde = 'at2019dsg'
+
+    data = redback.get_data.get_tidal_disruption_event_data_from_otter(transient=tde)
+
+    # Get both radio and x-ray observations
+    data = redback.get_data.get_tidal_disruption_event_data_from_otter(transient='at2019dsg',obs_type=['radio', 'xray'])
+
+All these commands return the data, in a pandas dataframe. They also save the raw and processed data in a sensible way.
+For example, the kilonova data will be saved to :code:`kilonova/at2017gfo.csv`,
+afterglow will be saved to :code:`GRBData/afterglow/flux/GRB070809.csv` and
+TDE data will be saved to :code:`tde/at2019dsg.csv`.
 
 Please look at the API or the examples to see how we can get other data.
-
-Before working with UV/optical/IR data from the Open Access Catalogue, you need to check whether the data are in the AB or Vega system and whether any extinction correction was applied to the data on the Open Access Catalogue. By default, Redback assumes that the data is XXX.
 
 Basic processing and metadata
 -------------------------
@@ -113,3 +128,18 @@ We have pre-configured Redback to add a set of filters that are not a part of SN
     from redback import filters
 
     filters.add_common_filters()
+
+Notes
+-------------------------
+
+Before working with UV/optical/IR data from the Open Access Catalogue/FINK/LASAIR/Otter you should check the data.
+For example, for the Open Access Catalogue, you need to check whether the data are in the AB or Vega system and
+whether any extinction correction was applied to the data on the Open Access Catalogue.
+
+By default, Redback assumes that the OAC data is in AB magnitude and throws away any explicitly flagged VEGA data
+from the processed file (keeping the raw data intact).
+Redback also assumes the data is as observed i.e., without any extinction corrections applied.
+If this is not true, you are better off using/editing the raw data and loading the redback transient object manually instead of using the class methods.
+
+You should also check that the filter names are correct. For example, 'r' band in redback is treated as the SDSS r band,
+but it may actually be referring to the R band or e.g., ZTF/LSST r band which have different filter response functions.

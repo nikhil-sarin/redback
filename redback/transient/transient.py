@@ -373,6 +373,66 @@ class Transient(object):
                    magnitude_err=magnitude_err, flux=flux, flux_err=flux_err, bands=bands, active_bands=active_bands,
                    use_phase_model=use_phase_model, optical_data=True, plotting_order=plotting_order)
 
+    @classmethod
+    def from_otter(
+        cls, 
+        name: str, 
+        data_mode: str = 'flux_density', 
+        obs_type: str = 'radio',
+        active_bands: Union[np.ndarray, str] = 'all',
+        plotting_order: Union[np.ndarray, str] = None, 
+        use_phase_model: bool = False
+    ) -> Transient:
+        """Constructor method to build object from OTTER database (for non-optical data like radio/xray)
+        
+        :param name: Name of the transient in OTTER database.
+        :type name: str
+        :param data_mode: Data mode used. Default is 'flux_density' for non-optical data.
+        :type data_mode: str, optional
+        :param obs_type: Observation type: 'radio' (default) or 'xray'.
+        :type obs_type: str, optional
+        :param active_bands: Sets active bands based on array given.
+            If argument is 'all', all unique bands in `self.bands` will be used.
+        :type active_bands: Union[np.ndarray, str]
+        :param plotting_order: Order in which to plot the bands/and how unique bands are stored.
+        :type plotting_order: Union[np.ndarray, str], optional
+        :param use_phase_model: Whether to use a phase model.
+        :type use_phase_model: bool, optional
+        
+        :return: A class instance
+        :rtype: Transient
+        """
+        if cls.__name__ == "TDE":
+            transient_type = "tidal_disruption_event"
+        else:
+            transient_type = cls.__name__.lower()
+        
+        # Get data from OTTER with specified obs_type
+        from redback.get_data.otter import OtterDataGetter
+        getter = OtterDataGetter(transient=name, transient_type=transient_type, obs_type=obs_type)
+        data = getter.get_data()
+        
+        # Load the processed data
+        df = pd.read_csv(getter.processed_file_path)
+        time_days = np.array(df["time (days)"])
+        time_mjd = np.array(df["time"])
+        flux_density = np.array(df["flux_density(mjy)"])
+        flux_density_err = np.array(df["flux_density_error"])
+        bands = np.array(df["band"])
+        
+        return cls(
+            name=name, 
+            data_mode=data_mode, 
+            time=time_days, 
+            time_err=None, 
+            time_mjd=time_mjd,
+            flux_density=flux_density, 
+            flux_density_err=flux_density_err, 
+            bands=bands, 
+            active_bands=active_bands,
+            use_phase_model=use_phase_model, 
+            optical_data=False,
+            plotting_order=plotting_order)
 
     @classmethod
     def from_lightcurvelynx(
@@ -1268,6 +1328,68 @@ class OpticalTransient(Transient):
                    magnitude_err=magnitude_err, bands=bands, system=system, active_bands=active_bands,
                    use_phase_model=use_phase_model, optical_data=True, flux=flux, flux_err=flux_err,
                    plotting_order=plotting_order)
+
+    @classmethod
+    def from_otter(
+        cls, 
+        name: str, 
+        data_mode: str = 'magnitude', 
+        obs_type: str = 'uvoir',
+        active_bands: Union[np.ndarray, str] = 'all',
+        plotting_order: Union[np.ndarray, str] = None, 
+        use_phase_model: bool = False
+    ) -> OpticalTransient:
+        """Constructor method to build object from OTTER database
+        
+        :param name: Name of the transient in OTTER database.
+        :type name: str
+        :param data_mode: Data mode used. Must be from `OpticalTransient.DATA_MODES`. Default is magnitude.
+        :type data_mode: str, optional
+        :param obs_type: Observation type: 'uvoir' (default), 'radio', or 'xray'.
+        :type obs_type: str, optional
+        :param active_bands: Sets active bands based on array given.
+            If argument is 'all', all unique bands in `self.bands` will be used.
+        :type active_bands: Union[np.ndarray, str]
+        :param plotting_order: Order in which to plot the bands/and how unique bands are stored.
+        :type plotting_order: Union[np.ndarray, str], optional
+        :param use_phase_model: Whether to use a phase model.
+        :type use_phase_model: bool, optional
+        
+        :return: A class instance
+        :rtype: OpticalTransient
+        """
+        if cls.__name__ == "TDE":
+            transient_type = "tidal_disruption_event"
+        else:
+            transient_type = cls.__name__.lower()
+        
+        # Get data from OTTER with specified obs_type
+        from redback.get_data.otter import OtterDataGetter
+        getter = OtterDataGetter(transient=name, transient_type=transient_type, obs_type=obs_type)
+        data = getter.get_data()
+        
+        # Load data using standard load_data method (handles data_mode selection)
+        time_days, time_mjd, flux_density, flux_density_err, magnitude, magnitude_err, flux, flux_err, bands, system = \
+            cls.load_data(processed_file_path=getter.processed_file_path, data_mode="all")
+        
+        return cls(
+            name=name, 
+            data_mode=data_mode, 
+            time=time_days, 
+            time_err=None, 
+            time_mjd=time_mjd,
+            flux_density=flux_density, 
+            flux_density_err=flux_density_err, 
+            magnitude=magnitude,
+            magnitude_err=magnitude_err, 
+            bands=bands, 
+            system=system, 
+            active_bands=active_bands,
+            use_phase_model=use_phase_model, 
+            optical_data=True, 
+            flux=flux, 
+            flux_err=flux_err,
+            plotting_order=plotting_order)
 
     @property
     def event_table(self) -> str:

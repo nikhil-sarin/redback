@@ -2,6 +2,7 @@ import contextlib
 import logging
 import os
 from collections import namedtuple
+from functools import lru_cache
 from inspect import getmembers, isfunction
 from pathlib import Path
 
@@ -36,6 +37,112 @@ def find_nearest(array, value):
     array = np.asarray(array)
     idx = (np.abs(array - value)).argmin()
     return array[idx], idx
+
+
+@lru_cache(maxsize=128)
+def _get_optimal_time_array_cached(t_min, t_max, resolution, user_times_tuple, time_units):
+    """
+    Cached version of time array generation. Args must be hashable.
+    user_times_tuple is a tuple of floats (hashable version of user_times array).
+    """
+    user_times = np.array(user_times_tuple) if user_times_tuple is not None else None
+    
+    if user_times is not None:
+        # User has specific times they care about - optimize around those
+        user_min = np.min(user_times)
+        user_max = np.max(user_times)
+        
+        # Extend range slightly beyond user times for good interpolation
+        eval_min = max(t_min, user_min * 0.5)
+        eval_max = min(t_max, user_max * 2.0)
+        
+        # Allocate most points to the user's region
+        n_before = int(resolution * 0.15)  # 15% before user range
+        n_user = int(resolution * 0.70)    # 70% in user range
+        n_after = resolution - n_before - n_user  # 15% after
+        
+        # Create segments
+        if eval_min > t_min:
+            segment_before = np.geomspace(t_min, eval_min, n_before)
+        else:
+            segment_before = np.array([t_min])
+            n_user += n_before  # Reallocate points
+            
+        segment_user = np.geomspace(eval_min, eval_max, n_user)
+        
+        if eval_max < t_max:
+            segment_after = np.geomspace(eval_max, t_max, n_after)
+        else:
+            segment_after = np.array([t_max])
+            n_user += n_after  # Reallocate points
+            segment_user = np.geomspace(eval_min, eval_max, n_user)
+        
+        time_array = np.unique(np.concatenate([segment_before, segment_user, segment_after]))
+    else:
+        # No user times - use multi-segment approach for good coverage
+        # Determine transition points based on log-space coverage
+        log_range = np.log10(t_max) - np.log10(t_min)
+        
+        if log_range > 6:  # Large range (e.g., 1e-2 to 7e6)
+            # Use 3 segments
+            n_early = int(resolution * 0.25)   # 25% for first decade(s)
+            n_mid = int(resolution * 0.50)     # 50% for middle range
+            n_late = resolution - n_early - n_mid  # 25% for late times
+            
+            # Transition points at ~1e2 and ~1e5 for seconds, or scale with range
+            trans1 = t_min * (t_max / t_min) ** 0.25
+            trans2 = t_min * (t_max / t_min) ** 0.75
+            
+            segment1 = np.geomspace(t_min, trans1, n_early)
+            segment2 = np.geomspace(trans1, trans2, n_mid)
+            segment3 = np.geomspace(trans2, t_max, n_late)
+            
+            time_array = np.unique(np.concatenate([segment1, segment2, segment3]))
+        else:
+            # Moderate range - use simple geomspace
+            time_array = np.geomspace(t_min, t_max, resolution)
+    
+    return time_array
+
+
+def get_optimal_time_array(t_min, t_max, resolution, user_times=None, time_units='seconds'):
+    """
+    Creates an adaptive time array optimized for the user's requested evaluation times.
+    This is a general utility for creating time grids that balance resolution across
+    a wide dynamic range while concentrating points where the user will evaluate.
+    
+    Results are cached for performance during inference (when models are called repeatedly
+    with the same time array).
+    
+    If user_times provided: Creates a hybrid array with extra resolution around user times
+    If not provided: Uses multi-segment geomspace covering the full range
+    
+    :param t_min: Minimum time in specified units (model range)
+    :param t_max: Maximum time in specified units (model range)
+    :param resolution: Total number of points desired
+    :param user_times: Array of times (in same units) where user wants to evaluate (optional)
+    :param time_units: Units of time ('seconds', 'days', or 'generic'). Used only for informational purposes.
+    :return: Time array optimized for interpolation
+    
+    Examples:
+        >>> # For kilonova models (seconds)
+        >>> time_array = get_optimal_time_array(1e-2, 7e6, 500, user_times=user_eval_times)
+        >>> 
+        >>> # For supernova models (days)
+        >>> time_array = get_optimal_time_array(0.1, 3000, 300, time_units='days')
+        >>> 
+        >>> # Without user times, creates balanced multi-segment array
+        >>> time_array = get_optimal_time_array(1e-4, 1e8, 500)
+    """
+    # Convert user_times to hashable tuple for caching
+    if user_times is not None:
+        user_times = np.atleast_1d(user_times)
+        # Convert to float tuple to ensure hashability
+        user_times_tuple = tuple(float(x) for x in user_times)
+    else:
+        user_times_tuple = None
+    
+    return _get_optimal_time_array_cached(t_min, t_max, resolution, user_times_tuple, time_units)
 
 
 def download_pointing_tables():

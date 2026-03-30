@@ -111,6 +111,10 @@ An example to load the simulated data from :code:`redback` simulation module is 
 
 In general, you can ignore the class methods and to create your own transient object by passing in the different attributes (time/flux/frequencies/bands) to the transient object of relevance.
 
+Note - Redback models/plotting etc works on the assumption that time is sorted in increasing order.
+So if your data is not in this format, you will need to sort it before creating the transient object.
+If you don't you may get nonsensical results when plotting or fitting.
+
 For example,
 
 .. code:: python

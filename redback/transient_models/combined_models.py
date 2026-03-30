@@ -269,8 +269,9 @@ def afterglow_kilonova_sed(time, redshift, av, **model_kwargs):
 
     kilonova_function = all_models_dict[_kilonova_kwargs['base_model']]
     capped_times = np.where(times_mesh > 7e6/day_to_s, 7e6/day_to_s, times_mesh)
+    kilonova_time_grid = np.unique(np.ravel(capped_times))
     kilonova = kilonova_function(
-        time=capped_times, 
+        time=kilonova_time_grid,
         redshift=redshift, **_kilonova_kwargs)
     
     # Interpolate kilonova spectra to match afterglow's time and lambda grid
