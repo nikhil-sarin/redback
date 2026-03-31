@@ -1,5 +1,25 @@
 # All notable changes will be documented in this file
 
+## [1.15.2] 2026-03-31
+Version 1.15.2 release of redback
+
+## Added and changed
+* Added astro-otter integration: new transient class constructor, example, and docs (#356)
+* Added SN1998bw spectral template model with extinction function and updated priors (#355)
+* Added optimal time array construction for kilonova models and new two-component model
+* Added reference file regression test for future model stability
+* Added caching for temperature time arrays
+* Updated FINK API to support LSST and ZTF data
+* Added utility function to automate generation of dense time arrays for physics models
+* Added magnitude plotter logic to adjust to upper/lower limits (#354)
+
+## What's Changed
+* astro-otter integration by @nikhil-sarin in https://github.com/nikhil-sarin/redback/pull/356
+* 98bw template by @nellgrab in https://github.com/nikhil-sarin/redback/pull/355
+* Magnitude plotter fix by @conoromand in https://github.com/nikhil-sarin/redback/pull/354
+
+**Full Changelog**: https://github.com/nikhil-sarin/redback/compare/v1.15.1...v1.15.2
+
 ## [1.15.1] 2026-03-12
 Version 1.15.1 release of redback
 
