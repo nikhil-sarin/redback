@@ -1254,7 +1254,7 @@ def fitted(time, redshift, log_mh, a_bh, m_disc, r0, tvi, t_form, incl, **kwargs
             for i in range(0,len(freqs_un)):
                 inds = np.where(frequency == freqs_un[i])[0]
                 nulnus[inds] = m.model_UV([time[j] for j in inds], log_mh, a_bh, m_disc, r0, tvi, t_form, ang, freqs_un[i])
-        flux_density = nulnus/(4.0 * np.pi * dl**2 * frequency)   
+        flux_density = nulnus/(4.0 * np.pi * dl**2 * frequency)
         return flux_density/1.0e-26  * (1 + redshift)
 
     else:
@@ -1265,7 +1265,7 @@ def fitted(time, redshift, log_mh, a_bh, m_disc, r0, tvi, t_form, incl, **kwargs
         frequency, time = calc_kcorrected_properties(frequency=lambda_to_nu(lambda_observer_frame),
                                                      redshift=redshift, time=time_observer_frame)
         nulnus = m.model_SEDs(time, log_mh, a_bh, m_disc, r0, tvi, t_form, ang, frequency)
-        flux_density = (nulnus/(4.0 * np.pi * dl**2 * frequency[:,np.newaxis] * 1.0e-26)) 
+        flux_density = (nulnus/(4.0 * np.pi * dl**2 * frequency[:,np.newaxis]))
         fmjy = flux_density.T
         spectra = flux_density_to_spectrum(flux_density=fmjy, redshift=redshift, lambda_observer_frame=lambda_observer_frame)
         if kwargs['output_format'] == 'spectra':
@@ -1345,10 +1345,10 @@ def fitted_pl_decay(time, redshift, log_mh, a_bh, m_disc, r0, tvi, t_form, incl,
         nulnus_plateau = m.model_SEDs(time, log_mh, a_bh, m_disc, r0, tvi, t_form, ang, frequency)
 
         freq_0 = 6e14
-        l_e_amp = (m.decay_model(time, log_L, t_decay, t_peak, log_T, freq_0) + m.rise_model(time, log_L, sigma_t, t_peak, log_T, freq_0))
+        l_e_amp = (m.decay_model(time, log_L, t_decay, p, t_peak, log_T, freq_0) + m.rise_model(time, log_L, sigma_t, t_peak, log_T, freq_0))
         nulnus_risedecay = ((l_e_amp[:, None] * (frequency/freq_0)**4 * 
                         (np.exp(cc.planck * freq_0/(cc.boltzmann_constant * 10**log_T)) - 1)/(np.exp(cc.planck * frequency/(cc.boltzmann_constant * 10**log_T)) - 1)).T)  
-        flux_density = ((nulnus_risedecay + nulnus_plateau)/(4.0 * np.pi * dl**2 * frequency[:,np.newaxis] * 1.0e-26))  
+        flux_density = ((nulnus_risedecay + nulnus_plateau)/(4.0 * np.pi * dl**2 * frequency[:,np.newaxis]))  
         fmjy = flux_density.T
         spectra = flux_density_to_spectrum(flux_density=fmjy, redshift=redshift, lambda_observer_frame=lambda_observer_frame)
         if kwargs['output_format'] == 'spectra':
@@ -1430,7 +1430,7 @@ def fitted_exp_decay(time, redshift, log_mh, a_bh, m_disc, r0, tvi, t_form, incl
         l_e_amp = (m.decay_model(time, log_L, t_decay, t_peak, log_T, freq_0) + m.rise_model(time, log_L, sigma_t, t_peak, log_T, freq_0))
         nulnus_risedecay = ((l_e_amp[:, None] * (frequency/freq_0)**4 * 
                         (np.exp(cc.planck * freq_0/(cc.boltzmann_constant * 10**log_T)) - 1)/(np.exp(cc.planck * frequency/(cc.boltzmann_constant * 10**log_T)) - 1)).T) 
-        flux_density = ((nulnus_risedecay + nulnus_plateau)/(4.0 * np.pi * dl**2 * frequency[:,np.newaxis] * 1.0e-26))
+        flux_density = ((nulnus_risedecay + nulnus_plateau)/(4.0 * np.pi * dl**2 * frequency[:,np.newaxis]))
         fmjy = flux_density.T
         spectra = flux_density_to_spectrum(flux_density=fmjy, redshift=redshift, lambda_observer_frame=lambda_observer_frame)
         if kwargs['output_format'] == 'spectra':
