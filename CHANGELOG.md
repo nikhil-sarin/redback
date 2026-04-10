@@ -1,5 +1,13 @@
 # All notable changes will be documented in this file
 
+## [1.15.3] 2026-04-10
+Version 1.15.3 release of redback
+
+## Fixed
+* Fixed package_data to include `non_default_priors` and `guillochon_tde_data` directories (#358)
+* Used recursive glob pattern for `guillochon_tde_data` in package_data
+* Added package_data regression tests for `non_default_priors` and `guillochon_tde_data`
+
 ## [1.15.2] 2026-03-31
 Version 1.15.2 release of redback
 
