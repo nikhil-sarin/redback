@@ -6,9 +6,49 @@ import os
 import redback
 import unittest
 
+from bilby.core.prior import PriorDict
 from redback.test_utils.ref_data_utils import assert_matches_ref_data
 
 _dirname = os.path.dirname(__file__)
+
+
+class TestPackageData(unittest.TestCase):
+    """Regression tests for package_data completeness.
+
+    These catch cases where subdirectories are omitted from package_data in
+    setup.py, which would silently break non-editable installs.
+    """
+
+    def test_non_default_priors_directory_exists(self):
+        """priors/non_default_priors/ must be present in the installed package."""
+        non_default_dir = os.path.join(os.path.dirname(redback.__file__), 'priors', 'non_default_priors')
+        self.assertTrue(os.path.isdir(non_default_dir),
+                        f"non_default_priors directory not found at {non_default_dir}")
+
+    def test_vegas_tophat_prior_loads(self):
+        """vegas_tophat prior lives in non_default_priors/ — regression for missing package_data entry."""
+        priors = redback.priors.get_priors('vegas_tophat')
+        self.assertGreater(len(priors), 0,
+                           "vegas_tophat prior returned empty — non_default_priors/ may be missing from package_data")
+
+    def test_guillochon_data_directory_exists(self):
+        """tables/guillochon_tde_data/ must be present in the installed package."""
+        data_dir = os.path.join(os.path.dirname(redback.__file__), 'tables', 'guillochon_tde_data')
+        self.assertTrue(os.path.isdir(data_dir),
+                        f"guillochon_tde_data directory not found at {data_dir}")
+
+    def test_guillochon_gamma_data_files_present(self):
+        """Data files inside gamma subdirectories must be present — regression for shallow glob in package_data."""
+        data_dir = os.path.join(os.path.dirname(redback.__file__), 'tables', 'guillochon_tde_data')
+        for gamma in ['4-3', '5-3']:
+            with self.subTest(gamma=gamma):
+                gamma_dir = os.path.join(data_dir, gamma)
+                self.assertTrue(os.path.isdir(gamma_dir),
+                                f"Missing gamma={gamma} subdirectory in guillochon_tde_data/")
+                dat_files = [f for f in os.listdir(gamma_dir) if f.endswith('.dat')]
+                self.assertGreater(len(dat_files), 0,
+                                   f"No .dat files found in guillochon_tde_data/{gamma}/ — "
+                                   f"package_data glob may be too shallow")
 
 
 class TestOnReferenceData(unittest.TestCase):
