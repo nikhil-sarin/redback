@@ -37,13 +37,18 @@ class TestPackageData(unittest.TestCase):
         self.assertTrue(os.path.isdir(data_dir),
                         f"guillochon_tde_data directory not found at {data_dir}")
 
-    def test_guillochon_gamma_subdirectories_present(self):
-        """Expected gamma subdirectories must exist inside guillochon_tde_data/."""
+    def test_guillochon_gamma_data_files_present(self):
+        """Data files inside gamma subdirectories must be present — regression for shallow glob in package_data."""
         data_dir = os.path.join(os.path.dirname(redback.__file__), 'tables', 'guillochon_tde_data')
         for gamma in ['4-3', '5-3']:
             with self.subTest(gamma=gamma):
-                self.assertTrue(os.path.isdir(os.path.join(data_dir, gamma)),
+                gamma_dir = os.path.join(data_dir, gamma)
+                self.assertTrue(os.path.isdir(gamma_dir),
                                 f"Missing gamma={gamma} subdirectory in guillochon_tde_data/")
+                dat_files = [f for f in os.listdir(gamma_dir) if f.endswith('.dat')]
+                self.assertGreater(len(dat_files), 0,
+                                   f"No .dat files found in guillochon_tde_data/{gamma}/ — "
+                                   f"package_data glob may be too shallow")
 
 
 class TestOnReferenceData(unittest.TestCase):
