@@ -402,6 +402,28 @@ class GaussianLikelihoodWithUpperLimitsTest(unittest.TestCase):
         with self.assertRaises(ValueError):
             self.likelihood.upper_limit_sigma = np.array([1.0, 2.0, 3.0])
 
+    def test_nan_upper_limit_rejected(self):
+        """Test that NaN y-values for upper limits raise ValueError"""
+        y_with_nan = np.array([0.5, 1.2, 2.1, np.nan, np.nan])
+        with self.assertRaises(ValueError) as ctx:
+            likelihoods.GaussianLikelihoodWithUpperLimits(
+                x=self.x, y=y_with_nan, sigma=self.sigma, function=self.function,
+                detections=self.detections, upper_limit_sigma=self.upper_limit_sigma,
+                kwargs=self.kwargs)
+        self.assertIn("NaN", str(ctx.exception))
+        self.assertIn("upper limit", str(ctx.exception))
+
+    def test_data_mode_validation(self):
+        """Test that data_mode setter validates allowed values"""
+        self.likelihood.data_mode = 'flux_density'
+        self.assertEqual(self.likelihood.data_mode, 'flux_density')
+        self.likelihood.data_mode = 'luminosity'
+        self.assertEqual(self.likelihood.data_mode, 'luminosity')
+        self.likelihood.data_mode = 'mag'
+        self.assertEqual(self.likelihood.data_mode, 'magnitude')
+        with self.assertRaises(ValueError):
+            self.likelihood.data_mode = 'invalid_mode'
+
 
 class MixtureGaussianLikelihoodTest(unittest.TestCase):
     """Test MixtureGaussianLikelihood class for outlier detection"""

@@ -4,10 +4,11 @@ import numpy as np
 
 import redback
 
-# In this example we show how to apply constraints on priors.
-# This can be used for a case of a non-detection.
-# Note there is now a general notebook on non-detections called "handing_non_detections".
-# This example only showcases the prior constraints method.
+# In this example we show two ways to handle non-detections in redback:
+# 1. Using prior constraints (the original method shown below)
+# 2. Using the integrated non-detection support (see handling_non_detections.ipynb)
+#    where you pass `detections` and `upper_limit_sigma` to the transient object
+#    and redback automatically handles upper limits in plotting and fitting.
 
 model = 'evolving_magnetar'
 priors = redback.priors.get_priors(model=model)

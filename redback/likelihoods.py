@@ -250,9 +250,9 @@ class GaussianLikelihoodWithUpperLimits(GaussianLikelihood):
         (e.g., 3.0 for all 3-sigma limits) or an array with different sigma levels for each
         upper limit. Default is 3.0.
         :type upper_limit_sigma: Union[float, np.ndarray]
-        :param data_mode: Whether data is in 'flux' or 'magnitude' units. This affects
-        how upper limits are interpreted. For flux: upper limit means "true value < limit".
-        For magnitude: upper limit means "true value > limit" (fainter than limit).
+        :param data_mode: Data units for interpreting upper limits. 'flux', 'flux_density', and
+        'luminosity' all treat upper limits as "true value < limit". 'magnitude' (or 'mag')
+        treats upper limits as "true value > limit" (fainter than limit). Default is 'flux'.
         :type data_mode: str
         """
 
@@ -264,6 +264,18 @@ class GaussianLikelihoodWithUpperLimits(GaussianLikelihood):
         self.detections = detections
         self.upper_limit_sigma = upper_limit_sigma
         self.data_mode = data_mode
+
+        # Validate that upper limit y-values are finite (NaN upper limits are not usable for likelihood)
+        if self._detections is not None and not np.all(self._detections):
+            ul_y = self.y[~self._detections]
+            nan_ul = np.isnan(ul_y)
+            if np.any(nan_ul):
+                n_nan = int(np.sum(nan_ul))
+                raise ValueError(
+                    f"{n_nan} upper limit(s) have NaN y-values. Upper limits require a finite "
+                    f"value (e.g. the limiting magnitude or flux) to compute likelihood. "
+                    f"Replace NaN values with the upper limit value, or remove those data points."
+                )
 
     @property
     def detections(self) -> np.ndarray:
@@ -309,8 +321,8 @@ class GaussianLikelihoodWithUpperLimits(GaussianLikelihood):
 
     @data_mode.setter
     def data_mode(self, data_mode: str) -> None:
-        if data_mode.lower() not in ['flux', 'magnitude', 'mag']:
-            raise ValueError("data_mode must be 'flux' or 'magnitude' (or 'mag')")
+        if data_mode.lower() not in ['flux', 'flux_density', 'luminosity', 'magnitude', 'mag']:
+            raise ValueError("data_mode must be 'flux', 'flux_density', 'luminosity', or 'magnitude' (or 'mag')")
         self._data_mode = data_mode.lower()
         if self._data_mode == 'mag':
             self._data_mode = 'magnitude'
@@ -367,32 +379,19 @@ class GaussianLikelihoodWithUpperLimits(GaussianLikelihood):
         # The measurement uncertainty - this calculation depends on data mode
         if self.data_mode == 'magnitude':
             # For magnitudes, the uncertainty is typically symmetric in mag space
-            # If we don't have explicit uncertainties for upper limits, we need to estimate them
-            # This is a common issue - often we only have the sigma level, not the actual uncertainty
-            # We'll use a reasonable default or derive from the limit
-
-            # Option 1: Use a typical photometric uncertainty (you may want to adjust this)
             sigma_measurement = np.full_like(observed_ul, 0.1)  # Assume 0.1 mag uncertainty
-
-            # Option 2: Derive from the sigma level (uncomment if preferred)
-            # sigma_measurement = observed_ul / ul_sigma_levels  # This assumes the limit is sigma_level * uncertainty
-
-        else:  # flux mode
+        else:  # flux, flux_density, or luminosity mode
             sigma_measurement = observed_ul / ul_sigma_levels
 
         # Calculate the probability based on data mode
         if self.data_mode == 'magnitude':
-            # For magnitudes: upper limit means "true magnitude > observed_limit" (fainter than limit)
-            # We want: P(true_mag > observed_upper_limit | model_prediction)
-            # This is 1 - CDF(observed_limit) = CDF(-standardized) due to symmetry
+            # For magnitudes: upper limit means "true magnitude > observed_limit" (fainter)
+            # P(true_mag > observed_upper_limit | model_prediction)
             standardized = (observed_ul - model_ul) / sigma_measurement
-            # P(X > observed) = 1 - P(X <= observed) = 1 - CDF(standardized)
             survival_prob = 1.0 - self._normal_cdf(standardized)
             cdf_values = survival_prob
-
-        else:  # flux mode
-            # For flux: upper limit means "true flux < observed_limit"
-            # We want: P(true_flux < observed_upper_limit | model_prediction)
+        else:  # flux, flux_density, or luminosity: upper limit means "true value < limit"
+            # P(true_value < observed_upper_limit | model_prediction)
             standardized = (observed_ul - model_ul) / sigma_measurement
             cdf_values = self._normal_cdf(standardized)
 
@@ -418,11 +417,9 @@ class GaussianLikelihoodWithUpperLimits(GaussianLikelihood):
             else:
                 detection_noise_ll = 0.0
 
-            # Upper limits part (assume model = 0 for noise in flux, or some reference mag for magnitudes)
+            # Upper limits part (assume model = 0 for noise, or very faint for magnitudes)
             if self.data_mode == 'magnitude':
-                # For magnitudes, "no signal" might mean very faint (large magnitude)
-                # You might want to adjust this based on your specific case
-                noise_model = np.full_like(self.y, 60.0)  # Assume 30 mag as "no signal"
+                noise_model = np.full_like(self.y, 60.0)  # Assume 60 mag as "no signal"
             else:
                 noise_model = np.zeros_like(self.y)
 

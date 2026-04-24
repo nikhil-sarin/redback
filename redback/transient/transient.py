@@ -149,7 +149,8 @@ class Transient(object):
             ttes: np.ndarray = None, bin_size: float = None, redshift: float = np.nan, data_mode: str = None,
             name: str = '', photon_index: float = np.nan, use_phase_model: bool = False,
             optical_data: bool = False, frequency: np.ndarray = None, system: np.ndarray = None, bands: np.ndarray = None,
-            active_bands: Union[np.ndarray, str] = None, plotting_order: Union[np.ndarray, str] = None, **kwargs: None) -> None:
+            active_bands: Union[np.ndarray, str] = None, plotting_order: Union[np.ndarray, str] = None,
+            detections: np.ndarray = None, upper_limit_sigma: Union[float, np.ndarray] = 3.0, **kwargs: None) -> None:
         """This is a general constructor for the Transient class. Note that you only need to give data corresponding to
         the data mode you are using. For luminosity data provide times in the rest frame, if using a phase model
         provide time in MJD, else use the default time (observer frame).
@@ -211,6 +212,12 @@ class Transient(object):
         :type active_bands: Union[list, np.ndarray], optional
         :param plotting_order: Order in which to plot the bands/and how unique bands are stored.
         :type plotting_order: Union[np.ndarray, str], optional
+        :param detections: Boolean or integer array (same length as time) indicating which data
+            points are detections (1/True) vs upper limits (0/False). None means all points are detections.
+        :type detections: np.ndarray, optional
+        :param upper_limit_sigma: The sigma level of the upper limits. Can be a single float
+            (applied to all upper limits) or an array (one per data point). Default is 3.0 (3-sigma limits).
+        :type upper_limit_sigma: Union[float, np.ndarray], optional
         :param kwargs: Additional callables:
                        bands_to_frequency: Conversion function to convert a list of bands to frequencies.
                                            Use redback.utils.bands_to_frequency if not given.
@@ -256,6 +263,8 @@ class Transient(object):
         self.use_phase_model = use_phase_model
         self.optical_data = optical_data
         self.plotting_order = plotting_order
+        self.detections = detections
+        self.upper_limit_sigma = upper_limit_sigma
 
         self.meta_data = None
         self.photon_index = photon_index
@@ -338,7 +347,8 @@ class Transient(object):
     @classmethod
     def from_simulated_optical_data(
             cls, name: str, data_mode: str = "magnitude", active_bands: Union[np.ndarray, str] = 'all',
-            plotting_order: Union[np.ndarray, str] = None, use_phase_model: bool = False) -> Transient:
+            plotting_order: Union[np.ndarray, str] = None, use_phase_model: bool = False,
+            include_upper_limits: bool = False, upper_limit_sigma: Union[float, np.ndarray] = 3.0) -> Transient:
         """Constructor method to built object from SimulatedOpticalTransient.
 
         :param name: Name of the transient.
@@ -352,13 +362,29 @@ class Transient(object):
         :type plotting_order: Union[np.ndarray, str], optional
         :param use_phase_model: Whether to use a phase model.
         :type use_phase_model: bool, optional
+        :param include_upper_limits: Whether to include non-detection data points as upper limits.
+            If False (default), non-detections are filtered out (backward compatible behavior).
+            If True, non-detections are preserved and flagged in the detections array.
+        :type include_upper_limits: bool, optional
+        :param upper_limit_sigma: The sigma level of the upper limits. Default is 3.0 (3-sigma limits).
+        :type upper_limit_sigma: Union[float, np.ndarray], optional
 
         :return: A class instance.
         :rtype: OpticalTransient
         """
         path = "simulated/" + name + ".csv"
         df = pd.read_csv(path)
-        df = df[df.detected != 0]
+        detections = None
+        if include_upper_limits and "detected" in df.columns:
+            detections = (df["detected"] != 0).to_numpy().astype(bool)
+            n_total = len(df)
+            n_det = int(detections.sum())
+            redback.utils.logger.info(f"Keeping all {n_total} data points ({n_det} detections, {n_total - n_det} upper limits)")
+        else:
+            n_before = len(df)
+            df = df[df.detected != 0]
+            n_after = len(df)
+            redback.utils.logger.info(f"Filtered {n_before - n_after} non-detections, {n_after} detections remain")
         time_days = np.array(df["time (days)"])
         time_mjd = np.array(df["time"])
         magnitude = np.array(df["magnitude"])
@@ -371,7 +397,8 @@ class Transient(object):
         return cls(name=name, data_mode=data_mode, time=time_days, time_err=None, time_mjd=time_mjd,
                    flux_density=flux_density, flux_density_err=flux_density_err, magnitude=magnitude,
                    magnitude_err=magnitude_err, flux=flux, flux_err=flux_err, bands=bands, active_bands=active_bands,
-                   use_phase_model=use_phase_model, optical_data=True, plotting_order=plotting_order)
+                   use_phase_model=use_phase_model, optical_data=True, plotting_order=plotting_order,
+                   detections=detections, upper_limit_sigma=upper_limit_sigma)
 
     @classmethod
     def from_otter(
@@ -438,7 +465,8 @@ class Transient(object):
     def from_lightcurvelynx(
             cls, name: str, data: pd.DataFrame = None, data_mode: str = "magnitude",
             active_bands: Union[np.ndarray, str] = 'all', plotting_order: Union[np.ndarray, str] = None,
-            use_phase_model: bool = False, frequency: np.ndarray = None) -> Transient:
+            use_phase_model: bool = False, frequency: np.ndarray = None,
+            include_upper_limits: bool = False, upper_limit_sigma: Union[float, np.ndarray] = 3.0) -> Transient:
         """Constructor method to built object from a LightCurveLynx simulated light curve.
         https://github.com/lincc-frameworks/lightcurvelynx
         Only the time, bands, magnitude and magnitude error columns are used. The rest are computed
@@ -460,6 +488,12 @@ class Transient(object):
         :param frequency: Array of frequencies corresponding to each observation. 
                           If None, will be computed from bands using bands_to_frequency.
         :type frequency: np.ndarray, optional
+        :param include_upper_limits: Whether to include non-detection data points as upper limits.
+            If False (default), non-detections are filtered out (backward compatible behavior).
+            If True, non-detections are preserved and flagged in the detections array.
+        :type include_upper_limits: bool, optional
+        :param upper_limit_sigma: The sigma level of the upper limits. Default is 3.0 (3-sigma limits).
+        :type upper_limit_sigma: Union[float, np.ndarray], optional
 
         :return: A class instance.
         :rtype: OpticalTransient
@@ -474,12 +508,19 @@ class Transient(object):
         else:
             redback.utils.logger.info(f"Using provided DataFrame with {len(data)} rows")
 
-        # Filter out the non-detections.
-        if "detection" in data.columns:
-            n_before = len(data)
-            data = data[data.detection != 0]
-            n_after = len(data)
-            redback.utils.logger.info(f"Filtered {n_before - n_after} non-detections, {n_after} detections remain")
+        # Handle non-detections: either preserve them or filter them out.
+        detections = None
+        if include_upper_limits and "detection" in data.columns:
+            detections = (data["detection"] != 0).to_numpy().astype(bool)
+            n_total = len(data)
+            n_det = int(detections.sum())
+            redback.utils.logger.info(f"Keeping all {n_total} data points ({n_det} detections, {n_total - n_det} upper limits)")
+        else:
+            if "detection" in data.columns:
+                n_before = len(data)
+                data = data[data.detection != 0]
+                n_after = len(data)
+                redback.utils.logger.info(f"Filtered {n_before - n_after} non-detections, {n_after} detections remain")
 
         # Process the time and bands data.
         bands = data["filter"].to_numpy()
@@ -528,7 +569,7 @@ class Transient(object):
                    flux_density=flux_density, flux_density_err=flux_density_err, magnitude=magnitude,
                    magnitude_err=magnitude_err, flux=flux, flux_err=flux_err, bands=bands, active_bands=active_bands,
                    use_phase_model=use_phase_model, optical_data=True, plotting_order=plotting_order,
-                   frequency=frequency)
+                   frequency=frequency, detections=detections, upper_limit_sigma=upper_limit_sigma)
 
 
     @property
@@ -782,6 +823,86 @@ class Transient(object):
         else:
             raise ValueError(f"Transient needs to be in flux density, magnitude or flux data mode, "
                              f"but is in {self.data_mode} instead.")
+
+    def get_filtered_data_with_limits(self) -> tuple:
+        """Used to filter data by active bands, returning detection information alongside the usual data.
+
+        :return: A tuple with the filtered data.
+            Format is (x, x_err, y, y_err, detections) where detections is a boolean
+            array (True=detection, False=upper limit) or None if all points are detections.
+        :rtype: tuple
+        """
+        filtered_x, filtered_x_err, filtered_y, filtered_y_err = self.get_filtered_data()
+        if self._detections is not None:
+            filtered_detections = self._detections[self.filtered_indices]
+        else:
+            filtered_detections = None
+        return filtered_x, filtered_x_err, filtered_y, filtered_y_err, filtered_detections
+
+    @property
+    def detections(self) -> Union[np.ndarray, None]:
+        """Boolean array: True=detection, False=upper limit. None if all points are detections."""
+        return self._detections
+
+    @detections.setter
+    def detections(self, detections: Union[np.ndarray, None]) -> None:
+        if detections is None:
+            self._detections = None
+        else:
+            detections = np.asarray(detections, dtype=bool)
+            if self.time is not None and len(detections) != len(self.time):
+                raise ValueError(
+                    f"detections array (length {len(detections)}) must have the same length "
+                    f"as time (length {len(self.time)})."
+                )
+            self._detections = detections
+        self.validate_upper_limits()
+
+    @property
+    def upper_limits(self) -> np.ndarray:
+        """Boolean array: True=upper limit, False=detection. All False if no upper limits."""
+        if self._detections is None:
+            return np.zeros(len(self.time), dtype=bool) if self.time is not None else np.array([], dtype=bool)
+        return ~self._detections
+
+    @property
+    def has_upper_limits(self) -> bool:
+        """Returns True if any data points are upper limits."""
+        if self._detections is None:
+            return False
+        return bool(np.any(~self._detections))
+
+    @property
+    def upper_limit_sigma(self) -> Union[float, np.ndarray]:
+        """The sigma level of the upper limits (e.g. 3.0 for 3-sigma limits)."""
+        return self._upper_limit_sigma
+
+    @upper_limit_sigma.setter
+    def upper_limit_sigma(self, upper_limit_sigma: Union[float, np.ndarray]) -> None:
+        self._upper_limit_sigma = upper_limit_sigma
+
+    def validate_upper_limits(self) -> None:
+        """Check that upper limit data points have finite y-values.
+
+        Upper limits require a finite y-value (the limit value) for both
+        plotting and likelihood computation. NaN y-values for upper limits
+        are not usable because there is no position to draw the marker at,
+        and the likelihood cannot evaluate the CDF without a numerical limit.
+
+        Logs a warning for each band with NaN upper limits.
+        """
+        if self._detections is None or not self.has_upper_limits:
+            return
+        ul_mask = self.upper_limits
+        ul_y = self.y[ul_mask]
+        nan_count = np.sum(np.isnan(ul_y))
+        if nan_count > 0:
+            redback.utils.logger.warning(
+                f"{int(nan_count)} upper limit(s) have NaN y-values. These cannot be "
+                f"plotted or used in likelihood fitting. Replace NaN values with the "
+                f"upper limit value (e.g. the limiting magnitude or flux), or remove "
+                f"those data points."
+            )
 
     @property
     def unique_bands(self) -> np.ndarray:
