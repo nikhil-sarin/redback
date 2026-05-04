@@ -220,9 +220,8 @@ spitzer::I3,5.26700e+13,56961.78000,black,4.26900e-07,spitzer::I3,IRAC/I3,5.2670
 spitzer::I4,3.84700e+13,77978.40000,black,4.65300e-07,spitzer::I4,IRAC/I4,3.84700e+13
 tess,3.89700e+14,7697.60000,black,7.65800e-06,tess,TESS,1.84016e+14
 G,4.79900e+14,6251.50000,black,1.32100e-05,gaia::G,Gaia/G,3.24422e+14
-gaia::g,4.79900e+14,6251.50000,black,1.32100e-05,gaia::g,Gaia/G,3.24422e+14
-gaia::gbp,5.87100e+14,5109.71000,black,9.42100e-06,gaia::gbp,GAIA/Gbp,2.92235e+14
 gaia::g,4.79900e+14,6217.59000,black,1.27800e-05,gaia::g,GAIA/G,3.24422e+14
+gaia::gbp,5.87100e+14,5109.71000,black,9.42100e-06,gaia::gbp,GAIA/Gbp,2.92235e+14
 gaia::grp,3.86200e+14,7769.02000,black,5.47200e-06,gaia::grp,GAIA/Grp,1.40255e+14
 gaia::grvs,3.49700e+14,8578.76000,black,3.48100e-07,gaia::grvs,GAIA/Grvs,9.58567e+12
 gotob,6.49000e+14,4622.88000,black,3.77100e-06,gotob,GOTO/B,1.11724e+14
