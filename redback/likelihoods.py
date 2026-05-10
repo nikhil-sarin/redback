@@ -378,8 +378,9 @@ class GaussianLikelihoodWithUpperLimits(GaussianLikelihood):
 
         # The measurement uncertainty - this calculation depends on data mode
         if self.data_mode == 'magnitude':
-            # For magnitudes, the uncertainty is typically symmetric in mag space
-            sigma_measurement = np.full_like(observed_ul, 0.1)  # Assume 0.1 mag uncertainty
+            # At an N-sigma limiting flux, the corresponding small-error
+            # magnitude uncertainty is (2.5 / ln(10)) / N.
+            sigma_measurement = (2.5 / np.log(10.0)) / ul_sigma_levels
         else:  # flux, flux_density, or luminosity mode
             sigma_measurement = observed_ul / ul_sigma_levels
 
