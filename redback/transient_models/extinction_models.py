@@ -40,6 +40,11 @@ def _get_correct_function(base_model, model_type=None):
             f"Ensure the model name is correct and the module is loaded."
         )
 
+    if model_type not in model_library:
+        raise ValueError(
+            f"Unknown model_type '{model_type}'. "
+            f"Available types: {list(model_library.keys())}"
+        )
     module_name = model_library[model_type]
     if module_name not in modules_dict:
         raise ValueError(
@@ -369,20 +374,6 @@ def extinction_with_stellar_interaction_base_model(time, av_host, **kwargs):
         - mw_law: MW extinction law (default 'fitzpatrick99')
         Available extinction laws: 'fitzpatrick99', 'fm07', 'calzetti00', 'odonnell94', 'ccm89'
     :return: set by kwargs['output_format'] - 'flux_density', 'magnitude', 'flux', 'spectra' with extinction applied
-    """
-    output = _evaluate_extinction_model(time=time, av_host=av_host, model_type='stellar_interaction', **kwargs)
-    return output
-
-@citation_wrapper('redback')
-def extinction_with_stellar_interaction_base_model(time, av_host, **kwargs):
-    """
-    Extinction with models implemented in stellar_interaction_models
-
-    :param time: time in observer frame in days
-    :param av_host: absolute mag extinction
-    :param kwargs: Must be all the parameters required by the base_model specified using kwargs['base_model']
-        and r_v, default is 3.1
-    :return: set by kwargs['output_format'] - 'flux_density', 'magnitude', 'flux' with extinction applied
     """
     output = _evaluate_extinction_model(time=time, av_host=av_host, model_type='stellar_interaction', **kwargs)
     return output
