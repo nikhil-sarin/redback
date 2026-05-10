@@ -8,7 +8,7 @@ from unittest.mock import patch, MagicMock, PropertyMock
 import bilby.core.prior
 
 from redback import result
-from redback.result import RedbackResult, read_in_result
+from redback.result import RedbackResult, read_in_result, _smart_corner_title
 
 
 class TestRedbackResult(unittest.TestCase):
@@ -508,6 +508,69 @@ class TestRedbackResultEdgeCases(unittest.TestCase):
 
         self.assertIsNotNone(res.nested_samples)
         self.assertEqual(len(res.nested_samples), 1000)
+
+
+class TestSmartCornerTitle(unittest.TestCase):
+    """Tests for _smart_corner_title()."""
+
+    def test_returns_latex_string(self):
+        """Result contains '$', marking it as a LaTeX string."""
+        result = _smart_corner_title(3.5, 0.2, 0.3)
+        self.assertIn("$", result)
+
+    def test_mid_range_uses_linear(self):
+        """Mid-range value (3.5) uses linear decimal format, not sci notation."""
+        result = _smart_corner_title(3.5, 0.2, 0.3)
+        # Linear format: no times-10 scientific notation marker
+        self.assertNotIn(r"\times", result)
+        self.assertIn("3.5", result)
+
+    def test_large_value_uses_sci_notation(self):
+        """Value >= 1e4 uses scientific notation."""
+        result = _smart_corner_title(1e51, 1e49, 2e49)
+        self.assertIn(r"\times", result)
+        self.assertIn("10^", result)
+
+    def test_small_value_uses_sci_notation(self):
+        """Value |median| < 1e-2 uses scientific notation."""
+        result = _smart_corner_title(0.001, 0.0001, 0.0002)
+        self.assertIn(r"\times", result)
+        self.assertIn("10^", result)
+
+    def test_mid_range_uncertainties_not_zero(self):
+        """Mid-range: uncertainties are rendered with enough decimal places (not 0.00)."""
+        result = _smart_corner_title(3.5, 0.2, 0.3)
+        # Neither uncertainty should appear as 0.0 or 0.00
+        self.assertNotIn("-0.0}", result)
+        self.assertNotIn("+0.0}", result)
+
+    def test_value_just_below_1e4_is_linear(self):
+        """Value 9999 is just below 1e4, so linear format is used."""
+        result = _smart_corner_title(9999.0, 10.0, 15.0)
+        self.assertNotIn(r"\times", result)
+
+    def test_value_at_1e4_is_sci(self):
+        """Value exactly 1e4 triggers scientific notation."""
+        result = _smart_corner_title(1e4, 100.0, 200.0)
+        self.assertIn(r"\times", result)
+
+    def test_very_small_value_at_boundary(self):
+        """Value 0.1 is >= 1e-2, so linear format is used."""
+        result = _smart_corner_title(0.1, 0.01, 0.02)
+        self.assertIn("$", result)
+        # 0.1 is not < 1e-2 so should be linear
+        self.assertNotIn(r"\times", result)
+
+    def test_large_value_exponent_in_output(self):
+        """For 1e51 the exponent 51 appears in the output."""
+        result = _smart_corner_title(1e51, 1e49, 2e49)
+        self.assertIn("51", result)
+
+    def test_contains_plus_and_minus_markers(self):
+        """Output includes both upper (+) and lower (-) uncertainty markers."""
+        result = _smart_corner_title(3.5, 0.2, 0.3)
+        self.assertIn("+", result)
+        self.assertIn("-", result)
 
 
 if __name__ == '__main__':
