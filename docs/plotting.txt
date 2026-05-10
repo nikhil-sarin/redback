@@ -48,6 +48,91 @@ Of course, thanks to the modularity, one can also call the model themselves and 
 
 For more advanced plotting, please see the Plotting API.
 
+Discovering all plotter kwargs
+--------------------------------
+
+Every aesthetic and functional option in :code:`redback` plotting is exposed as a :code:`KwargsAccessorWithDefault`
+descriptor on the :code:`Plotter` class. Because these live on the class itself, you can always get an up-to-date
+list of every available kwarg and its default by calling:
+
+.. code:: python
+
+    import redback.plotting
+    print(redback.plotting.get_plotter_kwargs_docs())
+
+This will print every kwarg name and its default value, for example::
+
+    Keyword arguments accepted by Plotter (pass via **kwargs):
+    =================================================================
+      capsize (default: 0.0)
+      ms (default: 5)
+      fontsize_axes (default: 18)
+      fontsize_legend (default: 18)
+      band_colors (default: None)
+      upper_limit_marker (default: '$\\downarrow$')
+      upper_limit_markersize (default: 14)
+      ...
+
+You can also query a specific plotter subclass, which will include any extra options that subclass adds:
+
+.. code:: python
+
+    print(redback.plotting.get_plotter_kwargs_docs(redback.plotting.MagnitudePlotter))
+
+This is always in sync with the code — if a new option is added to any :code:`Plotter` subclass,
+it automatically appears in the output without any manual docstring updates.
+
+Corner plot formatting
+--------------------------------
+
+The :code:`result.plot_corner` method applies smart automatic title formatting.
+Titles use scientific notation when the posterior median or its uncertainties span many orders of magnitude
+(e.g. :math:`E_k \sim 10^{51}` erg), and pick enough decimal places so uncertainties are never
+displayed as 0.00. All standard :code:`corner.corner` keyword arguments are accepted:
+
+.. code:: python
+
+    result.plot_corner(
+        parameters=['mej', 'f_nickel', 'kappa', 'vej', 'av_host'],
+        labels=[r'$M_{\rm ej}~(M_\odot)$', r'$f_{\rm Ni}$',
+                r'$\kappa$ (cm$^2$/g)', r'$v_{\rm ej}$ (km/s)',
+                r'$A_{\rm v, host}$'],
+        filename='my_corner.png',
+        smooth=1.8,
+        title_kwargs={'fontsize': 20},
+        label_kwargs={'fontsize': 20},
+    )
+
+Key kwargs for :code:`plot_corner`:
+
+- :code:`labels` — list of LaTeX axis labels, one per parameter.
+- :code:`title_kwargs` — dict passed to :code:`ax.set_title`, e.g. :code:`{'fontsize': 20}`.
+- :code:`label_kwargs` — dict passed to axis label setters, e.g. :code:`{'fontsize': 20}`.
+- :code:`smooth` — Gaussian smoothing sigma for 2-D histograms, e.g. :code:`smooth=1.8`.
+- :code:`quantiles` — quantiles to mark on 1-D marginals, default :code:`[0.16, 0.84]`. Pass :code:`None` to suppress.
+- :code:`color` — contour/histogram colour.
+- :code:`titles` — set to :code:`False` to suppress the median ± uncertainty titles entirely.
+
+Non-detections / upper limits
+--------------------------------
+
+When a transient has non-detection data points (upper limits), these are plotted automatically
+as downward-pointing arrow markers. The upper limit values (e.g. limiting magnitude or flux) are
+read from the :code:`detections` array on the transient.
+
+Upper limit appearance can be customised via kwargs:
+
+.. code:: python
+
+    transient.plot_data(
+        upper_limit_marker=r'$\downarrow$',  # default
+        upper_limit_markersize=14,            # default
+        upper_limit_alpha=0.7,                # default
+        band_colors={'g': 'green', 'r': 'red'},
+    )
+
+The upper limit markers automatically use the same colour as the corresponding band's detections.
+
 Turning off latex rendering
 --------------------------------
 
