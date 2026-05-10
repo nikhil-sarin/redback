@@ -388,6 +388,11 @@ class Transient(object):
         time_days = np.array(df["time (days)"])
         time_mjd = np.array(df["time"])
         magnitude = np.array(df["magnitude"])
+        # For non-detections, magnitude may be NaN; substitute limiting_magnitude where available.
+        if detections is not None and "limiting_magnitude" in df.columns:
+            limiting_mag = np.array(df["limiting_magnitude"])
+            nan_mask = ~np.isfinite(magnitude)
+            magnitude[nan_mask] = limiting_mag[nan_mask]
         magnitude_err = np.array(df["e_magnitude"])
         bands = np.array(df["band"])
         flux = np.array(df["flux(erg/cm2/s)"])
@@ -965,9 +970,9 @@ class Transient(object):
         :param show: Whether to show the plot. (Default value = True)
         :param plot_others: Whether to plot inactive bands. (Default value = True)
         :param color: Color of the data.
-        :param kwargs: Additional keyword arguments to pass in the Plotter methods.
-        Available in the online documentation under at `redback.plotting.Plotter`.
-        `print(Transient.plot_data.__doc__)` to see all options!
+        :param kwargs: Additional keyword arguments passed to the Plotter.
+            All KwargsAccessorWithDefault attributes on redback.plotting.Plotter are accepted.
+            Run ``redback.plotting.get_plotter_kwargs_docs()`` to see all options and defaults.
         :return: The axes with the plot.
         """
 
@@ -1010,9 +1015,9 @@ class Transient(object):
                       be inferred from ncols and the number of filters.
         :param figsize: Size of the figure. A default based on ncols and nrows will be used if None is given.
         :param filters: Which bands to plot. Will use default filters if None is given.
-        :param kwargs: Additional keyword arguments to pass in the Plotter methods.
-        Available in the online documentation under at `redback.plotting.Plotter`.
-        `print(Transient.plot_multiband.__doc__)` to see all options!
+        :param kwargs: Additional keyword arguments passed to the Plotter.
+            All KwargsAccessorWithDefault attributes on redback.plotting.Plotter are accepted.
+            Run ``redback.plotting.get_plotter_kwargs_docs()`` to see all options and defaults.
         :return: The axes.
         """
         if self.data_mode not in ['flux_density', 'magnitude', 'flux']:
