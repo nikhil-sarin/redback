@@ -140,7 +140,7 @@ class TestCSMDiffusion(unittest.TestCase):
         self.luminosity = 1e43 * np.ones(100)
         self.kappa = 0.1
         self.r_photosphere = 1e14
-        self.mass_csm_threshold = 0.5
+        self.mass_csm_threshold = 1e32
         self.csm_mass = 1.0
 
     def test_initialization(self):
@@ -175,19 +175,28 @@ class TestCSMDiffusion(unittest.TestCase):
         self.assertIsNotNone(csm.new_luminosity)
         self.assertEqual(len(csm.new_luminosity), len(self.time))
 
-    def test_varying_csm_mass(self):
-        """Test with different CSM masses"""
+    def test_varying_mass_csm_threshold(self):
+        """Test with different optically-thick CSM masses."""
         csm1 = interaction.CSMDiffusion(
             self.time, self.dense_times, self.luminosity,
-            self.kappa, self.r_photosphere, self.mass_csm_threshold,
-            0.5)
+            self.kappa, self.r_photosphere, 5e31,
+            self.csm_mass)
         csm2 = interaction.CSMDiffusion(
             self.time, self.dense_times, self.luminosity,
-            self.kappa, self.r_photosphere, self.mass_csm_threshold,
-            2.0)
+            self.kappa, self.r_photosphere, 2e32,
+            self.csm_mass)
 
-        # Different CSM masses should give different luminosities
+        # Different optically-thick CSM masses should change the diffusion timescale.
         self.assertFalse(np.allclose(csm1.new_luminosity, csm2.new_luminosity))
+
+    def test_small_diffusion_timescale_is_finite(self):
+        """The exponential convolution must stay finite for small t0."""
+        csm = interaction.CSMDiffusion(
+            self.time, self.dense_times, self.luminosity,
+            self.kappa, self.r_photosphere, 1e26,
+            self.csm_mass)
+
+        self.assertTrue(np.all(np.isfinite(csm.new_luminosity)))
 
     def test_varying_kappa(self):
         """Test with different opacity values"""
