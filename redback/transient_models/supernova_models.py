@@ -2129,9 +2129,13 @@ def csm_nickel_bolometric(time, mej, f_nickel, csm_mass, ek, eta, rho, kappa, r0
     :param kwargs: kappa_gamma, and any kwarg to change any other input physics/parameters from default.
     :return: bolometric_luminosity
     """
+    time = np.asarray(time)
     vej = np.sqrt(2.0 * ek / (mej * solar_mass)) / km_cgs
     dense_resolution = kwargs.get("dense_resolution", 1000)
-    dense_times = np.geomspace(0.1, time[-1] + 100, dense_resolution)
+    stop_time = kwargs.get("stop_time", np.max(time) + 100)
+    dense_time_min = kwargs.get("dense_time_min", min(0.01, np.min(time)))
+    dense_times = get_optimal_time_array(
+        dense_time_min, stop_time, dense_resolution, user_times=time, time_units="days")
     csm_output = _csm_engine(time=dense_times, mej=mej, csm_mass=csm_mass, vej=vej,
                              eta=eta, rho=rho, kappa=kappa, r0=r0, **kwargs)
     mej_eff = mej + csm_output.mass_csm_threshold / solar_mass
