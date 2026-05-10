@@ -87,7 +87,8 @@ class Plotter(object):
 
     # Upper limit plot options
     upper_limit_marker = KwargsAccessorWithDefault("upper_limit_marker", r"$\downarrow$")
-    upper_limit_markersize = KwargsAccessorWithDefault("upper_limit_markersize", 10)
+    upper_limit_markersize = KwargsAccessorWithDefault("upper_limit_markersize", 14)
+    upper_limit_alpha = KwargsAccessorWithDefault("upper_limit_alpha", 0.7)
 
     # Grid options
     show_grid = KwargsAccessorWithDefault("show_grid", False)
@@ -435,7 +436,8 @@ class SpecPlotter(object):
 
     # Upper limit plot options
     upper_limit_marker = KwargsAccessorWithDefault("upper_limit_marker", r"$\downarrow$")
-    upper_limit_markersize = KwargsAccessorWithDefault("upper_limit_markersize", 10)
+    upper_limit_markersize = KwargsAccessorWithDefault("upper_limit_markersize", 14)
+    upper_limit_alpha = KwargsAccessorWithDefault("upper_limit_alpha", 0.7)
 
     # Grid options
     show_grid = KwargsAccessorWithDefault("show_grid", False)
@@ -979,6 +981,34 @@ class MagnitudePlotter(Plotter):
         if self.band_labels is not None:
             return (bl for bl in self.band_labels)
 
+    def _get_data_plot_label(self, band):
+        if band in self.band_scaling:
+            label = band + ' ' + self.band_scaling.get("type") + ' ' + str(self.band_scaling.get(band))
+            if self.band_scaling.get("type") == 'x':
+                if self.band_scaling.get(band) == 1:
+                    label = band
+            elif self.band_scaling.get("type") == '+':
+                if self.band_scaling.get(band) == 0:
+                    label = band
+        else:
+            label = band
+        if isinstance(label, float):
+            label = f"{label:.2e}"
+        return label
+
+    def _get_data_plot_labels(self) -> dict:
+        band_label_generator = self.band_label_generator
+        band_labels = dict()
+        for band in self.transient.unique_bands:
+            if band in self._filters:
+                if band_label_generator is None:
+                    band_labels[band] = self._get_data_plot_label(band)
+                else:
+                    band_labels[band] = next(band_label_generator)
+            elif self.plot_others:
+                band_labels[band] = None
+        return band_labels
+
     def plot_data(
             self, axes: matplotlib.axes.Axes = None, save: bool = True, show: bool = True) -> matplotlib.axes.Axes:
         """Plots the Magnitude data and returns Axes.
@@ -995,37 +1025,26 @@ class MagnitudePlotter(Plotter):
         """
         ax = axes or plt.gca()
 
-        band_label_generator = self.band_label_generator
+        band_labels = self._get_data_plot_labels()
+        labeled_bands = set()
 
         for indices, band in zip(self.transient.list_of_band_indices, self.transient.unique_bands):
+            if band not in band_labels:
+                continue
             # Filter out upper limit indices from detection data
-            if self.transient.has_upper_limits:
+            if self.transient.has_upper_limits is True:
                 detection_mask = ~self.transient.upper_limits
+                indices = np.asarray(indices)
                 indices = indices[detection_mask[indices]]
                 if len(indices) == 0:
                     continue
+            label = band_labels[band]
             if band in self._filters:
                 color = self._colors[list(self._filters).index(band)]
-                if band_label_generator is None:
-                    if band in self.band_scaling:
-                        label = band + ' ' + self.band_scaling.get("type") + ' ' + str(self.band_scaling.get(band))
-                        if self.band_scaling.get("type") == 'x':
-                            if self.band_scaling.get(band) == 1:
-                                label = band
-                        elif self.band_scaling.get("type") == '+':
-                            if self.band_scaling.get(band) == 0:
-                                label = band
-                    else:
-                        label = band   
-                else:
-                    label = next(band_label_generator)
             elif self.plot_others:
                 color = "black"
-                label = None
             else:
                 continue
-            if isinstance(label, float):
-                label = f"{label:.2e}"
             if self.band_colors is not None:
                 color = self.band_colors[band]
             if band in self.band_scaling:
@@ -1053,12 +1072,16 @@ class MagnitudePlotter(Plotter):
                     elinewidth=self.elinewidth, capsize=self.capsize, label=label,
                     fillstyle=self.markerfillstyle, markeredgecolor=self.markeredgecolor,
                     markeredgewidth=self.markeredgewidth)
+            if label is not None:
+                labeled_bands.add(band)
 
         # Plot upper limits if present
-        if self.transient.has_upper_limits:
+        if self.transient.has_upper_limits is True:
             ul_boolean = self.transient.upper_limits
             ul_marker = self.upper_limit_marker
             for indices, band in zip(self.transient.list_of_band_indices, self.transient.unique_bands):
+                if band not in band_labels:
+                    continue
                 ul_band_indices = np.array([i for i in indices if ul_boolean[i]])
                 if len(ul_band_indices) == 0:
                     continue
@@ -1074,18 +1097,25 @@ class MagnitudePlotter(Plotter):
                     ul_band_indices = ul_band_indices[finite_mask]
                 if len(ul_band_indices) == 0:
                     continue
-                if band in self._filters:
+                if self.band_colors is not None and band in self.band_colors:
+                    color = self.band_colors[band]
+                elif band in self._filters:
                     color = self._colors[list(self._filters).index(band)]
                 elif self.plot_others:
                     color = "black"
                 else:
                     continue
-                if self.band_colors is not None and band in self.band_colors:
-                    color = self.band_colors[band]
+                ul_y = self.transient.y[ul_band_indices]
+                if band in self.band_scaling:
+                    if self.band_scaling.get("type") == 'x':
+                        ul_y = ul_y * self.band_scaling.get(band)
+                    elif self.band_scaling.get("type") == '+':
+                        ul_y = ul_y + self.band_scaling.get(band)
+                label = band_labels[band] if band not in labeled_bands else None
                 ax.plot(self.transient.x[ul_band_indices] - self._reference_mjd_date,
-                        self.transient.y[ul_band_indices],
-                        marker=ul_marker, ms=self.upper_limit_markersize,
-                        color=color, linestyle='none')
+                        ul_y, marker=ul_marker, ms=self.upper_limit_markersize,
+                        color=color, linestyle='none', alpha=self.upper_limit_alpha,
+                        label=label, zorder=3)
 
         self._set_x_axis(axes=ax)
         self._set_y_axis_data(ax)
@@ -1232,7 +1262,7 @@ class MagnitudePlotter(Plotter):
                 label = next(band_label_generator)
 
             # Separate detections and upper limits for this band
-            if self.transient.has_upper_limits:
+            if self.transient.has_upper_limits is True:
                 det_mask = ~self.transient.upper_limits[indices]
                 det_indices = indices[det_mask]
                 ul_indices_band = indices[~det_mask]
@@ -1261,11 +1291,17 @@ class MagnitudePlotter(Plotter):
                     )
                     ul_indices_band = ul_indices_band[finite_mask]
                 if len(ul_indices_band) > 0:
+                    ul_y = self.transient.y[ul_indices_band]
+                    if band in self.band_scaling:
+                        if self.band_scaling.get("type") == 'x':
+                            ul_y = ul_y * self.band_scaling.get(band)
+                        elif self.band_scaling.get("type") == '+':
+                            ul_y = ul_y + self.band_scaling.get(band)
                     axes[ii].plot(
                         self.transient.x[ul_indices_band] - self._reference_mjd_date,
-                        self.transient.y[ul_indices_band],
-                        marker=self.upper_limit_marker, ms=self.upper_limit_markersize,
-                        color=color, linestyle='none')
+                        ul_y, marker=self.upper_limit_marker, ms=self.upper_limit_markersize,
+                        color=color, linestyle='none', alpha=self.upper_limit_alpha,
+                        label=label if len(det_indices) == 0 else None, zorder=3)
 
             self._set_x_axis(axes[ii])
             self._set_y_axis_multiband_data(axes[ii], indices)
@@ -1527,6 +1563,48 @@ class SpectrumPlotter(SpecPlotter):
 
         self._save_and_show(filepath=self._residual_plot_filepath, save=save, show=show)
         return axes
+
+
+def get_plotter_kwargs_docs(plotter_class=None):
+    """Return a formatted string documenting all kwarg options for a Plotter class.
+
+    Introspects the class for KwargsAccessorWithDefault descriptors and prints
+    each option with its default value. This is the canonical way to discover
+    what can be passed as **kwargs to transient.plot_data(), plot_multiband(),
+    plot_lightcurve() etc.
+
+    :param plotter_class: A Plotter subclass to inspect. Defaults to Plotter.
+    :type plotter_class: type, optional
+    :return: Formatted documentation string.
+    :rtype: str
+
+    **Example**::
+
+        import redback.plotting
+        print(redback.plotting.get_plotter_kwargs_docs())
+        # or for MagnitudePlotter specifically:
+        print(redback.plotting.get_plotter_kwargs_docs(redback.plotting.MagnitudePlotter))
+
+    """
+    if plotter_class is None:
+        plotter_class = Plotter
+
+    lines = [f"Keyword arguments accepted by {plotter_class.__name__} (pass via **kwargs):",
+             "=" * 65]
+
+    # Walk the MRO so subclass descriptors appear after base-class ones
+    seen = set()
+    for cls in reversed(plotter_class.__mro__):
+        for name, obj in vars(cls).items():
+            if isinstance(obj, KwargsAccessorWithDefault) and name not in seen:
+                seen.add(name)
+                default = repr(obj.default)
+                lines.append(f"  {name} (default: {default})")
+
+    lines.append("")
+    lines.append("Pass any of these as keyword arguments, e.g.:")
+    lines.append("  transient.plot_data(ms=8, fontsize_axes=16, band_colors={'g': 'green'})")
+    return "\n".join(lines)
 
 
 def plot_binned_count_lightcurve(

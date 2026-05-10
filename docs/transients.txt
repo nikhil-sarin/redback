@@ -109,7 +109,39 @@ We demonstrate this with data loaded from a pandas dataframe in the example
 `here <https://github.com/nikhil-sarin/redback/blob/master/examples/broadband_afterglow_private_data_example.py>`_.
 An example to load the simulated data from :code:`redback` simulation module is shown `here <https://github.com/nikhil-sarin/redback/blob/master/examples/simulate_kilonova.py>`_.
 
-In general, you can ignore the class methods and to create your own transient object by passing in the different attributes (time/flux/frequencies/bands) to the transient object of relevance.
+Non-detections and upper limits
+-------------------------
+
+:code:`redback` transients support non-detection data points (upper limits) alongside genuine detections.
+The :code:`detections` attribute is a boolean array — :code:`True` for detections, :code:`False` for upper limits.
+The :code:`has_upper_limits` property returns :code:`True` when at least one upper limit is present.
+
+Upper limits appear automatically as downward-arrow markers in all :code:`plot_data` and :code:`plot_multiband` calls.
+When fitting, :code:`GaussianLikelihoodWithUpperLimits` is selected automatically if the transient has upper limits.
+
+You can attach upper limit information when constructing a transient manually:
+
+.. code:: python
+
+    import numpy as np
+    import redback
+
+    detections = np.array([True, True, False, True, False])  # False = upper limit
+    transient = redback.transient.Transient(
+        name='my_transient',
+        data_mode='magnitude',
+        time=time, magnitude=magnitude, magnitude_err=mag_err,
+        bands=bands,
+        detections=detections,
+        upper_limit_sigma=3.0,  # sigma level of the limits
+    )
+
+Upper limit y-values must be finite. For non-detections, provide the limiting magnitude (or limiting flux)
+rather than NaN. When loading simulated data with :code:`include_upper_limits=True`, the limiting magnitude
+is substituted automatically.
+
+In general, you can ignore the class methods and to create your own transient object by passing in the different attributes
+(time/flux/frequencies/bands) to the transient object of relevance.
 
 Note - Redback models/plotting etc works on the assumption that time is sorted in increasing order.
 So if your data is not in this format, you will need to sort it before creating the transient object.

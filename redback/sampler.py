@@ -329,6 +329,26 @@ def _fit_grb(transient, model, outdir, label, likelihood=None, sampler='dynesty'
     return result
 
 
+def _get_filtered_upper_limit_sigma(transient):
+    """Return upper-limit sigma values matching the transient's active-band filtered data."""
+    upper_limit_sigma = transient.upper_limit_sigma
+    if np.isscalar(upper_limit_sigma):
+        return upper_limit_sigma
+
+    upper_limit_sigma = np.asarray(upper_limit_sigma)
+    filtered_indices = transient.filtered_indices
+
+    if len(upper_limit_sigma) == len(transient.x):
+        return upper_limit_sigma[filtered_indices]
+
+    if transient.detections is not None and len(upper_limit_sigma) == np.sum(transient.upper_limits):
+        upper_limit_positions = np.cumsum(transient.upper_limits) - 1
+        filtered_upper_limits = transient.upper_limits[filtered_indices]
+        return upper_limit_sigma[upper_limit_positions[filtered_indices][filtered_upper_limits]]
+
+    return upper_limit_sigma
+
+
 def _fit_optical_transient(transient, model, outdir, label, likelihood=None, sampler='dynesty', nlive=3000, prior=None,
                            walks=1000, resume=True, save_format='json', model_kwargs=None, plot=True, **kwargs):
 
@@ -365,7 +385,7 @@ def _fit_optical_transient(transient, model, outdir, label, likelihood=None, sam
                             f"with data_mode='{ul_data_mode}'")
                 likelihood = GaussianLikelihoodWithUpperLimits(
                     x=x, y=y, sigma=y_err, function=model, kwargs=model_kwargs,
-                    detections=detections, upper_limit_sigma=transient.upper_limit_sigma,
+                    detections=detections, upper_limit_sigma=_get_filtered_upper_limit_sigma(transient),
                     data_mode=ul_data_mode)
         else:
             likelihood = GaussianLikelihood(x=x, y=y, sigma=y_err, function=model, kwargs=model_kwargs)

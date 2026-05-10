@@ -11,7 +11,7 @@ from redback.result import RedbackResult
 from redback.transient.afterglow import Afterglow
 from redback.transient.prompt import PromptTimeSeries
 from redback.transient.transient import OpticalTransient, Transient, Spectrum
-from redback.sampler import fit_model
+from redback.sampler import fit_model, _get_filtered_upper_limit_sigma
 
 
 # --- Dummy Model and Result --- #
@@ -100,6 +100,9 @@ class DummyOpticalTransient(OpticalTransient):
         self._bands = np.array(["dummy"] * len(self.x))
         # Also provide _active_bands so that filtered_indices works.
         self._active_bands = self._bands.copy()
+        # Upper limit support (none by default)
+        self._detections = None
+        self._upper_limit_sigma = 3.0
 
 
 class DummyTransient(Transient):
@@ -115,6 +118,9 @@ class DummyTransient(Transient):
         # Define _bands and _active_bands.
         self._bands = np.array(["dummy"] * len(self.x))
         self._active_bands = self._bands.copy()
+        # Upper limit support (none by default)
+        self._detections = None
+        self._upper_limit_sigma = 3.0
 
 
 # Dummy object that is not a recognized transient type.
@@ -262,6 +268,36 @@ class TestFitModelAdditional(unittest.TestCase):
 
     def tearDown(self):
         self.temp_dir.cleanup()
+
+    def test_filtered_upper_limit_sigma_matches_active_band_data(self):
+        trans = DummyOpticalTransient(self.outdir)
+        trans.x = np.arange(4.0)
+        trans.x_err = None
+        trans.y = np.array([20.0, 21.0, 22.0, 23.0])
+        trans.y_err = np.ones(4) * 0.1
+        trans._bands = np.array(["g", "r", "g", "r"])
+        trans._active_bands = ["g"]
+        trans._detections = np.array([True, False, False, True])
+        trans._upper_limit_sigma = np.array([3.0, 4.0, 5.0, 6.0])
+
+        sigma = _get_filtered_upper_limit_sigma(trans)
+
+        np.testing.assert_array_equal(sigma, np.array([3.0, 5.0]))
+
+    def test_filtered_upper_limit_sigma_accepts_upper_limit_only_array(self):
+        trans = DummyOpticalTransient(self.outdir)
+        trans.x = np.arange(4.0)
+        trans.x_err = None
+        trans.y = np.array([20.0, 21.0, 22.0, 23.0])
+        trans.y_err = np.ones(4) * 0.1
+        trans._bands = np.array(["g", "r", "g", "r"])
+        trans._active_bands = ["g"]
+        trans._detections = np.array([True, False, False, True])
+        trans._upper_limit_sigma = np.array([10.0, 20.0])
+
+        sigma = _get_filtered_upper_limit_sigma(trans)
+
+        np.testing.assert_array_equal(sigma, np.array([20.0]))
 
     @patch("redback.result.read_in_result", side_effect=Exception("No result"))
     @patch("bilby.run_sampler", autospec=True)

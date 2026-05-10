@@ -22,7 +22,7 @@ More advanced likelihoods
 
 - Gaussian likelihood with additional noise - When you want to estimate some additional uncertainty on your model
 - Gaussian likelihood with uniform x errors - When you have x errors that are bin widths
-- Gaussian likelihood with non detections - A general Gaussian likelihood with a upper limits on some data points
+- Gaussian likelihood with upper limits (:code:`GaussianLikelihoodWithUpperLimits`) - A Gaussian likelihood where non-detection data points are treated as upper limits via a CDF. See below for details.
 - Gaussian likelihood with non detections and quadrature noise - Same as above but with an additional noise source added in quadrature
 - StudentT likelihood - A StudentT likelihood, useful for data with some outliers, heavier tails than a Gaussian means its less sensitive to outliers
 - MixtureLikelihood - A mixture likelihood with two Gaussian components, assumes each data point either comes from one Gaussian that is consistent with the model or an outlier Gaussian.
@@ -70,6 +70,65 @@ If you don't like the likelihoods implemented in redback, you can write your own
                res = self.y - self.function(self.x, **self.parameters, **self.kwargs)
                return -0.5 * (np.sum((res / self.sigma)**2)
                               + self.N*np.log(2*np.pi*self.sigma**2))
+
+Non-detections / upper limits
+-------------------------
+
+:code:`GaussianLikelihoodWithUpperLimits` handles datasets that mix genuine detections with
+non-detection upper limits. Each data point is flagged as a detection or upper limit via a boolean
+:code:`detections` array (True = detection, False = upper limit).
+
+For detections the standard Gaussian log-likelihood is used. For upper limits the likelihood
+contribution is the CDF probability that the true value lies on the correct side of the limit:
+
+- **Flux / flux_density / luminosity** data: upper limit means the true value is *below* the limit,
+  so the contribution is :math:`\log \Phi\!\left(\frac{y_{\rm lim} - \mu}{\sigma}\right)`.
+- **Magnitude** data: upper limit means the true value is *fainter* (larger magnitude) than the limit,
+  so the sign is reversed.
+
+The simplest way to use this is to load simulated data with :code:`include_upper_limits=True`,
+which automatically populates the :code:`detections` array and substitutes limiting magnitudes
+for NaN values in the non-detection rows:
+
+.. code:: python
+
+    transient = redback.transient.Transient.from_simulated_optical_data(
+        name='my_transient',
+        data_mode='magnitude',
+        include_upper_limits=True,
+        upper_limit_sigma=3.0,   # sigma level of the limits, default 3
+    )
+
+When fitting, :code:`redback` automatically selects :code:`GaussianLikelihoodWithUpperLimits`
+if the transient has upper limits:
+
+.. code:: python
+
+    result = redback.fit_model(
+        transient=transient,
+        model='arnett_bolometric',
+        ...
+    )
+
+You can also construct the likelihood manually:
+
+.. code:: python
+
+    import numpy as np
+    from redback.likelihoods import GaussianLikelihoodWithUpperLimits
+
+    detections = np.array([True, True, False, True, False])  # False = upper limit
+    likelihood = GaussianLikelihoodWithUpperLimits(
+        x=time, y=magnitude, sigma=mag_err,
+        function=my_model,
+        detections=detections,
+        upper_limit_sigma=3.0,   # sigma level the limits were reported at
+        data_mode='magnitude',   # or 'flux', 'flux_density', 'luminosity'
+    )
+
+**Important:** upper limit y-values must be finite. For simulated data, the limiting magnitude
+is substituted automatically. For manually constructed datasets, replace any NaN upper limit
+values with the actual limiting magnitude or flux before passing to the likelihood.
 
 Joint likelihoods
 -------------------------

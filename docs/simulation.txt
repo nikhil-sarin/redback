@@ -38,6 +38,27 @@ Which can then be used in fitting as any other transient object. Or simply to us
 
 Where `my_kilonova` is a previously simulated kilonova.
 
+By default, non-detection rows (where the source was not detected above the survey limit) are filtered out.
+To instead keep them as upper limits, pass :code:`include_upper_limits=True`:
+
+.. code:: python
+
+    kn_object = redback.transient.Kilonova.from_simulated_optical_data(
+        name='my_kilonova',
+        data_mode='magnitude',
+        include_upper_limits=True,
+        upper_limit_sigma=3.0,   # sigma level reported for each limit, default 3
+    )
+    kn_object.plot_data()   # upper limits plotted as downward arrows automatically
+
+When :code:`include_upper_limits=True`, the transient's :code:`detections` array is populated (True = detection,
+False = upper limit), and the limiting magnitude from the simulated survey is substituted for any NaN
+magnitude values in the non-detection rows. The :code:`has_upper_limits` property returns :code:`True`
+when at least one upper limit is present.
+
+When fitting with upper limits, :code:`redback` automatically uses :code:`GaussianLikelihoodWithUpperLimits`
+instead of the standard Gaussian likelihood. See the likelihood documentation for details.
+
 
 PopulationSynthesizer and TransientPopulation
 -------------------------
