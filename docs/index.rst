@@ -25,6 +25,7 @@ Welcome to REDBACK's documentation!
    fitting
    results
    joint_likelihood
+   multimessenger
    examples
    acknowledgements
    contributing
@@ -57,3 +58,4 @@ API:
    simulate_transients
    photosphere
    likelihoods
+   multimessenger

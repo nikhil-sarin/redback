@@ -356,6 +356,62 @@ class RedbackResult(Result):
         plot_multiband_lightcurve.__doc__ + redback.transient.Transient.plot_multiband_lightcurve.__doc__
     plot_spectrum.__doc__ = plot_spectrum.__doc__ + redback.transient.Spectrum.plot_spectrum.__doc__
 
+
+class MultiMessengerResult(RedbackResult):
+    """
+    Result class for joint multi-messenger analyses.
+
+    This preserves the standard bilby/RedbackResult posterior, evidence, and
+    corner-plot behaviour while intentionally disabling helpers that require a
+    single reconstructable transient.
+    """
+    messengers = MetaDataAccessor('messengers')
+    models = MetaDataAccessor('models')
+    shared_params = MetaDataAccessor('shared_params')
+    parameter_mappings = MetaDataAccessor('parameter_mappings')
+
+    @property
+    def transient(self):
+        raise NotImplementedError(
+            "MultiMessengerResult does not reconstruct a single transient. "
+            "Use the relevant transient object with redback.analysis plotting "
+            "helpers and this result's posterior samples."
+        )
+
+    @staticmethod
+    def _raise_single_transient_plot_error():
+        raise NotImplementedError(
+            "MultiMessengerResult cannot call single-transient plotting helpers "
+            "automatically because joint analyses can contain multiple transients "
+            "and external likelihoods. Use redback.analysis.plot_lightcurve, "
+            "redback.analysis.plot_spectrum, or the transient plotting methods "
+            "with the relevant transient, model, posterior samples, and model_kwargs."
+        )
+
+    def plot_lightcurve(self, *args, **kwargs):
+        self._raise_single_transient_plot_error()
+
+    def plot_spectrum(self, *args, **kwargs):
+        self._raise_single_transient_plot_error()
+
+    def plot_residual(self, *args, **kwargs):
+        self._raise_single_transient_plot_error()
+
+    def plot_multiband_lightcurve(self, *args, **kwargs):
+        self._raise_single_transient_plot_error()
+
+    def plot_data(self, *args, **kwargs):
+        self._raise_single_transient_plot_error()
+
+    def plot_multiband(self, *args, **kwargs):
+        self._raise_single_transient_plot_error()
+
+
+def _is_multimessenger_result(result: Result) -> bool:
+    return isinstance(getattr(result, "meta_data", None), dict) and \
+        result.meta_data.get("multimessenger", False)
+
+
 def read_in_result(
         filename: str = None, outdir: str = None, label: str = None,
         extension: str = 'json', gzip: bool = False) -> RedbackResult:
@@ -394,10 +450,16 @@ def read_in_result(
     try:
         if 'json' in extension:
             result = RedbackResult.from_json(filename=filename)
+            if _is_multimessenger_result(result):
+                result = MultiMessengerResult.from_json(filename=filename)
         elif ('hdf5' in extension) or ('h5' in extension):
             result = RedbackResult.from_hdf5(filename=filename)
+            if _is_multimessenger_result(result):
+                result = MultiMessengerResult.from_hdf5(filename=filename)
         elif ("pkl" in extension) or ("pickle" in extension):
             result = RedbackResult.from_pickle(filename=filename)
+            if _is_multimessenger_result(result) and not isinstance(result, MultiMessengerResult):
+                result = MultiMessengerResult.from_pickle(filename=filename)
         else:
             logger.error(f"Unsupported filetype: {extension}. Supported types: json, hdf5, h5, pkl, pickle")
             raise ValueError("Filetype {} not understood".format(extension))
