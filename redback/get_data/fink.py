@@ -75,12 +75,14 @@ class FinkDataGetter(DataGetter):
             response = requests.post(url=self.url,
                 json={'objectId': self.objectId, 'output-format': 'csv', 'withupperlim': 'True'},
                 timeout=30)
+            response.raise_for_status()
             data = pd.read_csv(io.BytesIO(response.content))
         elif self.source == 'lsst':
             logger.info(f"Fetching LSST data for {self.transient} from {self.url}")
             response = requests.post(url=self.url,
                 json={'diaObjectId': self.objectId, 'output-format': 'csv', 'withupperlim': 'True'},
                 timeout=30)
+            response.raise_for_status()
             logger.info(f"Got response: status={response.status_code}, content_length={len(response.content)}")
             data = pd.read_csv(io.BytesIO(response.content))
             logger.info(f"Parsed DataFrame: shape={data.shape}, len={len(data)}")

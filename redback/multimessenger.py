@@ -425,6 +425,8 @@ class MultiMessengerTransient:
                 detection_mask = detections
                 likelihood_class = GaussianLikelihood
                 x, y, y_err = x[detection_mask], y[detection_mask], y_err[detection_mask]
+                if x_err is not None:
+                    x_err = x_err[detection_mask]
             else:
                 logger.info(
                     f"Building GaussianLikelihoodWithUpperLimits for {messenger} with "
@@ -637,7 +639,7 @@ class MultiMessengerTransient:
             label=label,
             resume=resume,
             use_ratio=False,
-            maxmcmc=10 * walks,
+            maxmcmc=kwargs.pop('maxmcmc', 10 * walks),
             result_class=MultiMessengerResult,
             meta_data=meta_data,
             save=save_format,
