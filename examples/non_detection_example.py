@@ -28,7 +28,7 @@ def scalarize_sample(sample):
 def constraint_on_flux_time_from_nondetection(params):
     scalar_params = scalarize_sample(params)
     fd_flux = function(day_lim, **scalar_params)
-    converted_params = params.copy()
+    converted_params = scalar_params.copy()
     # constrains flux to less than upper limit at specified day
     converted_params['x'] = np.atleast_1d(fd_flux / fd_flux_upper_lim)[0]
     return converted_params
