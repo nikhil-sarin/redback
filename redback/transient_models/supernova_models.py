@@ -2008,16 +2008,23 @@ def csm_interaction_bolometric(time, mej, csm_mass, vej, eta, rho, kappa, r0, **
             efficiency: in converting between kinetic energy and luminosity, default 0.5
             delta: default 1,
             nn: default 12,
+            dense_resolution: resolution of dense engine time array, default 1000
+            dense_time_min: minimum dense engine time in days, default min(0.1, min(time))
+            stop_time: maximum dense engine time in days, default max(time) + 100
             If interaction process is different kwargs must include other keyword arguments that are required.
     :param interaction_process: Default is CSMDiffusion.
         Can also be None in which case the output is just the raw engine luminosity, or another interaction process.
     :return: bolometric_luminosity
     """
+    time = np.atleast_1d(time)
     _interaction_process = kwargs.get("interaction_process", ip.CSMDiffusion)
 
     if _interaction_process is not None:
         dense_resolution = kwargs.get("dense_resolution", 1000)
-        dense_times = np.geomspace(0.1, time[-1]+100, dense_resolution)
+        stop_time = kwargs.get("stop_time", np.max(time) + 100)
+        dense_time_min = kwargs.get("dense_time_min", min(0.1, np.min(time)))
+        dense_times = get_optimal_time_array(
+            dense_time_min, stop_time, dense_resolution, user_times=time, time_units="days")
         csm_output = _csm_engine(time=dense_times, mej=mej, csm_mass=csm_mass, vej=vej,
                                  eta=eta, rho=rho, kappa=kappa, r0=r0, **kwargs)
         dense_lbols = csm_output.lbol

@@ -154,6 +154,16 @@ class TestCSMDiffusion(unittest.TestCase):
         self.assertEqual(csm.r_photosphere, self.r_photosphere)
         self.assertIsNotNone(csm.reference)
 
+    def test_custom_timesteps(self):
+        """Test configurable CSM diffusion quadrature resolution."""
+        csm = interaction.CSMDiffusion(
+            self.time, self.dense_times, self.luminosity,
+            self.kappa, self.r_photosphere, self.mass_csm_threshold,
+            self.csm_mass, csm_diffusion_timesteps=200)
+
+        self.assertEqual(csm.timesteps, 200)
+        self.assertEqual(len(csm.new_luminosity), len(self.time))
+
     def test_convert_input_luminosity(self):
         """Test CSM diffusion luminosity conversion"""
         csm = interaction.CSMDiffusion(

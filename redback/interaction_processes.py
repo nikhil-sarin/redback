@@ -141,6 +141,8 @@ class CSMDiffusion(object):
         :param mass_csm_threshold: mass of the optically-thick CSM (tau > 2/3) in grams (CGS),
                as returned directly by _csm_engine. Used in CGS form in the diffusion timescale formula.
         :param csm_mass: total csm mass in solar masses
+        :param csm_diffusion_timesteps: Number of quadrature points used for each
+               requested time in the CSM diffusion integral. Default is 3000.
         Adds new attribute for luminosity accounting for the interaction process
         """
         self.time = time
@@ -150,13 +152,14 @@ class CSMDiffusion(object):
         self.r_photosphere = r_photosphere
         self.mass_csm_threshold = mass_csm_threshold
         self.csm_mass = csm_mass * solar_mass
+        self.timesteps = kwargs.get("csm_diffusion_timesteps", 3000)
         self.reference = 'https://ui.adsabs.harvard.edu/abs/2013ApJ...773...76C/abstract'
 
         self.new_luminosity = []
         self.new_luminosity = self.convert_input_luminosity()
 
     def convert_input_luminosity(self):
-        timesteps = 3000
+        timesteps = self.timesteps
         minimum_log_spacing = -3
 
         # Derived parameters
