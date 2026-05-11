@@ -284,6 +284,7 @@ def calculate_normalisation(unique_frequency, model_1, model_2, tref, model_1_di
     return normalisation
 
 
+@lru_cache(maxsize=128)
 def get_csm_properties(nn, eta):
     """
     Calculate CSM properties for CSM interacting models

@@ -103,10 +103,26 @@ class TestCSMInteractionBolometric(unittest.TestCase):
         lbol = csm_interaction_bolometric(
             time=time, mej=1.0, csm_mass=0.1, vej=10000.0,
             eta=2.0, rho=1e-14, kappa=0.1, r0=1.0,
-            dense_resolution=100, csm_diffusion_timesteps=200)
+            dense_resolution=100, csm_diffusion_method="quadrature",
+            csm_diffusion_timesteps=200)
 
         self.assertEqual(len(lbol), len(time))
         self.assertTrue(np.all(np.isfinite(lbol)))
+
+    def test_cumulative_diffusion_matches_high_resolution_quadrature(self):
+        time = np.linspace(0.1, 200.0, 30)
+        kwargs = dict(
+            time=time, mej=5.0, csm_mass=1.0, vej=8000.0,
+            eta=0.0, rho=1e-13, kappa=0.2, r0=5.0)
+
+        cumulative_lbol = csm_interaction_bolometric(**kwargs)
+        quadrature_lbol = csm_interaction_bolometric(
+            **kwargs, csm_diffusion_method="quadrature",
+            csm_diffusion_timesteps=30000)
+
+        max_absolute_fractional_difference = np.max(
+            np.abs(cumulative_lbol - quadrature_lbol)) / np.max(np.abs(quadrature_lbol))
+        self.assertLess(max_absolute_fractional_difference, 1e-3)
 
 
 @unittest.skipUnless(_network_available(), "Network access required for sncosmo filter data")

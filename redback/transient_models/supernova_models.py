@@ -2011,6 +2011,8 @@ def csm_interaction_bolometric(time, mej, csm_mass, vej, eta, rho, kappa, r0, **
             dense_resolution: resolution of dense engine time array, default 1000
             dense_time_min: minimum dense engine time in days, default min(0.1, min(time))
             stop_time: maximum dense engine time in days, default max(time) + 100
+            csm_diffusion_method: CSM diffusion integral method. Default is "cumulative".
+                Use "quadrature" for the legacy per-time integral.
             If interaction process is different kwargs must include other keyword arguments that are required.
     :param interaction_process: Default is CSMDiffusion.
         Can also be None in which case the output is just the raw engine luminosity, or another interaction process.
@@ -2134,7 +2136,8 @@ def csm_nickel_bolometric(time, mej, f_nickel, csm_mass, ek, eta, rho, kappa, r0
     :param rho: csm density profile amplitude
     :param kappa: opacity
     :param r0: radius of csm shell in AU
-    :param kwargs: kappa_gamma, and any kwarg to change any other input physics/parameters from default.
+    :param kwargs: kappa_gamma, csm_diffusion_method, and any kwarg to change
+        any other input physics/parameters from default.
     :return: bolometric_luminosity
     """
     time = np.atleast_1d(time)
