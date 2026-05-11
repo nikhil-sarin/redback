@@ -30,6 +30,7 @@ except ImportError:
 
     pytest = MockPytest()
 import astropy.units as uu
+from redback.photosphere import TemperatureFloor
 from redback.transient_models.supernova_models import arnett_with_features, csm_interaction_bolometric, csm_nickel_bolometric
 import requests
 
@@ -123,6 +124,21 @@ class TestCSMInteractionBolometric(unittest.TestCase):
         max_absolute_fractional_difference = np.max(
             np.abs(cumulative_lbol - quadrature_lbol)) / np.max(np.abs(quadrature_lbol))
         self.assertLess(max_absolute_fractional_difference, 1e-3)
+
+        cumulative_photosphere = TemperatureFloor(
+            time=time, luminosity=cumulative_lbol, vej=kwargs["vej"], temperature_floor=5000)
+        quadrature_photosphere = TemperatureFloor(
+            time=time, luminosity=quadrature_lbol, vej=kwargs["vej"], temperature_floor=5000)
+        max_temperature_difference = np.max(
+            np.abs(cumulative_photosphere.photosphere_temperature
+                   - quadrature_photosphere.photosphere_temperature)
+        ) / np.max(np.abs(quadrature_photosphere.photosphere_temperature))
+        max_radius_difference = np.max(
+            np.abs(cumulative_photosphere.r_photosphere
+                   - quadrature_photosphere.r_photosphere)
+        ) / np.max(np.abs(quadrature_photosphere.r_photosphere))
+        self.assertLess(max_temperature_difference, 1e-3)
+        self.assertLess(max_radius_difference, 1e-3)
 
 
 @unittest.skipUnless(_network_available(), "Network access required for sncosmo filter data")
