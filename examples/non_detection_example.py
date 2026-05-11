@@ -33,11 +33,15 @@ for key in priors:
 priors_constrained['x'] = Constraint(0,1)
 
 
+def draw_scalar_sample(prior):
+    return {key: np.atleast_1d(value)[0] for key, value in prior.sample(size=1).items()}
+
+
 # Plot draws from original and constrained prior distributions.
 time = np.linspace(1,100,50)
 for ii in range(100):
-    original_prior_draws = function(time, **priors.sample())
-    constrained_prior_draws = function(time, **priors_constrained.sample())
+    original_prior_draws = function(time, **draw_scalar_sample(priors))
+    constrained_prior_draws = function(time, **draw_scalar_sample(priors_constrained))
     plt.semilogy(time, original_prior_draws, c='gray', alpha=0.25)
     plt.semilogy(time, constrained_prior_draws, c='red', alpha=0.25)
 
