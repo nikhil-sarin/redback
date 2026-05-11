@@ -2106,7 +2106,7 @@ def csm_interaction(time, redshift, mej, csm_mass, vej, eta, rho, kappa, r0, **k
                                                               **kwargs)
 
 
-@citation_wrapper('https://ui.adsabs.harvard.edu/abs/2018ApJS..236....6G/abstract, redback')
+@citation_wrapper('https://ui.adsabs.harvard.edu/abs/2013ApJ...773...76C/abstract, https://ui.adsabs.harvard.edu/abs/2017ApJ...849...70V/abstract, https://ui.adsabs.harvard.edu/abs/2020RNAAS...4...16J/abstract, https://ui.adsabs.harvard.edu/abs/1982ApJ...253..785A/abstract')
 def csm_nickel_bolometric(time, mej, f_nickel, csm_mass, ek, eta, rho, kappa, r0, **kwargs):
     """
     Bolometric luminosity for CSM and nickel engine with homologous expansion.
@@ -2153,7 +2153,7 @@ def csm_nickel_bolometric(time, mej, f_nickel, csm_mass, ek, eta, rho, kappa, r0
     return nickel_lbol + csm_lbol
 
 
-@citation_wrapper('https://ui.adsabs.harvard.edu/abs/2018ApJS..236....6G/abstract')
+@citation_wrapper('https://ui.adsabs.harvard.edu/abs/2013ApJ...773...76C/abstract, https://ui.adsabs.harvard.edu/abs/2017ApJ...849...70V/abstract, https://ui.adsabs.harvard.edu/abs/2020RNAAS...4...16J/abstract, https://ui.adsabs.harvard.edu/abs/1982ApJ...253..785A/abstract')
 def csm_nickel(time, redshift, mej, f_nickel, csm_mass, ek, eta, rho, kappa, r0, **kwargs):
     """
     Assumes csm and nickel engine with homologous expansion
