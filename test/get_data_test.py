@@ -1667,9 +1667,12 @@ class TestFinkDataGetter(unittest.TestCase):
         redback.utils.logger.warning.assert_called_once()
 
     @mock.patch("os.path.isfile")
+    @mock.patch("requests.post")
     @mock.patch("pandas.read_csv")
-    def test_collect_data_no_lightcurve_available(self, get, isfile):
+    def test_collect_data_no_lightcurve_available(self, get, post, isfile):
         isfile.return_value = False
+        post.return_value = MagicMock()
+        post.return_value.__setattr__('content', bytearray(b''))
         get.return_value = MagicMock()
         get.return_value.__setattr__('len', 0)
         with self.assertRaises(ValueError):
@@ -1683,7 +1686,7 @@ class TestFinkDataGetter(unittest.TestCase):
         post.return_value.__setattr__('content', bytearray(b'0    0.3193\nName: i:sigmagap, dtype: float64'))
         json = {'objectId': self.getter_ztf.objectId, 'output-format': 'csv', 'withupperlim': 'True'}
         self.getter_ztf.collect_data()
-        post.assert_called_with(url=self.getter_ztf.url, json=json)
+        post.assert_called_with(url=self.getter_ztf.url, json=json, timeout=30)
 
     @mock.patch("os.path.isfile")
     @mock.patch("requests.post")
@@ -1693,7 +1696,22 @@ class TestFinkDataGetter(unittest.TestCase):
         post.return_value.__setattr__('content', bytearray(b'r:midpointMjdTai,r:band,r:psfFlux,r:psfFluxErr\n61109.145203,g,17168.488,287.9438'))
         json = {'diaObjectId': self.getter_lsst.objectId, 'output-format': 'csv', 'withupperlim': 'True'}
         self.getter_lsst.collect_data()
-        post.assert_called_with(url=self.getter_lsst.url, json=json)
+        post.assert_called_with(url=self.getter_lsst.url, json=json, timeout=30)
+
+    def test_collect_data_ztf_live_api(self):
+        """Live Fink smoke test: CI should report if the ZTF Fink API breaks."""
+        self.getter_ztf.collect_data()
+
+        self.assertTrue(os.path.isfile(self.getter_ztf.raw_file_path))
+        raw_data = pd.read_csv(self.getter_ztf.raw_file_path)
+        self.assertGreater(len(raw_data), 0)
+        for column in ['d:tag', 'i:jd', 'i:magap', 'i:sigmagap', 'i:fid']:
+            self.assertIn(column, raw_data.columns)
+
+        processed_data = self.getter_ztf.convert_raw_data_to_csv()
+        self.assertGreater(len(processed_data), 0)
+        for column in ['time', 'magnitude', 'e_magnitude', 'band']:
+            self.assertIn(column, processed_data.columns)
 
 
 class TestUtilsLogging(unittest.TestCase):
