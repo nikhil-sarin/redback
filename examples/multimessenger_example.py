@@ -16,7 +16,7 @@ And perform both individual and joint parameter estimation.
 import numpy as np
 import bilby
 import redback
-from redback.multimessenger import MultiMessengerTransient, create_joint_prior
+from redback.multimessenger import MultiMessengerTransient
 from redback.transient_models import kilonova_models, afterglow_models
 
 # Set random seed for reproducibility
@@ -33,14 +33,6 @@ true_params = {
     'luminosity_distance': 40.0,  # Mpc
 }
 
-# Kilonova-specific parameters (optical)
-kilonova_params = {
-    'mej': 0.05,  # ejecta mass in solar masses
-    'vej': 0.2,   # ejecta velocity (c)
-    'kappa': 3.0,  # opacity
-    **true_params
-}
-
 # Afterglow parameters (X-ray and radio)
 afterglow_params = {
     'loge0': 52.0,  # log10 of energy in ergs
@@ -52,7 +44,7 @@ afterglow_params = {
     'ksin': 1,
     'g0': 1000,
     'thv': true_params['viewing_angle'],  # viewing angle
-    **true_params
+    'redshift': true_params['redshift']
 }
 
 # ============================================================================

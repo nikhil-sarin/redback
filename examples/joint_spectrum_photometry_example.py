@@ -21,7 +21,7 @@ We'll simulate a kilonova with:
 import numpy as np
 import bilby
 import redback
-from redback.multimessenger import MultiMessengerTransient
+from redback.multimessenger import MultiMessengerTransient, MultiMessengerLikelihood
 from redback.transient_models import supernova_models, spectral_models
 from redback.transient import Transient, Spectrum
 
@@ -303,7 +303,7 @@ print("  (Using low nlive for speed - increase for production)")
 
 # Uncomment to run joint fit
 # joint_result = bilby.run_sampler(
-#     likelihood=bilby.core.likelihood.JointLikelihood(phot_likelihood, spec_likelihood),
+#     likelihood=MultiMessengerLikelihood(phot_likelihood, spec_likelihood),
 #     priors=priors,
 #     sampler='dynesty',
 #     nlive=1000,  # Increase for production (>= 2000)
@@ -392,7 +392,17 @@ After running the fits, you can compare:
    )
 
 3. Plot spectrum fit:
-   joint_result.plot_spectrum(model=spectral_models.blackbody_spectrum_at_z)
+   def spectrum_plot_model(wavelength, redshift, temperature, r_phot, **kwargs):
+       return spectral_models.blackbody_spectrum_at_z(
+           wavelength, redshift=redshift, temp=temperature, rph=r_phot
+       )
+
+   spectrum_posterior = joint_result.posterior[['redshift', 'temperature', 'r_phot']]
+   spectrum_transient.plot_spectrum(
+       model=spectrum_plot_model,
+       posterior=spectrum_posterior,
+       model_kwargs={}
+   )
 
 4. Corner plot comparing individual vs. joint:
    # Plot all three results together
@@ -508,7 +518,7 @@ priors['temperature_7d'] = ...  # Epoch-specific
 
 # Run joint fit
 result = bilby.run_sampler(
-    likelihood=bilby.core.likelihood.JointLikelihood(
+    likelihood=MultiMessengerLikelihood(
         phot_likelihood, spec_1d_likelihood,
         spec_3d_likelihood, spec_7d_likelihood
     ),

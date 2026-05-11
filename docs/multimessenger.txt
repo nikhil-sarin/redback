@@ -23,7 +23,7 @@ Basic Usage
 The :code:`MultiMessengerTransient` class provides a high-level interface for combining data from multiple messengers::
 
     import redback
-    from redback.multimessenger import MultiMessengerTransient
+    from redback.multimessenger import MultiMessengerTransient, MultiMessengerLikelihood
 
     # Create transient objects for each messenger
     optical_transient = redback.get_data.get_kilonova_data_from_open_transient_catalog_data(
@@ -166,6 +166,8 @@ For comparison with joint analysis, you can fit each messenger independently::
     optical_result = individual_results['optical']
     xray_result = individual_results['xray']
 
+If an individual fit should use the same sampled parameter name as the joint fit while the native model uses a different name, pass the same :code:`parameter_mappings` dictionary used by :code:`fit_joint()`.
+
 Joint Spectrum and Photometry Analysis
 =======================================
 
@@ -182,7 +184,7 @@ Basic Approach
 Since :code:`Spectrum` and :code:`Transient` are different classes in redback, the recommended approach for joint spectrum + photometry fitting is to use custom likelihoods::
 
     import redback
-    from redback.multimessenger import MultiMessengerTransient
+    from redback.multimessenger import MultiMessengerTransient, MultiMessengerLikelihood
     from redback.transient_models import supernova_models, spectral_models
 
     # Load or create photometry data
@@ -258,7 +260,7 @@ Use :code:`bilby.run_sampler` directly with a joint likelihood::
     import bilby
 
     # Combine likelihoods
-    joint_likelihood = bilby.core.likelihood.JointLikelihood(
+    joint_likelihood = MultiMessengerLikelihood(
         phot_likelihood,
         spec_likelihood
     )
@@ -307,7 +309,7 @@ If you have spectra at multiple epochs, create separate likelihoods with epoch-d
     priors['r_phot_7d'] = ...
 
     # Combine all likelihoods
-    joint_likelihood = bilby.core.likelihood.JointLikelihood(
+    joint_likelihood = MultiMessengerLikelihood(
         phot_likelihood,
         spec_1d_likelihood,
         spec_3d_likelihood,
@@ -696,7 +698,7 @@ The :code:`create_joint_prior()` utility helps construct prior dictionaries for 
     # joint_prior['mej']            -> optical-specific, matching the model parameter name
     # joint_prior['logn0']          -> X-ray-specific, matching the model parameter name
 
-Non-shared parameters keep their likelihood parameter names. If the same non-shared name appears in multiple messenger priors, :code:`create_joint_prior()` raises a :code:`ValueError`; use distinct model parameter names or a small model wrapper in that case.
+Non-shared parameters keep their likelihood parameter names. If the same non-shared name appears in multiple messenger priors, :code:`create_joint_prior()` raises a :code:`ValueError`; use distinct model parameter names or a small model wrapper in that case. If a requested shared parameter is not present in any individual prior and is not supplied through :code:`shared_param_priors`, :code:`create_joint_prior()` also raises a :code:`ValueError`.
 
 Adding/Removing Messengers
 ---------------------------

@@ -147,23 +147,40 @@ class MultiMessengerLikelihood(bilby.Likelihood):
         if len(likelihoods) == 0:
             raise ValueError("At least one likelihood is required.")
         self.likelihoods = likelihoods
+        self._parameter_names_by_likelihood = [
+            (likelihood, set(likelihood.parameters)) for likelihood in likelihoods
+        ]
         parameters = {}
         for likelihood in likelihoods:
             parameters.update(likelihood.parameters)
         super().__init__(parameters=parameters)
 
-    def _update_child_parameters(self, parameters: Optional[Dict[str, Any]] = None) -> None:
+    def _get_child_parameters(self, likelihood: bilby.Likelihood) -> Dict[str, Any]:
+        child_parameter_names = None
+        for child_likelihood, parameter_names in self._parameter_names_by_likelihood:
+            if child_likelihood is likelihood:
+                child_parameter_names = parameter_names
+                break
+        if child_parameter_names is None:
+            raise ValueError("Likelihood is not part of this MultiMessengerLikelihood.")
+        return {
+            parameter: self.parameters[parameter]
+            for parameter in child_parameter_names
+            if parameter in self.parameters
+        }
+
+    def _update_parameters(self, parameters: Optional[Dict[str, Any]] = None) -> None:
         if parameters is not None:
             self.parameters.update(parameters)
-        for likelihood in self.likelihoods:
-            likelihood.parameters.update(self.parameters)
 
     def log_likelihood(self, parameters: Optional[Dict[str, Any]] = None) -> float:
-        self._update_child_parameters(parameters=parameters)
+        self._update_parameters(parameters=parameters)
         log_likelihood = 0.0
         for likelihood in self.likelihoods:
+            child_parameters = self._get_child_parameters(likelihood=likelihood)
+            likelihood.parameters.update(child_parameters)
             if _log_likelihood_accepts_parameters(likelihood):
-                log_likelihood += likelihood.log_likelihood(parameters=self.parameters)
+                log_likelihood += likelihood.log_likelihood(parameters=child_parameters)
             else:
                 log_likelihood += likelihood.log_likelihood()
         return log_likelihood
@@ -538,6 +555,7 @@ class MultiMessengerTransient:
         models: Dict[str, Union[str, callable]],
         priors: Dict[str, Union[bilby.core.prior.PriorDict, dict]],
         model_kwargs: Optional[Dict[str, Dict]] = None,
+        parameter_mappings: Optional[Dict[str, Dict[str, str]]] = None,
         sampler: str = 'dynesty',
         nlive: int = 2000,
         walks: int = 200,
@@ -557,6 +575,10 @@ class MultiMessengerTransient:
             Dictionary mapping messenger names to their prior distributions
         model_kwargs : dict of dict, optional
             Dictionary mapping messenger names to their model keyword arguments
+        parameter_mappings : dict of dict, optional
+            Dictionary mapping messenger names to parameter maps. Each map should
+            map sampled parameter names to that messenger model's native parameter
+            names, matching :meth:`fit_joint`.
         sampler : str, optional
             Sampler to use (default: 'dynesty')
         nlive : int, optional
@@ -587,6 +609,8 @@ class MultiMessengerTransient:
         """
         if model_kwargs is None:
             model_kwargs = {}
+        if parameter_mappings is None:
+            parameter_mappings = {}
 
         outdir = outdir or './outdir_individual'
         Path(outdir).mkdir(parents=True, exist_ok=True)
@@ -605,6 +629,10 @@ class MultiMessengerTransient:
             model = models[messenger]
             prior = priors[messenger]
             mkwargs = model_kwargs.get(messenger, {})
+            parameter_mapping = parameter_mappings.get(messenger, {})
+            if parameter_mapping:
+                model = _make_parameter_mapped_model(
+                    _get_model_function(model), parameter_mapping=parameter_mapping)
 
             logger.info(f"Fitting {messenger} messenger independently")
 
@@ -735,11 +763,18 @@ def create_joint_prior(
             joint_prior[param] = shared_param_priors[param]
         else:
             # Use the prior from the first messenger that has this parameter
+            found_shared_param = False
             for messenger, prior_dict in individual_priors.items():
                 if param in prior_dict:
                     joint_prior[param] = prior_dict[param]
                     logger.info(f"Using {messenger} prior for shared parameter '{param}'")
+                    found_shared_param = True
                     break
+            if not found_shared_param:
+                raise ValueError(
+                    f"Shared parameter '{param}' is not present in any individual prior. "
+                    "Add it to at least one prior dictionary or pass shared_param_priors."
+                )
 
     # Add messenger-specific priors. Parameter names are left unchanged so they
     # match the likelihood parameters built by MultiMessengerTransient.

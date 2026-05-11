@@ -716,12 +716,12 @@ class SpectrumPhotometryJointFittingTest(unittest.TestCase):
             kwargs={}
         )
 
-        # Combine using bilby's JointLikelihood
-        joint_likelihood = bilby.core.likelihood.JointLikelihood(
+        # Combine using the sampler-compatible multimessenger likelihood
+        joint_likelihood = MultiMessengerLikelihood(
             phot_likelihood, spec_likelihood
         )
 
-        self.assertIsInstance(joint_likelihood, bilby.core.likelihood.JointLikelihood)
+        self.assertIsInstance(joint_likelihood, MultiMessengerLikelihood)
         # Joint likelihood should have parameters from both
         all_params = joint_likelihood.parameters
         self.assertIn('amplitude', all_params)
@@ -932,6 +932,29 @@ class MultiMessengerCoreFunctionalityTest(unittest.TestCase):
         self.assertEqual(likelihood_1.parameters['amplitude'], 1.0)
         self.assertEqual(likelihood_2.parameters['amplitude'], 1.0)
 
+    def test_multimessenger_likelihood_subsets_child_parameters(self):
+        """Independent child likelihoods should not receive each other's parameters."""
+        time = np.array([1.0, 2.0, 3.0])
+
+        def model_a(time, amplitude_a):
+            return amplitude_a * np.ones_like(time)
+
+        def model_b(time, amplitude_b):
+            return amplitude_b * np.ones_like(time)
+
+        likelihood_a = GaussianLikelihood(
+            x=time, y=np.ones_like(time), sigma=np.ones_like(time), function=model_a)
+        likelihood_b = GaussianLikelihood(
+            x=time, y=2 * np.ones_like(time), sigma=np.ones_like(time), function=model_b)
+        joint_likelihood = MultiMessengerLikelihood(likelihood_a, likelihood_b)
+
+        log_likelihood = joint_likelihood.log_likelihood(
+            parameters={'amplitude_a': 1.0, 'amplitude_b': 2.0})
+
+        self.assertTrue(np.isfinite(log_likelihood))
+        self.assertEqual(likelihood_a.parameters, {'amplitude_a': 1.0})
+        self.assertEqual(likelihood_b.parameters, {'amplitude_b': 2.0})
+
     @mock.patch('bilby.run_sampler')
     def test_fit_joint_single_likelihood(self, mock_sampler):
         """Test fit_joint with single likelihood (warning case)"""
@@ -1141,6 +1164,36 @@ class MultiMessengerCoreFunctionalityTest(unittest.TestCase):
         self.assertEqual(mock_fit_model.call_count, 2)
 
     @mock.patch('redback.fit_model')
+    def test_fit_individual_with_parameter_mapping(self, mock_fit_model):
+        """Individual fits can expose mapped sampled parameters."""
+        mock_fit_model.return_value = mock.Mock()
+
+        def native_model(time, thv, amplitude, **kwargs):
+            return amplitude * np.ones_like(time) + thv
+
+        mm = MultiMessengerTransient(xray_transient=self.xray_transient)
+        xray_priors = bilby.core.prior.PriorDict()
+        xray_priors['viewing_angle'] = bilby.core.prior.Uniform(0, 1, 'viewing_angle')
+        xray_priors['amplitude'] = bilby.core.prior.Uniform(1e-14, 1e-12, 'amplitude')
+
+        mm.fit_individual(
+            models={'xray': native_model},
+            priors={'xray': xray_priors},
+            model_kwargs={'xray': {}},
+            parameter_mappings={'xray': {'viewing_angle': 'thv'}},
+            outdir=self.test_dir,
+            nlive=100
+        )
+
+        mapped_model = mock_fit_model.call_args.kwargs['model']
+        model_parameters = bilby.core.utils.introspection.infer_parameters_from_function(
+            func=mapped_model)
+        self.assertIn('viewing_angle', model_parameters)
+        self.assertNotIn('thv', model_parameters)
+        output = mapped_model(self.xray_time, viewing_angle=0.3, amplitude=1e-12)
+        self.assertTrue(np.all(np.isfinite(output)))
+
+    @mock.patch('redback.fit_model')
     def test_fit_individual_missing_model(self, mock_fit_model):
         """Test fit_individual skips messengers without models"""
         mock_result = mock.Mock()
@@ -1336,7 +1389,7 @@ class CreateJointPriorAdvancedTest(unittest.TestCase):
 
         self.assertEqual(len(joint_prior), 0)
 
-    def test_create_joint_prior_shared_param_not_in_any_messenger(self):
+    def test_create_joint_prior_shared_param_not_in_any_messenger_raises(self):
         """Test when shared param is not found in any messenger"""
         optical_priors = bilby.core.prior.PriorDict()
         optical_priors['mej'] = bilby.core.prior.Uniform(0.01, 0.1)
@@ -1344,17 +1397,11 @@ class CreateJointPriorAdvancedTest(unittest.TestCase):
         xray_priors = bilby.core.prior.PriorDict()
         xray_priors['logn0'] = bilby.core.prior.Uniform(-3, 2)
 
-        joint_prior = create_joint_prior(
-            individual_priors={'optical': optical_priors, 'xray': xray_priors},
-            shared_params=['nonexistent_param']
-        )
-
-        # Non-existent shared param should not be in result
-        self.assertNotIn('nonexistent_param', joint_prior)
-
-        # Other params should keep their likelihood names
-        self.assertIn('mej', joint_prior)
-        self.assertIn('logn0', joint_prior)
+        with self.assertRaises(ValueError):
+            create_joint_prior(
+                individual_priors={'optical': optical_priors, 'xray': xray_priors},
+                shared_params=['nonexistent_param']
+            )
 
 
 class RealCodePathsTest(unittest.TestCase):

@@ -3,7 +3,7 @@ from redback import analysis, constants, get_data, redback_errors, priors, resul
     simulate_transients, multimessenger
 from redback.transient import afterglow, kilonova, prompt, supernova, tde
 from redback.sampler import fit_model
-from redback.multimessenger import MultiMessengerTransient, create_joint_prior
+from redback.multimessenger import MultiMessengerTransient, MultiMessengerLikelihood, create_joint_prior
 from redback.utils import setup_logger
 
 # Read version from setup.py to maintain single source of truth
