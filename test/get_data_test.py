@@ -1667,9 +1667,12 @@ class TestFinkDataGetter(unittest.TestCase):
         redback.utils.logger.warning.assert_called_once()
 
     @mock.patch("os.path.isfile")
+    @mock.patch("requests.post")
     @mock.patch("pandas.read_csv")
-    def test_collect_data_no_lightcurve_available(self, get, isfile):
+    def test_collect_data_no_lightcurve_available(self, get, post, isfile):
         isfile.return_value = False
+        post.return_value = MagicMock()
+        post.return_value.__setattr__('content', bytearray(b''))
         get.return_value = MagicMock()
         get.return_value.__setattr__('len', 0)
         with self.assertRaises(ValueError):
