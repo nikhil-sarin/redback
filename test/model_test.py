@@ -68,6 +68,24 @@ class TestCSMNickelBolometric(unittest.TestCase):
         self.assertEqual(len(lbol), len(time))
         self.assertTrue(np.all(np.isfinite(lbol)))
 
+    def test_scalar_time_is_promoted_to_array(self):
+        lbol = csm_nickel_bolometric(
+            time=1.0, mej=1.0, f_nickel=0.1, csm_mass=0.1, ek=1e51,
+            eta=2.0, rho=1e-14, kappa=0.1, r0=1.0, kappa_gamma=0.03)
+
+        self.assertEqual(len(lbol), 1)
+        self.assertTrue(np.all(np.isfinite(lbol)))
+
+    def test_default_prior_file_exists(self):
+        prior = bilby.prior.PriorDict(
+            filename=f"{_dirname}/../redback/priors/csm_nickel_bolometric.prior")
+
+        for key in [
+            'mej', 'f_nickel', 'csm_mass', 'ek', 'eta',
+            'rho', 'kappa', 'r0', 'kappa_gamma', 'temperature_floor'
+        ]:
+            self.assertIn(key, prior)
+
 
 @unittest.skipUnless(_network_available(), "Network access required for sncosmo filter data")
 class TestModels(unittest.TestCase):

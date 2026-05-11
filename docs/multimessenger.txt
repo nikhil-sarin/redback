@@ -116,6 +116,17 @@ for :code:`plot_lightcurve()`, :code:`plot_spectrum()`, or related helpers; use
 the relevant transient object and :mod:`redback.analysis` plotting functions
 when plotting one component of the joint fit.
 
+Upper Limits
+------------
+
+Photometric, X-ray, radio, UV, and infrared transient objects passed directly
+to :code:`MultiMessengerTransient` use redback likelihood construction. If a
+transient includes finite upper-limit values via its :code:`detections` array,
+:code:`MultiMessengerTransient` uses
+:code:`GaussianLikelihoodWithUpperLimits` automatically for that messenger.
+Upper limits with missing numerical limit values are excluded with a warning,
+matching the single-transient fitting behaviour.
+
 Shared Parameters
 -----------------
 

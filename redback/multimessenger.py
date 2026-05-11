@@ -14,7 +14,8 @@ import bilby
 
 import redback
 from redback.likelihoods import (
-    GaussianLikelihood, GaussianLikelihoodQuadratureNoise, GaussianLikelihoodUniformXErrors
+    GaussianLikelihood, GaussianLikelihoodQuadratureNoise, GaussianLikelihoodUniformXErrors,
+    GaussianLikelihoodWithUpperLimits, _RedbackParameterStore
 )
 from redback.model_library import all_models_dict
 from redback.result import MultiMessengerResult
@@ -95,6 +96,48 @@ def _get_transient_data_for_likelihood(transient: Transient) -> tuple:
     return transient.get_filtered_data()
 
 
+def _get_transient_data_with_limits_for_likelihood(transient: Transient) -> tuple:
+    """
+    Return transient data and detection flags in likelihood-ready form.
+
+    This mirrors :meth:`Transient.get_filtered_data_with_limits` but preserves
+    the no-active-band path used by flux-density transients without band labels.
+    """
+    if getattr(transient, "active_bands", None) is None:
+        return transient.x, transient.x_err, transient.y, transient.y_err, transient.detections
+    return transient.get_filtered_data_with_limits()
+
+
+def _get_filtered_upper_limit_sigma(transient: Transient) -> Union[float, np.ndarray]:
+    """Return upper-limit sigma values matching the transient's likelihood data."""
+    upper_limit_sigma = transient.upper_limit_sigma
+    if np.isscalar(upper_limit_sigma):
+        return upper_limit_sigma
+
+    upper_limit_sigma = np.asarray(upper_limit_sigma)
+    if getattr(transient, "active_bands", None) is None:
+        return upper_limit_sigma
+
+    filtered_indices = transient.filtered_indices
+    if len(upper_limit_sigma) == len(transient.x):
+        return upper_limit_sigma[filtered_indices]
+
+    if transient.detections is not None and len(upper_limit_sigma) == np.sum(transient.upper_limits):
+        upper_limit_positions = np.cumsum(transient.upper_limits) - 1
+        filtered_upper_limits = transient.upper_limits[filtered_indices]
+        return upper_limit_sigma[upper_limit_positions[filtered_indices][filtered_upper_limits]]
+
+    return upper_limit_sigma
+
+
+def _get_upper_limit_data_mode(transient: Transient) -> str:
+    if getattr(transient, "magnitude_data", False):
+        return "magnitude"
+    if getattr(transient, "flux_density_data", False):
+        return "flux_density"
+    return "flux"
+
+
 def _has_positive_x_errors(x_err: Optional[np.ndarray]) -> bool:
     return x_err is not None and np.any(np.asarray(x_err) > 0)
 
@@ -113,7 +156,7 @@ def _validate_shared_parameters(likelihoods: List[bilby.Likelihood], shared_para
     missing_params = []
     singly_present_params = []
     for parameter in shared_params:
-        count = sum(parameter in likelihood.parameters for likelihood in likelihoods)
+        count = sum(parameter in _get_likelihood_parameters(likelihood) for likelihood in likelihoods)
         if count == 0:
             missing_params.append(parameter)
         elif len(likelihoods) > 1 and count == 1:
@@ -140,7 +183,22 @@ def _log_likelihood_accepts_parameters(likelihood: bilby.Likelihood) -> bool:
     return "parameters" in signature.parameters
 
 
-class MultiMessengerLikelihood(bilby.Likelihood):
+def _get_likelihood_parameters(likelihood: bilby.Likelihood) -> Dict[str, Any]:
+    """Return a likelihood's parameter dictionary without triggering Bilby state warnings."""
+    if hasattr(likelihood, "_parameters"):
+        return likelihood._parameters
+    return likelihood.parameters
+
+
+def _update_likelihood_parameters(likelihood: bilby.Likelihood, parameters: Dict[str, Any]) -> None:
+    """Update child likelihood parameters without relying on deprecated Bilby state access."""
+    if hasattr(likelihood, "_parameters"):
+        likelihood._parameters.update(parameters)
+    else:
+        likelihood.parameters.update(parameters)
+
+
+class MultiMessengerLikelihood(_RedbackParameterStore, bilby.Likelihood):
     """A sampler-compatible likelihood product for redback and bilby likelihoods."""
 
     def __init__(self, *likelihoods: bilby.Likelihood):
@@ -148,11 +206,11 @@ class MultiMessengerLikelihood(bilby.Likelihood):
             raise ValueError("At least one likelihood is required.")
         self.likelihoods = likelihoods
         self._parameter_names_by_likelihood = [
-            (likelihood, set(likelihood.parameters)) for likelihood in likelihoods
+            (likelihood, set(_get_likelihood_parameters(likelihood))) for likelihood in likelihoods
         ]
         parameters = {}
         for likelihood in likelihoods:
-            parameters.update(likelihood.parameters)
+            parameters.update(_get_likelihood_parameters(likelihood))
         super().__init__(parameters=parameters)
 
     def _get_child_parameters(self, likelihood: bilby.Likelihood) -> Dict[str, Any]:
@@ -178,7 +236,7 @@ class MultiMessengerLikelihood(bilby.Likelihood):
         log_likelihood = 0.0
         for likelihood in self.likelihoods:
             child_parameters = self._get_child_parameters(likelihood=likelihood)
-            likelihood.parameters.update(child_parameters)
+            _update_likelihood_parameters(likelihood=likelihood, parameters=child_parameters)
             if _log_likelihood_accepts_parameters(likelihood):
                 log_likelihood += likelihood.log_likelihood(parameters=child_parameters)
             else:
@@ -317,7 +375,8 @@ class MultiMessengerTransient:
             Additional keyword arguments for the model
         likelihood_type : str, optional
             Type of likelihood to use (default: 'GaussianLikelihood')
-            Options: 'GaussianLikelihood', 'GaussianLikelihoodQuadratureNoise'
+            Options: 'GaussianLikelihood', 'GaussianLikelihoodWithUpperLimits',
+            'GaussianLikelihoodQuadratureNoise'
         parameter_mapping : dict, optional
             Mapping from joint sampled parameter names to native model parameter names
             for this messenger. For example {'viewing_angle': 'thv'} shares the
@@ -335,11 +394,52 @@ class MultiMessengerTransient:
             _get_model_function(model), parameter_mapping=parameter_mapping)
 
         # Get data from transient
-        x, x_err, y, y_err = _get_transient_data_for_likelihood(transient)
+        detections = None
+        if getattr(transient, "has_upper_limits", False) is True:
+            x, x_err, y, y_err, detections = _get_transient_data_with_limits_for_likelihood(transient)
+        else:
+            x, x_err, y, y_err = _get_transient_data_for_likelihood(transient)
 
         # Select likelihood class
-        if likelihood_type == 'GaussianLikelihood':
+        has_upper_limits = detections is not None and np.any(~detections)
+        if has_upper_limits:
+            if likelihood_type not in ('GaussianLikelihood', 'GaussianLikelihoodWithUpperLimits'):
+                raise ValueError(
+                    f"{likelihood_type} does not support upper limits in MultiMessengerTransient. "
+                    "Use GaussianLikelihood/GaussianLikelihoodWithUpperLimits or provide a custom likelihood."
+                )
+            if _has_positive_x_errors(x_err):
+                raise ValueError(
+                    "Upper-limit likelihoods with x/time errors are not supported in "
+                    "MultiMessengerTransient. Provide a custom likelihood for this case."
+                )
+            n_upper_limits = int(np.sum(~detections))
+            upper_limit_y = y[~detections]
+            n_nan_upper_limits = int(np.sum(np.isnan(upper_limit_y)))
+            if n_nan_upper_limits > 0:
+                logger.warning(
+                    f"{n_nan_upper_limits} upper limit(s) for {messenger} have NaN y-values and "
+                    "cannot be used in GaussianLikelihoodWithUpperLimits. Falling back to a "
+                    "GaussianLikelihood using detection data only."
+                )
+                detection_mask = detections
+                likelihood_class = GaussianLikelihood
+                x, y, y_err = x[detection_mask], y[detection_mask], y_err[detection_mask]
+            else:
+                logger.info(
+                    f"Building GaussianLikelihoodWithUpperLimits for {messenger} with "
+                    f"{n_upper_limits} upper limits"
+                )
+                return GaussianLikelihoodWithUpperLimits(
+                    x=x, y=y, sigma=y_err, function=model_func, kwargs=model_kwargs,
+                    detections=detections,
+                    upper_limit_sigma=_get_filtered_upper_limit_sigma(transient),
+                    data_mode=_get_upper_limit_data_mode(transient)
+                )
+        elif likelihood_type == 'GaussianLikelihood':
             likelihood_class = GaussianLikelihoodUniformXErrors if _has_positive_x_errors(x_err) else GaussianLikelihood
+        elif likelihood_type == 'GaussianLikelihoodWithUpperLimits':
+            likelihood_class = GaussianLikelihood
         elif likelihood_type == 'GaussianLikelihoodQuadratureNoise':
             if _has_positive_x_errors(x_err):
                 raise ValueError(

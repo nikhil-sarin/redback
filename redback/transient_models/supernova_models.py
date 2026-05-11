@@ -2106,6 +2106,7 @@ def csm_interaction(time, redshift, mej, csm_mass, vej, eta, rho, kappa, r0, **k
                                                               **kwargs)
 
 
+@citation_wrapper('https://ui.adsabs.harvard.edu/abs/2018ApJS..236....6G/abstract, redback')
 def csm_nickel_bolometric(time, mej, f_nickel, csm_mass, ek, eta, rho, kappa, r0, **kwargs):
     """
     Bolometric luminosity for CSM and nickel engine with homologous expansion.
@@ -2129,7 +2130,7 @@ def csm_nickel_bolometric(time, mej, f_nickel, csm_mass, ek, eta, rho, kappa, r0
     :param kwargs: kappa_gamma, and any kwarg to change any other input physics/parameters from default.
     :return: bolometric_luminosity
     """
-    time = np.asarray(time)
+    time = np.atleast_1d(time)
     vej = np.sqrt(2.0 * ek / (mej * solar_mass)) / km_cgs
     dense_resolution = kwargs.get("dense_resolution", 1000)
     stop_time = kwargs.get("stop_time", np.max(time) + 100)
