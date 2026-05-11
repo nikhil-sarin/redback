@@ -11,7 +11,8 @@ from redback.multimessenger import MultiMessengerTransient, MultiMessengerLikeli
 from redback.result import MultiMessengerResult
 from redback.transient.transient import Transient, Spectrum
 from redback.likelihoods import (
-    GaussianLikelihood, GaussianLikelihoodQuadratureNoise, GaussianLikelihoodUniformXErrors
+    GaussianLikelihood, GaussianLikelihoodQuadratureNoise, GaussianLikelihoodUniformXErrors,
+    GaussianLikelihoodWithUpperLimits
 )
 
 
@@ -1472,6 +1473,76 @@ class RealCodePathsTest(unittest.TestCase):
         self.assertIsInstance(likelihood, GaussianLikelihood)
         # The model function should be resolved from the string
         self.assertIsNotNone(likelihood.function)
+
+    def test_build_likelihood_with_upper_limits_uses_upper_limit_likelihood(self):
+        """MultiMessengerTransient should preserve optical upper limits."""
+        detections = np.array([True, False, True, False])
+        transient = Transient(
+            time=np.array([1.0, 2.0, 3.0, 4.0]),
+            flux=np.array([10.0, 7.0, 4.0, 2.0]),
+            flux_err=np.ones(4),
+            data_mode='flux',
+            detections=detections,
+            upper_limit_sigma=np.array([3.0, 5.0]),
+            name='upper_limit_optical'
+        )
+        mm = MultiMessengerTransient(optical_transient=transient)
+
+        def model(time, amplitude=1.0):
+            return amplitude * np.ones_like(time)
+
+        likelihood = mm._build_likelihood_for_messenger('optical', transient, model)
+
+        self.assertIsInstance(likelihood, GaussianLikelihoodWithUpperLimits)
+        np.testing.assert_array_equal(likelihood.detections, detections)
+        np.testing.assert_array_equal(likelihood.get_upper_limit_sigma_values(), np.array([3.0, 5.0]))
+
+    def test_build_likelihood_with_nan_upper_limits_uses_detections_only(self):
+        """NaN upper limits should not be silently treated as Gaussian data."""
+        detections = np.array([True, False, True])
+        transient = Transient(
+            time=np.array([1.0, 2.0, 3.0]),
+            flux=np.array([10.0, np.nan, 4.0]),
+            flux_err=np.ones(3),
+            data_mode='flux',
+            detections=detections,
+            name='nan_upper_limit_optical'
+        )
+        mm = MultiMessengerTransient(optical_transient=transient)
+
+        def model(time, amplitude=1.0):
+            return amplitude * np.ones_like(time)
+
+        likelihood = mm._build_likelihood_for_messenger('optical', transient, model)
+
+        self.assertIsInstance(likelihood, GaussianLikelihood)
+        self.assertNotIsInstance(likelihood, GaussianLikelihoodWithUpperLimits)
+        np.testing.assert_array_equal(likelihood.x, np.array([1.0, 3.0]))
+        np.testing.assert_array_equal(likelihood.y, np.array([10.0, 4.0]))
+
+    def test_upper_limit_likelihood_without_limits_preserves_time_errors(self):
+        """Explicit upper-limit likelihood should not drop time errors if all points are detections."""
+        transient = Transient(
+            time=np.array([1.0, 2.0, 3.0]),
+            time_err=np.array([0.1, 0.2, 0.3]),
+            flux=np.array([10.0, 7.0, 4.0]),
+            flux_err=np.ones(3),
+            data_mode='flux',
+            detections=np.array([True, True, True]),
+            name='all_detection_optical'
+        )
+        mm = MultiMessengerTransient(optical_transient=transient)
+
+        def model(time, amplitude=1.0):
+            return amplitude * np.ones_like(time)
+
+        likelihood = mm._build_likelihood_for_messenger(
+            'optical', transient, model,
+            likelihood_type='GaussianLikelihoodWithUpperLimits'
+        )
+
+        self.assertIsInstance(likelihood, GaussianLikelihoodUniformXErrors)
+        np.testing.assert_array_equal(likelihood.xerr, np.array([0.1, 0.2, 0.3]))
 
     def test_none_entries_removed_from_messengers(self):
         """Test that None entries are filtered out (line 111)"""

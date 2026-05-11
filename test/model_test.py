@@ -30,7 +30,8 @@ except ImportError:
 
     pytest = MockPytest()
 import astropy.units as uu
-from redback.transient_models.supernova_models import arnett_with_features, csm_nickel_bolometric
+from redback.photosphere import TemperatureFloor
+from redback.transient_models.supernova_models import arnett_with_features, csm_interaction_bolometric, csm_nickel_bolometric
 import requests
 
 
@@ -67,6 +68,77 @@ class TestCSMNickelBolometric(unittest.TestCase):
 
         self.assertEqual(len(lbol), len(time))
         self.assertTrue(np.all(np.isfinite(lbol)))
+
+    def test_scalar_time_is_promoted_to_array(self):
+        lbol = csm_nickel_bolometric(
+            time=1.0, mej=1.0, f_nickel=0.1, csm_mass=0.1, ek=1e51,
+            eta=2.0, rho=1e-14, kappa=0.1, r0=1.0, kappa_gamma=0.03)
+
+        self.assertEqual(len(lbol), 1)
+        self.assertTrue(np.all(np.isfinite(lbol)))
+
+    def test_default_prior_file_exists(self):
+        prior = bilby.prior.PriorDict(
+            filename=f"{_dirname}/../redback/priors/csm_nickel_bolometric.prior")
+
+        for key in [
+            'mej', 'f_nickel', 'csm_mass', 'ek', 'eta',
+            'rho', 'kappa', 'r0', 'kappa_gamma', 'temperature_floor'
+        ]:
+            self.assertIn(key, prior)
+
+
+class TestCSMInteractionBolometric(unittest.TestCase):
+
+    def test_early_times_before_point_one_days_are_finite(self):
+        time = np.array([0.01, 0.05])
+        lbol = csm_interaction_bolometric(
+            time=time, mej=1.0, csm_mass=0.1, vej=10000.0,
+            eta=2.0, rho=1e-14, kappa=0.1, r0=1.0)
+
+        self.assertEqual(len(lbol), len(time))
+        self.assertTrue(np.all(np.isfinite(lbol)))
+
+    def test_custom_dense_grid_and_diffusion_resolution(self):
+        time = np.array([0.02, 1.0])
+        lbol = csm_interaction_bolometric(
+            time=time, mej=1.0, csm_mass=0.1, vej=10000.0,
+            eta=2.0, rho=1e-14, kappa=0.1, r0=1.0,
+            dense_resolution=100, csm_diffusion_method="quadrature",
+            csm_diffusion_timesteps=200)
+
+        self.assertEqual(len(lbol), len(time))
+        self.assertTrue(np.all(np.isfinite(lbol)))
+
+    def test_cumulative_diffusion_matches_high_resolution_quadrature(self):
+        time = np.linspace(0.1, 200.0, 30)
+        kwargs = dict(
+            time=time, mej=5.0, csm_mass=1.0, vej=8000.0,
+            eta=0.0, rho=1e-13, kappa=0.2, r0=5.0)
+
+        cumulative_lbol = csm_interaction_bolometric(**kwargs)
+        quadrature_lbol = csm_interaction_bolometric(
+            **kwargs, csm_diffusion_method="quadrature",
+            csm_diffusion_timesteps=30000)
+
+        max_absolute_fractional_difference = np.max(
+            np.abs(cumulative_lbol - quadrature_lbol)) / np.max(np.abs(quadrature_lbol))
+        self.assertLess(max_absolute_fractional_difference, 1e-3)
+
+        cumulative_photosphere = TemperatureFloor(
+            time=time, luminosity=cumulative_lbol, vej=kwargs["vej"], temperature_floor=5000)
+        quadrature_photosphere = TemperatureFloor(
+            time=time, luminosity=quadrature_lbol, vej=kwargs["vej"], temperature_floor=5000)
+        max_temperature_difference = np.max(
+            np.abs(cumulative_photosphere.photosphere_temperature
+                   - quadrature_photosphere.photosphere_temperature)
+        ) / np.max(np.abs(quadrature_photosphere.photosphere_temperature))
+        max_radius_difference = np.max(
+            np.abs(cumulative_photosphere.r_photosphere
+                   - quadrature_photosphere.r_photosphere)
+        ) / np.max(np.abs(quadrature_photosphere.r_photosphere))
+        self.assertLess(max_temperature_difference, 1e-3)
+        self.assertLess(max_radius_difference, 1e-3)
 
 
 @unittest.skipUnless(_network_available(), "Network access required for sncosmo filter data")

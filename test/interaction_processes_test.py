@@ -2,6 +2,7 @@ import unittest
 import numpy as np
 from unittest.mock import patch
 import redback.interaction_processes as interaction
+from redback.constants import day_to_s, speed_of_light
 
 
 class TestDiffusion(unittest.TestCase):
@@ -152,7 +153,42 @@ class TestCSMDiffusion(unittest.TestCase):
 
         self.assertEqual(csm.kappa, self.kappa)
         self.assertEqual(csm.r_photosphere, self.r_photosphere)
+        self.assertEqual(csm.diffusion_method, "cumulative")
         self.assertIsNotNone(csm.reference)
+
+    def test_custom_timesteps(self):
+        """Test configurable CSM diffusion quadrature resolution."""
+        csm = interaction.CSMDiffusion(
+            self.time, self.dense_times, self.luminosity,
+            self.kappa, self.r_photosphere, self.mass_csm_threshold,
+            self.csm_mass, csm_diffusion_method="quadrature",
+            csm_diffusion_timesteps=200)
+
+        self.assertEqual(csm.timesteps, 200)
+        self.assertEqual(csm.diffusion_method, "quadrature")
+        self.assertEqual(len(csm.new_luminosity), len(self.time))
+
+    def test_cumulative_matches_constant_luminosity_solution(self):
+        """The cumulative CSM diffusion integral has an analytic constant-input limit."""
+        csm = interaction.CSMDiffusion(
+            self.time, self.dense_times, self.luminosity,
+            self.kappa, self.r_photosphere, self.mass_csm_threshold,
+            self.csm_mass, csm_diffusion_method="cumulative")
+
+        beta = 4. * np.pi ** 3. / 9.
+        t0 = self.kappa * self.mass_csm_threshold / (beta * speed_of_light * self.r_photosphere) / day_to_s
+        expected = self.luminosity[0] * (1.0 - np.exp(-(self.time - self.dense_times[0]) / t0))
+        self.assertTrue(np.allclose(csm.new_luminosity, expected))
+
+    def test_quadrature_method_available(self):
+        """The legacy quadrature method remains available."""
+        csm = interaction.CSMDiffusion(
+            self.time, self.dense_times, self.luminosity,
+            self.kappa, self.r_photosphere, self.mass_csm_threshold,
+            self.csm_mass, csm_diffusion_method="quadrature")
+
+        self.assertEqual(csm.diffusion_method, "quadrature")
+        self.assertEqual(len(csm.new_luminosity), len(self.time))
 
     def test_convert_input_luminosity(self):
         """Test CSM diffusion luminosity conversion"""

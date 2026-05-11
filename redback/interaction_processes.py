@@ -141,6 +141,10 @@ class CSMDiffusion(object):
         :param mass_csm_threshold: mass of the optically-thick CSM (tau > 2/3) in grams (CGS),
                as returned directly by _csm_engine. Used in CGS form in the diffusion timescale formula.
         :param csm_mass: total csm mass in solar masses
+        :param csm_diffusion_method: Method used for the CSM diffusion integral.
+               Default is "cumulative". Use "quadrature" for the legacy per-time integral.
+        :param csm_diffusion_timesteps: Number of quadrature points used for each
+               requested time when csm_diffusion_method="quadrature". Default is 3000.
         Adds new attribute for luminosity accounting for the interaction process
         """
         self.time = time
@@ -150,29 +154,56 @@ class CSMDiffusion(object):
         self.r_photosphere = r_photosphere
         self.mass_csm_threshold = mass_csm_threshold
         self.csm_mass = csm_mass * solar_mass
+        self.timesteps = kwargs.get("csm_diffusion_timesteps", 3000)
+        self.diffusion_method = kwargs.get("csm_diffusion_method", "cumulative")
         self.reference = 'https://ui.adsabs.harvard.edu/abs/2013ApJ...773...76C/abstract'
 
         self.new_luminosity = []
         self.new_luminosity = self.convert_input_luminosity()
 
     def convert_input_luminosity(self):
-        timesteps = 3000
+        if self.diffusion_method == "cumulative":
+            return self._convert_input_luminosity_cumulative()
+        if self.diffusion_method in ["quadrature", "legacy"]:
+            return self._convert_input_luminosity_quadrature()
+        raise ValueError("csm_diffusion_method must be 'cumulative' or 'quadrature'")
+
+    def _diffusion_timescale(self):
+        beta = 4. * np.pi ** 3. / 9.
+        return self.kappa * self.mass_csm_threshold / (beta * speed_of_light * self.r_photosphere) / day_to_s
+
+    def _convert_input_luminosity_cumulative(self):
+        t0 = self._diffusion_timescale()
+        dense_times = np.asarray(self.dense_times)
+        time = np.asarray(self.time)
+        valid_times = time[(time >= dense_times[0]) & (time <= dense_times[-1])]
+        integration_times = np.unique(np.concatenate((dense_times, valid_times)))
+        luminosity = np.interp(integration_times, dense_times, self.luminosity)
+
+        new_lums = np.zeros_like(integration_times, dtype=float)
+        dt = np.diff(integration_times)
+        luminosity_slopes = np.diff(luminosity) / dt
+        scaled_dt = dt / t0
+        exp_decay = np.exp(-scaled_dt)
+        one_minus_exp_decay = -np.expm1(-scaled_dt)
+
+        for ii in range(len(dt)):
+            new_lums[ii + 1] = (
+                new_lums[ii] * exp_decay[ii]
+                + luminosity[ii] * one_minus_exp_decay[ii]
+                + luminosity_slopes[ii] * (dt[ii] - t0 * one_minus_exp_decay[ii])
+            )
+
+        return np.interp(time, integration_times, new_lums)
+
+    def _convert_input_luminosity_quadrature(self):
+        timesteps = self.timesteps
         minimum_log_spacing = -3
 
-        # Derived parameters
-
-        # photosphere radius
-        r_photosphere = self.r_photosphere
-
-        # mass of the optically thick CSM (tau > 2/3).
-        mass_csm_threshold = self.mass_csm_threshold
-
-        beta = 4. * np.pi ** 3. / 9.
-        t0 = self.kappa * (mass_csm_threshold) / (beta * speed_of_light * r_photosphere) / day_to_s
+        t0 = self._diffusion_timescale()
 
         min_te = min(self.dense_times)
         tb = max(0.0, min_te)
-        luminosity_interpolator = interp1d(self.dense_times, self.luminosity, copy=False,assume_sorted=True)
         uniq_times = np.unique(self.time[(self.time >= tb) & (self.time <= self.dense_times[-1])])
         lu = len(uniq_times)
 
@@ -186,7 +217,7 @@ class CSMDiffusion(object):
         int_times = tb + (uniq_times.reshape(lu, 1) - tb) * xm
         int_tes = uniq_times.reshape(lu, 1)
 
-        int_lums = luminosity_interpolator(int_times)
+        int_lums = np.interp(int_times.ravel(), self.dense_times, self.luminosity).reshape(int_times.shape)
         int_args = int_lums * np.exp((int_times - int_tes) / t0)
         int_args[np.isnan(int_args)] = 0.0
 

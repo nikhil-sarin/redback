@@ -6,7 +6,20 @@ from scipy.special import gammaln, erf
 from redback.utils import logger
 from bilby.core.prior import DeltaFunction, Constraint
 
-class _RedbackLikelihood(bilby.Likelihood):
+
+class _RedbackParameterStore:
+    """Compatibility shim for Bilby's transition away from stateful parameters."""
+
+    @property
+    def parameters(self):
+        return self._parameters
+
+    @parameters.setter
+    def parameters(self, parameters):
+        self._parameters = dict() if parameters is None else parameters
+
+
+class _RedbackLikelihood(_RedbackParameterStore, bilby.Likelihood):
 
     def __init__(self, x: np.ndarray, y: np.ndarray, function: callable, kwargs: dict = None, priors=None,
                  fiducial_parameters=None) -> None:
@@ -36,6 +49,10 @@ class _RedbackLikelihood(bilby.Likelihood):
 
         parameters = bilby.core.utils.introspection.infer_parameters_from_function(func=function)
         super().__init__(parameters=dict.fromkeys(parameters))
+
+    def _update_parameters(self, parameters=None) -> None:
+        if parameters is not None:
+            self.parameters.update(parameters)
 
     @property
     def kwargs(self) -> dict:
@@ -201,11 +218,12 @@ class GaussianLikelihood(_RedbackLikelihood):
             self._noise_log_likelihood = self._gaussian_log_likelihood(res=self.y, sigma=self.sigma)
         return self._noise_log_likelihood
 
-    def log_likelihood(self) -> float:
+    def log_likelihood(self, parameters=None) -> float:
         """
         :return: The log-likelihood.
         :rtype: float
         """
+        self._update_parameters(parameters)
         return np.nan_to_num(self._gaussian_log_likelihood(res=self.residual, sigma=self.sigma))
 
     @staticmethod
@@ -430,13 +448,14 @@ class GaussianLikelihoodWithUpperLimits(GaussianLikelihood):
 
         return self._noise_log_likelihood
 
-    def log_likelihood(self) -> float:
+    def log_likelihood(self, parameters=None) -> float:
         """
         Override parent method to include upper limits.
 
         :return: The log-likelihood including upper limits.
         :rtype: float
         """
+        self._update_parameters(parameters)
         # Detections part (use parent class method for detected points only)
         if np.any(self.detections):
             residual_det = self.residual[self.detections]
@@ -596,7 +615,7 @@ class MixtureGaussianLikelihood(GaussianLikelihood):
         sigma_out = self.parameters.get('sigma_out')
         return (1 / (np.sqrt(2 * np.pi) * sigma_out)) * np.exp(-0.5 * (r / sigma_out) ** 2)
 
-    def log_likelihood(self) -> float:
+    def log_likelihood(self, parameters=None) -> float:
         """
         Compute the total log-likelihood for the mixture model.
 
@@ -609,6 +628,7 @@ class MixtureGaussianLikelihood(GaussianLikelihood):
         float
             The overall log-likelihood (summed over all data points).
         """
+        self._update_parameters(parameters)
         res = self.residual
         alpha = self.parameters.get('alpha')
         sigma_out = self.parameters.get('sigma_out')
@@ -706,11 +726,12 @@ class GaussianLikelihoodUniformXErrors(GaussianLikelihood):
         """
         return self._gaussian_log_likelihood(res=self.residual, sigma=self.sigma)
 
-    def log_likelihood(self) -> float:
+    def log_likelihood(self, parameters=None) -> float:
         """
         :return: The log-likelihood.
         :rtype: float
         """
+        self._update_parameters(parameters)
         return np.nan_to_num(self.log_likelihood_x() + self.log_likelihood_y())
 
 
@@ -760,11 +781,12 @@ class GaussianLikelihoodQuadratureNoise(GaussianLikelihood):
             self._noise_log_likelihood = self._gaussian_log_likelihood(res=self.y, sigma=self.full_sigma)
         return self._noise_log_likelihood
 
-    def log_likelihood(self) -> float:
+    def log_likelihood(self, parameters=None) -> float:
         """
         :return: The log-likelihood.
         :rtype: float
         """
+        self._update_parameters(parameters)
         return np.nan_to_num(self._gaussian_log_likelihood(res=self.residual, sigma=self.full_sigma))
 
 class GaussianLikelihoodWithFractionalNoise(GaussianLikelihood):
@@ -820,11 +842,12 @@ class GaussianLikelihoodWithFractionalNoise(GaussianLikelihood):
             self._noise_log_likelihood = self._gaussian_log_likelihood(res=self.y, sigma=self.sigma_i)
         return self._noise_log_likelihood
 
-    def log_likelihood(self) -> float:
+    def log_likelihood(self, parameters=None) -> float:
         """
         :return: The log-likelihood.
         :rtype: float
         """
+        self._update_parameters(parameters)
         return np.nan_to_num(self._gaussian_log_likelihood(res=self.residual, sigma=self.full_sigma))
 
 class GaussianLikelihoodWithSystematicNoise(GaussianLikelihood):
@@ -881,11 +904,12 @@ class GaussianLikelihoodWithSystematicNoise(GaussianLikelihood):
             self._noise_log_likelihood = self._gaussian_log_likelihood(res=self.y, sigma=self.sigma_i)
         return self._noise_log_likelihood
 
-    def log_likelihood(self) -> float:
+    def log_likelihood(self, parameters=None) -> float:
         """
         :return: The log-likelihood.
         :rtype: float
         """
+        self._update_parameters(parameters)
         return np.nan_to_num(self._gaussian_log_likelihood(res=self.residual, sigma=self.full_sigma))
 
 class GaussianLikelihoodQuadratureNoiseNonDetections(GaussianLikelihoodQuadratureNoise):
@@ -946,11 +970,12 @@ class GaussianLikelihoodQuadratureNoiseNonDetections(GaussianLikelihoodQuadratur
         log_l[flux >= self.upperlimit_flux] = np.nan_to_num(-np.inf)
         return np.nan_to_num(np.sum(log_l))
 
-    def log_likelihood(self) -> float:
+    def log_likelihood(self, parameters=None) -> float:
         """
         :return: The log-likelihood.
         :rtype: float
         """
+        self._update_parameters(parameters)
         return np.nan_to_num(self.log_likelihood_y() + self.log_likelihood_upper_limit())
 
 
@@ -1051,11 +1076,12 @@ class PoissonLikelihood(_RedbackLikelihood):
         """
         return self._poisson_log_likelihood(rate=self.background_rate * self.dt)
 
-    def log_likelihood(self) -> float:
+    def log_likelihood(self, parameters=None) -> float:
         """
         :return: The log-likelihood.
         :rtype: float
         """
+        self._update_parameters(parameters)
         rate = self.function(self.time, **self.parameters, **self.kwargs) + self.background_rate
         if not self.integrated_rate_function:
             rate *= self.dt
@@ -1065,7 +1091,7 @@ class PoissonLikelihood(_RedbackLikelihood):
         return np.sum(-rate + self.counts * np.log(rate) - gammaln(self.counts + 1))
 
 
-class PoissonSpectralLikelihood(bilby.Likelihood):
+class PoissonSpectralLikelihood(_RedbackParameterStore, bilby.Likelihood):
     """
     Cash statistic (C-stat) for spectral counts.
     """
@@ -1080,7 +1106,9 @@ class PoissonSpectralLikelihood(bilby.Likelihood):
         self.function = function
         self.kwargs = kwargs or {}
 
-    def log_likelihood(self) -> float:
+    def log_likelihood(self, parameters=None) -> float:
+        if parameters is not None:
+            self.parameters.update(parameters)
         model_counts = self.dataset.predict_counts(
             model=self.function, parameters=self.parameters, model_kwargs=self.kwargs
         )
@@ -1091,7 +1119,7 @@ class PoissonSpectralLikelihood(bilby.Likelihood):
         return np.nan_to_num(ll, nan=-np.inf, neginf=-np.inf, posinf=-np.inf)
 
 
-class WStatSpectralLikelihood(bilby.Likelihood):
+class WStatSpectralLikelihood(_RedbackParameterStore, bilby.Likelihood):
     """
     W-stat proxy for source + background PHA spectra.
     """
@@ -1106,7 +1134,9 @@ class WStatSpectralLikelihood(bilby.Likelihood):
         self.function = function
         self.kwargs = kwargs or {}
 
-    def log_likelihood(self) -> float:
+    def log_likelihood(self, parameters=None) -> float:
+        if parameters is not None:
+            self.parameters.update(parameters)
         if self.dataset.counts_bkg is None:
             raise ValueError("counts_bkg required for W-stat likelihood")
         model_counts = self.dataset.predict_counts(
@@ -1141,7 +1171,7 @@ class WStatSpectralLikelihood(bilby.Likelihood):
         return np.nan_to_num(np.sum(ll), nan=-np.inf, neginf=-np.inf, posinf=-np.inf)
 
 
-class ChiSquareSpectralLikelihood(bilby.Likelihood):
+class ChiSquareSpectralLikelihood(_RedbackParameterStore, bilby.Likelihood):
     """
     Chi-square spectral likelihood for high-count regimes.
     """
@@ -1156,7 +1186,9 @@ class ChiSquareSpectralLikelihood(bilby.Likelihood):
         self.function = function
         self.kwargs = kwargs or {}
 
-    def log_likelihood(self) -> float:
+    def log_likelihood(self, parameters=None) -> float:
+        if parameters is not None:
+            self.parameters.update(parameters)
         model_counts = self.dataset.predict_counts(
             model=self.function, parameters=self.parameters, model_kwargs=self.kwargs
         )

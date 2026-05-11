@@ -2008,16 +2008,25 @@ def csm_interaction_bolometric(time, mej, csm_mass, vej, eta, rho, kappa, r0, **
             efficiency: in converting between kinetic energy and luminosity, default 0.5
             delta: default 1,
             nn: default 12,
+            dense_resolution: resolution of dense engine time array, default 1000
+            dense_time_min: minimum dense engine time in days, default min(0.1, min(time))
+            stop_time: maximum dense engine time in days, default max(time) + 100
+            csm_diffusion_method: CSM diffusion integral method. Default is "cumulative".
+                Use "quadrature" for the legacy per-time integral.
             If interaction process is different kwargs must include other keyword arguments that are required.
     :param interaction_process: Default is CSMDiffusion.
         Can also be None in which case the output is just the raw engine luminosity, or another interaction process.
     :return: bolometric_luminosity
     """
+    time = np.atleast_1d(time)
     _interaction_process = kwargs.get("interaction_process", ip.CSMDiffusion)
 
     if _interaction_process is not None:
         dense_resolution = kwargs.get("dense_resolution", 1000)
-        dense_times = np.geomspace(0.1, time[-1]+100, dense_resolution)
+        stop_time = kwargs.get("stop_time", np.max(time) + 100)
+        dense_time_min = kwargs.get("dense_time_min", min(0.1, np.min(time)))
+        dense_times = get_optimal_time_array(
+            dense_time_min, stop_time, dense_resolution, user_times=time, time_units="days")
         csm_output = _csm_engine(time=dense_times, mej=mej, csm_mass=csm_mass, vej=vej,
                                  eta=eta, rho=rho, kappa=kappa, r0=r0, **kwargs)
         dense_lbols = csm_output.lbol
@@ -2106,6 +2115,7 @@ def csm_interaction(time, redshift, mej, csm_mass, vej, eta, rho, kappa, r0, **k
                                                               **kwargs)
 
 
+@citation_wrapper('https://ui.adsabs.harvard.edu/abs/2013ApJ...773...76C/abstract, https://ui.adsabs.harvard.edu/abs/2017ApJ...849...70V/abstract, https://ui.adsabs.harvard.edu/abs/2020RNAAS...4...16J/abstract, https://ui.adsabs.harvard.edu/abs/1982ApJ...253..785A/abstract')
 def csm_nickel_bolometric(time, mej, f_nickel, csm_mass, ek, eta, rho, kappa, r0, **kwargs):
     """
     Bolometric luminosity for CSM and nickel engine with homologous expansion.
@@ -2126,10 +2136,11 @@ def csm_nickel_bolometric(time, mej, f_nickel, csm_mass, ek, eta, rho, kappa, r0
     :param rho: csm density profile amplitude
     :param kappa: opacity
     :param r0: radius of csm shell in AU
-    :param kwargs: kappa_gamma, and any kwarg to change any other input physics/parameters from default.
+    :param kwargs: kappa_gamma, csm_diffusion_method, and any kwarg to change
+        any other input physics/parameters from default.
     :return: bolometric_luminosity
     """
-    time = np.asarray(time)
+    time = np.atleast_1d(time)
     vej = np.sqrt(2.0 * ek / (mej * solar_mass)) / km_cgs
     dense_resolution = kwargs.get("dense_resolution", 1000)
     stop_time = kwargs.get("stop_time", np.max(time) + 100)
@@ -2152,7 +2163,7 @@ def csm_nickel_bolometric(time, mej, f_nickel, csm_mass, ek, eta, rho, kappa, r0
     return nickel_lbol + csm_lbol
 
 
-@citation_wrapper('https://ui.adsabs.harvard.edu/abs/2018ApJS..236....6G/abstract')
+@citation_wrapper('https://ui.adsabs.harvard.edu/abs/2013ApJ...773...76C/abstract, https://ui.adsabs.harvard.edu/abs/2017ApJ...849...70V/abstract, https://ui.adsabs.harvard.edu/abs/2020RNAAS...4...16J/abstract, https://ui.adsabs.harvard.edu/abs/1982ApJ...253..785A/abstract')
 def csm_nickel(time, redshift, mej, f_nickel, csm_mass, ek, eta, rho, kappa, r0, **kwargs):
     """
     Assumes csm and nickel engine with homologous expansion

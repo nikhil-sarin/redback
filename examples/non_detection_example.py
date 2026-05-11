@@ -21,10 +21,16 @@ day_lim =  np.array([28.])
 fd_flux_upper_lim = 1e5
 
 
+def scalarize_sample(sample):
+    return {key: np.atleast_1d(value)[0] for key, value in sample.items()}
+
+
 def constraint_on_flux_time_from_nondetection(params):
-    fd_flux = function(day_lim, **params)
-    converted_params = params.copy()
-    converted_params['x'] = fd_flux/fd_flux_upper_lim # constrains flux to less than upper limit at specified day
+    scalar_params = scalarize_sample(params)
+    fd_flux = function(day_lim, **scalar_params)
+    converted_params = scalar_params.copy()
+    # constrains flux to less than upper limit at specified day
+    converted_params['x'] = np.atleast_1d(fd_flux / fd_flux_upper_lim)[0]
     return converted_params
 
 priors_constrained = PriorDict(conversion_function=constraint_on_flux_time_from_nondetection)
@@ -34,7 +40,7 @@ priors_constrained['x'] = Constraint(0,1)
 
 
 def draw_scalar_sample(prior):
-    return {key: np.atleast_1d(value)[0] for key, value in prior.sample(size=1).items()}
+    return scalarize_sample(prior.sample(size=1))
 
 
 # Plot draws from original and constrained prior distributions.
