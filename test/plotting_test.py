@@ -7,7 +7,8 @@ import pandas as pd
 import shutil
 from redback.transient import Spectrum, Transient
 from redback.plotting import (SpecPlotter, IntegratedFluxPlotter, LuminosityOpticalPlotter,
-    _FilenameGetter, _FilePathGetter, Plotter, SpectrumPlotter, MagnitudePlotter)
+    _FilenameGetter, _FilePathGetter, Plotter, SpectrumPlotter, MagnitudePlotter,
+    get_plotter_kwargs_docs)
 
 from types import SimpleNamespace
 import matplotlib.pyplot as plt
@@ -2946,6 +2947,63 @@ class TestPlotterMultibandNewOptions(unittest.TestCase):
         self.assertFalse(plotter.legend_fancybox)
         self.assertEqual(plotter.legend_framealpha, 0.5)
 
+    @staticmethod
+    def _make_transient_with_upper_limit_only_band():
+        transient = SimpleNamespace()
+        transient.name = "UpperLimitOnlyBand"
+        transient.x = np.array([1.0, 2.0])
+        transient.y = np.array([10.0, 20.0])
+        transient.x_err = None
+        transient.y_err = np.array([0.1, 0.2])
+        transient.xlabel = "Time [days]"
+        transient.ylabel = "Flux"
+        transient.use_phase_model = False
+        transient.magnitude_data = False
+        transient.luminosity_data = False
+        transient.data_mode = "flux"
+        transient.bands = np.array(["g", "lsstu"])
+        transient.unique_bands = np.array(["g", "lsstu"])
+        transient.unique_frequencies = np.array([1.0e14, 2.0e14])
+        transient.list_of_band_indices = [np.array([0]), np.array([1])]
+        transient.active_bands = ["g", "lsstu"]
+        transient.default_filters = ["g", "lsstu"]
+        transient.has_upper_limits = True
+        transient.upper_limits = np.array([False, True])
+        transient.directory_structure = SimpleNamespace(directory_path="/mock/path")
+        transient.get_colors = lambda filters: plt.cm.rainbow(np.linspace(0, 1, len(filters)))
+        return transient
+
+    def test_plot_data_labels_upper_limit_only_band(self):
+        """Upper-limit-only bands still need a legend entry in plot_data."""
+        transient = self._make_transient_with_upper_limit_only_band()
+        plotter = MagnitudePlotter(
+            transient=transient,
+            band_colors={"g": "green", "lsstu": "purple"},
+        )
+
+        _, ax = plt.subplots()
+        plotter.plot_data(axes=ax, save=False, show=False)
+
+        labels = [text.get_text() for text in ax.get_legend().get_texts()]
+        self.assertIn("g", labels)
+        self.assertIn("lsstu", labels)
+        self.assertEqual(labels.count("lsstu"), 1)
+
+    def test_plot_multiband_labels_upper_limit_only_band(self):
+        """Upper-limit-only bands still need a legend entry in multiband plots."""
+        transient = self._make_transient_with_upper_limit_only_band()
+        plotter = MagnitudePlotter(
+            transient=transient,
+            band_colors={"g": "green", "lsstu": "purple"},
+        )
+
+        fig, axes = plt.subplots(ncols=2, nrows=1)
+        axes = plotter.plot_multiband(figure=fig, axes=axes, save=False, show=False)
+
+        labels = [text.get_text() for text in axes[1].get_legend().get_texts()]
+        self.assertIn("lsstu", labels)
+        self.assertEqual(labels.count("lsstu"), 1)
+
 
 class TestKwargsAccessorWithDefaultCoverage(unittest.TestCase):
     """Tests to ensure KwargsAccessorWithDefault descriptor is fully covered."""
@@ -3210,3 +3268,64 @@ class TestPlotterAxisCustomizations(unittest.TestCase):
         result = plotter._get_kwarg_with_default("nonexistent_key", "fallback")
         self.assertEqual(result, "supplied")
 
+
+class TestGetPlotterKwargsDocs(unittest.TestCase):
+    """Tests for get_plotter_kwargs_docs()."""
+
+    def test_no_args_returns_string(self):
+        """Calling with no arguments returns a non-empty string."""
+        result = get_plotter_kwargs_docs()
+        self.assertIsInstance(result, str)
+        self.assertTrue(len(result) > 0)
+
+    def test_no_args_uses_plotter_default(self):
+        """Calling with no arguments uses Plotter as the default class."""
+        result_default = get_plotter_kwargs_docs()
+        result_explicit = get_plotter_kwargs_docs(Plotter)
+        self.assertEqual(result_default, result_explicit)
+
+    def test_contains_ms_kwarg(self):
+        """Output for Plotter includes the 'ms' kwarg."""
+        result = get_plotter_kwargs_docs()
+        self.assertIn("ms", result)
+
+    def test_contains_fontsize_axes_kwarg(self):
+        """Output for Plotter includes the 'fontsize_axes' kwarg."""
+        result = get_plotter_kwargs_docs()
+        self.assertIn("fontsize_axes", result)
+
+    def test_contains_band_colors_kwarg(self):
+        """Output for Plotter includes the 'band_colors' kwarg."""
+        result = get_plotter_kwargs_docs()
+        self.assertIn("band_colors", result)
+
+    def test_contains_default_value_for_ms(self):
+        """Output includes the default value for 'ms' (5)."""
+        result = get_plotter_kwargs_docs()
+        self.assertIn("ms (default: 5)", result)
+
+    def test_magnitude_plotter_includes_specific_attr(self):
+        """MagnitudePlotter output includes ylim_low_magnitude_multiplier."""
+        result = get_plotter_kwargs_docs(MagnitudePlotter)
+        self.assertIn("ylim_low_magnitude_multiplier", result)
+
+    def test_magnitude_plotter_includes_base_plotter_attrs(self):
+        """MagnitudePlotter output also includes base Plotter attrs like 'ms'."""
+        result = get_plotter_kwargs_docs(MagnitudePlotter)
+        self.assertIn("ms", result)
+        self.assertIn("fontsize_axes", result)
+
+    def test_plotter_does_not_include_magnitude_specific_attr(self):
+        """Plotter output does NOT include ylim_low_magnitude_multiplier."""
+        result = get_plotter_kwargs_docs(Plotter)
+        self.assertNotIn("ylim_low_magnitude_multiplier", result)
+
+    def test_explicit_plotter_class_name_in_output(self):
+        """Output mentions the class name passed as argument."""
+        result = get_plotter_kwargs_docs(MagnitudePlotter)
+        self.assertIn("MagnitudePlotter", result)
+
+    def test_base_plotter_class_name_in_output(self):
+        """Output mentions 'Plotter' when called with no args."""
+        result = get_plotter_kwargs_docs()
+        self.assertIn("Plotter", result)

@@ -6,7 +6,7 @@ from typing import Union
 import bilby
 
 import redback.get_data
-from redback.likelihoods import GaussianLikelihood, PoissonLikelihood, PoissonSpectralLikelihood, \
+from redback.likelihoods import GaussianLikelihood, GaussianLikelihoodWithUpperLimits, PoissonLikelihood, PoissonSpectralLikelihood, \
     WStatSpectralLikelihood, ChiSquareSpectralLikelihood
 from redback.model_library import all_models_dict
 from redback.result import RedbackResult
@@ -329,17 +329,67 @@ def _fit_grb(transient, model, outdir, label, likelihood=None, sampler='dynesty'
     return result
 
 
+def _get_filtered_upper_limit_sigma(transient):
+    """Return upper-limit sigma values matching the transient's active-band filtered data."""
+    upper_limit_sigma = transient.upper_limit_sigma
+    if np.isscalar(upper_limit_sigma):
+        return upper_limit_sigma
+
+    upper_limit_sigma = np.asarray(upper_limit_sigma)
+    filtered_indices = transient.filtered_indices
+
+    if len(upper_limit_sigma) == len(transient.x):
+        return upper_limit_sigma[filtered_indices]
+
+    if transient.detections is not None and len(upper_limit_sigma) == np.sum(transient.upper_limits):
+        upper_limit_positions = np.cumsum(transient.upper_limits) - 1
+        filtered_upper_limits = transient.upper_limits[filtered_indices]
+        return upper_limit_sigma[upper_limit_positions[filtered_indices][filtered_upper_limits]]
+
+    return upper_limit_sigma
+
+
 def _fit_optical_transient(transient, model, outdir, label, likelihood=None, sampler='dynesty', nlive=3000, prior=None,
                            walks=1000, resume=True, save_format='json', model_kwargs=None, plot=True, **kwargs):
 
     if any([transient.flux_data, transient.magnitude_data, transient.flux_density_data]):
-        x, x_err, y, y_err = transient.get_filtered_data()
+        x, x_err, y, y_err, detections = transient.get_filtered_data_with_limits()
     else:
         x, x_err, y, y_err = transient.x, transient.x_err, transient.y, transient.y_err
+        detections = None
 
     if likelihood is None:
-        likelihood = GaussianLikelihood(x=x, y=y, sigma=y_err, function=model, kwargs=model_kwargs)
-        logger.info("No likelihood provided, using standard GaussianLikelihood")
+        if transient.has_upper_limits and detections is not None:
+            # Determine data_mode for likelihood
+            if transient.magnitude_data:
+                ul_data_mode = 'magnitude'
+            else:
+                ul_data_mode = 'flux'
+            n_ul = int(np.sum(~detections))
+            # Check that upper limit y-values are finite
+            ul_y = y[~detections]
+            n_nan_ul = int(np.sum(np.isnan(ul_y)))
+            if n_nan_ul > 0:
+                logger.warning(
+                    f"{n_nan_ul} upper limit(s) have NaN y-values, which cannot be used in "
+                    f"GaussianLikelihoodWithUpperLimits. Falling back to standard GaussianLikelihood "
+                    f"with detection data only. Replace NaN values with the upper limit value "
+                    f"(e.g. limiting magnitude or flux) to use upper limit likelihood."
+                )
+                # Filter to detection-only data for standard likelihood
+                det_mask = detections
+                x_fit, y_fit, y_err_fit = x[det_mask], y[det_mask], y_err[det_mask]
+                likelihood = GaussianLikelihood(x=x_fit, y=y_fit, sigma=y_err_fit, function=model, kwargs=model_kwargs)
+            else:
+                logger.info(f"Auto-detected {n_ul} upper limits, using GaussianLikelihoodWithUpperLimits "
+                            f"with data_mode='{ul_data_mode}'")
+                likelihood = GaussianLikelihoodWithUpperLimits(
+                    x=x, y=y, sigma=y_err, function=model, kwargs=model_kwargs,
+                    detections=detections, upper_limit_sigma=_get_filtered_upper_limit_sigma(transient),
+                    data_mode=ul_data_mode)
+        else:
+            likelihood = GaussianLikelihood(x=x, y=y, sigma=y_err, function=model, kwargs=model_kwargs)
+            logger.info("No likelihood provided, using standard GaussianLikelihood")
     else:
         logger.info("Likelihood provided, using custom likelihood {}".format(likelihood.__class__.__name__))
         likelihood = likelihood

@@ -7,72 +7,6 @@ import astropy.units as uu
 import redback.sed as sed
 from redback.constants import day_to_s
 
-extinction_afterglow_base_models = ['tophat', 'cocoon', 'gaussian',
-                                    'kn_afterglow', 'cone_afterglow',
-                                    'gaussiancore', 'gaussian',
-                                    'smoothpowerlaw', 'powerlawcore',
-                                    'tophat','tophat_from_emulator',
-                                    'tophat_redback', 'gaussian_redback', 'twocomponent_redback',
-                                    'powerlaw_redback', 'alternativepowerlaw_redback', 'doublegaussian_redback',
-                                    'tophat_redback_refreshed', 'gaussian_redback_refreshed',
-                                    'twocomponent_redback_refreshed','powerlaw_redback_refreshed',
-                                    'alternativepowerlaw_redback_refreshed', 'doublegaussian_redback_refreshed',
-                                    'jetsimpy_tophat', 'jetsimpy_gaussian', 'jetsimpy_powerlaw',
-                                    'vegas_gaussian', 'vegas_powerlaw', 'vegas_tophat',
-                                    'vegas_twocomponent', 'vegas_powerlaw_wing', 'vegas_step',
-                                    'vegas_steppowerlaw']
-
-extinction_general_synchrotron_models = ['pwn', 'kilonova_afterglow_redback', 'kilonova_afterglow_nakarpiran',
-                                         'thermal_synchrotron_lnu', 'thermal_synchrotron_fluxdensity',
-                                         'tde_synchrotron', 'synchrotron_massloss', 'synchrotron_ism',
-                                         'synchrotron_pldensity', 'thermal_synchrotron_v2_lnu',
-                                         'thermal_synchrotron_v2_fluxdensity']
-extinction_stellar_interaction_models = ['wr_bh_merger']
-extinction_integrated_flux_afterglow_models = extinction_afterglow_base_models
-
-extinction_supernova_base_models = ['sn_exponential_powerlaw', 'arnett', 'shock_cooling_and_arnett',
-                                    'basic_magnetar_powered', 'slsn', 'magnetar_nickel',
-                                    'csm_interaction', 'csm_nickel', 'type_1a', 'type_1c',
-                                    'general_magnetar_slsn','general_magnetar_driven_supernova', 'sn_fallback',
-                                    'csm_shock_and_arnett', 'shocked_cocoon_and_arnett',
-                                    'csm_shock_and_arnett_two_rphots', 'nickelmixing',
-                                    'sn_nickel_fallback', 'shockcooling_morag_and_arnett',
-                                    'shockcooling_sapirwaxman_and_arnett',
-                                    'csm_shock_and_arnett', 'shocked_cocoon_and_arnett',
-                                    'csm_shock_and_arnett_two_rphots', 'typeII_surrogate_sarin25',
-                                    'shocked_cocoon_csm_and_arnett', 'sn1998bw_template', 'sn1998bw_template_with_extrapolation']
-extinction_kilonova_base_models = ['nicholl_bns', 'mosfit_rprocess', 'mosfit_kilonova',
-                                   'power_law_stratified_kilonova','bulla_bns_kilonova',
-                                   'bulla_nsbh_kilonova', 'kasen_bns_kilonova','two_layer_stratified_kilonova',
-                                   'three_component_kilonova_model', 'two_component_kilonova_model',
-                                   'one_component_kilonova_model', 'one_component_ejecta_relation',
-                                   'one_component_ejecta_relation_projection', 'two_component_bns_ejecta_relation',
-                                   'polytrope_eos_two_component_bns', 'one_component_nsbh_ejecta_relation',
-                                   'two_component_nsbh_ejecta_relation','one_comp_kne_rosswog_heatingrate',
-                                   'two_comp_kne_rosswog_heatingrate','metzger_kilonova_model']
-
-extinction_tde_base_models = ['tde_analytical', 'tde_semianalytical', 'gaussianrise_cooling_envelope',
-                              'cooling_envelope', 'bpl_cooling_envelope', 'tde_fallback',
-                              'fitted', 'fitted_pldecay', 'fitted_expdecay', 'stream_stream_tde']
-extinction_magnetar_driven_base_models = ['basic_mergernova', 'general_mergernova', 'general_mergernova_thermalisation',
-                                          'general_mergernova_evolution', 'metzger_magnetar_driven_kilonova_model',
-                                          'general_metzger_magnetar_driven', 'general_metzger_magnetar_driven_thermalisation',
-                                          'general_metzger_magnetar_driven_evolution']
-extinction_shock_powered_base_models = ['shocked_cocoon', 'shock_cooling', 'csm_shock_breakout',
-                                        'shockcooling_morag', 'shockcooling_sapirandwaxman', 'shocked_cocoon_csm']
-extinction_stellar_interaction_models = ['wr_bh_merger']
-
-extinction_model_library = {'kilonova': extinction_kilonova_base_models,
-                            'supernova': extinction_supernova_base_models,
-                            'general_synchrotron': extinction_general_synchrotron_models,
-                            'stellar_interaction': extinction_stellar_interaction_models,
-                            'afterglow': extinction_afterglow_base_models,
-                            'tde': extinction_tde_base_models,
-                            'magnetar_driven': extinction_magnetar_driven_base_models,
-                            'shock_powered': extinction_shock_powered_base_models,
-                            'stellar_interaction': extinction_stellar_interaction_models,
-                            'integrated_flux_afterglow': extinction_integrated_flux_afterglow_models}                            
-
 model_library = {'supernova': 'supernova_models', 'afterglow': 'afterglow_models',
                  'magnetar_driven': 'magnetar_driven_ejecta_models', 'tde': 'tde_models',
                  'kilonova': 'kilonova_models', 'shock_powered': 'shock_powered_models',
@@ -89,21 +23,41 @@ def _get_correct_function(base_model, model_type=None):
     :return: function; function to evaluate
     """
     from redback.model_library import modules_dict  # import model library in function to avoid circular dependency
-    extinction_base_models = extinction_model_library[model_type]
-    module_libary = model_library[model_type]
 
     if isfunction(base_model):
-        function = base_model
+        return base_model
 
-    elif base_model not in extinction_base_models:
-        logger.warning('{} is not implemented as a base model'.format(base_model))
-        raise ValueError('Please choose a different base model')
-    elif isinstance(base_model, str):
-        function = modules_dict[module_libary][base_model]
-    else:
-        raise ValueError("Not a valid base model.")
+    if not isinstance(base_model, str):
+        raise ValueError("base_model must be a string name or a callable function")
 
-    return function
+    if model_type is None:
+        # Search all modules for the model name
+        for module_name, models in modules_dict.items():
+            if base_model in models:
+                return models[base_model]
+        raise ValueError(
+            f"Model '{base_model}' not found in any module. "
+            f"Ensure the model name is correct and the module is loaded."
+        )
+
+    if model_type not in model_library:
+        raise ValueError(
+            f"Unknown model_type '{model_type}'. "
+            f"Available types: {list(model_library.keys())}"
+        )
+    module_name = model_library[model_type]
+    if module_name not in modules_dict:
+        raise ValueError(
+            f"Module '{module_name}' for model type '{model_type}' not found. "
+            f"Available modules: {list(modules_dict.keys())}"
+        )
+    module_models = modules_dict[module_name]
+    if base_model not in module_models:
+        raise ValueError(
+            f"Model '{base_model}' not found in '{module_name}'. "
+            f"Available models: {list(module_models.keys())}"
+        )
+    return module_models[base_model]
 
 def _perform_extinction(flux_density, angstroms, av_host, rv_host, av_mw=0.0, rv_mw=3.1,
                         host_law='fitzpatrick99', mw_law='fitzpatrick99', **kwargs):
@@ -420,20 +374,6 @@ def extinction_with_stellar_interaction_base_model(time, av_host, **kwargs):
         - mw_law: MW extinction law (default 'fitzpatrick99')
         Available extinction laws: 'fitzpatrick99', 'fm07', 'calzetti00', 'odonnell94', 'ccm89'
     :return: set by kwargs['output_format'] - 'flux_density', 'magnitude', 'flux', 'spectra' with extinction applied
-    """
-    output = _evaluate_extinction_model(time=time, av_host=av_host, model_type='stellar_interaction', **kwargs)
-    return output
-
-@citation_wrapper('redback')
-def extinction_with_stellar_interaction_base_model(time, av_host, **kwargs):
-    """
-    Extinction with models implemented in stellar_interaction_models
-
-    :param time: time in observer frame in days
-    :param av_host: absolute mag extinction
-    :param kwargs: Must be all the parameters required by the base_model specified using kwargs['base_model']
-        and r_v, default is 3.1
-    :return: set by kwargs['output_format'] - 'flux_density', 'magnitude', 'flux' with extinction applied
     """
     output = _evaluate_extinction_model(time=time, av_host=av_host, model_type='stellar_interaction', **kwargs)
     return output

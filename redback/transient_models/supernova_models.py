@@ -1920,7 +1920,9 @@ def _csm_engine(time, mej, csm_mass, vej, eta, rho, kappa, r0, **kwargs):
             efficiency: in converting between kinetic energy and luminosity, default 0.5
             delta: default 1,
             nn: default 12,
-    :return: named tuple with 'lbol','r_photosphere' 'mass_csm_threshold'
+    :return: named tuple with 'lbol', 'r_photosphere', 'mass_csm_threshold'.
+             All quantities are in CGS units: lbol in erg/s, r_photosphere in cm,
+             mass_csm_threshold in grams (the optically-thick CSM mass, tau > 2/3).
     """
     mej = mej * solar_mass
     csm_mass = csm_mass * solar_mass
@@ -2013,10 +2015,6 @@ def csm_interaction_bolometric(time, mej, csm_mass, vej, eta, rho, kappa, r0, **
     """
     _interaction_process = kwargs.get("interaction_process", ip.CSMDiffusion)
 
-    csm_output = _csm_engine(time=time, mej=mej, csm_mass=csm_mass, vej=vej,
-                             eta=eta, rho=rho, kappa=kappa, r0=r0, **kwargs)
-    lbol = csm_output.lbol
-
     if _interaction_process is not None:
         dense_resolution = kwargs.get("dense_resolution", 1000)
         dense_times = np.geomspace(0.1, time[-1]+100, dense_resolution)
@@ -2029,6 +2027,10 @@ def csm_interaction_bolometric(time, mej, csm_mass, vej, eta, rho, kappa, r0, **
                                                 kappa=kappa, r_photosphere=r_photosphere,
                                                 mass_csm_threshold=mass_csm_threshold, csm_mass=csm_mass, **kwargs)
         lbol = interaction_class.new_luminosity
+    else:
+        csm_output = _csm_engine(time=time, mej=mej, csm_mass=csm_mass, vej=vej,
+                                 eta=eta, rho=rho, kappa=kappa, r0=r0, **kwargs)
+        lbol = csm_output.lbol
     return lbol
 
 
@@ -2104,6 +2106,52 @@ def csm_interaction(time, redshift, mej, csm_mass, vej, eta, rho, kappa, r0, **k
                                                               **kwargs)
 
 
+def csm_nickel_bolometric(time, mej, f_nickel, csm_mass, ek, eta, rho, kappa, r0, **kwargs):
+    """
+    Bolometric luminosity for CSM and nickel engine with homologous expansion.
+    Nickel photons diffuse through both the ejecta and the optically-thick CSM shell.
+    The nickel engine luminosity is computed with the true mej (so nickel_mass = f_nickel * mej
+    is correct), but the Diffusion interaction process uses mej_eff = mej + mass_csm_threshold
+    to capture the additional diffusion delay through the optically-thick CSM shell.
+    Note: _csm_engine converts all inputs to CGS internally, so mass_csm_threshold
+    is returned in grams; dividing by solar_mass converts it back to solar masses
+    before adding to mej.
+
+    :param time: time in days in source frame
+    :param mej: ejecta mass in solar masses
+    :param f_nickel: fraction of nickel mass
+    :param csm_mass: csm mass in solar masses
+    :param ek: kinetic energy in ergs
+    :param eta: csm density profile exponent
+    :param rho: csm density profile amplitude
+    :param kappa: opacity
+    :param r0: radius of csm shell in AU
+    :param kwargs: kappa_gamma, and any kwarg to change any other input physics/parameters from default.
+    :return: bolometric_luminosity
+    """
+    time = np.asarray(time)
+    vej = np.sqrt(2.0 * ek / (mej * solar_mass)) / km_cgs
+    dense_resolution = kwargs.get("dense_resolution", 1000)
+    stop_time = kwargs.get("stop_time", np.max(time) + 100)
+    dense_time_min = kwargs.get("dense_time_min", min(0.01, np.min(time)))
+    dense_times = get_optimal_time_array(
+        dense_time_min, stop_time, dense_resolution, user_times=time, time_units="days")
+    csm_output = _csm_engine(time=dense_times, mej=mej, csm_mass=csm_mass, vej=vej,
+                             eta=eta, rho=rho, kappa=kappa, r0=r0, **kwargs)
+    mej_eff = mej + csm_output.mass_csm_threshold / solar_mass
+    # Compute nickel engine luminosity with true mej (so nickel_mass = f_nickel * mej is correct),
+    # then diffuse through mej_eff (ejecta + optically-thick CSM) for the correct timescale.
+    # Passing mej_eff to arnett_bolometric would incorrectly inflate the nickel mass.
+    dense_nickel_lbol = _nickelcobalt_engine(time=dense_times, f_nickel=f_nickel, mej=mej)
+    nickel_lbol = ip.Diffusion(time=time, dense_times=dense_times, luminosity=dense_nickel_lbol,
+                               mej=mej_eff, vej=vej, kappa=kappa, **kwargs).new_luminosity
+    csm_lbol = ip.CSMDiffusion(time=time, dense_times=dense_times, luminosity=csm_output.lbol,
+                               kappa=kappa, r_photosphere=csm_output.r_photosphere,
+                               mass_csm_threshold=csm_output.mass_csm_threshold,
+                               csm_mass=csm_mass, **kwargs).new_luminosity
+    return nickel_lbol + csm_lbol
+
+
 @citation_wrapper('https://ui.adsabs.harvard.edu/abs/2018ApJS..236....6G/abstract')
 def csm_nickel(time, redshift, mej, f_nickel, csm_mass, ek, eta, rho, kappa, r0, **kwargs):
     """
@@ -2135,17 +2183,11 @@ def csm_nickel(time, redshift, mej, f_nickel, csm_mass, ek, eta, rho, kappa, r0,
     if kwargs['output_format'] == 'flux_density':
         frequency = kwargs['frequency']
         frequency, time = calc_kcorrected_properties(frequency=frequency, redshift=redshift, time=time)
-        nickel_lbol = arnett_bolometric(time=time, f_nickel=f_nickel,
-                                        mej=mej, interaction_process=ip.Diffusion, kappa=kappa, vej=vej, **kwargs)
-        csm_lbol = csm_interaction_bolometric(time=time, mej=mej, csm_mass=csm_mass, eta=eta,
-                                          rho=rho, kappa=kappa, r0=r0, vej=vej, interaction_process=ip.CSMDiffusion, **kwargs)
-        lbol = nickel_lbol + csm_lbol
-
+        lbol = csm_nickel_bolometric(time=time, mej=mej, f_nickel=f_nickel, csm_mass=csm_mass,
+                                     ek=ek, eta=eta, rho=rho, kappa=kappa, r0=r0, **kwargs)
         photo = photosphere.TemperatureFloor(time=time, luminosity=lbol, vej=vej, **kwargs)
-
         sed_1 = sed.Blackbody(temperature=photo.photosphere_temperature, r_photosphere=photo.r_photosphere,
                     frequency=frequency, luminosity_distance=dl)
-
         flux_density = sed_1.flux_density
         return flux_density.to(uu.mJy).value * (1 + redshift)
     else:
@@ -2155,11 +2197,8 @@ def csm_nickel(time, redshift, mej, f_nickel, csm_mass, ek, eta, rho, kappa, r0,
         time_observer_frame = time_temp * (1. + redshift)
         frequency, time = calc_kcorrected_properties(frequency=lambda_to_nu(lambda_observer_frame),
                                                      redshift=redshift, time=time_observer_frame)
-        nickel_lbol = arnett_bolometric(time=time, f_nickel=f_nickel,
-                                        mej=mej, interaction_process=ip.Diffusion,kappa=kappa, vej=vej, **kwargs)
-        csm_lbol = csm_interaction_bolometric(time=time, mej=mej, csm_mass=csm_mass, eta=eta,
-                                          rho=rho, kappa=kappa, r0=r0, vej=vej, interaction_process=ip.CSMDiffusion, **kwargs)
-        lbol = nickel_lbol + csm_lbol
+        lbol = csm_nickel_bolometric(time=time, mej=mej, f_nickel=f_nickel, csm_mass=csm_mass,
+                                     ek=ek, eta=eta, rho=rho, kappa=kappa, r0=r0, **kwargs)
         photo = photosphere.TemperatureFloor(time=time, luminosity=lbol, vej=vej, **kwargs)
         sed_1 = sed.Blackbody(temperature=photo.photosphere_temperature, r_photosphere=photo.r_photosphere,
                               frequency=frequency[:,None], luminosity_distance=dl)

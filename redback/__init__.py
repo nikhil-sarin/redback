@@ -13,7 +13,19 @@ import os
 
 def _get_version():
     """Extract version from package metadata or setup.py"""
-    # Try importlib.metadata first (works for installed packages from PyPI/pip)
+    # Prefer setup.py when importing from a source checkout; local egg-info can
+    # otherwise report a stale version after setup.py has been updated.
+    setup_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'setup.py')
+    try:
+        with open(setup_path, 'r') as f:
+            content = f.read()
+            match = re.search(r"version\s*=\s*['\"]([^'\"]+)['\"]", content)
+            if match:
+                return match.group(1)
+    except (FileNotFoundError, IOError):
+        pass
+
+    # Try importlib.metadata for installed packages from PyPI/pip.
     try:
         from importlib.metadata import version
         return version('redback')
@@ -25,17 +37,6 @@ def _get_version():
         import pkg_resources
         return pkg_resources.get_distribution('redback').version
     except Exception:
-        pass
-    
-    # Fallback to reading setup.py (development mode)
-    setup_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'setup.py')
-    try:
-        with open(setup_path, 'r') as f:
-            content = f.read()
-            match = re.search(r"version\s*=\s*['\"]([^'\"]+)['\"]", content)
-            if match:
-                return match.group(1)
-    except (FileNotFoundError, IOError):
         pass
     return "unknown"
 

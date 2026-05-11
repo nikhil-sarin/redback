@@ -17,6 +17,52 @@ from redback.utils import MetaDataAccessor, logger
 warnings.simplefilter(action='ignore')
 
 
+def _smart_corner_title(median, minus, plus):
+    """Format a corner plot title with automatically chosen precision.
+
+    Uses scientific notation when the values span many orders of magnitude
+    (e.g. ek ~ 1e51), and picks enough decimal places so that uncertainties
+    are not rendered as 0.00.
+
+    :param median: Median value.
+    :param minus: Lower uncertainty (positive number).
+    :param plus: Upper uncertainty (positive number).
+    :return: LaTeX-formatted title string.
+    """
+    # Determine whether scientific notation is appropriate
+    abs_median = abs(median) if median != 0 else max(abs(plus), abs(minus))
+    use_sci = abs_median != 0 and (abs_median >= 1e4 or abs_median < 1e-2)
+
+    if use_sci:
+        exponent = int(np.floor(np.log10(abs_median)))
+        scale = 10 ** exponent
+        m = median / scale
+        p = plus / scale
+        mn = minus / scale
+        # Enough decimal places so the smaller uncertainty shows at least 2 sig figs
+        smallest = max(min(p, mn), 1e-10 * abs(m))
+        if smallest > 0:
+            dp = max(0, int(np.ceil(-np.log10(smallest))) + 1)
+        else:
+            dp = 2
+        dp = min(dp, 4)
+        fmt = f".{dp}f"
+        f = "{{0:{0}}}".format(fmt).format
+        mantissa = r"${{{0}}}_{{-{1}}}^{{+{2}}}$".format(f(m), f(mn), f(p))
+        return r"${} \times 10^{{{}}}$".format(mantissa.strip('$'), exponent)
+
+    # Linear scale: pick decimal places so uncertainties are not 0.00
+    smallest = max(min(plus, minus), 1e-10 * max(abs(median), 1))
+    if smallest > 0:
+        dp = max(1, int(np.ceil(-np.log10(smallest))) + 1)
+    else:
+        dp = 2
+    dp = min(dp, 4)
+    fmt = f".{dp}f"
+    f = "{{0:{0}}}".format(fmt).format
+    return r"${{{0}}}_{{-{1}}}^{{+{2}}}$".format(f(median), f(minus), f(plus))
+
+
 class RedbackResult(Result):
     model = MetaDataAccessor('model')
     transient_type = MetaDataAccessor('transient_type')
@@ -137,6 +183,125 @@ class RedbackResult(Result):
         except Exception as e:
             logger.error(f"Failed to reconstruct transient '{self.transient_type}': {e}")
             raise
+
+    def plot_corner(self, parameters=None, priors=None, titles=True, save=True,
+                    filename=None, dpi=300, **kwargs):
+        """Wrapper around bilby's plot_corner that applies smart title formatting.
+
+        Titles are formatted in scientific notation when the median or uncertainties
+        span many orders of magnitude (e.g. ek ~ 1e51 erg), and pick enough decimal
+        places so that uncertainties are never displayed as 0.00.
+
+        All extra keyword arguments are forwarded to corner.corner via bilby. Useful ones:
+
+        **Selecting and labelling parameters**
+
+        :param parameters: List of parameter names to plot, or a dict mapping name -> label.
+            e.g. ``parameters=['mej', 'vej']`` or
+            ``parameters={'mej': r'$M_{\\rm ej}~(M_\\odot)$', 'vej': r'$v_{\\rm ej}$'}``
+        :param labels: List of LaTeX labels, one per parameter (overrides names on axes).
+            e.g. ``labels=[r'$M_{\\rm ej}~(M_\\odot)$', r'$f_{\\rm Ni}$', ...]``
+        :param priors: bilby PriorDict to overplot prior distributions on the 1-D marginals.
+
+        **Font sizes**
+
+        :param title_kwargs: Dict of kwargs passed to ``ax.set_title``.
+            e.g. ``title_kwargs={'fontsize': 20}`` (default fontsize is 16).
+        :param label_kwargs: Dict of kwargs passed to the axis label setters.
+            e.g. ``label_kwargs={'fontsize': 20}``
+
+        **Smoothing and appearance**
+
+        :param smooth: Gaussian smoothing sigma applied to the 2-D histograms.
+            e.g. ``smooth=1.8`` (no smoothing by default).
+        :param smooth1d: Gaussian smoothing sigma for the 1-D marginals.
+        :param bins: Number of histogram bins (default 50).
+        :param color: Colour of the contours and histograms. e.g. ``color='steelblue'``
+        :param quantiles: Quantiles to mark on 1-D marginals, default ``[0.16, 0.84]``.
+            Pass ``quantiles=None`` to suppress vertical quantile lines and titles.
+        :param levels: Contour levels for 2-D panels, e.g. ``levels=[0.5, 0.9]``.
+        :param fill_contours: Whether to fill the 2-D contours (default True).
+        :param plot_datapoints: Whether to scatter raw samples (default False).
+        :param show_titles: Passed to corner; redback overrides this to apply smart formatting.
+
+        **Saving**
+
+        :param save: Whether to save the figure to disk (default True).
+        :param filename: Output filename. Defaults to ``<outdir>/<label>_corner.png``.
+        :param dpi: Figure resolution (default 300).
+
+        **Example**::
+
+            result.plot_corner(
+                parameters=['mej', 'f_nickel', 'kappa', 'vej', 'av_host'],
+                labels=[r'$M_{\\rm ej}~(M_\\odot)$', r'$f_{\\rm Ni}$',
+                        r'$\\kappa$ (cm$^2$/g)', r'$v_{\\rm ej}$ (km/s)',
+                        r'$A_{\\rm v, host}$'],
+                filename='my_corner.png',
+                smooth=1.8,
+                title_kwargs={'fontsize': 20},
+                label_kwargs={'fontsize': 20},
+            )
+        """
+        fig = super().plot_corner(parameters=parameters, priors=priors, titles=False,
+                                  save=False, filename=filename, dpi=dpi, **kwargs)
+        if fig is None:
+            return fig
+
+        if not titles:
+            if save:
+                import matplotlib.pyplot as plt
+                if filename is None:
+                    outdir = self._safe_outdir_creation(kwargs.get('outdir'), self.plot_corner)
+                    filename = '{}/{}_corner.png'.format(outdir, self.label)
+                from bilby.core.result import safe_save_figure
+                safe_save_figure(fig=fig, filename=filename, dpi=dpi)
+                plt.close(fig)
+            return fig
+
+        # Determine which parameters were plotted
+        if isinstance(parameters, dict):
+            plot_parameter_keys = list(parameters.keys())
+        elif parameters is None:
+            plot_parameter_keys = self.search_parameter_keys
+        else:
+            plot_parameter_keys = list(parameters)
+
+        quantiles = kwargs.get('quantiles', [0.16, 0.84])
+        if quantiles is None:
+            # No titles requested via quantiles=None
+            if save:
+                import matplotlib.pyplot as plt
+                if filename is None:
+                    outdir = self._safe_outdir_creation(kwargs.get('outdir'), self.plot_corner)
+                    filename = '{}/{}_corner.png'.format(outdir, self.label)
+                from bilby.core.result import safe_save_figure
+                safe_save_figure(fig=fig, filename=filename, dpi=dpi)
+                plt.close(fig)
+            return fig
+
+        title_kwargs = kwargs.get('title_kwargs', dict(fontsize=16))
+        axes = fig.get_axes()
+
+        for i, par in enumerate(plot_parameter_keys):
+            ax = axes[i + i * len(plot_parameter_keys)]
+            if ax.title.get_text() != '':
+                continue
+            summary = self.get_one_dimensional_median_and_error_bar(
+                par, quantiles=quantiles)
+            title_str = _smart_corner_title(summary.median, summary.minus, summary.plus)
+            ax.set_title(title_str, **title_kwargs)
+
+        if save:
+            import matplotlib.pyplot as plt
+            if filename is None:
+                outdir = self._safe_outdir_creation(kwargs.get('outdir'), self.plot_corner)
+                filename = '{}/{}_corner.png'.format(outdir, self.label)
+            from bilby.core.result import safe_save_figure
+            safe_save_figure(fig=fig, filename=filename, dpi=dpi)
+            plt.close(fig)
+
+        return fig
 
     def plot_lightcurve(self, model: Union[callable, str] = None, **kwargs: None) -> matplotlib.axes.Axes:
         """ Reconstructs the transient and calls the specific `plot_lightcurve` method.

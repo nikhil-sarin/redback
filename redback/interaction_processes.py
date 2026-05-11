@@ -135,13 +135,12 @@ class CSMDiffusion(object):
         """
         :param time: source frame time in days
         :param dense_times: dense time array in days
-        :param luminosity: luminosity
-        :param kappa: opacity
-        :param csm_mass: csm mass in solar masses
-        :param mej: ejecta mass in solar masses
-        :param r0: radius of csm shell in AU
-        :param eta: csm density profile exponent
-        :param rho: csm density profile amplitude
+        :param luminosity: luminosity in erg/s
+        :param kappa: opacity in cm^2/g
+        :param r_photosphere: photosphere radius in cm (CGS)
+        :param mass_csm_threshold: mass of the optically-thick CSM (tau > 2/3) in grams (CGS),
+               as returned directly by _csm_engine. Used in CGS form in the diffusion timescale formula.
+        :param csm_mass: total csm mass in solar masses
         Adds new attribute for luminosity accounting for the interaction process
         """
         self.time = time
@@ -185,14 +184,14 @@ class CSMDiffusion(object):
         xm = np.unique(np.concatenate(([0.0], xm, [1.0])))
 
         int_times = tb + (uniq_times.reshape(lu, 1) - tb) * xm
-        int_tes = uniq_times
+        int_tes = uniq_times.reshape(lu, 1)
 
         int_lums = luminosity_interpolator(int_times)
-        int_args = int_lums * np.exp((int_times) / t0)
+        int_args = int_lums * np.exp((int_times - int_tes) / t0)
         int_args[np.isnan(int_args)] = 0.0
 
         uniq_lums = np.trapezoid(int_args, int_times, axis=1)
-        uniq_lums *= np.exp(-int_tes/t0)/t0
+        uniq_lums /= t0
         new_lums = uniq_lums[np.searchsorted(uniq_times, self.time)]
         return new_lums
 

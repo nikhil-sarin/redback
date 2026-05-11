@@ -30,7 +30,7 @@ except ImportError:
 
     pytest = MockPytest()
 import astropy.units as uu
-from redback.transient_models.supernova_models import arnett_with_features
+from redback.transient_models.supernova_models import arnett_with_features, csm_nickel_bolometric
 import requests
 
 
@@ -46,6 +46,27 @@ def _network_available():
 import redback.model_library
 
 _dirname = dirname(__file__)
+
+
+class TestCSMNickelBolometric(unittest.TestCase):
+
+    def test_early_times_before_point_one_days_are_finite(self):
+        time = np.array([0.01, 0.05])
+        lbol = csm_nickel_bolometric(
+            time=time, mej=1.0, f_nickel=0.1, csm_mass=0.1, ek=1e51,
+            eta=2.0, rho=1e-14, kappa=0.1, r0=1.0, kappa_gamma=0.03)
+
+        self.assertEqual(len(lbol), len(time))
+        self.assertTrue(np.all(np.isfinite(lbol)))
+
+    def test_positive_times_use_user_optimized_dense_grid(self):
+        time = np.array([0.02, 1.0])
+        lbol = csm_nickel_bolometric(
+            time=time, mej=1.0, f_nickel=0.1, csm_mass=0.1, ek=1e51,
+            eta=2.0, rho=1e-14, kappa=0.1, r0=1.0, kappa_gamma=0.03)
+
+        self.assertEqual(len(lbol), len(time))
+        self.assertTrue(np.all(np.isfinite(lbol)))
 
 
 @unittest.skipUnless(_network_available(), "Network access required for sncosmo filter data")

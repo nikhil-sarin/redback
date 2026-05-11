@@ -4,10 +4,11 @@ import numpy as np
 
 import redback
 
-# In this example we show how to apply constraints on priors.
-# This can be used for a case of a non-detection.
-# Note there is now a general notebook on non-detections called "handing_non_detections".
-# This example only showcases the prior constraints method.
+# In this example we show two ways to handle non-detections in redback:
+# 1. Using prior constraints (the original method shown below)
+# 2. Using the integrated non-detection support (see handling_non_detections.ipynb)
+#    where you pass `detections` and `upper_limit_sigma` to the transient object
+#    and redback automatically handles upper limits in plotting and fitting.
 
 model = 'evolving_magnetar'
 priors = redback.priors.get_priors(model=model)
@@ -32,11 +33,15 @@ for key in priors:
 priors_constrained['x'] = Constraint(0,1)
 
 
+def draw_scalar_sample(prior):
+    return {key: np.atleast_1d(value)[0] for key, value in prior.sample(size=1).items()}
+
+
 # Plot draws from original and constrained prior distributions.
 time = np.linspace(1,100,50)
 for ii in range(100):
-    original_prior_draws = function(time, **priors.sample())
-    constrained_prior_draws = function(time, **priors_constrained.sample())
+    original_prior_draws = function(time, **draw_scalar_sample(priors))
+    constrained_prior_draws = function(time, **draw_scalar_sample(priors_constrained))
     plt.semilogy(time, original_prior_draws, c='gray', alpha=0.25)
     plt.semilogy(time, constrained_prior_draws, c='red', alpha=0.25)
 

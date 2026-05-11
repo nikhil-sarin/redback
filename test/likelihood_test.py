@@ -402,6 +402,66 @@ class GaussianLikelihoodWithUpperLimitsTest(unittest.TestCase):
         with self.assertRaises(ValueError):
             self.likelihood.upper_limit_sigma = np.array([1.0, 2.0, 3.0])
 
+    def test_nan_upper_limit_rejected(self):
+        """Test that NaN y-values for upper limits raise ValueError"""
+        y_with_nan = np.array([0.5, 1.2, 2.1, np.nan, np.nan])
+        with self.assertRaises(ValueError) as ctx:
+            likelihoods.GaussianLikelihoodWithUpperLimits(
+                x=self.x, y=y_with_nan, sigma=self.sigma, function=self.function,
+                detections=self.detections, upper_limit_sigma=self.upper_limit_sigma,
+                kwargs=self.kwargs)
+        self.assertIn("NaN", str(ctx.exception))
+        self.assertIn("upper limit", str(ctx.exception))
+
+    def test_data_mode_validation(self):
+        """Test that data_mode setter validates allowed values"""
+        self.likelihood.data_mode = 'flux_density'
+        self.assertEqual(self.likelihood.data_mode, 'flux_density')
+        self.likelihood.data_mode = 'luminosity'
+        self.assertEqual(self.likelihood.data_mode, 'luminosity')
+        self.likelihood.data_mode = 'mag'
+        self.assertEqual(self.likelihood.data_mode, 'magnitude')
+        with self.assertRaises(ValueError):
+            self.likelihood.data_mode = 'invalid_mode'
+
+    def test_magnitude_upper_limit_uncertainty_uses_sigma_level(self):
+        """Magnitude upper-limit likelihood should depend on upper_limit_sigma."""
+        self.likelihood.data_mode = 'magnitude'
+        model = self.y.copy()
+        model[self.likelihood.upper_limits] = self.y[self.likelihood.upper_limits] + 0.2
+
+        self.likelihood.upper_limit_sigma = 3.0
+        log_l_3sigma = self.likelihood._upper_limit_log_likelihood(
+            observed=self.y, model=model)
+
+        self.likelihood.upper_limit_sigma = 5.0
+        log_l_5sigma = self.likelihood._upper_limit_log_likelihood(
+            observed=self.y, model=model)
+
+        self.assertNotEqual(log_l_3sigma, log_l_5sigma)
+
+    def test_magnitude_upper_limit_uncertainty_matches_sigma_conversion(self):
+        """Magnitude limits use sigma_m = (2.5 / ln(10)) / upper_limit_sigma."""
+        detections = np.array([True, False])
+        likelihood = likelihoods.GaussianLikelihoodWithUpperLimits(
+            x=np.array([0.0, 1.0]),
+            y=np.array([20.0, 22.0]),
+            sigma=np.array([0.1, 0.1]),
+            function=self.function,
+            detections=detections,
+            upper_limit_sigma=5.0,
+            data_mode='magnitude',
+            kwargs=self.kwargs)
+        model = np.array([20.0, 22.2])
+        sigma_measurement = (2.5 / np.log(10.0)) / 5.0
+        standardized = (22.0 - 22.2) / sigma_measurement
+        expected = np.log(1.0 - likelihood._normal_cdf(standardized))
+
+        result = likelihood._upper_limit_log_likelihood(
+            observed=likelihood.y, model=model)
+
+        self.assertAlmostEqual(result, expected)
+
 
 class MixtureGaussianLikelihoodTest(unittest.TestCase):
     """Test MixtureGaussianLikelihood class for outlier detection"""
