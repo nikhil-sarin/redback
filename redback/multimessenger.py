@@ -436,10 +436,8 @@ class MultiMessengerTransient:
                     upper_limit_sigma=_get_filtered_upper_limit_sigma(transient),
                     data_mode=_get_upper_limit_data_mode(transient)
                 )
-        elif likelihood_type == 'GaussianLikelihood':
+        elif likelihood_type in ('GaussianLikelihood', 'GaussianLikelihoodWithUpperLimits'):
             likelihood_class = GaussianLikelihoodUniformXErrors if _has_positive_x_errors(x_err) else GaussianLikelihood
-        elif likelihood_type == 'GaussianLikelihoodWithUpperLimits':
-            likelihood_class = GaussianLikelihood
         elif likelihood_type == 'GaussianLikelihoodQuadratureNoise':
             if _has_positive_x_errors(x_err):
                 raise ValueError(
