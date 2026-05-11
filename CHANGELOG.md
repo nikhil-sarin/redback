@@ -1,5 +1,25 @@
 # All notable changes will be documented in this file
 
+## [1.16.0] 2026-05-11
+Version 1.16.0 release of redback
+
+## Added and changed
+* Added multimessenger analysis framework: `MultiMessengerTransient`, `MultiMessengerLikelihood`, `create_joint_prior`, and `MultiMessengerResult` classes (#310)
+* Overhauled non-detection interface to be more automatic and robust (#361, #362)
+* Hardened multimessenger non-detection support with scalarized constraint/sample handling
+* Added Fink API smoke tests (live and mocked empty-response)
+* Improved multimessenger result coverage and example
+* CSM interaction: adaptive grid for diffusion evaluation, significant speed-up
+* CSM nickel: nickel now diffuses through CSM ejecta for dense CSM regime
+* CSM photosphere consistency check added
+* Filter table cleanup: removed duplicate Gaia/G and DES entries, grouped rows more coherently
+* Extinction model lists now auto-generated
+* Smarter corner plots
+* Preserved time errors for upper-limit fallback
+* Updated CSM nickel citations
+
+**Full Changelog**: https://github.com/nikhil-sarin/redback/compare/v1.15.3...v1.16.0
+
 ## [1.15.3] 2026-04-10
 Version 1.15.3 release of redback
 
