@@ -23,7 +23,7 @@ By jointly fitting both components, we can:
 import numpy as np
 import bilby
 import redback
-from redback.multimessenger import MultiMessengerTransient
+from redback.multimessenger import MultiMessengerTransient, MultiMessengerLikelihood
 from redback.transient_models import spectral_models
 from redback.transient import Spectrum
 
@@ -49,8 +49,8 @@ def galaxy_spectrum_model(wavelength, redshift, galaxy_temperature,
     # Simple blackbody for stellar continuum
     # Typical galaxy: T ~ 5000-6000 K (solar-like stars dominate)
 
-    # Luminosity in erg/s, convert to flux at distance
-    # For this example, we'll use a simple blackbody scaled by luminosity
+    # For this example, galaxy_luminosity is an arbitrary scale factor chosen
+    # to make the host contribute significantly in the observed spectrum.
     from redback.constants import speed_of_light as c
     from redback.constants import planck as h
     from redback.constants import boltzmann_constant as k_B
@@ -113,7 +113,7 @@ true_params = {
     'redshift': 0.05,
     # Galaxy parameters
     'galaxy_temperature': 5500,    # K (solar-like)
-    'galaxy_luminosity': 3.0,      # Arbitrary units
+    'galaxy_luminosity': 7e8,      # Arbitrary continuum scale factor
     # Transient parameters (e.g., supernova a few days after peak)
     'transient_temperature': 8000,  # K (hotter than galaxy)
     'transient_r_phot': 5e14,      # cm (photosphere size)
@@ -122,7 +122,7 @@ true_params = {
 # Wavelength range (optical: 3500-9000 Angstroms)
 wavelengths = np.linspace(3500, 9000, 150)
 
-# Generate true combined spectrum
+# Generate true galaxy and combined spectra
 true_galaxy_flux = galaxy_spectrum_model(
     wavelengths,
     true_params['redshift'],
@@ -139,12 +139,25 @@ true_transient_flux = transient_spectrum_model(
 
 true_combined_flux = true_galaxy_flux + true_transient_flux
 
-# Add realistic noise
+# Add realistic noise. The host/reference spectrum represents either a
+# pre-explosion host spectrum or a spatially offset host extraction.
+host_snr = 50
+host_flux_err = true_galaxy_flux / host_snr
+observed_host_flux = np.random.normal(true_galaxy_flux, host_flux_err)
+
 spectrum_snr = 30  # Signal-to-noise ratio
 flux_err = true_combined_flux / spectrum_snr
 observed_flux = np.random.normal(true_combined_flux, flux_err)
 
-# Create spectrum object
+# Create spectrum objects
+host_spectrum_obs = Spectrum(
+    angstroms=wavelengths,
+    flux_density=observed_host_flux,
+    flux_density_err=host_flux_err,
+    time='Host reference epoch',
+    name='host_galaxy_reference'
+)
+
 spectrum_obs = Spectrum(
     angstroms=wavelengths,
     flux_density=observed_flux,
@@ -155,7 +168,8 @@ spectrum_obs = Spectrum(
 
 print(f"  ✓ Simulated spectrum:")
 print(f"    - Wavelength range: {wavelengths.min():.0f}-{wavelengths.max():.0f} Å")
-print(f"    - SNR: {spectrum_snr}")
+print(f"    - Host reference SNR: {host_snr}")
+print(f"    - Transient epoch SNR: {spectrum_snr}")
 print(f"    - Galaxy contribution: {true_galaxy_flux.mean():.2e} erg/s/cm²/Å")
 print(f"    - Transient contribution: {true_transient_flux.mean():.2e} erg/s/cm²/Å")
 print(f"    - Ratio (transient/galaxy): {true_transient_flux.mean()/true_galaxy_flux.mean():.2f}")
@@ -166,13 +180,31 @@ print(f"    - Ratio (transient/galaxy): {true_transient_flux.mean()/true_galaxy_
 
 print("\n3. Setting up joint galaxy + transient fit...")
 
-# Create likelihood for combined model
+# The host/reference spectrum constrains the galaxy component. The
+# transient-epoch spectrum constrains the sum of galaxy and transient light.
+host_likelihood = redback.likelihoods.GaussianLikelihood(
+    x=host_spectrum_obs.angstroms,
+    y=host_spectrum_obs.flux_density,
+    sigma=host_spectrum_obs.flux_density_err,
+    function=galaxy_spectrum_model,
+    kwargs={}
+)
+
 combined_likelihood = redback.likelihoods.GaussianLikelihood(
     x=spectrum_obs.angstroms,
     y=spectrum_obs.flux_density,
     sigma=spectrum_obs.flux_density_err,
     function=combined_galaxy_transient_model,
     kwargs={}
+)
+
+joint_likelihood = MultiMessengerLikelihood(host_likelihood, combined_likelihood)
+mm_transient = MultiMessengerTransient(
+    custom_likelihoods={
+        'host_galaxy_spectrum': host_likelihood,
+        'transient_epoch_spectrum': combined_likelihood
+    },
+    name='host_galaxy_plus_transient_spectrum'
 )
 
 # Set up priors
@@ -190,8 +222,8 @@ priors['galaxy_temperature'] = bilby.core.prior.Uniform(
     4000, 7000, 'galaxy_temperature',
     latex_label=r'$T_{\rm gal}$ [K]'
 )
-priors['galaxy_luminosity'] = bilby.core.prior.Uniform(
-    0.5, 10.0, 'galaxy_luminosity',
+priors['galaxy_luminosity'] = bilby.core.prior.LogUniform(
+    1e7, 1e10, 'galaxy_luminosity',
     latex_label=r'$L_{\rm gal}$'
 )
 
@@ -209,6 +241,9 @@ print("  ✓ Priors configured:")
 print("    - Shared: redshift (Gaussian from galaxy)")
 print("    - Galaxy: temperature, luminosity")
 print("    - Transient: temperature, photosphere radius")
+print("  ✓ Joint likelihood configured:")
+print("    - Host/reference spectrum: galaxy model")
+print("    - Transient epoch spectrum: galaxy + transient model")
 
 # ============================================================================
 # Step 4: Comparison - fit with and without galaxy model
@@ -262,7 +297,7 @@ print("  This properly accounts for both components")
 # Uncomment to run
 # print("  Running sampler (joint fit)...")
 # result_joint = bilby.run_sampler(
-#     likelihood=combined_likelihood,
+#     likelihood=joint_likelihood,
 #     priors=priors,
 #     sampler='dynesty',
 #     nlive=1000,
@@ -283,39 +318,47 @@ print("USING MULTIMESSENGER FRAMEWORK")
 print("="*70)
 
 print("""
-While the above approach uses a combined model function, you can also
-use the MultiMessengerTransient framework to treat galaxy and transient
-as separate "messengers":
+The same likelihoods can be passed through MultiMessengerTransient as
+custom likelihoods. This returns a MultiMessengerResult, preserving normal
+posterior/evidence/corner-plot behaviour while avoiding automatic
+single-transient lightcurve or spectrum reconstruction.
 
-# Create separate likelihoods
-galaxy_likelihood = redback.likelihoods.GaussianLikelihood(
-    x=wavelengths,
-    y=galaxy_flux_estimate,  # Initial estimate from spectrum decomposition
-    sigma=galaxy_flux_err,
-    function=galaxy_spectrum_model,
-    kwargs={}
-)
+# Uncomment to run through the redback multimessenger interface
+# result_joint = mm_transient.fit_joint(
+#     models={},
+#     priors=priors,
+#     shared_params=['redshift', 'galaxy_temperature', 'galaxy_luminosity'],
+#     nlive=1000,
+#     sampler='dynesty',
+#     outdir='./outdir_joint_galaxy_transient',
+#     label='joint_galaxy_transient',
+#     resume=True,
+#     injection_parameters=true_params
+# )
 
-transient_likelihood = redback.likelihoods.GaussianLikelihood(
-    x=wavelengths,
-    y=transient_flux_estimate,  # Initial estimate
-    sigma=transient_flux_err,
-    function=transient_spectrum_model,
-    kwargs={}
-)
-
-# Use MultiMessengerTransient
-mm_transient = MultiMessengerTransient(
-    custom_likelihoods={
-        'galaxy': galaxy_likelihood,
-        'transient': transient_likelihood
-    },
-    name='galaxy_transient_decomposition'
-)
-
-However, this requires prior knowledge or decomposition of the spectrum
-into galaxy and transient components. The combined model approach shown
-above is more straightforward when both components overlap spectrally.
+# Equivalent direct bilby call:
+# result_joint = bilby.run_sampler(
+#     likelihood=joint_likelihood,
+#     priors=priors,
+#     sampler='dynesty',
+#     nlive=1000,
+#     outdir='./outdir_joint_galaxy_transient',
+#     label='joint_galaxy_transient',
+#     resume=True,
+#     result_class=redback.MultiMessengerResult,
+#     meta_data={
+#         'multimessenger': True,
+#         'messengers': ['host_galaxy_spectrum', 'transient_epoch_spectrum'],
+#         'models': {
+#             'host_galaxy_spectrum': 'galaxy_spectrum_model',
+#             'transient_epoch_spectrum': 'combined_galaxy_transient_model'
+#         },
+#         'shared_params': ['redshift', 'galaxy_temperature', 'galaxy_luminosity'],
+#         'parameter_mappings': {},
+#         'name': 'host_galaxy_plus_transient_spectrum'
+#     },
+#     injection_parameters=true_params
+# )
 """)
 
 # ============================================================================

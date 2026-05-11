@@ -523,6 +523,31 @@ class TestMultiMessengerResult(unittest.TestCase):
         mock_multimessenger_from_json.assert_called_once_with(filename=test_filename)
         self.assertEqual(loaded_result, multimessenger_result)
 
+    def test_multimessenger_result_save_and_load_roundtrip(self):
+        """Saved multimessenger results should reload as MultiMessengerResult."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            res = MultiMessengerResult(
+                label='joint',
+                outdir=tmpdir,
+                posterior=self.posterior,
+                meta_data=self.meta_data,
+                priors=bilby.core.prior.PriorDict({
+                    'param1': bilby.core.prior.Uniform(-5, 5, 'param1')
+                }),
+                search_parameter_keys=['param1']
+            )
+            res.save_to_file(extension='json', overwrite=True)
+
+            loaded_result = read_in_result(
+                outdir=tmpdir, label='joint', extension='json')
+
+        self.assertIsInstance(loaded_result, MultiMessengerResult)
+        self.assertEqual(loaded_result.messengers, ['optical', 'xray'])
+        self.assertEqual(loaded_result.models['xray'], 'model_b')
+        self.assertEqual(loaded_result.shared_params, ['viewing_angle'])
+        self.assertEqual(
+            loaded_result.parameter_mappings['xray']['viewing_angle'], 'thv')
+
 
 class TestRedbackResultEdgeCases(unittest.TestCase):
     """Test edge cases for RedbackResult"""
