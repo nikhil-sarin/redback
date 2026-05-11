@@ -17,7 +17,7 @@ from redback.likelihoods import (
     GaussianLikelihood, GaussianLikelihoodQuadratureNoise, GaussianLikelihoodUniformXErrors
 )
 from redback.model_library import all_models_dict
-from redback.result import RedbackResult
+from redback.result import MultiMessengerResult
 from redback.utils import logger
 from redback.transient.transient import Transient
 
@@ -540,7 +540,7 @@ class MultiMessengerTransient:
             resume=resume,
             use_ratio=False,
             maxmcmc=10 * walks,
-            result_class=RedbackResult,
+            result_class=MultiMessengerResult,
             meta_data=meta_data,
             save=save_format,
             plot=plot,

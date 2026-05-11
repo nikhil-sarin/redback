@@ -108,6 +108,14 @@ The :code:`fit_joint()` method performs parameter estimation using all available
         outdir='./results_joint'
     )
 
+Joint results are returned as :code:`MultiMessengerResult` objects. They keep
+standard result behaviour such as posterior access, evidence values, and
+:code:`plot_corner()`, including the same corner-title formatting used by
+:code:`RedbackResult`. They do not automatically reconstruct a single transient
+for :code:`plot_lightcurve()`, :code:`plot_spectrum()`, or related helpers; use
+the relevant transient object and :mod:`redback.analysis` plotting functions
+when plotting one component of the joint fit.
+
 Shared Parameters
 -----------------
 

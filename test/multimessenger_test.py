@@ -8,6 +8,7 @@ import os
 import bilby
 import redback
 from redback.multimessenger import MultiMessengerTransient, MultiMessengerLikelihood, create_joint_prior
+from redback.result import MultiMessengerResult
 from redback.transient.transient import Transient, Spectrum
 from redback.likelihoods import (
     GaussianLikelihood, GaussianLikelihoodQuadratureNoise, GaussianLikelihoodUniformXErrors
@@ -1343,6 +1344,7 @@ class MultiMessengerCoreFunctionalityTest(unittest.TestCase):
         self.assertIn('xray', meta_data['messengers'])
         self.assertIn('amplitude', meta_data['shared_params'])
         self.assertEqual(meta_data['name'], 'test_metadata')
+        self.assertEqual(call_kwargs['result_class'], MultiMessengerResult)
 
 
 class CreateJointPriorAdvancedTest(unittest.TestCase):
