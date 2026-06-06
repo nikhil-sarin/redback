@@ -19,6 +19,7 @@ base_modules = [extinction_models, phase_models]
 all_models_dict = dict()
 base_models_dict = dict()
 modules_dict = dict()
+plugin_module_model_types = dict()
 for module in modules:
     models_dict = get_functions_dict(module)
     modules_dict.update(models_dict)
@@ -28,6 +29,18 @@ for mod in base_modules:
     models_dict = get_functions_dict(mod)
     for k, v in models_dict[mod.__name__.split('.')[-1]].items():
         base_models_dict[k] = v
+
+
+def _get_plugin_model_types(module):
+    """Return model-type metadata declared by a plugin module."""
+    raw_model_types = getattr(module, 'redback_model_types', None)
+    if raw_model_types is None:
+        raw_model_types = getattr(module, 'redback_model_type', None)
+    if raw_model_types is None:
+        return set()
+    if isinstance(raw_model_types, str):
+        return {raw_model_types}
+    return set(raw_model_types)
 
 
 def _load_plugin_modules():
@@ -60,6 +73,7 @@ def _load_plugin_modules():
 
                 # Key by ep.name to avoid collisions between plugins with the same module leaf name
                 modules_dict[ep.name] = plugin_funcs
+                plugin_module_model_types[ep.name] = _get_plugin_model_types(module)
                 logger.info(f"Loaded plugin module '{ep.name}' with {len(plugin_funcs)} model(s).")
             except Exception as e:
                 logger.warning(f"Failed to process plugin module '{ep.name}': {e}")

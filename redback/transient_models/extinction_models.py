@@ -22,7 +22,8 @@ def _get_correct_function(base_model, model_type=None):
     :param model_type: type of model, could be None if using a function as input
     :return: function; function to evaluate
     """
-    from redback.model_library import modules_dict  # import model library in function to avoid circular dependency
+    # Import model library in function to avoid circular dependency.
+    from redback.model_library import modules, modules_dict, plugin_module_model_types
 
     if isfunction(base_model):
         return base_model
@@ -52,12 +53,27 @@ def _get_correct_function(base_model, model_type=None):
             f"Available modules: {list(modules_dict.keys())}"
         )
     module_models = modules_dict[module_name]
-    if base_model not in module_models:
-        raise ValueError(
-            f"Model '{base_model}' not found in '{module_name}'. "
-            f"Available models: {list(module_models.keys())}"
-        )
-    return module_models[base_model]
+    if base_model in module_models:
+        return module_models[base_model]
+
+    builtin_module_names = {module.__name__.split('.')[-1] for module in modules}
+    for plugin_name, plugin_models in modules_dict.items():
+        if plugin_name in builtin_module_names:
+            continue
+        if model_type not in plugin_module_model_types.get(plugin_name, set()):
+            continue
+        if base_model in plugin_models:
+            return plugin_models[base_model]
+
+    plugin_module_names = [
+        name for name in modules_dict
+        if name not in builtin_module_names and model_type in plugin_module_model_types.get(name, set())
+    ]
+    raise ValueError(
+        f"Model '{base_model}' not found in '{module_name}' or {model_type} plugin modules. "
+        f"Available models in '{module_name}': {list(module_models.keys())}. "
+        f"Available {model_type} plugin modules: {plugin_module_names}"
+    )
 
 def _perform_extinction(flux_density, angstroms, av_host, rv_host, av_mw=0.0, rv_mw=3.1,
                         host_law='fitzpatrick99', mw_law='fitzpatrick99', **kwargs):
