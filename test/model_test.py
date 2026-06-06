@@ -446,6 +446,46 @@ class TestExtinctionModelsFluxDensity(unittest.TestCase):
             self.assertEqual(len(times), len(ys))
 
 
+def test_typed_extinction_lookup_only_uses_matching_plugin_model_type():
+    from redback.transient_models.extinction_models import _get_correct_function
+
+    def supernova_plugin_model(time, **kwargs):
+        return np.asarray(time)
+
+    def kilonova_plugin_model(time, **kwargs):
+        return np.asarray(time)
+
+    original_modules_dict = redback.model_library.modules_dict.copy()
+    original_plugin_types = redback.model_library.plugin_module_model_types.copy()
+    try:
+        redback.model_library.modules_dict["test_supernova_plugin"] = {
+            "shared_plugin_model": supernova_plugin_model,
+        }
+        redback.model_library.modules_dict["test_kilonova_plugin"] = {
+            "shared_plugin_model": kilonova_plugin_model,
+            "kilonova_only_plugin_model": kilonova_plugin_model,
+        }
+        redback.model_library.plugin_module_model_types["test_supernova_plugin"] = {"supernova"}
+        redback.model_library.plugin_module_model_types["test_kilonova_plugin"] = {"kilonova"}
+
+        assert _get_correct_function("shared_plugin_model", model_type="supernova") is supernova_plugin_model
+        assert _get_correct_function("kilonova_only_plugin_model") is kilonova_plugin_model
+        with pytest.raises(ValueError):
+            _get_correct_function("kilonova_only_plugin_model", model_type="supernova")
+    finally:
+        redback.model_library.modules_dict.clear()
+        redback.model_library.modules_dict.update(original_modules_dict)
+        redback.model_library.plugin_module_model_types.clear()
+        redback.model_library.plugin_module_model_types.update(original_plugin_types)
+
+
+def test_plugin_model_type_metadata_accepts_scalar_values():
+    class PluginModule:
+        redback_model_type = 7
+
+    assert redback.model_library._get_plugin_model_types(PluginModule) == {7}
+
+
 @pytest.mark.ci
 @unittest.skipUnless(_network_available(), "Network access required for sncosmo filter data")
 class TestExtinctionModelsMagnitude(unittest.TestCase):

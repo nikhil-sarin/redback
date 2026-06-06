@@ -360,7 +360,9 @@ Plugin models
 -------------------------
 
 :code:`redback` supports a plugin system that allows external packages to register custom models and priors without modifying the redback source.
+This is useful for model families that depend on compiled extensions, optional heavy dependencies, or code that is too specialised for the core package.
 Once a plugin is installed, its models appear in :code:`all_models_dict` and its priors are returned by :code:`get_priors` alongside all built-in models and priors.
+One example is `redback-csm <https://github.com/nikhil-sarin/redback-csm>`_, which provides CSM-interaction models through the plugin system.
 
 **How it works**
 
@@ -372,26 +374,52 @@ Plugin packages register themselves via Python `entry points <https://packaging.
         'redback.model.modules': [
             'my_models = my_plugin.models',
         ],
+        'redback.model.base_modules': [
+            'my_base_models = my_plugin.extinction_models',
+        ],
         'redback.model.priors': [
             'my_priors = my_plugin.priors:get_prior',
         ],
     }
 
 - :code:`redback.model.modules` — a Python module; redback imports all functions from it and adds them to :code:`all_models_dict`.
+- :code:`redback.model.base_modules` — a Python module containing wrapper models, such as plugin-specific extinction wrappers. Redback adds these functions to both :code:`all_models_dict` and :code:`base_models_dict`.
 - :code:`redback.model.priors` — a callable :code:`get_prior(model_name) -> PriorDict or None`; redback calls it as a fallback when no built-in prior file is found.
 
 After :code:`pip install my_plugin`, the models and priors are available immediately on the next :code:`import redback` — no changes to redback are needed.
+Built-in models win on name collision; if a plugin model has the same name as a built-in model, redback skips the plugin function and logs a warning.
 
 **Writing a plugin model**
 
 Model functions follow the same convention as built-in redback models: :code:`time` is the first argument and the function accepts :code:`**kwargs`.
+The module registered under :code:`redback.model.modules` should expose only the public model functions to register.
+Any helper function imported into that module may also be detected as a model, so keep the entry-point module small.
 
 .. code:: python
 
     import numpy as np
 
+    redback_model_type = "supernova"
+
     def my_custom_model(time, amplitude, timescale, **kwargs):
         return amplitude * np.exp(-time / timescale)
+
+Plugins may declare which model type they are compatible with using :code:`redback_model_type` or :code:`redback_model_types`:
+
+.. code:: python
+
+    redback_model_type = "supernova"
+
+or:
+
+.. code:: python
+
+    redback_model_types = {"supernova", "shock_powered"}
+
+This metadata is used by typed base-model wrappers such as :code:`extinction_with_supernova_base_model`.
+Generic lookup, for example :code:`extinction_with_function(base_model="my_custom_model", ...)`, can search all installed plugin models.
+Typed wrappers are stricter: :code:`extinction_with_supernova_base_model` only searches built-in supernova models and plugins that declare compatibility with :code:`"supernova"`.
+This avoids accidentally treating a kilonova, afterglow, or other plugin model as a supernova model.
 
 **Writing a plugin prior loader**
 
@@ -431,4 +459,3 @@ Redback validates this at fit time when using a :code:`CountsSpectrumTransient`.
         return norm * energies_keV ** (-photon_index)
 
 A complete working example is provided in :code:`examples/example_plugin/`.
-
