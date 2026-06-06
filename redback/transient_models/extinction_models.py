@@ -23,7 +23,7 @@ def _get_correct_function(base_model, model_type=None):
     :return: function; function to evaluate
     """
     # Import model library in function to avoid circular dependency.
-    from redback.model_library import modules, modules_dict, plugin_module_model_types
+    from redback.model_library import modules_dict, plugin_module_model_types, builtin_module_names
 
     if isfunction(base_model):
         return base_model
@@ -56,7 +56,6 @@ def _get_correct_function(base_model, model_type=None):
     if base_model in module_models:
         return module_models[base_model]
 
-    builtin_module_names = {module.__name__.split('.')[-1] for module in modules}
     for plugin_name, plugin_models in modules_dict.items():
         if plugin_name in builtin_module_names:
             continue

@@ -479,6 +479,13 @@ def test_typed_extinction_lookup_only_uses_matching_plugin_model_type():
         redback.model_library.plugin_module_model_types.update(original_plugin_types)
 
 
+def test_plugin_model_type_metadata_accepts_scalar_values():
+    class PluginModule:
+        redback_model_type = 7
+
+    assert redback.model_library._get_plugin_model_types(PluginModule) == {7}
+
+
 @pytest.mark.ci
 @unittest.skipUnless(_network_available(), "Network access required for sncosmo filter data")
 class TestExtinctionModelsMagnitude(unittest.TestCase):
