@@ -523,6 +523,23 @@ It ships a :code:`RedbackWrapperModel` that wraps any :code:`redback` model func
   calling :code:`from_lightcurvelynx`.
 - Call :code:`results_augment_lightcurves(min_snr=...)` before constructing the :code:`redback` transient
   object — this step adds the :code:`mag`/`magerr` columns that :code:`from_lightcurvelynx` requires.
+  Observations below the SNR threshold are flagged as non-detections (:code:`detection=False`).
+  By default :code:`from_lightcurvelynx` drops these rows and fits only detections.
+  To keep them as upper limits, pass :code:`include_upper_limits=True`.
+- **Sampling the explosion epoch t0**: for real data the explosion time is unknown.
+  Use :code:`use_phase_model=True` when constructing the transient, then fit with
+  :code:`t0_base_model` (which takes MJD times, subtracts :code:`t0`, and dispatches to any
+  :code:`base_model`).  The prior on :code:`t0` must have its *maximum* at or before the time
+  of the first detection — a :code:`t0` after the first detection leaves the likelihood with no
+  valid data points.  A :code:`Uniform(minimum=first_det_mjd - window, maximum=first_det_mjd)`
+  prior is the natural choice.
+- **MW and host-galaxy extinction**: use the extinction wrapper models in
+  :code:`redback.transient_models.extinction_models` (e.g.
+  :code:`extinction_with_kilonova_base_model`).  These apply a dust extinction law to the
+  output of any :code:`base_model` and add :code:`av_host` (and optionally :code:`rv_host`) as
+  free parameters.  MW extinction :code:`av_mw` can be fixed from a dustmap query and passed as
+  a :code:`model_kwarg`.  Both :code:`t0_base_model` and the extinction wrappers compose freely,
+  so you can sample t0, host extinction, and all physical parameters simultaneously.
 
 **Minimal example (LSST / kilonova):**
 
