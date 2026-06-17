@@ -79,9 +79,9 @@ class TestPlotModels(unittest.TestCase):
 
                 kwargs['output_format'] = 'flux_density'
                 redback.analysis.plot_lightcurve(transient=transient, parameters=posterior,
-                                                 model=model_name, model_kwargs=kwargs)
+                                                 model=model_name, model_kwargs=kwargs, show=False)
                 redback.analysis.plot_multiband_lightcurve(transient=transient, parameters=posterior,
-                                                 model=model_name, model_kwargs=kwargs)
+                                                 model=model_name, model_kwargs=kwargs, show=False)
 
 
 @unittest.skipUnless(_latex_available(), "LaTeX required for plotting tests")
@@ -131,9 +131,9 @@ class TestPlotDifferentBands(unittest.TestCase):
 
                 kwargs['output_format'] = 'magnitude'
                 redback.analysis.plot_lightcurve(transient=transient, parameters=posterior,
-                                                 model=model_name, model_kwargs=kwargs)
+                                                 model=model_name, model_kwargs=kwargs, show=False)
                 redback.analysis.plot_multiband_lightcurve(transient=transient, parameters=posterior,
-                                                 model=model_name, model_kwargs=kwargs)
+                                                 model=model_name, model_kwargs=kwargs, show=False)
 
 
 @unittest.skipUnless(_latex_available(), "LaTeX required for plotting tests")
@@ -183,9 +183,9 @@ class TestMagnitudePlot(unittest.TestCase):
 
                 kwargs['output_format'] = 'magnitude'
                 redback.analysis.plot_lightcurve(transient=transient, parameters=posterior,
-                                                 model=model_name, model_kwargs=kwargs)
+                                                 model=model_name, model_kwargs=kwargs, show=False)
                 redback.analysis.plot_multiband_lightcurve(transient=transient, parameters=posterior,
-                                                 model=model_name, model_kwargs=kwargs)
+                                                 model=model_name, model_kwargs=kwargs, show=False)
 
 
 @unittest.skipUnless(_latex_available(), "LaTeX required for plotting tests")
@@ -235,9 +235,9 @@ class TestFluxPlot(unittest.TestCase):
 
                 kwargs['output_format'] = 'flux'
                 redback.analysis.plot_lightcurve(transient=transient, parameters=posterior,
-                                                 model=model_name, model_kwargs=kwargs)
+                                                 model=model_name, model_kwargs=kwargs, show=False)
                 redback.analysis.plot_multiband_lightcurve(transient=transient, parameters=posterior,
-                                                 model=model_name, model_kwargs=kwargs)
+                                                 model=model_name, model_kwargs=kwargs, show=False)
 
 
 @unittest.skipUnless(_latex_available(), "LaTeX required for plotting tests")
@@ -289,9 +289,9 @@ class TestPlotPhaseModels(unittest.TestCase):
                 kwargs['base_model'] = model_name
                 kwargs['output_format'] = 'flux_density'
                 redback.analysis.plot_lightcurve(transient=transient, parameters=posterior,
-                                                 model=model, model_kwargs=kwargs)
+                                                 model=model, model_kwargs=kwargs, show=False)
                 redback.analysis.plot_multiband_lightcurve(transient=transient, parameters=posterior,
-                                                 model=model, model_kwargs=kwargs)
+                                                 model=model, model_kwargs=kwargs, show=False)
 
 # Dummy “evolving magnetar” model – used by plot_evolution_parameters:
 DummyEvolvingMagnetarOutput = namedtuple("DummyEvolvingMagnetarOutput", ["nn", "mu", "alpha"])
