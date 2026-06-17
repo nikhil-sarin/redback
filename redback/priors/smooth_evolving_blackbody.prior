@@ -1,0 +1,7 @@
+redshift = Uniform(0.01, 3.0, 'redshift', latex_label='$z$')
+temp_peak = Uniform(3000, 40000, 'temp_peak', latex_label='$T_{\\mathrm{peak}}$ (K)')
+log10_radius_peak = Uniform(13, 17, 'log10_radius_peak', latex_label='$\\log_{10} R_{\\mathrm{peak}}$ (cm)')
+temp_peak_time = LogUniform(0.1, 10.0, 'temp_peak_time', latex_label='$t_{T,\\mathrm{peak}}$ (days)')
+radius_peak_time = LogUniform(0.1, 10.0, 'radius_peak_time', latex_label='$t_{R,\\mathrm{peak}}$ (days)')
+temp_index = Uniform(0.5, 8.0, 'temp_index', latex_label='$\\alpha_T$')
+radius_index = Uniform(0.5, 8.0, 'radius_index', latex_label='$\\alpha_R$')

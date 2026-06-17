@@ -499,5 +499,88 @@ We have written several examples to demonstrate the different simulation methods
 
 We note that although above examples are mostly written for kilonovae. All :code:`redback` models can be used by the simulation classes.
 
+Using LightCurveLynx for realistic survey simulation
+------------------------------------------------------
+
+`LightCurveLynx <https://github.com/astro-transients/lightcurvelynx>`_ is an external package for simulating transient
+lightcurves through realistic survey pipelines (OpSim pointings, bandpass convolution, SNR-based detection).
+It ships a :code:`RedbackWrapperModel` that wraps any :code:`redback` model function, allowing the full power of
+:code:`redback`'s physical models to be used inside the LightCurveLynx simulation engine.
+
+**Key points:**
+
+- LightCurveLynx and :code:`redback` use different conventions for bandpass-integrated flux and flux density.
+  The two packages only agree on AB magnitudes.
+  The constructor :code:`Transient.from_lightcurvelynx` handles the unit conversion automatically by
+  reconstructing flux density from the AB magnitude columns produced by :code:`results_augment_lightcurves`.
+  If you construct the transient object manually, work in AB magnitudes or ensure units are consistent before fitting.
+- Explosion-based :code:`redback` models (kilonovae, supernovae) are only defined for positive rest-frame times
+  since explosion. When using :code:`simulate_lightcurves`, set :code:`obs_time_window_offset` so that the
+  start of the observation window is strictly after the explosion (e.g. :code:`obs_time_window_offset=(0.1, 20)`).
+  Pre-explosion observations passed to these models will cause errors in the SED interpolation.
+- LightCurveLynx uses short filter names (e.g. :code:`'g'`, :code:`'r'`); :code:`redback` expects
+  survey-qualified names (e.g. :code:`'lsstg'`, :code:`'lsstr'`). Remap the filter column before
+  calling :code:`from_lightcurvelynx`.
+- Call :code:`results_augment_lightcurves(min_snr=...)` before constructing the :code:`redback` transient
+  object — this step adds the :code:`mag`/`magerr` columns that :code:`from_lightcurvelynx` requires.
+
+**Minimal example (LSST / kilonova):**
+
+.. code:: python
+
+    import numpy as np
+    import redback
+    from redback import model_library
+    from lightcurvelynx.astro_utils.passbands import PassbandGroup
+    from lightcurvelynx.math_nodes.np_random import NumpyRandomFunc
+    from lightcurvelynx.math_nodes.ra_dec_sampler import ObsTableRADECSampler
+    from lightcurvelynx.obstable.opsim import OpSim
+    from lightcurvelynx.simulate import simulate_lightcurves
+    from lightcurvelynx.models.redback_models import RedbackWrapperModel
+    from lightcurvelynx.utils.post_process_results import results_augment_lightcurves
+    from lightcurvelynx import _LIGHTCURVELYNX_BASE_DATA_DIR
+
+    filters = ["g", "r", "i", "z"]
+    band_mapping = {"g": "lsstg", "r": "lsstr", "i": "lssti", "z": "lsstz"}
+
+    opsim_db = OpSim.from_db(_LIGHTCURVELYNX_BASE_DATA_DIR / "opsim" / "baseline_v3.4_10yrs.db")
+    opsim_db = opsim_db.filter_rows(np.isin(opsim_db["filter"], filters))
+    t_min, t_max = opsim_db.time_bounds()
+
+    passband_group = PassbandGroup.from_preset(
+        preset="LSST", filters=filters, units="nm",
+        table_dir=_LIGHTCURVELYNX_BASE_DATA_DIR / "passbands" / "LSST",
+    )
+
+    rb_model = model_library.all_models_dict["one_component_kilonova_model"]
+    source = RedbackWrapperModel(
+        rb_model,
+        parameters={"mej": 0.05, "redshift": 0.01, "temperature_floor": 3000,
+                    "kappa": 1, "vej": 0.2},
+        ra=ObsTableRADECSampler(opsim_db, radius=3.0).ra,
+        dec=ObsTableRADECSampler(opsim_db, radius=3.0).dec,
+        t0=NumpyRandomFunc("uniform", low=t_min, high=t_max),
+    )
+
+    lightcurves = simulate_lightcurves(
+        source, 20, opsim_db, passband_group, obs_time_window_offset=(0.1, 20)
+    )
+    results = results_augment_lightcurves(lightcurves, min_snr=3)
+
+    # Pick the first object with enough detections
+    for idx in results.index:
+        row = results.loc[idx]
+        lc = row["lightcurve"].copy()
+        lc["filter"] = np.array([band_mapping.get(f, f) for f in lc["filter"]])
+        if lc["detection"].sum() >= 3:
+            break
+
+    kn = redback.transient.Kilonova.from_lightcurvelynx(
+        name="lynx_kilonova", data=lc, data_mode="flux_density"
+    )
+
+A complete end-to-end inference example (simulation → data loading → :code:`redback` fitting) is provided in
+`examples/lightcurvelynx_inference_example.py <https://github.com/nikhil-sarin/redback/blob/master/examples/lightcurvelynx_inference_example.py>`_.
+
 For a complete guide to simulating X-ray/gamma-ray spectra and fitting them with Bayesian inference,
 see the :doc:`xray_spectral_fitting` documentation.

@@ -307,7 +307,7 @@ class CutoffBlackbody(_SED):
 
     def __init__(self, time: np.ndarray, temperature: np.ndarray, luminosity: np.ndarray, r_photosphere: np.ndarray,
                  frequency: Union[float, np.ndarray], luminosity_distance: float, cutoff_wavelength: float,
-                 **kwargs: None) -> None:
+                 absorption_index: float = 1.0, **kwargs: None) -> None:
         """
         Blackbody SED with a cutoff
 
@@ -318,6 +318,9 @@ class CutoffBlackbody(_SED):
         :param frequency: frequency in Hz - must be a single number or same length as time array
         :param luminosity_distance: dl in cm
         :param cutoff_wavelength: cutoff wavelength in Angstrom
+        :param absorption_index: power-law index for UV suppression below cutoff_wavelength.
+            Flux below cutoff scales as (cutoff_wavelength/wavelength)^absorption_index relative to a blackbody.
+            Default is 1.0 (Nicholl+2017 nominal value for SLSNe).
         :param kwargs: None
         """
         super(CutoffBlackbody, self).__init__(
@@ -331,6 +334,7 @@ class CutoffBlackbody(_SED):
         self.temperature = temperature
         self.r_photosphere = r_photosphere
         self.cutoff_wavelength = cutoff_wavelength * angstrom_cgs
+        self.absorption_index = absorption_index
 
         self.norms = None
 
@@ -355,22 +359,25 @@ class CutoffBlackbody(_SED):
         return self.X_CONST * np.array(range(1, 11))
 
     def _set_sed(self):
+        alpha = self.absorption_index
         if np.size(self.wavelength) != np.size(self.time):
             self.sed = np.zeros((len(self.frequency), len(self.time)))
             self.r_photosphere = np.tile(self.r_photosphere, (len(self.frequency), 1))
             self.temperature = np.tile(self.temperature, (len(self.frequency), 1))
             self.sed[self.mask] = \
-                self.FLUX_CONST * (self.r_photosphere[self.mask]**2 / self.cutoff_wavelength /
-                                self.wavelength[self.mask] ** 4) \
+                self.FLUX_CONST * (self.r_photosphere[self.mask]**2 *
+                                (self.wavelength[self.mask] / self.cutoff_wavelength)**alpha /
+                                self.wavelength[self.mask] ** 5) \
                 / np.expm1(self.X_CONST / self.wavelength[self.mask] / self.temperature[self.mask])
             self.sed[~self.mask] = \
                 self.FLUX_CONST * (self.r_photosphere[~self.mask]**2 / self.wavelength[~self.mask]**5) \
                 / np.expm1(self.X_CONST / self.wavelength[~self.mask] / self.temperature[~self.mask])
             self.sed *= self.norms[np.searchsorted(self.unique_times, self.time)]
-        else:    
+        else:
             self.sed[self.mask] = \
-                self.FLUX_CONST * (self.r_photosphere[self.mask]**2 / self.cutoff_wavelength /
-                            self.wavelength[self.mask] ** 4) \
+                self.FLUX_CONST * (self.r_photosphere[self.mask]**2 *
+                            (self.wavelength[self.mask] / self.cutoff_wavelength)**alpha /
+                            self.wavelength[self.mask] ** 5) \
                 / np.expm1(self.X_CONST / self.wavelength[self.mask] / self.temperature[self.mask])
             self.sed[~self.mask] = \
                 self.FLUX_CONST * (self.r_photosphere[~self.mask]**2 / self.wavelength[~self.mask]**5) \
@@ -379,25 +386,33 @@ class CutoffBlackbody(_SED):
             self.sed *= self.norms[np.searchsorted(self.unique_times, self.time)]
 
     def _set_norm(self):
+        from scipy.special import gammainc, gammaincc, gamma as gamma_func
+
         self.norms = self.luminosity[self.uniq_is] / \
                      (self.FLUX_CONST / angstrom_cgs * self.r_photosphere[self.uniq_is] ** 2 * self.temperature[
                          self.uniq_is])
 
-        tp = self.temperature[self.uniq_is].reshape(len(self.unique_times), 1)
-        tp2 = tp ** 2
-        tp3 = tp ** 3
+        alpha = self.absorption_index
+        tp = self.temperature[self.uniq_is]  # (n_times,)
+        # kT/hc in Angstrom (same units as wavelength)
+        kT_over_hc = tp / self.X_CONST  # (n_times,)
+        n_arr = np.arange(1, 11, dtype=float)  # (10,)
+        # x_c = hc / (lambda_c * kT)
+        x_c = 1.0 / (self.cutoff_wavelength * kT_over_hc)  # (n_times,)
+        n_x_c = np.outer(x_c, n_arr)  # (n_times, 10)
 
-        c1 = np.exp(-self.nxcs / (self.cutoff_wavelength * tp))
+        # Integral above cutoff (normal Planck, λ > λ_c):
+        # substituting u = hc/(λkT): ∫ λ^{-5}/(e^u-1) dλ → (kT/hc)^4 * Γ(4) * Σ_n P(4, n*x_c) / n^4
+        above = kT_over_hc ** 4 * gamma_func(4.0) * np.sum(gammainc(4.0, n_x_c) / n_arr ** 4, axis=1)
 
-        term_1 = \
-             c1 * (self.nxcs ** 2 + 2 * (self.nxcs * self.cutoff_wavelength * tp + self.cutoff_wavelength ** 2 * tp2)) \
-            / (self.nxcs ** 3 * self.cutoff_wavelength ** 3)
-        term_2 = \
-            (6 * tp3 - c1 *
-             (self.nxcs ** 3 + 3 * self.nxcs ** 2 * self.cutoff_wavelength * tp + 6 *
-              (self.nxcs * self.cutoff_wavelength ** 2 * tp2 + self.cutoff_wavelength ** 3 * tp3))
-             / self.cutoff_wavelength ** 3) / self.nxcs ** 4
-        f_blue_reds = np.sum(term_1 + term_2, 1)
+        # Integral below cutoff (suppressed by (λ/λ_c)^α, λ < λ_c):
+        # λ^{α-5} → u^{3-α} integrand → order s = 4 - α
+        s = 4.0 - alpha
+        below = (1.0 / self.cutoff_wavelength ** alpha) * kT_over_hc ** s * \
+                gamma_func(s) * np.sum(gammaincc(s, n_x_c) / n_arr ** s, axis=1)
+
+        # Divide by tp to match the tp factor already absorbed into norms prefactor
+        f_blue_reds = (above + below) / tp  # (n_times,)
         self.norms /= f_blue_reds
 
     def calculate_flux_density(self):

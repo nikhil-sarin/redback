@@ -287,6 +287,116 @@ def evolving_blackbody(time, redshift, temperature_0, radius_0,
                                                               spectra=spectra, lambda_array=lambda_observer_frame,
                                                               **kwargs)
 
+def _smooth_blackbody_evolution(time, temp_peak, temp_peak_time, temp_index,
+                                radius_peak, radius_peak_time, radius_index):
+    """
+    Smooth gamma-distribution-shaped evolution for temperature and radius.
+
+    Each quantity follows:
+        X(t) = X_peak * (t / t_peak)^alpha * exp(alpha * (1 - t / t_peak))
+
+    This peaks exactly at t_peak (derivative is zero there by construction),
+    is smooth and analytic everywhere, and has a single shape parameter alpha
+    that controls both the rise steepness and the post-peak decay rate.
+    Larger alpha gives a sharper, more impulsive peak; smaller alpha gives a
+    broader, more rounded profile.
+
+    :param time: time array in days (rest-frame, already k-corrected)
+    :param temp_peak: peak temperature in Kelvin
+    :param temp_peak_time: time of temperature peak in days
+    :param temp_index: shape index alpha_T (controls sharpness of T peak)
+    :param radius_peak: peak photospheric radius in cm
+    :param radius_peak_time: time of radius peak in days
+    :param radius_index: shape index alpha_R (controls sharpness of R peak)
+    :return: temperature (K), radius (cm) arrays
+    """
+    time = np.atleast_1d(time)
+    temperature = temp_peak * (time / temp_peak_time) ** temp_index * np.exp(
+        temp_index * (1.0 - time / temp_peak_time))
+    radius = radius_peak * (time / radius_peak_time) ** radius_index * np.exp(
+        radius_index * (1.0 - time / radius_peak_time))
+    return temperature, radius
+
+
+def smooth_evolving_blackbody(time, redshift, temp_peak, log10_radius_peak,
+                              temp_peak_time, radius_peak_time,
+                              temp_index, radius_index, **kwargs):
+    """
+    Blackbody with smooth, analytic temperature and radius evolution.
+
+    Both T(t) and R(t) follow a gamma-distribution-shaped profile that peaks
+    exactly at their respective peak times with no discontinuity in the
+    derivative (unlike the piecewise power-law in evolving_blackbody):
+
+        T(t) = T_peak * (t/t_T_peak)^alpha_T * exp(alpha_T * (1 - t/t_T_peak))
+        R(t) = R_peak * (t/t_R_peak)^alpha_R * exp(alpha_R * (1 - t/t_R_peak))
+
+    T and R are allowed to peak at independent times, so the implied bolometric
+    luminosity L ∝ R² T⁴ can have a more complex (but still smooth) shape.
+
+    :param time: time in observer frame in days
+    :param redshift: source redshift
+    :param temp_peak: peak blackbody temperature in Kelvin
+    :param log10_radius_peak: log10 of peak photospheric radius in cm
+    :param temp_peak_time: observer-frame time of temperature peak in days
+    :param radius_peak_time: observer-frame time of radius peak in days
+    :param temp_index: shape index alpha_T > 0; larger = sharper T peak
+    :param radius_index: shape index alpha_R > 0; larger = sharper R peak
+    :param kwargs: Additional parameters
+    :param frequency: Required if output_format is 'flux_density'
+    :param bands: Required if output_format is 'magnitude' or 'flux'
+    :param output_format: 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
+    :param lambda_array: Optional wavelength array in Angstroms to evaluate SED
+    :param cosmology: Cosmology object for luminosity distance calculation
+    :return: set by output format
+    """
+    from astropy.cosmology import Planck18 as cosmo
+    from astropy import units as uu
+    from redback.utils import lambda_to_nu, calc_kcorrected_properties
+    import redback.sed as sed
+    from redback.sed import flux_density_to_spectrum
+    from collections import namedtuple
+
+    cosmology = kwargs.get('cosmology', cosmo)
+    dl = cosmology.luminosity_distance(redshift).cgs.value
+    radius_peak = 10 ** log10_radius_peak
+
+    if kwargs['output_format'] == 'flux_density':
+        frequency = kwargs['frequency']
+        frequency, time_rf = calc_kcorrected_properties(
+            frequency=frequency, redshift=redshift, time=time)
+        temperature, radius = _smooth_blackbody_evolution(
+            time=time_rf,
+            temp_peak=temp_peak, temp_peak_time=temp_peak_time, temp_index=temp_index,
+            radius_peak=radius_peak, radius_peak_time=radius_peak_time, radius_index=radius_index)
+        sed_bb = sed.Blackbody(temperature=temperature, r_photosphere=radius,
+                               frequency=frequency, luminosity_distance=dl)
+        return sed_bb.flux_density.to(uu.mJy).value * (1 + redshift)
+    else:
+        time_obs = time
+        lambda_observer_frame = kwargs.get('lambda_array', np.geomspace(100, 60000, 100))
+        time_temp = get_optimal_time_array(0.1, 3000, 300)
+        time_observer_frame = time_temp * (1. + redshift)
+        frequency, time_rf = calc_kcorrected_properties(
+            frequency=lambda_to_nu(lambda_observer_frame),
+            redshift=redshift, time=time_observer_frame)
+        temperature, radius = _smooth_blackbody_evolution(
+            time=time_rf,
+            temp_peak=temp_peak, temp_peak_time=temp_peak_time, temp_index=temp_index,
+            radius_peak=radius_peak, radius_peak_time=radius_peak_time, radius_index=radius_index)
+        sed_bb = sed.Blackbody(temperature=temperature, r_photosphere=radius,
+                               frequency=frequency[:, None], luminosity_distance=dl)
+        fmjy = sed_bb.flux_density.T
+        spectra = flux_density_to_spectrum(fmjy, redshift, lambda_observer_frame)
+        if kwargs['output_format'] == 'spectra':
+            return namedtuple('output', ['time', 'lambdas', 'spectra'])(
+                time=time_observer_frame, lambdas=lambda_observer_frame, spectra=spectra)
+        else:
+            return sed.get_correct_output_format_from_spectra(
+                time=time_obs, time_eval=time_observer_frame,
+                spectra=spectra, lambda_array=lambda_observer_frame, **kwargs)
+
+
 def evolving_blackbody_with_features(time, redshift, temperature_0, radius_0,
                                      temp_rise_index, temp_decline_index, temp_peak_time,
                                      radius_rise_index, radius_decline_index, radius_peak_time,
