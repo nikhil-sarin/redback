@@ -29,6 +29,7 @@ We provide several examples so users can get a more practical grasp of how to us
 - `Joint multi-messenger fitting <https://github.com/nikhil-sarin/redback/blob/master/examples/multimessenger_example.py>`_
 - `Joint spectrum and photometry fitting <https://github.com/nikhil-sarin/redback/blob/master/examples/joint_spectrum_photometry_example.py>`_
 - `Joint host-galaxy and transient spectra <https://github.com/nikhil-sarin/redback/blob/master/examples/joint_galaxy_transient_spectrum_example.py>`_
+- `LightCurveLynx simulation and inference <https://github.com/nikhil-sarin/redback/blob/master/examples/lightcurvelynx_inference_example.py>`_: end-to-end example simulating kilonovae through a realistic LSST survey with LightCurveLynx and fitting with redback, including an injection-recovery test for host extinction and explosion time t0
 
 We have also written a more tutorial style `jupyter notebook <https://github.com/nikhil-sarin/redback/blob/master/examples/RedbackTutorial.ipynb>`_
 demonstrating the bulk of the functionality of :code:`redback`. There are many more examples in the `examples <https://github.com/nikhil-sarin/redback/blob/master/examples>`_ folder of the repository.

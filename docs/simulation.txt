@@ -504,98 +504,68 @@ Using LightCurveLynx for realistic survey simulation
 
 `LightCurveLynx <https://github.com/astro-transients/lightcurvelynx>`_ is an external package for simulating transient
 lightcurves through realistic survey pipelines (OpSim pointings, bandpass convolution, SNR-based detection).
-It ships a :code:`RedbackWrapperModel` that wraps any :code:`redback` model function, allowing the full power of
-:code:`redback`'s physical models to be used inside the LightCurveLynx simulation engine.
+It ships a :code:`RedbackWrapperModel` that wraps any :code:`redback` model function as a LightCurveLynx source,
+so the full library of :code:`redback` physical models can be used directly inside the simulation engine.
 
-**Key points:**
+**General workflow:**
 
-- LightCurveLynx and :code:`redback` use different conventions for bandpass-integrated flux and flux density.
+1. Load an OpSim pointing database and a passband group.
+2. Wrap a :code:`redback` model in :code:`RedbackWrapperModel`, providing fixed injection parameters and samplers
+   for sky position (:code:`ra`/:code:`dec`) and explosion time (:code:`t0`).
+3. Call :code:`simulate_lightcurves` to produce synthetic observations through the survey.
+4. Call :code:`results_augment_lightcurves` to add SNR, detection flags, and AB mag/magerr columns.
+5. Remap filter names and load the lightcurve into a :code:`redback` transient with :code:`Transient.from_lightcurvelynx`.
+6. Fit with :code:`redback.fit_model` as usual.
+
+**Important notes:**
+
+- **Units**: LightCurveLynx and :code:`redback` use different conventions for bandpass flux and flux density.
   The two packages only agree on AB magnitudes.
-  The constructor :code:`Transient.from_lightcurvelynx` handles the unit conversion automatically by
-  reconstructing flux density from the AB magnitude columns produced by :code:`results_augment_lightcurves`.
-  If you construct the transient object manually, work in AB magnitudes or ensure units are consistent before fitting.
-- Explosion-based :code:`redback` models (kilonovae, supernovae) are only defined for positive rest-frame times
-  since explosion. When using :code:`simulate_lightcurves`, set :code:`obs_time_window_offset` so that the
-  start of the observation window is strictly after the explosion (e.g. :code:`obs_time_window_offset=(0.1, 20)`).
-  Pre-explosion observations passed to these models will cause errors in the SED interpolation.
-- LightCurveLynx uses short filter names (e.g. :code:`'g'`, :code:`'r'`); :code:`redback` expects
-  survey-qualified names (e.g. :code:`'lsstg'`, :code:`'lsstr'`). Remap the filter column before
-  calling :code:`from_lightcurvelynx`.
-- Call :code:`results_augment_lightcurves(min_snr=...)` before constructing the :code:`redback` transient
-  object — this step adds the :code:`mag`/`magerr` columns that :code:`from_lightcurvelynx` requires.
-  Observations below the SNR threshold are flagged as non-detections (:code:`detection=False`).
-  By default :code:`from_lightcurvelynx` drops these rows and fits only detections.
-  To keep them as upper limits, pass :code:`include_upper_limits=True`.
-- **Sampling the explosion epoch t0**: for real data the explosion time is unknown.
-  Use :code:`use_phase_model=True` when constructing the transient, then fit with
-  :code:`t0_base_model` (which takes MJD times, subtracts :code:`t0`, and dispatches to any
-  :code:`base_model`).  The prior on :code:`t0` must have its *maximum* at or before the time
-  of the first detection — a :code:`t0` after the first detection leaves the likelihood with no
-  valid data points.  A :code:`Uniform(minimum=first_det_mjd - window, maximum=first_det_mjd)`
-  prior is the natural choice.
-- **MW and host-galaxy extinction**: :code:`redback` provides combined t0 + extinction models
-  (e.g. :code:`t0_kilonova_extinction`, :code:`t0_supernova_extinction`) in
-  :code:`redback.transient_models.phase_models` that handle the explosion epoch, host dust, and
-  MW dust in a single function.  :code:`av_host` (and optionally :code:`rv_host`) are sampled as
-  free parameters; :code:`av_mw` can be fixed from a dustmap query and passed as a
-  :code:`model_kwarg`.
+  :code:`Transient.from_lightcurvelynx` handles the unit conversion automatically by reconstructing flux density
+  from the AB magnitude columns produced by :code:`results_augment_lightcurves`.
 
-**Minimal example (LSST / kilonova):**
+- **How t0 is handled in simulation**: :code:`RedbackWrapperModel` always subtracts its :code:`t0` parameter from
+  the MJD observation times before calling the source function.  The source therefore receives
+  **time-since-explosion in days**, not MJD.  This means the :code:`redback` model you wrap must expect
+  time-since-explosion as its first argument — e.g. :code:`one_component_kilonova_model` or
+  :code:`extinction_with_kilonova_base_model`.  Do **not** wrap :code:`t0_kilonova_extinction` as the simulation
+  source: that model subtracts t0 itself, so combining it with :code:`RedbackWrapperModel`'s own subtraction
+  would double-subtract t0 and produce garbage times.
 
-.. code:: python
+- **How t0 is handled in fitting**: to sample the explosion epoch as a free parameter, load the transient with
+  :code:`use_phase_model=True` (so :code:`redback` passes raw MJD times to the model), then fit with
+  :code:`t0_kilonova_extinction` (or :code:`t0_supernova_extinction` etc.).  These models take MJD time and
+  :code:`t0` as inputs, subtract t0, apply extinction, and call the underlying physical model.
+  The prior on :code:`t0` must have its **maximum at or before the time of the first detection** — a t0 after the
+  first detection leaves the likelihood with no valid data points.
 
-    import numpy as np
-    import redback
-    from redback import model_library
-    from lightcurvelynx.astro_utils.passbands import PassbandGroup
-    from lightcurvelynx.math_nodes.np_random import NumpyRandomFunc
-    from lightcurvelynx.math_nodes.ra_dec_sampler import ObsTableRADECSampler
-    from lightcurvelynx.obstable.opsim import OpSim
-    from lightcurvelynx.simulate import simulate_lightcurves
-    from lightcurvelynx.models.redback_models import RedbackWrapperModel
-    from lightcurvelynx.utils.post_process_results import results_augment_lightcurves
-    from lightcurvelynx import _LIGHTCURVELYNX_BASE_DATA_DIR
+- **Matching simulation and fit model**: for a proper injection-recovery test, use
+  :code:`extinction_with_kilonova_base_model` as the simulation source (injecting a fixed :code:`av_host`) and
+  :code:`t0_kilonova_extinction` as the fit model (sampling both :code:`av_host` and :code:`t0`).
+  The physics is identical; the difference is that the fit model also samples t0.
 
-    filters = ["g", "r", "i", "z"]
-    band_mapping = {"g": "lsstg", "r": "lsstr", "i": "lssti", "z": "lsstz"}
+- **Explosion time window**: explosion-based models are only defined for positive times since explosion.
+  Currently, set :code:`obs_time_window_offset=(0.1, 20)` so the observation window starts strictly after
+  the explosion and no pre-explosion times are passed to the model.
+  A fix to :code:`RedbackWrapperModel` (lincc-frameworks/lightcurvelynx#880) is pending upstream — once
+  merged, you will be able to use a negative start offset (e.g. :code:`obs_time_window_offset=(-5, 20)`)
+  to simulate realistic pre-explosion non-detections; :code:`RedbackWrapperModel` will automatically return
+  zero flux for pre-explosion observations so they appear as non-detections in
+  :code:`results_augment_lightcurves`.
 
-    opsim_db = OpSim.from_db(_LIGHTCURVELYNX_BASE_DATA_DIR / "opsim" / "baseline_v3.4_10yrs.db")
-    opsim_db = opsim_db.filter_rows(np.isin(opsim_db["filter"], filters))
-    t_min, t_max = opsim_db.time_bounds()
+- **Filter names**: LightCurveLynx uses short names (e.g. :code:`'g'`, :code:`'r'`); :code:`redback` expects
+  survey-qualified names (e.g. :code:`'lsstg'`, :code:`'lsstr'`). Remap the filter column before calling
+  :code:`from_lightcurvelynx`.
 
-    passband_group = PassbandGroup.from_preset(
-        preset="LSST", filters=filters, units="nm",
-        table_dir=_LIGHTCURVELYNX_BASE_DATA_DIR / "passbands" / "LSST",
-    )
+- **Non-detections**: :code:`results_augment_lightcurves` flags sub-threshold observations as
+  :code:`detection=False`. By default :code:`from_lightcurvelynx` drops these rows. Pass
+  :code:`include_upper_limits=True` to keep them as upper limits in the fit.
 
-    rb_model = model_library.all_models_dict["one_component_kilonova_model"]
-    source = RedbackWrapperModel(
-        rb_model,
-        parameters={"mej": 0.05, "redshift": 0.01, "temperature_floor": 3000,
-                    "kappa": 1, "vej": 0.2},
-        ra=ObsTableRADECSampler(opsim_db, radius=3.0).ra,
-        dec=ObsTableRADECSampler(opsim_db, radius=3.0).dec,
-        t0=NumpyRandomFunc("uniform", low=t_min, high=t_max),
-    )
+- **MW extinction**: :code:`av_mw` can be fixed from a dustmap query (e.g. :code:`dustmaps.sfd`) and passed as
+  a :code:`model_kwarg` rather than sampled.
 
-    lightcurves = simulate_lightcurves(
-        source, 20, opsim_db, passband_group, obs_time_window_offset=(0.1, 20)
-    )
-    results = results_augment_lightcurves(lightcurves, min_snr=3)
-
-    # Pick the first object with enough detections
-    for idx in results.index:
-        row = results.loc[idx]
-        lc = row["lightcurve"].copy()
-        lc["filter"] = np.array([band_mapping.get(f, f) for f in lc["filter"]])
-        if lc["detection"].sum() >= 3:
-            break
-
-    kn = redback.transient.Kilonova.from_lightcurvelynx(
-        name="lynx_kilonova", data=lc, data_mode="flux_density"
-    )
-
-A complete end-to-end inference example (simulation → data loading → :code:`redback` fitting) is provided in
+A complete end-to-end example (two simulations: one without extinction and one with, each with a corresponding fit)
+is provided in
 `examples/lightcurvelynx_inference_example.py <https://github.com/nikhil-sarin/redback/blob/master/examples/lightcurvelynx_inference_example.py>`_.
 
 For a complete guide to simulating X-ray/gamma-ray spectra and fitting them with Bayesian inference,
