@@ -533,13 +533,12 @@ It ships a :code:`RedbackWrapperModel` that wraps any :code:`redback` model func
   of the first detection — a :code:`t0` after the first detection leaves the likelihood with no
   valid data points.  A :code:`Uniform(minimum=first_det_mjd - window, maximum=first_det_mjd)`
   prior is the natural choice.
-- **MW and host-galaxy extinction**: use the extinction wrapper models in
-  :code:`redback.transient_models.extinction_models` (e.g.
-  :code:`extinction_with_kilonova_base_model`).  These apply a dust extinction law to the
-  output of any :code:`base_model` and add :code:`av_host` (and optionally :code:`rv_host`) as
-  free parameters.  MW extinction :code:`av_mw` can be fixed from a dustmap query and passed as
-  a :code:`model_kwarg`.  Both :code:`t0_base_model` and the extinction wrappers compose freely,
-  so you can sample t0, host extinction, and all physical parameters simultaneously.
+- **MW and host-galaxy extinction**: :code:`redback` provides combined t0 + extinction models
+  (e.g. :code:`t0_kilonova_extinction`, :code:`t0_supernova_extinction`) in
+  :code:`redback.transient_models.phase_models` that handle the explosion epoch, host dust, and
+  MW dust in a single function.  :code:`av_host` (and optionally :code:`rv_host`) are sampled as
+  free parameters; :code:`av_mw` can be fixed from a dustmap query and passed as a
+  :code:`model_kwarg`.
 
 **Minimal example (LSST / kilonova):**
 

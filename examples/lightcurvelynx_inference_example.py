@@ -183,17 +183,18 @@ result = redback.fit_model(
 # the methods for plotting/etc.
 
 # ---------------------------------------------------------------------------
-# 6. Realistic fit: sample t0 and host extinction with wrapper models
+# 6. Realistic fit: sample t0 and host extinction simultaneously
 #
-# For real data the explosion time is unknown, so we use t0_base_model which
-# works on MJD times and subtracts t0 before calling the base model.
+# t0_kilonova_extinction combines the t0 phase model and host/MW extinction
+# into a single function.  It works on MJD times, subtracts t0, applies
+# dust reddening, and dispatches to any base_model.
+#
 # The prior on t0 must have its maximum at or before the first detection —
-# t0_base_model returns zero flux for pre-t0 times, so a t0 after the first
-# detection would leave the likelihood with no valid data points.
+# t0_kilonova_extinction returns zero flux for pre-t0 times, so a t0 after
+# the first detection leaves the likelihood with no valid data points.
 #
-# We additionally wrap with extinction_with_kilonova_base_model to fit for
-# host-galaxy V-band extinction av_host.  MW extinction av_mw can be fixed
-# from a dustmap query and passed as a model_kwarg.
+# av_mw can be fixed from a dustmap query (e.g. dustmaps.sfd) and passed as
+# a model_kwarg rather than sampled.
 # ---------------------------------------------------------------------------
 kn_phase = redback.transient.Kilonova.from_lightcurvelynx(
     name=transient_name,
@@ -226,7 +227,7 @@ model_kwargs_ext = dict(
 
 result_ext = redback.fit_model(
     transient=kn_phase,
-    model="extinction_with_kilonova_base_model",
+    model="t0_kilonova_extinction",
     sampler=sampler,
     model_kwargs=model_kwargs_ext,
     prior=priors_ext,
