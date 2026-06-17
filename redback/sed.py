@@ -362,16 +362,16 @@ class CutoffBlackbody(_SED):
         alpha = self.absorption_index
         if np.size(self.wavelength) != np.size(self.time):
             self.sed = np.zeros((len(self.frequency), len(self.time)))
-            self.r_photosphere = np.tile(self.r_photosphere, (len(self.frequency), 1))
-            self.temperature = np.tile(self.temperature, (len(self.frequency), 1))
+            r_photosphere = np.tile(self.r_photosphere, (len(self.frequency), 1))
+            temperature = np.tile(self.temperature, (len(self.frequency), 1))
             self.sed[self.mask] = \
-                self.FLUX_CONST * (self.r_photosphere[self.mask]**2 *
+                self.FLUX_CONST * (r_photosphere[self.mask]**2 *
                                 (self.wavelength[self.mask] / self.cutoff_wavelength)**alpha /
                                 self.wavelength[self.mask] ** 5) \
-                / np.expm1(self.X_CONST / self.wavelength[self.mask] / self.temperature[self.mask])
+                / np.expm1(self.X_CONST / self.wavelength[self.mask] / temperature[self.mask])
             self.sed[~self.mask] = \
-                self.FLUX_CONST * (self.r_photosphere[~self.mask]**2 / self.wavelength[~self.mask]**5) \
-                / np.expm1(self.X_CONST / self.wavelength[~self.mask] / self.temperature[~self.mask])
+                self.FLUX_CONST * (r_photosphere[~self.mask]**2 / self.wavelength[~self.mask]**5) \
+                / np.expm1(self.X_CONST / self.wavelength[~self.mask] / temperature[~self.mask])
             self.sed *= self.norms[np.searchsorted(self.unique_times, self.time)]
         else:
             self.sed[self.mask] = \
@@ -393,6 +393,11 @@ class CutoffBlackbody(_SED):
                          self.uniq_is])
 
         alpha = self.absorption_index
+        if alpha >= 4.0:
+            raise ValueError(
+                f"absorption_index={alpha} >= 4 is not supported: the integral below the cutoff "
+                "diverges (s = 4 - alpha <= 0). Please restrict your prior to absorption_index < 4."
+            )
         tp = self.temperature[self.uniq_is]  # (n_times,)
         # kT/hc in Angstrom (same units as wavelength)
         kT_over_hc = tp / self.X_CONST  # (n_times,)
