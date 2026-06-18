@@ -544,14 +544,12 @@ so the full library of :code:`redback` physical models can be used directly insi
   :code:`t0_kilonova_extinction` as the fit model (sampling both :code:`av_host` and :code:`t0`).
   The physics is identical; the difference is that the fit model also samples t0.
 
-- **Explosion time window**: explosion-based models are only defined for positive times since explosion.
-  Currently, set :code:`obs_time_window_offset=(0.1, 20)` so the observation window starts strictly after
-  the explosion and no pre-explosion times are passed to the model.
-  A fix to :code:`RedbackWrapperModel` (lincc-frameworks/lightcurvelynx#880) is pending upstream — once
-  merged, you will be able to use a negative start offset (e.g. :code:`obs_time_window_offset=(-5, 20)`)
-  to simulate realistic pre-explosion non-detections; :code:`RedbackWrapperModel` will automatically return
-  zero flux for pre-explosion observations so they appear as non-detections in
-  :code:`results_augment_lightcurves`.
+- **Explosion time window and pre-explosion non-detections**: use :code:`obs_time_window_offset=(-5, 20)`
+  to observe from 5 days before to 20 days after the explosion.  Pass :code:`phase_bounds=(0.1, None)`
+  to :code:`RedbackWrapperModel` to tell it the valid phase range for the model — observations outside
+  those bounds are automatically zero-padded (:code:`ZeroPadding` is the default extrapolation) and
+  appear as non-detections in :code:`results_augment_lightcurves`.  Pre-explosion non-detections are
+  scientifically useful for constraining :code:`t0`.  Requires lightcurvelynx >= 0.4.3.
 
 - **Filter names**: LightCurveLynx uses short names (e.g. :code:`'g'`, :code:`'r'`); :code:`redback` expects
   survey-qualified names (e.g. :code:`'lsstg'`, :code:`'lsstr'`). Remap the filter column before calling

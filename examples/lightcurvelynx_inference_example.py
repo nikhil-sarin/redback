@@ -32,13 +32,13 @@ results_augment_lightcurves and dropped from the redback transient by default.
 To retain them as upper limits, pass include_upper_limits=True to
 from_lightcurvelynx method.
 
-Pre-explosion non-detections: this example uses obs_time_window_offset=(0.1, 20)
-so the observation window always starts after the explosion and no pre-explosion
-observations are generated.  A fix to RedbackWrapperModel is pending in
-lincc-frameworks/lightcurvelynx#880 — once merged, you will be able to use a
-negative start offset (e.g. obs_time_window_offset=(-5, 20)) to generate
-realistic pre-explosion non-detections; they will automatically receive zero
-flux and appear as non-detections in results_augment_lightcurves.
+Pre-explosion non-detections: this example uses obs_time_window_offset=(-5, 20)
+so the observation window starts 5 days before the explosion.  Observations
+before t0 receive zero flux (via ZeroPadding extrapolation in RedbackWrapperModel)
+and appear as non-detections in results_augment_lightcurves.  These pre-explosion
+upper limits are scientifically useful for constraining t0.  The phase_bounds
+parameter tells RedbackWrapperModel the valid phase range for the model — anything
+outside those bounds is zero-padded automatically.  Requires lightcurvelynx >= 0.4.3.
 
 Please also look at the lightcurvelynx documentation to see how you can change things on the
 lightcurvelynx side to simulate multiple surveys/etc
@@ -127,13 +127,15 @@ source_1 = RedbackWrapperModel(
     ra=ra_dec_1.ra,
     dec=ra_dec_1.dec,
     t0=t0_sampler_1,
+    phase_bounds=(0.1, None),
     node_label="source_1",
 )
 
-# obs_time_window_offset must start > 0 for explosion-based models — they are
-# only defined for positive times since explosion.
+# obs_time_window_offset=(-5, 20): observe from 5 days before to 20 days after
+# the explosion.  Pre-explosion observations get zero flux via ZeroPadding
+# (controlled by phase_bounds) and appear as non-detections.
 lightcurves_1 = simulate_lightcurves(
-    source_1, n_sims, opsim_db, passband_group, obs_time_window_offset=(0.1, 20),
+    source_1, n_sims, opsim_db, passband_group, obs_time_window_offset=(-5, 20),
 )
 # Post-process: compute SNR, detection flag, AB mag/magerr.
 # Observations below min_snr are flagged as non-detections (detection=False).
@@ -217,11 +219,12 @@ source_2 = RedbackWrapperModel(
     ra=ra_dec_2.ra,
     dec=ra_dec_2.dec,
     t0=t0_sampler_2,
+    phase_bounds=(0.1, None),
     node_label="source_2",
 )
 
 lightcurves_2 = simulate_lightcurves(
-    source_2, n_sims, opsim_db, passband_group, obs_time_window_offset=(0.1, 20),
+    source_2, n_sims, opsim_db, passband_group, obs_time_window_offset=(-5, 20),
 )
 results_2 = results_augment_lightcurves(lightcurves_2, min_snr=3)
 
