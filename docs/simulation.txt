@@ -559,8 +559,8 @@ so the full library of :code:`redback` physical models can be used directly insi
   :code:`detection=False`. By default :code:`from_lightcurvelynx` drops these rows. Pass
   :code:`include_upper_limits=True` to keep them as upper limits in the fit.
 
-- **MW extinction**: :code:`av_mw` can be fixed from a dustmap query (e.g. :code:`dustmaps.sfd`) and passed as
-  a :code:`model_kwarg` rather than sampled.
+- **MW extinction**: :code:`av_mw` can be fixed to a known value (e.g. looked up from an external MW
+  dust map for the object's sky position) and passed as a :code:`model_kwarg` rather than sampled.
 
 A complete end-to-end example (two simulations: one without extinction and one with, each with a corresponding fit)
 is provided in

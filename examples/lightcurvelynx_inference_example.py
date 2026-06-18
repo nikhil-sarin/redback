@@ -253,8 +253,8 @@ print(chosen_lc_2)
 # t0_kilonova_extinction returns zero flux for pre-t0 times, so a t0 after
 # the first detection leaves the likelihood with no valid data points.
 #
-# av_mw can be fixed from a dustmap query (e.g. dustmaps.sfd) and passed as
-# a model_kwarg rather than sampled.
+# av_mw can be fixed to a known value (e.g. looked up from an external MW
+# dust map for the object's sky position) and passed as a model_kwarg.
 # ---------------------------------------------------------------------------
 kn_2 = redback.transient.Kilonova.from_lightcurvelynx(
     name="lynx_kilonova_extinction",
@@ -290,7 +290,7 @@ result_2 = redback.fit_model(
         frequency=kn_2.filtered_frequencies,
         output_format="flux_density",
         base_model="one_component_kilonova_model",
-        av_mw=0.0,  # fix MW extinction; in practice query from e.g. dustmaps
+        av_mw=0.0,  # fix MW extinction to a known value; sample av_host instead
     ),
     prior=priors_2,
     sample="rslice",
