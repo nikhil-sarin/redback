@@ -1,5 +1,20 @@
 # All notable changes will be documented in this file
 
+## [1.17.0] 2026-06-19
+Version 1.17.0 release of redback
+
+## Added and changed
+* `CutoffBlackbody`: new `absorption_index` parameter (default 1.0) for variable UV suppression slope below the cutoff wavelength. Normalisation rewritten using `scipy.special.gammainc`/`gammaincc` — analytically exact for any `absorption_index` value. `absorption_index >= 4` raises `ValueError`. Passes `absorption_index` through in `slsn`, `type_1a`, and `general_magnetar_driven_supernova`.
+* `sn1998bw_template` / `sn1998bw_template_with_extrapolation`: fix bandwidth stretching factor `*(1+z)` → `/(1+z)` for correct observer-frame flux density.
+* New `smooth_evolving_blackbody` phenomenological model: temperature and radius each follow a gamma-distribution-shaped profile peaking exactly at `t_peak`.
+* LightCurveLynx integration: new end-to-end example `examples/lightcurvelynx_inference_example.py` demonstrating OpSim simulation → `redback` fitting, including injection-recovery of host extinction and explosion time. Requires `lightcurvelynx >= 0.4.3`.
+* `docs/simulation.txt`: new LightCurveLynx section covering unit conventions, `phase_bounds`, `obs_time_window_offset`, pre-explosion non-detections, `t0_kilonova_extinction`, and MW/host extinction.
+* `docs/examples.txt`: LightCurveLynx inference example added to examples list.
+* Regression test tolerance relaxed from `1e-10` to `1e-5` to avoid spurious failures from floating-point noise across numpy versions.
+* Analysis tests: pass `show=False` to all plot calls to prevent figure windows during testing.
+
+**Full Changelog**: https://github.com/nikhil-sarin/redback/compare/v1.16.0...v1.17.0
+
 ## [1.16.0] 2026-05-11
 Version 1.16.0 release of redback
 
