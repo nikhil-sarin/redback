@@ -195,7 +195,7 @@ def sn1998bw_template(time, redshift, amplitude, **kwargs):
     lambda_obs = lls * (1 + redshift)
     dl_new = cosmology.luminosity_distance(redshift).cgs.value
     f_lambda_obs = l_lambda / (4 * np.pi * dl_new**2)
-    f_lambda_obs = amplitude * f_lambda_obs * (1 + redshift) # accounting for bandwidth stretching
+    f_lambda_obs = amplitude * f_lambda_obs / (1 + redshift) # accounting for bandwidth stretching
     f_lambda_obs = f_lambda_obs * uu.erg / uu.s / uu.cm ** 2 / uu.Angstrom
     if kwargs['output_format'] == 'flux_density':
         frequency = kwargs['frequency']
@@ -281,8 +281,7 @@ def sn1998bw_template_with_extrapolation(time, redshift, amplitude, **kwargs):
     lambda_obs = lls_rest * (1 + redshift) 
     dl_new = cosmology.luminosity_distance(redshift).cgs.value
     # We consider this the rest frame spectrum of 1998bw. Now we can redshift it and scale it.
-    for i, t_obs in enumerate(tts):
-        t_rest = t_obs / (1 + redshift)
+    for i, t_rest in enumerate(tts):
         
         #Introduce Blackbody for extrapolation
         T = 12000 * (max(t_rest, 1) / 15)**-0.35 
@@ -311,7 +310,7 @@ def sn1998bw_template_with_extrapolation(time, redshift, amplitude, **kwargs):
         f_row[lls_rest < blue_lim] = bb_unit_lambda(lls_rest[lls_rest < blue_lim]) * s_blue
         # Scale to luminosity then back to new observer distance
         l_lambda = f_row * 4 * np.pi * original_dl**2
-        f_lambda_obs = amplitude * (l_lambda / (4 * np.pi * dl_new**2)) * (1 + redshift) # accounting for bandwidth stretching
+        f_lambda_obs = amplitude * (l_lambda / (4 * np.pi * dl_new**2)) / (1 + redshift) # accounting for bandwidth stretching
         f_lambda_grid[i, :] = f_lambda_obs
 
     # Final conversion and interpolation
@@ -324,7 +323,7 @@ def sn1998bw_template_with_extrapolation(time, redshift, amplitude, **kwargs):
 
         obs_freqs = 2.99792458e18 / obs_wavelengths
         # Create interpolator on obs frame grid
-        interp = RegularGridInterpolator((tts, np.flip(obs_freqs)), np.flip(f_mjy, axis=1),
+        interp = RegularGridInterpolator((time_obs, np.flip(obs_freqs)), np.flip(f_mjy, axis=1),
                                         bounds_error=False, fill_value=0.0)
 
         # Prepare points for interpolation
@@ -1579,8 +1578,9 @@ def slsn(time, redshift, p0, bp, mass_ns, theta_pb,**kwargs):
     """
     kwargs['interaction_process'] = kwargs.get("interaction_process", ip.Diffusion)
     kwargs['photosphere'] = kwargs.get("photosphere", photosphere.TemperatureFloor)
-    kwargs['sed'] = kwargs.get("sed", sed.CutoffBlackbody)   
+    kwargs['sed'] = kwargs.get("sed", sed.CutoffBlackbody)
     cutoff_wavelength = kwargs.get('cutoff_wavelength', 3000)
+    absorption_index = kwargs.get('absorption_index', 1.0)
     cosmology = kwargs.get('cosmology', cosmo)
     dl = cosmology.luminosity_distance(redshift).cgs.value
 
@@ -1591,7 +1591,7 @@ def slsn(time, redshift, p0, bp, mass_ns, theta_pb,**kwargs):
         photo = kwargs['photosphere'](time=time, luminosity=lbol, **kwargs)
         sed_1 = kwargs['sed'](time=time, luminosity=lbol, temperature=photo.photosphere_temperature,
                     r_photosphere=photo.r_photosphere,frequency=frequency, luminosity_distance=dl,
-                    cutoff_wavelength=cutoff_wavelength)
+                    cutoff_wavelength=cutoff_wavelength, absorption_index=absorption_index)
 
         flux_density = sed_1.flux_density
         return flux_density.to(uu.mJy).value * (1 + redshift)
@@ -1608,7 +1608,8 @@ def slsn(time, redshift, p0, bp, mass_ns, theta_pb,**kwargs):
         full_sed = np.zeros((len(time), len(frequency)))
         ss = kwargs['sed'](time=time, temperature=photo.photosphere_temperature,
                         r_photosphere=photo.r_photosphere, frequency=frequency[:, None],
-                        luminosity_distance=dl, cutoff_wavelength=cutoff_wavelength, luminosity=lbol)
+                        luminosity_distance=dl, cutoff_wavelength=cutoff_wavelength,
+                        absorption_index=absorption_index, luminosity=lbol)
         full_sed = ss.flux_density.to(uu.mJy).value.T
         full_sed = full_sed * (1 + redshift)
         spectra = (full_sed * uu.mJy).to(uu.erg / uu.cm ** 2 / uu.s / uu.Angstrom,
@@ -2252,6 +2253,7 @@ def type_1a(time, redshift, f_nickel, mej, **kwargs):
     cosmology = kwargs.get('cosmology', cosmo)
     dl = cosmology.luminosity_distance(redshift).cgs.value
     cutoff_wavelength = kwargs.get('cutoff_wavelength', 3000)
+    absorption_index = kwargs.get('absorption_index', 1.0)
     line_wavelength = kwargs.get('line_wavelength', 7.5e3)
     line_width = kwargs.get('line_width', 500)
     line_time = kwargs.get('line_time', 50)
@@ -2267,7 +2269,7 @@ def type_1a(time, redshift, f_nickel, mej, **kwargs):
         photo = photosphere.TemperatureFloor(time=time, luminosity=lbol, **kwargs)
         sed_1 = sed.CutoffBlackbody(time=time, luminosity=lbol, temperature=photo.photosphere_temperature,
                                     r_photosphere=photo.r_photosphere, frequency=frequency, luminosity_distance=dl,
-                                    cutoff_wavelength=cutoff_wavelength)
+                                    cutoff_wavelength=cutoff_wavelength, absorption_index=absorption_index)
         sed_2 = sed.Line(time=time, luminosity=lbol, frequency=frequency, luminosity_distance=dl,
                          sed=sed_1, line_wavelength=line_wavelength,
                          line_width=line_width, line_time=line_time,
@@ -2287,7 +2289,8 @@ def type_1a(time, redshift, f_nickel, mej, **kwargs):
         # Here we construct the CutoffBlackbody SED with frequency reshaped to (n_freq, 1)
         ss = sed.CutoffBlackbody(time=time, temperature=photo.photosphere_temperature,
                                  r_photosphere=photo.r_photosphere, frequency=frequency[:, None],
-                                 luminosity_distance=dl, cutoff_wavelength=cutoff_wavelength, luminosity=lbol)
+                                 luminosity_distance=dl, cutoff_wavelength=cutoff_wavelength,
+                                 absorption_index=absorption_index, luminosity=lbol)
         line_sed = sed.Line(time=time, luminosity=lbol, frequency=frequency[:, None],
                             luminosity_distance=dl, sed=ss,
                             line_wavelength=line_wavelength,
@@ -2546,6 +2549,7 @@ def general_magnetar_driven_supernova(time, redshift, mej, E_sn, kappa, l0, tau_
     kwargs['photosphere'] = kwargs.get("photosphere", photosphere.TemperatureFloor)
     kwargs['sed'] = kwargs.get("sed", sed.CutoffBlackbody)
     cutoff_wavelength = kwargs.get('cutoff_wavelength', 3000)
+    absorption_index = kwargs.get('absorption_index', 1.0)
     dl = cosmo.luminosity_distance(redshift).cgs.value
     pair_cascade_switch = kwargs.get('pair_cascade_switch', False)
     ejecta_radius = 1.0e11
@@ -2573,7 +2577,7 @@ def general_magnetar_driven_supernova(time, redshift, mej, E_sn, kappa, l0, tau_
         lbol = bol_func(time)
         sed_1 = kwargs['sed'](time=time, luminosity=lbol, temperature=temp,
                                               r_photosphere=rad, frequency=frequency, luminosity_distance=dl,
-                                              cutoff_wavelength=cutoff_wavelength) 
+                                              cutoff_wavelength=cutoff_wavelength, absorption_index=absorption_index)
         flux_density = sed_1.flux_density
         return flux_density.to(uu.mJy).value * (1 + redshift)
     
@@ -2617,7 +2621,8 @@ def general_magnetar_driven_supernova(time, redshift, mej, E_sn, kappa, l0, tau_
             full_sed = np.zeros((len(time), len(frequency)))
             ss = kwargs['sed'](time=time_temp/day_to_s, temperature=photo.photosphere_temperature,
                             r_photosphere=photo.r_photosphere, frequency=frequency[:, None],
-                            luminosity_distance=dl, cutoff_wavelength=cutoff_wavelength, luminosity=output.bolometric_luminosity)
+                            luminosity_distance=dl, cutoff_wavelength=cutoff_wavelength,
+                            absorption_index=absorption_index, luminosity=output.bolometric_luminosity)
             full_sed = ss.flux_density.to(uu.mJy).value.T
             full_sed = full_sed * (1 + redshift)
             spectra = (full_sed * uu.mJy).to(uu.erg / uu.cm ** 2 / uu.s / uu.Angstrom,

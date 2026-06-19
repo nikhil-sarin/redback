@@ -499,5 +499,72 @@ We have written several examples to demonstrate the different simulation methods
 
 We note that although above examples are mostly written for kilonovae. All :code:`redback` models can be used by the simulation classes.
 
+Using LightCurveLynx for realistic survey simulation
+------------------------------------------------------
+
+`LightCurveLynx <https://github.com/astro-transients/lightcurvelynx>`_ is an external package for simulating transient
+lightcurves through realistic survey pipelines (OpSim pointings, bandpass convolution, SNR-based detection).
+It ships a :code:`RedbackWrapperModel` that wraps any :code:`redback` model function as a LightCurveLynx source,
+so the full library of :code:`redback` physical models can be used directly inside the simulation engine.
+
+**General workflow:**
+
+1. Load an OpSim pointing database and a passband group.
+2. Wrap a :code:`redback` model in :code:`RedbackWrapperModel`, providing fixed injection parameters and samplers
+   for sky position (:code:`ra`/:code:`dec`) and explosion time (:code:`t0`).
+3. Call :code:`simulate_lightcurves` to produce synthetic observations through the survey.
+4. Call :code:`results_augment_lightcurves` to add SNR, detection flags, and AB mag/magerr columns.
+5. Remap filter names and load the lightcurve into a :code:`redback` transient with :code:`Transient.from_lightcurvelynx`.
+6. Fit with :code:`redback.fit_model` as usual.
+
+**Important notes:**
+
+- **Units**: LightCurveLynx and :code:`redback` use different conventions for bandpass flux and flux density.
+  The two packages only agree on AB magnitudes.
+  :code:`Transient.from_lightcurvelynx` handles the unit conversion automatically by reconstructing flux density
+  from the AB magnitude columns produced by :code:`results_augment_lightcurves`.
+
+- **How t0 is handled in simulation**: :code:`RedbackWrapperModel` always subtracts its :code:`t0` parameter from
+  the MJD observation times before calling the source function.  The source therefore receives
+  **time-since-explosion in days**, not MJD.  This means the :code:`redback` model you wrap must expect
+  time-since-explosion as its first argument — e.g. :code:`one_component_kilonova_model` or
+  :code:`extinction_with_kilonova_base_model`.  Do **not** wrap :code:`t0_kilonova_extinction` as the simulation
+  source: that model subtracts t0 itself, so combining it with :code:`RedbackWrapperModel`'s own subtraction
+  would double-subtract t0 and produce garbage times.
+
+- **How t0 is handled in fitting**: to sample the explosion epoch as a free parameter, load the transient with
+  :code:`use_phase_model=True` (so :code:`redback` passes raw MJD times to the model), then fit with
+  :code:`t0_kilonova_extinction` (or :code:`t0_supernova_extinction` etc.).  These models take MJD time and
+  :code:`t0` as inputs, subtract t0, apply extinction, and call the underlying physical model.
+  The prior on :code:`t0` must have its **maximum at or before the time of the first detection** — a t0 after the
+  first detection leaves the likelihood with no valid data points.
+
+- **Matching simulation and fit model**: for a proper injection-recovery test, use
+  :code:`extinction_with_kilonova_base_model` as the simulation source (injecting a fixed :code:`av_host`) and
+  :code:`t0_kilonova_extinction` as the fit model (sampling both :code:`av_host` and :code:`t0`).
+  The physics is identical; the difference is that the fit model also samples t0.
+
+- **Explosion time window and pre-explosion non-detections**: use :code:`obs_time_window_offset=(-5, 20)`
+  to observe from 5 days before to 20 days after the explosion.  Pass :code:`phase_bounds=(0.1, None)`
+  to :code:`RedbackWrapperModel` to tell it the valid phase range for the model — observations outside
+  those bounds are automatically zero-padded (:code:`ZeroPadding` is the default extrapolation) and
+  appear as non-detections in :code:`results_augment_lightcurves`.  Pre-explosion non-detections are
+  scientifically useful for constraining :code:`t0`.  Requires lightcurvelynx >= 0.4.3.
+
+- **Filter names**: LightCurveLynx uses short names (e.g. :code:`'g'`, :code:`'r'`); :code:`redback` expects
+  survey-qualified names (e.g. :code:`'lsstg'`, :code:`'lsstr'`). Remap the filter column before calling
+  :code:`from_lightcurvelynx`.
+
+- **Non-detections**: :code:`results_augment_lightcurves` flags sub-threshold observations as
+  :code:`detection=False`. By default :code:`from_lightcurvelynx` drops these rows. Pass
+  :code:`include_upper_limits=True` to keep them as upper limits in the fit.
+
+- **MW extinction**: :code:`av_mw` can be fixed to a known value (e.g. looked up from an external MW
+  dust map for the object's sky position) and passed as a :code:`model_kwarg` rather than sampled.
+
+A complete end-to-end example (two simulations: one without extinction and one with, each with a corresponding fit)
+is provided in
+`examples/lightcurvelynx_inference_example.py <https://github.com/nikhil-sarin/redback/blob/master/examples/lightcurvelynx_inference_example.py>`_.
+
 For a complete guide to simulating X-ray/gamma-ray spectra and fitting them with Bayesian inference,
 see the :doc:`xray_spectral_fitting` documentation.
