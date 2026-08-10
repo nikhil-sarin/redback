@@ -35,14 +35,17 @@ setup(
         "extinction",
         "requests",
         "lxml",
-        "sphinx-rtd-theme",
-        "sphinx-tabs",
         "bilby",
         "regex",
         "sncosmo",
         "afterglowpy",
     ],
     extras_require={
+        'docs': [
+            "sphinx",
+            "sphinx-rtd-theme",
+            "sphinx-tabs",
+        ],
         'all': [
             "nestle",
             "sherpa",
