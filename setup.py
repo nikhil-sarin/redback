@@ -22,8 +22,16 @@ setup(
         'redback.transient_models.afterglow_models',
     ],
     package_dir={'redback': 'redback', },
-    package_data={'redback': ['priors/*', 'priors/non_default_priors/*', 'tables/*', 'tables/xsect/*',
-                              'tables/guillochon_tde_data/*/*', 'plot_styles/*']},
+    package_data={
+        'redback': [
+            'priors/*',
+            'priors/non_default_priors/*',
+            'tables/*',
+            'tables/xsect/*',
+            'tables/guillochon_tde_data/*/*',
+            'plot_styles/*'
+            ]
+        },
     install_requires=[
         "numpy",
         "numba",
