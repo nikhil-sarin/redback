@@ -4,6 +4,7 @@ import unittest
 from unittest import mock
 
 from redback import likelihoods
+from redback.utils import calc_flux_density_from_ABmag
 
 
 class GaussianLikelihoodTest(unittest.TestCase):
@@ -71,6 +72,66 @@ class GaussianLikelihoodTest(unittest.TestCase):
     def test_residual(self):
         expected = self.x - self.y
         self.assertTrue(np.array_equal(expected, self.likelihood.residual))
+
+
+class GaussianLikelihoodOnMagnitudeFluxTest(unittest.TestCase):
+
+    def setUp(self):
+        self.x = np.array([0.0, 1.0, 2.0])
+        self.magnitudes = np.array([20.0, 20.5, 21.0])
+        self.magnitude_errors = np.array([0.1, 0.2, 0.15])
+
+        def function(x, offset, **kwargs):
+            return self.magnitudes + offset
+
+        self.function = function
+        self.likelihood = likelihoods.GaussianLikelihoodOnMagnitudeFlux(
+            x=self.x, y=self.magnitudes, sigma=self.magnitude_errors,
+            function=self.function)
+        self.likelihood.parameters['offset'] = 0.0
+
+    def test_converts_data_and_model_to_ab_flux_density(self):
+        expected_flux_density = calc_flux_density_from_ABmag(self.magnitudes).value
+        expected_sigma = (
+            np.log(10.0) / 2.5 * expected_flux_density * self.magnitude_errors)
+
+        np.testing.assert_allclose(self.likelihood.y, expected_flux_density)
+        np.testing.assert_allclose(self.likelihood.sigma, expected_sigma)
+        np.testing.assert_allclose(self.likelihood.model_output, expected_flux_density)
+
+    def test_matches_gaussian_likelihood_on_converted_flux_density(self):
+        self.likelihood.parameters['offset'] = 0.2
+        control = likelihoods.GaussianLikelihood(
+            x=self.x, y=self.likelihood.y, sigma=self.likelihood.sigma,
+            function=lambda x: self.likelihood.model_output)
+
+        self.assertAlmostEqual(
+            self.likelihood.log_likelihood(), control.log_likelihood())
+
+    def test_scalar_magnitude_error(self):
+        likelihood = likelihoods.GaussianLikelihoodOnMagnitudeFlux(
+            x=self.x, y=self.magnitudes, sigma=0.1, function=self.function)
+
+        expected = np.log(10.0) / 2.5 * likelihood.y * 0.1
+        np.testing.assert_allclose(likelihood.sigma, expected)
+
+    def test_rejects_invalid_data_uncertainties(self):
+        for sigma in (0.0, -0.1, np.nan, np.inf):
+            with self.subTest(sigma=sigma), self.assertRaises(ValueError):
+                likelihoods.GaussianLikelihoodOnMagnitudeFlux(
+                    x=self.x, y=self.magnitudes, sigma=sigma,
+                    function=self.function)
+
+    def test_non_finite_model_returns_negative_infinity(self):
+        def invalid_function(x, offset, **kwargs):
+            return np.full_like(x, np.nan)
+
+        likelihood = likelihoods.GaussianLikelihoodOnMagnitudeFlux(
+            x=self.x, y=self.magnitudes, sigma=self.magnitude_errors,
+            function=invalid_function)
+        likelihood.parameters['offset'] = 0.0
+
+        self.assertEqual(likelihood.log_likelihood(), -np.inf)
 
 
 class GaussianLikelihoodUniformXErrorsTest(unittest.TestCase):

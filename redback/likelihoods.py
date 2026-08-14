@@ -3,7 +3,7 @@ from typing import Any, Union
 
 import bilby
 from scipy.special import gammaln, erf
-from redback.utils import logger
+from redback.utils import calc_flux_density_from_ABmag, logger
 from bilby.core.prior import DeltaFunction, Constraint
 
 
@@ -229,6 +229,68 @@ class GaussianLikelihood(_RedbackLikelihood):
     @staticmethod
     def _gaussian_log_likelihood(res: np.ndarray, sigma: Union[float, np.ndarray]) -> Any:
         return np.sum(- (res / sigma) ** 2 / 2 - np.log(2 * np.pi * sigma ** 2) / 2)
+
+
+class GaussianLikelihoodOnMagnitudeFlux(GaussianLikelihood):
+    """Evaluate an AB-magnitude model with a Gaussian likelihood in flux density.
+
+    The input data, uncertainties, and model output are AB magnitudes. They are
+    converted internally to mJy, with magnitude uncertainties propagated using
+    the local derivative of the AB magnitude relation. This is useful when the
+    measurement noise is approximately Gaussian in flux density but the model
+    is configured with ``output_format='magnitude'``.
+    """
+
+    def __init__(
+            self, x: np.ndarray, y: np.ndarray, sigma: Union[float, np.ndarray],
+            function: callable, kwargs: dict = None, priors=None,
+            fiducial_parameters=None) -> None:
+        """
+        :param x: The x values.
+        :param y: The observed AB magnitudes.
+        :param sigma: The one-sigma magnitude uncertainties.
+        :param function: A model that returns AB magnitudes.
+        :param kwargs: Any additional keywords for ``function``.
+        :param priors: Priors used by maximum likelihood estimation functionality.
+        :param fiducial_parameters: Starting values for maximum likelihood estimation.
+        """
+        magnitudes = np.asarray(y, dtype=float)
+        magnitude_sigma = np.asarray(sigma, dtype=float)
+        if magnitudes.ndim != 1:
+            raise ValueError('y must be a one-dimensional array of AB magnitudes.')
+        if magnitude_sigma.ndim > 1 or (
+                magnitude_sigma.ndim == 1 and len(magnitude_sigma) != len(magnitudes)):
+            raise ValueError('sigma must be a scalar or have the same length as y.')
+        if not np.all(np.isfinite(magnitudes)):
+            raise ValueError('y must contain only finite AB magnitudes.')
+        if not np.all(np.isfinite(magnitude_sigma)) or np.any(magnitude_sigma <= 0):
+            raise ValueError('sigma must contain only finite, positive magnitude uncertainties.')
+
+        self.magnitudes = magnitudes
+        self.magnitude_sigma = magnitude_sigma
+        self._ab_zero_point_mjy = calc_flux_density_from_ABmag(0.0).value
+        flux_density = self._magnitude_to_flux_density(magnitudes)
+        flux_density_sigma = np.log(10.0) / 2.5 * flux_density * magnitude_sigma
+        super().__init__(
+            x=x, y=flux_density, sigma=flux_density_sigma, function=function,
+            kwargs=kwargs, priors=priors, fiducial_parameters=fiducial_parameters)
+
+    def _magnitude_to_flux_density(self, magnitude: np.ndarray) -> np.ndarray:
+        return self._ab_zero_point_mjy * np.power(10.0, -0.4 * np.asarray(magnitude))
+
+    @property
+    def model_output(self) -> np.ndarray:
+        model_magnitude = self.function(self.x, **self.parameters, **self.kwargs)
+        return self._magnitude_to_flux_density(model_magnitude)
+
+    def log_likelihood(self, parameters=None) -> float:
+        self._update_parameters(parameters)
+        model_output = self.model_output
+        if not np.all(np.isfinite(model_output)):
+            return -np.inf
+        log_likelihood = self._gaussian_log_likelihood(
+            res=self.y - model_output, sigma=self.sigma)
+        return float(log_likelihood) if np.isfinite(log_likelihood) else -np.inf
 
 
 class GaussianLikelihoodWithUpperLimits(GaussianLikelihood):

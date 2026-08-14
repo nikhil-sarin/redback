@@ -14,6 +14,7 @@ Regular likelihoods
 -------------------------
 
 - Gaussian likelihood - general Gaussian likelihood
+- Gaussian likelihood on magnitude flux (:code:`GaussianLikelihoodOnMagnitudeFlux`) - accepts AB magnitude data and a model that returns magnitudes, but evaluates the Gaussian likelihood after converting both to flux density
 - GRB Gaussian likelihood - a GRB specific Gaussian likelihood
 - Poisson likelihood - For a poisson process
 
@@ -70,6 +71,48 @@ If you don't like the likelihoods implemented in redback, you can write your own
                res = self.y - self.function(self.x, **self.parameters, **self.kwargs)
                return -0.5 * (np.sum((res / self.sigma)**2)
                               + self.N*np.log(2*np.pi*self.sigma**2))
+
+Gaussian likelihood for magnitude data in flux space
+-------------------------
+
+Photometric measurement noise is often approximately Gaussian in flux density rather than in
+magnitude. :code:`GaussianLikelihoodOnMagnitudeFlux` allows a transient and model to remain in
+Redback's :code:`magnitude` data mode while evaluating the residuals in AB flux density. The
+observed magnitudes and model magnitudes are converted to mJy internally, and magnitude errors are
+propagated as
+
+.. math::
+
+    \sigma_f = \frac{\ln 10}{2.5} f_\nu \sigma_m.
+
+Construct this likelihood explicitly and pass it to :code:`fit_model`:
+
+.. code:: python
+
+    from redback.likelihoods import GaussianLikelihoodOnMagnitudeFlux
+
+    likelihood = GaussianLikelihoodOnMagnitudeFlux(
+        x=transient.x,
+        y=transient.y,
+        sigma=transient.y_err,
+        function=model,
+        kwargs=model_kwargs,
+    )
+
+    result = redback.fit_model(
+        transient=transient,
+        model=model,
+        likelihood=likelihood,
+        prior=prior,
+        model_kwargs=model_kwargs,
+        ...
+    )
+
+The data and model must use AB magnitudes, and the magnitude uncertainties must be finite and
+positive. The uncertainty conversion is a local linear propagation, so this likelihood is most
+appropriate when the supplied magnitude errors were themselves derived from approximately Gaussian
+flux-density errors. It currently handles detections only; use
+:code:`GaussianLikelihoodWithUpperLimits` for datasets containing upper limits.
 
 Non-detections / upper limits
 -------------------------
