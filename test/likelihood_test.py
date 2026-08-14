@@ -413,6 +413,18 @@ class GaussianLikelihoodWithUpperLimitsTest(unittest.TestCase):
         self.assertIn("NaN", str(ctx.exception))
         self.assertIn("upper limit", str(ctx.exception))
 
+    def test_nonfinite_measurement_errors_are_ignored_for_upper_limits(self):
+        """Upper-limit uncertainty comes from the limit and upper_limit_sigma."""
+        sigma = self.sigma.copy()
+        sigma[~self.detections] = [np.nan, np.inf]
+        likelihood = likelihoods.GaussianLikelihoodWithUpperLimits(
+            x=self.x, y=self.y, sigma=sigma, function=self.function,
+            detections=self.detections, upper_limit_sigma=self.upper_limit_sigma,
+            kwargs=self.kwargs)
+
+        self.assertTrue(np.isfinite(likelihood.log_likelihood({'param_1': 1.0})))
+        self.assertTrue(np.isfinite(likelihood.noise_log_likelihood()))
+
     def test_data_mode_validation(self):
         """Test that data_mode setter validates allowed values"""
         self.likelihood.data_mode = 'flux_density'

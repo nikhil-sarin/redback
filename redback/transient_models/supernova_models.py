@@ -80,30 +80,24 @@ def sncosmo_models(time, redshift, model_kwargs=None, **kwargs):
         model.set_source_peakabsmag(peak_abs_mag, band=peak_abs_mag_band, magsys=magsystem, cosmo=cosmology)
 
     if kwargs['output_format'] == 'flux_density':
-        frequency = kwargs['frequency']
-
-        if isinstance(frequency, float):
-            frequency = np.array([frequency])
-
-        if (len(frequency) != 1 or len(frequency) == len(time)):
+        time_array = np.atleast_1d(np.asarray(time, dtype=float))
+        frequency = np.atleast_1d(np.asarray(kwargs['frequency'], dtype=float))
+        if len(frequency) not in (1, len(time_array)):
             raise ValueError('frequency array must be of length 1 or same size as time array')
 
         unique_frequency = np.sort(np.unique(frequency))
         angstroms = nu_to_lambda(unique_frequency)
-
-        _flux = model.flux(time, angstroms)
+        flux_lambda = model.flux(time_array, angstroms)
 
         if len(frequency) > 1:
-            _flux = pd.DataFrame(_flux)
-            _flux.columns = unique_frequency
-            _flux = np.array([_flux[freq].iloc[i] for i, freq in enumerate(frequency)])
+            flux_lambda = pd.DataFrame(flux_lambda)
+            flux_lambda.columns = unique_frequency
+            flux_lambda = np.array([
+                flux_lambda[freq].iloc[i] for i, freq in enumerate(frequency)])
 
         units = uu.erg / uu.s / uu.Hz / uu.cm ** 2.
-        _flux = _flux * nu_to_lambda(frequency)
-        _flux = _flux / frequency
-        _flux = _flux << units
-
-        flux_density = _flux.to(uu.mJy).flatten()
+        flux_nu = flux_lambda * nu_to_lambda(frequency) / frequency
+        flux_density = (flux_nu << units).to(uu.mJy).flatten()
         return flux_density
 
     if kwargs['output_format'] == 'flux':

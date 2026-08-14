@@ -130,6 +130,43 @@ You can also construct the likelihood manually:
 is substituted automatically. For manually constructed datasets, replace any NaN upper limit
 values with the actual limiting magnitude or flux before passing to the likelihood.
 
+The measurement-error array must have one entry per observation. Errors for detected points must
+be finite and positive because they enter the Gaussian likelihood directly. Errors attached to
+upper-limit points are not used by :code:`GaussianLikelihoodWithUpperLimits`: their effective
+uncertainty is calculated from the finite limit value and :code:`upper_limit_sigma`. Consequently,
+an upper-limit error may be NaN or infinite without changing this likelihood. A finite placeholder
+is nevertheless convenient when the same transient will also be passed to plotting code or a custom
+likelihood that expects every error to be finite.
+
+For example, when constructing a transient from a table with missing upper-limit uncertainties:
+
+.. code:: python
+
+    detections = np.asarray(detections, dtype=bool)
+    errors = np.asarray(errors, dtype=float)
+
+    invalid_detection_errors = detections & (~np.isfinite(errors) | (errors <= 0))
+    if np.any(invalid_detection_errors):
+        raise ValueError("Detected data require finite, positive uncertainties")
+
+    # This value is ignored for rows where detections is False.
+    errors[~detections] = 1.0
+
+    transient = redback.transient.Supernova(
+        name="my_supernova",
+        data_mode="flux_density",
+        time=time,
+        flux_density=flux_density,
+        flux_density_err=errors,
+        bands=bands,
+        detections=detections,
+        upper_limit_sigma=5.0,
+    )
+
+For flux-like data, Redback uses :math:`\sigma_{\rm lim}=y_{\rm lim}/N` for an :math:`N`-sigma
+limit. For magnitudes it uses :math:`\sigma_{m,\rm lim}=(2.5/\ln 10)/N`. These are derived inside
+the upper-limit likelihood; the placeholder in :code:`errors` does not replace or modify them.
+
 Joint likelihoods
 -------------------------
 
