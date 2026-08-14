@@ -268,7 +268,6 @@ class GaussianLikelihoodOnMagnitudeFlux(GaussianLikelihood):
 
         self.magnitudes = magnitudes
         self.magnitude_sigma = magnitude_sigma
-        self._ab_zero_point_mjy = calc_flux_density_from_ABmag(0.0).value
         flux_density = self._magnitude_to_flux_density(magnitudes)
         flux_density_sigma = np.log(10.0) / 2.5 * flux_density * magnitude_sigma
         super().__init__(
@@ -276,7 +275,7 @@ class GaussianLikelihoodOnMagnitudeFlux(GaussianLikelihood):
             kwargs=kwargs, priors=priors, fiducial_parameters=fiducial_parameters)
 
     def _magnitude_to_flux_density(self, magnitude: np.ndarray) -> np.ndarray:
-        return self._ab_zero_point_mjy * np.power(10.0, -0.4 * np.asarray(magnitude))
+        return calc_flux_density_from_ABmag(magnitude).value
 
     @property
     def model_output(self) -> np.ndarray:
