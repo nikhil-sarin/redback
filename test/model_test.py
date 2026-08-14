@@ -97,6 +97,22 @@ class TestSncosmoModels(unittest.TestCase):
         np.testing.assert_allclose(result.to(uu.mJy).value, expected)
 
     @patch('sncosmo.Model')
+    def test_flux_density_accepts_python_float_frequency(self, model_class):
+        model_class.return_value = self._mock_model([[1.0], [2.0], [3.0]])
+        time = np.array([1.0, 2.0, 3.0])
+        frequency = 4.0e14
+
+        result = sncosmo_models(
+            time=time, redshift=0.1, model_kwargs={}, frequency=frequency,
+            output_format='flux_density', host_extinction=False, mw_extinction=False)
+
+        expected_flux_nu = np.array([1.0, 2.0, 3.0]) * nu_to_lambda(frequency) / frequency
+        expected = (
+            expected_flux_nu << (uu.erg / uu.s / uu.Hz / uu.cm ** 2)
+        ).to(uu.mJy).value
+        np.testing.assert_allclose(result.to(uu.mJy).value, expected)
+
+    @patch('sncosmo.Model')
     def test_flux_density_rejects_mismatched_frequency_array(self, model_class):
         model_class.return_value = self._mock_model([[1.0]])
         with self.assertRaisesRegex(ValueError, 'length 1 or same size as time array'):

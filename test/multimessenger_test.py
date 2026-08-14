@@ -1520,6 +1520,29 @@ class RealCodePathsTest(unittest.TestCase):
         np.testing.assert_array_equal(likelihood.x, np.array([1.0, 3.0]))
         np.testing.assert_array_equal(likelihood.y, np.array([10.0, 4.0]))
 
+    def test_build_likelihood_with_infinite_upper_limits_uses_detections_only(self):
+        """Infinite upper limits should not be silently treated as Gaussian data."""
+        detections = np.array([True, False, True])
+        transient = Transient(
+            time=np.array([1.0, 2.0, 3.0]),
+            flux=np.array([10.0, np.inf, 4.0]),
+            flux_err=np.ones(3),
+            data_mode='flux',
+            detections=detections,
+            name='infinite_upper_limit_optical'
+        )
+        mm = MultiMessengerTransient(optical_transient=transient)
+
+        def model(time, amplitude=1.0):
+            return amplitude * np.ones_like(time)
+
+        likelihood = mm._build_likelihood_for_messenger('optical', transient, model)
+
+        self.assertIsInstance(likelihood, GaussianLikelihood)
+        self.assertNotIsInstance(likelihood, GaussianLikelihoodWithUpperLimits)
+        np.testing.assert_array_equal(likelihood.x, np.array([1.0, 3.0]))
+        np.testing.assert_array_equal(likelihood.y, np.array([10.0, 4.0]))
+
     def test_upper_limit_likelihood_without_limits_preserves_time_errors(self):
         """Explicit upper-limit likelihood should not drop time errors if all points are detections."""
         transient = Transient(

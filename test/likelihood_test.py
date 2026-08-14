@@ -402,16 +402,28 @@ class GaussianLikelihoodWithUpperLimitsTest(unittest.TestCase):
         with self.assertRaises(ValueError):
             self.likelihood.upper_limit_sigma = np.array([1.0, 2.0, 3.0])
 
-    def test_nan_upper_limit_rejected(self):
-        """Test that NaN y-values for upper limits raise ValueError"""
-        y_with_nan = np.array([0.5, 1.2, 2.1, np.nan, np.nan])
-        with self.assertRaises(ValueError) as ctx:
-            likelihoods.GaussianLikelihoodWithUpperLimits(
-                x=self.x, y=y_with_nan, sigma=self.sigma, function=self.function,
-                detections=self.detections, upper_limit_sigma=self.upper_limit_sigma,
-                kwargs=self.kwargs)
-        self.assertIn("NaN", str(ctx.exception))
-        self.assertIn("upper limit", str(ctx.exception))
+    def test_nonfinite_upper_limit_rejected(self):
+        """NaN and infinite upper-limit values cannot define a likelihood CDF."""
+        for invalid_value in (np.nan, np.inf, -np.inf):
+            with self.subTest(invalid_value=invalid_value):
+                y_with_invalid_limit = self.y.copy()
+                y_with_invalid_limit[-1] = invalid_value
+                with self.assertRaisesRegex(ValueError, 'upper limit.*non-finite|non-finite.*upper limit'):
+                    likelihoods.GaussianLikelihoodWithUpperLimits(
+                        x=self.x, y=y_with_invalid_limit, sigma=self.sigma,
+                        function=self.function, detections=self.detections,
+                        upper_limit_sigma=self.upper_limit_sigma, kwargs=self.kwargs)
+
+    def test_upper_limit_sigma_rejects_nonfinite_or_nonpositive_values(self):
+        invalid_values = (
+            0.0, -1.0, np.nan, np.inf, -np.inf,
+            np.array([2.0, 0.0]), np.array([2.0, -1.0]),
+            np.array([2.0, np.nan]), np.array([2.0, np.inf]),
+        )
+        for invalid_value in invalid_values:
+            with self.subTest(invalid_value=invalid_value):
+                with self.assertRaisesRegex(ValueError, 'finite, positive'):
+                    self.likelihood.upper_limit_sigma = invalid_value
 
     def test_nonfinite_measurement_errors_are_ignored_for_upper_limits(self):
         """Upper-limit uncertainty comes from the limit and upper_limit_sigma."""
@@ -421,9 +433,21 @@ class GaussianLikelihoodWithUpperLimitsTest(unittest.TestCase):
             x=self.x, y=self.y, sigma=sigma, function=self.function,
             detections=self.detections, upper_limit_sigma=self.upper_limit_sigma,
             kwargs=self.kwargs)
+        control_sigma = self.sigma.copy()
+        control_sigma[~self.detections] = 1.0
+        control = likelihoods.GaussianLikelihoodWithUpperLimits(
+            x=self.x, y=self.y, sigma=control_sigma, function=self.function,
+            detections=self.detections, upper_limit_sigma=self.upper_limit_sigma,
+            kwargs=self.kwargs)
 
-        self.assertTrue(np.isfinite(likelihood.log_likelihood({'param_1': 1.0})))
-        self.assertTrue(np.isfinite(likelihood.noise_log_likelihood()))
+        log_likelihood = likelihood.log_likelihood({'param_1': 1.0})
+        control_log_likelihood = control.log_likelihood({'param_1': 1.0})
+        noise_log_likelihood = likelihood.noise_log_likelihood()
+        control_noise_log_likelihood = control.noise_log_likelihood()
+        self.assertTrue(np.isfinite(log_likelihood))
+        self.assertTrue(np.isfinite(noise_log_likelihood))
+        self.assertAlmostEqual(log_likelihood, control_log_likelihood)
+        self.assertAlmostEqual(noise_log_likelihood, control_noise_log_likelihood)
 
     def test_data_mode_validation(self):
         """Test that data_mode setter validates allowed values"""

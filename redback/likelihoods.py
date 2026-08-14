@@ -283,16 +283,17 @@ class GaussianLikelihoodWithUpperLimits(GaussianLikelihood):
         self.upper_limit_sigma = upper_limit_sigma
         self.data_mode = data_mode
 
-        # Validate that upper limit y-values are finite (NaN upper limits are not usable for likelihood)
+        # Upper limits must identify a finite location for the likelihood CDF.
         if self._detections is not None and not np.all(self._detections):
             ul_y = self.y[~self._detections]
-            nan_ul = np.isnan(ul_y)
-            if np.any(nan_ul):
-                n_nan = int(np.sum(nan_ul))
+            invalid_ul = ~np.isfinite(ul_y)
+            if np.any(invalid_ul):
+                n_invalid = int(np.sum(invalid_ul))
                 raise ValueError(
-                    f"{n_nan} upper limit(s) have NaN y-values. Upper limits require a finite "
+                    f"{n_invalid} upper limit(s) have non-finite (NaN or infinite) y-values. "
+                    f"Upper limits require a finite "
                     f"value (e.g. the limiting magnitude or flux) to compute likelihood. "
-                    f"Replace NaN values with the upper limit value, or remove those data points."
+                    f"Replace non-finite values with the upper limit value, or remove those data points."
                 )
 
     @property
@@ -320,9 +321,14 @@ class GaussianLikelihoodWithUpperLimits(GaussianLikelihood):
 
     @upper_limit_sigma.setter
     def upper_limit_sigma(self, upper_limit_sigma: Union[float, np.ndarray]) -> None:
-        if isinstance(upper_limit_sigma, (float, int)):
-            self._upper_limit_sigma = float(upper_limit_sigma)
+        if isinstance(upper_limit_sigma, (float, int, np.floating, np.integer)):
+            value = float(upper_limit_sigma)
+            if not np.isfinite(value) or value <= 0:
+                raise ValueError('upper_limit_sigma must contain only finite, positive values.')
+            self._upper_limit_sigma = value
         elif isinstance(upper_limit_sigma, np.ndarray):
+            if not np.all(np.isfinite(upper_limit_sigma)) or np.any(upper_limit_sigma <= 0):
+                raise ValueError('upper_limit_sigma must contain only finite, positive values.')
             if len(upper_limit_sigma) == len(self.x):
                 self._upper_limit_sigma = upper_limit_sigma
             elif hasattr(self, '_detections') and len(upper_limit_sigma) == np.sum(~self._detections):

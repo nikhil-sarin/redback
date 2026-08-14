@@ -371,12 +371,12 @@ def _fit_optical_transient(transient, model, outdir, label, likelihood=None, sam
             n_ul = int(np.sum(~detections))
             # Check that upper limit y-values are finite
             ul_y = y[~detections]
-            n_nan_ul = int(np.sum(np.isnan(ul_y)))
-            if n_nan_ul > 0:
+            n_invalid_ul = int(np.sum(~np.isfinite(ul_y)))
+            if n_invalid_ul > 0:
                 logger.warning(
-                    f"{n_nan_ul} upper limit(s) have NaN y-values, which cannot be used in "
+                    f"{n_invalid_ul} upper limit(s) have non-finite y-values, which cannot be used in "
                     f"GaussianLikelihoodWithUpperLimits. Falling back to standard GaussianLikelihood "
-                    f"with detection data only. Replace NaN values with the upper limit value "
+                    f"with detection data only. Replace non-finite values with the upper limit value "
                     f"(e.g. limiting magnitude or flux) to use upper limit likelihood."
                 )
                 # Filter to detection-only data for standard likelihood

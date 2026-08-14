@@ -894,17 +894,17 @@ class Transient(object):
         are not usable because there is no position to draw the marker at,
         and the likelihood cannot evaluate the CDF without a numerical limit.
 
-        Logs a warning for each band with NaN upper limits.
+        Logs a warning when upper limits are NaN or infinite.
         """
         if self._detections is None or not self.has_upper_limits:
             return
         ul_mask = self.upper_limits
         ul_y = self.y[ul_mask]
-        nan_count = np.sum(np.isnan(ul_y))
-        if nan_count > 0:
+        invalid_count = np.sum(~np.isfinite(ul_y))
+        if invalid_count > 0:
             redback.utils.logger.warning(
-                f"{int(nan_count)} upper limit(s) have NaN y-values. These cannot be "
-                f"plotted or used in likelihood fitting. Replace NaN values with the "
+                f"{int(invalid_count)} upper limit(s) have non-finite y-values. These cannot be "
+                f"plotted or used in likelihood fitting. Replace non-finite values with the "
                 f"upper limit value (e.g. the limiting magnitude or flux), or remove "
                 f"those data points."
             )

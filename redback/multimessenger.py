@@ -415,10 +415,10 @@ class MultiMessengerTransient:
                 )
             n_upper_limits = int(np.sum(~detections))
             upper_limit_y = y[~detections]
-            n_nan_upper_limits = int(np.sum(np.isnan(upper_limit_y)))
-            if n_nan_upper_limits > 0:
+            n_invalid_upper_limits = int(np.sum(~np.isfinite(upper_limit_y)))
+            if n_invalid_upper_limits > 0:
                 logger.warning(
-                    f"{n_nan_upper_limits} upper limit(s) for {messenger} have NaN y-values and "
+                    f"{n_invalid_upper_limits} upper limit(s) for {messenger} have non-finite y-values and "
                     "cannot be used in GaussianLikelihoodWithUpperLimits. Falling back to a "
                     "GaussianLikelihood using detection data only."
                 )

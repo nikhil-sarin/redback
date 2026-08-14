@@ -166,6 +166,7 @@ For example, when constructing a transient from a table with missing upper-limit
 For flux-like data, Redback uses :math:`\sigma_{\rm lim}=y_{\rm lim}/N` for an :math:`N`-sigma
 limit. For magnitudes it uses :math:`\sigma_{m,\rm lim}=(2.5/\ln 10)/N`. These are derived inside
 the upper-limit likelihood; the placeholder in :code:`errors` does not replace or modify them.
+Every value supplied through :code:`upper_limit_sigma` must be finite and strictly positive.
 
 Joint likelihoods
 -------------------------
