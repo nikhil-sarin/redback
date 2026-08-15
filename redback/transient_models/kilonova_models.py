@@ -3,8 +3,8 @@ import pandas as pd
 
 from astropy.table import Table, Column
 from scipy.interpolate import interp1d, RegularGridInterpolator
+from scipy.linalg import solve_banded
 from astropy.cosmology import Planck18 as cosmo  # noqa
-from scipy.integrate import cumulative_trapezoid
 from collections import namedtuple
 
 import redback.utils
@@ -1624,6 +1624,34 @@ def _calc_new_heating_rate(time, mej, electron_fraction, ejecta_velocity, **kwar
     lum_in = qdot_in * m0
     return lum_in * heating_rate_perturbation
 
+
+def _kilonova_diffusion_luminosity(time, thermalised_luminosity, diffusion_timescale):
+    """Evaluate the kilonova diffusion convolution without exponential overflow."""
+    time = np.asarray(time, dtype=float)
+    thermalised_luminosity = np.asarray(thermalised_luminosity, dtype=float)
+    bolometric_luminosity = np.zeros_like(time)
+
+    inverse_tdiff_squared = diffusion_timescale ** -2
+    scaled_time_squared = time ** 2 * inverse_tdiff_squared
+    decay = np.exp(-np.diff(scaled_time_squared))
+    bolometric_luminosity[1:] = 0.5 * np.diff(time) * inverse_tdiff_squared * (
+        decay * thermalised_luminosity[:-1] * time[:-1]
+        + thermalised_luminosity[1:] * time[1:]
+    )
+    diffusion_system = np.zeros((2, len(time)))
+    diffusion_system[0] = 1.0
+    diffusion_system[1, :-1] = -decay
+    bolometric_luminosity = solve_banded(
+        (1, 0), diffusion_system, bolometric_luminosity, check_finite=False
+    )
+
+    if len(time) > 1:
+        # Match the historical treatment of the first grid point.
+        bolometric_luminosity[0] = bolometric_luminosity[1] * np.exp(
+            scaled_time_squared[1] - scaled_time_squared[0]
+        )
+    return bolometric_luminosity
+
 def _calculate_rosswogkorobkin24_qdot_formula(time_array, e0, alp, t0, sig, alp1,
                             t1, sig1, c1, tau1, c2, tau2, c3, tau3):
     time = time_array
@@ -1656,12 +1684,7 @@ def _one_component_kilonova_rosswog_heatingrate(time, mej, vej, electron_fractio
     tdiff = np.sqrt(2.0 * kappa * (m0) / (beta * v0 * speed_of_light))
 
     lum_in = _calc_new_heating_rate(time, mej, electron_fraction, vej, **kwargs)
-    integrand = lum_in * e_th * (time / tdiff) * np.exp(time ** 2 / tdiff ** 2)
-
-    bolometric_luminosity = np.zeros(len(time))
-    bolometric_luminosity[1:] = cumulative_trapezoid(integrand, time)
-    bolometric_luminosity[0] = bolometric_luminosity[1]
-    bolometric_luminosity = bolometric_luminosity * np.exp(-time ** 2 / tdiff ** 2) / tdiff
+    bolometric_luminosity = _kilonova_diffusion_luminosity(time, lum_in * e_th, tdiff)
 
     temperature = (bolometric_luminosity / (4.0 * np.pi * sigma_sb * v0 ** 2 * time ** 2)) ** 0.25
     r_photosphere = (bolometric_luminosity / (4.0 * np.pi * sigma_sb * temperature_floor ** 4)) ** 0.5
@@ -1882,11 +1905,7 @@ def _one_component_kilonova_model(time, mej, vej, kappa, **kwargs):
     m0 = mej * solar_mass
     tdiff = np.sqrt(2.0 * kappa * (m0) / (beta * v0 * speed_of_light))
     lum_in = 4.0e18 * (m0) * (0.5 - np.arctan((time - t0) / sig) / np.pi)**1.3
-    integrand = lum_in * e_th * (time/tdiff) * np.exp(time**2/tdiff**2)
-    bolometric_luminosity = np.zeros(len(time))
-    bolometric_luminosity[1:] = cumulative_trapezoid(integrand, time)
-    bolometric_luminosity[0] = bolometric_luminosity[1]
-    bolometric_luminosity = bolometric_luminosity * np.exp(-time**2/tdiff**2) / tdiff
+    bolometric_luminosity = _kilonova_diffusion_luminosity(time, lum_in * e_th, tdiff)
 
     temperature = (bolometric_luminosity / (4.0 * np.pi * sigma_sb * v0**2 * time**2))**0.25
     r_photosphere = (bolometric_luminosity / (4.0 * np.pi * sigma_sb * temperature_floor**4))**0.5

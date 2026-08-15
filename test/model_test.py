@@ -2233,6 +2233,45 @@ class TestCosmologicalCorrections(unittest.TestCase):
 
 class TestOptimalTimeArray(unittest.TestCase):
     """Test suite for the get_optimal_time_array utility function."""
+
+    def test_kilonova_diffusion_matches_finite_legacy_calculation(self):
+        from redback.transient_models.kilonova_models import _kilonova_diffusion_luminosity
+
+        time = np.geomspace(1.0e-2, 2.0e5, 200)
+        thermalised_luminosity = 1.0e42 * np.exp(-time / 1.0e5)
+        diffusion_timescale = 4.0e5
+        integrand = (
+            thermalised_luminosity * (time / diffusion_timescale)
+            * np.exp(time ** 2 / diffusion_timescale ** 2)
+        )
+        cumulative_integral = np.zeros_like(time)
+        cumulative_integral[1:] = np.cumsum(
+            0.5 * (integrand[:-1] + integrand[1:]) * np.diff(time)
+        )
+        cumulative_integral[0] = cumulative_integral[1]
+        expected = (
+            cumulative_integral * np.exp(-time ** 2 / diffusion_timescale ** 2)
+            / diffusion_timescale
+        )
+
+        actual = _kilonova_diffusion_luminosity(
+            time, thermalised_luminosity, diffusion_timescale
+        )
+
+        np.testing.assert_allclose(actual, expected, rtol=2.0e-14)
+
+    def test_kilonova_diffusion_is_finite_for_extreme_valid_prior(self):
+        import warnings
+        import redback
+
+        with warnings.catch_warnings():
+            warnings.filterwarnings("error", category=RuntimeWarning)
+            flux_density = redback.transient_models.kilonova_models.one_component_kilonova_model(
+                np.array([0.5, 1.0, 2.0]), redshift=0.05, mej=0.01, vej=0.4, kappa=1.0,
+                temperature_floor=1000, output_format='flux_density', frequency=6e14)
+
+        self.assertTrue(np.all(np.isfinite(flux_density)))
+        self.assertTrue(np.all(flux_density >= 0.0))
     
     def test_basic_functionality(self):
         """Test that the function returns an array of the correct length."""
