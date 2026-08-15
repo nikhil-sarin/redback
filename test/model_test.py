@@ -73,6 +73,10 @@ class TestSncosmoModels(unittest.TestCase):
             time=time, redshift=0.1, model_kwargs={}, frequency=frequency,
             output_format='flux_density', host_extinction=False, mw_extinction=False)
 
+        model_class.return_value.flux.assert_called_once()
+        evaluated_wavelengths = model_class.return_value.flux.call_args.args[1]
+        np.testing.assert_allclose(
+            evaluated_wavelengths, nu_to_lambda(np.sort(np.unique(frequency))))
         selected_flux_lambda = np.array([1.0, 4.0, 5.0])
         expected_flux_nu = selected_flux_lambda * nu_to_lambda(frequency) / frequency
         expected = (
@@ -90,6 +94,9 @@ class TestSncosmoModels(unittest.TestCase):
             time=time, redshift=0.1, model_kwargs={}, frequency=frequency,
             output_format='flux_density', host_extinction=False, mw_extinction=False)
 
+        model_class.return_value.flux.assert_called_once()
+        evaluated_wavelengths = model_class.return_value.flux.call_args.args[1]
+        np.testing.assert_allclose(evaluated_wavelengths, nu_to_lambda(frequency))
         expected_flux_nu = np.array([1.0, 2.0, 3.0]) * nu_to_lambda(frequency) / frequency
         expected = (
             expected_flux_nu << (uu.erg / uu.s / uu.Hz / uu.cm ** 2)
@@ -106,6 +113,9 @@ class TestSncosmoModels(unittest.TestCase):
             time=time, redshift=0.1, model_kwargs={}, frequency=frequency,
             output_format='flux_density', host_extinction=False, mw_extinction=False)
 
+        model_class.return_value.flux.assert_called_once()
+        evaluated_wavelengths = model_class.return_value.flux.call_args.args[1]
+        np.testing.assert_allclose(evaluated_wavelengths, nu_to_lambda(frequency))
         expected_flux_nu = np.array([1.0, 2.0, 3.0]) * nu_to_lambda(frequency) / frequency
         expected = (
             expected_flux_nu << (uu.erg / uu.s / uu.Hz / uu.cm ** 2)

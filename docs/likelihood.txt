@@ -73,7 +73,7 @@ If you don't like the likelihoods implemented in redback, you can write your own
                               + self.N*np.log(2*np.pi*self.sigma**2))
 
 Gaussian likelihood for magnitude data in flux space
--------------------------
+----------------------------------------------------
 
 Photometric measurement noise is often approximately Gaussian in flux density rather than in
 magnitude. :code:`GaussianLikelihoodOnMagnitudeFlux` allows a transient and model to remain in
