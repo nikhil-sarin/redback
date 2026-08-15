@@ -1641,11 +1641,15 @@ def _kilonova_diffusion_luminosity(time, thermalised_luminosity, diffusion_times
     diffusion_system = np.zeros((2, len(time)))
     diffusion_system[0] = 1.0
     diffusion_system[1, :-1] = -decay
-    bolometric_luminosity = solve_banded(
-        (1, 0), diffusion_system, bolometric_luminosity, check_finite=False
+    nonfinite_indices = np.flatnonzero(~np.isfinite(bolometric_luminosity))
+    finite_prefix_length = nonfinite_indices[0] if len(nonfinite_indices) else len(time)
+    bolometric_luminosity[:finite_prefix_length] = solve_banded(
+        (1, 0), diffusion_system[:, :finite_prefix_length],
+        bolometric_luminosity[:finite_prefix_length], check_finite=False
     )
+    bolometric_luminosity[finite_prefix_length:] = np.nan
 
-    if len(time) > 1:
+    if finite_prefix_length > 1:
         # Match the historical treatment of the first grid point.
         bolometric_luminosity[0] = bolometric_luminosity[1] * np.exp(
             scaled_time_squared[1] - scaled_time_squared[0]

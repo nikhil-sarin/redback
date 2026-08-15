@@ -2272,6 +2272,23 @@ class TestOptimalTimeArray(unittest.TestCase):
 
         self.assertTrue(np.all(np.isfinite(flux_density)))
         self.assertTrue(np.all(flux_density >= 0.0))
+
+    def test_kilonova_diffusion_does_not_propagate_late_nan_backwards(self):
+        from redback.transient_models.kilonova_models import _kilonova_diffusion_luminosity
+
+        time = np.geomspace(1.0e-2, 2.0e5, 200)
+        thermalised_luminosity = 1.0e42 * np.exp(-time / 1.0e5)
+        finite_result = _kilonova_diffusion_luminosity(
+            time, thermalised_luminosity, 4.0e5
+        )
+        thermalised_luminosity[150:] = np.nan
+
+        result = _kilonova_diffusion_luminosity(
+            time, thermalised_luminosity, 4.0e5
+        )
+
+        np.testing.assert_allclose(result[:150], finite_result[:150])
+        self.assertTrue(np.all(np.isnan(result[150:])))
     
     def test_basic_functionality(self):
         """Test that the function returns an array of the correct length."""
