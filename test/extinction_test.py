@@ -187,6 +187,72 @@ class TestExtinctionWithSupernovaBaseModel(unittest.TestCase):
 
 
 # ---------------------------------------------------------------------------
+# t0 extinction wrapper
+# ---------------------------------------------------------------------------
+
+class TestT0WithExtinction(unittest.TestCase):
+
+    def _assert_vector_kwargs_masked(self, bands, frequency):
+        from redback.transient_models import phase_models
+
+        time = np.array([59999.0, 60000.0, 60001.0])
+
+        def dummy_extinction_model(time, av_host, **kwargs):
+            np.testing.assert_array_equal(time, np.array([0.0, 1.0]))
+            np.testing.assert_array_equal(
+                kwargs['bands'], np.array(['post0', 'post1']))
+            np.testing.assert_array_equal(
+                kwargs['frequency'], np.array([2.0, 3.0]))
+            self.assertEqual(av_host, 0.2)
+            return np.array([20.0, 21.0])
+
+        with mock.patch.dict(phase_models.extinction_model_functions,
+                             {'supernova': dummy_extinction_model}):
+            result = phase_models.t0_supernova_extinction(
+                time=time,
+                t0=60000.0,
+                av_host=0.2,
+                bands=bands,
+                frequency=frequency,
+                output_format='magnitude')
+
+        np.testing.assert_array_equal(
+            result, np.array([5000.0, 20.0, 21.0]))
+
+    def test_masks_numpy_array_kwargs_for_pre_t0_times(self):
+        self._assert_vector_kwargs_masked(
+            bands=np.array(["pre", "post0", "post1"]),
+            frequency=np.array([1.0, 2.0, 3.0]),
+        )
+
+    def test_masks_list_kwargs_for_pre_t0_times(self):
+        self._assert_vector_kwargs_masked(
+            bands=["pre", "post0", "post1"],
+            frequency=[1.0, 2.0, 3.0],
+        )
+
+    def test_does_not_mask_scalar_or_non_per_epoch_kwargs(self):
+        from redback.transient_models import phase_models
+
+        valid_time = np.array([False, True, True])
+
+        kwargs = {
+            "bands": "ztfr",
+            "frequency": [4.5e14],
+            "other_parameter": [1.0, 2.0, 3.0],
+        }
+
+        result = phase_models._mask_per_epoch_kwargs(
+            kwargs,
+            valid_time,
+        )
+
+        self.assertEqual(result["bands"], "ztfr")
+        self.assertEqual(result["frequency"], [4.5e14])
+        self.assertEqual(result["other_parameter"], [1.0, 2.0, 3.0])
+
+
+# ---------------------------------------------------------------------------
 # extinction_with_function
 # ---------------------------------------------------------------------------
 

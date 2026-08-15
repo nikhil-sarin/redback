@@ -18,6 +18,22 @@ extinction_model_functions = {'supernova':extinction_models.extinction_with_supe
                               'shock_powered':extinction_models.extinction_with_shock_powered_base_model,
                               'stellar_interaction':extinction_models.extinction_with_stellar_interaction_base_model}
 
+def _mask_per_epoch_kwargs(kwargs, valid_time):
+    """Apply a boolean mask to per-epoch ``bands`` and ``frequency`` arguments."""
+
+    temp_kwargs = kwargs.copy()
+
+    for key in ("frequency", "bands"):
+        if key not in temp_kwargs:
+            continue
+
+        values = np.asarray(temp_kwargs[key])
+
+        if values.ndim > 0 and values.shape[0] == valid_time.size:
+            temp_kwargs[key] = values[valid_time]
+
+    return temp_kwargs
+
 @citation_wrapper('redback')
 def t0_base_model(time, t0, **kwargs):
     """
@@ -34,17 +50,12 @@ def t0_base_model(time, t0, **kwargs):
     t0 = Time(t0, format='mjd')
     time = Time(np.asarray(time, dtype=float), format='mjd')
     time = (time - t0).to(uu.day).value
-    transient_time = time[time >= 0.0]
-    bad_time = time[time < 0.0]
+    valid_time = time >= 0.0
+    transient_time = time[valid_time]
+    bad_time = time[~valid_time]
     if kwargs['base_model'] in ['thin_shell_supernova', 'homologous_expansion_supernova']:
         kwargs['base_model'] = kwargs.get('submodel', 'arnett_bolometric')
-    temp_kwargs = kwargs.copy()
-    if 'frequency' in temp_kwargs:
-        if isinstance(temp_kwargs['frequency'], np.ndarray):
-            temp_kwargs['frequency'] = kwargs['frequency'][time >= 0.0]
-    if 'bands' in temp_kwargs:
-        if isinstance(temp_kwargs['bands'], np.ndarray):
-            temp_kwargs['bands'] = kwargs['bands'][time >= 0.0]
+    temp_kwargs = _mask_per_epoch_kwargs(kwargs, valid_time)
     output_real = function(transient_time, **temp_kwargs)
     if kwargs['output_format'] == 'magnitude':
         output_fake = np.zeros(len(bad_time)) + 1000
@@ -74,9 +85,11 @@ def _t0_with_extinction(time, t0, av_host, model_type='supernova', **kwargs):
     t0 = Time(t0, format='mjd')
     time = Time(np.asarray(time, dtype=float), format='mjd')
     time = (time - t0).to(uu.day).value
-    transient_time = time[time >= 0.0]
-    bad_time = time[time < 0.0]
-    output_real = function(transient_time, av_host=av_host, **kwargs)
+    valid_time = time >= 0.0
+    transient_time = time[valid_time]
+    bad_time = time[~valid_time]
+    temp_kwargs = _mask_per_epoch_kwargs(kwargs, valid_time)
+    output_real = function(transient_time, av_host=av_host, **temp_kwargs)
     if kwargs['output_format'] == 'magnitude':
         output_fake = np.zeros(len(bad_time)) + 5000
     else:
