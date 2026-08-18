@@ -114,8 +114,10 @@ appropriate when the supplied magnitude errors were themselves derived from appr
 flux-density errors. It currently handles detections only; use
 :code:`GaussianLikelihoodWithUpperLimits` for datasets containing upper limits.
 
+.. _non-detections-upper-limits:
+
 Non-detections / upper limits
--------------------------
+-----------------------------
 
 :code:`GaussianLikelihoodWithUpperLimits` handles datasets that mix genuine detections with
 non-detection upper limits. Each data point is flagged as a detection or upper limit via a boolean
