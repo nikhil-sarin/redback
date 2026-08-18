@@ -1641,12 +1641,15 @@ def _kilonova_diffusion_luminosity(time, thermalised_luminosity, diffusion_times
     diffusion_system = np.zeros((2, len(time)))
     diffusion_system[0] = 1.0
     diffusion_system[1, :-1] = -decay
-    nonfinite_indices = np.flatnonzero(~np.isfinite(bolometric_luminosity))
-    finite_prefix_length = nonfinite_indices[0] if len(nonfinite_indices) else len(time)
-    bolometric_luminosity[:finite_prefix_length] = solve_banded(
-        (1, 0), diffusion_system[:, :finite_prefix_length],
-        bolometric_luminosity[:finite_prefix_length], check_finite=False
+    nonfinite_indices = np.flatnonzero(
+        ~np.isfinite(bolometric_luminosity) | ~np.isfinite(thermalised_luminosity)
     )
+    finite_prefix_length = nonfinite_indices[0] if len(nonfinite_indices) else len(time)
+    if finite_prefix_length:
+        bolometric_luminosity[:finite_prefix_length] = solve_banded(
+            (1, 0), diffusion_system[:, :finite_prefix_length],
+            bolometric_luminosity[:finite_prefix_length], check_finite=False
+        )
     bolometric_luminosity[finite_prefix_length:] = np.nan
 
     if finite_prefix_length > 1:

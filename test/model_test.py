@@ -2289,6 +2289,19 @@ class TestOptimalTimeArray(unittest.TestCase):
 
         np.testing.assert_allclose(result[:150], finite_result[:150])
         self.assertTrue(np.all(np.isnan(result[150:])))
+
+    def test_kilonova_diffusion_is_invalid_from_nonfinite_first_input(self):
+        from redback.transient_models.kilonova_models import _kilonova_diffusion_luminosity
+
+        time = np.geomspace(1.0e-2, 2.0e5, 200)
+        thermalised_luminosity = 1.0e42 * np.exp(-time / 1.0e5)
+        thermalised_luminosity[0] = np.nan
+
+        result = _kilonova_diffusion_luminosity(
+            time, thermalised_luminosity, 4.0e5
+        )
+
+        self.assertTrue(np.all(np.isnan(result)))
     
     def test_basic_functionality(self):
         """Test that the function returns an array of the correct length."""
