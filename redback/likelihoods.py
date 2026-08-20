@@ -1,5 +1,6 @@
 import numpy as np
 from typing import Any, Union
+import warnings
 
 import bilby
 from scipy.special import gammaln, erf
@@ -113,6 +114,12 @@ class _RedbackLikelihood(_RedbackParameterStore, bilby.Likelihood):
         :param break_threshold: The threshold for the difference in log likelihood to break the loop. Default is 1e-3.
         :return: Dictionary of maximum likelihood parameters
         """
+        warnings.warn(
+            "Likelihood.find_maximum_likelihood_parameters is deprecated; use "
+            "redback.fit_model(..., fit_method='mle') instead.",
+            FutureWarning,
+            stacklevel=2,
+        )
         from scipy.optimize import minimize
         parameter_bounds = self.get_bounds_from_priors(self.priors)
         if self.priors is None:
