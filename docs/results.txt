@@ -74,6 +74,22 @@ model selection, reweighting or hierarchical inference.
 
 The :code:`redback.analysis` object enables users to easily make plots for diagnostics or further plots for specific models/transients.
 
+MAP and MLE results
+-------------------
+
+Fits run with :code:`fit_method="map"` or :code:`fit_method="mle"` return the
+same :code:`RedbackResult` type as sampled fits, but their
+:code:`result.posterior` contains one optimized row. That row can be accessed
+directly with :code:`result.point_estimate`. The properties
+:code:`result.fit_method` and :code:`result.optimization` record the objective
+and optimizer diagnostics.
+
+Lightcurve and spectrum plotting methods use that optimized row normally.
+Corner plots, credible intervals, evidence comparisons, and other operations
+requiring posterior samples are not defined for a point-estimate result. Use
+:code:`sampler="laplace"` for an approximate local posterior or a standard Bilby
+sampler for full posterior inference.
+
 Loading a result file
 -------------------------
 
