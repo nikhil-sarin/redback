@@ -20,6 +20,10 @@ def dummy_model(x, **kwargs):
     return np.ones_like(x)
 
 
+def constant_model(x, amplitude, **kwargs):
+    return np.full_like(x, amplitude, dtype=float)
+
+
 # Allow the model lookup via the standard dictionary.
 all_models_dict["dummy_model"] = dummy_model
 
@@ -363,6 +367,117 @@ class TestFitModelAdditional(unittest.TestCase):
         mock_get_priors.assert_called_once_with("vegas_tophat")
         self.assertEqual(result, self.dummy_result)
 
+    @patch("redback.result.read_in_result", side_effect=Exception("No result"))
+    @patch("bilby.run_sampler", autospec=True)
+    @patch("redback.sampler.run_point_estimation", autospec=True)
+    def test_fit_model_routes_map_to_point_estimation(
+            self, mock_point_estimation, mock_run_sampler, mock_read_result):
+        mock_point_estimation.return_value = self.dummy_result
+        trans = DummyOpticalTransient(self.outdir)
+        model_kwargs = {
+            "output_format": "flux_density",
+            "frequency": np.linspace(1e14, 1e15, len(trans.x)),
+        }
+
+        result = fit_model(
+            transient=trans, model="dummy_model", outdir=self.outdir,
+            label="PointFit", prior=self.prior, model_kwargs=model_kwargs,
+            fit_method="map", plot=False)
+
+        self.assertEqual(result, self.dummy_result)
+        mock_run_sampler.assert_not_called()
+        self.assertEqual(mock_point_estimation.call_args.kwargs["fit_method"], "map")
+        self.assertEqual(mock_point_estimation.call_args.kwargs["label"], "PointFit_map")
+
+    def test_fit_model_rejects_sampler_with_point_estimation(self):
+        trans = DummyOpticalTransient(self.outdir)
+        with self.assertRaisesRegex(ValueError, "sampler cannot be combined"):
+            fit_model(
+                transient=trans, model="dummy_model", prior=self.prior,
+                sampler="laplace", fit_method="mle")
+
+    @patch("bilby.core.sampler.get_implemented_samplers", return_value=[])
+    def test_laplace_sampler_has_actionable_missing_plugin_error(self, mock_samplers):
+        trans = DummyOpticalTransient(self.outdir)
+        with self.assertRaisesRegex(ImportError, "GregoryAshton/bilby-laplace"):
+            fit_model(
+                transient=trans, model="dummy_model", prior=self.prior,
+                sampler="laplace")
+
+    @patch("redback.result.read_in_result", side_effect=Exception("No result"))
+    @patch("bilby.run_sampler", autospec=True)
+    @patch("bilby.core.sampler.get_implemented_samplers", return_value=["laplace"])
+    def test_laplace_sampler_uses_existing_sampling_path(
+            self, mock_samplers, mock_run_sampler, mock_read_result):
+        mock_run_sampler.return_value = self.dummy_result
+        trans = DummyOpticalTransient(self.outdir)
+        model_kwargs = {
+            "output_format": "flux_density",
+            "frequency": np.linspace(1e14, 1e15, len(trans.x)),
+        }
+
+        result = fit_model(
+            transient=trans, model="dummy_model", outdir=self.outdir,
+            label="LaplaceFit", sampler="laplace", prior=self.prior,
+            model_kwargs=model_kwargs, plot=False)
+
+        self.assertEqual(result, self.dummy_result)
+        self.assertEqual(mock_run_sampler.call_args.kwargs["sampler"], "laplace")
+
+    @patch("redback.result.read_in_result", side_effect=Exception("No result"))
+    def test_fit_model_mle_end_to_end(self, mock_read_result):
+        trans = DummyOpticalTransient(self.outdir)
+        model_kwargs = {
+            "output_format": "flux_density",
+            "frequency": np.linspace(1e14, 1e15, len(trans.x)),
+        }
+        prior = bilby.prior.PriorDict({
+            "amplitude": bilby.prior.Uniform(0, 30),
+        })
+
+        result = fit_model(
+            transient=trans, model=constant_model, outdir=self.outdir,
+            label="ConstantFit", prior=prior, model_kwargs=model_kwargs,
+            fit_method="mle", plot=False,
+            optimizer_kwargs={
+                "seed": 12, "maxiter": 30, "popsize": 6,
+                "local_options": {"xtol": 1e-8, "ftol": 1e-8},
+            })
+
+        self.assertEqual(result.label, "ConstantFit_mle")
+        self.assertAlmostEqual(result.point_estimate["amplitude"], 15.0, places=5)
+
+    @patch("redback.result.read_in_result", side_effect=Exception("No result"))
+    @patch("redback.sampler.run_point_estimation", autospec=True)
+    def test_map_routes_all_lightcurve_and_spectrum_types(
+            self, mock_point_estimation, mock_read_result):
+        mock_point_estimation.return_value = self.dummy_result
+        transients = [
+            DummySpectrum(self.outdir),
+            DummyAfterglow(self.outdir),
+            DummyPromptTimeSeries(self.outdir),
+            DummyOpticalTransient(self.outdir),
+            DummyTransient(self.outdir),
+        ]
+
+        for index, trans in enumerate(transients):
+            size = len(trans.angstroms) if isinstance(trans, Spectrum) else len(trans.x)
+            model_kwargs = {
+                "output_format": "flux_density",
+                "frequency": np.linspace(1e14, 1e15, size),
+            }
+            with self.subTest(transient=type(trans).__name__):
+                fit_model(
+                    transient=trans, model="dummy_model", outdir=self.outdir,
+                    label=f"Route{index}", prior=self.prior,
+                    model_kwargs=model_kwargs, fit_method="map", plot=False)
+
+        self.assertEqual(mock_point_estimation.call_count, len(transients))
+        self.assertTrue(all(
+            call.kwargs["fit_method"] == "map"
+            for call in mock_point_estimation.call_args_list
+        ))
+
 
 class TestFitSpectralDatasetBranches(unittest.TestCase):
     """Tests for _fit_spectral_dataset statistic selection and validation."""
@@ -488,6 +603,28 @@ class TestFitSpectralDatasetBranches(unittest.TestCase):
                 outdir="/tmp", label="pkl_test",
                 prior=None, plot=False, save_format="json")
         self.assertEqual(captured.get("save"), "pkl")
+
+    def test_map_uses_point_estimation_for_spectral_dataset(self):
+        from redback.sampler import _fit_spectral_dataset
+        from unittest.mock import patch, MagicMock
+
+        def good_model(energies_keV, amplitude):
+            return np.ones_like(energies_keV) * amplitude
+
+        prior = bilby.prior.PriorDict({
+            "amplitude": bilby.prior.Uniform(0.1, 10),
+        })
+        dummy_result = MagicMock()
+        with patch("redback.sampler.run_point_estimation", return_value=dummy_result) as point, \
+             patch("redback.result.read_in_result", side_effect=Exception):
+            result = _fit_spectral_dataset(
+                transient=self.dataset, model=good_model,
+                outdir="/tmp", label="spectral_map", prior=prior,
+                plot=False, fit_method="map", save_format="json")
+
+        self.assertEqual(result, dummy_result)
+        self.assertEqual(point.call_args.kwargs["fit_method"], "map")
+        self.assertEqual(point.call_args.kwargs["save_format"], "pkl")
 
 
 if __name__ == '__main__':
