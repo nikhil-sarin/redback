@@ -153,6 +153,32 @@ Upper limit y-values must be finite. For non-detections, provide the limiting ma
 rather than NaN. When loading simulated data with :code:`include_upper_limits=True`, the limiting magnitude
 is substituted automatically.
 
+The measurement-error array must still contain one entry per observation. Errors for detected points must
+be finite and strictly positive because they enter the Gaussian likelihood. Errors for upper-limit points
+are not used by :code:`GaussianLikelihoodWithUpperLimits`; Redback calculates their effective uncertainty
+from the finite limit value and :code:`upper_limit_sigma`. An upper-limit error may therefore be NaN or
+infinite without changing this likelihood, although a finite placeholder is useful for plotting code or
+custom likelihoods that expect every error to be finite. For example:
+
+.. code:: python
+
+    detections = np.asarray(detections, dtype=bool)
+    mag_err = np.asarray(mag_err, dtype=float)
+
+    invalid_detection_errors = detections & (~np.isfinite(mag_err) | (mag_err <= 0))
+    if np.any(invalid_detection_errors):
+        raise ValueError("Detected data require finite, positive uncertainties")
+
+    # Ignored by the upper-limit likelihood for non-detection rows.
+    mag_err[~detections] = 1.0
+
+For flux-like data, an :math:`N`-sigma limit uses
+:math:`\sigma_{\rm lim}=y_{\rm lim}/N`; for magnitudes Redback uses
+:math:`\sigma_{m,\rm lim}=(2.5/\ln 10)/N`. Consequently, every scalar or array value supplied through
+:code:`upper_limit_sigma` must be finite and strictly positive. See
+:ref:`Non-detections / upper limits <non-detections-upper-limits>` for the likelihood calculation and a
+complete manual-construction example.
+
 In general, you can ignore the class methods and to create your own transient object by passing in the different attributes
 (time/flux/frequencies/bands) to the transient object of relevance.
 

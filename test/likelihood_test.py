@@ -4,6 +4,7 @@ import unittest
 from unittest import mock
 
 from redback import likelihoods
+from redback.utils import calc_flux_density_from_ABmag
 
 
 class GaussianLikelihoodTest(unittest.TestCase):
@@ -71,6 +72,66 @@ class GaussianLikelihoodTest(unittest.TestCase):
     def test_residual(self):
         expected = self.x - self.y
         self.assertTrue(np.array_equal(expected, self.likelihood.residual))
+
+
+class GaussianLikelihoodOnMagnitudeFluxTest(unittest.TestCase):
+
+    def setUp(self):
+        self.x = np.array([0.0, 1.0, 2.0])
+        self.magnitudes = np.array([20.0, 20.5, 21.0])
+        self.magnitude_errors = np.array([0.1, 0.2, 0.15])
+
+        def function(x, offset, **kwargs):
+            return self.magnitudes + offset
+
+        self.function = function
+        self.likelihood = likelihoods.GaussianLikelihoodOnMagnitudeFlux(
+            x=self.x, y=self.magnitudes, sigma=self.magnitude_errors,
+            function=self.function)
+        self.likelihood.parameters['offset'] = 0.0
+
+    def test_converts_data_and_model_to_ab_flux_density(self):
+        expected_flux_density = calc_flux_density_from_ABmag(self.magnitudes).value
+        expected_sigma = (
+            np.log(10.0) / 2.5 * expected_flux_density * self.magnitude_errors)
+
+        np.testing.assert_allclose(self.likelihood.y, expected_flux_density)
+        np.testing.assert_allclose(self.likelihood.sigma, expected_sigma)
+        np.testing.assert_allclose(self.likelihood.model_output, expected_flux_density)
+
+    def test_matches_gaussian_likelihood_on_converted_flux_density(self):
+        self.likelihood.parameters['offset'] = 0.2
+        control = likelihoods.GaussianLikelihood(
+            x=self.x, y=self.likelihood.y, sigma=self.likelihood.sigma,
+            function=lambda x: self.likelihood.model_output)
+
+        self.assertAlmostEqual(
+            self.likelihood.log_likelihood(), control.log_likelihood())
+
+    def test_scalar_magnitude_error(self):
+        likelihood = likelihoods.GaussianLikelihoodOnMagnitudeFlux(
+            x=self.x, y=self.magnitudes, sigma=0.1, function=self.function)
+
+        expected = np.log(10.0) / 2.5 * likelihood.y * 0.1
+        np.testing.assert_allclose(likelihood.sigma, expected)
+
+    def test_rejects_invalid_data_uncertainties(self):
+        for sigma in (0.0, -0.1, np.nan, np.inf):
+            with self.subTest(sigma=sigma), self.assertRaises(ValueError):
+                likelihoods.GaussianLikelihoodOnMagnitudeFlux(
+                    x=self.x, y=self.magnitudes, sigma=sigma,
+                    function=self.function)
+
+    def test_non_finite_model_returns_negative_infinity(self):
+        def invalid_function(x, offset, **kwargs):
+            return np.full_like(x, np.nan)
+
+        likelihood = likelihoods.GaussianLikelihoodOnMagnitudeFlux(
+            x=self.x, y=self.magnitudes, sigma=self.magnitude_errors,
+            function=invalid_function)
+        likelihood.parameters['offset'] = 0.0
+
+        self.assertEqual(likelihood.log_likelihood(), -np.inf)
 
 
 class GaussianLikelihoodUniformXErrorsTest(unittest.TestCase):
@@ -402,16 +463,52 @@ class GaussianLikelihoodWithUpperLimitsTest(unittest.TestCase):
         with self.assertRaises(ValueError):
             self.likelihood.upper_limit_sigma = np.array([1.0, 2.0, 3.0])
 
-    def test_nan_upper_limit_rejected(self):
-        """Test that NaN y-values for upper limits raise ValueError"""
-        y_with_nan = np.array([0.5, 1.2, 2.1, np.nan, np.nan])
-        with self.assertRaises(ValueError) as ctx:
-            likelihoods.GaussianLikelihoodWithUpperLimits(
-                x=self.x, y=y_with_nan, sigma=self.sigma, function=self.function,
-                detections=self.detections, upper_limit_sigma=self.upper_limit_sigma,
-                kwargs=self.kwargs)
-        self.assertIn("NaN", str(ctx.exception))
-        self.assertIn("upper limit", str(ctx.exception))
+    def test_nonfinite_upper_limit_rejected(self):
+        """NaN and infinite upper-limit values cannot define a likelihood CDF."""
+        for invalid_value in (np.nan, np.inf, -np.inf):
+            with self.subTest(invalid_value=invalid_value):
+                y_with_invalid_limit = self.y.copy()
+                y_with_invalid_limit[-1] = invalid_value
+                with self.assertRaisesRegex(ValueError, 'upper limit.*non-finite|non-finite.*upper limit'):
+                    likelihoods.GaussianLikelihoodWithUpperLimits(
+                        x=self.x, y=y_with_invalid_limit, sigma=self.sigma,
+                        function=self.function, detections=self.detections,
+                        upper_limit_sigma=self.upper_limit_sigma, kwargs=self.kwargs)
+
+    def test_upper_limit_sigma_rejects_nonfinite_or_nonpositive_values(self):
+        invalid_values = (
+            0.0, -1.0, np.nan, np.inf, -np.inf,
+            np.array([2.0, 0.0]), np.array([2.0, -1.0]),
+            np.array([2.0, np.nan]), np.array([2.0, np.inf]),
+        )
+        for invalid_value in invalid_values:
+            with self.subTest(invalid_value=invalid_value):
+                with self.assertRaisesRegex(ValueError, 'finite, positive'):
+                    self.likelihood.upper_limit_sigma = invalid_value
+
+    def test_nonfinite_measurement_errors_are_ignored_for_upper_limits(self):
+        """Upper-limit uncertainty comes from the limit and upper_limit_sigma."""
+        sigma = self.sigma.copy()
+        sigma[~self.detections] = [np.nan, np.inf]
+        likelihood = likelihoods.GaussianLikelihoodWithUpperLimits(
+            x=self.x, y=self.y, sigma=sigma, function=self.function,
+            detections=self.detections, upper_limit_sigma=self.upper_limit_sigma,
+            kwargs=self.kwargs)
+        control_sigma = self.sigma.copy()
+        control_sigma[~self.detections] = 1.0
+        control = likelihoods.GaussianLikelihoodWithUpperLimits(
+            x=self.x, y=self.y, sigma=control_sigma, function=self.function,
+            detections=self.detections, upper_limit_sigma=self.upper_limit_sigma,
+            kwargs=self.kwargs)
+
+        log_likelihood = likelihood.log_likelihood({'param_1': 1.0})
+        control_log_likelihood = control.log_likelihood({'param_1': 1.0})
+        noise_log_likelihood = likelihood.noise_log_likelihood()
+        control_noise_log_likelihood = control.noise_log_likelihood()
+        self.assertTrue(np.isfinite(log_likelihood))
+        self.assertTrue(np.isfinite(noise_log_likelihood))
+        self.assertAlmostEqual(log_likelihood, control_log_likelihood)
+        self.assertAlmostEqual(noise_log_likelihood, control_noise_log_likelihood)
 
     def test_data_mode_validation(self):
         """Test that data_mode setter validates allowed values"""

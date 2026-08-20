@@ -45,8 +45,91 @@ def _network_available():
 
 
 import redback.model_library
+from redback.transient_models.supernova_models import sncosmo_models
+from redback.utils import nu_to_lambda
 
 _dirname = dirname(__file__)
+
+
+class TestSncosmoModels(unittest.TestCase):
+
+    @staticmethod
+    def _mock_model(flux_lambda):
+        model = MagicMock()
+        model.flux.return_value = np.asarray(flux_lambda, dtype=float)
+        return model
+
+    @patch('sncosmo.Model')
+    def test_flux_density_accepts_frequency_per_epoch(self, model_class):
+        model_class.return_value = self._mock_model([
+            [1.0, 2.0],
+            [3.0, 4.0],
+            [5.0, 6.0],
+        ])
+        time = np.array([1.0, 2.0, 3.0])
+        frequency = np.array([4.0e14, 5.0e14, 4.0e14])
+
+        result = sncosmo_models(
+            time=time, redshift=0.1, model_kwargs={}, frequency=frequency,
+            output_format='flux_density', host_extinction=False, mw_extinction=False)
+
+        model_class.return_value.flux.assert_called_once()
+        evaluated_wavelengths = model_class.return_value.flux.call_args.args[1]
+        np.testing.assert_allclose(
+            evaluated_wavelengths, nu_to_lambda(np.sort(np.unique(frequency))))
+        selected_flux_lambda = np.array([1.0, 4.0, 5.0])
+        expected_flux_nu = selected_flux_lambda * nu_to_lambda(frequency) / frequency
+        expected = (
+            expected_flux_nu << (uu.erg / uu.s / uu.Hz / uu.cm ** 2)
+        ).to(uu.mJy).value
+        np.testing.assert_allclose(result.to(uu.mJy).value, expected)
+
+    @patch('sncosmo.Model')
+    def test_flux_density_accepts_numpy_scalar_frequency(self, model_class):
+        model_class.return_value = self._mock_model([[1.0], [2.0], [3.0]])
+        time = np.array([1.0, 2.0, 3.0])
+        frequency = np.float64(4.0e14)
+
+        result = sncosmo_models(
+            time=time, redshift=0.1, model_kwargs={}, frequency=frequency,
+            output_format='flux_density', host_extinction=False, mw_extinction=False)
+
+        model_class.return_value.flux.assert_called_once()
+        evaluated_wavelengths = model_class.return_value.flux.call_args.args[1]
+        np.testing.assert_allclose(evaluated_wavelengths, nu_to_lambda(frequency))
+        expected_flux_nu = np.array([1.0, 2.0, 3.0]) * nu_to_lambda(frequency) / frequency
+        expected = (
+            expected_flux_nu << (uu.erg / uu.s / uu.Hz / uu.cm ** 2)
+        ).to(uu.mJy).value
+        np.testing.assert_allclose(result.to(uu.mJy).value, expected)
+
+    @patch('sncosmo.Model')
+    def test_flux_density_accepts_python_float_frequency(self, model_class):
+        model_class.return_value = self._mock_model([[1.0], [2.0], [3.0]])
+        time = np.array([1.0, 2.0, 3.0])
+        frequency = 4.0e14
+
+        result = sncosmo_models(
+            time=time, redshift=0.1, model_kwargs={}, frequency=frequency,
+            output_format='flux_density', host_extinction=False, mw_extinction=False)
+
+        model_class.return_value.flux.assert_called_once()
+        evaluated_wavelengths = model_class.return_value.flux.call_args.args[1]
+        np.testing.assert_allclose(evaluated_wavelengths, nu_to_lambda(frequency))
+        expected_flux_nu = np.array([1.0, 2.0, 3.0]) * nu_to_lambda(frequency) / frequency
+        expected = (
+            expected_flux_nu << (uu.erg / uu.s / uu.Hz / uu.cm ** 2)
+        ).to(uu.mJy).value
+        np.testing.assert_allclose(result.to(uu.mJy).value, expected)
+
+    @patch('sncosmo.Model')
+    def test_flux_density_rejects_mismatched_frequency_array(self, model_class):
+        model_class.return_value = self._mock_model([[1.0]])
+        with self.assertRaisesRegex(ValueError, 'length 1 or same size as time array'):
+            sncosmo_models(
+                time=np.array([1.0, 2.0, 3.0]), redshift=0.1, model_kwargs={},
+                frequency=np.array([4.0e14, 5.0e14]), output_format='flux_density',
+                host_extinction=False, mw_extinction=False)
 
 
 class TestCSMNickelBolometric(unittest.TestCase):
@@ -2150,6 +2233,75 @@ class TestCosmologicalCorrections(unittest.TestCase):
 
 class TestOptimalTimeArray(unittest.TestCase):
     """Test suite for the get_optimal_time_array utility function."""
+
+    def test_kilonova_diffusion_matches_finite_legacy_calculation(self):
+        from redback.transient_models.kilonova_models import _kilonova_diffusion_luminosity
+
+        time = np.geomspace(1.0e-2, 2.0e5, 200)
+        thermalised_luminosity = 1.0e42 * np.exp(-time / 1.0e5)
+        diffusion_timescale = 4.0e5
+        integrand = (
+            thermalised_luminosity * (time / diffusion_timescale)
+            * np.exp(time ** 2 / diffusion_timescale ** 2)
+        )
+        cumulative_integral = np.zeros_like(time)
+        cumulative_integral[1:] = np.cumsum(
+            0.5 * (integrand[:-1] + integrand[1:]) * np.diff(time)
+        )
+        cumulative_integral[0] = cumulative_integral[1]
+        expected = (
+            cumulative_integral * np.exp(-time ** 2 / diffusion_timescale ** 2)
+            / diffusion_timescale
+        )
+
+        actual = _kilonova_diffusion_luminosity(
+            time, thermalised_luminosity, diffusion_timescale
+        )
+
+        np.testing.assert_allclose(actual, expected, rtol=2.0e-14)
+
+    def test_kilonova_diffusion_is_finite_for_extreme_valid_prior(self):
+        import warnings
+        import redback
+
+        with warnings.catch_warnings():
+            warnings.filterwarnings("error", category=RuntimeWarning)
+            flux_density = redback.transient_models.kilonova_models.one_component_kilonova_model(
+                np.array([0.5, 1.0, 2.0]), redshift=0.05, mej=0.01, vej=0.4, kappa=1.0,
+                temperature_floor=1000, output_format='flux_density', frequency=6e14)
+
+        self.assertTrue(np.all(np.isfinite(flux_density)))
+        self.assertTrue(np.all(flux_density >= 0.0))
+
+    def test_kilonova_diffusion_does_not_propagate_late_nan_backwards(self):
+        from redback.transient_models.kilonova_models import _kilonova_diffusion_luminosity
+
+        time = np.geomspace(1.0e-2, 2.0e5, 200)
+        thermalised_luminosity = 1.0e42 * np.exp(-time / 1.0e5)
+        finite_result = _kilonova_diffusion_luminosity(
+            time, thermalised_luminosity, 4.0e5
+        )
+        thermalised_luminosity[150:] = np.nan
+
+        result = _kilonova_diffusion_luminosity(
+            time, thermalised_luminosity, 4.0e5
+        )
+
+        np.testing.assert_allclose(result[:150], finite_result[:150])
+        self.assertTrue(np.all(np.isnan(result[150:])))
+
+    def test_kilonova_diffusion_is_invalid_from_nonfinite_first_input(self):
+        from redback.transient_models.kilonova_models import _kilonova_diffusion_luminosity
+
+        time = np.geomspace(1.0e-2, 2.0e5, 200)
+        thermalised_luminosity = 1.0e42 * np.exp(-time / 1.0e5)
+        thermalised_luminosity[0] = np.nan
+
+        result = _kilonova_diffusion_luminosity(
+            time, thermalised_luminosity, 4.0e5
+        )
+
+        self.assertTrue(np.all(np.isnan(result)))
     
     def test_basic_functionality(self):
         """Test that the function returns an array of the correct length."""
