@@ -1,8 +1,9 @@
-import numpy as np
-import pytest
 from unittest.mock import MagicMock, PropertyMock, patch
 
 import bilby
+import numpy as np
+import pytest
+from scipy.optimize import OptimizeResult
 
 from redback.optimizer import run_point_estimation
 from redback.result import RedbackResult, read_in_result
@@ -156,6 +157,52 @@ def test_nonfinite_likelihood_domain_raises(tmp_path):
             outdir=tmp_path,
             optimizer_kwargs={**_optimizer_kwargs(), "fail_on_nonconvergence": False},
         )
+
+
+def test_powell_nonfinite_initial_point_raises_runtime_error(tmp_path):
+    class NonFiniteLikelihood(QuadraticLikelihood):
+        def log_likelihood(self, parameters=None):
+            return np.nan
+
+    priors = bilby.prior.PriorDict({"x": bilby.prior.Uniform(0, 1)})
+
+    with pytest.raises(RuntimeError, match="finite likelihood"):
+        run_point_estimation(
+            likelihood=NonFiniteLikelihood(),
+            priors=priors,
+            fit_method="mle",
+            label="nonfinite_powell",
+            outdir=tmp_path,
+            optimizer="powell",
+            initial_parameters={"x": 0.5},
+        )
+
+
+@patch("redback.optimizer.minimize")
+@patch("redback.optimizer.differential_evolution")
+def test_auto_retains_successful_global_result_when_powell_is_worse(
+    differential_evolution_mock, minimize_mock, tmp_path
+):
+    differential_evolution_mock.return_value = OptimizeResult(
+        x=np.array([0.2]), success=True, message="global success", nit=1
+    )
+    minimize_mock.return_value = OptimizeResult(
+        x=np.array([0.9]), success=False, message="local failure", nit=1
+    )
+    priors = bilby.prior.PriorDict({"x": bilby.prior.Uniform(0, 1)})
+
+    result = run_point_estimation(
+        likelihood=QuadraticLikelihood(target=0.2),
+        priors=priors,
+        fit_method="mle",
+        label="global_result",
+        outdir=tmp_path,
+        optimizer_kwargs=_optimizer_kwargs(),
+    )
+
+    assert result.point_estimate["x"] == pytest.approx(0.2)
+    assert result.optimization["success"] is True
+    assert result.optimization["message"] == "global success"
 
 
 def test_model_exceptions_are_not_silenced(tmp_path):

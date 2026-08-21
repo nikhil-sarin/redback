@@ -249,31 +249,37 @@ def run_point_estimation(
 
         if optimizer in {"auto", "powell"}:
             global_objective = objective.evaluate(best_unit_point)
-            if np.isfinite(global_objective):
-                local_result = minimize(
-                    objective.evaluate,
-                    x0=best_unit_point,
-                    method="Powell",
-                    bounds=bounds,
-                    options=local_options,
+            if not np.isfinite(global_objective):
+                raise RuntimeError(
+                    "Point estimation did not find a finite likelihood value"
                 )
-                local_objective = objective.evaluate(local_result.x)
-                if np.isfinite(local_objective):
-                    final_result = local_result
-                    if local_objective <= global_objective:
-                        best_unit_point = local_result.x
-                else:
-                    final_result = (
-                        global_result if global_result is not None else local_result
-                    )
+            local_result = minimize(
+                objective.evaluate,
+                x0=best_unit_point,
+                method="Powell",
+                bounds=bounds,
+                options=local_options,
+            )
+            local_objective = objective.evaluate(local_result.x)
+            local_is_not_worse = local_objective <= global_objective or np.isclose(
+                local_objective, global_objective
+            )
+            if np.isfinite(local_objective) and local_is_not_worse:
+                best_unit_point = local_result.x
+                success = bool(local_result.success)
+                message = str(local_result.message)
+            elif global_result is not None:
+                success = bool(global_result.success)
+                message = str(global_result.message)
             else:
-                final_result = global_result
+                success = False
+                message = "Powell did not improve the finite initial point"
         else:
-            final_result = global_result
+            success = bool(global_result.success)
+            message = str(global_result.message)
 
         best_objective = objective.evaluate(best_unit_point)
-        success = bool(final_result.success) and np.isfinite(best_objective)
-        message = str(final_result.message)
+        success = success and np.isfinite(best_objective)
 
     if not np.isfinite(best_objective):
         raise RuntimeError("Point estimation did not find a finite likelihood value")

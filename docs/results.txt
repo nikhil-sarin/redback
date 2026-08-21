@@ -108,4 +108,4 @@ Fitting spectrums
 
 The above generally describes the interface for fitting lightcurves.
 Redback also provides functionality for fitting spectrums,
-which has an identical interface except the result object is a :code:`redback.spectrum_result` object, which has slightly behaviour.
+which has an identical interface except the result object is a :code:`redback.spectrum_result` object, which has slightly different behavior.
