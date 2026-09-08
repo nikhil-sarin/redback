@@ -7,7 +7,7 @@ name = "redback"
 dynamic = ["version"]
 description = "A Bayesian inference and modelling pipeline for electromagnetic transients"
 readme = "README.md"
-requires-python = ">=3.10"
+requires-python = ">=3.11"
 license = "GPL-3.0-only"
 license-files = ["LICENCE.md"]
 authors = [
@@ -16,6 +16,9 @@ authors = [
 ]
 classifiers = [
     "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
     "Operating System :: OS Independent",
 ]
 dependencies = [
