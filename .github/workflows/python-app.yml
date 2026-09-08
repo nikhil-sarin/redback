@@ -57,7 +57,7 @@ jobs:
         python-version: 3.13
         cache: 'pip'
         cache-dependency-path: |
-          setup.py
+          pyproject.toml
           requirements.txt
           optional_requirements.txt
     - name: Cache apt packages
