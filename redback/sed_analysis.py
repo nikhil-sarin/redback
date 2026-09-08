@@ -206,29 +206,39 @@ class SEDResult:
             }
             row.update(epoch.parameters)
             if epoch.success:
-                if np.isfinite(epoch.integrated_luminosity):
-                    luminosity = epoch.integrated_luminosity
-                    luminosity_error = epoch.integrated_luminosity_error
-                    total = sum(epoch.luminosity_components.values())
-                    fractions = tuple(
-                        epoch.luminosity_components.get(name, 0.0) / total
-                        for name in ("ultraviolet", "observed", "infrared"))
+                try:
+                    if np.isfinite(epoch.integrated_luminosity):
+                        luminosity = epoch.integrated_luminosity
+                        luminosity_error = epoch.integrated_luminosity_error
+                        total = sum(epoch.luminosity_components.values())
+                        fractions = tuple(
+                            epoch.luminosity_components.get(name, 0.0) / total
+                            for name in ("ultraviolet", "observed", "infrared"))
+                        row.update({
+                            f"lum_{name}": value / 1e50
+                            for name, value in epoch.luminosity_components.items()})
+                    else:
+                        luminosity = self.model.bolometric_luminosity(epoch.parameters)
+                        variance = self._luminosity_variance(epoch)
+                        luminosity_error = np.sqrt(variance)
+                        fractions = self.model.luminosity_fractions(
+                            epoch.parameters, (epoch.wavelength_min, epoch.wavelength_max))
+                    values = np.asarray((luminosity, luminosity_error, *fractions), dtype=float)
+                    if luminosity <= 0 or luminosity_error < 0 or not np.all(np.isfinite(values)):
+                        raise ValueError("non-finite or non-positive integrated luminosity")
                     row.update({
-                        f"lum_{name}": value / 1e50
-                        for name, value in epoch.luminosity_components.items()})
-                else:
-                    luminosity = self.model.bolometric_luminosity(epoch.parameters)
-                    variance = self._luminosity_variance(epoch)
-                    luminosity_error = np.sqrt(variance)
-                    fractions = self.model.luminosity_fractions(
-                        epoch.parameters, (epoch.wavelength_min, epoch.wavelength_max))
-                row.update({
-                    "lum_bol": luminosity / 1e50,
-                    "lum_bol_err": luminosity_error / 1e50,
-                    "uv_fraction": fractions[0],
-                    "observed_fraction": fractions[1],
-                    "ir_fraction": fractions[2],
-                })
+                        "lum_bol": luminosity / 1e50,
+                        "lum_bol_err": luminosity_error / 1e50,
+                        "uv_fraction": fractions[0],
+                        "observed_fraction": fractions[1],
+                        "ir_fraction": fractions[2],
+                    })
+                except (ArithmeticError, RuntimeError, ValueError) as exc:
+                    row.update({
+                        "success": False,
+                        "status": "integration_failed",
+                        "message": str(exc),
+                    })
             rows.append(row)
         return BolometricResult(
             transient_name=self.transient_name, method=self.method,
@@ -257,17 +267,26 @@ class SEDResult:
         return ax
 
     def plot_evolution(self, axes=None):
-        """Plot fitted temperature and radius for successful epochs."""
+        """Plot every fitted parameter for successful epochs."""
+        parameter_names = tuple(self.model.parameter_names)
+        if not parameter_names:
+            raise ValueError("This SED method has no fitted parameters to plot")
         if axes is None:
-            _, axes = plt.subplots(2, 1, sharex=True)
+            _, axes = plt.subplots(len(parameter_names), 1, sharex=True, squeeze=False)
+            axes = axes[:, 0]
+        else:
+            axes = np.atleast_1d(axes)
+            if len(axes) != len(parameter_names):
+                raise ValueError(
+                    f"Expected {len(parameter_names)} axes, received {len(axes)}")
         data = self.to_dataframe(successful_only=True)
-        axes[0].errorbar(data["epoch_times"], data["temperature"],
-                         yerr=data.get("temperature_err"), fmt="o")
-        axes[1].errorbar(data["epoch_times"], data["radius"],
-                         yerr=data.get("radius_err"), fmt="o")
-        axes[0].set_ylabel("Temperature [K]")
-        axes[1].set_ylabel("Radius [cm]")
-        axes[1].set_xlabel("Observer-frame time")
+        units = {"temperature": "K", "radius": "cm", "cutoff_wavelength": "Angstrom"}
+        for ax, name in zip(axes, parameter_names):
+            ax.errorbar(
+                data["epoch_times"], data[name], yerr=data.get(f"{name}_err"), fmt="o")
+            label = name.replace("_", " ").capitalize()
+            ax.set_ylabel(f"{label} [{units[name]}]" if name in units else label)
+        axes[-1].set_xlabel("Observer-frame time")
         return axes
 
     def _legacy_parameter_dataframe(self):
@@ -672,8 +691,8 @@ def estimate_sed(
     if not isinstance(min_filters, (int, np.integer)) or min_filters < 1:
         raise ValueError("min_filters must be a positive integer")
     redshift = float(transient.redshift)
-    if not np.isfinite(redshift) or redshift <= 0:
-        raise ValueError("A finite, positive redshift is required for SED estimation")
+    if not np.isfinite(redshift) or redshift < 0:
+        raise ValueError("A finite, non-negative redshift is required for SED estimation")
 
     if isinstance(method, str) and method.lower() in {"direct", "direct_integration"}:
         return _estimate_direct_sed(

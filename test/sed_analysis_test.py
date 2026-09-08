@@ -27,6 +27,11 @@ class _PowerLawLuminositySED:
         return parameters["temperature"] * np.asarray(coordinates)
 
 
+class _InvalidLuminositySED(_PowerLawLuminositySED):
+    def bolometric_luminosity(self, parameters):
+        return np.nan
+
+
 class TestSEDResult(unittest.TestCase):
     def setUp(self):
         self.model = _PowerLawLuminositySED()
@@ -77,6 +82,15 @@ class TestSEDResult(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "unsuccessful epoch"):
             self.result.plot_epoch(1)
 
+    def test_integration_failure_is_retained(self):
+        result = SEDResult(
+            transient_name="test", method="invalid", model=_InvalidLuminositySED(),
+            epoch_results=[self.success], redshift=1.0, distance=1e27)
+        frame = result.integrate().to_dataframe()
+        self.assertFalse(frame.iloc[0]["success"])
+        self.assertEqual("integration_failed", frame.iloc[0]["status"])
+        self.assertTrue(np.isnan(frame.iloc[0]["lum_bol"]))
+
 
 class TestEstimateSED(unittest.TestCase):
     def _make_transient(self, model_class=BlackbodySEDModel, **model_kwargs):
@@ -119,6 +133,25 @@ class TestEstimateSED(unittest.TestCase):
         np.testing.assert_allclose(
             bolometric.iloc[0][["uv_fraction", "observed_fraction", "ir_fraction"]].sum(),
             1.0, rtol=1e-10)
+
+    def test_zero_redshift_is_supported(self):
+        transient, distance, parameters = self._make_transient()
+        transient.redshift = 0.0
+        observer_frequency = np.asarray(transient.frequency)
+        model = BlackbodySEDModel(distance=distance, redshift=0.0)
+        flux = model.evaluate_photometry(
+            observer_frequency, parameters,
+            {"coordinate_type": "frequency", "data_mode": "flux_density"})
+        error = 0.05 * flux
+        time = transient.time
+        transient.flux_density = flux
+        transient.flux_density_err = error
+        transient.get_filtered_data = lambda: (time, np.zeros(len(time)), flux, error)
+
+        frame = transient.estimate_sed(distance=distance).to_dataframe(True)
+        np.testing.assert_allclose(
+            frame.iloc[0]["temperature"], parameters["temperature"], rtol=1e-6)
+        np.testing.assert_allclose(frame.iloc[0]["radius"], parameters["radius"], rtol=1e-6)
 
     def test_custom_sed_model_protocol(self):
         transient, distance, parameters = self._make_transient()
