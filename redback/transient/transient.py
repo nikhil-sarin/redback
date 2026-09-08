@@ -1555,6 +1555,20 @@ class OpticalTransient(Transient):
             transient=self.name, transient_type=self.__class__.__name__.lower())
         return transient_dir
 
+    def estimate_sed(
+            self, method="blackbody", distance: float = 1e27, bin_width: float = 1.0,
+            min_filters: int = 3, bandpass: bool = True, **kwargs):
+        """Fit a structured SED model to each photometric epoch.
+
+        See :func:`redback.sed_analysis.estimate_sed` for the model protocol and
+        returned :class:`redback.sed_analysis.SEDResult`.
+        """
+        from redback.sed_analysis import estimate_sed
+
+        return estimate_sed(
+            transient=self, method=method, distance=distance, bin_width=bin_width,
+            min_filters=min_filters, bandpass=bandpass, **kwargs)
+
     def estimate_bb_params(self, distance: float = 1e27, bin_width: float = 1.0, min_filters: int = 3, **kwargs):
         """
         Estimate the blackbody temperature and photospheric radius as functions of time by fitting

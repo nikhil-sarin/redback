@@ -3,7 +3,13 @@ import unittest
 import matplotlib.pyplot as plt
 import numpy as np
 
-from redback.sed_analysis import SEDEpochResult, SEDResult
+import redback
+from redback.sed_analysis import (
+    BlackbodySEDModel,
+    CutoffBlackbodySEDModel,
+    SEDEpochResult,
+    SEDResult,
+)
 
 
 class _PowerLawLuminositySED:
@@ -69,6 +75,75 @@ class TestSEDResult(unittest.TestCase):
     def test_failed_epoch_cannot_be_plotted(self):
         with self.assertRaisesRegex(ValueError, "unsuccessful epoch"):
             self.result.plot_epoch(1)
+
+
+class TestEstimateSED(unittest.TestCase):
+    def _make_transient(self, model_class=BlackbodySEDModel, **model_kwargs):
+        redshift = 0.1
+        distance = 1e27
+        temperature = 11000.0
+        radius = 8e14
+        wavelengths = np.array([2500.0, 3300.0, 4200.0, 5200.0, 6500.0, 8000.0])
+        observer_frequency = redback.utils.lambda_to_nu(wavelengths)
+        rest_frequency, _ = redback.utils.calc_kcorrected_properties(
+            frequency=observer_frequency, redshift=redshift, time=0.0)
+        model = model_class(distance=distance, redshift=redshift, **model_kwargs)
+        parameters = {"temperature": temperature, "radius": radius}
+        parameters.update(model_kwargs)
+        flux_density = model.evaluate_photometry(
+            rest_frequency, parameters,
+            {"coordinate_type": "frequency", "data_mode": "flux_density"})
+        flux_density_err = 0.05 * flux_density
+        time = np.array([10.0, 10.05, 10.1, 10.15, 10.2, 10.25])
+        transient = redback.transient.OpticalTransient(
+            time=time, flux_density=flux_density, flux_density_err=flux_density_err,
+            redshift=redshift, data_mode="flux_density", name="TestSED",
+            frequency=observer_frequency, use_phase_model=False)
+        transient.get_filtered_data = lambda: (
+            time, np.zeros(len(time)), flux_density, flux_density_err)
+        return transient, distance, parameters
+
+    def test_blackbody_fit_and_integration_recover_inputs(self):
+        transient, distance, parameters = self._make_transient()
+        result = transient.estimate_sed(distance=distance, bin_width=1.0)
+        frame = result.to_dataframe(successful_only=True)
+        self.assertEqual("success", frame.iloc[0]["status"])
+        np.testing.assert_allclose(frame.iloc[0]["temperature"], parameters["temperature"], rtol=1e-6)
+        np.testing.assert_allclose(frame.iloc[0]["radius"], parameters["radius"], rtol=1e-6)
+        self.assertNotEqual(0.0, frame.iloc[0]["covariance"][0, 1])
+
+        bolometric = result.integrate().to_dataframe(successful_only=True)
+        expected = 4 * np.pi * parameters["radius"] ** 2 * redback.constants.sigma_sb * parameters["temperature"] ** 4
+        np.testing.assert_allclose(bolometric.iloc[0]["lum_bol"] * 1e50, expected, rtol=1e-6)
+        np.testing.assert_allclose(
+            bolometric.iloc[0][["uv_fraction", "observed_fraction", "ir_fraction"]].sum(),
+            1.0, rtol=1e-10)
+
+    def test_cutoff_blackbody_fit_owns_its_integral(self):
+        cutoff = 4500.0
+        index = 2.0
+        transient, distance, _ = self._make_transient(
+            CutoffBlackbodySEDModel, cutoff_wavelength=cutoff, absorption_index=index)
+        result = transient.estimate_sed(
+            method="cutoff_blackbody", distance=distance,
+            cutoff_wavelength=cutoff, absorption_index=index)
+        frame = result.integrate().to_dataframe(successful_only=True)
+        self.assertEqual("cutoff_blackbody", frame.iloc[0]["method"])
+        self.assertGreater(frame.iloc[0]["lum_bol"], 0.0)
+        blackbody = BlackbodySEDModel(distance=distance, redshift=transient.redshift)
+        self.assertLess(
+            frame.iloc[0]["lum_bol"] * 1e50,
+            blackbody.bolometric_luminosity(result.epoch_results[0].parameters))
+
+    def test_insufficient_epoch_is_retained(self):
+        transient, distance, _ = self._make_transient()
+        original = transient.get_filtered_data()
+        time = original[0].copy()
+        time[-1] = 12.0
+        transient.get_filtered_data = lambda: (time, original[1], original[2], original[3])
+        result = transient.estimate_sed(distance=distance, bin_width=1.0, min_filters=3)
+        self.assertEqual(2, len(result.epoch_results))
+        self.assertEqual("insufficient_filters", result.epoch_results[1].status)
 
 
 if __name__ == "__main__":
