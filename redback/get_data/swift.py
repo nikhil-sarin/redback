@@ -231,8 +231,8 @@ class SwiftDataGetter(GRBDataGetter):
 
         if not SWIFTTOOLS_AVAILABLE:
             raise ImportError(
-                "swifttools is required for Swift afterglow data retrieval. "
-                "Please install it with: pip install swifttools"
+                "swifttools is required for Swift afterglow data retrieval; "
+                "install redback[data]."
             )
         
         # Check if raw data already exists and can be loaded (unless force_download is True)
@@ -300,8 +300,8 @@ class SwiftDataGetter(GRBDataGetter):
         :rtype: pandas.DataFrame
         """
         if not SWIFTTOOLS_AVAILABLE:
-            raise ImportError("swifttools is required for API-based data retrieval. "
-                            "Please install it with: pip install swifttools")
+            raise ImportError(
+                "swifttools is required for Swift API data retrieval; install redback[data].")
 
         try:
             logger.info(f'Downloading XRT data for {self.grb} using swifttools API')
@@ -390,8 +390,8 @@ class SwiftDataGetter(GRBDataGetter):
         :rtype: dict
         """
         if not SWIFTTOOLS_AVAILABLE:
-            raise ImportError("swifttools is required for API-based data retrieval. "
-                            "Please install it with: pip install swifttools")
+            raise ImportError(
+                "swifttools is required for Swift API data retrieval; install redback[data].")
 
         try:
             logger.info(f'Downloading Burst Analyser data for {self.grb} using swifttools API')

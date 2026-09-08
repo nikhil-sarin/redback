@@ -50,7 +50,7 @@ Install only the optional functionality needed by an analysis:
 .. code-block:: console
 
    $ pip install "redback[afterglow]"  # afterglowpy-backed jet models
-   $ pip install "redback[data]"       # SVO and Swift catalogue access
+   $ pip install "redback[data]"       # SVO, Swift, and OTTER catalogue access
    $ pip install "redback[speed]"      # optional Numba acceleration
    $ pip install "redback[ml]"         # GP, heating-rate, and learned models
    $ pip install "redback[docs]"       # documentation build tools

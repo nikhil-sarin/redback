@@ -33,11 +33,12 @@ jobs:
           import redback
 
           modules = {
-              "afterglow": "afterglowpy",
-              "data": "astroquery",
-              "speed": "numba",
-              "docs": "sphinx",
+              "afterglow": ["afterglowpy"],
+              "data": ["astroquery", "otter", "swifttools"],
+              "speed": ["numba"],
+              "docs": ["sphinx"],
           }
-          importlib.import_module(modules[os.environ["REDBACK_EXTRA"]])
+          for module in modules[os.environ["REDBACK_EXTRA"]]:
+              importlib.import_module(module)
           print(redback.__version__)
           PY
