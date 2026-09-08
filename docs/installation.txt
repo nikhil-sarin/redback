@@ -10,7 +10,7 @@ Installation
 
           $ pip install redback
 
-      Supported python versions: 3.11+.
+      Supported Python versions: 3.10+.
 
 
 This will install all requirements for running :code:`redback` for general transient fitting, including bilby and our default sampler `dynesty
@@ -22,7 +22,7 @@ Therefore, for the near future, we recommend installing :code:`redback` from sou
 Install :code:`redback` from source
 -------------------------
 
-:code:`redback` is developed and tested with Python 3.11+. In the
+:code:`redback` is developed and tested with Python 3.10+. In the
 following, we assume you have a working python installation, `python pip
 <https://packaging.python.org/tutorials/installing-packages/#use-pip-for-installing>`_,
 and `git <https://git-scm.com/>`_.
@@ -45,11 +45,21 @@ To install with development mode, use:
    $ pip install -r requirements.txt
    $ pip install -e .
 
-For full functionality, please also install optional requirements.
+Install only the optional functionality needed by an analysis:
 
 .. code-block:: console
 
-   $ pip install -r optional_requirements.txt
+   $ pip install "redback[afterglow]"  # afterglowpy-backed jet models
+   $ pip install "redback[data]"       # SVO and Swift catalogue access
+   $ pip install "redback[speed]"      # optional Numba acceleration
+   $ pip install "redback[ml]"         # GP, heating-rate, and learned models
+   $ pip install "redback[docs]"       # documentation build tools
+   $ pip install "redback[all]"        # all optional functionality
+
+The base installation retains :code:`sncosmo`, which is used by core optical photometry, filters,
+and SED calculations. An optional extra only controls functionality that imports cleanly without
+that dependency. Missing optional packages raise an installation-specific :code:`ImportError` when
+the corresponding feature is called, rather than making :code:`import redback` fail.
 
 You are now ready to use redback. Please check out the `examples <https://github.com/nikhil-sarin/redback/tree/master/examples>`_
 
@@ -60,11 +70,11 @@ Installing phantomjs essentially requires that you first download the phantomjs 
 the `website <https://phantomjs.org/download.html>`_. Then create a softlink or export the path to the bin file;
 see discussion on `stackoverflow <https://stackoverflow.com/questions/36993962/installing-phantomjs-on-mac>`_.
 Now, If you want to use :code:`redback` functionality to download Swift data, you need to install the swifttools package.
-This is included in the optional requirements.
+This is included in the :code:`data` extra.
 
 .. code-block:: console
 
-    $ pip install swifttools
+    $ pip install "redback[data]"
 
 The swifttools package provides direct API access to Swift data from the UK Swift Science Data Centre, 
 eliminating the need for web scraping with Selenium or PhantomJS.

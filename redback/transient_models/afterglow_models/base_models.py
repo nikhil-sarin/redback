@@ -6,20 +6,33 @@ from redback.sed import get_correct_output_format_from_spectra
 import astropy.units as uu
 import numpy as np
 from collections import namedtuple
+from importlib import import_module
 from scipy.special import erf
 from redback.wrappers import cond_jit
 
-try:
-    import afterglowpy as afterglow
+afterglow = None
+jettype_dict = None
+spectype_dict = None
 
-    jettype_dict = {'tophat': afterglow.jet.TopHat, 'gaussian': afterglow.jet.Gaussian,
-                    'powerlaw_w_core': afterglow.jet.PowerLawCore, 'gaussian_w_core': afterglow.jet.GaussianCore,
-                    'cocoon': afterglow.Spherical, 'smooth_power_law': afterglow.jet.PowerLaw,
-                    'cone': afterglow.jet.Cone}
+
+def _load_afterglowpy():
+    """Import afterglowpy only when an afterglowpy-backed model is evaluated."""
+    global afterglow, jettype_dict, spectype_dict
+    if afterglow is not None:
+        return afterglow
+    try:
+        afterglow = import_module("afterglowpy")
+    except ModuleNotFoundError as exc:
+        raise ImportError(
+            "This model requires afterglowpy; install redback[afterglow].") from exc
+    jettype_dict = {
+        'tophat': afterglow.jet.TopHat, 'gaussian': afterglow.jet.Gaussian,
+        'powerlaw_w_core': afterglow.jet.PowerLawCore,
+        'gaussian_w_core': afterglow.jet.GaussianCore,
+        'cocoon': afterglow.Spherical, 'smooth_power_law': afterglow.jet.PowerLaw,
+        'cone': afterglow.jet.Cone}
     spectype_dict = {'no_inverse_compton': 0, 'inverse_compton': 1}
-except ModuleNotFoundError as e:
-    logger.warning(e)
-    afterglow = None
+    return afterglow
 
 jet_spreading_models = ['tophat', 'cocoon', 'gaussian',
                           'kn_afterglow', 'cone_afterglow',
@@ -1758,6 +1771,7 @@ def cocoon(time, redshift, umax, umin, loge0, k, mej, logn0, p, logepse, logepsb
     l0 = kwargs.get('L0', 0)
     q = kwargs.get('q', 0)
     ts = kwargs.get('ts', 0)
+    afterglow = _load_afterglowpy()
     jettype = jettype_dict['cocoon']
     frequency = kwargs['frequency']
     e0 = 10 ** loge0
@@ -1850,6 +1864,7 @@ def cone_afterglow(time, redshift, thv, loge0, thw, thc, logn0, p, logepse, loge
     l0 = kwargs.get('L0', 0)
     q = kwargs.get('q', 0)
     ts = kwargs.get('ts', 0)
+    afterglow = _load_afterglowpy()
     jettype = jettype_dict['cone']
     frequency = kwargs['frequency']
     thw = thw * thc
@@ -1907,6 +1922,7 @@ def gaussiancore(time, redshift, thv, loge0, thc, thw, logn0, p, logepse, logeps
     l0 = kwargs.get('L0', 0)
     q = kwargs.get('q', 0)
     ts = kwargs.get('ts', 0)
+    afterglow = _load_afterglowpy()
     jettype = jettype_dict['gaussian_w_core']
     frequency = kwargs['frequency']
 
@@ -1965,6 +1981,7 @@ def gaussian(time, redshift, thv, loge0, thw, thc, logn0, p, logepse, logepsb, k
     l0 = kwargs.get('L0', 0)
     q = kwargs.get('q', 0)
     ts = kwargs.get('ts', 0)
+    afterglow = _load_afterglowpy()
     jettype = jettype_dict['gaussian']
     frequency = kwargs['frequency']
     thw = thw * thc
@@ -2023,6 +2040,7 @@ def smoothpowerlaw(time, redshift, thv, loge0, thw, thc, beta, logn0, p, logepse
     l0 = kwargs.get('L0', 0)
     q = kwargs.get('q', 0)
     ts = kwargs.get('ts', 0)
+    afterglow = _load_afterglowpy()
     jettype = jettype_dict['smooth_power_law']
     frequency = kwargs['frequency']
     thw = thw * thc
@@ -2081,6 +2099,7 @@ def powerlawcore(time, redshift, thv, loge0, thw, thc, beta, logn0, p, logepse, 
     l0 = kwargs.get('L0', 0)
     q = kwargs.get('q', 0)
     ts = kwargs.get('ts', 0)
+    afterglow = _load_afterglowpy()
     jettype = jettype_dict['powerlaw_w_core']
     frequency = kwargs['frequency']
     thw = thw * thc
@@ -2138,6 +2157,7 @@ def tophat(time, redshift, thv, loge0, thc, logn0, p, logepse, logepsb, ksin, g0
     l0 = kwargs.get('L0', 0)
     q = kwargs.get('q', 0)
     ts = kwargs.get('ts', 0)
+    afterglow = _load_afterglowpy()
     jettype = jettype_dict['tophat']
     frequency = kwargs['frequency']
     e0 = 10 ** loge0

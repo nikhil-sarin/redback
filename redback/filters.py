@@ -1,10 +1,18 @@
 from astropy.io import ascii
 from astropy import units as u
-from astroquery.svo_fps import SvoFps
 import numpy as np
 from redback.utils import calc_effective_width_hz_from_angstrom
 import redback
 import sncosmo
+
+
+def _get_svo_fps():
+    try:
+        from astroquery.svo_fps import SvoFps
+    except ImportError as exc:
+        raise ImportError(
+            "SVO filter downloads require astroquery; install redback[data].") from exc
+    return SvoFps
 
 def add_to_database(label, wavelength, zeroflux, database, plot_label, effective_width):
 
@@ -90,7 +98,7 @@ def add_filter_svo(filter, label, plot_label=None, overwrite=False):
 
     # Non-standard filters always needs to be re-added to SN Cosmo even if an entry exists in filter.csv
 
-    filter_transmission = SvoFps.get_transmission_data(filter['filterID'])
+    filter_transmission = _get_svo_fps().get_transmission_data(filter['filterID'])
     add_to_sncosmo(label, filter_transmission)
 
     # Prettify output
@@ -197,7 +205,7 @@ def add_common_filters(overwrite=False):
 
     print('MPG/GROND optical and NIR filters...')
 
-    filter_list  = SvoFps.get_filter_list(facility='La Silla', instrument='GROND')
+    filter_list  = _get_svo_fps().get_filter_list(facility='La Silla', instrument='GROND')
     filter_label = ['grond::' + x.split('/')[1].split('.')[1] for x in filter_list['filterID']]
     plot_label   = ['GROND/' + x.split('/')[1].split('.')[1] for x in filter_list['filterID']]
 
@@ -210,7 +218,7 @@ def add_common_filters(overwrite=False):
 
     print('NTT/EFOSC2 Gunn filters...')
 
-    filter_list  = SvoFps.get_filter_list(facility='La Silla', instrument='EFOSC')
+    filter_list  = _get_svo_fps().get_filter_list(facility='La Silla', instrument='EFOSC')
     mask         = [True if ('Gunn' in filter_list['Description'][ii]) else False for ii in range(len(filter_list))]
     filter_list  = filter_list[mask]
     filter_label = ['efosc2::' + x for x in filter_list['Band']]
@@ -224,14 +232,14 @@ def add_common_filters(overwrite=False):
 
     print('EUCLID optical and IR filters...')
 
-    filter_list  = SvoFps.get_filter_list(facility='Euclid', instrument='VIS')
+    filter_list  = _get_svo_fps().get_filter_list(facility='Euclid', instrument='VIS')
     filter_label = ['euclid::' + x.split('/')[1].split('.')[1] for x in filter_list['filterID']]
     plot_label   = ['EUCLID/' + x.split('/')[1].split('.')[1].upper() for x in filter_list['filterID']]
 
     [add_filter_svo(filter_list[ii], filter_label[ii], plot_label[ii], overwrite=overwrite) for ii in range(len(filter_list))]
 
 
-    filter_list  = SvoFps.get_filter_list(facility='Euclid', instrument='NISP')
+    filter_list  = _get_svo_fps().get_filter_list(facility='Euclid', instrument='NISP')
     mask         = [True if 'NISP.' in filter_list['filterID'][ii] else False for ii in range(len(filter_list))]
     filter_list  = filter_list[mask]
     filter_label = ['euclid::' + x.split('/')[1].split('.')[1] for x in filter_list['filterID']]
@@ -245,7 +253,7 @@ def add_common_filters(overwrite=False):
 
     print('Spitzer IRAC filters...')
 
-    filter_list  = SvoFps.get_filter_list(facility='Spitzer', instrument='IRAC')
+    filter_list  = _get_svo_fps().get_filter_list(facility='Spitzer', instrument='IRAC')
     filter_label = ['irac::' + x.split('/')[1].split('.')[1] for x in filter_list['filterID']]
     plot_label   = ['IRAC/' + x.split('/')[1].split('.')[1] for x in filter_list['filterID']]
 
@@ -257,7 +265,7 @@ def add_common_filters(overwrite=False):
 
     print('WISE filters...')
 
-    filter_list  = SvoFps.get_filter_list(facility='WISE')
+    filter_list  = _get_svo_fps().get_filter_list(facility='WISE')
     filter_label = ['wise::' + x.split('/')[1].split('.')[1] for x in filter_list['filterID']]
     plot_label   = ['WISE/' + x.split('/')[1].split('.')[1] for x in filter_list['filterID']]
 

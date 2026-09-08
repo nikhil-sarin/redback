@@ -21,7 +21,7 @@ try:
     OTTER_AVAILABLE = True
 except ImportError:
     OTTER_AVAILABLE = False
-    logger.warning("astro-otter not installed. Otter data getter functionality will not be available.")
+    logger.debug("astro-otter is not installed; OTTER data access is unavailable.")
 
 SWIFT_PROMPT_BIN_SIZES = ['1s', '2ms', '8ms', '16ms', '64ms', '256ms']
 

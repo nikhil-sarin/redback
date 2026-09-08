@@ -21,7 +21,7 @@ try:
     SWIFTTOOLS_AVAILABLE = True
 except ImportError:
     SWIFTTOOLS_AVAILABLE = False
-    logger.warning("swifttools not available. You will not be able to download Swift afterglow data via API.")
+    logger.debug("swifttools is not installed; Swift API downloads are unavailable.")
 
 dirname = os.path.dirname(__file__)
 

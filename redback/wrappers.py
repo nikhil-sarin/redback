@@ -23,7 +23,7 @@ def cond_jit(func=None, **kwargs):
 
         decorator = jit(**kwargs)
     except ImportError:
-        logger.warning("Numba is not installed. Using the non-compiled function.")
+        logger.debug("Numba is not installed; using the non-compiled function.")
 
         # If numba is not available, fall back to a no-op decorator.
         def no_op_decorator(func):
