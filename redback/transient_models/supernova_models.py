@@ -684,7 +684,7 @@ def _nickelmixing(time, mej, esn, kappa, kappa_gamma, f_nickel, f_mixing,
     if use_broken_powerlaw:
         delta = kwargs.get('delta', 1.0)
         nn = kwargs.get('nn', 12.0)
-        diffusion_beta = 13.8 / 3 # effective photon diffusion term, extra /3 to cancel the 3 in the td_v formula.
+        diffusion_beta = 13.8  # Arnett diffusion-geometry constant.
         vel, v_m, m_array, ni_array = _compute_mass_and_nickel(
             vmin=vmin, esn=esn, mej=mej,
             f_nickel=f_nickel, f_mixing=f_mixing,

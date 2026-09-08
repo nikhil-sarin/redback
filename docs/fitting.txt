@@ -68,6 +68,66 @@ Here
 Please see the `bilby documentation <https://lscsoft.docs.ligo.org/bilby/api/bilby.core.sampler.run_sampler.html>`_ for more information on the sampler settings.
 As well as the :code:`redback` API.
 
+Point estimates and Laplace approximations
+------------------------------------------
+
+For a point estimate without posterior sampling, use the same :code:`fit_model`
+interface with :code:`fit_method="map"` or :code:`fit_method="mle"`::
+
+    map_result = redback.fit_model(
+        transient=transient,
+        model=model,
+        prior=priors,
+        fit_method="map",
+        optimizer_kwargs={"seed": 1234},
+    )
+
+    mle_result = redback.fit_model(
+        transient=transient,
+        model=model,
+        prior=priors,
+        fit_method="mle",
+    )
+
+The MAP fit maximizes the sum of the log likelihood and log prior. The MLE fit
+maximizes only the log likelihood, while still using the prior bounds, fixed
+parameters, conversion function, and derived constraints to define the valid
+parameter domain. Both methods optimize in the unit cube defined by the Bilby
+priors. The default :code:`optimizer="auto"` uses differential evolution followed
+by a bounded Powell refinement. Settings for differential evolution can be passed
+through :code:`optimizer_kwargs`; Powell settings belong in its
+:code:`local_options` entry.
+
+MAP and MLE fits return a normal :code:`RedbackResult` with one row in
+:code:`result.posterior`. The optimized row is also available as
+:code:`result.point_estimate`, and optimizer diagnostics are stored in
+:code:`result.optimization`. These results do not estimate an evidence or a
+posterior distribution, so :code:`result.plot_corner()` is not available.
+Their result labels receive :code:`_map` or :code:`_mle` suffixes to keep them
+separate from sampling results.
+
+For a Gaussian approximation to the posterior around the MAP, install the
+optional `bilby-laplace <https://github.com/GregoryAshton/bilby-laplace>`_ plugin::
+
+    pip install "git+https://github.com/GregoryAshton/bilby-laplace.git"
+
+and select it through the ordinary sampler interface::
+
+    result = redback.fit_model(
+        transient=transient,
+        model=model,
+        prior=priors,
+        sampler="laplace",
+    )
+
+The Laplace plugin finds a MAP point, estimates the local posterior Hessian,
+and returns approximate posterior samples. This is different from
+:code:`fit_method="map"`, which returns only the optimized point. A Laplace
+approximation can be useful for rapid uncertainty estimates or as a cross-check,
+but it can be inaccurate for multimodal, strongly skewed, truncated, or otherwise
+non-Gaussian posteriors. Full posterior sampling remains the appropriate choice
+when those features matter.
+
 Fitting models with extinction, phase, or additional effects
 ---------------
 In general most :code:`redback` models work on the assumption that the time provided to the model is a time since the explosion/burst etc. I.e., time = 0 is when the transient starts.

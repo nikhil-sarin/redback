@@ -67,6 +67,8 @@ class RedbackResult(Result):
     model = MetaDataAccessor('model')
     transient_type = MetaDataAccessor('transient_type')
     model_kwargs = MetaDataAccessor('model_kwargs')
+    fit_method = MetaDataAccessor('fit_method')
+    optimization = MetaDataAccessor('optimization')
     name = MetaDataAccessor('name')
     path = MetaDataAccessor('path')
 
@@ -166,6 +168,18 @@ class RedbackResult(Result):
             version=version)
 
     @property
+    def is_point_estimate(self) -> bool:
+        """Whether this result was produced by MAP or MLE optimization."""
+        return bool(self.meta_data.get("point_estimate", False))
+
+    @property
+    def point_estimate(self) -> pd.Series:
+        """Return the optimized parameter row for a MAP or MLE result."""
+        if not self.is_point_estimate:
+            raise AttributeError("This result contains posterior samples, not a point estimate")
+        return self.posterior.iloc[0].copy()
+
+    @property
     def transient(self) -> redback.transient.transient.Transient:
         """Reconstruct the transient used during sampling time using the metadata information.
 
@@ -243,6 +257,12 @@ class RedbackResult(Result):
                 label_kwargs={'fontsize': 20},
             )
         """
+        if self.is_point_estimate:
+            raise ValueError(
+                "Corner plots require posterior samples; MAP and MLE results "
+                "contain a single point estimate."
+            )
+
         fig = super().plot_corner(parameters=parameters, priors=priors, titles=False,
                                   save=False, filename=filename, dpi=dpi, **kwargs)
         if fig is None:
@@ -311,6 +331,8 @@ class RedbackResult(Result):
             logger.debug(f"Using stored model '{self.model}' for lightcurve plot")
         else:
             logger.debug(f"Using provided model for lightcurve plot")
+        if self.is_point_estimate:
+            kwargs.setdefault("random_models", 1)
         return self.transient.plot_lightcurve(model=model, posterior=self.posterior,
                                               model_kwargs=self.model_kwargs, **kwargs)
 
@@ -319,6 +341,8 @@ class RedbackResult(Result):
         Detailed documentation appears below by running `print(plot_spectrum.__doc__)` """
         if model is None:
             model = model_library.all_models_dict[self.model]
+        if self.is_point_estimate:
+            kwargs.setdefault("random_models", 1)
         return self.transient.plot_spectrum(model=model, posterior=self.posterior,
                                               model_kwargs=self.model_kwargs, **kwargs)
 
@@ -335,6 +359,8 @@ class RedbackResult(Result):
         Detailed documentation appears below by running `print(plot_multiband_lightcurve.__doc__)` """
         if model is None:
             model = model_library.all_models_dict[self.model]
+        if self.is_point_estimate:
+            kwargs.setdefault("random_models", 1)
         return self.transient.plot_multiband_lightcurve(
             model=model, posterior=self.posterior, model_kwargs=self.model_kwargs, **kwargs)
 

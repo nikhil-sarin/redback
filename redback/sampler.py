@@ -9,6 +9,7 @@ import redback.get_data
 from redback.likelihoods import GaussianLikelihood, GaussianLikelihoodWithUpperLimits, PoissonLikelihood, PoissonSpectralLikelihood, \
     WStatSpectralLikelihood, ChiSquareSpectralLikelihood
 from redback.model_library import all_models_dict
+from redback.optimizer import run_point_estimation
 from redback.result import RedbackResult
 from redback.utils import logger
 from redback.transient.afterglow import Afterglow
@@ -25,7 +26,9 @@ def fit_model(
         transient: redback.transient.transient.Transient, model: Union[callable, str], outdir: str = None,
         label: str = None, sampler: str = "dynesty", nlive: int = 2000, prior: dict = None, walks: int = 200,
         truncate: bool = True, use_photon_index_prior: bool = False, truncate_method: str = "prompt_time_error",
-        resume: bool = True, save_format: str = "json", model_kwargs: dict = None, plot=True, **kwargs)\
+        resume: bool = True, save_format: str = "json", model_kwargs: dict = None, plot=True,
+        fit_method: str = "sample", optimizer: str = "auto", optimizer_kwargs: dict = None,
+        initial_parameters: dict = None, **kwargs)\
         -> redback.result.RedbackResult:
     """
     :param transient: The transient to be fitted
@@ -34,6 +37,10 @@ def fit_model(
     :param label: Result file labels. Will use the model name if not given.
     :param sampler: The sampling backend. Nested samplers are encouraged to allow evidence calculation.
                     (Default value = 'dynesty')
+    :param fit_method: Inference method: ``sample`` (default), ``map``, or ``mle``.
+    :param optimizer: Point-estimation optimizer used for MAP/MLE fits.
+    :param optimizer_kwargs: Options passed to the point-estimation optimizer.
+    :param initial_parameters: Optional physical parameter values used to initialize point estimation.
     :param nlive: Number of live points.
     :param prior: Priors to use during sampling. If not given, we use the default priors for the given model.
     :param walks: Number of `dynesty` random walks.
@@ -48,6 +55,18 @@ def fit_model(
     :param kwargs: Additional parameters that will be passed to the sampler via bilby
     :return: Redback result object, transient specific data object
     """
+    fit_method = str(fit_method).lower()
+    if fit_method not in {"sample", "map", "mle"}:
+        raise ValueError("fit_method must be one of 'sample', 'map', or 'mle'")
+    if fit_method != "sample" and isinstance(sampler, str) and sampler.lower() != "dynesty":
+        raise ValueError("sampler cannot be combined with fit_method='map' or fit_method='mle'")
+    if fit_method == "sample" and isinstance(sampler, str) and sampler.lower() == "laplace":
+        from bilby.core.sampler import get_implemented_samplers
+        if "laplace" not in get_implemented_samplers():
+            raise ImportError(
+                "sampler='laplace' requires the optional bilby-laplace plugin. "
+                "Install it from https://github.com/GregoryAshton/bilby-laplace."
+            )
     if isinstance(model, str):
         modelname = model
         model = all_models_dict[model]
@@ -83,12 +102,15 @@ def fit_model(
         outdir = outdir or f"{transient.directory_structure.directory_path}/{model.__name__}"
     Path(outdir).mkdir(parents=True, exist_ok=True)
     label = label or transient.name
+    if fit_method in {"map", "mle"}:
+        label = f"{label}_{fit_method}"
 
     if isinstance(transient, SpectralDataset):
         return _fit_spectral_dataset(
             transient=transient, model=model, outdir=outdir, label=label, sampler=sampler, nlive=nlive,
             prior=prior, walks=walks, resume=resume, save_format=save_format, model_kwargs=model_kwargs,
-            plot=plot, **kwargs)
+            plot=plot, fit_method=fit_method, optimizer=optimizer,
+            optimizer_kwargs=optimizer_kwargs, initial_parameters=initial_parameters, **kwargs)
     try:
         from redback.transient.spectral import CountsSpectrumTransient
     except Exception:
@@ -97,37 +119,89 @@ def fit_model(
         return _fit_spectral_dataset(
             transient=transient.dataset, model=model, outdir=outdir, label=label, sampler=sampler, nlive=nlive,
             prior=prior, walks=walks, resume=resume, save_format=save_format, model_kwargs=model_kwargs,
-            plot=plot, **kwargs)
+            plot=plot, fit_method=fit_method, optimizer=optimizer,
+            optimizer_kwargs=optimizer_kwargs, initial_parameters=initial_parameters, **kwargs)
 
     if isinstance(transient, Spectrum):
         return _fit_spectrum(transient=transient, model=model, outdir=outdir, label=label, sampler=sampler,
                              nlive=nlive, prior=prior, walks=walks,
                              resume=resume, save_format=save_format, model_kwargs=model_kwargs,
-                             plot=plot, **kwargs)
+                             plot=plot, fit_method=fit_method, optimizer=optimizer,
+                             optimizer_kwargs=optimizer_kwargs, initial_parameters=initial_parameters, **kwargs)
 
     elif isinstance(transient, Afterglow):
         return _fit_grb(
             transient=transient, model=model, outdir=outdir, label=label, sampler=sampler, nlive=nlive, prior=prior,
             walks=walks, use_photon_index_prior=use_photon_index_prior, resume=resume, save_format=save_format,
-            model_kwargs=model_kwargs, truncate=truncate, truncate_method=truncate_method, plot=plot, **kwargs)
+            model_kwargs=model_kwargs, plot=plot,
+            fit_method=fit_method, optimizer=optimizer, optimizer_kwargs=optimizer_kwargs,
+            initial_parameters=initial_parameters, **kwargs)
     elif isinstance(transient, PromptTimeSeries):
         return _fit_prompt(
             transient=transient, model=model, outdir=outdir, label=label, sampler=sampler, nlive=nlive, prior=prior,
-            walks=walks, resume=resume, save_format=save_format, model_kwargs=model_kwargs, plot=plot, **kwargs)
+            walks=walks, resume=resume, save_format=save_format, model_kwargs=model_kwargs, plot=plot,
+            fit_method=fit_method, optimizer=optimizer, optimizer_kwargs=optimizer_kwargs,
+            initial_parameters=initial_parameters, **kwargs)
     elif isinstance(transient, OpticalTransient):
         return _fit_optical_transient(
             transient=transient, model=model, outdir=outdir, label=label, sampler=sampler, nlive=nlive, prior=prior,
-            walks=walks, truncate=truncate, use_photon_index_prior=use_photon_index_prior,
-            truncate_method=truncate_method, resume=resume, save_format=save_format, model_kwargs=model_kwargs,
-            plot=plot, **kwargs)
+            walks=walks, resume=resume, save_format=save_format, model_kwargs=model_kwargs,
+            plot=plot, fit_method=fit_method, optimizer=optimizer,
+            optimizer_kwargs=optimizer_kwargs, initial_parameters=initial_parameters, **kwargs)
     elif isinstance(transient, Transient):
         return _fit_optical_transient(
             transient=transient, model=model, outdir=outdir, label=label, sampler=sampler, nlive=nlive, prior=prior,
-            walks=walks, truncate=truncate, use_photon_index_prior=use_photon_index_prior,
-            truncate_method=truncate_method, resume=resume, save_format=save_format, model_kwargs=model_kwargs,
-            plot=plot, **kwargs)
+            walks=walks, resume=resume, save_format=save_format, model_kwargs=model_kwargs,
+            plot=plot, fit_method=fit_method, optimizer=optimizer,
+            optimizer_kwargs=optimizer_kwargs, initial_parameters=initial_parameters, **kwargs)
     else:
         raise ValueError(f'Source type {transient.__class__.__name__} not known')
+
+
+def _run_fit_backend(likelihood, prior, label, sampler, nlive, outdir, walks, resume,
+                     save_format, meta_data, sampler_plot, **kwargs):
+    """Execute sampling or point estimation after a fit path builds its likelihood."""
+    fit_method = kwargs.pop("fit_method", "sample")
+    optimizer = kwargs.pop("optimizer", "auto")
+    optimizer_kwargs = kwargs.pop("optimizer_kwargs", None)
+    initial_parameters = kwargs.pop("initial_parameters", None)
+    meta_data = dict(meta_data)
+    meta_data["fit_method"] = fit_method
+
+    if fit_method in {"map", "mle"}:
+        return run_point_estimation(
+            likelihood=likelihood, priors=prior, fit_method=fit_method,
+            label=label, outdir=outdir, meta_data=meta_data,
+            optimizer=optimizer, optimizer_kwargs=optimizer_kwargs,
+            initial_parameters=initial_parameters, save_format=save_format,
+            gzip=kwargs.get("gzip", False))
+
+    run_kwargs = dict(
+        likelihood=likelihood, priors=prior, label=label, sampler=sampler,
+        outdir=outdir, plot=sampler_plot, use_ratio=False, resume=resume,
+        result_class=RedbackResult, meta_data=meta_data, save=save_format,
+    )
+    if not (isinstance(sampler, str) and sampler.lower() == "laplace"):
+        run_kwargs.update(
+            nlive=nlive, walks=walks, maxmcmc=10 * walks,
+            save_bounds=False, nsteps=nlive, nwalkers=walks,
+        )
+
+    try:
+        return bilby.run_sampler(**run_kwargs, **kwargs)
+    except ValueError as exc:
+        if isinstance(sampler, str) and sampler.lower() == "pymultinest" \
+                and "dead_points" in str(exc) and "live_points" in str(exc):
+            logger.warning(
+                "Pymultinest failed to assemble nested samples (%s). Rerunning with dynesty.",
+                exc,
+            )
+            return bilby.run_sampler(
+                likelihood=likelihood, priors=prior, label=label, sampler="dynesty", nlive=nlive,
+                outdir=outdir, plot=sampler_plot, use_ratio=False, walks=walks, resume=resume,
+                maxmcmc=10 * walks, result_class=RedbackResult, meta_data=meta_data,
+                save_bounds=False, nsteps=nlive, nwalkers=walks, save=save_format, **kwargs)
+        raise
 
 def _fit_spectrum(transient, model, outdir, label, likelihood=None, sampler='dynesty', nlive=3000, prior=None, walks=1000,
                   resume=True, save_format='json', model_kwargs=None, plot=True, **kwargs):
@@ -150,32 +224,17 @@ def _fit_spectrum(transient, model, outdir, label, likelihood=None, sampler='dyn
     if not kwargs.get("clean", False):
         try:
             result = redback.result.read_in_result(
-                outdir=outdir, label=label, extension=kwargs.get("extension", "json"), gzip=kwargs.get("gzip", False))
+                outdir=outdir, label=label, extension=kwargs.get("extension", save_format),
+                gzip=kwargs.get("gzip", False))
             plt.close('all')
             return result
         except Exception:
             pass
 
-    try:
-        result = result or bilby.run_sampler(
-            likelihood=likelihood, priors=prior, label=label, sampler=sampler, nlive=nlive,
-            outdir=outdir, plot=plot, use_ratio=False, walks=walks, resume=resume,
-            maxmcmc=10 * walks, result_class=RedbackResult, meta_data=meta_data,
-            save_bounds=False, nsteps=nlive, nwalkers=walks, save=save_format, **kwargs)
-    except ValueError as exc:
-        if sampler.lower() == "pymultinest" and "dead_points" in str(exc) and "live_points" in str(exc):
-            logger.warning(
-                "Pymultinest failed to assemble nested samples (%s). "
-                "Rerunning with dynesty.",
-                exc,
-            )
-            result = bilby.run_sampler(
-                likelihood=likelihood, priors=prior, label=label, sampler="dynesty", nlive=nlive,
-                outdir=outdir, plot=plot, use_ratio=False, walks=walks, resume=resume,
-                maxmcmc=10 * walks, result_class=RedbackResult, meta_data=meta_data,
-                save_bounds=False, nsteps=nlive, nwalkers=walks, save=save_format, **kwargs)
-        else:
-            raise
+    result = result or _run_fit_backend(
+        likelihood=likelihood, prior=prior, label=label, sampler=sampler, nlive=nlive,
+        outdir=outdir, walks=walks, resume=resume, save_format=save_format,
+        meta_data=meta_data, sampler_plot=plot, **kwargs)
     plt.close('all')
     if plot:
         result.plot_spectrum(model=model)
@@ -256,25 +315,10 @@ def _fit_spectral_dataset(transient, model, outdir, label, likelihood=None, samp
         except Exception as exc:
             logger.warning("Spectral preflight failed: %s", exc)
 
-    try:
-        result = result or bilby.run_sampler(
-            likelihood=likelihood, priors=prior, label=label, sampler=sampler, nlive=nlive,
-            outdir=outdir, plot=plot, use_ratio=False, walks=walks, resume=resume,
-            maxmcmc=10 * walks, result_class=RedbackResult, meta_data=meta_data,
-            save_bounds=False, nsteps=nlive, nwalkers=walks, save=save_format, **kwargs)
-    except ValueError as exc:
-        if sampler.lower() == "pymultinest" and "dead_points" in str(exc) and "live_points" in str(exc):
-            logger.warning(
-                "Pymultinest failed to assemble nested samples (%s). Rerunning with dynesty.",
-                exc,
-            )
-            result = bilby.run_sampler(
-                likelihood=likelihood, priors=prior, label=label, sampler="dynesty", nlive=nlive,
-                outdir=outdir, plot=plot, use_ratio=False, walks=walks, resume=resume,
-                maxmcmc=10 * walks, result_class=RedbackResult, meta_data=meta_data,
-                save_bounds=False, nsteps=nlive, nwalkers=walks, save=save_format, **kwargs)
-        else:
-            raise
+    result = result or _run_fit_backend(
+        likelihood=likelihood, prior=prior, label=label, sampler=sampler, nlive=nlive,
+        outdir=outdir, walks=walks, resume=resume, save_format=save_format,
+        meta_data=meta_data, sampler_plot=plot, **kwargs)
     plt.close('all')
     if plot:
         filename = f"{label}_spectrum_counts.png"
@@ -315,17 +359,17 @@ def _fit_grb(transient, model, outdir, label, likelihood=None, sampler='dynesty'
     if not kwargs.get("clean", False):
         try:
             result = redback.result.read_in_result(
-                outdir=outdir, label=label, extension=kwargs.get("extension", "json"), gzip=kwargs.get("gzip", False))
+                outdir=outdir, label=label, extension=kwargs.get("extension", save_format),
+                gzip=kwargs.get("gzip", False))
             plt.close('all')
             return result
         except Exception:
             pass
 
-    result = result or bilby.run_sampler(
-        likelihood=likelihood, priors=prior, label=label, sampler=sampler, nlive=nlive,
-        outdir=outdir, plot=plot, use_ratio=False, walks=walks, resume=resume,
-        maxmcmc=10 * walks, result_class=RedbackResult, meta_data=meta_data,
-        save_bounds=False, nsteps=nlive, nwalkers=walks, save=save_format, **kwargs)
+    result = result or _run_fit_backend(
+        likelihood=likelihood, prior=prior, label=label, sampler=sampler, nlive=nlive,
+        outdir=outdir, walks=walks, resume=resume, save_format=save_format,
+        meta_data=meta_data, sampler_plot=plot, **kwargs)
     plt.close('all')
     if plot:
         result.plot_lightcurve(model=model)
@@ -407,17 +451,17 @@ def _fit_optical_transient(transient, model, outdir, label, likelihood=None, sam
     if not kwargs.get("clean", False):
         try:
             result = redback.result.read_in_result(
-                outdir=outdir, label=label, extension=kwargs.get("extension", "json"), gzip=kwargs.get("gzip", False))
+                outdir=outdir, label=label, extension=kwargs.get("extension", save_format),
+                gzip=kwargs.get("gzip", False))
             plt.close('all')
             return result
         except Exception:
             pass
 
-    result = result or bilby.run_sampler(
-        likelihood=likelihood, priors=prior, label=label, sampler=sampler, nlive=nlive,
-        outdir=outdir, plot=plot, use_ratio=False, walks=walks, resume=resume,
-        maxmcmc=10 * walks, result_class=RedbackResult, meta_data=meta_data,
-        save_bounds=False, nsteps=nlive, nwalkers=walks, save=save_format, **kwargs)
+    result = result or _run_fit_backend(
+        likelihood=likelihood, prior=prior, label=label, sampler=sampler, nlive=nlive,
+        outdir=outdir, walks=walks, resume=resume, save_format=save_format,
+        meta_data=meta_data, sampler_plot=plot, **kwargs)
     plt.close('all')
     if plot:
         result.plot_lightcurve(model=model)
@@ -442,17 +486,17 @@ def _fit_prompt(transient, model, outdir, label, likelihood=None, integrated_rat
     if not kwargs.get("clean", False):
         try:
             result = redback.result.read_in_result(
-                outdir=outdir, label=label, extension=kwargs.get("extension", "json"), gzip=kwargs.get("gzip", False))
+                outdir=outdir, label=label, extension=kwargs.get("extension", save_format),
+                gzip=kwargs.get("gzip", False))
             plt.close('all')
             return result
         except Exception:
             pass
 
-    result = result or bilby.run_sampler(
-        likelihood=likelihood, priors=prior, label=label, sampler=sampler, nlive=nlive,
-        outdir=outdir, plot=False, use_ratio=False, walks=walks, resume=resume,
-        maxmcmc=10 * walks, result_class=RedbackResult, meta_data=meta_data,
-        save_bounds=False, nsteps=nlive, nwalkers=walks, save=save_format, **kwargs)
+    result = result or _run_fit_backend(
+        likelihood=likelihood, prior=prior, label=label, sampler=sampler, nlive=nlive,
+        outdir=outdir, walks=walks, resume=resume, save_format=save_format,
+        meta_data=meta_data, sampler_plot=False, **kwargs)
     plt.close('all')
     if plot:
         result.plot_lightcurve(model=model)

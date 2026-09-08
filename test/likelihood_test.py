@@ -411,7 +411,8 @@ class MaximumLikelihoodTest(unittest.TestCase):
         del self.likelihood
 
     def test_maximum_likelihood(self):
-        maxl_parameters = self.likelihood.find_maximum_likelihood_parameters()
+        with self.assertWarnsRegex(FutureWarning, "fit_method='mle'"):
+            maxl_parameters = self.likelihood.find_maximum_likelihood_parameters()
         self.assertAlmostEqual(maxl_parameters['m'], self.m, places=0)
         self.assertAlmostEqual(maxl_parameters['c'], self.c, places=0)
 
