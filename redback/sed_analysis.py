@@ -354,9 +354,10 @@ class BlackbodySEDModel:
         flux_lambda = flux_nu.to(
             uu.erg / uu.cm ** 2 / uu.s / uu.Angstrom,
             equivalencies=uu.spectral_density(wav=observer_wavelength * uu.Angstrom))
-        spectra = np.repeat(flux_lambda.value[None, :], 2, axis=0)
+        phases = np.arange(5, dtype=float)
+        spectra = np.repeat(flux_lambda.value[None, :], len(phases), axis=0)
         source = RedbackTimeSeriesSource(
-            phase=np.array([0.0, 1.0]), wave=observer_wavelength, flux=spectra)
+            phase=phases, wave=observer_wavelength, flux=spectra)
         magnitudes = source.bandmag(phase=0.0, band=bands, magsys="ab")
         if output_format == "magnitude":
             return magnitudes

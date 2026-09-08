@@ -135,6 +135,26 @@ class TestEstimateSED(unittest.TestCase):
             frame.iloc[0]["lum_bol"] * 1e50,
             blackbody.bolometric_luminosity(result.epoch_results[0].parameters))
 
+    def test_magnitude_mode_uses_bandpass_photometry(self):
+        redshift = 0.1
+        distance = 1e27
+        bands = np.array(["ztfg", "ztfr", "ztfi", "sdss::u", "sdss::z"])
+        model = BlackbodySEDModel(distance=distance, redshift=redshift)
+        parameters = {"temperature": 11000.0, "radius": 8e14}
+        context = {"coordinate_type": "band", "data_mode": "magnitude"}
+        magnitude = model.evaluate_photometry(bands, parameters, context)
+        error = np.full(len(bands), 0.05)
+        time = np.linspace(10.0, 10.2, len(bands))
+        transient = redback.transient.OpticalTransient(
+            time=time, magnitude=magnitude, magnitude_err=error,
+            redshift=redshift, data_mode="magnitude", name="BandpassSED",
+            bands=bands, use_phase_model=False)
+        transient.get_filtered_data = lambda: (time, np.zeros(len(time)), magnitude, error)
+
+        frame = transient.estimate_sed(distance=distance).to_dataframe(True)
+        np.testing.assert_allclose(frame.iloc[0]["temperature"], parameters["temperature"], rtol=1e-6)
+        np.testing.assert_allclose(frame.iloc[0]["radius"], parameters["radius"], rtol=1e-6)
+
     def test_insufficient_epoch_is_retained(self):
         transient, distance, _ = self._make_transient()
         original = transient.get_filtered_data()
