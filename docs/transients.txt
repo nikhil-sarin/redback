@@ -99,6 +99,26 @@ Note that in the supernova object, we set :code:`phase_model=True`.
 This sets the time attribute of the class to the modified julian date time of the observations.
 This is specifically for situations when users want to also sample the start time of the transient.
 
+.. _afterglow-names-and-directories:
+
+Afterglow names and directories
+-------------------------------
+
+:code:`Afterglow` is the generic class for GRB and non-GRB afterglows. It treats :code:`name` as an
+opaque event identifier and preserves its spelling. For example, :code:`Afterglow(name="AT2026abc",
+...)` has :code:`name == "AT2026abc"` and uses the local :code:`afterglow/` data directory.
+
+:code:`SGRB` and :code:`LGRB` are GRB-specific subclasses. They accept identifiers with or without
+the :code:`GRB` prefix and remove spaces, so :code:`"230307A"`, :code:`"GRB230307A"`, and
+:code:`"GRB 230307A"` are all stored as :code:`"GRB230307A"`. These subclasses retain the legacy
+:code:`GRBData/afterglow/<data_mode>/` directory layout.
+
+:code:`Afterglow.from_swift_grb`, :code:`SGRB.from_swift_grb`, and
+:code:`LGRB.from_swift_grb` are explicitly Swift-GRB constructors. They apply the same GRB
+normalization and use the legacy Swift directory layout even when called on :code:`Afterglow`.
+Construct :code:`Afterglow` directly for a non-GRB event. Redback does not move or rename existing
+files when an object is constructed.
+
 FXT objects are not connected to a broker or catalog data getter in :code:`redback`.
 No current :code:`redback.get_data` backend can fetch FXT data, so construct :code:`redback.transient.FXT`
 directly from local, private, simulated, or externally downloaded spectra.

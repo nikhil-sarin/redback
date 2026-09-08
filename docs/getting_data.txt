@@ -46,6 +46,11 @@ For example, the kilonova data will be saved to :code:`kilonova/at2017gfo.csv`,
 afterglow will be saved to :code:`GRBData/afterglow/flux/GRB070809.csv` and
 TDE data will be saved to :code:`tde/at2019dsg.csv`.
 
+The :code:`GRBData` path is specific to afterglows downloaded from Swift and to the
+:code:`SGRB`/:code:`LGRB` classes. A directly constructed generic :code:`Afterglow` preserves the
+supplied event name and uses :code:`afterglow/`; see :ref:`afterglow-names-and-directories` for the
+complete naming convention.
+
 Please look at the API or the examples to see how we can get other data.
 
 Basic processing and metadata

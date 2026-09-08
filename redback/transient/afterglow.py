@@ -37,7 +37,8 @@ class Afterglow(Transient):
         the data mode you are using. For luminosity data provide times in the rest frame, if using a phase model
         provide time in MJD, else use the default time (observer frame).
 
-        :param name: Telephone number of GRB, e.g., 'GRB140903A' or '140903A' are valid inputs
+        :param name: Event identifier. Generic afterglows preserve this value exactly. The
+            :class:`SGRB` and :class:`LGRB` subclasses normalize GRB identifiers.
         :type name: str
         :param data_mode: Data mode. Must be one from `Afterglow.DATA_MODES`.
         :type data_mode: str, optional
@@ -135,6 +136,10 @@ class Afterglow(Transient):
 
         """
         afterglow = cls(name=cls._normalise_grb_name(name), data_mode=data_mode, **kwargs)
+        # Swift is a GRB catalogue even when this constructor is called on the
+        # generic Afterglow class.
+        afterglow._uses_grb_directory = True
+        afterglow._set_directory_structure()
         afterglow.snr = snr
 
         afterglow._set_data()
@@ -457,7 +462,7 @@ class Afterglow(Transient):
 
 
 class SGRB(Afterglow):
-    """ """
+    """Short-GRB afterglow with a canonical ``GRB<identifier>`` name."""
     _uses_grb_directory = True
 
     def __init__(self, name: str, *args, **kwargs):
@@ -465,7 +470,7 @@ class SGRB(Afterglow):
 
 
 class LGRB(Afterglow):
-    """ """
+    """Long-GRB afterglow with a canonical ``GRB<identifier>`` name."""
     _uses_grb_directory = True
 
     def __init__(self, name: str, *args, **kwargs):
