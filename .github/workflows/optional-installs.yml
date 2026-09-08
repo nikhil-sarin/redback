@@ -1,0 +1,43 @@
+name: Optional extra install smoke tests
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+    branches: [master]
+
+jobs:
+  install-extra:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        extra: [afterglow, data, speed, docs]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+          cache: pip
+          cache-dependency-path: pyproject.toml
+      - name: Install Redback extra
+        run: python -m pip install ".[${{ matrix.extra }}]"
+      - name: Import Redback and selected dependency
+        env:
+          REDBACK_EXTRA: ${{ matrix.extra }}
+        run: |
+          cd /tmp
+          python - <<'PY'
+          import importlib
+          import os
+          import redback
+
+          modules = {
+              "afterglow": "afterglowpy",
+              "data": "astroquery",
+              "speed": "numba",
+              "docs": "sphinx",
+          }
+          importlib.import_module(modules[os.environ["REDBACK_EXTRA"]])
+          print(redback.__version__)
+          PY
