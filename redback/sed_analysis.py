@@ -300,11 +300,12 @@ class SEDResult:
             luminosity = self.model.bolometric_luminosity(parameters)
             luminosity_function = self.model.bolometric_luminosity
             if self.method == "blackbody" and lambda_cut is not None:
-                def luminosity_function(point):
+                def boosted_luminosity(point):
                     redward_fraction = blackbody_model.luminosity_fractions(
                         point, (float(lambda_cut), float(lambda_cut)))[2]
                     return blackbody_model.bolometric_luminosity(point) / redward_fraction
 
+                luminosity_function = boosted_luminosity
                 luminosity = luminosity_function(parameters)
             luminosity_variance = self._function_variance(
                 epoch, luminosity_function)
