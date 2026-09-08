@@ -7,6 +7,7 @@ import redback
 from redback.sed_analysis import (
     BlackbodySEDModel,
     CutoffBlackbodySEDModel,
+    ExtinctionConfig,
     SEDEpochResult,
     SEDResult,
 )
@@ -129,6 +130,10 @@ class TestEstimateSED(unittest.TestCase):
             cutoff_wavelength=cutoff, absorption_index=index)
         frame = result.integrate().to_dataframe(successful_only=True)
         self.assertEqual("cutoff_blackbody", frame.iloc[0]["method"])
+        np.testing.assert_allclose(
+            result.epoch_results[0].parameters["temperature"], 11000.0, rtol=1e-6)
+        np.testing.assert_allclose(
+            result.epoch_results[0].parameters["radius"], 8e14, rtol=1e-6)
         self.assertGreater(frame.iloc[0]["lum_bol"], 0.0)
         blackbody = BlackbodySEDModel(distance=distance, redshift=transient.redshift)
         self.assertLess(
@@ -152,6 +157,33 @@ class TestEstimateSED(unittest.TestCase):
         transient.get_filtered_data = lambda: (time, np.zeros(len(time)), magnitude, error)
 
         frame = transient.estimate_sed(distance=distance).to_dataframe(True)
+        np.testing.assert_allclose(frame.iloc[0]["temperature"], parameters["temperature"], rtol=1e-6)
+        np.testing.assert_allclose(frame.iloc[0]["radius"], parameters["radius"], rtol=1e-6)
+
+    def test_extinction_is_fit_in_forward_photometry(self):
+        redshift = 0.1
+        distance = 1e27
+        extinction = ExtinctionConfig(av_host=0.5, av_mw=0.1)
+        model = BlackbodySEDModel(
+            distance=distance, redshift=redshift, extinction=extinction)
+        parameters = {"temperature": 11000.0, "radius": 8e14}
+        observer_frequency = redback.utils.lambda_to_nu(
+            np.array([2500.0, 3300.0, 4200.0, 5200.0, 6500.0, 8000.0]))
+        rest_frequency, _ = redback.utils.calc_kcorrected_properties(
+            frequency=observer_frequency, redshift=redshift, time=0.0)
+        flux = model.evaluate_photometry(
+            rest_frequency, parameters,
+            {"coordinate_type": "frequency", "data_mode": "flux_density"})
+        error = 0.05 * flux
+        time = np.linspace(10.0, 10.2, len(flux))
+        transient = redback.transient.OpticalTransient(
+            time=time, flux_density=flux, flux_density_err=error,
+            redshift=redshift, data_mode="flux_density", name="ExtinctedSED",
+            frequency=observer_frequency, use_phase_model=False)
+        transient.get_filtered_data = lambda: (time, np.zeros(len(time)), flux, error)
+
+        frame = transient.estimate_sed(
+            distance=distance, extinction=extinction).to_dataframe(True)
         np.testing.assert_allclose(frame.iloc[0]["temperature"], parameters["temperature"], rtol=1e-6)
         np.testing.assert_allclose(frame.iloc[0]["radius"], parameters["radius"], rtol=1e-6)
 
@@ -203,6 +235,27 @@ class TestEstimateSED(unittest.TestCase):
             4 * np.pi * parameters["radius"] ** 2 * redback.constants.sigma_sb
             * parameters["temperature"] ** 4)
         np.testing.assert_allclose(frame.iloc[0]["lum_bol"] * 1e50, expected, rtol=0.01)
+
+    def test_dataframe_wrapper_preserves_fitted_parameters(self):
+        transient, distance, _ = self._make_transient(
+            CutoffBlackbodySEDModel, cutoff_wavelength=4500.0, absorption_index=2.0)
+        keywords = dict(
+            method="cutoff_blackbody", distance=distance,
+            cutoff_wavelength=4500.0, absorption_index=2.0)
+        current = transient.estimate_bb_params(**keywords)
+        legacy = transient.estimate_bb_params(
+            _legacy_implementation=True, **keywords)
+        np.testing.assert_allclose(
+            current[["temperature", "radius"]],
+            legacy[["temperature", "radius"]], rtol=1e-6)
+
+    def test_dataframe_bolometric_wrapper_uses_stable_blue_boost(self):
+        transient, distance, _ = self._make_transient()
+        uncorrected = transient.estimate_bolometric_luminosity(distance=distance)
+        corrected = transient.estimate_bolometric_luminosity(
+            distance=distance, lambda_cut=4500.0)
+        self.assertGreater(corrected.iloc[0]["lum_bol"], uncorrected.iloc[0]["lum_bol"])
+        self.assertEqual(corrected.iloc[0]["lum_bol_bb"], uncorrected.iloc[0]["lum_bol_bb"])
 
 
 if __name__ == "__main__":

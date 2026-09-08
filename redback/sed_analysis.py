@@ -59,6 +59,37 @@ class SEDModel(Protocol):
         """Convert optimizer coordinates and covariance to physical parameters."""
 
 
+@dataclass(frozen=True)
+class ExtinctionConfig:
+    """Host and Milky Way dust applied to forward SED photometry."""
+
+    av_host: float = 0.0
+    rv_host: float = 3.1
+    av_mw: float = 0.0
+    rv_mw: float = 3.1
+    host_law: str = "fitzpatrick99"
+    mw_law: str = "fitzpatrick99"
+
+    def __post_init__(self):
+        values = (self.av_host, self.rv_host, self.av_mw, self.rv_mw)
+        if not np.all(np.isfinite(values)):
+            raise ValueError("Extinction values must be finite")
+        if self.av_host < 0 or self.av_mw < 0:
+            raise ValueError("Extinction A_V values must be non-negative")
+        if self.rv_host <= 0 or self.rv_mw <= 0:
+            raise ValueError("Extinction R_V values must be positive")
+
+    def transmission(self, observer_wavelength, redshift):
+        from redback.transient_models.extinction_models import _perform_extinction
+
+        wavelength = np.atleast_1d(np.asarray(observer_wavelength, dtype=float))
+        return np.asarray(_perform_extinction(
+            flux_density=np.ones_like(wavelength), angstroms=wavelength,
+            av_host=self.av_host, rv_host=self.rv_host,
+            av_mw=self.av_mw, rv_mw=self.rv_mw, redshift=redshift,
+            host_law=self.host_law, mw_law=self.mw_law), dtype=float)
+
+
 @dataclass
 class SEDEpochResult:
     """Fit result and diagnostic information for one photometric epoch."""
@@ -156,11 +187,8 @@ class SEDResult:
             data = data[data["success"]]
         return data.copy()
 
-    def integrate(self, extinction_magnitude: float = 0.0) -> BolometricResult:
+    def integrate(self) -> BolometricResult:
         """Integrate every successful epoch and propagate its full covariance."""
-        if not np.isfinite(extinction_magnitude):
-            raise ValueError("extinction_magnitude must be finite")
-        extinction_factor = 10.0 ** (0.4 * extinction_magnitude)
         rows = []
         for epoch in self.epoch_results:
             row = {
@@ -186,7 +214,7 @@ class SEDResult:
                         epoch.luminosity_components.get(name, 0.0) / total
                         for name in ("ultraviolet", "observed", "infrared"))
                     row.update({
-                        f"lum_{name}": value * extinction_factor / 1e50
+                        f"lum_{name}": value / 1e50
                         for name, value in epoch.luminosity_components.items()})
                 else:
                     luminosity = self.model.bolometric_luminosity(epoch.parameters)
@@ -195,8 +223,8 @@ class SEDResult:
                     fractions = self.model.luminosity_fractions(
                         epoch.parameters, (epoch.wavelength_min, epoch.wavelength_max))
                 row.update({
-                    "lum_bol": luminosity * extinction_factor / 1e50,
-                    "lum_bol_err": luminosity_error * extinction_factor / 1e50,
+                    "lum_bol": luminosity / 1e50,
+                    "lum_bol_err": luminosity_error / 1e50,
                     "uv_fraction": fractions[0],
                     "observed_fraction": fractions[1],
                     "ir_fraction": fractions[2],
@@ -242,6 +270,75 @@ class SEDResult:
         axes[1].set_xlabel("Observer-frame time")
         return axes
 
+    def _legacy_parameter_dataframe(self):
+        data = self.to_dataframe(successful_only=True)
+        if len(data) == 0:
+            return None
+        data = data[data["status"] == "success"].copy()
+        if len(data) == 0:
+            return None
+        data = data.rename(columns={"temperature_err": "temp_err"})
+        columns = ["epoch_times", "temperature", "radius", "temp_err", "radius_err"]
+        if self.method == "cutoff_blackbody":
+            columns.extend([
+                "cutoff_wavelength", "cutoff_wavelength_err",
+                "absorption_index", "absorption_index_err"])
+        columns.append("method")
+        return data[columns].reset_index(drop=True)
+
+    def _legacy_bolometric_dataframe(self, lambda_cut=None, A_ext=0.0):
+        if not np.isfinite(A_ext):
+            raise ValueError("A_ext must be finite")
+        extinction_factor = 10.0 ** (0.4 * A_ext)
+        rows = []
+        for epoch in self.epoch_results:
+            if not epoch.success or epoch.status != "success":
+                continue
+            parameters = epoch.parameters
+            blackbody_model = BlackbodySEDModel(self.distance, self.redshift)
+            luminosity_bb = blackbody_model.bolometric_luminosity(parameters)
+            luminosity = self.model.bolometric_luminosity(parameters)
+            luminosity_function = self.model.bolometric_luminosity
+            if self.method == "blackbody" and lambda_cut is not None:
+                def luminosity_function(point):
+                    redward_fraction = blackbody_model.luminosity_fractions(
+                        point, (float(lambda_cut), float(lambda_cut)))[2]
+                    return blackbody_model.bolometric_luminosity(point) / redward_fraction
+
+                luminosity = luminosity_function(parameters)
+            luminosity_variance = self._function_variance(
+                epoch, luminosity_function)
+            blackbody_variance = self._function_variance(
+                epoch, blackbody_model.bolometric_luminosity)
+            row = {
+                "epoch_times": epoch.epoch_time,
+                "temperature": parameters["temperature"],
+                "radius": parameters["radius"],
+                "temp_err": self._parameter_error(epoch, "temperature"),
+                "radius_err": self._parameter_error(epoch, "radius"),
+                "lum_bol": luminosity * extinction_factor / 1e50,
+                "lum_bol_err": np.sqrt(luminosity_variance) * extinction_factor / 1e50,
+                "lum_bol_bb": luminosity_bb * extinction_factor / 1e50,
+                "lum_bol_bb_err": np.sqrt(blackbody_variance) * extinction_factor / 1e50,
+                "method": self.method,
+                "time_rest_frame": epoch.epoch_time / (1.0 + self.redshift),
+            }
+            if self.method == "cutoff_blackbody":
+                fraction = luminosity / luminosity_bb
+                row.update({
+                    "cutoff_wavelength": parameters["cutoff_wavelength"],
+                    "cutoff_wavelength_err": self._parameter_error(epoch, "cutoff_wavelength"),
+                    "absorption_index": parameters["absorption_index"],
+                    "absorption_index_err": self._parameter_error(epoch, "absorption_index"),
+                    "cutoff_fraction": fraction,
+                    "cutoff_boost": 1.0 / fraction,
+                })
+            rows.append(row)
+        if not rows:
+            return None
+        data = pd.DataFrame(rows)
+        return data[data["lum_bol_err"] / data["lum_bol"] < 1].reset_index(drop=True)
+
     def _select_epoch(self, epoch: int | float) -> SEDEpochResult:
         if isinstance(epoch, (int, np.integer)):
             return self.epoch_results[int(epoch)]
@@ -265,6 +362,20 @@ class SEDResult:
             return np.nan
         return max(variance, 0.0)
 
+    def _function_variance(self, epoch, function):
+        if epoch.covariance is None:
+            return np.nan
+        gradient = []
+        for name in self.model.parameter_names:
+            value = float(epoch.parameters[name])
+            step = max(abs(value) * 1e-5, 1e-8)
+            lower, upper = dict(epoch.parameters), dict(epoch.parameters)
+            lower[name], upper[name] = value - step, value + step
+            gradient.append((function(upper) - function(lower)) / (2.0 * step))
+        gradient = np.asarray(gradient)
+        variance = float(gradient @ epoch.covariance @ gradient)
+        return max(variance, 0.0) if np.isfinite(variance) else np.nan
+
     def _luminosity_gradient(self, parameters: Mapping[str, float]) -> np.ndarray:
         gradient = []
         for name in self.model.parameter_names:
@@ -286,9 +397,12 @@ class BlackbodySEDModel:
     name = "blackbody"
     parameter_names = ("temperature", "radius")
 
-    def __init__(self, distance: float, redshift: float):
+    def __init__(
+            self, distance: float, redshift: float,
+            extinction: ExtinctionConfig | None = None):
         self.distance = float(distance)
         self.redshift = float(redshift)
+        self.extinction = extinction
 
     def fit_setup(self, **kwargs):
         initial = np.array([
@@ -335,7 +449,12 @@ class BlackbodySEDModel:
         flux = blackbody_to_flux_density(
             parameters["temperature"], parameters["radius"], self.distance,
             rest_frequency) * (1.0 + self.redshift)
-        return (flux / (1e-26 * uu.erg / uu.s / uu.cm ** 2 / uu.Hz)).value
+        flux_mjy = (flux / (1e-26 * uu.erg / uu.s / uu.cm ** 2 / uu.Hz)).value
+        flux_mjy *= self._suppression(nu_to_lambda(rest_frequency), parameters)
+        if self.extinction is not None:
+            observer_wavelength = nu_to_lambda(rest_frequency) * (1.0 + self.redshift)
+            flux_mjy *= self.extinction.transmission(observer_wavelength, self.redshift)
+        return flux_mjy
 
     def _suppression(self, rest_wavelength, parameters):
         return np.ones_like(np.asarray(rest_wavelength, dtype=float))
@@ -351,6 +470,8 @@ class BlackbodySEDModel:
             parameters["temperature"], parameters["radius"], self.distance,
             rest_frequency) * (1.0 + self.redshift)
         flux_nu *= self._suppression(nu_to_lambda(rest_frequency), parameters)
+        if self.extinction is not None:
+            flux_nu *= self.extinction.transmission(observer_wavelength, self.redshift)
         flux_lambda = flux_nu.to(
             uu.erg / uu.cm ** 2 / uu.s / uu.Angstrom,
             equivalencies=uu.spectral_density(wav=observer_wavelength * uu.Angstrom))
@@ -420,8 +541,8 @@ class CutoffBlackbodySEDModel(BlackbodySEDModel):
 
     def __init__(
             self, distance, redshift, cutoff_wavelength=3000.0, absorption_index=1.0,
-            fit_cutoff_wavelength=False, fit_absorption_index=False):
-        super().__init__(distance=distance, redshift=redshift)
+            fit_cutoff_wavelength=False, fit_absorption_index=False, extinction=None):
+        super().__init__(distance=distance, redshift=redshift, extinction=extinction)
         if not np.isfinite(cutoff_wavelength) or cutoff_wavelength <= 0:
             raise ValueError("cutoff_wavelength must be finite and positive")
         if not np.isfinite(absorption_index) or absorption_index < 0:
@@ -541,7 +662,7 @@ class DirectIntegrationSEDModel:
 def estimate_sed(
         transient, method: str | SEDModel = "blackbody", distance: float = 1e27,
         bin_width: float = 1.0, min_filters: int = 3, bandpass: bool = True,
-        **kwargs) -> SEDResult:
+        extinction: ExtinctionConfig | None = None, **kwargs) -> SEDResult:
     """Fit an SED independently in each time bin of an optical transient."""
     if not np.isfinite(distance) or distance <= 0:
         raise ValueError("distance must be finite and positive")
@@ -556,10 +677,11 @@ def estimate_sed(
     if isinstance(method, str) and method.lower() in {"direct", "direct_integration"}:
         return _estimate_direct_sed(
             transient=transient, distance=distance, redshift=redshift,
-            bin_width=bin_width, min_filters=min_filters, **kwargs)
+            bin_width=bin_width, min_filters=min_filters, extinction=extinction, **kwargs)
 
     sed_model = _resolve_sed_model(
-        method=method, distance=distance, redshift=redshift, **kwargs)
+        method=method, distance=distance, redshift=redshift,
+        extinction=extinction, **kwargs)
     time, coordinates, wavelength, observed, observed_error, context = _prepare_photometry(
         transient=transient, redshift=redshift, bandpass=bandpass)
     _validate_photometry(time, wavelength, observed, observed_error)
@@ -630,21 +752,23 @@ def estimate_sed(
         epoch_results=epoch_results, redshift=redshift, distance=distance)
 
 
-def _resolve_sed_model(method, distance, redshift, **kwargs):
+def _resolve_sed_model(method, distance, redshift, extinction=None, **kwargs):
     if not isinstance(method, str):
         if not isinstance(method, SEDModel):
             raise TypeError("Custom SED methods must implement the SEDModel protocol")
         return method
     normalized = method.lower()
     if normalized in {"bb", "blackbody"}:
-        return BlackbodySEDModel(distance=distance, redshift=redshift)
+        return BlackbodySEDModel(
+            distance=distance, redshift=redshift, extinction=extinction)
     if normalized in {"cutoff", "cutoff_bb", "cutoff_blackbody"}:
         return CutoffBlackbodySEDModel(
             distance=distance, redshift=redshift,
             cutoff_wavelength=kwargs.get("cutoff_wavelength", kwargs.get("lambda_cut", 3000.0)),
             absorption_index=kwargs.get("absorption_index", 1.0),
             fit_cutoff_wavelength=kwargs.get("fit_cutoff_wavelength", False),
-            fit_absorption_index=kwargs.get("fit_absorption_index", False))
+            fit_absorption_index=kwargs.get("fit_absorption_index", False),
+            extinction=extinction)
     raise ValueError(f"Unknown SED method {method!r}")
 
 
@@ -723,7 +847,7 @@ def _quality_status(model, parameters, covariance):
 
 def _estimate_direct_sed(
         transient, distance, redshift, bin_width, min_filters, uv_tail=None,
-        ir_tail=None, **kwargs):
+        ir_tail=None, extinction=None, **kwargs):
     allowed_tails = {"none", "blackbody", "cutoff_blackbody"}
     if uv_tail not in allowed_tails or ir_tail not in allowed_tails:
         raise ValueError(
@@ -733,7 +857,8 @@ def _estimate_direct_sed(
     tail_name = "cutoff_blackbody" if "cutoff_blackbody" in selected else (
         "blackbody" if selected else None)
     tail_model = None if tail_name is None else _resolve_sed_model(
-        tail_name, distance=distance, redshift=redshift, **kwargs)
+        tail_name, distance=distance, redshift=redshift,
+        extinction=extinction, **kwargs)
     model = DirectIntegrationSEDModel(tail_model)
     time, frequency, wavelength, observed, observed_error, context = _prepare_photometry(
         transient=transient, redshift=redshift, bandpass=False)
@@ -782,7 +907,8 @@ def _estimate_direct_sed(
                 dof = int(len(epoch_flux) - len(values))
 
             observed_luminosity, observed_variance = _integrate_observed_flux(
-                epoch_frequency, epoch_flux, epoch_error, distance, redshift)
+                epoch_frequency, epoch_flux, epoch_error, distance, redshift,
+                extinction=extinction)
             ultraviolet = _tail_luminosity(
                 uv_tail, "ultraviolet", tail_model, parameters,
                 (common["wavelength_min"], common["wavelength_max"]))
@@ -813,11 +939,17 @@ def _estimate_direct_sed(
         epoch_results=epochs, redshift=redshift, distance=distance)
 
 
-def _integrate_observed_flux(frequency, flux_mjy, error_mjy, distance, redshift):
+def _integrate_observed_flux(
+        frequency, flux_mjy, error_mjy, distance, redshift, extinction=None):
     order = np.argsort(frequency)
     x = frequency[order]
     flux = flux_mjy[order] * 1e-26
     error = error_mjy[order] * 1e-26
+    if extinction is not None:
+        observer_wavelength = nu_to_lambda(x) * (1.0 + redshift)
+        transmission = extinction.transmission(observer_wavelength, redshift)
+        flux = flux / transmission
+        error = error / transmission
     scale = 4.0 * np.pi * distance ** 2 / (1.0 + redshift)
     luminosity = scale * trapezoid(flux, x=x)
     basis = np.eye(len(x))

@@ -1628,6 +1628,14 @@ class OpticalTransient(Transient):
             cutoff_wavelength_err, absorption_index, absorption_index_err, and method columns.
             Returns None if insufficient data are available.
         """
+        if not kwargs.pop("_legacy_implementation", False):
+            method = kwargs.pop('method', kwargs.pop('methods', 'blackbody'))
+            result = self.estimate_sed(
+                method=method, distance=distance, bin_width=bin_width,
+                min_filters=min_filters,
+                bandpass=not kwargs.pop("use_eff_wavelength", False), **kwargs)
+            return result._legacy_parameter_dataframe()
+
         from scipy.optimize import curve_fit
         import astropy.units as uu
         import numpy as np
@@ -2163,6 +2171,17 @@ class OpticalTransient(Transient):
               - time_rest_frame: Epoch time divided by (1+redshift), i.e., the rest-frame time in days.
             Returns None if no valid blackbody fits were obtained.
         """
+        if not kwargs.pop("_legacy_implementation", False):
+            method = kwargs.pop('method', kwargs.pop('methods', 'blackbody'))
+            lambda_cut = kwargs.pop('lambda_cut', None)
+            A_ext = kwargs.pop('A_ext', 0.0)
+            result = self.estimate_sed(
+                method=method, distance=distance, bin_width=bin_width,
+                min_filters=min_filters,
+                bandpass=not kwargs.pop("use_eff_wavelength", False), **kwargs)
+            return result._legacy_bolometric_dataframe(
+                lambda_cut=lambda_cut, A_ext=A_ext)
+
         from redback.sed import boosted_bolometric_luminosity
 
         method = kwargs.pop('method', kwargs.pop('methods', 'blackbody'))

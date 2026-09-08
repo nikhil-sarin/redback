@@ -296,61 +296,100 @@ Where we are returned a new transient object with the new data points. Which wor
 Again, we provide a notebook example `here <https://github.com/nikhil-sarin/redback/blob/master/examples/GP_tutorial_with_redback.ipynb>`_
 and some other examples in the `examples <https://github.com/nikhil-sarin/redback/blob/master/examples/>`_ folder.
 
-Blackbody temperature and radius estimation.
--------------------------
-:code:`redback` provides a simple interface for estimating the blackbody temperature and radius of the transient object.
-This is done by fitting a blackbody model to the data and estimating the temperature and radius from the best fit parameters.
+SED and bolometric estimation
+-----------------------------
 
-For example, we can do this for the kilonova object as follows,
-
-.. code:: python
-
-    # Use any optical transient object previously made.
-    # these can be passed to the method,
-    # here we use the default values which are used if nothing is passed.
-    bin_width = 1 # width with which to bin the data in days,
-    min_filters = 3 # minimum number of filters/frequencies the epoch must have to be fit.
-
-    # Some other things can also be passed to this function, look at the API.
-    df_bb = kilonova.estimate_bb_params(distance=distance, bin_width=bin_width,
-                                        min_filters=min_filters)
-
-Here we are returned a pandas dataframe with the best fit temperature and radius and
-their errors at times dictated by the bin widths where the transient also has a mininum number of filters.
-By default this fits a standard blackbody. To fit a cutoff blackbody instead, use
-:code:`method="cutoff_blackbody"` and pass :code:`cutoff_wavelength` in Angstrom and
-:code:`absorption_index`. The cutoff model suppresses the fitted SED blueward of the cutoff
-as :code:`(wavelength / cutoff_wavelength)**absorption_index`. The cutoff wavelength and
-absorption index are fixed by default, but can be fit with :code:`fit_cutoff_wavelength=True`
-and :code:`fit_absorption_index=True` if the data have enough bands per epoch.
-
-We provide a detailed notebook example `here <https://github.com/nikhil-sarin/redback/blob/master/examples/estimating_blackbody_properties_with_redback.ipynb>`_.
-
-Bolometric luminosity estimation.
--------------------------
-:code:`redback` provides a simple interface for estimating the bolometric luminosity of the transient object.
-This can be done either using a blackbody SED, or any other :code:`redback` SED or with some bolometric corrections.
-
-For example, we can do this for the kilonova object as follows,
+:code:`estimate_sed` fits or integrates the spectral energy distribution of an optical transient
+independently in each time bin. It returns a structured :code:`SEDResult` rather than immediately
+discarding fit diagnostics.
 
 .. code:: python
 
-    # Some other things can also be passed to this function, look at the API.
-    df_lbol = kilonova.estimate_bolometric_luminosity(distance=distance, bin_width=bin_width,
-                                                        min_filters=min_filters)
+    sed_result = kilonova.estimate_sed(
+        method="cutoff_blackbody",
+        distance=distance,
+        bin_width=1,
+        min_filters=3,
+        cutoff_wavelength=4500,
+        absorption_index=3.95,
+    )
 
-Here we are returned a pandas dataframe with the bolometric luminosity and its errors at times
-dictated by the bin widths where the transient also has a minimum number of filters.
-Note this method by default works assuming a blackbody SED, but we provide options to include
-the effects of line blanketing as well as host/MW extinction. With the default
-:code:`method="blackbody"`, passing :code:`lambda_cut` applies the historical post-fit boost
-correction to a fitted blackbody. With :code:`method="cutoff_blackbody"`, redback instead fits
-the cutoff SED directly and integrates that SED; in this mode :code:`lum_bol` is the cutoff-SED
-luminosity and :code:`lum_bol_bb` is the underlying unsuppressed blackbody luminosity for the
-same fitted temperature and radius.
+    epoch_table = sed_result.to_dataframe()
+    bolometric = sed_result.integrate()
+    luminosity_table = bolometric.to_dataframe()
+    sed_result.plot_epoch(0)
+    sed_result.plot_evolution()
+    bolometric.plot_evolution()
 
-This data can be easily used to create another transient object with the bolometric luminosity data and then fit.
-Please look at the API for more details and the `examples <https://github.com/nikhil-sarin/redback/blob/master/examples/estimating_lbols.ipynb>`_
+The built-in fitted methods are :code:`blackbody` and :code:`cutoff_blackbody`. The cutoff model
+multiplies the blackbody by
+:math:`(\lambda/\lambda_{\rm cutoff})^{\alpha}` blueward of the rest-frame cutoff. The cutoff and
+index are fixed by default; only fit either parameter when the available filters constrain it.
+Magnitude and bandpass-flux data use full filter transmission curves by default. Flux-density data,
+and :code:`bandpass=False`, use the effective-wavelength approximation.
+
+The epoch table includes the fitted covariance, chi-square, degrees of freedom, filter count,
+wavelength coverage, and a status for every populated time bin. In particular, bins with too few
+filters or failed optimization are retained with :code:`success=False`; use
+:code:`to_dataframe(successful_only=True)` to select successful fits. Bolometric uncertainties use
+the full fitted covariance, including temperature-radius covariance. The integrated table reports
+the fractions emitted blueward of, within, and redward of the observed rest-frame wavelength range.
+
+Dust extinction belongs in the forward photometry, because correcting only the final luminosity
+cannot recover the temperature and radius implied by the intrinsic SED. Pass an
+:code:`ExtinctionConfig` to fit host and/or Milky Way attenuation consistently:
+
+.. code:: python
+
+    from redback.sed_analysis import ExtinctionConfig
+
+    dust = ExtinctionConfig(av_host=0.4, rv_host=3.1, av_mw=0.05, rv_mw=3.1)
+    sed_result = kilonova.estimate_sed(
+        method="cutoff_blackbody", distance=distance, extinction=dust,
+        cutoff_wavelength=4500, absorption_index=3.95,
+    )
+
+Host attenuation is evaluated at rest-frame wavelengths and Milky Way attenuation at observer-frame
+wavelengths. The integrated luminosity is the intrinsic luminosity of the fitted SED. If photometry
+has already been dereddened, do not also pass :code:`extinction`.
+
+Direct photometric integration
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+For a hybrid estimate, directly integrate the measured points and state both extrapolation models:
+
+.. code:: python
+
+    sed_result = kilonova.estimate_sed(
+        method="direct_integration",
+        distance=distance,
+        uv_tail="cutoff_blackbody",
+        ir_tail="blackbody",
+        cutoff_wavelength=4500,
+        absorption_index=3.95,
+    )
+    luminosity_table = sed_result.integrate().to_dataframe()
+
+The observed component is a trapezoidal integral through the measured flux densities. The
+:code:`uv_tail` and :code:`ir_tail` must each be explicitly set to :code:`none`, :code:`blackbody`,
+or :code:`cutoff_blackbody`; there are no implicit extrapolation choices. Columns
+:code:`lum_ultraviolet`, :code:`lum_observed`, and :code:`lum_infrared` expose how much each region
+contributes. For magnitude or bandpass-flux data, direct integration necessarily converts each band
+to an effective flux-density point.
+
+The older :code:`estimate_bb_params` and :code:`estimate_bolometric_luminosity` methods remain
+available for compatibility with existing analyses and return their established DataFrame format.
+The historical :code:`lambda_cut` blackbody boost belongs only to that compatibility interface; it
+is distinct from fitting and integrating a cutoff blackbody.
+
+Custom SED methods
+^^^^^^^^^^^^^^^^^^
+
+A custom method object can be passed in place of the method string. It must implement the public
+:code:`SEDModel` protocol in :code:`redback.sed_analysis`: optimizer setup, conversion of fitted
+parameters and covariance, forward photometry, bolometric integration, and wavelength-region
+fractions. Keeping the forward model and integral on the same object prevents a fitted SED from
+being integrated with an unrelated correction.
 
 Spectrum object
 -------------------------
