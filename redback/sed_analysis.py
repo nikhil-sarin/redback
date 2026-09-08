@@ -9,6 +9,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 from scipy.integrate import quad
+from scipy.integrate import trapezoid
 from scipy.optimize import curve_fit
 
 from redback import constants
@@ -77,6 +78,9 @@ class SEDEpochResult:
     observed: np.ndarray | None = None
     observed_error: np.ndarray | None = None
     context: dict[str, Any] = field(default_factory=dict)
+    integrated_luminosity: float = np.nan
+    integrated_luminosity_error: float = np.nan
+    luminosity_components: dict[str, float] = field(default_factory=dict)
 
     @property
     def reduced_chi_square(self) -> float:
@@ -174,13 +178,25 @@ class SEDResult:
             }
             row.update(epoch.parameters)
             if epoch.success:
-                luminosity = self.model.bolometric_luminosity(epoch.parameters)
-                variance = self._luminosity_variance(epoch)
-                fractions = self.model.luminosity_fractions(
-                    epoch.parameters, (epoch.wavelength_min, epoch.wavelength_max))
+                if np.isfinite(epoch.integrated_luminosity):
+                    luminosity = epoch.integrated_luminosity
+                    luminosity_error = epoch.integrated_luminosity_error
+                    total = sum(epoch.luminosity_components.values())
+                    fractions = tuple(
+                        epoch.luminosity_components.get(name, 0.0) / total
+                        for name in ("ultraviolet", "observed", "infrared"))
+                    row.update({
+                        f"lum_{name}": value * extinction_factor / 1e50
+                        for name, value in epoch.luminosity_components.items()})
+                else:
+                    luminosity = self.model.bolometric_luminosity(epoch.parameters)
+                    variance = self._luminosity_variance(epoch)
+                    luminosity_error = np.sqrt(variance)
+                    fractions = self.model.luminosity_fractions(
+                        epoch.parameters, (epoch.wavelength_min, epoch.wavelength_max))
                 row.update({
                     "lum_bol": luminosity * extinction_factor / 1e50,
-                    "lum_bol_err": np.sqrt(variance) * extinction_factor / 1e50,
+                    "lum_bol_err": luminosity_error * extinction_factor / 1e50,
                     "uv_fraction": fractions[0],
                     "observed_fraction": fractions[1],
                     "ir_fraction": fractions[2],
@@ -487,6 +503,40 @@ class CutoffBlackbodySEDModel(BlackbodySEDModel):
             absorption_index=parameters["absorption_index"])
 
 
+class DirectIntegrationSEDModel:
+    """Observed-range integration with explicitly selected extrapolation tails."""
+
+    name = "direct_integration"
+
+    def __init__(self, tail_model):
+        self.tail_model = tail_model
+        self.parameter_names = tail_model.parameter_names if tail_model is not None else ()
+
+    def fit_setup(self, **kwargs):
+        if self.tail_model is None:
+            return np.array([]), (np.array([]), np.array([]))
+        return self.tail_model.fit_setup(**kwargs)
+
+    def parameters_from_fit(self, values, covariance):
+        if self.tail_model is None:
+            return {}, np.empty((0, 0))
+        return self.tail_model.parameters_from_fit(values, covariance)
+
+    def evaluate_fit(self, coordinates, *values, context):
+        return self.tail_model.evaluate_fit(coordinates, *values, context=context)
+
+    def evaluate_photometry(self, coordinates, parameters, context):
+        if self.tail_model is None:
+            raise ValueError("No tail model was fitted for this direct integration")
+        return self.tail_model.evaluate_photometry(coordinates, parameters, context)
+
+    def bolometric_luminosity(self, parameters):
+        raise RuntimeError("Direct integration luminosity is stored per epoch")
+
+    def luminosity_fractions(self, parameters, wavelength_range):
+        raise RuntimeError("Direct integration fractions are stored per epoch")
+
+
 def estimate_sed(
         transient, method: str | SEDModel = "blackbody", distance: float = 1e27,
         bin_width: float = 1.0, min_filters: int = 3, bandpass: bool = True,
@@ -501,6 +551,11 @@ def estimate_sed(
     redshift = float(transient.redshift)
     if not np.isfinite(redshift) or redshift <= 0:
         raise ValueError("A finite, positive redshift is required for SED estimation")
+
+    if isinstance(method, str) and method.lower() in {"direct", "direct_integration"}:
+        return _estimate_direct_sed(
+            transient=transient, distance=distance, redshift=redshift,
+            bin_width=bin_width, min_filters=min_filters, **kwargs)
 
     sed_model = _resolve_sed_model(
         method=method, distance=distance, redshift=redshift, **kwargs)
@@ -663,3 +718,143 @@ def _quality_status(model, parameters, covariance):
         if value != 0 and error / abs(value) >= 1:
             return "poorly_constrained"
     return "success"
+
+
+def _estimate_direct_sed(
+        transient, distance, redshift, bin_width, min_filters, uv_tail=None,
+        ir_tail=None, **kwargs):
+    allowed_tails = {"none", "blackbody", "cutoff_blackbody"}
+    if uv_tail not in allowed_tails or ir_tail not in allowed_tails:
+        raise ValueError(
+            "direct_integration requires explicit uv_tail and ir_tail values from "
+            "'none', 'blackbody', or 'cutoff_blackbody'")
+    selected = {uv_tail, ir_tail} - {"none"}
+    tail_name = "cutoff_blackbody" if "cutoff_blackbody" in selected else (
+        "blackbody" if selected else None)
+    tail_model = None if tail_name is None else _resolve_sed_model(
+        tail_name, distance=distance, redshift=redshift, **kwargs)
+    model = DirectIntegrationSEDModel(tail_model)
+    time, frequency, wavelength, observed, observed_error, context = _prepare_photometry(
+        transient=transient, redshift=redshift, bandpass=False)
+    _validate_photometry(time, wavelength, observed, observed_error)
+    order = np.argsort(time)
+    time, frequency, wavelength = time[order], frequency[order], wavelength[order]
+    observed, observed_error = observed[order], observed_error[order]
+    initial, bounds = model.fit_setup(**kwargs)
+    maxfev = int(kwargs.get("maxfev", 1000))
+    epochs = []
+    edges = _time_bin_edges(time, bin_width)
+    for index, (lower_edge, upper_edge) in enumerate(zip(edges[:-1], edges[1:])):
+        mask = (time >= lower_edge) & (
+            (time <= upper_edge) if index == len(edges) - 2 else (time < upper_edge))
+        if not np.any(mask):
+            continue
+        epoch_time = float(np.mean(time[mask]))
+        epoch_frequency = np.asarray(frequency[mask], dtype=float)
+        epoch_wavelength = np.asarray(wavelength[mask], dtype=float)
+        epoch_flux = np.asarray(observed[mask], dtype=float)
+        epoch_error = np.asarray(observed_error[mask], dtype=float)
+        n_filters = len(np.unique(epoch_frequency))
+        common = dict(
+            epoch_time=epoch_time, n_filters=n_filters,
+            wavelength_min=float(np.min(epoch_wavelength)),
+            wavelength_max=float(np.max(epoch_wavelength)),
+            coordinates=epoch_frequency.copy(), observed=epoch_flux.copy(),
+            observed_error=epoch_error.copy(), context=context.copy())
+        if n_filters < min_filters:
+            epochs.append(SEDEpochResult(
+                success=False, status="insufficient_filters",
+                message=f"requires {min_filters} distinct filters", **common))
+            continue
+        try:
+            if tail_model is None:
+                parameters, covariance = {}, np.empty((0, 0))
+                chi_square, dof = np.nan, 0
+            else:
+                values, fit_covariance = curve_fit(
+                    lambda x, *pars: model.evaluate_fit(x, *pars, context=context),
+                    epoch_frequency, epoch_flux, sigma=epoch_error, p0=initial,
+                    bounds=bounds, absolute_sigma=True, maxfev=maxfev)
+                parameters, covariance = model.parameters_from_fit(values, fit_covariance)
+                prediction = model.evaluate_fit(epoch_frequency, *values, context=context)
+                chi_square = float(np.sum(((epoch_flux - prediction) / epoch_error) ** 2))
+                dof = int(len(epoch_flux) - len(values))
+
+            observed_luminosity, observed_variance = _integrate_observed_flux(
+                epoch_frequency, epoch_flux, epoch_error, distance, redshift)
+            ultraviolet = _tail_luminosity(
+                uv_tail, "ultraviolet", tail_model, parameters,
+                (common["wavelength_min"], common["wavelength_max"]))
+            infrared = _tail_luminosity(
+                ir_tail, "infrared", tail_model, parameters,
+                (common["wavelength_min"], common["wavelength_max"]))
+            tail_variance = _tail_variance(
+                uv_tail, ir_tail, tail_model, parameters, covariance,
+                (common["wavelength_min"], common["wavelength_max"]))
+            components = {
+                "ultraviolet": ultraviolet,
+                "observed": observed_luminosity,
+                "infrared": infrared,
+            }
+            luminosity = sum(components.values())
+            epochs.append(SEDEpochResult(
+                success=True, status=_quality_status(model, parameters, covariance),
+                parameters=parameters, covariance=covariance, chi_square=chi_square,
+                degrees_of_freedom=dof, integrated_luminosity=luminosity,
+                integrated_luminosity_error=np.sqrt(observed_variance + tail_variance),
+                luminosity_components=components, **common))
+        except Exception as exc:
+            logger.warning("Direct SED integration failed at epoch %.6g: %s", epoch_time, exc)
+            epochs.append(SEDEpochResult(
+                success=False, status="fit_failed", message=str(exc), **common))
+    return SEDResult(
+        transient_name=transient.name, method=model.name, model=model,
+        epoch_results=epochs, redshift=redshift, distance=distance)
+
+
+def _integrate_observed_flux(frequency, flux_mjy, error_mjy, distance, redshift):
+    order = np.argsort(frequency)
+    x = frequency[order]
+    flux = flux_mjy[order] * 1e-26
+    error = error_mjy[order] * 1e-26
+    scale = 4.0 * np.pi * distance ** 2 / (1.0 + redshift)
+    luminosity = scale * trapezoid(flux, x=x)
+    basis = np.eye(len(x))
+    weights = np.asarray([trapezoid(row, x=x) for row in basis])
+    variance = scale ** 2 * np.sum((weights * error) ** 2)
+    return float(luminosity), float(variance)
+
+
+def _tail_luminosity(tail_name, region, tail_model, parameters, wavelength_range):
+    if tail_name == "none":
+        return 0.0
+    if tail_name == "blackbody" and isinstance(tail_model, CutoffBlackbodySEDModel):
+        integration_model = BlackbodySEDModel(tail_model.distance, tail_model.redshift)
+    else:
+        integration_model = tail_model
+    fractions = integration_model.luminosity_fractions(parameters, wavelength_range)
+    fraction = fractions[0] if region == "ultraviolet" else fractions[2]
+    return integration_model.bolometric_luminosity(parameters) * fraction
+
+
+def _tail_variance(uv_tail, ir_tail, tail_model, parameters, covariance, wavelength_range):
+    if tail_model is None or covariance is None or covariance.size == 0:
+        return 0.0
+
+    def total_tail(values):
+        point = dict(parameters)
+        point.update(zip(tail_model.parameter_names, values))
+        return (
+            _tail_luminosity(uv_tail, "ultraviolet", tail_model, point, wavelength_range)
+            + _tail_luminosity(ir_tail, "infrared", tail_model, point, wavelength_range))
+
+    values = np.asarray([parameters[name] for name in tail_model.parameter_names])
+    gradient = []
+    for index, value in enumerate(values):
+        step = max(abs(value) * 1e-5, 1e-8)
+        lower, upper = values.copy(), values.copy()
+        lower[index], upper[index] = value - step, value + step
+        gradient.append((total_tail(upper) - total_tail(lower)) / (2.0 * step))
+    gradient = np.asarray(gradient)
+    variance = float(gradient @ covariance @ gradient)
+    return max(variance, 0.0) if np.isfinite(variance) else np.nan

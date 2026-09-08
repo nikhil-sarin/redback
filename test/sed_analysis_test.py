@@ -145,6 +145,45 @@ class TestEstimateSED(unittest.TestCase):
         self.assertEqual(2, len(result.epoch_results))
         self.assertEqual("insufficient_filters", result.epoch_results[1].status)
 
+    def test_direct_integration_requires_explicit_tails(self):
+        transient, distance, _ = self._make_transient()
+        with self.assertRaisesRegex(ValueError, "requires explicit"):
+            transient.estimate_sed(method="direct_integration", distance=distance)
+
+    def test_direct_integration_separates_observed_and_tail_luminosity(self):
+        transient, distance, _ = self._make_transient()
+        result = transient.estimate_sed(
+            method="direct_integration", distance=distance,
+            uv_tail="cutoff_blackbody", ir_tail="blackbody",
+            cutoff_wavelength=4500.0, absorption_index=2.0)
+        frame = result.integrate().to_dataframe(successful_only=True)
+        self.assertGreater(frame.iloc[0]["lum_ultraviolet"], 0.0)
+        self.assertGreater(frame.iloc[0]["lum_observed"], 0.0)
+        self.assertGreater(frame.iloc[0]["lum_infrared"], 0.0)
+        np.testing.assert_allclose(
+            frame.iloc[0]["lum_bol"],
+            frame.iloc[0][["lum_ultraviolet", "lum_observed", "lum_infrared"]].sum())
+        self.assertGreater(frame.iloc[0]["lum_bol_err"], 0.0)
+
+    def test_direct_integration_can_disable_both_tails(self):
+        transient, distance, _ = self._make_transient()
+        frame = transient.estimate_sed(
+            method="direct_integration", distance=distance,
+            uv_tail="none", ir_tail="none").integrate().to_dataframe(successful_only=True)
+        self.assertEqual(0.0, frame.iloc[0]["lum_ultraviolet"])
+        self.assertEqual(0.0, frame.iloc[0]["lum_infrared"])
+        self.assertEqual(frame.iloc[0]["lum_observed"], frame.iloc[0]["lum_bol"])
+
+    def test_direct_integration_recovers_blackbody_with_matching_tails(self):
+        transient, distance, parameters = self._make_transient()
+        frame = transient.estimate_sed(
+            method="direct_integration", distance=distance,
+            uv_tail="blackbody", ir_tail="blackbody").integrate().to_dataframe(True)
+        expected = (
+            4 * np.pi * parameters["radius"] ** 2 * redback.constants.sigma_sb
+            * parameters["temperature"] ** 4)
+        np.testing.assert_allclose(frame.iloc[0]["lum_bol"] * 1e50, expected, rtol=0.01)
+
 
 if __name__ == "__main__":
     unittest.main()
