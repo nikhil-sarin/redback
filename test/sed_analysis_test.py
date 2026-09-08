@@ -184,6 +184,22 @@ class TestEstimateSED(unittest.TestCase):
             frame.iloc[0]["lum_bol"] * 1e50,
             blackbody.bolometric_luminosity(result.epoch_results[0].parameters))
 
+    def test_cutoff_parameters_can_be_fitted(self):
+        cutoff = 4500.0
+        index = 2.0
+        transient, distance, parameters = self._make_transient(
+            CutoffBlackbodySEDModel, cutoff_wavelength=cutoff, absorption_index=index)
+        result = transient.estimate_sed(
+            method="cutoff_blackbody", distance=distance,
+            cutoff_wavelength=cutoff, absorption_index=index,
+            fit_cutoff_wavelength=True, fit_absorption_index=True)
+        frame = result.to_dataframe(successful_only=True)
+        np.testing.assert_allclose(
+            frame.iloc[0]["cutoff_wavelength"], parameters["cutoff_wavelength"], rtol=1e-5)
+        np.testing.assert_allclose(
+            frame.iloc[0]["absorption_index"], parameters["absorption_index"], rtol=1e-5)
+        self.assertEqual((4, 4), frame.iloc[0]["covariance"].shape)
+
     def test_magnitude_mode_uses_bandpass_photometry(self):
         redshift = 0.1
         distance = 1e27
@@ -201,6 +217,34 @@ class TestEstimateSED(unittest.TestCase):
         transient.get_filtered_data = lambda: (time, np.zeros(len(time)), magnitude, error)
 
         frame = transient.estimate_sed(distance=distance).to_dataframe(True)
+        np.testing.assert_allclose(frame.iloc[0]["temperature"], parameters["temperature"], rtol=1e-6)
+        np.testing.assert_allclose(frame.iloc[0]["radius"], parameters["radius"], rtol=1e-6)
+
+    def test_cutoff_blackbody_uses_bandpass_photometry(self):
+        redshift = 0.1
+        distance = 1e27
+        cutoff = 4500.0
+        index = 2.0
+        bands = np.array(["sdss::u", "ztfg", "ztfr", "ztfi", "sdss::z"])
+        model = CutoffBlackbodySEDModel(
+            distance=distance, redshift=redshift,
+            cutoff_wavelength=cutoff, absorption_index=index)
+        parameters = {
+            "temperature": 11000.0, "radius": 8e14,
+            "cutoff_wavelength": cutoff, "absorption_index": index}
+        context = {"coordinate_type": "band", "data_mode": "magnitude"}
+        magnitude = model.evaluate_photometry(bands, parameters, context)
+        error = np.full(len(bands), 0.05)
+        time = np.linspace(10.0, 10.2, len(bands))
+        transient = redback.transient.OpticalTransient(
+            time=time, magnitude=magnitude, magnitude_err=error,
+            redshift=redshift, data_mode="magnitude", name="BandpassCutoffSED",
+            bands=bands, use_phase_model=False)
+        transient.get_filtered_data = lambda: (time, np.zeros(len(time)), magnitude, error)
+
+        frame = transient.estimate_sed(
+            method="cutoff_blackbody", distance=distance,
+            cutoff_wavelength=cutoff, absorption_index=index).to_dataframe(True)
         np.testing.assert_allclose(frame.iloc[0]["temperature"], parameters["temperature"], rtol=1e-6)
         np.testing.assert_allclose(frame.iloc[0]["radius"], parameters["radius"], rtol=1e-6)
 
