@@ -120,6 +120,17 @@ class TestEstimateSED(unittest.TestCase):
             bolometric.iloc[0][["uv_fraction", "observed_fraction", "ir_fraction"]].sum(),
             1.0, rtol=1e-10)
 
+    def test_custom_sed_model_protocol(self):
+        transient, distance, parameters = self._make_transient()
+        custom_model = BlackbodySEDModel(distance=distance, redshift=transient.redshift)
+        custom_model.name = "custom_blackbody"
+        result = transient.estimate_sed(method=custom_model, distance=distance)
+        self.assertIs(result.model, custom_model)
+        self.assertEqual("custom_blackbody", result.method)
+        np.testing.assert_allclose(
+            result.epoch_results[0].parameters["temperature"],
+            parameters["temperature"], rtol=1e-6)
+
     def test_cutoff_blackbody_fit_owns_its_integral(self):
         cutoff = 4500.0
         index = 2.0
@@ -202,6 +213,13 @@ class TestEstimateSED(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "requires explicit"):
             transient.estimate_sed(method="direct_integration", distance=distance)
 
+    def test_direct_integration_rejects_unknown_uncertainty_method(self):
+        transient, distance, _ = self._make_transient()
+        with self.assertRaisesRegex(ValueError, "uncertainty_method"):
+            transient.estimate_sed(
+                method="direct_integration", distance=distance,
+                uv_tail="none", ir_tail="none", uncertainty_method="unknown")
+
     def test_direct_integration_separates_observed_and_tail_luminosity(self):
         transient, distance, _ = self._make_transient()
         result = transient.estimate_sed(
@@ -243,8 +261,7 @@ class TestEstimateSED(unittest.TestCase):
             method="cutoff_blackbody", distance=distance,
             cutoff_wavelength=4500.0, absorption_index=2.0)
         current = transient.estimate_bb_params(**keywords)
-        legacy = transient.estimate_bb_params(
-            _legacy_implementation=True, **keywords)
+        legacy = transient._estimate_bb_params_legacy(**keywords)
         np.testing.assert_allclose(
             current[["temperature", "radius"]],
             legacy[["temperature", "radius"]], rtol=1e-6)

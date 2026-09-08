@@ -377,6 +377,12 @@ or :code:`cutoff_blackbody`; there are no implicit extrapolation choices. Column
 contributes. For magnitude or bandpass-flux data, direct integration necessarily converts each band
 to an effective flux-density point.
 
+By default, :code:`uncertainty_method="linearized"` perturbs every measured flux, refits the tail
+model, and propagates the resulting total-luminosity response. This retains the covariance between
+the directly integrated region and tails fitted to the same measurements. The faster
+:code:`uncertainty_method="independent"` combines the trapezoidal measurement variance and fitted
+tail covariance while neglecting that cross-covariance.
+
 The older :code:`estimate_bb_params` and :code:`estimate_bolometric_luminosity` methods remain
 available for compatibility with existing analyses and return their established DataFrame format.
 The historical :code:`lambda_cut` blackbody boost belongs only to that compatibility interface; it

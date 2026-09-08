@@ -869,6 +869,9 @@ def _estimate_direct_sed(
     observed, observed_error = observed[order], observed_error[order]
     initial, bounds = model.fit_setup(**kwargs)
     maxfev = int(kwargs.get("maxfev", 1000))
+    uncertainty_method = kwargs.get("uncertainty_method", "linearized")
+    if uncertainty_method not in {"linearized", "independent"}:
+        raise ValueError("uncertainty_method must be 'linearized' or 'independent'")
     epochs = []
     edges = _time_bin_edges(time, bin_width)
     for index, (lower_edge, upper_edge) in enumerate(zip(edges[:-1], edges[1:])):
@@ -925,11 +928,40 @@ def _estimate_direct_sed(
                 "infrared": infrared,
             }
             luminosity = sum(components.values())
+            if uncertainty_method == "linearized":
+                def evaluate_total(test_flux):
+                    if tail_model is None:
+                        trial_parameters = {}
+                    else:
+                        trial_values, _ = curve_fit(
+                            lambda x, *pars: model.evaluate_fit(
+                                x, *pars, context=context),
+                            epoch_frequency, test_flux, sigma=epoch_error,
+                            p0=values, bounds=bounds, absolute_sigma=True,
+                            maxfev=maxfev)
+                        trial_parameters, _ = model.parameters_from_fit(
+                            trial_values, np.zeros((len(trial_values), len(trial_values))))
+                    trial_observed, _ = _integrate_observed_flux(
+                        epoch_frequency, test_flux, epoch_error, distance,
+                        redshift, extinction=extinction)
+                    return (
+                        trial_observed
+                        + _tail_luminosity(
+                            uv_tail, "ultraviolet", tail_model, trial_parameters,
+                            (common["wavelength_min"], common["wavelength_max"]))
+                        + _tail_luminosity(
+                            ir_tail, "infrared", tail_model, trial_parameters,
+                            (common["wavelength_min"], common["wavelength_max"])))
+
+                total_variance = _linearized_flux_variance(
+                    epoch_flux, epoch_error, evaluate_total)
+            else:
+                total_variance = observed_variance + tail_variance
             epochs.append(SEDEpochResult(
                 success=True, status=_quality_status(model, parameters, covariance),
                 parameters=parameters, covariance=covariance, chi_square=chi_square,
                 degrees_of_freedom=dof, integrated_luminosity=luminosity,
-                integrated_luminosity_error=np.sqrt(observed_variance + tail_variance),
+                integrated_luminosity_error=np.sqrt(total_variance),
                 luminosity_components=components, **common))
         except Exception as exc:
             logger.warning("Direct SED integration failed at epoch %.6g: %s", epoch_time, exc)
@@ -957,6 +989,18 @@ def _integrate_observed_flux(
     weights = np.asarray([trapezoid(row, x=x) for row in basis])
     variance = scale ** 2 * np.sum((weights * error) ** 2)
     return float(luminosity), float(variance)
+
+
+def _linearized_flux_variance(flux, error, evaluator):
+    gradient = []
+    for index, (value, sigma) in enumerate(zip(flux, error)):
+        step = max(abs(sigma) * 1e-3, abs(value) * 1e-7, 1e-12)
+        lower, upper = flux.copy(), flux.copy()
+        lower[index], upper[index] = value - step, value + step
+        gradient.append((evaluator(upper) - evaluator(lower)) / (2.0 * step))
+    gradient = np.asarray(gradient)
+    variance = float(np.sum((gradient * error) ** 2))
+    return max(variance, 0.0) if np.isfinite(variance) else np.nan
 
 
 def _tail_luminosity(tail_name, region, tail_model, parameters, wavelength_range):
