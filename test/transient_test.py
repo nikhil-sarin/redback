@@ -571,9 +571,8 @@ class TestOpticalTransient(unittest.TestCase):
             photon_index=2, use_phase_model=False)
         # Monkey-patch estimate_bb_params to return our fake blackbody parameters.
         transient_bb.estimate_bb_params = lambda **kwargs: fake_df
-        df_bol = transient_bb.estimate_bolometric_luminosity(
-            distance=1e27, bin_width=1.0, min_filters=3,
-            _legacy_implementation=True)
+        df_bol = transient_bb._estimate_bolometric_luminosity_legacy(
+            distance=1e27, bin_width=1.0, min_filters=3)
         self.assertIsNotNone(df_bol, "A valid bolometric luminosity DataFrame is expected.")
         for col in ['lum_bol', 'lum_bol_err', 'lum_bol_bb', 'time_rest_frame']:
             self.assertIn(col, df_bol.columns, f"Column '{col}' is missing in the bolometric DataFrame.")
@@ -596,9 +595,8 @@ class TestOpticalTransient(unittest.TestCase):
             photon_index=2, use_phase_model=False)
         transient_bb.estimate_bb_params = lambda **kwargs: fake_df
         # Set lambda_cut (in angstroms) and an extinction A_ext in magnitudes.
-        df_bol = transient_bb.estimate_bolometric_luminosity(
-            distance=1e27, bin_width=1.0, min_filters=3, lambda_cut=3000, A_ext=0.5,
-            _legacy_implementation=True)
+        df_bol = transient_bb._estimate_bolometric_luminosity_legacy(
+            distance=1e27, bin_width=1.0, min_filters=3, lambda_cut=3000, A_ext=0.5)
         self.assertIsNotNone(df_bol, "A DataFrame with boost and extinction corrections should be returned.")
         self.assertIn('lum_bol', df_bol.columns)
         # Check that luminosity is positive.

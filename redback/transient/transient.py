@@ -1569,7 +1569,7 @@ class OpticalTransient(Transient):
             transient=self, method=method, distance=distance, bin_width=bin_width,
             min_filters=min_filters, bandpass=bandpass, **kwargs)
 
-    def estimate_bb_params(self, distance: float = 1e27, bin_width: float = 1.0, min_filters: int = 3, **kwargs):
+    def _estimate_bb_params_legacy(self, distance: float = 1e27, bin_width: float = 1.0, min_filters: int = 3, **kwargs):
         """
         Estimate the blackbody temperature and photospheric radius as functions of time by fitting
         a blackbody-like SED to the multi‑band photometry.
@@ -1628,14 +1628,6 @@ class OpticalTransient(Transient):
             cutoff_wavelength_err, absorption_index, absorption_index_err, and method columns.
             Returns None if insufficient data are available.
         """
-        if not kwargs.pop("_legacy_implementation", False):
-            method = kwargs.pop('method', kwargs.pop('methods', 'blackbody'))
-            result = self.estimate_sed(
-                method=method, distance=distance, bin_width=bin_width,
-                min_filters=min_filters,
-                bandpass=not kwargs.pop("use_eff_wavelength", False), **kwargs)
-            return result._legacy_parameter_dataframe()
-
         from scipy.optimize import curve_fit
         import astropy.units as uu
         import numpy as np
@@ -2096,7 +2088,7 @@ class OpticalTransient(Transient):
         return df_bb
 
 
-    def estimate_bolometric_luminosity(self, distance: float = 1e27, bin_width: float = 1.0,
+    def _estimate_bolometric_luminosity_legacy(self, distance: float = 1e27, bin_width: float = 1.0,
                                           min_filters: int = 3, **kwargs):
         """
         Estimate the bolometric luminosity as a function of time by fitting an SED to the
@@ -2171,17 +2163,6 @@ class OpticalTransient(Transient):
               - time_rest_frame: Epoch time divided by (1+redshift), i.e., the rest-frame time in days.
             Returns None if no valid blackbody fits were obtained.
         """
-        if not kwargs.pop("_legacy_implementation", False):
-            method = kwargs.pop('method', kwargs.pop('methods', 'blackbody'))
-            lambda_cut = kwargs.pop('lambda_cut', None)
-            A_ext = kwargs.pop('A_ext', 0.0)
-            result = self.estimate_sed(
-                method=method, distance=distance, bin_width=bin_width,
-                min_filters=min_filters,
-                bandpass=not kwargs.pop("use_eff_wavelength", False), **kwargs)
-            return result._legacy_bolometric_dataframe(
-                lambda_cut=lambda_cut, A_ext=A_ext)
-
         from redback.sed import boosted_bolometric_luminosity
 
         method = kwargs.pop('method', kwargs.pop('methods', 'blackbody'))
@@ -2279,3 +2260,28 @@ class OpticalTransient(Transient):
         redback.utils.logger.info(
             "Estimated bolometric luminosity using {} integration.".format(method))
         return df_bol
+
+    def estimate_bb_params(
+            self, distance: float = 1e27, bin_width: float = 1.0,
+            min_filters: int = 3, **kwargs):
+        """Return successful SED fits in the historical blackbody DataFrame format."""
+        method = kwargs.pop('method', kwargs.pop('methods', 'blackbody'))
+        result = self.estimate_sed(
+            method=method, distance=distance, bin_width=bin_width,
+            min_filters=min_filters,
+            bandpass=not kwargs.pop("use_eff_wavelength", False), **kwargs)
+        return result._legacy_parameter_dataframe()
+
+    def estimate_bolometric_luminosity(
+            self, distance: float = 1e27, bin_width: float = 1.0,
+            min_filters: int = 3, **kwargs):
+        """Return integrated SED fits in the historical bolometric DataFrame format."""
+        method = kwargs.pop('method', kwargs.pop('methods', 'blackbody'))
+        lambda_cut = kwargs.pop('lambda_cut', None)
+        A_ext = kwargs.pop('A_ext', 0.0)
+        result = self.estimate_sed(
+            method=method, distance=distance, bin_width=bin_width,
+            min_filters=min_filters,
+            bandpass=not kwargs.pop("use_eff_wavelength", False), **kwargs)
+        return result._legacy_bolometric_dataframe(
+            lambda_cut=lambda_cut, A_ext=A_ext)
