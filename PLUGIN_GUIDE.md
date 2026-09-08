@@ -93,7 +93,7 @@ setup(
             'my_custom_models = my_redback_plugin.models',
         ],
     },
-    python_requires='>=3.10',
+    python_requires='>=3.11',
 )
 ```
 
@@ -104,7 +104,7 @@ Alternatively, using `pyproject.toml`:
 name = "my-redback-plugin"
 version = "0.1.0"
 description = "Custom models for Redback"
-requires-python = ">=3.10"
+requires-python = ">=3.11"
 dependencies = [
     "redback>=1.12.0",
     "numpy",
