@@ -41,6 +41,105 @@ class TestUtils(unittest.TestCase):
         self.assertListEqual(expected_keys, list(table.keys()))
 
 
+class TestPublicDataAPI(unittest.TestCase):
+
+    def test_swift_convenience_functions_route_expected_options(self):
+        result = object()
+        with mock.patch.object(redback.get_data, "get_swift_data", return_value=result) as get_swift:
+            self.assertIs(
+                redback.get_data.get_xrt_afterglow_data_from_swift("GRB123", data_mode="flux"), result)
+            get_swift.assert_called_once_with(
+                grb="GRB123", transient_type="afterglow", data_mode="flux", instrument="XRT")
+
+            get_swift.reset_mock()
+            self.assertIs(
+                redback.get_data.get_bat_xrt_afterglow_data_from_swift(
+                    "GRB123", data_mode="flux_density", snr=5, force_download=True), result)
+            get_swift.assert_called_once_with(
+                grb="GRB123", transient_type="afterglow", data_mode="flux_density",
+                instrument="BAT+XRT", snr=5, force_download=True)
+
+            get_swift.reset_mock()
+            self.assertIs(redback.get_data.get_prompt_data_from_swift("GRB123", bin_size="64ms"), result)
+            get_swift.assert_called_once_with(
+                grb="GRB123", transient_type="prompt", data_mode="prompt",
+                instrument="BAT+XRT", bin_size="64ms")
+
+    def test_getter_wrappers_construct_and_return_data(self):
+        result = object()
+        cases = [
+            ("SwiftDataGetter", redback.get_data.get_swift_data,
+             {"grb": "GRB123", "transient_type": "afterglow", "data_mode": "flux",
+              "instrument": "XRT", "bin_size": None, "snr": 4, "force_download": False}),
+            ("BATSEDataGetter", redback.get_data.get_prompt_data_from_batse, {"grb": "GRB123"}),
+            ("LasairDataGetter", redback.get_data.get_lasair_data,
+             {"transient": "ZTF123", "transient_type": "supernova"}),
+            ("FinkDataGetter", redback.get_data.get_fink_data,
+             {"transient": "ZTF123", "transient_type": "supernova", "source": "ztf"}),
+            ("OpenDataGetter", redback.get_data.get_open_transient_catalog_data,
+             {"transient": "SN123", "transient_type": "supernova"}),
+        ]
+
+        for class_name, function, kwargs in cases:
+            with self.subTest(class_name=class_name):
+                with mock.patch.object(redback.get_data, class_name) as getter_class:
+                    getter_class.return_value.get_data.return_value = result
+                    self.assertIs(function(**kwargs), result)
+                    getter_class.assert_called_once_with(**kwargs)
+                    getter_class.return_value.get_data.assert_called_once_with()
+
+    def test_open_catalog_convenience_functions_set_transient_type(self):
+        result = object()
+        with mock.patch.object(
+                redback.get_data, "get_open_transient_catalog_data", return_value=result) as get_open:
+            cases = [
+                (redback.get_data.get_kilonova_data_from_open_transient_catalog_data,
+                 "AT2017gfo", "kilonova"),
+                (redback.get_data.get_supernova_data_from_open_transient_catalog_data,
+                 "SN2011fe", "supernova"),
+                (redback.get_data.get_tidal_disruption_event_data_from_open_transient_catalog_data,
+                 "ASASSN-14li", "tidal_disruption_event"),
+            ]
+            for function, name, transient_type in cases:
+                with self.subTest(transient_type=transient_type):
+                    self.assertIs(function(name), result)
+                    get_open.assert_called_once_with(name, transient_type=transient_type)
+                    get_open.reset_mock()
+
+    def test_otter_convenience_functions_set_transient_type(self):
+        result = object()
+        with mock.patch.object(redback.get_data, "OTTER_AVAILABLE", True), \
+                mock.patch.object(redback.get_data, "OtterDataGetter", create=True) as getter_class:
+            getter_class.return_value.get_data.return_value = result
+            cases = [
+                (redback.get_data.get_kilonova_data_from_otter, "AT2017gfo", "kilonova"),
+                (redback.get_data.get_supernova_data_from_otter, "SN2011fe", "supernova"),
+                (redback.get_data.get_tidal_disruption_event_data_from_otter,
+                 "ASASSN-14li", "tidal_disruption_event"),
+            ]
+            for function, name, transient_type in cases:
+                with self.subTest(transient_type=transient_type):
+                    self.assertIs(function(name, obs_type="radio"), result)
+                    getter_class.assert_called_once_with(
+                        transient=name, transient_type=transient_type, obs_type="radio")
+                    getter_class.return_value.get_data.assert_called_once_with()
+                    getter_class.reset_mock(return_value=True)
+                    getter_class.return_value.get_data.return_value = result
+
+    def test_unimplemented_prompt_sources_raise(self):
+        with self.assertRaises(NotImplementedError):
+            redback.get_data.get_prompt_data_from_fermi("GRB123")
+        with self.assertRaises(NotImplementedError):
+            redback.get_data.get_prompt_data_from_konus("GRB123")
+
+    def test_get_data_routes_using_transient_and_instrument(self):
+        result = object()
+        route = mock.Mock(return_value=result)
+        with mock.patch.dict(redback.get_data._functions_dict, {("test", "instrument"): route}):
+            self.assertIs(redback.get_data.get_data("test", "instrument", option=1), result)
+        route.assert_called_once_with("test", option=1)
+
+
 class TestDirectory(unittest.TestCase):
 
     @classmethod
