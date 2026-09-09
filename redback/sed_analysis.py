@@ -27,6 +27,11 @@ from redback.utils import (
 )
 
 
+_SUPPORTED_EXTINCTION_LAWS = frozenset({
+    "fitzpatrick99", "fm07", "calzetti00", "odonnell94", "ccm89",
+})
+
+
 @runtime_checkable
 class SEDModel(Protocol):
     """Protocol implemented by SED models used by :class:`SEDResult`."""
@@ -78,6 +83,12 @@ class ExtinctionConfig:
             raise ValueError("Extinction A_V values must be non-negative")
         if self.rv_host <= 0 or self.rv_mw <= 0:
             raise ValueError("Extinction R_V values must be positive")
+        for field_name in ("host_law", "mw_law"):
+            law = getattr(self, field_name)
+            if law not in _SUPPORTED_EXTINCTION_LAWS:
+                supported = ", ".join(sorted(_SUPPORTED_EXTINCTION_LAWS))
+                raise ValueError(
+                    f"{field_name} must be one of: {supported}; got {law!r}")
 
     def transmission(self, observer_wavelength, redshift):
         from redback.transient_models.extinction_models import _perform_extinction

@@ -65,8 +65,10 @@ class TestSEDResult(unittest.TestCase):
         luminosity = 3.0 ** 2 * 10.0 ** 4
         gradient = np.array([4 * 3.0 ** 2 * 10.0 ** 3, 2 * 3.0 * 10.0 ** 4])
         expected_error = np.sqrt(gradient @ self.success.covariance @ gradient)
-        self.assertAlmostEqual(luminosity / 1e50, frame.iloc[0]["lum_bol"])
-        self.assertAlmostEqual(expected_error / 1e50, frame.iloc[0]["lum_bol_err"], places=12)
+        np.testing.assert_allclose(
+            frame.iloc[0]["lum_bol"] * 1e50, luminosity, rtol=1e-10)
+        np.testing.assert_allclose(
+            frame.iloc[0]["lum_bol_err"] * 1e50, expected_error, rtol=1e-8)
         self.assertTrue(np.isnan(frame.iloc[1]["lum_bol"]))
 
     def test_integration_records_extrapolated_fractions(self):
@@ -90,6 +92,21 @@ class TestSEDResult(unittest.TestCase):
         self.assertFalse(frame.iloc[0]["success"])
         self.assertEqual("integration_failed", frame.iloc[0]["status"])
         self.assertTrue(np.isnan(frame.iloc[0]["lum_bol"]))
+
+
+class TestExtinctionConfig(unittest.TestCase):
+    def test_supported_extinction_laws(self):
+        for law in ("fitzpatrick99", "fm07", "calzetti00", "odonnell94", "ccm89"):
+            with self.subTest(law=law):
+                config = ExtinctionConfig(host_law=law, mw_law=law)
+                self.assertEqual(law, config.host_law)
+                self.assertEqual(law, config.mw_law)
+
+    def test_unsupported_extinction_laws(self):
+        for field_name in ("host_law", "mw_law"):
+            with self.subTest(field_name=field_name):
+                with self.assertRaisesRegex(ValueError, field_name):
+                    ExtinctionConfig(**{field_name: "unsupported"})
 
 
 class TestEstimateSED(unittest.TestCase):
