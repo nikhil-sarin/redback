@@ -283,7 +283,7 @@ def _t0_thin_shell_predeceleration(time, **kwargs):
     afterglow_kwargs = kwargs.copy()
     f2 = t0_afterglow_extinction_model_d2g(tt_postdec, **afterglow_kwargs)
     f_at_tp = t0_afterglow_extinction_model_d2g(tp, **afterglow_kwargs)
-    aa = f_at_tp / (kwargs['tp'] - kwargs['t0']) ** gradient
+    aa = f_at_tp / (tp - kwargs['t0']) ** gradient
     predec_kwargs['aa'] = aa
     predec_kwargs['mm'] = gradient
 
@@ -312,7 +312,7 @@ def _t0_exinction_models_with_sampled_t_peak(time, tp, **kwargs):
     afterglow_kwargs = kwargs.copy()
     f2 = t0_afterglow_extinction_model_d2g(tt_postdec, **afterglow_kwargs)
     f_at_tp = t0_afterglow_extinction_model_d2g(tp, **afterglow_kwargs)
-    aa = f_at_tp / (kwargs['tp'] - kwargs['t0']) ** gradient
+    aa = f_at_tp / (tp - kwargs['t0']) ** gradient
     predec_kwargs['aa'] = aa
     predec_kwargs['mm'] = gradient
     f1 = extinction_models._extinction_with_predeceleration(tt_predec, **predec_kwargs)
