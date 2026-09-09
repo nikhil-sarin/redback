@@ -139,6 +139,15 @@ class TestPublicDataAPI(unittest.TestCase):
             self.assertIs(redback.get_data.get_data("test", "instrument", option=1), result)
         route.assert_called_once_with("test", option=1)
 
+    @mock.patch("redback.get_data.urllib.request.urlretrieve")
+    @mock.patch("redback.get_data.logger.info")
+    def test_get_oac_metadata_downloads_catalog(self, logger_info, urlretrieve):
+        redback.get_data.get_oac_metadata()
+
+        urlretrieve.assert_called_once_with(
+            "https://api.astrocats.space/catalog?format=CSV", "metadata.csv")
+        logger_info.assert_called_once_with("Downloaded metadata for open access catalog transients.")
+
 
 class TestDirectory(unittest.TestCase):
 
