@@ -1,0 +1,95 @@
+[build-system]
+requires = ["setuptools>=77", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "redback"
+dynamic = ["version"]
+description = "A Bayesian inference and modelling pipeline for electromagnetic transients"
+readme = "README.md"
+requires-python = ">=3.11"
+license = "GPL-3.0-only"
+license-files = ["LICENCE.md"]
+authors = [
+    {name = "Nikhil Sarin", email = "nsarin.astro@gmail.com"},
+    {name = "Moritz Huebner"},
+]
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Operating System :: OS Independent",
+]
+dependencies = [
+    "numpy",
+    "setuptools",
+    "pandas",
+    "scipy",
+    "matplotlib",
+    "astropy",
+    "extinction",
+    "requests",
+    "lxml",
+    "bilby",
+    "regex",
+    "sncosmo",
+]
+
+[project.optional-dependencies]
+afterglow = ["afterglowpy"]
+data = ["astroquery", "astro-otter", "swifttools"]
+docs = ["sphinx", "sphinx-rtd-theme", "sphinx-tabs"]
+speed = ["numba"]
+ml = [
+    "george",
+    "scikit-learn",
+    "tensorflow",
+    "keras",
+    "kilonova-heating-rate",
+    "redback-surrogates",
+    "kilonovanet",
+]
+all = [
+    "afterglowpy",
+    "numba",
+    "sphinx",
+    "sphinx-rtd-theme",
+    "sphinx-tabs",
+    "nestle",
+    "sherpa",
+    "george",
+    "scikit-learn",
+    "PyQt5",
+    "lalsuite",
+    "kilonova-heating-rate",
+    "redback-surrogates",
+    "tensorflow",
+    "keras",
+    "kilonovanet",
+    "astroquery",
+    "astro-otter",
+    "pyphot==1.6.0",
+    "swifttools",
+]
+
+[project.urls]
+Homepage = "https://github.com/nikhil-sarin/redback"
+Documentation = "https://redback.readthedocs.io"
+Repository = "https://github.com/nikhil-sarin/redback"
+
+[tool.setuptools.dynamic]
+version = {attr = "redback._version.__version__"}
+
+[tool.setuptools.packages.find]
+include = ["redback*"]
+
+[tool.setuptools.package-data]
+redback = [
+    "priors/*",
+    "priors/non_default_priors/*",
+    "tables/*",
+    "tables/xsect/*",
+    "tables/guillochon_tde_data/*/*",
+    "plot_styles/*",
+]

@@ -2256,6 +2256,7 @@ class TestOtterWrapperFunctions(unittest.TestCase):
     def tearDown(self) -> None:
         _delete_downloaded_files()
 
+    @mock.patch("redback.get_data.OTTER_AVAILABLE", True)
     @mock.patch("redback.get_data.OtterDataGetter")
     def test_get_kilonova_data_from_otter(self, OtterDataGetter):
         """Test kilonova wrapper function"""
@@ -2274,6 +2275,7 @@ class TestOtterWrapperFunctions(unittest.TestCase):
         mock_getter.get_data.assert_called_once()
         self.assertIsInstance(result, pd.DataFrame)
 
+    @mock.patch("redback.get_data.OTTER_AVAILABLE", True)
     @mock.patch("redback.get_data.OtterDataGetter")
     def test_get_supernova_data_from_otter(self, OtterDataGetter):
         """Test supernova wrapper function"""
@@ -2292,6 +2294,7 @@ class TestOtterWrapperFunctions(unittest.TestCase):
         mock_getter.get_data.assert_called_once()
         self.assertIsInstance(result, pd.DataFrame)
 
+    @mock.patch("redback.get_data.OTTER_AVAILABLE", True)
     @mock.patch("redback.get_data.OtterDataGetter")
     def test_get_tde_data_from_otter(self, OtterDataGetter):
         """Test TDE wrapper function"""

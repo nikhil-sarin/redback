@@ -747,6 +747,17 @@ class TestAfterglow(unittest.TestCase):
             use_phase_model=self.use_phase_model)
         self.assertEqual("GRB070809", sgrb.name)
 
+    @patch.object(redback.transient.afterglow.Afterglow, 'load_and_truncate_data')
+    def test_generic_swift_constructor_uses_grb_identity_and_directory(self, load_data):
+        afterglow = redback.transient.afterglow.Afterglow.from_swift_grb(
+            name="GRB 070809", data_mode=self.data_mode,
+            time=self.time, time_err=self.time_err, flux=self.y, flux_err=self.y_err,
+            use_phase_model=self.use_phase_model)
+
+        self.assertEqual("GRB070809", afterglow.name)
+        self.assertIn("GRBData/afterglow", afterglow.directory_structure.directory_path)
+        load_data.assert_called_once()
+
     def test_truncate(self):
         expected_x = np.array([1.0, 2.0])
         expected_x_err = np.array([[0.1, 0.2], [0.1, 0.2]])

@@ -24,13 +24,13 @@ setup(
             'example_priors = redback_example_plugin.priors:get_prior',
         ],
     },
-    python_requires='>=3.10',
+    python_requires='>=3.11',
     classifiers=[
         'Development Status :: 3 - Alpha',
         'Intended Audience :: Science/Research',
         'Programming Language :: Python :: 3',
-        'Programming Language :: Python :: 3.10',
         'Programming Language :: Python :: 3.11',
         'Programming Language :: Python :: 3.12',
+        'Programming Language :: Python :: 3.13',
     ],
 )

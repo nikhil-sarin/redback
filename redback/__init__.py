@@ -6,39 +6,6 @@ from redback.sampler import fit_model
 from redback.result import MultiMessengerResult
 from redback.multimessenger import MultiMessengerTransient, MultiMessengerLikelihood, create_joint_prior
 from redback.utils import setup_logger
+from redback._version import __version__
 
-# Read version from setup.py to maintain single source of truth
-import re
-import os
-
-def _get_version():
-    """Extract version from package metadata or setup.py"""
-    # Prefer setup.py when importing from a source checkout; local egg-info can
-    # otherwise report a stale version after setup.py has been updated.
-    setup_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'setup.py')
-    try:
-        with open(setup_path, 'r') as f:
-            content = f.read()
-            match = re.search(r"version\s*=\s*['\"]([^'\"]+)['\"]", content)
-            if match:
-                return match.group(1)
-    except (FileNotFoundError, IOError):
-        pass
-
-    # Try importlib.metadata for installed packages from PyPI/pip.
-    try:
-        from importlib.metadata import version
-        return version('redback')
-    except Exception:
-        pass
-    
-    # Try pkg_resources (alternative for installed packages)
-    try:
-        import pkg_resources
-        return pkg_resources.get_distribution('redback').version
-    except Exception:
-        pass
-    return "unknown"
-
-__version__ = _get_version()
 setup_logger(log_level='info')

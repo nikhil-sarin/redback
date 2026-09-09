@@ -18,10 +18,10 @@ from redback.utils import logger
 try:
     from redback.get_data import otter
     from redback.get_data.otter import OtterDataGetter
-    OTTER_AVAILABLE = True
+    OTTER_AVAILABLE = otter.OTTER_INSTALLED
 except ImportError:
     OTTER_AVAILABLE = False
-    logger.warning("astro-otter not installed. Otter data getter functionality will not be available.")
+    logger.debug("astro-otter is not installed; OTTER data access is unavailable.")
 
 SWIFT_PROMPT_BIN_SIZES = ['1s', '2ms', '8ms', '16ms', '64ms', '256ms']
 
@@ -296,7 +296,8 @@ def get_kilonova_data_from_otter(transient: str, obs_type: str = 'uvoir', **kwar
     :rtype: pandas.DataFrame
     """
     if not OTTER_AVAILABLE:
-        raise ImportError("astro-otter is not installed. Please install it with: pip install astro-otter")
+        raise ImportError(
+            "OTTER data access requires astro-otter; install redback[data].")
     getter = OtterDataGetter(transient=transient, transient_type='kilonova', obs_type=obs_type)
     return getter.get_data()
 
@@ -316,7 +317,8 @@ def get_supernova_data_from_otter(transient: str, obs_type: str = 'uvoir', **kwa
     :rtype: pandas.DataFrame
     """
     if not OTTER_AVAILABLE:
-        raise ImportError("astro-otter is not installed. Please install it with: pip install astro-otter")
+        raise ImportError(
+            "OTTER data access requires astro-otter; install redback[data].")
     getter = OtterDataGetter(transient=transient, transient_type='supernova', obs_type=obs_type)
     return getter.get_data()
 
@@ -336,7 +338,8 @@ def get_tidal_disruption_event_data_from_otter(transient: str, obs_type: str = '
     :rtype: pandas.DataFrame
     """
     if not OTTER_AVAILABLE:
-        raise ImportError("astro-otter is not installed. Please install it with: pip install astro-otter")
+        raise ImportError(
+            "OTTER data access requires astro-otter; install redback[data].")
     getter = OtterDataGetter(transient=transient, transient_type='tidal_disruption_event', obs_type=obs_type)
     return getter.get_data()
 
