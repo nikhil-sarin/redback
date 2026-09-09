@@ -2240,6 +2240,152 @@ class TestOtterDataGetter(unittest.TestCase):
             
             self.assertIn("not found in OTTER database", str(context.exception))
 
+    @mock.patch("redback.get_data.otter.OTTER_INSTALLED", False)
+    def test_init_requires_otter_extra(self):
+        with self.assertRaisesRegex(ImportError, r"redback\[data\]"):
+            redback.get_data.otter.OtterDataGetter(
+                transient=self.transient, transient_type=self.transient_type)
+
+    @mock.patch("redback.get_data.otter.OTTER_INSTALLED", True)
+    def test_obs_type_validation_and_multi_directory(self):
+        with self.assertRaisesRegex(ValueError, "obs_type"):
+            redback.get_data.otter.OtterDataGetter(
+                self.transient, self.transient_type, obs_type="gamma")
+        with self.assertRaisesRegex(ValueError, "gamma"):
+            redback.get_data.otter.OtterDataGetter(
+                self.transient, self.transient_type, obs_type=["uvoir", "gamma"])
+        getter = redback.get_data.otter.OtterDataGetter(
+            self.transient, self.transient_type, obs_type=["uvoir", "radio"])
+        self.assertEqual(["uvoir", "radio"], getter.obs_type)
+        self.assertTrue(getter.directory_path.endswith("/multi/"))
+
+    @mock.patch("redback.get_data.otter.OTTER_INSTALLED", True)
+    @mock.patch("redback.get_data.otter.Otter", create=True)
+    @mock.patch("os.path.isfile", return_value=False)
+    @mock.patch("pandas.DataFrame.to_csv")
+    def test_collect_data_combines_multiple_observation_types(
+            self, to_csv, isfile, otter_class):
+        getter = redback.get_data.otter.OtterDataGetter(
+            self.transient, self.transient_type, obs_type=["uvoir", "radio", "xray"])
+        metadata = MagicMock()
+        metadata.get_redshift.return_value = 0.01
+        metadata.get_discovery_date.return_value = Time("2017-08-17")
+        del metadata.get_ra
+        del metadata.get_dec
+        del metadata.get_classification
+        otter = otter_class.return_value
+        otter.get_meta.return_value = [metadata]
+        otter.get_phot.side_effect = [
+            pd.DataFrame({"value": [1.0]}),
+            pd.DataFrame({"value": [2.0]}),
+            pd.DataFrame(),
+        ]
+        getter.collect_data()
+        self.assertEqual(2, to_csv.call_count)
+        self.assertEqual("mag(AB)", otter.get_phot.call_args_list[0].kwargs["flux_unit"])
+        self.assertEqual("mJy", otter.get_phot.call_args_list[1].kwargs["flux_unit"])
+
+    @mock.patch("redback.get_data.otter.OTTER_INSTALLED", True)
+    @mock.patch("redback.get_data.otter.Otter", create=True)
+    @mock.patch("os.path.isfile", return_value=False)
+    def test_collect_data_rejects_empty_photometry(self, isfile, otter_class):
+        getter = redback.get_data.otter.OtterDataGetter(
+            self.transient, self.transient_type, obs_type=["radio", "xray"])
+        otter_class.return_value.get_meta.return_value = [MagicMock()]
+        otter_class.return_value.get_phot.return_value = pd.DataFrame()
+        with self.assertRaisesRegex(ValueError, "No photometry found"):
+            getter.collect_data()
+
+        single = redback.get_data.otter.OtterDataGetter(
+            self.transient, self.transient_type, obs_type="radio")
+        with self.assertRaisesRegex(ValueError, "No radio photometry"):
+            single.collect_data()
+
+    @mock.patch("redback.get_data.otter.OTTER_INSTALLED", True)
+    @mock.patch("os.path.isfile", return_value=True)
+    @mock.patch("pandas.read_csv")
+    def test_convert_raw_data_returns_existing_processed_file(self, read_csv, isfile):
+        expected = pd.DataFrame({"time": [1.0]})
+        read_csv.return_value = expected
+        getter = redback.get_data.otter.OtterDataGetter(self.transient, self.transient_type)
+        pd.testing.assert_frame_equal(expected, getter.convert_raw_data_to_csv())
+
+    @mock.patch("redback.get_data.otter.OTTER_INSTALLED", True)
+    @mock.patch("os.path.isfile", return_value=False)
+    @mock.patch("pandas.read_csv")
+    def test_convert_raw_data_reads_converts_and_writes(self, read_csv, isfile):
+        phot = pd.DataFrame({"converted_flux": [20.0], "converted_flux_err": [0.1]})
+        metadata = pd.DataFrame({"discovery_date": ["2017-08-17"], "redshift": [0.01]})
+        read_csv.side_effect = [phot, metadata]
+        getter = redback.get_data.otter.OtterDataGetter(self.transient, self.transient_type)
+        expected = pd.DataFrame({"time": [1.0]})
+        with mock.patch.object(getter, "_convert_to_redback_format", return_value=expected):
+            with mock.patch.object(expected, "to_csv") as to_csv:
+                result = getter.convert_raw_data_to_csv()
+        self.assertIs(expected, result)
+        to_csv.assert_called_once_with(getter.processed_file_path, index=False)
+
+    @mock.patch("redback.get_data.otter.OTTER_INSTALLED", True)
+    def test_convert_to_redback_format_filters_rows_and_uses_fallback_date(self):
+        getter = redback.get_data.otter.OtterDataGetter(self.transient, self.transient_type)
+        phot = pd.DataFrame({
+            "converted_date": [58000.0, 58001.0, 58002.0],
+            "converted_flux": [20.0, np.nan, 21.0],
+            "converted_flux_err": [0.1, 0.2, 0.1],
+            "filter_name": ["g", "r", "i"],
+            "upperlimit": [False, False, True],
+        })
+        metadata = pd.DataFrame({
+            "obs_type": ["uvoir"], "discovery_date": ["not-a-date"], "redshift": [0.01]})
+        converted = pd.DataFrame({"time (days)": [0.0], "magnitude": [20.0]})
+        with mock.patch.object(getter, "_convert_uvoir_data", return_value=converted) as convert:
+            result = getter._convert_to_redback_format(phot, metadata)
+        self.assertEqual(1, len(result))
+        self.assertEqual(58000.0, result.iloc[0]["time"])
+        self.assertEqual(0.01, result.iloc[0]["redshift"])
+        np.testing.assert_array_equal(convert.call_args.args[1], [0.0])
+
+    @mock.patch("redback.get_data.otter.OTTER_INSTALLED", True)
+    def test_convert_to_redback_format_routes_radio_without_metadata_date(self):
+        getter = redback.get_data.otter.OtterDataGetter(
+            self.transient, self.transient_type, obs_type="radio")
+        phot = pd.DataFrame({
+            "converted_date": [58000.0], "converted_flux": [1.0],
+            "converted_flux_err": [0.1], "converted_freq": [5.0]})
+        metadata = pd.DataFrame({"discovery_date": [None], "redshift": [np.nan]})
+        converted = pd.DataFrame({"time (days)": [0.0], "flux_density(mjy)": [1.0]})
+        with mock.patch.object(
+                getter, "_convert_radio_xray_data", return_value=converted) as convert:
+            result = getter._convert_to_redback_format(phot, metadata)
+        self.assertNotIn("redshift", result)
+        self.assertEqual("radio", convert.call_args.args[2])
+
+    @mock.patch("redback.get_data.otter.OTTER_INSTALLED", True)
+    @mock.patch("redback.get_data.otter.calc_flux_density_from_ABmag")
+    @mock.patch("redback.get_data.otter.calc_flux_density_error_from_monochromatic_magnitude")
+    @mock.patch("redback.get_data.otter.bandpass_magnitude_to_flux")
+    @mock.patch("redback.get_data.otter.calc_flux_error_from_magnitude")
+    @mock.patch("redback.get_data.otter.bands_to_reference_flux")
+    def test_uvoir_and_radio_conversion_columns(
+            self, reference_flux, flux_error, band_flux, density_error, density):
+        density.return_value.value = np.array([0.1])
+        density_error.return_value = np.array([0.01])
+        band_flux.return_value = np.array([1e-12])
+        flux_error.return_value = np.array([1e-13])
+        reference_flux.return_value = np.array([1.0])
+        getter = redback.get_data.otter.OtterDataGetter(self.transient, self.transient_type)
+        optical = getter._convert_uvoir_data(pd.DataFrame({
+            "converted_flux": [20.0], "converted_flux_err": [0.1], "filter_name": ["g"]}),
+            np.array([1.0]))
+        self.assertEqual("AB", optical.iloc[0]["system"])
+        self.assertEqual(0.1, optical.iloc[0]["flux_density(mjy)"])
+
+        radio = getter._convert_radio_xray_data(pd.DataFrame({
+            "converted_flux": [2.0], "converted_flux_err": [0.2]}),
+            np.array([1.0]), "radio")
+        self.assertEqual("radio_band", radio.iloc[0]["band"])
+        self.assertIsNone(radio.iloc[0]["frequency"])
+
 
 class TestOtterWrapperFunctions(unittest.TestCase):
     """Tests for OTTER wrapper functions"""
