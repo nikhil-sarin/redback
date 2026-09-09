@@ -508,14 +508,17 @@ class TestSwiftDataGetter(unittest.TestCase):
         self.getter.download_directly.assert_not_called()
 
     @mock.patch("os.path.isfile")
-    def test_collect_data_prompt(self, isfile):
+    @mock.patch("redback.get_data.swift.requests.get")
+    def test_collect_data_prompt(self, get, isfile):
         isfile.return_value = False
+        get.return_value.text = "prompt light curve"
         self.getter.transient_type = 'prompt'
         self.getter.download_directly = MagicMock()
         self.getter.download_integrated_flux_data = MagicMock()
         self.getter.download_flux_density_data = MagicMock()
         self.getter.collect_data()
         self.getter.download_directly.assert_called_once()
+        get.assert_called_once_with(self.getter.grb_website)
         self.getter.download_integrated_flux_data.assert_not_called()
         self.getter.download_flux_density_data.assert_not_called()
 
