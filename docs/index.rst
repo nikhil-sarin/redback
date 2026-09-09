@@ -57,6 +57,7 @@ API:
    sampler
    result
    sed
+   sed_analysis
    simulate_transients
    photosphere
    likelihoods

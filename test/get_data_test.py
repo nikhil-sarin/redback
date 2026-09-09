@@ -2180,7 +2180,7 @@ class TestOtterDataGetter(unittest.TestCase):
         if not redback.get_data.otter.OTTER_INSTALLED:
             self.skipTest("OTTER not installed")
         
-        with mock.patch("otter.Otter") as MockOtter, \
+        with mock.patch("redback.get_data.otter.Otter") as MockOtter, \
              mock.patch("os.path.isfile") as isfile, \
              mock.patch("pandas.DataFrame.to_csv") as mock_to_csv, \
              mock.patch("os.makedirs"):
@@ -2194,14 +2194,13 @@ class TestOtterDataGetter(unittest.TestCase):
             # Mock OTTER instance and meta
             mock_otter = MockOtter.return_value
             mock_transient = MagicMock()
-            mock_transient.default_name = self.transient
-            mock_transient.redshift.value = 0.01
-            mock_transient.coordinate.ra.value = 197.45
-            mock_transient.coordinate.dec.value = -23.38
-            mock_transient.discovery_date.mjd = 57982.5
-            mock_transient.classification = "kilonova"
+            mock_transient.get_redshift.return_value = 0.01
+            mock_transient.get_ra.return_value = 197.45
+            mock_transient.get_dec.return_value = -23.38
+            mock_transient.get_discovery_date.return_value = Time("2017-08-17")
+            mock_transient.get_classification.return_value = "kilonova"
             
-            mock_otter.get_meta.return_value = {self.transient: mock_transient}
+            mock_otter.get_meta.return_value = [mock_transient]
             
             # Mock photometry DataFrame
             mock_phot = pd.DataFrame({
@@ -2211,7 +2210,7 @@ class TestOtterDataGetter(unittest.TestCase):
                 'e_magnitude': [0.1, 0.15],
                 'upperlimit': [False, False]
             })
-            mock_otter.query.return_value = mock_phot
+            mock_otter.get_phot.return_value = mock_phot
             
             getter.collect_data()
             
@@ -2223,7 +2222,7 @@ class TestOtterDataGetter(unittest.TestCase):
         if not redback.get_data.otter.OTTER_INSTALLED:
             self.skipTest("OTTER not installed")
         
-        with mock.patch("otter.Otter") as MockOtter, \
+        with mock.patch("redback.get_data.otter.Otter") as MockOtter, \
              mock.patch("os.path.isfile") as isfile:
             
             getter = redback.get_data.otter.OtterDataGetter(
@@ -2232,9 +2231,9 @@ class TestOtterDataGetter(unittest.TestCase):
             )
             isfile.return_value = False
             
-            # Mock Otter returning empty dict (transient not found)
+            # Mock Otter returning no matching transient.
             mock_otter = MockOtter.return_value
-            mock_otter.get_meta.return_value = {}
+            mock_otter.get_meta.return_value = []
             
             with self.assertRaises(ValueError) as context:
                 getter.collect_data()

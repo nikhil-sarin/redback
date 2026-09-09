@@ -309,6 +309,20 @@ class TestFXT(unittest.TestCase):
 
 class TestOpticalTransient(unittest.TestCase):
 
+    @staticmethod
+    def _mock_sed_result(distance=1e27, redshift=0.1):
+        from redback.sed_analysis import BlackbodySEDModel, SEDEpochResult, SEDResult
+
+        model = BlackbodySEDModel(distance=distance, redshift=redshift)
+        epoch = SEDEpochResult(
+            epoch_time=10.5, success=True, status="success",
+            parameters={"temperature": 1e4, "radius": 1e15},
+            covariance=np.diag([500.0 ** 2, (1e14) ** 2]),
+            n_filters=5, wavelength_min=3000.0, wavelength_max=9000.0)
+        return SEDResult(
+            transient_name="TestBB", method="blackbody", model=model,
+            epoch_results=[epoch], redshift=redshift, distance=distance)
+
     def setUp(self) -> None:
         self.time = np.array([1, 2, 3])
         self.time_err = np.array([0.2, 0.3, 0.4])
@@ -555,23 +569,15 @@ class TestOpticalTransient(unittest.TestCase):
 
     def test_estimate_bolometric_luminosity_no_corrections(self):
         """Test that a bolometric luminosity is computed from the BB parameters (without boost or extinction)."""
-        # Create a fake DataFrame of blackbody parameters.
-        fake_df = pd.DataFrame({
-            "epoch_times": [10.5],
-            "temperature": [1e4],  # Kelvin
-            "radius": [1e15],  # cm
-            "temp_err": [500],
-            "radius_err": [1e14]
-        })
         transient_bb = redback.transient.OpticalTransient(
             time=np.array([10, 10.1, 10.2, 10.3, 10.4]),
             time_err=np.array([0.1] * 5),
             flux_density=np.array([1e4, 1.05e4, 1.1e4, 1.05e4, 1e4]),
             redshift=0.1, data_mode="flux_density", name="TestBB",
             photon_index=2, use_phase_model=False)
-        # Monkey-patch estimate_bb_params to return our fake blackbody parameters.
-        transient_bb.estimate_bb_params = lambda **kwargs: fake_df
-        df_bol = transient_bb.estimate_bolometric_luminosity(distance=1e27, bin_width=1.0, min_filters=3)
+        transient_bb.estimate_sed = lambda **kwargs: self._mock_sed_result()
+        df_bol = transient_bb.estimate_bolometric_luminosity(
+            distance=1e27, bin_width=1.0, min_filters=3)
         self.assertIsNotNone(df_bol, "A valid bolometric luminosity DataFrame is expected.")
         for col in ['lum_bol', 'lum_bol_err', 'lum_bol_bb', 'time_rest_frame']:
             self.assertIn(col, df_bol.columns, f"Column '{col}' is missing in the bolometric DataFrame.")
@@ -579,20 +585,13 @@ class TestOpticalTransient(unittest.TestCase):
 
     def test_estimate_bolometric_luminosity_with_boost_extinction(self):
         """Test that providing lambda_cut and A_ext yields a DataFrame with the boost/extinction corrections applied."""
-        fake_df = pd.DataFrame({
-            "epoch_times": [10.5],
-            "temperature": [1e4],
-            "radius": [1e15],
-            "temp_err": [500],
-            "radius_err": [1e14]
-        })
         transient_bb = redback.transient.OpticalTransient(
             time=np.array([10, 10.1, 10.2, 10.3, 10.4]),
             time_err=np.array([0.1] * 5),
             flux_density=np.array([1e4, 1.05e4, 1.1e4, 1.05e4, 1e4]),
             redshift=0.1, data_mode="flux_density", name="TestBB",
             photon_index=2, use_phase_model=False)
-        transient_bb.estimate_bb_params = lambda **kwargs: fake_df
+        transient_bb.estimate_sed = lambda **kwargs: self._mock_sed_result()
         # Set lambda_cut (in angstroms) and an extinction A_ext in magnitudes.
         df_bol = transient_bb.estimate_bolometric_luminosity(
             distance=1e27, bin_width=1.0, min_filters=3, lambda_cut=3000, A_ext=0.5)
