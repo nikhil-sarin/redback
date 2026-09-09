@@ -1698,8 +1698,12 @@ class TestFinkDataGetter(unittest.TestCase):
         self.getter_lsst.collect_data()
         post.assert_called_with(url=self.getter_lsst.url, json=json, timeout=30)
 
+    @unittest.skipUnless(
+        os.getenv("REDBACK_RUN_LIVE_TESTS") == "1",
+        "Set REDBACK_RUN_LIVE_TESTS=1 to run live service checks",
+    )
     def test_collect_data_ztf_live_api(self):
-        """Live Fink smoke test: CI should report if the ZTF Fink API breaks."""
+        """Live Fink smoke test, run by the dedicated live-service workflow."""
         self.getter_ztf.collect_data()
 
         self.assertTrue(os.path.isfile(self.getter_ztf.raw_file_path))
