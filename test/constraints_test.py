@@ -444,7 +444,9 @@ class TestKilonovaEjectaRelationConstraints(unittest.TestCase):
         self.assertTrue(np.all(np.isinf(result)))
 
     def test_maybe_scalar_returns_python_scalar(self):
-        self.assertEqual(constraints._maybe_scalar(np.array(3.0)), 3.0)
+        result = constraints._maybe_scalar(np.array(3.0))
+        self.assertIs(type(result), float)
+        self.assertEqual(result, 3.0)
 
     @patch("redback.constraints.ejr.TwoComponentBNS")
     @patch("redback.constraints.eos.PiecewisePolytrope")
