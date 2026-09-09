@@ -23,7 +23,6 @@ classifiers = [
 ]
 dependencies = [
     "numpy",
-    "numba",
     "setuptools",
     "pandas",
     "scipy",
@@ -32,16 +31,31 @@ dependencies = [
     "extinction",
     "requests",
     "lxml",
-    "sphinx-rtd-theme",
-    "sphinx-tabs",
     "bilby",
     "regex",
     "sncosmo",
-    "afterglowpy",
 ]
 
 [project.optional-dependencies]
+afterglow = ["afterglowpy"]
+data = ["astroquery", "astro-otter", "swifttools"]
+docs = ["sphinx", "sphinx-rtd-theme", "sphinx-tabs"]
+speed = ["numba"]
+ml = [
+    "george",
+    "scikit-learn",
+    "tensorflow",
+    "keras",
+    "kilonova-heating-rate",
+    "redback-surrogates",
+    "kilonovanet",
+]
 all = [
+    "afterglowpy",
+    "numba",
+    "sphinx",
+    "sphinx-rtd-theme",
+    "sphinx-tabs",
     "nestle",
     "sherpa",
     "george",
@@ -54,6 +68,7 @@ all = [
     "keras",
     "kilonovanet",
     "astroquery",
+    "astro-otter",
     "pyphot==1.6.0",
     "swifttools",
 ]

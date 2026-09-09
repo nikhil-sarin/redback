@@ -75,7 +75,7 @@ class OtterDataGetter(DataGetter):
             error_msg = "OTTER is not available. "
             if 'OTTER_IMPORT_ERROR' in globals():
                 error_msg += f"Import error: {OTTER_IMPORT_ERROR}. "
-            error_msg += "Try: pip install astro-otter"
+            error_msg += "Install it with redback[data]."
             raise ImportError(error_msg)
         
         # Handle list of obs_types
