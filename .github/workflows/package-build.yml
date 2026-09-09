@@ -1,0 +1,70 @@
+name: Distribution build and install
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+    branches: [master]
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+          cache: pip
+          cache-dependency-path: pyproject.toml
+      - name: Build distributions
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install build twine
+          python -m build
+          python -m twine check dist/*
+      - uses: actions/upload-artifact@v4
+        with:
+          name: distributions
+          path: dist/
+
+  install:
+    needs: build
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        artifact: [wheel, sdist]
+    steps:
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - uses: actions/download-artifact@v4
+        with:
+          name: distributions
+          path: dist/
+      - name: Install wheel
+        if: matrix.artifact == 'wheel'
+        run: python -m pip install dist/*.whl
+      - name: Install source distribution
+        if: matrix.artifact == 'sdist'
+        run: python -m pip install dist/*.tar.gz
+      - name: Verify installed package
+        run: |
+          cd /tmp
+          python - <<'PY'
+          from importlib.metadata import version
+          from importlib.resources import files
+          import redback
+
+          assert redback.__version__ == version("redback")
+          package = files("redback")
+          assert package.joinpath("priors/arnett.prior").is_file()
+          assert package.joinpath("tables/filters.csv").is_file()
+          assert package.joinpath("tables/xsect/xsect_tbabs_angr.fits").is_file()
+          print(redback.__version__)
+          PY
