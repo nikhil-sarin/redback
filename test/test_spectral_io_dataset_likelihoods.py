@@ -2331,6 +2331,60 @@ class TestPlotSpectrumFit(unittest.TestCase):
         self.assertIsNotNone(ax)
         plt.close("all")
 
+    def test_rate_density_and_background_residual_branches(self):
+        import matplotlib.pyplot as plt
+        from redback.spectral.dataset import SpectralDataset
+
+        n = 8
+        ds = SpectralDataset(
+            counts=np.ones(n) * 15.0,
+            counts_bkg=np.ones(n) * 3.0,
+            exposure=1000.0,
+            bkg_exposure=2000.0,
+            bkg_backscale=1.0,
+            bkg_areascal=1.0,
+            energy_edges_keV=np.linspace(1.0, 9.0, n + 1),
+        )
+        posterior = self._make_posterior()
+        for rate, density in [(True, False), (False, True), (False, False)]:
+            with self.subTest(rate=rate, density=density):
+                ax = ds.plot_spectrum_fit(
+                    model=self._flat_model,
+                    posterior=posterior,
+                    parameters={"amplitude": 1.0},
+                    show=False,
+                    save=False,
+                    random_models=2,
+                    uncertainty_mode="credible_intervals",
+                    plot_residuals=True,
+                    subtract_background=True,
+                    energy_min=2.0,
+                    energy_max=8.0,
+                    residuals_ylim=(-5.0, 5.0),
+                    rate=rate,
+                    density=density,
+                )
+                self.assertIsNotNone(ax)
+                plt.close("all")
+
+    def test_plot_spectrum_fit_without_maximum_likelihood_curve(self):
+        import matplotlib.pyplot as plt
+
+        ds = self._make_ds()
+        figure, axes = plt.subplots()
+        returned = ds.plot_spectrum_fit(
+            model=self._flat_model,
+            posterior=self._make_posterior(),
+            axes=axes,
+            show=False,
+            save=False,
+            plot_max_likelihood=False,
+            uncertainty_mode="none",
+            annotate_parameters=True,
+        )
+        self.assertIs(axes, returned)
+        plt.close(figure)
+
 
 # ===========================================================================
 # 13. TestPlotLightcurve — SpectralDataset.plot_lightcurve
@@ -2453,6 +2507,29 @@ class TestPlotLightcurve(unittest.TestCase):
             show=False, save=False,
         )
         self.assertIsNotNone(ax)
+        plt.close("all")
+
+    def test_plot_single_point_without_inferred_bins(self):
+        """A single point uses the direct count-rate plotting path."""
+        import matplotlib.pyplot as plt
+        from redback.spectral.dataset import SpectralDataset
+
+        figure, supplied_axes = plt.subplots()
+        from unittest.mock import patch
+        with patch("matplotlib.pyplot.show") as show:
+            returned = SpectralDataset.plot_lightcurve(
+                time=np.array([1.0]), rate=np.array([2.0]), error=np.array([0.1]),
+                axes=supplied_axes, xscale="linear", yscale="linear",
+                show=True, save=False)
+        show.assert_called_once_with()
+        self.assertIs(returned, supplied_axes)
+
+        filename = os.path.join(self.tmpdir, "single-point.png")
+        returned = SpectralDataset.plot_lightcurve(
+            time=np.array([1.0]), rate=np.array([2.0]), error=None,
+            filename=filename, show=False, save=True)
+        self.assertIsNotNone(returned)
+        self.assertTrue(os.path.exists(filename))
         plt.close("all")
 
 
@@ -3188,6 +3265,18 @@ class TestSpectralDatasetExtended(unittest.TestCase):
         predicted = ds.predict_counts("_test_coverage_model", {"amplitude": 1.0})
         self.assertEqual(len(predicted), self.n)
         del all_models_dict["_test_coverage_model"]
+
+    def test_backwards_compatible_plot_aliases_delegate(self):
+        """Legacy plotting names retain their documented delegation."""
+        from unittest.mock import patch
+
+        ds = self._make_plot_dataset()
+        with patch.object(ds, "plot_spectrum_data", return_value="data") as plot_data:
+            self.assertEqual("data", ds.plot_data(show=False))
+            plot_data.assert_called_once_with(show=False)
+        with patch.object(ds, "plot_spectrum_fit", return_value="fit") as plot_fit:
+            self.assertEqual("fit", ds.plot_fit(model="model"))
+            plot_fit.assert_called_once_with(model="model")
 
     def test_compute_band_flux_string_model(self):
         """compute_band_flux accepts a model name string."""

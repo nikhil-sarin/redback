@@ -6,6 +6,8 @@ import numpy as np
 import pandas as pd
 from unittest.mock import patch, MagicMock, PropertyMock
 import bilby.core.prior
+import matplotlib.pyplot as plt
+from types import SimpleNamespace
 
 from redback import result
 from redback.result import RedbackResult, MultiMessengerResult, read_in_result, _smart_corner_title
@@ -614,6 +616,117 @@ class TestRedbackResultEdgeCases(unittest.TestCase):
 
         self.assertIsNotNone(res.nested_samples)
         self.assertEqual(len(res.nested_samples), 1000)
+
+    def test_point_estimate_contract(self):
+        posterior = pd.DataFrame([{"mass": 1.4, "log_likelihood": -2.0}])
+        point = RedbackResult(
+            posterior=posterior,
+            meta_data={"point_estimate": True, "fit_method": "map"})
+        self.assertTrue(point.is_point_estimate)
+        self.assertEqual(1.4, point.point_estimate["mass"])
+
+        sampled = RedbackResult(posterior=posterior, meta_data={})
+        self.assertFalse(sampled.is_point_estimate)
+        with self.assertRaisesRegex(AttributeError, "posterior samples"):
+            _ = sampled.point_estimate
+
+    @patch("redback.result.TRANSIENT_DICT", {})
+    def test_transient_reconstruction_rejects_unknown_type(self):
+        res = RedbackResult(meta_data={"transient_type": "unknown"})
+        with self.assertRaises(KeyError):
+            _ = res.transient
+
+    def test_transient_reconstruction_propagates_constructor_error(self):
+        constructor = MagicMock(side_effect=ValueError("invalid metadata"))
+        res = RedbackResult(meta_data={"transient_type": "broken"})
+        with patch.dict("redback.result.TRANSIENT_DICT", {"broken": constructor}):
+            with self.assertRaisesRegex(ValueError, "invalid metadata"):
+                _ = res.transient
+
+    def test_point_estimate_rejects_corner_plot(self):
+        res = RedbackResult(
+            posterior=pd.DataFrame([{"mass": 1.4}]),
+            meta_data={"point_estimate": True})
+        with self.assertRaisesRegex(ValueError, "Corner plots require posterior samples"):
+            res.plot_corner(save=False)
+
+    @patch("bilby.core.result.Result.plot_corner", return_value=None)
+    def test_corner_plot_propagates_none(self, plot_corner):
+        res = RedbackResult(posterior=pd.DataFrame({"mass": [1.0, 2.0]}))
+        self.assertIsNone(res.plot_corner(save=False))
+        plot_corner.assert_called_once()
+
+    @patch("bilby.core.result.Result.plot_corner")
+    def test_corner_plot_adds_titles_for_requested_parameters(self, plot_corner):
+        figure, axes = plt.subplots(2, 2)
+        plot_corner.return_value = figure
+        res = RedbackResult(
+            posterior=pd.DataFrame({"mass": [1.0, 2.0], "velocity": [3.0, 4.0]}),
+            search_parameter_keys=["mass", "velocity"])
+        with patch.object(
+                res, "get_one_dimensional_median_and_error_bar",
+                return_value=SimpleNamespace(median=2.0, minus=0.2, plus=0.3)):
+            returned = res.plot_corner(
+                parameters={"mass": "mass", "velocity": "velocity"}, save=False)
+        self.assertIs(figure, returned)
+        self.assertTrue(axes[0, 0].get_title())
+        self.assertTrue(axes[1, 1].get_title())
+        plt.close(figure)
+
+    @patch("bilby.core.result.Result.plot_corner")
+    def test_corner_plot_honors_existing_titles_and_none_quantiles(self, plot_corner):
+        figure, axes = plt.subplots(1, 2)
+        axes[0].set_title("existing")
+        plot_corner.return_value = figure
+        res = RedbackResult(
+            posterior=pd.DataFrame({"mass": [1.0, 2.0]}),
+            search_parameter_keys=["mass"])
+        returned = res.plot_corner(parameters=None, save=False)
+        self.assertEqual("existing", axes[0].get_title())
+        self.assertIs(figure, returned)
+        returned = res.plot_corner(parameters=["mass"], quantiles=None, save=False)
+        self.assertIs(figure, returned)
+        plt.close(figure)
+
+    @patch("bilby.core.result.safe_save_figure")
+    @patch("bilby.core.result.Result.plot_corner")
+    def test_corner_plot_save_paths(self, plot_corner, safe_save):
+        res = RedbackResult(
+            label="corner", outdir=self.tempdir,
+            posterior=pd.DataFrame({"mass": [1.0, 2.0]}),
+            search_parameter_keys=["mass"])
+
+        for kwargs in (
+                {"titles": False}, {"quantiles": None}, {"titles": True}):
+            figure, _ = plt.subplots()
+            plot_corner.return_value = figure
+            with patch.object(
+                    res, "get_one_dimensional_median_and_error_bar",
+                    return_value=SimpleNamespace(median=1.5, minus=0.2, plus=0.3)):
+                returned = res.plot_corner(save=True, **kwargs)
+            self.assertIs(figure, returned)
+
+        self.assertEqual(3, safe_save.call_count)
+        self.assertTrue(all(
+            call.kwargs["filename"].endswith("corner_corner.png")
+            for call in safe_save.call_args_list))
+
+    @patch("redback.result.TRANSIENT_DICT")
+    def test_point_plot_helpers_request_one_model(self, transient_dict):
+        transient = MagicMock()
+        transient_dict.__getitem__.return_value.return_value = transient
+        res = RedbackResult(
+            posterior=pd.DataFrame([{"mass": 1.4}]),
+            meta_data={
+                "point_estimate": True, "transient_type": "afterglow",
+                "model": "model", "model_kwargs": {}})
+        model = MagicMock()
+        res.plot_lightcurve(model=model)
+        self.assertEqual(1, transient.plot_lightcurve.call_args.kwargs["random_models"])
+        res.plot_spectrum(model=model)
+        self.assertEqual(1, transient.plot_spectrum.call_args.kwargs["random_models"])
+        res.plot_multiband_lightcurve(model=model)
+        self.assertEqual(1, transient.plot_multiband_lightcurve.call_args.kwargs["random_models"])
 
 
 class TestSmartCornerTitle(unittest.TestCase):

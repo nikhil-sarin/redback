@@ -5,7 +5,7 @@ import numpy as np
 import pytest
 from scipy.optimize import OptimizeResult
 
-from redback.optimizer import run_point_estimation
+from redback.optimizer import _PointObjective, _json_safe, run_point_estimation
 from redback.result import RedbackResult, read_in_result
 
 
@@ -245,3 +245,98 @@ def test_all_invalid_constraints_raise_before_optimization(tmp_path):
             outdir=tmp_path,
             optimizer_kwargs=_optimizer_kwargs(),
         )
+
+
+@pytest.mark.parametrize(
+    "keyword,value,message",
+    [("fit_method", "posterior", "fit_method"),
+     ("optimizer", "nelder-mead", "optimizer")],
+)
+def test_invalid_point_estimation_modes_raise(tmp_path, keyword, value, message):
+    arguments = dict(
+        likelihood=QuadraticLikelihood(),
+        priors={"x": bilby.prior.Uniform(0, 1)},
+        fit_method="mle", optimizer="auto", label="invalid", outdir=tmp_path)
+    arguments[keyword] = value
+    with pytest.raises(ValueError, match=message):
+        run_point_estimation(**arguments)
+
+
+def test_parallel_optimizer_workers_are_rejected(tmp_path):
+    with pytest.raises(ValueError, match="workers.*1"):
+        run_point_estimation(
+            likelihood=QuadraticLikelihood(),
+            priors={"x": bilby.prior.Uniform(0, 1)},
+            fit_method="mle", optimizer="auto", label="parallel", outdir=tmp_path,
+            optimizer_kwargs={"workers": 2})
+
+
+def test_initial_parameters_require_every_free_parameter_and_constraints():
+    priors = bilby.prior.PriorDict({
+        "x": bilby.prior.Uniform(0, 1),
+        "y": bilby.prior.Uniform(0, 1),
+    })
+    objective = _PointObjective(QuadraticLikelihood(), priors, "mle")
+    with pytest.raises(ValueError, match="missing free parameters: y"):
+        objective.unit_point_from_parameters({"x": 0.5})
+
+    def conversion(parameters):
+        parameters["derived"] = parameters["x"]
+        return parameters
+
+    constrained = bilby.prior.PriorDict(
+        {"x": bilby.prior.Uniform(0, 1), "derived": bilby.prior.Constraint(0, 0.4)},
+        conversion_function=conversion)
+    constrained_objective = _PointObjective(QuadraticLikelihood(), constrained, "mle")
+    with pytest.raises(ValueError, match="do not satisfy"):
+        constrained_objective.unit_point_from_parameters({"x": 0.8})
+
+
+def test_objective_rejects_constraints_and_nonfinite_targets():
+    def conversion(parameters):
+        parameters["derived"] = parameters["x"]
+        return parameters
+
+    priors = bilby.prior.PriorDict(
+        {"x": bilby.prior.Uniform(0, 1), "derived": bilby.prior.Constraint(0, 0.4)},
+        conversion_function=conversion)
+    objective = _PointObjective(QuadraticLikelihood(), priors, "mle")
+    assert objective.is_valid(np.array([0.8])) is False
+    assert objective.evaluate(np.array([0.8])) == np.inf
+
+    class NonFiniteLikelihood(QuadraticLikelihood):
+        def log_likelihood(self, parameters=None):
+            return np.inf
+
+    nonfinite = _PointObjective(
+        NonFiniteLikelihood(), bilby.prior.PriorDict({"x": bilby.prior.Uniform(0, 1)}), "mle")
+    assert nonfinite.evaluate(np.array([0.5])) == np.inf
+
+
+def test_all_fixed_parameters_return_without_optimizer(tmp_path):
+    result = run_point_estimation(
+        likelihood=QuadraticLikelihood(target=0.5), priors={"x": 0.5},
+        fit_method="mle", optimizer="auto", label="fixed", outdir=tmp_path)
+    assert result.point_estimate["x"] == pytest.approx(0.5)
+    assert result.optimization["message"] == "All model parameters are fixed"
+
+
+@patch("redback.optimizer.minimize")
+@patch("redback.optimizer.logger.warning")
+def test_nonconverged_powell_can_return_with_warning(warning, minimize_mock, tmp_path):
+    minimize_mock.return_value = OptimizeResult(
+        x=np.array([0.5]), success=False, message="iteration limit", nit=2)
+    result = run_point_estimation(
+        likelihood=QuadraticLikelihood(target=0.5),
+        priors={"x": bilby.prior.Uniform(0, 1)}, fit_method="mle",
+        optimizer="powell", label="warning", outdir=tmp_path,
+        initial_parameters={"x": 0.5},
+        optimizer_kwargs={"fail_on_nonconvergence": False})
+    assert result.optimization["success"] is False
+    warning.assert_called_once_with(
+        "Point estimation did not converge: %s", "iteration limit")
+
+
+def test_json_safe_normalizes_nested_numpy_values():
+    value = {"array": np.array([1, 2]), "items": (np.float64(3.0),)}
+    assert _json_safe(value) == {"array": [1, 2], "items": [3.0]}
