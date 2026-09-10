@@ -99,7 +99,7 @@ class OpenDataGetter(DataGetter):
         raw_data = pd.read_csv(self.raw_file_path, sep=',')
         if pd.isna(raw_data['system']).any():
             logger.warning("Some data points do not have system information. Assuming AB magnitude")
-            raw_data['system'].fillna('AB', inplace=True)
+            raw_data['system'] = raw_data['system'].fillna('AB')
         logger.info('Processing data for transient {}.'.format(self.transient))
 
         data = raw_data.copy()

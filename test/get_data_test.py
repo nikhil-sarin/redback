@@ -418,11 +418,42 @@ class TestOpenDataGetter(unittest.TestCase):
         self.assertEqual(expected, data)
 
     def test_convert_raw_data_to_csv(self):
-        pass
-        # This is covered by the reference file tests. More detailed tests can be implemented later.
+        raw_data = pd.DataFrame({
+            'time': [59000.0, 59001.0, 59002.0],
+            'magnitude': [20.0, 21.0, 19.0],
+            'e_magnitude': [0.1, 0.2, 0.15],
+            'band': ['ztfg', 'C', 'ztfr'],
+            'system': ['AB', 'AB', None],
+        })
+        metadata = pd.DataFrame({'timeofmerger': [58999.5]})
+        raw_data.to_csv(self.getter.raw_file_path, index=False)
+        metadata.to_csv(self.getter.metadata_path, index=False)
+
+        result = self.getter.convert_raw_data_to_csv()
+
+        self.assertEqual(list(result['band']), ['ztfg', 'ztfr'])
+        self.assertEqual(list(result['system']), ['AB', 'AB'])
+        np.testing.assert_allclose(result['time (days)'], [0.5, 2.5])
+        for column in ['flux_density(mjy)', 'flux_density_error', 'flux(erg/cm2/s)', 'flux_error']:
+            self.assertTrue(np.all(np.isfinite(result[column])))
 
     def test_get_time_of_event(self):
-        pass
+        data = pd.DataFrame({'time': [59000.0, 59001.0]})
+
+        result = self.getter.get_time_of_event(
+            data=data, metadata=pd.DataFrame({'timeofmerger': [58999.5]}))
+        self.assertEqual(result.mjd, 58999.5)
+
+        with mock.patch.object(self.getter, 'get_t0_from_grb', return_value=58999.0) as get_t0:
+            result = self.getter.get_time_of_event(
+                data=data, metadata=pd.DataFrame({'timeofmerger': [np.nan]}))
+        self.assertEqual(result.mjd, 58999.0)
+        get_t0.assert_called_once_with()
+
+        self.getter.transient_type = 'supernova'
+        result = self.getter.get_time_of_event(
+            data=data, metadata=pd.DataFrame({'timeofmerger': [np.nan]}))
+        self.assertAlmostEqual(result.mjd, 58999.9)
 
     @mock.patch("pandas.read_csv")
     @mock.patch("re.search")
@@ -1722,6 +1753,32 @@ class TestLasairDataGetter(unittest.TestCase):
         self.getter.collect_data()
         read.assert_called_with(self.getter.url)
 
+    def test_convert_raw_data_to_csv(self):
+        raw_data = pd.DataFrame({
+            'unforced mag status': ['detection', 'limit', 'detection'],
+            'MJD': [59002.0, 59001.0, 59000.0],
+            'diff_magnitude': [20.0, 21.0, 19.0],
+            'diff_magnitude_error': [0.2, 0.3, 0.1],
+            'Filter': ['r', 'i', 'g'],
+        })
+        raw_data.to_csv(self.getter.raw_file_path, index=False)
+
+        result = self.getter.convert_raw_data_to_csv()
+
+        self.assertEqual(list(result['band']), ['ztfg', 'ztfr'])
+        np.testing.assert_allclose(result['time'], [59000.0, 59002.0])
+        np.testing.assert_allclose(result['time (days)'], [0.1, 2.1])
+        for column in ['flux_density(mjy)', 'flux_density_error', 'flux(erg/cm2/s)', 'flux_error']:
+            self.assertTrue(np.all(np.isfinite(result[column])))
+
+    def test_convert_raw_data_returns_existing_processed_file(self):
+        expected = pd.DataFrame({'time': [1.0], 'magnitude': [20.0]})
+        expected.to_csv(self.getter.processed_file_path, index=False)
+
+        result = self.getter.convert_raw_data_to_csv()
+
+        pd.testing.assert_frame_equal(result, expected)
+
 class TestFinkDataGetter(unittest.TestCase):
 
     @classmethod
@@ -1764,6 +1821,11 @@ class TestFinkDataGetter(unittest.TestCase):
     def test_url_lsst(self):
         expected = "https://api.lsst.fink-portal.org//api/v1/sources"
         self.assertEqual(expected, self.getter_lsst.url)
+
+    def test_url_rejects_unknown_source(self):
+        self.getter_ztf.source = 'unknown'
+        with self.assertRaisesRegex(ValueError, "Invalid source unknown"):
+            _ = self.getter_ztf.url
 
     def test_object_id(self):
         self.assertEqual(self.transient_ztf, self.getter_ztf.objectId)
@@ -1808,6 +1870,51 @@ class TestFinkDataGetter(unittest.TestCase):
         json = {'diaObjectId': self.getter_lsst.objectId, 'output-format': 'csv', 'withupperlim': 'True'}
         self.getter_lsst.collect_data()
         post.assert_called_with(url=self.getter_lsst.url, json=json, timeout=30)
+
+    def test_convert_ztf_raw_data_to_csv(self):
+        raw_data = pd.DataFrame({
+            'd:tag': ['valid', 'upperlim', 'valid'],
+            'i:jd': [2459002.5, 2459001.5, 2459000.5],
+            'i:magap': [20.0, 21.0, 19.0],
+            'i:sigmagap': [0.2, 0.3, 0.1],
+            'i:fid': [2, 3, 1],
+        })
+        raw_data.to_csv(self.getter_ztf.raw_file_path, index=False)
+
+        result = self.getter_ztf.convert_raw_data_to_csv()
+
+        self.assertEqual(list(result['band']), ['ztfg', 'ztfr'])
+        np.testing.assert_allclose(result['time'], [59000.0, 59002.0])
+        np.testing.assert_allclose(result['time (days)'], [0.1, 2.1])
+        for column in ['flux_density(mjy)', 'flux_density_error', 'flux(erg/cm2/s)', 'flux_error']:
+            self.assertTrue(np.all(np.isfinite(result[column])))
+
+    def test_convert_lsst_raw_data_to_csv(self):
+        raw_data = pd.DataFrame({
+            'r:midpointMjdTai': [61101.0, 61100.0],
+            'r:scienceFlux': [1000.0, 2000.0],
+            'r:scienceFluxErr': [10.0, 20.0],
+            'r:band': ['r', 'g'],
+        })
+        raw_data.to_csv(self.getter_lsst.raw_file_path, index=False)
+
+        result = self.getter_lsst.convert_raw_data_to_csv()
+
+        self.assertEqual(list(result['band']), ['lsstg', 'lsstr'])
+        np.testing.assert_allclose(result['time'], [61100.0, 61101.0])
+        np.testing.assert_allclose(result['time (days)'], [0.1, 1.1])
+        expected_magnitude = 31.4 - 2.5 * np.log10([2000.0, 1000.0])
+        np.testing.assert_allclose(result['magnitude'], expected_magnitude)
+        for column in ['flux_density(mjy)', 'flux_density_error', 'flux(erg/cm2/s)', 'flux_error']:
+            self.assertTrue(np.all(np.isfinite(result[column])))
+
+    def test_convert_raw_data_returns_existing_processed_file(self):
+        expected = pd.DataFrame({'time': [1.0], 'magnitude': [20.0]})
+        expected.to_csv(self.getter_ztf.processed_file_path, index=False)
+
+        result = self.getter_ztf.convert_raw_data_to_csv()
+
+        pd.testing.assert_frame_equal(result, expected)
 
     @unittest.skipUnless(
         os.getenv("REDBACK_RUN_LIVE_TESTS") == "1",
