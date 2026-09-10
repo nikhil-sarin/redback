@@ -2,7 +2,8 @@
 Contributing
 ============
 
-Redback is currently at version 1.5.1. The version that accompanied the paper was v1.0.
+The version of Redback that accompanied the paper was v1.0. Current releases are listed on
+`GitHub <https://github.com/nikhil-sarin/redback/releases>`_.
 
 If you are interested in contributing please join the
 :code:`redback` `slack <https://join.slack.com/t/redback-group/shared_invite/zt-2503mmkaq-EMEAgz7i3mY0pg1o~VUdqw>`_.

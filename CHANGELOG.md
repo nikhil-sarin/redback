@@ -1,5 +1,36 @@
 # All notable changes will be documented in this file
 
+## [1.20.0] 2026-09-10
+Version 1.20.0 release of redback
+
+### New features
+- Add bounded MAP and maximum-likelihood point estimation through `redback.fit_model(..., fit_method="map")` and `fit_method="mle"`, returning standard `RedbackResult` objects
+- Add support for Laplace approximate-posterior inference through Bilby's `bilby-laplace` sampler plugin
+- Add `GaussianLikelihoodOnMagnitudeFlux` for fitting magnitude-mode models with Gaussian residuals in flux-density space
+- Add the structured `estimate_sed()` API with blackbody, cutoff-blackbody, and direct-integration methods, covariance-aware uncertainties, extinction-aware forward modelling, diagnostics, and compatibility wrappers
+- Make the base `Afterglow` class preserve generic transient names while retaining GRB normalization in `SGRB` and `LGRB`
+
+### Bug fixes
+- Fix time-zero masking for list-valued per-epoch model arguments
+- Fix SNcosmo flux-density evaluation at scalar frequencies and the boundary equality condition
+- Validate upper-limit values and significance levels before evaluating upper-limit likelihoods
+- Preserve causal kilonova diffusion output up to the first invalid heating epoch
+- Fix sampled peak-time handling in phase models
+- Stabilize OTTER dataframe conversion
+- Fix Fink directory routing and pandas 3 compatibility in Open Data system handling
+
+### Packaging and stability
+- Migrate package metadata to `pyproject.toml` with an import-free version source
+- Require Python 3.11 or newer
+- Split optional dependencies into `afterglow`, `data`, `docs`, `speed`, and `ml` extras
+- Add clean wheel, source-distribution, and optional-extra installation checks
+- Add deterministic conversion regression tests for Fink, Lasair, and Open Data
+- Raise combined test coverage above 90% and enforce the threshold without integer rounding
+- Move live Fink service checks to a dedicated scheduled workflow
+- Deprecate `Likelihood.find_maximum_likelihood_parameters` in favor of `fit_model`
+
+**Full Changelog**: https://github.com/nikhil-sarin/redback/compare/v1.18.0...v1.20.0
+
 ## [1.18.0] 2026-07-27
 Version 1.18.0 release of redback
 
