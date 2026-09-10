@@ -459,8 +459,9 @@ class TestKilonovaEjectaRelationConstraints(unittest.TestCase):
         values = constraints._polytrope_two_component_bns_ejecta_quantities(
             mass_1=np.array([1.4, 1.5]), mass_2=np.array([1.3, 1.2]),
             log_p=34.0, gamma_1=3.0, gamma_2=2.5, gamma_3=2.0, zeta=0.2)
-        for value in values:
-            np.testing.assert_array_equal(value, [value[0], value[0]])
+        expected_values = ([0.02, 0.02], [0.03, 0.03], [0.2, 0.2])
+        for value, expected in zip(values, expected_values):
+            np.testing.assert_array_equal(value, expected)
 
     @patch("redback.constraints.eos.PiecewisePolytrope", side_effect=ValueError("bad EOS"))
     def test_polytrope_ejecta_quantities_return_nan_on_invalid_eos(self, eos_class):
