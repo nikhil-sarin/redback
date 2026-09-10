@@ -2,7 +2,7 @@ import unittest
 import tempfile
 import numpy as np
 from types import SimpleNamespace
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 import bilby
 
@@ -625,6 +625,222 @@ class TestFitSpectralDatasetBranches(unittest.TestCase):
         self.assertEqual(result, dummy_result)
         self.assertEqual(point.call_args.kwargs["fit_method"], "map")
         self.assertEqual(point.call_args.kwargs["save_format"], "pkl")
+
+
+class TestSamplerValidationAndFallbacks(unittest.TestCase):
+
+    @patch("redback.sampler._run_fit_backend")
+    def test_spectrum_custom_likelihood_and_plot(self, backend):
+        from redback.sampler import _fit_spectrum
+
+        result = MagicMock()
+        backend.return_value = result
+        transient = DummySpectrum(".")
+        likelihood = MagicMock()
+        _fit_spectrum(
+            transient, dummy_model, ".", "spectrum", likelihood=likelihood,
+            prior={}, model_kwargs=None, clean=True, plot=True)
+        self.assertIs(backend.call_args.kwargs["likelihood"], likelihood)
+        result.plot_spectrum.assert_called_once_with(model=dummy_model)
+
+    @patch("redback.sampler._run_fit_backend")
+    def test_grb_photon_prior_custom_likelihood_and_plot(self, backend):
+        from redback.sampler import _fit_grb
+
+        result = MagicMock()
+        backend.return_value = result
+        likelihood = MagicMock()
+        prior = {}
+        transient = SimpleNamespace(
+            photon_index=-1.0, name="GRB", flux_data=False,
+            magnitude_data=False, flux_density_data=False,
+            x=np.arange(2.0), x_err=None, y=np.ones(2), y_err=np.ones(2))
+        _fit_grb(
+            transient, dummy_model, ".", "grb", likelihood=likelihood,
+            prior=prior, model_kwargs=None, clean=True, plot=True,
+            use_photon_index_prior=True)
+        self.assertIsInstance(prior["alpha_1"], bilby.prior.Uniform)
+        self.assertIs(backend.call_args.kwargs["likelihood"], likelihood)
+        result.plot_lightcurve.assert_called_once_with(model=dummy_model)
+
+    @patch("redback.sampler._run_fit_backend")
+    def test_grb_positive_photon_index_uses_gaussian_prior(self, backend):
+        from redback.sampler import _fit_grb
+
+        backend.return_value = MagicMock()
+        prior = {}
+        transient = DummyAfterglow(".")
+        _fit_grb(
+            transient, dummy_model, ".", "grb", prior=prior,
+            model_kwargs={"output_format": "flux_density", "frequency": 1e14},
+            clean=True, plot=False,
+            use_photon_index_prior=True)
+        self.assertIsInstance(prior["alpha_1"], bilby.prior.Gaussian)
+
+    @patch("redback.sampler._run_fit_backend")
+    def test_optical_non_photometry_custom_likelihood_and_plot(self, backend):
+        from redback.sampler import _fit_optical_transient
+
+        result = MagicMock()
+        backend.return_value = result
+        transient = SimpleNamespace(
+            name="generic", flux_data=False, magnitude_data=False,
+            flux_density_data=False, has_upper_limits=False,
+            x=np.arange(2.0), x_err=None, y=np.ones(2), y_err=np.ones(2))
+        likelihood = MagicMock()
+        _fit_optical_transient(
+            transient, dummy_model, ".", "generic", likelihood=likelihood,
+            prior={}, model_kwargs=None, clean=True, plot=True)
+        self.assertIs(backend.call_args.kwargs["likelihood"], likelihood)
+        result.plot_lightcurve.assert_called_once_with(model=dummy_model)
+
+    @patch("redback.result.read_in_result")
+    def test_prompt_cached_result_is_plotted(self, read_result):
+        from redback.sampler import _fit_prompt
+
+        result = MagicMock()
+        read_result.return_value = result
+        returned = _fit_prompt(
+            DummyPromptTimeSeries("."), dummy_model, ".", "prompt",
+            prior={}, model_kwargs={"output_format": "counts", "frequency": 1e14},
+            plot=True)
+        self.assertIs(returned, result)
+
+    @patch("redback.sampler._run_fit_backend")
+    @patch("inspect.signature", side_effect=ValueError("uninspectable"))
+    def test_spectral_uninspectable_model_accepts_custom_likelihood(
+            self, signature, backend):
+        from redback.sampler import _fit_spectral_dataset
+        from redback.spectral.dataset import SpectralDataset
+
+        dataset = SpectralDataset(
+            counts=np.ones(2), exposure=1.0,
+            energy_edges_keV=np.array([1.0, 2.0, 3.0]))
+        likelihood = MagicMock()
+        backend.return_value = MagicMock()
+        returned = _fit_spectral_dataset(
+            dataset, dummy_model, ".", "spectral", likelihood=likelihood,
+            prior=None, model_kwargs=None, save_format="pkl",
+            clean=True, plot=False)
+        self.assertIs(returned, backend.return_value)
+        self.assertIs(backend.call_args.kwargs["likelihood"], likelihood)
+
+    def test_fit_model_validates_method_and_photometry_kwargs(self):
+        transient = SimpleNamespace(data_mode="magnitude")
+        with self.assertRaisesRegex(ValueError, "fit_method"):
+            fit_model(transient, dummy_model, fit_method="invalid", prior={})
+        with self.assertRaisesRegex(ValueError, "bands"):
+            fit_model(
+                transient, dummy_model, prior={},
+                model_kwargs={"output_format": "magnitude", "bands": None})
+        transient.data_mode = "flux_density"
+        with self.assertRaisesRegex(ValueError, "frequency"):
+            fit_model(
+                transient, dummy_model, prior={},
+                model_kwargs={"output_format": "flux_density", "frequency": None})
+        with self.assertRaisesRegex(ValueError, "inconsistent"):
+            fit_model(
+                transient, dummy_model, prior={},
+                model_kwargs={"output_format": "flux", "bands": ["g"]})
+
+    def test_fit_model_requires_available_default_prior(self):
+        transient = SimpleNamespace(data_mode="counts")
+        with patch("redback.priors.get_priors", return_value=None):
+            with self.assertRaisesRegex(ValueError, "No prior found"):
+                fit_model(transient, dummy_model, prior=None)
+
+    def test_fit_model_rejects_unknown_transient_type(self):
+        transient = SimpleNamespace(
+            data_mode="counts", name="unknown",
+            directory_structure=SimpleNamespace(directory_path="unused"))
+        with tempfile.TemporaryDirectory() as outdir:
+            with self.assertRaisesRegex(ValueError, "Source type"):
+                fit_model(
+                    transient, dummy_model, outdir=outdir, prior={"amplitude": 1.0},
+                    plot=False)
+
+    @patch("redback.sampler.bilby.run_sampler")
+    def test_pymultinest_nested_sample_failure_falls_back_to_dynesty(self, run_sampler):
+        from redback.sampler import _run_fit_backend
+
+        fallback_result = MagicMock()
+        run_sampler.side_effect = [
+            ValueError("dead_points and live_points mismatch"), fallback_result]
+        result = _run_fit_backend(
+            likelihood=MagicMock(), prior={}, label="fallback", sampler="pymultinest",
+            nlive=10, outdir=".", walks=5, resume=False, save_format="json",
+            meta_data={}, sampler_plot=False)
+        self.assertIs(result, fallback_result)
+        self.assertEqual(2, run_sampler.call_count)
+        self.assertEqual("dynesty", run_sampler.call_args_list[1].kwargs["sampler"])
+
+    @patch("redback.sampler.bilby.run_sampler", side_effect=ValueError("other failure"))
+    def test_sampling_backend_propagates_unrelated_value_error(self, run_sampler):
+        from redback.sampler import _run_fit_backend
+
+        with self.assertRaisesRegex(ValueError, "other failure"):
+            _run_fit_backend(
+                likelihood=MagicMock(), prior={}, label="failure", sampler="dynesty",
+                nlive=10, outdir=".", walks=5, resume=False, save_format="json",
+                meta_data={}, sampler_plot=False)
+
+    def test_filtered_upper_limit_sigma_supports_all_storage_shapes(self):
+        transient = SimpleNamespace(
+            upper_limit_sigma=5.0, filtered_indices=np.array([True, False, True]),
+            x=np.arange(3), detections=None)
+        self.assertEqual(5.0, _get_filtered_upper_limit_sigma(transient))
+
+        transient.upper_limit_sigma = np.array([2.0, 3.0, 4.0])
+        np.testing.assert_array_equal(_get_filtered_upper_limit_sigma(transient), [2.0, 4.0])
+
+        transient.detections = np.array([True, False, False])
+        transient.upper_limits = ~transient.detections
+        transient.filtered_indices = np.array([False, True, True])
+        transient.upper_limit_sigma = np.array([3.0, 4.0])
+        np.testing.assert_array_equal(_get_filtered_upper_limit_sigma(transient), [3.0, 4.0])
+
+        transient.upper_limit_sigma = np.array([1.0])
+        np.testing.assert_array_equal(_get_filtered_upper_limit_sigma(transient), [1.0])
+
+    @patch("redback.sampler._run_fit_backend")
+    @patch("redback.sampler.GaussianLikelihood")
+    def test_optical_fit_drops_nonfinite_upper_limits(self, gaussian, backend):
+        from redback.sampler import _fit_optical_transient
+
+        backend.return_value = MagicMock()
+        transient = MagicMock(
+            flux_data=True, magnitude_data=False, flux_density_data=False,
+            has_upper_limits=True, name="test")
+        transient.get_filtered_data_with_limits.return_value = (
+            np.array([1.0, 2.0]), None, np.array([3.0, np.nan]),
+            np.array([0.1, np.nan]), np.array([True, False]))
+        model = MagicMock(__name__="model")
+        _fit_optical_transient(
+            transient, model, ".", "test", prior={},
+            model_kwargs={"output_format": "flux_density", "frequency": np.array([1e14, 1e14])},
+            plot=False, clean=True)
+        np.testing.assert_array_equal(gaussian.call_args.kwargs["x"], [1.0])
+        np.testing.assert_array_equal(gaussian.call_args.kwargs["y"], [3.0])
+
+    @patch("redback.sampler._run_fit_backend")
+    @patch("redback.sampler.GaussianLikelihoodWithUpperLimits")
+    def test_optical_fit_uses_upper_limit_likelihood_for_finite_limits(self, upper_likelihood, backend):
+        from redback.sampler import _fit_optical_transient
+
+        backend.return_value = MagicMock()
+        transient = MagicMock(
+            flux_data=False, magnitude_data=True, flux_density_data=False,
+            has_upper_limits=True, name="test", upper_limit_sigma=5.0)
+        transient.get_filtered_data_with_limits.return_value = (
+            np.array([1.0, 2.0]), None, np.array([20.0, 22.0]),
+            np.array([0.1, np.nan]), np.array([True, False]))
+        model = MagicMock(__name__="model")
+        _fit_optical_transient(
+            transient, model, ".", "test", prior={},
+            model_kwargs={"output_format": "magnitude", "bands": np.array(["g", "g"])},
+            plot=False, clean=True)
+        self.assertEqual("magnitude", upper_likelihood.call_args.kwargs["data_mode"])
+        self.assertEqual(5.0, upper_likelihood.call_args.kwargs["upper_limit_sigma"])
 
 
 if __name__ == '__main__':

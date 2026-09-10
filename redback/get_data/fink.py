@@ -37,8 +37,8 @@ class FinkDataGetter(DataGetter):
         """
         super().__init__(transient, transient_type)
         self.directory_path, self.raw_file_path, self.processed_file_path = \
-            redback.get_data.directory.lasair_directory_structure(transient=self.transient,
-                                                                  transient_type=self.transient_type)
+            redback.get_data.directory.fink_directory_structure(transient=self.transient,
+                                                                transient_type=self.transient_type)
         self.source = source
 
     @property

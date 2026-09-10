@@ -1,12 +1,16 @@
 import unittest
+from types import SimpleNamespace
+from unittest.mock import patch
 
 import matplotlib.pyplot as plt
 import numpy as np
 
 import redback
+import redback.sed_analysis as sed_analysis
 from redback.sed_analysis import (
     BlackbodySEDModel,
     CutoffBlackbodySEDModel,
+    DirectIntegrationSEDModel,
     ExtinctionConfig,
     SEDEpochResult,
     SEDResult,
@@ -107,6 +111,156 @@ class TestExtinctionConfig(unittest.TestCase):
             with self.subTest(field_name=field_name):
                 with self.assertRaisesRegex(ValueError, field_name):
                     ExtinctionConfig(**{field_name: "unsupported"})
+
+    def test_extinction_values_are_validated(self):
+        invalid = (
+            {"av_host": np.nan}, {"av_mw": np.inf},
+            {"av_host": -0.1}, {"av_mw": -0.1},
+            {"rv_host": 0.0}, {"rv_mw": -1.0},
+        )
+        for values in invalid:
+            with self.subTest(values=values), self.assertRaises(ValueError):
+                ExtinctionConfig(**values)
+
+
+class TestSEDValidationAndFailurePaths(unittest.TestCase):
+    def _transient(self, data_mode="flux_density"):
+        transient = unittest.mock.MagicMock()
+        transient.name = "validation"
+        transient.redshift = 0.1
+        transient.data_mode = data_mode
+        transient.get_filtered_data.return_value = (
+            np.array([1.0, 1.1, 1.2]), np.zeros(3),
+            np.ones(3), np.full(3, 0.1))
+        transient.filtered_frequencies = np.array([3e14, 4e14, 5e14])
+        return transient
+
+    def test_top_level_options_are_validated(self):
+        transient = self._transient()
+        cases = (
+            {"distance": 0.0}, {"distance": np.inf},
+            {"bin_width": 0.0}, {"bin_width": np.nan},
+            {"min_filters": 0}, {"min_filters": 1.5},
+        )
+        for values in cases:
+            with self.subTest(values=values), self.assertRaises(ValueError):
+                sed_analysis.estimate_sed(transient, **values)
+        transient.redshift = -0.1
+        with self.assertRaisesRegex(ValueError, "redshift"):
+            sed_analysis.estimate_sed(transient)
+
+    def test_model_resolution_rejects_invalid_methods(self):
+        with self.assertRaisesRegex(TypeError, "SEDModel protocol"):
+            sed_analysis._resolve_sed_model(object(), 1e27, 0.1)
+        with self.assertRaisesRegex(ValueError, "Unknown SED method"):
+            sed_analysis._resolve_sed_model("not-a-model", 1e27, 0.1)
+
+    def test_photometry_validation_reports_each_contract(self):
+        valid = [np.ones(2), np.ones(2), np.ones(2), np.ones(2)]
+        cases = (
+            [np.ones(1), *valid[1:]],
+            [np.array([]), np.array([]), np.array([]), np.array([])],
+            [np.array([1.0, np.nan]), *valid[1:]],
+            [valid[0], np.array([1.0, 0.0]), *valid[2:]],
+            [*valid[:2], np.array([1.0, np.inf]), valid[3]],
+            [*valid[:3], np.array([1.0, 0.0])],
+        )
+        for values in cases:
+            with self.subTest(values=values), self.assertRaises(ValueError):
+                sed_analysis._validate_photometry(*values)
+
+    def test_unsupported_data_mode_is_rejected(self):
+        with self.assertRaisesRegex(ValueError, "supports magnitude"):
+            sed_analysis._prepare_photometry(self._transient("counts"), 0.1, True)
+
+    def test_non_bandpass_photometry_converts_magnitude_and_flux(self):
+        for data_mode in ("magnitude", "flux"):
+            transient = self._transient(data_mode)
+            transient.filtered_sncosmo_bands = np.array(["ztfg", "ztfr", "ztfi"])
+            time, frequency, wavelength, observed, error, context = \
+                sed_analysis._prepare_photometry(transient, 0.1, False)
+            self.assertEqual("flux_density", context["data_mode"])
+            self.assertTrue(np.all(np.isfinite(frequency)))
+            self.assertTrue(np.all(np.isfinite(wavelength)))
+            self.assertEqual(time.shape, observed.shape)
+            self.assertEqual(time.shape, error.shape)
+
+    def test_observed_flux_integration_applies_extinction(self):
+        extinction = SimpleNamespace(
+            transmission=lambda wavelength, redshift: np.full_like(wavelength, 0.5))
+        luminosity, variance = sed_analysis._integrate_observed_flux(
+            np.array([3e14, 4e14, 5e14]), np.ones(3), np.full(3, 0.1),
+            distance=1e27, redshift=0.1, extinction=extinction)
+        self.assertGreater(abs(luminosity), 0.0)
+        self.assertGreater(variance, 0.0)
+
+    def test_epoch_diagnostic_and_axes_validation(self):
+        epoch = SEDEpochResult(
+            epoch_time=1.0, success=True, status="success",
+            parameters={"temperature": 1.0, "radius": 1.0},
+            covariance=np.eye(2))
+        result = SEDResult("test", "test", _PowerLawLuminositySED(), [epoch], 0.1, 1e27)
+        with self.assertRaisesRegex(ValueError, "photometry diagnostics"):
+            result.plot_epoch(0)
+        with self.assertRaisesRegex(ValueError, "Expected 2 axes"):
+            result.plot_evolution(axes=[plt.subplots()[1]])
+
+    def test_empty_and_failed_legacy_results_return_none(self):
+        empty = SEDResult("test", "test", _PowerLawLuminositySED(), [], 0.1, 1e27)
+        self.assertIsNone(empty._legacy_parameter_dataframe())
+        self.assertIsNone(empty._legacy_bolometric_dataframe())
+        with self.assertRaisesRegex(ValueError, "A_ext"):
+            empty._legacy_bolometric_dataframe(A_ext=np.nan)
+
+        poor = SEDEpochResult(
+            epoch_time=1.0, success=True, status="poorly_constrained",
+            parameters={"temperature": 1.0, "radius": 1.0}, covariance=np.eye(2))
+        result = SEDResult("test", "test", _PowerLawLuminositySED(), [poor], 0.1, 1e27)
+        self.assertIsNone(result._legacy_parameter_dataframe())
+
+    def test_covariance_helpers_handle_missing_and_invalid_values(self):
+        epoch = SEDEpochResult(
+            epoch_time=1.0, success=True, status="success",
+            parameters={"temperature": 1.0, "radius": 1.0}, covariance=None)
+        result = SEDResult("test", "test", _PowerLawLuminositySED(), [epoch], 0.1, 1e27)
+        self.assertTrue(np.isnan(result._parameter_error(epoch, "temperature")))
+        self.assertTrue(np.isnan(result._luminosity_variance(epoch)))
+        self.assertTrue(np.isnan(result._function_variance(epoch, lambda _: 1.0)))
+
+        invalid = np.array([[np.nan, 0.0], [0.0, 1.0]])
+        self.assertEqual(
+            "invalid_covariance",
+            sed_analysis._quality_status(result.model, epoch.parameters, invalid))
+        broad = np.diag([4.0, 4.0])
+        self.assertEqual(
+            "poorly_constrained",
+            sed_analysis._quality_status(result.model, epoch.parameters, broad))
+
+    def test_direct_model_without_tail_has_explicit_contract(self):
+        model = DirectIntegrationSEDModel(None)
+        initial, bounds = model.fit_setup()
+        self.assertEqual(0, len(initial))
+        self.assertEqual({}, model.parameters_from_fit([], None)[0])
+        with self.assertRaisesRegex(ValueError, "No tail model"):
+            model.evaluate_photometry([], {}, {})
+        with self.assertRaisesRegex(RuntimeError, "stored per epoch"):
+            model.bolometric_luminosity({})
+        with self.assertRaisesRegex(RuntimeError, "stored per epoch"):
+            model.luminosity_fractions({}, (1.0, 2.0))
+
+    def test_fit_failures_are_retained(self):
+        transient = self._transient()
+        with patch("redback.sed_analysis.curve_fit", side_effect=RuntimeError("failed")):
+            result = sed_analysis.estimate_sed(transient, min_filters=1)
+        self.assertFalse(result.epoch_results[0].success)
+        self.assertEqual("fit_failed", result.epoch_results[0].status)
+
+        with patch("redback.sed_analysis._integrate_observed_flux", side_effect=ValueError("failed")):
+            direct = sed_analysis.estimate_sed(
+                transient, method="direct_integration", min_filters=1,
+                uv_tail="none", ir_tail="none")
+        self.assertFalse(direct.epoch_results[0].success)
+        self.assertEqual("fit_failed", direct.epoch_results[0].status)
 
 
 class TestEstimateSED(unittest.TestCase):
@@ -338,6 +492,14 @@ class TestEstimateSED(unittest.TestCase):
         self.assertEqual(0.0, frame.iloc[0]["lum_infrared"])
         self.assertEqual(frame.iloc[0]["lum_observed"], frame.iloc[0]["lum_bol"])
 
+    def test_direct_integration_supports_independent_uncertainties(self):
+        transient, distance, _ = self._make_transient()
+        frame = transient.estimate_sed(
+            method="direct_integration", distance=distance,
+            uv_tail="none", ir_tail="none",
+            uncertainty_method="independent").integrate().to_dataframe(True)
+        self.assertGreater(frame.iloc[0]["lum_bol_err"], 0.0)
+
     def test_direct_integration_recovers_blackbody_with_matching_tails(self):
         transient, distance, parameters = self._make_transient()
         frame = transient.estimate_sed(
@@ -355,10 +517,10 @@ class TestEstimateSED(unittest.TestCase):
             method="cutoff_blackbody", distance=distance,
             cutoff_wavelength=4500.0, absorption_index=2.0)
         current = transient.estimate_bb_params(**keywords)
-        legacy = transient._estimate_bb_params_legacy(**keywords)
+        structured = transient.estimate_sed(**keywords).to_dataframe(successful_only=True)
         np.testing.assert_allclose(
             current[["temperature", "radius"]],
-            legacy[["temperature", "radius"]], rtol=1e-6)
+            structured[["temperature", "radius"]], rtol=1e-6)
 
     def test_dataframe_bolometric_wrapper_uses_stable_blue_boost(self):
         transient, distance, _ = self._make_transient()

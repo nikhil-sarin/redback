@@ -41,6 +41,114 @@ class TestUtils(unittest.TestCase):
         self.assertListEqual(expected_keys, list(table.keys()))
 
 
+class TestPublicDataAPI(unittest.TestCase):
+
+    def test_swift_convenience_functions_route_expected_options(self):
+        result = object()
+        with mock.patch.object(redback.get_data, "get_swift_data", return_value=result) as get_swift:
+            self.assertIs(
+                redback.get_data.get_xrt_afterglow_data_from_swift("GRB123", data_mode="flux"), result)
+            get_swift.assert_called_once_with(
+                grb="GRB123", transient_type="afterglow", data_mode="flux", instrument="XRT")
+
+            get_swift.reset_mock()
+            self.assertIs(
+                redback.get_data.get_bat_xrt_afterglow_data_from_swift(
+                    "GRB123", data_mode="flux_density", snr=5, force_download=True), result)
+            get_swift.assert_called_once_with(
+                grb="GRB123", transient_type="afterglow", data_mode="flux_density",
+                instrument="BAT+XRT", snr=5, force_download=True)
+
+            get_swift.reset_mock()
+            self.assertIs(redback.get_data.get_prompt_data_from_swift("GRB123", bin_size="64ms"), result)
+            get_swift.assert_called_once_with(
+                grb="GRB123", transient_type="prompt", data_mode="prompt",
+                instrument="BAT+XRT", bin_size="64ms")
+
+    def test_getter_wrappers_construct_and_return_data(self):
+        result = object()
+        cases = [
+            ("SwiftDataGetter", redback.get_data.get_swift_data,
+             {"grb": "GRB123", "transient_type": "afterglow", "data_mode": "flux",
+              "instrument": "XRT", "bin_size": None, "snr": 4, "force_download": False}),
+            ("BATSEDataGetter", redback.get_data.get_prompt_data_from_batse, {"grb": "GRB123"}),
+            ("LasairDataGetter", redback.get_data.get_lasair_data,
+             {"transient": "ZTF123", "transient_type": "supernova"}),
+            ("FinkDataGetter", redback.get_data.get_fink_data,
+             {"transient": "ZTF123", "transient_type": "supernova", "source": "ztf"}),
+            ("OpenDataGetter", redback.get_data.get_open_transient_catalog_data,
+             {"transient": "SN123", "transient_type": "supernova"}),
+        ]
+
+        for class_name, function, kwargs in cases:
+            with self.subTest(class_name=class_name):
+                with mock.patch.object(redback.get_data, class_name) as getter_class:
+                    getter_class.return_value.get_data.return_value = result
+                    self.assertIs(function(**kwargs), result)
+                    getter_class.assert_called_once_with(**kwargs)
+                    getter_class.return_value.get_data.assert_called_once_with()
+
+    def test_open_catalog_convenience_functions_set_transient_type(self):
+        result = object()
+        with mock.patch.object(
+                redback.get_data, "get_open_transient_catalog_data", return_value=result) as get_open:
+            cases = [
+                (redback.get_data.get_kilonova_data_from_open_transient_catalog_data,
+                 "AT2017gfo", "kilonova"),
+                (redback.get_data.get_supernova_data_from_open_transient_catalog_data,
+                 "SN2011fe", "supernova"),
+                (redback.get_data.get_tidal_disruption_event_data_from_open_transient_catalog_data,
+                 "ASASSN-14li", "tidal_disruption_event"),
+            ]
+            for function, name, transient_type in cases:
+                with self.subTest(transient_type=transient_type):
+                    self.assertIs(function(name), result)
+                    get_open.assert_called_once_with(name, transient_type=transient_type)
+                    get_open.reset_mock()
+
+    def test_otter_convenience_functions_set_transient_type(self):
+        result = object()
+        with mock.patch.object(redback.get_data, "OTTER_AVAILABLE", True), \
+                mock.patch.object(redback.get_data, "OtterDataGetter", create=True) as getter_class:
+            getter_class.return_value.get_data.return_value = result
+            cases = [
+                (redback.get_data.get_kilonova_data_from_otter, "AT2017gfo", "kilonova"),
+                (redback.get_data.get_supernova_data_from_otter, "SN2011fe", "supernova"),
+                (redback.get_data.get_tidal_disruption_event_data_from_otter,
+                 "ASASSN-14li", "tidal_disruption_event"),
+            ]
+            for function, name, transient_type in cases:
+                with self.subTest(transient_type=transient_type):
+                    self.assertIs(function(name, obs_type="radio"), result)
+                    getter_class.assert_called_once_with(
+                        transient=name, transient_type=transient_type, obs_type="radio")
+                    getter_class.return_value.get_data.assert_called_once_with()
+                    getter_class.reset_mock(return_value=True)
+                    getter_class.return_value.get_data.return_value = result
+
+    def test_unimplemented_prompt_sources_raise(self):
+        with self.assertRaises(NotImplementedError):
+            redback.get_data.get_prompt_data_from_fermi("GRB123")
+        with self.assertRaises(NotImplementedError):
+            redback.get_data.get_prompt_data_from_konus("GRB123")
+
+    def test_get_data_routes_using_transient_and_instrument(self):
+        result = object()
+        route = mock.Mock(return_value=result)
+        with mock.patch.dict(redback.get_data._functions_dict, {("test", "instrument"): route}):
+            self.assertIs(redback.get_data.get_data("test", "instrument", option=1), result)
+        route.assert_called_once_with("test", option=1)
+
+    @mock.patch("redback.get_data.urllib.request.urlretrieve")
+    @mock.patch("redback.get_data.logger.info")
+    def test_get_oac_metadata_downloads_catalog(self, logger_info, urlretrieve):
+        redback.get_data.get_oac_metadata()
+
+        urlretrieve.assert_called_once_with(
+            "https://api.astrocats.space/catalog?format=CSV", "metadata.csv")
+        logger_info.assert_called_once_with("Downloaded metadata for open access catalog transients.")
+
+
 class TestDirectory(unittest.TestCase):
 
     @classmethod
@@ -310,11 +418,42 @@ class TestOpenDataGetter(unittest.TestCase):
         self.assertEqual(expected, data)
 
     def test_convert_raw_data_to_csv(self):
-        pass
-        # This is covered by the reference file tests. More detailed tests can be implemented later.
+        raw_data = pd.DataFrame({
+            'time': [59000.0, 59001.0, 59002.0],
+            'magnitude': [20.0, 21.0, 19.0],
+            'e_magnitude': [0.1, 0.2, 0.15],
+            'band': ['ztfg', 'C', 'ztfr'],
+            'system': ['AB', 'AB', None],
+        })
+        metadata = pd.DataFrame({'timeofmerger': [58999.5]})
+        raw_data.to_csv(self.getter.raw_file_path, index=False)
+        metadata.to_csv(self.getter.metadata_path, index=False)
+
+        result = self.getter.convert_raw_data_to_csv()
+
+        self.assertEqual(list(result['band']), ['ztfg', 'ztfr'])
+        self.assertEqual(list(result['system']), ['AB', 'AB'])
+        np.testing.assert_allclose(result['time (days)'], [0.5, 2.5])
+        for column in ['flux_density(mjy)', 'flux_density_error', 'flux(erg/cm2/s)', 'flux_error']:
+            self.assertTrue(np.all(np.isfinite(result[column])))
 
     def test_get_time_of_event(self):
-        pass
+        data = pd.DataFrame({'time': [59000.0, 59001.0]})
+
+        result = self.getter.get_time_of_event(
+            data=data, metadata=pd.DataFrame({'timeofmerger': [58999.5]}))
+        self.assertEqual(result.mjd, 58999.5)
+
+        with mock.patch.object(self.getter, 'get_t0_from_grb', return_value=58999.0) as get_t0:
+            result = self.getter.get_time_of_event(
+                data=data, metadata=pd.DataFrame({'timeofmerger': [np.nan]}))
+        self.assertEqual(result.mjd, 58999.0)
+        get_t0.assert_called_once_with()
+
+        self.getter.transient_type = 'supernova'
+        result = self.getter.get_time_of_event(
+            data=data, metadata=pd.DataFrame({'timeofmerger': [np.nan]}))
+        self.assertAlmostEqual(result.mjd, 58999.9)
 
     @mock.patch("pandas.read_csv")
     @mock.patch("re.search")
@@ -508,14 +647,17 @@ class TestSwiftDataGetter(unittest.TestCase):
         self.getter.download_directly.assert_not_called()
 
     @mock.patch("os.path.isfile")
-    def test_collect_data_prompt(self, isfile):
+    @mock.patch("redback.get_data.swift.requests.get")
+    def test_collect_data_prompt(self, get, isfile):
         isfile.return_value = False
+        get.return_value.text = "prompt light curve"
         self.getter.transient_type = 'prompt'
         self.getter.download_directly = MagicMock()
         self.getter.download_integrated_flux_data = MagicMock()
         self.getter.download_flux_density_data = MagicMock()
         self.getter.collect_data()
         self.getter.download_directly.assert_called_once()
+        get.assert_called_once_with(self.getter.grb_website)
         self.getter.download_integrated_flux_data.assert_not_called()
         self.getter.download_flux_density_data.assert_not_called()
 
@@ -1611,6 +1753,32 @@ class TestLasairDataGetter(unittest.TestCase):
         self.getter.collect_data()
         read.assert_called_with(self.getter.url)
 
+    def test_convert_raw_data_to_csv(self):
+        raw_data = pd.DataFrame({
+            'unforced mag status': ['detection', 'limit', 'detection'],
+            'MJD': [59002.0, 59001.0, 59000.0],
+            'diff_magnitude': [20.0, 21.0, 19.0],
+            'diff_magnitude_error': [0.2, 0.3, 0.1],
+            'Filter': ['r', 'i', 'g'],
+        })
+        raw_data.to_csv(self.getter.raw_file_path, index=False)
+
+        result = self.getter.convert_raw_data_to_csv()
+
+        self.assertEqual(list(result['band']), ['ztfg', 'ztfr'])
+        np.testing.assert_allclose(result['time'], [59000.0, 59002.0])
+        np.testing.assert_allclose(result['time (days)'], [0.1, 2.1])
+        for column in ['flux_density(mjy)', 'flux_density_error', 'flux(erg/cm2/s)', 'flux_error']:
+            self.assertTrue(np.all(np.isfinite(result[column])))
+
+    def test_convert_raw_data_returns_existing_processed_file(self):
+        expected = pd.DataFrame({'time': [1.0], 'magnitude': [20.0]})
+        expected.to_csv(self.getter.processed_file_path, index=False)
+
+        result = self.getter.convert_raw_data_to_csv()
+
+        pd.testing.assert_frame_equal(result, expected)
+
 class TestFinkDataGetter(unittest.TestCase):
 
     @classmethod
@@ -1653,6 +1821,11 @@ class TestFinkDataGetter(unittest.TestCase):
     def test_url_lsst(self):
         expected = "https://api.lsst.fink-portal.org//api/v1/sources"
         self.assertEqual(expected, self.getter_lsst.url)
+
+    def test_url_rejects_unknown_source(self):
+        self.getter_ztf.source = 'unknown'
+        with self.assertRaisesRegex(ValueError, "Invalid source unknown"):
+            _ = self.getter_ztf.url
 
     def test_object_id(self):
         self.assertEqual(self.transient_ztf, self.getter_ztf.objectId)
@@ -1698,8 +1871,57 @@ class TestFinkDataGetter(unittest.TestCase):
         self.getter_lsst.collect_data()
         post.assert_called_with(url=self.getter_lsst.url, json=json, timeout=30)
 
+    def test_convert_ztf_raw_data_to_csv(self):
+        raw_data = pd.DataFrame({
+            'd:tag': ['valid', 'upperlim', 'valid'],
+            'i:jd': [2459002.5, 2459001.5, 2459000.5],
+            'i:magap': [20.0, 21.0, 19.0],
+            'i:sigmagap': [0.2, 0.3, 0.1],
+            'i:fid': [2, 3, 1],
+        })
+        raw_data.to_csv(self.getter_ztf.raw_file_path, index=False)
+
+        result = self.getter_ztf.convert_raw_data_to_csv()
+
+        self.assertEqual(list(result['band']), ['ztfg', 'ztfr'])
+        np.testing.assert_allclose(result['time'], [59000.0, 59002.0])
+        np.testing.assert_allclose(result['time (days)'], [0.1, 2.1])
+        for column in ['flux_density(mjy)', 'flux_density_error', 'flux(erg/cm2/s)', 'flux_error']:
+            self.assertTrue(np.all(np.isfinite(result[column])))
+
+    def test_convert_lsst_raw_data_to_csv(self):
+        raw_data = pd.DataFrame({
+            'r:midpointMjdTai': [61101.0, 61100.0],
+            'r:scienceFlux': [1000.0, 2000.0],
+            'r:scienceFluxErr': [10.0, 20.0],
+            'r:band': ['r', 'g'],
+        })
+        raw_data.to_csv(self.getter_lsst.raw_file_path, index=False)
+
+        result = self.getter_lsst.convert_raw_data_to_csv()
+
+        self.assertEqual(list(result['band']), ['lsstg', 'lsstr'])
+        np.testing.assert_allclose(result['time'], [61100.0, 61101.0])
+        np.testing.assert_allclose(result['time (days)'], [0.1, 1.1])
+        expected_magnitude = 31.4 - 2.5 * np.log10([2000.0, 1000.0])
+        np.testing.assert_allclose(result['magnitude'], expected_magnitude)
+        for column in ['flux_density(mjy)', 'flux_density_error', 'flux(erg/cm2/s)', 'flux_error']:
+            self.assertTrue(np.all(np.isfinite(result[column])))
+
+    def test_convert_raw_data_returns_existing_processed_file(self):
+        expected = pd.DataFrame({'time': [1.0], 'magnitude': [20.0]})
+        expected.to_csv(self.getter_ztf.processed_file_path, index=False)
+
+        result = self.getter_ztf.convert_raw_data_to_csv()
+
+        pd.testing.assert_frame_equal(result, expected)
+
+    @unittest.skipUnless(
+        os.getenv("REDBACK_RUN_LIVE_TESTS") == "1",
+        "Set REDBACK_RUN_LIVE_TESTS=1 to run live service checks",
+    )
     def test_collect_data_ztf_live_api(self):
-        """Live Fink smoke test: CI should report if the ZTF Fink API breaks."""
+        """Live Fink smoke test, run by the dedicated live-service workflow."""
         self.getter_ztf.collect_data()
 
         self.assertTrue(os.path.isfile(self.getter_ztf.raw_file_path))
@@ -2239,6 +2461,152 @@ class TestOtterDataGetter(unittest.TestCase):
                 getter.collect_data()
             
             self.assertIn("not found in OTTER database", str(context.exception))
+
+    @mock.patch("redback.get_data.otter.OTTER_INSTALLED", False)
+    def test_init_requires_otter_extra(self):
+        with self.assertRaisesRegex(ImportError, r"redback\[data\]"):
+            redback.get_data.otter.OtterDataGetter(
+                transient=self.transient, transient_type=self.transient_type)
+
+    @mock.patch("redback.get_data.otter.OTTER_INSTALLED", True)
+    def test_obs_type_validation_and_multi_directory(self):
+        with self.assertRaisesRegex(ValueError, "obs_type"):
+            redback.get_data.otter.OtterDataGetter(
+                self.transient, self.transient_type, obs_type="gamma")
+        with self.assertRaisesRegex(ValueError, "gamma"):
+            redback.get_data.otter.OtterDataGetter(
+                self.transient, self.transient_type, obs_type=["uvoir", "gamma"])
+        getter = redback.get_data.otter.OtterDataGetter(
+            self.transient, self.transient_type, obs_type=["uvoir", "radio"])
+        self.assertEqual(["uvoir", "radio"], getter.obs_type)
+        self.assertTrue(getter.directory_path.endswith("/multi/"))
+
+    @mock.patch("redback.get_data.otter.OTTER_INSTALLED", True)
+    @mock.patch("redback.get_data.otter.Otter", create=True)
+    @mock.patch("os.path.isfile", return_value=False)
+    @mock.patch("pandas.DataFrame.to_csv")
+    def test_collect_data_combines_multiple_observation_types(
+            self, to_csv, isfile, otter_class):
+        getter = redback.get_data.otter.OtterDataGetter(
+            self.transient, self.transient_type, obs_type=["uvoir", "radio", "xray"])
+        metadata = MagicMock()
+        metadata.get_redshift.return_value = 0.01
+        metadata.get_discovery_date.return_value = Time("2017-08-17")
+        del metadata.get_ra
+        del metadata.get_dec
+        del metadata.get_classification
+        otter = otter_class.return_value
+        otter.get_meta.return_value = [metadata]
+        otter.get_phot.side_effect = [
+            pd.DataFrame({"value": [1.0]}),
+            pd.DataFrame({"value": [2.0]}),
+            pd.DataFrame(),
+        ]
+        getter.collect_data()
+        self.assertEqual(2, to_csv.call_count)
+        self.assertEqual("mag(AB)", otter.get_phot.call_args_list[0].kwargs["flux_unit"])
+        self.assertEqual("mJy", otter.get_phot.call_args_list[1].kwargs["flux_unit"])
+
+    @mock.patch("redback.get_data.otter.OTTER_INSTALLED", True)
+    @mock.patch("redback.get_data.otter.Otter", create=True)
+    @mock.patch("os.path.isfile", return_value=False)
+    def test_collect_data_rejects_empty_photometry(self, isfile, otter_class):
+        getter = redback.get_data.otter.OtterDataGetter(
+            self.transient, self.transient_type, obs_type=["radio", "xray"])
+        otter_class.return_value.get_meta.return_value = [MagicMock()]
+        otter_class.return_value.get_phot.return_value = pd.DataFrame()
+        with self.assertRaisesRegex(ValueError, "No photometry found"):
+            getter.collect_data()
+
+        single = redback.get_data.otter.OtterDataGetter(
+            self.transient, self.transient_type, obs_type="radio")
+        with self.assertRaisesRegex(ValueError, "No radio photometry"):
+            single.collect_data()
+
+    @mock.patch("redback.get_data.otter.OTTER_INSTALLED", True)
+    @mock.patch("os.path.isfile", return_value=True)
+    @mock.patch("pandas.read_csv")
+    def test_convert_raw_data_returns_existing_processed_file(self, read_csv, isfile):
+        expected = pd.DataFrame({"time": [1.0]})
+        read_csv.return_value = expected
+        getter = redback.get_data.otter.OtterDataGetter(self.transient, self.transient_type)
+        pd.testing.assert_frame_equal(expected, getter.convert_raw_data_to_csv())
+
+    @mock.patch("redback.get_data.otter.OTTER_INSTALLED", True)
+    @mock.patch("os.path.isfile", return_value=False)
+    @mock.patch("pandas.read_csv")
+    def test_convert_raw_data_reads_converts_and_writes(self, read_csv, isfile):
+        phot = pd.DataFrame({"converted_flux": [20.0], "converted_flux_err": [0.1]})
+        metadata = pd.DataFrame({"discovery_date": ["2017-08-17"], "redshift": [0.01]})
+        read_csv.side_effect = [phot, metadata]
+        getter = redback.get_data.otter.OtterDataGetter(self.transient, self.transient_type)
+        expected = pd.DataFrame({"time": [1.0]})
+        with mock.patch.object(getter, "_convert_to_redback_format", return_value=expected):
+            with mock.patch.object(expected, "to_csv") as to_csv:
+                result = getter.convert_raw_data_to_csv()
+        self.assertIs(expected, result)
+        to_csv.assert_called_once_with(getter.processed_file_path, index=False)
+
+    @mock.patch("redback.get_data.otter.OTTER_INSTALLED", True)
+    def test_convert_to_redback_format_filters_rows_and_uses_fallback_date(self):
+        getter = redback.get_data.otter.OtterDataGetter(self.transient, self.transient_type)
+        phot = pd.DataFrame({
+            "converted_date": [58000.0, 58001.0, 58002.0],
+            "converted_flux": [20.0, np.nan, 21.0],
+            "converted_flux_err": [0.1, 0.2, 0.1],
+            "filter_name": ["g", "r", "i"],
+            "upperlimit": [False, False, True],
+        })
+        metadata = pd.DataFrame({
+            "obs_type": ["uvoir"], "discovery_date": ["not-a-date"], "redshift": [0.01]})
+        converted = pd.DataFrame({"time (days)": [0.0], "magnitude": [20.0]})
+        with mock.patch.object(getter, "_convert_uvoir_data", return_value=converted) as convert:
+            result = getter._convert_to_redback_format(phot, metadata)
+        self.assertEqual(1, len(result))
+        self.assertEqual(58000.0, result.iloc[0]["time"])
+        self.assertEqual(0.01, result.iloc[0]["redshift"])
+        np.testing.assert_array_equal(convert.call_args.args[1], [0.0])
+
+    @mock.patch("redback.get_data.otter.OTTER_INSTALLED", True)
+    def test_convert_to_redback_format_routes_radio_without_metadata_date(self):
+        getter = redback.get_data.otter.OtterDataGetter(
+            self.transient, self.transient_type, obs_type="radio")
+        phot = pd.DataFrame({
+            "converted_date": [58000.0], "converted_flux": [1.0],
+            "converted_flux_err": [0.1], "converted_freq": [5.0]})
+        metadata = pd.DataFrame({"discovery_date": [None], "redshift": [np.nan]})
+        converted = pd.DataFrame({"time (days)": [0.0], "flux_density(mjy)": [1.0]})
+        with mock.patch.object(
+                getter, "_convert_radio_xray_data", return_value=converted) as convert:
+            result = getter._convert_to_redback_format(phot, metadata)
+        self.assertNotIn("redshift", result)
+        self.assertEqual("radio", convert.call_args.args[2])
+
+    @mock.patch("redback.get_data.otter.OTTER_INSTALLED", True)
+    @mock.patch("redback.get_data.otter.calc_flux_density_from_ABmag")
+    @mock.patch("redback.get_data.otter.calc_flux_density_error_from_monochromatic_magnitude")
+    @mock.patch("redback.get_data.otter.bandpass_magnitude_to_flux")
+    @mock.patch("redback.get_data.otter.calc_flux_error_from_magnitude")
+    @mock.patch("redback.get_data.otter.bands_to_reference_flux")
+    def test_uvoir_and_radio_conversion_columns(
+            self, reference_flux, flux_error, band_flux, density_error, density):
+        density.return_value.value = np.array([0.1])
+        density_error.return_value = np.array([0.01])
+        band_flux.return_value = np.array([1e-12])
+        flux_error.return_value = np.array([1e-13])
+        reference_flux.return_value = np.array([1.0])
+        getter = redback.get_data.otter.OtterDataGetter(self.transient, self.transient_type)
+        optical = getter._convert_uvoir_data(pd.DataFrame({
+            "converted_flux": [20.0], "converted_flux_err": [0.1], "filter_name": ["g"]}),
+            np.array([1.0]))
+        self.assertEqual("AB", optical.iloc[0]["system"])
+        self.assertEqual(0.1, optical.iloc[0]["flux_density(mjy)"])
+
+        radio = getter._convert_radio_xray_data(pd.DataFrame({
+            "converted_flux": [2.0], "converted_flux_err": [0.2]}),
+            np.array([1.0]), "radio")
+        self.assertEqual("radio_band", radio.iloc[0]["band"])
+        self.assertIsNone(radio.iloc[0]["frequency"])
 
 
 class TestOtterWrapperFunctions(unittest.TestCase):

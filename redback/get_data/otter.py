@@ -331,7 +331,10 @@ class OtterDataGetter(DataGetter):
         
         # Add common columns
         output['time'] = data['converted_date'].values
-        output = output[['time', 'time (days)'] + [col for col in output.columns if col not in ['time', 'time (days)']]]
+        output = output[
+            ['time', 'time (days)']
+            + [col for col in output.columns if col not in ['time', 'time (days)']]
+        ].copy()
         
         # Add metadata if available
         if not pd.isna(metadata['redshift'].iloc[0]):

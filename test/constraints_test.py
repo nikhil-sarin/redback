@@ -408,6 +408,81 @@ class TestKilonovaEjectaRelationConstraints(unittest.TestCase):
             self.assertIn(key, result)
             self.assertTrue(np.all(np.isfinite(result[key])))
 
+    @patch("redback.constraints.ejr.OneComponentBNSNoProjection")
+    def test_one_component_bns_constraints(self, relation_class):
+        relation_class.return_value.ejecta_mass = 0.02
+        relation_class.return_value.ejecta_velocity = 0.2
+        parameters = dict(mass_1=1.4, mass_2=1.3, lambda_1=500.0, lambda_2=600.0)
+        result = constraints.one_component_bns_ejecta_relation_constraints(parameters)
+        self.assertIn("ejecta_mej_min", result)
+        self.assertIn("ejecta_vej_max", result)
+
+    @patch("redback.constraints.ejr.OneComponentBNSProjection")
+    def test_projected_one_component_bns_constraints(self, relation_class):
+        relation_class.return_value.ejecta_mass = 0.02
+        relation_class.return_value.ejecta_velocity = 0.2
+        parameters = dict(mass_1=1.4, mass_2=1.3, lambda_1=500.0, lambda_2=600.0)
+        result = constraints.one_component_bns_ejecta_relation_projection_constraints(parameters)
+        self.assertIn("ejecta_mej_max", result)
+        self.assertIn("ejecta_vej_min", result)
+
+    @patch("redback.constraints.ejr.TwoComponentNSBH")
+    def test_two_component_nsbh_constraints(self, relation_class):
+        relation_class.return_value.dynamical_mej = 0.02
+        relation_class.return_value.disk_wind_mej = 0.03
+        relation_class.return_value.ejecta_velocity = 0.2
+        parameters = dict(
+            mass_bh=5.0, mass_ns=1.4, chi_bh=0.8, lambda_ns=500.0,
+            zeta=0.2, vej_2=0.1)
+        result = constraints.two_component_nsbh_ejecta_relation_constraints(parameters)
+        self.assertIn("dynamical_ejecta_mej_min", result)
+        self.assertIn("disk_wind_ejecta_vej_max", result)
+
+    def test_safe_constraint_ratio_rejects_nonfinite_values(self):
+        result = constraints._safe_constraint_ratio(
+            np.array([1.0, 1.0, np.inf]), np.array([0.0, np.nan, 1.0]))
+        self.assertTrue(np.all(np.isinf(result)))
+
+    def test_maybe_scalar_returns_python_scalar(self):
+        result = constraints._maybe_scalar(np.array(3.0))
+        self.assertIs(type(result), float)
+        self.assertEqual(result, 3.0)
+
+    @patch("redback.constraints.ejr.TwoComponentBNS")
+    @patch("redback.constraints.eos.PiecewisePolytrope")
+    def test_polytrope_ejecta_quantities_support_arrays(self, eos_class, relation_class):
+        eos_class.return_value.maximum_mass.return_value = 2.2
+        eos_class.return_value.lambda_of_mass.side_effect = [(500.0, 0.0), (600.0, 0.0)] * 2
+        relation_class.return_value.dynamical_mej = 0.02
+        relation_class.return_value.disk_wind_mej = 0.03
+        relation_class.return_value.ejecta_velocity = 0.2
+        values = constraints._polytrope_two_component_bns_ejecta_quantities(
+            mass_1=np.array([1.4, 1.5]), mass_2=np.array([1.3, 1.2]),
+            log_p=34.0, gamma_1=3.0, gamma_2=2.5, gamma_3=2.0, zeta=0.2)
+        expected_values = ([0.02, 0.02], [0.03, 0.03], [0.2, 0.2])
+        for value, expected in zip(values, expected_values):
+            np.testing.assert_array_equal(value, expected)
+
+    @patch("redback.constraints.eos.PiecewisePolytrope", side_effect=ValueError("bad EOS"))
+    def test_polytrope_ejecta_quantities_return_nan_on_invalid_eos(self, eos_class):
+        values = constraints._polytrope_two_component_bns_ejecta_quantities(
+            mass_1=1.4, mass_2=1.3, log_p=34.0,
+            gamma_1=3.0, gamma_2=2.5, gamma_3=2.0, zeta=0.2)
+        self.assertTrue(all(np.isnan(value) for value in values))
+        eos_class.assert_called_once()
+
+    @patch("redback.constraints._polytrope_two_component_bns_ejecta_quantities")
+    @patch("redback.constraints.piecewise_polytrope_eos_constraints")
+    def test_polytrope_constraint_adds_both_ejecta_components(self, eos_constraints, ejecta):
+        parameters = dict(
+            mass_1=1.4, mass_2=1.3, log_p=34.0, gamma_1=3.0,
+            gamma_2=2.5, gamma_3=2.0, zeta=0.2, vej_2=0.1)
+        eos_constraints.return_value = parameters.copy()
+        ejecta.return_value = (0.02, 0.03, 0.2)
+        result = constraints.polytrope_eos_two_component_bns_constraints(parameters)
+        self.assertIn("dynamical_ejecta_mej_min", result)
+        self.assertIn("disk_wind_ejecta_mej_max", result)
+
 
 class TestCoolingEnvelopeConstraints(unittest.TestCase):
     """Test cooling-envelope TDE constraints."""

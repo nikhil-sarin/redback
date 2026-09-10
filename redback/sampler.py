@@ -331,7 +331,9 @@ def _fit_grb(transient, model, outdir, label, likelihood=None, sampler='dynesty'
     if use_photon_index_prior:
         label += '_photon_index'
         if transient.photon_index < 0.:
-            logger.info('photon index for GRB', transient.name, 'is negative. Using default prior on alpha_1')
+            logger.info(
+                'Photon index for GRB %s is negative. Using default prior on alpha_1',
+                transient.name)
             prior['alpha_1'] = bilby.prior.Uniform(-10, -0.5, 'alpha_1', latex_label=r'$\alpha_{1}$')
         else:
             prior['alpha_1'] = bilby.prior.Gaussian(mu=-(transient.photon_index + 1), sigma=0.1,

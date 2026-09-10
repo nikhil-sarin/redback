@@ -9,6 +9,7 @@ from unittest.mock import patch, Mock
 import redback.model_library as ml
 from redback.model_metadata import ModelMetadata
 from redback.model_metadata import coerce_model_metadata
+from redback.model_metadata import validate_model_metadata
 from redback.utils import get_functions_dict
 
 
@@ -92,6 +93,54 @@ class TestBuiltinModelsLoaded(unittest.TestCase):
             'default_output_format': 'flux_density',
         })
         self.assertEqual(('flux_density',), metadata.output_formats)
+
+    def test_metadata_validation_rejects_invalid_fields(self):
+        valid = dict(name="model", model_type="supernova")
+        cases = [
+            ({"name": ""}, ValueError, "name"),
+            ({"model_type": ""}, ValueError, "model_type"),
+            ({"source_module": ""}, TypeError, "source_module"),
+            ({"output_formats": ["flux"]}, TypeError, "output_formats"),
+            ({"output_formats": ("",)}, TypeError, "output_formats"),
+            ({"required_kwargs": ["redshift"]}, TypeError, "required_kwargs"),
+            ({"optional_dependencies": (None,)}, TypeError, "optional_dependencies"),
+            ({"default_output_format": 1}, TypeError, "default_output_format"),
+            ({"has_prior": 1}, TypeError, "has_prior"),
+            ({"is_public": 1}, TypeError, "is_public"),
+            ({"supports_extinction": 1}, TypeError, "supports_extinction"),
+            ({"supports_constraints": 1}, TypeError, "supports_constraints"),
+            ({"speed": ""}, ValueError, "speed"),
+            ({"max_time_days": 0}, ValueError, "max_time_days"),
+        ]
+        for changes, error, message in cases:
+            with self.subTest(changes=changes), self.assertRaisesRegex(error, message):
+                validate_model_metadata(ModelMetadata(**(valid | changes)))
+
+    def test_metadata_validation_checks_registered_model_names(self):
+        metadata = ModelMetadata(name="missing", model_type="supernova")
+        with self.assertRaisesRegex(ValueError, "has no matching model"):
+            validate_model_metadata(metadata, available_model_names={"present"})
+
+    def test_metadata_instance_is_renamed_during_coercion(self):
+        metadata = ModelMetadata(name="old", model_type="supernova")
+        renamed = coerce_model_metadata("new", metadata)
+        self.assertEqual("new", renamed.name)
+        self.assertEqual("old", metadata.name)
+
+    def test_metadata_coercion_rejects_non_mapping(self):
+        with self.assertRaisesRegex(TypeError, "instance or mapping"):
+            coerce_model_metadata("model", object())
+
+    def test_metadata_coercion_normalizes_iterables_and_none(self):
+        metadata = coerce_model_metadata("model", {
+            "model_type": "supernova",
+            "output_formats": ["flux", "magnitude"],
+            "required_kwargs": "redshift",
+            "optional_dependencies": None,
+        })
+        self.assertEqual(("flux", "magnitude"), metadata.output_formats)
+        self.assertEqual(("redshift",), metadata.required_kwargs)
+        self.assertEqual((), metadata.optional_dependencies)
 
 
 class TestPluginModelCollisionWarning(unittest.TestCase):

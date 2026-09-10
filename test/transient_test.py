@@ -20,12 +20,13 @@ def _george_available():
 
 import redback.get_data.directory as directory
 
-_original_spec_dir_struct = directory.spectrum_directory_structure
-directory.spectrum_directory_structure = lambda transient: "dummy_directory_structure"
-
 class TestSpectrum(unittest.TestCase):
 
     def setUp(self):
+        self.directory_patcher = patch(
+            "redback.get_data.directory.spectrum_directory_structure",
+            return_value="dummy_directory_structure")
+        self.directory_patcher.start()
         # Create dummy spectral data
         # Use three wavelengths (in Angstroms) that might cover the optical
         self.angstroms = np.array([4000, 5000, 6000])
@@ -38,8 +39,7 @@ class TestSpectrum(unittest.TestCase):
         self.name = "TestSpec"
 
     def tearDown(self):
-        # Restore the patched directory function if needed.
-        directory.spectrum_directory_structure = _original_spec_dir_struct
+        self.directory_patcher.stop()
 
     def test_initialization_with_time(self):
         spec = redback.transient.Spectrum(self.angstroms, self.flux_density, self.flux_density_err,
@@ -305,6 +305,113 @@ class TestFXT(unittest.TestCase):
 
     def test_fxt_has_no_broker_data_getter(self):
         self.assertNotIn("fxt", redback.get_data.TRANSIENT_TYPES)
+
+    def test_binned_spectrum_validation_rejects_invalid_inputs(self):
+        cases = [
+            (np.ones((1, 3)), self.exposure, self.energy_edges, None, "one-dimensional"),
+            (self.counts, self.exposure, np.array([0.3]), None, "at least two edges"),
+            (self.counts[:2], self.exposure, self.energy_edges, None, "one value per energy bin"),
+            (np.array([1.0, np.nan, 2.0]), self.exposure, self.energy_edges, None, "finite and non-negative"),
+            (self.counts, self.exposure, np.array([0.3, 1.0, 1.0, 10.0]), None, "strictly increasing"),
+            (self.counts, 0.0, self.energy_edges, None, "finite and positive"),
+            (self.counts, self.exposure, self.energy_edges, np.ones(2), "same shape"),
+            (self.counts, self.exposure, self.energy_edges, np.array([1.0, -1.0, 1.0]),
+             "finite and non-negative"),
+        ]
+        for counts, exposure, edges, background, message in cases:
+            with self.subTest(message=message), self.assertRaisesRegex(ValueError, message):
+                redback.transient.FXT._validate_binned_spectrum(
+                    counts, exposure, edges, counts_bkg=background)
+
+    def test_dataset_validation_rejects_invalid_optional_arrays(self):
+        dataset = MagicMock(
+            counts=self.counts, energy_edges_keV=self.energy_edges,
+            exposure=self.exposure, rmf=None, counts_bkg=None,
+            bkg_exposure=None, quality=None, grouping=None)
+        cases = [
+            ("counts", np.ones((1, 3)), "one-dimensional"),
+            ("counts", np.array([1.0, -1.0, 2.0]), "finite and non-negative"),
+            ("energy_edges_keV", np.array([0.3]), "at least two edges"),
+            ("energy_edges_keV", np.array([0.3, 1.0, 1.0, 10.0]), "strictly increasing"),
+            ("exposure", 0.0, "finite and positive"),
+            ("counts_bkg", np.ones(2), "same shape"),
+            ("counts_bkg", np.array([1.0, np.inf, 1.0]), "finite and non-negative"),
+            ("bkg_exposure", -1.0, "finite and positive"),
+            ("quality", np.ones(2), "same length"),
+            ("grouping", np.ones(2), "same length"),
+        ]
+        for attribute, value, message in cases:
+            current = MagicMock(**dataset.__dict__)
+            current.counts = self.counts
+            current.energy_edges_keV = self.energy_edges
+            current.exposure = self.exposure
+            current.rmf = None
+            current.counts_bkg = self.counts if attribute == "bkg_exposure" else None
+            current.bkg_exposure = None
+            current.quality = None
+            current.grouping = None
+            setattr(current, attribute, value)
+            with self.subTest(attribute=attribute), self.assertRaisesRegex(ValueError, message):
+                redback.transient.FXT._validate_dataset(current)
+
+    def test_count_rate_density_validation(self):
+        cases = [
+            (np.ones((1, 3)), self.energy_edges, None, "one-dimensional"),
+            (np.ones(3), self.energy_edges[:-1], None, "one more edge"),
+            (np.array([1.0, -1.0, 1.0]), self.energy_edges, None, "finite and non-negative"),
+            (np.ones(3), self.energy_edges, np.ones(2), "same shape"),
+            (np.ones(3), self.energy_edges, np.array([1.0, np.nan, 1.0]), "finite and non-negative"),
+        ]
+        for rates, edges, background, message in cases:
+            with self.subTest(message=message), self.assertRaisesRegex(ValueError, message):
+                redback.transient.FXT.from_count_rate_density(
+                    name="FXT001", count_rate_density=rates, exposure=self.exposure,
+                    energy_edges_keV=edges, background_rate_density=background)
+
+    def test_invalid_background_exposure_raises(self):
+        with self.assertRaisesRegex(ValueError, "bkg_exposure must be finite and positive"):
+            redback.transient.FXT.from_counts(
+                name="FXT001", counts=self.counts, exposure=self.exposure,
+                energy_edges_keV=self.energy_edges, counts_bkg=self.counts,
+                bkg_exposure=0.0)
+
+    @patch("redback.transient.fxt.SpectralDataset.from_ogip")
+    def test_from_ogip_delegates_to_dataset(self, from_ogip):
+        from_ogip.return_value = MagicMock(
+            counts=self.counts, energy_edges_keV=self.energy_edges,
+            exposure=self.exposure, rmf=None, counts_bkg=None, bkg_exposure=None,
+            quality=None, grouping=None)
+        from_ogip.return_value.name = "loaded"
+        transient = redback.transient.FXT.from_ogip("source.pha", name="loaded")
+        self.assertEqual("loaded", transient.name)
+        from_ogip.assert_called_once_with(
+            pha="source.pha", rmf=None, arf=None, bkg=None, spectrum_index=None,
+            name="loaded", energy_edges_keV=None)
+
+    @patch("redback.transient.fxt.SpectralDataset.from_ogip_directory")
+    def test_from_ogip_directory_delegates_to_dataset(self, from_directory):
+        from_directory.return_value = MagicMock(
+            counts=self.counts, energy_edges_keV=self.energy_edges,
+            exposure=self.exposure, rmf=None, counts_bkg=None, bkg_exposure=None,
+            quality=None, grouping=None)
+        from_directory.return_value.name = "loaded"
+        transient = redback.transient.FXT.from_ogip_directory("spectra", name="loaded")
+        self.assertEqual("loaded", transient.name)
+        from_directory.assert_called_once_with(
+            directory="spectra", pha=None, bkg=None, rmf=None, arf=None,
+            spectrum_index=None, name="loaded")
+
+    @patch("redback.transient.fxt.SpectralDataset.from_simulator")
+    def test_from_simulator_sets_requested_name(self, from_simulator):
+        from_simulator.return_value = MagicMock(
+            counts=self.counts, energy_edges_keV=self.energy_edges,
+            exposure=self.exposure, rmf=None, counts_bkg=None, bkg_exposure=None,
+            quality=None, grouping=None)
+        from_simulator.return_value.name = "simulation"
+        transient = redback.transient.FXT.from_simulator(
+            sim=object(), time_bins=np.array([0.0, 1.0]), name="FXT-sim")
+        self.assertEqual("FXT-sim", transient.name)
+        from_simulator.assert_called_once()
 
 
 class TestOpticalTransient(unittest.TestCase):
@@ -622,9 +729,15 @@ class TestOpticalTransient(unittest.TestCase):
         observer_frequency = redback.utils.lambda_to_nu(wavelengths)
         source_frequency, _ = redback.utils.calc_kcorrected_properties(
             frequency=observer_frequency, redshift=redshift, time=0.)
-        flux_density = redback.transient.OpticalTransient._cutoff_blackbody_flux_density_mjy(
-            frequency=source_frequency, temperature=temperature, radius=radius, distance=distance,
-            redshift=redshift, cutoff_wavelength=cutoff_wavelength, absorption_index=absorption_index)
+        from redback.sed_analysis import CutoffBlackbodySEDModel
+        sed_model = CutoffBlackbodySEDModel(
+            distance=distance, redshift=redshift,
+            cutoff_wavelength=cutoff_wavelength, absorption_index=absorption_index)
+        flux_density = sed_model.evaluate_photometry(
+            source_frequency,
+            {"temperature": temperature, "radius": radius,
+             "cutoff_wavelength": cutoff_wavelength, "absorption_index": absorption_index},
+            {"coordinate_type": "frequency", "data_mode": "flux_density"})
         flux_density_err = 0.05 * flux_density
         time = np.array([10.0, 10.05, 10.1, 10.15, 10.2, 10.25])
 
@@ -919,6 +1032,93 @@ class TestAfterglow(unittest.TestCase):
 
     def test_analytical_flux_to_luminosity(self):
         pass
+
+    def test_data_mode_rejects_unknown_value(self):
+        with self.assertRaisesRegex(ValueError, "Unknown data mode"):
+            self.sgrb.data_mode = "unknown"
+
+    @patch("redback.transient.afterglow.Afterglow.load_data")
+    def test_load_and_truncate_flux_density_sets_frequency_and_flattens_errors(self, load_data):
+        x_err = np.array([[0.1, 0.2], [0.3, 0.4]])
+        y_err = np.array([[1.0, 2.0], [3.0, 4.0]])
+        frequency = np.array([1e14, 2e14])
+        load_data.return_value = (
+            np.array([1.0, 2.0]), x_err, np.array([3.0, 4.0]), y_err, frequency)
+        self.sgrb._active_bands = [None]
+        with patch.object(self.sgrb, "truncate") as truncate:
+            self.sgrb.load_and_truncate_data(
+                truncate=True, truncate_method="left_of_max", data_mode="flux_density")
+        truncate.assert_called_once_with(truncate_method="left_of_max")
+        np.testing.assert_array_equal(self.sgrb.frequency, frequency)
+        np.testing.assert_array_equal(self.sgrb.bands, frequency)
+        np.testing.assert_allclose(self.sgrb.x_err, [0.2, 0.3])
+        np.testing.assert_allclose(self.sgrb.y_err, [2.0, 3.0])
+        np.testing.assert_array_equal(self.sgrb.active_bands, frequency)
+
+    @patch("redback.transient.afterglow.Afterglow.load_data")
+    def test_load_and_truncate_four_column_data_without_truncation(self, load_data):
+        load_data.return_value = (
+            np.array([1.0]), np.array([0.1]), np.array([2.0]), np.array([0.2]))
+        with patch.object(self.sgrb, "truncate") as truncate:
+            self.sgrb.load_and_truncate_data(truncate=False, data_mode="flux")
+        truncate.assert_not_called()
+        np.testing.assert_array_equal(self.sgrb.y, [2.0])
+
+    @patch("glob.glob")
+    @patch("redback.transient.afterglow.np.genfromtxt")
+    def test_load_data_uses_existing_processed_flux_density_file(self, genfromtxt, glob):
+        glob.return_value = [
+            "GRBData/afterglow/flux_density/GRB070809_rawSwiftData.csv",
+            "GRBData/afterglow/flux_density/GRB070809_SNR7.csv",
+        ]
+        genfromtxt.return_value = np.array([
+            np.zeros(7),
+            [1.0, -0.1, 0.2, 3.0, -0.3, 0.4, 5e14],
+            [2.0, -0.2, 0.3, 4.0, -0.4, 0.5, 6e14],
+        ])
+        values = redback.transient.afterglow.Afterglow.load_data(
+            "070809", data_mode="flux_density")
+        self.assertEqual(5, len(values))
+        np.testing.assert_array_equal(values[-1], [5e14, 6e14])
+        self.assertTrue(genfromtxt.call_args.args[0].endswith("GRB070809_SNR7.csv"))
+
+    @patch("glob.glob", return_value=[])
+    @patch("redback.transient.afterglow.afterglow_directory_structure")
+    @patch("redback.transient.afterglow.np.genfromtxt")
+    def test_load_data_falls_back_to_directory_helper(self, genfromtxt, directory, glob):
+        directory.return_value.processed_file_path = "fallback.csv"
+        genfromtxt.return_value = np.array([
+            np.zeros(6),
+            [1.0, -0.1, 0.2, 3.0, -0.3, 0.4],
+        ])
+        values = redback.transient.afterglow.Afterglow.load_data("070809", data_mode="flux")
+        self.assertEqual(4, len(values))
+        directory.assert_called_once_with(grb="GRB070809", data_mode="flux", snr=None)
+
+    @patch("redback.transient.afterglow.afterglow_directory_structure")
+    @patch("redback.transient.afterglow.np.genfromtxt")
+    def test_load_data_uses_requested_snr(self, genfromtxt, directory):
+        directory.return_value.processed_file_path = "snr.csv"
+        genfromtxt.return_value = np.array([
+            np.zeros(6),
+            [1.0, -0.1, 0.2, 3.0, -0.3, 0.4],
+        ])
+        redback.transient.afterglow.Afterglow.load_data(
+            "GRB070809", data_mode="flux", snr="SNR7")
+        directory.assert_called_once_with(grb="GRB070809", data_mode="flux", snr="SNR7")
+
+    def test_truncate_also_updates_frequency_and_bands(self):
+        self.sgrb.x = np.array([1.0, 2.0, 3.0])
+        self.sgrb.frequency = np.array([1e14, 2e14, 3e14])
+        self.sgrb.bands = np.array(["g", "r", "i"])
+        truncated = (
+            np.array([2.0, 3.0]), np.array([0.2, 0.3]),
+            np.array([4.0, 2.0]), np.array([2.0, np.sqrt(2.0)]))
+        self.sgrb.Truncator = MagicMock(
+            return_value=MagicMock(truncate=MagicMock(return_value=truncated)))
+        self.sgrb.truncate()
+        np.testing.assert_array_equal(self.sgrb.frequency, [2e14, 3e14])
+        np.testing.assert_array_equal(self.sgrb.bands, ["r", "i"])
 
 
 class TestTrunctator(unittest.TestCase):
@@ -1958,6 +2158,80 @@ class TestPromptTimeSeriesTransient(unittest.TestCase):
         self.assertIsNotNone(prompt)
         mock_load.assert_called_once()
 
+    @mock.patch("redback.transient.prompt.np.genfromtxt")
+    @mock.patch("redback.transient.prompt.batse_prompt_directory_structure")
+    def test_load_batse_data_sums_selected_channels(self, directory_structure, genfromtxt):
+        directory_structure.return_value.directory_path = "/data/"
+        rows = np.zeros((3, 9))
+        rows[1:, 0] = [0.0, 1.0]
+        rows[1:, 1] = [1.0, 2.0]
+        rows[1:, 2] = [1.0, 2.0]
+        rows[1:, 4] = [3.0, 4.0]
+        rows[1:, 6] = [5.0, 6.0]
+        rows[1:, 8] = [7.0, 8.0]
+        genfromtxt.return_value = rows
+        time, dt, counts = redback.transient.PromptTimeSeries.load_batse_data(
+            "123456", channels=np.array([0, 2]))
+        np.testing.assert_array_equal(time, [0.5, 1.5])
+        np.testing.assert_array_equal(dt, [1.0, 1.0])
+        np.testing.assert_array_equal(counts, [6.0, 8.0])
+
+        _, _, all_counts = redback.transient.PromptTimeSeries.load_batse_data(
+            "GRB123456", channels="all")
+        np.testing.assert_array_equal(all_counts, [16.0, 20.0])
+
+    @mock.patch("redback.transient.prompt.np.genfromtxt", side_effect=OSError("missing"))
+    @mock.patch("redback.transient.prompt.batse_prompt_directory_structure")
+    def test_load_batse_data_propagates_read_error(self, directory_structure, genfromtxt):
+        directory_structure.return_value.directory_path = "/data/"
+        with self.assertRaisesRegex(OSError, "missing"):
+            redback.transient.PromptTimeSeries.load_batse_data("123456", channels="all")
+
+    @mock.patch("redback.transient.prompt.get_batse_trigger_from_grb", return_value=42)
+    def test_trigger_number_and_catalogue_properties(self, trigger_lookup):
+        prompt = redback.transient.PromptTimeSeries.__new__(redback.transient.PromptTimeSeries)
+        prompt.name = "GRB123456"
+        prompt.trigger_number = None
+        self.assertEqual("42", prompt.trigger_number)
+        self.assertEqual("123456", prompt._stripped_name)
+        prompt.trigger_number = 7
+        self.assertEqual("7", prompt.trigger_number)
+        prompt.data = pd.DataFrame({
+            "t90": [12.0], "t90_error": [0.5], "t90_start": [-2.0]})
+        prompt._data_index = 0
+        self.assertEqual(12.0, prompt.t90)
+        self.assertEqual(0.5, prompt.t90_error)
+        self.assertEqual(-2.0, prompt.t90_start)
+        self.assertEqual(10.0, prompt.t90_end)
+        self.assertTrue(prompt.event_table.endswith("BATSE_4B_catalogue.csv"))
+
+    @mock.patch("redback.transient.prompt.pd.read_csv")
+    def test_set_data_selects_trigger_row(self, read_csv):
+        read_csv.return_value = pd.DataFrame({
+            "trigger_num": [1, 42], "t90": [1.0, 2.0],
+            "t90_error": [0.1, 0.2], "t90_start": [0.0, -1.0]})
+        prompt = redback.transient.PromptTimeSeries.__new__(redback.transient.PromptTimeSeries)
+        prompt._trigger_number = "42"
+        prompt._set_data()
+        self.assertEqual(1, prompt._data_index)
+        self.assertEqual(2.0, prompt.t90)
+
+    @mock.patch("redback.transient.prompt.plt")
+    def test_prompt_plot_helpers(self, pyplot):
+        prompt = redback.transient.PromptTimeSeries.__new__(redback.transient.PromptTimeSeries)
+        prompt.time = np.array([0.0, 1.0])
+        prompt.counts = np.array([2.0, 4.0])
+        prompt.bin_size = 2.0
+        prompt.plot_data()
+        np.testing.assert_array_equal(pyplot.step.call_args.args[0], prompt.time)
+        np.testing.assert_array_equal(pyplot.step.call_args.args[1], [1.0, 2.0])
+
+        model = MagicMock(return_value=np.array([1.0, 2.0]))
+        posterior = pd.DataFrame([{"amplitude": 1.0}])
+        prompt.plot_lightcurve(model=model, posterior=posterior)
+        model.assert_called_once()
+        self.assertIsNone(prompt.plot_different_channels())
+
 
 class TestTransientAdditional(unittest.TestCase):
     """Additional Transient tests for untested properties and methods."""
@@ -2188,3 +2462,83 @@ class TestSpectrumPlotMethods(unittest.TestCase):
             result = self.spec.plot_residual(
                 model=dummy_model, axes=ax, save=False, show=False)
             mock_pr.assert_called_once_with(axes=ax, save=False, show=False)
+
+
+class TestTransientPlotDispatch(unittest.TestCase):
+    @staticmethod
+    def _transient(**active):
+        values = dict(
+            flux_data=False, luminosity_data=False, flux_density_data=False,
+            magnitude_data=False, optical_data=False)
+        values.update(active)
+        transient = MagicMock()
+        for name, value in values.items():
+            setattr(transient, name, value)
+        return transient
+
+    def test_plot_data_dispatches_all_supported_modes(self):
+        cases = (
+            ("IntegratedFluxPlotter", {"flux_data": True}),
+            ("IntegratedFluxOpticalPlotter", {"flux_data": True, "optical_data": True}),
+            ("LuminosityPlotter", {"luminosity_data": True}),
+            ("LuminosityOpticalPlotter", {"luminosity_data": True, "optical_data": True}),
+            ("FluxDensityPlotter", {"flux_density_data": True}),
+            ("MagnitudePlotter", {"magnitude_data": True}),
+        )
+        for plotter_name, state in cases:
+            with self.subTest(plotter=plotter_name), patch(
+                    f"redback.transient.transient.{plotter_name}") as plotter_class:
+                axes = object()
+                plotter_class.return_value.plot_data.return_value = axes
+                returned = redback.transient.Transient.plot_data(
+                    self._transient(**state), save=False, show=False)
+                self.assertIs(returned, axes)
+                plotter_class.return_value.plot_data.assert_called_once_with(
+                    axes=None, save=False, show=False)
+
+        axes = object()
+        self.assertIs(
+            axes,
+            redback.transient.Transient.plot_data(self._transient(), axes=axes))
+
+    def test_lightcurve_dispatches_integrated_and_luminosity_modes(self):
+        cases = (
+            ("IntegratedFluxPlotter", {"flux_data": True}),
+            ("IntegratedFluxOpticalPlotter", {"flux_data": True, "optical_data": True}),
+            ("LuminosityPlotter", {"luminosity_data": True}),
+            ("LuminosityOpticalPlotter", {"luminosity_data": True, "optical_data": True}),
+        )
+        for plotter_name, state in cases:
+            with self.subTest(plotter=plotter_name), patch(
+                    f"redback.transient.transient.{plotter_name}") as plotter_class:
+                axes = object()
+                plotter_class.return_value.plot_lightcurve.return_value = axes
+                returned = redback.transient.Transient.plot_lightcurve(
+                    self._transient(**state), model=MagicMock(), posterior=pd.DataFrame(),
+                    model_kwargs={}, save=False, show=False)
+                self.assertIs(returned, axes)
+
+        axes = object()
+        self.assertIs(
+            axes,
+            redback.transient.Transient.plot_lightcurve(
+                self._transient(), model=MagicMock(), axes=axes))
+
+    def test_residual_dispatches_supported_modes_and_rejects_others(self):
+        cases = (
+            ("IntegratedFluxPlotter", {"flux_data": True}),
+            ("LuminosityPlotter", {"luminosity_data": True}),
+            ("LuminosityOpticalPlotter", {"luminosity_data": True, "optical_data": True}),
+        )
+        for plotter_name, state in cases:
+            with self.subTest(plotter=plotter_name), patch(
+                    f"redback.transient.transient.{plotter_name}") as plotter_class:
+                axes = object()
+                plotter_class.return_value.plot_residuals.return_value = axes
+                returned = redback.transient.Transient.plot_residual(
+                    self._transient(**state), model=MagicMock(), save=False, show=False)
+                self.assertIs(returned, axes)
+
+        with self.assertRaisesRegex(ValueError, "not implemented"):
+            redback.transient.Transient.plot_residual(
+                self._transient(flux_density_data=True), model=MagicMock())

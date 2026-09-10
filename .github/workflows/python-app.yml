@@ -33,7 +33,7 @@ jobs:
             test/filters_test.py test/fireball_models_test.py test/gaussianprocess_models_test.py test/priors_test.py
             test/prompt_models_test.py test/wrappers_test.py test/constraints_test.py test/ejecta_relations_test.py
             test/sed_test.py test/sed_analysis_test.py test/optional_dependencies_test.py test/interaction_processes_test.py test/spectral_models_test.py test/extinction_test.py
-            test/multimessenger_test.py test/model_prior_health_test.py"
+            test/multimessenger_test.py test/model_prior_health_test.py test/phase_models_test.py"
           # Group 5: More Medium tests
           - test-group: 5
             test-files: "test/test_learned_models.py test/test_all_models_regression.py"
@@ -139,7 +139,7 @@ jobs:
         # Generate reports
         coverage xml -o combined-coverage.xml
         coverage html
-        coverage report
+        coverage report --precision=2 --fail-under=90
     - name: Archive production artifacts
       uses: actions/upload-artifact@v4
       with:
