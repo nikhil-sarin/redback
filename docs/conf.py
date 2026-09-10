@@ -12,6 +12,8 @@
 #
 import os
 import sys
+from pathlib import Path
+from runpy import run_path
 sys.path.insert(0, os.path.abspath('../..'))
 
 # -- Project information -----------------------------------------------------
@@ -21,7 +23,8 @@ copyright = '2022, Nikhil Sarin, Moritz Hübner'
 author = 'Nikhil Sarin, Moritz Hübner'
 
 # The full version, including alpha/beta/rc tags
-release = 'alpha'
+release = run_path(Path(__file__).parents[1] / 'redback' / '_version.py')['__version__']
+version = '.'.join(release.split('.')[:2])
 autosummary_generate = True
 autodoc_mock_imports = ["bilby"]
 
