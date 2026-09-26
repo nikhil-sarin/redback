@@ -658,7 +658,17 @@ def _nickelmixing(time, mej, esn, kappa, kappa_gamma, f_nickel, f_mixing,
     :param vmin_frac (float): fraction of characteristic velocity that is the minimum velocity, defaults to 1.0.
     :param kappa_min (float): minimum opacity when cool (default: 0.05 cm²/g).
     :param kappa_n   (float): exponent controlling the transition (default: 4.0).
+    :param diffusion_scale (float): multiplicative scale for the legacy shell
+        leakage time, default 2.0. A value of 1.0 recovers the previous
+        Redback implementation and 3.0 is equivalent to replacing the
+        diffusion denominator 13.8 by 13.8/3.
     :return: namedtuple with time_temp (days), lbol, t_photosphere, r_photosphere, tau, and v_photosphere.
+
+    Notes
+    -----
+    This model uses an independent-shell leakage approximation. For new
+    analyses requiring radiative coupling between shells, the shell-coupled
+    diffusion model in ``snmix`` is recommended when it is available.
     """
     # Constants assumed defined elsewhere: day_to_s, solar_mass, km_cgs, speed_of_light, sigma_sb.
     tdays = time / day_to_s
@@ -670,6 +680,9 @@ def _nickelmixing(time, mej, esn, kappa, kappa_gamma, f_nickel, f_mixing,
     vmax = kwargs.get('vmax', 250000)
     use_broken_powerlaw = kwargs.get('use_broken_powerlaw', True)
     use_gray_opacity = kwargs.get('use_gray_opacity', True)
+    diffusion_scale = kwargs.get('diffusion_scale', 2.0)
+    if not np.isfinite(diffusion_scale) or diffusion_scale <= 0:
+        raise ValueError("diffusion_scale must be finite and positive")
 
     if use_gray_opacity:
         kappa_eff = kappa
@@ -771,9 +784,12 @@ def _nickelmixing(time, mej, esn, kappa, kappa_gamma, f_nickel, f_mixing,
         # With our discretization: tau_cum = kappa * Sum(m/v^2) / (4 pi t^2)
         tau_cum = (kappa_eff * tau_geom) / (4 * np.pi * time[ii]**2)
         
-        # Diffusion time t_diff ~ 3 * tau * R / c
-        # Here R ~ v * t
-        td_v[:, ii] = 3 * tau_cum * (v_m * time[ii]) / (speed_of_light * diffusion_beta)
+        # Legacy shell-leakage time. The scale accounts for uncertainty in
+        # mapping the global Arnett geometry constant onto individual shells.
+        # diffusion_scale=1 recovers the previous Redback implementation;
+        # diffusion_scale=3 is equivalent to using 13.8/3 in the denominator.
+        td_v[:, ii] = diffusion_scale * 3 * tau_cum * (v_m * time[ii]) / \
+            (speed_of_light * diffusion_beta)
         
         # Add minimum diffusion time to prevent instability
         min_diffusion_time = dt[ii] * 1  # Minimum 10x timestep
@@ -850,7 +866,15 @@ def nickelmixing_bolometric(time, mej, esn, kappa, kappa_gamma, f_nickel, f_mixi
     :param mass_len: number of mass shells, defaults to 200
     :param vmax: maximum velocity in km/s, defaults to 100000
     :param dense_resolution: resolution of dense time array, default is 1000
+    :param diffusion_scale: multiplicative scale for the legacy shell leakage
+        time, default 2.0. Set to 1.0 for the previous Redback behaviour.
     :return: bolometric luminosity
+
+    Notes
+    -----
+    This model retains a legacy independent-shell leakage approximation. The
+    shell-coupled diffusion implementation in ``snmix`` is recommended for new
+    analyses when it is available.
     """
     dense_resolution = kwargs.get("dense_resolution", 200)
     stop_time = kwargs.get("stop_time", 300)
@@ -884,6 +908,8 @@ def nickelmixing(time, redshift, mej, esn, kappa, kappa_gamma, f_nickel, f_mixin
     :param vmax: maximum velocity in km/s, defaults to 100000
     :param stop_time: time to stop ODE at, default is 300 days
     :param dense_resolution: resolution of dense time array, default is 1000
+    :param diffusion_scale: multiplicative scale for the legacy shell leakage
+        time, default 2.0. Set to 1.0 for the previous Redback behaviour.
     :param frequency: Required if output_format is 'flux_density'.
     frequency to calculate - Must be same length as time array or a single number).
     :param bands: Required if output_format is 'magnitude' or 'flux'.
@@ -891,6 +917,12 @@ def nickelmixing(time, redshift, mej, esn, kappa, kappa_gamma, f_nickel, f_mixin
     :param lambda_array: Optional argument to set your desired wavelength array (in Angstroms) to evaluate the SED on.
     :param cosmology: Cosmology to use for luminosity distance calculation. Defaults to Planck18. Must be a astropy.cosmology object.
     :return: set by output format - 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
+
+    Notes
+    -----
+    This model retains a legacy independent-shell leakage approximation. The
+    shell-coupled diffusion implementation in ``snmix`` is recommended for new
+    analyses when it is available.
     """
     # cosmology = kwargs.get('cosmology', cosmo)
     from astropy.cosmology import FlatLambdaCDM
