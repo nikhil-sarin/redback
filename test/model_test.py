@@ -2531,5 +2531,42 @@ class TestTransientModelNumericalStability(unittest.TestCase):
         self.assertTrue(np.all(np.isfinite(output)))
 
 
+class TestNickelMixingDiffusionScale(unittest.TestCase):
+    """Tests for the effective diffusion scale in the legacy leakage model."""
+
+    parameters = dict(
+        mej=5.0, esn=1.0, kappa=0.2, kappa_gamma=0.027,
+        f_nickel=0.07, f_mixing=0.2, temperature_floor=1000.0,
+        mass_len=50, dense_resolution=150, stop_time=150.0)
+
+    def test_default_diffusion_scale_is_two(self):
+        from redback.transient_models.supernova_models import nickelmixing_bolometric
+
+        time = np.linspace(1.0, 120.0, 100)
+        default = nickelmixing_bolometric(time, **self.parameters)
+        scale_two = nickelmixing_bolometric(
+            time, diffusion_scale=2.0, **self.parameters)
+        np.testing.assert_allclose(default, scale_two)
+
+    def test_larger_diffusion_scale_delays_and_dims_peak(self):
+        from redback.transient_models.supernova_models import nickelmixing_bolometric
+
+        time = np.linspace(1.0, 120.0, 100)
+        previous = nickelmixing_bolometric(
+            time, diffusion_scale=1.0, **self.parameters)
+        scaled = nickelmixing_bolometric(
+            time, diffusion_scale=2.0, **self.parameters)
+        self.assertGreater(time[np.argmax(scaled)], time[np.argmax(previous)])
+        self.assertLess(np.max(scaled), np.max(previous))
+
+    def test_diffusion_scale_must_be_positive(self):
+        from redback.transient_models.supernova_models import nickelmixing_bolometric
+
+        with self.assertRaisesRegex(ValueError, "diffusion_scale must be positive"):
+            nickelmixing_bolometric(
+                np.linspace(1.0, 20.0, 10), diffusion_scale=0.0,
+                **self.parameters)
+
+
 if __name__ == '__main__':
     unittest.main()
