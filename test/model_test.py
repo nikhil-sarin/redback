@@ -2562,10 +2562,13 @@ class TestNickelMixingDiffusionScale(unittest.TestCase):
     def test_diffusion_scale_must_be_positive(self):
         from redback.transient_models.supernova_models import nickelmixing_bolometric
 
-        with self.assertRaisesRegex(ValueError, "diffusion_scale must be positive"):
-            nickelmixing_bolometric(
-                np.linspace(1.0, 20.0, 10), diffusion_scale=0.0,
-                **self.parameters)
+        for invalid_scale in [0.0, -1.0, np.nan, np.inf, -np.inf]:
+            with self.subTest(diffusion_scale=invalid_scale):
+                with self.assertRaisesRegex(
+                        ValueError, "diffusion_scale must be finite and positive"):
+                    nickelmixing_bolometric(
+                        np.linspace(1.0, 20.0, 10),
+                        diffusion_scale=invalid_scale, **self.parameters)
 
 
 if __name__ == '__main__':

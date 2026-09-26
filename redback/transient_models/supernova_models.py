@@ -681,8 +681,8 @@ def _nickelmixing(time, mej, esn, kappa, kappa_gamma, f_nickel, f_mixing,
     use_broken_powerlaw = kwargs.get('use_broken_powerlaw', True)
     use_gray_opacity = kwargs.get('use_gray_opacity', True)
     diffusion_scale = kwargs.get('diffusion_scale', 2.0)
-    if diffusion_scale <= 0:
-        raise ValueError("diffusion_scale must be positive")
+    if not np.isfinite(diffusion_scale) or diffusion_scale <= 0:
+        raise ValueError("diffusion_scale must be finite and positive")
 
     if use_gray_opacity:
         kappa_eff = kappa
