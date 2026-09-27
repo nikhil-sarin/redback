@@ -2591,11 +2591,13 @@ class TestNickelMixingRadioactiveDeposition(unittest.TestCase):
         np.testing.assert_allclose(lbol, self._cobalt(0.032), rtol=0.05)
 
     def test_optically_thin_gamma_deposition_uses_local_column(self):
-        from redback.constants import km_cgs, solar_mass
+        from redback.constants import solar_mass
         from redback.transient_models.supernova_models import (
             _compute_mass_and_nickel, nickelmixing_bolometric)
 
-        kappa_gamma = 1e-4
+        # Thin (tau <~ 0.1) but with the gamma-ray part ~half the positron
+        # floor, so a wrong column (e.g. an extra factor of 3) changes it by >50%.
+        kappa_gamma = 0.03
         lbol = nickelmixing_bolometric(self.time, kappa_gamma=kappa_gamma, **self.parameters)
         vmin = 0.2 * (2 * 1.2e51 / (1.4 * solar_mass)) ** 0.5 / 1e5
         _, v_m, m_array, ni_array = _compute_mass_and_nickel(
@@ -2605,8 +2607,10 @@ class TestNickelMixingRadioactiveDeposition(unittest.TestCase):
         seconds = self.time * 86400.0
         tau = kappa_gamma * column[:, None] / (4 * np.pi * seconds[None, :] ** 2)
         deposited = np.sum(ni_array[:, None] * (1 - np.exp(-tau)), axis=0)
-        expected = self._cobalt(0.968) * deposited / self.nickel_mass + self._cobalt(0.032)
-        np.testing.assert_allclose(lbol, expected, rtol=0.05)
+        gamma_expected = self._cobalt(0.968) * deposited / self.nickel_mass
+        # Radiated luminosity lags the falling deposition by ~5-12% here; an
+        # extra factor of 3 in the column gives >200%.
+        np.testing.assert_allclose(lbol - self._cobalt(0.032), gamma_expected, rtol=0.2)
 
     def test_opaque_ejecta_retain_all_decay_energy(self):
         from redback.transient_models.supernova_models import nickelmixing_bolometric
