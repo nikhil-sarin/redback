@@ -727,10 +727,16 @@ def _nickelmixing(time, mej, esn, kappa, kappa_gamma, f_nickel, f_mixing,
     ni56_life = 8.8  # days
     co56_life = 111.3  # days
 
-    # Energy deposition rate per shell as a function of time
-    edotr = np.zeros((mass_len, time_len))
-    edotr[:, :] = (ni56_lum * np.exp(-tdays / ni56_life) +
-                   co56_lum * np.exp(-tdays / co56_life))
+    # Co56 decay energy carried by positron kinetic energy, deposited locally.
+    co56_positron_fraction = 0.032
+
+    # Energy deposition rate per shell as a function of time, split into the
+    # gamma-ray part (subject to leakage) and the positron part.
+    edot_gamma = np.zeros((mass_len, time_len))
+    edot_gamma[:, :] = (ni56_lum * np.exp(-tdays / ni56_life) +
+                        (1 - co56_positron_fraction) * co56_lum * np.exp(-tdays / co56_life))
+    edot_positron = np.zeros((mass_len, time_len))
+    edot_positron[:, :] = co56_positron_fraction * co56_lum * np.exp(-tdays / co56_life)
 
     # Pre-allocate arrays
     energy_v = np.zeros((mass_len, time_len))
@@ -797,13 +803,12 @@ def _nickelmixing(time, mej, esn, kappa, kappa_gamma, f_nickel, f_mixing,
 
         tau[:, ii] = tau_cum
         
-        # Gamma-ray optical depth (also cumulative)
-        # leakage = 3 * tau_gamma
+        # Gamma-ray optical depth from each shell to the surface. This is
+        # already the local column, so no Arnett mean-to-central factor of 3.
         tau_gamma = (kappa_gamma * tau_geom) / (4 * np.pi * time[ii]**2)
-        leakage = 3 * tau_gamma
-        
-        eth_v[:, ii] = 1 - np.exp(-leakage)
-        qdot_ni[:, ii] = ni_array * edotr[:, ii] * eth_v[:, ii]
+
+        eth_v[:, ii] = 1 - np.exp(-tau_gamma)
+        qdot_ni[:, ii] = ni_array * (edot_gamma[:, ii] * eth_v[:, ii] + edot_positron[:, ii])
         tlc_v[:, ii] = v_m * time[ii] / speed_of_light
 
         # Prevent division by very small numbers

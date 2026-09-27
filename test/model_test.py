@@ -2571,5 +2571,50 @@ class TestNickelMixingDiffusionScale(unittest.TestCase):
                         diffusion_scale=invalid_scale, **self.parameters)
 
 
+class TestNickelMixingRadioactiveDeposition(unittest.TestCase):
+    """Late-time limits of gamma-ray leakage and local positron deposition."""
+
+    parameters = dict(
+        mej=1.4, esn=1.2, kappa=0.1, f_nickel=0.4, f_mixing=0.5,
+        temperature_floor=1000.0, mass_len=50, dense_resolution=300,
+        stop_time=300.0)
+    time = np.linspace(200.0, 250.0, 6)
+    nickel_mass = 1.4 * 0.4
+
+    def _cobalt(self, fraction):
+        return fraction * 1.45e43 * self.nickel_mass * np.exp(-self.time / 111.3)
+
+    def test_transparent_ejecta_retain_only_positrons(self):
+        from redback.transient_models.supernova_models import nickelmixing_bolometric
+
+        lbol = nickelmixing_bolometric(self.time, kappa_gamma=1e-8, **self.parameters)
+        np.testing.assert_allclose(lbol, self._cobalt(0.032), rtol=0.05)
+
+    def test_optically_thin_gamma_deposition_uses_local_column(self):
+        from redback.constants import km_cgs, solar_mass
+        from redback.transient_models.supernova_models import (
+            _compute_mass_and_nickel, nickelmixing_bolometric)
+
+        kappa_gamma = 1e-4
+        lbol = nickelmixing_bolometric(self.time, kappa_gamma=kappa_gamma, **self.parameters)
+        vmin = 0.2 * (2 * 1.2e51 / (1.4 * solar_mass)) ** 0.5 / 1e5
+        _, v_m, m_array, ni_array = _compute_mass_and_nickel(
+            vmin=vmin, esn=1.2, mej=1.4, f_nickel=0.4, f_mixing=0.5,
+            mass_len=50, vmax=250000, delta=1.0, n=12.0)
+        column = np.cumsum((m_array * solar_mass / v_m ** 2)[::-1])[::-1]
+        seconds = self.time * 86400.0
+        tau = kappa_gamma * column[:, None] / (4 * np.pi * seconds[None, :] ** 2)
+        deposited = np.sum(ni_array[:, None] * (1 - np.exp(-tau)), axis=0)
+        expected = self._cobalt(0.968) * deposited / self.nickel_mass + self._cobalt(0.032)
+        np.testing.assert_allclose(lbol, expected, rtol=0.05)
+
+    def test_opaque_ejecta_retain_all_decay_energy(self):
+        from redback.transient_models.supernova_models import nickelmixing_bolometric
+
+        lbol = nickelmixing_bolometric(self.time, kappa_gamma=1e4, **self.parameters)
+        nickel = 6.45e43 * self.nickel_mass * np.exp(-self.time / 8.8)
+        np.testing.assert_allclose(lbol, self._cobalt(1.0) + nickel, rtol=0.05)
+
+
 if __name__ == '__main__':
     unittest.main()
