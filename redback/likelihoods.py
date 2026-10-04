@@ -780,6 +780,16 @@ class StudentTLikelihood(GaussianLikelihood):
         if 'nu' not in self.parameters:
             self.parameters['nu'] = 3.0
 
+    @property
+    def model_output(self) -> np.ndarray:
+        """
+        :return: The model output for the given x values. nu is a likelihood parameter, so it is not passed
+            to the model function.
+        :rtype: np.ndarray
+        """
+        model_parameters = {key: value for key, value in self.parameters.items() if key != 'nu'}
+        return self.function(self.x, **model_parameters, **self.kwargs)
+
     def noise_log_likelihood(self) -> float:
         """
         :return: The noise log-likelihood, i.e. the log-likelihood assuming the signal is just noise.

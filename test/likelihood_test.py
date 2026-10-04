@@ -629,6 +629,20 @@ class StudentTLikelihoodTest(unittest.TestCase):
         self.assertAlmostEqual(ll_direct, ll_passed)
         self.assertEqual(self.likelihood.parameters['slope'], 1.0)
 
+    def test_nu_not_passed_to_model_function(self):
+        """Models without **kwargs work, since nu is a likelihood parameter rather than a model parameter."""
+        from scipy import stats
+
+        def strict_func(x, slope):
+            return x * slope
+
+        lik = likelihoods.StudentTLikelihood(
+            x=self.x, y=self.y, sigma=self.sigma, function=strict_func)
+        ll = lik.log_likelihood(parameters={'slope': 1.0, 'nu': 5.0})
+        self.assertEqual(lik.parameters['nu'], 5.0)
+        expected = np.sum(stats.t.logpdf(self.y - self.x, df=5.0, scale=self.sigma))
+        self.assertAlmostEqual(ll, expected, places=10)
+
     def test_approaches_gaussian_for_large_nu(self):
         y = np.array([0.1, 1.0, 2.0, 3.1, 3.9])  # no outlier
         student_t = likelihoods.StudentTLikelihood(
