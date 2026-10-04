@@ -25,7 +25,8 @@ More advanced likelihoods
 - Gaussian likelihood with uniform x errors - When you have x errors that are bin widths
 - Gaussian likelihood with upper limits (:code:`GaussianLikelihoodWithUpperLimits`) - A Gaussian likelihood where non-detection data points are treated as upper limits via a CDF. See below for details.
 - Gaussian likelihood with non detections and quadrature noise - Same as above but with an additional noise source added in quadrature
-- StudentT likelihood - A StudentT likelihood, useful for data with some outliers, heavier tails than a Gaussian means its less sensitive to outliers
+- StudentT likelihood (:code:`StudentTLikelihood`) - A StudentT likelihood, useful for data with some outliers, heavier tails than a Gaussian means its less sensitive to outliers.
+  The degrees of freedom :code:`nu` default to 3; add a prior on :code:`nu` to sample it alongside the model parameters.
 - MixtureLikelihood - A mixture likelihood with two Gaussian components, assumes each data point either comes from one Gaussian that is consistent with the model or an outlier Gaussian.
   Provides a probabilistic estimate of each data points probability of being an outlier. Please look at the examples for more details.
 

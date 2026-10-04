@@ -1,5 +1,10 @@
 # All notable changes will be documented in this file
 
+## [Unreleased]
+
+### Bug fixes
+- Restore `StudentTLikelihood`, which was unintentionally removed in v1.13.0 while deduplicating likelihood classes. It now supports the `log_likelihood(parameters)` interface and returns `-inf` for non-positive `nu`
+
 ## [1.20.0] 2026-09-10
 Version 1.20.0 release of redback
 

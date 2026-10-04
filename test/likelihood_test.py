@@ -587,6 +587,101 @@ class MixtureGaussianLikelihoodTest(unittest.TestCase):
         self.assertTrue(hasattr(self.likelihood, 'p_out'))
 
 
+class StudentTLikelihoodTest(unittest.TestCase):
+    """Test StudentTLikelihood class for robust fitting with heavy-tailed noise"""
+
+    def setUp(self):
+        self.x = np.array([0.0, 1.0, 2.0, 3.0, 4.0])
+        self.y = np.array([0.1, 1.0, 2.0, 3.1, 15.0])  # last point is outlier
+        self.sigma = 0.2
+
+        def func(x, slope, **kwargs):
+            return x * slope
+
+        self.function = func
+        self.likelihood = likelihoods.StudentTLikelihood(
+            x=self.x, y=self.y, sigma=self.sigma, function=self.function)
+        self.likelihood.parameters['slope'] = 1.0
+
+    def test_default_nu(self):
+        self.assertEqual(self.likelihood.parameters['nu'], 3.0)
+
+    def test_log_likelihood_matches_scipy(self):
+        from scipy import stats
+        for nu in [1.0, 3.0, 30.0]:
+            self.likelihood.parameters['nu'] = nu
+            expected = np.sum(stats.t.logpdf(self.y - self.x, df=nu, scale=self.sigma))
+            self.assertAlmostEqual(self.likelihood.log_likelihood(), expected, places=10)
+
+    def test_log_likelihood_with_array_sigma(self):
+        from scipy import stats
+        sigma = np.array([0.1, 0.2, 0.3, 0.4, 0.5])
+        lik = likelihoods.StudentTLikelihood(
+            x=self.x, y=self.y, sigma=sigma, function=self.function)
+        lik.parameters['slope'] = 1.0
+        expected = np.sum(stats.t.logpdf(self.y - self.x, df=3.0, scale=sigma))
+        self.assertAlmostEqual(lik.log_likelihood(), expected, places=10)
+
+    def test_log_likelihood_accepts_parameters(self):
+        ll_direct = self.likelihood.log_likelihood()
+        self.likelihood.parameters['slope'] = 5.0
+        ll_passed = self.likelihood.log_likelihood(parameters={'slope': 1.0})
+        self.assertAlmostEqual(ll_direct, ll_passed)
+        self.assertEqual(self.likelihood.parameters['slope'], 1.0)
+
+    def test_approaches_gaussian_for_large_nu(self):
+        y = np.array([0.1, 1.0, 2.0, 3.1, 3.9])  # no outlier
+        student_t = likelihoods.StudentTLikelihood(
+            x=self.x, y=y, sigma=self.sigma, function=self.function)
+        student_t.parameters.update(slope=1.0, nu=1e8)
+        gaussian = likelihoods.GaussianLikelihood(
+            x=self.x, y=y, sigma=self.sigma, function=self.function)
+        gaussian.parameters['slope'] = 1.0
+        self.assertAlmostEqual(student_t.log_likelihood(), gaussian.log_likelihood(), places=5)
+
+    def test_more_robust_to_outlier_than_gaussian(self):
+        """The outlier costs much less log-likelihood under a Student-t than a Gaussian."""
+        gaussian = likelihoods.GaussianLikelihood(
+            x=self.x, y=self.y, sigma=self.sigma, function=self.function)
+        gaussian.parameters['slope'] = 1.0
+        self.assertGreater(self.likelihood.log_likelihood(), gaussian.log_likelihood())
+
+    def test_non_positive_nu_returns_minus_inf(self):
+        for nu in [0.0, -1.0]:
+            self.likelihood.parameters['nu'] = nu
+            self.assertEqual(self.likelihood.log_likelihood(), -np.inf)
+
+    def test_noise_log_likelihood_is_constant_in_nu(self):
+        """The noise log-likelihood is cached so the log-likelihood ratio is not biased when sampling nu."""
+        from scipy import stats
+        nll = self.likelihood.noise_log_likelihood()
+        self.assertAlmostEqual(nll, np.sum(stats.t.logpdf(self.y, df=3.0, scale=self.sigma)), places=10)
+        self.likelihood.parameters['nu'] = 10.0
+        self.assertEqual(self.likelihood.noise_log_likelihood(), nll)
+        self.likelihood.parameters['nu'] = 2.0
+        ratio = self.likelihood.log_likelihood_ratio()
+        self.assertAlmostEqual(ratio, self.likelihood.log_likelihood() - nll)
+
+    def test_sampling_recovers_heavy_tails(self):
+        """Sampling nu jointly with the model recovers heavy tails from Student-t noise."""
+        rng = np.random.default_rng(1)
+        x = np.linspace(0, 10, 40)
+        y = 2 * x + 0.5 * rng.standard_t(2, size=len(x))
+        lik = likelihoods.StudentTLikelihood(x=x, y=y, sigma=0.5, function=self.function)
+        priors = bilby.core.prior.PriorDict(dict(
+            slope=bilby.core.prior.Uniform(0, 5, 'slope'),
+            nu=bilby.core.prior.LogUniform(0.5, 100, 'nu')))
+        samples = priors.sample(20000)
+        log_l = np.array([
+            lik.log_likelihood_ratio({'slope': s, 'nu': n}) for s, n in zip(samples['slope'], samples['nu'])])
+        weights = np.exp(log_l - log_l.max())
+        weights /= weights.sum()
+        nu_mean = np.sum(weights * samples['nu'])
+        slope_mean = np.sum(weights * samples['slope'])
+        self.assertLess(nu_mean, 10)
+        self.assertAlmostEqual(slope_mean, 2.0, delta=0.1)
+
+
 class GaussianLikelihoodWithFractionalNoiseTest(unittest.TestCase):
     """Test GaussianLikelihoodWithFractionalNoise class"""
 

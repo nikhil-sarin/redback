@@ -738,6 +738,100 @@ class MixtureGaussianLikelihood(GaussianLikelihood):
         posteriors = np.where(denominator > 0, numerator / denominator, 0.0)
         return posteriors
 
+
+class StudentTLikelihood(GaussianLikelihood):
+    def __init__(
+            self, x: np.ndarray, y: np.ndarray, sigma: Union[float, None, np.ndarray],
+            function: callable, kwargs: dict = None, priors=None, fiducial_parameters=None) -> None:
+        """
+        A Student-t likelihood that handles outliers by assuming that the data are distributed
+        according to a Student-t distribution. The probability density function for each residual is
+        given by:
+
+            p(r | ν, σ) = Γ((ν+1)/2) / [√(νπ) σ Γ(ν/2)] · [1 + (r/σ)²/ν]^(–(ν+1)/2)
+
+        where ν (nu) is the degrees of freedom and σ is the scale. As ν → ∞ this tends to a Gaussian,
+        while small ν gives heavier tails, making the fit less sensitive to outliers.
+
+        :param x: The x values.
+        :type x: np.ndarray
+        :param y: The y values.
+        :type y: np.ndarray
+        :param sigma: The scale for the model residuals.
+        :type sigma: Union[float, None, np.ndarray]
+        :param function:
+            The python function to fit to the data. Note, this must take the
+            dependent variable as its first argument. The other arguments will require a prior
+            and will be sampled over (unless a fixed value is given).
+        :type function: callable
+        :param kwargs: Any additional keywords for 'function'.
+        :type kwargs: dict
+        :param priors: The priors for the parameters. Default to None if not provided.
+            Include a prior on 'nu' to sample the degrees of freedom; otherwise nu defaults to 3.0.
+        :type priors: Union[dict, None]
+        :param fiducial_parameters: The starting guesses for model parameters to use in the optimization.
+        :type fiducial_parameters: Union[dict, None]
+        """
+        self._noise_log_likelihood = None
+        super().__init__(x=x, y=y, sigma=sigma, function=function, kwargs=kwargs, priors=priors,
+                         fiducial_parameters=fiducial_parameters)
+
+        # Set default degrees of freedom for the Student-t distribution if not provided.
+        if 'nu' not in self.parameters:
+            self.parameters['nu'] = 3.0
+
+    def noise_log_likelihood(self) -> float:
+        """
+        :return: The noise log-likelihood, i.e. the log-likelihood assuming the signal is just noise.
+        :rtype: float
+        """
+        # Cached so that the noise term is a constant offset to the log-likelihood ratio,
+        # even when nu is sampled; otherwise the sampled log-likelihood ratio would be biased in nu.
+        if self._noise_log_likelihood is None:
+            nu = self.parameters.get('nu')
+            self._noise_log_likelihood = self._student_t_log_likelihood(res=self.y, sigma=self.sigma, nu=nu)
+        return self._noise_log_likelihood
+
+    def log_likelihood(self, parameters=None) -> float:
+        """
+        :return: The log-likelihood.
+        :rtype: float
+        """
+        self._update_parameters(parameters)
+        nu = self.parameters.get('nu')
+        if not nu > 0:
+            return -np.inf
+        return np.nan_to_num(self._student_t_log_likelihood(res=self.residual, sigma=self.sigma, nu=nu))
+
+    @staticmethod
+    def _student_t_log_likelihood(res: np.ndarray, sigma: Union[float, np.ndarray], nu: float) -> Any:
+        """
+        Computes the log likelihood of the Student-t distribution for the residuals.
+
+        For each data point, the log probability is given by:
+
+          log[p(r|ν,σ)] = gammaln((ν+1)/2) - gammaln(ν/2)
+                           - 0.5*log(νπ) - log(σ)
+                           - ((ν+1)/2)*log[1 + (r/σ)²/ν]
+
+        :param res: The residuals.
+        :type res: np.ndarray
+        :param sigma: The scale parameter.
+        :type sigma: Union[float, np.ndarray]
+        :param nu: Degrees of freedom. Must be positive.
+        :type nu: float
+        :return: The total log-likelihood, or -inf if nu is not positive.
+        :rtype: float
+        """
+        if not nu > 0:
+            return -np.inf
+        term1 = gammaln((nu + 1) / 2) - gammaln(nu / 2)
+        term2 = - 0.5 * np.log(nu * np.pi)
+        term3 = - np.log(sigma)
+        term4 = - ((nu + 1) / 2) * np.log1p((res / sigma) ** 2 / nu)
+        return np.sum(term1 + term2 + term3 + term4)
+
+
 class GaussianLikelihoodUniformXErrors(GaussianLikelihood):
     def __init__(
             self, x: np.ndarray, y: np.ndarray, sigma: Union[float, None, np.ndarray],
