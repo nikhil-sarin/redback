@@ -77,6 +77,7 @@ def _nicholl_bns_get_quantities(mass_1, mass_2, lambda_s, kappa_red, kappa_blue,
                 (mass_2 + 12*mass_1) * mass_2**4 * lambda_2) / m_total**5
     mchirp = (mass_1 * mass_2)**(3./5) / m_total**(1./5)
     remnant_radius = 11.2 * mchirp * (binary_lambda/800)**(1./6.)
+    remnant_radius_geom = remnant_radius / (graviational_constant * solar_mass / speed_of_light ** 2 / 1e5)
 
     compactness_1 = 0.360 - 0.0355 * np.log(lambda_1) + 0.000705 * np.log(lambda_1) ** 2
     compactness_2 = 0.360 - 0.0355 * np.log(lambda_2) + 0.000705 * np.log(lambda_2) ** 2
@@ -146,7 +147,7 @@ def _nicholl_bns_get_quantities(mass_1, mass_2, lambda_s, kappa_red, kappa_blue,
     # vejecta_blue *= ckm
 
     # Bauswein 2013, cut-off for prompt collapse to BH
-    prompt_threshold_mass = (2.38 - 3.606 * mtov / remnant_radius) * mtov
+    prompt_threshold_mass = (2.38 - 3.606 * mtov / remnant_radius_geom) * mtov
 
     if m_total < prompt_threshold_mass:
         mejecta_blue /= alpha
@@ -489,7 +490,7 @@ def _nicholl_bns_get_quantities_from_tides(mass_1, mass_2, lambda_1, lambda_2, k
     :param epsilon: fraction of disk that gets unbound/ejected
     :param alpha: Enhancement of blue ejecta by NS surface winds if mtotal < prompt collapse,
                 can turn off by setting alpha=1
-    :param cos_theta_open: Lanthanide opening angle 
+    :param cos_theta_open: Lanthanide opening angle
     :param cos_theta: Viewing angle of observer
     :param kwargs: Additional keyword arguments
     :param dynamical_ejecta_error: Error in dynamical ejecta mass, default is 1 i.e., no error in fitting formula
@@ -513,6 +514,7 @@ def _nicholl_bns_get_quantities_from_tides(mass_1, mass_2, lambda_1, lambda_2, k
                 (mass_2 + 12*mass_1) * mass_2**4 * lambda_2) / m_total**5
     mchirp = (mass_1 * mass_2)**(3./5) / m_total**(1./5)
     remnant_radius = 11.2 * mchirp * (binary_lambda/800)**(1./6.)
+    remnant_radius_geom = remnant_radius / (graviational_constant * solar_mass / speed_of_light ** 2 / 1e5)
 
     compactness_1 = 0.360 - 0.0355 * np.log(lambda_1) + 0.000705 * np.log(lambda_1) ** 2
     compactness_2 = 0.360 - 0.0355 * np.log(lambda_2) + 0.000705 * np.log(lambda_2) ** 2
@@ -582,7 +584,7 @@ def _nicholl_bns_get_quantities_from_tides(mass_1, mass_2, lambda_1, lambda_2, k
     # vejecta_blue *= ckm
 
     # Bauswein 2013, cut-off for prompt collapse to BH
-    prompt_threshold_mass = (2.38 - 3.606 * mtov / remnant_radius) * mtov
+    prompt_threshold_mass = (2.38 - 3.606 * mtov / remnant_radius_geom) * mtov
 
     if m_total < prompt_threshold_mass:
         mejecta_blue /= alpha
@@ -841,7 +843,7 @@ def nicholl_bns_rk24(time, redshift, mass_1, mass_2, lambda_1, lambda_2, kappa_r
         cocoon_photo = CocoonPhotosphere(time=time_temp, luminosity=cocoon_output.lbol,
                                          tau_diff=cocoon_output.taudiff, t_thin=cocoon_output.tthin,
                                          vej=output.vejecta_blue*ckm, nn=nn)
-    
+
     mejs = [output.mejecta_blue, output.mejecta_purple, output.mejecta_red]
     vejs = [output.vejecta_blue, output.vejecta_purple, output.vejecta_red]
     area_projs = [output.area_blue, output.area_blue, output.area_red]
@@ -887,7 +889,7 @@ def nicholl_bns_rk24(time, redshift, mass_1, mass_2, lambda_1, lambda_2, kappa_r
         return ff.to(uu.mJy).value * (1 + redshift)
     else:
         lambda_observer_frame = kwargs.get('lambda_array', np.geomspace(100, 60000, 200))
-        
+
         if spectra_at_input_times:
             time_eval_observer = np.atleast_1d(time_obs)
             frequency, time_eval = calc_kcorrected_properties(frequency=lambda_to_nu(lambda_observer_frame),
