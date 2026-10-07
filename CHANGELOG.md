@@ -2,7 +2,11 @@
 
 ## [Unreleased]
 
+### New features
+- Add `nicholl_bns_rk24`, a kilonova model based on `nicholl_bns`, but using direct component tidal deformabilities and the Rosswog & Korobkin (2024) heating rate.
+
 ### Bug fixes
+- Fix inconsistent units in the prompt-collapse threshold calculation in `nicholl_bns`
 - Restore `StudentTLikelihood`, which was unintentionally removed in v1.13.0 while deduplicating likelihood classes. It now supports the `log_likelihood(parameters)` interface and returns `-inf` for non-positive `nu`
 
 ## [1.20.0] 2026-09-10
