@@ -3,10 +3,11 @@
 ## [Unreleased]
 
 ### New features
-- Add `nicholl_bns_rk24`, a kilonova model based on `nicholl_bns`, but using direct component tidal deformabilities and the Rosswog & Korobkin (2024) heating rate.
+- Add `nicholl_bns_rk24`, a kilonova model based on `nicholl_bns`, but using direct component tidal deformabilities and the Rosswog & Korobkin (2024) heating rate, along with a corrected prompt-collapse threshold using the remnant radius in geometrical units. The existing `nicholl_bns` model retains the original MOSFiT/Nicholl et al. (2021) threshold implementation.
 
 ### Bug fixes
-- Fix inconsistent units in the prompt-collapse threshold calculation in `nicholl_bns`
+- Correced the swapped prior ranges for `kappa_blue` and `kappa_red` in `nicholl_bns.prior`.
+- Fixed the parameter name from `zeta` to `epsilon` in both `nicholl_bns.prior` and `nicholl_bns_rk24.prior`.
 - Restore `StudentTLikelihood`, which was unintentionally removed in v1.13.0 while deduplicating likelihood classes. It now supports the `log_likelihood(parameters)` interface and returns `-inf` for non-positive `nu`
 
 ## [1.20.0] 2026-09-10

@@ -119,6 +119,12 @@ def nicholl_bns(time, redshift, mass_1, mass_2, lambda_s, kappa_red, kappa_blue,
     Kilonova model from Nicholl et al. 2021, inclides three kilonova components
     + shock heating from cocoon + disk winds from remnant
 
+    note::
+        The prompt-collapse threshold follows the MOSFiT/Nicholl et al. (2021)
+        implementation, which uses the remnant radius in km directly rather than
+        converting the mass-to-radius ratio to dimensionless compactness.
+        ``nicholl_bns_rk24`` uses the corrected conversion.
+
     :param time: time in days in observer frame
     :param redshift: redshift
     :param mass_1: Mass of primary in solar masses
@@ -267,7 +273,8 @@ def nicholl_bns(time, redshift, mass_1, mass_2, lambda_s, kappa_red, kappa_blue,
                                                           **kwargs)
 
 def _nicholl_bns_get_quantities_from_tides(mass_1, mass_2, lambda_1, lambda_2, kappa_red, kappa_blue,
-                                mtov, epsilon, alpha, cos_theta_open, cos_theta, **kwargs):
+                                           mtov, epsilon, alpha, cos_theta_open, cos_theta,
+                                           use_corrected_prompt_threshold=False, **kwargs):
     """
     Calculates quantities for the Nicholl et al. 2021 BNS model using
     the component tidal deformabilities directly.
@@ -286,6 +293,8 @@ def _nicholl_bns_get_quantities_from_tides(mass_1, mass_2, lambda_1, lambda_2, k
     :param cos_theta: Viewing angle of observer
     :param kwargs: Additional keyword arguments
     :param dynamical_ejecta_error: Error in dynamical ejecta mass, default is 1 i.e., no error in fitting formula
+    :param use_corrected_prompt_threshold: Whether to convert the remnant radius to geometrical units when calculating
+                                       the prompt-collapse threshold
     :param disk_ejecta_error: Error in disk ejecta mass, default is 1 i.e., no error in fitting formula
     :return: Namedtuple with 'mejecta_blue', 'mejecta_red', 'mejecta_purple',
             'vejecta_blue', 'vejecta_red', 'vejecta_purple',
@@ -306,7 +315,13 @@ def _nicholl_bns_get_quantities_from_tides(mass_1, mass_2, lambda_1, lambda_2, k
                 (mass_2 + 12*mass_1) * mass_2**4 * lambda_2) / m_total**5
     mchirp = (mass_1 * mass_2)**(3./5) / m_total**(1./5)
     remnant_radius = 11.2 * mchirp * (binary_lambda/800)**(1./6.)
-    remnant_radius_geom = remnant_radius / (graviational_constant * solar_mass / speed_of_light ** 2 / 1e5)
+
+    if use_corrected_prompt_threshold:
+        remnant_radius_threshold = remnant_radius / (
+            graviational_constant * solar_mass / speed_of_light ** 2 / 1e5
+        )
+    else:
+        remnant_radius_threshold = remnant_radius
 
     compactness_1 = 0.360 - 0.0355 * np.log(lambda_1) + 0.000705 * np.log(lambda_1) ** 2
     compactness_2 = 0.360 - 0.0355 * np.log(lambda_2) + 0.000705 * np.log(lambda_2) ** 2
@@ -384,7 +399,7 @@ def _nicholl_bns_get_quantities_from_tides(mass_1, mass_2, lambda_1, lambda_2, k
     # vejecta_blue *= ckm
 
     # Bauswein 2013, cut-off for prompt collapse to BH
-    prompt_threshold_mass = (2.38 - 3.606 * mtov / remnant_radius_geom) * mtov
+    prompt_threshold_mass = (2.38 - 3.606 * mtov / remnant_radius_threshold) * mtov
 
     if m_total < prompt_threshold_mass:
         mejecta_blue /= alpha
@@ -569,7 +584,12 @@ def nicholl_bns_rk24(time, redshift, mass_1, mass_2, lambda_1, lambda_2, kappa_r
     """
     Kilonova model from Nicholl et al. 2021, includes three kilonova components
     + shock heating from cocoon + disk winds from remnant, using the
-    Rosswog & Korobkin 2024 heating rate
+    Rosswog & Korobkin 2024 heating rate.
+
+    note::
+        The prompt-collapse threshold uses the corrected implementation, with
+        the remnant radius converted to geometrical units before evaluating the
+        threshold relation.
 
     :param time: time in days in observer frame
     :param redshift: redshift
@@ -625,7 +645,8 @@ def nicholl_bns_rk24(time, redshift, mass_1, mass_2, lambda_1, lambda_2, kappa_r
     output = _nicholl_bns_get_quantities_from_tides(mass_1=mass_1, mass_2=mass_2, lambda_1=lambda_1,
                                                     lambda_2=lambda_2, kappa_red=kappa_red, kappa_blue=kappa_blue,
                                                     mtov=mtov, epsilon=epsilon, alpha=alpha,
-                                                    cos_theta_open=cos_theta_open, cos_theta=cos_theta, **kwargs)
+                                                    cos_theta_open=cos_theta_open, cos_theta=cos_theta,
+                                                    use_corrected_prompt_threshold=True, **kwargs)
     spectra_at_input_times = kwargs['output_format'] == 'spectra' and kwargs.get('spectra_at_input_times', False)
 
     if not spectra_at_input_times:
