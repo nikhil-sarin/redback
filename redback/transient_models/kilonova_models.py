@@ -51,9 +51,6 @@ def _nicholl_bns_get_quantities(mass_1, mass_2, lambda_s, kappa_red, kappa_blue,
     b = np.array([[-2.235, 0.8474], [10.45, -3.251], [-15.70, 13.61]])
     c = np.array([[-2.048, 0.5976], [7.941, 0.5658], [-7.360, -1.320]])
     n_ave = 0.743
-    dynamical_ejecta_error = kwargs.get('dynamical_ejecta_error', 1.0)
-    disk_ejecta_error = kwargs.get('disk_ejecta_error', 1.0)
-    theta_open = np.arccos(cos_theta_open)
 
     fq = (1 - (mass_2 / mass_1) ** (10. / (3 - n_ave))) / (1 + (mass_2 / mass_1) ** (10. / (3 - n_ave)))
 
@@ -71,225 +68,21 @@ def _nicholl_bns_get_quantities(mass_1, mass_2, lambda_s, kappa_red, kappa_blue,
     lambda_a = lambda_s * fq * nume / denom
     lambda_1 = lambda_s - lambda_a
     lambda_2 = lambda_s + lambda_a
-    m_total = mass_1 + mass_2
 
-    binary_lambda =  16./13 * ((mass_1 + 12*mass_2) * mass_1**4 * lambda_1 +
-                (mass_2 + 12*mass_1) * mass_2**4 * lambda_2) / m_total**5
-    mchirp = (mass_1 * mass_2)**(3./5) / m_total**(1./5)
-    remnant_radius = 11.2 * mchirp * (binary_lambda/800)**(1./6.)
-
-    compactness_1 = 0.360 - 0.0355 * np.log(lambda_1) + 0.000705 * np.log(lambda_1) ** 2
-    compactness_2 = 0.360 - 0.0355 * np.log(lambda_2) + 0.000705 * np.log(lambda_2) ** 2
-
-    radius_1 = (graviational_constant * mass_1 * solar_mass / (compactness_1 * speed_of_light ** 2)) / 1e5
-    radius_2 = (graviational_constant * mass_2 * solar_mass / (compactness_2 * speed_of_light ** 2)) / 1e5
-
-    # Baryonic masses, Gao 2019
-    mass_baryonic_1 = mass_1 + 0.08 * mass_1 ** 2
-    mass_baryonic_2 = mass_2 + 0.08 * mass_2 ** 2
-
-    a_1 = -1.35695
-    b_1 = 6.11252
-    c_1 = -49.43355
-    d_1 = 16.1144
-    n = -2.5484
-    dynamical_ejecta_mass = 1e-3 * (a_1 * ((mass_2 / mass_1) ** (1 / 3) * (1 - 2 * compactness_1) / compactness_1 * mass_baryonic_1 +
-                            (mass_1 / mass_2) ** (1 / 3) * (1 - 2 * compactness_2) / compactness_2 * mass_baryonic_2) +
-                     b_1 * ((mass_2 / mass_1) ** n * mass_baryonic_1 + (mass_1 / mass_2) ** n * mass_baryonic_2) +
-                     c_1 * (mass_baryonic_1 - mass_1 + mass_baryonic_2 - mass_2) + d_1)
-
-    if dynamical_ejecta_mass < 0:
-        dynamical_ejecta_mass = 0
-
-    dynamical_ejecta_mass *= dynamical_ejecta_error
-
-    a_4 = 14.8609
-    b_4 = -28.6148
-    c_4 = 13.9597
-
-    # fraction can't exceed 100%
-    f_red = min([a_4 * (mass_1 / mass_2) ** 2 + b_4 * (mass_1 / mass_2) + c_4, 1])
-
-    mejecta_red = dynamical_ejecta_mass * f_red
-    mejecta_blue = dynamical_ejecta_mass * (1 - f_red)
-
-    # Velocity of dynamical ejecta
-    a_2 = -0.219479
-    b_2 = 0.444836
-    c_2 = -2.67385
-
-    vdynp = a_2 * ((mass_1 / mass_2) * (1 + c_2 * compactness_1) + (mass_2 / mass_1) * (1 + c_2 * compactness_2)) + b_2
-
-    a_3 = -0.315585
-    b_3 = 0.63808
-    c_3 = -1.00757
-
-    vdynz = a_3 * ((mass_1 / mass_2) * (1 + c_3 * compactness_1) + (mass_2 / mass_1) * (1 + c_3 * compactness_2)) + b_3
-
-    dynamical_ejecta_velocity = np.sqrt(vdynp ** 2 + vdynz ** 2)
-
-    # average velocity over angular ranges (< and > theta_open)
-
-    theta1 = np.arange(0, theta_open, 0.01)
-    theta2 = np.arange(theta_open, np.pi / 2, 0.01)
-
-    vtheta1 = np.sqrt((vdynz * np.cos(theta1)) ** 2 + (vdynp * np.sin(theta1)) ** 2)
-    vtheta2 = np.sqrt((vdynz * np.cos(theta2)) ** 2 + (vdynp * np.sin(theta2)) ** 2)
-
-    atheta1 = 2 * np.pi * np.sin(theta1)
-    atheta2 = 2 * np.pi * np.sin(theta2)
-
-    vejecta_blue = np.trapezoid(vtheta1 * atheta1, x=theta1) / np.trapezoid(atheta1, x=theta1)
-    vejecta_red = np.trapezoid(vtheta2 * atheta2, x=theta2) / np.trapezoid(atheta2, x=theta2)
-
-    # vejecta_red *= ckm
-    # vejecta_blue *= ckm
-
-    # Bauswein 2013, cut-off for prompt collapse to BH
-    prompt_threshold_mass = (2.38 - 3.606 * mtov / remnant_radius) * mtov
-
-    if m_total < prompt_threshold_mass:
-        mejecta_blue /= alpha
-
-    # Now compute disk ejecta following Coughlin+ 2019
-
-    a_5 = -31.335
-    b_5 = -0.9760
-    c_5 = 1.0474
-    d_5 = 0.05957
-
-    logMdisk = np.max([-3, a_5 * (1 + b_5 * np.tanh((c_5 - m_total / prompt_threshold_mass) / d_5))])
-
-    disk_mass = 10 ** logMdisk
-
-    disk_mass *= disk_ejecta_error
-
-    disk_ejecta_mass = disk_mass * epsilon
-
-    mejecta_purple = disk_ejecta_mass
-
-    # Fit for disk velocity using Metzger and Fernandez
-    vdisk_max = 0.15
-    vdisk_min = 0.03
-    # Compute linear interpolation coefficients directly to avoid np.polyfit SVD issues
-    # when mtov and prompt_threshold_mass are very close
-    if abs(prompt_threshold_mass - mtov) < 1e-10:
-        # Degenerate case: use midpoint velocity
-        vfit_slope = 0.0
-        vfit_intercept = (vdisk_max + vdisk_min) / 2
-    else:
-        vfit_slope = (vdisk_min - vdisk_max) / (prompt_threshold_mass - mtov)
-        vfit_intercept = vdisk_max - vfit_slope * mtov
-
-    # Get average opacity of 'purple' (disk) component
-    # Mass-averaged Ye as a function of remnant lifetime from Lippuner 2017
-    # Lifetime related to Mtot using Metzger handbook table 3
-    if m_total < mtov:
-        # stable NS
-        Ye = 0.38
-        vdisk = vdisk_max
-    elif m_total < 1.2 * mtov:
-        # long-lived (>>100 ms) NS remnant Ye = 0.34-0.38,
-        # smooth interpolation
-        Yfit = np.polyfit([mtov, 1.2 * mtov], [0.38, 0.34], deg=1)
-        Ye = Yfit[0] * m_total + Yfit[1]
-        vdisk = vfit_slope * m_total + vfit_intercept
-    elif m_total < prompt_threshold_mass:
-        # short-lived (hypermassive) NS, Ye = 0.25-0.34, smooth interpolation
-        Yfit = np.polyfit([1.2 * mtov, prompt_threshold_mass], [0.34, 0.25], deg=1)
-        Ye = Yfit[0] * m_total + Yfit[1]
-        vdisk = vfit_slope * m_total + vfit_intercept
-    else:
-        # prompt collapse to BH, disk is red
-        Ye = 0.25
-        vdisk = vdisk_min
-
-    # Convert Ye to opacity using Tanaka et al 2019 for Ye >= 0.25:
-    a_6 = 2112.0
-    b_6 = -2238.9
-    c_6 = 742.35
-    d_6 = -73.14
-
-    kappa_purple = a_6 * Ye ** 3 + b_6 * Ye ** 2 + c_6 * Ye + d_6
-
-    vejecta_purple = vdisk
-
-    vejecta_mean = (mejecta_purple * vejecta_purple + vejecta_red * mejecta_red +
-                    vejecta_blue * mejecta_blue) / (mejecta_purple + mejecta_red + mejecta_blue)
-
-    kappa_mean = (mejecta_purple * kappa_purple + kappa_red * mejecta_red +
-                  kappa_blue * mejecta_blue) / (mejecta_purple + mejecta_red + mejecta_blue)
-
-    # Viewing angle and lanthanide-poor opening angle correction from Darbha and Kasen 2020
-    ct = (1 - cos_theta_open ** 2) ** 0.5
-
-    if cos_theta > ct:
-        area_projected_top = np.pi * ct * cos_theta
-    else:
-        theta_p = np.arccos(cos_theta_open /
-                            (1 - cos_theta ** 2) ** 0.5)
-        theta_d = np.arctan(np.sin(theta_p) / cos_theta_open *
-                            (1 - cos_theta ** 2) ** 0.5 / np.abs(cos_theta))
-        area_projected_top = (theta_p - np.sin(theta_p) * np.cos(theta_p)) - (ct *
-                                                                     cos_theta * (theta_d - np.sin(theta_d) * np.cos(
-                            theta_d) - np.pi))
-
-    minus_cos_theta = -1 * cos_theta
-
-    if minus_cos_theta < -1 * ct:
-        area_projected_bottom = 0
-    else:
-        theta_p2 = np.arccos(cos_theta_open /
-                             (1 - minus_cos_theta ** 2) ** 0.5)
-        theta_d2 = np.arctan(np.sin(theta_p2) / cos_theta_open *
-                             (1 - minus_cos_theta ** 2) ** 0.5 / np.abs(minus_cos_theta))
-
-        Aproj_bot1 = (theta_p2 - np.sin(theta_p2) * np.cos(theta_p2)) + (ct *
-                                                                         minus_cos_theta * (theta_d2 - np.sin(
-                    theta_d2) * np.cos(theta_d2)))
-        area_projected_bottom = np.max([Aproj_bot1, 0])
-
-    area_projected = area_projected_top + area_projected_bottom
-
-    # Compute reference areas for this opening angle to scale luminosity
-
-    cos_theta_ref = 0.5
-
-    if cos_theta_ref > ct:
-        area_ref_top = np.pi * ct * cos_theta_ref
-    else:
-        theta_p_ref = np.arccos(cos_theta_open /
-                                (1 - cos_theta_ref ** 2) ** 0.5)
-        theta_d_ref = np.arctan(np.sin(theta_p_ref) / cos_theta_open *
-                                (1 - cos_theta_ref ** 2) ** 0.5 / np.abs(cos_theta_ref))
-        area_ref_top = (theta_p_ref - np.sin(theta_p_ref) *
-                    np.cos(theta_p_ref)) - (ct * cos_theta_ref *
-                                            (theta_d_ref - np.sin(theta_d_ref) *
-                                             np.cos(theta_d_ref) - np.pi))
-
-    minus_cos_theta_ref = -1 * cos_theta_ref
-
-    if minus_cos_theta_ref < -1 * ct:
-        area_ref_bottom = 0
-    else:
-        theta_p2_ref = np.arccos(cos_theta_open /
-                                 (1 - minus_cos_theta_ref ** 2) ** 0.5)
-        theta_d2_ref = np.arctan(np.sin(theta_p2_ref) /
-                                 cos_theta_open * (1 - minus_cos_theta_ref ** 2) ** 0.5 /
-                                 np.abs(minus_cos_theta_ref))
-
-        area_ref_bottom = (theta_p2_ref - np.sin(theta_p2_ref) *
-                    np.cos(theta_p2_ref)) + (ct * minus_cos_theta_ref *
-                                             (theta_d2_ref - np.sin(theta_d2_ref) *
-                                              np.cos(theta_d2_ref)))
-
-    area_ref = area_ref_top + area_ref_bottom
-
-    area_blue = area_projected
-    area_blue_ref = area_ref
-
-    area_red = np.pi - area_blue
-    area_red_ref = np.pi - area_blue_ref
+    quantities = _nicholl_bns_get_quantities_from_tides(
+        mass_1=mass_1,
+        mass_2=mass_2,
+        lambda_1=lambda_1,
+        lambda_2=lambda_2,
+        kappa_red=kappa_red,
+        kappa_blue=kappa_blue,
+        mtov=mtov,
+        epsilon=epsilon,
+        alpha=alpha,
+        cos_theta_open=cos_theta_open,
+        cos_theta=cos_theta,
+        **kwargs,
+    )
 
     output = namedtuple('output', ['mejecta_blue', 'mejecta_red', 'mejecta_purple',
                                    'vejecta_blue', 'vejecta_red', 'vejecta_purple',
@@ -297,25 +90,25 @@ def _nicholl_bns_get_quantities(mass_1, mass_2, lambda_s, kappa_red, kappa_blue,
                                    'mejecta_total', 'kappa_purple', 'radius_1', 'radius_2',
                                    'binary_lambda', 'remnant_radius', 'area_blue', 'area_blue_ref',
                                    'area_red', 'area_red_ref'])
-    output.mejecta_blue = mejecta_blue
-    output.mejecta_red = mejecta_red
-    output.mejecta_purple = mejecta_purple
-    output.vejecta_blue = vejecta_blue
-    output.vejecta_red = vejecta_red
-    output.vejecta_purple = vejecta_purple
-    output.vejecta_mean = vejecta_mean
-    output.kappa_mean = kappa_mean
-    output.mejecta_dyn = dynamical_ejecta_mass
-    output.mejecta_total = dynamical_ejecta_mass + mejecta_purple
-    output.kappa_purple = kappa_purple
-    output.radius_1 = radius_1
-    output.radius_2 = radius_2
-    output.binary_lambda = binary_lambda
-    output.remnant_radius = remnant_radius
-    output.area_blue = area_blue
-    output.area_blue_ref = area_blue_ref
-    output.area_red = area_red
-    output.area_red_ref = area_red_ref
+    output.mejecta_blue = quantities.mejecta_blue
+    output.mejecta_red = quantities.mejecta_red
+    output.mejecta_purple = quantities.mejecta_purple
+    output.vejecta_blue = quantities.vejecta_blue
+    output.vejecta_red = quantities.vejecta_red
+    output.vejecta_purple = quantities.vejecta_purple
+    output.vejecta_mean = quantities.vejecta_mean
+    output.kappa_mean = quantities.kappa_mean
+    output.mejecta_dyn = quantities.mejecta_dyn
+    output.mejecta_total = quantities.mejecta_total
+    output.kappa_purple = quantities.kappa_purple
+    output.radius_1 = quantities.radius_1
+    output.radius_2 = quantities.radius_2
+    output.binary_lambda = quantities.binary_lambda
+    output.remnant_radius = quantities.remnant_radius
+    output.area_blue = quantities.area_blue
+    output.area_blue_ref = quantities.area_blue_ref
+    output.area_red = quantities.area_red
+    output.area_red_ref = quantities.area_red_ref
     return output
 
 @citation_wrapper('https://ui.adsabs.harvard.edu/abs/2021MNRAS.505.3016N/abstract')
@@ -325,6 +118,11 @@ def nicholl_bns(time, redshift, mass_1, mass_2, lambda_s, kappa_red, kappa_blue,
     """
     Kilonova model from Nicholl et al. 2021, inclides three kilonova components
     + shock heating from cocoon + disk winds from remnant
+    Note:
+        The prompt-collapse threshold follows the MOSFiT/Nicholl et al. (2021)
+        implementation, which uses the remnant radius in km directly rather than
+        converting the mass-to-radius ratio to dimensionless compactness.
+        ``nicholl_bns_rk24`` uses the corrected conversion.
 
     :param time: time in days in observer frame
     :param redshift: redshift
@@ -472,6 +270,537 @@ def nicholl_bns(time, redshift, mass_1, mass_2, lambda_s, kappa_red, kappa_blue,
             return get_correct_output_format_from_spectra(time=time_obs, time_eval=time_observer_frame,
                                                           spectra=full_spec, lambda_array=lambda_observer_frame,
                                                           **kwargs)
+
+def _nicholl_bns_get_quantities_from_tides(mass_1, mass_2, lambda_1, lambda_2, kappa_red, kappa_blue,
+                                           mtov, epsilon, alpha, cos_theta_open, cos_theta,
+                                           use_corrected_prompt_threshold=False, **kwargs):
+    """
+    Calculates quantities for the Nicholl et al. 2021 BNS model using
+    the component tidal deformabilities directly.
+
+    :param mass_1: Mass of primary in solar masses
+    :param mass_2: Mass of secondary in solar masses
+    :param lambda_1: tidal deformability of primary
+    :param lambda_2: tidal deformability of secondary
+    :param kappa_red: opacity of the red ejecta
+    :param kappa_blue: opacity of the blue ejecta
+    :param mtov: Tolman Oppenheimer-Volkoff mass in solar masses
+    :param epsilon: fraction of disk that gets unbound/ejected
+    :param alpha: Enhancement of blue ejecta by NS surface winds if mtotal < prompt collapse,
+                can turn off by setting alpha=1
+    :param cos_theta_open: Lanthanide opening angle
+    :param cos_theta: Viewing angle of observer
+    :param kwargs: Additional keyword arguments
+    :param dynamical_ejecta_error: Error in dynamical ejecta mass, default is 1 i.e., no error in fitting formula
+    :param use_corrected_prompt_threshold: Whether to convert the remnant radius to geometrical units when calculating
+                                       the prompt-collapse threshold
+    :param disk_ejecta_error: Error in disk ejecta mass, default is 1 i.e., no error in fitting formula
+    :return: Namedtuple with 'mejecta_blue', 'mejecta_red', 'mejecta_purple',
+            'vejecta_blue', 'vejecta_red', 'vejecta_purple',
+            'vejecta_mean', 'kappa_mean', 'mejecta_dyn', 'disk_mass',
+            'vejecta_dyn', 'kappa_dyn', 'ye_dyn', 'ye_purple',
+            'mejecta_total', 'kappa_purple', 'radius_1', 'radius_2',
+            'binary_lambda', 'remnant_radius', 'area_blue', 'area_blue_ref',
+            'area_red', 'area_red_ref' properties. Masses in solar masses and velocities in units of c
+    """
+    ckm = 3e10/1e5
+    dynamical_ejecta_error = kwargs.get('dynamical_ejecta_error', 1.0)
+    disk_ejecta_error = kwargs.get('disk_ejecta_error', 1.0)
+    theta_open = np.arccos(cos_theta_open)
+
+    m_total = mass_1 + mass_2
+
+    binary_lambda =  16./13 * ((mass_1 + 12*mass_2) * mass_1**4 * lambda_1 +
+                (mass_2 + 12*mass_1) * mass_2**4 * lambda_2) / m_total**5
+    mchirp = (mass_1 * mass_2)**(3./5) / m_total**(1./5)
+    remnant_radius = 11.2 * mchirp * (binary_lambda/800)**(1./6.)
+
+    if use_corrected_prompt_threshold:
+        remnant_radius_threshold = remnant_radius / (
+            graviational_constant * solar_mass / speed_of_light ** 2 / 1e5
+        )
+    else:
+        remnant_radius_threshold = remnant_radius
+
+    compactness_1 = 0.360 - 0.0355 * np.log(lambda_1) + 0.000705 * np.log(lambda_1) ** 2
+    compactness_2 = 0.360 - 0.0355 * np.log(lambda_2) + 0.000705 * np.log(lambda_2) ** 2
+
+    radius_1 = (graviational_constant * mass_1 * solar_mass / (compactness_1 * speed_of_light ** 2)) / 1e5
+    radius_2 = (graviational_constant * mass_2 * solar_mass / (compactness_2 * speed_of_light ** 2)) / 1e5
+
+    # Baryonic masses, Gao 2019
+    mass_baryonic_1 = mass_1 + 0.08 * mass_1 ** 2
+    mass_baryonic_2 = mass_2 + 0.08 * mass_2 ** 2
+
+    a_1 = -1.35695
+    b_1 = 6.11252
+    c_1 = -49.43355
+    d_1 = 16.1144
+    n = -2.5484
+    dynamical_ejecta_mass = 1e-3 * (a_1 * ((mass_2 / mass_1) ** (1 / 3) * (1 - 2 * compactness_1) / compactness_1 * mass_baryonic_1 +
+                            (mass_1 / mass_2) ** (1 / 3) * (1 - 2 * compactness_2) / compactness_2 * mass_baryonic_2) +
+                     b_1 * ((mass_2 / mass_1) ** n * mass_baryonic_1 + (mass_1 / mass_2) ** n * mass_baryonic_2) +
+                     c_1 * (mass_baryonic_1 - mass_1 + mass_baryonic_2 - mass_2) + d_1)
+
+    if dynamical_ejecta_mass < 0:
+        dynamical_ejecta_mass = 0
+
+    dynamical_ejecta_mass *= dynamical_ejecta_error
+
+    a_4 = 14.8609
+    b_4 = -28.6148
+    c_4 = 13.9597
+
+    # fraction can't exceed 100%
+    f_red = min([a_4 * (mass_1 / mass_2) ** 2 + b_4 * (mass_1 / mass_2) + c_4, 1])
+
+    mejecta_red = dynamical_ejecta_mass * f_red
+    mejecta_blue = dynamical_ejecta_mass * (1 - f_red)
+
+    if dynamical_ejecta_mass > 0: # Mass-weighted opacity and electron fraction of the original dynamical ejecta
+        kappa_dyn = (kappa_red * mejecta_red +
+                     kappa_blue * mejecta_blue) / dynamical_ejecta_mass
+        ye_dyn = electron_fraction_from_kappa(kappa_dyn)
+    else:
+        kappa_dyn = np.nan
+        ye_dyn = np.nan
+
+    # Velocity of dynamical ejecta
+    a_2 = -0.219479
+    b_2 = 0.444836
+    c_2 = -2.67385
+
+    vdynp = a_2 * ((mass_1 / mass_2) * (1 + c_2 * compactness_1) + (mass_2 / mass_1) * (1 + c_2 * compactness_2)) + b_2
+
+    a_3 = -0.315585
+    b_3 = 0.63808
+    c_3 = -1.00757
+
+    vdynz = a_3 * ((mass_1 / mass_2) * (1 + c_3 * compactness_1) + (mass_2 / mass_1) * (1 + c_3 * compactness_2)) + b_3
+
+    dynamical_ejecta_velocity = np.sqrt(vdynp ** 2 + vdynz ** 2)
+
+    # average velocity over angular ranges (< and > theta_open)
+
+    theta1 = np.arange(0, theta_open, 0.01)
+    theta2 = np.arange(theta_open, np.pi / 2, 0.01)
+
+    vtheta1 = np.sqrt((vdynz * np.cos(theta1)) ** 2 + (vdynp * np.sin(theta1)) ** 2)
+    vtheta2 = np.sqrt((vdynz * np.cos(theta2)) ** 2 + (vdynp * np.sin(theta2)) ** 2)
+
+    atheta1 = 2 * np.pi * np.sin(theta1)
+    atheta2 = 2 * np.pi * np.sin(theta2)
+
+    vejecta_blue = np.trapezoid(vtheta1 * atheta1, x=theta1) / np.trapezoid(atheta1, x=theta1)
+    vejecta_red = np.trapezoid(vtheta2 * atheta2, x=theta2) / np.trapezoid(atheta2, x=theta2)
+
+    # vejecta_red *= ckm
+    # vejecta_blue *= ckm
+
+    # Bauswein 2013, cut-off for prompt collapse to BH
+    prompt_threshold_mass = (2.38 - 3.606 * mtov / remnant_radius_threshold) * mtov
+
+    if m_total < prompt_threshold_mass:
+        mejecta_blue /= alpha
+
+    # Now compute disk ejecta following Coughlin+ 2019
+
+    a_5 = -31.335
+    b_5 = -0.9760
+    c_5 = 1.0474
+    d_5 = 0.05957
+
+    logMdisk = np.max([-3, a_5 * (1 + b_5 * np.tanh((c_5 - m_total / prompt_threshold_mass) / d_5))])
+
+    disk_mass = 10 ** logMdisk
+
+    disk_mass *= disk_ejecta_error
+
+    disk_ejecta_mass = disk_mass * epsilon
+
+    mejecta_purple = disk_ejecta_mass
+
+    # Fit for disk velocity using Metzger and Fernandez
+    vdisk_max = 0.15
+    vdisk_min = 0.03
+    # Compute linear interpolation coefficients directly to avoid np.polyfit SVD issues
+    # when mtov and prompt_threshold_mass are very close
+    if abs(prompt_threshold_mass - mtov) < 1e-10:
+        # Degenerate case: use midpoint velocity
+        vfit_slope = 0.0
+        vfit_intercept = (vdisk_max + vdisk_min) / 2
+    else:
+        vfit_slope = (vdisk_min - vdisk_max) / (prompt_threshold_mass - mtov)
+        vfit_intercept = vdisk_max - vfit_slope * mtov
+
+    # Get average opacity of 'purple' (disk) component
+    # Mass-averaged Ye as a function of remnant lifetime from Lippuner 2017
+    # Lifetime related to Mtot using Metzger handbook table 3
+    if m_total < mtov:
+        # stable NS
+        Ye = 0.38
+        vdisk = vdisk_max
+    elif m_total < 1.2 * mtov:
+        # long-lived (>>100 ms) NS remnant Ye = 0.34-0.38,
+        # smooth interpolation
+        Yfit = np.polyfit([mtov, 1.2 * mtov], [0.38, 0.34], deg=1)
+        Ye = Yfit[0] * m_total + Yfit[1]
+        vdisk = vfit_slope * m_total + vfit_intercept
+    elif m_total < prompt_threshold_mass:
+        # short-lived (hypermassive) NS, Ye = 0.25-0.34, smooth interpolation
+        Yfit = np.polyfit([1.2 * mtov, prompt_threshold_mass], [0.34, 0.25], deg=1)
+        Ye = Yfit[0] * m_total + Yfit[1]
+        vdisk = vfit_slope * m_total + vfit_intercept
+    else:
+        # prompt collapse to BH, disk is red
+        Ye = 0.25
+        vdisk = vdisk_min
+
+    # Convert Ye to opacity using Tanaka et al 2019 for Ye >= 0.25:
+    a_6 = 2112.0
+    b_6 = -2238.9
+    c_6 = 742.35
+    d_6 = -73.14
+
+    kappa_purple = a_6 * Ye ** 3 + b_6 * Ye ** 2 + c_6 * Ye + d_6
+
+    vejecta_purple = vdisk
+
+    vejecta_mean = (mejecta_purple * vejecta_purple + vejecta_red * mejecta_red +
+                    vejecta_blue * mejecta_blue) / (mejecta_purple + mejecta_red + mejecta_blue)
+
+    kappa_mean = (mejecta_purple * kappa_purple + kappa_red * mejecta_red +
+                  kappa_blue * mejecta_blue) / (mejecta_purple + mejecta_red + mejecta_blue)
+
+    # Viewing angle and lanthanide-poor opening angle correction from Darbha and Kasen 2020
+    ct = (1 - cos_theta_open ** 2) ** 0.5
+
+    if cos_theta > ct:
+        area_projected_top = np.pi * ct * cos_theta
+    else:
+        theta_p = np.arccos(cos_theta_open /
+                            (1 - cos_theta ** 2) ** 0.5)
+        theta_d = np.arctan(np.sin(theta_p) / cos_theta_open *
+                            (1 - cos_theta ** 2) ** 0.5 / np.abs(cos_theta))
+        area_projected_top = (theta_p - np.sin(theta_p) * np.cos(theta_p)) - (ct *
+                                                                     cos_theta * (theta_d - np.sin(theta_d) * np.cos(
+                            theta_d) - np.pi))
+
+    minus_cos_theta = -1 * cos_theta
+
+    if minus_cos_theta < -1 * ct:
+        area_projected_bottom = 0
+    else:
+        theta_p2 = np.arccos(cos_theta_open /
+                             (1 - minus_cos_theta ** 2) ** 0.5)
+        theta_d2 = np.arctan(np.sin(theta_p2) / cos_theta_open *
+                             (1 - minus_cos_theta ** 2) ** 0.5 / np.abs(minus_cos_theta))
+
+        Aproj_bot1 = (theta_p2 - np.sin(theta_p2) * np.cos(theta_p2)) + (ct *
+                                                                         minus_cos_theta * (theta_d2 - np.sin(
+                    theta_d2) * np.cos(theta_d2)))
+        area_projected_bottom = np.max([Aproj_bot1, 0])
+
+    area_projected = area_projected_top + area_projected_bottom
+
+    # Compute reference areas for this opening angle to scale luminosity
+
+    cos_theta_ref = 0.5
+
+    if cos_theta_ref > ct:
+        area_ref_top = np.pi * ct * cos_theta_ref
+    else:
+        theta_p_ref = np.arccos(cos_theta_open /
+                                (1 - cos_theta_ref ** 2) ** 0.5)
+        theta_d_ref = np.arctan(np.sin(theta_p_ref) / cos_theta_open *
+                                (1 - cos_theta_ref ** 2) ** 0.5 / np.abs(cos_theta_ref))
+        area_ref_top = (theta_p_ref - np.sin(theta_p_ref) *
+                    np.cos(theta_p_ref)) - (ct * cos_theta_ref *
+                                            (theta_d_ref - np.sin(theta_d_ref) *
+                                             np.cos(theta_d_ref) - np.pi))
+
+    minus_cos_theta_ref = -1 * cos_theta_ref
+
+    if minus_cos_theta_ref < -1 * ct:
+        area_ref_bottom = 0
+    else:
+        theta_p2_ref = np.arccos(cos_theta_open /
+                                 (1 - minus_cos_theta_ref ** 2) ** 0.5)
+        theta_d2_ref = np.arctan(np.sin(theta_p2_ref) /
+                                 cos_theta_open * (1 - minus_cos_theta_ref ** 2) ** 0.5 /
+                                 np.abs(minus_cos_theta_ref))
+
+        area_ref_bottom = (theta_p2_ref - np.sin(theta_p2_ref) *
+                    np.cos(theta_p2_ref)) + (ct * minus_cos_theta_ref *
+                                             (theta_d2_ref - np.sin(theta_d2_ref) *
+                                              np.cos(theta_d2_ref)))
+
+    area_ref = area_ref_top + area_ref_bottom
+
+    area_blue = area_projected
+    area_blue_ref = area_ref
+
+    area_red = np.pi - area_blue
+    area_red_ref = np.pi - area_blue_ref
+
+    output = namedtuple('output', ['mejecta_blue', 'mejecta_red', 'mejecta_purple',
+                                   'vejecta_blue', 'vejecta_red', 'vejecta_purple',
+                                   'vejecta_mean', 'kappa_mean', 'mejecta_dyn', 'disk_mass',
+                                   'vejecta_dyn', 'kappa_dyn', 'ye_dyn', 'ye_purple',
+                                   'mejecta_total', 'kappa_purple', 'radius_1', 'radius_2',
+                                   'binary_lambda', 'remnant_radius', 'area_blue', 'area_blue_ref',
+                                   'area_red', 'area_red_ref'])
+    output.mejecta_blue = mejecta_blue
+    output.mejecta_red = mejecta_red
+    output.mejecta_purple = mejecta_purple
+    output.vejecta_blue = vejecta_blue
+    output.vejecta_red = vejecta_red
+    output.vejecta_purple = vejecta_purple
+    output.vejecta_mean = vejecta_mean
+    output.kappa_mean = kappa_mean
+    output.mejecta_dyn = dynamical_ejecta_mass
+    output.vejecta_dyn = dynamical_ejecta_velocity
+    output.kappa_dyn = kappa_dyn
+    output.ye_dyn = ye_dyn
+    output.mejecta_total = dynamical_ejecta_mass + mejecta_purple
+    output.disk_mass = disk_mass
+    output.ye_purple = Ye
+    output.kappa_purple = kappa_purple
+    output.radius_1 = radius_1
+    output.radius_2 = radius_2
+    output.binary_lambda = binary_lambda
+    output.remnant_radius = remnant_radius
+    output.area_blue = area_blue
+    output.area_blue_ref = area_blue_ref
+    output.area_red = area_red
+    output.area_red_ref = area_red_ref
+    return output
+
+@citation_wrapper('https://ui.adsabs.harvard.edu/abs/2021MNRAS.505.3016N/abstract, https://ui.adsabs.harvard.edu/abs/2024arXiv240407271S/abstract, https://ui.adsabs.harvard.edu/abs/2024AnP...53600306R/abstract')
+def nicholl_bns_rk24(time, redshift, mass_1, mass_2, lambda_1, lambda_2, kappa_red, kappa_blue,
+                    mtov, epsilon, alpha, cos_theta, cos_theta_open, cos_theta_cocoon, temperature_floor_1,
+                    temperature_floor_2, temperature_floor_3, **kwargs):
+    """
+    Kilonova model from Nicholl et al. 2021, includes three kilonova components
+    + shock heating from cocoon + disk winds from remnant, using the
+    Rosswog & Korobkin 2024 heating rate.
+    Note:
+        The prompt-collapse threshold uses the corrected implementation, with
+        the remnant radius converted to geometrical units before evaluating the
+        threshold relation.
+
+    :param time: time in days in observer frame
+    :param redshift: redshift
+    :param mass_1: Mass of primary in solar masses
+    :param mass_2: Mass of secondary in solar masses
+    :param lambda_1: Tidal deformability of the primary
+    :param lambda_2: Tidal deformability of the secondary
+    :param kappa_red: opacity of the red ejecta
+    :param kappa_blue: opacity of the blue ejecta
+    :param mtov: Tolman Oppenheimer-Volkoff mass in solar masses
+    :param epsilon: fraction of disk that gets unbound/ejected
+    :param alpha: Enhancement of blue ejecta by NS surface winds if mtotal < prompt collapse,
+                can turn off by setting alpha=1
+    :param cos_theta: Viewing angle of observer
+    :param cos_theta_open: Lanthanide opening angle
+    :param cos_theta_cocoon: Opening angle of shocked cocoon
+    :param temperature_floor_1: Temperature floor of first (blue) component
+    :param temperature_floor_2: Temperature floor of second (purple) component
+    :param temperature_floor_3: Temperature floor of third (red) component
+    :param kwargs: Additional keyword arguments
+    :param dynamical_ejecta_error: Error in dynamical ejecta mass, default is 1 i.e., no error in fitting formula
+    :param disk_ejecta_error: Error in disk ejecta mass, default is 1 i.e., no error in fitting formula
+    :param shocked_fraction: Fraction of ejecta that is shocked by jet, default is 0.2 i.e., 20% of blue ejecta is shocked.
+        Use 0. if you want to turn off cocoon emission.
+    :param nn: ejecta power law density profile, default is 1.
+    :param tshock: time for shock in source frame in seconds, default is 1.7s (see Nicholl et al. 2021)
+    :param kappa_gamma: gamma-ray opacity in cm^2/g, default is 10 cm^2/g
+    :param frequency: Required if output_format is 'flux_density'.
+        frequency to calculate - Must be same length as time array or a single number).
+    :param bands: Required if output_format is 'magnitude' or 'flux'.
+    :param output_format: 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
+    :param lambda_array: Optional argument to set your desired wavelength array (in Angstroms) to evaluate the SED on.
+    :param dense_resolution: resolution of the grid that the model is actually evaluated on, default is 500. Increase to 1000+ for times > 30 days
+    :param cosmology: Cosmology to use for luminosity distance calculation. Defaults to Planck18. Must be a astropy.cosmology object.
+    :return: set by output format - 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
+    """
+    from redback.transient_models.shock_powered_models import _shocked_cocoon_nicholl
+    cosmology = kwargs.get('cosmology', cosmo)
+    dl = cosmology.luminosity_distance(redshift).cgs.value
+    dense_resolution = kwargs.get("dense_resolution", 500)
+    # Convert user times to source frame for optimal grid
+    time_source_frame = time / (1. + redshift) if hasattr(time, "__len__") else np.array([time]) / (1. + redshift)
+    t_max = max(30, np.max(time_source_frame) + 5) if np.max(time_source_frame) > 20 else 30
+    time_temp = get_optimal_time_array(0.01, t_max, dense_resolution, user_times=time_source_frame, time_units="days")
+
+    time_obs = time
+    shocked_fraction = kwargs.get('shocked_fraction', 0.2)
+    nn = kwargs.get('nn', 1)
+    tshock = kwargs.get('tshock', 1.7)
+    kappa_gamma = kwargs.get('kappa_gamma', 10)
+    ckm = 3e10/1e5
+
+    output = _nicholl_bns_get_quantities_from_tides(mass_1=mass_1, mass_2=mass_2, lambda_1=lambda_1,
+                                                    lambda_2=lambda_2, kappa_red=kappa_red, kappa_blue=kappa_blue,
+                                                    mtov=mtov, epsilon=epsilon, alpha=alpha,
+                                                    cos_theta_open=cos_theta_open, cos_theta=cos_theta,
+                                                    use_corrected_prompt_threshold=True, **kwargs)
+    spectra_at_input_times = kwargs['output_format'] == 'spectra' and kwargs.get('spectra_at_input_times', False)
+
+    if not spectra_at_input_times:
+        cocoon_output = _shocked_cocoon_nicholl(time=time_temp, kappa=kappa_blue, mejecta=output.mejecta_blue,
+                                      vejecta=output.vejecta_blue, cos_theta_cocoon=cos_theta_cocoon,
+                                      shocked_fraction=shocked_fraction, nn=nn, tshock=tshock)
+        cocoon_photo = CocoonPhotosphere(time=time_temp, luminosity=cocoon_output.lbol,
+                                         tau_diff=cocoon_output.taudiff, t_thin=cocoon_output.tthin,
+                                         vej=output.vejecta_blue*ckm, nn=nn)
+
+    mejs = [output.mejecta_blue, output.mejecta_purple, output.mejecta_red]
+    vejs = [output.vejecta_blue, output.vejecta_purple, output.vejecta_red]
+    area_projs = [output.area_blue, output.area_blue, output.area_red]
+    area_refs = [output.area_blue_ref, output.area_blue_ref, output.area_red_ref]
+    temperature_floors = [temperature_floor_1, temperature_floor_2, temperature_floor_3]
+    kappas = [kappa_blue, output.kappa_purple, kappa_red]
+    yes = [electron_fraction_from_kappa(kappa_blue), output.ye_purple, electron_fraction_from_kappa(kappa_red)]
+
+    if kwargs['output_format'] == 'flux_density':
+        frequency = kwargs['frequency']
+        # interpolate properties onto observation times
+        temp_func = interp1d(time_temp, y=cocoon_photo.photosphere_temperature)
+        rad_func = interp1d(time_temp, y=cocoon_photo.r_photosphere)
+        # convert to source frame time and frequency
+        frequency, time = calc_kcorrected_properties(frequency=frequency, redshift=redshift, time=time)
+        temp = temp_func(time)
+        photosphere = rad_func(time)
+        flux_density = blackbody_to_flux_density(temperature=temp, r_photosphere=photosphere,
+                                                 dl=dl, frequency=frequency)
+        ff = flux_density.value
+        ff = np.nan_to_num(ff)
+        for x in range(3):
+            lbols = _mosfit_kilonova_one_component_lbol_rk24(time=time_temp*day_to_s, mej=mejs[x],
+                                                             vej=vejs[x], ye=yes[x], **kwargs)
+            interaction_class = AsphericalDiffusion(time=time_temp, dense_times=time_temp,
+                                                    luminosity=lbols, kappa=kappas[x], kappa_gamma=kappa_gamma,
+                                                    mej=mejs[x], vej=vejs[x]*ckm, area_projection=area_projs[x],
+                                                    area_reference=area_refs[x])
+            lbols = interaction_class.new_luminosity
+            lbols = np.nan_to_num(lbols)
+            photo = TemperatureFloor(time=time_temp, luminosity=lbols,
+                                     temperature_floor=temperature_floors[x], vej=vejs[x]*ckm)
+            temp_func = interp1d(time_temp, y=photo.photosphere_temperature)
+            rad_func = interp1d(time_temp, y=photo.r_photosphere)
+            temp = temp_func(time)
+            photosphere = rad_func(time)
+            flux_density = blackbody_to_flux_density(temperature=temp, r_photosphere=photosphere,
+                                                     dl=dl, frequency=frequency)
+            flux_density = np.nan_to_num(flux_density)
+            units = flux_density.unit
+            ff += flux_density.value
+        ff = ff * units
+        return ff.to(uu.mJy).value * (1 + redshift)
+    else:
+        lambda_observer_frame = kwargs.get('lambda_array', np.geomspace(100, 60000, 200))
+
+        if spectra_at_input_times:
+            time_eval_observer = np.atleast_1d(time_obs)
+            frequency, time_eval = calc_kcorrected_properties(frequency=lambda_to_nu(lambda_observer_frame),
+                                                              redshift=redshift, time=time_eval_observer)
+
+            cocoon_output_eval = _shocked_cocoon_nicholl(time=time_eval, kappa=kappa_blue,
+                                                         mejecta=output.mejecta_blue,
+                                                         vejecta=output.vejecta_blue,
+                                                         cos_theta_cocoon=cos_theta_cocoon,
+                                                         shocked_fraction=shocked_fraction, nn=nn, tshock=tshock)
+            cocoon_photo_eval = CocoonPhotosphere(time=time_eval, luminosity=cocoon_output_eval.lbol,
+                                                  tau_diff=cocoon_output_eval.taudiff,
+                                                  t_thin=cocoon_output_eval.tthin,
+                                                  vej=output.vejecta_blue*ckm, nn=nn)
+            cocoon_spectra = blackbody_to_spectrum(
+                temperature=cocoon_photo_eval.photosphere_temperature,
+                r_photosphere=cocoon_photo_eval.r_photosphere,
+                frequency=frequency[:, None],
+                dl=dl,
+                redshift=redshift,
+                lambda_observer_frame=lambda_observer_frame
+            )
+            cocoon_spectra = np.nan_to_num(cocoon_spectra)
+            full_spec = cocoon_spectra.value
+
+            for x in range(3):
+                lbols = _mosfit_kilonova_one_component_lbol_rk24(time=time_temp*day_to_s, mej=mejs[x],
+                                                                 vej=vejs[x], ye=yes[x], **kwargs)
+                interaction_class = AsphericalDiffusion(time=time_eval, dense_times=time_temp,
+                                                        luminosity=lbols, kappa=kappas[x],
+                                                        kappa_gamma=kappa_gamma, mej=mejs[x],
+                                                        vej=vejs[x]*ckm, area_projection=area_projs[x],
+                                                        area_reference=area_refs[x])
+                lbols = interaction_class.new_luminosity
+                lbols = np.nan_to_num(lbols)
+                photo = TemperatureFloor(time=time_eval, luminosity=lbols,
+                                         temperature_floor=temperature_floors[x], vej=vejs[x]*ckm)
+                spectra = blackbody_to_spectrum(
+                    temperature=photo.photosphere_temperature,
+                    r_photosphere=photo.r_photosphere,
+                    frequency=frequency[:, None],
+                    dl=dl,
+                    redshift=redshift,
+                    lambda_observer_frame=lambda_observer_frame
+                )
+                spectra = np.nan_to_num(spectra)
+                units = spectra.unit
+                full_spec += spectra.value
+
+            full_spec = full_spec * units
+            return namedtuple('output', ['time', 'lambdas', 'spectra'])(time=time_eval_observer,
+                                                                        lambdas=lambda_observer_frame,
+                                                                        spectra=full_spec)
+
+        time_observer_frame = time_temp * (1. + redshift) #in days
+        frequency, time = calc_kcorrected_properties(frequency=lambda_to_nu(lambda_observer_frame),
+                                                     redshift=redshift, time=time_observer_frame)
+        cocoon_spectra = blackbody_to_spectrum(
+            temperature=cocoon_photo.photosphere_temperature,
+            r_photosphere=cocoon_photo.r_photosphere,
+            frequency=frequency[:, None],
+            dl=dl,
+            redshift=redshift,
+            lambda_observer_frame=lambda_observer_frame
+        )
+        cocoon_spectra = np.nan_to_num(cocoon_spectra)
+        full_spec = cocoon_spectra.value
+        for x in range(3):
+            lbols = _mosfit_kilonova_one_component_lbol_rk24(time=time_temp*day_to_s, mej=mejs[x],
+                                                             vej=vejs[x], ye=yes[x], **kwargs)
+            interaction_class = AsphericalDiffusion(time=time_temp, dense_times=time_temp,
+                                                    luminosity=lbols, kappa=kappas[x], kappa_gamma=kappa_gamma,
+                                                    mej=mejs[x], vej=vejs[x]*ckm, area_projection=area_projs[x],
+                                                    area_reference=area_refs[x])
+            lbols = interaction_class.new_luminosity
+            photo = TemperatureFloor(time=time_temp, luminosity=lbols,
+                                     temperature_floor=temperature_floors[x], vej=vejs[x]*ckm)
+            spectra = blackbody_to_spectrum(
+                temperature=photo.photosphere_temperature,
+                r_photosphere=photo.r_photosphere,
+                frequency=frequency[:, None],
+                dl=dl,
+                redshift=redshift,
+                lambda_observer_frame=lambda_observer_frame
+            )
+            spectra = np.nan_to_num(spectra)
+            units = spectra.unit
+            full_spec += spectra.value
+
+        full_spec = full_spec * units
+        if kwargs['output_format'] == 'spectra':
+            return namedtuple('output', ['time', 'lambdas', 'spectra'])(time=time_observer_frame,
+                                                                        lambdas=lambda_observer_frame,
+                                                                        spectra=full_spec)
+        else:
+            return get_correct_output_format_from_spectra(time=time_obs, time_eval=time_observer_frame,
+                                                          spectra=full_spec, lambda_array=lambda_observer_frame,
+                                                          **kwargs)
+
+
 
 @citation_wrapper('redback')
 def two_component_kilonova_with_cocoon(time, redshift, mej_1, vej_1, temperature_floor_1, kappa_1,
@@ -785,6 +1114,27 @@ def _mosfit_kilonova_one_component_lbol(time, mej, vej):
 
     m0 = mej * solar_mass
     lum_in = 4.0e18 * (m0) * (0.5 - np.arctan((time - t0) / sig) / np.pi)**1.3
+    lbol = lum_in * e_th
+    return lbol
+
+def _mosfit_kilonova_one_component_lbol_rk24(time, mej, vej, ye, **kwargs):
+    """
+
+    :param time: time in seconds in source frame
+    :param mej: mass in solar masses
+    :param vej: velocity in units of c
+    :param ye: Electron fraction of the ejecta
+    :param kwargs: Additional keyword arguments passed to the heating model
+    :return: lbol in erg/s
+    """
+    tdays = time/day_to_s
+
+    # set up kilonova physics
+    av, bv, dv = interpolated_barnes_and_kasen_thermalisation_efficiency(mej, vej)
+    # thermalisation from Barnes+16
+    e_th = 0.36 * (np.exp(-av * tdays) + np.log1p(2.0 * bv * tdays ** dv) / (2.0 * bv * tdays ** dv))
+    electron_fraction = ye
+    lum_in = _calc_new_heating_rate(time, mej, electron_fraction, vej, **kwargs)
     lbol = lum_in * e_th
     return lbol
 
