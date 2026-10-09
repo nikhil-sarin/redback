@@ -118,8 +118,7 @@ def nicholl_bns(time, redshift, mass_1, mass_2, lambda_s, kappa_red, kappa_blue,
     """
     Kilonova model from Nicholl et al. 2021, inclides three kilonova components
     + shock heating from cocoon + disk winds from remnant
-
-    note::
+    Note:
         The prompt-collapse threshold follows the MOSFiT/Nicholl et al. (2021)
         implementation, which uses the remnant radius in km directly rather than
         converting the mass-to-radius ratio to dimensionless compactness.
@@ -585,8 +584,7 @@ def nicholl_bns_rk24(time, redshift, mass_1, mass_2, lambda_1, lambda_2, kappa_r
     Kilonova model from Nicholl et al. 2021, includes three kilonova components
     + shock heating from cocoon + disk winds from remnant, using the
     Rosswog & Korobkin 2024 heating rate.
-
-    note::
+    Note:
         The prompt-collapse threshold uses the corrected implementation, with
         the remnant radius converted to geometrical units before evaluating the
         threshold relation.
