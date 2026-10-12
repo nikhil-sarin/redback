@@ -615,6 +615,8 @@ def nicholl_bns_rk24(time, redshift, mass_1, mass_2, lambda_1, lambda_2, kappa_r
     :param nn: ejecta power law density profile, default is 1.
     :param tshock: time for shock in source frame in seconds, default is 1.7s (see Nicholl et al. 2021)
     :param kappa_gamma: gamma-ray opacity in cm^2/g, default is 10 cm^2/g
+    :param use_corrected_prompt_threshold: Whether to use the corrected prompt-collapse threshold, default is True.
+        Set to False to use the original MOSFiT/Nicholl et al. (2021) threshold as in ``nicholl_bns``.
     :param frequency: Required if output_format is 'flux_density'.
         frequency to calculate - Must be same length as time array or a single number).
     :param bands: Required if output_format is 'magnitude' or 'flux'.
@@ -638,13 +640,15 @@ def nicholl_bns_rk24(time, redshift, mass_1, mass_2, lambda_1, lambda_2, kappa_r
     nn = kwargs.get('nn', 1)
     tshock = kwargs.get('tshock', 1.7)
     kappa_gamma = kwargs.get('kappa_gamma', 10)
+    use_corrected_prompt_threshold = kwargs.pop('use_corrected_prompt_threshold', True)
     ckm = 3e10/1e5
 
     output = _nicholl_bns_get_quantities_from_tides(mass_1=mass_1, mass_2=mass_2, lambda_1=lambda_1,
                                                     lambda_2=lambda_2, kappa_red=kappa_red, kappa_blue=kappa_blue,
                                                     mtov=mtov, epsilon=epsilon, alpha=alpha,
                                                     cos_theta_open=cos_theta_open, cos_theta=cos_theta,
-                                                    use_corrected_prompt_threshold=True, **kwargs)
+                                                    use_corrected_prompt_threshold=use_corrected_prompt_threshold,
+                                                    **kwargs)
     spectra_at_input_times = kwargs['output_format'] == 'spectra' and kwargs.get('spectra_at_input_times', False)
 
     if not spectra_at_input_times:
