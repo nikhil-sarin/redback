@@ -345,6 +345,81 @@ class Transient(object):
                    use_phase_model=use_phase_model, optical_data=True, plotting_order=plotting_order)
 
     @classmethod
+    def from_astrocolibri_data(
+            cls, name: str, data_mode: str = "magnitude", active_bands: Union[np.ndarray, str] = 'all',
+            use_phase_model: bool = False, plotting_order: Union[np.ndarray, str] = None,
+            include_upper_limits: bool = False,
+            upper_limit_sigma: Union[float, np.ndarray] = 3.0) -> Transient:
+        """Constructor method to build object from Astro-COLIBRI data.
+
+        Requires the data to have been downloaded beforehand with
+        `redback.get_data.get_astrocolibri_data`. If the data were downloaded with
+        `include_upper_limits=True`, non-detections can be kept by passing
+        `include_upper_limits=True` here as well; they are flagged in the
+        detections array and the limiting magnitude is used as the magnitude.
+
+        :param name: Name of the transient.
+        :type name: str
+        :param data_mode: Data mode used. Must be from `OpticalTransient.DATA_MODES`. Default is magnitude.
+        :type data_mode: str, optional
+        :param active_bands: Sets active bands based on array given.
+                             If argument is 'all', all unique bands in `self.bands` will be used.
+        :type active_bands: Union[np.ndarray, str]
+        :param use_phase_model: Whether to use a phase model.
+        :type use_phase_model: bool
+        :param plotting_order: Order in which to plot the bands/and how unique bands are stored.
+        :type plotting_order: Union[np.ndarray, str], optional
+        :param include_upper_limits: Whether to include non-detection data points as upper limits.
+            If False (default), non-detections are filtered out (backward compatible behavior).
+            If True, non-detections are preserved and flagged in the detections array.
+        :type include_upper_limits: bool, optional
+        :param upper_limit_sigma: The sigma level of the upper limits. Default is 3.0 (3-sigma limits).
+        :type upper_limit_sigma: Union[float, np.ndarray], optional
+
+        :return: A class instance.
+        :rtype: OpticalTransient
+        """
+        if cls.__name__ == "TDE":
+            transient_type = "tidal_disruption_event"
+        else:
+            transient_type = cls.__name__.lower()
+        directory_structure = redback.get_data.directory.astrocolibri_directory_structure(
+            transient=name, transient_type=transient_type)
+        df = pd.read_csv(directory_structure.processed_file_path)
+        detections = None
+        if include_upper_limits and "detected" in df.columns:
+            detections = (df["detected"] != 0).to_numpy().astype(bool)
+            n_total = len(df)
+            n_det = int(detections.sum())
+            redback.utils.logger.info(
+                f"Keeping all {n_total} data points ({n_det} detections, {n_total - n_det} upper limits)")
+        else:
+            n_before = len(df)
+            df = df[df["detected"] != 0]
+            n_after = len(df)
+            redback.utils.logger.info(
+                f"Filtered {n_before - n_after} non-detections, {n_after} detections remain")
+        time_days = np.array(df["time (days)"])
+        time_mjd = np.array(df["time"])
+        magnitude = np.array(df["magnitude"])
+        # For non-detections, magnitude is NaN; substitute limiting_magnitude where available.
+        if detections is not None and "limiting_magnitude" in df.columns:
+            limiting_mag = np.array(df["limiting_magnitude"])
+            nan_mask = ~np.isfinite(magnitude)
+            magnitude[nan_mask] = limiting_mag[nan_mask]
+        magnitude_err = np.array(df["e_magnitude"])
+        bands = np.array(df["band"])
+        flux = np.array(df["flux(erg/cm2/s)"])
+        flux_err = np.array(df["flux_error"])
+        flux_density = np.array(df["flux_density(mjy)"])
+        flux_density_err = np.array(df["flux_density_error"])
+        return cls(name=name, data_mode=data_mode, time=time_days, time_err=None, time_mjd=time_mjd,
+                   flux_density=flux_density, flux_density_err=flux_density_err, magnitude=magnitude,
+                   magnitude_err=magnitude_err, flux=flux, flux_err=flux_err, bands=bands, active_bands=active_bands,
+                   use_phase_model=use_phase_model, optical_data=True, plotting_order=plotting_order,
+                   detections=detections, upper_limit_sigma=upper_limit_sigma)
+
+    @classmethod
     def from_simulated_optical_data(
             cls, name: str, data_mode: str = "magnitude", active_bands: Union[np.ndarray, str] = 'all',
             plotting_order: Union[np.ndarray, str] = None, use_phase_model: bool = False,

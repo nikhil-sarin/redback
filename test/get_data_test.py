@@ -1,4 +1,5 @@
 import io
+import json
 import os.path
 import shutil
 import unittest
@@ -2702,3 +2703,336 @@ class TestOtterWrapperFunctions(unittest.TestCase):
         )
         mock_getter.get_data.assert_called_once()
         self.assertIsInstance(result, pd.DataFrame)
+
+
+class TestAstroColibriDirectoryStructure(unittest.TestCase):
+
+    def setUp(self) -> None:
+        _delete_downloaded_files()
+
+    def tearDown(self) -> None:
+        _delete_downloaded_files()
+
+    def test_astrocolibri_directory_structure(self):
+        transient = "at2017gfo"
+        structure = redback.get_data.directory.astrocolibri_directory_structure(
+            transient=transient, transient_type="kilonova")
+        self.assertEqual("kilonova/", structure.directory_path)
+        self.assertEqual(f"kilonova/{transient}_rawdata.csv", structure.raw_file_path)
+        self.assertEqual(f"kilonova/{transient}.csv", structure.processed_file_path)
+
+    def test_astrocolibri_directory_structure_afterglow(self):
+        transient = "GRB250101A"
+        structure = redback.get_data.directory.astrocolibri_directory_structure(
+            transient=transient, transient_type="afterglow")
+        self.assertEqual("GRBData/afterglow/", structure.directory_path)
+        self.assertEqual(f"GRBData/afterglow/{transient}_rawdata.csv", structure.raw_file_path)
+        self.assertEqual(f"GRBData/afterglow/{transient}.csv", structure.processed_file_path)
+
+
+class _FakeStreamResponse:
+    """Fake streaming requests response yielding fixed chunks."""
+
+    def __init__(self, chunks, status_code=200):
+        self._chunks = chunks
+        self.status_code = status_code
+        self.text = "".join(chunks)
+
+    def iter_content(self, chunk_size=512, decode_unicode=True):
+        yield from self._chunks
+
+    def raise_for_status(self):
+        return None
+
+    def close(self):
+        return None
+
+
+class TestAstroColibriDataGetter(unittest.TestCase):
+
+    def setUp(self) -> None:
+        _delete_downloaded_files()
+        self.transient = "AT2017gfo"
+        self.transient_type = "kilonova"
+        self.getter = redback.get_data.AstroColibriDataGetter(
+            transient=self.transient, transient_type=self.transient_type, uid="test-uid")
+        self.event_metadata = {
+            "trigger_id": "TNS2017gfo_4", "source_name": "AT2017gfo",
+            "time": "2017-08-17T12:41:06.48", "redshift": 0.00984}
+
+    def tearDown(self) -> None:
+        _delete_downloaded_files()
+        del self.transient
+        del self.transient_type
+        del self.getter
+
+    def test_invalid_transient_type(self):
+        with self.assertRaises(ValueError):
+            redback.get_data.AstroColibriDataGetter(
+                transient=self.transient, transient_type="blazar", uid="test-uid")
+
+    def test_url(self):
+        self.assertEqual("https://astro-colibri.science/lightcurve", self.getter.url)
+        self.assertEqual("https://astro-colibri.science/event", self.getter.event_url)
+
+    def test_metadata_path(self):
+        self.assertEqual("kilonova/AT2017gfo_colibri_event.json", self.getter.metadata_path)
+
+    def test_uid_from_environment_variable(self):
+        with mock.patch.dict(os.environ, {"ASTROCOLIBRI_UID": "env-uid"}):
+            getter = redback.get_data.AstroColibriDataGetter(
+                transient=self.transient, transient_type=self.transient_type)
+        self.assertEqual("env-uid", getter.uid)
+
+    def test_parse_json_documents(self):
+        text = '{"a": 1}{"b": 2}{"status_code": "429"}trailing garbage'
+        documents = redback.get_data.AstroColibriDataGetter.parse_json_documents(text)
+        self.assertEqual([{"a": 1}, {"b": 2}, {"status_code": "429"}], documents)
+
+    def test_iter_json_documents(self):
+        chunks = ['{"progress": 0.1, "status":', ' "in_progress"}{"progress":', ' 1.0, "status": "completed"}']
+        documents = list(redback.get_data.AstroColibriDataGetter.iter_json_documents(
+            _FakeStreamResponse(chunks)))
+        self.assertEqual(2, len(documents))
+        self.assertEqual("completed", documents[1]["status"])
+
+    def test_find_csv_url(self):
+        documents = [{"lightcurve_id": "abc"}, {"csv_url": "https://example.com/lc.csv"}]
+        self.assertEqual("https://example.com/lc.csv",
+                         redback.get_data.AstroColibriDataGetter._find_csv_url(documents))
+        self.assertIsNone(redback.get_data.AstroColibriDataGetter._find_csv_url(
+            [{"lightcurve_id": "abc"}]))
+
+    @mock.patch("os.path.isfile")
+    def test_collect_data_rawfile_exists(self, isfile):
+        isfile.return_value = True
+        redback.utils.logger.warning = MagicMock()
+        self.getter.collect_data()
+        isfile.assert_called_once()
+        redback.utils.logger.warning.assert_called_once()
+
+    def test_collect_data_requires_uid(self):
+        with mock.patch.dict(os.environ, {"ASTROCOLIBRI_UID": ""}):
+            getter = redback.get_data.AstroColibriDataGetter(
+                transient=self.transient, transient_type=self.transient_type, uid=None)
+            with self.assertRaisesRegex(ValueError, "user id"):
+                getter.collect_data()
+
+    @mock.patch("requests.get")
+    def test_get_event_metadata_not_found(self, get):
+        get.return_value = MagicMock(status_code=200)
+        get.return_value.text = '{"message": "event not found"}'
+        with self.assertRaisesRegex(ValueError, "does not exist"):
+            self.getter.get_event_metadata()
+
+    @mock.patch("requests.get")
+    def test_get_event_metadata_saves_file(self, get):
+        get.return_value = MagicMock(status_code=200)
+        get.return_value.text = json.dumps(self.event_metadata)
+        metadata = self.getter.get_event_metadata()
+        self.assertEqual(self.event_metadata["trigger_id"], metadata["trigger_id"])
+        self.assertTrue(os.path.isfile(self.getter.metadata_path))
+        # second call reads from disk and does not hit the API
+        get.reset_mock()
+        metadata = self.getter.get_event_metadata()
+        self.assertEqual(self.event_metadata["trigger_id"], metadata["trigger_id"])
+        get.assert_not_called()
+
+    @mock.patch("requests.get")
+    def test_collect_data_no_event(self, get):
+        get.return_value = MagicMock(status_code=200)
+        get.return_value.text = '{"message": "event not found"}'
+        with self.assertRaisesRegex(ValueError, "does not exist"):
+            self.getter.collect_data()
+
+    @mock.patch("requests.get")
+    def test_collect_data_rate_limited(self, get):
+        event_response = MagicMock(status_code=200)
+        event_response.text = json.dumps(self.event_metadata)
+        limited_response = MagicMock(status_code=429)
+        limited_response.text = '{"message": "Rate limit exceeded.", "status_code": "429"}'
+        get.side_effect = [event_response, limited_response]
+        with self.assertRaisesRegex(RuntimeError, "429"):
+            self.getter.collect_data()
+
+    @mock.patch("requests.get")
+    def test_collect_data_direct_csv_url(self, get):
+        event_response = MagicMock(status_code=200)
+        event_response.text = json.dumps(self.event_metadata)
+        lightcurve_response = MagicMock(status_code=200)
+        lightcurve_response.text = json.dumps({"csv_url": "https://example.com/lc.csv"})
+        csv_content = b"time,mjd,filter,mag,mag_err,mag_ul,flag,source\n" \
+                      b"2017-08-18,57983.0,ztf_g,17.5,0.1,,good,ZTF\n"
+        csv_response = MagicMock(status_code=200, content=csv_content)
+        csv_response.raise_for_status = MagicMock()
+        get.side_effect = [event_response, lightcurve_response, csv_response]
+        self.getter.collect_data()
+        self.assertEqual(3, get.call_count)
+        self.assertEqual(
+            "https://astro-colibri.science/lightcurve", get.call_args_list[1].kwargs["url"])
+        params = get.call_args_list[1].kwargs["params"]
+        self.assertEqual("TNS2017gfo_4", params["trigger_id"])
+        self.assertEqual("test-uid", params["uid"])
+        self.assertEqual("true", params["ztf"])
+        self.assertEqual("false", params["rapas"])
+        self.assertTrue(os.path.isfile(self.getter.raw_file_path))
+        raw_data = pd.read_csv(self.getter.raw_file_path)
+        self.assertEqual(1, len(raw_data))
+
+    @mock.patch("redback.get_data.astrocolibri.AstroColibriDataGetter.wait_for_lightcurve")
+    @mock.patch("requests.get")
+    def test_collect_data_async_flow(self, get, wait_for_lightcurve):
+        event_response = MagicMock(status_code=200)
+        event_response.text = json.dumps(self.event_metadata)
+        lightcurve_response = MagicMock(status_code=200)
+        lightcurve_response.text = json.dumps({"lightcurve_id": "abcd1234"})
+        retry_response = MagicMock(status_code=200)
+        retry_response.text = json.dumps({"csv_url": "https://example.com/lc.csv"})
+        csv_content = b"time,mjd,filter,mag,mag_err,mag_ul,flag,source\n" \
+                      b"2017-08-18,57983.0,ztf_g,17.5,0.1,,good,ZTF\n"
+        csv_response = MagicMock(status_code=200, content=csv_content)
+        csv_response.raise_for_status = MagicMock()
+        get.side_effect = [event_response, lightcurve_response, retry_response, csv_response]
+        wait_for_lightcurve.return_value = {"url": "https://example.com/lc.png"}
+        self.getter.collect_data()
+        wait_for_lightcurve.assert_called_once_with("abcd1234")
+        self.assertTrue(os.path.isfile(self.getter.raw_file_path))
+
+    @mock.patch("requests.get")
+    def test_collect_data_empty_lightcurve(self, get):
+        event_response = MagicMock(status_code=200)
+        event_response.text = json.dumps(self.event_metadata)
+        lightcurve_response = MagicMock(status_code=200)
+        lightcurve_response.text = json.dumps({"csv_url": "https://example.com/lc.csv"})
+        csv_response = MagicMock(status_code=200, content=b"")
+        csv_response.raise_for_status = MagicMock()
+        get.side_effect = [event_response, lightcurve_response, csv_response]
+        with self.assertRaisesRegex(ValueError, "does not contain any photometry"):
+            self.getter.collect_data()
+
+    @mock.patch("requests.get")
+    def test_wait_for_lightcurve_completed(self, get):
+        chunks = [
+            '{"progress": 0.1, "message": "Creating lightcurve", "status": "in_progress"}',
+            '{"progress": 0.5, "message": "Halfway", "status": "in_progress"}',
+            '{"csv_url": "https://example.com/lc.csv", "status": "completed", "progress": 1.0}']
+        get.return_value = _FakeStreamResponse(chunks)
+        urls = self.getter.wait_for_lightcurve("abcd1234")
+        self.assertEqual("https://astro-colibri.science/lightcurve_status/abcd1234", get.call_args.kwargs["url"])
+        self.assertEqual({"csv_url": "https://example.com/lc.csv"}, urls)
+
+    @mock.patch("requests.get")
+    def test_wait_for_lightcurve_failed(self, get):
+        chunks = ['{"progress": 0.1, "status": "in_progress"}',
+                  '{"message": "generation failed", "status": "failed"}']
+        get.return_value = _FakeStreamResponse(chunks)
+        with self.assertRaisesRegex(RuntimeError, "failed"):
+            self.getter.wait_for_lightcurve("abcd1234")
+
+    def test_get_time_of_event_from_metadata(self):
+        with mock.patch.object(self.getter, "get_event_metadata",
+                               return_value=self.event_metadata):
+            time_of_event = self.getter.get_time_of_event(data=pd.DataFrame({"time": [57990.0]}))
+        expected = Time(self.event_metadata["time"], format="isot", scale="utc").mjd
+        self.assertAlmostEqual(expected, time_of_event.mjd, places=6)
+
+    def test_get_time_of_event_from_space_separated_metadata(self):
+        # the live API returns 'YYYY-MM-DD HH:MM:SS.fff' timestamps
+        metadata = dict(self.event_metadata, time="2017-08-17 23:31:12.000")
+        with mock.patch.object(self.getter, "get_event_metadata", return_value=metadata):
+            time_of_event = self.getter.get_time_of_event(data=pd.DataFrame({"time": [57990.0]}))
+        expected = Time("2017-08-17T23:31:12.000", format="isot", scale="utc").mjd
+        self.assertAlmostEqual(expected, time_of_event.mjd, places=6)
+
+    def test_get_time_of_event_fallback(self):
+        with mock.patch.object(self.getter, "get_event_metadata",
+                               side_effect=ValueError("no metadata")):
+            redback.utils.logger.warning = MagicMock()
+            time_of_event = self.getter.get_time_of_event(data=pd.DataFrame({"time": [57990.0]}))
+        self.assertAlmostEqual(57989.9, time_of_event.mjd, places=6)
+
+    def _write_raw_data(self):
+        raw_data = pd.DataFrame({
+            "time": ["2017-08-17 18:00:00", "2017-08-18 06:00:00", "2017-08-19 12:00:00",
+                     "2017-08-20 00:00:00", "2017-08-21 00:00:00", "2017-08-22 00:00:00",
+                     "2017-08-23 00:00:00"],
+            "mjd": [57983.25, 57983.75, 57985.0, 57985.5, 57986.5, 57987.5, 57988.5],
+            "filter": ["ztf_g", "ztf_r", "atlas_o", "aavso_V", "ztf_g", "rapas_A/G", "ztf_g"],
+            "mag": [19.0, 18.5, 18.0, 17.5, np.nan, 20.0, 20.5],
+            "mag_err": [0.1, 0.1, 0.15, 0.2, np.nan, 0.3, 0.2],
+            "mag_ul": [np.nan, np.nan, np.nan, np.nan, 21.0, np.nan, np.nan],
+            "flag": ["good", "good", "original", "average", "ul", "bad", "magerr_missing"],
+            "source": ["ZTF", "ZTF", "ATLAS", "AAVSO", "ZTF", "RAPAS", "ZTF"]})
+        raw_data.to_csv(self.getter.raw_file_path, index=False)
+
+    def test_convert_raw_data_to_csv(self):
+        self._write_raw_data()
+        with mock.patch.object(self.getter, "get_event_metadata",
+                               return_value=self.event_metadata):
+            result = self.getter.convert_raw_data_to_csv()
+
+        self.assertEqual(list(result["band"]), ["ztfg", "ztfr", "atlaso", "bessellv"])
+        np.testing.assert_allclose(result["time"], [57983.25, 57983.75, 57985.0, 57985.5])
+        np.testing.assert_allclose(result["detected"], [1, 1, 1, 1])
+        for column in ["flux_density(mjy)", "flux_density_error", "flux(erg/cm2/s)", "flux_error"]:
+            self.assertTrue(np.all(np.isfinite(result[column])), column)
+        # times are referenced to the trigger time of the event
+        t0 = Time(self.event_metadata["time"], format="isot", scale="utc").mjd
+        np.testing.assert_allclose(result["time (days)"], result["time"] - t0)
+        self.assertEqual(list(result.columns), self.getter.PROCESSED_FILE_COLUMNS)
+        self.assertTrue(os.path.isfile(self.getter.processed_file_path))
+
+    def test_convert_raw_data_to_csv_with_upper_limits(self):
+        self._write_raw_data()
+        self.getter.include_upper_limits = True
+        with mock.patch.object(self.getter, "get_event_metadata",
+                               return_value=self.event_metadata):
+            result = self.getter.convert_raw_data_to_csv()
+
+        self.assertEqual(list(result["band"]), ["ztfg", "ztfr", "atlaso", "bessellv", "ztfg"])
+        np.testing.assert_allclose(result["detected"], [1, 1, 1, 1, 0])
+        self.assertTrue(np.isnan(result.loc[4, "magnitude"]))
+        self.assertAlmostEqual(21.0, result.loc[4, "limiting_magnitude"])
+        self.assertTrue(np.isnan(result.loc[4, "flux_density(mjy)"]))
+
+    @mock.patch("os.path.isfile")
+    def test_convert_raw_data_to_csv_file_exists(self, isfile):
+        isfile.return_value = True
+        redback.utils.logger.warning = MagicMock()
+        with mock.patch("pandas.read_csv") as read_csv:
+            read_csv.return_value = pd.DataFrame({"time": [1.0]})
+            result = self.getter.convert_raw_data_to_csv()
+        self.assertEqual([1.0], list(result["time"]))
+        redback.utils.logger.warning.assert_called_once()
+
+    def test_convert_raw_data_to_csv_missing_columns(self):
+        pd.DataFrame({"mjd": [57983.0]}).to_csv(self.getter.raw_file_path, index=False)
+        with self.assertRaisesRegex(ValueError, "missing columns"):
+            self.getter.convert_raw_data_to_csv()
+
+    @mock.patch("redback.get_data.AstroColibriDataGetter")
+    def test_get_astrocolibri_data_wrapper(self, AstroColibriDataGetter):
+        mock_getter = MagicMock()
+        mock_data = pd.DataFrame({"time (days)": [1.0, 2.0], "magnitude": [19.0, 19.5]})
+        mock_getter.get_data.return_value = mock_data
+        AstroColibriDataGetter.return_value = mock_getter
+
+        result = redback.get_data.get_astrocolibri_data(
+            transient="at2017gfo", transient_type="kilonova", uid="test-uid",
+            lsst=False, include_upper_limits=True)
+
+        AstroColibriDataGetter.assert_called_once_with(
+            transient="at2017gfo", transient_type="kilonova", uid="test-uid",
+            start=None, end=None, ztf=True, lsst=False, atlas=True, asas_sn=True, aavso=True,
+            aavso_all_filters=False, rapas=False, include_upper_limits=True)
+        mock_getter.get_data.assert_called_once()
+        self.assertIsInstance(result, pd.DataFrame)
+
+    def test_get_data_routes_astrocolibri(self):
+        result = object()
+        route = mock.Mock(return_value=result)
+        with mock.patch.dict(redback.get_data._functions_dict,
+                             {("kilonova", "astrocolibri"): route}):
+            self.assertIs(
+                redback.get_data.get_data("kilonova", "astrocolibri", uid="test-uid"), result)
+        route.assert_called_once_with("kilonova", uid="test-uid")

@@ -3,6 +3,7 @@
 ## [Unreleased]
 
 ### New features
+- Add `AstroColibriDataGetter` and `redback.get_data.get_astrocolibri_data(...)` to download multi-survey optical photometry (ATLAS, ZTF, LSST, ASAS-SN, AAVSO) for any transient known to Astro-COLIBRI, together with `OpticalTransient.from_astrocolibri_data(...)` to load it. Lightcurve requests require a personal Astro-COLIBRI user id (`uid` or `ASTROCOLIBRI_UID`) and count against the daily API quota; non-detections can optionally be kept as upper limits via `include_upper_limits=True`.
 - Add `nicholl_bns_rk24`, a kilonova model based on `nicholl_bns`, but using direct component tidal deformabilities and the Rosswog & Korobkin (2024) heating rate, along with a corrected prompt-collapse threshold using the remnant radius in geometrical units. The existing `nicholl_bns` model retains the original MOSFiT/Nicholl et al. (2021) threshold implementation.
 
 ### Bug fixes

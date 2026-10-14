@@ -33,3 +33,16 @@ data = redback.get_data.get_tidal_disruption_event_data_from_otter(transient=tde
 data = redback.get_data.get_tidal_disruption_event_data_from_otter(
  transient='at2019dsg',
  obs_type=['radio', 'xray'])
+
+# Astro-COLIBRI: multi-survey optical photometry (ATLAS, ZTF, LSST, ASAS-SN, AAVSO).
+# Needs your personal Astro-COLIBRI user id from https://astro-colibri.com/account;
+# set it as the ASTROCOLIBRI_UID environment variable or pass it as uid=...
+# Each lightcurve request counts against the daily API quota of your account.
+kilonova = 'at2017gfo'
+data = redback.get_data.get_astrocolibri_data(
+    transient=kilonova, transient_type='kilonova', uid='your-user-id')
+
+# you can select surveys, a time window, and keep non-detections as upper limits.
+data = redback.get_data.get_astrocolibri_data(
+    transient=kilonova, transient_type='kilonova', ztf=True, lsst=False, atlas=True,
+    start='2017-08-01', end='2017-09-15', include_upper_limits=True)

@@ -13,6 +13,7 @@ from redback.get_data.fermi import FermiDataGetter
 from redback.get_data.konus import KonusDataGetter
 from redback.get_data.lasair import LasairDataGetter
 from redback.get_data.fink import FinkDataGetter
+from redback.get_data.astrocolibri import AstroColibriDataGetter
 from redback.utils import logger
 
 try:
@@ -25,7 +26,7 @@ except ImportError:
 
 SWIFT_PROMPT_BIN_SIZES = ['1s', '2ms', '8ms', '16ms', '64ms', '256ms']
 
-DATA_SOURCES = ["swift", "swift_xrt", "fermi", "konus", "batse", "open_data", "otter"]
+DATA_SOURCES = ["swift", "swift_xrt", "fermi", "konus", "batse", "open_data", "otter", "astrocolibri"]
 TRANSIENT_TYPES = ["afterglow", "prompt", "kilonova", "supernova", "tidal_disruption_event"]
 
 
@@ -253,6 +254,64 @@ def get_fink_data(
         transient_type=transient_type, transient=transient, source=source)
     return getter.get_data()
 
+
+def get_astrocolibri_data(
+        transient: str, transient_type: str, uid: str = None,
+        start: str = None, end: str = None,
+        ztf: bool = True, lsst: bool = True, atlas: bool = True,
+        asas_sn: bool = True, aavso: bool = True, aavso_all_filters: bool = False,
+        rapas: bool = False, include_upper_limits: bool = False, **kwargs: None) -> pd.DataFrame:
+    """Catch all data getting function for Astro-COLIBRI data. Creates a directory structure and
+    saves the data. Returns the data, though no further action needs to be taken by the user.
+
+    Downloads multi-survey optical photometry (ATLAS, ZTF, LSST, ASAS-SN and AAVSO)
+    for any transient known to Astro-COLIBRI. Lightcurve requests count against
+    the daily Astro-COLIBRI API quota of the account; the user id is required and
+    can be obtained from https://astro-colibri.com/account. It can be passed as
+    `uid` or set through the ASTROCOLIBRI_UID environment variable.
+
+    :param transient: The name of the transient, e.g. 'AT2017gfo' or 'SN2026ejy'.
+    :type transient: str
+    :param transient_type: Type of the transient. Must be from
+                           `redback.get_data.astrocolibri.AstroColibriDataGetter.VALID_TRANSIENT_TYPES`.
+    :type transient_type: str
+    :param uid: Astro-COLIBRI user id. If None, read from the ASTROCOLIBRI_UID environment variable.
+    :type uid: str, optional
+    :param start: Start of the requested time window, e.g. '2024-05-02'. Defaults to 5 days before the event.
+    :type start: str, optional
+    :param end: End of the requested time window, e.g. '2024-06-06'. Defaults to 30 days after the event.
+    :type end: str, optional
+    :param ztf: Whether ZTF data should be requested. (Default value = True)
+    :type ztf: bool, optional
+    :param lsst: Whether LSST data should be requested. (Default value = True)
+    :type lsst: bool, optional
+    :param atlas: Whether ATLAS data should be requested. (Default value = True)
+    :type atlas: bool, optional
+    :param asas_sn: Whether ASAS-SN data should be requested. (Default value = True)
+    :type asas_sn: bool, optional
+    :param aavso: Whether AAVSO data should be requested. (Default value = True)
+    :type aavso: bool, optional
+    :param aavso_all_filters: Whether to include all other AAVSO filters, including visual estimates.
+                              (Default value = False)
+    :type aavso_all_filters: bool, optional
+    :param rapas: Whether RAPAS data should be requested (members only). (Default value = False)
+    :type rapas: bool, optional
+    :param include_upper_limits: If True, non-detections are kept in the processed data with
+                                 `detected=0` and the limiting magnitude in `limiting_magnitude`.
+                                 If False (default), non-detections are dropped.
+    :type include_upper_limits: bool, optional
+    :param kwargs: Placeholder to prevent TypeErrors.
+    :type kwargs: None
+
+    :return: The processed data.
+    :rtype: pandas.DataFrame
+    """
+    getter = AstroColibriDataGetter(
+        transient=transient, transient_type=transient_type, uid=uid,
+        start=start, end=end, ztf=ztf, lsst=lsst, atlas=atlas, asas_sn=asas_sn, aavso=aavso,
+        aavso_all_filters=aavso_all_filters, rapas=rapas, include_upper_limits=include_upper_limits)
+    return getter.get_data()
+
 def get_open_transient_catalog_data(
         transient: str, transient_type: str, **kwargs: None) -> pd.DataFrame:
     """Catch all data getting function for the Open Access Catalog. Creates a directory structure and saves the data.
@@ -357,6 +416,11 @@ _functions_dict = {
     ("kilonova", "otter"): get_kilonova_data_from_otter,
     ("supernova", "otter"): get_supernova_data_from_otter,
     ("tidal_disruption_event", "otter"): get_tidal_disruption_event_data_from_otter,
+    ("afterglow", "astrocolibri"): get_astrocolibri_data,
+    ("kilonova", "astrocolibri"): get_astrocolibri_data,
+    ("supernova", "astrocolibri"): get_astrocolibri_data,
+    ("tidal_disruption_event", "astrocolibri"): get_astrocolibri_data,
+    ("unknown", "astrocolibri"): get_astrocolibri_data,
 }
 
 
