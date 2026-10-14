@@ -260,7 +260,8 @@ def get_astrocolibri_data(
         start: str = None, end: str = None,
         ztf: bool = True, lsst: bool = True, atlas: bool = True,
         asas_sn: bool = True, aavso: bool = True, aavso_all_filters: bool = False,
-        rapas: bool = False, include_upper_limits: bool = False, **kwargs: None) -> pd.DataFrame:
+        rapas: bool = False, include_upper_limits: bool = False,
+        request_timeout: float = 60.0, polling_timeout: float = 600.0, **kwargs: None) -> pd.DataFrame:
     """Catch all data getting function for Astro-COLIBRI data. Creates a directory structure and
     saves the data. Returns the data, though no further action needs to be taken by the user.
 
@@ -300,6 +301,10 @@ def get_astrocolibri_data(
                                  `detected=0` and the limiting magnitude in `limiting_magnitude`.
                                  If False (default), non-detections are dropped.
     :type include_upper_limits: bool, optional
+    :param request_timeout: Timeout in seconds for API requests. (Default value = 60.0)
+    :type request_timeout: float, optional
+    :param polling_timeout: Timeout in seconds for waiting on lightcurve generation. (Default value = 600.0)
+    :type polling_timeout: float, optional
     :param kwargs: Placeholder to prevent TypeErrors.
     :type kwargs: None
 
@@ -309,7 +314,8 @@ def get_astrocolibri_data(
     getter = AstroColibriDataGetter(
         transient=transient, transient_type=transient_type, uid=uid,
         start=start, end=end, ztf=ztf, lsst=lsst, atlas=atlas, asas_sn=asas_sn, aavso=aavso,
-        aavso_all_filters=aavso_all_filters, rapas=rapas, include_upper_limits=include_upper_limits)
+        aavso_all_filters=aavso_all_filters, rapas=rapas, include_upper_limits=include_upper_limits,
+        request_timeout=request_timeout, polling_timeout=polling_timeout)
     return getter.get_data()
 
 def get_open_transient_catalog_data(

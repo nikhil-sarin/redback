@@ -65,6 +65,8 @@ class AstroColibriDataGetter(DataGetter):
     COMPLETED_STATUSES = ["completed", "complete", "done", "success", "finished"]
     FAILED_STATUSES = ["failed", "error", "cancelled", "canceled"]
 
+    POLL_INTERVAL = 5.0
+
     PROCESSED_FILE_COLUMNS = [
         "time", "magnitude", "e_magnitude", "system", "band",
         "flux_density(mjy)", "flux_density_error",
@@ -293,8 +295,12 @@ class AstroColibriDataGetter(DataGetter):
             urls = self.wait_for_lightcurve(lightcurve_id)
             csv_url = urls.get("csv_url")
             if csv_url is None:
-                # The lightcurve generation is finished, so request it once more
-                # to get the download links.
+                # The status documents carry no download urls, so request the
+                # lightcurve once more. The generation is finished by now, so
+                # the API serves the result from its cache instead of starting
+                # a new (quota-consuming) generation.
+                logger.info(f"Requesting the finished lightcurve of {self.transient} "
+                            "to get the download links.")
                 response = requests.get(url=self.url, params=params, timeout=self.request_timeout)
                 documents = self._raise_for_api_error(response)
                 csv_url = self._find_csv_url(documents)
@@ -349,9 +355,13 @@ class AstroColibriDataGetter(DataGetter):
     def wait_for_lightcurve(self, lightcurve_id: str) -> dict:
         """Waits for an Astro-COLIBRI lightcurve generation to finish.
 
-        Polls the /lightcurve_status endpoint, which streams status documents
-        until the generation is complete, and collects any download urls the
-        status documents contain.
+        Repeatedly connects to the /lightcurve_status endpoint and consumes
+        status documents until a terminal status (completed or failed) is
+        received. The endpoint streams status documents while the generation
+        is running; if a connection ends without a terminal status, it is
+        treated as an incomplete poll and reconnected, so both streaming and
+        poll-style behaviour are supported. Any download urls found in the
+        status documents are collected.
 
         :param lightcurve_id: The lightcurve id returned by the /lightcurve endpoint.
         :type lightcurve_id: str
@@ -362,30 +372,37 @@ class AstroColibriDataGetter(DataGetter):
         logger.info(f"Waiting for the Astro-COLIBRI lightcurve of {self.transient} to be generated.")
         urls = {}
         deadline = time.monotonic() + self.polling_timeout
-        response = requests.get(url=status_url, stream=True, timeout=self.polling_timeout)
-        try:
-            response.raise_for_status()
-            for document in self.iter_json_documents(response):
-                for key in ("url", "csv_url", "votable_url"):
-                    if key in document and document[key]:
-                        urls[key] = document[key]
-                status = str(document.get("status", "")).lower()
-                if "progress" in document:
-                    logger.debug(f"Lightcurve generation for {self.transient}: "
-                                 f"{document.get('message', '')} ({document.get('progress')})")
-                if status in self.FAILED_STATUSES:
-                    raise RuntimeError(
-                        f"The Astro-COLIBRI lightcurve generation for {self.transient} failed: "
-                        f"{document.get('message', status)}")
-                if status in self.COMPLETED_STATUSES:
+        while True:
+            response = requests.get(url=status_url, stream=True, timeout=self.polling_timeout)
+            try:
+                response.raise_for_status()
+                terminal = False
+                for document in self.iter_json_documents(response):
+                    for key in ("url", "csv_url", "votable_url"):
+                        if document.get(key):
+                            urls[key] = document[key]
+                    status = str(document.get("status", "")).lower()
+                    if "progress" in document:
+                        logger.debug(f"Lightcurve generation for {self.transient}: "
+                                     f"{document.get('message', '')} ({document.get('progress')})")
+                    if status in self.FAILED_STATUSES:
+                        raise RuntimeError(
+                            f"The Astro-COLIBRI lightcurve generation for {self.transient} failed: "
+                            f"{document.get('message', status)}")
+                    if status in self.COMPLETED_STATUSES:
+                        terminal = True
+                        break
+                if terminal:
                     return urls
+                # the connection ended without a terminal status; the generation
+                # is still running, so poll again until the deadline
                 if time.monotonic() > deadline:
                     raise RuntimeError(
                         f"The Astro-COLIBRI lightcurve generation for {self.transient} did not "
                         f"finish within {self.polling_timeout} seconds.")
-        finally:
-            response.close()
-        return urls
+                time.sleep(self.POLL_INTERVAL)
+            finally:
+                response.close()
 
     def get_time_of_event(self, data: pd.DataFrame) -> Time:
         """Gets the trigger time of the event from the Astro-COLIBRI metadata.
@@ -474,6 +491,7 @@ class AstroColibriDataGetter(DataGetter):
         magnitude = data["magnitude"].to_numpy(dtype=float)
         magnitude_error = data["e_magnitude"].to_numpy(dtype=float)
         detected = data["detected"].to_numpy(dtype=bool)
+        limiting_magnitude = data["limiting_magnitude"].to_numpy(dtype=float)
         band_values = data["band"].to_numpy()
         flux_density = np.full(len(data), np.nan)
         flux_density_error = np.full(len(data), np.nan)
@@ -488,6 +506,16 @@ class AstroColibriDataGetter(DataGetter):
             flux_error[detected] = calc_flux_error_from_magnitude(
                 magnitude=magnitude[detected], magnitude_error=magnitude_error[detected],
                 reference_flux=bands_to_reference_flux(band_values[detected]))
+        upper_limits = ~detected
+        if upper_limits.any():
+            # Populate the flux values of non-detections from the limiting
+            # magnitude, so upper-limit likelihoods get finite y-values. The
+            # errors are left as NaN; the upper-limit likelihood does not use
+            # the errors of non-detections.
+            flux_density[upper_limits] = calc_flux_density_from_ABmag(
+                limiting_magnitude[upper_limits]).value
+            flux[upper_limits] = bandpass_magnitude_to_flux(
+                limiting_magnitude[upper_limits], band_values[upper_limits])
         data["flux_density(mjy)"] = flux_density
         data["flux_density_error"] = flux_density_error
         data["flux(erg/cm2/s)"] = flux

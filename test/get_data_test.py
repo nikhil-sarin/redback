@@ -2813,10 +2813,10 @@ class TestAstroColibriDataGetter(unittest.TestCase):
     @mock.patch("os.path.isfile")
     def test_collect_data_rawfile_exists(self, isfile):
         isfile.return_value = True
-        redback.utils.logger.warning = MagicMock()
-        self.getter.collect_data()
+        with mock.patch.object(redback.utils.logger, "warning") as warning:
+            self.getter.collect_data()
         isfile.assert_called_once()
-        redback.utils.logger.warning.assert_called_once()
+        warning.assert_called_once()
 
     def test_collect_data_requires_uid(self):
         with mock.patch.dict(os.environ, {"ASTROCOLIBRI_UID": ""}):
@@ -2936,6 +2936,29 @@ class TestAstroColibriDataGetter(unittest.TestCase):
         with self.assertRaisesRegex(RuntimeError, "failed"):
             self.getter.wait_for_lightcurve("abcd1234")
 
+    @mock.patch("requests.get")
+    def test_wait_for_lightcurve_reconnects_until_terminal(self, get):
+        # a connection that ends while still in progress is an incomplete
+        # poll; wait_for_lightcurve reconnects until a terminal status
+        incomplete = _FakeStreamResponse(['{"progress": 0.1, "status": "in_progress"}'])
+        also_incomplete = _FakeStreamResponse(['{"progress": 0.5, "status": "in_progress"}'])
+        complete = _FakeStreamResponse(['{"csv_url": "https://example.com/lc.csv", '
+                                        '"status": "completed", "progress": 1.0}'])
+        get.side_effect = [incomplete, also_incomplete, complete]
+        self.getter.POLL_INTERVAL = 0.0
+        urls = self.getter.wait_for_lightcurve("abcd1234")
+        self.assertEqual(3, get.call_count)
+        self.assertEqual({"csv_url": "https://example.com/lc.csv"}, urls)
+
+    @mock.patch("requests.get")
+    def test_wait_for_lightcurve_timeout(self, get):
+        incomplete = _FakeStreamResponse(['{"progress": 0.1, "status": "in_progress"}'])
+        get.return_value = incomplete
+        self.getter.polling_timeout = 0.0
+        self.getter.POLL_INTERVAL = 0.0
+        with self.assertRaisesRegex(RuntimeError, "did not finish"):
+            self.getter.wait_for_lightcurve("abcd1234")
+
     def test_get_time_of_event_from_metadata(self):
         with mock.patch.object(self.getter, "get_event_metadata",
                                return_value=self.event_metadata):
@@ -2954,8 +2977,8 @@ class TestAstroColibriDataGetter(unittest.TestCase):
     def test_get_time_of_event_fallback(self):
         with mock.patch.object(self.getter, "get_event_metadata",
                                side_effect=ValueError("no metadata")):
-            redback.utils.logger.warning = MagicMock()
-            time_of_event = self.getter.get_time_of_event(data=pd.DataFrame({"time": [57990.0]}))
+            with mock.patch.object(redback.utils.logger, "warning"):
+                time_of_event = self.getter.get_time_of_event(data=pd.DataFrame({"time": [57990.0]}))
         self.assertAlmostEqual(57989.9, time_of_event.mjd, places=6)
 
     def _write_raw_data(self):
@@ -3000,17 +3023,25 @@ class TestAstroColibriDataGetter(unittest.TestCase):
         np.testing.assert_allclose(result["detected"], [1, 1, 1, 1, 0])
         self.assertTrue(np.isnan(result.loc[4, "magnitude"]))
         self.assertAlmostEqual(21.0, result.loc[4, "limiting_magnitude"])
-        self.assertTrue(np.isnan(result.loc[4, "flux_density(mjy)"]))
+        # the flux values of non-detections are populated from the limiting
+        # magnitude so upper-limit likelihoods get finite y-values
+        self.assertAlmostEqual(3631.0 * 10 ** (-0.4 * 21.0) / 1e-3,
+                                result.loc[4, "flux_density(mjy)"], places=4)
+        expected_flux = redback.utils.bandpass_magnitude_to_flux(
+            np.array([21.0]), np.array(["ztfg"]))[0]
+        self.assertAlmostEqual(expected_flux, result.loc[4, "flux(erg/cm2/s)"], places=20)
+        self.assertTrue(np.isnan(result.loc[4, "flux_density_error"]))
+        self.assertTrue(np.isnan(result.loc[4, "flux_error"]))
 
     @mock.patch("os.path.isfile")
     def test_convert_raw_data_to_csv_file_exists(self, isfile):
         isfile.return_value = True
-        redback.utils.logger.warning = MagicMock()
-        with mock.patch("pandas.read_csv") as read_csv:
-            read_csv.return_value = pd.DataFrame({"time": [1.0]})
-            result = self.getter.convert_raw_data_to_csv()
+        with mock.patch.object(redback.utils.logger, "warning") as warning:
+            with mock.patch("pandas.read_csv") as read_csv:
+                read_csv.return_value = pd.DataFrame({"time": [1.0]})
+                result = self.getter.convert_raw_data_to_csv()
         self.assertEqual([1.0], list(result["time"]))
-        redback.utils.logger.warning.assert_called_once()
+        warning.assert_called_once()
 
     def test_convert_raw_data_to_csv_missing_columns(self):
         pd.DataFrame({"mjd": [57983.0]}).to_csv(self.getter.raw_file_path, index=False)
@@ -3031,7 +3062,8 @@ class TestAstroColibriDataGetter(unittest.TestCase):
         AstroColibriDataGetter.assert_called_once_with(
             transient="at2017gfo", transient_type="kilonova", uid="test-uid",
             start=None, end=None, ztf=True, lsst=False, atlas=True, asas_sn=True, aavso=True,
-            aavso_all_filters=False, rapas=False, include_upper_limits=True)
+            aavso_all_filters=False, rapas=False, include_upper_limits=True,
+            request_timeout=60.0, polling_timeout=600.0)
         mock_getter.get_data.assert_called_once()
         self.assertIsInstance(result, pd.DataFrame)
 
