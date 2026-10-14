@@ -425,18 +425,35 @@ _functions_dict = {
 
 
 def get_data(
-        transient: str, instrument: str, **kwargs: None)\
+        transient: str, transient_type: str, instrument: str, **kwargs: None)\
         -> pd.DataFrame:
     """Catch all data getter.
 
-    :param transient: The name of the transient.
+    Routes to the data getter for the given transient type and instrument.
+    For example, `get_data('at2017gfo', 'kilonova', 'astrocolibri', uid=...)`
+    is equivalent to
+    `get_astrocolibri_data('at2017gfo', transient_type='kilonova', uid=...)`.
+    Keyword arguments are passed through to the underlying data getter.
+
+    :param transient: The name of the transient, e.g. 'at2017gfo' or 'GRB250101A'.
     :type transient: str
-    :param instrument: The name of the instrument.
+    :param transient_type: Type of the transient, e.g. 'kilonova' or 'afterglow'.
+    :type transient_type: str
+    :param instrument: The name of the instrument or data source,
+                       e.g. 'astrocolibri', 'swift' or 'open_data'.
     :type instrument: str
-    :param kwargs: Any other keyword arguments to be passed through.
+    :param kwargs: Any other keyword arguments to be passed through
+                   to the underlying data getter, e.g. `uid`, `data_mode` or `obs_type`.
     :type kwargs: None
 
     :return: The processed data.
     :rtype: pandas.DataFrame
     """
-    return _functions_dict[(transient, instrument)](transient, **kwargs)
+    try:
+        function = _functions_dict[(transient_type, instrument)]
+    except KeyError:
+        valid_combinations = sorted(_functions_dict)
+        raise ValueError(
+            f"No data getter for transient type '{transient_type}' and instrument '{instrument}'. "
+            f"Valid combinations are: {valid_combinations}") from None
+    return function(transient, transient_type=transient_type, **kwargs)

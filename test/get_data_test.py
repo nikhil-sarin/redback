@@ -137,8 +137,15 @@ class TestPublicDataAPI(unittest.TestCase):
         result = object()
         route = mock.Mock(return_value=result)
         with mock.patch.dict(redback.get_data._functions_dict, {("test", "instrument"): route}):
-            self.assertIs(redback.get_data.get_data("test", "instrument", option=1), result)
-        route.assert_called_once_with("test", option=1)
+            self.assertIs(
+                redback.get_data.get_data("at2017gfo", "test", "instrument", option=1), result)
+        route.assert_called_once_with("at2017gfo", transient_type="test", option=1)
+
+    def test_get_data_raises_for_unknown_combination(self):
+        with self.assertRaisesRegex(ValueError, "No data getter"):
+            redback.get_data.get_data("at2017gfo", "blazar", "astrocolibri")
+        with self.assertRaisesRegex(ValueError, "No data getter"):
+            redback.get_data.get_data("at2017gfo", "kilonova", "wrong_instrument")
 
     @mock.patch("redback.get_data.urllib.request.urlretrieve")
     @mock.patch("redback.get_data.logger.info")
@@ -3034,5 +3041,7 @@ class TestAstroColibriDataGetter(unittest.TestCase):
         with mock.patch.dict(redback.get_data._functions_dict,
                              {("kilonova", "astrocolibri"): route}):
             self.assertIs(
-                redback.get_data.get_data("kilonova", "astrocolibri", uid="test-uid"), result)
-        route.assert_called_once_with("kilonova", uid="test-uid")
+                redback.get_data.get_data(
+                    "at2017gfo", "kilonova", "astrocolibri", uid="test-uid"), result)
+        route.assert_called_once_with(
+            "at2017gfo", transient_type="kilonova", uid="test-uid")
