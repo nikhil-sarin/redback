@@ -230,17 +230,26 @@ class AstroColibriDataGetter(DataGetter):
         return documents
 
     @classmethod
-    def iter_json_documents(cls, response):
+    def iter_json_documents(cls, response, deadline: Union[float, None] = None):
         """Yields JSON documents from a streaming Astro-COLIBRI API response.
 
         The /lightcurve_status endpoint streams status documents as they are
         produced, so documents are decoded incrementally from the stream.
 
         :param response: A streaming requests response.
+        :param deadline: Optional monotonic deadline in seconds. Checked for
+                         every chunk, including chunks that do not complete a
+                         JSON document, so a trickling stream cannot stall
+                         past the deadline.
+        :type deadline: float, optional
         :return: A generator yielding one dictionary per JSON document.
         """
         buffer = ""
         for chunk in response.iter_content(chunk_size=512, decode_unicode=True):
+            if deadline is not None and time.monotonic() > deadline:
+                raise RuntimeError(
+                    "The Astro-COLIBRI lightcurve generation did not finish "
+                    "within the polling timeout.")
             if isinstance(chunk, bytes):
                 chunk = chunk.decode("utf-8", errors="ignore")
             buffer += chunk
@@ -402,11 +411,11 @@ class AstroColibriDataGetter(DataGetter):
         urls = {}
         deadline = time.monotonic() + self.polling_timeout
         while True:
-            response = requests.get(url=status_url, stream=True, timeout=self.polling_timeout)
+            response = requests.get(url=status_url, stream=True, timeout=self.request_timeout)
             try:
                 response.raise_for_status()
                 terminal = False
-                for document in self.iter_json_documents(response):
+                for document in self.iter_json_documents(response, deadline=deadline):
                     for key in ("url", "csv_url", "votable_url"):
                         if document.get(key):
                             urls[key] = document[key]

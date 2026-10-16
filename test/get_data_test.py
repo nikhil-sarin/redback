@@ -2959,6 +2959,22 @@ class TestAstroColibriDataGetter(unittest.TestCase):
         with self.assertRaisesRegex(RuntimeError, "did not finish"):
             self.getter.wait_for_lightcurve("abcd1234")
 
+    @mock.patch("requests.get")
+    def test_wait_for_lightcurve_trickling_stream_times_out(self, get):
+        # chunks that never complete a JSON document must also respect the
+        # deadline, so a trickling stream cannot stall the poll forever
+        get.return_value = _FakeStreamResponse(['{"progress": ', '0.1, ', '"status": '])
+        self.getter.polling_timeout = 0.0
+        self.getter.POLL_INTERVAL = 0.0
+        with self.assertRaisesRegex(RuntimeError, "polling timeout"):
+            self.getter.wait_for_lightcurve("abcd1234")
+
+    @mock.patch("requests.get")
+    def test_wait_for_lightcurve_uses_request_timeout(self, get):
+        get.return_value = _FakeStreamResponse(['{"status": "completed"}'])
+        self.getter.wait_for_lightcurve("abcd1234")
+        self.assertEqual(self.getter.request_timeout, get.call_args.kwargs["timeout"])
+
     def test_get_time_of_event_from_metadata(self):
         with mock.patch.object(self.getter, "get_event_metadata",
                                return_value=self.event_metadata):
