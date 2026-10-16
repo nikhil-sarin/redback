@@ -519,9 +519,9 @@ class AstroColibriDataGetter(DataGetter):
         # ASAS-SN Johnson/Cousins bands to AB, so the processed data are
         # all in one system (matching the other optical data getters and
         # the flux computations below). AB = Vega + offset.
-        vega_to_ab_offsets = self._vega_to_ab_offsets()
-        vega_mask = data["band"].isin(vega_to_ab_offsets.keys())
+        vega_mask = data["band"].isin(self.VEGA_BANDS)
         if vega_mask.any():
+            vega_to_ab_offsets = self._vega_to_ab_offsets()
             offsets = data.loc[vega_mask, "band"].map(vega_to_ab_offsets)
             for column in ["magnitude", "limiting_magnitude"]:
                 data.loc[vega_mask, column] = data.loc[vega_mask, column] + offsets
