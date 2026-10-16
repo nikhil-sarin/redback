@@ -15,6 +15,18 @@ data = redback.get_data.get_kilonova_data_from_open_transient_catalog_data(trans
 # creates a GRBDir with GRB
 kilonova = redback.kilonova.Kilonova.from_open_access_catalogue(
     name=kne, data_mode="flux_density", active_bands=np.array(["g", "i"]))
+
+# alternatively, get multi-survey photometry (ATLAS, ZTF, LSST, ASAS-SN, AAVSO)
+# of AT2017gfo from Astro-COLIBRI instead of the Open Access Catalog.
+# Lightcurve requests need your personal Astro-COLIBRI user id from
+# https://astro-colibri.com/account, e.g. export ASTROCOLIBRI_UID=...
+# and count against the daily API quota of your account.
+# data = redback.get_data.get_astrocolibri_data(
+#     transient=kne, transient_type='kilonova', include_upper_limits=True)
+# kilonova = redback.kilonova.Kilonova.from_astrocolibri_data(
+#     name=kne, data_mode="flux_density", active_bands=np.array(["ztfg", "ztfr"]),
+#     include_upper_limits=True)
+
 kilonova.plot_data(show=False)
 fig, axes = plt.subplots(3, 2, sharex=True, sharey=True, figsize=(12, 8))
 kilonova.plot_multiband(figure=fig, axes=axes, filters=["g", "r", "i", "z", "y", "J"], show=False)

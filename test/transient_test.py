@@ -2542,3 +2542,88 @@ class TestTransientPlotDispatch(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "not implemented"):
             redback.transient.Transient.plot_residual(
                 self._transient(flux_density_data=True), model=MagicMock())
+
+
+class TestFromAstroColibriTransient(unittest.TestCase):
+
+    def setUp(self) -> None:
+        self.mock_data = {
+            "time (days)": [0.1, 0.2, 0.3, 0.4],
+            "time": [59000.1, 59000.2, 59000.3, 59000.4],
+            "magnitude": [20.5, 20.6, 20.7, np.nan],
+            "e_magnitude": [0.1, 0.1, 0.1, np.nan],
+            "band": ["ztfg", "ztfr", "ztfi", "ztfg"],
+            "bands": ["ztfg", "ztfr", "ztfi", "ztfg"],
+            "wavelength [Hz]": [8.4e14, 4.7e14, 3.7e14, 8.4e14],
+            "sncosmo_name": ["ztfg", "ztfr", "ztfi", "ztfg"],
+            "flux(erg/cm2/s)": [1e-15, 1.1e-15, 1.2e-15, np.nan],
+            "flux_error": [1e-16, 1.1e-16, 1.2e-16, np.nan],
+            "flux_density(mjy)": [0.35, 0.36, 0.37, np.nan],
+            "flux_density_error": [0.05, 0.05, 0.05, np.nan],
+            "detected": [1, 1, 1, 0],
+            "limiting_magnitude": [np.nan, np.nan, np.nan, 21.0],
+        }
+        self.mock_df = pd.DataFrame(self.mock_data)
+
+        self.mock_directory = mock.MagicMock()
+        self.mock_directory.processed_file_path = "mock/path/to/file.csv"
+
+    def tearDown(self) -> None:
+        pass
+
+    @mock.patch("redback.get_data.directory.astrocolibri_directory_structure")
+    @mock.patch("pandas.read_csv")
+    def test_from_astrocolibri_data_basic_functionality(self, mock_read_csv, mock_directory_structure):
+        mock_directory_structure.return_value = self.mock_directory
+        mock_read_csv.return_value = self.mock_df
+
+        transient = redback.transient.Transient.from_astrocolibri_data(
+            name="test_transient",
+            data_mode="magnitude",
+            active_bands="all",
+            use_phase_model=False
+        )
+
+        self.assertEqual(transient.name, "test_transient")
+        self.assertEqual(transient.data_mode, "magnitude")
+        np.testing.assert_array_equal(transient.time, [0.1, 0.2, 0.3])
+        np.testing.assert_array_equal(transient.time_mjd, [59000.1, 59000.2, 59000.3])
+        np.testing.assert_array_equal(transient.magnitude, [20.5, 20.6, 20.7])
+        np.testing.assert_array_equal(transient.magnitude_err, [0.1, 0.1, 0.1])
+        np.testing.assert_array_equal(transient.bands, ["ztfg", "ztfr", "ztfi"])
+        np.testing.assert_array_equal(transient.flux, [1e-15, 1.1e-15, 1.2e-15])
+        np.testing.assert_array_equal(transient.flux_density, [0.35, 0.36, 0.37])
+        self.assertIsNone(transient.detections)
+
+    @mock.patch("redback.get_data.directory.astrocolibri_directory_structure")
+    @mock.patch("pandas.read_csv")
+    def test_from_astrocolibri_data_with_upper_limits(self, mock_read_csv, mock_directory_structure):
+        mock_directory_structure.return_value = self.mock_directory
+        mock_read_csv.return_value = self.mock_df
+
+        transient = redback.transient.Transient.from_astrocolibri_data(
+            name="test_transient",
+            data_mode="magnitude",
+            active_bands="all",
+            use_phase_model=False,
+            include_upper_limits=True
+        )
+
+        self.assertEqual(4, len(transient.time))
+        self.assertEqual([True, True, True, False], transient.detections.tolist())
+        # the limiting magnitude is substituted for the NaN magnitude of the non-detection
+        self.assertEqual(21.0, transient.magnitude[-1])
+
+    @mock.patch("redback.get_data.directory.astrocolibri_directory_structure")
+    @mock.patch("pandas.read_csv")
+    def test_from_astrocolibri_data_invalid_data_mode(self, mock_read_csv, mock_directory_structure):
+        mock_directory_structure.return_value = self.mock_directory
+        mock_read_csv.return_value = self.mock_df
+
+        with self.assertRaises(ValueError):
+            redback.transient.Transient.from_astrocolibri_data(
+                name="test_transient",
+                data_mode="invalid_mode",
+                active_bands="all",
+                use_phase_model=False
+            )

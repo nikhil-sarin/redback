@@ -3,9 +3,11 @@
 ## [Unreleased]
 
 ### New features
+- Add `AstroColibriDataGetter` and `redback.get_data.get_astrocolibri_data(...)` to download multi-survey optical photometry (ATLAS, ZTF, LSST, ASAS-SN, AAVSO) for any transient known to Astro-COLIBRI, together with `OpticalTransient.from_astrocolibri_data(...)` to load it. Lightcurve requests require a personal Astro-COLIBRI user id (`uid` or `ASTROCOLIBRI_UID`) and count against the daily API quota; non-detections can optionally be kept as upper limits via `include_upper_limits=True`.
 - Add `nicholl_bns_rk24`, a kilonova model based on `nicholl_bns`, but using direct component tidal deformabilities and the Rosswog & Korobkin (2024) heating rate, along with a corrected prompt-collapse threshold using the remnant radius in geometrical units. The existing `nicholl_bns` model retains the original MOSFiT/Nicholl et al. (2021) threshold implementation.
 
 ### Bug fixes
+- Fix `redback.get_data.get_data(...)`: the catch-all router looked up its dispatch table with the transient name where the transient type is expected, raising a `KeyError` for every real call, and could not pass `transient_type` through to the generic getters (astrocolibri, fink, lasair). It now takes `(transient, transient_type, instrument)` and forwards all keyword arguments to the underlying data getter, raising a helpful `ValueError` for unknown combinations.
 - Corrected the swapped prior ranges for `kappa_blue` and `kappa_red` in `nicholl_bns.prior`.
 - Fixed the parameter name from `zeta` to `epsilon` in both `nicholl_bns.prior` and `nicholl_bns_rk24.prior`.
 - Restore `StudentTLikelihood`, which was unintentionally removed in v1.13.0 while deduplicating likelihood classes. It now supports the `log_likelihood(parameters)` interface and returns `-inf` for non-positive `nu`
