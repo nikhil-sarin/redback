@@ -62,8 +62,10 @@ of your account.
 
 The data are collected by Astro-COLIBRI from ATLAS, ZTF, LSST, ASAS-SN and AAVSO.
 Note that ASAS-SN provides apparent (host+transient) magnitudes while ZTF, LSST and
-ATLAS provide difference magnitudes, and that the AAVSO and ASAS-SN Johnson/Cousins
-bands are assumed to be in the AB system. Check the data before combining surveys.
+ATLAS provide difference magnitudes. The Johnson/Cousins bands (B, V, R, I) of AAVSO
+and ASAS-SN are natively in the Vega system; Redback converts them to AB magnitudes
+using offsets computed from the sncosmo bandpasses, so the processed data are all in
+the AB system. Check the data before combining surveys.
 
 All these commands return the data, in a pandas dataframe. They also save the raw and processed data in a sensible way.
 For example, the kilonova data will be saved to :code:`kilonova/at2017gfo.csv`,

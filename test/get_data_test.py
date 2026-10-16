@@ -3033,6 +3033,49 @@ class TestAstroColibriDataGetter(unittest.TestCase):
         self.assertTrue(np.isnan(result.loc[4, "flux_density_error"]))
         self.assertTrue(np.isnan(result.loc[4, "flux_error"]))
 
+    def test_convert_raw_data_to_csv_converts_vega_bands_to_ab(self):
+        # AAVSO/ASAS-SN Johnson/Cousins photometry is natively Vega;
+        # the processed data must be converted to AB magnitudes
+        raw_data = pd.DataFrame({
+            "mjd": [57983.0, 57984.0, 57985.0],
+            "filter": ["ztf_g", "aavso_B", "aavso_V"],
+            "mag": [20.0, 19.0, 18.0],
+            "mag_err": [0.1, 0.1, 0.1],
+            "mag_ul": [np.nan, np.nan, np.nan],
+            "flag": ["good", "good", "good"],
+            "source": ["ZTF", "AAVSO", "AAVSO"]})
+        raw_data.to_csv(self.getter.raw_file_path, index=False)
+        with mock.patch.object(self.getter, "get_event_metadata",
+                               return_value=self.event_metadata):
+            result = self.getter.convert_raw_data_to_csv()
+
+        self.assertEqual(["AB"] * 3, list(result["system"]))
+        offsets = self.getter._vega_to_ab_offsets()
+        np.testing.assert_allclose(
+            result["magnitude"], [20.0, 19.0 + offsets["bessellb"], 18.0 + offsets["bessellv"]])
+        # the flux densities are consistent with the converted AB magnitudes
+        expected = redback.utils.calc_flux_density_from_ABmag(
+            result["magnitude"].to_numpy()).value
+        np.testing.assert_allclose(result["flux_density(mjy)"], expected)
+
+    def test_convert_raw_data_to_csv_converts_vega_upper_limits_to_ab(self):
+        raw_data = pd.DataFrame({
+            "mjd": [57983.0],
+            "filter": ["aavso_I"],
+            "mag": [np.nan],
+            "mag_err": [np.nan],
+            "mag_ul": [20.0],
+            "flag": ["ul"],
+            "source": ["AAVSO"]})
+        raw_data.to_csv(self.getter.raw_file_path, index=False)
+        self.getter.include_upper_limits = True
+        with mock.patch.object(self.getter, "get_event_metadata",
+                               return_value=self.event_metadata):
+            result = self.getter.convert_raw_data_to_csv()
+
+        offset = self.getter._vega_to_ab_offsets()["besselli"]
+        self.assertAlmostEqual(20.0 + offset, result.loc[0, "limiting_magnitude"])
+
     @mock.patch("os.path.isfile")
     def test_convert_raw_data_to_csv_file_exists(self, isfile):
         isfile.return_value = True

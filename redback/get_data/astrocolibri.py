@@ -41,9 +41,11 @@ class AstroColibriDataGetter(DataGetter):
     account (each request costs several units); event lookups are free.
 
     Note that ASAS-SN provides apparent magnitudes (host + transient) while
-    ZTF/LSST/ATLAS provide difference magnitudes, and that the AAVSO and ASAS-SN
-    Johnson/Cousins bands are assumed to be in the AB system. Check the data
-    before combining surveys.
+    ZTF/LSST/ATLAS provide difference magnitudes. The AAVSO and ASAS-SN
+    Johnson/Cousins bands (B, V, R, I) are natively in the Vega system and are
+    converted to AB magnitudes (offsets computed from the sncosmo bandpasses),
+    so the processed data are all in the AB system. Check the data before
+    combining surveys.
     """
 
     VALID_TRANSIENT_TYPES = ["afterglow", "kilonova", "supernova", "tidal_disruption_event", "unknown"]
@@ -61,6 +63,33 @@ class AstroColibriDataGetter(DataGetter):
     DETECTION_FLAGS = ["good", "original", "average"]
     UPPER_LIMIT_FLAG = "ul"
     DROPPED_FLAGS = ["bad", "magerr_missing"]
+
+    # AAVSO and ASAS-SN Johnson/Cousins photometry is reported in the Vega
+    # system. All processed data are converted to AB (see
+    # VEGA_TO_AB_OFFSETS) so the file is internally consistent, like the
+    # other optical data getters.
+    VEGA_BANDS = ["bessellb", "bessellv", "bessellr", "besselli"]
+
+    @classmethod
+    def _vega_to_ab_offsets(cls) -> dict:
+        """Computes the Vega-to-AB magnitude offset per band.
+
+        The offset satisfies AB = Vega + offset and is computed from the
+        sncosmo bandpasses and magnitude systems.
+
+        :return: The offset per redback band name.
+        :rtype: dict
+        """
+        import sncosmo
+
+        vega = sncosmo.get_magsystem("vega")
+        ab = sncosmo.get_magsystem("ab")
+        offsets = {}
+        for band in cls.VEGA_BANDS:
+            bandpass = sncosmo.get_bandpass(band)
+            offsets[band] = float(
+                -2.5 * np.log10(vega.zpbandflux(bandpass) / ab.zpbandflux(bandpass)))
+        return offsets
 
     COMPLETED_STATUSES = ["completed", "complete", "done", "success", "finished"]
     FAILED_STATUSES = ["failed", "error", "cancelled", "canceled"]
@@ -469,12 +498,13 @@ class AstroColibriDataGetter(DataGetter):
         data = data[keep_bands].copy()
         data["band"] = bands[keep_bands]
 
-        if any(band.startswith("bessell") or band == "sdssg" for band in data["band"]):
+        if any(band in self.VEGA_BANDS for band in data["band"]):
             logger.warning(
                 "The lightcurve contains ASAS-SN and/or AAVSO photometry. ASAS-SN provides apparent "
                 "(host+transient) magnitudes, unlike the difference magnitudes of ZTF/LSST/ATLAS. "
-                "AAVSO and ASAS-SN Johnson/Cousins bands are assumed to be in the AB system; "
-                "check the data before combining it with other surveys.")
+                "The Johnson/Cousins bands (B, V, R, I) of AAVSO and ASAS-SN are natively in the "
+                "Vega system and are converted to AB magnitudes here (offsets computed from the "
+                "sncosmo bandpasses). Check the data before combining it with other surveys.")
 
         is_upper_limit = (data["flag"] == self.UPPER_LIMIT_FLAG) | (
             data["mag"].isna() & data["mag_ul"].notna())
@@ -484,6 +514,17 @@ class AstroColibriDataGetter(DataGetter):
         data["e_magnitude"] = np.where(is_upper_limit, np.nan, data["mag_err"])
         data["time"] = data["mjd"]
         data["system"] = "AB"
+
+        # Convert the natively Vega-system magnitudes of the AAVSO and
+        # ASAS-SN Johnson/Cousins bands to AB, so the processed data are
+        # all in one system (matching the other optical data getters and
+        # the flux computations below). AB = Vega + offset.
+        vega_to_ab_offsets = self._vega_to_ab_offsets()
+        vega_mask = data["band"].isin(vega_to_ab_offsets.keys())
+        if vega_mask.any():
+            offsets = data.loc[vega_mask, "band"].map(vega_to_ab_offsets)
+            for column in ["magnitude", "limiting_magnitude"]:
+                data.loc[vega_mask, column] = data.loc[vega_mask, column] + offsets
 
         # Keep detections with a magnitude and non-detections with a limiting magnitude.
         data = data[data["magnitude"].notna() | (data["detected"] == 0)].copy()
