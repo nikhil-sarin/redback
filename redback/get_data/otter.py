@@ -331,6 +331,13 @@ class OtterDataGetter(DataGetter):
         
         # Add common columns
         output['time'] = data['converted_date'].values
+        
+        # Sort by time. OTTER returns the photometry grouped by filter
+        # (all of one band, then the next), which would leave the data
+        # not globally time-sorted; most of redback (e.g. fit_model)
+        # assumes time-sorted data.
+        output = output.sort_values(by='time').reset_index(drop=True)
+        
         output = output[
             ['time', 'time (days)']
             + [col for col in output.columns if col not in ['time', 'time (days)']]

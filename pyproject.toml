@@ -57,7 +57,7 @@ all = [
     "sphinx-rtd-theme",
     "sphinx-tabs",
     "nestle",
-    "sherpa",
+    "sherpa<4.19",
     "george",
     "scikit-learn",
     "PyQt5",

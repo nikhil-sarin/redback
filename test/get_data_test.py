@@ -2568,6 +2568,29 @@ class TestOtterDataGetter(unittest.TestCase):
         np.testing.assert_array_equal(convert.call_args.args[1], [0.0])
 
     @mock.patch("redback.get_data.otter.OTTER_INSTALLED", True)
+    def test_convert_to_redback_format_sorts_filter_grouped_data(self):
+        # OTTER returns photometry grouped by filter (all of one band, then
+        # the next), which is not globally time-sorted. The processed data
+        # must be sorted by time; fit_model assumes time-sorted data (#389).
+        getter = redback.get_data.otter.OtterDataGetter(self.transient, self.transient_type)
+        phot = pd.DataFrame({
+            "converted_date": [58000.0, 58004.0, 58001.0, 58005.0],
+            "converted_flux": [20.0, 20.2, 19.8, 20.4],
+            "converted_flux_err": [0.1, 0.1, 0.1, 0.1],
+            "filter_name": ["g", "g", "r", "r"],
+            "upperlimit": [False, False, False, False],
+        })
+        metadata = pd.DataFrame({
+            "obs_type": ["uvoir"], "discovery_date": ["not-a-date"], "redshift": [0.01]})
+        result = getter._convert_to_redback_format(phot, metadata)
+        np.testing.assert_array_equal(
+            [58000.0, 58001.0, 58004.0, 58005.0], result["time"].to_numpy())
+        # every other column is reordered consistently with the times
+        np.testing.assert_array_equal(["g", "r", "g", "r"], result["band"].to_numpy())
+        np.testing.assert_array_equal([20.0, 19.8, 20.2, 20.4], result["magnitude"].to_numpy())
+        self.assertTrue(result["time"].is_monotonic_increasing)
+
+    @mock.patch("redback.get_data.otter.OTTER_INSTALLED", True)
     def test_convert_to_redback_format_routes_radio_without_metadata_date(self):
         getter = redback.get_data.otter.OtterDataGetter(
             self.transient, self.transient_type, obs_type="radio")
