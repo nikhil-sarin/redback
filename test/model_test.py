@@ -259,6 +259,8 @@ class TestModels(unittest.TestCase):
             else:
                 kwargs['output_format'] = 'flux_density'
             prior = self.get_prior(file=f)
+            if model_name == 'nickelmixing':
+                prior = redback.priors.get_priors(model_name, constraint=True)
             sample = prior.sample()
             if model_name == 'polytrope_eos_two_component_bns':
                 sample['gamma_1'] = 4.04
@@ -308,6 +310,8 @@ class TestPhaseModels(unittest.TestCase):
                 else:
                     kwargs['output_format'] = 'flux_density'
                 prior = self.get_prior(file=f)
+                if model_name == 'nickelmixing':
+                    prior = redback.priors.get_priors(model_name, constraint=True)
                 function = redback.model_library.all_models_dict['t0_base_model']
                 kwargs['base_model'] = model_name
                 kwargs['t0'] = 55855
@@ -358,6 +362,8 @@ class TestMagnitudeOutput(unittest.TestCase):
             else:
                 kwargs['output_format'] = 'magnitude'
             prior = self.get_prior(file=f)
+            if model_name == 'nickelmixing':
+                prior = redback.priors.get_priors(model_name, constraint=True)
             sample = prior.sample()
             if model_name == 'polytrope_eos_two_component_bns':
                 sample['gamma_1'] = 4.04
