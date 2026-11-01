@@ -1,5 +1,6 @@
 import numpy as np
 import pandas as pd
+import warnings
 from redback.transient_models.phenomenological_models import exponential_powerlaw, fallback_lbol
 from redback.transient_models.magnetar_models import magnetar_only, basic_magnetar
 from redback.transient_models.magnetar_driven_ejecta_models import _ejecta_dynamics_and_interaction
@@ -723,7 +724,8 @@ def _nickelmixing(time, mej, esn, kappa, kappa_gamma, f_nickel, f_mixing,
     :param mej: ejecta mass in solar masses
     :param esn: explosion energy in foe
     :param beta: velocity power law slope (M ∝ v^-beta)
-    :param kappa: gray opacity at high temperatures (κ_max) [cm²/g], if use_gray_opacity is True, this is your kappa.
+    :param kappa: gray opacity [cm²/g]. When recombination opacity is
+        enabled, this is the high-temperature opacity.
     :param kappa_gamma: gamma-ray opacity (assumed constant)
     :param f_nickel: fraction of total ejecta mass that is nickel
     :param f_mixing: outer enclosed-mass fraction of the nickel-mixed region.
@@ -731,7 +733,9 @@ def _nickelmixing(time, mej, esn, kappa, kappa_gamma, f_nickel, f_mixing,
     :param kwargs: Additional keyword arguments:
     :param density_profile: ``broken_power_law`` (default), ``exponential`` for
         Type Ia ejecta, or ``power_law``.
-    :param use_gray_opacity (bool): whether to use gray opacity, defaults to True.
+    :param use_recombination_opacity (bool): whether to transition from
+        ``kappa`` to ``kappa_min`` as the ejecta cools through
+        ``temperature_floor``. Defaults to False.
     :param delta (float): inner density profile exponent, used if use_broken_powerlaw is True.
     :param nn (float): outer density profile exponent, used if use_broken_powerlaw is True.
     :param beta (float): velocity power law slope, defaults to 3.0. Only used if use_broken_powerlaw is False.
@@ -770,7 +774,21 @@ def _nickelmixing(time, mej, esn, kappa, kappa_gamma, f_nickel, f_mixing,
         'density_profile', 'broken_power_law' if use_broken_powerlaw else 'power_law')
     vmax = kwargs.get(
         'vmax', 150000.0 if density_profile == 'power_law' else 250000.0)
-    use_gray_opacity = kwargs.get('use_gray_opacity', True)
+    if 'use_gray_opacity' in kwargs:
+        if 'use_recombination_opacity' in kwargs:
+            raise ValueError(
+                "Specify only use_recombination_opacity; use_gray_opacity is "
+                "its deprecated inverse alias")
+        warnings.warn(
+            "use_gray_opacity is deprecated; use "
+            "use_recombination_opacity=not use_gray_opacity instead.",
+            FutureWarning,
+            stacklevel=2,
+        )
+        use_recombination_opacity = not kwargs['use_gray_opacity']
+    else:
+        use_recombination_opacity = kwargs.get(
+            'use_recombination_opacity', False)
     delta = kwargs.get('delta', 1.0)
     nn = kwargs.get('nn', 12.0)
     beta = kwargs.get('beta', 3.0)
@@ -783,10 +801,8 @@ def _nickelmixing(time, mej, esn, kappa, kappa_gamma, f_nickel, f_mixing,
             "diffusion_scale is obsolete; the corrected model uses the "
             "radius-weighted shell diffusion closure")
 
-    if use_gray_opacity:
-        kappa_max = kappa_min = kappa
-    else:
-        kappa_max = kappa
+    kappa_max = kappa
+    if use_recombination_opacity:
         kappa_min = kwargs.get('kappa_min', 0.001)
 
     grid = _build_nickelmixing_grid(
@@ -849,7 +865,7 @@ def _nickelmixing(time, mej, esn, kappa, kappa_gamma, f_nickel, f_mixing,
     del gamma_columns, gamma_optical_depth, gamma_deposition
 
     for ii in range(time_len):
-        if use_gray_opacity or ii == 0:
+        if not use_recombination_opacity or ii == 0:
             kappa_eff = kappa_max
         else:
             luminosity_previous = np.sum(lum_rad[:, ii - 1])

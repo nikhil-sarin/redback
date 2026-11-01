@@ -2647,6 +2647,26 @@ class TestNickelMixingGridAndDiffusion(unittest.TestCase):
                 np.linspace(1.0, 20.0, 10), diffusion_scale=2.0,
                 **self.parameters)
 
+    def test_deprecated_gray_opacity_alias_matches_new_option(self):
+        from redback.transient_models.supernova_models import nickelmixing_bolometric
+
+        time = np.linspace(1.0, 20.0, 10)
+        with self.assertWarnsRegex(FutureWarning, "use_gray_opacity is deprecated"):
+            legacy = nickelmixing_bolometric(
+                time, use_gray_opacity=False, **self.parameters)
+        current = nickelmixing_bolometric(
+            time, use_recombination_opacity=True, **self.parameters)
+
+        np.testing.assert_array_equal(legacy, current)
+
+    def test_opacity_option_aliases_cannot_be_combined(self):
+        from redback.transient_models.supernova_models import nickelmixing_bolometric
+
+        with self.assertRaisesRegex(ValueError, "Specify only use_recombination_opacity"):
+            nickelmixing_bolometric(
+                np.linspace(1.0, 20.0, 10), use_gray_opacity=True,
+                use_recombination_opacity=False, **self.parameters)
+
     def test_exponential_type_ia_has_physical_rise_time(self):
         from redback.transient_models.supernova_models import nickelmixing_bolometric
 
