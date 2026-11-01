@@ -96,6 +96,26 @@ class TestEOSImports(unittest.TestCase):
             lalsim.CreateSimNeutronStarFamily.call_args_list,
             [call(equation_of_state, 1), call(equation_of_state)])
 
+    @patch("redback.constraints.eos.lalsim")
+    def test_lambda_of_mass_uses_family_interpolation(self, lalsim):
+        from astropy.constants import M_sun
+
+        lalsim.SimNeutronStarMaximumMass.return_value = 2.2 * M_sun.si.value
+        lalsim.SimNeutronStarRadius.return_value = 12000.0
+        lalsim.SimNeutronStarLoveNumberK2.return_value = 0.1
+        polytrope = constraints.eos.PiecewisePolytrope(
+            log_p=33.72, gamma_1=4.04, gamma_2=2.159, gamma_3=3.688)
+
+        deformability, maximum_mass = polytrope.lambda_of_mass(
+            central_pressure=np.array([1e33]), mass=np.array([1.4, 2.3]))
+
+        self.assertTrue(np.isfinite(deformability[0]))
+        self.assertGreater(deformability[0], 0.0)
+        self.assertEqual(deformability[1], 0.0)
+        self.assertAlmostEqual(maximum_mass, 2.2)
+        lalsim.SimNeutronStarRadius.assert_called_once()
+        lalsim.SimNeutronStarLoveNumberK2.assert_called_once()
+
 
 class TestBasicMagnetarPoweredSNConstraints(unittest.TestCase):
     """Test basic_magnetar_powered_sn_constraints function"""
