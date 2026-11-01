@@ -2609,6 +2609,27 @@ class TestNickelMixingGridAndDiffusion(unittest.TestCase):
         self.assertTrue(np.all(np.isfinite(grid.velocity)))
         self.assertGreater(np.count_nonzero(grid.mass == 0.0), 0)
 
+    def test_nonfinite_density_indices_raise(self):
+        from redback.transient_models.supernova_models import _build_nickelmixing_grid
+
+        for parameter in ('delta', 'n', 'beta'):
+            with self.subTest(parameter=parameter):
+                kwargs = {parameter: np.nan}
+                with self.assertRaisesRegex(ValueError, "must be finite"):
+                    _build_nickelmixing_grid(
+                        vmin=900.0, esn=1.0, mej=5.0, f_nickel=0.07,
+                        f_mixing=0.2, mass_len=200, vmax=250000.0,
+                        **kwargs)
+
+    def test_default_power_law_grid_is_subluminal(self):
+        from redback.transient_models.supernova_models import nickelmixing_bolometric
+
+        luminosity = nickelmixing_bolometric(
+            np.linspace(1.0, 20.0, 10),
+            **{**self.parameters, 'density_profile': 'power_law'})
+
+        self.assertTrue(np.all(np.isfinite(luminosity)))
+
     def test_superluminal_normalized_grid_raises(self):
         from redback.transient_models.supernova_models import _build_nickelmixing_grid
 

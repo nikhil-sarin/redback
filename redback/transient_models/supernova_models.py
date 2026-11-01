@@ -609,7 +609,7 @@ def _build_nickelmixing_grid(vmin, esn, mej, f_nickel, f_mixing, mass_len,
                              vmax, delta=1.0, n=12.0,
                              density_profile='broken_power_law', beta=3.0):
     """Build a mass- and energy-conserving homologous ejecta grid."""
-    values = (vmin, esn, mej, f_nickel, f_mixing, vmax)
+    values = (vmin, esn, mej, f_nickel, f_mixing, vmax, delta, n, beta)
     if not np.all(np.isfinite(values)):
         raise ValueError("nickel-mixing grid parameters must be finite")
     if esn <= 0 or mej <= 0 or vmin <= 0 or vmax <= vmin:
@@ -737,7 +737,8 @@ def _nickelmixing(time, mej, esn, kappa, kappa_gamma, f_nickel, f_mixing,
     :param beta (float): velocity power law slope, defaults to 3.0. Only used if use_broken_powerlaw is False.
     :param mass_len (int): number of mass shells, defaults to 400.
     :param vmax: provisional outer grid velocity before the global kinetic-
-        energy normalization, in km/s. Defaults to 250000.
+        energy normalization, in km/s. Defaults to 250000, or 150000 for the
+        legacy ``power_law`` profile.
     :param vmin_frac: inner-grid scale relative to sqrt(2 E/M), defaults to 0.2.
     :param kappa_min: minimum opacity when cool, defaults to 0.001 cm²/g.
     :param diffusion_beta: shell diffusion geometry constant, defaults to 13.8.
@@ -764,10 +765,11 @@ def _nickelmixing(time, mej, esn, kappa, kappa_gamma, f_nickel, f_mixing,
     mass_len = int(kwargs.get('mass_len', 400))
     vmin_frac = kwargs.get('vmin_frac', 0.2)
     vmin = vmin_frac * np.sqrt(2 * esn * 1e51 / (mej * solar_mass)) / km_cgs
-    vmax = kwargs.get('vmax', 250000.0)
     use_broken_powerlaw = kwargs.get('use_broken_powerlaw', True)
     density_profile = kwargs.get(
         'density_profile', 'broken_power_law' if use_broken_powerlaw else 'power_law')
+    vmax = kwargs.get(
+        'vmax', 150000.0 if density_profile == 'power_law' else 250000.0)
     use_gray_opacity = kwargs.get('use_gray_opacity', True)
     delta = kwargs.get('delta', 1.0)
     nn = kwargs.get('nn', 12.0)
@@ -927,7 +929,8 @@ def nickelmixing_bolometric(time, mej, esn, kappa, kappa_gamma, f_nickel, f_mixi
     :param stop_time: time to stop ODE at, default is 300 days
     :param mass_len: number of mass shells, defaults to 400
     :param vmax: provisional outer grid velocity before the global kinetic-
-        energy normalization, in km/s. Defaults to 250000
+        energy normalization, in km/s. Defaults to 250000, or 150000 for the
+        legacy ``power_law`` profile
     :param dense_resolution: resolution of dense time array, default is 800
     :param density_profile: ``broken_power_law`` (default), ``exponential``, or ``power_law``.
     :param diffusion_beta: shell diffusion geometry constant, defaults to 13.8.
@@ -976,7 +979,8 @@ def nickelmixing(time, redshift, mej, esn, kappa, kappa_gamma, f_nickel, f_mixin
     :param mass_len: number of mass shells, defaults to 400
     :param density_profile: ``broken_power_law`` (default), ``exponential``, or ``power_law``.
     :param vmax: provisional outer grid velocity before the global kinetic-
-        energy normalization, in km/s. Defaults to 250000
+        energy normalization, in km/s. Defaults to 250000, or 150000 for the
+        legacy ``power_law`` profile
     :param stop_time: time to stop ODE at, default is 300 days
     :param dense_resolution: resolution of dense time array, default is 800
     :param diffusion_beta: shell diffusion geometry constant, defaults to 13.8.

@@ -147,12 +147,9 @@ class PiecewisePolytrope(object):
             if masses[index] > max_mass:
                 continue
             mass_si = masses[index] * cc.M_sun.si.value
-            try:
-                radius = lalsim.SimNeutronStarRadius(mass_si, family)
-                love_number = lalsim.SimNeutronStarLoveNumberK2(
-                    mass_si, family)
-            except RuntimeError:
-                continue
+            radius = lalsim.SimNeutronStarRadius(mass_si, family)
+            love_number = lalsim.SimNeutronStarLoveNumberK2(
+                mass_si, family)
             lambdas[index] = (
                 2.0 / 3.0 * love_number
                 * (cc.c.si.value ** 2 * radius
