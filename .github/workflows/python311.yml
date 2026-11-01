@@ -13,6 +13,8 @@ jobs:
   build:
 
     runs-on: ubuntu-latest
+    env:
+      CFLAGS: -std=gnu17
 
     steps:
     - uses: actions/checkout@v4
