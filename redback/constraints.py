@@ -59,8 +59,11 @@ def basic_magnetar_powered_sn_constraints(parameters):
 def nickel_mixing_constraints(parameters):
     """Require the nickel-bearing region to contain the requested nickel mass."""
     converted_parameters = parameters.copy()
-    converted_parameters['nickel_fraction_in_mixed_region'] = (
-        parameters['f_nickel'] / parameters['f_mixing'])
+    with np.errstate(divide='ignore', invalid='ignore'):
+        converted_parameters['nickel_fraction_in_mixed_region'] = np.divide(
+            parameters['f_nickel'], parameters['f_mixing'])
+    converted_parameters['nickel_mixing_order'] = (
+        parameters['f_mixing'] - parameters['f_nickel'])
     return converted_parameters
 
 def general_magnetar_powered_sn_constraints(parameters):

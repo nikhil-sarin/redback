@@ -222,6 +222,11 @@ class TestGetPriors(unittest.TestCase):
             result.conversion_function,
             priors.redback.constraints.nickel_mixing_constraints)
         self.assertIn('nickel_fraction_in_mixed_region', result)
+        self.assertEqual(result['nickel_fraction_in_mixed_region'].minimum, 0)
+        self.assertEqual(result['nickel_fraction_in_mixed_region'].maximum, 1)
+        self.assertIn('nickel_mixing_order', result)
+        self.assertEqual(result['nickel_mixing_order'].minimum, 0)
+        self.assertEqual(result['nickel_mixing_order'].maximum, np.inf)
 
     def test_get_priors_with_kilonova_ejecta_relation_constraints(self):
         """Test that get_priors can attach derived ejecta-relation constraints."""

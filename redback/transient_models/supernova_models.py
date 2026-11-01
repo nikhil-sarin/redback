@@ -581,8 +581,10 @@ _NickelMixingGrid = namedtuple(
 
 def _power_integral(lower, upper, exponent):
     """Integrate x**exponent between positive bounds."""
-    if np.isclose(exponent, -1.0):
+    if exponent == -1.0:
         return np.log(upper / lower)
+    if lower == 0.0:
+        return upper ** (exponent + 1.0) / (exponent + 1.0)
     return (upper ** (exponent + 1.0) - lower ** (exponent + 1.0)) / (exponent + 1.0)
 
 
@@ -614,8 +616,8 @@ def _build_nickelmixing_grid(vmin, esn, mej, f_nickel, f_mixing, mass_len,
         raise ValueError("esn, mej, and vmin must be positive, with vmax > vmin")
     if mass_len < 2:
         raise ValueError("mass_len must be at least 2")
-    if not 0 < f_nickel <= f_mixing <= 1:
-        raise ValueError("nickel fractions must satisfy 0 < f_nickel <= f_mixing <= 1")
+    if not 0 <= f_nickel <= f_mixing <= 1 or f_mixing == 0:
+        raise ValueError("nickel fractions must satisfy 0 <= f_nickel <= f_mixing <= 1 and f_mixing > 0")
 
     if density_profile in ('broken_power_law', 'broken_powerlaw'):
         if delta >= 3 or n <= 5:
@@ -642,11 +644,18 @@ def _build_nickelmixing_grid(vmin, esn, mej, f_nickel, f_mixing, mass_len,
         raise ValueError("density_profile must be 'broken_power_law', 'exponential', or 'power_law'")
 
     m_array = mej * mass_shape / np.sum(mass_shape)
-    velocity = np.sqrt(energy_shape / mass_shape)
+    velocity = 0.5 * (velocity_edges[:-1] + velocity_edges[1:])
+    positive_mass = mass_shape > 0
+    velocity[positive_mass] = np.sqrt(
+        np.divide(energy_shape[positive_mass], mass_shape[positive_mass]))
     kinetic_energy = 0.5 * np.sum(m_array * solar_mass * (velocity * km_cgs) ** 2)
     velocity_scale_correction = np.sqrt(esn * 1e51 / kinetic_energy)
     velocity *= velocity_scale_correction
     velocity_edges *= velocity_scale_correction
+    if velocity_edges[-1] * km_cgs >= speed_of_light:
+        raise ValueError(
+            "energy-normalized ejecta grid reaches the speed of light; "
+            "reduce vmax or change the density-profile parameters")
 
     mixed_mass = f_mixing * mej
     mass_inside = np.concatenate(([0.0], np.cumsum(m_array)[:-1]))
@@ -673,7 +682,14 @@ def _compute_mass_and_nickel(vmin, esn, mej, f_nickel, f_mixing, mass_len,
 
 
 def _angle_averaged_gamma_columns(velocity, velocity_edges, mass, n_angles=8):
-    """Return isotropic gamma-ray columns at ``t=1 s`` for spherical shells."""
+    """Return isotropic gamma-ray columns at ``t=1 s`` for spherical shells.
+
+    Emission from each source shell is represented at its mass-weighted RMS
+    velocity. The angular paths through every density shell are integrated
+    exactly for that representative source radius. Nickel occupying only part
+    of a boundary shell, including shell zero, is not integrated over that
+    sub-shell radial extent.
+    """
     if n_angles < 2:
         raise ValueError("gamma_ray_angles must be at least 2")
 
@@ -720,7 +736,8 @@ def _nickelmixing(time, mej, esn, kappa, kappa_gamma, f_nickel, f_mixing,
     :param nn (float): outer density profile exponent, used if use_broken_powerlaw is True.
     :param beta (float): velocity power law slope, defaults to 3.0. Only used if use_broken_powerlaw is False.
     :param mass_len (int): number of mass shells, defaults to 400.
-    :param vmax: maximum velocity in km/s, defaults to 250000.
+    :param vmax: provisional outer grid velocity before the global kinetic-
+        energy normalization, in km/s. Defaults to 250000.
     :param vmin_frac: inner-grid scale relative to sqrt(2 E/M), defaults to 0.2.
     :param kappa_min: minimum opacity when cool, defaults to 0.001 cm²/g.
     :param diffusion_beta: shell diffusion geometry constant, defaults to 13.8.
@@ -733,7 +750,8 @@ def _nickelmixing(time, mej, esn, kappa, kappa_gamma, f_nickel, f_mixing,
     Shell masses conserve the requested ejecta mass and kinetic energy.
     Nickel is uniform in mass fraction inside ``f_mixing``, including a
     fractional boundary shell, and the shell energy equation is integrated
-    with a positive analytic update.
+    with a positive analytic update. Radioactive emission in each source shell
+    is evaluated at that shell's mass-weighted RMS velocity.
     """
     time = np.asarray(time, dtype=float)
     if time.ndim != 1 or len(time) < 2 or np.any(~np.isfinite(time)) or np.any(time <= 0):
@@ -864,7 +882,6 @@ def _nickelmixing(time, mej, esn, kappa, kappa_gamma, f_nickel, f_mixing,
                 + qdot_ni[:, ii] * (-np.expm1(-loss_rate * dt)) / loss_rate)
 
     bolometric_luminosity = np.sum(lum_rad, axis=0)
-
     temperature = np.full(time_len, temperature_floor, dtype=float)
     valid = (r_photosphere > 0) & (bolometric_luminosity > 0)
     temperature[valid] = (
@@ -876,6 +893,9 @@ def _nickelmixing(time, mej, esn, kappa, kappa_gamma, f_nickel, f_mixing,
     r_photosphere[floor_radius] = np.sqrt(
         bolometric_luminosity[floor_radius]
         / (4.0 * np.pi * temperature_floor ** 4 * sigma_sb))
+    dark = bolometric_luminosity <= 0
+    r_photosphere[dark] = 0.0
+    v_photosphere[dark] = 0.0
 
     outputs = namedtuple('output', ['time_temp', 'lbol', 't_photosphere',
                                     'r_photosphere', 'tau', 'v_photosphere', 'energy_v'])
@@ -906,7 +926,8 @@ def nickelmixing_bolometric(time, mej, esn, kappa, kappa_gamma, f_nickel, f_mixi
     :param beta: power law slope for mass distribution; m = m_0 * (v/v_min)^(-beta)
     :param stop_time: time to stop ODE at, default is 300 days
     :param mass_len: number of mass shells, defaults to 400
-    :param vmax: maximum velocity in km/s, defaults to 250000
+    :param vmax: provisional outer grid velocity before the global kinetic-
+        energy normalization, in km/s. Defaults to 250000
     :param dense_resolution: resolution of dense time array, default is 800
     :param density_profile: ``broken_power_law`` (default), ``exponential``, or ``power_law``.
     :param diffusion_beta: shell diffusion geometry constant, defaults to 13.8.
@@ -944,7 +965,8 @@ def nickelmixing(time, redshift, mej, esn, kappa, kappa_gamma, f_nickel, f_mixin
     :param redshift: source redshift
     :param mej: ejecta mass in solar masses
     :param esn: energy of explosion in foe
-    :param vmax: maximum velocity of ejecta in km/s
+    :param vmax: provisional outer grid velocity before the global kinetic-
+        energy normalization, in km/s
     :param kappa: gray opacity
     :param kappa_gamma: gamma-ray opacity
     :param f_nickel: total nickel-to-ejecta mass ratio
@@ -953,7 +975,8 @@ def nickelmixing(time, redshift, mej, esn, kappa, kappa_gamma, f_nickel, f_mixin
     :param beta: power law slope for mass distribution; m = m_0 * (v/v_min)^(-beta)
     :param mass_len: number of mass shells, defaults to 400
     :param density_profile: ``broken_power_law`` (default), ``exponential``, or ``power_law``.
-    :param vmax: maximum velocity in km/s, defaults to 250000
+    :param vmax: provisional outer grid velocity before the global kinetic-
+        energy normalization, in km/s. Defaults to 250000
     :param stop_time: time to stop ODE at, default is 300 days
     :param dense_resolution: resolution of dense time array, default is 800
     :param diffusion_beta: shell diffusion geometry constant, defaults to 13.8.

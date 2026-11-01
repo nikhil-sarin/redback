@@ -56,11 +56,13 @@ _constraint_settings = {
     ),
     'nickelmixing': (
         redback.constraints.nickel_mixing_constraints,
-        {'nickel_fraction_in_mixed_region': (0, 1)}
+        {'nickel_fraction_in_mixed_region': (0, 1),
+         'nickel_mixing_order': (0, np.inf)}
     ),
     'nickelmixing_bolometric': (
         redback.constraints.nickel_mixing_constraints,
-        {'nickel_fraction_in_mixed_region': (0, 1)}
+        {'nickel_fraction_in_mixed_region': (0, 1),
+         'nickel_mixing_order': (0, np.inf)}
     ),
     'tde_analytical': (
         redback.constraints.simple_fallback_constraints,

@@ -525,7 +525,21 @@ class TestNickelMixingConstraints(unittest.TestCase):
         result = constraints.nickel_mixing_constraints(parameters)
 
         self.assertEqual(result['nickel_fraction_in_mixed_region'], 0.25)
+        self.assertAlmostEqual(result['nickel_mixing_order'], 0.3)
         self.assertEqual(parameters, {'f_nickel': 0.1, 'f_mixing': 0.4})
+
+    def test_zero_mixing_fraction_is_rejected_by_derived_constraints(self):
+        result = constraints.nickel_mixing_constraints(
+            {'f_nickel': 0.1, 'f_mixing': 0.0})
+
+        self.assertTrue(np.isinf(result['nickel_fraction_in_mixed_region']))
+        self.assertLess(result['nickel_mixing_order'], 0.0)
+
+    def test_negative_fractions_are_rejected_by_order_constraint(self):
+        result = constraints.nickel_mixing_constraints(
+            {'f_nickel': -0.1, 'f_mixing': -0.2})
+
+        self.assertLess(result['nickel_mixing_order'], 0.0)
 
 
 class TestPiecewisePolytropeEOSConstraints(unittest.TestCase):

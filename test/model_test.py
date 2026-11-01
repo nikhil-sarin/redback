@@ -2574,6 +2574,44 @@ class TestNickelMixingGridAndDiffusion(unittest.TestCase):
                 np.linspace(1.0, 20.0, 10), **{
                     **self.parameters, 'f_nickel': 0.3, 'f_mixing': 0.2})
 
+    def test_zero_nickel_has_zero_luminosity_and_radius(self):
+        from redback.transient_models.supernova_models import _nickelmixing
+
+        output = _nickelmixing(
+            np.geomspace(0.01, 20.0, 80) * 86400.0,
+            **{**self.parameters, 'f_nickel': 0.0})
+
+        np.testing.assert_array_equal(output.lbol, 0.0)
+        np.testing.assert_array_equal(output.r_photosphere, 0.0)
+        np.testing.assert_array_equal(output.v_photosphere, 0.0)
+
+    def test_nearly_singular_inner_profile_integral_is_finite(self):
+        from redback.transient_models.supernova_models import _power_integral
+
+        result = _power_integral(0.0, 0.5, -1.0 + 1e-8)
+
+        self.assertTrue(np.isfinite(result))
+
+    def test_exponential_underflowing_tail_remains_finite(self):
+        from redback.transient_models.supernova_models import _build_nickelmixing_grid
+
+        grid = _build_nickelmixing_grid(
+            vmin=1.0, esn=0.4, mej=100.0, f_nickel=0.07,
+            f_mixing=0.2, mass_len=400, vmax=250000.0,
+            density_profile='exponential')
+
+        self.assertTrue(np.all(np.isfinite(grid.velocity)))
+        self.assertGreater(np.count_nonzero(grid.mass == 0.0), 0)
+
+    def test_superluminal_normalized_grid_raises(self):
+        from redback.transient_models.supernova_models import _build_nickelmixing_grid
+
+        with self.assertRaisesRegex(ValueError, "speed of light"):
+            _build_nickelmixing_grid(
+                vmin=900.0, esn=1.0, mej=5.0, f_nickel=0.07,
+                f_mixing=0.2, mass_len=200, vmax=250000.0,
+                density_profile='power_law')
+
     def test_obsolete_diffusion_scale_raises(self):
         from redback.transient_models.supernova_models import nickelmixing_bolometric
 
@@ -2629,6 +2667,41 @@ class TestNickelMixingRadioactiveDeposition(unittest.TestCase):
     def _cobalt(self, fraction):
         return fraction * 1.45e43 * self.nickel_mass * np.exp(-self.time / 111.3)
 
+    @staticmethod
+    def _direct_ray_columns(source_radii, edges, mass, n_angles=8):
+        from redback.constants import solar_mass
+
+        directions, weights = np.polynomial.legendre.leggauss(n_angles)
+        density = mass * solar_mass / (
+            4.0 * np.pi / 3.0 * np.diff(edges ** 3))
+        columns = np.zeros((len(source_radii), n_angles))
+        for source_index, source_radius in enumerate(source_radii):
+            for angle_index, direction in enumerate(directions):
+                impact_squared = source_radius ** 2 * (1.0 - direction ** 2)
+                outer_root = np.sqrt(edges[-1] ** 2 - impact_squared)
+                path_end = -source_radius * direction + outer_root
+                crossings = [0.0, path_end]
+                for edge in edges[1:-1]:
+                    discriminant = edge ** 2 - impact_squared
+                    if discriminant <= 0:
+                        continue
+                    root = np.sqrt(discriminant)
+                    crossings.extend((-source_radius * direction - root,
+                                      -source_radius * direction + root))
+                crossings = np.unique(
+                    np.clip(np.asarray(crossings), 0.0, path_end))
+                starts, stops = crossings[:-1], crossings[1:]
+                midpoints = 0.5 * (starts + stops)
+                radii = np.sqrt(
+                    source_radius ** 2 + midpoints ** 2
+                    + 2.0 * source_radius * midpoints * direction)
+                shell_indices = np.clip(
+                    np.searchsorted(edges, radii, side='right') - 1,
+                    0, len(density) - 1)
+                columns[source_index, angle_index] = np.sum(
+                    density[shell_indices] * (stops - starts))
+        return columns, weights / 2.0
+
     def test_angle_averaged_columns_match_uniform_sphere(self):
         from redback.constants import solar_mass
         from redback.transient_models.supernova_models import (
@@ -2662,6 +2735,25 @@ class TestNickelMixingRadioactiveDeposition(unittest.TestCase):
             * np.exp(-2.0 * radial_optical_depth))
         self.assertAlmostEqual(numerical_escape, analytic_escape, places=3)
 
+    def test_columns_match_direct_nonuniform_ray_integration(self):
+        from redback.transient_models.supernova_models import (
+            _angle_averaged_gamma_columns, _build_nickelmixing_grid)
+
+        grid = _build_nickelmixing_grid(
+            vmin=900.0, esn=1.0, mej=5.0, f_nickel=0.07,
+            f_mixing=0.2, mass_len=60, vmax=250000.0)
+        source_index = 24
+        source_radius = grid.velocity_cgs[source_index]
+        edges = grid.velocity_edges_cgs
+        expected, expected_weights = self._direct_ray_columns(
+            np.array([source_radius]), edges, grid.mass)
+        columns, _ = _angle_averaged_gamma_columns(
+            velocity=np.array([source_radius]), velocity_edges=edges,
+            mass=grid.mass, n_angles=8)
+
+        np.testing.assert_allclose(columns, expected, rtol=1e-12)
+        self.assertAlmostEqual(np.sum(expected_weights), 1.0)
+
     def test_eight_gamma_angles_are_converged(self):
         from redback.transient_models.supernova_models import nickelmixing_bolometric
 
@@ -2683,8 +2775,7 @@ class TestNickelMixingRadioactiveDeposition(unittest.TestCase):
     def test_optically_thin_gamma_deposition_uses_local_column(self):
         from redback.constants import solar_mass
         from redback.transient_models.supernova_models import (
-            _angle_averaged_gamma_columns, _build_nickelmixing_grid,
-            nickelmixing_bolometric)
+            _build_nickelmixing_grid, nickelmixing_bolometric)
 
         # Thin (tau <~ 0.1) but with the gamma-ray part ~half the positron
         # floor, so a wrong column (e.g. an extra factor of 3) changes it by >50%.
@@ -2695,10 +2786,9 @@ class TestNickelMixingRadioactiveDeposition(unittest.TestCase):
             vmin=vmin, esn=1.2, mej=1.4, f_nickel=0.4, f_mixing=0.5,
             mass_len=50, vmax=250000, delta=1.0, n=12.0)
         nickel_shells = grid.nickel_mass > 0
-        columns, weights = _angle_averaged_gamma_columns(
-            velocity=grid.velocity_cgs[nickel_shells],
-            velocity_edges=grid.velocity_edges_cgs,
-            mass=grid.mass, n_angles=8)
+        columns, weights = self._direct_ray_columns(
+            grid.velocity_cgs[nickel_shells], grid.velocity_edges_cgs,
+            grid.mass, n_angles=8)
         seconds = self.time * 86400.0
         tau = kappa_gamma * columns[:, :, None] / seconds[None, None, :] ** 2
         deposition = 1.0 - np.sum(
