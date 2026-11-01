@@ -518,6 +518,16 @@ class TestCoolingEnvelopeConstraints(unittest.TestCase):
         self.assertGreater(result['gaussian_stitching_tail'], 35)
 
 
+class TestNickelMixingConstraints(unittest.TestCase):
+
+    def test_local_nickel_fraction_is_derived(self):
+        parameters = {'f_nickel': 0.1, 'f_mixing': 0.4}
+        result = constraints.nickel_mixing_constraints(parameters)
+
+        self.assertEqual(result['nickel_fraction_in_mixed_region'], 0.25)
+        self.assertEqual(parameters, {'f_nickel': 0.1, 'f_mixing': 0.4})
+
+
 class TestPiecewisePolytropeEOSConstraints(unittest.TestCase):
     """Test piecewise_polytrope_eos_constraints function"""
 

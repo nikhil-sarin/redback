@@ -215,6 +215,14 @@ class TestGetPriors(unittest.TestCase):
         for key in ['shock_time', 'photosphere_constraint_1', 'photosphere_constraint_2']:
             self.assertIn(key, result)
 
+    def test_get_priors_with_nickel_mixing_constraint(self):
+        result = priors.get_priors('nickelmixing', constraint=True)
+
+        self.assertIs(
+            result.conversion_function,
+            priors.redback.constraints.nickel_mixing_constraints)
+        self.assertIn('nickel_fraction_in_mixed_region', result)
+
     def test_get_priors_with_kilonova_ejecta_relation_constraints(self):
         """Test that get_priors can attach derived ejecta-relation constraints."""
         result = priors.get_priors('one_component_nsbh_ejecta_relation', constraint=True)

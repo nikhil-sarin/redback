@@ -46,6 +46,7 @@ Please see the API docs for more details on which models require additional pack
 - Supernova models: Can output in flux density/magnitude/bolometric luminosity/spectra
 
     - Arnett
+    - Nickel mixing with a mass-coordinate radioactive distribution
     - CSM
     - CSM + Ni
     - Basic magnetar powered
