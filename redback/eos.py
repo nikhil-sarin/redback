@@ -21,6 +21,14 @@ except ModuleNotFoundError as e:
     logger.warning('lalsimulation is not installed. Some EOS based models will not work.'
                    ' Please use bilby eos or pass your own EOS generation class to the model')
 
+
+def _create_neutron_star_family(equation_of_state):
+    """Create a minimal neutron-star family across LALSimulation APIs."""
+    try:
+        return lalsim.CreateSimNeutronStarFamily(equation_of_state, 1)
+    except TypeError:
+        return lalsim.CreateSimNeutronStarFamily(equation_of_state)
+
 class PiecewisePolytrope(object):
     def __init__(self, log_p, gamma_1, gamma_2, gamma_3):
         """
@@ -40,7 +48,7 @@ class PiecewisePolytrope(object):
         """
         polytrope = lalsim.SimNeutronStarEOS4ParameterPiecewisePolytrope(self.log_p, self.gamma_1,
                                                                          self.gamma_2, self.gamma_3)
-        polytrope = lalsim.CreateSimNeutronStarFamily(polytrope)
+        polytrope = _create_neutron_star_family(polytrope)
         maximum_mass = lalsim.SimNeutronStarMaximumMass(polytrope)/cc.M_sun.si.value
         return maximum_mass
 
@@ -64,7 +72,7 @@ class PiecewisePolytrope(object):
         m1 = mass * cc.M_sun.si.value
         polytrope = lalsim.SimNeutronStarEOS4ParameterPiecewisePolytrope(self.log_p, self.gamma_1,
                                                                          self.gamma_2, self.gamma_3)
-        polytrope = lalsim.CreateSimNeutronStarFamily(polytrope)
+        polytrope = _create_neutron_star_family(polytrope)
 
         m_tmp = []
         r_tmp = []

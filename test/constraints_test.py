@@ -1,7 +1,7 @@
 import unittest
 import builtins
 import numpy as np
-from unittest.mock import patch, MagicMock
+from unittest.mock import call, patch, MagicMock
 import warnings
 import redback.constraints as constraints
 
@@ -67,6 +67,34 @@ class TestEOSImports(unittest.TestCase):
                 constraints.eos._import_lalsimulation()
 
         self.assertFalse(any("Wswiglal-redir-stdio" in str(w.message) for w in caught))
+
+    @patch("redback.constraints.eos.lalsim")
+    def test_neutron_star_family_uses_current_lalsimulation_api(self, lalsim):
+        equation_of_state = object()
+
+        constraints.eos._create_neutron_star_family(equation_of_state)
+
+        lalsim.CreateSimNeutronStarFamily.assert_called_once_with(
+            equation_of_state, 1)
+
+    @patch("redback.constraints.eos.lalsim")
+    def test_neutron_star_family_supports_legacy_lalsimulation_api(self, lalsim):
+        equation_of_state = object()
+        family = object()
+
+        def create_family(*args):
+            if len(args) == 2:
+                raise TypeError("legacy one-argument API")
+            return family
+
+        lalsim.CreateSimNeutronStarFamily.side_effect = create_family
+
+        result = constraints.eos._create_neutron_star_family(equation_of_state)
+
+        self.assertIs(result, family)
+        self.assertEqual(
+            lalsim.CreateSimNeutronStarFamily.call_args_list,
+            [call(equation_of_state, 1), call(equation_of_state)])
 
 
 class TestBasicMagnetarPoweredSNConstraints(unittest.TestCase):
