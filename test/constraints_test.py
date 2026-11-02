@@ -129,6 +129,20 @@ class TestEOSImports(unittest.TestCase):
             polytrope.lambda_of_mass(
                 central_pressure=np.array([1e33]), mass=1.4)
 
+    @patch("redback.constraints.eos.lalsim")
+    def test_lambda_of_mass_propagates_love_number_failures(self, lalsim):
+        from astropy.constants import M_sun
+
+        lalsim.SimNeutronStarMaximumMass.return_value = 2.2 * M_sun.si.value
+        lalsim.SimNeutronStarRadius.return_value = 12000.0
+        lalsim.SimNeutronStarLoveNumberK2.side_effect = RuntimeError("invalid EOS")
+        polytrope = constraints.eos.PiecewisePolytrope(
+            log_p=33.72, gamma_1=4.04, gamma_2=2.159, gamma_3=3.688)
+
+        with self.assertRaisesRegex(RuntimeError, "invalid EOS"):
+            polytrope.lambda_of_mass(
+                central_pressure=np.array([1e33]), mass=1.4)
+
 
 class TestBasicMagnetarPoweredSNConstraints(unittest.TestCase):
     """Test basic_magnetar_powered_sn_constraints function"""

@@ -804,6 +804,8 @@ def _nickelmixing(time, mej, esn, kappa, kappa_gamma, f_nickel, f_mixing,
     kappa_max = kappa
     if use_recombination_opacity:
         kappa_min = kwargs.get('kappa_min', 0.001)
+        if not np.isfinite(kappa_min):
+            raise ValueError("kappa_min must be finite")
 
     grid = _build_nickelmixing_grid(
         vmin=vmin, esn=esn, mej=mej, f_nickel=f_nickel,

@@ -2659,6 +2659,29 @@ class TestNickelMixingGridAndDiffusion(unittest.TestCase):
 
         np.testing.assert_array_equal(legacy, current)
 
+    def test_deprecated_gray_opacity_true_matches_constant_opacity(self):
+        from redback.transient_models.supernova_models import nickelmixing_bolometric
+
+        time = np.linspace(1.0, 20.0, 10)
+        with self.assertWarnsRegex(FutureWarning, "use_gray_opacity is deprecated"):
+            legacy = nickelmixing_bolometric(
+                time, use_gray_opacity=True, **self.parameters)
+        current = nickelmixing_bolometric(
+            time, use_recombination_opacity=False, **self.parameters)
+
+        np.testing.assert_array_equal(legacy, current)
+
+    def test_recombination_opacity_rejects_nonfinite_kappa_min(self):
+        from redback.transient_models.supernova_models import nickelmixing_bolometric
+
+        for kappa_min in (np.nan, np.inf, -np.inf):
+            with self.subTest(kappa_min=kappa_min):
+                with self.assertRaisesRegex(ValueError, "kappa_min must be finite"):
+                    nickelmixing_bolometric(
+                        np.linspace(1.0, 20.0, 10),
+                        use_recombination_opacity=True, kappa_min=kappa_min,
+                        **self.parameters)
+
     def test_opacity_option_aliases_cannot_be_combined(self):
         from redback.transient_models.supernova_models import nickelmixing_bolometric
 
