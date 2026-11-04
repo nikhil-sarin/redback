@@ -747,7 +747,8 @@ def _nickelmixing(time, mej, esn, kappa, kappa_gamma, f_nickel, f_mixing,
     :param delta (float): inner density profile exponent, used if use_broken_powerlaw is True.
     :param nn (float): outer density profile exponent, used if use_broken_powerlaw is True.
     :param beta (float): velocity power law slope, defaults to 3.0. Only used if use_broken_powerlaw is False.
-    :param mass_len (int): number of mass shells, defaults to 400.
+    :param mass_len (int): number of mass shells, defaults to 400. Coupled
+        diffusion requires at least 100 shells.
     :param vmax: provisional outer grid velocity before the global kinetic-
         energy normalization, in km/s. Defaults to 250000, or 150000 for the
         legacy ``power_law`` profile.
@@ -815,6 +816,8 @@ def _nickelmixing(time, mej, esn, kappa, kappa_gamma, f_nickel, f_mixing,
     transport = kwargs.get('transport', 'coupled_diffusion')
     if transport not in ('coupled_diffusion', 'shell_leakage'):
         raise ValueError("transport must be 'coupled_diffusion' or 'shell_leakage'")
+    if transport == 'coupled_diffusion' and mass_len < 100:
+        raise ValueError("coupled_diffusion requires mass_len >= 100")
     if not np.isfinite(diffusion_beta) or diffusion_beta <= 0:
         raise ValueError("diffusion_beta must be finite and positive")
     if 'diffusion_scale' in kwargs:
@@ -909,9 +912,9 @@ def _nickelmixing(time, mej, esn, kappa, kappa_gamma, f_nickel, f_mixing,
 
         if transport == 'coupled_diffusion':
             # Finite-volume radiation diffusion between neighbouring optically
-            # thick shells, implicit (backward Euler) in time, as snmix's
-            # coupled_diffusion. Radiation reaching the photospheric boundary,
-            # and energy deposited in transparent shells, escapes directly.
+            # thick shells, implicit in time with variable-step BDF2 (backward
+            # Euler on the first step). Radiation reaching the photospheric
+            # boundary, and energy deposited in transparent shells, escapes.
             photosphere_index = np.argmin(np.abs(tau[:, ii] - 1.0))
             v_photosphere[ii] = v_m[photosphere_index]
             r_photosphere[ii] = v_photosphere[ii] * time[ii]
@@ -1043,7 +1046,8 @@ def nickelmixing_bolometric(time, mej, esn, kappa, kappa_gamma, f_nickel, f_mixi
     :param kwargs: bolometric luminosity in erg/s
     :param beta: power law slope for mass distribution; m = m_0 * (v/v_min)^(-beta)
     :param stop_time: time to stop ODE at, default is 300 days
-    :param mass_len: number of mass shells, defaults to 400
+    :param mass_len: number of mass shells, defaults to 400. Coupled diffusion
+        requires at least 100 shells.
     :param vmax: provisional outer grid velocity before the global kinetic-
         energy normalization, in km/s. Defaults to 250000, or 150000 for the
         legacy ``power_law`` profile
@@ -1094,7 +1098,8 @@ def nickelmixing(time, redshift, mej, esn, kappa, kappa_gamma, f_nickel, f_mixin
     :param f_mixing: outer enclosed-mass fraction of the nickel-mixed region.
     :param kwargs: additional keyword arguments
     :param beta: power law slope for mass distribution; m = m_0 * (v/v_min)^(-beta)
-    :param mass_len: number of mass shells, defaults to 400
+    :param mass_len: number of mass shells, defaults to 400. Coupled diffusion
+        requires at least 100 shells.
     :param density_profile: ``broken_power_law`` (default), ``exponential``, or ``power_law``.
     :param vmax: provisional outer grid velocity before the global kinetic-
         energy normalization, in km/s. Defaults to 250000, or 150000 for the

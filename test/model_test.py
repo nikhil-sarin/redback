@@ -2757,6 +2757,19 @@ class TestNickelMixingGridAndDiffusion(unittest.TestCase):
             nickelmixing_bolometric(
                 time, **{**self.parameters, 'transport': 'legacy'})
 
+    def test_coupled_diffusion_requires_resolved_shell_grid(self):
+        from redback.transient_models.supernova_models import nickelmixing_bolometric
+
+        time = np.geomspace(1.0, 120.0, 80)
+        with self.assertRaisesRegex(ValueError, "mass_len >= 100"):
+            nickelmixing_bolometric(
+                time, **{**self.parameters, 'mass_len': 99})
+
+        luminosity = nickelmixing_bolometric(
+            time, **{**self.parameters, 'mass_len': 99,
+                     'transport': 'shell_leakage'})
+        self.assertTrue(np.all(np.isfinite(luminosity)))
+
     def test_low_energy_exponential_ejecta_are_finite(self):
         # Out to the generic vmax the exponential tail held ~1e-30 of the
         # mass per shell and the coupled diffusion solve broke down.
@@ -2788,7 +2801,7 @@ class TestNickelMixingRadioactiveDeposition(unittest.TestCase):
 
     parameters = dict(
         mej=1.4, esn=1.2, kappa=0.1, f_nickel=0.4, f_mixing=0.5,
-        temperature_floor=1000.0, mass_len=50, dense_resolution=300,
+        temperature_floor=1000.0, mass_len=100, dense_resolution=300,
         stop_time=300.0)
     time = np.linspace(200.0, 250.0, 6)
     nickel_mass = 1.4 * 0.4
@@ -2913,7 +2926,7 @@ class TestNickelMixingRadioactiveDeposition(unittest.TestCase):
         vmin = 0.2 * (2 * 1.2e51 / (1.4 * solar_mass)) ** 0.5 / 1e5
         grid = _build_nickelmixing_grid(
             vmin=vmin, esn=1.2, mej=1.4, f_nickel=0.4, f_mixing=0.5,
-            mass_len=50, vmax=250000, delta=1.0, n=12.0)
+            mass_len=100, vmax=250000, delta=1.0, n=12.0)
         nickel_shells = grid.nickel_mass > 0
         columns, weights = self._direct_ray_columns(
             grid.velocity_cgs[nickel_shells], grid.velocity_edges_cgs,
