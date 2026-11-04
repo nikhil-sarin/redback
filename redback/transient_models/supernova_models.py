@@ -17,7 +17,7 @@ from inspect import isfunction
 import astropy.units as uu
 from collections import namedtuple
 from scipy.interpolate import interp1d, PchipInterpolator, RegularGridInterpolator
-from scipy.linalg import solve_banded
+from scipy.linalg import solveh_banded
 from scipy.special import gamma as gamma_function, gammaincc
 
 homologous_expansion_models = ['exponential_powerlaw_bolometric', 'arnett_bolometric',
@@ -632,7 +632,14 @@ def _build_nickelmixing_grid(vmin, esn, mej, f_nickel, f_mixing, mass_len,
             velocity_edges, break_velocity, delta, n)
     elif density_profile == 'exponential':
         velocity_scale = np.sqrt(esn * 1e51 / (6.0 * mej * solar_mass)) / km_cgs
-        velocity_edges = np.concatenate(([0.0], np.geomspace(vmin, vmax, mass_len)))
+        # Stop the grid at 12 e-folding velocities (as snmix; it holds all but
+        # ~5e-4 of the mass). Out to the generic vmax the outer shells hold
+        # ~1e-30 of the mass, which wastes resolution and makes the coupled
+        # diffusion solve ill conditioned.
+        outer_velocity = min(vmax, 12.0 * velocity_scale)
+        if outer_velocity <= vmin:
+            raise ValueError("vmin must be below 12 exponential velocity scales")
+        velocity_edges = np.concatenate(([0.0], np.geomspace(vmin, outer_velocity, mass_len)))
         x_edges = velocity_edges / velocity_scale
         mass_shape = velocity_scale ** 3 * gamma_function(3) * -np.diff(gammaincc(3, x_edges))
         energy_shape = velocity_scale ** 5 * gamma_function(5) * -np.diff(gammaincc(5, x_edges))
@@ -760,9 +767,14 @@ def _nickelmixing(time, mej, esn, kappa, kappa_gamma, f_nickel, f_mixing,
     -----
     Shell masses conserve the requested ejecta mass and kinetic energy.
     Nickel is uniform in mass fraction inside ``f_mixing``, including a
-    fractional boundary shell, and the shell energy equation is integrated
-    with a positive analytic update. Radioactive emission in each source shell
-    is evaluated at that shell's mass-weighted RMS velocity.
+    fractional boundary shell. With ``coupled_diffusion`` (default) the shell
+    energies are advanced implicitly with variable-step BDF2 (backward Euler on
+    the first step), solved for the radiation energy density, and negative
+    values are clipped to zero; with ``shell_leakage`` each shell uses a
+    positive analytic update. For ``density_profile='exponential'`` the grid
+    stops at 12 exponential velocity scales (or ``vmax`` if lower). Radioactive
+    emission in each source shell is evaluated at that shell's mass-weighted
+    RMS velocity.
     """
     time = np.asarray(time, dtype=float)
     if time.ndim != 1 or len(time) < 2 or np.any(~np.isfinite(time)) or np.any(time <= 0):
@@ -813,8 +825,8 @@ def _nickelmixing(time, mej, esn, kappa, kappa_gamma, f_nickel, f_mixing,
     kappa_max = kappa
     if use_recombination_opacity:
         kappa_min = kwargs.get('kappa_min', 0.001)
-        if not np.isfinite(kappa_min):
-            raise ValueError("kappa_min must be finite")
+        if not np.isfinite(kappa_min) or kappa_min < 0:
+            raise ValueError("kappa_min must be finite and non-negative")
 
     grid = _build_nickelmixing_grid(
         vmin=vmin, esn=esn, mej=mej, f_nickel=f_nickel,
@@ -913,13 +925,20 @@ def _nickelmixing(time, mej, esn, kappa, kappa_gamma, f_nickel, f_mixing,
             extinction = np.maximum(kappa_eff * mass_cgs / volume, 1e-300)
             # Smooth thick/thin partition around tau = 2/3 (no steps as the
             # photosphere moves between shells).
-            thick_weight = 1.0 / (1.0 + np.exp(
-                -np.log(np.maximum(tau[:, ii], 1e-12) / (2.0 / 3.0)) / 0.25))
-            interface_diffusion = speed_of_light / (
-                3.0 * 0.5 * (extinction[:-1] + extinction[1:]))
-            interface_area = 4.0 * np.pi * (0.5 * (radius[:-1] + radius[1:])) ** 2
-            conductance = (interface_area * interface_diffusion / np.diff(radius)
-                           * np.sqrt(thick_weight[:-1] * thick_weight[1:]))
+            weight_argument = np.log(np.maximum(tau[:, ii], 1e-12) / (2.0 / 3.0)) / 0.25
+            thick_weight = 1.0 / (1.0 + np.exp(-weight_argument))
+            log_thick_weight = -np.logaddexp(0.0, -weight_argument)
+            # Interface conductance A D / dr * sqrt(w_i w_j), D = c / (3 chi),
+            # in logarithms: near-empty outer shells have chi -> 0 (D would
+            # overflow) exactly where the weights -> 0, so the product is
+            # small and finite, not inf * 0.
+            interface_radius = 0.5 * (radius[:-1] + radius[1:])
+            log_conductance = (
+                np.log(4.0 * np.pi * interface_radius ** 2 * speed_of_light / 3.0)
+                - np.log(0.5 * (extinction[:-1] + extinction[1:]))
+                - np.log(np.diff(radius))
+                + 0.5 * (log_thick_weight[:-1] + log_thick_weight[1:]))
+            conductance = np.exp(np.minimum(log_conductance, 700.0))
             # Outermost thick shell: half-cell diffusion in series with an
             # F = cE/4 free-streaming boundary; thin shells: light crossing.
             half_width = np.maximum(outer_radius - radius, np.finfo(float).tiny)
@@ -941,16 +960,23 @@ def _nickelmixing(time, mej, esn, kappa, kappa_gamma, f_nickel, f_mixing,
                 c1 = (1.0 + omega) ** 2 / (1.0 + 2.0 * omega)
                 c2 = omega ** 2 / (1.0 + 2.0 * omega)
             step = g * dt
-            banded = np.zeros((3, mass_len))
-            banded[1] = 1.0 + step / t_now + step * escape_conductance / volume
-            banded[1, :-1] += step * conductance / volume[:-1]
-            banded[1, 1:] += step * conductance / volume[1:]
-            banded[0, 1:] = -step * conductance / volume[1:]
-            banded[2, :-1] = -step * conductance / volume[:-1]
             rhs = c1 * energy_v[:, ii - 1] + step * qdot_ni[:, ii]
             if c2:
                 rhs -= c2 * energy_v[:, ii - 2]
-            energy_v[:, ii] = np.maximum(solve_banded((1, 1), banded, rhs), 0.0)
+            # Solved for the energy density u = E / V: the matrix
+            # V (1 + step / t) + step (escape + exchange) is symmetric and
+            # diagonally dominant (positive definite) whatever the range of
+            # shell volumes. Symmetric diagonal scaling keeps the Cholesky
+            # solve well conditioned.
+            diagonal = volume * (1.0 + step / t_now) + step * escape_conductance
+            diagonal[:-1] += step * conductance
+            diagonal[1:] += step * conductance
+            scale = np.sqrt(diagonal)
+            banded = np.zeros((2, mass_len))
+            banded[1] = 1.0
+            banded[0, 1:] = -step * conductance / (scale[:-1] * scale[1:])
+            density = solveh_banded(banded, rhs / scale) / scale
+            energy_v[:, ii] = np.maximum(density * volume, 0.0)
             lum_rad[:, ii] = escape_conductance * energy_v[:, ii] / volume
             continue
 

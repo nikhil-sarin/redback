@@ -2601,13 +2601,19 @@ class TestNickelMixingGridAndDiffusion(unittest.TestCase):
     def test_exponential_underflowing_tail_remains_finite(self):
         from redback.transient_models.supernova_models import _build_nickelmixing_grid
 
+        from redback.constants import km_cgs, solar_mass
+
         grid = _build_nickelmixing_grid(
             vmin=1.0, esn=0.4, mej=100.0, f_nickel=0.07,
             f_mixing=0.2, mass_len=400, vmax=250000.0,
             density_profile='exponential')
 
+        # The grid stops at 12 exponential velocity scales, so the tail no
+        # longer underflows to empty shells.
         self.assertTrue(np.all(np.isfinite(grid.velocity)))
-        self.assertGreater(np.count_nonzero(grid.mass == 0.0), 0)
+        self.assertEqual(np.count_nonzero(grid.mass == 0.0), 0)
+        velocity_scale = np.sqrt(0.4e51 / (6.0 * 100.0 * solar_mass)) / km_cgs
+        self.assertLess(grid.velocity_edges_cgs[-1] / km_cgs, 13.0 * velocity_scale)
 
     def test_nonfinite_density_indices_raise(self):
         from redback.transient_models.supernova_models import _build_nickelmixing_grid
@@ -2674,7 +2680,7 @@ class TestNickelMixingGridAndDiffusion(unittest.TestCase):
     def test_recombination_opacity_rejects_nonfinite_kappa_min(self):
         from redback.transient_models.supernova_models import nickelmixing_bolometric
 
-        for kappa_min in (np.nan, np.inf, -np.inf):
+        for kappa_min in (np.nan, np.inf, -np.inf, -1.0):
             with self.subTest(kappa_min=kappa_min):
                 with self.assertRaisesRegex(ValueError, "kappa_min must be finite"):
                     nickelmixing_bolometric(
@@ -2750,6 +2756,21 @@ class TestNickelMixingGridAndDiffusion(unittest.TestCase):
         with self.assertRaises(ValueError):
             nickelmixing_bolometric(
                 time, **{**self.parameters, 'transport': 'legacy'})
+
+    def test_low_energy_exponential_ejecta_are_finite(self):
+        # Out to the generic vmax the exponential tail held ~1e-30 of the
+        # mass per shell and the coupled diffusion solve broke down.
+        from redback.transient_models.supernova_models import nickelmixing_bolometric
+
+        time = np.geomspace(1.0, 120.0, 60)
+        for esn, mej in ((0.4, 1.4), (0.2, 10.0)):
+            with self.subTest(esn=esn, mej=mej):
+                luminosity = nickelmixing_bolometric(
+                    time, mej=mej, esn=esn, kappa=0.1, kappa_gamma=0.03,
+                    f_nickel=0.3, f_mixing=0.6, temperature_floor=1000.0,
+                    density_profile='exponential')
+                self.assertTrue(np.all(np.isfinite(luminosity)))
+                self.assertGreater(np.max(luminosity), 1e42)
 
     def test_coupled_diffusion_mixing_advances_the_peak(self):
         # Outward nickel diffuses out through less overlying mass.
