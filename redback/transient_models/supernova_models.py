@@ -1,6 +1,5 @@
 import numpy as np
 import pandas as pd
-import warnings
 from redback.transient_models.phenomenological_models import exponential_powerlaw, fallback_lbol
 from redback.transient_models.magnetar_models import magnetar_only, basic_magnetar
 from redback.transient_models.magnetar_driven_ejecta_models import _ejecta_dynamics_and_interaction
@@ -798,12 +797,9 @@ def _nickelmixing(time, mej, esn, kappa, kappa_gamma, f_nickel, f_mixing,
             raise ValueError(
                 "Specify only use_recombination_opacity; use_gray_opacity is "
                 "its deprecated inverse alias")
-        warnings.warn(
+        logger.warning(
             "use_gray_opacity is deprecated; use "
-            "use_recombination_opacity=not use_gray_opacity instead.",
-            FutureWarning,
-            stacklevel=2,
-        )
+            "use_recombination_opacity=not use_gray_opacity instead.")
         use_recombination_opacity = not kwargs['use_gray_opacity']
     else:
         use_recombination_opacity = kwargs.get(

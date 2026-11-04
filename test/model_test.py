@@ -2653,28 +2653,34 @@ class TestNickelMixingGridAndDiffusion(unittest.TestCase):
                 np.linspace(1.0, 20.0, 10), diffusion_scale=2.0,
                 **self.parameters)
 
-    def test_deprecated_gray_opacity_alias_matches_new_option(self):
+    @patch('redback.transient_models.supernova_models.logger')
+    def test_deprecated_gray_opacity_alias_matches_new_option(self, logger):
         from redback.transient_models.supernova_models import nickelmixing_bolometric
 
         time = np.linspace(1.0, 20.0, 10)
-        with self.assertWarnsRegex(FutureWarning, "use_gray_opacity is deprecated"):
-            legacy = nickelmixing_bolometric(
-                time, use_gray_opacity=False, **self.parameters)
+        legacy = nickelmixing_bolometric(
+            time, use_gray_opacity=False, **self.parameters)
         current = nickelmixing_bolometric(
             time, use_recombination_opacity=True, **self.parameters)
 
+        logger.warning.assert_called_once_with(
+            "use_gray_opacity is deprecated; use "
+            "use_recombination_opacity=not use_gray_opacity instead.")
         np.testing.assert_array_equal(legacy, current)
 
-    def test_deprecated_gray_opacity_true_matches_constant_opacity(self):
+    @patch('redback.transient_models.supernova_models.logger')
+    def test_deprecated_gray_opacity_true_matches_constant_opacity(self, logger):
         from redback.transient_models.supernova_models import nickelmixing_bolometric
 
         time = np.linspace(1.0, 20.0, 10)
-        with self.assertWarnsRegex(FutureWarning, "use_gray_opacity is deprecated"):
-            legacy = nickelmixing_bolometric(
-                time, use_gray_opacity=True, **self.parameters)
+        legacy = nickelmixing_bolometric(
+            time, use_gray_opacity=True, **self.parameters)
         current = nickelmixing_bolometric(
             time, use_recombination_opacity=False, **self.parameters)
 
+        logger.warning.assert_called_once_with(
+            "use_gray_opacity is deprecated; use "
+            "use_recombination_opacity=not use_gray_opacity instead.")
         np.testing.assert_array_equal(legacy, current)
 
     def test_recombination_opacity_rejects_nonfinite_kappa_min(self):
