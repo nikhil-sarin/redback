@@ -730,7 +730,6 @@ def _nickelmixing(time, mej, esn, kappa, kappa_gamma, f_nickel, f_mixing,
     :param time: time array to evaluate model on in source frame in seconds
     :param mej: ejecta mass in solar masses
     :param esn: explosion energy in foe
-    :param beta: velocity power law slope (M ∝ v^-beta)
     :param kappa: gray opacity [cm²/g]. When recombination opacity is
         enabled, this is the high-temperature opacity.
     :param kappa_gamma: gamma-ray opacity (assumed constant)
@@ -745,7 +744,9 @@ def _nickelmixing(time, mej, esn, kappa, kappa_gamma, f_nickel, f_mixing,
         ``temperature_floor``. Defaults to False.
     :param delta (float): inner density profile exponent, used if use_broken_powerlaw is True.
     :param nn (float): outer density profile exponent, used if use_broken_powerlaw is True.
-    :param beta (float): velocity power law slope, defaults to 3.0. Only used if use_broken_powerlaw is False.
+    :param beta (float): density-profile exponent for
+        ``density_profile='power_law'``, defaults to 3.0. This is unrelated to
+        ``diffusion_beta``.
     :param mass_len (int): number of mass shells, defaults to 400. Coupled
         diffusion requires at least 100 shells.
     :param vmax: provisional outer grid velocity before the global kinetic-
@@ -753,7 +754,9 @@ def _nickelmixing(time, mej, esn, kappa, kappa_gamma, f_nickel, f_mixing,
         legacy ``power_law`` profile.
     :param vmin_frac: inner-grid scale relative to sqrt(2 E/M), defaults to 0.2.
     :param kappa_min: minimum opacity when cool, defaults to 0.001 cm²/g.
-    :param diffusion_beta: shell diffusion geometry constant, defaults to 13.8.
+    :param diffusion_beta: legacy Arnett geometry constant used only by
+        ``transport='shell_leakage'``, defaults to 13.8. Do not supply it for
+        coupled diffusion.
     :param gamma_ray_angles: angular quadrature order for isotropic gamma-ray
         deposition, defaults to 8.
     :param transport: ``coupled_diffusion`` (default): finite-volume radiation
@@ -807,15 +810,18 @@ def _nickelmixing(time, mej, esn, kappa, kappa_gamma, f_nickel, f_mixing,
     delta = kwargs.get('delta', 1.0)
     nn = kwargs.get('nn', 12.0)
     beta = kwargs.get('beta', 3.0)
-    diffusion_beta = kwargs.get('diffusion_beta', 13.8)
     gamma_ray_angles = int(kwargs.get('gamma_ray_angles', 8))
     transport = kwargs.get('transport', 'coupled_diffusion')
     if transport not in ('coupled_diffusion', 'shell_leakage'):
         raise ValueError("transport must be 'coupled_diffusion' or 'shell_leakage'")
     if transport == 'coupled_diffusion' and mass_len < 100:
         raise ValueError("coupled_diffusion requires mass_len >= 100")
-    if not np.isfinite(diffusion_beta) or diffusion_beta <= 0:
-        raise ValueError("diffusion_beta must be finite and positive")
+    if transport == 'coupled_diffusion' and 'diffusion_beta' in kwargs:
+        raise ValueError("diffusion_beta applies only to transport='shell_leakage'")
+    if transport == 'shell_leakage':
+        diffusion_beta = kwargs.get('diffusion_beta', 13.8)
+        if not np.isfinite(diffusion_beta) or diffusion_beta <= 0:
+            raise ValueError("diffusion_beta must be finite and positive")
     if 'diffusion_scale' in kwargs:
         raise ValueError(
             "diffusion_scale is obsolete; the corrected model uses the "
@@ -1049,7 +1055,9 @@ def nickelmixing_bolometric(time, mej, esn, kappa, kappa_gamma, f_nickel, f_mixi
         legacy ``power_law`` profile
     :param dense_resolution: resolution of dense time array, default is 800
     :param density_profile: ``broken_power_law`` (default), ``exponential``, or ``power_law``.
-    :param diffusion_beta: shell diffusion geometry constant, defaults to 13.8.
+    :param diffusion_beta: legacy Arnett geometry constant used only by
+        ``transport='shell_leakage'``, defaults to 13.8. It is not part of the
+        coupled finite-volume calculation.
     :param gamma_ray_angles: angular quadrature order for isotropic gamma-ray
         deposition, defaults to 8.
     :param transport: ``coupled_diffusion`` (default) or ``shell_leakage``;
@@ -1102,7 +1110,9 @@ def nickelmixing(time, redshift, mej, esn, kappa, kappa_gamma, f_nickel, f_mixin
         legacy ``power_law`` profile
     :param stop_time: time to stop ODE at, default is 300 days
     :param dense_resolution: resolution of dense time array, default is 800
-    :param diffusion_beta: shell diffusion geometry constant, defaults to 13.8.
+    :param diffusion_beta: legacy Arnett geometry constant used only by
+        ``transport='shell_leakage'``, defaults to 13.8. It is not part of the
+        coupled finite-volume calculation.
     :param gamma_ray_angles: angular quadrature order for isotropic gamma-ray
         deposition, defaults to 8.
     :param transport: ``coupled_diffusion`` (default) or ``shell_leakage``;

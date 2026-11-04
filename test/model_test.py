@@ -2762,6 +2762,14 @@ class TestNickelMixingGridAndDiffusion(unittest.TestCase):
         with self.assertRaises(ValueError):
             nickelmixing_bolometric(
                 time, **{**self.parameters, 'transport': 'legacy'})
+        with self.assertRaisesRegex(ValueError, "applies only"):
+            nickelmixing_bolometric(
+                time, **{**self.parameters, 'diffusion_beta': 13.8})
+
+        with self.assertRaisesRegex(ValueError, "finite and positive"):
+            nickelmixing_bolometric(
+                time, **{**self.parameters, 'transport': 'shell_leakage',
+                         'diffusion_beta': np.nan})
 
     def test_coupled_diffusion_requires_resolved_shell_grid(self):
         from redback.transient_models.supernova_models import nickelmixing_bolometric
