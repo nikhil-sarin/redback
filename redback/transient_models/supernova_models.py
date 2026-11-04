@@ -17,6 +17,7 @@ from inspect import isfunction
 import astropy.units as uu
 from collections import namedtuple
 from scipy.interpolate import interp1d, PchipInterpolator, RegularGridInterpolator
+from scipy.linalg import solve_banded
 from scipy.special import gamma as gamma_function, gammaincc
 
 homologous_expansion_models = ['exponential_powerlaw_bolometric', 'arnett_bolometric',
@@ -748,6 +749,11 @@ def _nickelmixing(time, mej, esn, kappa, kappa_gamma, f_nickel, f_mixing,
     :param diffusion_beta: shell diffusion geometry constant, defaults to 13.8.
     :param gamma_ray_angles: angular quadrature order for isotropic gamma-ray
         deposition, defaults to 8.
+    :param transport: ``coupled_diffusion`` (default): finite-volume radiation
+        diffusion between neighbouring optically thick shells, implicit in
+        time, with a free-streaming photospheric boundary (as snmix's default);
+        or ``shell_leakage``: each shell leaks independently through the
+        radius-weighted shell closure with ``diffusion_beta``.
     :return: namedtuple with time_temp (days), lbol, t_photosphere, r_photosphere, tau, and v_photosphere.
 
     Notes
@@ -794,6 +800,9 @@ def _nickelmixing(time, mej, esn, kappa, kappa_gamma, f_nickel, f_mixing,
     beta = kwargs.get('beta', 3.0)
     diffusion_beta = kwargs.get('diffusion_beta', 13.8)
     gamma_ray_angles = int(kwargs.get('gamma_ray_angles', 8))
+    transport = kwargs.get('transport', 'coupled_diffusion')
+    if transport not in ('coupled_diffusion', 'shell_leakage'):
+        raise ValueError("transport must be 'coupled_diffusion' or 'shell_leakage'")
     if not np.isfinite(diffusion_beta) or diffusion_beta <= 0:
         raise ValueError("diffusion_beta must be finite and positive")
     if 'diffusion_scale' in kwargs:
@@ -849,6 +858,10 @@ def _nickelmixing(time, mej, esn, kappa, kappa_gamma, f_nickel, f_mixing,
         / (4.0 * np.pi * edge_cubes))
     cumulative_column_geometry = np.cumsum(shell_column_geometry[::-1])[::-1]
     diffusion_geometry = np.cumsum((m_array * solar_mass / v_m)[::-1])[::-1]
+    # Shell volumes, density times volume and interface geometry for the
+    # coupled diffusion closure; all scale as powers of t in homologous ejecta.
+    shell_volume_geometry = 4.0 * np.pi / 3.0 * edge_cubes
+    mass_cgs = m_array * solar_mass
 
     # Gamma rays are emitted isotropically. Geometry is evaluated once because
     # every homologous column subsequently scales as t^-2.
@@ -881,6 +894,65 @@ def _nickelmixing(time, mej, esn, kappa, kappa_gamma, f_nickel, f_mixing,
                 1.0 + np.tanh((temperature_previous - temperature_floor) / 50000.0))
 
         tau[:, ii] = kappa_eff * cumulative_column_geometry / time[ii] ** 2
+
+        if transport == 'coupled_diffusion':
+            # Finite-volume radiation diffusion between neighbouring optically
+            # thick shells, implicit (backward Euler) in time, as snmix's
+            # coupled_diffusion. Radiation reaching the photospheric boundary,
+            # and energy deposited in transparent shells, escapes directly.
+            photosphere_index = np.argmin(np.abs(tau[:, ii] - 1.0))
+            v_photosphere[ii] = v_m[photosphere_index]
+            r_photosphere[ii] = v_photosphere[ii] * time[ii]
+            if ii == 0:
+                continue
+            t_now = time[ii]
+            dt = t_now - time[ii - 1]
+            radius = v_m * t_now
+            outer_radius = velocity_edges[1:] * t_now
+            volume = shell_volume_geometry * t_now ** 3
+            extinction = np.maximum(kappa_eff * mass_cgs / volume, 1e-300)
+            # Smooth thick/thin partition around tau = 2/3 (no steps as the
+            # photosphere moves between shells).
+            thick_weight = 1.0 / (1.0 + np.exp(
+                -np.log(np.maximum(tau[:, ii], 1e-12) / (2.0 / 3.0)) / 0.25))
+            interface_diffusion = speed_of_light / (
+                3.0 * 0.5 * (extinction[:-1] + extinction[1:]))
+            interface_area = 4.0 * np.pi * (0.5 * (radius[:-1] + radius[1:])) ** 2
+            conductance = (interface_area * interface_diffusion / np.diff(radius)
+                           * np.sqrt(thick_weight[:-1] * thick_weight[1:]))
+            # Outermost thick shell: half-cell diffusion in series with an
+            # F = cE/4 free-streaming boundary; thin shells: light crossing.
+            half_width = np.maximum(outer_radius - radius, np.finfo(float).tiny)
+            photospheric_conductance = 4.0 * np.pi * outer_radius ** 2 / (
+                4.0 / speed_of_light + half_width * 3.0 * extinction / speed_of_light)
+            exterior_weight = np.append(thick_weight[1:], 0.0)
+            surface_weight = np.maximum(thick_weight - exterior_weight, 0.0)
+            transparent_conductance = volume / np.maximum(radius / speed_of_light, dt)
+            escape_conductance = (surface_weight * photospheric_conductance
+                                  + (1.0 - thick_weight) * transparent_conductance)
+            # dE/dt = Q - A E with A the adiabatic, exchange and escape terms.
+            # Variable-step BDF2 (second order; backward Euler on the first
+            # step): (I + g dt A) E_n = c1 E_{n-1} - c2 E_{n-2} + g dt Q_n.
+            if ii == 1:
+                g, c1, c2 = 1.0, 1.0, 0.0
+            else:
+                omega = dt / (time[ii - 1] - time[ii - 2])
+                g = (1.0 + omega) / (1.0 + 2.0 * omega)
+                c1 = (1.0 + omega) ** 2 / (1.0 + 2.0 * omega)
+                c2 = omega ** 2 / (1.0 + 2.0 * omega)
+            step = g * dt
+            banded = np.zeros((3, mass_len))
+            banded[1] = 1.0 + step / t_now + step * escape_conductance / volume
+            banded[1, :-1] += step * conductance / volume[:-1]
+            banded[1, 1:] += step * conductance / volume[1:]
+            banded[0, 1:] = -step * conductance / volume[1:]
+            banded[2, :-1] = -step * conductance / volume[:-1]
+            rhs = c1 * energy_v[:, ii - 1] + step * qdot_ni[:, ii]
+            if c2:
+                rhs -= c2 * energy_v[:, ii - 2]
+            energy_v[:, ii] = np.maximum(solve_banded((1, 1), banded, rhs), 0.0)
+            lum_rad[:, ii] = escape_conductance * energy_v[:, ii] / volume
+            continue
 
         td_v[:, ii] = (
             kappa_eff * diffusion_geometry
@@ -954,6 +1026,8 @@ def nickelmixing_bolometric(time, mej, esn, kappa, kappa_gamma, f_nickel, f_mixi
     :param diffusion_beta: shell diffusion geometry constant, defaults to 13.8.
     :param gamma_ray_angles: angular quadrature order for isotropic gamma-ray
         deposition, defaults to 8.
+    :param transport: ``coupled_diffusion`` (default) or ``shell_leakage``;
+        see ``_nickelmixing``.
     :return: bolometric luminosity
 
     Notes
@@ -1004,6 +1078,8 @@ def nickelmixing(time, redshift, mej, esn, kappa, kappa_gamma, f_nickel, f_mixin
     :param diffusion_beta: shell diffusion geometry constant, defaults to 13.8.
     :param gamma_ray_angles: angular quadrature order for isotropic gamma-ray
         deposition, defaults to 8.
+    :param transport: ``coupled_diffusion`` (default) or ``shell_leakage``;
+        see ``_nickelmixing``.
     :param frequency: Required if output_format is 'flux_density'.
     frequency to calculate - Must be same length as time array or a single number).
     :param bands: Required if output_format is 'magnitude' or 'flux'.

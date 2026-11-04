@@ -2723,6 +2723,44 @@ class TestNickelMixingGridAndDiffusion(unittest.TestCase):
         mask = high_resolution > 0.01 * np.max(high_resolution)
         np.testing.assert_allclose(default[mask], high_resolution[mask], rtol=0.02)
 
+    def test_coupled_diffusion_time_stepping_is_second_order_accurate(self):
+        # BDF2: the default 800-point grid agrees with an 8x finer grid to
+        # well below a per cent (backward Euler was off by ~6% on the rise).
+        from redback.transient_models.supernova_models import nickelmixing_bolometric
+
+        time = np.geomspace(0.5, 120.0, 160)
+        default = nickelmixing_bolometric(time, **self.parameters)
+        fine = nickelmixing_bolometric(
+            time, **{**self.parameters, 'dense_resolution': 6400})
+        mask = fine > 0.01 * np.max(fine)
+        np.testing.assert_allclose(default[mask], fine[mask], rtol=0.005)
+
+    def test_transport_options(self):
+        from redback.transient_models.supernova_models import nickelmixing_bolometric
+
+        time = np.geomspace(1.0, 120.0, 80)
+        coupled = nickelmixing_bolometric(time, **self.parameters)
+        explicit = nickelmixing_bolometric(
+            time, **{**self.parameters, 'transport': 'coupled_diffusion'})
+        leakage = nickelmixing_bolometric(
+            time, **{**self.parameters, 'transport': 'shell_leakage'})
+        np.testing.assert_array_equal(coupled, explicit)
+        self.assertTrue(np.all(np.isfinite(leakage)))
+        self.assertFalse(np.allclose(coupled, leakage, rtol=0.01))
+        with self.assertRaises(ValueError):
+            nickelmixing_bolometric(
+                time, **{**self.parameters, 'transport': 'legacy'})
+
+    def test_coupled_diffusion_mixing_advances_the_peak(self):
+        # Outward nickel diffuses out through less overlying mass.
+        from redback.transient_models.supernova_models import nickelmixing_bolometric
+
+        time = np.linspace(1.0, 120.0, 600)
+        central = nickelmixing_bolometric(time, **self.parameters)
+        mixed = nickelmixing_bolometric(
+            time, **{**self.parameters, 'f_mixing': 1.0})
+        self.assertLess(time[np.argmax(mixed)], 0.6 * time[np.argmax(central)])
+
 
 class TestNickelMixingRadioactiveDeposition(unittest.TestCase):
     """Late-time limits of gamma-ray leakage and local positron deposition."""
