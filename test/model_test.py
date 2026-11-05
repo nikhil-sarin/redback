@@ -2240,14 +2240,14 @@ class TestCosmologicalCorrections(unittest.TestCase):
 class TestOptimalTimeArray(unittest.TestCase):
     """Test suite for the get_optimal_time_array utility function."""
 
-    def test_kilonova_diffusion_matches_finite_legacy_calculation(self):
+    def test_kilonova_diffusion_matches_arnett_calculation(self):
         from redback.transient_models.kilonova_models import _kilonova_diffusion_luminosity
 
         time = np.geomspace(1.0e-2, 2.0e5, 200)
         thermalised_luminosity = 1.0e42 * np.exp(-time / 1.0e5)
         diffusion_timescale = 4.0e5
         integrand = (
-            thermalised_luminosity * (time / diffusion_timescale)
+            2.0 * thermalised_luminosity * (time / diffusion_timescale)
             * np.exp(time ** 2 / diffusion_timescale ** 2)
         )
         cumulative_integral = np.zeros_like(time)
@@ -2265,6 +2265,17 @@ class TestOptimalTimeArray(unittest.TestCase):
         )
 
         np.testing.assert_allclose(actual, expected, rtol=2.0e-14)
+
+    def test_kilonova_diffusion_recovers_constant_heating(self):
+        from redback.transient_models.kilonova_models import _kilonova_diffusion_luminosity
+
+        time = np.linspace(0.0, 40.0, 20001)
+        heating = np.ones_like(time)
+
+        luminosity = _kilonova_diffusion_luminosity(
+            time, heating, diffusion_timescale=2.0)
+
+        self.assertAlmostEqual(luminosity[-1], 1.0, places=3)
 
     def test_kilonova_diffusion_is_finite_for_extreme_valid_prior(self):
         import warnings
