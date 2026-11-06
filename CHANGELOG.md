@@ -13,8 +13,8 @@
 - Add `nicholl_bns_rk24`, a kilonova model based on `nicholl_bns`, but using direct component tidal deformabilities and the Rosswog & Korobkin (2024) heating rate, along with a corrected prompt-collapse threshold using the remnant radius in geometrical units. The existing `nicholl_bns` model retains the original MOSFiT/Nicholl et al. (2021) threshold implementation.
 
 ### Scientific model changes
-- Restore the factor of two in the normalized Arnett diffusion kernel shared by
-  Redback's simple component and Rosswog-heating kilonova models. Their
+- Include the factor of two required by the normalized Arnett diffusion kernel
+  shared by Redback's simple component and Rosswog-heating kilonova models. Their
   bolometric luminosities now approach the deposited heating rate in the
   transparent, constant-heating limit and agree with the normalization used by
   MOSFiT/Villar. The dedicated `mosfit_rprocess` and `mosfit_kilonova` models
