@@ -1980,7 +1980,7 @@ def _calc_new_heating_rate(time, mej, electron_fraction, ejecta_velocity, **kwar
 
 
 def _kilonova_diffusion_luminosity(time, thermalised_luminosity, diffusion_timescale):
-    """Evaluate the kilonova diffusion convolution without exponential overflow."""
+    """Evaluate the normalized Arnett diffusion convolution without overflow."""
     time = np.asarray(time, dtype=float)
     thermalised_luminosity = np.asarray(thermalised_luminosity, dtype=float)
     bolometric_luminosity = np.zeros_like(time)
@@ -1988,7 +1988,7 @@ def _kilonova_diffusion_luminosity(time, thermalised_luminosity, diffusion_times
     inverse_tdiff_squared = diffusion_timescale ** -2
     scaled_time_squared = time ** 2 * inverse_tdiff_squared
     decay = np.exp(-np.diff(scaled_time_squared))
-    bolometric_luminosity[1:] = 0.5 * np.diff(time) * inverse_tdiff_squared * (
+    bolometric_luminosity[1:] = np.diff(time) * inverse_tdiff_squared * (
         decay * thermalised_luminosity[:-1] * time[:-1]
         + thermalised_luminosity[1:] * time[1:]
     )

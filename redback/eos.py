@@ -3,7 +3,6 @@ from redback.constants import *
 from redback.utils import logger
 import astropy.constants as cc
 import astropy.units as uu
-from scipy.interpolate import interp1d
 import warnings
 
 
@@ -20,6 +19,14 @@ except ModuleNotFoundError as e:
     logger.warning(e)
     logger.warning('lalsimulation is not installed. Some EOS based models will not work.'
                    ' Please use bilby eos or pass your own EOS generation class to the model')
+
+
+def _create_neutron_star_family(equation_of_state):
+    """Create a minimal neutron-star family across LALSimulation APIs."""
+    try:
+        return lalsim.CreateSimNeutronStarFamily(equation_of_state, 1)
+    except TypeError:
+        return lalsim.CreateSimNeutronStarFamily(equation_of_state)
 
 class PiecewisePolytrope(object):
     def __init__(self, log_p, gamma_1, gamma_2, gamma_3):
@@ -40,7 +47,7 @@ class PiecewisePolytrope(object):
         """
         polytrope = lalsim.SimNeutronStarEOS4ParameterPiecewisePolytrope(self.log_p, self.gamma_1,
                                                                          self.gamma_2, self.gamma_3)
-        polytrope = lalsim.CreateSimNeutronStarFamily(polytrope)
+        polytrope = _create_neutron_star_family(polytrope)
         maximum_mass = lalsim.SimNeutronStarMaximumMass(polytrope)/cc.M_sun.si.value
         return maximum_mass
 
@@ -64,7 +71,7 @@ class PiecewisePolytrope(object):
         m1 = mass * cc.M_sun.si.value
         polytrope = lalsim.SimNeutronStarEOS4ParameterPiecewisePolytrope(self.log_p, self.gamma_1,
                                                                          self.gamma_2, self.gamma_3)
-        polytrope = lalsim.CreateSimNeutronStarFamily(polytrope)
+        polytrope = _create_neutron_star_family(polytrope)
 
         m_tmp = []
         r_tmp = []
@@ -122,41 +129,34 @@ class PiecewisePolytrope(object):
         :param maximum_mass_lower_limit: Maximum mass lower limit in solar masses (default 2.01)
         :return: lambda for the given mass array
         """
-        mass_tmp, Lambda_tmp, max_mass = self.lambda_array_of_central_pressure(central_pressure, maximum_mass_lower_limit)
+        del central_pressure  # Retained for API compatibility.
+        equation_of_state = lalsim.SimNeutronStarEOS4ParameterPiecewisePolytrope(
+            self.log_p, self.gamma_1, self.gamma_2, self.gamma_3)
+        family = _create_neutron_star_family(equation_of_state)
+        max_mass = (
+            lalsim.SimNeutronStarMaximumMass(family) / cc.M_sun.si.value)
+        if max_mass < maximum_mass_lower_limit:
+            raise ValueError(
+                "Maximum mass for this EOS is lower than 2.01, please choose "
+                "a more realistic EOS")
 
-        if hasattr(mass, '__len__'):
-            if mass.shape == (len(mass),):  # i.e. np.array([mass_1])
-                interpolated_Lambda = interp1d(
-                    mass_tmp, Lambda_tmp, fill_value='extrapolate')
+        masses = np.asarray(mass, dtype=float)
+        scalar_input = masses.ndim == 0
+        lambdas = np.zeros_like(masses, dtype=float)
+        for index in np.ndindex(masses.shape):
+            if masses[index] > max_mass:
+                continue
+            mass_si = masses[index] * cc.M_sun.si.value
+            radius = lalsim.SimNeutronStarRadius(mass_si, family)
+            love_number = lalsim.SimNeutronStarLoveNumberK2(
+                mass_si, family)
+            lambdas[index] = (
+                2.0 / 3.0 * love_number
+                * (cc.c.si.value ** 2 * radius
+                   / (cc.G.si.value * mass_si)) ** 5)
 
-                Lambda = interpolated_Lambda(mass)
-                args = np.argwhere(Lambda >= 0).flatten()
-                args_2 = np.argwhere(Lambda < 0).flatten()
-
-                # We append zeros after a NS collapses, i.e, for masses > M_tov
-                Lambda = np.append(Lambda[args], np.zeros(len(args_2)))
-
-            elif mass.shape == (2, len(mass[0])):  # i.e. np.array([mass_1,mass_2])
-                interpolated_Lambda = interp1d(
-                    mass_tmp, Lambda_tmp, fill_value='extrapolate')
-                Lambda = np.zeros([2, len(mass[0])])
-                for ii in range(2):
-                    Lambda_tmp_2 = interpolated_Lambda(mass[ii])
-                    args = np.argwhere(Lambda_tmp_2 >= 0).flatten()
-                    args_2 = np.argwhere(Lambda_tmp_2 < 0).flatten()
-
-                    # We append zeros after a NS collapses, i.e, for masses > M_tov
-                    Lambda[ii] = np.append(Lambda_tmp_2[args], np.zeros(len(args_2)))
-
-        else:
-            # if mass is a float
-            interpolated_Lambda = interp1d(
-                mass_tmp, Lambda_tmp, fill_value='extrapolate')
-            Lambda = interpolated_Lambda(mass)
-            if Lambda < 0:
-                Lambda = 0
-
-
-        return Lambda, max_mass
+        if scalar_input:
+            return float(lambdas), max_mass
+        return lambdas, max_mass
 
 

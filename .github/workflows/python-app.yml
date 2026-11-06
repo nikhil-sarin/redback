@@ -12,6 +12,8 @@ on:
 jobs:
   test:
     runs-on: ubuntu-latest
+    env:
+      CFLAGS: -std=gnu17
     strategy:
       fail-fast: false
       matrix:

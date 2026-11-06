@@ -3,8 +3,22 @@
 ## [Unreleased]
 
 ### New features
+- Replace the default independent-shell leakage closure in `nickelmixing` and
+  `nickelmixing_bolometric` with coupled finite-volume diffusion using
+  variable-step BDF2. The previous approximation remains available with
+  `transport="shell_leakage"`; coupled diffusion requires at least 100 mass
+  shells and defaults to 400. The Arnett `diffusion_beta` geometry constant
+  applies only to the legacy shell-leakage transport.
 - Add `AstroColibriDataGetter` and `redback.get_data.get_astrocolibri_data(...)` to download multi-survey optical photometry (ATLAS, ZTF, LSST, ASAS-SN, AAVSO) for any transient known to Astro-COLIBRI, together with `OpticalTransient.from_astrocolibri_data(...)` to load it. Lightcurve requests require a personal Astro-COLIBRI user id (`uid` or `ASTROCOLIBRI_UID`) and count against the daily API quota; non-detections can optionally be kept as upper limits via `include_upper_limits=True`.
 - Add `nicholl_bns_rk24`, a kilonova model based on `nicholl_bns`, but using direct component tidal deformabilities and the Rosswog & Korobkin (2024) heating rate, along with a corrected prompt-collapse threshold using the remnant radius in geometrical units. The existing `nicholl_bns` model retains the original MOSFiT/Nicholl et al. (2021) threshold implementation.
+
+### Scientific model changes
+- Include the factor of two required by the normalized Arnett diffusion kernel
+  shared by Redback's simple component and Rosswog-heating kilonova models. Their
+  bolometric luminosities now approach the deposited heating rate in the
+  transparent, constant-heating limit and agree with the normalization used by
+  MOSFiT/Villar. The dedicated `mosfit_rprocess` and `mosfit_kilonova` models
+  already used this normalization and are unchanged.
 
 ### Bug fixes
 - Fix `redback.get_data.get_data(...)`: the catch-all router looked up its dispatch table with the transient name where the transient type is expected, raising a `KeyError` for every real call, and could not pass `transient_type` through to the generic getters (astrocolibri, fink, lasair). It now takes `(transient, transient_type, instrument)` and forwards all keyword arguments to the underlying data getter, raising a helpful `ValueError` for unknown combinations.

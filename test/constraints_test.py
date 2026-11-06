@@ -1,7 +1,7 @@
 import unittest
 import builtins
 import numpy as np
-from unittest.mock import patch, MagicMock
+from unittest.mock import call, patch, MagicMock
 import warnings
 import redback.constraints as constraints
 
@@ -67,6 +67,81 @@ class TestEOSImports(unittest.TestCase):
                 constraints.eos._import_lalsimulation()
 
         self.assertFalse(any("Wswiglal-redir-stdio" in str(w.message) for w in caught))
+
+    @patch("redback.constraints.eos.lalsim")
+    def test_neutron_star_family_uses_current_lalsimulation_api(self, lalsim):
+        equation_of_state = object()
+
+        constraints.eos._create_neutron_star_family(equation_of_state)
+
+        lalsim.CreateSimNeutronStarFamily.assert_called_once_with(
+            equation_of_state, 1)
+
+    @patch("redback.constraints.eos.lalsim")
+    def test_neutron_star_family_supports_legacy_lalsimulation_api(self, lalsim):
+        equation_of_state = object()
+        family = object()
+
+        def create_family(*args):
+            if len(args) == 2:
+                raise TypeError("legacy one-argument API")
+            return family
+
+        lalsim.CreateSimNeutronStarFamily.side_effect = create_family
+
+        result = constraints.eos._create_neutron_star_family(equation_of_state)
+
+        self.assertIs(result, family)
+        self.assertEqual(
+            lalsim.CreateSimNeutronStarFamily.call_args_list,
+            [call(equation_of_state, 1), call(equation_of_state)])
+
+    @patch("redback.constraints.eos.lalsim")
+    def test_lambda_of_mass_uses_family_interpolation(self, lalsim):
+        from astropy.constants import M_sun
+
+        lalsim.SimNeutronStarMaximumMass.return_value = 2.2 * M_sun.si.value
+        lalsim.SimNeutronStarRadius.return_value = 12000.0
+        lalsim.SimNeutronStarLoveNumberK2.return_value = 0.1
+        polytrope = constraints.eos.PiecewisePolytrope(
+            log_p=33.72, gamma_1=4.04, gamma_2=2.159, gamma_3=3.688)
+
+        deformability, maximum_mass = polytrope.lambda_of_mass(
+            central_pressure=np.array([1e33]), mass=np.array([1.4, 2.3]))
+
+        self.assertTrue(np.isfinite(deformability[0]))
+        self.assertGreater(deformability[0], 0.0)
+        self.assertEqual(deformability[1], 0.0)
+        self.assertAlmostEqual(maximum_mass, 2.2)
+        lalsim.SimNeutronStarRadius.assert_called_once()
+        lalsim.SimNeutronStarLoveNumberK2.assert_called_once()
+
+    @patch("redback.constraints.eos.lalsim")
+    def test_lambda_of_mass_propagates_lalsimulation_failures(self, lalsim):
+        from astropy.constants import M_sun
+
+        lalsim.SimNeutronStarMaximumMass.return_value = 2.2 * M_sun.si.value
+        lalsim.SimNeutronStarRadius.side_effect = RuntimeError("invalid EOS")
+        polytrope = constraints.eos.PiecewisePolytrope(
+            log_p=33.72, gamma_1=4.04, gamma_2=2.159, gamma_3=3.688)
+
+        with self.assertRaisesRegex(RuntimeError, "invalid EOS"):
+            polytrope.lambda_of_mass(
+                central_pressure=np.array([1e33]), mass=1.4)
+
+    @patch("redback.constraints.eos.lalsim")
+    def test_lambda_of_mass_propagates_love_number_failures(self, lalsim):
+        from astropy.constants import M_sun
+
+        lalsim.SimNeutronStarMaximumMass.return_value = 2.2 * M_sun.si.value
+        lalsim.SimNeutronStarRadius.return_value = 12000.0
+        lalsim.SimNeutronStarLoveNumberK2.side_effect = RuntimeError("invalid EOS")
+        polytrope = constraints.eos.PiecewisePolytrope(
+            log_p=33.72, gamma_1=4.04, gamma_2=2.159, gamma_3=3.688)
+
+        with self.assertRaisesRegex(RuntimeError, "invalid EOS"):
+            polytrope.lambda_of_mass(
+                central_pressure=np.array([1e33]), mass=1.4)
 
 
 class TestBasicMagnetarPoweredSNConstraints(unittest.TestCase):
@@ -516,6 +591,30 @@ class TestCoolingEnvelopeConstraints(unittest.TestCase):
 
         self.assertIn('gaussian_stitching_tail', result)
         self.assertGreater(result['gaussian_stitching_tail'], 35)
+
+
+class TestNickelMixingConstraints(unittest.TestCase):
+
+    def test_local_nickel_fraction_is_derived(self):
+        parameters = {'f_nickel': 0.1, 'f_mixing': 0.4}
+        result = constraints.nickel_mixing_constraints(parameters)
+
+        self.assertEqual(result['nickel_fraction_in_mixed_region'], 0.25)
+        self.assertAlmostEqual(result['nickel_mixing_order'], 0.3)
+        self.assertEqual(parameters, {'f_nickel': 0.1, 'f_mixing': 0.4})
+
+    def test_zero_mixing_fraction_is_rejected_by_derived_constraints(self):
+        result = constraints.nickel_mixing_constraints(
+            {'f_nickel': 0.1, 'f_mixing': 0.0})
+
+        self.assertTrue(np.isinf(result['nickel_fraction_in_mixed_region']))
+        self.assertLess(result['nickel_mixing_order'], 0.0)
+
+    def test_negative_fractions_are_rejected_by_order_constraint(self):
+        result = constraints.nickel_mixing_constraints(
+            {'f_nickel': -0.1, 'f_mixing': -0.2})
+
+        self.assertLess(result['nickel_mixing_order'], 0.0)
 
 
 class TestPiecewisePolytropeEOSConstraints(unittest.TestCase):

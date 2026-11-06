@@ -62,6 +62,7 @@ Built-in constraint loading is currently available for several model classes, in
 - magnetar and superluminous supernova models with rotational-energy constraints,
 - TDE fallback and cooling-envelope models with physical-domain constraints,
 - CSM-interaction supernova models with shock-time/photosphere constraints,
+- nickel-mixing supernova models with :code:`f_nickel <= f_mixing`,
 - kilonova ejecta-relation models with derived ejecta-mass and velocity domain constraints,
 - EOS-derived kilonova models with EOS and derived-ejecta constraints.
 
