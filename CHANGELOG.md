@@ -23,6 +23,8 @@
 - Restore configurable cosmology and constrained-prior support for the general
   magnetar-driven supernova models, and clarify their source-frame time and
   initial-energy conventions.
+- Correct the general-magnetar SLSN luminosity-prior lower bound from the
+  unphysical `1e-40` to `1e40` erg/s in both photometric and bolometric models.
 
 ## [1.21.0] 2026-11-15
 Version 1.21.0 release of redback

@@ -173,6 +173,13 @@ class TestGetPriors(unittest.TestCase):
                 self.assertTrue(expected.issubset(result))
                 self.assertIsNotNone(result.conversion_function)
 
+    def test_general_magnetar_slsn_luminosity_prior_is_physical(self):
+        for model in ('general_magnetar_slsn', 'general_magnetar_slsn_bolometric'):
+            with self.subTest(model=model):
+                result = priors.get_priors(model)
+                self.assertEqual(result['l0'].minimum, 1e40)
+                self.assertEqual(result['l0'].maximum, 1e48)
+
     def test_csm_shock_breakout_prior_uses_v_min_name(self):
         result = priors.get_priors('csm_shock_breakout')
 
