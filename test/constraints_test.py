@@ -181,17 +181,19 @@ class TestGeneralMagnetarPoweredSNConstraints(unittest.TestCase):
             'mej': 10.0,
             'vej': 5000.0,
             'l0': 1e43,
-            'tsd': 1e5
+            'tsd': 10.0
         }
         result = constraints.general_magnetar_powered_sn_constraints(parameters)
 
         self.assertIn('erot_constraint', result)
-        self.assertGreater(result['erot_constraint'], 0)
+        kinetic_energy = 0.5 * parameters['mej'] * constraints.solar_mass * (parameters['vej'] * constraints.km_cgs) ** 2
+        rotational_energy = 2 * parameters['l0'] * parameters['tsd'] * constraints.day_to_s
+        self.assertAlmostEqual(result['erot_constraint'], kinetic_energy / rotational_energy)
 
     def test_varying_l0(self):
         """Test with different l0 values"""
-        params1 = {'mej': 10.0, 'vej': 5000.0, 'l0': 1e42, 'tsd': 1e5}
-        params2 = {'mej': 10.0, 'vej': 5000.0, 'l0': 1e44, 'tsd': 1e5}
+        params1 = {'mej': 10.0, 'vej': 5000.0, 'l0': 1e42, 'tsd': 10.0}
+        params2 = {'mej': 10.0, 'vej': 5000.0, 'l0': 1e44, 'tsd': 10.0}
 
         result1 = constraints.general_magnetar_powered_sn_constraints(params1)
         result2 = constraints.general_magnetar_powered_sn_constraints(params2)
