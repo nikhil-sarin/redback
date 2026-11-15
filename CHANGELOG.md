@@ -31,6 +31,8 @@ Version 1.21.0 release of redback
   already used this normalization and are unchanged.
 
 ### Bug fixes
+- Make the `general_magnetar_slsn` spin-down-time prior and rotational-energy
+  constraint consistently use the model's source-frame-day convention.
 - Order SED epoch observations, uncertainties, and fitted curves by effective
   frequency, and invert magnitude-mode plot axes.
 - Sort converted OTTER photometry globally by time while preserving the

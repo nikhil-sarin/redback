@@ -112,13 +112,15 @@ class TestConstraints(unittest.TestCase):
     def test_general_magnetar_powered_sn_constraints(self):
         priors = bilby.prior.PriorDict(conversion_function=redback.constraints.general_magnetar_powered_sn_constraints)
         _prior = redback.priors.get_priors(model='general_magnetar_slsn')
+        self.assertAlmostEqual(_prior['tsd'].minimum * redback.constants.day_to_s, 1e2)
+        self.assertAlmostEqual(_prior['tsd'].maximum * redback.constants.day_to_s, 1e6)
         priors.update(_prior)
         priors['erot_constraint'] = Constraint(0, 1)
         samples = pd.DataFrame(priors.sample(100))
         mej = samples['mej'] * redback.constants.solar_mass
         vej = samples['vej'] * redback.constants.km_cgs
         l0 = samples['l0']
-        tau = samples['tsd']
+        tau = samples['tsd'] * redback.constants.day_to_s
         samples['erot'] = 2*l0*tau
         samples['ek'] = 0.5 * mej * vej**2
         self.assertTrue(np.all(samples['erot'].values >= samples['ek'].values))
