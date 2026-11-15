@@ -80,7 +80,9 @@ class TestAllModelsRegression(unittest.TestCase):
             
             # Compare results
             try:
-                np.testing.assert_allclose(result, ref_result, rtol=1e-5, atol=1e-12)
+                np.testing.assert_allclose(
+                    result, ref_result,
+                    rtol=metadata.get('rtol', 1e-5), atol=1e-12)
             except AssertionError as e:
                 self.fail(
                     f"{model_key} output changed for params {params}\n"
