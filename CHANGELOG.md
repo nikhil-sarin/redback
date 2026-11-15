@@ -7,6 +7,8 @@
   and allow modules to declare model exports with `__all__`.
 - Correct FRED and CSM shock-breakout prior parameter identities and add default
   priors for standalone bolometric nickel-mixing, CSM, and general-magnetar models.
+- Make the general-magnetar energy constraint braking-index dependent and use
+  the engine's tabulated ejecta/CSM coefficients in CSM constraints.
 - Remove the unimplemented `csm_truncation_shock` model and unused TDE fallback
   stub.
 

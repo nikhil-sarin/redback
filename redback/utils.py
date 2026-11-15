@@ -290,16 +290,9 @@ def calculate_normalisation(unique_frequency, model_1, model_2, tref, model_1_di
     return normalisation
 
 
-@lru_cache(maxsize=128)
-def get_csm_properties(nn, eta):
-    """
-    Calculate CSM properties for CSM interacting models
-
-    :param nn: csm norm
-    :param eta: csm density profile exponent
-    :return: csm_properties named tuple
-    """
-    csm_properties = namedtuple('csm_properties', ['AA', 'Bf', 'Br'])
+@lru_cache(maxsize=1)
+def _get_csm_interpolators():
+    """Load and cache the CSM coefficient interpolators."""
     filepath = f"{dirname}/tables/csm_table.txt"
     ns, ss, bfs, brs, aas = np.loadtxt(filepath, delimiter=',', unpack=True)
     bfs = np.reshape(bfs, (10, 30)).T
@@ -310,15 +303,29 @@ def get_csm_properties(nn, eta):
     bf_func = RegularGridInterpolator((ss, ns), bfs)
     br_func = RegularGridInterpolator((ss, ns), brs)
     aa_func = RegularGridInterpolator((ss, ns), aas)
+    return aa_func, bf_func, br_func
 
-    Bf = bf_func([nn, eta])[0]
-    Br = br_func([nn, eta])[0]
-    AA = aa_func([nn, eta])[0]
 
-    csm_properties.AA = AA
-    csm_properties.Bf = Bf
-    csm_properties.Br = Br
-    return csm_properties
+def get_csm_properties(nn, eta):
+    """
+    Calculate CSM properties for scalar or array model parameters.
+
+    :param nn: outer ejecta density profile exponent
+    :param eta: CSM density profile exponent
+    :return: csm_properties named tuple broadcast to the input shape
+    """
+    nn, eta = np.broadcast_arrays(
+        np.asarray(nn, dtype=float), np.asarray(eta, dtype=float))
+    points = np.column_stack((nn.ravel(), eta.ravel()))
+    aa_func, bf_func, br_func = _get_csm_interpolators()
+
+    def evaluate(interpolator):
+        values = interpolator(points).reshape(nn.shape)
+        return values.item() if values.ndim == 0 else values
+
+    csm_properties = namedtuple('csm_properties', ['AA', 'Bf', 'Br'])
+    return csm_properties(
+        AA=evaluate(aa_func), Bf=evaluate(bf_func), Br=evaluate(br_func))
 
 
 def abmag_to_flambda(mag, lam_eff):

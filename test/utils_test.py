@@ -1584,6 +1584,21 @@ class TestCSMProperties(unittest.TestCase):
                 self.assertIsNotNone(result.Bf)
                 self.assertIsNotNone(result.Br)
 
+    def test_get_csm_properties_broadcasts_arrays(self):
+        nn = np.array([8.0, 10.0, 12.0])
+        eta = np.array([0.0, 1.0, 2.0])
+
+        result = utils.get_csm_properties(nn, eta)
+
+        self.assertEqual(nn.shape, result.AA.shape)
+        self.assertEqual(nn.shape, result.Bf.shape)
+        self.assertEqual(nn.shape, result.Br.shape)
+        for index in range(len(nn)):
+            scalar = utils.get_csm_properties(nn[index], eta[index])
+            self.assertAlmostEqual(scalar.AA, result.AA[index])
+            self.assertAlmostEqual(scalar.Bf, result.Bf[index])
+            self.assertAlmostEqual(scalar.Br, result.Br[index])
+
 class TestSEDErrorHandling(unittest.TestCase):
     """Tests for SED module error handling and logging."""
 
