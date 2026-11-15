@@ -2,6 +2,12 @@
 
 ## [Unreleased]
 
+### Scientific model changes
+- Integrate the shared magnetar-driven ejecta equations with adaptive ODE
+  stepping and use a 1000-point source grid concentrated over the requested
+  observing span by default. The resolution and solver tolerances remain
+  configurable for precision checks.
+
 ### Bug fixes
 - Keep private helpers and imported utilities out of the built-in model registry,
   and allow modules to declare model exports with `__all__`.
@@ -11,6 +17,12 @@
   the engine's tabulated ejecta/CSM coefficients in CSM constraints.
 - Remove the unimplemented `csm_truncation_shock` model and unused TDE fallback
   stub.
+- Return valid dynamics result objects, use physical ejecta velocity in
+  pair-cascade losses, and use the evolved ejecta radius for supernova
+  photospheres.
+- Restore configurable cosmology and constrained-prior support for the general
+  magnetar-driven supernova models, and clarify their source-frame time and
+  initial-energy conventions.
 
 ## [1.21.0] 2026-11-15
 Version 1.21.0 release of redback

@@ -164,6 +164,8 @@ class TestGetPriors(unittest.TestCase):
             'csm_interaction_bolometric': {
                 'shock_time', 'photosphere_constraint_1', 'photosphere_constraint_2'},
             'general_magnetar_slsn_bolometric': {'erot_constraint'},
+            'general_magnetar_driven_supernova': {'erot_constraint'},
+            'general_magnetar_driven_supernova_bolometric': {'erot_constraint'},
         }
         for model, expected in expected_constraints.items():
             with self.subTest(model=model):

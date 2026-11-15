@@ -28,6 +28,24 @@ class TestTemperatureFloor(unittest.TestCase):
         self.assertTrue(np.allclose(expected_temperatures, temperatures))
         self.assertTrue(np.allclose(expected_r_photosphere, r_photosphere))
 
+    def test_supplied_radius_overrides_velocity_reconstruction(self):
+        radius = np.array([1.0e10, 2.0e10, 3.0e10])
+        instance = redback.photosphere.TemperatureFloor(
+            time=self.time, luminosity=self.luminosity, vej=self.vej,
+            temperature_floor=self.temperature_floor, radius=radius)
+
+        np.testing.assert_allclose(instance.radius_squared, radius ** 2)
+        np.testing.assert_allclose(
+            instance.photosphere_temperature[instance.mask],
+            (self.luminosity[instance.mask] /
+             (instance.STEF_CONSTANT * radius[instance.mask] ** 2)) ** 0.25)
+
+    def test_supplied_radius_must_match_time(self):
+        with self.assertRaisesRegex(ValueError, "same shape as time"):
+            redback.photosphere.TemperatureFloor(
+                time=self.time, luminosity=self.luminosity, vej=self.vej,
+                temperature_floor=self.temperature_floor, radius=np.ones(2))
+
 
 class TestTDEPhotosphere(unittest.TestCase):
 
