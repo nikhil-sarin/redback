@@ -54,6 +54,18 @@ _constraint_settings = {
         redback.constraints.nuclear_burning_constraints,
         {'emax_constraint': (0, 1)}
     ),
+    'nickelmixing': (
+        redback.constraints.nickel_mixing_constraints,
+        {'nickel_fraction_in_mixed_region': (
+            np.nextafter(0.0, -np.inf), np.nextafter(1.0, np.inf)),
+         'nickel_mixing_order': (np.nextafter(0.0, -np.inf), np.inf)}
+    ),
+    'nickelmixing_bolometric': (
+        redback.constraints.nickel_mixing_constraints,
+        {'nickel_fraction_in_mixed_region': (
+            np.nextafter(0.0, -np.inf), np.nextafter(1.0, np.inf)),
+         'nickel_mixing_order': (np.nextafter(0.0, -np.inf), np.inf)}
+    ),
     'tde_analytical': (
         redback.constraints.simple_fallback_constraints,
         {'en_constraint': (0, 1), 't_nebula_min': (0, 400)}

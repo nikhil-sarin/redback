@@ -15,7 +15,9 @@ from redback.constants import day_to_s, solar_mass, km_cgs, au_cgs, speed_of_lig
 from inspect import isfunction
 import astropy.units as uu
 from collections import namedtuple
-from scipy.interpolate import interp1d, RegularGridInterpolator
+from scipy.interpolate import interp1d, PchipInterpolator, RegularGridInterpolator
+from scipy.linalg import solveh_banded
+from scipy.special import gamma as gamma_function, gammaincc
 
 homologous_expansion_models = ['exponential_powerlaw_bolometric', 'arnett_bolometric',
                                'basic_magnetar_powered_bolometric','slsn_bolometric',
@@ -574,65 +576,152 @@ def _nickelcobalt_engine(time, f_nickel, mej, **kwargs):
     lbol = nickel_mass * (ni56_lum*np.exp(-time/ni56_life) + co56_lum * np.exp(-time/co56_life))
     return lbol
 
+_NickelMixingGrid = namedtuple(
+    '_NickelMixingGrid', ['velocity', 'velocity_cgs', 'velocity_edges_cgs', 'mass', 'nickel_mass'])
+
+
+def _power_integral(lower, upper, exponent):
+    """Integrate x**exponent between positive bounds."""
+    if exponent == -1.0:
+        return np.log(upper / lower)
+    if lower == 0.0:
+        return upper ** (exponent + 1.0) / (exponent + 1.0)
+    return (upper ** (exponent + 1.0) - lower ** (exponent + 1.0)) / (exponent + 1.0)
+
+
+def _broken_power_law_moments(edges, break_velocity, delta, n):
+    """Return shell integrals of dM and v**2 dM for a broken power law."""
+    x_edges = edges / break_velocity
+    mass = np.zeros(len(edges) - 1)
+    velocity_second_moment = np.zeros_like(mass)
+    for ii, (lower, upper) in enumerate(zip(x_edges[:-1], x_edges[1:])):
+        inner_upper = min(upper, 1.0)
+        if inner_upper > lower:
+            mass[ii] += _power_integral(lower, inner_upper, 2.0 - delta)
+            velocity_second_moment[ii] += _power_integral(lower, inner_upper, 4.0 - delta)
+        outer_lower = max(lower, 1.0)
+        if upper > outer_lower:
+            mass[ii] += _power_integral(outer_lower, upper, 2.0 - n)
+            velocity_second_moment[ii] += _power_integral(outer_lower, upper, 4.0 - n)
+    return break_velocity * mass, break_velocity ** 3 * velocity_second_moment
+
+
+def _build_nickelmixing_grid(vmin, esn, mej, f_nickel, f_mixing, mass_len,
+                             vmax, delta=1.0, n=12.0,
+                             density_profile='broken_power_law', beta=3.0):
+    """Build a mass- and energy-conserving homologous ejecta grid."""
+    values = (vmin, esn, mej, f_nickel, f_mixing, vmax, delta, n, beta)
+    if not np.all(np.isfinite(values)):
+        raise ValueError("nickel-mixing grid parameters must be finite")
+    if esn <= 0 or mej <= 0 or vmin <= 0 or vmax <= vmin:
+        raise ValueError("esn, mej, and vmin must be positive, with vmax > vmin")
+    if mass_len < 2:
+        raise ValueError("mass_len must be at least 2")
+    if not 0 <= f_nickel <= f_mixing <= 1 or f_mixing == 0:
+        raise ValueError("nickel fractions must satisfy 0 <= f_nickel <= f_mixing <= 1 and f_mixing > 0")
+
+    if density_profile in ('broken_power_law', 'broken_powerlaw'):
+        if delta >= 3 or n <= 5:
+            raise ValueError("broken power-law indices must satisfy delta < 3 and n > 5")
+        num = 2 * (5 - delta) * (n - 5) * esn * 1e51
+        denom = (3 - delta) * (n - 3) * mej * solar_mass
+        break_velocity = np.sqrt(num / denom) / km_cgs
+        velocity_edges = np.concatenate(([0.0], np.geomspace(vmin, vmax, mass_len)))
+        mass_shape, energy_shape = _broken_power_law_moments(
+            velocity_edges, break_velocity, delta, n)
+    elif density_profile == 'exponential':
+        velocity_scale = np.sqrt(esn * 1e51 / (6.0 * mej * solar_mass)) / km_cgs
+        # Stop the grid at 12 e-folding velocities (as snmix; it holds all but
+        # ~5e-4 of the mass). Out to the generic vmax the outer shells hold
+        # ~1e-30 of the mass, which wastes resolution and makes the coupled
+        # diffusion solve ill conditioned.
+        outer_velocity = min(vmax, 12.0 * velocity_scale)
+        if outer_velocity <= vmin:
+            raise ValueError("vmin must be below 12 exponential velocity scales")
+        velocity_edges = np.concatenate(([0.0], np.geomspace(vmin, outer_velocity, mass_len)))
+        x_edges = velocity_edges / velocity_scale
+        mass_shape = velocity_scale ** 3 * gamma_function(3) * -np.diff(gammaincc(3, x_edges))
+        energy_shape = velocity_scale ** 5 * gamma_function(5) * -np.diff(gammaincc(5, x_edges))
+    elif density_profile == 'power_law':
+        velocity_edges = np.linspace(vmin, vmax, mass_len + 1)
+        velocity = 0.5 * (velocity_edges[:-1] + velocity_edges[1:])
+        widths = np.diff(velocity_edges)
+        mass_shape = (velocity / vmin) ** (-beta) * widths
+        energy_shape = mass_shape * velocity ** 2
+    else:
+        raise ValueError("density_profile must be 'broken_power_law', 'exponential', or 'power_law'")
+
+    m_array = mej * mass_shape / np.sum(mass_shape)
+    velocity = 0.5 * (velocity_edges[:-1] + velocity_edges[1:])
+    positive_mass = mass_shape > 0
+    velocity[positive_mass] = np.sqrt(
+        np.divide(energy_shape[positive_mass], mass_shape[positive_mass]))
+    kinetic_energy = 0.5 * np.sum(m_array * solar_mass * (velocity * km_cgs) ** 2)
+    velocity_scale_correction = np.sqrt(esn * 1e51 / kinetic_energy)
+    velocity *= velocity_scale_correction
+    velocity_edges *= velocity_scale_correction
+    if velocity_edges[-1] * km_cgs >= speed_of_light:
+        raise ValueError(
+            "energy-normalized ejecta grid reaches the speed of light; "
+            "reduce vmax or change the density-profile parameters")
+
+    mixed_mass = f_mixing * mej
+    mass_inside = np.concatenate(([0.0], np.cumsum(m_array)[:-1]))
+    mixed_shell_mass = np.clip(mixed_mass - mass_inside, 0.0, m_array)
+    ni_array = mixed_shell_mass * (f_nickel / f_mixing)
+
+    return _NickelMixingGrid(
+        velocity=velocity,
+        velocity_cgs=velocity * km_cgs,
+        velocity_edges_cgs=velocity_edges * km_cgs,
+        mass=m_array,
+        nickel_mass=ni_array,
+    )
+
+
 def _compute_mass_and_nickel(vmin, esn, mej, f_nickel, f_mixing, mass_len,
-                            vmax, delta=0.0, n=12.0):
+                             vmax, delta=1.0, n=12.0):
+    """Return the corrected broken-power-law ejecta and nickel distributions."""
+    grid = _build_nickelmixing_grid(
+        vmin=vmin, esn=esn, mej=mej, f_nickel=f_nickel,
+        f_mixing=f_mixing, mass_len=mass_len, vmax=vmax,
+        delta=delta, n=n, density_profile='broken_power_law')
+    return grid.velocity, grid.velocity_cgs, grid.mass, grid.nickel_mass
+
+
+def _angle_averaged_gamma_columns(velocity, velocity_edges, mass, n_angles=8):
+    """Return isotropic gamma-ray columns at ``t=1 s`` for spherical shells.
+
+    Emission from each source shell is represented at its mass-weighted RMS
+    velocity. The angular paths through every density shell are integrated
+    exactly for that representative source radius. Nickel occupying only part
+    of a boundary shell, including shell zero, is not integrated over that
+    sub-shell radial extent.
     """
-    Compute the mass and nickel distributions following a broken power-law
-    density profile inspired by Matzner & McKee (1999)
+    if n_angles < 2:
+        raise ValueError("gamma_ray_angles must be at least 2")
 
-    :param vmin: minimum velocity in km/s
-    :param esn: supernova explosion energy in foe
-    :param mej: total ejecta mass in solar masses
-    :param f_nickel: fraction of nickel mass
-    :param f_mixing: fraction of nickel mass that is mixed
-    :param mass_len: number of mass shells
-    :param vmax: maximum velocity in km/s
-    :param delta: inner density profile exponent (actual mass dist is 2 - delta)
-    :param n: outer density profile exponent (actual mass dist is 2 - n)
-    :return: vel in km/s, v_m in cm/s, m_array in solar masses, ni_array in solar masses (total nickel mass is f_nickel*mej)
-    """
-    # Create velocity grid in km/s and convert to cm/s.
-    vel = np.geomspace(vmin, vmax, mass_len) # km/s
-    v_m = vel * km_cgs # cgs
+    direction, weights = np.polynomial.legendre.leggauss(n_angles)
+    source = np.asarray(velocity, dtype=float)[:, None, None]
+    direction = direction[None, :, None]
+    edges = np.asarray(velocity_edges, dtype=float)
+    impact_squared = source ** 2 * (1.0 - direction ** 2)
 
-    # Define a break velocity; use shock speed from Matzner & McKee (1999).
-    num = 2 * (5 - delta) * (n - 5) * esn * 1e51
-    denom = (3 - delta)*(n - 3) * mej * solar_mass
-    v_break = np.sqrt(num/denom) / km_cgs
+    def chord_inside_sphere(radius):
+        discriminant = radius[None, None, :] ** 2 - impact_squared
+        intersects = discriminant > 0.0
+        root = np.sqrt(np.where(intersects, discriminant, 1.0))
+        exit_point = -source * direction + root
+        entry_point = np.maximum(-source * direction - root, 0.0)
+        return np.where(
+            intersects, np.maximum(exit_point - entry_point, 0.0), 0.0)
 
-    # For a uniform grid, determine the velocity spacing.
-    dv = vel[1] - vel[0]
-
-    # Compute the unnormalized mass distribution using vectorized operations.
-    # For the inner part: (v/v_break)^(2 - delta)
-    # For the outer part: (v/v_break)^(2 - n)
-    m_array = np.where(vel <= v_break,
-                       (vel / v_break)**(2.0 - delta),
-                       (vel / v_break)**(2.0 - n))
-    # Multiply by the bin width.
-    m_array = m_array * dv
-    # Normalize the mass array so that the summed mass equals mej.
-    total_mass = np.sum(m_array)
-    m_array = mej * m_array / total_mass
-
-    # --- Compute the nickel distribution ---
-    # Total nickel mass.
-    ni_mass = f_nickel * mej
-    # Only the inner fraction of the shells receives nickel.
-    limiting_index = int(mass_len * f_mixing)
-    limiting_index = max(limiting_index, 1)
-    # Using the same inner profile for the nickel weight.
-    _ni_array = np.where(vel[:limiting_index] <= v_break,
-                       (vel[:limiting_index] / v_break)**(2.0 - delta),
-                       (vel[:limiting_index] / v_break)**(2.0 - n))
-    # old, if only considering nickel in the inner power-law shells.
-    # _ni_array = (vel[:limiting_index] / vel[0])**(2.0 - delta)
-
-    _ni_array = ni_mass * _ni_array / np.sum(_ni_array)
-    ni_array = np.zeros_like(vel)
-    ni_array[:limiting_index] = _ni_array
-
-    return vel, v_m, m_array, ni_array
+    shell_path = (
+        chord_inside_sphere(edges[1:]) - chord_inside_sphere(edges[:-1]))
+    shell_volume = 4.0 * np.pi / 3.0 * np.diff(edges ** 3)
+    density_at_one_second = np.asarray(mass) * solar_mass / shell_volume
+    columns = np.sum(shell_path * density_at_one_second[None, None, :], axis=-1)
+    return columns, weights / 2.0
 
 
 def _nickelmixing(time, mej, esn, kappa, kappa_gamma, f_nickel, f_mixing,
@@ -641,85 +730,117 @@ def _nickelmixing(time, mej, esn, kappa, kappa_gamma, f_nickel, f_mixing,
     :param time: time array to evaluate model on in source frame in seconds
     :param mej: ejecta mass in solar masses
     :param esn: explosion energy in foe
-    :param beta: velocity power law slope (M ∝ v^-beta)
-    :param kappa: gray opacity at high temperatures (κ_max) [cm²/g], if use_gray_opacity is True, this is your kappa.
+    :param kappa: gray opacity [cm²/g]. When recombination opacity is
+        enabled, this is the high-temperature opacity.
     :param kappa_gamma: gamma-ray opacity (assumed constant)
     :param f_nickel: fraction of total ejecta mass that is nickel
-    :param f_mixing: fraction of nickel mass that is mixed, a low value puts all the nickel in the first shell.
+    :param f_mixing: outer enclosed-mass fraction of the nickel-mixed region.
     :param temperature_floor: temperature floor in K, also used as the transition T_crit.
     :param kwargs: Additional keyword arguments:
-    :param use_broken_powerlaw (bool): whether to use a broken power-law for the mass and nickel distribution, True by default.
-    :param use_gray_opacity (bool): whether to use gray opacity, defaults to True.
+    :param density_profile: ``broken_power_law`` (default), ``exponential`` for
+        Type Ia ejecta, or ``power_law``.
+    :param use_recombination_opacity (bool): whether to transition from
+        ``kappa`` to ``kappa_min`` as the ejecta cools through
+        ``temperature_floor``. Defaults to False.
     :param delta (float): inner density profile exponent, used if use_broken_powerlaw is True.
     :param nn (float): outer density profile exponent, used if use_broken_powerlaw is True.
-    :param beta (float): velocity power law slope, defaults to 3.0. Only used if use_broken_powerlaw is False.
-    :param mass_len (int): number of mass shells, defaults to 200.
-    :param vmax (float): maximum velocity in km/s, defaults to 100000.
-    :param vmin_frac (float): fraction of characteristic velocity that is the minimum velocity, defaults to 1.0.
-    :param kappa_min (float): minimum opacity when cool (default: 0.05 cm²/g).
-    :param kappa_n   (float): exponent controlling the transition (default: 4.0).
-    :param diffusion_scale (float): multiplicative scale for the legacy shell
-        leakage time, default 2.0. A value of 1.0 recovers the previous
-        Redback implementation and 3.0 is equivalent to replacing the
-        diffusion denominator 13.8 by 13.8/3.
+    :param beta (float): density-profile exponent for
+        ``density_profile='power_law'``, defaults to 3.0. This is unrelated to
+        ``diffusion_beta``.
+    :param mass_len (int): number of mass shells, defaults to 400. Coupled
+        diffusion requires at least 100 shells.
+    :param vmax: provisional outer grid velocity before the global kinetic-
+        energy normalization, in km/s. Defaults to 250000, or 150000 for the
+        legacy ``power_law`` profile.
+    :param vmin_frac: inner-grid scale relative to sqrt(2 E/M), defaults to 0.2.
+    :param kappa_min: minimum opacity when cool, defaults to 0.001 cm²/g.
+    :param diffusion_beta: legacy Arnett geometry constant used only by
+        ``transport='shell_leakage'``, defaults to 13.8. Do not supply it for
+        coupled diffusion.
+    :param gamma_ray_angles: angular quadrature order for isotropic gamma-ray
+        deposition, defaults to 8.
+    :param transport: ``coupled_diffusion`` (default): finite-volume radiation
+        diffusion between neighbouring optically thick shells, implicit in
+        time, with a free-streaming photospheric boundary (as snmix's default);
+        or ``shell_leakage``: each shell leaks independently through the
+        radius-weighted shell closure with ``diffusion_beta``.
     :return: namedtuple with time_temp (days), lbol, t_photosphere, r_photosphere, tau, and v_photosphere.
 
     Notes
     -----
-    This model uses an independent-shell leakage approximation. For new
-    analyses requiring radiative coupling between shells, the shell-coupled
-    diffusion model in ``snmix`` is recommended when it is available.
+    Shell masses conserve the requested ejecta mass and kinetic energy.
+    Nickel is uniform in mass fraction inside ``f_mixing``, including a
+    fractional boundary shell. With ``coupled_diffusion`` (default) the shell
+    energies are advanced implicitly with variable-step BDF2 (backward Euler on
+    the first step), solved for the radiation energy density, and negative
+    values are clipped to zero; with ``shell_leakage`` each shell uses a
+    positive analytic update. For ``density_profile='exponential'`` the grid
+    stops at 12 exponential velocity scales (or ``vmax`` if lower). Radioactive
+    emission in each source shell is evaluated at that shell's mass-weighted
+    RMS velocity.
     """
-    # Constants assumed defined elsewhere: day_to_s, solar_mass, km_cgs, speed_of_light, sigma_sb.
+    time = np.asarray(time, dtype=float)
+    if time.ndim != 1 or len(time) < 2 or np.any(~np.isfinite(time)) or np.any(time <= 0):
+        raise ValueError("time must be a finite, positive one-dimensional array")
+    if np.any(np.diff(time) <= 0):
+        raise ValueError("time must be strictly increasing")
+
     tdays = time / day_to_s
     time_len = len(time)
-    mass_len = int(kwargs.get('mass_len', 100))
-    ni_mass = f_nickel * mej
+    mass_len = int(kwargs.get('mass_len', 400))
     vmin_frac = kwargs.get('vmin_frac', 0.2)
-    vmin = vmin_frac * (2 * (esn * 1e51) / (mej * solar_mass)) ** 0.5 / 1e5
-    vmax = kwargs.get('vmax', 250000)
+    vmin = vmin_frac * np.sqrt(2 * esn * 1e51 / (mej * solar_mass)) / km_cgs
     use_broken_powerlaw = kwargs.get('use_broken_powerlaw', True)
-    use_gray_opacity = kwargs.get('use_gray_opacity', True)
-    diffusion_scale = kwargs.get('diffusion_scale', 2.0)
-    if not np.isfinite(diffusion_scale) or diffusion_scale <= 0:
-        raise ValueError("diffusion_scale must be finite and positive")
-
-    if use_gray_opacity:
-        kappa_eff = kappa
+    density_profile = kwargs.get(
+        'density_profile', 'broken_power_law' if use_broken_powerlaw else 'power_law')
+    vmax = kwargs.get(
+        'vmax', 150000.0 if density_profile == 'power_law' else 250000.0)
+    if 'use_gray_opacity' in kwargs:
+        if 'use_recombination_opacity' in kwargs:
+            raise ValueError(
+                "Specify only use_recombination_opacity; use_gray_opacity is "
+                "its deprecated inverse alias")
+        logger.warning(
+            "use_gray_opacity is deprecated; use "
+            "use_recombination_opacity=not use_gray_opacity instead.")
+        use_recombination_opacity = not kwargs['use_gray_opacity']
     else:
-        # Parameters for temperature-dependent opacity:
-        # κ_max is the input "kappa" (for hot, fully ionized ejecta)
-        # κ_min and the exponent kappa_n control how quickly the opacity falls when T < T_floor.
-        kappa_max = kappa
-        kappa_min = kwargs.get('kappa_min', 0.001)  # example default in cm²/g
-        kappa_n = kwargs.get('kappa_n', 10)  # controls transition steepness
+        use_recombination_opacity = kwargs.get(
+            'use_recombination_opacity', False)
+    delta = kwargs.get('delta', 1.0)
+    nn = kwargs.get('nn', 12.0)
+    beta = kwargs.get('beta', 3.0)
+    gamma_ray_angles = int(kwargs.get('gamma_ray_angles', 8))
+    transport = kwargs.get('transport', 'coupled_diffusion')
+    if transport not in ('coupled_diffusion', 'shell_leakage'):
+        raise ValueError("transport must be 'coupled_diffusion' or 'shell_leakage'")
+    if transport == 'coupled_diffusion' and mass_len < 100:
+        raise ValueError("coupled_diffusion requires mass_len >= 100")
+    if transport == 'coupled_diffusion' and 'diffusion_beta' in kwargs:
+        raise ValueError("diffusion_beta applies only to transport='shell_leakage'")
+    if transport == 'shell_leakage':
+        diffusion_beta = kwargs.get('diffusion_beta', 13.8)
+        if not np.isfinite(diffusion_beta) or diffusion_beta <= 0:
+            raise ValueError("diffusion_beta must be finite and positive")
+    if 'diffusion_scale' in kwargs:
+        raise ValueError(
+            "diffusion_scale is obsolete; the corrected model uses the "
+            "radius-weighted shell diffusion closure")
 
-    if use_broken_powerlaw:
-        delta = kwargs.get('delta', 1.0)
-        nn = kwargs.get('nn', 12.0)
-        diffusion_beta = 13.8  # Arnett diffusion-geometry constant.
-        vel, v_m, m_array, ni_array = _compute_mass_and_nickel(
-            vmin=vmin, esn=esn, mej=mej,
-            f_nickel=f_nickel, f_mixing=f_mixing,
-            mass_len=mass_len, vmax=vmax, delta=delta, n=nn)
-    else:
-        # Set up velocity array (in km/s)
-        beta = kwargs.get('beta', 3.0)  # velocity power-law slope
-        diffusion_beta = beta
-        vel = np.linspace(vmin, vmax, mass_len)
-        # Convert to cgs: cm/s
-        v_m = vel * km_cgs
-        # Construct a normalized mass distribution (in solar masses)
-        m_array = mej * (vel / vmin) ** (-beta)
-        total_mass = np.sum(m_array)
-        m_array = m_array * (mej / total_mass)
-        # Nickel distribution: put the nickel into the first few shells
-        limiting_index = int(mass_len * f_mixing)
-        limiting_index = max(limiting_index, 1)
-        _ni_array = (vel[:limiting_index] / vel[0]) ** (-beta)
-        _ni_array = ni_mass * _ni_array / np.sum(_ni_array)
-        ni_array = np.zeros_like(vel)
-        ni_array[:limiting_index] = _ni_array
+    kappa_max = kappa
+    if use_recombination_opacity:
+        kappa_min = kwargs.get('kappa_min', 0.001)
+        if not np.isfinite(kappa_min) or kappa_min < 0:
+            raise ValueError("kappa_min must be finite and non-negative")
+
+    grid = _build_nickelmixing_grid(
+        vmin=vmin, esn=esn, mej=mej, f_nickel=f_nickel,
+        f_mixing=f_mixing, mass_len=mass_len, vmax=vmax,
+        delta=delta, n=nn, density_profile=density_profile, beta=beta)
+    v_m = grid.velocity_cgs
+    velocity_edges = grid.velocity_edges_cgs
+    m_array = grid.mass
+    ni_array = grid.nickel_mass
 
     # Radioactive decay luminosities and lifetimes (in erg/s/solar_mass and days, respectively)
     ni56_lum = 6.45e43  # in erg/s/solar mass
@@ -730,191 +851,272 @@ def _nickelmixing(time, mej, esn, kappa, kappa_gamma, f_nickel, f_mixing,
     # Co56 decay energy carried by positron kinetic energy, deposited locally.
     co56_positron_fraction = 0.032
 
-    # Energy deposition rate per shell as a function of time, split into the
-    # gamma-ray part (subject to leakage) and the positron part.
-    edot_gamma = np.zeros((mass_len, time_len))
-    edot_gamma[:, :] = (ni56_lum * np.exp(-tdays / ni56_life) +
-                        (1 - co56_positron_fraction) * co56_lum * np.exp(-tdays / co56_life))
-    edot_positron = np.zeros((mass_len, time_len))
-    edot_positron[:, :] = co56_positron_fraction * co56_lum * np.exp(-tdays / co56_life)
+    # Energy deposition rate, split into gamma rays and locally trapped positrons.
+    edot_gamma = (
+        ni56_lum * np.exp(-tdays / ni56_life)
+        + (1 - co56_positron_fraction) * co56_lum * np.exp(-tdays / co56_life))
+    edot_positron = (
+        co56_positron_fraction * co56_lum * np.exp(-tdays / co56_life))
 
     # Pre-allocate arrays
     energy_v = np.zeros((mass_len, time_len))
     lum_rad = np.zeros((mass_len, time_len))
     qdot_ni = np.zeros((mass_len, time_len))
-    eth_v = np.zeros((mass_len, time_len))
     td_v = np.zeros((mass_len, time_len))
     tlc_v = np.zeros((mass_len, time_len))
     tau = np.zeros((mass_len, time_len))
     v_photosphere = np.zeros(time_len)
     r_photosphere = np.zeros(time_len)
 
-    dt = np.diff(time)
+    # Exact finite-volume radial columns scale as t^-2 in homologous ejecta.
+    edge_cubes = velocity_edges[1:] ** 3 - velocity_edges[:-1] ** 3
+    shell_column_geometry = (
+        3.0 * m_array * solar_mass * np.diff(velocity_edges)
+        / (4.0 * np.pi * edge_cubes))
+    cumulative_column_geometry = np.cumsum(shell_column_geometry[::-1])[::-1]
+    diffusion_geometry = np.cumsum((m_array * solar_mass / v_m)[::-1])[::-1]
+    # Shell volumes, density times volume and interface geometry for the
+    # coupled diffusion closure; all scale as powers of t in homologous ejecta.
+    shell_volume_geometry = 4.0 * np.pi / 3.0 * edge_cubes
+    mass_cgs = m_array * solar_mass
 
-    # Initial conditions: set initial thermal energy from kinetic energy,
-    # or zero because stability
-    energy_v[:, 0] = 0.  # 0.5 * m_array * solar_mass * v_m ** 2
+    # Gamma rays are emitted isotropically. Geometry is evaluated once because
+    # every homologous column subsequently scales as t^-2.
+    nickel_shells = ni_array > 0
+    gamma_columns, gamma_weights = _angle_averaged_gamma_columns(
+        velocity=v_m[nickel_shells], velocity_edges=velocity_edges,
+        mass=m_array, n_angles=gamma_ray_angles)
+    gamma_optical_depth = (
+        kappa_gamma * gamma_columns[:, :, None] / time[None, None, :] ** 2)
+    np.negative(gamma_optical_depth, out=gamma_optical_depth)
+    np.exp(gamma_optical_depth, out=gamma_optical_depth)
+    gamma_deposition = 1.0 - np.einsum(
+        'a,sat->st', gamma_weights, gamma_optical_depth, optimize=True)
+    qdot_ni[nickel_shells] = ni_array[nickel_shells, None] * (
+        edot_gamma[None, :] * gamma_deposition + edot_positron[None, :])
+    del gamma_columns, gamma_optical_depth, gamma_deposition
 
-    # Pre-calculate geometric factor for optical depth (integral of rho dr)
-    # Sum m_i / v_i^2 from outside in to get cumulative column density proxy
-    inv_v2 = 1.0 / (v_m ** 2)
-    tau_geom = np.cumsum((m_array * solar_mass * inv_v2)[::-1])[::-1]
-
-    # Loop over time steps: update energy and luminosity in each shell.
-    for ii in range(time_len - 1):
-        if use_gray_opacity:
-            kappa_eff = kappa
+    for ii in range(time_len):
+        if not use_recombination_opacity or ii == 0:
+            kappa_eff = kappa_max
         else:
-            # For the first time step, use κ_max; thereafter update using an effective temperature.
-            if ii == 0:
-                kappa_eff = kappa_max
+            luminosity_previous = np.sum(lum_rad[:, ii - 1])
+            if r_photosphere[ii - 1] > 0 and luminosity_previous > 0:
+                temperature_previous = (
+                    luminosity_previous
+                    / (4.0 * np.pi * r_photosphere[ii - 1] ** 2 * sigma_sb)) ** 0.25
             else:
-                # Estimate a global effective luminosity and photospheric radius from previous step.
-                L_bol_prev = np.sum(lum_rad[:, ii - 1])
-                # print(L_bol_prev)
-                # For safety, if r_photosphere was not set (or is zero), use temperature_floor.
-                if r_photosphere[ii - 1] > 0:
-                    T_eff_prev = (L_bol_prev / (4.0 * np.pi * (r_photosphere[ii - 1]) ** 2 * sigma_sb)) ** 0.25
-                else:
-                    T_eff_prev = temperature_floor
-                # Update effective opacity using the temperature-dependent formula:
-                # When T_eff ≫ T_floor, κ_eff ~ κ_max; when T_eff ≪ T_floor, κ_eff → κ_min.
-                # kappa_eff = kappa_min + (kappa_max - kappa_min) / \
-                #             (1.0 + (temperature_floor / T_eff_prev) ** kappa_n)
-                kappa_eff = kappa_min + 0.5 * (kappa_max - kappa_min) * \
-                            (1.0 + np.tanh((T_eff_prev - temperature_floor) / (50000)))
-        # print(kappa_eff)
-        
-        # Calculate cumulative optical depth
-        # tau = Integral(kappa rho dr).
-        # With our discretization: tau_cum = kappa * Sum(m/v^2) / (4 pi t^2)
-        tau_cum = (kappa_eff * tau_geom) / (4 * np.pi * time[ii]**2)
-        
-        # Legacy shell-leakage time. The scale accounts for uncertainty in
-        # mapping the global Arnett geometry constant onto individual shells.
-        # diffusion_scale=1 recovers the previous Redback implementation;
-        # diffusion_scale=3 is equivalent to using 13.8/3 in the denominator.
-        td_v[:, ii] = diffusion_scale * 3 * tau_cum * (v_m * time[ii]) / \
-            (speed_of_light * diffusion_beta)
-        
-        # Add minimum diffusion time to prevent instability
-        min_diffusion_time = dt[ii] * 1  # Minimum 10x timestep
-        td_v[:, ii] = np.maximum(td_v[:, ii], min_diffusion_time)
+                temperature_previous = temperature_floor
+            kappa_eff = kappa_min + 0.5 * (kappa_max - kappa_min) * (
+                1.0 + np.tanh((temperature_previous - temperature_floor) / 50000.0))
 
-        tau[:, ii] = tau_cum
-        
-        # Gamma-ray optical depth from each shell to the surface. This is
-        # already the local column, so no Arnett mean-to-central factor of 3.
-        tau_gamma = (kappa_gamma * tau_geom) / (4 * np.pi * time[ii]**2)
+        tau[:, ii] = kappa_eff * cumulative_column_geometry / time[ii] ** 2
 
-        eth_v[:, ii] = 1 - np.exp(-tau_gamma)
-        qdot_ni[:, ii] = ni_array * (edot_gamma[:, ii] * eth_v[:, ii] + edot_positron[:, ii])
+        if transport == 'coupled_diffusion':
+            # Finite-volume radiation diffusion between neighbouring optically
+            # thick shells, implicit in time with variable-step BDF2 (backward
+            # Euler on the first step). Radiation reaching the photospheric
+            # boundary, and energy deposited in transparent shells, escapes.
+            photosphere_index = np.argmin(np.abs(tau[:, ii] - 1.0))
+            v_photosphere[ii] = v_m[photosphere_index]
+            r_photosphere[ii] = v_photosphere[ii] * time[ii]
+            if ii == 0:
+                continue
+            t_now = time[ii]
+            dt = t_now - time[ii - 1]
+            radius = v_m * t_now
+            outer_radius = velocity_edges[1:] * t_now
+            volume = shell_volume_geometry * t_now ** 3
+            extinction = np.maximum(kappa_eff * mass_cgs / volume, 1e-300)
+            # Smooth thick/thin partition around tau = 2/3 (no steps as the
+            # photosphere moves between shells).
+            weight_argument = np.log(np.maximum(tau[:, ii], 1e-12) / (2.0 / 3.0)) / 0.25
+            thick_weight = 1.0 / (1.0 + np.exp(-weight_argument))
+            log_thick_weight = -np.logaddexp(0.0, -weight_argument)
+            # Interface conductance A D / dr * sqrt(w_i w_j), D = c / (3 chi),
+            # in logarithms: near-empty outer shells have chi -> 0 (D would
+            # overflow) exactly where the weights -> 0, so the product is
+            # small and finite, not inf * 0.
+            interface_radius = 0.5 * (radius[:-1] + radius[1:])
+            log_conductance = (
+                np.log(4.0 * np.pi * interface_radius ** 2 * speed_of_light / 3.0)
+                - np.log(0.5 * (extinction[:-1] + extinction[1:]))
+                - np.log(np.diff(radius))
+                + 0.5 * (log_thick_weight[:-1] + log_thick_weight[1:]))
+            conductance = np.exp(np.minimum(log_conductance, 700.0))
+            # Outermost thick shell: half-cell diffusion in series with an
+            # F = cE/4 free-streaming boundary; thin shells: light crossing.
+            half_width = np.maximum(outer_radius - radius, np.finfo(float).tiny)
+            photospheric_conductance = 4.0 * np.pi * outer_radius ** 2 / (
+                4.0 / speed_of_light + half_width * 3.0 * extinction / speed_of_light)
+            exterior_weight = np.append(thick_weight[1:], 0.0)
+            surface_weight = np.maximum(thick_weight - exterior_weight, 0.0)
+            transparent_conductance = volume / np.maximum(radius / speed_of_light, dt)
+            escape_conductance = (surface_weight * photospheric_conductance
+                                  + (1.0 - thick_weight) * transparent_conductance)
+            # dE/dt = Q - A E with A the adiabatic, exchange and escape terms.
+            # Variable-step BDF2 (second order; backward Euler on the first
+            # step): (I + g dt A) E_n = c1 E_{n-1} - c2 E_{n-2} + g dt Q_n.
+            if ii == 1:
+                g, c1, c2 = 1.0, 1.0, 0.0
+            else:
+                omega = dt / (time[ii - 1] - time[ii - 2])
+                g = (1.0 + omega) / (1.0 + 2.0 * omega)
+                c1 = (1.0 + omega) ** 2 / (1.0 + 2.0 * omega)
+                c2 = omega ** 2 / (1.0 + 2.0 * omega)
+            step = g * dt
+            rhs = c1 * energy_v[:, ii - 1] + step * qdot_ni[:, ii]
+            if c2:
+                rhs -= c2 * energy_v[:, ii - 2]
+            # Solved for the energy density u = E / V: the matrix
+            # V (1 + step / t) + step (escape + exchange) is symmetric and
+            # diagonally dominant (positive definite) whatever the range of
+            # shell volumes. Symmetric diagonal scaling keeps the Cholesky
+            # solve well conditioned.
+            diagonal = volume * (1.0 + step / t_now) + step * escape_conductance
+            diagonal[:-1] += step * conductance
+            diagonal[1:] += step * conductance
+            scale = np.sqrt(diagonal)
+            banded = np.zeros((2, mass_len))
+            banded[1] = 1.0
+            banded[0, 1:] = -step * conductance / (scale[:-1] * scale[1:])
+            density = solveh_banded(banded, rhs / scale) / scale
+            energy_v[:, ii] = np.maximum(density * volume, 0.0)
+            lum_rad[:, ii] = escape_conductance * energy_v[:, ii] / volume
+            continue
+
+        td_v[:, ii] = (
+            kappa_eff * diffusion_geometry
+            / (diffusion_beta * speed_of_light * time[ii]))
         tlc_v[:, ii] = v_m * time[ii] / speed_of_light
+        escape_time = np.maximum(td_v[:, ii] + tlc_v[:, ii], np.finfo(float).tiny)
+        lum_rad[:, ii] = energy_v[:, ii] / escape_time
 
-        # Prevent division by very small numbers
-        t_total = td_v[:, ii] + tlc_v[:, ii]
-        lum_rad[:, ii] = energy_v[:, ii] / np.maximum(t_total, dt[ii])
-        # Euler integration update for energy in each shell
-        energy_change = (qdot_ni[:, ii] - (energy_v[:, ii] / time[ii]) - lum_rad[:, ii]) * dt[ii]
-
-        # Limit energy change to prevent instability (max 50% change per timestep)
-        max_change = 0.5 * np.abs(energy_v[:, ii]) + 1e40  # Add small floor
-        energy_change = np.clip(energy_change, -max_change, max_change)
-
-        energy_v[:, ii + 1] = energy_v[:, ii] + energy_change
-        # Ensure energy stays positive
-        energy_v[:, ii + 1] = np.maximum(energy_v[:, ii + 1], 0)
-
-        # Determine the photospheric shell by finding where τ ≃ 1
-        photosphere_index = np.argmin(np.abs(tau[:, ii] - 1))
+        photosphere_index = np.argmin(np.abs(tau[:, ii] - 1.0))
         v_photosphere[ii] = v_m[photosphere_index]
         r_photosphere[ii] = v_photosphere[ii] * time[ii]
 
-    # Final step for luminosity in the last time index
-    lum_rad[:, -1] = energy_v[:, -1] / (td_v[:, -1] + tlc_v[:, -1])
+        if ii < time_len - 1:
+            dt = time[ii + 1] - time[ii]
+            loss_rate = 1.0 / time[ii] + 1.0 / escape_time
+            decay = np.exp(-loss_rate * dt)
+            energy_v[:, ii + 1] = (
+                energy_v[:, ii] * decay
+                + qdot_ni[:, ii] * (-np.expm1(-loss_rate * dt)) / loss_rate)
+
     bolometric_luminosity = np.sum(lum_rad, axis=0)
+    temperature = np.full(time_len, temperature_floor, dtype=float)
+    valid = (r_photosphere > 0) & (bolometric_luminosity > 0)
+    temperature[valid] = (
+        bolometric_luminosity[valid]
+        / (4.0 * np.pi * r_photosphere[valid] ** 2 * sigma_sb)) ** 0.25
+    floor_mask = temperature < temperature_floor
+    temperature[floor_mask] = temperature_floor
+    floor_radius = floor_mask & (bolometric_luminosity > 0)
+    r_photosphere[floor_radius] = np.sqrt(
+        bolometric_luminosity[floor_radius]
+        / (4.0 * np.pi * temperature_floor ** 4 * sigma_sb))
+    dark = bolometric_luminosity <= 0
+    r_photosphere[dark] = 0.0
+    v_photosphere[dark] = 0.0
 
-    # # Compute the effective temperature from the global bolometric luminosity and photospheric radius
-    temperature = (bolometric_luminosity / (4.0 * np.pi * (r_photosphere) ** 2 * sigma_sb)) ** 0.25
-    # Apply a temperature floor
-    mask = temperature < temperature_floor
-    temperature[mask] = temperature_floor
-    r_photosphere[mask] = np.sqrt(bolometric_luminosity[mask] / (4.0 * np.pi * temperature_floor ** 4 * sigma_sb))
-
-    from collections import namedtuple
     outputs = namedtuple('output', ['time_temp', 'lbol', 't_photosphere',
                                     'r_photosphere', 'tau', 'v_photosphere', 'energy_v'])
-    outputs.time_temp = time[1:-1] / day_to_s
-    outputs.lbol = bolometric_luminosity[1:-1]
-    outputs.t_photosphere = temperature[1:-1]
-    outputs.r_photosphere = r_photosphere[1:-1]
-    outputs.tau = tau[:, 1:-1]
-    outputs.energy_v = energy_v[:, 1:-1]
-    outputs.v_photosphere = v_photosphere[1:-1]
+    outputs.time_temp = time / day_to_s
+    outputs.lbol = bolometric_luminosity
+    outputs.t_photosphere = temperature
+    outputs.r_photosphere = r_photosphere
+    outputs.tau = tau
+    outputs.energy_v = energy_v
+    outputs.v_photosphere = v_photosphere
     return outputs
 
+@citation_wrapper('https://ui.adsabs.harvard.edu/abs/2026MNRAS.552g1722S/abstract')
 def nickelmixing_bolometric(time, mej, esn, kappa, kappa_gamma, f_nickel, f_mixing,
                             temperature_floor, **kwargs):
     """
-    A model for the bolometric light curve of a supernova with nickel mixing
+    A model for the bolometric light curve of a supernova with nickel mixing.
+    Note this model does not follow the paper precisely for computational reasons.
 
     :param time: time in source frame in days
     :param mej: ejecta mass in solar masses
     :param esn: energy of explosion in foe
     :param kappa: gray opacity
     :param kappa_gamma: gamma-ray opacity
-    :param f_nickel: fraction of nickel mass
-    :param f_mixing: fraction of nickel mass that is mixed, a low value puts all the nickel in the first shell.
+    :param f_nickel: total nickel-to-ejecta mass ratio
+    :param f_mixing: outer enclosed-mass fraction of the nickel-mixed region.
     :param kwargs: bolometric luminosity in erg/s
     :param beta: power law slope for mass distribution; m = m_0 * (v/v_min)^(-beta)
     :param stop_time: time to stop ODE at, default is 300 days
-    :param mass_len: number of mass shells, defaults to 200
-    :param vmax: maximum velocity in km/s, defaults to 100000
-    :param dense_resolution: resolution of dense time array, default is 1000
-    :param diffusion_scale: multiplicative scale for the legacy shell leakage
-        time, default 2.0. Set to 1.0 for the previous Redback behaviour.
+    :param mass_len: number of mass shells, defaults to 400. Coupled diffusion
+        requires at least 100 shells.
+    :param vmax: provisional outer grid velocity before the global kinetic-
+        energy normalization, in km/s. Defaults to 250000, or 150000 for the
+        legacy ``power_law`` profile
+    :param dense_resolution: resolution of dense time array, default is 800
+    :param density_profile: ``broken_power_law`` (default), ``exponential``, or ``power_law``.
+    :param diffusion_beta: legacy Arnett geometry constant used only by
+        ``transport='shell_leakage'``, defaults to 13.8. It is not part of the
+        coupled finite-volume calculation.
+    :param gamma_ray_angles: angular quadrature order for isotropic gamma-ray
+        deposition, defaults to 8.
+    :param transport: ``coupled_diffusion`` (default) or ``shell_leakage``;
+        see ``_nickelmixing``.
     :return: bolometric luminosity
 
     Notes
     -----
-    This model retains a legacy independent-shell leakage approximation. The
-    shell-coupled diffusion implementation in ``snmix`` is recommended for new
-    analyses when it is available.
+    Nickel is uniform within the mixed region, with local mass fraction
+    ``f_nickel / f_mixing``. Therefore, ``f_mixing`` must be at least
+    ``f_nickel``.
     """
-    dense_resolution = kwargs.get("dense_resolution", 200)
-    stop_time = kwargs.get("stop_time", 300)
-    time_temp = get_optimal_time_array(0.01, stop_time, dense_resolution)
+    time = np.asarray(time, dtype=float)
+    dense_resolution = kwargs.get("dense_resolution", 800)
+    stop_time = max(kwargs.get("stop_time", 300), np.max(time) * 1.01)
+    time_temp = get_optimal_time_array(
+        0.01, stop_time, dense_resolution, user_times=time, time_units="days")
     outputs = _nickelmixing(time_temp * 86400, mej=mej, esn=esn, kappa=kappa,
                                kappa_gamma=kappa_gamma, f_nickel=f_nickel,
                                f_mixing=f_mixing, temperature_floor=temperature_floor, **kwargs)
     lbol = outputs.lbol
     temp_times = outputs.time_temp
-    func = interp1d(temp_times, lbol, kind='cubic', fill_value='extrapolate')
+    func = PchipInterpolator(temp_times, lbol, extrapolate=True)
     return func(time)
 
-@citation_wrapper('Sarin (in prep)')
+@citation_wrapper('https://ui.adsabs.harvard.edu/abs/2026MNRAS.552g1722S/abstract')
 def nickelmixing(time, redshift, mej, esn, kappa, kappa_gamma, f_nickel, f_mixing,
                  temperature_floor, **kwargs):
     """
-    A model for the radioactive decay of a supernova with nickel mixing
+    A model for the radioactive decay of a supernova with nickel mixing.
+    Note this model does not follow the paper precisely for computational reasons.
 
     :param time: time in observer frame in days
     :param redshift: source redshift
     :param mej: ejecta mass in solar masses
     :param esn: energy of explosion in foe
-    :param vmax: maximum velocity of ejecta in km/s
+    :param vmax: provisional outer grid velocity before the global kinetic-
+        energy normalization, in km/s
     :param kappa: gray opacity
     :param kappa_gamma: gamma-ray opacity
-    :param f_nickel: fraction of nickel mass
-    :param f_mixing: fraction of nickel mass that is mixed, a low value puts all the nickel in the first shell.
+    :param f_nickel: total nickel-to-ejecta mass ratio
+    :param f_mixing: outer enclosed-mass fraction of the nickel-mixed region.
     :param kwargs: additional keyword arguments
     :param beta: power law slope for mass distribution; m = m_0 * (v/v_min)^(-beta)
-    :param mass_len: number of mass shells, defaults to 200
-    :param vmax: maximum velocity in km/s, defaults to 100000
+    :param mass_len: number of mass shells, defaults to 400. Coupled diffusion
+        requires at least 100 shells.
+    :param density_profile: ``broken_power_law`` (default), ``exponential``, or ``power_law``.
+    :param vmax: provisional outer grid velocity before the global kinetic-
+        energy normalization, in km/s. Defaults to 250000, or 150000 for the
+        legacy ``power_law`` profile
     :param stop_time: time to stop ODE at, default is 300 days
-    :param dense_resolution: resolution of dense time array, default is 1000
-    :param diffusion_scale: multiplicative scale for the legacy shell leakage
-        time, default 2.0. Set to 1.0 for the previous Redback behaviour.
+    :param dense_resolution: resolution of dense time array, default is 800
+    :param diffusion_beta: legacy Arnett geometry constant used only by
+        ``transport='shell_leakage'``, defaults to 13.8. It is not part of the
+        coupled finite-volume calculation.
+    :param gamma_ray_angles: angular quadrature order for isotropic gamma-ray
+        deposition, defaults to 8.
+    :param transport: ``coupled_diffusion`` (default) or ``shell_leakage``;
+        see ``_nickelmixing``.
     :param frequency: Required if output_format is 'flux_density'.
     frequency to calculate - Must be same length as time array or a single number).
     :param bands: Required if output_format is 'magnitude' or 'flux'.
@@ -923,22 +1125,17 @@ def nickelmixing(time, redshift, mej, esn, kappa, kappa_gamma, f_nickel, f_mixin
     :param cosmology: Cosmology to use for luminosity distance calculation. Defaults to Planck18. Must be a astropy.cosmology object.
     :return: set by output format - 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
 
-    Notes
-    -----
-    This model retains a legacy independent-shell leakage approximation. The
-    shell-coupled diffusion implementation in ``snmix`` is recommended for new
-    analyses when it is available.
+    Nickel is uniform within the mixed region, with local mass fraction
+    ``f_nickel / f_mixing``. Therefore, ``f_mixing`` must be at least
+    ``f_nickel``.
     """
-    # cosmology = kwargs.get('cosmology', cosmo)
-    from astropy.cosmology import FlatLambdaCDM
-    cosmo = FlatLambdaCDM(H0=73, Om0=0.3)
-    dl = cosmo.luminosity_distance(redshift).cgs.value
-    # dl = cosmology.luminosity_distance(redshift).cgs.value
-    dense_resolution = kwargs.get("dense_resolution", 1000)
-    stop_time = kwargs.get("stop_time", 300)
-    dense_resolution = kwargs.get("dense_resolution", 300)
+    time = np.asarray(time, dtype=float)
+    cosmology = kwargs.get('cosmology', cosmo)
+    dl = cosmology.luminosity_distance(redshift).cgs.value
+    dense_resolution = kwargs.get("dense_resolution", 800)
     # Convert user times to source frame for optimal grid
     time_source_frame = time / (1. + redshift)
+    stop_time = max(kwargs.get("stop_time", 300), np.max(time_source_frame) * 1.01)
     time_temp = get_optimal_time_array(0.01, stop_time, dense_resolution, user_times=time_source_frame, time_units="days")
     outputs = _nickelmixing(time_temp * 86400, mej=mej, esn=esn, kappa=kappa,
                                                      kappa_gamma=kappa_gamma, f_nickel=f_nickel,

@@ -259,6 +259,8 @@ class TestModels(unittest.TestCase):
             else:
                 kwargs['output_format'] = 'flux_density'
             prior = self.get_prior(file=f)
+            if model_name == 'nickelmixing':
+                prior = redback.priors.get_priors(model_name, constraint=True)
             sample = prior.sample()
             if model_name == 'polytrope_eos_two_component_bns':
                 sample['gamma_1'] = 4.04
@@ -308,6 +310,8 @@ class TestPhaseModels(unittest.TestCase):
                 else:
                     kwargs['output_format'] = 'flux_density'
                 prior = self.get_prior(file=f)
+                if model_name == 'nickelmixing':
+                    prior = redback.priors.get_priors(model_name, constraint=True)
                 function = redback.model_library.all_models_dict['t0_base_model']
                 kwargs['base_model'] = model_name
                 kwargs['t0'] = 55855
@@ -358,6 +362,8 @@ class TestMagnitudeOutput(unittest.TestCase):
             else:
                 kwargs['output_format'] = 'magnitude'
             prior = self.get_prior(file=f)
+            if model_name == 'nickelmixing':
+                prior = redback.priors.get_priors(model_name, constraint=True)
             sample = prior.sample()
             if model_name == 'polytrope_eos_two_component_bns':
                 sample['gamma_1'] = 4.04
@@ -2234,14 +2240,14 @@ class TestCosmologicalCorrections(unittest.TestCase):
 class TestOptimalTimeArray(unittest.TestCase):
     """Test suite for the get_optimal_time_array utility function."""
 
-    def test_kilonova_diffusion_matches_finite_legacy_calculation(self):
+    def test_kilonova_diffusion_matches_arnett_calculation(self):
         from redback.transient_models.kilonova_models import _kilonova_diffusion_luminosity
 
         time = np.geomspace(1.0e-2, 2.0e5, 200)
         thermalised_luminosity = 1.0e42 * np.exp(-time / 1.0e5)
         diffusion_timescale = 4.0e5
         integrand = (
-            thermalised_luminosity * (time / diffusion_timescale)
+            2.0 * thermalised_luminosity * (time / diffusion_timescale)
             * np.exp(time ** 2 / diffusion_timescale ** 2)
         )
         cumulative_integral = np.zeros_like(time)
@@ -2259,6 +2265,17 @@ class TestOptimalTimeArray(unittest.TestCase):
         )
 
         np.testing.assert_allclose(actual, expected, rtol=2.0e-14)
+
+    def test_kilonova_diffusion_recovers_constant_heating(self):
+        from redback.transient_models.kilonova_models import _kilonova_diffusion_luminosity
+
+        time = np.linspace(0.0, 40.0, 20001)
+        heating = np.ones_like(time)
+
+        luminosity = _kilonova_diffusion_luminosity(
+            time, heating, diffusion_timescale=2.0)
+
+        self.assertAlmostEqual(luminosity[-1], 1.0, places=3)
 
     def test_kilonova_diffusion_is_finite_for_extreme_valid_prior(self):
         import warnings
@@ -2531,44 +2548,277 @@ class TestTransientModelNumericalStability(unittest.TestCase):
         self.assertTrue(np.all(np.isfinite(output)))
 
 
-class TestNickelMixingDiffusionScale(unittest.TestCase):
-    """Tests for the effective diffusion scale in the legacy leakage model."""
+class TestNickelMixingGridAndDiffusion(unittest.TestCase):
+    """Physical invariants and limiting cases of the nickel-mixing model."""
 
     parameters = dict(
         mej=5.0, esn=1.0, kappa=0.2, kappa_gamma=0.027,
         f_nickel=0.07, f_mixing=0.2, temperature_floor=1000.0,
-        mass_len=50, dense_resolution=150, stop_time=150.0)
+        mass_len=400, dense_resolution=800, stop_time=150.0)
 
-    def test_default_diffusion_scale_is_two(self):
+    def test_grid_conserves_mass_energy_and_nickel(self):
+        from redback.constants import solar_mass
+        from redback.transient_models.supernova_models import _build_nickelmixing_grid
+
+        grid = _build_nickelmixing_grid(
+            vmin=900.0, esn=1.0, mej=5.0, f_nickel=0.07,
+            f_mixing=0.2, mass_len=200, vmax=250000.0)
+        kinetic_energy = 0.5 * np.sum(
+            grid.mass * solar_mass * grid.velocity_cgs ** 2)
+        self.assertAlmostEqual(np.sum(grid.mass), 5.0, places=12)
+        self.assertAlmostEqual(kinetic_energy / 1e51, 1.0, places=12)
+        self.assertAlmostEqual(np.sum(grid.nickel_mass), 0.35, places=12)
+        self.assertLessEqual(np.max(grid.nickel_mass / grid.mass), 1.0)
+
+    def test_mixing_is_an_enclosed_mass_coordinate(self):
+        from redback.transient_models.supernova_models import _build_nickelmixing_grid
+
+        grid = _build_nickelmixing_grid(
+            vmin=900.0, esn=1.0, mej=5.0, f_nickel=0.07,
+            f_mixing=0.2, mass_len=200, vmax=250000.0)
+        nickel_support = grid.mass[grid.nickel_mass > 0]
+        boundary_nickel = grid.nickel_mass[grid.nickel_mass > 0][-1]
+        boundary_mass = nickel_support[-1]
+        self.assertGreaterEqual(np.sum(nickel_support), 1.0)
+        self.assertLess(np.sum(nickel_support) - boundary_mass, 1.0)
+        self.assertLess(boundary_nickel, 0.35 * boundary_mass)
+
+    def test_invalid_nickel_fraction_raises(self):
         from redback.transient_models.supernova_models import nickelmixing_bolometric
 
-        time = np.linspace(1.0, 120.0, 100)
-        default = nickelmixing_bolometric(time, **self.parameters)
-        scale_two = nickelmixing_bolometric(
-            time, diffusion_scale=2.0, **self.parameters)
-        np.testing.assert_allclose(default, scale_two)
+        with self.assertRaisesRegex(ValueError, "f_nickel <= f_mixing"):
+            nickelmixing_bolometric(
+                np.linspace(1.0, 20.0, 10), **{
+                    **self.parameters, 'f_nickel': 0.3, 'f_mixing': 0.2})
 
-    def test_larger_diffusion_scale_delays_and_dims_peak(self):
+    def test_zero_nickel_has_zero_luminosity_and_radius(self):
+        from redback.transient_models.supernova_models import _nickelmixing
+
+        output = _nickelmixing(
+            np.geomspace(0.01, 20.0, 80) * 86400.0,
+            **{**self.parameters, 'f_nickel': 0.0})
+
+        np.testing.assert_array_equal(output.lbol, 0.0)
+        np.testing.assert_array_equal(output.r_photosphere, 0.0)
+        np.testing.assert_array_equal(output.v_photosphere, 0.0)
+
+    def test_nearly_singular_inner_profile_integral_is_finite(self):
+        from redback.transient_models.supernova_models import _power_integral
+
+        result = _power_integral(0.0, 0.5, -1.0 + 1e-8)
+
+        self.assertTrue(np.isfinite(result))
+
+    def test_exponential_underflowing_tail_remains_finite(self):
+        from redback.transient_models.supernova_models import _build_nickelmixing_grid
+
+        from redback.constants import km_cgs, solar_mass
+
+        grid = _build_nickelmixing_grid(
+            vmin=1.0, esn=0.4, mej=100.0, f_nickel=0.07,
+            f_mixing=0.2, mass_len=400, vmax=250000.0,
+            density_profile='exponential')
+
+        # The grid stops at 12 exponential velocity scales, so the tail no
+        # longer underflows to empty shells.
+        self.assertTrue(np.all(np.isfinite(grid.velocity)))
+        self.assertEqual(np.count_nonzero(grid.mass == 0.0), 0)
+        velocity_scale = np.sqrt(0.4e51 / (6.0 * 100.0 * solar_mass)) / km_cgs
+        self.assertLess(grid.velocity_edges_cgs[-1] / km_cgs, 13.0 * velocity_scale)
+
+    def test_nonfinite_density_indices_raise(self):
+        from redback.transient_models.supernova_models import _build_nickelmixing_grid
+
+        for parameter in ('delta', 'n', 'beta'):
+            with self.subTest(parameter=parameter):
+                kwargs = {parameter: np.nan}
+                with self.assertRaisesRegex(ValueError, "must be finite"):
+                    _build_nickelmixing_grid(
+                        vmin=900.0, esn=1.0, mej=5.0, f_nickel=0.07,
+                        f_mixing=0.2, mass_len=200, vmax=250000.0,
+                        **kwargs)
+
+    def test_default_power_law_grid_is_subluminal(self):
         from redback.transient_models.supernova_models import nickelmixing_bolometric
 
-        time = np.linspace(1.0, 120.0, 100)
-        previous = nickelmixing_bolometric(
-            time, diffusion_scale=1.0, **self.parameters)
-        scaled = nickelmixing_bolometric(
-            time, diffusion_scale=2.0, **self.parameters)
-        self.assertGreater(time[np.argmax(scaled)], time[np.argmax(previous)])
-        self.assertLess(np.max(scaled), np.max(previous))
+        luminosity = nickelmixing_bolometric(
+            np.linspace(1.0, 20.0, 10),
+            **{**self.parameters, 'density_profile': 'power_law'})
 
-    def test_diffusion_scale_must_be_positive(self):
+        self.assertTrue(np.all(np.isfinite(luminosity)))
+
+    def test_superluminal_normalized_grid_raises(self):
+        from redback.transient_models.supernova_models import _build_nickelmixing_grid
+
+        with self.assertRaisesRegex(ValueError, "speed of light"):
+            _build_nickelmixing_grid(
+                vmin=900.0, esn=1.0, mej=5.0, f_nickel=0.07,
+                f_mixing=0.2, mass_len=200, vmax=250000.0,
+                density_profile='power_law')
+
+    def test_obsolete_diffusion_scale_raises(self):
         from redback.transient_models.supernova_models import nickelmixing_bolometric
 
-        for invalid_scale in [0.0, -1.0, np.nan, np.inf, -np.inf]:
-            with self.subTest(diffusion_scale=invalid_scale):
-                with self.assertRaisesRegex(
-                        ValueError, "diffusion_scale must be finite and positive"):
+        with self.assertRaisesRegex(ValueError, "diffusion_scale is obsolete"):
+            nickelmixing_bolometric(
+                np.linspace(1.0, 20.0, 10), diffusion_scale=2.0,
+                **self.parameters)
+
+    @patch('redback.transient_models.supernova_models.logger')
+    def test_deprecated_gray_opacity_alias_matches_new_option(self, logger):
+        from redback.transient_models.supernova_models import nickelmixing_bolometric
+
+        time = np.linspace(1.0, 20.0, 10)
+        legacy = nickelmixing_bolometric(
+            time, use_gray_opacity=False, **self.parameters)
+        current = nickelmixing_bolometric(
+            time, use_recombination_opacity=True, **self.parameters)
+
+        logger.warning.assert_called_once_with(
+            "use_gray_opacity is deprecated; use "
+            "use_recombination_opacity=not use_gray_opacity instead.")
+        np.testing.assert_array_equal(legacy, current)
+
+    @patch('redback.transient_models.supernova_models.logger')
+    def test_deprecated_gray_opacity_true_matches_constant_opacity(self, logger):
+        from redback.transient_models.supernova_models import nickelmixing_bolometric
+
+        time = np.linspace(1.0, 20.0, 10)
+        legacy = nickelmixing_bolometric(
+            time, use_gray_opacity=True, **self.parameters)
+        current = nickelmixing_bolometric(
+            time, use_recombination_opacity=False, **self.parameters)
+
+        logger.warning.assert_called_once_with(
+            "use_gray_opacity is deprecated; use "
+            "use_recombination_opacity=not use_gray_opacity instead.")
+        np.testing.assert_array_equal(legacy, current)
+
+    def test_recombination_opacity_rejects_nonfinite_kappa_min(self):
+        from redback.transient_models.supernova_models import nickelmixing_bolometric
+
+        for kappa_min in (np.nan, np.inf, -np.inf, -1.0):
+            with self.subTest(kappa_min=kappa_min):
+                with self.assertRaisesRegex(ValueError, "kappa_min must be finite"):
                     nickelmixing_bolometric(
                         np.linspace(1.0, 20.0, 10),
-                        diffusion_scale=invalid_scale, **self.parameters)
+                        use_recombination_opacity=True, kappa_min=kappa_min,
+                        **self.parameters)
+
+    def test_opacity_option_aliases_cannot_be_combined(self):
+        from redback.transient_models.supernova_models import nickelmixing_bolometric
+
+        with self.assertRaisesRegex(ValueError, "Specify only use_recombination_opacity"):
+            nickelmixing_bolometric(
+                np.linspace(1.0, 20.0, 10), use_gray_opacity=True,
+                use_recombination_opacity=False, **self.parameters)
+
+    def test_exponential_type_ia_has_physical_rise_time(self):
+        from redback.transient_models.supernova_models import nickelmixing_bolometric
+
+        time = np.linspace(0.5, 50.0, 200)
+        luminosity = nickelmixing_bolometric(
+            time, mej=1.4, esn=1.0, kappa=0.1, kappa_gamma=0.027,
+            f_nickel=0.6 / 1.4, f_mixing=0.6 / 1.4,
+            temperature_floor=1000.0, density_profile='exponential',
+            mass_len=200, dense_resolution=800)
+        peak_time = time[np.argmax(luminosity)]
+        self.assertGreater(peak_time, 14.0)
+        self.assertLess(peak_time, 20.0)
+
+    def test_default_resolution_is_timestep_stable(self):
+        from redback.transient_models.supernova_models import nickelmixing_bolometric
+
+        time = np.geomspace(0.5, 120.0, 160)
+        default = nickelmixing_bolometric(time, **self.parameters)
+        high_resolution = nickelmixing_bolometric(
+            time, **{**self.parameters, 'dense_resolution': 1600})
+        mask = high_resolution > 0.01 * np.max(high_resolution)
+        np.testing.assert_allclose(default[mask], high_resolution[mask], rtol=0.02)
+
+    def test_default_resolution_is_shell_stable(self):
+        from redback.transient_models.supernova_models import nickelmixing_bolometric
+
+        time = np.geomspace(0.5, 120.0, 160)
+        default = nickelmixing_bolometric(time, **self.parameters)
+        high_resolution = nickelmixing_bolometric(
+            time, **{**self.parameters, 'mass_len': 600})
+        mask = high_resolution > 0.01 * np.max(high_resolution)
+        np.testing.assert_allclose(default[mask], high_resolution[mask], rtol=0.02)
+
+    def test_coupled_diffusion_time_stepping_is_second_order_accurate(self):
+        # BDF2: the default 800-point grid agrees with an 8x finer grid to
+        # well below a per cent (backward Euler was off by ~6% on the rise).
+        from redback.transient_models.supernova_models import nickelmixing_bolometric
+
+        time = np.geomspace(0.5, 120.0, 160)
+        default = nickelmixing_bolometric(time, **self.parameters)
+        fine = nickelmixing_bolometric(
+            time, **{**self.parameters, 'dense_resolution': 6400})
+        mask = fine > 0.01 * np.max(fine)
+        np.testing.assert_allclose(default[mask], fine[mask], rtol=0.005)
+
+    def test_transport_options(self):
+        from redback.transient_models.supernova_models import nickelmixing_bolometric
+
+        time = np.geomspace(1.0, 120.0, 80)
+        coupled = nickelmixing_bolometric(time, **self.parameters)
+        explicit = nickelmixing_bolometric(
+            time, **{**self.parameters, 'transport': 'coupled_diffusion'})
+        leakage = nickelmixing_bolometric(
+            time, **{**self.parameters, 'transport': 'shell_leakage'})
+        np.testing.assert_array_equal(coupled, explicit)
+        self.assertTrue(np.all(np.isfinite(leakage)))
+        self.assertFalse(np.allclose(coupled, leakage, rtol=0.01))
+        with self.assertRaises(ValueError):
+            nickelmixing_bolometric(
+                time, **{**self.parameters, 'transport': 'legacy'})
+        with self.assertRaisesRegex(ValueError, "applies only"):
+            nickelmixing_bolometric(
+                time, **{**self.parameters, 'diffusion_beta': 13.8})
+
+        with self.assertRaisesRegex(ValueError, "finite and positive"):
+            nickelmixing_bolometric(
+                time, **{**self.parameters, 'transport': 'shell_leakage',
+                         'diffusion_beta': np.nan})
+
+    def test_coupled_diffusion_requires_resolved_shell_grid(self):
+        from redback.transient_models.supernova_models import nickelmixing_bolometric
+
+        time = np.geomspace(1.0, 120.0, 80)
+        with self.assertRaisesRegex(ValueError, "mass_len >= 100"):
+            nickelmixing_bolometric(
+                time, **{**self.parameters, 'mass_len': 99})
+
+        luminosity = nickelmixing_bolometric(
+            time, **{**self.parameters, 'mass_len': 99,
+                     'transport': 'shell_leakage'})
+        self.assertTrue(np.all(np.isfinite(luminosity)))
+
+    def test_low_energy_exponential_ejecta_are_finite(self):
+        # Out to the generic vmax the exponential tail held ~1e-30 of the
+        # mass per shell and the coupled diffusion solve broke down.
+        from redback.transient_models.supernova_models import nickelmixing_bolometric
+
+        time = np.geomspace(1.0, 120.0, 60)
+        for esn, mej in ((0.4, 1.4), (0.2, 10.0)):
+            with self.subTest(esn=esn, mej=mej):
+                luminosity = nickelmixing_bolometric(
+                    time, mej=mej, esn=esn, kappa=0.1, kappa_gamma=0.03,
+                    f_nickel=0.3, f_mixing=0.6, temperature_floor=1000.0,
+                    density_profile='exponential')
+                self.assertTrue(np.all(np.isfinite(luminosity)))
+                self.assertGreater(np.max(luminosity), 1e42)
+
+    def test_coupled_diffusion_mixing_advances_the_peak(self):
+        # Outward nickel diffuses out through less overlying mass.
+        from redback.transient_models.supernova_models import nickelmixing_bolometric
+
+        time = np.linspace(1.0, 120.0, 600)
+        central = nickelmixing_bolometric(time, **self.parameters)
+        mixed = nickelmixing_bolometric(
+            time, **{**self.parameters, 'f_mixing': 1.0})
+        self.assertLess(time[np.argmax(mixed)], 0.6 * time[np.argmax(central)])
 
 
 class TestNickelMixingRadioactiveDeposition(unittest.TestCase):
@@ -2576,13 +2826,112 @@ class TestNickelMixingRadioactiveDeposition(unittest.TestCase):
 
     parameters = dict(
         mej=1.4, esn=1.2, kappa=0.1, f_nickel=0.4, f_mixing=0.5,
-        temperature_floor=1000.0, mass_len=50, dense_resolution=300,
+        temperature_floor=1000.0, mass_len=100, dense_resolution=300,
         stop_time=300.0)
     time = np.linspace(200.0, 250.0, 6)
     nickel_mass = 1.4 * 0.4
 
     def _cobalt(self, fraction):
         return fraction * 1.45e43 * self.nickel_mass * np.exp(-self.time / 111.3)
+
+    @staticmethod
+    def _direct_ray_columns(source_radii, edges, mass, n_angles=8):
+        from redback.constants import solar_mass
+
+        directions, weights = np.polynomial.legendre.leggauss(n_angles)
+        density = mass * solar_mass / (
+            4.0 * np.pi / 3.0 * np.diff(edges ** 3))
+        columns = np.zeros((len(source_radii), n_angles))
+        for source_index, source_radius in enumerate(source_radii):
+            for angle_index, direction in enumerate(directions):
+                impact_squared = source_radius ** 2 * (1.0 - direction ** 2)
+                outer_root = np.sqrt(edges[-1] ** 2 - impact_squared)
+                path_end = -source_radius * direction + outer_root
+                crossings = [0.0, path_end]
+                for edge in edges[1:-1]:
+                    discriminant = edge ** 2 - impact_squared
+                    if discriminant <= 0:
+                        continue
+                    root = np.sqrt(discriminant)
+                    crossings.extend((-source_radius * direction - root,
+                                      -source_radius * direction + root))
+                crossings = np.unique(
+                    np.clip(np.asarray(crossings), 0.0, path_end))
+                starts, stops = crossings[:-1], crossings[1:]
+                midpoints = 0.5 * (starts + stops)
+                radii = np.sqrt(
+                    source_radius ** 2 + midpoints ** 2
+                    + 2.0 * source_radius * midpoints * direction)
+                shell_indices = np.clip(
+                    np.searchsorted(edges, radii, side='right') - 1,
+                    0, len(density) - 1)
+                columns[source_index, angle_index] = np.sum(
+                    density[shell_indices] * (stops - starts))
+        return columns, weights / 2.0
+
+    def test_angle_averaged_columns_match_uniform_sphere(self):
+        from redback.constants import solar_mass
+        from redback.transient_models.supernova_models import (
+            _angle_averaged_gamma_columns)
+
+        edges = np.linspace(0.0, 1.0, 201)
+        velocity = 0.5 * (edges[:-1] + edges[1:])
+        mass = np.diff(edges ** 3)
+        columns, weights = _angle_averaged_gamma_columns(
+            velocity=velocity, velocity_edges=edges, mass=mass, n_angles=8)
+        direction = np.polynomial.legendre.leggauss(8)[0]
+        index = 140
+        radius = velocity[index]
+        density = 3.0 * solar_mass / (4.0 * np.pi)
+        expected = density * (
+            np.sqrt(1.0 - radius ** 2 * (1.0 - direction ** 2))
+            - radius * direction)
+
+        np.testing.assert_allclose(columns[index], expected, rtol=1e-12)
+        self.assertAlmostEqual(np.sum(weights), 1.0)
+
+        radial_optical_depth = 0.8
+        numerical_escape = np.sum(
+            mass * np.sum(
+                weights[None, :] * np.exp(
+                    -radial_optical_depth * columns / density), axis=1))
+        analytic_escape = 3.0 / (4.0 * radial_optical_depth) * (
+            1.0 - 1.0 / (2.0 * radial_optical_depth ** 2)
+            + (1.0 / radial_optical_depth
+               + 1.0 / (2.0 * radial_optical_depth ** 2))
+            * np.exp(-2.0 * radial_optical_depth))
+        self.assertAlmostEqual(numerical_escape, analytic_escape, places=3)
+
+    def test_columns_match_direct_nonuniform_ray_integration(self):
+        from redback.transient_models.supernova_models import (
+            _angle_averaged_gamma_columns, _build_nickelmixing_grid)
+
+        grid = _build_nickelmixing_grid(
+            vmin=900.0, esn=1.0, mej=5.0, f_nickel=0.07,
+            f_mixing=0.2, mass_len=60, vmax=250000.0)
+        source_index = 24
+        source_radius = grid.velocity_cgs[source_index]
+        edges = grid.velocity_edges_cgs
+        expected, expected_weights = self._direct_ray_columns(
+            np.array([source_radius]), edges, grid.mass)
+        columns, _ = _angle_averaged_gamma_columns(
+            velocity=np.array([source_radius]), velocity_edges=edges,
+            mass=grid.mass, n_angles=8)
+
+        np.testing.assert_allclose(columns, expected, rtol=1e-12)
+        self.assertAlmostEqual(np.sum(expected_weights), 1.0)
+
+    def test_eight_gamma_angles_are_converged(self):
+        from redback.transient_models.supernova_models import nickelmixing_bolometric
+
+        time = np.geomspace(5.0, 250.0, 100)
+        eight_angles = nickelmixing_bolometric(
+            time, kappa_gamma=0.03, gamma_ray_angles=8, **self.parameters)
+        sixteen_angles = nickelmixing_bolometric(
+            time, kappa_gamma=0.03, gamma_ray_angles=16, **self.parameters)
+        mask = sixteen_angles > 0.01 * np.max(sixteen_angles)
+        np.testing.assert_allclose(
+            eight_angles[mask], sixteen_angles[mask], rtol=5e-3)
 
     def test_transparent_ejecta_retain_only_positrons(self):
         from redback.transient_models.supernova_models import nickelmixing_bolometric
@@ -2593,23 +2942,28 @@ class TestNickelMixingRadioactiveDeposition(unittest.TestCase):
     def test_optically_thin_gamma_deposition_uses_local_column(self):
         from redback.constants import solar_mass
         from redback.transient_models.supernova_models import (
-            _compute_mass_and_nickel, nickelmixing_bolometric)
+            _build_nickelmixing_grid, nickelmixing_bolometric)
 
         # Thin (tau <~ 0.1) but with the gamma-ray part ~half the positron
         # floor, so a wrong column (e.g. an extra factor of 3) changes it by >50%.
         kappa_gamma = 0.03
         lbol = nickelmixing_bolometric(self.time, kappa_gamma=kappa_gamma, **self.parameters)
         vmin = 0.2 * (2 * 1.2e51 / (1.4 * solar_mass)) ** 0.5 / 1e5
-        _, v_m, m_array, ni_array = _compute_mass_and_nickel(
+        grid = _build_nickelmixing_grid(
             vmin=vmin, esn=1.2, mej=1.4, f_nickel=0.4, f_mixing=0.5,
-            mass_len=50, vmax=250000, delta=1.0, n=12.0)
-        column = np.cumsum((m_array * solar_mass / v_m ** 2)[::-1])[::-1]
+            mass_len=100, vmax=250000, delta=1.0, n=12.0)
+        nickel_shells = grid.nickel_mass > 0
+        columns, weights = self._direct_ray_columns(
+            grid.velocity_cgs[nickel_shells], grid.velocity_edges_cgs,
+            grid.mass, n_angles=8)
         seconds = self.time * 86400.0
-        tau = kappa_gamma * column[:, None] / (4 * np.pi * seconds[None, :] ** 2)
-        deposited = np.sum(ni_array[:, None] * (1 - np.exp(-tau)), axis=0)
+        tau = kappa_gamma * columns[:, :, None] / seconds[None, None, :] ** 2
+        deposition = 1.0 - np.sum(
+            weights[None, :, None] * np.exp(-tau), axis=1)
+        deposited = np.sum(
+            grid.nickel_mass[nickel_shells, None] * deposition, axis=0)
         gamma_expected = self._cobalt(0.968) * deposited / self.nickel_mass
-        # Radiated luminosity lags the falling deposition by ~5-12% here; an
-        # extra factor of 3 in the column gives >200%.
+        # Radiated luminosity slightly lags the falling deposited power.
         np.testing.assert_allclose(lbol - self._cobalt(0.032), gamma_expected, rtol=0.2)
 
     def test_opaque_ejecta_retain_all_decay_energy(self):
