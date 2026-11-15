@@ -1157,9 +1157,28 @@ class KwargsAccessorWithDefault(object):
         instance.kwargs[self.kwarg] = value
 
 
-def get_functions_dict(module):
+def get_functions_dict(module, public_only=False):
+    """Return functions exposed by a model module.
+
+    Built-in model modules use ``public_only=True`` so imported utilities and
+    private implementation helpers do not become user-facing models. Modules
+    may define ``__all__`` to explicitly control their public model exports.
+    The default preserves the historical discovery behavior used by plugins.
+    """
     models_dict = {}
     _functions_list = [o for o in getmembers(module) if isfunction(o[1])]
+    explicit_exports = getattr(module, '__all__', None)
+    if explicit_exports is not None:
+        explicit_exports = set(explicit_exports)
+        _functions_list = [o for o in _functions_list if o[0] in explicit_exports]
+    elif public_only:
+        module_name = module.__name__
+        _functions_list = [
+            o for o in _functions_list
+            if not o[0].startswith('_')
+            and (o[1].__module__ == module_name
+                 or o[1].__module__.startswith(f'{module_name}.'))
+        ]
     _functions_dict = {f[0]: f[1] for f in _functions_list}
     models_dict[module.__name__.split('.')[-1]] = _functions_dict
     return models_dict

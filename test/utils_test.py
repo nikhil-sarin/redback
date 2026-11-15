@@ -1351,6 +1351,48 @@ class TestGetFunctionsDict(unittest.TestCase):
         # Check that module name is in the result
         self.assertIn('test_module', result)
 
+    def test_public_only_excludes_private_and_imported_functions(self):
+        import types
+        mock_module = types.ModuleType('parent.test_module')
+
+        def public_model():
+            pass
+
+        def private_helper():
+            pass
+
+        def imported_utility():
+            pass
+
+        public_model.__module__ = mock_module.__name__
+        private_helper.__module__ = mock_module.__name__
+        imported_utility.__module__ = 'another_module'
+        mock_module.public_model = public_model
+        mock_module._private_helper = private_helper
+        mock_module.imported_utility = imported_utility
+
+        result = utils.get_functions_dict(mock_module, public_only=True)['test_module']
+
+        self.assertEqual({'public_model'}, set(result))
+
+    def test_explicit_exports_control_function_discovery(self):
+        import types
+        mock_module = types.ModuleType('plugin_models')
+
+        def public_model():
+            pass
+
+        def helper():
+            pass
+
+        mock_module.public_model = public_model
+        mock_module.helper = helper
+        mock_module.__all__ = ['public_model']
+
+        result = utils.get_functions_dict(mock_module)['plugin_models']
+
+        self.assertEqual({'public_model'}, set(result))
+
 
 class TestThermalisation(unittest.TestCase):
     """Test thermalisation and heating functions"""

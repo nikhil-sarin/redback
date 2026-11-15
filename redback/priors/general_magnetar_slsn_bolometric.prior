@@ -1,0 +1,7 @@
+l0 = LogUniform(1e-40, 1e48, 'l0', latex_label = r'$L_{0}~(\mathrm{erg}/\mathrm{s})$')
+tsd = LogUniform(1.1574074074074074e-3, 1.1574074074074074e1, 'tsd', latex_label = r'$\\tau_{sd}~(\mathrm{days})$')
+nn = Uniform(1.1, 7, 'nn', latex_label = r'$n$')
+mej = LogUniform(1e-4, 100, 'mej', latex_label = r'$M_{\mathrm{ej}}~(M_{\odot})$')
+vej = LogUniform(1e3, 1e5, 'vej', latex_label = r'$v_{\mathrm{ej}}~(\mathrm{km}/\mathrm{s})$')
+kappa = Uniform(0.05, 2, 'kappa', latex_label = r'$\\kappa~(\mathrm{cm}^{2}/\mathrm{g})$')
+kappa_gamma = LogUniform(1e-4, 1e4, 'kappa_gamma', latex_label = r'$\\kappa_{\\gamma}~(\mathrm{cm}^{2}/\mathrm{g})$')

@@ -32,10 +32,6 @@ def _analytic_fallback(time, l0, t_0):
     lbol[~mask] = l0 / (t_0 * 86400)**(5./3.)
     return lbol
 
-def _semianalytical_fallback():
-    pass
-
-
 def _cooling_envelope(mbh_6, stellar_mass, eta, alpha, beta, **kwargs):
     """
     Sarin and Metzger 24 cooling envelope model.

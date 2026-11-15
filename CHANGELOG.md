@@ -2,6 +2,14 @@
 
 ## [Unreleased]
 
+### Bug fixes
+- Keep private helpers and imported utilities out of the built-in model registry,
+  and allow modules to declare model exports with `__all__`.
+- Correct FRED and CSM shock-breakout prior parameter identities and add default
+  priors for standalone bolometric nickel-mixing, CSM, and general-magnetar models.
+- Remove the unimplemented `csm_truncation_shock` model and unused TDE fallback
+  stub.
+
 ## [1.21.0] 2026-11-15
 Version 1.21.0 release of redback
 

@@ -405,6 +405,13 @@ Any helper function imported into that module may also be detected as a model, s
     def my_custom_model(time, amplitude, timescale, **kwargs):
         return amplitude * np.exp(-time / timescale)
 
+Plugin modules that also contain helper functions can define :code:`__all__`
+to list only the functions that Redback should register as models:
+
+.. code:: python
+
+    __all__ = ["my_custom_model"]
+
 Plugins may declare which model type they are compatible with using :code:`redback_model_type` or :code:`redback_model_types`:
 
 .. code:: python
