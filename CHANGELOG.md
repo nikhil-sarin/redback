@@ -2,17 +2,27 @@
 
 ## [Unreleased]
 
+## [1.21.0] 2026-11-15
+Version 1.21.0 release of redback
+
 ### New features
 - Replace the default independent-shell leakage closure in `nickelmixing` and
   `nickelmixing_bolometric` with coupled finite-volume diffusion using
   variable-step BDF2. The previous approximation remains available with
   `transport="shell_leakage"`; coupled diffusion requires at least 100 mass
-  shells and defaults to 400. The Arnett `diffusion_beta` geometry constant
-  applies only to the legacy shell-leakage transport.
+  shells and defaults to 400.
 - Add `AstroColibriDataGetter` and `redback.get_data.get_astrocolibri_data(...)` to download multi-survey optical photometry (ATLAS, ZTF, LSST, ASAS-SN, AAVSO) for any transient known to Astro-COLIBRI, together with `OpticalTransient.from_astrocolibri_data(...)` to load it. Lightcurve requests require a personal Astro-COLIBRI user id (`uid` or `ASTROCOLIBRI_UID`) and count against the daily API quota; non-detections can optionally be kept as upper limits via `include_upper_limits=True`.
 - Add `nicholl_bns_rk24`, a kilonova model based on `nicholl_bns`, but using direct component tidal deformabilities and the Rosswog & Korobkin (2024) heating rate, along with a corrected prompt-collapse threshold using the remnant radius in geometrical units. The existing `nicholl_bns` model retains the original MOSFiT/Nicholl et al. (2021) threshold implementation.
 
 ### Scientific model changes
+- Rework the nickel-mixing supernova models around a mass- and kinetic-energy-
+  conserving ejecta grid and a uniform nickel mass fraction inside the sampled
+  enclosed-mass coordinate. Gamma-ray deposition is angle averaged, cobalt
+  positron energy is deposited locally, and the default shell and timestep
+  resolutions are converged to within two per cent of higher-resolution runs.
+- Add the physical `f_nickel <= f_mixing` constraint to constrained
+  nickel-mixing priors, and extend the `kappa_gamma` prior down to `1e-4`
+  cm^2/g.
 - Include the factor of two required by the normalized Arnett diffusion kernel
   shared by Redback's simple component and Rosswog-heating kilonova models. Their
   bolometric luminosities now approach the deposited heating rate in the
@@ -21,10 +31,27 @@
   already used this normalization and are unchanged.
 
 ### Bug fixes
+- Order SED epoch observations, uncertainties, and fitted curves by effective
+  frequency, and invert magnitude-mode plot axes.
+- Sort converted OTTER photometry globally by time while preserving the
+  alignment of every data column.
 - Fix `redback.get_data.get_data(...)`: the catch-all router looked up its dispatch table with the transient name where the transient type is expected, raising a `KeyError` for every real call, and could not pass `transient_type` through to the generic getters (astrocolibri, fink, lasair). It now takes `(transient, transient_type, instrument)` and forwards all keyword arguments to the underlying data getter, raising a helpful `ValueError` for unknown combinations.
 - Corrected the swapped prior ranges for `kappa_blue` and `kappa_red` in `nicholl_bns.prior`.
 - Fixed the parameter name from `zeta` to `epsilon` in both `nicholl_bns.prior` and `nicholl_bns_rk24.prior`.
-- Restore `StudentTLikelihood`, which was unintentionally removed in v1.13.0 while deduplicating likelihood classes. It now supports the `log_likelihood(parameters)` interface and returns `-inf` for non-positive `nu`
+- Restore `StudentTLikelihood`, which was unintentionally removed in v1.13.0 while deduplicating likelihood classes. It now supports the `log_likelihood(parameters)` interface and returns `-inf` for non-positive `nu`.
+- Support both current and legacy LALSimulation neutron-star-family APIs and
+  evaluate tidal deformabilities directly from the selected family, returning
+  zero above the maximum neutron-star mass.
+
+### Compatibility and deprecations
+- `diffusion_scale` is no longer accepted by the corrected nickel-mixing
+  models. Use `transport="shell_leakage"` to request the previous independent-
+  shell transport; its `diffusion_beta` geometry constant does not apply to
+  coupled diffusion.
+- `use_gray_opacity` is deprecated in favor of the inverse
+  `use_recombination_opacity` option.
+
+**Full Changelog**: https://github.com/nikhil-sarin/redback/compare/v1.20.0...v1.21.0
 
 ## [1.20.0] 2026-09-10
 Version 1.20.0 release of redback
