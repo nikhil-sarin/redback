@@ -2842,7 +2842,8 @@ def general_magnetar_driven_supernova(time, redshift, mej, E_sn, kappa, l0, tau_
                                               use_gamma_ray_opacity=True, use_r_process=False, **kwargs)                                                                                
         vej = velocity_from_lorentz_factor(output.lorentz_factor)/km_cgs 
         kwargs['vej'] = vej                                      
-        kwargs['radius'] = output.radius
+        if kwargs['photosphere'] is photosphere.TemperatureFloor:
+            kwargs['vej'] = output.radius / (km_cgs * time_temp)
         photo = kwargs['photosphere'](
             time=time_temp/day_to_s, luminosity=output.bolometric_luminosity, **kwargs)
         temp_func = interp1d(time_temp/day_to_s, y=photo.photosphere_temperature)
@@ -2877,7 +2878,8 @@ def general_magnetar_driven_supernova(time, redshift, mej, E_sn, kappa, l0, tau_
                                               use_gamma_ray_opacity=True, use_r_process=False, **kwargs)
         vej = velocity_from_lorentz_factor(output.lorentz_factor)/km_cgs 
         kwargs['vej'] = vej
-        kwargs['radius'] = output.radius
+        if kwargs['photosphere'] is photosphere.TemperatureFloor:
+            kwargs['vej'] = output.radius / (km_cgs * time_temp)
         photo = kwargs['photosphere'](
             time=time_temp/day_to_s, luminosity=output.bolometric_luminosity, **kwargs)
         if kwargs['output_format'] == 'dynamics_output':                                      

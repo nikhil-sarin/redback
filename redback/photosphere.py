@@ -72,13 +72,10 @@ class TemperatureFloor(object):
         :type vej: numpy.ndarray
         :param temperature_floor: floor temperature in kelvin
         :type temperature_floor: Union[float, int]
-        :param radius: optional ejecta radius in cm. When supplied, this is used
-            instead of reconstructing the radius as ``vej * time``.
         """
         self.time = time
         self.luminosity = luminosity
         self.v_ejecta = vej
-        self.radius = kwargs.get('radius')
         self.temperature_floor = temperature_floor
         self.r_photosphere = np.array([])
         self.photosphere_temperature = np.array([])
@@ -87,13 +84,7 @@ class TemperatureFloor(object):
         self.calculate_photosphere_properties()
 
     def set_radius_squared(self) -> None:
-        if self.radius is None:
-            self.radius_squared = (self.RADIUS_CONSTANT * self.v_ejecta * self.time) ** 2
-        else:
-            radius = np.asarray(self.radius)
-            if radius.shape != np.asarray(self.time).shape:
-                raise ValueError("radius must have the same shape as time")
-            self.radius_squared = radius ** 2
+        self.radius_squared = (self.RADIUS_CONSTANT * self.v_ejecta * self.time) ** 2
 
     def set_rec_radius_squared(self) -> None:
         self.rec_radius_squared = self.luminosity / (self.STEF_CONSTANT * self.temperature_floor ** 4)
