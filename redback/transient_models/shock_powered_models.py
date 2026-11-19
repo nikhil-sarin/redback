@@ -473,7 +473,6 @@ def shockcooling_sapirandwaxman(time, redshift, v_shock, m_env, f_rho_m, radius,
                                                               spectra=spectra, lambda_array=lambda_observer_frame,
                                                               **kwargs)
 
-
 @citation_wrapper('https://ui.adsabs.harvard.edu/abs/2022ApJ...933..238M/abstract')
 def _csm_shock_breakout(time, csm_mass, v_min, beta, kappa, shell_radius, shell_width_ratio, **kwargs):
     """
@@ -1268,14 +1267,20 @@ def shocked_cocoon_csm(time, redshift, E_eng, t_eng, theta_0, M_csm, R_csm, kapp
         else:
             return sed.get_correct_output_format_from_spectra(time=time_obs, time_eval=time_observer_frame,
                                                               spectra=spectra, lambda_array=lambda_observer_frame,
-                                                              **kwargs)                                                               
+                                                              **kwargs)
 
-@citation_wrapper('https://ui.adsabs.harvard.edu/abs/2022ApJ...928..122M/abstract')
-def csm_truncation_shock():
-    """
-    Multi-zone version of Margalit 2022 model for CSM shock breakout and cooling one zone model is implemented as
-    csm_shock_breakout
 
-    :return:
-    """
-    raise NotImplementedError("This model is not yet implemented.")
+__all__ = [
+    'csm_shock_breakout',
+    'csm_shock_breakout_bolometric',
+    'shock_cooling',
+    'shock_cooling_bolometric',
+    'shockcooling_morag',
+    'shockcooling_morag_bolometric',
+    'shockcooling_sapirandwaxman',
+    'shockcooling_sapirandwaxman_bolometric',
+    'shocked_cocoon',
+    'shocked_cocoon_bolometric',
+    'shocked_cocoon_csm',
+    'shocked_cocoon_csm_bolometric',
+]

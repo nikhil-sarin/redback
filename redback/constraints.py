@@ -2,7 +2,7 @@ import numpy as np
 import redback.eos as eos
 import redback.ejecta_relations as ejr
 from redback.constants import *
-from redback.utils import calc_tfb
+from redback.utils import calc_tfb, get_csm_properties
 from scipy.interpolate import interp1d
 
 BARNES_KASEN_MASS_MIN = 1e-3
@@ -79,7 +79,8 @@ def general_magnetar_powered_sn_constraints(parameters):
     kinetic_energy = 0.5 * mej * vej ** 2
     l0 = parameters['l0']
     tau = parameters['tsd'] * day_to_s
-    rotational_energy = 2*l0*tau
+    nn = parameters['nn']
+    rotational_energy = l0 * tau * (nn - 1.0) / 2.0
     # ensure rotational energy is greater than total output energy
     converted_parameters['erot_constraint'] = kinetic_energy/rotational_energy
     return converted_parameters
@@ -101,7 +102,7 @@ def vacuum_dipole_magnetar_powered_supernova_constraints(parameters):
     
 def general_magnetar_powered_supernova_constraints(parameters):
     """
-    Constraint so that magnetar rotational energy is smaller than some number
+    Constrain the magnetar rotational energy and require a non-negligible engine.
 
     :param parameters: dictionary of parameters
     :return: converted_parameters dictionary where the violated samples are thrown out
@@ -111,8 +112,9 @@ def general_magnetar_powered_supernova_constraints(parameters):
     tau = parameters['tau_sd']
     nn = parameters['nn']    
     rotational_energy = (nn-1)*l0*tau/2.0
-    # ensure rotational energy is less than the maximum spin down energy
+    explosion_energy = parameters['E_sn']
     converted_parameters['erot_constraint'] = rotational_energy/1e53
+    converted_parameters['engine_energy_ratio'] = rotational_energy/explosion_energy
     return converted_parameters    
 
 def tde_constraints(parameters):
@@ -256,16 +258,10 @@ def csm_constraints(parameters):
     rho = np.asarray(rho, dtype=float)
     Esn = 3. * vej ** 2 * mej / 10.
 
-    ns = [6, 7, 8, 9, 10, 12, 14]
-    Bfs = [1.377, 1.299, 1.267, 1.250, 1.239, 1.226, 1.218]
-    As = [0.62, 0.27, 0.15, 0.096, 0.067, 0.038, 0.025]
-
-    Bf_func = interp1d(ns, Bfs)
-    A_func = interp1d(ns, As)
-
     with np.errstate(invalid='ignore', divide='ignore', over='ignore', under='ignore'):
-        Bf = Bf_func(nn)
-        AA = A_func(nn)
+        csm_properties = get_csm_properties(nn, eta)
+        Bf = csm_properties.Bf
+        AA = csm_properties.AA
 
         qq = rho * r0 ** eta
         # outer CSM shell radius

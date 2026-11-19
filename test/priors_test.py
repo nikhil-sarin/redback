@@ -108,6 +108,8 @@ class TestGetFredPriors(unittest.TestCase):
         self.assertIn('tau', result)
         self.assertIn('psi', result)
         self.assertIn('delta', result)
+        for name, prior in result.items():
+            self.assertEqual(name, prior.name)
 
 
 class TestGetFredExtendedPriors(unittest.TestCase):
@@ -123,6 +125,8 @@ class TestGetFredExtendedPriors(unittest.TestCase):
 
         self.assertIsInstance(result, PriorDict)
         self.assertIn('amplitude', result)
+        for name, prior in result.items():
+            self.assertEqual(name, prior.name)
         self.assertIn('tau', result)
         self.assertIn('psi', result)
         self.assertIn('delta', result)
@@ -133,6 +137,66 @@ class TestGetFredExtendedPriors(unittest.TestCase):
 
 class TestGetPriors(unittest.TestCase):
     """Test get_priors main function"""
+
+    def test_standalone_bolometric_model_priors(self):
+        expected_parameters = {
+            'nickelmixing_bolometric': {
+                'mej', 'esn', 'kappa', 'kappa_gamma', 'f_nickel',
+                'f_mixing', 'temperature_floor'},
+            'csm_interaction_bolometric': {
+                'mej', 'csm_mass', 'vej', 'eta', 'rho', 'r0', 'kappa'},
+            'csm_shock_breakout_bolometric': {
+                'csm_mass', 'v_min', 'beta', 'kappa', 'shell_radius',
+                'shell_width_ratio'},
+            'general_magnetar_slsn_bolometric': {
+                'l0', 'tsd', 'nn', 'mej', 'vej', 'kappa', 'kappa_gamma'},
+        }
+        for model, expected in expected_parameters.items():
+            with self.subTest(model=model):
+                result = priors.get_priors(model)
+                self.assertEqual(expected, set(result))
+                self.assertTrue(all(name == prior.name for name, prior in result.items()))
+
+    def test_bolometric_model_constraints_match_photometric_models(self):
+        expected_constraints = {
+            'nickelmixing_bolometric': {
+                'nickel_fraction_in_mixed_region', 'nickel_mixing_order'},
+            'csm_interaction_bolometric': {
+                'shock_time', 'photosphere_constraint_1', 'photosphere_constraint_2'},
+            'general_magnetar_slsn_bolometric': {'erot_constraint'},
+            'general_magnetar_driven_supernova': {
+                'erot_constraint', 'engine_energy_ratio'},
+            'general_magnetar_driven_supernova_bolometric': {
+                'erot_constraint', 'engine_energy_ratio'},
+        }
+        for model, expected in expected_constraints.items():
+            with self.subTest(model=model):
+                result = priors.get_priors(model, constraint=True)
+                self.assertTrue(expected.issubset(result))
+                self.assertIsNotNone(result.conversion_function)
+
+    def test_general_magnetar_slsn_luminosity_prior_is_physical(self):
+        for model in ('general_magnetar_slsn', 'general_magnetar_slsn_bolometric'):
+            with self.subTest(model=model):
+                result = priors.get_priors(model)
+                self.assertEqual(result['l0'].minimum, 1e40)
+                self.assertEqual(result['l0'].maximum, 1e48)
+
+    def test_general_magnetar_driven_supernova_luminosity_prior(self):
+        models = (
+            'general_magnetar_driven_supernova',
+            'general_magnetar_driven_supernova_bolometric',
+        )
+        for model in models:
+            with self.subTest(model=model):
+                result = priors.get_priors(model)
+                self.assertEqual(result['l0'].minimum, 1e43)
+                self.assertEqual(result['l0'].maximum, 1e50)
+
+    def test_csm_shock_breakout_prior_uses_v_min_name(self):
+        result = priors.get_priors('csm_shock_breakout')
+
+        self.assertEqual('v_min', result['v_min'].name)
 
     @patch('redback.priors.redback.model_library.modules_dict')
     def test_get_priors_prompt_model_gaussian(self, mock_modules_dict):

@@ -26,12 +26,12 @@ model_metadata_dict = dict(BUILTIN_MODEL_METADATA)
 builtin_module_names = {module.__name__.split('.')[-1] for module in modules}
 _DEFAULT_METADATA_SENTINEL = object()
 for module in modules:
-    models_dict = get_functions_dict(module)
+    models_dict = get_functions_dict(module, public_only=True)
     modules_dict.update(models_dict)
     for k, v in models_dict[module.__name__.split('.')[-1]].items():
         all_models_dict[k] = v
 for mod in base_modules:
-    models_dict = get_functions_dict(mod)
+    models_dict = get_functions_dict(mod, public_only=True)
     for k, v in models_dict[mod.__name__.split('.')[-1]].items():
         base_models_dict[k] = v
 

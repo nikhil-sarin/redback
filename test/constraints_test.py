@@ -181,25 +181,37 @@ class TestGeneralMagnetarPoweredSNConstraints(unittest.TestCase):
             'mej': 10.0,
             'vej': 5000.0,
             'l0': 1e43,
-            'tsd': 10.0
+            'tsd': 10.0,
+            'nn': 3.0,
         }
         result = constraints.general_magnetar_powered_sn_constraints(parameters)
 
         self.assertIn('erot_constraint', result)
         kinetic_energy = 0.5 * parameters['mej'] * constraints.solar_mass * (parameters['vej'] * constraints.km_cgs) ** 2
-        rotational_energy = 2 * parameters['l0'] * parameters['tsd'] * constraints.day_to_s
+        rotational_energy = (
+            parameters['l0'] * parameters['tsd'] * constraints.day_to_s
+            * (parameters['nn'] - 1.0) / 2.0)
         self.assertAlmostEqual(result['erot_constraint'], kinetic_energy / rotational_energy)
 
     def test_varying_l0(self):
         """Test with different l0 values"""
-        params1 = {'mej': 10.0, 'vej': 5000.0, 'l0': 1e42, 'tsd': 10.0}
-        params2 = {'mej': 10.0, 'vej': 5000.0, 'l0': 1e44, 'tsd': 10.0}
+        params1 = {'mej': 10.0, 'vej': 5000.0, 'l0': 1e42, 'tsd': 10.0, 'nn': 3.0}
+        params2 = {'mej': 10.0, 'vej': 5000.0, 'l0': 1e44, 'tsd': 10.0, 'nn': 3.0}
 
         result1 = constraints.general_magnetar_powered_sn_constraints(params1)
         result2 = constraints.general_magnetar_powered_sn_constraints(params2)
 
         # Higher l0 should give different constraint
         self.assertNotEqual(result1['erot_constraint'], result2['erot_constraint'])
+
+    def test_braking_index_changes_constraint_acceptance(self):
+        parameters = {'mej': 1.0, 'vej': 10000.0, 'l0': 1e45, 'tsd': 10.0}
+
+        nn_3 = constraints.general_magnetar_powered_sn_constraints(parameters | {'nn': 3.0})
+        nn_5 = constraints.general_magnetar_powered_sn_constraints(parameters | {'nn': 5.0})
+
+        self.assertGreater(nn_3['erot_constraint'], 1.0)
+        self.assertLess(nn_5['erot_constraint'], 1.0)
 
 
 class TestVacuumDipoleMagnetarConstraints(unittest.TestCase):
@@ -227,22 +239,26 @@ class TestGeneralMagnetarPoweredSupernovaConstraints(unittest.TestCase):
         parameters = {
             'l0': 1e43,
             'tau_sd': 1e5,
-            'nn': 3.0
+            'nn': 3.0,
+            'E_sn': 1e51,
         }
         result = constraints.general_magnetar_powered_supernova_constraints(parameters)
 
         self.assertIn('erot_constraint', result)
-        self.assertGreater(result['erot_constraint'], 0)
+        self.assertIn('engine_energy_ratio', result)
+        self.assertAlmostEqual(result['erot_constraint'], 1e-5)
+        self.assertAlmostEqual(result['engine_energy_ratio'], 1e-3)
 
     def test_different_nn_values(self):
         """Test with different braking indices"""
-        params1 = {'l0': 1e43, 'tau_sd': 1e5, 'nn': 2.0}
-        params2 = {'l0': 1e43, 'tau_sd': 1e5, 'nn': 5.0}
+        params1 = {'l0': 1e43, 'tau_sd': 1e5, 'nn': 2.0, 'E_sn': 1e51}
+        params2 = {'l0': 1e43, 'tau_sd': 1e5, 'nn': 5.0, 'E_sn': 1e51}
 
         result1 = constraints.general_magnetar_powered_supernova_constraints(params1)
         result2 = constraints.general_magnetar_powered_supernova_constraints(params2)
 
         self.assertNotEqual(result1['erot_constraint'], result2['erot_constraint'])
+        self.assertNotEqual(result1['engine_energy_ratio'], result2['engine_energy_ratio'])
 
 
 class TestTDEConstraints(unittest.TestCase):
@@ -446,6 +462,17 @@ class TestCSMConstraints(unittest.TestCase):
 
         for key in ['shock_time', 'photosphere_constraint_1', 'photosphere_constraint_2']:
             self.assertFalse(np.any(np.isnan(result[key])))
+
+    def test_csm_constraint_uses_eta_dependent_engine_coefficients(self):
+        parameters = {
+            'mej': 10.0, 'csm_mass': 10.0, 'vej': 2800.0,
+            'eta': 0.0, 'rho': 1e-13, 'r0': 100.0, 'kappa': 0.05,
+        }
+
+        result = constraints.csm_constraints(parameters)
+
+        self.assertAlmostEqual(result['shock_time'], 0.5132015199883216)
+        self.assertGreater(result['shock_time'], 0.5)
 
 
 class TestKilonovaEjectaRelationConstraints(unittest.TestCase):

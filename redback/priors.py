@@ -25,6 +25,18 @@ _constraint_settings = {
         redback.constraints.general_magnetar_powered_sn_constraints,
         {'erot_constraint': (0, 1)}
     ),
+    'general_magnetar_slsn_bolometric': (
+        redback.constraints.general_magnetar_powered_sn_constraints,
+        {'erot_constraint': (0, 1)}
+    ),
+    'general_magnetar_driven_supernova': (
+        redback.constraints.general_magnetar_powered_supernova_constraints,
+        {'erot_constraint': (0, 1), 'engine_energy_ratio': (0.01, np.inf)}
+    ),
+    'general_magnetar_driven_supernova_bolometric': (
+        redback.constraints.general_magnetar_powered_supernova_constraints,
+        {'erot_constraint': (0, 1), 'engine_energy_ratio': (0.01, np.inf)}
+    ),
     'gaussianrise_tde': (
         redback.constraints.gaussianrise_tde_constraints,
         {'beta_high': (0, 1), 'tfb_max': (0, 1)}
@@ -71,6 +83,10 @@ _constraint_settings = {
         {'en_constraint': (0, 1), 't_nebula_min': (0, 400)}
     ),
     'csm_interaction': (
+        redback.constraints.csm_constraints,
+        {'shock_time': (0, 0.5), 'photosphere_constraint_1': (0, 1), 'photosphere_constraint_2': (0, 1)}
+    ),
+    'csm_interaction_bolometric': (
         redback.constraints.csm_constraints,
         {'shock_time': (0, 0.5), 'photosphere_constraint_1': (0, 1), 'photosphere_constraint_2': (0, 1)}
     ),
@@ -251,14 +267,17 @@ def get_fred_priors(times, y, yerr, **kwargs):
     priors = bilby.core.prior.PriorDict()
     priors['amplitude'] = bilby.core.prior.LogUniform(minimum=np.min(yerr), maximum=np.max(y),
                                                       name='amplitude', latex_label=r'$A$')
-    priors['tau'] = bilby.core.prior.Uniform(minimum=1e-3, maximum=1e3, name="t_0", latex_label=r"$t_0$")
-    priors['psi'] = bilby.core.prior.Uniform(minimum=1e-3, maximum=1e3, name=r"\psi")
-    priors['delta'] = bilby.core.prior.Uniform(minimum=times[0], maximum=times[-1], name=r"\delta")
+    priors['tau'] = bilby.core.prior.Uniform(minimum=1e-3, maximum=1e3, name="tau", latex_label=r"$\tau$")
+    priors['psi'] = bilby.core.prior.Uniform(minimum=1e-3, maximum=1e3, name="psi", latex_label=r"$\psi$")
+    priors['delta'] = bilby.core.prior.Uniform(
+        minimum=times[0], maximum=times[-1], name="delta", latex_label=r"$\delta$")
     return priors
 
 
 def get_fred_extended_priors(times, y, yerr, **kwargs):
     priors = get_fred_priors(times=times, y=y, yerr=yerr, **kwargs)
-    priors['gamma'] = bilby.core.prior.LogUniform(minimum=1e-3, maximum=1e3, name=r"$\gamma$")
-    priors['nu'] = bilby.core.prior.LogUniform(minimum=1e-3, maximum=1e3, name=r"$\nu$")
+    priors['gamma'] = bilby.core.prior.LogUniform(
+        minimum=1e-3, maximum=1e3, name="gamma", latex_label=r"$\gamma$")
+    priors['nu'] = bilby.core.prior.LogUniform(
+        minimum=1e-3, maximum=1e3, name="nu", latex_label=r"$\nu$")
     return priors

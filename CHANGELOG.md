@@ -2,6 +2,49 @@
 
 ## [Unreleased]
 
+### Scientific model changes
+- Integrate the shared magnetar-driven ejecta equations with adaptive ODE
+  stepping and use a 1000-point source grid concentrated over the requested
+  observing span by default. The resolution and solver tolerances remain
+  configurable for precision checks.
+- Require the magnetar rotational energy to exceed one per cent of the initial
+  supernova explosion energy in constrained general-magnetar-driven supernova
+  priors, and raise their initial-luminosity lower bound to `1e43` erg/s.
+- Fix resolution-dependent numerics in the redback-implemented structured-jet
+  afterglows (`tophat_redback`, `gaussian_redback`, `powerlaw_redback`, and their
+  variants, including the refreshed models):
+  - the lateral-spreading radius correction now uses the jet opening angle rather
+    than the grid cell width, which made the post-jet-break flux scale roughly as
+    1/res;
+  - lateral spreading now scales every cell's solid angle homologously with the
+    jet, rather than widening each cell by `ex/res`, which made the self-absorbed
+    radio flux depend on resolution;
+  - the azimuthal grid now closes at 2π (it dropped one cell for, e.g.,
+    res = 25, 50, 100).
+
+  The light curves now converge with `res` (to about 1e-4 between res 50 and 400,
+  against factors of a few before). Post-break flux changes by up to about one
+  order of magnitude, while early-time and peak fluxes change by about 10%.
+  Pass `legacy_numerics=True` to reproduce the previous behaviour.
+
+### Bug fixes
+- Keep private helpers and imported utilities out of the built-in model registry,
+  and allow modules to declare model exports with `__all__`.
+- Correct FRED and CSM shock-breakout prior parameter identities and add default
+  priors for standalone bolometric nickel-mixing, CSM, and general-magnetar models.
+- Make the general-magnetar energy constraint braking-index dependent and use
+  the engine's tabulated ejecta/CSM coefficients in CSM constraints.
+- Remove the unimplemented `csm_truncation_shock` model and unused TDE fallback
+  stub.
+- Return valid dynamics result objects, use physical ejecta velocity in
+  pair-cascade losses, and use the evolved ejecta radius for supernova
+  photospheres.
+- Restore configurable cosmology and constrained-prior support for the general
+  magnetar-driven supernova models, and clarify their source-frame time and
+  initial-energy conventions.
+- Correct the general-magnetar SLSN luminosity-prior lower bound from the
+  unphysical `1e-40` to `1e40` erg/s in both photometric and bolometric models.
+
 ## [1.21.0] 2026-11-15
 Version 1.21.0 release of redback
 

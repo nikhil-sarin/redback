@@ -1,5 +1,5 @@
 redshift = Uniform(1e-6,3,name='redshift', latex_label = r'$z$')
-l0 = LogUniform(1e-40, 1e48, 'l0', latex_label = r'$L_{0}~({\mathrm{erg/s}})$')
+l0 = LogUniform(1e40, 1e48, 'l0', latex_label = r'$L_{0}~({\mathrm{erg/s}})$')
 tsd = LogUniform(1.1574074074074074e-3, 1.1574074074074074e1, 'tsd', latex_label = r'$\\tau_{sd}~({\mathrm{days}})$')
 nn = Uniform(1.1, 7, 'nn', latex_label = r'$n$')
 mej = LogUniform(1e-4, 100, 'mej', latex_label = r'$M_{\mathrm{ej}}~(M_{\odot})$')
