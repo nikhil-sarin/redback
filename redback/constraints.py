@@ -102,7 +102,7 @@ def vacuum_dipole_magnetar_powered_supernova_constraints(parameters):
     
 def general_magnetar_powered_supernova_constraints(parameters):
     """
-    Constraint so that magnetar rotational energy is smaller than some number
+    Constrain the magnetar rotational energy and require a non-negligible engine.
 
     :param parameters: dictionary of parameters
     :return: converted_parameters dictionary where the violated samples are thrown out
@@ -112,8 +112,9 @@ def general_magnetar_powered_supernova_constraints(parameters):
     tau = parameters['tau_sd']
     nn = parameters['nn']    
     rotational_energy = (nn-1)*l0*tau/2.0
-    # ensure rotational energy is less than the maximum spin down energy
+    explosion_energy = parameters['E_sn']
     converted_parameters['erot_constraint'] = rotational_energy/1e53
+    converted_parameters['engine_energy_ratio'] = rotational_energy/explosion_energy
     return converted_parameters    
 
 def tde_constraints(parameters):

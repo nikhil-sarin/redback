@@ -31,11 +31,11 @@ _constraint_settings = {
     ),
     'general_magnetar_driven_supernova': (
         redback.constraints.general_magnetar_powered_supernova_constraints,
-        {'erot_constraint': (0, 1)}
+        {'erot_constraint': (0, 1), 'engine_energy_ratio': (0.01, np.inf)}
     ),
     'general_magnetar_driven_supernova_bolometric': (
         redback.constraints.general_magnetar_powered_supernova_constraints,
-        {'erot_constraint': (0, 1)}
+        {'erot_constraint': (0, 1), 'engine_energy_ratio': (0.01, np.inf)}
     ),
     'gaussianrise_tde': (
         redback.constraints.gaussianrise_tde_constraints,

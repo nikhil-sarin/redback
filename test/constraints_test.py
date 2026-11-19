@@ -239,22 +239,26 @@ class TestGeneralMagnetarPoweredSupernovaConstraints(unittest.TestCase):
         parameters = {
             'l0': 1e43,
             'tau_sd': 1e5,
-            'nn': 3.0
+            'nn': 3.0,
+            'E_sn': 1e51,
         }
         result = constraints.general_magnetar_powered_supernova_constraints(parameters)
 
         self.assertIn('erot_constraint', result)
-        self.assertGreater(result['erot_constraint'], 0)
+        self.assertIn('engine_energy_ratio', result)
+        self.assertAlmostEqual(result['erot_constraint'], 1e-5)
+        self.assertAlmostEqual(result['engine_energy_ratio'], 1e-3)
 
     def test_different_nn_values(self):
         """Test with different braking indices"""
-        params1 = {'l0': 1e43, 'tau_sd': 1e5, 'nn': 2.0}
-        params2 = {'l0': 1e43, 'tau_sd': 1e5, 'nn': 5.0}
+        params1 = {'l0': 1e43, 'tau_sd': 1e5, 'nn': 2.0, 'E_sn': 1e51}
+        params2 = {'l0': 1e43, 'tau_sd': 1e5, 'nn': 5.0, 'E_sn': 1e51}
 
         result1 = constraints.general_magnetar_powered_supernova_constraints(params1)
         result2 = constraints.general_magnetar_powered_supernova_constraints(params2)
 
         self.assertNotEqual(result1['erot_constraint'], result2['erot_constraint'])
+        self.assertNotEqual(result1['engine_energy_ratio'], result2['engine_energy_ratio'])
 
 
 class TestTDEConstraints(unittest.TestCase):

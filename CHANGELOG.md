@@ -7,6 +7,9 @@
   stepping and use a 1000-point source grid concentrated over the requested
   observing span by default. The resolution and solver tolerances remain
   configurable for precision checks.
+- Require the magnetar rotational energy to exceed one per cent of the initial
+  supernova explosion energy in constrained general-magnetar-driven supernova
+  priors, and raise their initial-luminosity lower bound to `1e43` erg/s.
 - Fix resolution-dependent numerics in the redback-implemented structured-jet
   afterglows (`tophat_redback`, `gaussian_redback`, `powerlaw_redback`, and their
   variants, including the refreshed models):

@@ -164,8 +164,10 @@ class TestGetPriors(unittest.TestCase):
             'csm_interaction_bolometric': {
                 'shock_time', 'photosphere_constraint_1', 'photosphere_constraint_2'},
             'general_magnetar_slsn_bolometric': {'erot_constraint'},
-            'general_magnetar_driven_supernova': {'erot_constraint'},
-            'general_magnetar_driven_supernova_bolometric': {'erot_constraint'},
+            'general_magnetar_driven_supernova': {
+                'erot_constraint', 'engine_energy_ratio'},
+            'general_magnetar_driven_supernova_bolometric': {
+                'erot_constraint', 'engine_energy_ratio'},
         }
         for model, expected in expected_constraints.items():
             with self.subTest(model=model):
@@ -179,6 +181,17 @@ class TestGetPriors(unittest.TestCase):
                 result = priors.get_priors(model)
                 self.assertEqual(result['l0'].minimum, 1e40)
                 self.assertEqual(result['l0'].maximum, 1e48)
+
+    def test_general_magnetar_driven_supernova_luminosity_prior(self):
+        models = (
+            'general_magnetar_driven_supernova',
+            'general_magnetar_driven_supernova_bolometric',
+        )
+        for model in models:
+            with self.subTest(model=model):
+                result = priors.get_priors(model)
+                self.assertEqual(result['l0'].minimum, 1e43)
+                self.assertEqual(result['l0'].maximum, 1e50)
 
     def test_csm_shock_breakout_prior_uses_v_min_name(self):
         result = priors.get_priors('csm_shock_breakout')
