@@ -45,7 +45,7 @@ def make_ref_data(model, param_grid, other_kwargs, filename):
     table.write(filename, format='ascii.ecsv', overwrite=True)
 
 
-def assert_matches_ref_data(model, filename):
+def assert_matches_ref_data(model, filename, rtol=1e-5, atol=0.0):
     """Test a model against reference data.
 
     Parameters
@@ -54,8 +54,8 @@ def assert_matches_ref_data(model, filename):
         The model function to test.
     filename : str
         The name of the file containing the reference data (ECSV format).
-    other_kwargs : dict
-        Additional keyword arguments to pass to the model function.
+    rtol, atol : float
+        Relative and absolute tolerances used to compare model outputs.
     """
     # Load the reference data
     table = Table.read(filename, format='ascii.ecsv')
@@ -70,4 +70,7 @@ def assert_matches_ref_data(model, filename):
         current_params = {name: params[idx][name] for name in param_names}
         ref_result = reference_results[idx]
         model_result = model(**current_params)
-        assert np.allclose(model_result, ref_result), f"Model output does not match reference data for parameters: {current_params}"
+        np.testing.assert_allclose(
+            model_result, ref_result, rtol=rtol, atol=atol,
+            err_msg=f"Model output does not match reference data for parameters: {current_params}",
+        )

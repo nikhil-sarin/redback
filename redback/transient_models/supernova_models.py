@@ -2718,7 +2718,8 @@ def general_magnetar_driven_supernova_bolometric(time, mej, E_sn, kappa, l0, tau
     :param pair_cascade_fraction: fraction of magnetar luminosity lost to pair cascades; default is 0.05
     :param initial_internal_energy: initial ejecta thermal energy in erg. By default this equals
         the initial kinetic energy implied by ``E_sn``, preserving the published implementation.
-    :param dynamics_method: integration method passed to :func:`scipy.integrate.solve_ivp`, default ``RK45``
+    :param dynamics_method: integration method passed to :func:`scipy.integrate.solve_ivp`. By default,
+        ``RK45`` is used with an automatic ``LSODA`` retry if it produces an invalid physical state.
     :param dynamics_rtol: relative tolerance for the ejecta dynamics integration, default ``1e-6``
     :param dynamics_atol: optional absolute tolerance for the ejecta dynamics integration
     :param dynamics_resolution: source-grid resolution, default 1000; increase for precision checks
@@ -2796,7 +2797,8 @@ def general_magnetar_driven_supernova(time, redshift, mej, E_sn, kappa, l0, tau_
     :param pair_cascade_fraction: fraction of magnetar luminosity lost to pair cascades; default is 0.05
     :param initial_internal_energy: initial ejecta thermal energy in erg. By default this equals
         the initial kinetic energy implied by ``E_sn``, preserving the published implementation.
-    :param dynamics_method: integration method passed to :func:`scipy.integrate.solve_ivp`, default ``RK45``
+    :param dynamics_method: integration method passed to :func:`scipy.integrate.solve_ivp`. By default,
+        ``RK45`` is used with an automatic ``LSODA`` retry if it produces an invalid physical state.
     :param dynamics_rtol: relative tolerance for the ejecta dynamics integration, default ``1e-6``
     :param dynamics_atol: optional absolute tolerance for the ejecta dynamics integration
     :param dynamics_resolution: source-grid resolution, default 1000; increase for precision checks

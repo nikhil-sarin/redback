@@ -106,6 +106,27 @@ class TestEjectaDynamics(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "strictly between zero and one"):
             self.evaluate(time, beta=1.0)
 
+    def test_default_solver_handles_late_time_internal_energy_boundary(self):
+        time = np.geomspace(1.0, 1.0e8, 1000)
+        result = _ejecta_dynamics_and_interaction(
+            time=time,
+            mej=17.192070699211044,
+            beta=0.009272658953224207,
+            ejecta_radius=1.0e11,
+            kappa=0.19301653203136382,
+            n_ism=1.0e-5,
+            magnetar_luminosity=magnetar_only(
+                time, l0=4.725526e40, tau=4596.2055, nn=3.1637623),
+            pair_cascade_switch=False,
+            use_gamma_ray_opacity=True,
+            kappa_gamma=1125.1581261446051,
+            use_r_process=False,
+            f_nickel=0.0001222843845553157,
+        )
+
+        self.assertTrue(np.all(np.isfinite(result.bolometric_luminosity)))
+        self.assertTrue(np.all(result.bolometric_luminosity >= 0.0))
+
 
 class TestGeneralMagnetarDrivenSupernova(unittest.TestCase):
 

@@ -61,7 +61,8 @@ def _ejecta_dynamics_and_interaction(time, mej, beta, ejecta_radius, kappa, n_is
     initial_volume = (4 / 3) * np.pi * ejecta_radius ** 3
     initial_gamma = 1 / np.sqrt(1 - beta ** 2)
 
-    method = kwargs.get('dynamics_method', 'RK45')
+    requested_method = kwargs.get('dynamics_method')
+    method = requested_method or 'RK45'
     rtol = kwargs.get('dynamics_rtol', 1e-6)
     atol = kwargs.get('dynamics_atol', None)
     if atol is None:
@@ -139,17 +140,34 @@ def _ejecta_dynamics_and_interaction(time, mej, beta, ejecta_radius, kappa, n_is
         return [gamma_rate, radius_rate, comoving_volume_rate * doppler,
                 comoving_internal_energy_rate * doppler]
 
-    solution = solve_ivp(
-        _derivative, (time[0], time[-1]),
-        [initial_gamma, ejecta_radius, initial_volume, initial_internal_energy],
-        method=method, t_eval=time, rtol=rtol, atol=atol,
-    )
+    initial_state = [initial_gamma, ejecta_radius, initial_volume, initial_internal_energy]
+
+    def _solve(selected_method):
+        return solve_ivp(
+            _derivative, (time[0], time[-1]), initial_state,
+            method=selected_method, t_eval=time, rtol=rtol, atol=atol,
+        )
+
+    def _valid_solution(candidate):
+        return (
+            candidate.success
+            and candidate.y.ndim == 2
+            and candidate.y.shape[1] == len(time)
+            and np.all(np.isfinite(candidate.y))
+            and np.all(candidate.y[0] >= 1.0)
+            and np.all(candidate.y[1:3] > 0.0)
+            and np.all(candidate.y[3] >= 0.0)
+        )
+
+    solution = _solve(method)
+    if requested_method is None and not _valid_solution(solution):
+        # Explicit Runge-Kutta methods can step slightly through E_int = 0 for
+        # weak engines at late times. LSODA handles that stiff boundary well.
+        solution = _solve('LSODA')
+
     if not solution.success or solution.y.shape[1] != len(time):
         raise RuntimeError(f"Ejecta dynamics integration failed: {solution.message}")
-    if (not np.all(np.isfinite(solution.y))
-            or np.any(solution.y[0] < 1.0)
-            or np.any(solution.y[1:3] <= 0.0)
-            or np.any(solution.y[3] < 0.0)):
+    if not _valid_solution(solution):
         raise RuntimeError("Ejecta dynamics integration produced an invalid physical state")
 
     lorentz_factor, radius, _, _ = solution.y
