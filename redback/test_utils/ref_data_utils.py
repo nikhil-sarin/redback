@@ -72,5 +72,6 @@ def assert_matches_ref_data(model, filename, rtol=1e-5, atol=0.0):
         model_result = model(**current_params)
         np.testing.assert_allclose(
             model_result, ref_result, rtol=rtol, atol=atol,
+            equal_nan=False,
             err_msg=f"Model output does not match reference data for parameters: {current_params}",
         )

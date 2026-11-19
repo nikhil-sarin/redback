@@ -3,11 +3,14 @@ runs. This is a change detection test to ensure nothing is broken when making
 changes to the code."""
 
 import os
+import tempfile
+
+import numpy as np
 import redback
 import unittest
 
 from bilby.core.prior import PriorDict
-from redback.test_utils.ref_data_utils import assert_matches_ref_data
+from redback.test_utils.ref_data_utils import assert_matches_ref_data, make_ref_data
 
 _dirname = os.path.dirname(__file__)
 
@@ -52,6 +55,17 @@ class TestPackageData(unittest.TestCase):
 
 
 class TestOnReferenceData(unittest.TestCase):
+
+    def test_matching_nan_does_not_validate_reference_data(self):
+        def model(value):
+            return np.array([value, np.nan])
+
+        with tempfile.TemporaryDirectory() as directory:
+            reference_file = os.path.join(directory, "non_finite.ecsv")
+            make_ref_data(model, {"value": [1.0]}, {}, reference_file)
+
+            with self.assertRaises(AssertionError):
+                assert_matches_ref_data(model, reference_file)
 
     def test_tophat_redback_ref_data(self):
         """Test the tophat_redback model against reference data.
