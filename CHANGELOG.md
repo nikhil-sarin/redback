@@ -7,6 +7,22 @@
   stepping and use a 1000-point source grid concentrated over the requested
   observing span by default. The resolution and solver tolerances remain
   configurable for precision checks.
+- Fix resolution-dependent numerics in the redback-implemented structured-jet
+  afterglows (`tophat_redback`, `gaussian_redback`, `powerlaw_redback`, and their
+  variants, including the refreshed models):
+  - the lateral-spreading radius correction now uses the jet opening angle rather
+    than the grid cell width, which made the post-jet-break flux scale roughly as
+    1/res;
+  - lateral spreading now scales every cell's solid angle homologously with the
+    jet, rather than widening each cell by `ex/res`, which made the self-absorbed
+    radio flux depend on resolution;
+  - the azimuthal grid now closes at 2π (it dropped one cell for, e.g.,
+    res = 25, 50, 100).
+
+  The light curves now converge with `res` (to about 1e-4 between res 50 and 400,
+  against factors of a few before). Post-break flux changes by up to about one
+  order of magnitude, while early-time and peak fluxes change by about 10%.
+  Pass `legacy_numerics=True` to reproduce the previous behaviour.
 
 ### Bug fixes
 - Keep private helpers and imported utilities out of the built-in model registry,
