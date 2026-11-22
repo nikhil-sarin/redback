@@ -951,7 +951,11 @@ def _nickelmixing(time, mej, esn, kappa, kappa_gamma, f_nickel, f_mixing,
                 4.0 / speed_of_light + half_width * 3.0 * extinction / speed_of_light)
             exterior_weight = np.append(thick_weight[1:], 0.0)
             surface_weight = np.maximum(thick_weight - exterior_weight, 0.0)
-            transparent_conductance = volume / np.maximum(radius / speed_of_light, dt)
+            # Light-crossing time r/c alone: the implicit solve is stable
+            # without a max(r/c, dt) clamp, which added a first-order error
+            # wherever dt > r/c (inner transparent shells at late times).
+            transparent_conductance = volume / np.maximum(
+                radius / speed_of_light, np.finfo(float).tiny)
             escape_conductance = (surface_weight * photospheric_conductance
                                   + (1.0 - thick_weight) * transparent_conductance)
             # dE/dt = Q - A E with A the adiabatic, exchange and escape terms.
