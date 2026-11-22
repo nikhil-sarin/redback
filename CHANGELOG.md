@@ -17,9 +17,11 @@
   threshold. The viscosity prior is unchanged. Cooling-envelope rise wrappers
   return zero flux (infinite magnitude) after termination, not extrapolated
   negative flux.
-- Add an initial-optical-depth constraint to cooling-envelope priors and
-  `ModelDomainError` rejection in Gaussian-family likelihoods. Retry failed
-  cooling-envelope integration once with tighter tolerances and a smaller
+- Add an optional initial-optical-depth constraint to cooling-envelope priors
+  to restrict inference to the optically thick photosphere approximation.
+  Direct calls outside this regime raise `ValueError`; likelihood exception
+  handling is unchanged. Retry failed cooling-envelope integration once
+  with tighter tolerances and a smaller
   initial step; persistent numerical failures and configuration errors still
   raise instead of silently rejecting samples. The alpha prior is unchanged.
 - Use a fixed 4000-point source-frame grid, stable exponential midpoint energy

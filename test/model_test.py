@@ -236,10 +236,9 @@ class TestPhysicsCorrections(unittest.TestCase):
 
 
 class TestCoolingEnvelopeFailureSemantics(unittest.TestCase):
-    def test_optically_thin_initial_state_is_a_domain_error(self):
-        from redback.exceptions import ModelDomainError
+    def test_optically_thin_initial_state_raises_applicability_error(self):
         from redback.transient_models.tde_models import _cooling_envelope
-        with self.assertRaises(ModelDomainError):
+        with self.assertRaisesRegex(ValueError, 'photosphere approximation requires an initially optically thick'):
             _cooling_envelope(2., 1., .03, .1, 1., f_debris=1e-6)
 
     def test_failed_radau_retries_once_from_initial_state(self):

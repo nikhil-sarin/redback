@@ -7,9 +7,8 @@ from redback import likelihoods
 from redback.utils import calc_flux_density_from_ABmag
 
 
-class ModelDomainLikelihoodTest(unittest.TestCase):
-    def test_only_domain_errors_are_rejected(self):
-        from redback.exceptions import ModelDomainError
+class ModelExceptionPropagationTest(unittest.TestCase):
+    def test_model_errors_propagate(self):
         for likelihood_class in (
                 likelihoods.GaussianLikelihood,
                 likelihoods.GaussianLikelihoodOnMagnitudeFlux,
@@ -20,7 +19,7 @@ class ModelDomainLikelihoodTest(unittest.TestCase):
                 likelihoods.MixtureGaussianLikelihood,
                 likelihoods.StudentTLikelihood,
                 likelihoods.GaussianLikelihoodUniformXErrors):
-            for exception in (ModelDomainError, ValueError, RuntimeError):
+            for exception in (ValueError, RuntimeError):
                 def model(time, **kwargs):
                     raise exception('deliberate model failure')
                 kwargs = dict(x=np.array([1.]), y=np.array([20.]), sigma=.1, function=model)
@@ -36,11 +35,8 @@ class ModelDomainLikelihoodTest(unittest.TestCase):
                 if likelihood_class is likelihoods.StudentTLikelihood:
                     likelihood.parameters['nu'] = 3.
                 with self.subTest(likelihood=likelihood_class, exception=exception):
-                    if exception is ModelDomainError:
-                        self.assertEqual(likelihood.log_likelihood(), -np.inf)
-                    else:
-                        with self.assertRaises(exception):
-                            likelihood.log_likelihood()
+                    with self.assertRaises(exception):
+                        likelihood.log_likelihood()
 
 
 class GaussianLikelihoodTest(unittest.TestCase):

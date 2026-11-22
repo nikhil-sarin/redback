@@ -1,23 +1,11 @@
 import numpy as np
 from typing import Any, Union
 import warnings
-from functools import wraps
 
 import bilby
 from scipy.special import gammaln, erf
 from redback.utils import calc_flux_density_from_ABmag, logger
 from bilby.core.prior import DeltaFunction, Constraint
-from redback.exceptions import ModelDomainError
-
-
-def _reject_model_domain_errors(function):
-    @wraps(function)
-    def wrapped(*args, **kwargs):
-        try:
-            return function(*args, **kwargs)
-        except ModelDomainError:
-            return -np.inf
-    return wrapped
 
 
 class _RedbackParameterStore:
@@ -237,7 +225,6 @@ class GaussianLikelihood(_RedbackLikelihood):
             self._noise_log_likelihood = self._gaussian_log_likelihood(res=self.y, sigma=self.sigma)
         return self._noise_log_likelihood
 
-    @_reject_model_domain_errors
     def log_likelihood(self, parameters=None) -> float:
         """
         :return: The log-likelihood.
@@ -302,7 +289,6 @@ class GaussianLikelihoodOnMagnitudeFlux(GaussianLikelihood):
         model_magnitude = self.function(self.x, **self.parameters, **self.kwargs)
         return self._magnitude_to_flux_density(model_magnitude)
 
-    @_reject_model_domain_errors
     def log_likelihood(self, parameters=None) -> float:
         self._update_parameters(parameters)
         model_output = self.model_output
@@ -536,7 +522,6 @@ class GaussianLikelihoodWithUpperLimits(GaussianLikelihood):
 
         return self._noise_log_likelihood
 
-    @_reject_model_domain_errors
     def log_likelihood(self, parameters=None) -> float:
         """
         Override parent method to include upper limits.
@@ -704,7 +689,6 @@ class MixtureGaussianLikelihood(GaussianLikelihood):
         sigma_out = self.parameters.get('sigma_out')
         return (1 / (np.sqrt(2 * np.pi) * sigma_out)) * np.exp(-0.5 * (r / sigma_out) ** 2)
 
-    @_reject_model_domain_errors
     def log_likelihood(self, parameters=None) -> float:
         """
         Compute the total log-likelihood for the mixture model.
@@ -818,7 +802,6 @@ class StudentTLikelihood(GaussianLikelihood):
             self._noise_log_likelihood = self._student_t_log_likelihood(res=self.y, sigma=self.sigma, nu=nu)
         return self._noise_log_likelihood
 
-    @_reject_model_domain_errors
     def log_likelihood(self, parameters=None) -> float:
         """
         :return: The log-likelihood.
@@ -921,7 +904,6 @@ class GaussianLikelihoodUniformXErrors(GaussianLikelihood):
         """
         return self._gaussian_log_likelihood(res=self.residual, sigma=self.sigma)
 
-    @_reject_model_domain_errors
     def log_likelihood(self, parameters=None) -> float:
         """
         :return: The log-likelihood.
@@ -977,7 +959,6 @@ class GaussianLikelihoodQuadratureNoise(GaussianLikelihood):
             self._noise_log_likelihood = self._gaussian_log_likelihood(res=self.y, sigma=self.full_sigma)
         return self._noise_log_likelihood
 
-    @_reject_model_domain_errors
     def log_likelihood(self, parameters=None) -> float:
         """
         :return: The log-likelihood.
@@ -1039,7 +1020,6 @@ class GaussianLikelihoodWithFractionalNoise(GaussianLikelihood):
             self._noise_log_likelihood = self._gaussian_log_likelihood(res=self.y, sigma=self.sigma_i)
         return self._noise_log_likelihood
 
-    @_reject_model_domain_errors
     def log_likelihood(self, parameters=None) -> float:
         """
         :return: The log-likelihood.
@@ -1102,7 +1082,6 @@ class GaussianLikelihoodWithSystematicNoise(GaussianLikelihood):
             self._noise_log_likelihood = self._gaussian_log_likelihood(res=self.y, sigma=self.sigma_i)
         return self._noise_log_likelihood
 
-    @_reject_model_domain_errors
     def log_likelihood(self, parameters=None) -> float:
         """
         :return: The log-likelihood.
@@ -1169,7 +1148,6 @@ class GaussianLikelihoodQuadratureNoiseNonDetections(GaussianLikelihoodQuadratur
         log_l[flux >= self.upperlimit_flux] = np.nan_to_num(-np.inf)
         return np.nan_to_num(np.sum(log_l))
 
-    @_reject_model_domain_errors
     def log_likelihood(self, parameters=None) -> float:
         """
         :return: The log-likelihood.

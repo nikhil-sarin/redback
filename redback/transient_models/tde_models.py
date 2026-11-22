@@ -6,7 +6,6 @@ import redback.photosphere as photosphere
 from redback.utils import calc_kcorrected_properties, citation_wrapper, calc_tfb, lambda_to_nu, get_optimal_time_array, \
     calc_ABmag_from_flux_density, calc_flux_density_from_ABmag, bands_to_frequency, logger
 import redback.constants as cc
-from redback.exceptions import ModelDomainError
 import redback.transient_models.phenomenological_models as pm
 
 from collections import namedtuple
@@ -51,8 +50,9 @@ def _cooling_envelope(mbh_6, stellar_mass, eta, alpha, beta, **kwargs):
         Evolution stops at a downward crossing of Rcirc/2 or optical depth unity.
         A failed Radau integration is retried once with tenfold tighter
         tolerances and a smaller initial step, then raises RuntimeError.
-        Initially optically thin envelopes raise ModelDomainError; use
-        get_priors(..., constraint=True) to exclude them before evaluation.
+        Initially optically thin envelopes raise ValueError because the
+        photosphere approximation is not applicable. Use
+        get_priors(..., constraint=True) to restrict inference to the optically thick regime.
     :return: named tuple with bolometric luminosity, photosphere radius, temperature, and other parameters
     """
     t_0_init = kwargs.get('t_0_init', 1.0)
@@ -155,7 +155,7 @@ def _cooling_envelope(mbh_6, stellar_mass, eta, alpha, beta, **kwargs):
     if not np.isfinite(Lamb[0]):
         raise ValueError('Initial cooling-envelope optical depth must be finite; check the model parameters')
     if Lamb[0] <= 1:
-        raise ModelDomainError('Initial cooling envelope must be optically thick')
+        raise ValueError('The cooling-envelope photosphere approximation requires an initially optically thick envelope')
     # initial photosphere radius
     Rph[0] = Rv[0] * (1.0 + np.log(Lamb[0]))
     # initial fallback stream accretion radius
