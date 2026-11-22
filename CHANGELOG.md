@@ -3,6 +3,25 @@
 ## [Unreleased]
 
 ### Scientific model changes
+- Replace explicit Euler stepping in the TDE cooling envelope with adaptive
+  Radau integration of positive mass and energy. Terminate on a downward
+  circularization-radius crossing or when the envelope becomes optically thin;
+  retain later downward crossings even when the initial radius is below the
+  threshold. The viscosity prior is unchanged. Cooling-envelope rise wrappers
+  return zero flux (infinite magnitude) after termination, not extrapolated
+  negative flux.
+- Use a fixed 4000-point source-frame grid, stable exponential midpoint energy
+  steps, and an interpolated optical-depth photosphere in `metzger_kilonova_model`.
+  Evaluate the final luminosity, radius, and temperature rather than leaving
+  their last entries uninitialized. `dense_resolution` remains configurable.
+- Tighten the shared magnetar ejecta dynamics default relative tolerance to
+  `3e-9`; keep the conditional stiff-solver retry and explicit solver overrides.
+- Integrate the shared simple-component and Rosswog-heating kilonova diffusion
+  kernel exactly for piecewise-linear heating in squared diffusion time. This
+  avoids under-resolving the late-time kernel and preserves the constant-heating
+  limit on coarse grids. Start with zero luminosity at the first integration
+  epoch rather than copying the next epoch backwards. Restore the two-component
+  and cocoon models' source-frame range to `7e6` seconds (about 81 days).
 - Integrate the shared magnetar-driven ejecta equations with adaptive ODE
   stepping and use a 1000-point source grid concentrated over the requested
   observing span by default. The resolution and solver tolerances remain
@@ -28,6 +47,16 @@
   Pass `legacy_numerics=True` to reproduce the previous behaviour.
 
 ### Bug fixes
+- Correct the Piro-Haynie-Yao shock-cooling photospheric radius to switch branches
+  at the photospheric transition, using its correct timescale and inner-density
+  exponent, including the continuous `delta=1` limit.
+- Convert the Metzger magnetar-driven mergernova trapping mass and velocity to
+  cgs units. Also evaluate its final dynamical output point.
+- Require a positive jet opening angle in the accelerated afterglow helper and
+  default direct calls to the corrected, non-legacy spreading prescription.
+- Correct both photometric paths of `shockcooling_sapirwaxman_and_arnett`
+  to use Sapir-Waxman shock cooling rather than the Morag model, and clarify
+  that its input times are in the observer frame.
 - Keep private helpers and imported utilities out of the built-in model registry,
   and allow modules to declare model exports with `__all__`.
 - Correct FRED and CSM shock-breakout prior parameter identities and add default

@@ -51,6 +51,164 @@ from redback.utils import nu_to_lambda
 _dirname = dirname(__file__)
 
 
+class TestSapirWaxmanArnettDispatch(unittest.TestCase):
+
+    def test_photometry_uses_sum_of_sapir_waxman_and_nickel(self):
+        from redback.transient_models import supernova_models as sn
+        from redback.transient_models.shock_powered_models import (
+            shockcooling_sapirandwaxman_bolometric,
+        )
+
+        parameters = dict(v_shock=1e4, m_env=0.1, mej=3.0, f_rho=1.0,
+                          f_nickel=0.05, radius=5.0, kappa=0.1,
+                          kappa_gamma=0.03, temperature_floor=5000.0)
+        time = np.array([0.5, 1.0, 2.0, 5.0, 10.0, 20.0])
+        for output_format in ('flux_density', 'spectra'):
+            with self.subTest(output_format=output_format):
+                with patch.object(sn.photosphere, 'TemperatureFloor',
+                                  wraps=TemperatureFloor) as photo:
+                    sn.shockcooling_sapirwaxman_and_arnett(
+                        time, redshift=0.1, output_format=output_format,
+                        frequency=5e14, **parameters)
+                source_time = photo.call_args.kwargs['time']
+                expected = shockcooling_sapirandwaxman_bolometric(
+                    source_time, v_shock=1e4, m_env=0.1, f_rho_m=3.0,
+                    radius=5.0, kappa=0.1)
+                expected += sn.arnett_bolometric(
+                    source_time, f_nickel=0.05, mej=3.0, vej=1e4,
+                    kappa=0.1, kappa_gamma=0.03)
+                np.testing.assert_allclose(
+                    photo.call_args.kwargs['luminosity'], expected, rtol=1e-12)
+                if output_format == 'flux_density':
+                    np.testing.assert_allclose(source_time, time / 1.1)
+
+
+class TestPhysicsCorrections(unittest.TestCase):
+
+    def test_afterglow_spreading_converges_with_angular_resolution(self):
+        from redback.transient_models.afterglow_models import tophat_redback
+        kwargs = dict(redshift=.1, thv=0., loge0=50., thc=.05, logn0=0.,
+                      p=2.9, logepse=-1., logepsb=-2., g0=60., xiN=.1,
+                      output_format='flux_density', frequency=2e17)
+        time = np.array([1., 10., 30.])
+        coarse = tophat_redback(time, res=50, **kwargs)
+        fine = tophat_redback(time, res=100, **kwargs)
+        np.testing.assert_allclose(coarse, fine, rtol=.005, atol=0)
+
+    def test_afterglow_helper_requires_positive_opening_angle(self):
+        import inspect
+        from redback.transient_models.afterglow_models.base_models import calc_afterglow_step1_numba
+        function = getattr(calc_afterglow_step1_numba, 'py_func', calc_afterglow_step1_numba)
+        signature = inspect.signature(function)
+        self.assertIs(signature.parameters['thj'].default, inspect.Parameter.empty)
+        self.assertIs(signature.parameters['legacy_numerics'].default, False)
+        with self.assertRaisesRegex(ValueError, 'thj must be positive'):
+            function(np.ones(2), *([None] * 16), thj=0.)
+
+    def test_magnetar_default_tolerance_converges(self):
+        from redback.transient_models.supernova_models import general_magnetar_driven_supernova
+        time = np.geomspace(.1, 300., 30)
+        for l0, tau, mass in ((1e43, 1e3, 17.), (1e45, 1e6, 5.), (1e47, 1e4, 1.)):
+            kwargs = dict(redshift=.1, mej=mass, E_sn=1e51, kappa=.1,
+                          l0=l0, tau_sd=tau, nn=3., kappa_gamma=.1,
+                          f_nickel=.01, temperature_floor=4000.,
+                          frequency=5e14, output_format='flux_density')
+            flux = general_magnetar_driven_supernova(time, **kwargs)
+            reference = general_magnetar_driven_supernova(time, dynamics_rtol=1e-10, **kwargs)
+            self.assertLess(np.max(np.abs(2.5 * np.log10(flux / reference))), .001)
+
+    def test_piro_photosphere_has_optical_depth_two_thirds(self):
+        from redback.transient_models.shock_powered_models import _shock_cooling
+        from redback import constants as c
+        for delta in (1., 1.00000001, 1.1, 1.5):
+            mass, energy, n = .01 * c.solar_mass, 1e49, 10.
+            K = (n - 3) * (3 - delta) / (4 * np.pi * (n - delta))
+            vt = np.sqrt((n - 5) * (5 - delta) / ((n - 3) * (3 - delta)) * 2 * energy / mass)
+            tph = np.sqrt(3 * .2 * K * mass / (2 * (n - 1) * vt ** 2))
+            time = tph * np.array([.1, .99, 1., 1.01, 2.])
+            result = _shock_cooling(time, .01, 3e12, energy, delta=delta)
+            x = result.r_photosphere / (vt * time)
+            # Integrate the broken power-law density from the returned radius
+            # to infinity, independently of the photosphere inversion.
+            column = np.empty_like(x)
+            outer = x >= 1
+            column[outer] = x[outer] ** (1 - n) / (n - 1)
+            inner = (-np.log(x[~outer]) if delta == 1 else
+                     np.expm1((1 - delta) * np.log(x[~outer])) / (delta - 1))
+            column[~outer] = inner + 1 / (n - 1)
+            tau = .2 * K * mass / (vt * time) ** 2 * column
+            np.testing.assert_allclose(tau, 2 / 3, rtol=1e-12)
+
+    def test_mergernova_trapping_uses_cgs(self):
+        from redback.transient_models.magnetar_driven_ejecta_models import _general_metzger_magnetar_driven_kilonova_model
+        from redback import constants as c
+        time = np.geomspace(.01, 1e6, 2000)
+        result = _general_metzger_magnetar_driven_kilonova_model(
+            time, .05, .2, 3., 1., np.full_like(time, 1e42), True,
+            kappa_gamma=.1, pair_cascade_switch=False, neutron_precursor_switch=False)
+        A = 3 * .1 * .05 * c.solar_mass / (4 * np.pi * (.2 * c.speed_of_light) ** 2)
+        np.testing.assert_allclose(result.thermalisation_efficiency,
+                                   -np.expm1(-A / time ** 2), rtol=1e-12)
+        self.assertTrue(np.all(np.isfinite(result.temperature)))
+        self.assertGreater(np.sqrt(A) / c.day_to_s, 2.)
+
+    def test_metzger_grid_is_epoch_independent_and_converged(self):
+        from redback.transient_models.kilonova_models import metzger_kilonova_model
+        time = np.geomspace(.1, 60., 30)
+        for mass, velocity, opacity in ((.01, .2, 1.), (.05, .1, 10.)):
+            kwargs = dict(redshift=.01, mej=mass, vej=velocity, beta=3., kappa=opacity,
+                          output_format='flux_density', frequency=5e14)
+            flux = metzger_kilonova_model(time, **kwargs)
+            reference = metzger_kilonova_model(time, dense_resolution=16000, **kwargs)
+            self.assertLess(np.max(np.abs(2.5 * np.log10(flux / reference))), .004)
+            subset = metzger_kilonova_model(time[::3], **kwargs)
+            np.testing.assert_array_equal(subset, flux[::3])
+
+    def test_cooling_envelope_against_independent_energy_integration(self):
+        from scipy.integrate import solve_ivp
+        from redback.transient_models.tde_models import _cooling_envelope
+        from redback import constants as c
+        for alpha, eta, beta in ((1., .1, 1.), (.1, .001, 1.), (.3, .01, 1.)):
+            result = _cooling_envelope(2., 1., eta, alpha, beta)
+            m0, r0 = result.envelope_mass[0], result.envelope_radius[0]
+            e0 = 2 * c.graviational_constant * 2e6 * m0 / (5 * r0) * 2e-7
+            tfb = result.tfb
+            def rhs(u, y):
+                mass, energy = m0 * y[0], e0 * y[1]
+                radius = r0 * y[0] / y[1]
+                tacc = 2.2e-17 * 10 / (3 * alpha) * radius ** 2 / np.sqrt(
+                    c.graviational_constant * 2e6 * result.rcirc) / .3 ** 2
+                accretion = mass / tacc
+                return [tfb * (.8 * c.solar_mass / (3 * tfb) * u ** (-5 / 3) - accretion) / m0,
+                        tfb * (2.8e4 - eta * c.speed_of_light ** 2 * accretion * 1e-40) / e0]
+            reference = solve_ivp(rhs, (1., result.time_temp[-1] / tfb), [1., 1.],
+                                  method='BDF', rtol=1e-12, atol=1e-14,
+                                  t_eval=result.time_temp / tfb)
+            self.assertTrue(reference.success)
+            np.testing.assert_allclose(result.envelope_mass, m0 * reference.y[0], rtol=2e-5)
+            np.testing.assert_allclose(result.envelope_radius, r0 * reference.y[0] / reference.y[1], rtol=2e-5)
+            self.assertTrue(np.all(np.isfinite(result.photosphere_temperature)))
+            self.assertTrue(np.all(result.photosphere_radius > 0))
+
+    def test_cooling_envelope_later_downcrossing_is_not_discarded(self):
+        from redback.transient_models.tde_models import _cooling_envelope
+        threshold = .5 / (.025 * (1e5) ** (1 / 3))
+        below = _cooling_envelope(.1, 1., 1e-3, 1e-3, threshold * .9999)
+        above = _cooling_envelope(.1, 1., 1e-3, 1e-3, threshold * 1.0001)
+        self.assertLess(below.envelope_radius[0], below.rcirc / 2)
+        self.assertGreater(np.max(below.envelope_radius), below.rcirc / 2)
+        self.assertAlmostEqual(below.envelope_radius[-1] / below.rcirc, .5, places=8)
+        self.assertLess(abs(below.termination_time / above.termination_time - 1), .001)
+
+    def test_cooling_envelope_rise_wrapper_does_not_extrapolate_negative_flux(self):
+        from redback.transient_models.tde_models import gaussianrise_cooling_envelope
+        flux = gaussianrise_cooling_envelope(
+            np.array([1e8]), redshift=.01, peak_time=10., sigma_t=5.,
+            mbh_6=2., stellar_mass=1., eta=.001, alpha=.1, beta=1.,
+            frequency=5e14, output_format='flux_density')
+        np.testing.assert_array_equal(flux, 0.)
+
+
 class TestSncosmoModels(unittest.TestCase):
 
     @staticmethod
@@ -2240,25 +2398,43 @@ class TestCosmologicalCorrections(unittest.TestCase):
 class TestOptimalTimeArray(unittest.TestCase):
     """Test suite for the get_optimal_time_array utility function."""
 
+    def test_kilonova_long_time_diffusion_converges(self):
+        from redback.transient_models.kilonova_models import _one_component_kilonova_model
+        time = np.geomspace(0.01, 7e6, 500)
+        fine_time = np.geomspace(0.01, 7e6, 499 * 32 + 1)
+        for mass, velocity, opacity in ((0.001, 0.4, 0.1), (0.02, 0.2, 1),
+                                        (0.1, 0.1, 30)):
+            with self.subTest(mass=mass, velocity=velocity, opacity=opacity):
+                coarse = _one_component_kilonova_model(time, mass, velocity, opacity)[0]
+                fine = _one_component_kilonova_model(fine_time, mass, velocity, opacity)[0][::32]
+                self.assertTrue(np.all(np.isfinite(coarse)))
+                self.assertTrue(np.all(coarse >= 0))
+                mask = time > 8640
+                np.testing.assert_allclose(coarse[mask], fine[mask], rtol=1e-3)
+
+    def test_two_component_kilonova_after_six_days(self):
+        from redback.transient_models.kilonova_models import two_component_kilonova_model
+        time = np.array([7., 15., 30., 60.])
+        parameters = dict(redshift=0.01, mej_1=0.02, vej_1=0.2, kappa_1=1.,
+                          temperature_floor_1=3000., mej_2=0.04, vej_2=0.1,
+                          kappa_2=10., temperature_floor_2=2000.)
+        flux = two_component_kilonova_model(
+            time, output_format='flux_density', frequency=5e14, **parameters)
+        self.assertTrue(np.all(np.isfinite(flux)))
+        self.assertTrue(np.all(flux > 0))
+        self.assertTrue(np.all(np.diff(flux) < 0))
+        spectra = two_component_kilonova_model(time, output_format='spectra', **parameters)
+        self.assertGreater(spectra.time[-1], 60 * 86400)
+
     def test_kilonova_diffusion_matches_arnett_calculation(self):
         from redback.transient_models.kilonova_models import _kilonova_diffusion_luminosity
 
-        time = np.geomspace(1.0e-2, 2.0e5, 200)
-        thermalised_luminosity = 1.0e42 * np.exp(-time / 1.0e5)
-        diffusion_timescale = 4.0e5
-        integrand = (
-            2.0 * thermalised_luminosity * (time / diffusion_timescale)
-            * np.exp(time ** 2 / diffusion_timescale ** 2)
-        )
-        cumulative_integral = np.zeros_like(time)
-        cumulative_integral[1:] = np.cumsum(
-            0.5 * (integrand[:-1] + integrand[1:]) * np.diff(time)
-        )
-        cumulative_integral[0] = cumulative_integral[1]
-        expected = (
-            cumulative_integral * np.exp(-time ** 2 / diffusion_timescale ** 2)
-            / diffusion_timescale
-        )
+        # Analytic solution of dL/dx + L = 2 + x, L(0) = 0.
+        time = np.r_[0.0, np.geomspace(1.0e-2, 7e6, 500)]
+        diffusion_timescale = 4.0e4
+        x = (time / diffusion_timescale) ** 2
+        thermalised_luminosity = 2.0 + x
+        expected = x - np.expm1(-x)
 
         actual = _kilonova_diffusion_luminosity(
             time, thermalised_luminosity, diffusion_timescale
@@ -2269,13 +2445,14 @@ class TestOptimalTimeArray(unittest.TestCase):
     def test_kilonova_diffusion_recovers_constant_heating(self):
         from redback.transient_models.kilonova_models import _kilonova_diffusion_luminosity
 
-        time = np.linspace(0.0, 40.0, 20001)
+        time = np.r_[0.0, np.geomspace(1e-2, 7e6, 500)]
         heating = np.ones_like(time)
 
         luminosity = _kilonova_diffusion_luminosity(
             time, heating, diffusion_timescale=2.0)
 
-        self.assertAlmostEqual(luminosity[-1], 1.0, places=3)
+        np.testing.assert_allclose(luminosity, -np.expm1(-(time / 2.0) ** 2),
+                                   rtol=1e-12, atol=1e-15)
 
     def test_kilonova_diffusion_is_finite_for_extreme_valid_prior(self):
         import warnings
