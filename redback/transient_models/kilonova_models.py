@@ -835,7 +835,7 @@ def two_component_kilonova_with_cocoon(time, redshift, mej_1, vej_1, temperature
     dl = cosmology.luminosity_distance(redshift).cgs.value
     # Convert user times to source frame seconds for optimal grid
     time_source_frame_seconds = time * day_to_s / (1. + redshift)
-    time_temp = get_optimal_time_array(1e-2, 86400*6, 200, user_times=time_source_frame_seconds, time_units="seconds")
+    time_temp = get_optimal_time_array(1e-2, 7e6, kwargs.get('dense_resolution', 500), user_times=time_source_frame_seconds, time_units="seconds")
     time_obs = time
 
     mej = [mej_1, mej_2]
@@ -1592,7 +1592,7 @@ def two_component_kilonova_model(time, redshift, mej_1, vej_1, temperature_floor
     dense_resolution = kwargs.get("dense_resolution", 500)
     # Convert user times to source frame seconds for optimal grid
     time_source_frame_seconds = time * day_to_s / (1. + redshift)
-    time_temp = get_optimal_time_array(1e-2, 86400*6, dense_resolution, user_times=time_source_frame_seconds, time_units="seconds")
+    time_temp = get_optimal_time_array(1e-2, 7e6, dense_resolution, user_times=time_source_frame_seconds, time_units="seconds")
     time_obs = time
 
     mej = [mej_1, mej_2]
@@ -1980,18 +1980,29 @@ def _calc_new_heating_rate(time, mej, electron_fraction, ejecta_velocity, **kwar
 
 
 def _kilonova_diffusion_luminosity(time, thermalised_luminosity, diffusion_timescale):
-    """Evaluate the normalized Arnett diffusion convolution without overflow."""
+    """Integrate the Arnett kernel with heating linear in squared diffusion time.
+
+    The initial luminosity is zero at the first supplied epoch. Non-finite
+    heating invalidates that epoch and all subsequent luminosities.
+    """
     time = np.asarray(time, dtype=float)
     thermalised_luminosity = np.asarray(thermalised_luminosity, dtype=float)
     bolometric_luminosity = np.zeros_like(time)
 
-    inverse_tdiff_squared = diffusion_timescale ** -2
-    scaled_time_squared = time ** 2 * inverse_tdiff_squared
-    decay = np.exp(-np.diff(scaled_time_squared))
-    bolometric_luminosity[1:] = np.diff(time) * inverse_tdiff_squared * (
-        decay * thermalised_luminosity[:-1] * time[:-1]
-        + thermalised_luminosity[1:] * time[1:]
-    )
+    scaled_time_squared = (time / diffusion_timescale) ** 2
+    steps = np.diff(scaled_time_squared)
+    decay = np.exp(-steps)
+    # dL/dx = Q - L: integrate the decay kernel exactly for heating linear
+    # in x. This resolves the narrow late-time kernel without tiny steps.
+    right_weight = np.empty_like(steps)
+    small = steps < 1e-3
+    h = steps[small]
+    right_weight[small] = h * (0.5 + h * (-1 / 6 + h * (1 / 24 - h / 120)))
+    right_weight[~small] = 1 + np.expm1(-steps[~small]) / steps[~small]
+    left_weight = -np.expm1(-steps) - right_weight
+    bolometric_luminosity[1:] = (
+        left_weight * thermalised_luminosity[:-1]
+        + right_weight * thermalised_luminosity[1:])
     diffusion_system = np.zeros((2, len(time)))
     diffusion_system[0] = 1.0
     diffusion_system[1, :-1] = -decay
@@ -2006,11 +2017,6 @@ def _kilonova_diffusion_luminosity(time, thermalised_luminosity, diffusion_times
         )
     bolometric_luminosity[finite_prefix_length:] = np.nan
 
-    if finite_prefix_length > 1:
-        # Match the historical treatment of the first grid point.
-        bolometric_luminosity[0] = bolometric_luminosity[1] * np.exp(
-            scaled_time_squared[1] - scaled_time_squared[0]
-        )
     return bolometric_luminosity
 
 def _calculate_rosswogkorobkin24_qdot_formula(time_array, e0, alp, t0, sig, alp1,
@@ -2294,16 +2300,15 @@ def metzger_kilonova_model(time, redshift, mej, vej, beta, kappa, **kwargs):
     :param bands: Required if output_format is 'magnitude' or 'flux'.
     :param output_format: 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
     :param lambda_array: Optional argument to set your desired wavelength array (in Angstroms) to evaluate the SED on.
-    :param dense_resolution: resolution of the grid that the model is actually evaluated on, default is 500. Increase to 1000+ for times > 30 days
+    :param dense_resolution: resolution of the fixed source-frame integration grid, default 4000.
     :param cosmology: Cosmology to use for luminosity distance calculation. Defaults to Planck18. Must be a astropy.cosmology object.
     :return: set by output format - 'flux_density', 'magnitude', 'spectra', 'flux', 'sncosmo_source'
     """
     cosmology = kwargs.get('cosmology', cosmo)
     dl = cosmology.luminosity_distance(redshift).cgs.value
-    dense_resolution = kwargs.get("dense_resolution", 500)
-    # Convert user times to source frame seconds for optimal grid
-    time_source_frame_seconds = time * day_to_s / (1. + redshift)
-    time_temp = get_optimal_time_array(1e-2, 7e6, dense_resolution, user_times=time_source_frame_seconds) # in source frame
+    dense_resolution = kwargs.get("dense_resolution", 4000)
+    # The dynamical trajectory must not change when a fitted epoch changes.
+    time_temp = np.geomspace(1e-2, 7e6, dense_resolution)
     time_obs = time
     bolometric_luminosity, temperature, r_photosphere = _metzger_kilonova_model(time_temp, mej, vej, beta,
                                                                                 kappa, **kwargs)
@@ -2428,8 +2433,8 @@ def _metzger_kilonova_model(time, mej, vej, beta, kappa, **kwargs):
     lum_rad[:, 0] = 0
     qdot_rp[:, 0] = 0
 
-    # solve ODE using euler method for all mass shells v
-    for ii in range(time_len - 1):
+    # Evaluate every endpoint, including the final temperature and radius.
+    for ii in range(time_len):
         if neutron_precursor_switch:
             td_v[:-1, ii] = (kappa[:-1, ii] * m_array[:-1] * solar_mass * 3) / (
                     4 * np.pi * v_m[:-1] * speed_of_light * time[ii] * beta)
@@ -2439,12 +2444,25 @@ def _metzger_kilonova_model(time, mej, vej, beta, kappa, **kwargs):
                         4 * np.pi * v_m[:-1] * speed_of_light * time[ii] * beta)
             tau[:-1, ii] = (m_array[:-1] * solar_mass * kappa / (4 * np.pi * (time[ii] * v_m[:-1]) ** 2))
         lum_rad[:-1, ii] = energy_v[:-1, ii] / (td_v[:-1, ii] + time[ii] * (v_m[:-1] / speed_of_light))
-        energy_v[:-1, ii + 1] = (edotr[:-1, ii] - (energy_v[:-1, ii] / time[ii]) - lum_rad[:-1, ii]) * dt[ii] + energy_v[:-1, ii]
+        if ii < time_len - 1:
+            midpoint = (time[ii] + time[ii + 1]) / 2
+            opacity = ((kappa[:-1, ii] + kappa[:-1, ii + 1]) / 2
+                       if neutron_precursor_switch else kappa)
+            diffusion = opacity * m_array[:-1] * solar_mass * 3 / (
+                4 * np.pi * v_m[:-1] * speed_of_light * midpoint * beta)
+            loss = 1 / midpoint + 1 / (diffusion + midpoint * v_m[:-1] / speed_of_light)
+            heating = (edotr[:-1, ii] + edotr[:-1, ii + 1]) / 2
+            # Exact frozen-coefficient step at the midpoint: stable and positive
+            # for arbitrarily short cooling times, second order for smooth inputs.
+            weight = -np.expm1(-loss * dt[ii])
+            energy_v[:-1, ii + 1] = (1 - weight) * energy_v[:-1, ii] + weight * heating / loss
         lum_rad[:-1, ii] = lum_rad[:-1, ii] * dm * solar_mass
 
         tau[mass_len - 1, ii] = tau[mass_len - 2, ii]
-        photosphere_index = np.argmin(np.abs(tau[:, ii] - 1))
-        v_photosphere[ii] = v_m[photosphere_index]
+        # Resolve tau = 1 between shells rather than jumping by a whole shell
+        # as time changes. Optical depth decreases outwards on this grid.
+        v_photosphere[ii] = np.exp(np.interp(
+            0., np.log(tau[:-1, ii])[::-1], np.log(v_m[:-1])[::-1]))
         r_photosphere[ii] = v_photosphere[ii] * time[ii]
 
     bolometric_luminosity = np.sum(lum_rad, axis=0)
