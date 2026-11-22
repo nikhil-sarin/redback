@@ -115,7 +115,33 @@ class TestPhysicsCorrections(unittest.TestCase):
                           frequency=5e14, output_format='flux_density')
             flux = general_magnetar_driven_supernova(time, **kwargs)
             reference = general_magnetar_driven_supernova(time, dynamics_rtol=1e-10, **kwargs)
-            self.assertLess(np.max(np.abs(2.5 * np.log10(flux / reference))), .001)
+            self.assertLess(np.max(np.abs(2.5 * np.log10(flux / reference))), .005)
+
+    def test_magnetar_band_magnitudes_meet_numerical_budget_without_retry(self):
+        from scipy.integrate import solve_ivp
+        from redback.transient_models.supernova_models import general_magnetar_driven_supernova
+        # A short-lived, energetic engine from a deterministic constrained-prior
+        # sweep; this is more demanding than the fiducial engine above.
+        parameters = dict(
+            redshift=1.1614116929726537, l0=1.6685023646374765e47,
+            tau_sd=137.79151425589083, nn=3.179861618145081,
+            f_nickel=.0010018635666449486, mej=.33224622464612324,
+            E_sn=1.3628705680680271e51, kappa=.15033415494733365,
+            kappa_gamma=1319.4907870428228, temperature_floor=16637.664002556467)
+        bands = np.repeat(['ztfg', 'ztfr', 'ztfi'], 40)
+        epochs = np.tile(np.geomspace(.1, 300., 40), 3)
+        reference = general_magnetar_driven_supernova(
+            epochs, **parameters, output_format='magnitude', bands=bands, dynamics_rtol=1e-10)
+        with patch('redback.transient_models.magnetar_driven_ejecta_models.solve_ivp',
+                   wraps=solve_ivp) as solver:
+            result = general_magnetar_driven_supernova(
+                epochs, **parameters, output_format='magnitude', bands=bands)
+        self.assertEqual(solver.call_count, 1)
+        self.assertEqual(solver.call_args.kwargs['rtol'], 3e-8)
+        reference = np.asarray(reference).reshape(3, -1)
+        result = np.asarray(result).reshape(3, -1)
+        mask = reference < reference.min(axis=1)[:, None] + 7.5
+        self.assertLess(np.max(np.abs((result - reference)[mask])), .005)
 
     def test_piro_photosphere_has_optical_depth_two_thirds(self):
         from redback.transient_models.shock_powered_models import _shock_cooling
@@ -3030,6 +3056,84 @@ class TestNickelMixingGridAndDiffusion(unittest.TestCase):
         mixed = nickelmixing_bolometric(
             time, **{**self.parameters, 'f_mixing': 1.0})
         self.assertLess(time[np.argmax(mixed)], 0.6 * time[np.argmax(central)])
+
+
+class TestNickelMixingConvergence(unittest.TestCase):
+    parameters = dict(mej=5., esn=1., kappa=.2, kappa_gamma=.027,
+                      f_nickel=.07, f_mixing=.2, temperature_floor=4000.)
+
+    def evaluate(self, points, shells, transport, recombination, solver='extrapolated'):
+        from redback.transient_models.supernova_models import _nickelmixing
+        from redback.sed import blackbody_to_flux_density
+        time = np.geomspace(.01, 150., 3201)[::3200 // (points - 1)]
+        output = _nickelmixing(
+            time * 86400, **self.parameters, mass_len=shells, transport=transport,
+            use_recombination_opacity=recombination, opacity_solver=solver)
+        flux = blackbody_to_flux_density(
+            output.t_photosphere, output.r_photosphere, 1e27,
+            np.array([4e14, 6e14])[:, None]).value
+        values = np.vstack((output.lbol, flux))
+        self.assertTrue(np.all(np.isfinite(values)))
+        self.assertTrue(np.all(values >= 0))
+        return time, values
+
+    @staticmethod
+    def error(time, values, reference):
+        mask = (reference > 1e-3 * reference.max(axis=1)[:, None]) & (time > 2.)
+        return np.max(np.abs(2.5 * np.log10(values[mask] / reference[mask])))
+
+    def test_timestep_convergence_for_both_transports_and_opacities(self):
+        for transport in ('coupled_diffusion', 'shell_leakage'):
+            for recombination in (False, True):
+                with self.subTest(transport=transport, recombination=recombination):
+                    _, reference = self.evaluate(3201, 200, transport, recombination, 'iterated')
+                    errors = []
+                    for points in (401, 801, 1601):
+                        time, values = self.evaluate(points, 200, transport, recombination)
+                        errors.append(self.error(time, values, reference[:, ::3200 // (points - 1)]))
+                    # BDF2 with extrapolated opacity is second order; explicit
+                    # shell leakage remains first order, including recombination.
+                    ratio = .4 if transport == 'coupled_diffusion' else .6
+                    self.assertLess(errors[1], ratio * errors[0])
+                    self.assertLess(errors[2], ratio * errors[1])
+                    self.assertLess(errors[2], .006)
+
+    def test_shell_resolution_converges_for_both_transports_and_opacities(self):
+        for transport in ('coupled_diffusion', 'shell_leakage'):
+            for recombination in (False, True):
+                with self.subTest(transport=transport, recombination=recombination):
+                    time, reference = self.evaluate(1601, 800, transport, recombination)
+                    errors = []
+                    for shells in (100, 200, 400):
+                        _, values = self.evaluate(1601, shells, transport, recombination)
+                        errors.append(self.error(time, values, reference))
+                    self.assertLess(errors[1], errors[0])
+                    self.assertLess(errors[2], errors[1])
+                    self.assertLess(errors[2], .02)
+
+    def test_extrapolated_opacity_agrees_with_self_consistent_solve(self):
+        for transport in ('coupled_diffusion', 'shell_leakage'):
+            time, reference = self.evaluate(1601, 200, transport, True, 'iterated')
+            _, prediction = self.evaluate(1601, 200, transport, True)
+            self.assertLess(self.error(time, prediction, reference), .001)
+
+    def test_extrapolated_opacity_uses_one_energy_solve_per_step(self):
+        from scipy.linalg import solveh_banded
+        from redback.transient_models.supernova_models import _nickelmixing
+        times = np.geomspace(.01, 150., 100) * 86400
+        with patch('redback.transient_models.supernova_models.solveh_banded',
+                   wraps=solveh_banded) as solve:
+            _nickelmixing(times, **self.parameters, mass_len=100,
+                          use_recombination_opacity=True)
+        self.assertEqual(solve.call_count, len(times) - 1)
+
+    def test_invalid_opacity_options_raise(self):
+        from redback.transient_models.supernova_models import _nickelmixing
+        for options in ({'opacity_solver': 'unknown'}, {'kappa_min': 1.}):
+            with self.assertRaises(ValueError):
+                _nickelmixing(np.geomspace(1., 100., 10) * 86400,
+                              **self.parameters, mass_len=100,
+                              use_recombination_opacity=True, **options)
 
 
 class TestNickelMixingRadioactiveDeposition(unittest.TestCase):

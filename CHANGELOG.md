@@ -3,6 +3,13 @@
 ## [Unreleased]
 
 ### Scientific model changes
+- Interpolate the nickel-mixing photosphere at optical depth unity in log
+  space. For coupled diffusion with recombination opacity, evaluate the
+  photospheric opacity closure from linearly extrapolated shell energies,
+  retaining one energy solve per step and second-order time convergence.
+  An optional `opacity_solver="iterated"` provides a self-consistent reference.
+  Remove the timestep-dependent transparent-shell light-crossing clamp.
+  The explicit `shell_leakage` transport remains first order in time.
 - Replace explicit Euler stepping in the TDE cooling envelope with adaptive
   Radau integration of positive mass and energy. Terminate on a downward
   circularization-radius crossing or when the envelope becomes optically thin;
@@ -10,12 +17,20 @@
   threshold. The viscosity prior is unchanged. Cooling-envelope rise wrappers
   return zero flux (infinite magnitude) after termination, not extrapolated
   negative flux.
+- Add an initial-optical-depth constraint to cooling-envelope priors and
+  `ModelDomainError` rejection in Gaussian-family likelihoods. Retry failed
+  cooling-envelope integration once with tighter tolerances and a smaller
+  initial step; persistent numerical failures and configuration errors still
+  raise instead of silently rejecting samples. The alpha prior is unchanged.
 - Use a fixed 4000-point source-frame grid, stable exponential midpoint energy
   steps, and an interpolated optical-depth photosphere in `metzger_kilonova_model`.
   Evaluate the final luminosity, radius, and temperature rather than leaving
   their last entries uninitialized. `dense_resolution` remains configurable.
-- Tighten the shared magnetar ejecta dynamics default relative tolerance to
-  `3e-9`; keep the conditional stiff-solver retry and explicit solver overrides.
+- Set the general magnetar-driven supernova dynamics default relative tolerance to
+  `3e-8`, selected against a 0.005-mag numerical-error budget rather than
+  the more expensive `3e-9`. Keep the conditional stiff-solver retry and
+  explicit solver/tolerance overrides for precision checks. Other callers of
+  the shared dynamics helper retain `3e-9` pending model-specific validation.
 - Integrate the shared simple-component and Rosswog-heating kilonova diffusion
   kernel exactly for piecewise-linear heating in squared diffusion time. This
   avoids under-resolving the late-time kernel and preserves the constant-heating
