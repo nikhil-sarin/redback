@@ -2,6 +2,95 @@
 
 ## [Unreleased]
 
+### Scientific model changes
+- Interpolate the nickel-mixing photosphere at optical depth unity in log
+  space. For coupled diffusion with recombination opacity, evaluate the
+  photospheric opacity closure from linearly extrapolated shell energies,
+  retaining one energy solve per step and second-order time convergence.
+  An optional `opacity_solver="iterated"` provides a self-consistent reference.
+  Remove the timestep-dependent transparent-shell light-crossing clamp.
+  The explicit `shell_leakage` transport remains first order in time.
+- Replace explicit Euler stepping in the TDE cooling envelope with adaptive
+  Radau integration of positive mass and energy. Terminate on a downward
+  circularization-radius crossing or when the envelope becomes optically thin;
+  retain later downward crossings even when the initial radius is below the
+  threshold. The viscosity prior is unchanged. Cooling-envelope rise wrappers
+  return zero flux (infinite magnitude) after termination, not extrapolated
+  negative flux.
+- Add an optional initial-optical-depth constraint to cooling-envelope priors
+  to restrict inference to the optically thick photosphere approximation.
+  Direct calls outside this regime raise `ValueError`; likelihood exception
+  handling is unchanged. Retry failed cooling-envelope integration once
+  with tighter tolerances and a smaller
+  initial step; persistent numerical failures and configuration errors still
+  raise instead of silently rejecting samples. The alpha prior is unchanged.
+- Use a fixed 4000-point source-frame grid, stable exponential midpoint energy
+  steps, and an interpolated optical-depth photosphere in `metzger_kilonova_model`.
+  Evaluate the final luminosity, radius, and temperature rather than leaving
+  their last entries uninitialized. `dense_resolution` remains configurable.
+- Set the general magnetar-driven supernova dynamics default relative tolerance to
+  `3e-8`, selected against a 0.005-mag numerical-error budget rather than
+  the more expensive `3e-9`. Keep the conditional stiff-solver retry and
+  explicit solver/tolerance overrides for precision checks. Other callers of
+  the shared dynamics helper retain `3e-9` pending model-specific validation.
+- Integrate the shared simple-component and Rosswog-heating kilonova diffusion
+  kernel exactly for piecewise-linear heating in squared diffusion time. This
+  avoids under-resolving the late-time kernel and preserves the constant-heating
+  limit on coarse grids. Start with zero luminosity at the first integration
+  epoch rather than copying the next epoch backwards. Restore the two-component
+  and cocoon models' source-frame range to `7e6` seconds (about 81 days).
+- Integrate the shared magnetar-driven ejecta equations with adaptive ODE
+  stepping and use a 1000-point source grid concentrated over the requested
+  observing span by default. The resolution and solver tolerances remain
+  configurable for precision checks.
+- Require the magnetar rotational energy to exceed one per cent of the initial
+  supernova explosion energy in constrained general-magnetar-driven supernova
+  priors, and raise their initial-luminosity lower bound to `1e43` erg/s.
+- Fix resolution-dependent numerics in the redback-implemented structured-jet
+  afterglows (`tophat_redback`, `gaussian_redback`, `powerlaw_redback`, and their
+  variants, including the refreshed models):
+  - the lateral-spreading radius correction now uses the jet opening angle rather
+    than the grid cell width, which made the post-jet-break flux scale roughly as
+    1/res;
+  - lateral spreading now scales every cell's solid angle homologously with the
+    jet, rather than widening each cell by `ex/res`, which made the self-absorbed
+    radio flux depend on resolution;
+  - the azimuthal grid now closes at 2π (it dropped one cell for, e.g.,
+    res = 25, 50, 100).
+
+  The light curves now converge with `res` (to about 1e-4 between res 50 and 400,
+  against factors of a few before). Post-break flux changes by up to about one
+  order of magnitude, while early-time and peak fluxes change by about 10%.
+  Pass `legacy_numerics=True` to reproduce the previous behaviour.
+
+### Bug fixes
+- Correct the Piro-Haynie-Yao shock-cooling photospheric radius to switch branches
+  at the photospheric transition, using its correct timescale and inner-density
+  exponent, including the continuous `delta=1` limit.
+- Convert the Metzger magnetar-driven mergernova trapping mass and velocity to
+  cgs units. Also evaluate its final dynamical output point.
+- Require a positive jet opening angle in the accelerated afterglow helper and
+  default direct calls to the corrected, non-legacy spreading prescription.
+- Correct both photometric paths of `shockcooling_sapirwaxman_and_arnett`
+  to use Sapir-Waxman shock cooling rather than the Morag model, and clarify
+  that its input times are in the observer frame.
+- Keep private helpers and imported utilities out of the built-in model registry,
+  and allow modules to declare model exports with `__all__`.
+- Correct FRED and CSM shock-breakout prior parameter identities and add default
+  priors for standalone bolometric nickel-mixing, CSM, and general-magnetar models.
+- Make the general-magnetar energy constraint braking-index dependent and use
+  the engine's tabulated ejecta/CSM coefficients in CSM constraints.
+- Remove the unimplemented `csm_truncation_shock` model and unused TDE fallback
+  stub.
+- Return valid dynamics result objects, use physical ejecta velocity in
+  pair-cascade losses, and use the evolved ejecta radius for supernova
+  photospheres.
+- Restore configurable cosmology and constrained-prior support for the general
+  magnetar-driven supernova models, and clarify their source-frame time and
+  initial-energy conventions.
+- Correct the general-magnetar SLSN luminosity-prior lower bound from the
+  unphysical `1e-40` to `1e40` erg/s in both photometric and bolometric models.
+
 ## [1.21.0] 2026-11-15
 Version 1.21.0 release of redback
 

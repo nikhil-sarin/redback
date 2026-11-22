@@ -2,6 +2,7 @@ from redback.constants import *
 from redback.transient_models.magnetar_models import magnetar_only, basic_magnetar, _evolving_gw_and_em_magnetar
 import numpy as np
 from astropy.cosmology import Planck18 as cosmo  # noqa
+from scipy.integrate import solve_ivp
 from scipy.interpolate import interp1d
 from collections import namedtuple
 import astropy.units as uu # noqa
@@ -10,6 +11,14 @@ from redback.utils import calc_kcorrected_properties, interpolated_barnes_and_ka
     electron_fraction_from_kappa, citation_wrapper, lambda_to_nu, velocity_from_lorentz_factor, get_optimal_time_array
 from redback.sed import blackbody_to_flux_density, get_correct_output_format_from_spectra, \
     flux_density_to_spectrum, blackbody_to_spectrum
+
+
+DynamicsOutput = namedtuple(
+    'DynamicsOutput',
+    ['lorentz_factor', 'bolometric_luminosity', 'comoving_temperature',
+     'radius', 'doppler_factor', 'tau', 'time', 'kinetic_energy',
+     'erad_total', 'thermalisation_efficiency', 'r_photosphere'],
+)
 
 def _ejecta_dynamics_and_interaction(time, mej, beta, ejecta_radius, kappa, n_ism,
                                      magnetar_luminosity, pair_cascade_switch, use_gamma_ray_opacity, **kwargs):
@@ -34,121 +43,163 @@ def _ejecta_dynamics_and_interaction(time, mej, beta, ejecta_radius, kappa, n_is
             'radius', 'doppler_factor', 'tau', 'time', 'kinetic_energy',
             'erad_total', 'thermalisation_efficiency'
     """
-    mag_lum = magnetar_luminosity
-    use_r_process = kwargs.get('use_r_process',True)
+    time = np.asarray(time, dtype=float)
+    mag_lum = np.asarray(magnetar_luminosity, dtype=float)
+    if time.ndim != 1 or len(time) < 2 or np.any(np.diff(time) <= 0):
+        raise ValueError("time must be a strictly increasing one-dimensional array")
+    if mag_lum.shape != time.shape:
+        raise ValueError("magnetar_luminosity must have the same shape as time")
+    if not 0 < beta < 1:
+        raise ValueError("beta must be strictly between zero and one")
+
+    use_r_process = kwargs.get('use_r_process', True)
     ejecta_albedo = kwargs.get('ejecta_albedo', 0.5)
     pair_cascade_fraction = kwargs.get('pair_cascade_fraction', 0.05)
+    mass = mej * solar_mass
+    initial_internal_energy = kwargs.get(
+        'initial_internal_energy', 0.5 * beta ** 2 * mass * speed_of_light ** 2)
+    initial_volume = (4 / 3) * np.pi * ejecta_radius ** 3
+    initial_gamma = 1 / np.sqrt(1 - beta ** 2)
 
-    mej = mej * solar_mass
-    lorentz_factor = []
-    radius = []
-    doppler_factor = []
-    lbol_ejecta = []
-    lbol_rest = []
-    comoving_temperature = []
-    tau = []
-    teff = []
-
-    internal_energy = 0.5 * beta ** 2 * mej * speed_of_light ** 2
-    comoving_volume = (4 / 3) * np.pi * ejecta_radius ** 3
-    gamma = 1 / np.sqrt(1 - beta ** 2)
-
+    requested_method = kwargs.get('dynamics_method')
+    method = requested_method or 'RK45'
+    rtol = kwargs.get('dynamics_rtol', 3e-9)
+    atol = kwargs.get('dynamics_atol', None)
+    if atol is None:
+        atol = np.array([
+            1e-10,
+            max(1.0, ejecta_radius * rtol * 1e-2),
+            max(1.0, initial_volume * rtol * 1e-2),
+            max(1.0, initial_internal_energy * rtol * 1e-2),
+        ])
 
     t0_comoving = 1.3
     tsigma_comoving = 0.11
-    
     ni56_lum = 6.45e43
     co56_lum = 1.45e43
-    ni56_life = 8.8*86400  # days
-    co56_life = 111.3*86400  # days    
+    ni56_life = 8.8 * day_to_s
+    co56_life = 111.3 * day_to_s
 
-    for i in range(len(time)):
-        beta = np.sqrt(1 - 1 / gamma ** 2)
-        doppler_factor_temp = 1 / (gamma * (1 - beta))
-        if i > 0:
-            dt = time[i] - time[i - 1]
-            gamma = gamma + dgamma_dt * dt
-            ejecta_radius = ejecta_radius + drdt * dt
-            comoving_volume = comoving_volume + dcomoving_volume_dt * dt
-            internal_energy = internal_energy + dinternal_energy_dt * dt
-
-        swept_mass = (4 / 3) * np.pi * ejecta_radius ** 3 * n_ism * proton_mass
-        comoving_pressure = internal_energy / (3 * comoving_volume)
-        comoving_time = doppler_factor_temp * time[i]
-        comoving_dvdt = 4 * np.pi * ejecta_radius ** 2 * beta * speed_of_light
+    def _state_quantities(t, state):
+        gamma, radius, volume, internal_energy = state
+        gamma = max(gamma, 1.0 + np.finfo(float).eps)
+        radius = max(radius, np.finfo(float).tiny)
+        volume = max(volume, np.finfo(float).tiny)
+        internal_energy = max(internal_energy, np.finfo(float).tiny)
+        current_beta = np.sqrt(1 - gamma ** -2)
+        doppler = 1 / (gamma * (1 - current_beta))
+        comoving_time = doppler * t
         rad_denom = (1 / 2) - (1 / 3.141592654) * np.arctan((comoving_time - t0_comoving) / tsigma_comoving)
         if use_r_process:
-            comoving_radiative_luminosity = (4 * 10 ** 49 * (mej / (2 * 10 ** 33) * 10 ** 2) * rad_denom ** 1.3)
+            radioactive_luminosity = 4e49 * (mass / (2e33) * 1e2) * rad_denom ** 1.3
         else:
-            f_nickel = kwargs.get('f_nickel',0)
-            nickel_mass = f_nickel * mej / solar_mass
-            comoving_radiative_luminosity = nickel_mass * (ni56_lum*np.exp(-comoving_time/ni56_life) + co56_lum * np.exp(-comoving_time/co56_life))
-        tau_temp = kappa * (mej / comoving_volume) * (ejecta_radius / gamma)
-
-        if tau_temp <= 1:
-            comoving_emitted_luminosity = (internal_energy * speed_of_light) / (ejecta_radius / gamma)
-            comoving_temp_temperature = (internal_energy / (radiation_constant * comoving_volume)) ** (1./4.)
+            nickel_mass = kwargs.get('f_nickel', 0) * mej
+            radioactive_luminosity = nickel_mass * (
+                ni56_lum * np.exp(-comoving_time / ni56_life)
+                + co56_lum * np.exp(-comoving_time / co56_life))
+        optical_depth = kappa * (mass / volume) * (radius / gamma)
+        diffusion_factor = 1.0 if optical_depth <= 1 else optical_depth
+        emitted_luminosity = internal_energy * speed_of_light / (diffusion_factor * radius / gamma)
+        if optical_depth <= 1:
+            temperature = (internal_energy / (radiation_constant * volume)) ** 0.25
         else:
-            comoving_emitted_luminosity = (internal_energy * speed_of_light) / (tau_temp * ejecta_radius / gamma)
-            comoving_temp_temperature = (internal_energy / (radiation_constant * comoving_volume * tau_temp)) ** (1./4.)
-
-        emitted_luminosity = comoving_emitted_luminosity * doppler_factor_temp ** 2
-
-        vej = velocity_from_lorentz_factor(gamma)
-
+            temperature = (internal_energy / (radiation_constant * volume * optical_depth)) ** 0.25
+        velocity = velocity_from_lorentz_factor(gamma)
         if use_gamma_ray_opacity:
             kappa_gamma = kwargs["kappa_gamma"]
-            prefactor = 3 * kappa_gamma * mej / (4 * np.pi * vej**2)
-            thermalisation_efficiency = 1 - np.exp(-prefactor * time[i] ** -2)
+            prefactor = 3 * kappa_gamma * mass / (4 * np.pi * velocity ** 2)
+            thermalisation_efficiency = 1 - np.exp(-prefactor * t ** -2)
         else:
             thermalisation_efficiency = kwargs["thermalisation_efficiency"]
+        return (gamma, radius, volume, internal_energy, current_beta, doppler,
+                radioactive_luminosity, optical_depth, emitted_luminosity,
+                temperature, thermalisation_efficiency)
 
-        drdt = (beta * speed_of_light) / (1 - beta)
-        dswept_mass_dt = 4 * np.pi * ejecta_radius ** 2 * n_ism * proton_mass * drdt
-        dedt = thermalisation_efficiency * mag_lum[
-            i] + doppler_factor_temp ** 2 * comoving_radiative_luminosity - doppler_factor_temp ** 2 * comoving_emitted_luminosity
-        comoving_dinternal_energydt = thermalisation_efficiency * doppler_factor_temp ** (-2) * mag_lum[
-            i] + comoving_radiative_luminosity - comoving_emitted_luminosity - comoving_pressure * comoving_dvdt
-        dcomoving_volume_dt = comoving_dvdt * doppler_factor_temp
-        dinternal_energy_dt = comoving_dinternal_energydt * doppler_factor_temp
-        dgamma_dt = (dedt - gamma * doppler_factor_temp * comoving_dinternal_energydt - (
-                    gamma ** 2 - 1) * speed_of_light ** 2 * dswept_mass_dt) / (
-                            mej * speed_of_light ** 2 + internal_energy + 2 * gamma * swept_mass * speed_of_light ** 2)
-        lorentz_factor.append(gamma)
-        lbol_ejecta.append(comoving_emitted_luminosity)
-        lbol_rest.append(emitted_luminosity)
-        comoving_temperature.append(comoving_temp_temperature)
-        radius.append(ejecta_radius)
-        tau.append(tau_temp)
-        doppler_factor.append(doppler_factor_temp)
-        teff.append(thermalisation_efficiency)
+    def _derivative(t, state):
+        (gamma, radius, volume, internal_energy, current_beta, doppler,
+         radioactive_luminosity, _, emitted_luminosity, _,
+         thermalisation_efficiency) = _state_quantities(t, state)
+        magnetar_power = np.interp(t, time, mag_lum)
+        swept_mass = (4 / 3) * np.pi * radius ** 3 * n_ism * proton_mass
+        pressure = internal_energy / (3 * volume)
+        comoving_volume_rate = 4 * np.pi * radius ** 2 * current_beta * speed_of_light
+        radius_rate = current_beta * speed_of_light / (1 - current_beta)
+        swept_mass_rate = 4 * np.pi * radius ** 2 * n_ism * proton_mass * radius_rate
+        comoving_internal_energy_rate = (
+            thermalisation_efficiency * doppler ** -2 * magnetar_power
+            + radioactive_luminosity - emitted_luminosity
+            - pressure * comoving_volume_rate)
+        energy_rate = (
+            thermalisation_efficiency * magnetar_power
+            + doppler ** 2 * (radioactive_luminosity - emitted_luminosity))
+        gamma_rate = (
+            energy_rate - gamma * doppler * comoving_internal_energy_rate
+            - (gamma ** 2 - 1) * speed_of_light ** 2 * swept_mass_rate
+        ) / (mass * speed_of_light ** 2 + internal_energy
+             + 2 * gamma * swept_mass * speed_of_light ** 2)
+        return [gamma_rate, radius_rate, comoving_volume_rate * doppler,
+                comoving_internal_energy_rate * doppler]
 
-    lorentz_factor = np.array(lorentz_factor)
-    v0 = ((1/lorentz_factor)**2 + 1)**0.5 * speed_of_light
-    bolometric_luminosity = np.array(lbol_rest)
-    radius = np.array(radius)
+    initial_state = [initial_gamma, ejecta_radius, initial_volume, initial_internal_energy]
+
+    def _solve(selected_method):
+        return solve_ivp(
+            _derivative, (time[0], time[-1]), initial_state,
+            method=selected_method, t_eval=time, rtol=rtol, atol=atol,
+        )
+
+    def _valid_solution(candidate):
+        return (
+            candidate.success
+            and candidate.y.ndim == 2
+            and candidate.y.shape[1] == len(time)
+            and np.all(np.isfinite(candidate.y))
+            and np.all(candidate.y[0] >= 1.0)
+            and np.all(candidate.y[1:3] > 0.0)
+            and np.all(candidate.y[3] >= 0.0)
+        )
+
+    solution = _solve(method)
+    if requested_method is None and not _valid_solution(solution):
+        # Explicit Runge-Kutta methods can step slightly through E_int = 0 for
+        # weak engines at late times. LSODA handles that stiff boundary well.
+        solution = _solve('LSODA')
+
+    if not solution.success or solution.y.shape[1] != len(time):
+        raise RuntimeError(f"Ejecta dynamics integration failed: {solution.message}")
+    if not _valid_solution(solution):
+        raise RuntimeError("Ejecta dynamics integration produced an invalid physical state")
+
+    lorentz_factor, radius, _, _ = solution.y
+    quantities = [_state_quantities(t, solution.y[:, index]) for index, t in enumerate(time)]
+    doppler_factor = np.array([value[5] for value in quantities])
+    tau = np.array([value[7] for value in quantities])
+    comoving_emitted_luminosity = np.array([value[8] for value in quantities])
+    comoving_temperature = np.array([value[9] for value in quantities])
+    thermalisation_efficiency = np.array([value[10] for value in quantities])
+    bolometric_luminosity = comoving_emitted_luminosity * doppler_factor ** 2
 
     if pair_cascade_switch:
         tlife_t = (0.6/(1 - ejecta_albedo))*(pair_cascade_fraction/0.1)**0.5 * (mag_lum/1.0e45)**0.5 \
-                  * (v0/(0.3*speed_of_light))**(0.5) * (time/86400)**(-0.5)
+                  * (velocity_from_lorentz_factor(lorentz_factor)/(0.3*speed_of_light))**(0.5) \
+                  * (time/day_to_s)**(-0.5)
         bolometric_luminosity = bolometric_luminosity / (1.0 + tlife_t)
-        comoving_temperature = (bolometric_luminosity / (4.0 * np.pi * np.array(radius) ** (2.0) * sigma_sb)) ** (0.25)
+        comoving_temperature = (
+            bolometric_luminosity / (4.0 * np.pi * radius ** 2 * sigma_sb)) ** 0.25
 
-    dynamics_output = namedtuple('dynamics_output', ['lorentz_factor', 'bolometric_luminosity', 'comoving_temperature',
-                                                     'radius', 'doppler_factor', 'tau', 'time', 'kinetic_energy',
-                                                     'erad_total', 'thermalisation_efficiency', 'r_photosphere'])
-
-    dynamics_output.lorentz_factor = lorentz_factor
-    dynamics_output.bolometric_luminosity = bolometric_luminosity
-    dynamics_output.comoving_temperature = np.array(comoving_temperature)
-    dynamics_output.radius = radius
-    dynamics_output.doppler_factor = np.array(doppler_factor)
-    dynamics_output.tau = tau
-    dynamics_output.time = time
-    dynamics_output.kinetic_energy = (lorentz_factor - 1)*mej*speed_of_light**2
-    dynamics_output.erad_total = np.trapezoid(bolometric_luminosity, x=time)
-    dynamics_output.thermalisation_efficiency = teff
-    return dynamics_output
+    return DynamicsOutput(
+        lorentz_factor=lorentz_factor,
+        bolometric_luminosity=bolometric_luminosity,
+        comoving_temperature=comoving_temperature,
+        radius=radius,
+        doppler_factor=doppler_factor,
+        tau=tau,
+        time=time,
+        kinetic_energy=(lorentz_factor - 1) * mass * speed_of_light ** 2,
+        erad_total=np.trapezoid(bolometric_luminosity, x=time),
+        thermalisation_efficiency=thermalisation_efficiency,
+        r_photosphere=radius,
+    )
 
 def _comoving_blackbody_to_flux_density(dl, frequency, radius, temperature, doppler_factor):
     """
@@ -678,9 +729,10 @@ def _general_metzger_magnetar_driven_kilonova_model(time, mej, vej, beta, kappa,
     kinetic_energy = ek_tot_0
 
     # solve ODE using euler method for all mass shells v
-    for ii in range(time_len - 1):
+    for ii in range(time_len):
         # # evolve the velocity due to pdv work of central shell of mass M and thermal energy Ev0
-        kinetic_energy = kinetic_energy + (energy_v[0, ii] / time[ii]) * dt[ii]
+        if ii < time_len - 1:
+            kinetic_energy = kinetic_energy + (energy_v[0, ii] / time[ii]) * dt[ii]
         # kinetic_energy = kinetic_energy + (np.sum(energy_v[:, ii]) / time[ii]) * dt[ii]
         v0 = (2 * kinetic_energy / m0) ** 0.5
         v0_array[ii] = v0
@@ -689,8 +741,8 @@ def _general_metzger_magnetar_driven_kilonova_model(time, mej, vej, beta, kappa,
 
         if use_gamma_ray_opacity:
             kappa_gamma = kwargs["kappa_gamma"]
-            prefactor = 3 * kappa_gamma * mej / (4 * np.pi * vej**2)
-            thermalisation_efficiency = 1 - np.exp(-prefactor * time[ii] ** -2)
+            prefactor = 3 * kappa_gamma * m0 / (4 * np.pi * (vej * speed_of_light)**2)
+            thermalisation_efficiency = -np.expm1(-prefactor * time[ii] ** -2)
         else:
             thermalisation_efficiency = kwargs["thermalisation_efficiency"]
         qdot_magnetar[ii] = thermalisation_efficiency * lsd[ii]
@@ -702,7 +754,8 @@ def _general_metzger_magnetar_driven_kilonova_model(time, mej, vej, beta, kappa,
             else:
                 td_v[:-1, ii] = (kappa * m_array[:-1] * solar_mass * 3) / (4 * np.pi * v_m[:-1] * speed_of_light * time[ii] * beta)
             lum_rad[:-1, ii] = energy_v[:-1, ii] / (td_v[:-1, ii] + time[ii] * (v_m[:-1] / speed_of_light))
-            energy_v[:-1, ii + 1] = (qdot_magnetar[ii] + edotr[:-1, ii] * dm * solar_mass - (energy_v[:-1, ii] / time[ii]) - lum_rad[:-1, ii]) * dt[ii] + energy_v[:-1, ii]
+            if ii < time_len - 1:
+                energy_v[:-1, ii + 1] = (qdot_magnetar[ii] + edotr[:-1, ii] * dm * solar_mass - (energy_v[:-1, ii] / time[ii]) - lum_rad[:-1, ii]) * dt[ii] + energy_v[:-1, ii]
 
         # first mass layer
         # only bottom layer i.e., 0'th mass layer gets magnetar contribution
@@ -718,10 +771,12 @@ def _general_metzger_magnetar_driven_kilonova_model(time, mej, vej, beta, kappa,
                             4 * np.pi * v_m[1:-1] * speed_of_light * time[ii] * beta)
 
             lum_rad[0, ii] = energy_v[0, ii] / (td_v[0, ii] + time[ii] * (v_m[0] / speed_of_light))
-            energy_v[0, ii + 1] = (qdot_magnetar[ii] + edotr[0, ii] * dm[0] * solar_mass - (energy_v[0, ii] / time[ii]) - lum_rad[0, ii]) * dt[ii] + energy_v[0, ii]
+            if ii < time_len - 1:
+                energy_v[0, ii + 1] = (qdot_magnetar[ii] + edotr[0, ii] * dm[0] * solar_mass - (energy_v[0, ii] / time[ii]) - lum_rad[0, ii]) * dt[ii] + energy_v[0, ii]
             # other layers
             lum_rad[1:-1, ii] = energy_v[1:-1, ii] / (td_v[1:-1, ii] + time[ii] * (v_m[1:-1] / speed_of_light))
-            energy_v[1:-1, ii + 1] = (edotr[1:-1, ii] * dm[1:] * solar_mass - (energy_v[1:-1, ii] / time[ii]) - lum_rad[1:-1, ii]) * dt[ii] + energy_v[1:-1, ii]
+            if ii < time_len - 1:
+                energy_v[1:-1, ii + 1] = (edotr[1:-1, ii] * dm[1:] * solar_mass - (energy_v[1:-1, ii] / time[ii]) - lum_rad[1:-1, ii]) * dt[ii] + energy_v[1:-1, ii]
 
         if neutron_precursor_switch:
             tau[:-1, ii] = (m_array[:-1] * solar_mass * kappa[:-1, ii] / (4 * np.pi * (time[ii] * v_m[:-1]) ** 2))
@@ -742,19 +797,23 @@ def _general_metzger_magnetar_driven_kilonova_model(time, mej, vej, beta, kappa,
 
     temperature = (bolometric_luminosity / (4.0 * np.pi * (r_photosphere) ** (2.0) * sigma_sb)) ** (0.25)
 
-    dynamics_output = namedtuple('dynamics_output', ['lorentz_factor', 'bolometric_luminosity', 'temperature',
-                                                     'r_photosphere', 'kinetic_energy','erad_total',
-                                                     'thermalisation_efficiency'])
     gamma_beta = v0_array/speed_of_light
     lorentz_factor = 1/(np.sqrt(1 - gamma_beta**2))
-    dynamics_output.lorentz_factor = lorentz_factor
-    dynamics_output.bolometric_luminosity = bolometric_luminosity
-    dynamics_output.temperature = temperature
-    dynamics_output.r_photosphere = r_photosphere
-    dynamics_output.kinetic_energy = (lorentz_factor - 1)*m0*speed_of_light**2
-    dynamics_output.erad_total = np.trapezoid(bolometric_luminosity, x=time)
-    dynamics_output.thermalisation_efficiency = qdot_magnetar/lsd
-    return dynamics_output
+    dynamics_output = namedtuple(
+        'dynamics_output',
+        ['lorentz_factor', 'bolometric_luminosity', 'temperature',
+         'r_photosphere', 'kinetic_energy', 'erad_total',
+         'thermalisation_efficiency'],
+    )
+    return dynamics_output(
+        lorentz_factor=lorentz_factor,
+        bolometric_luminosity=bolometric_luminosity,
+        temperature=temperature,
+        r_photosphere=r_photosphere,
+        kinetic_energy=(lorentz_factor - 1) * m0 * speed_of_light ** 2,
+        erad_total=np.trapezoid(bolometric_luminosity, x=time),
+        thermalisation_efficiency=qdot_magnetar / lsd,
+    )
 
 @citation_wrapper('https://ui.adsabs.harvard.edu/abs/2017LRR....20....3M/abstract')
 def metzger_magnetar_driven_kilonova_model(time, redshift, mej, vej, beta, kappa_r, p0, bp,

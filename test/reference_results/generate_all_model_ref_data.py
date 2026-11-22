@@ -25,6 +25,16 @@ TIME_LONG = np.array([1.0, 10.0, 100.0])  # days
 # Output file for all reference data
 REFERENCE_FILE = 'test/reference_results/all_models_reference.pkl.gz'
 
+ADAPTIVE_ODE_MODELS = {
+    'magnetar.basic_mergernova',
+    'magnetar.general_mergernova',
+    'magnetar.general_mergernova_evolution',
+    'magnetar.general_mergernova_thermalisation',
+    'magnetar.trapped_magnetar',
+    'supernova.general_magnetar_driven_supernova',
+    'supernova.general_magnetar_driven_supernova_bolometric',
+}
+
 
 def get_model_functions(module):
     """Get all model functions from a module."""
@@ -139,6 +149,7 @@ def generate_ref_data_for_model(category, model_name, model_func, time_array):
                 'time_array': time_array,
                 'eval_kwargs': {k: v for k, v in eval_kwargs.items() if k != 'time'},
                 'optional_dependencies': optional_deps,
+                'rtol': 1e-4 if f"{category}.{model_name}" in ADAPTIVE_ODE_MODELS else 1e-5,
             }
         }
         

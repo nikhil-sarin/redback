@@ -17,6 +17,7 @@ import astropy.units as uu
 from collections import namedtuple
 from scipy.interpolate import interp1d, PchipInterpolator, RegularGridInterpolator
 from scipy.linalg import solveh_banded
+from scipy.optimize import brentq
 from scipy.special import gamma as gamma_function, gammaincc
 
 homologous_expansion_models = ['exponential_powerlaw_bolometric', 'arnett_bolometric',
@@ -742,6 +743,12 @@ def _nickelmixing(time, mej, esn, kappa, kappa_gamma, f_nickel, f_mixing,
     :param use_recombination_opacity (bool): whether to transition from
         ``kappa`` to ``kappa_min`` as the ejecta cools through
         ``temperature_floor``. Defaults to False.
+    :param opacity_solver: ``extrapolated`` (default) evaluates the photospheric
+        opacity closure using extrapolated shell energies and one energy solve
+        per step. ``iterated`` solves opacity and energy self-consistently for
+        convergence checks. The shell-leakage path remains first order in time.
+        Both retain a single effective opacity set by the photospheric
+        temperature, not a separate opacity from each shell's radiation temperature.
     :param delta (float): inner density profile exponent, used if use_broken_powerlaw is True.
     :param nn (float): outer density profile exponent, used if use_broken_powerlaw is True.
     :param beta (float): density-profile exponent for
@@ -862,8 +869,6 @@ def _nickelmixing(time, mej, esn, kappa, kappa_gamma, f_nickel, f_mixing,
     energy_v = np.zeros((mass_len, time_len))
     lum_rad = np.zeros((mass_len, time_len))
     qdot_ni = np.zeros((mass_len, time_len))
-    td_v = np.zeros((mass_len, time_len))
-    tlc_v = np.zeros((mass_len, time_len))
     tau = np.zeros((mass_len, time_len))
     v_photosphere = np.zeros(time_len)
     r_photosphere = np.zeros(time_len)
@@ -879,6 +884,7 @@ def _nickelmixing(time, mej, esn, kappa, kappa_gamma, f_nickel, f_mixing,
     # coupled diffusion closure; all scale as powers of t in homologous ejecta.
     shell_volume_geometry = 4.0 * np.pi / 3.0 * edge_cubes
     mass_cgs = m_array * solar_mass
+    log_velocity_reversed = np.log(v_m[::-1])
 
     # Gamma rays are emitted isotropically. Geometry is evaluated once because
     # every homologous column subsequently scales as t^-2.
@@ -896,113 +902,123 @@ def _nickelmixing(time, mej, esn, kappa, kappa_gamma, f_nickel, f_mixing,
         edot_gamma[None, :] * gamma_deposition + edot_positron[None, :])
     del gamma_columns, gamma_optical_depth, gamma_deposition
 
-    for ii in range(time_len):
-        if not use_recombination_opacity or ii == 0:
-            kappa_eff = kappa_max
+    opacity_solver = kwargs.get('opacity_solver', 'extrapolated')
+    if opacity_solver not in ('extrapolated', 'iterated'):
+        raise ValueError("opacity_solver must be 'extrapolated' or 'iterated'")
+    if use_recombination_opacity and kappa_min > kappa_max:
+        raise ValueError("kappa_min must not exceed kappa")
+
+    for ii, t_now in enumerate(time):
+        volume = shell_volume_geometry * t_now ** 3
+        radius = v_m * t_now
+        outer_radius = velocity_edges[1:] * t_now
+        dt = 0. if ii == 0 else t_now - time[ii - 1]
+        if ii <= 1:
+            g, c1, c2, omega = 1., 1., 0., 0.
         else:
-            luminosity_previous = np.sum(lum_rad[:, ii - 1])
-            if r_photosphere[ii - 1] > 0 and luminosity_previous > 0:
-                temperature_previous = (
-                    luminosity_previous
-                    / (4.0 * np.pi * r_photosphere[ii - 1] ** 2 * sigma_sb)) ** 0.25
+            omega = dt / (time[ii - 1] - time[ii - 2])
+            g = (1 + omega) / (1 + 2 * omega)
+            c1 = (1 + omega) ** 2 / (1 + 2 * omega)
+            c2 = omega ** 2 / (1 + 2 * omega)
+        if transport == 'coupled_diffusion' and ii > 0:
+            predicted_energy = (1 + omega) * energy_v[:, ii - 1]
+            if ii > 1:
+                predicted_energy -= omega * energy_v[:, ii - 2]
+            predicted_energy = np.maximum(predicted_energy, 0.)
+        else:
+            # The explicit leakage path already stores E(t_n) at this point.
+            predicted_energy = energy_v[:, ii]
+
+        def evaluate(opacity, solve=False):
+            optical_depth = opacity * cumulative_column_geometry / t_now ** 2
+            # Clamp to the shell-grid endpoints when tau=1 lies outside it.
+            velocity = np.exp(np.interp(
+                0., np.log(np.maximum(optical_depth[::-1], np.finfo(float).tiny)),
+                log_velocity_reversed))
+            photospheric_radius = velocity * t_now
+            if transport == 'shell_leakage':
+                escape_time = np.maximum(
+                    opacity * diffusion_geometry / (diffusion_beta * speed_of_light * t_now)
+                    + radius / speed_of_light, np.finfo(float).tiny)
+                energy = energy_v[:, ii]
+                luminosity = energy / escape_time
             else:
-                temperature_previous = temperature_floor
-            kappa_eff = kappa_min + 0.5 * (kappa_max - kappa_min) * (
-                1.0 + np.tanh((temperature_previous - temperature_floor) / 50000.0))
+                extinction = np.maximum(opacity * mass_cgs / volume, 1e-300)
+                weight_argument = np.log(np.maximum(optical_depth, 1e-12) / (2 / 3)) / .25
+                thick_weight = 1 / (1 + np.exp(-weight_argument))
+                half_width = np.maximum(outer_radius - radius, np.finfo(float).tiny)
+                photospheric_conductance = 4 * np.pi * outer_radius ** 2 / (
+                    4 / speed_of_light + half_width * 3 * extinction / speed_of_light)
+                surface_weight = np.maximum(
+                    thick_weight - np.append(thick_weight[1:], 0.), 0.)
+                # The implicit solve needs no timestep-dependent escape clamp.
+                escape = (surface_weight * photospheric_conductance
+                          + (1 - thick_weight) * volume
+                          / np.maximum(radius / speed_of_light, np.finfo(float).tiny))
+                energy = predicted_energy
+                if solve and ii > 0:
+                    # Logarithmic conductance avoids inf * 0 in nearly empty
+                    # outer shells, where diffusivity grows but thick weights vanish.
+                    log_weight = -np.logaddexp(0., -weight_argument)
+                    interface_radius = .5 * (radius[:-1] + radius[1:])
+                    log_conductance = (
+                        np.log(4 * np.pi * interface_radius ** 2 * speed_of_light / 3)
+                        - np.log(.5 * (extinction[:-1] + extinction[1:]))
+                        - np.log(np.diff(radius))
+                        + .5 * (log_weight[:-1] + log_weight[1:]))
+                    conductance = np.exp(np.minimum(log_conductance, 700.))
+                    # Variable-step BDF2 for dE/dt = Q - A E, with a backward
+                    # Euler startup. Solve for energy density with symmetric
+                    # diagonal scaling of the positive-definite banded matrix.
+                    step = g * dt
+                    rhs = c1 * energy_v[:, ii - 1] + step * qdot_ni[:, ii]
+                    if c2:
+                        rhs -= c2 * energy_v[:, ii - 2]
+                    diagonal = volume * (1 + step / t_now) + step * escape
+                    diagonal[:-1] += step * conductance
+                    diagonal[1:] += step * conductance
+                    scale = np.sqrt(diagonal)
+                    banded = np.zeros((2, mass_len))
+                    banded[1] = 1.
+                    banded[0, 1:] = -step * conductance / (scale[:-1] * scale[1:])
+                    density = solveh_banded(banded, rhs / scale) / scale
+                    energy = np.maximum(density * volume, 0.)
+                luminosity = escape * energy / volume
+            return energy, luminosity, optical_depth, photospheric_radius
 
-        tau[:, ii] = kappa_eff * cumulative_column_geometry / time[ii] ** 2
+        kappa_eff = kappa_max
+        if use_recombination_opacity and ii > 0 and kappa_min < kappa_max:
+            def opacity_residual(opacity):
+                _, luminosity, _, photospheric_radius = evaluate(
+                    opacity, solve=opacity_solver == 'iterated')
+                total = np.sum(luminosity)
+                temperature_opacity = (
+                    (total / (4 * np.pi * photospheric_radius ** 2 * sigma_sb)) ** .25
+                    if total > 0 else temperature_floor)
+                target = kappa_min + .5 * (kappa_max - kappa_min) * (
+                    1 + np.tanh((temperature_opacity - temperature_floor) / 50000.))
+                return opacity - target
 
-        if transport == 'coupled_diffusion':
-            # Finite-volume radiation diffusion between neighbouring optically
-            # thick shells, implicit in time with variable-step BDF2 (backward
-            # Euler on the first step). Radiation reaching the photospheric
-            # boundary, and energy deposited in transparent shells, escapes.
-            photosphere_index = np.argmin(np.abs(tau[:, ii] - 1.0))
-            v_photosphere[ii] = v_m[photosphere_index]
-            r_photosphere[ii] = v_photosphere[ii] * time[ii]
-            if ii == 0:
-                continue
-            t_now = time[ii]
-            dt = t_now - time[ii - 1]
-            radius = v_m * t_now
-            outer_radius = velocity_edges[1:] * t_now
-            volume = shell_volume_geometry * t_now ** 3
-            extinction = np.maximum(kappa_eff * mass_cgs / volume, 1e-300)
-            # Smooth thick/thin partition around tau = 2/3 (no steps as the
-            # photosphere moves between shells).
-            weight_argument = np.log(np.maximum(tau[:, ii], 1e-12) / (2.0 / 3.0)) / 0.25
-            thick_weight = 1.0 / (1.0 + np.exp(-weight_argument))
-            log_thick_weight = -np.logaddexp(0.0, -weight_argument)
-            # Interface conductance A D / dr * sqrt(w_i w_j), D = c / (3 chi),
-            # in logarithms: near-empty outer shells have chi -> 0 (D would
-            # overflow) exactly where the weights -> 0, so the product is
-            # small and finite, not inf * 0.
-            interface_radius = 0.5 * (radius[:-1] + radius[1:])
-            log_conductance = (
-                np.log(4.0 * np.pi * interface_radius ** 2 * speed_of_light / 3.0)
-                - np.log(0.5 * (extinction[:-1] + extinction[1:]))
-                - np.log(np.diff(radius))
-                + 0.5 * (log_thick_weight[:-1] + log_thick_weight[1:]))
-            conductance = np.exp(np.minimum(log_conductance, 700.0))
-            # Outermost thick shell: half-cell diffusion in series with an
-            # F = cE/4 free-streaming boundary; thin shells: light crossing.
-            half_width = np.maximum(outer_radius - radius, np.finfo(float).tiny)
-            photospheric_conductance = 4.0 * np.pi * outer_radius ** 2 / (
-                4.0 / speed_of_light + half_width * 3.0 * extinction / speed_of_light)
-            exterior_weight = np.append(thick_weight[1:], 0.0)
-            surface_weight = np.maximum(thick_weight - exterior_weight, 0.0)
-            transparent_conductance = volume / np.maximum(radius / speed_of_light, dt)
-            escape_conductance = (surface_weight * photospheric_conductance
-                                  + (1.0 - thick_weight) * transparent_conductance)
-            # dE/dt = Q - A E with A the adiabatic, exchange and escape terms.
-            # Variable-step BDF2 (second order; backward Euler on the first
-            # step): (I + g dt A) E_n = c1 E_{n-1} - c2 E_{n-2} + g dt Q_n.
-            if ii == 1:
-                g, c1, c2 = 1.0, 1.0, 0.0
-            else:
-                omega = dt / (time[ii - 1] - time[ii - 2])
-                g = (1.0 + omega) / (1.0 + 2.0 * omega)
-                c1 = (1.0 + omega) ** 2 / (1.0 + 2.0 * omega)
-                c2 = omega ** 2 / (1.0 + 2.0 * omega)
-            step = g * dt
-            rhs = c1 * energy_v[:, ii - 1] + step * qdot_ni[:, ii]
-            if c2:
-                rhs -= c2 * energy_v[:, ii - 2]
-            # Solved for the energy density u = E / V: the matrix
-            # V (1 + step / t) + step (escape + exchange) is symmetric and
-            # diagonally dominant (positive definite) whatever the range of
-            # shell volumes. Symmetric diagonal scaling keeps the Cholesky
-            # solve well conditioned.
-            diagonal = volume * (1.0 + step / t_now) + step * escape_conductance
-            diagonal[:-1] += step * conductance
-            diagonal[1:] += step * conductance
-            scale = np.sqrt(diagonal)
-            banded = np.zeros((2, mass_len))
-            banded[1] = 1.0
-            banded[0, 1:] = -step * conductance / (scale[:-1] * scale[1:])
-            density = solveh_banded(banded, rhs / scale) / scale
-            energy_v[:, ii] = np.maximum(density * volume, 0.0)
-            lum_rad[:, ii] = escape_conductance * energy_v[:, ii] / volume
-            continue
+            # Solve only the scalar opacity closure for the predicted energy.
+            # The default still performs exactly one banded energy solve/step.
+            kappa_eff = brentq(opacity_residual, kappa_min, kappa_max,
+                               xtol=max(1e-14, kappa_max * 1e-10))
+        energy, luminosity, optical_depth, photospheric_radius = evaluate(kappa_eff, solve=True)
+        energy_v[:, ii] = energy
+        lum_rad[:, ii] = luminosity
+        tau[:, ii] = optical_depth
+        r_photosphere[ii] = photospheric_radius
+        v_photosphere[ii] = photospheric_radius / t_now
 
-        td_v[:, ii] = (
-            kappa_eff * diffusion_geometry
-            / (diffusion_beta * speed_of_light * time[ii]))
-        tlc_v[:, ii] = v_m * time[ii] / speed_of_light
-        escape_time = np.maximum(td_v[:, ii] + tlc_v[:, ii], np.finfo(float).tiny)
-        lum_rad[:, ii] = energy_v[:, ii] / escape_time
-
-        photosphere_index = np.argmin(np.abs(tau[:, ii] - 1.0))
-        v_photosphere[ii] = v_m[photosphere_index]
-        r_photosphere[ii] = v_photosphere[ii] * time[ii]
-
-        if ii < time_len - 1:
-            dt = time[ii + 1] - time[ii]
-            loss_rate = 1.0 / time[ii] + 1.0 / escape_time
-            decay = np.exp(-loss_rate * dt)
+        if transport == 'shell_leakage' and ii < time_len - 1:
+            escape_time = np.maximum(
+                kappa_eff * diffusion_geometry / (diffusion_beta * speed_of_light * t_now)
+                + radius / speed_of_light, np.finfo(float).tiny)
+            forward_dt = time[ii + 1] - t_now
+            loss_rate = 1 / t_now + 1 / escape_time
+            decay = np.exp(-loss_rate * forward_dt)
             energy_v[:, ii + 1] = (
-                energy_v[:, ii] * decay
-                + qdot_ni[:, ii] * (-np.expm1(-loss_rate * dt)) / loss_rate)
+                energy * decay + qdot_ni[:, ii] * (-np.expm1(-loss_rate * forward_dt)) / loss_rate)
 
     bolometric_luminosity = np.sum(lum_rad, axis=0)
     temperature = np.full(time_len, temperature_floor, dtype=float)
@@ -1617,7 +1633,7 @@ def shockcooling_sapirwaxman_and_arnett(time, redshift, v_shock, m_env, mej, f_r
     """
     Assumes Shock cooling following Sapir and Waxman and arnett model for radioactive decay
 
-    :param time: time in source frame in days
+    :param time: time in observer frame in days
     :param v_shock: shock speed in km/s, also the ejecta velocity in the arnett calculation
     :param m_env: envelope mass in solar masses
     :param mej: ejecta mass in solar masses
@@ -1642,7 +1658,7 @@ def shockcooling_sapirwaxman_and_arnett(time, redshift, v_shock, m_env, mej, f_r
     if kwargs['output_format'] == 'flux_density':
         frequency = kwargs['frequency']
         frequency, time = calc_kcorrected_properties(frequency=frequency, redshift=redshift, time=time)
-        lbol = shockcooling_morag_and_arnett_bolometric(time=time, v_shock=v_shock, m_env=m_env, mej=mej,
+        lbol = shockcooling_sapirwaxman_and_arnett_bolometric(time=time, v_shock=v_shock, m_env=m_env, mej=mej,
                                                         f_rho=f_rho, f_nickel=f_nickel, radius=radius, kappa=kappa,
                                                         **kwargs)
         photo = photosphere.TemperatureFloor(time=time, luminosity=lbol, vej=v_shock, **kwargs)
@@ -1657,7 +1673,7 @@ def shockcooling_sapirwaxman_and_arnett(time, redshift, v_shock, m_env, mej, f_r
         time_observer_frame = time_temp * (1. + redshift)
         frequency, time = calc_kcorrected_properties(frequency=lambda_to_nu(lambda_observer_frame),
                                                      redshift=redshift, time=time_observer_frame)
-        lbol = shockcooling_morag_and_arnett_bolometric(time=time, v_shock=v_shock, m_env=m_env, mej=mej,
+        lbol = shockcooling_sapirwaxman_and_arnett_bolometric(time=time, v_shock=v_shock, m_env=m_env, mej=mej,
                                                         f_rho=f_rho, f_nickel=f_nickel, radius=radius, kappa=kappa,
                                                         **kwargs)
         photo = photosphere.TemperatureFloor(time=time, luminosity=lbol, vej=v_shock, **kwargs)
@@ -2703,55 +2719,73 @@ def general_magnetar_slsn(time, redshift, l0, tsd, nn, ** kwargs):
 @citation_wrapper('https://ui.adsabs.harvard.edu/abs/2022MNRAS.516.4949S/abstract, https://ui.adsabs.harvard.edu/abs/2024MNRAS.527.6455O/abstract')
 def general_magnetar_driven_supernova_bolometric(time, mej, E_sn, kappa, l0, tau_sd, nn, kappa_gamma, **kwargs):   
     """
-    :param time: time in observer frame in days
+    :param time: time in source frame in days
     :param mej: ejecta mass in solar units
-    :param E_sn: supernova explosion energy
+    :param E_sn: initial supernova ejecta kinetic energy in erg
     :param kappa: opacity
-    :param l0: initial magnetar X-ray luminosity (Is this not the spin-down luminosity?)
-    :param tau_sd: magnetar spin down damping timescale (days? seconds?)
+    :param l0: initial magnetar spin-down luminosity in erg/s
+    :param tau_sd: magnetar spin-down timescale in seconds
     :param nn: braking index
     :param kappa_gamma: gamma-ray opacity used to calculate magnetar thermalisation efficiency
     :param kwargs: Additional parameters - Must be all the kwargs required by the specific interaction_process  used
              e.g., for Diffusion: kappa, kappa_gamma, vej (km/s)
-    :param pair_cascade_switch: whether to account for pair cascade losses, default is True
+    :param pair_cascade_switch: whether to account for pair cascade losses, default is False
     :param ejecta albedo: ejecta albedo; default is 0.5
     :param pair_cascade_fraction: fraction of magnetar luminosity lost to pair cascades; default is 0.05
-    :param output_format: whether to output flux density or AB magnitude
+    :param initial_internal_energy: initial ejecta thermal energy in erg. By default this equals
+        the initial kinetic energy implied by ``E_sn``, preserving the published implementation.
+    :param dynamics_method: integration method passed to :func:`scipy.integrate.solve_ivp`. By default,
+        ``RK45`` is used with an automatic ``LSODA`` retry if it produces an invalid physical state.
+    :param dynamics_rtol: relative tolerance for the ejecta dynamics integration, default ``3e-8``
+    :param dynamics_atol: optional absolute tolerance for the ejecta dynamics integration
+    :param dynamics_resolution: source-grid resolution, default 1000; increase for precision checks
+    :param output_format: ``dynamics_output`` to return the full dynamics; otherwise return luminosity
     :param f_nickel: Ni^56 mass as a fraction of ejecta mass
     :return: bolometric luminsoity or dynamics output
     """              
+    kwargs.setdefault('dynamics_rtol', 3e-8)
     pair_cascade_switch = kwargs.get('pair_cascade_switch', False)
-    time_temp = get_optimal_time_array(1e0, 1e8, 2000)
+    dynamics_resolution = kwargs.get('dynamics_resolution', 1000)
+    if int(dynamics_resolution) != dynamics_resolution:
+        raise ValueError("dynamics_resolution must be an integer")
+    dynamics_resolution = int(dynamics_resolution)
+    if dynamics_resolution < 100:
+        raise ValueError("dynamics_resolution must be at least 100")
+    user_times = np.atleast_1d(np.asarray(time)) * day_to_s
+    user_times = user_times[(user_times >= 1.0) & (user_times <= 1.0e8)]
+    time_temp = get_optimal_time_array(
+        1e0, 1e8, dynamics_resolution,
+        user_times=user_times if user_times.size else None)
     magnetar_luminosity = magnetar_only(time=time_temp, l0=l0, tau=tau_sd, nn=nn)
     beta = np.sqrt(E_sn / (0.5 * mej * solar_mass)) / speed_of_light
-    ejecta_radius = 1.0e11
-    n_ism = 1.0e-5
+    ejecta_radius = kwargs.pop('ejecta_radius', 1.0e11)
+    n_ism = kwargs.pop('n_ism', 1.0e-5)
     
     output = _ejecta_dynamics_and_interaction(time=time_temp, mej=mej,
                                               beta=beta, ejecta_radius=ejecta_radius,
                                               kappa=kappa, n_ism=n_ism, magnetar_luminosity=magnetar_luminosity,
                                               kappa_gamma=kappa_gamma, pair_cascade_switch=pair_cascade_switch,
                                               use_gamma_ray_opacity=True, use_r_process=False, **kwargs)
-    vej = velocity_from_lorentz_factor(output.lorentz_factor)/km_cgs 
-    kwargs['vej'] = vej                                                                             
     lbol_func = interp1d(time_temp, y=output.bolometric_luminosity)
-    vej_func = interp1d(time_temp, y=vej)
     time = time * day_to_s    
     lbol = lbol_func(time)
-    v_ej = vej_func(time)
     
-    dynamics_output = namedtuple('dynamics_output', ['v_ej', 'tau', 'time', 'bolometric_luminosity', 'kinetic_energy', 'erad_total',
-                                                     'thermalisation_efficiency', 'magnetar_luminosity', 'erot_total'])
-
-    dynamics_output.v_ej = v_ej
-    dynamics_output.tau = output.tau
-    dynamics_output.time = output.time
-    dynamics_output.bolometric_luminosity = output.bolometric_luminosity
-    dynamics_output.kinetic_energy = output.kinetic_energy 
-    dynamics_output.erad_total = np.trapezoid(lbol, x=time)
-    dynamics_output.thermalisation_efficiency = output.thermalisation_efficiency
-    dynamics_output.magnetar_luminosity = magnetar_luminosity 
-    dynamics_output.erot_total = np.trapezoid(magnetar_luminosity, x=time_temp)
+    dynamics_output = namedtuple(
+        'dynamics_output',
+        ['v_ej', 'radius', 'tau', 'time', 'bolometric_luminosity', 'kinetic_energy', 'erad_total',
+         'thermalisation_efficiency', 'magnetar_luminosity', 'erot_total'],
+    )(
+        v_ej=velocity_from_lorentz_factor(output.lorentz_factor) / km_cgs,
+        radius=output.radius,
+        tau=output.tau,
+        time=output.time,
+        bolometric_luminosity=output.bolometric_luminosity,
+        kinetic_energy=output.kinetic_energy,
+        erad_total=output.erad_total,
+        thermalisation_efficiency=output.thermalisation_efficiency,
+        magnetar_luminosity=magnetar_luminosity,
+        erot_total=np.trapezoid(magnetar_luminosity, x=time_temp),
+    )
 
     if kwargs['output_format'] == 'dynamics_output':
         return dynamics_output
@@ -2764,7 +2798,7 @@ def general_magnetar_driven_supernova(time, redshift, mej, E_sn, kappa, l0, tau_
     :param time: time in observer frame in days
     :param redshift: redshift
     :param mej: ejecta mass in solar units
-    :param E_sn: supernova explosion energy
+    :param E_sn: initial supernova ejecta kinetic energy in erg
     :param ejecta_radius: initial ejecta radius
     :param kappa: opacity
     :param n_ism: ism number density
@@ -2778,27 +2812,47 @@ def general_magnetar_driven_supernova(time, redshift, mej, E_sn, kappa, l0, tau_
     :param pair_cascade_switch: whether to account for pair cascade losses, default is False
     :param ejecta albedo: ejecta albedo; default is 0.5
     :param pair_cascade_fraction: fraction of magnetar luminosity lost to pair cascades; default is 0.05
+    :param initial_internal_energy: initial ejecta thermal energy in erg. By default this equals
+        the initial kinetic energy implied by ``E_sn``, preserving the published implementation.
+    :param dynamics_method: integration method passed to :func:`scipy.integrate.solve_ivp`. By default,
+        ``RK45`` is used with an automatic ``LSODA`` retry if it produces an invalid physical state.
+    :param dynamics_rtol: relative tolerance for the ejecta dynamics integration, default ``3e-8``
+    :param dynamics_atol: optional absolute tolerance for the ejecta dynamics integration
+    :param dynamics_resolution: source-grid resolution, default 1000; increase for precision checks
     :param output_format: whether to output flux density or AB magnitude
     :param frequency: (frequency to calculate - Must be same length as time array or a single number)
     :param f_nickel: Ni^56 mass as a fraction of ejecta mass
     :param photosphere: Default is TemperatureFloor.
             kwargs must have vej or relevant parameters if using different photosphere model
     :param sed: Default is CutoffBlackbody.
+    :param cosmology: cosmology used to calculate luminosity distance, default Planck18
     :return: flux density or AB magnitude or dynamics output
     """
+    kwargs.setdefault('dynamics_rtol', 3e-8)
     kwargs['photosphere'] = kwargs.get("photosphere", photosphere.TemperatureFloor)
     kwargs['sed'] = kwargs.get("sed", sed.CutoffBlackbody)
     cutoff_wavelength = kwargs.get('cutoff_wavelength', 3000)
     absorption_index = kwargs.get('absorption_index', 1.0)
-    dl = cosmo.luminosity_distance(redshift).cgs.value
+    cosmology = kwargs.get('cosmology', cosmo)
+    dl = cosmology.luminosity_distance(redshift).cgs.value
     pair_cascade_switch = kwargs.get('pair_cascade_switch', False)
-    ejecta_radius = 1.0e11
-    n_ism = 1.0e-5
+    ejecta_radius = kwargs.pop('ejecta_radius', 1.0e11)
+    n_ism = kwargs.pop('n_ism', 1.0e-5)
+    dynamics_resolution = kwargs.get('dynamics_resolution', 1000)
+    if int(dynamics_resolution) != dynamics_resolution:
+        raise ValueError("dynamics_resolution must be an integer")
+    dynamics_resolution = int(dynamics_resolution)
+    if dynamics_resolution < 100:
+        raise ValueError("dynamics_resolution must be at least 100")
     
     if kwargs['output_format'] == 'flux_density':
         frequency = kwargs['frequency']
-        time_temp = get_optimal_time_array(1e0, 1e8, 2000)
         frequency, time = calc_kcorrected_properties(frequency=frequency, redshift=redshift, time=time)
+        user_times = np.atleast_1d(np.asarray(time)) * day_to_s
+        user_times = user_times[(user_times >= 1.0) & (user_times <= 1.0e8)]
+        time_temp = get_optimal_time_array(
+            1e0, 1e8, dynamics_resolution,
+            user_times=user_times if user_times.size else None)
         magnetar_luminosity = magnetar_only(time=time_temp, l0=l0, tau=tau_sd, nn=nn)
         beta = np.sqrt(E_sn / (0.5 * mej * solar_mass)) / speed_of_light
         output = _ejecta_dynamics_and_interaction(time=time_temp, mej=mej,
@@ -2808,7 +2862,10 @@ def general_magnetar_driven_supernova(time, redshift, mej, E_sn, kappa, l0, tau_
                                               use_gamma_ray_opacity=True, use_r_process=False, **kwargs)                                                                                
         vej = velocity_from_lorentz_factor(output.lorentz_factor)/km_cgs 
         kwargs['vej'] = vej                                      
-        photo = kwargs['photosphere'](time=time_temp/day_to_s, luminosity=output.bolometric_luminosity, **kwargs)  
+        if kwargs['photosphere'] is photosphere.TemperatureFloor:
+            kwargs['vej'] = output.radius / (km_cgs * time_temp)
+        photo = kwargs['photosphere'](
+            time=time_temp/day_to_s, luminosity=output.bolometric_luminosity, **kwargs)
         temp_func = interp1d(time_temp/day_to_s, y=photo.photosphere_temperature)
         rad_func = interp1d(time_temp/day_to_s, y=photo.r_photosphere)
         bol_func = interp1d(time_temp/day_to_s, y=output.bolometric_luminosity)
@@ -2824,7 +2881,11 @@ def general_magnetar_driven_supernova(time, redshift, mej, E_sn, kappa, l0, tau_
     else:
         time_obs = time
         lambda_observer_frame = kwargs.get('lambda_array', np.geomspace(500, 60000, 200))
-        time_temp = get_optimal_time_array(1e0, 1e8, 2000)
+        user_times = np.atleast_1d(np.asarray(time_obs)) * day_to_s / (1.0 + redshift)
+        user_times = user_times[(user_times >= 1.0) & (user_times <= 1.0e8)]
+        time_temp = get_optimal_time_array(
+            1e0, 1e8, dynamics_resolution,
+            user_times=user_times if user_times.size else None)
         time_observer_frame = time_temp * (1. + redshift)
         frequency, time = calc_kcorrected_properties(frequency=lambda_to_nu(lambda_observer_frame),
                                               redshift=redshift, time=time_observer_frame)
@@ -2837,26 +2898,33 @@ def general_magnetar_driven_supernova(time, redshift, mej, E_sn, kappa, l0, tau_
                                               use_gamma_ray_opacity=True, use_r_process=False, **kwargs)
         vej = velocity_from_lorentz_factor(output.lorentz_factor)/km_cgs 
         kwargs['vej'] = vej
-        photo = kwargs['photosphere'](time=time_temp/day_to_s, luminosity=output.bolometric_luminosity, **kwargs)
+        if kwargs['photosphere'] is photosphere.TemperatureFloor:
+            kwargs['vej'] = output.radius / (km_cgs * time_temp)
+        photo = kwargs['photosphere'](
+            time=time_temp/day_to_s, luminosity=output.bolometric_luminosity, **kwargs)
         if kwargs['output_format'] == 'dynamics_output':                                      
             erot_total = np.trapezoid(magnetar_luminosity, x=time_temp)
             erad_total = np.trapezoid(output.bolometric_luminosity, x=time_temp)
-            dynamics_output = namedtuple('dynamics_output', ['time', 'bolometric_luminosity', 'photosphere_temperature',
-                                                     'radius', 'tau', 'kinetic_energy', 'erad_total', 'thermalisation_efficiency', 
-                                                     'v_ej', 'magnetar_luminosity', 'erot_total', 'r_photosphere'])
-            dynamics_output.time = output.time                                                                    
-            dynamics_output.bolometric_luminosity = output.bolometric_luminosity
-            dynamics_output.comoving_temperature = photo.photosphere_temperature
-            dynamics_output.radius = output.radius
-            dynamics_output.tau = output.tau
-            dynamics_output.kinetic_energy = output.kinetic_energy
-            dynamics_output.erad_total = erad_total
-            dynamics_output.thermalisation_efficiency = output.thermalisation_efficiency                                        
-            dynamics_output.v_ej = vej
-            dynamics_output.magnetar_luminosity = magnetar_luminosity
-            dynamics_output.erot_total = erot_total
-            dynamics_output.r_photosphere = photo.r_photosphere                   
-            return dynamics_output
+            dynamics_output = namedtuple(
+                'dynamics_output',
+                ['time', 'bolometric_luminosity', 'photosphere_temperature',
+                 'radius', 'tau', 'kinetic_energy', 'erad_total', 'thermalisation_efficiency',
+                 'v_ej', 'magnetar_luminosity', 'erot_total', 'r_photosphere'],
+            )
+            return dynamics_output(
+                time=output.time,
+                bolometric_luminosity=output.bolometric_luminosity,
+                photosphere_temperature=photo.photosphere_temperature,
+                radius=output.radius,
+                tau=output.tau,
+                kinetic_energy=output.kinetic_energy,
+                erad_total=erad_total,
+                thermalisation_efficiency=output.thermalisation_efficiency,
+                v_ej=vej,
+                magnetar_luminosity=magnetar_luminosity,
+                erot_total=erot_total,
+                r_photosphere=photo.r_photosphere,
+            )
         else: 
             full_sed = np.zeros((len(time), len(frequency)))
             ss = kwargs['sed'](time=time_temp/day_to_s, temperature=photo.photosphere_temperature,

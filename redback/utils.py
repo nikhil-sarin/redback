@@ -290,16 +290,9 @@ def calculate_normalisation(unique_frequency, model_1, model_2, tref, model_1_di
     return normalisation
 
 
-@lru_cache(maxsize=128)
-def get_csm_properties(nn, eta):
-    """
-    Calculate CSM properties for CSM interacting models
-
-    :param nn: csm norm
-    :param eta: csm density profile exponent
-    :return: csm_properties named tuple
-    """
-    csm_properties = namedtuple('csm_properties', ['AA', 'Bf', 'Br'])
+@lru_cache(maxsize=1)
+def _get_csm_interpolators():
+    """Load and cache the CSM coefficient interpolators."""
     filepath = f"{dirname}/tables/csm_table.txt"
     ns, ss, bfs, brs, aas = np.loadtxt(filepath, delimiter=',', unpack=True)
     bfs = np.reshape(bfs, (10, 30)).T
@@ -310,15 +303,29 @@ def get_csm_properties(nn, eta):
     bf_func = RegularGridInterpolator((ss, ns), bfs)
     br_func = RegularGridInterpolator((ss, ns), brs)
     aa_func = RegularGridInterpolator((ss, ns), aas)
+    return aa_func, bf_func, br_func
 
-    Bf = bf_func([nn, eta])[0]
-    Br = br_func([nn, eta])[0]
-    AA = aa_func([nn, eta])[0]
 
-    csm_properties.AA = AA
-    csm_properties.Bf = Bf
-    csm_properties.Br = Br
-    return csm_properties
+def get_csm_properties(nn, eta):
+    """
+    Calculate CSM properties for scalar or array model parameters.
+
+    :param nn: outer ejecta density profile exponent
+    :param eta: CSM density profile exponent
+    :return: csm_properties named tuple broadcast to the input shape
+    """
+    nn, eta = np.broadcast_arrays(
+        np.asarray(nn, dtype=float), np.asarray(eta, dtype=float))
+    points = np.column_stack((nn.ravel(), eta.ravel()))
+    aa_func, bf_func, br_func = _get_csm_interpolators()
+
+    def evaluate(interpolator):
+        values = interpolator(points).reshape(nn.shape)
+        return values.item() if values.ndim == 0 else values
+
+    csm_properties = namedtuple('csm_properties', ['AA', 'Bf', 'Br'])
+    return csm_properties(
+        AA=evaluate(aa_func), Bf=evaluate(bf_func), Br=evaluate(br_func))
 
 
 def abmag_to_flambda(mag, lam_eff):
@@ -1157,9 +1164,28 @@ class KwargsAccessorWithDefault(object):
         instance.kwargs[self.kwarg] = value
 
 
-def get_functions_dict(module):
+def get_functions_dict(module, public_only=False):
+    """Return functions exposed by a model module.
+
+    Built-in model modules use ``public_only=True`` so imported utilities and
+    private implementation helpers do not become user-facing models. Modules
+    may define ``__all__`` to explicitly control their public model exports.
+    The default preserves the historical discovery behavior used by plugins.
+    """
     models_dict = {}
     _functions_list = [o for o in getmembers(module) if isfunction(o[1])]
+    explicit_exports = getattr(module, '__all__', None)
+    if explicit_exports is not None:
+        explicit_exports = set(explicit_exports)
+        _functions_list = [o for o in _functions_list if o[0] in explicit_exports]
+    elif public_only:
+        module_name = module.__name__
+        _functions_list = [
+            o for o in _functions_list
+            if not o[0].startswith('_')
+            and (o[1].__module__ == module_name
+                 or o[1].__module__.startswith(f'{module_name}.'))
+        ]
     _functions_dict = {f[0]: f[1] for f in _functions_list}
     models_dict[module.__name__.split('.')[-1]] = _functions_dict
     return models_dict

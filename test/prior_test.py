@@ -121,7 +121,7 @@ class TestConstraints(unittest.TestCase):
         vej = samples['vej'] * redback.constants.km_cgs
         l0 = samples['l0']
         tau = samples['tsd'] * redback.constants.day_to_s
-        samples['erot'] = 2*l0*tau
+        samples['erot'] = l0 * tau * (samples['nn'] - 1.0) / 2.0
         samples['ek'] = 0.5 * mej * vej**2
         self.assertTrue(np.all(samples['erot'].values >= samples['ek'].values))
 

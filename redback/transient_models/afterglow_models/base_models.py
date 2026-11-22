@@ -54,12 +54,19 @@ DAY_TO_S = 86400.0
 
 # Numba-compiled utility functions
 @cond_jit(nopython=True, fastmath=True, cache=True)
-def get_segments_numba(thj, res):
-    """Calculate jet segments - matches Python exactly"""
+def get_segments_numba(thj, res, legacy_numerics=False):
+    """Calculate jet segments.
+
+    The azimuthal cell count is rounded so the grid closes at 2 pi; ``int(2 pi / rotstep)`` (legacy) floors to
+    ``res - 1`` for e.g. res = 25, 50, 100 and drops one azimuthal cell of the jet.
+    """
     latstep = thj / res
     rotstep = 2.0 * np.pi / res
     Nlatstep = int(res)
-    Nrotstep = int(2 * np.pi / rotstep)
+    if legacy_numerics:
+        Nrotstep = int(2 * np.pi / rotstep)
+    else:
+        Nrotstep = int(np.round(2 * np.pi / rotstep))
 
     Omi = np.zeros(Nlatstep * Nrotstep)
     phi = np.linspace(rotstep, Nrotstep * rotstep, Nrotstep)
@@ -263,9 +270,12 @@ def get_gamma_numba(G0, Eps, therm, steps, n0, k):
 
 
 @cond_jit(nopython=True, fastmath=True, cache=True)
-def calc_afterglow_step1_numba(G, dm, p, xp, Fx, EB, Ee, n, k, thi, ghat, rotstep, latstep, xiN, is_expansion, a1, res):
+def calc_afterglow_step1_numba(G, dm, p, xp, Fx, EB, Ee, n, k, thi, ghat, rotstep, latstep, xiN, is_expansion, a1, res,
+                               thj, legacy_numerics=False):
     """Calculate synchrotron parameters - matches Python exactly"""
     size = G.shape[0]
+    if thj <= 0:
+        raise ValueError('thj must be positive')
 
     # Ensure all variables are properly typed arrays
     Gm1 = G - 1.0
@@ -284,8 +294,16 @@ def calc_afterglow_step1_numba(G, dm, p, xp, Fx, EB, Ee, n, k, thi, ghat, rotste
     if is_expansion:
         ex = te / G ** (a1 + 1)
         fac = 0.5 * latstep
-        for i in range(size):
-            OmG[i] = rotstep * (np.cos(thi - fac) - np.cos(ex[i] / res + thi + fac))
+        if legacy_numerics:
+            for i in range(size):
+                OmG[i] = rotstep * (np.cos(thi - fac) - np.cos(ex[i] / res + thi + fac))
+        else:
+            # Homologous lateral spreading: every cell's solid angle grows with the jet's,
+            # (1 - cos(thj + ex)) / (1 - cos thj). Widening each cell by ex / res (legacy) makes the
+            # self-absorbed emitting area depend on the resolution.
+            om_cell = rotstep * (np.cos(thi - fac) - np.cos(thi + fac))
+            for i in range(size):
+                OmG[i] = om_cell * (1.0 - np.cos(thj + ex[i])) / (1.0 - np.cos(thj))
     else:
         ex = np.ones(size, dtype=np.float64)  # Make sure ex is an array
         fac = 0.5 * latstep
@@ -295,8 +313,12 @@ def calc_afterglow_step1_numba(G, dm, p, xp, Fx, EB, Ee, n, k, thi, ghat, rotste
 
     # Calculate R - match Python exactly
     exponent = np.ones(size, dtype=np.float64)
+    # Radius correction for lateral spreading: the swept-up mass is spread over the jet's solid angle, which scales as
+    # 1 - cos(thj + ex). The legacy form used the cell width latstep = thj / res instead of thj, which made the
+    # late-time (post jet-break) flux scale roughly as 1 / res.
+    w_spread = latstep if legacy_numerics else thj
     for i in range(1, size):
-        exponent[i] = ((1 - np.cos(latstep + ex[0])) / (1 - np.cos(latstep + ex[i]))) ** (1.0 / 2.0)
+        exponent[i] = ((1 - np.cos(w_spread + ex[0])) / (1 - np.cos(w_spread + ex[i]))) ** (1.0 / 2.0)
 
     R = ((3.0 - k) * Ne[:size] / (FOURPI * n)) ** (1.0 / (3.0 - k))
 
@@ -499,7 +521,7 @@ def get_gamma_refreshed_numba(G0, G1, Eps, Eps2, s1, therm, steps, n0, k):
 class RedbackAfterglows:
     def __init__(self, k, n, epsb, epse, g0, ek, thc, thj, tho, p, exp, time, freq, redshift, Dl,
                  extra_structure_parameter_1, extra_structure_parameter_2, method='TH', res=100, steps=int(500), xiN=1,
-                 a1=1):
+                 a1=1, legacy_numerics=False):
         """
         A general class for afterglow models implemented directly in redback.
         This class is not meant to be used directly but instead via the interface for each specific model.
@@ -543,7 +565,10 @@ class RedbackAfterglows:
         :param steps: number of steps used to resolve Gamma and dm
         :param XiN: fraction of electrons that get accelerated
         :param a1: the expansion description, a1 = 0 sound speed, a1 = 1 Granot & Piran 2012
+        :param legacy_numerics: reproduce the pre-fix numerics (lateral-spreading radius correction with the cell width,
+            per-cell ex / res widening, azimuthal grid that can drop a cell). Default False.
         """
+        self.legacy_numerics = bool(legacy_numerics)
         self.k = float(k)
         if self.k == 0:
             self.n = float(n)
@@ -600,7 +625,7 @@ class RedbackAfterglows:
         nu = np.array(nu)
 
         # Use Numba-accelerated functions
-        Omi, thi, phii, rotstep, latstep = get_segments_numba(self.thj, self.res)
+        Omi, thi, phii, rotstep, latstep = get_segments_numba(self.thj, self.res, self.legacy_numerics)
         Gs, Ei = get_structure_numba(self.g0, self.ek, thi, self.thc, self.method_id, self.s, self.a, self.thj)
         G, SM, ghat = get_gamma_numba(Gs, Ei, 0.0, self.steps, self.n, self.k)
         Obsa = get_obsangle_numba(phii, thi, self.tho)
@@ -626,7 +651,7 @@ class RedbackAfterglows:
         for i in range(thi.size):
             beta, Ne, OmG, R, B, gm, nump, Pp, KT = calc_afterglow_step1_numba(
                 G[i, :], SM[i, :], p, xp, Fx, EB, Ee, n, k, thi[i], ghat[i, :],
-                rotstep, latstep, XiN, self.is_expansion, self.a1, self.res)
+                rotstep, latstep, XiN, self.is_expansion, self.a1, self.res, thj, self.legacy_numerics)
 
             for j in range(phii.size):
                 FBB, Fmax, nuc, num, tobs[:, kk] = calc_afterglow_step2_numba(
@@ -655,7 +680,7 @@ class RedbackAfterglows:
 class RedbackAfterglowsRefreshed(RedbackAfterglows):
     def __init__(self, k, n, epsb, epse, g0, g1, ek, et, s1, thc, thj, tho, p, exp, time, freq, redshift, Dl,
                  extra_structure_parameter_1, extra_structure_parameter_2,
-                 method='TH', res=100, steps=int(500), xiN=1, a1=1):
+                 method='TH', res=100, steps=int(500), xiN=1, a1=1, legacy_numerics=False):
 
         """
         A general class for refreshed afterglow models implemented directly in redback.
@@ -710,7 +735,7 @@ class RedbackAfterglowsRefreshed(RedbackAfterglows):
                          tho=tho, p=p, exp=exp, time=time, freq=freq, redshift=redshift,
                          Dl=Dl, extra_structure_parameter_1=extra_structure_parameter_1,
                          extra_structure_parameter_2=extra_structure_parameter_2, method=method,
-                         res=res, steps=steps, xiN=xiN, a1=a1)
+                         res=res, steps=steps, xiN=xiN, a1=a1, legacy_numerics=legacy_numerics)
         self.G1 = float(g1)
         self.Et = float(et)
         self.s1 = float(s1)
@@ -732,7 +757,7 @@ class RedbackAfterglowsRefreshed(RedbackAfterglows):
         nu = np.array(nu)
 
         # Use Numba-accelerated functions from parent class
-        Omi, thi, phii, rotstep, latstep = get_segments_numba(self.thj, self.res)
+        Omi, thi, phii, rotstep, latstep = get_segments_numba(self.thj, self.res, self.legacy_numerics)
         Gs, Ei = get_structure_numba(self.g0, self.ek, thi, self.thc, self.method_id, self.s, self.a, self.thj)
 
         # Use Numba-accelerated refreshed gamma calculation
@@ -916,6 +941,8 @@ def tophat_redback(time, redshift, thv, loge0, thc, logn0, p, logepse, logepsb, 
     :param res: resolution - set dynamically based on afterglow properties by default,
             but can be set manually to a specific number.
     :param steps: number of steps used to resolve Gamma and dm. Defaults to 250 but can be set manually.
+    :param legacy_numerics: if True, reproduce the pre-fix resolution-dependent lateral-spreading and azimuthal-grid
+        numerics (default False).
     :param k: power law index of density profile. Defaults to 0 for constant density.
         Can be set to 2 for wind-like density profile.
     :param expansion: 0 or 1 to dictate whether to include expansion effects. Defaults to 1
@@ -950,7 +977,8 @@ def tophat_redback(time, redshift, thv, loge0, thc, logn0, p, logepse, logepsb, 
     ag_class = RedbackAfterglows(k=k, n=nism, epse=epse, epsb=epsb, g0=g0, ek=e0, thc=thc, thj=thc, tho=thv, p=p, exp=exp,
                                 time=time, freq=frequency, redshift=redshift, Dl=dl, method=method,
                                  extra_structure_parameter_1=s, extra_structure_parameter_2=a,
-                                 res=res, xiN=xiN, steps=steps, a1=a1)
+                                 res=res, xiN=xiN, steps=steps, a1=a1,
+                                 legacy_numerics=kwargs.get('legacy_numerics', False))
     flux_density = ag_class.get_lightcurve()
     fmjy = flux_density / 1e-26
     if kwargs['output_format'] == 'flux_density':
@@ -1014,7 +1042,8 @@ def gaussian_redback(time, redshift, thv, loge0, thc, thj, logn0, p, logepse, lo
     ag_class = RedbackAfterglows(k=k, n=nism, epse=epse, epsb=epsb, g0=g0, ek=e0, thc=thc, thj=thj, tho=thv, p=p, exp=exp,
                                 time=time, freq=frequency, redshift=redshift, Dl=dl, method=method,
                                  extra_structure_parameter_1=s, extra_structure_parameter_2=a,
-                                 res=res, xiN=xiN, steps=steps, a1=a1)
+                                 res=res, xiN=xiN, steps=steps, a1=a1,
+                                 legacy_numerics=kwargs.get('legacy_numerics', False))
     flux_density = ag_class.get_lightcurve()
     fmjy = flux_density / 1e-26
     if kwargs['output_format'] == 'flux_density':
@@ -1082,7 +1111,8 @@ def twocomponent_redback(time, redshift, thv, loge0, thc, thj, logn0, p, logepse
     ag_class = RedbackAfterglows(k=k, n=nism, epse=epse, epsb=epsb, g0=g0, ek=e0, thc=thc, thj=thj, tho=thv, p=p, exp=exp,
                                  time=time, freq=frequency, redshift=redshift, Dl=dl, method=method,
                                  extra_structure_parameter_1=ss, extra_structure_parameter_2=aa,
-                                 res=res, xiN=xiN, steps=steps, a1=a1)
+                                 res=res, xiN=xiN, steps=steps, a1=a1,
+                                 legacy_numerics=kwargs.get('legacy_numerics', False))
     flux_density = ag_class.get_lightcurve()
     fmjy = flux_density / 1e-26
     if kwargs['output_format'] == 'flux_density':
@@ -1151,7 +1181,8 @@ def powerlaw_redback(time, redshift, thv, loge0, thc, thj, logn0, p, logepse, lo
     ag_class = RedbackAfterglows(k=k, n=nism, epse=epse, epsb=epsb, g0=g0, ek=e0, thc=thc, thj=thj, tho=thv, p=p, exp=exp,
                                  time=time, freq=frequency, redshift=redshift, Dl=dl, method=method,
                                  extra_structure_parameter_1=ss, extra_structure_parameter_2=aa,
-                                 res=res, xiN=xiN, steps=steps, a1=a1)
+                                 res=res, xiN=xiN, steps=steps, a1=a1,
+                                 legacy_numerics=kwargs.get('legacy_numerics', False))
     flux_density = ag_class.get_lightcurve()
     fmjy = flux_density / 1e-26
     if kwargs['output_format'] == 'flux_density':
@@ -1219,7 +1250,8 @@ def alternativepowerlaw_redback(time, redshift, thv, loge0, thc, thj, logn0, p, 
     ag_class = RedbackAfterglows(k=k, n=nism, epse=epse, epsb=epsb, g0=g0, ek=e0, thc=thc, thj=thj, tho=thv, p=p, exp=exp,
                                  time=time, freq=frequency, redshift=redshift, Dl=dl, method=method,
                                  extra_structure_parameter_1=ss, extra_structure_parameter_2=aa,
-                                 res=res, xiN=xiN, steps=steps, a1=a1)
+                                 res=res, xiN=xiN, steps=steps, a1=a1,
+                                 legacy_numerics=kwargs.get('legacy_numerics', False))
     flux_density = ag_class.get_lightcurve()
     fmjy = flux_density / 1e-26
     if kwargs['output_format'] == 'flux_density':
@@ -1287,7 +1319,8 @@ def doublegaussian_redback(time, redshift, thv, loge0, thc, thj, logn0, p, logep
     ag_class = RedbackAfterglows(k=k, n=nism, epse=epse, epsb=epsb, g0=g0, ek=e0, thc=thc, thj=thj, tho=thv, p=p, exp=exp,
                                  time=time, freq=frequency, redshift=redshift, Dl=dl, method=method,
                                  extra_structure_parameter_1=ss, extra_structure_parameter_2=aa,
-                                 res=res, xiN=xiN, steps=steps, a1=a1)
+                                 res=res, xiN=xiN, steps=steps, a1=a1,
+                                 legacy_numerics=kwargs.get('legacy_numerics', False))
     flux_density = ag_class.get_lightcurve()
     fmjy = flux_density / 1e-26
     if kwargs['output_format'] == 'flux_density':
@@ -1356,7 +1389,8 @@ def tophat_redback_refreshed(time, redshift, thv, loge0, thc, g1, et, s1,
                                           thc=thc, thj=thc, tho=thv, p=p, exp=exp,time=time, freq=frequency,
                                           redshift=redshift, Dl=dl, method=method,
                                  extra_structure_parameter_1=s, extra_structure_parameter_2=a,
-                                 res=res, xiN=xiN, steps=steps, a1=a1)
+                                 res=res, xiN=xiN, steps=steps, a1=a1,
+                                 legacy_numerics=kwargs.get('legacy_numerics', False))
     flux_density = ag_class.get_lightcurve()
     fmjy = flux_density / 1e-26
     if kwargs['output_format'] == 'flux_density':
@@ -1426,7 +1460,8 @@ def gaussian_redback_refreshed(time, redshift, thv, loge0, thc, thj, g1, et, s1,
                                  tho=thv, p=p, exp=exp, g1=g1, et=et, s1=s1,
                                 time=time, freq=frequency, redshift=redshift, Dl=dl, method=method,
                                  extra_structure_parameter_1=s, extra_structure_parameter_2=a,
-                                 res=res, xiN=xiN, steps=steps, a1=a1)
+                                 res=res, xiN=xiN, steps=steps, a1=a1,
+                                 legacy_numerics=kwargs.get('legacy_numerics', False))
     flux_density = ag_class.get_lightcurve()
     fmjy = flux_density / 1e-26
     if kwargs['output_format'] == 'flux_density':
@@ -1499,7 +1534,8 @@ def twocomponent_redback_refreshed(time, redshift, thv, loge0, thc, thj, g1, et,
     ag_class = RedbackAfterglowsRefreshed(k=k, n=nism, epse=epse, epsb=epsb, g0=g0, ek=e0, thc=thc, thj=thj,
                                           tho=thv, p=p, exp=exp, g1=g1, et=et, s1=s1, time=time, freq=frequency,
                                           redshift=redshift, Dl=dl, method=method, extra_structure_parameter_1=ss,
-                                          extra_structure_parameter_2=aa, res=res, xiN=xiN, steps=steps, a1=a1)
+                                          extra_structure_parameter_2=aa, res=res, xiN=xiN, steps=steps, a1=a1,
+                                 legacy_numerics=kwargs.get('legacy_numerics', False))
     flux_density = ag_class.get_lightcurve()
     fmjy = flux_density / 1e-26
     if kwargs['output_format'] == 'flux_density':
@@ -1574,7 +1610,8 @@ def powerlaw_redback_refreshed(time, redshift, thv, loge0, thc, thj, g1, et, s1,
                                  ek=e0, thc=thc, thj=thj, tho=thv, p=p, exp=exp,
                                  time=time, freq=frequency, redshift=redshift, Dl=dl, method=method,
                                  extra_structure_parameter_1=ss, extra_structure_parameter_2=aa,
-                                 res=res, xiN=xiN, steps=steps, a1=a1)
+                                 res=res, xiN=xiN, steps=steps, a1=a1,
+                                 legacy_numerics=kwargs.get('legacy_numerics', False))
     flux_density = ag_class.get_lightcurve()
     fmjy = flux_density / 1e-26
     if kwargs['output_format'] == 'flux_density':
@@ -1648,7 +1685,8 @@ def alternativepowerlaw_redback_refreshed(time, redshift, thv, loge0, thc, thj, 
                                           ek=e0, thc=thc, thj=thj, tho=thv, p=p, exp=exp,
                                  time=time, freq=frequency, redshift=redshift, Dl=dl, method=method,
                                  extra_structure_parameter_1=ss, extra_structure_parameter_2=aa,
-                                 res=res, xiN=xiN, steps=steps, a1=a1)
+                                 res=res, xiN=xiN, steps=steps, a1=a1,
+                                 legacy_numerics=kwargs.get('legacy_numerics', False))
     flux_density = ag_class.get_lightcurve()
     fmjy = flux_density / 1e-26
     if kwargs['output_format'] == 'flux_density':
@@ -1722,7 +1760,8 @@ def doublegaussian_redback_refreshed(time, redshift, thv, loge0, thc, thj, g1, e
                                  thc=thc, thj=thj, tho=thv, p=p, exp=exp, g1=g1, et=et, s1=s1,
                                  time=time, freq=frequency, redshift=redshift, Dl=dl, method=method,
                                  extra_structure_parameter_1=ss, extra_structure_parameter_2=aa,
-                                 res=res, xiN=xiN, steps=steps, a1=a1)
+                                 res=res, xiN=xiN, steps=steps, a1=a1,
+                                 legacy_numerics=kwargs.get('legacy_numerics', False))
     flux_density = ag_class.get_lightcurve()
     fmjy = flux_density / 1e-26
     if kwargs['output_format'] == 'flux_density':

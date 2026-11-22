@@ -22,6 +22,15 @@ class TestBuiltinModelsLoaded(unittest.TestCase):
     def test_known_model_present(self):
         self.assertIn('arnett', ml.all_models_dict)
 
+    def test_builtin_helpers_and_imports_are_not_models(self):
+        for name in ('_csm_engine', 'bands_to_frequency', 'citation_wrapper',
+                     'csm_truncation_shock'):
+            self.assertNotIn(name, ml.all_models_dict)
+
+    def test_afterglow_subpackage_models_are_registered(self):
+        for name in ('tophat', 'gaussian_redback', 'vegas_tophat'):
+            self.assertIn(name, ml.modules_dict['afterglow_models'])
+
     def test_all_model_values_callable(self):
         for name, func in ml.all_models_dict.items():
             self.assertTrue(callable(func), f"{name} should be callable")

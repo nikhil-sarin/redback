@@ -2,7 +2,7 @@ import numpy as np
 import redback.eos as eos
 import redback.ejecta_relations as ejr
 from redback.constants import *
-from redback.utils import calc_tfb
+from redback.utils import calc_tfb, get_csm_properties
 from scipy.interpolate import interp1d
 
 BARNES_KASEN_MASS_MIN = 1e-3
@@ -79,7 +79,8 @@ def general_magnetar_powered_sn_constraints(parameters):
     kinetic_energy = 0.5 * mej * vej ** 2
     l0 = parameters['l0']
     tau = parameters['tsd'] * day_to_s
-    rotational_energy = 2*l0*tau
+    nn = parameters['nn']
+    rotational_energy = l0 * tau * (nn - 1.0) / 2.0
     # ensure rotational energy is greater than total output energy
     converted_parameters['erot_constraint'] = kinetic_energy/rotational_energy
     return converted_parameters
@@ -101,7 +102,7 @@ def vacuum_dipole_magnetar_powered_supernova_constraints(parameters):
     
 def general_magnetar_powered_supernova_constraints(parameters):
     """
-    Constraint so that magnetar rotational energy is smaller than some number
+    Constrain the magnetar rotational energy and require a non-negligible engine.
 
     :param parameters: dictionary of parameters
     :return: converted_parameters dictionary where the violated samples are thrown out
@@ -111,8 +112,9 @@ def general_magnetar_powered_supernova_constraints(parameters):
     tau = parameters['tau_sd']
     nn = parameters['nn']    
     rotational_energy = (nn-1)*l0*tau/2.0
-    # ensure rotational energy is less than the maximum spin down energy
+    explosion_energy = parameters['E_sn']
     converted_parameters['erot_constraint'] = rotational_energy/1e53
+    converted_parameters['engine_energy_ratio'] = rotational_energy/explosion_energy
     return converted_parameters    
 
 def tde_constraints(parameters):
@@ -166,6 +168,25 @@ def cooling_envelope_constraints(parameters):
         eta_min_ratio, nan=np.inf, posinf=np.inf, neginf=np.inf)
     converted_parameters['beta_max_ratio'] = np.nan_to_num(
         beta_max_ratio, nan=np.inf, posinf=np.inf, neginf=np.inf)
+
+    # Initial envelope optical depth, including optional partial disruptions.
+    # Fixed model kwargs must also be supplied to this conversion when changed.
+    fraction = parameters.get('f_debris', 1.)
+    if 'f_debris' not in parameters:
+        exp_term = np.exp(-(ms - .669) / .137)
+        scaling = (.80 + .26 * np.sqrt(mbh6)) * (1.47 * exp_term + 1) / (exp_term + 2.34)
+        fraction = np.where(parameters.get('calculate_f_debris', False),
+                            np.clip((parameters['beta'] * scaling) ** 3, 0., 1.), 1.)
+    with np.errstate(invalid='ignore', divide='ignore', over='ignore'):
+        initial_mass_fraction = .1 + .4 * (1 - np.asarray(parameters.get('t_0_init', 1.)) ** (-2 / 3))
+        stellar_radius = ms ** .8 * solar_radius
+        tidal_radius = stellar_radius * (mbh6 * 1e6 / ms) ** (1 / 3)
+        initial_radius = 2 * tidal_radius ** 2 * initial_mass_fraction / (
+            5 * parameters.get('binding_energy_const', .8) * stellar_radius)
+        initial_mass = fraction * initial_mass_fraction * ms * solar_mass
+        inverse_depth = 10 * np.pi * initial_radius ** 2 / (.38 * initial_mass)
+    converted_parameters['initial_optical_depth_inverse'] = np.nan_to_num(
+        inverse_depth, nan=np.inf, posinf=np.inf, neginf=np.inf)
 
     if 'sigma_t' in parameters:
         redshift = parameters.get('redshift', 0.)
@@ -256,16 +277,10 @@ def csm_constraints(parameters):
     rho = np.asarray(rho, dtype=float)
     Esn = 3. * vej ** 2 * mej / 10.
 
-    ns = [6, 7, 8, 9, 10, 12, 14]
-    Bfs = [1.377, 1.299, 1.267, 1.250, 1.239, 1.226, 1.218]
-    As = [0.62, 0.27, 0.15, 0.096, 0.067, 0.038, 0.025]
-
-    Bf_func = interp1d(ns, Bfs)
-    A_func = interp1d(ns, As)
-
     with np.errstate(invalid='ignore', divide='ignore', over='ignore', under='ignore'):
-        Bf = Bf_func(nn)
-        AA = A_func(nn)
+        csm_properties = get_csm_properties(nn, eta)
+        Bf = csm_properties.Bf
+        AA = csm_properties.AA
 
         qq = rho * r0 ** eta
         # outer CSM shell radius

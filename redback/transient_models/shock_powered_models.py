@@ -473,7 +473,6 @@ def shockcooling_sapirandwaxman(time, redshift, v_shock, m_env, f_rho_m, radius,
                                                               spectra=spectra, lambda_array=lambda_observer_frame,
                                                               **kwargs)
 
-
 @citation_wrapper('https://ui.adsabs.harvard.edu/abs/2022ApJ...933..238M/abstract')
 def _csm_shock_breakout(time, csm_mass, v_min, beta, kappa, shell_radius, shell_width_ratio, **kwargs):
     """
@@ -651,9 +650,12 @@ def _shock_cooling(time, mass, radius, energy, **kwargs):
     lbol[time >= td] = lbol_post_td[time >= td]
 
     tph = np.sqrt(3 * kappa * kk_pow * mass / (2 * (nn - 1) * vt * vt))
-    r_photosphere_pre_td = np.power(tph / time, 2 / (nn - 1)) * vt * time
-    r_photosphere_post_td = (np.power((delta - 1) / (nn - 1) * ((time / td) ** 2 - 1) + 1, -1 / (delta + 1)) * vt * time)
-    r_photosphere = r_photosphere_pre_td + r_photosphere_post_td
+    r_photosphere = np.power(tph / time, 2 / (nn - 1)) * vt * time
+    late = time > tph
+    x = ((time[late] / tph) ** 2 - 1) / (nn - 1)
+    # Piro et al. (2021), Eq. 9, with its continuous delta = 1 limit.
+    exponent = -x if delta == 1 else -np.log1p((delta - 1) * x) / (delta - 1)
+    r_photosphere[late] = np.exp(exponent) * vt * time[late]
 
     sigmaT4 = lbol / (4 * np.pi * r_photosphere**2)
     temperature = np.power(sigmaT4 / cc.sigma_sb, 0.25)
@@ -1268,14 +1270,20 @@ def shocked_cocoon_csm(time, redshift, E_eng, t_eng, theta_0, M_csm, R_csm, kapp
         else:
             return sed.get_correct_output_format_from_spectra(time=time_obs, time_eval=time_observer_frame,
                                                               spectra=spectra, lambda_array=lambda_observer_frame,
-                                                              **kwargs)                                                               
+                                                              **kwargs)
 
-@citation_wrapper('https://ui.adsabs.harvard.edu/abs/2022ApJ...928..122M/abstract')
-def csm_truncation_shock():
-    """
-    Multi-zone version of Margalit 2022 model for CSM shock breakout and cooling one zone model is implemented as
-    csm_shock_breakout
 
-    :return:
-    """
-    raise NotImplementedError("This model is not yet implemented.")
+__all__ = [
+    'csm_shock_breakout',
+    'csm_shock_breakout_bolometric',
+    'shock_cooling',
+    'shock_cooling_bolometric',
+    'shockcooling_morag',
+    'shockcooling_morag_bolometric',
+    'shockcooling_sapirandwaxman',
+    'shockcooling_sapirandwaxman_bolometric',
+    'shocked_cocoon',
+    'shocked_cocoon_bolometric',
+    'shocked_cocoon_csm',
+    'shocked_cocoon_csm_bolometric',
+]

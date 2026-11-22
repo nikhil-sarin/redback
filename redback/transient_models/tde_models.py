@@ -4,7 +4,7 @@ import redback.sed as sed
 from redback.sed import flux_density_to_spectrum, blackbody_to_spectrum
 import redback.photosphere as photosphere
 from redback.utils import calc_kcorrected_properties, citation_wrapper, calc_tfb, lambda_to_nu, get_optimal_time_array, \
-    calc_ABmag_from_flux_density, calc_flux_density_from_ABmag, bands_to_frequency
+    calc_ABmag_from_flux_density, calc_flux_density_from_ABmag, bands_to_frequency, logger
 import redback.constants as cc
 import redback.transient_models.phenomenological_models as pm
 
@@ -12,6 +12,7 @@ from collections import namedtuple
 from astropy.cosmology import Planck18 as cosmo  # noqa
 import astropy.units as uu
 from scipy.interpolate import interp1d
+from scipy.integrate import solve_ivp
 
 
 def _strictly_positive_linspace(stop, number):
@@ -32,10 +33,6 @@ def _analytic_fallback(time, l0, t_0):
     lbol[~mask] = l0 / (t_0 * 86400)**(5./3.)
     return lbol
 
-def _semianalytical_fallback():
-    pass
-
-
 def _cooling_envelope(mbh_6, stellar_mass, eta, alpha, beta, **kwargs):
     """
     Sarin and Metzger 24 cooling envelope model.
@@ -48,6 +45,14 @@ def _cooling_envelope(mbh_6, stellar_mass, eta, alpha, beta, **kwargs):
     :param beta: TDE penetration factor (typical range: 0.1 - beta_max).
     :param kwargs: Binding energy constant, zeta, hoverR, t_0_init, f_debris (optional, defaults to 1 unless
                    calculate_f_debris=True), calculate_f_debris (optional, defaults to False).
+    :param envelope_rtol: Radau relative integration tolerance, default 1e-8.
+    :param envelope_atol: Absolute tolerance on logarithmic mass/energy, default 1e-10.
+        Evolution stops at a downward crossing of Rcirc/2 or optical depth unity.
+        A failed Radau integration is retried once with tenfold tighter
+        tolerances and a smaller initial step, then raises RuntimeError.
+        Initially optically thin envelopes raise ValueError because the
+        photosphere approximation is not applicable. Use
+        get_priors(..., constraint=True) to restrict inference to the optically thick regime.
     :return: named tuple with bolometric luminosity, photosphere radius, temperature, and other parameters
     """
     t_0_init = kwargs.get('t_0_init', 1.0)
@@ -147,6 +152,10 @@ def _cooling_envelope(mbh_6, stellar_mass, eta, alpha, beta, **kwargs):
     Ee40[0] = ((2.0 * cc.graviational_constant * mbh_6 * 1.0e6 * Me[0]) / (5.0 * Rv[0])) * 2.0e-7
     # initial characteristic optical depth
     Lamb[0] = 0.38 * Me[0] / (10.0 * np.pi * Rv[0] ** (2.0))
+    if not np.isfinite(Lamb[0]):
+        raise ValueError('Initial cooling-envelope optical depth must be finite; check the model parameters')
+    if Lamb[0] <= 1:
+        raise ValueError('The cooling-envelope photosphere approximation requires an initially optically thick envelope')
     # initial photosphere radius
     Rph[0] = Rv[0] * (1.0 + np.log(Lamb[0]))
     # initial fallback stream accretion radius
@@ -166,36 +175,65 @@ def _cooling_envelope(mbh_6, stellar_mass, eta, alpha, beta, **kwargs):
     # initial photosphere temperature of envelope in K
     Teff[0] = 1.0e10 * ((Ledd40 + Edotfb40[0]) / (4.0 * np.pi * cc.sigma_sb * Rph[0] ** (2.0))) ** (0.25)
 
-    t = time_temp
-    with np.errstate(invalid='ignore', divide='ignore', over='ignore', under='ignore'):
-        for ii in range(1, len(time_temp)):
-            Me[ii] = Me[ii - 1] - (MdotBH[ii - 1] - Mdotfb[ii - 1]) * (t[ii] - t[ii - 1])
-            # update envelope energy due to SMBH heating + radiative losses
-            Ee40[ii] = Ee40[ii - 1] + (Ledd40 - Edotbh40[ii - 1]) * (t[ii] - t[ii - 1])
-            # update envelope radius based on its new energy
-            Rv[ii] = ((2.0 * cc.graviational_constant * mbh_6 * 1.0e6 * Me[ii]) / (5.0 * Ee40[ii])) * (2.0e-7)
-            # update envelope optical depth
-            Lamb[ii] = 0.38 * Me[ii] / (10.0 * np.pi * Rv[ii] ** (2.0))
-            # update envelope photosphere radius
-            Rph[ii] = Rv[ii] * (1.0 + np.log(Lamb[ii]))
-            # update accretion radius
-            Racc[ii] = zeta * Rv[0] * (t[ii] / tfb) ** (2. / 3.)
-            # update fall-back heating rate in 1e40 erg/s
-            Edotfb40[ii] = (cc.graviational_constant * mbh_6 * 1.0e6 * Mdotfb[ii] / Racc[ii]) * (2.0e-7)
-            # update total radiated luminosity
-            Lrad[ii] = Ledd40 + Edotfb40[ii]
-            # update photosphere temperature in K
-            Teff[ii] = 1.0e10 * ((Ledd40 + Edotfb40[ii]) / (4.0 * np.pi * cc.sigma_sb * Rph[ii] ** (2.0))) ** (0.25)
-            # update SMBH accretion timescale in seconds
-            tacc[ii] = 2.2e-17 * (10. / (3.0 * alpha)) * (Rv[ii] ** (2.0)) / (
-                        cc.graviational_constant * mbh_6 * 1.0e6 * Rcirc) ** (0.5) * (
-                           hoverR) ** (-2.0)
-            # update SMBH accretion rate in g/s
-            MdotBH[ii] = (Me[ii] / tacc[ii])
-            # update proxy X-ray luminosity
-            LX40[ii] = 0.01 * (MdotBH[ii] / 1.0e20) * (cc.speed_of_light ** (2.0) / 1.0e20)
-            # update SMBH feedback heating rate
-            Edotbh40[ii] = eta * cc.speed_of_light ** (2.0) * (Me[ii] / tacc[ii]) * (1.0e-40)
+    initial_mass, initial_energy, initial_radius = Me[0], Ee40[0], Rv[0]
+
+    def rates(u, state):
+        # Logarithmic state variables preserve positive envelope mass and energy.
+        mass = initial_mass * np.exp(state[0])
+        energy = initial_energy * np.exp(state[1])
+        radius = initial_radius * np.exp(state[0] - state[1])
+        accretion_time = tacc[0] * (radius / initial_radius) ** 2
+        accretion = mass / accretion_time
+        fallback = 0.8 * Mdisrupt / (3 * tfb) * u ** (-5 / 3)
+        return [tfb * (fallback - accretion) / mass,
+                tfb * (Ledd40 - eta * cc.speed_of_light ** 2 * accretion * 1e-40) / energy]
+
+    def radius_crossing(u, state):
+        return np.log(2 * initial_radius / Rcirc) + state[0] - state[1]
+
+    radius_crossing.direction = -1
+    radius_crossing.terminal = True
+
+    def transparency(u, state):
+        # The logarithmic photosphere prescription assumes an optically thick
+        # envelope; stop before extrapolating it to a negative radius.
+        return np.log(Lamb[0]) - state[0] + 2 * state[1]
+
+    transparency.direction = -1
+    transparency.terminal = True
+    rtol = kwargs.get('envelope_rtol', 1e-8)
+    atol = kwargs.get('envelope_atol', 1e-10)
+    solution = solve_ivp(
+        rates, (1., 5000.), [0., 0.], method='Radau', dense_output=True,
+        events=(radius_crossing, transparency), rtol=rtol, atol=atol)
+    if not solution.success:
+        # Retry once from the original state, not a failed partial solution.
+        logger.warning('Cooling-envelope Radau integration failed; retrying with tighter tolerances: %s',
+                       solution.message)
+        first_step = min(1e-6, .01 / max(np.max(np.abs(rates(1., [0., 0.]))), 1.))
+        solution = solve_ivp(
+            rates, (1., 5000.), [0., 0.], method='Radau', dense_output=True,
+            events=(radius_crossing, transparency), rtol=rtol / 10,
+            atol=np.asarray(atol) / 10, first_step=first_step)
+    if not solution.success:
+        raise RuntimeError(f'Cooling-envelope integration failed: {solution.message}')
+    end = solution.t[-1]
+    time_temp = np.geomspace(tfb, end * tfb, 500)
+    state = solution.sol(time_temp / tfb)
+    Me = initial_mass * np.exp(state[0])
+    Ee40 = initial_energy * np.exp(state[1])
+    Rv = initial_radius * np.exp(state[0] - state[1])
+    Lamb = 0.38 * Me / (10 * np.pi * Rv ** 2)
+    Rph = Rv * (1 + np.log(Lamb))
+    if np.any(Rph <= 0) or not np.all(np.isfinite(Rph)):
+        raise RuntimeError('Cooling-envelope integration produced an invalid photosphere')
+    Racc = zeta * initial_radius * (time_temp / tfb) ** (2 / 3)
+    Mdotfb = 0.8 * Mdisrupt / (3 * tfb) * (time_temp / tfb) ** (-5 / 3)
+    Edotfb40 = cc.graviational_constant * mbh_6 * 1e6 * Mdotfb / Racc * 2e-7
+    Lrad = Ledd40 + Edotfb40
+    Teff = 1e10 * (Lrad / (4 * np.pi * cc.sigma_sb * Rph ** 2)) ** 0.25
+    MdotBH = Me / (tacc[0] * (Rv / initial_radius) ** 2)
+    LX40 = 0.01 * (MdotBH / 1e20) * (cc.speed_of_light ** 2 / 1e20)
 
     output = namedtuple('output', ['bolometric_luminosity', 'photosphere_temperature',
                                    'photosphere_radius', 'lum_xray', 'accretion_radius',
@@ -203,20 +241,8 @@ def _cooling_envelope(mbh_6, stellar_mass, eta, alpha, beta, **kwargs):
                                    'time_since_fb', 'tfb', 'lnu', 'envelope_radius', 'envelope_mass',
                                    'rtidal', 'rcirc', 'termination_time', 'termination_time_id', 'f_debris',
                                    'f_mbh', 'g_mstar', 'scaling_factor'])
-    try:
-        constraint_1 = np.min(np.where(Rv < Rcirc / 2.))
-        if constraint_1 == 0.:
-            # ignore constraining on Rv < Rcirc/2. if it is at the first time step
-            constraint_1 = 5000
-        constraint_2 = np.min(np.where(Me < 0.0))
-    except ValueError:
-        constraint_1 = len(time_temp)
-        constraint_2 = len(time_temp)
-    constraint = np.max([np.min([constraint_1, constraint_2]), 4])
-    termination_time_id = np.min([constraint_1, constraint_2])
-    if constraint < 2:
-        constraint = 2
-        termination_time_id = 2
+    constraint = len(time_temp)
+    termination_time_id = len(time_temp) - 1 if solution.status == 1 else len(time_temp)
 
     nu = 6.0e14
     with np.errstate(invalid='ignore', divide='ignore', over='ignore', under='ignore'):
@@ -379,7 +405,7 @@ def gaussianrise_cooling_envelope_bolometric(time, peak_time, sigma_t, mbh_6, st
     f2_array = output.bolometric_luminosity[output.time_temp >= transition_time]
 
     full_lbol = np.concatenate([f1_array, f2_array])
-    lbol_func = interp1d(full_time, y=full_lbol, fill_value='extrapolate')
+    lbol_func = interp1d(full_time, y=full_lbol, bounds_error=False, fill_value=(full_lbol[0], 0.))
 
     return lbol_func(time * cc.day_to_s)
 
@@ -444,7 +470,7 @@ def smooth_exponential_powerlaw_cooling_envelope_bolometric(time, peak_time, alp
     f2_array = output.bolometric_luminosity[output.time_temp >= transition_time]
 
     full_lbol = np.concatenate([f1_array, f2_array])
-    lbol_func = interp1d(full_time, y=full_lbol, fill_value='extrapolate')
+    lbol_func = interp1d(full_time, y=full_lbol, bounds_error=False, fill_value=(full_lbol[0], 0.))
 
     return lbol_func(time * cc.day_to_s)
 
@@ -515,7 +541,8 @@ def gaussianrise_cooling_envelope(time, redshift, peak_time, sigma_t, mbh_6, ste
                                                r_photosphere=output.photosphere_radius,
                                                dl=dl, frequency=freq).to(uu.mJy)
             flux_den = np.concatenate([f1, f2.value])
-            flux_den_interp_func[freq] = interp1d(total_time, flux_den, fill_value='extrapolate')
+            flux_den_interp_func[freq] = interp1d(total_time, flux_den, bounds_error=False,
+                                                 fill_value=(flux_den[0], 0.))
 
         # interpolate onto actual observed frequency and time values
         flux_density = []
@@ -560,7 +587,9 @@ def gaussianrise_cooling_envelope(time, redshift, peak_time, sigma_t, mbh_6, ste
                                   mbh_6=mbh_6, stellar_mass=stellar_mass, eta=eta, alpha=alpha, beta=beta,
                                   **temp_kwargs)
             flux_den = np.concatenate([f1, f2])
-            flux_den_interp_func[band] = interp1d(total_time, flux_den, fill_value='extrapolate')
+            end_value = np.inf if kwargs['output_format'] == 'magnitude' else 0.
+            flux_den_interp_func[band] = interp1d(total_time, flux_den, bounds_error=False,
+                                                 fill_value=(flux_den[0], end_value))
 
         # interpolate onto actual observed band and time values
         output = []
@@ -636,7 +665,8 @@ def bpl_cooling_envelope(time, redshift, peak_time, alpha_1, alpha_2, mbh_6, ste
                                                r_photosphere=output.photosphere_radius,
                                                dl=dl, frequency=freq).to(uu.mJy)
             flux_den = np.concatenate([f1, f2.value])
-            flux_den_interp_func[freq] = interp1d(total_time, flux_den, fill_value='extrapolate')
+            flux_den_interp_func[freq] = interp1d(total_time, flux_den, bounds_error=False,
+                                                 fill_value=(flux_den[0], 0.))
 
         # interpolate onto actual observed frequency and time values
         flux_density = []
@@ -681,7 +711,9 @@ def bpl_cooling_envelope(time, redshift, peak_time, alpha_1, alpha_2, mbh_6, ste
                                   mbh_6=mbh_6, stellar_mass=stellar_mass, eta=eta, alpha=alpha, beta=beta,
                                   **temp_kwargs)
             flux_den = np.concatenate([f1, f2])
-            flux_den_interp_func[band] = interp1d(total_time, flux_den, fill_value='extrapolate')
+            end_value = np.inf if kwargs['output_format'] == 'magnitude' else 0.
+            flux_den_interp_func[band] = interp1d(total_time, flux_den, bounds_error=False,
+                                                 fill_value=(flux_den[0], end_value))
 
         # interpolate onto actual observed band and time values
         output = []
