@@ -63,7 +63,7 @@ def _ejecta_dynamics_and_interaction(time, mej, beta, ejecta_radius, kappa, n_is
 
     requested_method = kwargs.get('dynamics_method')
     method = requested_method or 'RK45'
-    rtol = kwargs.get('dynamics_rtol', 1e-6)
+    rtol = kwargs.get('dynamics_rtol', 3e-9)
     atol = kwargs.get('dynamics_atol', None)
     if atol is None:
         atol = np.array([
@@ -729,9 +729,10 @@ def _general_metzger_magnetar_driven_kilonova_model(time, mej, vej, beta, kappa,
     kinetic_energy = ek_tot_0
 
     # solve ODE using euler method for all mass shells v
-    for ii in range(time_len - 1):
+    for ii in range(time_len):
         # # evolve the velocity due to pdv work of central shell of mass M and thermal energy Ev0
-        kinetic_energy = kinetic_energy + (energy_v[0, ii] / time[ii]) * dt[ii]
+        if ii < time_len - 1:
+            kinetic_energy = kinetic_energy + (energy_v[0, ii] / time[ii]) * dt[ii]
         # kinetic_energy = kinetic_energy + (np.sum(energy_v[:, ii]) / time[ii]) * dt[ii]
         v0 = (2 * kinetic_energy / m0) ** 0.5
         v0_array[ii] = v0
@@ -740,8 +741,8 @@ def _general_metzger_magnetar_driven_kilonova_model(time, mej, vej, beta, kappa,
 
         if use_gamma_ray_opacity:
             kappa_gamma = kwargs["kappa_gamma"]
-            prefactor = 3 * kappa_gamma * mej / (4 * np.pi * vej**2)
-            thermalisation_efficiency = 1 - np.exp(-prefactor * time[ii] ** -2)
+            prefactor = 3 * kappa_gamma * m0 / (4 * np.pi * (vej * speed_of_light)**2)
+            thermalisation_efficiency = -np.expm1(-prefactor * time[ii] ** -2)
         else:
             thermalisation_efficiency = kwargs["thermalisation_efficiency"]
         qdot_magnetar[ii] = thermalisation_efficiency * lsd[ii]
@@ -753,7 +754,8 @@ def _general_metzger_magnetar_driven_kilonova_model(time, mej, vej, beta, kappa,
             else:
                 td_v[:-1, ii] = (kappa * m_array[:-1] * solar_mass * 3) / (4 * np.pi * v_m[:-1] * speed_of_light * time[ii] * beta)
             lum_rad[:-1, ii] = energy_v[:-1, ii] / (td_v[:-1, ii] + time[ii] * (v_m[:-1] / speed_of_light))
-            energy_v[:-1, ii + 1] = (qdot_magnetar[ii] + edotr[:-1, ii] * dm * solar_mass - (energy_v[:-1, ii] / time[ii]) - lum_rad[:-1, ii]) * dt[ii] + energy_v[:-1, ii]
+            if ii < time_len - 1:
+                energy_v[:-1, ii + 1] = (qdot_magnetar[ii] + edotr[:-1, ii] * dm * solar_mass - (energy_v[:-1, ii] / time[ii]) - lum_rad[:-1, ii]) * dt[ii] + energy_v[:-1, ii]
 
         # first mass layer
         # only bottom layer i.e., 0'th mass layer gets magnetar contribution
@@ -769,10 +771,12 @@ def _general_metzger_magnetar_driven_kilonova_model(time, mej, vej, beta, kappa,
                             4 * np.pi * v_m[1:-1] * speed_of_light * time[ii] * beta)
 
             lum_rad[0, ii] = energy_v[0, ii] / (td_v[0, ii] + time[ii] * (v_m[0] / speed_of_light))
-            energy_v[0, ii + 1] = (qdot_magnetar[ii] + edotr[0, ii] * dm[0] * solar_mass - (energy_v[0, ii] / time[ii]) - lum_rad[0, ii]) * dt[ii] + energy_v[0, ii]
+            if ii < time_len - 1:
+                energy_v[0, ii + 1] = (qdot_magnetar[ii] + edotr[0, ii] * dm[0] * solar_mass - (energy_v[0, ii] / time[ii]) - lum_rad[0, ii]) * dt[ii] + energy_v[0, ii]
             # other layers
             lum_rad[1:-1, ii] = energy_v[1:-1, ii] / (td_v[1:-1, ii] + time[ii] * (v_m[1:-1] / speed_of_light))
-            energy_v[1:-1, ii + 1] = (edotr[1:-1, ii] * dm[1:] * solar_mass - (energy_v[1:-1, ii] / time[ii]) - lum_rad[1:-1, ii]) * dt[ii] + energy_v[1:-1, ii]
+            if ii < time_len - 1:
+                energy_v[1:-1, ii + 1] = (edotr[1:-1, ii] * dm[1:] * solar_mass - (energy_v[1:-1, ii] / time[ii]) - lum_rad[1:-1, ii]) * dt[ii] + energy_v[1:-1, ii]
 
         if neutron_precursor_switch:
             tau[:-1, ii] = (m_array[:-1] * solar_mass * kappa[:-1, ii] / (4 * np.pi * (time[ii] * v_m[:-1]) ** 2))

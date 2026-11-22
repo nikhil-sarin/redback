@@ -1617,7 +1617,7 @@ def shockcooling_sapirwaxman_and_arnett(time, redshift, v_shock, m_env, mej, f_r
     """
     Assumes Shock cooling following Sapir and Waxman and arnett model for radioactive decay
 
-    :param time: time in source frame in days
+    :param time: time in observer frame in days
     :param v_shock: shock speed in km/s, also the ejecta velocity in the arnett calculation
     :param m_env: envelope mass in solar masses
     :param mej: ejecta mass in solar masses
@@ -1642,7 +1642,7 @@ def shockcooling_sapirwaxman_and_arnett(time, redshift, v_shock, m_env, mej, f_r
     if kwargs['output_format'] == 'flux_density':
         frequency = kwargs['frequency']
         frequency, time = calc_kcorrected_properties(frequency=frequency, redshift=redshift, time=time)
-        lbol = shockcooling_morag_and_arnett_bolometric(time=time, v_shock=v_shock, m_env=m_env, mej=mej,
+        lbol = shockcooling_sapirwaxman_and_arnett_bolometric(time=time, v_shock=v_shock, m_env=m_env, mej=mej,
                                                         f_rho=f_rho, f_nickel=f_nickel, radius=radius, kappa=kappa,
                                                         **kwargs)
         photo = photosphere.TemperatureFloor(time=time, luminosity=lbol, vej=v_shock, **kwargs)
@@ -1657,7 +1657,7 @@ def shockcooling_sapirwaxman_and_arnett(time, redshift, v_shock, m_env, mej, f_r
         time_observer_frame = time_temp * (1. + redshift)
         frequency, time = calc_kcorrected_properties(frequency=lambda_to_nu(lambda_observer_frame),
                                                      redshift=redshift, time=time_observer_frame)
-        lbol = shockcooling_morag_and_arnett_bolometric(time=time, v_shock=v_shock, m_env=m_env, mej=mej,
+        lbol = shockcooling_sapirwaxman_and_arnett_bolometric(time=time, v_shock=v_shock, m_env=m_env, mej=mej,
                                                         f_rho=f_rho, f_nickel=f_nickel, radius=radius, kappa=kappa,
                                                         **kwargs)
         photo = photosphere.TemperatureFloor(time=time, luminosity=lbol, vej=v_shock, **kwargs)
@@ -2720,7 +2720,7 @@ def general_magnetar_driven_supernova_bolometric(time, mej, E_sn, kappa, l0, tau
         the initial kinetic energy implied by ``E_sn``, preserving the published implementation.
     :param dynamics_method: integration method passed to :func:`scipy.integrate.solve_ivp`. By default,
         ``RK45`` is used with an automatic ``LSODA`` retry if it produces an invalid physical state.
-    :param dynamics_rtol: relative tolerance for the ejecta dynamics integration, default ``1e-6``
+    :param dynamics_rtol: relative tolerance for the ejecta dynamics integration, default ``3e-9``
     :param dynamics_atol: optional absolute tolerance for the ejecta dynamics integration
     :param dynamics_resolution: source-grid resolution, default 1000; increase for precision checks
     :param output_format: ``dynamics_output`` to return the full dynamics; otherwise return luminosity
@@ -2799,7 +2799,7 @@ def general_magnetar_driven_supernova(time, redshift, mej, E_sn, kappa, l0, tau_
         the initial kinetic energy implied by ``E_sn``, preserving the published implementation.
     :param dynamics_method: integration method passed to :func:`scipy.integrate.solve_ivp`. By default,
         ``RK45`` is used with an automatic ``LSODA`` retry if it produces an invalid physical state.
-    :param dynamics_rtol: relative tolerance for the ejecta dynamics integration, default ``1e-6``
+    :param dynamics_rtol: relative tolerance for the ejecta dynamics integration, default ``3e-9``
     :param dynamics_atol: optional absolute tolerance for the ejecta dynamics integration
     :param dynamics_resolution: source-grid resolution, default 1000; increase for precision checks
     :param output_format: whether to output flux density or AB magnitude

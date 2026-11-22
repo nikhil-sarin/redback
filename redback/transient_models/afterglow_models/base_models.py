@@ -271,9 +271,11 @@ def get_gamma_numba(G0, Eps, therm, steps, n0, k):
 
 @cond_jit(nopython=True, fastmath=True, cache=True)
 def calc_afterglow_step1_numba(G, dm, p, xp, Fx, EB, Ee, n, k, thi, ghat, rotstep, latstep, xiN, is_expansion, a1, res,
-                               thj=0.0, legacy_numerics=True):
+                               thj, legacy_numerics=False):
     """Calculate synchrotron parameters - matches Python exactly"""
     size = G.shape[0]
+    if thj <= 0:
+        raise ValueError('thj must be positive')
 
     # Ensure all variables are properly typed arrays
     Gm1 = G - 1.0
