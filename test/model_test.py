@@ -2758,6 +2758,21 @@ class TestNickelMixingGridAndDiffusion(unittest.TestCase):
         mask = fine > 0.01 * np.max(fine)
         np.testing.assert_allclose(default[mask], fine[mask], rtol=0.005)
 
+    def test_transparent_shell_photometry_converges_without_step_clamp(self):
+        from redback.transient_models.supernova_models import nickelmixing
+
+        time = np.array([1., 10., 100.])
+        parameters = dict(mej=.5, esn=.4, kappa=.05, kappa_gamma=1e-4,
+                          f_nickel=.001, f_mixing=.001, temperature_floor=100.,
+                          redshift=.01, output_format='flux_density', frequency=1e14)
+        coarse = nickelmixing(time, dense_resolution=800, **parameters)
+        fine = nickelmixing(time, dense_resolution=6400, **parameters)
+        self.assertTrue(np.all(np.isfinite(coarse)))
+        self.assertTrue(np.all(np.isfinite(fine)))
+        # The old dt-limited escape time shifted the transparent, late-time
+        # flux by percent levels. Negligible pre-rise flux is not compared.
+        np.testing.assert_allclose(coarse[1:], fine[1:], rtol=2e-4, atol=0.)
+
     def test_transport_options(self):
         from redback.transient_models.supernova_models import nickelmixing_bolometric
 
