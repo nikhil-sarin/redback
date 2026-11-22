@@ -209,6 +209,40 @@ class TestPhysicsCorrections(unittest.TestCase):
         np.testing.assert_array_equal(flux, 0.)
 
 
+class TestCoolingEnvelopeFailureSemantics(unittest.TestCase):
+    def test_optically_thin_initial_state_is_a_domain_error(self):
+        from redback.exceptions import ModelDomainError
+        from redback.transient_models.tde_models import _cooling_envelope
+        with self.assertRaises(ModelDomainError):
+            _cooling_envelope(2., 1., .03, .1, 1., f_debris=1e-6)
+
+    def test_failed_radau_retries_once_from_initial_state(self):
+        from scipy.integrate import solve_ivp
+        from redback.transient_models.tde_models import _cooling_envelope
+        failed = MagicMock(success=False, message='deliberate failed step')
+        calls = []
+        def solver(*args, **kwargs):
+            calls.append((args, kwargs))
+            return failed if len(calls) == 1 else solve_ivp(*args, **kwargs)
+        reference = _cooling_envelope(2., 1., .03, .1, 1., envelope_rtol=1e-10,
+                                      envelope_atol=1e-12)
+        with patch('redback.transient_models.tde_models.solve_ivp', side_effect=solver):
+            result = _cooling_envelope(2., 1., .03, .1, 1.)
+        self.assertEqual(len(calls), 2)
+        self.assertEqual(calls[0][0][1:], calls[1][0][1:])
+        self.assertLess(calls[1][1]['rtol'], calls[0][1]['rtol'])
+        self.assertLessEqual(calls[1][1]['first_step'], 1e-6)
+        np.testing.assert_allclose(result.photosphere_radius, reference.photosphere_radius, rtol=1e-6)
+
+    def test_failed_retry_remains_a_numerical_error(self):
+        from redback.transient_models.tde_models import _cooling_envelope
+        with patch('redback.transient_models.tde_models.solve_ivp',
+                   return_value=MagicMock(success=False, message='failed')) as solver:
+            with self.assertRaisesRegex(RuntimeError, 'integration failed'):
+                _cooling_envelope(2., 1., .03, .1, 1.)
+        self.assertEqual(solver.call_count, 2)
+
+
 class TestSncosmoModels(unittest.TestCase):
 
     @staticmethod

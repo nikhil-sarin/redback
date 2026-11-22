@@ -4,8 +4,9 @@ import redback.sed as sed
 from redback.sed import flux_density_to_spectrum, blackbody_to_spectrum
 import redback.photosphere as photosphere
 from redback.utils import calc_kcorrected_properties, citation_wrapper, calc_tfb, lambda_to_nu, get_optimal_time_array, \
-    calc_ABmag_from_flux_density, calc_flux_density_from_ABmag, bands_to_frequency
+    calc_ABmag_from_flux_density, calc_flux_density_from_ABmag, bands_to_frequency, logger
 import redback.constants as cc
+from redback.exceptions import ModelDomainError
 import redback.transient_models.phenomenological_models as pm
 
 from collections import namedtuple
@@ -48,6 +49,10 @@ def _cooling_envelope(mbh_6, stellar_mass, eta, alpha, beta, **kwargs):
     :param envelope_rtol: Radau relative integration tolerance, default 1e-8.
     :param envelope_atol: Absolute tolerance on logarithmic mass/energy, default 1e-10.
         Evolution stops at a downward crossing of Rcirc/2 or optical depth unity.
+        A failed Radau integration is retried once with tenfold tighter
+        tolerances and a smaller initial step, then raises RuntimeError.
+        Initially optically thin envelopes raise ModelDomainError; use
+        get_priors(..., constraint=True) to exclude them before evaluation.
     :return: named tuple with bolometric luminosity, photosphere radius, temperature, and other parameters
     """
     t_0_init = kwargs.get('t_0_init', 1.0)
@@ -147,6 +152,10 @@ def _cooling_envelope(mbh_6, stellar_mass, eta, alpha, beta, **kwargs):
     Ee40[0] = ((2.0 * cc.graviational_constant * mbh_6 * 1.0e6 * Me[0]) / (5.0 * Rv[0])) * 2.0e-7
     # initial characteristic optical depth
     Lamb[0] = 0.38 * Me[0] / (10.0 * np.pi * Rv[0] ** (2.0))
+    if not np.isfinite(Lamb[0]):
+        raise ValueError('Initial cooling-envelope optical depth must be finite; check the model parameters')
+    if Lamb[0] <= 1:
+        raise ModelDomainError('Initial cooling envelope must be optically thick')
     # initial photosphere radius
     Rph[0] = Rv[0] * (1.0 + np.log(Lamb[0]))
     # initial fallback stream accretion radius
@@ -192,12 +201,20 @@ def _cooling_envelope(mbh_6, stellar_mass, eta, alpha, beta, **kwargs):
 
     transparency.direction = -1
     transparency.terminal = True
-    if Lamb[0] <= 1:
-        raise ValueError('Initial cooling envelope must be optically thick')
+    rtol = kwargs.get('envelope_rtol', 1e-8)
+    atol = kwargs.get('envelope_atol', 1e-10)
     solution = solve_ivp(
         rates, (1., 5000.), [0., 0.], method='Radau', dense_output=True,
-        events=(radius_crossing, transparency), rtol=kwargs.get('envelope_rtol', 1e-8),
-        atol=kwargs.get('envelope_atol', 1e-10))
+        events=(radius_crossing, transparency), rtol=rtol, atol=atol)
+    if not solution.success:
+        # Retry once from the original state, not a failed partial solution.
+        logger.warning('Cooling-envelope Radau integration failed; retrying with tighter tolerances: %s',
+                       solution.message)
+        first_step = min(1e-6, .01 / max(np.max(np.abs(rates(1., [0., 0.]))), 1.))
+        solution = solve_ivp(
+            rates, (1., 5000.), [0., 0.], method='Radau', dense_output=True,
+            events=(radius_crossing, transparency), rtol=rtol / 10,
+            atol=np.asarray(atol) / 10, first_step=first_step)
     if not solution.success:
         raise RuntimeError(f'Cooling-envelope integration failed: {solution.message}')
     end = solution.t[-1]
@@ -209,7 +226,7 @@ def _cooling_envelope(mbh_6, stellar_mass, eta, alpha, beta, **kwargs):
     Lamb = 0.38 * Me / (10 * np.pi * Rv ** 2)
     Rph = Rv * (1 + np.log(Lamb))
     if np.any(Rph <= 0) or not np.all(np.isfinite(Rph)):
-        raise ValueError('Cooling envelope is outside the optically thick photosphere regime')
+        raise RuntimeError('Cooling-envelope integration produced an invalid photosphere')
     Racc = zeta * initial_radius * (time_temp / tfb) ** (2 / 3)
     Mdotfb = 0.8 * Mdisrupt / (3 * tfb) * (time_temp / tfb) ** (-5 / 3)
     Edotfb40 = cc.graviational_constant * mbh_6 * 1e6 * Mdotfb / Racc * 2e-7

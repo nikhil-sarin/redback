@@ -169,6 +169,25 @@ def cooling_envelope_constraints(parameters):
     converted_parameters['beta_max_ratio'] = np.nan_to_num(
         beta_max_ratio, nan=np.inf, posinf=np.inf, neginf=np.inf)
 
+    # Initial envelope optical depth, including optional partial disruptions.
+    # Fixed model kwargs must also be supplied to this conversion when changed.
+    fraction = parameters.get('f_debris', 1.)
+    if 'f_debris' not in parameters:
+        exp_term = np.exp(-(ms - .669) / .137)
+        scaling = (.80 + .26 * np.sqrt(mbh6)) * (1.47 * exp_term + 1) / (exp_term + 2.34)
+        fraction = np.where(parameters.get('calculate_f_debris', False),
+                            np.clip((parameters['beta'] * scaling) ** 3, 0., 1.), 1.)
+    with np.errstate(invalid='ignore', divide='ignore', over='ignore'):
+        initial_mass_fraction = .1 + .4 * (1 - np.asarray(parameters.get('t_0_init', 1.)) ** (-2 / 3))
+        stellar_radius = ms ** .8 * solar_radius
+        tidal_radius = stellar_radius * (mbh6 * 1e6 / ms) ** (1 / 3)
+        initial_radius = 2 * tidal_radius ** 2 * initial_mass_fraction / (
+            5 * parameters.get('binding_energy_const', .8) * stellar_radius)
+        initial_mass = fraction * initial_mass_fraction * ms * solar_mass
+        inverse_depth = 10 * np.pi * initial_radius ** 2 / (.38 * initial_mass)
+    converted_parameters['initial_optical_depth_inverse'] = np.nan_to_num(
+        inverse_depth, nan=np.inf, posinf=np.inf, neginf=np.inf)
+
     if 'sigma_t' in parameters:
         redshift = parameters.get('redshift', 0.)
         xi = parameters.get('xi', 1.)

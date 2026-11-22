@@ -591,6 +591,33 @@ class TestKilonovaEjectaRelationConstraints(unittest.TestCase):
 class TestCoolingEnvelopeConstraints(unittest.TestCase):
     """Test cooling-envelope TDE constraints."""
 
+    def test_initial_optical_depth_matches_envelope_initial_conditions(self):
+        from redback.transient_models.tde_models import _cooling_envelope
+        for options in ({}, {'f_debris': .5}, {'calculate_f_debris': True},
+                        {'binding_energy_const': .7, 't_0_init': 1.2}):
+            parameters = dict(mbh_6=2., stellar_mass=1., eta=.03, alpha=.1, beta=1., **options)
+            output = _cooling_envelope(**parameters)
+            expected = 10 * np.pi * output.envelope_radius[0] ** 2 / (.38 * output.envelope_mass[0])
+            actual = constraints.cooling_envelope_constraints(parameters)['initial_optical_depth_inverse']
+            np.testing.assert_allclose(actual, expected, rtol=1e-13)
+
+    def test_optically_thin_partial_disruption_is_excluded(self):
+        parameters = dict(mbh_6=2., stellar_mass=1., eta=.03, beta=1.,
+                          f_debris=np.array([1., 1e-6]))
+        inverse = constraints.cooling_envelope_constraints(parameters)['initial_optical_depth_inverse']
+        self.assertLess(inverse[0], 1.)
+        self.assertGreater(inverse[1], 1.)
+
+    def test_partial_disruption_flag_can_be_a_sampled_array(self):
+        parameters = dict(mbh_6=2., stellar_mass=1., eta=.03, beta=.1,
+                          calculate_f_debris=np.array([False, True]))
+        result = constraints.cooling_envelope_constraints(parameters)['initial_optical_depth_inverse']
+        expected = [constraints.cooling_envelope_constraints(
+            {**parameters, 'calculate_f_debris': flag})['initial_optical_depth_inverse']
+            for flag in (False, True)]
+        np.testing.assert_allclose(result, expected)
+        self.assertGreater(result[1], result[0])
+
     def test_cooling_envelope_constraints_add_domain_ratios(self):
         parameters = {
             'stellar_mass': 1.0,

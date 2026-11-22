@@ -55,6 +55,20 @@ For example,
     priors = redback.priors.get_priors(model=model, constraint=True)
     samples = priors.sample(1000)
 
+Cooling-envelope constraints include an initially optically thick envelope
+(:code:`initial_optical_depth_inverse < 1`), as well as the eta/beta bounds.
+The viscosity prior remains :code:`LogUniform(0.1, 1)`.
+If changing :code:`f_debris`, :code:`calculate_f_debris`, :code:`t_0_init`, or
+:code:`binding_energy_const`, supply the same values to the constraint conversion
+and the model (for example as fixed entries in the prior dictionary).
+Otherwise the constraint uses the model defaults, which may not describe the
+chosen initial conditions.
+
+Gaussian-family likelihoods reject :code:`redback.exceptions.ModelDomainError`
+with negative-infinite log likelihood. Other exceptions are not suppressed:
+cooling-envelope integration failure is retried once with a smaller initial
+step and tighter tolerances, then raises :code:`RuntimeError` if unsuccessful.
+
 This attaches the relevant :code:`bilby` :code:`Constraint` priors and the corresponding :code:`conversion_function` automatically. If a model has no built-in constraints configured, :code:`get_priors(..., constraint=True)` returns the ordinary prior and logs a warning.
 
 Built-in constraint loading is currently available for several model classes, including:

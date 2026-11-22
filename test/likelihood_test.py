@@ -7,6 +7,42 @@ from redback import likelihoods
 from redback.utils import calc_flux_density_from_ABmag
 
 
+class ModelDomainLikelihoodTest(unittest.TestCase):
+    def test_only_domain_errors_are_rejected(self):
+        from redback.exceptions import ModelDomainError
+        for likelihood_class in (
+                likelihoods.GaussianLikelihood,
+                likelihoods.GaussianLikelihoodOnMagnitudeFlux,
+                likelihoods.GaussianLikelihoodWithUpperLimits,
+                likelihoods.GaussianLikelihoodQuadratureNoise,
+                likelihoods.GaussianLikelihoodWithFractionalNoise,
+                likelihoods.GaussianLikelihoodWithSystematicNoise,
+                likelihoods.MixtureGaussianLikelihood,
+                likelihoods.StudentTLikelihood,
+                likelihoods.GaussianLikelihoodUniformXErrors):
+            for exception in (ModelDomainError, ValueError, RuntimeError):
+                def model(time, **kwargs):
+                    raise exception('deliberate model failure')
+                kwargs = dict(x=np.array([1.]), y=np.array([20.]), sigma=.1, function=model)
+                if likelihood_class is likelihoods.GaussianLikelihoodWithUpperLimits:
+                    kwargs.update(detections=np.array([False]), data_mode='magnitude')
+                if likelihood_class in (likelihoods.GaussianLikelihoodQuadratureNoise,
+                                        likelihoods.GaussianLikelihoodWithFractionalNoise,
+                                        likelihoods.GaussianLikelihoodWithSystematicNoise):
+                    kwargs['sigma_i'] = kwargs.pop('sigma')
+                if likelihood_class is likelihoods.GaussianLikelihoodUniformXErrors:
+                    kwargs['bin_size'] = np.array([.1])
+                likelihood = likelihood_class(**kwargs)
+                if likelihood_class is likelihoods.StudentTLikelihood:
+                    likelihood.parameters['nu'] = 3.
+                with self.subTest(likelihood=likelihood_class, exception=exception):
+                    if exception is ModelDomainError:
+                        self.assertEqual(likelihood.log_likelihood(), -np.inf)
+                    else:
+                        with self.assertRaises(exception):
+                            likelihood.log_likelihood()
+
+
 class GaussianLikelihoodTest(unittest.TestCase):
 
     def setUp(self):

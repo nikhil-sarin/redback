@@ -44,23 +44,23 @@ _constraint_settings = {
     # eta and beta validity depends on mbh_6 and stellar_mass; pass constraint=True to enforce this.
     'cooling_envelope': (
         redback.constraints.cooling_envelope_constraints,
-        {'eta_min_ratio': (0, 1), 'beta_max_ratio': (0, 1)}
+        {'eta_min_ratio': (0, 1), 'beta_max_ratio': (0, 1), 'initial_optical_depth_inverse': (0, 1)}
     ),
     'gaussianrise_cooling_envelope': (
         redback.constraints.cooling_envelope_constraints,
-        {'eta_min_ratio': (0, 1), 'beta_max_ratio': (0, 1), 'gaussian_stitching_tail': (0, 35)}
+        {'eta_min_ratio': (0, 1), 'beta_max_ratio': (0, 1), 'initial_optical_depth_inverse': (0, 1), 'gaussian_stitching_tail': (0, 35)}
     ),
     'gaussianrise_cooling_envelope_bolometric': (
         redback.constraints.cooling_envelope_constraints,
-        {'eta_min_ratio': (0, 1), 'beta_max_ratio': (0, 1), 'gaussian_stitching_tail': (0, 35)}
+        {'eta_min_ratio': (0, 1), 'beta_max_ratio': (0, 1), 'initial_optical_depth_inverse': (0, 1), 'gaussian_stitching_tail': (0, 35)}
     ),
     'bpl_cooling_envelope': (
         redback.constraints.cooling_envelope_constraints,
-        {'eta_min_ratio': (0, 1), 'beta_max_ratio': (0, 1)}
+        {'eta_min_ratio': (0, 1), 'beta_max_ratio': (0, 1), 'initial_optical_depth_inverse': (0, 1)}
     ),
     'smooth_exponential_powerlaw_cooling_envelope_bolometric': (
         redback.constraints.cooling_envelope_constraints,
-        {'eta_min_ratio': (0, 1), 'beta_max_ratio': (0, 1)}
+        {'eta_min_ratio': (0, 1), 'beta_max_ratio': (0, 1), 'initial_optical_depth_inverse': (0, 1)}
     ),
     'arnett': (
         redback.constraints.nuclear_burning_constraints,

@@ -353,7 +353,8 @@ class TestGetPriors(unittest.TestCase):
         result = priors.get_priors('gaussianrise_cooling_envelope', constraint=True)
 
         self.assertIs(result.conversion_function, priors.redback.constraints.cooling_envelope_constraints)
-        for key in ['eta_min_ratio', 'beta_max_ratio', 'gaussian_stitching_tail']:
+        for key in ['eta_min_ratio', 'beta_max_ratio', 'gaussian_stitching_tail',
+                    'initial_optical_depth_inverse']:
             self.assertIn(key, result)
 
 
