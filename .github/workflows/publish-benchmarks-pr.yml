@@ -1,0 +1,53 @@
+# This workflow publishes a benchmarks comment on a pull request. It is triggered after the
+# benchmarks are computed in the asv-pr workflow. This separation of concerns allows us limit
+# access to the target repository private tokens and secrets, increasing the level of security.
+# Based on https://securitylab.github.com/research/github-actions-preventing-pwn-requests/.
+name: Publish benchmarks comment to PR
+
+on:
+  workflow_run:
+    workflows: ["Run benchmarks for PR"]
+    types: [completed]
+
+jobs:
+  upload-pr-comment:
+    runs-on: ubuntu-latest
+    if: >
+      github.event.workflow_run.event == 'pull_request' &&
+      github.event.workflow_run.conclusion == 'success'
+    permissions:
+      issues: write
+      pull-requests: write
+    steps:
+    - name: Display Workflow Run Information
+      run: |
+        echo "Workflow Run ID: ${{ github.event.workflow_run.id }}"
+        echo "Head SHA: ${{ github.event.workflow_run.head_sha }}"
+        echo "Head Branch: ${{ github.event.workflow_run.head_branch }}"
+        echo "Conclusion: ${{ github.event.workflow_run.conclusion }}"
+        echo "Event: ${{ github.event.workflow_run.event }}"
+    - name: Download artifact
+      uses: dawidd6/action-download-artifact@v7
+      with:
+        name: benchmark-artifacts
+        run_id: ${{ github.event.workflow_run.id }}
+    - name: Extract artifacts information
+      id: pr-info
+      run: |
+        printf "PR number: $(cat pr)\n"
+        printf "Output:\n$(cat output)"
+        printf "pr=$(cat pr)" >> $GITHUB_OUTPUT
+    - name: Find benchmarks comment
+      uses: peter-evans/find-comment@v3
+      id: find-comment
+      with:
+        issue-number: ${{ steps.pr-info.outputs.pr }}
+        comment-author: 'github-actions[bot]'
+        body-includes: view all benchmarks
+    - name: Create or update benchmarks comment
+      uses: peter-evans/create-or-update-comment@v4
+      with:
+        comment-id: ${{ steps.find-comment.outputs.comment-id }}
+        issue-number: ${{ steps.pr-info.outputs.pr }}
+        body-path: output
+        edit-mode: replace
